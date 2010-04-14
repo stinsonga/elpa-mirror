@@ -52,6 +52,8 @@
     (define-key map (kbd "<up>") 'ioccur-precedent-line)
     (define-key map (kbd "C-n") 'ioccur-next-line)
     (define-key map (kbd "C-p") 'ioccur-precedent-line)
+    (define-key map (kbd "R") 'ioccur-restart)
+    (define-key map (kbd "C-|") 'ioccur-split-window)
     map)
   "Keymap used for ioccur commands.")
 
@@ -74,8 +76,10 @@
 
 (defcustom ioccur-mode-line-string
   (if (window-system)
-      " RET:Exit, C-g:Quit, C-k:Kill, C-z:Jump, C-j:Jump&quit, C-n/p:Next/Prec-line, M-p/n:Hist, C/M-v:Scroll, C-down/up:Follow, C-w:Yank tap"
-      " RET:Exit, C-g:Quit, C-k:Kill, C-z:Jump, C-j:Jump&quit, C-n/p:Next/Prec-line, Tab/S-tab:Hist, C-v/t:Scroll, C-d/u:Follow, C-w:Yank tap")
+      " RET:Exit, C-g:Quit, C-k:Kill, C-z:Jump, C-j:Jump&quit, \
+C-n/p:Next/Prec-line, M-p/n:Hist, C/M-v:Scroll, C-down/up:Follow, C-w:Yank tap"
+      " RET:Exit, C-g:Quit, C-k:Kill, C-z:Jump, C-j:Jump&quit, \
+C-n/p:Next/Prec-line, Tab/S-tab:Hist, C-v/t:Scroll, C-d/u:Follow, C-w:Yank tap")
   "*Documentation of `ioccur' prompt displayed in mode-line.
 Set it to nil to remove doc in mode-line."
   :group 'ioccur
@@ -92,23 +96,28 @@ Set it to nil to remove doc in mode-line."
   :type 'integer)
 
 ;;; Faces.
-(defface ioccur-overlay-face '((t (:background "Green4" :underline t)))
+(defface ioccur-overlay-face
+    '((t (:background "Green4" :underline t)))
   "Face for highlight line in ioccur buffer."
   :group 'ioccur-faces)
 
-(defface ioccur-match-overlay-face '((t (:background "Indianred4" :underline t)))
+(defface ioccur-match-overlay-face
+    '((t (:background "Indianred4" :underline t)))
   "Face for highlight line in matched buffer."
   :group 'ioccur-faces)
 
-(defface ioccur-title-face '((t (:background "Dodgerblue4")))
+(defface ioccur-title-face
+    '((t (:background "Dodgerblue4")))
   "Face for highlight incremental buffer title."
   :group 'ioccur-faces)
 
-(defface ioccur-regexp-face '((t (:background "DeepSkyBlue" :underline t)))
+(defface ioccur-regexp-face
+    '((t (:background "DeepSkyBlue" :underline t)))
   "Face for highlight found regexp in incremental buffer."
   :group 'ioccur-faces)
 
-(defface ioccur-num-line-face '((t (:foreground "OrangeRed")))
+(defface ioccur-num-line-face
+    '((t (:foreground "OrangeRed")))
   "Face for highlight number line in ioccur buffer."
   :group 'ioccur-faces)
 
@@ -118,10 +127,13 @@ Set it to nil to remove doc in mode-line."
 (defvar ioccur-quit-flag nil)
 (defvar ioccur-current-buffer nil)
 (defvar ioccur-occur-overlay nil)
+(make-variable-buffer-local 'ioccur-occur-overlay)
 (defvar ioccur-exit-and-quit-p nil)
 (defvar ioccur-history nil)
 (defvar ioccur-match-overlay nil)
 (defvar ioccur-count-occurences 0)
+(defvar ioccur-buffer nil)
+(make-variable-buffer-local 'ioccur-buffer)
   
 
 (define-derived-mode ioccur-mode
@@ -231,12 +243,35 @@ Special commands:
                               line-to-print)
                           "\n")))))))
 
+(defun ioccur-visible-buffer-p (buffer)
+  "Can i see this buffer in this window."
+  (save-window-excursion
+    (let ((buf        (current-buffer))
+          (cur-w-conf (current-window-configuration)))
+      (pop-to-buffer buffer)
+      (pop-to-buffer buf)
+      ;; If BUFFER is NOT in same window than BUF
+      ;; We should have now another window configuration.
+      (compare-window-configurations
+       cur-w-conf (current-window-configuration)))))
+
+;;;###autoload
+(defun ioccur-restart ()
+  "Restart `ioccur' from `ioccur-buffer'.
+`ioccur-buffer' is erased and a new search is started."
+  (interactive)
+  (when (and (eq major-mode 'ioccur-mode)
+             (eq (count-windows) 2))
+    (other-window 1)
+    (ioccur)))
+
+;;;###autoload
 (defun ioccur-quit ()
   "Quit and kill ioccur buffer."
   (interactive)
   (when ioccur-match-overlay
     (delete-overlay ioccur-match-overlay))
-  (quit-window t)
+  (quit-window)
   (other-window 1)
   (delete-other-windows))
 
@@ -266,16 +301,19 @@ Special commands:
   (ioccur-forward-line -1))
 
 (defun ioccur-jump ()
-  "Jump to line in other buffer and put an overlay on it."
-  (let ((line (buffer-substring (point-at-bol) (point-at-eol)))
-        pos)
+  "Jump to line in other buffer and put an overlay on it.
+Move point to first occurence of `ioccur-search-pattern'."
+  (let* ((line (buffer-substring (point-at-bol) (point-at-eol)))
+         (pos  (string-to-number line)))
     (unless (or (string= line "")
                 (string= line "Ioccur"))
-      (when (string-match "[0-9]+" line)
-        (setq pos (string-to-number (match-string 0 line))))
       (pop-to-buffer ioccur-current-buffer)
-      (ioccur-goto-line pos) (ioccur-color-matched-line))))
-
+      (ioccur-goto-line pos)
+      ;; Go to beginning of first occurence in this line
+      ;; of what match `ioccur-search-pattern'.
+      (when (re-search-forward ioccur-search-pattern (point-at-eol) t)
+        (re-search-backward ioccur-search-pattern (point-at-bol) t))
+      (ioccur-color-matched-line))))
 
 ;;;###autoload
 (defun ioccur-jump-and-quit ()
@@ -287,16 +325,19 @@ Special commands:
     (when ioccur-match-overlay
       (delete-overlay ioccur-match-overlay))))
 
+;;;###autoload
 (defun ioccur-jump-without-quit ()
   "Jump to line in `ioccur-current-buffer' without quiting."
   (interactive)
   (ioccur-jump) (other-window 1))
 
+;;;###autoload
 (defun ioccur-scroll-other-window-down ()
   "Scroll other window down."
   (interactive)
   (scroll-other-window 1))
 
+;;;###autoload
 (defun ioccur-scroll-other-window-up ()
   "Scroll other window up."
   (interactive)
@@ -332,7 +373,7 @@ Special commands:
        (select-window (if (= (window-height) old-size)
                           (split-window-vertically)
                           (split-window-horizontally)))
-       (get-buffer "*ioccur*")))))
+       (get-buffer ioccur-buffer)))))
 
 (defun ioccur-read-char-or-event (prompt)
   "Replace `read-key' when  not available."
@@ -395,6 +436,13 @@ Special commands:
                        (setq ioccur-search-pattern cur-hist-elm)
                        (setq start-hist t)))
                  (message "No history available.") (sit-for 2) t))
+           ;; Insert INITIAL-INPUT.
+           ;;
+           (insert-initial-input ()
+             (unless (string= initial-input "")
+               (loop for char across initial-input
+                  do (push char tmp-list)))
+             (setq ioccur-search-pattern initial-input))
            ;; Maybe start timer.
            ;;
            (start-timer ()
@@ -433,13 +481,13 @@ Special commands:
                   (pop tmp-list) t)
                  (?\C-g                         ; Quit and restore buffers.
                   (setq ioccur-quit-flag t) nil)
-                 ((or right ?\C-z)              ; Persistent action.
+                 ((right ?\C-z)                 ; Persistent action.
                   (ioccur-jump-without-quit) t)
-                 ((left ?\C-j)                  ; Jump to candidate and kill search buffer.
+                 ((left ?\C-j)                  ; Jump and kill search buffer.
                   (setq ioccur-exit-and-quit-p t) nil)
-                 (?\C-v                         ; Scroll down.
+                 ((next ?\C-v)                  ; Scroll down.
                   (ioccur-scroll-other-window-down) t)
-                 ((?\C-t ?\M-v)                 ; Scroll up.
+                 ((?\C-t ?\M-v prior)           ; Scroll up.
                   (ioccur-scroll-other-window-up) t)
                  (?\C-|                         ; Toggle split window.
                   (ioccur-split-window) t)
@@ -451,24 +499,18 @@ Special commands:
                   (kill-new ioccur-search-pattern) (setq tmp-list ()) t)
                  (?\C-y                         ; Yank from `kill-ring'.
                   (setq initial-input (car kill-ring))
-                  (unless (string= initial-input "")
-                    (loop for char across initial-input
-                       do (push char tmp-list)))
-                  (setq ioccur-search-pattern initial-input) t)
+                  (insert-initial-input) t)
                  (?\C-w                         ; Yank stuff at point.
                   (start-timer)
                   (with-current-buffer ioccur-current-buffer
                     (unless old-yank-point (setq old-yank-point (point)))
                     (setq yank-point (point)) (forward-word 1)
                     (setq initial-input (buffer-substring yank-point (point))))
-                  (unless (string= initial-input "")
-                    (loop for char across initial-input
-                       do (push char tmp-list)))
-                  (setq ioccur-search-pattern initial-input) t)
+                  (insert-initial-input) t)
                  ((?\t ?\M-p)                   ; Precedent history elm.
                   (start-timer)
                   (cycle-hist -1))
-                 ((backtab ?\M-n)                 ; Next history elm.
+                 ((backtab ?\M-n)               ; Next history elm.
                   (start-timer)
                   (cycle-hist 1))
                  (t                             ; Store character.
@@ -512,7 +554,6 @@ Special commands:
               ioccur-search-pattern
               ioccur-current-buffer)))))
 
-
 ;;;###autoload
 (defun ioccur (&optional initial-input)
   "Incremental search of lines in current buffer matching input.
@@ -524,8 +565,8 @@ C-n or <down>  next line.
 C-p or <up>    precedent line.
 C-v and M-v    scroll up and down.
 C-z or <right> jump without quitting loop.
-C-j or <left>  jump and exit search buffer.
-RET            exit but don't quit search buffer.
+C-j or <left>  jump and kill `ioccur-buffer'.
+RET            exit keeping `ioccur-buffer'.
 DEL            remove last character entered.
 C-k            Kill current input.
 C-w            Yank stuff at point.
@@ -549,60 +590,67 @@ Special NOTE for terms:
   Use C-t to Scroll up.
  
 When you quit incremental search with RET, see `ioccur-mode'
-for commands provided in the search buffer."
+for commands provided in the `ioccur-buffer'."
   (interactive "P")
   (setq ioccur-exit-and-quit-p nil)
   (setq ioccur-current-buffer (buffer-name (current-buffer)))
-  (with-current-buffer ioccur-current-buffer
-    (jit-lock-fontify-now))
-  (let* ((init-str (if initial-input (thing-at-point 'symbol) ""))
-         (len      (length init-str))
-         (curpos   (point))
-         str-no-prop)
-    (set-text-properties 0 len nil init-str)
-    (setq str-no-prop init-str)
-    (pop-to-buffer (get-buffer-create "*ioccur*"))
-    (ioccur-mode)
-    (unwind-protect
-         ;; Start incremental search.
-         (progn
-           (ioccur-start-timer)
-           (ioccur-read-search-input str-no-prop curpos))
-      ;; At this point incremental search loop is exited.
-      (progn
-        (ioccur-cancel-search)
-        (kill-local-variable 'mode-line-format)
-        (when (equal (buffer-substring (point-at-bol) (point-at-eol)) "")
-          (setq ioccur-quit-flag t))
-        (if ioccur-quit-flag ; C-g
-            (progn
-              (kill-buffer "*ioccur*")
-              (switch-to-buffer ioccur-current-buffer)
-              (when ioccur-match-overlay
-                (delete-overlay ioccur-match-overlay))
-              (delete-other-windows) (goto-char curpos) (message nil))
+  (setq ioccur-buffer (concat "*ioccur-" ioccur-current-buffer "*"))
+  (if (and (get-buffer ioccur-buffer)
+           (not (ioccur-visible-buffer-p ioccur-buffer)))
+      (pop-to-buffer ioccur-buffer)
+      (with-current-buffer ioccur-current-buffer
+        (jit-lock-fontify-now))
+      (let* ((init-str (if initial-input (thing-at-point 'symbol) ""))
+             (len      (length init-str))
+             (curpos   (point))
+             str-no-prop)
+        (set-text-properties 0 len nil init-str)
+        (setq str-no-prop init-str)
+        (pop-to-buffer (get-buffer-create ioccur-buffer))
+        (ioccur-mode)
+        (unwind-protect
+             ;; Start incremental search.
+             (progn
+               (ioccur-start-timer)
+               (ioccur-read-search-input str-no-prop curpos))
+          ;; At this point incremental search loop is exited.
+          (progn
+            (ioccur-cancel-search)
+            (kill-local-variable 'mode-line-format)
+            (when (equal (buffer-substring (point-at-bol) (point-at-eol)) "")
+              (setq ioccur-quit-flag t))
+            (cond (ioccur-quit-flag       ; C-g hit.
+                   (kill-buffer ioccur-buffer)
+                   (switch-to-buffer ioccur-current-buffer)
+                   (when ioccur-match-overlay
+                     (delete-overlay ioccur-match-overlay))
+                   (delete-other-windows) (goto-char curpos) (message nil))
+                  (ioccur-exit-and-quit-p ; Jump and kill `ioccur-buffer'.
+                   (ioccur-jump-and-quit) (kill-buffer ioccur-buffer)
+                   (message nil) (ioccur-save-history))
+                  (t                      ; Jump keeping `ioccur-buffer'.
+                   (ioccur-jump) (other-window 1) (ioccur-save-history)))
+            (setq ioccur-count-occurences 0)
+            (setq ioccur-quit-flag nil))))))
 
-            (if ioccur-exit-and-quit-p
-                (progn (ioccur-jump-and-quit)
-                       (kill-buffer "*ioccur*") (message nil))
-                (ioccur-jump) (other-window 1))
-            ;; Push elm in history if not already there or empty.
-            (unless (or (member ioccur-search-pattern ioccur-history)
-                        (string= ioccur-search-pattern ""))
-              (push ioccur-search-pattern ioccur-history))
-            ;; If elm already exists in history ring push it on top of stack.
-            (let ((pos-hist-elm (ioccur-position ioccur-search-pattern
-                                               ioccur-history :test 'equal)))
-              (unless (string= (car ioccur-history)
-                               ioccur-search-pattern)
-                (push (pop (nthcdr pos-hist-elm ioccur-history))
-                      ioccur-history)))
-            (when (> (length ioccur-history) ioccur-max-length-history)
-              (setq ioccur-history (delete (car (last ioccur-history))
-                                           ioccur-history))))
-        (setq ioccur-count-occurences 0)
-        (setq ioccur-quit-flag nil)))))
-
+(defun ioccur-save-history ()
+  "Save last ioccur element found in `ioccur-history'."
+  ;; Push elm in history if not already there or empty.
+  (unless (or (member ioccur-search-pattern ioccur-history)
+              (string= ioccur-search-pattern ""))
+    (push ioccur-search-pattern ioccur-history))
+  ;; If elm already exists in history ring
+  ;; push it on top of stack.
+  (let ((pos-hist-elm (ioccur-position
+                       ioccur-search-pattern
+                       ioccur-history :test 'equal)))
+    (unless (string= (car ioccur-history)
+                     ioccur-search-pattern)
+      (push (pop (nthcdr pos-hist-elm ioccur-history))
+            ioccur-history)))
+  (when (> (length ioccur-history) ioccur-max-length-history)
+    (setq ioccur-history (delete (car (last ioccur-history))
+                                 ioccur-history))))
 
 (defun ioccur-cancel-search ()
   "Cancel timer used for ioccur searching."
@@ -610,14 +658,13 @@ for commands provided in the search buffer."
     (cancel-timer ioccur-search-timer)
     (setq ioccur-search-timer nil)))
 
-
 (defun ioccur-color-current-line ()
   "Highlight and underline current line in ioccur buffer."
   (if ioccur-occur-overlay
       (move-overlay ioccur-occur-overlay
-                    (point-at-bol) (1+ (point-at-eol)))
+                    (point-at-bol) (1+ (point-at-eol)) ioccur-buffer)
       (setq ioccur-occur-overlay
-            (make-overlay (point-at-bol) (1+ (point-at-eol)))))
+            (make-overlay (point-at-bol) (1+ (point-at-eol)) ioccur-buffer)))
   (overlay-put ioccur-occur-overlay 'face 'ioccur-overlay-face))
 
 (defun ioccur-color-matched-line ()
