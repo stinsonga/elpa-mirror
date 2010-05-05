@@ -208,18 +208,16 @@ Special commands:
 
 (defsubst* ioccur-find-readlines (bfile regexp &key (insert-fn 'buffer))
   "Return an alist of all the (numline line)  matching REGEXP."
-  (let ((count 0)
-        (fn    (case insert-fn
-                 ('file 'insert-file-contents)
-                 ('buffer 'insert-buffer-substring))))
+  (let ((fn (case insert-fn
+              ('file 'insert-file-contents)
+              ('buffer 'insert-buffer-substring))))
     (with-temp-buffer
       (funcall fn bfile) ; call insert function
       (goto-char (point-min))
       (loop
          with lines-list = (split-string (buffer-string) "\n")
-         for i in lines-list when (string-match regexp i)
-         collect (list count (replace-regexp-in-string "\n" "" i)) into lis
-         do (incf count)
+         for i in lines-list for count from 0 when (string-match regexp i)
+         collect (list count i) into lis
          finally return lis))))
 
 (defun* ioccur-print-buffer (regex buffer &key (lline ioccur-length-line))
@@ -243,17 +241,6 @@ Special commands:
                               line-to-print)
                           "\n")))))))
 
-(defun ioccur-visible-buffer-p (buffer)
-  "Can i see this buffer in this window."
-  (save-window-excursion
-    (let ((buf        (current-buffer))
-          (cur-w-conf (current-window-configuration)))
-      (pop-to-buffer buffer)
-      (pop-to-buffer buf)
-      ;; If BUFFER is NOT in same window than BUF
-      ;; We should have now another window configuration.
-      (compare-window-configurations
-       cur-w-conf (current-window-configuration)))))
 
 ;;;###autoload
 (defun ioccur-restart ()
@@ -307,7 +294,7 @@ Move point to first occurence of `ioccur-search-pattern'."
          (pos  (string-to-number line)))
     (unless (or (string= line "")
                 (string= line "Ioccur"))
-      (pop-to-buffer ioccur-current-buffer)
+      (pop-to-buffer ioccur-current-buffer t)
       (ioccur-goto-line pos)
       ;; Go to beginning of first occurence in this line
       ;; of what match `ioccur-search-pattern'.
@@ -329,7 +316,7 @@ Move point to first occurence of `ioccur-search-pattern'."
 (defun ioccur-jump-without-quit ()
   "Jump to line in `ioccur-current-buffer' without quiting."
   (interactive)
-  (ioccur-jump) (other-window 1))
+  (when (ioccur-jump) (other-window 1)))
 
 ;;;###autoload
 (defun ioccur-scroll-other-window-down ()
@@ -387,7 +374,8 @@ Move point to first occurence of `ioccur-search-pattern'."
   "Read each keyboard input and add it to `ioccur-search-pattern'."
   (let* ((prompt         (propertize ioccur-search-prompt
                                      'face 'minibuffer-prompt))
-         (inhibit-quit   (not (fboundp 'read-key)))
+         (inhibit-quit   (or (eq system-type 'windows-nt)
+                             (not (fboundp 'read-key))))
          (tmp-list       ())
          (it-prec        nil)
          (it-next        nil)
@@ -456,6 +444,7 @@ Move point to first occurence of `ioccur-search-pattern'."
       ;; Start incremental loop.
       (while (let ((char (ioccur-read-char-or-event
                           (concat prompt ioccur-search-pattern))))
+               (message nil)
                (case char
                  ((not (?\M-p ?\M-n ?\t C-tab)) ; Reset history
                   (setq start-hist nil)
@@ -472,7 +461,7 @@ Move point to first occurence of `ioccur-search-pattern'."
                  ((?\C-u C-up)                  ; Scroll both windows up.
                   (stop-timer) (ioccur-scroll-up) t)
                  (?\r                           ; RET break and exit code.
-                  (message nil) nil)
+                  nil)
                  (?\d                           ; Delete backward with DEL.
                   (start-timer)
                   (with-current-buffer ioccur-current-buffer
@@ -596,8 +585,8 @@ for commands provided in the `ioccur-buffer'."
   (setq ioccur-current-buffer (buffer-name (current-buffer)))
   (setq ioccur-buffer (concat "*ioccur-" ioccur-current-buffer "*"))
   (if (and (get-buffer ioccur-buffer)
-           (not (ioccur-visible-buffer-p ioccur-buffer)))
-      (pop-to-buffer ioccur-buffer)
+           (not (get-buffer-window ioccur-buffer)))
+      (pop-to-buffer ioccur-buffer t)
       (with-current-buffer ioccur-current-buffer
         (jit-lock-fontify-now))
       (let* ((init-str (if initial-input (thing-at-point 'symbol) ""))
@@ -606,7 +595,7 @@ for commands provided in the `ioccur-buffer'."
              str-no-prop)
         (set-text-properties 0 len nil init-str)
         (setq str-no-prop init-str)
-        (pop-to-buffer (get-buffer-create ioccur-buffer))
+        (pop-to-buffer (get-buffer-create ioccur-buffer) t)
         (ioccur-mode)
         (unwind-protect
              ;; Start incremental search.
