@@ -212,10 +212,11 @@ Special commands:
                    (setq iterator (ioccur-iter-list sub))
                    (ioccur-iter-next iterator)))))))
 
-(defun ioccur-print-results (regexp)
-  "Print all lines matching REGEXP in `ioccur-buffer'."
+(defun* ioccur-print-results (regexp &optional (buffer ioccur-current-buffer))
+  "Print in `ioccur-buffer' all lines matching REGEXP found in BUFFER.
+BUFFER default value is `ioccur-current-buffer'."
   (setq ioccur-count-occurences 0)
-  (with-current-buffer ioccur-current-buffer
+  (with-current-buffer buffer
     (save-excursion
       (goto-char (point-min))
       (loop
@@ -226,13 +227,14 @@ Special commands:
          ;; and we have no chance to exit loop.
          when quit-flag do (setq ioccur-quit-flag t) and return nil
          for count from 0
-         for line = (buffer-substring (point-at-bol) (point-at-eol))
-         when (string-match regexp line)
-         do (ioccur-print-line line count)
+         when (re-search-forward regexp (point-at-eol) t)
+         do (ioccur-print-line
+             (buffer-substring (point-at-bol) (point-at-eol)) count)
          do (forward-line 1)))))
 
-(defun ioccur-print-line (line nline)
-  "Prepare and insert a matched LINE at line number NLINE in `ioccur-buffer'."
+(defun* ioccur-print-line (line nline &optional (buffer ioccur-buffer))
+  "Prepare and insert a matched LINE at line number NLINE in BUFFER.
+BUFFER default value is `ioccur-buffer'."
   (with-current-buffer ioccur-buffer
     (let ((lineno     (int-to-string (1+ nline)))
           (trunc-line (ioccur-truncate-line line)))
@@ -242,8 +244,9 @@ Special commands:
                    'help-echo line)
               ":" trunc-line "\n"))))
 
-(defun ioccur-truncate-line (line)
-  "Remove indentation and truncate LINE to `ioccur-length-line'."
+(defun* ioccur-truncate-line (line &optional (columns ioccur-length-line))
+  "Remove indentation and truncate LINE to COLUMNS.
+COLUMNS default value is `ioccur-length-line'."
   (let* ((bol-reg (if (string-match "^\t" line)
                       "\\(^\t*\\)" "\\(^ *\\)"))
          (ltp     (replace-regexp-in-string bol-reg "" line)))
@@ -398,6 +401,7 @@ START-POINT is the point where we start searching in buffer."
     ;; Cycle history function.
     ;;
     (flet ((cycle-hist (arg)
+             ;; ARG can be positive or negative depending we call M-p or M-n.
              (if ioccur-history
                  (progn
                    ;; Cycle history will start at second call,
@@ -405,7 +409,7 @@ START-POINT is the point where we start searching in buffer."
                    ;; We build a new iterator based on a sublist
                    ;; starting at the current element of history.
                    ;; This is a circular iterator. (no end)
-                   (if start-hist ; At first call start-hist is nil.
+                   (if start-hist ; At first call, start-hist is nil.
                        (progn
                          (if (< arg 0)
                              ;; M-p (move from left to right in hist ring).
@@ -501,7 +505,7 @@ START-POINT is the point where we start searching in buffer."
                   (with-current-buffer ioccur-current-buffer
                     ;; Start to initial point if C-w have never been hit.
                     (unless yank-point (setq yank-point old-yank-point))
-                    ;; After a search `ioccur-find-readlines' have put point
+                    ;; After a search `ioccur-print-results' have put point
                     ;; to point-max, so reset position.
                     (when yank-point (goto-char yank-point))
                     (forward-word 1)
@@ -526,11 +530,11 @@ START-POINT is the point where we start searching in buffer."
                       nil))))
         (setq ioccur-search-pattern (apply 'string (reverse tmp-list)))))))
 
-(defun ioccur-print-buffer (regexp buffer-name)
-  "Print all lines matching REGEXP in current buffer to buffer BUFFER-NAME."
+(defun ioccur-print-buffer (regexp)
+  "Pretty Print results matching REGEXP in `ioccur-buffer'."
   (let ((title (propertize "Ioccur" 'face 'ioccur-title-face)))
     (if (string= regexp "")
-        (progn (erase-buffer) (insert (concat title "\n\n")))
+        (progn (erase-buffer) (insert title "\n\n"))
         (erase-buffer)
         (ioccur-print-results regexp)
         (goto-char (point-min))
@@ -540,7 +544,7 @@ START-POINT is the point where we start searching in buffer."
                             'face 'underline)
                 (propertize regexp 'face 'ioccur-regexp-face)
                 (propertize
-                 (format " in %s" buffer-name)
+                 (format " in %s" ioccur-current-buffer)
                  'face 'underline) "\n\n")
         (ioccur-color-current-line))))
 
@@ -551,9 +555,8 @@ START-POINT is the point where we start searching in buffer."
          ioccur-search-delay 'repeat
          #'(lambda ()
              (ioccur-print-buffer
-              ioccur-search-pattern
-              ioccur-current-buffer)))))
-
+              ioccur-search-pattern)))))
+              
 ;;;###autoload
 (defun ioccur (&optional initial-input)
   "Incremental search of lines in current buffer matching input.
@@ -601,8 +604,7 @@ for commands provided in the `ioccur-buffer'."
            (not (get-buffer-window ioccur-buffer)))
       ;; An hidden `ioccur-buffer' exists jump to it.
       (pop-to-buffer ioccur-buffer t)
-      ;; `ioccur-buffer' doesn't exists or is not visible
-      ;; Start incremental search.
+      ;; `ioccur-buffer' doesn't exists or is not visible, start searching.
       (let* ((init-str (if initial-input (thing-at-point 'symbol) ""))
              (len      (length init-str))
              (curpos   (point))
