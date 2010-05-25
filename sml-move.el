@@ -1,6 +1,6 @@
 ;;; sml-move.el --- Buffer navigation functions for sml-mode
 
-;; Copyright (C) 1999, 2000, 2004, 2007  Stefan Monnier <monnier@gnu.org>
+;; Copyright (C) 1999, 2000, 2004, 2007, 2010  Stefan Monnier <monnier@gnu.org>
 ;;
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -168,6 +168,17 @@ This assumes that we are `looking-at' the OP."
 (def-edebug-spec sml-move-read t)
 
 (defun sml-poly-equal-p ()
+  ;; Figure out which kind of "=" this is.
+  ;; The idea is to look backward for the first occurrence of a token that
+  ;; requires a definitional "=" and then see if there's such a definitional
+  ;; equal between that token and ourselves (in which case we're not
+  ;; a definitional = ourselves).
+  ;; The "search for =" is naive and will match "=>" and "<=", but it turns
+  ;; out to be OK in practice because such tokens very rarely (if ever) appear
+  ;; between the =-starter and the corresponding definitional equal.
+  ;; One known problem case is code like:
+  ;; "functor foo (structure s : S) where type t = s.t ="
+  ;; where the "type t = s.t" is mistaken for a type definition.
   (< (sml-point-after (re-search-backward sml-=-starter-re nil 'move))
      (sml-point-after (re-search-backward "=" nil 'move))))
 
@@ -191,8 +202,8 @@ This assumes that we are `looking-at' the OP."
 	(if (sml-poly-equal-p) "=" "d=")))
      ((equal sym "of")
       (save-excursion
-	(sml-backward-sym-1)
-	(if (sml-nested-of-p) "of" "=of")))
+        (sml-backward-sym-1)
+        (if (sml-nested-of-p) "of" "=of")))
      ;; ((equal sym "datatype")
      ;;  (save-excursion
      ;; 	(sml-backward-sym-1)
