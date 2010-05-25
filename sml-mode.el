@@ -71,8 +71,8 @@
 
 (eval-when-compile (require 'cl))
 (require 'sml-util)
-(require 'sml-move)
 (require 'sml-defs)
+(require 'smie)
 (condition-case nil (require 'skeleton) (error nil))
 
 ;;; VARIABLES CONTROLLING INDENTATION
@@ -388,6 +388,7 @@ Regexp match data 0 points to the chars."
        ;; starters/terminators, so let's pretend that let/fun are separators.
        (decls (sexp "d=" exp)
               (sexp "d=" databranches)
+              ("exception" sexp "=of" type)
               ("local" decls "in" decls "end")
               (decls "type" decls)
               (decls "open" decls)
@@ -401,7 +402,7 @@ Regexp match data 0 points to the chars."
               (decls "val" decls))
        (type (type "->" type)
              (type "*" type))
-       (databranches (sexp "=of" type) (databranches "|" databranches))
+       (databranches (sexp "=of" type) (databranches "d|" databranches))
        ;; Module language.
        (mexp ("functor" marg "d=" mexp)
              ("structure" marg "d=" mexp)
@@ -417,7 +418,7 @@ Regexp match data 0 points to the chars."
               "nonfix")
        (assoc "and"))
      '((assoc "orelse") (assoc "andalso") (nonassoc ":"))
-     '((assoc ";")) '((assoc ",")))
+     '((assoc ";")) '((assoc ",")) '((assoc "d|")))
 
     (smie-precs-precedence-table
      '((nonassoc "andalso")                     ;To anchor the prec-table.
@@ -439,6 +440,83 @@ Regexp match data 0 points to the chars."
    (("datatype" . "and") . 5)
    )
  )
+
+(defun sml-smie-poly-equal-p ()
+  "Figure out which kind of \"=\" this is.
+Assumes point is right before the = sign."
+  ;; The idea is to look backward for the first occurrence of a token that
+  ;; requires a definitional "=" and then see if there's such a definitional
+  ;; equal between that token and ourselves (in which case we're not
+  ;; a definitional = ourselves).
+  ;; The "search for =" is naive and will match "=>" and "<=", but it turns
+  ;; out to be OK in practice because such tokens very rarely (if ever) appear
+  ;; between the =-starter and the corresponding definitional equal.
+  ;; One known problem case is code like:
+  ;; "functor foo (structure s : S) where type t = s.t ="
+  ;; where the "type t = s.t" is mistaken for a type definition.
+  (let ((pos (point)))
+    (prog1
+        (and (re-search-backward sml-=-starter-re nil t)
+             (re-search-forward "=" pos t))
+      (goto-char pos))))
+
+(defun sml-smie-nested-of-p ()
+  "Figure out which kind of \"of\" this is.
+Assumes point is right before the \"of\" symbol."
+  (let ((pos (point)))
+    (prog1 (and (re-search-backward sml-non-nested-of-starter-re nil t)
+                (re-search-forward "\\<case\\>" pos t))
+      (goto-char pos))))
+
+(defun sml-smie-datatype-|-p ()
+  "Figure out which kind of \"|\" this is.
+Assumes point is right before the | symbol."
+  (save-excursion
+    (forward-char 1)                    ;Skip the |.
+    (sml-smie-forward-token-1)          ;Skip the tag.
+    (member (sml-smie-forward-token-1)
+            '("|" "of" "in" "datatype" "and" "exception" "abstype" "infix"
+              "infixr" "nonfix" "local" "val" "fun" "structure" "functor"
+              "signature"))))
+
+(defun sml-smie-forward-token-1 ()
+  (forward-comment (point-max))
+  (buffer-substring (point)
+                    (progn
+                      (or (/= 0 (skip-syntax-forward "'w_"))
+                          (/= 0 (skip-syntax-forward ".'")))
+                      (point))))
+
+(defun sml-smie-forward-token ()
+  (let ((sym (sml-smie-forward-token-1)))
+    (cond
+     ((equal "op" sym)
+      (concat "op " (sml-smie-forward-token-1)))
+     ((member sym '("|" "of" "="))
+      (save-excursion (sml-smie-backward-token)))
+     (t sym))))
+
+(defun sml-smie-backward-token-1 ()
+  (forward-comment (- (point)))
+  (buffer-substring (point)
+                    (progn
+                      (or (/= 0 (skip-syntax-backward ".'"))
+                          (/= 0 (skip-syntax-backward "'w_")))
+                      (point))))
+
+(defun sml-smie-backward-token ()
+  (let ((sym (sml-smie-backward-token-1)))
+    (unless (zerop (length sym))
+      ;; FIXME: what should we do if `sym' = "op" ?
+      (let ((point (point)))
+	(if (equal "op" (sml-smie-backward-token-1))
+	    (concat "op " sym)
+	  (goto-char point)
+	  (cond
+	   ((string= sym "=") (if (sml-smie-poly-equal-p) "=" "d="))
+	   ((string= sym "of") (if (sml-smie-nested-of-p) "of" "=of"))
+           ((string= sym "|") (if (sml-smie-datatype-|-p) "d|" "|"))
+	   (t sym)))))))
 
 ;;;;
 ;;;; Imenu support
@@ -505,9 +583,9 @@ This mode runs `sml-mode-hook' just before exiting.
   (setq local-abbrev-table sml-mode-abbrev-table)
   (smie-setup sml-smie-op-levels sml-smie-indent-rules)
   (set (make-local-variable 'smie-backward-token-function)
-       'sml-backward-sym)
+       'sml-smie-backward-token)
   (set (make-local-variable 'smie-forward-token-function)
-       'sml-forward-sym)
+       'sml-smie-forward-token)
   (set (make-local-variable 'comment-start) "(* ")
   (set (make-local-variable 'comment-end) " *)")
   (set (make-local-variable 'comment-start-skip) "(\\*+\\s-*")
