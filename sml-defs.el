@@ -1,6 +1,6 @@
 ;;; sml-defs.el --- Various definitions for sml-mode
 
-;; Copyright (C) 1999,2000,2003,2005,2007  Stefan Monnier <monnier@gnu.org>
+;; Copyright (C) 1999,2000,2003,2005,2007,2010  Stefan Monnier <monnier@gnu.org>
 ;;
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -42,8 +42,8 @@ notion of \"the end of an outline\".")
 
 (defmap sml-mode-map
   ;; smarter cursor movement
-  '((forward-sexp	. sml-user-forward-sexp)
-    (backward-sexp	. sml-user-backward-sexp)
+  '(;; (forward-sexp	. sml-user-forward-sexp)
+    ;; (backward-sexp	. sml-user-backward-sexp)
     ;; Text-formatting commands:
     ("\C-c\C-m"	. sml-insert-form)
     ("\C-c\C-i"	. sml-mode-info)
