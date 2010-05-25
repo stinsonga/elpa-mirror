@@ -22,7 +22,6 @@
 ;;; Code:
 
 (require 'cl)				;for `reduce'
-(require 'sml-compat)
 
 (defun sml-preproc-alist (al)
   "Expand an alist AL where keys can be lists of keys into a normal one."
