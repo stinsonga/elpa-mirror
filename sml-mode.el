@@ -380,6 +380,7 @@ Regexp match data 0 points to the chars."
             ("fn" sexp "=>" exp))
        (sexp (sexp ":" type) ("(" exps ")")
              (sexp "orelse" sexp)
+             (marg ":>" type)
              (sexp "andalso" sexp))
        (cmds (cmds ";" cmds) (exp))
        (exps (exps "," exps) (exp))     ; (exps ";" exps)
@@ -390,6 +391,9 @@ Regexp match data 0 points to the chars."
               (sexp "d=" databranches)
               (sexp "=of" type)         ;After "exception".
               ("local" decls "in" decls "end")
+              (decls "functor" decls)
+              (decls "signature" decls)
+              (decls "structure" decls)
               (decls "type" decls)
               (decls "open" decls)
               (decls "and" decls)
@@ -404,18 +408,18 @@ Regexp match data 0 points to the chars."
              (type "*" type))
        (databranches (sexp "=of" type) (databranches "d|" databranches))
        ;; Module language.
-       (mexp ("functor" marg "d=" mexp)
-             ("structure" marg "d=" mexp)
-             ("signature" marg "d=" mexp)
-             ("struct" decls "end")
-             ("sig" decls "end"))
+       ;; (mexp ("functor" marg "d=" mexp)
+       ;;       ("structure" marg "d=" mexp)
+       ;;       ("signature" marg "d=" mexp)
+       ;;       ("struct" decls "end")
+       ;;       ("sig" decls "end"))
        (marg (marg ":" type) (marg ":>" type)))
      ;; '((nonassoc "else") (right "handle"))
      '((nonassoc "of") (assoc "|"))  ; "case a of b => case c of d => e | f"
      '((nonassoc "handle") (assoc "|")) ; Idem for "handle".
      '((assoc "->") (assoc "*"))
      '((assoc "val" "fun" "type" "datatype" "abstype" "open" "infix" "infixr"
-              "nonfix")
+              "nonfix" "functor" "signature" "structure")
        (assoc "and"))
      '((assoc "orelse") (assoc "andalso") (nonassoc ":"))
      '((assoc ";")) '((assoc ",")) '((assoc "d|")))
