@@ -375,6 +375,8 @@ Regexp match data 0 points to the chars."
      '((exp ("if" exp "then" exp "else" exp)
             ("case" exp "of" branches)
             ("let" decls "in" cmds "end")
+            ("struct" decls "end")
+            ("sig" decls "end")
             (sexp)
             (sexp "handle" branches)
             ("fn" sexp "=>" exp))
@@ -410,9 +412,7 @@ Regexp match data 0 points to the chars."
        ;; Module language.
        ;; (mexp ("functor" marg "d=" mexp)
        ;;       ("structure" marg "d=" mexp)
-       ;;       ("signature" marg "d=" mexp)
-       ;;       ("struct" decls "end")
-       ;;       ("sig" decls "end"))
+       ;;       ("signature" marg "d=" mexp))
        (marg (marg ":" type) (marg ":>" type)))
      ;; '((nonassoc "else") (right "handle"))
      '((nonassoc "of") (assoc "|"))  ; "case a of b => case c of d => e | f"
@@ -458,6 +458,9 @@ Regexp match data 0 points to the chars."
    (("datatype" . "and") . 5)
    (("datatype" . "with") . 4)
    (("datatype" . "d=") . 3)
+   (("structure" . "d=") . 0)
+   (("signature" . "d=") . 0)
+   ("d=" 0)
    )
  )
 
