@@ -388,7 +388,7 @@ Regexp match data 0 points to the chars."
        ;; starters/terminators, so let's pretend that let/fun are separators.
        (decls (sexp "d=" exp)
               (sexp "d=" databranches)
-              ("exception" sexp "=of" type)
+              (sexp "=of" type)         ;After "exception".
               ("local" decls "in" decls "end")
               (decls "type" decls)
               (decls "open" decls)
@@ -433,15 +433,31 @@ Regexp match data 0 points to the chars."
 
 (defconst sml-smie-indent-rules
  '(
+   (("fn" . "=>") . 3)
+   ("=>" 2 0)
    ("of" 3)
    ("struct" 0)
    ((t . "of") . 1)
+   ;; Shift single-char separators 2 columns left if they appear
+   ;; at the beginning of a line so the content is aligned
+   ;; (assuming exactly one space after the separator is used).
    ((t . "|") . -2)
+   ((t . "d|") . -2)
+   ((t . ",") . -2)
+   ((t . ";") . -2)
+   ("(" 2 nil)
+   ("local" 2)
+   ;; FIXME: Maybe it would be handy to be able to specify different
+   ;; indentation after local's "in" than after let's "in", but currently
+   ;; SMIE doesn't allow us to do that.
+   ("in" 2)
    (("datatype" . "and") . 5)
+   (("datatype" . "with") . 4)
+   (("datatype" . "d=") . 3)
    )
  )
 
-(defun sml-smie-poly-equal-p ()
+(defun sml-smie-definitional-equal-p ()
   "Figure out which kind of \"=\" this is.
 Assumes point is right before the = sign."
   ;; The idea is to look backward for the first occurrence of a token that
@@ -454,19 +470,18 @@ Assumes point is right before the = sign."
   ;; One known problem case is code like:
   ;; "functor foo (structure s : S) where type t = s.t ="
   ;; where the "type t = s.t" is mistaken for a type definition.
-  (let ((pos (point)))
-    (prog1
-        (and (re-search-backward sml-=-starter-re nil t)
-             (re-search-forward "=" pos t))
-      (goto-char pos))))
+  (save-excursion
+    (and (re-search-backward (concat "\\(" sml-=-starter-re "\\)\\|=") nil t)
+         (match-beginning 1))))
 
-(defun sml-smie-nested-of-p ()
+(defun sml-smie-non-nested-of-p ()
+  ;; FIXME: Maybe datatype-|-p makes this nested-of business unnecessary.
   "Figure out which kind of \"of\" this is.
 Assumes point is right before the \"of\" symbol."
-  (let ((pos (point)))
-    (prog1 (and (re-search-backward sml-non-nested-of-starter-re nil t)
-                (re-search-forward "\\<case\\>" pos t))
-      (goto-char pos))))
+  (save-excursion
+    (and (re-search-backward (concat "\\(" sml-non-nested-of-starter-re
+                                     "\\)\\|\\<case\\>") nil t)
+         (match-beginning 1))))
 
 (defun sml-smie-datatype-|-p ()
   "Figure out which kind of \"|\" this is.
@@ -513,8 +528,8 @@ Assumes point is right before the | symbol."
 	    (concat "op " sym)
 	  (goto-char point)
 	  (cond
-	   ((string= sym "=") (if (sml-smie-poly-equal-p) "=" "d="))
-	   ((string= sym "of") (if (sml-smie-nested-of-p) "of" "=of"))
+	   ((string= sym "=") (if (sml-smie-definitional-equal-p) "d=" "="))
+	   ((string= sym "of") (if (sml-smie-non-nested-of-p) "=of" "of"))
            ((string= sym "|") (if (sml-smie-datatype-|-p) "d|" "|"))
 	   (t sym)))))))
 
