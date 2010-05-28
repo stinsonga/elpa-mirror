@@ -29,13 +29,20 @@
 ;;
 ;; Add this file to your `load-path', BYTE-COMPILE it and
 ;; add (require 'ioccur) in your .emacs.
-;; Start with M-x ioccur
+;;
+;; Start with (C-u) M-x ioccur
+;;            or
+;;            (C-u) M-x ioccur-find-buffer-matching
+;;
+;; Do C-h f ioccur or ioccur-find-buffer-matching for more info.
 
 ;;; Commentary:
 ;;
-;; You may want to save `ioccur-history', you can do that if you
-;; use desktop, adding that to your .emacs:
+;; To save `ioccur-history', use desktop, adding that to your .emacs:
 ;; (add-to-list 'desktop-globals-to-save 'ioccur-history)
+;;
+;; For more info See:
+;; [EVAL] (info "(emacs) saving emacs sessions")
 
 ;;; Code:
 (require 'derived)
@@ -101,6 +108,19 @@ Set it to nil to remove doc in mode-line."
   :group 'ioccur
   :type 'integer)
 
+(defcustom ioccur-buffer-completion-style 'anything
+  "*Type of completing read style you prefer to choose buffers \
+in `ioccur-find-buffer-matching'.
+It can be one of 'anything or 'ido.
+When nil or if anything is not found or `ido-mode' is off,
+fallback to classic `completing-read'.
+NOTE:
+To have anything completion you need a recent version of
+`anything-config.el'.
+To have ido completion, you have to enable `ido-mode'."
+  :group 'ioccur
+  :type 'symbol)
+
 ;;; Faces.
 (defface ioccur-overlay-face
     '((t (:background "Green4" :underline t)))
@@ -140,7 +160,7 @@ Set it to nil to remove doc in mode-line."
 (defvar ioccur-count-occurences 0)
 (defvar ioccur-buffer nil)
 (make-variable-buffer-local 'ioccur-buffer)
-  
+(defvar ioccur-success nil)
 
 (define-derived-mode ioccur-mode
     text-mode "ioccur"
@@ -212,11 +232,11 @@ Special commands:
                    (setq iterator (ioccur-iter-list sub))
                    (ioccur-iter-next iterator)))))))
 
-(defun* ioccur-print-results (regexp &optional (buffer ioccur-current-buffer))
+(defun ioccur-print-results (regexp)
   "Print in `ioccur-buffer' all lines matching REGEXP found in BUFFER.
 BUFFER default value is `ioccur-current-buffer'."
   (setq ioccur-count-occurences 0)
-  (with-current-buffer buffer
+  (with-current-buffer ioccur-current-buffer
     (save-excursion
       (goto-char (point-min))
       (loop
@@ -232,7 +252,7 @@ BUFFER default value is `ioccur-current-buffer'."
              (buffer-substring (point-at-bol) (point-at-eol)) count)
          do (forward-line 1)))))
 
-(defun* ioccur-print-line (line nline &optional (buffer ioccur-buffer))
+(defun ioccur-print-line (line nline)
   "Prepare and insert a matched LINE at line number NLINE in BUFFER.
 BUFFER default value is `ioccur-buffer'."
   (with-current-buffer ioccur-buffer
@@ -252,6 +272,79 @@ COLUMNS default value is `ioccur-length-line'."
          (ltp     (replace-regexp-in-string bol-reg "" line)))
     (if (> (length ltp) ioccur-length-line)
         (substring ltp 0 ioccur-length-line) ltp)))
+
+(defun ioccur-buffer-contain (buffer regexp)
+  "Return BUFFER if it contain an occurence of REGEXP."
+  (with-current-buffer buffer
+    (save-excursion
+      (goto-char (point-min))
+      (when (re-search-forward regexp nil t) buffer))))
+
+(defun ioccur-list-buffers-matching (buffer-match regexp)
+  "Return a list of all buffer with name matching BUFFER-MATCH and \
+containing lines matching REGEXP."
+  (loop
+     with ini-buf-list = (loop for buf in (buffer-list)
+                            unless (rassq buf dired-buffers)
+                            collect buf)
+     for buf in ini-buf-list
+     for bname = (buffer-name buf)
+     when (and (string-match buffer-match bname)
+               (ioccur-buffer-contain buf regexp))
+     collect bname))
+
+(defun ioccur-list-buffers-containing (regexp)
+  "Return a list of all existing buffers filename containing \
+lines matching REGEXP."
+  (loop with buf-list = (loop for i in (buffer-list)
+                           when (buffer-file-name (get-buffer i))
+                           collect i)
+     for buf in buf-list
+     when (ioccur-buffer-contain buf regexp)
+     collect (buffer-name buf)))
+
+;;;###autoload
+(defun ioccur-find-buffer-matching (regexp)
+  "Find an existing buffer containing an expression matching REGEXP \
+and connect `ioccur' to it.
+With a prefix arg search in buffer matching specified expression.
+Hitting C-g in a `ioccur' session will return to buffer completion list.
+Hitting C-g in the buffer completion list will jump back to initial buffer."
+  (interactive (list (let ((savehist-save-minibuffer-history nil))
+                       (read-string "Search for Pattern: "
+                                    (thing-at-point 'symbol)
+                                    '(ioccur-history . 0)))))
+
+  (let ((prompt   (format "Search (%s) in Buffer: " regexp))
+        (buf-list (if current-prefix-arg
+                      (ioccur-list-buffers-matching
+                       (read-string "In Buffer names matching: ") regexp)
+                      (ioccur-list-buffers-containing regexp)))
+        (win-conf (current-window-configuration)))
+
+    (labels
+        ((find-buffer ()
+           (let ((buf (cond ((and (fboundp 'anything-comp-read)
+                                  (eq ioccur-buffer-completion-style 'anything))
+                             (anything-comp-read prompt buf-list :must-match t))
+                            ((and ido-mode
+                                  (eq ioccur-buffer-completion-style 'ido))
+                             (ido-completing-read prompt buf-list nil t))
+                            (t (completing-read prompt buf-list nil t)))))
+             (unwind-protect
+                  (progn
+                    (switch-to-buffer buf)
+                    (ioccur regexp)
+                    ;; Exit if we jump to this `ioccur-current-buffer',
+                    ;; otherwise, if C-g is hitten,
+                    ;; go back to buffer completion list.
+                    (unless ioccur-success
+                      (find-buffer)))
+               ;; C-g hit in buffer completion restore window config.
+               (unless ioccur-success
+                 (set-window-configuration win-conf))))))
+
+      (find-buffer))))
 
 ;;;###autoload
 (defun ioccur-restart ()
@@ -596,16 +689,22 @@ When you quit incremental search with RET, see `ioccur-mode'
 for commands provided in the `ioccur-buffer'."
   (interactive "P")
   (setq ioccur-exit-and-quit-p nil)
+  (setq ioccur-success nil)
   (setq ioccur-current-buffer (buffer-name (current-buffer)))
   (message "Fontifying buffer...Please wait it could be long.")
   (jit-lock-fontify-now) (message nil)
   (setq ioccur-buffer (concat "*ioccur-" ioccur-current-buffer "*"))
-  (if (and (get-buffer ioccur-buffer)
+  (if (and (not initial-input)
+           (get-buffer ioccur-buffer)
            (not (get-buffer-window ioccur-buffer)))
       ;; An hidden `ioccur-buffer' exists jump to it.
       (pop-to-buffer ioccur-buffer t)
       ;; `ioccur-buffer' doesn't exists or is not visible, start searching.
-      (let* ((init-str (if initial-input (thing-at-point 'symbol) ""))
+      (let* ((init-str (if initial-input
+                           (if (stringp initial-input)
+                               initial-input
+                               (thing-at-point 'symbol))
+                           ""))
              (len      (length init-str))
              (curpos   (point))
              str-no-prop)
@@ -629,7 +728,8 @@ for commands provided in the `ioccur-buffer'."
                    (switch-to-buffer ioccur-current-buffer)
                    (when ioccur-match-overlay
                      (delete-overlay ioccur-match-overlay))
-                   (delete-other-windows) (goto-char curpos) (message nil))
+                   (delete-other-windows) (goto-char curpos)
+                   (message nil))
                   (ioccur-exit-and-quit-p ; Jump and kill `ioccur-buffer'.
                    (ioccur-jump-and-quit) (kill-buffer ioccur-buffer)
                    (message nil) (ioccur-save-history))
@@ -655,7 +755,8 @@ for commands provided in the `ioccur-buffer'."
             ioccur-history)))
   (when (> (length ioccur-history) ioccur-max-length-history)
     (setq ioccur-history (delete (car (last ioccur-history))
-                                 ioccur-history))))
+                                 ioccur-history)))
+  (setq ioccur-success t))
 
 (defun ioccur-cancel-search ()
   "Cancel timer used for ioccur searching."
