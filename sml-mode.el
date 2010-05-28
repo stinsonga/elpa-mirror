@@ -450,7 +450,8 @@ Regexp match data 0 points to the chars."
    ((t . ",") . -2)
    ((t . ";") . -2)
    ("(" 2 nil)
-   ("local" 2)
+   ("local" 4)
+   ("let" 2)
    ;; FIXME: Maybe it would be handy to be able to specify different
    ;; indentation after local's "in" than after let's "in", but currently
    ;; SMIE doesn't allow us to do that.
