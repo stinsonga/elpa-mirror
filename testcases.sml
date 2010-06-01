@@ -1,20 +1,5 @@
 (* Copyright 1999, 2004, 2007, 2010 Stefan Monnier <monnier@gnu.org> *)
 
-(let val a = 1 val b = 2
-     val c = 3
- in
-   let
-     val x = 3
-   in
-     x
-   end
- end);
-
-(* From "Christopher Dutchyn" <cdutchyn@cs.ubc.ca> *)
-(case foo of
-     (* FIXME: The line gets unindented by 2 every time you hit TAB :-( *)
-     | BAR => baz)
-
 (* sml-mode here treats the second `=' as an equal op because it
  * thinks it's seeing something like "... type t = (s.t = ...)".  FIXME!  *)
 functor foo (structure s : S) where type t = s.t =
@@ -24,73 +9,94 @@ val ber = 1;
 val sdfg = 1
 val tut = fn (x,y) z y e r =>
              body
-end
+val tut = fn (x,y)
+                 z
+                 y e
+                 r =>
+             body
+val tut =
+    (let val a = 1 val b = 2
+       val c = 3
+     in
+       let
+         val x = 3
+       in
+         x
+       end
+     end)
+
+val x =
+    (* From "Christopher Dutchyn" <cdutchyn@cs.ubc.ca> *)
+    (case foo of
+         (* FIXME: The line gets unindented by 2 every time you hit TAB :-( *)
+         | BAR => baz)
 
 
-(x := 1;
- case x of
-     FOO => 1
-   | BAR =>
-     2;
- case x of
-     FOO => 1
-   | BAR =>
-     (case y of
-	  FAR => 2
-	| FRA => 3);
- hello);
+val x =
+    (x := 1;
+     case x of
+         FOO => 1
+       | BAR =>
+         2;
+     case x of
+         FOO => 1
+       | BAR =>
+         case y of
+	     FAR => 2
+	   | FRA => 3;
+     hello);
 
-let datatype foobar
-      = FooB of int
-      | FooA of bool * int
-    datatype foo = FOO | BAR of baz
-	 and baz = BAZ | QUUX of foo
+datatype foobar
+   = FooB of int
+   | FooA of bool * int
+datatype foo = FOO | BAR of baz
+     and baz = BAZ | QUUX of foo
 
-    datatype foo = FOO
-                 | BAR of baz
-      and baz = BAZ			(* fixindent *)
-	      | QUUX of foo
-      and b = g
+datatype foo = FOO
+             | BAR of baz
+  and baz = BAZ			(* fixindent *)
+	  | QUUX of foo
+  and b = g
 
-    datatype foo = datatype M.foo
-    val _ = 42 val x = 5
+datatype foo = datatype M.foo
+val _ = 42 val x = 5
 		       
-    signature S = S' where type foo = int
-    val _ = 42
+signature S = S' where type foo = int
+val _ = 42
 
-    val foo = [
+val foo = [
 	"blah"
       , let val x = f 42 in g (x,x,44) end
     ]
+ 	      
+val foo = [ "blah"
+	  , let val x = f 42 in g (x,x,44) end
+	  , foldl (fn ((p,q),s) => g (p,q,Vector.length q) ^ ":" ^ s)
+                  "" (Beeblebrox.masterCountList mlist2)
+          , if null mlist2 then ";" else ""
+	  ]
 	      
-    val foo = [ "blah"
-	      , let val x = f 42 in g (x,x,44) end
-	      , foldl (fn ((p,q),s) => g (p,q,Vector.length q) ^ ":" ^ s)
-                      "" (Beeblebrox.masterCountList mlist2)
-              , if null mlist2 then ";" else ""
-	      ]
-	      
-    fun foo (true::rest)
-      = 1 + 2 * foo rest
-      | foo (false::rest)
-      = let val _ = 1 in 2 end
-	+ 2 * foo rest
+fun foo (true::rest) = 1 + 2 * foo rest
+  | foo (false::rest)
+    = let val _ = 1 in 2 end
+      + 2
+        * foo rest
 
-    val x = if foo then
-		1
-	    else if bar then
-		2
-	    else
-		3
-    val y = if foo
-	    then 1
-	    else if foo
-	    then 2
-	    else 3
+val x = if foo then
+	1
+	else if bar then
+	     2
+	     else
+	     3
+val y = if foo
+	then 1
+	else if foo
+	     then 2
+	     else 3
 
-  ; val yt = 4
+val yt = 4
 
-in
+val x =
     if a then b else c;
     case M.find(m,f)
      of SOME(fl, filt) =>
@@ -100,9 +106,9 @@ in
     (case foo
       of a => f
     )
-end;
+end
 
-let
+    let
 in a;
    foo("(*")
    * 2;
