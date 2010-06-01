@@ -356,19 +356,22 @@ Regexp match data 0 points to the chars."
 ;;; Indentation with SMIE
 
 (defconst sml-smie-op-levels
-  ;; We have 3 problem areas where SML's syntax can't be handled by an
+  ;; We have several problem areas where SML's syntax can't be handled by an
   ;; operator precedence grammar:
   ;; 
   ;; "= A before B" is "= A) before B" if this is the
-  ;;   boolean "=" but it is "= (A before B)" if it's the definitional "=".
+  ;;   `boolean-=' but it is "= (A before B)" if it's the `definitional-='.
   ;;   We can work around the problem by tweaking the lexer to return two
-  ;;   different tokens for the two different kinds of "=".
-  ;; "of A | B" in a "case" we want "of (A | B, but in a datatype
+  ;;   different tokens for the two different kinds of `='.
+  ;; "of A | B" in a "case" we want "of (A | B, but in a `datatype'
   ;;   we want "of A) | B".
   ;; "= A | B" can be "= A ) | B" if the = is from a "fun" definition,
-  ;;   but it is "= (A | B" if it is a "datatype" definition (of course, if
-  ;;   the previous introducing the = is "and", deciding whether
+  ;;   but it is "= (A | B" if it is a `datatype' definition (of course, if
+  ;;   the previous introducing the = is `and', deciding whether
   ;;   it's a datatype or a function requires looking even further back).
+  ;; "functor foo (...) where type a = b = ..." the first `=' looks very much
+  ;;   like a `definitional-=' even tho it's just an equality constraint.
+  ;;   Currently I don't even try to handle `where' at all.
   (smie-prec2-levels
    (smie-merge-prec2s
     (smie-bnf-precedence-table
@@ -380,6 +383,7 @@ Regexp match data 0 points to the chars."
             (sexp)
             (sexp "handle" branches)
             ("fn" sexp "=>" exp))
+       ;; "simple exp"s are the ones that can appear to the left of `handle'.
        (sexp (sexp ":" type) ("(" exps ")")
              (sexp "orelse" sexp)
              (marg ":>" type)
@@ -391,6 +395,7 @@ Regexp match data 0 points to the chars."
        ;; starters/terminators, so let's pretend that let/fun are separators.
        (decls (sexp "d=" exp)
               (sexp "d=" databranches)
+              (funbranches "|" funbranches)
               (sexp "=of" type)         ;After "exception".
               ("local" decls "in" decls "end")
               (decls "functor" decls)
@@ -408,12 +413,14 @@ Regexp match data 0 points to the chars."
               (decls "val" decls))
        (type (type "->" type)
              (type "*" type))
+       (funbranches (sexp "d=" exp))
        (databranches (sexp "=of" type) (databranches "d|" databranches))
        ;; Module language.
        ;; (mexp ("functor" marg "d=" mexp)
        ;;       ("structure" marg "d=" mexp)
        ;;       ("signature" marg "d=" mexp))
-       (marg (marg ":" type) (marg ":>" type)))
+       (marg (marg ":" type) (marg ":>" type))
+       (toplevel (decls) (exp) (toplevel ";" toplevel)))
      ;; '((nonassoc "else") (right "handle"))
      '((nonassoc "of") (assoc "|"))  ; "case a of b => case c of d => e | f"
      '((nonassoc "handle") (assoc "|")) ; Idem for "handle".
@@ -445,10 +452,10 @@ Regexp match data 0 points to the chars."
    ;; Shift single-char separators 2 columns left if they appear
    ;; at the beginning of a line so the content is aligned
    ;; (assuming exactly one space after the separator is used).
-   ((t . "|") . -2)
-   ((t . "d|") . -2)
-   ((t . ",") . -2)
-   ((t . ";") . -2)
+   ((t . "|") . -2) ("|" 2)
+   ((t . "d|") . -2) ("d|" 2)
+   ((t . ",") . -2) ("," 2)
+   ((t . ";") . -2) (";" 2)
    ("(" 2 nil)
    ("local" 4)
    ("let" 2)
@@ -594,7 +601,6 @@ This mode runs `sml-mode-hook' just before exiting.
   (set (make-local-variable 'paragraph-separate)
        (concat "\\([ \t]*\\*)?\\)?\\(" paragraph-separate "\\)"))
   (set (make-local-variable 'require-final-newline) t)
-  (set (make-local-variable 'forward-sexp-function) 'smie-forward-sexp-command)
   ;; For XEmacs
   (easy-menu-add sml-mode-menu)
   ;; Compatibility.  FIXME: we should use `-' in Emacs-CVS.
@@ -609,6 +615,8 @@ This mode runs `sml-mode-hook' just before exiting.
        'sml-smie-backward-token)
   (set (make-local-variable 'smie-forward-token-function)
        'sml-smie-forward-token)
+  (set (make-local-variable 'forward-sexp-function) 'smie-forward-sexp-command)
+  (set (make-local-variable 'parse-sexp-ignore-comments) t)
   (set (make-local-variable 'comment-start) "(* ")
   (set (make-local-variable 'comment-end) " *)")
   (set (make-local-variable 'comment-start-skip) "(\\*+\\s-*")
