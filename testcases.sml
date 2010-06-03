@@ -3,23 +3,22 @@
 (* sml-mode here treats the second `=' as an equal op because it
  * thinks it's seeing something like "... type t = (s.t = ...)".  FIXME!  *)
 functor foo (structure s : S) where type t = s.t =
-struct
+struct                          (* fixindent *)
 val bar = fn a1 a2 a3
-             a5 a6
-             a4
-val bar = fn
-        a1 a2 a3
-        a5 a6
-        a4
+	     a5 a6
+	     a4 => 1
+val rec bar = fn
+    a1 a2 a3
+    a5 a6 a4 => 1
 val bar =
-        fn
-            a1 a2 a3
-            a5 a6
-            a4
+ fn
+    a1 a2 a3
+    a5 a6
+    a4 => 1
 val bar =
-        fn a1 a2 a3
-           a5 a6
-           a4
+ fn a1 a2 a3
+    a5 a6
+    a4 => 1
 val ber = 1;
 val sdfg = 1
 val tut = fn (x,y) z y e r =>
@@ -31,20 +30,20 @@ val tut = fn (x,y)
              body
 val tut =
     (let val a = 1 val b = 2
-       val c = 3
+	 val c = 3
      in
-       let
-         val x = 3
-       in
-         x
-       end
+	 let
+             val x = 3
+	 in
+             x
+	 end
      end)
 
 val x =
     (* From "Christopher Dutchyn" <cdutchyn@cs.ubc.ca> *)
     (case foo of
-         (* FIXME: The line gets unindented by 2 every time you hit TAB :-( *)
-         | BAR => baz)
+       (* FIXME: The line gets unindented by 2 every time you hit TAB :-( *)
+       | BAR => baz)
 
 
 val x =
@@ -62,8 +61,8 @@ val x =
      hello);
 
 datatype foobar
-   = FooB of int
-   | FooA of bool * int
+  = FooB of int
+  | FooA of bool * int
 datatype foo = FOO | BAR of baz
      and baz = BAZ | QUUX of foo
 
@@ -75,22 +74,22 @@ datatype foo = FOO
 
 datatype foo = datatype M.foo
 val _ = 42 val x = 5
-		       
+		   
 signature S = S' where type foo = int
 val _ = 42
 
 val foo = [
-	"blah"
-      , let val x = f 42 in g (x,x,44) end
-    ]
- 	      
+    "blah"
+  , let val x = f 42 in g (x,x,44) end
+]
+ 	  
 val foo = [ "blah"
 	  , let val x = f 42 in g (x,x,44) end
 	  , foldl (fn ((p,q),s) => g (p,q,Vector.length q) ^ ":" ^ s)
                   "" (Beeblebrox.masterCountList mlist2)
           , if null mlist2 then ";" else ""
 	  ]
-	      
+	  
 fun foo (true::rest) = 1 + 2 * foo rest
   | foo (false::rest)
     = let val _ = 1 in 2 end
@@ -98,16 +97,16 @@ fun foo (true::rest) = 1 + 2 * foo rest
         * foo rest
 
 val x = if foo then
-	1
+	    1
 	else if bar then
-	     2
-	     else
-	     3
+	    2
+	else
+	    3
 val y = if foo
 	then 1
 	else if foo
-	     then 2
-	     else 3
+	then 2
+	else 3
 
 val yt = 4
 
@@ -121,47 +120,54 @@ val x =
     (case foo
       of a => f
     )
-end
+
+val y = (
+    let
+    in a;
+       foo("(*")
+             * 2;
+    end;
 
     let
-in a;
-   foo("(*")
-   * 2;
-end;
+    in a
+     ; b
+    end;
 
-let
-in a
- ; b
-end;
+    let
+    in
+        a
+      ; b
+    end;
 
-let
-in
-    a
-  ; b
-end;
+    let
+    in if a then
+           b
+       else
+           c
+    end;
 
-let
-in if a then
-       b
-   else
+    let
+    in case a of
+           F => 1
+         | D => 2
+    end;
+    
+    let
+    in case a
+        of F => 1
+         | D => 2
+    end;
+    
+    let
+    in if a then b else
        c
-end;
+    end;
 
-let
-in case a of
-       F => 1
-     | D => 2
-end;
-
-let
-in case a
- of F => 1
-  | D => 2
-end;
-
-let
-in if a then b else
-   c
+    let
+    in if a then b
+       else
+           c
+    end)
 end;
 
 structure Foo = struct
@@ -442,7 +448,7 @@ in case (bodyI, bodyRet)
 	   val argLtys = (map getLty vs) @ (map (getLty o F.VAR) fvbIs)
 	   val argsI = [(argI, LT.ltc_str argLtys)]
 	   val (_,bodyI) = foldl (fn (lv,(n,le)) =>
-				  (n+1, F.SELECT(F.VAR argI, n, lv, le)))
+				     (n+1, F.SELECT(F.VAR argI, n, lv, le)))
 				 (length vs, bodyI) fvbIs
 	   val fdecI as (_,fI,_,_) = FU.copyfdec (fk, f, argsI, bodyI)
 				     

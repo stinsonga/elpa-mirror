@@ -72,7 +72,15 @@
 (eval-when-compile (require 'cl))
 (require 'sml-util)
 (require 'sml-defs)
-(require 'smie)
+
+(defvar sml-use-smie t)
+(or (and sml-use-smie
+         (require 'smie nil 'noerror))
+    (require 'sml-move))
+
+;; For the macros it defines.
+(require 'sml-move nil 'noerror)
+
 (condition-case nil (require 'skeleton) (error nil))
 
 ;;; VARIABLES CONTROLLING INDENTATION
@@ -356,91 +364,92 @@ Regexp match data 0 points to the chars."
 ;;; Indentation with SMIE
 
 (defconst sml-smie-op-levels
-  ;; We have several problem areas where SML's syntax can't be handled by an
-  ;; operator precedence grammar:
-  ;; 
-  ;; "= A before B" is "= A) before B" if this is the
-  ;;   `boolean-=' but it is "= (A before B)" if it's the `definitional-='.
-  ;;   We can work around the problem by tweaking the lexer to return two
-  ;;   different tokens for the two different kinds of `='.
-  ;; "of A | B" in a "case" we want "of (A | B, but in a `datatype'
-  ;;   we want "of A) | B".
-  ;; "= A | B" can be "= A ) | B" if the = is from a "fun" definition,
-  ;;   but it is "= (A | B" if it is a `datatype' definition (of course, if
-  ;;   the previous introducing the = is `and', deciding whether
-  ;;   it's a datatype or a function requires looking even further back).
-  ;; "functor foo (...) where type a = b = ..." the first `=' looks very much
-  ;;   like a `definitional-=' even tho it's just an equality constraint.
-  ;;   Currently I don't even try to handle `where' at all.
-  (smie-prec2-levels
-   (smie-merge-prec2s
-    (smie-bnf-precedence-table
-     '((exp ("if" exp "then" exp "else" exp)
-            ("case" exp "of" branches)
-            ("let" decls "in" cmds "end")
-            ("struct" decls "end")
-            ("sig" decls "end")
-            (sexp)
-            (sexp "handle" branches)
-            ("fn" sexp "=>" exp))
-       ;; "simple exp"s are the ones that can appear to the left of `handle'.
-       (sexp (sexp ":" type) ("(" exps ")")
-             (sexp "orelse" sexp)
-             (marg ":>" type)
-             (sexp "andalso" sexp))
-       (cmds (cmds ";" cmds) (exp))
-       (exps (exps "," exps) (exp))     ; (exps ";" exps)
-       (branches (sexp "=>" exp) (branches "|" branches))
-       ;; Operator precedence grammars handle separators much better then
-       ;; starters/terminators, so let's pretend that let/fun are separators.
-       (decls (sexp "d=" exp)
-              (sexp "d=" databranches)
-              (funbranches "|" funbranches)
-              (sexp "=of" type)         ;After "exception".
-              ("local" decls "in" decls "end")
-              (decls "functor" decls)
-              (decls "signature" decls)
-              (decls "structure" decls)
-              (decls "type" decls)
-              (decls "open" decls)
-              (decls "and" decls)
-              (decls "infix" decls)
-              (decls "infixr" decls)
-              (decls "nonfix" decls)
-              (decls "abstype" decls)
-              (decls "datatype" decls)
-              (decls "fun" decls)
-              (decls "val" decls))
-       (type (type "->" type)
-             (type "*" type))
-       (funbranches (sexp "d=" exp))
-       (databranches (sexp "=of" type) (databranches "d|" databranches))
-       ;; Module language.
-       ;; (mexp ("functor" marg "d=" mexp)
-       ;;       ("structure" marg "d=" mexp)
-       ;;       ("signature" marg "d=" mexp))
-       (marg (marg ":" type) (marg ":>" type))
-       (toplevel (decls) (exp) (toplevel ";" toplevel)))
-     ;; '((nonassoc "else") (right "handle"))
-     '((nonassoc "of") (assoc "|"))  ; "case a of b => case c of d => e | f"
-     '((nonassoc "handle") (assoc "|")) ; Idem for "handle".
-     '((assoc "->") (assoc "*"))
-     '((assoc "val" "fun" "type" "datatype" "abstype" "open" "infix" "infixr"
-              "nonfix" "functor" "signature" "structure")
-       (assoc "and"))
-     '((assoc "orelse") (assoc "andalso") (nonassoc ":"))
-     '((assoc ";")) '((assoc ",")) '((assoc "d|")))
+  (when (fboundp 'smie-prec2-levels)
+    ;; We have several problem areas where SML's syntax can't be handled by an
+    ;; operator precedence grammar:
+    ;; 
+    ;; "= A before B" is "= A) before B" if this is the
+    ;;   `boolean-=' but it is "= (A before B)" if it's the `definitional-='.
+    ;;   We can work around the problem by tweaking the lexer to return two
+    ;;   different tokens for the two different kinds of `='.
+    ;; "of A | B" in a "case" we want "of (A | B, but in a `datatype'
+    ;;   we want "of A) | B".
+    ;; "= A | B" can be "= A ) | B" if the = is from a "fun" definition,
+    ;;   but it is "= (A | B" if it is a `datatype' definition (of course, if
+    ;;   the previous introducing the = is `and', deciding whether
+    ;;   it's a datatype or a function requires looking even further back).
+    ;; "functor foo (...) where type a = b = ..." the first `=' looks very much
+    ;;   like a `definitional-=' even tho it's just an equality constraint.
+    ;;   Currently I don't even try to handle `where' at all.
+    (smie-prec2-levels
+     (smie-merge-prec2s
+      (smie-bnf-precedence-table
+       '((exp ("if" exp "then" exp "else" exp)
+              ("case" exp "of" branches)
+              ("let" decls "in" cmds "end")
+              ("struct" decls "end")
+              ("sig" decls "end")
+              (sexp)
+              (sexp "handle" branches)
+              ("fn" sexp "=>" exp))
+         ;; "simple exp"s are the ones that can appear to the left of `handle'.
+         (sexp (sexp ":" type) ("(" exps ")")
+               (sexp "orelse" sexp)
+               (marg ":>" type)
+               (sexp "andalso" sexp))
+         (cmds (cmds ";" cmds) (exp))
+         (exps (exps "," exps) (exp))   ; (exps ";" exps)
+         (branches (sexp "=>" exp) (branches "|" branches))
+         ;; Operator precedence grammars handle separators much better then
+         ;; starters/terminators, so let's pretend that let/fun are separators.
+         (decls (sexp "d=" exp)
+                (sexp "d=" databranches)
+                (funbranches "|" funbranches)
+                (sexp "=of" type)       ;After "exception".
+                ("local" decls "in" decls "end")
+                (decls "functor" decls)
+                (decls "signature" decls)
+                (decls "structure" decls)
+                (decls "type" decls)
+                (decls "open" decls)
+                (decls "and" decls)
+                (decls "infix" decls)
+                (decls "infixr" decls)
+                (decls "nonfix" decls)
+                (decls "abstype" decls)
+                (decls "datatype" decls)
+                (decls "fun" decls)
+                (decls "val" decls))
+         (type (type "->" type)
+               (type "*" type))
+         (funbranches (sexp "d=" exp))
+         (databranches (sexp "=of" type) (databranches "d|" databranches))
+         ;; Module language.
+         ;; (mexp ("functor" marg "d=" mexp)
+         ;;       ("structure" marg "d=" mexp)
+         ;;       ("signature" marg "d=" mexp))
+         (marg (marg ":" type) (marg ":>" type))
+         (toplevel (decls) (exp) (toplevel ";" toplevel)))
+       ;; '((nonassoc "else") (right "handle"))
+       '((nonassoc "of") (assoc "|")) ; "case a of b => case c of d => e | f"
+       '((nonassoc "handle") (assoc "|")) ; Idem for "handle".
+       '((assoc "->") (assoc "*"))
+       '((assoc "val" "fun" "type" "datatype" "abstype" "open" "infix" "infixr"
+                "nonfix" "functor" "signature" "structure")
+         (assoc "and"))
+       '((assoc "orelse") (assoc "andalso") (nonassoc ":"))
+       '((assoc ";")) '((assoc ",")) '((assoc "d|")))
 
-    (smie-precs-precedence-table
-     '((nonassoc "andalso")                     ;To anchor the prec-table.
-       (assoc "before")                         ;0
-       (assoc ":=" "o")                         ;3
-       (nonassoc ">" ">=" "<>" "<" "<=" "=")    ;4
-       (assoc "::" "@")                         ;5
-       (assoc "+" "-" "^")                      ;6
-       (assoc "/" "*" "quot" "rem" "div" "mod") ;7
-       (nonassoc "   ")))                       ;Bogus anchor at the end.
-    )))
+      (smie-precs-precedence-table
+       '((nonassoc "andalso")                   ;To anchor the prec-table.
+         (assoc "before")                       ;0
+         (assoc ":=" "o")                       ;3
+         (nonassoc ">" ">=" "<>" "<" "<=" "=")  ;4
+         (assoc "::" "@")                       ;5
+         (assoc "+" "-" "^")                    ;6
+         (assoc "/" "*" "quot" "rem" "div" "mod") ;7
+         (nonassoc "   ")))                       ;Bogus anchor at the end.
+      ))))
 
 (defconst sml-smie-indent-rules
  '(
@@ -611,12 +620,20 @@ This mode runs `sml-mode-hook' just before exiting.
 (defun sml-mode-variables ()
   (set-syntax-table sml-mode-syntax-table)
   (setq local-abbrev-table sml-mode-abbrev-table)
-  (smie-setup sml-smie-op-levels sml-smie-indent-rules)
-  (set (make-local-variable 'smie-backward-token-function)
-       'sml-smie-backward-token)
-  (set (make-local-variable 'smie-forward-token-function)
-       'sml-smie-forward-token)
-  (set (make-local-variable 'forward-sexp-function) 'smie-forward-sexp-command)
+  ;; Setup indentation and sexp-navigation.
+  (cond
+   ((and sml-use-smie (fboundp 'smie-setup))
+    (smie-setup sml-smie-op-levels sml-smie-indent-rules)
+    (set (make-local-variable 'smie-backward-token-function)
+         'sml-smie-backward-token)
+    (set (make-local-variable 'smie-forward-token-function)
+         'sml-smie-forward-token)
+    (set (make-local-variable 'forward-sexp-function)
+         'smie-forward-sexp-command))
+   (t
+    ;; forward-sexp-function is an experimental variable in my hacked Emacs.
+    (set (make-local-variable 'forward-sexp-function) 'sml-user-forward-sexp)
+    (set (make-local-variable 'indent-line-function) 'sml-indent-line)))
   (set (make-local-variable 'parse-sexp-ignore-comments) t)
   (set (make-local-variable 'comment-start) "(* ")
   (set (make-local-variable 'comment-end) " *)")
