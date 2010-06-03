@@ -469,6 +469,7 @@ Regexp match data 0 points to the chars."
    (("structure" . "d=") . 0)
    (("signature" . "d=") . 0)
    ("d=" 0)
+   (list-intro "fn")
    )
  )
 
