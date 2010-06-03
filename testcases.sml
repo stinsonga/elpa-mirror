@@ -4,7 +4,22 @@
  * thinks it's seeing something like "... type t = (s.t = ...)".  FIXME!  *)
 functor foo (structure s : S) where type t = s.t =
 struct
-val bar = 0
+val bar = fn a1 a2 a3
+             a5 a6
+             a4
+val bar = fn
+        a1 a2 a3
+        a5 a6
+        a4
+val bar =
+        fn
+            a1 a2 a3
+            a5 a6
+            a4
+val bar =
+        fn a1 a2 a3
+           a5 a6
+           a4
 val ber = 1;
 val sdfg = 1
 val tut = fn (x,y) z y e r =>
