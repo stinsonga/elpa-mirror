@@ -418,6 +418,7 @@ Regexp match data 0 points to the chars."
                 (decls "nonfix" decls)
                 (decls "abstype" decls)
                 (decls "datatype" decls)
+                (decls "exception" decls)
                 (decls "fun" decls)
                 (decls "val" decls))
          (type (type "->" type)
@@ -435,7 +436,7 @@ Regexp match data 0 points to the chars."
        '((nonassoc "handle") (assoc "|")) ; Idem for "handle".
        '((assoc "->") (assoc "*"))
        '((assoc "val" "fun" "type" "datatype" "abstype" "open" "infix" "infixr"
-                "nonfix" "functor" "signature" "structure")
+                "nonfix" "functor" "signature" "structure" "exception")
          (assoc "and"))
        '((assoc "orelse") (assoc "andalso") (nonassoc ":"))
        '((assoc ";")) '((assoc ",")) '((assoc "d|")))
@@ -466,15 +467,15 @@ Regexp match data 0 points to the chars."
    ((t . ",") . -2) ("," 2)
    ((t . ";") . -2) (";" 2)
    ("(" 2 nil)
-   ("local" 4)
-   ("let" 2)
-   ;; FIXME: Maybe it would be handy to be able to specify different
-   ;; indentation after local's "in" than after let's "in", but currently
-   ;; SMIE doesn't allow us to do that.
-   ("in" 2)
+   ("local")
+   ("let")
+   ;; FIXME: This is OK for let..in, but for local..in we'd like ("in" 0).
+   ("in")
+   ("if") ("then") ("else")
    (("datatype" . "and") . 5)
+   (("fun" . "and") 0)
    (("datatype" . "with") . 4)
-   (("datatype" . "d=") . 3)
+   (("datatype" . "d=") . 2)
    (("structure" . "d=") . 0)
    (("signature" . "d=") . 0)
    ("d=" 0)
