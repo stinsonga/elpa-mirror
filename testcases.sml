@@ -14,7 +14,10 @@ val bar =
  fn
     a1 a2 a3
     a5 a6
-    a4 => 1
+    a4 => (1
+          ;3
+          ;4)
+
 val bar =
  fn a1 a2 a3
     a5 a6
@@ -24,18 +27,19 @@ val sdfg = 1
 val tut = fn (x,y) z y e r =>
              body
 val tut = fn (x,y)
-                 z
-                 y e
-                 r =>
+             z
+             y e
+             r =>
              body
 val tut =
     (let val a = 1 val b = 2
-	 val c = 3
+         val c = 3
      in
 	 let
              val x = 3
 	 in
-             x
+             x +   a * b
+                   * c
 	 end
      end)
 
@@ -111,15 +115,15 @@ val y = if foo
 val yt = 4
 
 val x =
-    if a then b else c;
-    case M.find(m,f)
-     of SOME(fl, filt) =>
-	F.APP(F.VAR fl, OU.filter filt vs)
-      | NONE => le;
-    x := x + 1;
-    (case foo
-      of a => f
-    )
+    (if a then b else c;
+     case M.find(m,f)
+      of SOME(fl, filt) =>
+         F.APP(F.VAR fl, OU.filter filt vs)
+       | NONE => le;
+     x := x + 1;
+     (case foo
+       of a => f
+    ))
 
 val y = (
     let
