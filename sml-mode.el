@@ -442,22 +442,21 @@ Regexp match data 0 points to the chars."
        '((assoc ";")) '((assoc ",")) '((assoc "d|")))
 
       (smie-precs-precedence-table
-       '((nonassoc "andalso")                   ;To anchor the prec-table.
-         (assoc "before")                       ;0
-         (assoc ":=" "o")                       ;3
-         (nonassoc ">" ">=" "<>" "<" "<=" "=")  ;4
-         (assoc "::" "@")                       ;5
-         (assoc "+" "-" "^")                    ;6
+       '((nonassoc "andalso")                     ;To anchor the prec-table.
+         (assoc "before")                         ;0
+         (assoc ":=" "o")                         ;3
+         (nonassoc ">" ">=" "<>" "<" "<=" "=")    ;4
+         (assoc "::" "@")                         ;5
+         (assoc "+" "-" "^")                      ;6
          (assoc "/" "*" "quot" "rem" "div" "mod") ;7
          (nonassoc "   ")))                       ;Bogus anchor at the end.
       ))))
 
 (defconst sml-smie-indent-rules
- '(
+ '(("struct" 0)
    (("fn" . "=>") . 3)
-   ("=>" 2 0)
+   ("=>" 2 (:hanging 0))
    ("of" 3)
-   ("struct" 0)
    ((t . "of") . 1)
    ;; Shift single-char separators 2 columns left if they appear
    ;; at the beginning of a line so the content is aligned
@@ -466,22 +465,26 @@ Regexp match data 0 points to the chars."
    ((t . "d|") . -2) ("d|" 2)
    ((t . ",") . -2) ("," 2)
    ((t . ";") . -2) (";" 2)
-   ("(" 2 nil)
+   ("(" 2 (:hanging nil))
    ("local")
+   ((:hanging . "let") 0)
+   ((:hanging . "(") 0)
+   ((:hanging . "[") 0)
    ("let")
-   ;; FIXME: This is OK for let..in, but for local..in we'd like ("in" 0).
-   ("in")
-   ("if") ("then") ("else")
+   ("in" (:parent "local" 0))
+   ;; FIXME: The `then' part of ".. else if .. then" is still not
+   ;; properly unindented.
+   ("if") ("then") ("else" (:next "if" 0))
    (("datatype" . "and") . 5)
    (("fun" . "and") 0)
-   (("datatype" . "with") . 4)
+   (("val" . "and") 0)
+   ;; (("datatype" . "with") . 4)
    (("datatype" . "d=") . 2)
    (("structure" . "d=") . 0)
    (("signature" . "d=") . 0)
-   ("d=" 0)
+   ("d=" 0 (:parent "val" (:next "fn" -3)))
    (list-intro "fn")
-   )
- )
+   ))
 
 (defun sml-smie-definitional-equal-p ()
   "Figure out which kind of \"=\" this is.
@@ -525,7 +528,7 @@ Assumes point is right before the | symbol."
   (buffer-substring (point)
                     (progn
                       (or (/= 0 (skip-syntax-forward "'w_"))
-                          (/= 0 (skip-syntax-forward ".'")))
+                          (skip-syntax-forward ".'"))
                       (point))))
 
 (defun sml-smie-forward-token ()
@@ -542,7 +545,7 @@ Assumes point is right before the | symbol."
   (buffer-substring (point)
                     (progn
                       (or (/= 0 (skip-syntax-backward ".'"))
-                          (/= 0 (skip-syntax-backward "'w_")))
+                          (skip-syntax-backward "'w_"))
                       (point))))
 
 (defun sml-smie-backward-token ()
@@ -1152,7 +1155,7 @@ If the point directly precedes a symbol for which an SML form exists,
 the corresponding form is inserted."
   (interactive)
   (let ((abbrev-mode (not abbrev-mode))
-	(last-command-char ?\ )
+	(last-command-event ?\ )
 	;; Bind `this-command' to fool skeleton's special abbrev handling.
 	(this-command 'self-insert-command))
     (call-interactively 'self-insert-command)))
@@ -1312,7 +1315,8 @@ See also `edit-kbd-macro' which is bound to \\[edit-kbd-macro]."
         (let ((line (string-to-number (match-string 3)))
               (char (string-to-number (match-string 4))))
           (pop-to-buffer (find-file-noselect (match-string 2)))
-          (goto-line line)
+          (goto-char (point-min))
+          (forward-line (1- line))
           (forward-char (1- char)))))))
 
 ;;;

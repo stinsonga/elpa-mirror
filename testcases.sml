@@ -7,21 +7,16 @@ struct                          (* fixindent *)
 val bar = fn a1 a2 a3
 	     a5 a6
 	     a4 => 1
-val rec bar = fn
-    a1 a2 a3
+val rec bar =
+ fn a1 a2 a3
     a5 a6 a4 => 1
 val bar =
- fn
-    a1 a2 a3
+ fn a1 a2 a3
     a5 a6
     a4 => (1
           ;3
           ;4)
 
-val bar =
- fn a1 a2 a3
-    a5 a6
-    a4 => 1
 val ber = 1;
 val sdfg = 1
 val tut = fn (x,y) z y e r =>
@@ -129,7 +124,7 @@ val y = (
     let
     in a;
        foo("(*")
-             * 2;
+       * 2;
     end;
 
     let
