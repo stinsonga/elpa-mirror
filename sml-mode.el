@@ -449,13 +449,13 @@ Regexp match data 0 points to the chars."
          (assoc "::" "@")                         ;5
          (assoc "+" "-" "^")                      ;6
          (assoc "/" "*" "quot" "rem" "div" "mod") ;7
-         (nonassoc "   ")))                       ;Bogus anchor at the end.
+         (nonassoc " -dummy- ")))                 ;Bogus anchor at the end.
       ))))
 
 (defconst sml-smie-indent-rules
  '(("struct" 0)
    (("fn" . "=>") . 3)
-   ("=>" 2 (:hanging 0))
+   ("=>" (:hanging 0) 2)
    ("of" 3)
    ((t . "of") . 1)
    ;; Shift single-char separators 2 columns left if they appear
@@ -465,16 +465,17 @@ Regexp match data 0 points to the chars."
    ((t . "d|") . -2) ("d|" 2)
    ((t . ",") . -2) ("," 2)
    ((t . ";") . -2) (";" 2)
-   ("(" 2 (:hanging nil))
+   ("(" (:hanging nil) 2)
    ("local")
-   ((:hanging . "let") 0)
-   ((:hanging . "(") 0)
-   ((:hanging . "[") 0)
+   ((:before . "let") (:hanging parent) point)
+   ((:before . "(") (:hanging parent) point)
+   ((:before . "[") (:hanging parent) point)
+   ((:before . "if") (:prev "else" parent) point)
    ("let")
    ("in" (:parent "local" 0))
    ;; FIXME: The `then' part of ".. else if .. then" is still not
    ;; properly unindented.
-   ("if") ("then") ("else" (:next "if" 0))
+   ("if") ("then") ("else" (:hanging 0)) ;; (:next "if" 0)
    (("datatype" . "and") . 5)
    (("fun" . "and") 0)
    (("val" . "and") 0)
@@ -482,7 +483,7 @@ Regexp match data 0 points to the chars."
    (("datatype" . "d=") . 2)
    (("structure" . "d=") . 0)
    (("signature" . "d=") . 0)
-   ("d=" 0 (:parent "val" (:next "fn" -3)))
+   ("d=" (:parent "val" (:next "fn" -3)) 0)
    (list-intro "fn")
    ))
 
