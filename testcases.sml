@@ -247,8 +247,8 @@ fun sexp env lexp =			(* fixindent *)
     let 
 	(* non-side effecting binds are copied to leI if exported *)
 	fun let1 (le,lewrap,lv,vs,effect) =
-	    let val (leE,leI,fvI,leRet) = sexp (S.add(env, lv)) le
-		val leE = lewrap o leE
+	    let  val (leE,leI,fvI,leRet) = sexp (S.add(env, lv)) le
+		 val leE = lewrap o leE
 	    in if effect orelse not (S.member(fvI, lv))
 	       then (leE, leI, fvI, leRet)
 	       else (leE, lewrap leI, addvs(S_rmv(lv, fvI), vs), leRet)

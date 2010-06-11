@@ -471,10 +471,9 @@ Regexp match data 0 points to the chars."
    ((:before . "(") (:hanging parent) point)
    ((:before . "[") (:hanging parent) point)
    ((:before . "if") (:prev "else" parent) point)
+   ((:before . "fn") (:prev "=>" parent) point)
    ("let")
    ("in" (:parent "local" 0))
-   ;; FIXME: The `then' part of ".. else if .. then" is still not
-   ;; properly unindented.
    ("if") ("then") ("else" (:hanging 0)) ;; (:next "if" 0)
    (("datatype" . "and") . 5)
    (("fun" . "and") 0)
