@@ -122,6 +122,12 @@ To have ido completion, you have to enable `ido-mode'."
   :group 'ioccur
   :type 'symbol)
 
+(defcustom ioccur-default-search-function 're-search-forward
+  "*Default search function.
+Use here one of `re-search-forward' or `search-forward'."
+  :group 'ioccur
+  :type 'symbol)
+
 ;;; Faces.
 (defface ioccur-overlay-face
     '((t (:background "Green4" :underline t)))
@@ -148,6 +154,12 @@ To have ido completion, you have to enable `ido-mode'."
   "Face for highlight number line in ioccur buffer."
   :group 'ioccur-faces)
 
+(defface ioccur-invalid-regexp
+    '((t (:foreground "Goldenrod")))
+  "Face for highlight wrong regexp message in ioccur buffer."
+  :group 'ioccur-faces)
+
+
 ;;; Internal variables.
 (defvar ioccur-search-pattern "")
 (defvar ioccur-search-timer nil)
@@ -162,6 +174,7 @@ To have ido completion, you have to enable `ido-mode'."
 (defvar ioccur-buffer nil)
 (make-variable-buffer-local 'ioccur-buffer)
 (defvar ioccur-success nil)
+(defvar ioccur-search-function ioccur-default-search-function)
 
 (define-derived-mode ioccur-mode
     text-mode "ioccur"
@@ -248,7 +261,7 @@ BUFFER default value is `ioccur-current-buffer'."
          ;; and we have no chance to exit loop.
          when quit-flag do (setq ioccur-quit-flag t) and return nil
          for count from 0
-         when (re-search-forward regexp (point-at-eol) t)
+         when (funcall ioccur-search-function regexp (point-at-eol) t)
          do (ioccur-print-line
              (buffer-substring (point-at-bol) (point-at-eol)) count)
          do (forward-line 1)))))
@@ -428,7 +441,9 @@ Goto NUMLINE."
   "Jump to line in other buffer and put an overlay on it.
 Move point to first occurence of `ioccur-search-pattern'."
   (let* ((line (buffer-substring (point-at-bol) (point-at-eol)))
-         (pos  (string-to-number line)))
+         (pos  (string-to-number line))
+         (back-search-fn (if (eq ioccur-search-function 're-search-forward)
+                             're-search-backward 'search-backward)))
     (unless (or (string= line "")
                 (string= line "Ioccur"))
       (pop-to-buffer ioccur-current-buffer t)
@@ -436,8 +451,9 @@ Move point to first occurence of `ioccur-search-pattern'."
       (ioccur-goto-line pos)
       ;; Go to beginning of first occurence in this line
       ;; of what match `ioccur-search-pattern'.
-      (when (re-search-forward ioccur-search-pattern (point-at-eol) t)
-        (re-search-backward ioccur-search-pattern (point-at-bol) t))
+      (when (funcall ioccur-search-function
+                     ioccur-search-pattern (point-at-eol) t)
+        (funcall back-search-fn ioccur-search-pattern (point-at-bol) t))
       (ioccur-color-matched-line))))
 
 ;;;###autoload
@@ -619,6 +635,10 @@ START-POINT is the point where we start searching in buffer."
                   (ioccur-scroll-other-window-up) t)
                  (?\C-|                         ; Toggle split window.
                   (ioccur-split-window) t)
+                 (?\C-:                         ; Toggle regexp/litteral search.
+                  (if (eq ioccur-search-function 're-search-forward)
+                      (setq ioccur-search-function 'search-forward)
+                      (setq ioccur-search-function 're-search-forward)) t)
                  (?\C-k                         ; Kill input.
                   (start-timer)
                   (with-current-buffer ioccur-current-buffer
@@ -660,21 +680,35 @@ START-POINT is the point where we start searching in buffer."
 
 (defun ioccur-print-buffer (regexp)
   "Pretty Print results matching REGEXP in `ioccur-buffer'."
-  (let ((title (propertize "Ioccur" 'face 'ioccur-title-face)))
+  (let* ((cur-method (if (eq ioccur-search-function 're-search-forward)
+                         "Regexp" "Literal"))
+         (title (propertize
+                 (format "Ioccur %s searching (`C-:' to Toggle Method)"
+                         cur-method)
+                 'face 'ioccur-title-face))
+           wrong-regexp)
     (if (string= regexp "")
         (progn (erase-buffer) (insert title "\n\n"))
         (erase-buffer)
-        (ioccur-print-results regexp)
+        (condition-case err
+            (ioccur-print-results regexp)
+          (error (setq wrong-regexp t)))
         (goto-char (point-min))
-        (insert title "\n\n"
-                (propertize (format "Found %s occurences of "
-                                    ioccur-count-occurences)
-                            'face 'underline)
-                (propertize regexp 'face 'ioccur-regexp-face)
-                (propertize
-                 (format " in %s" ioccur-current-buffer)
-                 'face 'underline) "\n\n")
-        (ioccur-color-current-line))))
+        (if wrong-regexp
+            (insert
+             title "\n\n"
+             (propertize "Invalid Regexp: "
+                         'face 'ioccur-invalid-regexp)
+             (format "No match for `%s'" regexp) "\n\n")
+            (insert title "\n\n"
+                    (propertize (format "Found %s occurences matching "
+                                        ioccur-count-occurences)
+                                'face 'underline)
+                    (propertize regexp 'face 'ioccur-regexp-face)
+                    (propertize
+                     (format " in %s" ioccur-current-buffer)
+                     'face 'underline) "\n\n")
+            (ioccur-color-current-line)))))
 
 (defun ioccur-start-timer ()
   "Start ioccur incremental timer."
@@ -702,6 +736,8 @@ DEL            remove last character entered.
 C-k            Kill current input.
 C-w            Yank stuff at point.
 C-g            quit and restore buffer.
+C-|            Toggle split window.
+C-:            Toggle regexp/litteral search.
 C-down         Follow in other buffer.
 C-up           Follow in other buffer.
 M-p/n          Precedent and next `ioccur-history' element:
@@ -771,7 +807,8 @@ for commands provided in the `ioccur-buffer'."
                   (t                      ; Jump keeping `ioccur-buffer'.
                    (ioccur-jump) (other-window 1) (ioccur-save-history)))
             (setq ioccur-count-occurences 0)
-            (setq ioccur-quit-flag nil))))))
+            (setq ioccur-quit-flag nil)
+            (setq ioccur-search-function ioccur-default-search-function))))))
 
 (defun ioccur-save-history ()
   "Save last ioccur element found in `ioccur-history'."
