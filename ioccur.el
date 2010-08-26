@@ -48,6 +48,7 @@
 (require 'derived)
 (eval-when-compile (require 'cl))
 (require 'outline)
+(eval-when-compile (require 'wdired))
 
 (defvar ioccur-mode-map
   (let ((map (make-sparse-keymap)))
@@ -88,13 +89,13 @@
 
 (defcustom ioccur-mode-line-string
   (if (window-system)
-      " RET:Exit, C-g:Quit, C-k:Kill, C-z:Jump, C-j:Jump&quit, \
-C-n/p:Next/Prec, M-p/n:Hist, C/M-v:Scroll, C-down/up:Follow, C-w:Yank tap"
+      " RET:Exit,C-g:Quit,C-j/left:Jump&quit,C-z/right:Jump,\
+C-k/x:Kill(as sexp),M-p/n:Hist,C/M-v:Scroll,C-down/up:Follow,C-w:Yank tap"
 
-      " RET:Exit, C-g:Quit, C-k:Kill, C-z:Jump, C-j:Jump&quit, \
-C-n/p:Next/Prec, Tab/S-tab:Hist, C-v/t:Scroll, C-d/u:Follow, C-w:Yank tap")
+      " RET:Exit,C-g:Quit,C-j:Jump&quit,C-z:Jump,C-k/x:Kill(as sexp),\
+S-/Tab:Hist,C-v/t:Scroll,C-d/u:Follow,C-w:Yank tap")
 
-  "*Documentation of `ioccur' prompt displayed in mode-line.
+  "*Minimal documentation of `ioccur' commands displayed in mode-line.
 Set it to nil to remove doc in mode-line."
   :group 'ioccur
   :type  'string)
@@ -127,6 +128,16 @@ To have ido completion, you have to enable `ido-mode'."
 Use here one of `re-search-forward' or `search-forward'."
   :group 'ioccur
   :type 'symbol)
+
+(defcustom ioccur-highlight-match-p t
+  "*Highlight matchs in `ioccur-buffer' when non--nil."
+  :group 'ioccur
+  :type 'boolean)
+
+(defvar ioccur-read-char-or-event-skip-read-key nil
+  "*Force not using `read-key' even if bounded.
+You should not have to set this yourself.
+Set it to non--nil if menu disapear or if keys are echoing in minibuffer.")
 
 ;;; Faces.
 (defface ioccur-overlay-face
@@ -162,7 +173,7 @@ Use here one of `re-search-forward' or `search-forward'."
 
 ;;; Internal variables.
 ;; String entered in prompt.
-(defvar ioccur-search-pattern "")
+(defvar ioccur-pattern "")
 ;; The ioccur timer.
 (defvar ioccur-search-timer nil)
 ;; Signal C-g hit.
@@ -187,6 +198,8 @@ Use here one of `re-search-forward' or `search-forward'."
 (defvar ioccur-success nil)
 ;; Search function actually in use.
 (defvar ioccur-search-function ioccur-default-search-function)
+;; Message to send when ioccur exit
+(defvar ioccur-message nil)
 
 (define-derived-mode ioccur-mode
     text-mode "ioccur"
@@ -449,9 +462,9 @@ Goto NUMLINE."
 
 (defun ioccur-jump ()
   "Jump to line in other buffer and put an overlay on it.
-Move point to first occurence of `ioccur-search-pattern'."
-  (let* ((line (buffer-substring (point-at-bol) (point-at-eol)))
-         (pos  (string-to-number line))
+Move point to first occurence of `ioccur-pattern'."
+  (let* ((line           (buffer-substring (point-at-bol) (point-at-eol)))
+         (pos            (string-to-number line))
          (back-search-fn (if (eq ioccur-search-function 're-search-forward)
                              're-search-backward 'search-backward)))
     (unless (or (string= line "")
@@ -460,10 +473,10 @@ Move point to first occurence of `ioccur-search-pattern'."
       (show-all) ; For org and outline enabled buffers.
       (ioccur-goto-line pos)
       ;; Go to beginning of first occurence in this line
-      ;; of what match `ioccur-search-pattern'.
+      ;; of what match `ioccur-pattern'.
       (when (funcall ioccur-search-function
-                     ioccur-search-pattern (point-at-eol) t)
-        (funcall back-search-fn ioccur-search-pattern (point-at-bol) t))
+                     ioccur-pattern (point-at-eol) t)
+        (funcall back-search-fn ioccur-pattern (point-at-bol) t))
       (ioccur-color-matched-line))))
 
 ;;;###autoload
@@ -528,30 +541,31 @@ Move point to first occurence of `ioccur-search-pattern'."
 
 (defun ioccur-read-char-or-event (prompt)
   "Replace `read-key' when not available using PROMPT."
-  (if (fboundp 'read-key)
+  (if (and (fboundp 'read-key)
+           (not ioccur-read-char-or-event-skip-read-key))
       (read-key prompt)
       (let* ((chr (condition-case nil (read-char prompt) (error nil)))
              (evt (unless chr (read-event prompt))))
         (or chr evt))))
 
 (defun ioccur-read-search-input (initial-input start-point)
-  "Read each keyboard input and add it to `ioccur-search-pattern'.
+  "Read each keyboard input and add it to `ioccur-pattern'.
 INITIAL-INPUT is a string given as default input, generally thing at point.
 START-POINT is the point where we start searching in buffer."
   (let* ((prompt         (propertize ioccur-search-prompt
                                      'face 'minibuffer-prompt))
          (inhibit-quit   (or (eq system-type 'windows-nt)
-                             (not (fboundp 'read-key))))
+                             (not (fboundp 'read-key))
+                             ioccur-read-char-or-event-skip-read-key))
          (tmp-list       ())
          (it-prec        nil)
          (it-next        nil)
          (cur-hist-elm   (car ioccur-history))
          (start-hist     nil) ; Flag to notify if cycling history started.
-         (old-yank-point start-point)
          yank-point)
     (unless (string= initial-input "")
       (loop for char across initial-input do (push char tmp-list)))
-    (setq ioccur-search-pattern initial-input)
+    (setq ioccur-pattern initial-input)
     ;; Cycle history function.
     ;;
     (flet ((cycle-hist (arg)
@@ -583,12 +597,12 @@ START-POINT is the point where we start searching in buffer."
                            (setq tmp-list nil)
                            (loop for char across cur-hist-elm
                               do (push char tmp-list))
-                           (setq ioccur-search-pattern cur-hist-elm)))
+                           (setq ioccur-pattern cur-hist-elm)))
                        ;; First call use car of history ring.
                        (setq tmp-list nil)
                        (loop for char across cur-hist-elm
                           do (push char tmp-list))
-                       (setq ioccur-search-pattern cur-hist-elm)
+                       (setq ioccur-pattern cur-hist-elm)
                        (setq start-hist t)))
                  (message "No history available.") (sit-for 2) t))
            ;; Insert INITIAL-INPUT.
@@ -606,10 +620,17 @@ START-POINT is the point where we start searching in buffer."
            ;;
            (stop-timer ()
              (when ioccur-search-timer
-               (ioccur-cancel-search))))
+               (ioccur-cancel-search)))
+           ;; Kill pattern
+           ;;
+           (kill (str)
+             (with-current-buffer ioccur-current-buffer
+               (goto-char start-point)
+               (setq yank-point start-point))
+             (kill-new str) (setq tmp-list ())))
       ;; Start incremental loop.
       (while (let ((char (ioccur-read-char-or-event
-                          (concat prompt ioccur-search-pattern))))
+                          (concat prompt ioccur-pattern))))
                (message nil)
                (case char
                  ((not (?\M-p ?\M-n ?\t C-tab)) ; Reset history
@@ -630,8 +651,8 @@ START-POINT is the point where we start searching in buffer."
                  (?\d                           ; Delete backward with DEL.
                   (start-timer)
                   (with-current-buffer ioccur-current-buffer
-                    (goto-char old-yank-point)
-                    (setq yank-point old-yank-point))
+                    (goto-char start-point)
+                    (setq yank-point start-point))
                   (pop tmp-list) t)
                  (?\C-g                         ; Quit and restore buffers.
                   (setq ioccur-quit-flag t) nil)
@@ -643,18 +664,22 @@ START-POINT is the point where we start searching in buffer."
                   (ioccur-scroll-other-window-down) t)
                  ((?\C-t ?\M-v prior)           ; Scroll up.
                   (ioccur-scroll-other-window-up) t)
-                 (?\C-|                         ; Toggle split window.
+                 (?\C-s                         ; Toggle split window.
                   (ioccur-split-window) t)
-                 (?\C-:                         ; Toggle regexp/litteral search.
+                 ((?\C-: ?\C-l)                 ; Toggle regexp/litteral search.
                   (if (eq ioccur-search-function 're-search-forward)
                       (setq ioccur-search-function 'search-forward)
                       (setq ioccur-search-function 're-search-forward)) t)
                  (?\C-k                         ; Kill input.
                   (start-timer)
-                  (with-current-buffer ioccur-current-buffer
-                    (goto-char old-yank-point)
-                    (setq yank-point old-yank-point))
-                  (kill-new ioccur-search-pattern) (setq tmp-list ()) t)
+                  (kill ioccur-pattern) t)
+                 ((?\M-k ?\C-x)                 ; Kill input as sexp.
+                  (start-timer)
+                  (let ((sexp (prin1-to-string ioccur-pattern)))
+                    (kill sexp)
+                    (setq ioccur-quit-flag t)
+                    (setq ioccur-message (format "Killed: %s" sexp)))
+                  nil)
                  (?\C-y                         ; Yank from `kill-ring'.
                   (setq initial-input (car kill-ring))
                   (insert-initial-input) t)
@@ -662,7 +687,7 @@ START-POINT is the point where we start searching in buffer."
                   (start-timer)
                   (with-current-buffer ioccur-current-buffer
                     ;; Start to initial point if C-w have never been hit.
-                    (unless yank-point (setq yank-point old-yank-point))
+                    (unless yank-point (setq yank-point start-point))
                     ;; After a search `ioccur-print-results' have put point
                     ;; to point-max, so reset position.
                     (when yank-point (goto-char yank-point))
@@ -686,16 +711,39 @@ START-POINT is the point where we start searching in buffer."
                                            (this-single-command-raw-keys))
                                    unread-command-events))
                       nil))))
-        (setq ioccur-search-pattern (apply 'string (reverse tmp-list)))))))
+        (setq ioccur-pattern (apply 'string (reverse tmp-list)))))))
 
 (defun ioccur-print-buffer (regexp)
   "Pretty Print results matching REGEXP in `ioccur-buffer'."
+  (unless (window-system) (setq tooltip-use-echo-area t) (tooltip-mode 1))
   (let* ((cur-method (if (eq ioccur-search-function 're-search-forward)
                          "Regexp" "Literal"))
-         (title (propertize
-                 (format "Ioccur %s searching (`C-:' to Toggle Method)"
-                         cur-method)
-                 'face 'ioccur-title-face))
+         (title      (propertize
+                      (format
+                       "* Ioccur %s searching %s"
+                       cur-method
+                       (if (window-system)
+                           "* (`C-:' to Toggle Method, Mouse over for help.)"
+                           "* (`C-l' to Toggle Method.)"))
+                      'face 'ioccur-title-face
+                      'help-echo
+                      "                  Ioccur map:\n
+C-n or <down>      Next line.\n
+C-p or <up>        Precedent line.\n
+C-v and M-v/C-t    Scroll up and down.\n
+C-z or <right>     Jump without quitting loop.\n
+C-j or <left>      Jump and kill `ioccur-buffer'.\n
+RET                Exit keeping `ioccur-buffer'.\n
+DEL                Remove last character entered.\n
+C-k                Kill current input.\n
+M-k/C-x            Kill current input as sexp.\n
+C-w                Yank stuff at point.\n
+C-g                Quit and restore buffer.\n
+C-s                Toggle split window.\n
+C-:/l              Toggle regexp/litteral search.\n
+C-down or C-u      Follow in other buffer.\n
+C-up/d or C-d      Follow in other buffer.\n
+M-p/n or tab/S-tab History."))
            wrong-regexp)
     (if (string= regexp "")
         (progn (erase-buffer) (insert title "\n\n"))
@@ -718,7 +766,9 @@ START-POINT is the point where we start searching in buffer."
                     (propertize
                      (format " in %s" ioccur-current-buffer)
                      'face 'underline) "\n\n")
-            (ioccur-color-current-line)))))
+            (ioccur-color-current-line)
+            (when ioccur-highlight-match-p
+              (ioccur-highlight-match (point) regexp))))))
 
 (defun ioccur-start-timer ()
   "Start ioccur incremental timer."
@@ -727,8 +777,12 @@ START-POINT is the point where we start searching in buffer."
          ioccur-search-delay 'repeat
          #'(lambda ()
              (ioccur-print-buffer
-              ioccur-search-pattern)))))
-              
+              ioccur-pattern)))))
+
+(defun ioccur-send-message ()
+  "Send message defined in `ioccur-message'."
+  (message ioccur-message))
+
 ;;;###autoload
 (defun ioccur (&optional initial-input)
   "Incremental search of lines in current buffer matching input.
@@ -744,13 +798,16 @@ C-j or <left>  jump and kill `ioccur-buffer'.
 RET            exit keeping `ioccur-buffer'.
 DEL            remove last character entered.
 C-k            Kill current input.
+M-k             Kill current input as sexp.
 C-w            Yank stuff at point.
 C-g            quit and restore buffer.
-C-|            Toggle split window.
+C-s            Toggle split window.
 C-:            Toggle regexp/litteral search.
 C-down         Follow in other buffer.
 C-up           Follow in other buffer.
-M-p/n          Precedent and next `ioccur-history' element:
+M-p/n          Precedent and next `ioccur-history' element.
+
+Unlike minibuffer history, ioccur history is a ring (no end):
 
 M-p ,-->A B C D E F G H I---,
     |                       |
@@ -759,6 +816,8 @@ M-p ,-->A B C D E F G H I---,
 M-n ,-->I H G F E D C B A---,
     |                       |
     `---A B C D E F G H I<--'
+
+If a region is active, search only in this region.
 
 Special NOTE for terms:
 =======================
@@ -788,6 +847,13 @@ for commands provided in the `ioccur-buffer'."
                            ""))
              (len      (length init-str))
              (curpos   (point))
+             (cur-mode (with-current-buffer ioccur-current-buffer
+                         (prog1
+                             major-mode
+                           ;; If current `major-mode' is wdired
+                           ;; Turn it off.
+                           (when (eq major-mode 'wdired-mode)
+                             (wdired-change-to-dired-mode)))))
              str-no-prop)
         (set-text-properties 0 len nil init-str)
         (setq str-no-prop init-str)
@@ -804,35 +870,42 @@ for commands provided in the `ioccur-buffer'."
             (kill-local-variable 'mode-line-format)
             (when (equal (buffer-substring (point-at-bol) (point-at-eol)) "")
               (setq ioccur-quit-flag t))
-            (cond (ioccur-quit-flag       ; C-g hit or empty `ioccur-buffer'.
+            (cond (ioccur-quit-flag ; C-g hit or empty `ioccur-buffer'.
                    (kill-buffer ioccur-buffer)
                    (switch-to-buffer ioccur-current-buffer)
                    (when ioccur-match-overlay
                      (delete-overlay ioccur-match-overlay))
                    (delete-other-windows) (goto-char curpos)
-                   (message nil))
+                   (ioccur-send-message)
+                   ;; If `ioccur-message' is non--nil, thats mean we exit
+                   ;; with a specific action other than `C-g',
+                   ;; so we save history.
+                   (when ioccur-message (ioccur-save-history)))
                   (ioccur-exit-and-quit-p ; Jump and kill `ioccur-buffer'.
                    (ioccur-jump-and-quit) (kill-buffer ioccur-buffer)
-                   (message nil) (ioccur-save-history))
-                  (t                      ; Jump keeping `ioccur-buffer'.
+                   (ioccur-send-message) (ioccur-save-history))
+                  (t                   ; Jump keeping `ioccur-buffer'.
                    (ioccur-jump) (other-window 1) (ioccur-save-history)))
+            ;; Maybe reenable `wdired-mode'.
+            (when (eq cur-mode 'wdired-mode) (wdired-change-to-wdired-mode))
             (setq ioccur-count-occurences 0)
             (setq ioccur-quit-flag nil)
+            (setq ioccur-message nil)
             (setq ioccur-search-function ioccur-default-search-function))))))
 
 (defun ioccur-save-history ()
   "Save last ioccur element found in `ioccur-history'."
   ;; Push elm in history if not already there or empty.
-  (unless (or (member ioccur-search-pattern ioccur-history)
-              (string= ioccur-search-pattern ""))
-    (push ioccur-search-pattern ioccur-history))
+  (unless (or (member ioccur-pattern ioccur-history)
+              (string= ioccur-pattern ""))
+    (push ioccur-pattern ioccur-history))
   ;; If elm already exists in history ring
   ;; push it on top of stack.
   (let ((pos-hist-elm (ioccur-position
-                       ioccur-search-pattern
+                       ioccur-pattern
                        ioccur-history :test 'equal)))
     (unless (string= (car ioccur-history)
-                     ioccur-search-pattern)
+                     ioccur-pattern)
       (push (pop (nthcdr pos-hist-elm ioccur-history))
             ioccur-history)))
   (when (> (length ioccur-history) ioccur-max-length-history)
@@ -865,6 +938,18 @@ of matched line in `ioccur-current-buffer'."
             (make-overlay (point-at-bol) (1+ (point-at-eol)))))
   (overlay-put ioccur-match-overlay 'face 'ioccur-match-overlay-face))
 
+(defun ioccur-highlight-match (beg regexp)
+  "Highlight all occurences of REGEXP from BEG to end of `ioccur-buffer'."
+  (save-excursion
+    (goto-char beg)
+    (while (and (funcall ioccur-search-function regexp nil t)
+                (not (eobp))
+                ;; If length of match is null exit loop.
+                ;; e.g when searching "^".
+                (> (- (match-end 0) (match-beginning 0)) 0))
+      (put-text-property (match-beginning 0) (point)
+                         'face 'ioccur-regexp-face))))
+            
 
 (provide 'ioccur)
 
