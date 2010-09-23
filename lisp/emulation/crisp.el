@@ -175,7 +175,7 @@ All the bindings are done here instead of globally to try and be
 nice to the world.")
 
 (defcustom crisp-mode-modeline-string " *CRiSP*"
-  "*String to display in the modeline when CRiSP emulation mode is enabled."
+  "String to display in the modeline when CRiSP emulation mode is enabled."
   :type 'string
   :group 'crisp)
 
@@ -195,7 +195,7 @@ use either M-x customize or the function `crisp-mode'."
   :group 'crisp)
 
 (defcustom crisp-override-meta-x t
-  "*Controls overriding the normal Emacs M-x key binding in the CRiSP emulator.
+  "Controls overriding the normal Emacs M-x key binding in the CRiSP emulator.
 Normally the CRiSP emulator rebinds M-x to `save-buffers-exit-emacs', and
 provides the usual M-x functionality on the F10 key.  If this variable
 is non-nil, M-x will exit Emacs."
