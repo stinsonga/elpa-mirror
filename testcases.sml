@@ -41,23 +41,26 @@ val tut =
 val x =
     (* From "Christopher Dutchyn" <cdutchyn@cs.ubc.ca> *)
     (case foo of
-       (* FIXME: The line gets unindented by 2 every time you hit TAB :-( *)
+       (* This is actually not valid SML anyway.  *)
+       | BAR => baz
        | BAR => baz)
 
 
 val x =
     (x := 1;
-     case x of
-         FOO => 1
-       | BAR =>
-         2;
-     case x of
-         FOO => 1
-       | BAR =>
-         case y of
-	     FAR => 2
-	   | FRA => 3;
-     hello);
+     x := 2;
+       x := 3;                  (* fixindent *)
+       case x of
+           FOO => 1
+         | BAR =>
+           2;
+       case x of
+           FOO => 1
+         | BAR =>
+           case y of
+	       FAR => 2
+	     | FRA => 3;
+       hello);
 
 datatype foobar
   = FooB of int
