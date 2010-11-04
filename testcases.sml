@@ -14,7 +14,45 @@ val bar =
  fn a1 a2 a3
     a5 a6
     a4 => (1
+          ;(
+              w
+            ,
+              s
+            ,
+              s
+            , s , a ,
+              a
+            , s , a ,
+              a
+          )
+          ;(
+              w
+             ,s
+             ,a
+          )
+          ;(
+              w
+          ,   s
+          ,   a
+          )
+          ;(   w
+           ,   s
+           ,   a
+           )
+          ;( w
+            ,s
+            ,a
+           )
           ;3
+           + a
+             * 4
+           + let val x = 3
+             in toto
+             end
+           + if a then
+                 b
+             else
+                 c
           ;4)
 
 val ber = 1;
@@ -156,18 +194,20 @@ val y = (
              foo("(*")
          * 2;
     end;
-
+    
     let
     in a
      ; b
     end;
-
+    
     let
     in
-        a
+        a +
+        b + 
+        c
       ; b
     end;
-
+    
     let
     in if a then
            b
@@ -202,6 +242,9 @@ end;
 structure Foo = struct
 val x = 1
 end
+
+structure Foo = struct val x = 1
+                end
 
 signature FSPLIT =
 sig
@@ -369,8 +412,8 @@ and sfdec env (leE,leI,fvI,leRet) (fk,f,args,body) =
 	       val fErets = (map F.VAR fvbIs)
 	       val bodyE = bodyE(F.RET fErets)
 	       (* val tmp = mklv()
-		  val bodyE = bodyE(F.RECORD(F.RK_STRUCT, map F.VAR fvbIs,
-					     tmp, F.RET[F.VAR tmp])) *)
+		val bodyE = bodyE(F.RECORD(F.RK_STRUCT, map F.VAR fvbIs,
+					   tmp, F.RET[F.VAR tmp])) *)
 	       val fdecE = (fkE, fE, args, bodyE)
 	       val fElty = LT.ltc_fct(map #2 args, map getLty fErets)
 	       val _ = addLty(fE, fElty)

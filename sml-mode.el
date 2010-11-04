@@ -450,6 +450,8 @@ Regexp match data 0 points to the chars."
          (nonassoc " -dummy- ")))                 ;Bogus anchor at the end.
       ))))
 
+(defvar sml-indent-separator-outdent 2)
+
 (defun sml-smie-rules (kind token)
   (pcase (cons kind token)
     (`(:after . "struct") 0)
@@ -463,11 +465,28 @@ Regexp match data 0 points to the chars."
      ;; Shift single-char separators 2 columns left if they appear
      ;; at the beginning of a line so the content is aligned
      ;; (assuming exactly one space after the separator is used).
-     (if (and (smie-bolp) (eq kind :before))
-         (if (smie-parent-p "(" "{" "[" "=" "d=" "|" "d|") 0
-           (if (smie-parent-p "of" "in" "fun")
-               ;; FIXME: Adjust to correct nb of spaces.
-               '(+ point -2)))))
+     (cond
+      ((smie-bolp)
+       ;; FIXME: Rather than consult the number of spaces, we could *set* the
+       ;; number of spaces so as to align the separator with the close-paren
+       ;; while aligning the content with the rest.
+       (let ((outdent (if (looking-at ".\\( *\\)[^\n ]")
+                          (1+ (- (match-end 1) (match-beginning 1)))
+                        sml-indent-separator-outdent)))
+         ;; FIXME: This test is really just checking (not
+         ;; (smie-sibling-p)).
+         (pcase kind
+           (`:before
+            (if (smie-parent-p "(" "{" "[" "=" "d=" "of" "in" "fun")
+                `(bound parent (+ point ,(- outdent)) point)))
+           (`:after outdent))))
+      ;; ((eq kind :after)
+      ;;  (forward-char 1)
+      ;;  (ignore-errors
+      ;;    (smie-backward-sexp 'halfsexp)
+      ;;    'point-virtual))
+      ))
+           
     (`(:after . ,(or `"(" `"{" `"[")) (if (not (smie-hanging-p)) 2))
     (`(:before . ,(or `"let" `"(" `"[" `"{")) (if (smie-hanging-p) 'parent))
     (`(:before . "if") (if (smie-prev-p "else") 'parent)) ;'point
@@ -526,11 +545,12 @@ Assumes point is right before the | symbol."
 
 (defun sml-smie-forward-token-1 ()
   (forward-comment (point-max))
-  (buffer-substring (point)
-                    (progn
-                      (or (/= 0 (skip-syntax-forward "'w_"))
-                          (skip-syntax-forward ".'"))
-                      (point))))
+  (buffer-substring-no-properties
+   (point)
+   (progn
+     (or (/= 0 (skip-syntax-forward "'w_"))
+         (skip-syntax-forward ".'"))
+     (point))))
 
 (defun sml-smie-forward-token ()
   (let ((sym (sml-smie-forward-token-1)))
@@ -543,11 +563,12 @@ Assumes point is right before the | symbol."
 
 (defun sml-smie-backward-token-1 ()
   (forward-comment (- (point)))
-  (buffer-substring (point)
-                    (progn
-                      (or (/= 0 (skip-syntax-backward ".'"))
-                          (skip-syntax-backward "'w_"))
-                      (point))))
+  (buffer-substring-no-properties
+   (point)
+   (progn
+     (or (/= 0 (skip-syntax-backward ".'"))
+         (skip-syntax-backward "'w_"))
+     (point))))
 
 (defun sml-smie-backward-token ()
   (let ((sym (sml-smie-backward-token-1)))
