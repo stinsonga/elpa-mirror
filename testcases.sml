@@ -49,6 +49,7 @@ val x =
 val x =
     (x := 1;
      x := 2;
+       (* Testing obedience to user overrides: *)
        x := 3;                  (* fixindent *)
        case x of
            FOO => 1
@@ -68,6 +69,11 @@ datatype foobar
 datatype foo = FOO | BAR of baz
      and baz = BAZ | QUUX of foo
 
+fun toto = if a
+           then
+               b
+           else c
+
 datatype foo = FOO
              | BAR of baz
   and baz = BAZ			(* fixindent *)
@@ -84,6 +90,17 @@ val foo = [
     "blah"
   , let val x = f 42 in g (x,x,44) end
 ]
+
+val foo = [
+    "blah",
+    let val x = f 42 in g (x,x,44) end
+]
+
+val foo =
+    [
+      "blah",
+      let val x = f 42 in g (x,x,44) end
+    ]
 
 val foo = [ "blah"
 	  , let val x = f 42 in g (x,x,44) end
@@ -117,6 +134,10 @@ val x =
      case M.find(m,f)
       of SOME(fl, filt) =>
          F.APP(F.VAR fl, OU.filter filt vs)
+       | NONE
+         => le
+       | NONE =>
+         le
        | NONE => le;
      x := x + 1;
      (case foo

@@ -422,7 +422,7 @@ Regexp match data 0 points to the chars."
          (type (type "->" type)
                (type "*" type))
          (funbranches (sexp "d=" exp))
-         (databranches (sexp "=of" type) (databranches "|" databranches))
+         (databranches (sexp "=of" type) (databranches "d|" databranches))
          ;; Module language.
          ;; (mexp ("functor" marg "d=" mexp)
          ;;       ("structure" marg "d=" mexp)
@@ -450,43 +450,42 @@ Regexp match data 0 points to the chars."
          (nonassoc " -dummy- ")))                 ;Bogus anchor at the end.
       ))))
 
-(defconst sml-smie-closer-alist (smie-bnf-closer-alist sml-smie-bnf))
-
-(defconst sml-smie-indent-rules
- '(("struct" 0)
-   ((:before . "=>") (:parent "fn" 3))
-   ("=>" (:hanging 0) 2)
-   ("of" 3)
-   ((:before . "of") . 1)
-   ;; Shift single-char separators 2 columns left if they appear
-   ;; at the beginning of a line so the content is aligned
-   ;; (assuming exactly one space after the separator is used).
-   ((:before . "|") (:prev "of" 1) (+ point -2)) ("|" 2)
-   ((:before . "d|") (+ point -2)) ("d|" 2)
-   ;;((:before . ",") (:parent "(" 0) (+ point -2)) ("," 2)
-   ;;((:before . ";") (:parent "(" 0) (+ point -2)) (";" 2)
-   ((:before . ";") (:bolp (:parent ("(" "{") 0) (+ point -2)))
-   ((:before . ",") (:bolp (:parent ("(" "{") 0) (+ point -2)))
-   ("(" (:hanging nil) 2)
-   ;; ("local" sml-indent-level)
-   ((:before . "let") (:hanging parent) point)
-   ((:before . "(") (:hanging parent) point)
-   ((:before . "[") (:hanging parent) point)
-   ((:before . "if") (:prev "else" parent) point)
-   ((:before . "fn") (:prev "=>" parent) point)
-   ;; ("let" sml-indent-level)
-   ("in" (:parent "local" 0) sml-indent-level)
-   ;; ("if")
-   ("then" sml-indent-level)
-   ("else" (:hanging 0) sml-indent-level) ;; (:next "if" 0)
-   ((:before . "and")
-    (:parent "datatype" 5) (:parent "fun" 0) (:parent "val" 0))
-   ;; (("datatype" . "with") . 4)
-   ((:before . "d=")
-    (:parent "datatype" 2) (:parent "structure" 0) (:parent "signature" 0))
-   ("d=" (:parent "val" (:next "fn" -3) 0) 0)
-   (list-intro "fn")
-   ))
+(defun sml-smie-rules (kind token)
+  (pcase (cons kind token)
+    (`(:after . "struct") 0)
+    (`(:before . "=>") (if (smie-parent-p "fn") 3))
+    (`(:after . "=>") (if (smie-hanging-p) 0 2))
+    (`(:after . "of") 3)
+    (`(:before . "of") 1)
+    ((and `(:before . "|") (guard (smie-prev-p "of")))
+     1) ;; In case the language is extended to allow a | directly after of.
+    (`(,_ . ,(or `"|" `"d|" `";" `","))
+     ;; Shift single-char separators 2 columns left if they appear
+     ;; at the beginning of a line so the content is aligned
+     ;; (assuming exactly one space after the separator is used).
+     (if (and (smie-bolp) (eq kind :before))
+         (if (smie-parent-p "(" "{" "[" "=" "d=" "|" "d|") 0
+           (if (smie-parent-p "of" "in" "fun")
+               ;; FIXME: Adjust to correct nb of spaces.
+               '(+ point -2)))))
+    (`(:after . ,(or `"(" `"{" `"[")) (if (not (smie-hanging-p)) 2))
+    (`(:before . ,(or `"let" `"(" `"[" `"{")) (if (smie-hanging-p) 'parent))
+    (`(:before . "if") (if (smie-prev-p "else") 'parent)) ;'point
+    (`(:before . "fn") (if (smie-prev-p "=>") 'parent)) ;'point
+    (`(:after . "in") (if (smie-parent-p "local") 0))
+    (`(:after . "else") (if (smie-hanging-p) 0)) ;; (:next "if" 0)
+    (`(:before . "and")
+     (cond
+      ((smie-parent-p "datatype") 5)   ;=(- (length "datatype") (length "and"))
+      ((smie-parent-p "fun" "val") 0)))
+    ;; (("datatype" . "with") . 4)
+    (`(:before . "d=")
+     (cond
+      ((smie-parent-p "datatype") (if (smie-bolp) 2 nil ;; 'point
+                                      ))
+      ((smie-parent-p "structure" "signature") 0)))
+    (`(:after . "d=") (if (and (smie-parent-p "val") (smie-next-p "fn")) -3))
+    (`(:list-intro . "fn") t)))
 
 (defun sml-smie-definitional-equal-p ()
   "Figure out which kind of \"=\" this is.
@@ -629,13 +628,9 @@ This mode runs `sml-mode-hook' just before exiting.
   ;; Setup indentation and sexp-navigation.
   (cond
    ((and sml-use-smie (fboundp 'smie-setup))
-    (smie-setup sml-smie-op-levels sml-smie-indent-rules)
-    (set (make-local-variable 'smie-backward-token-function)
-         'sml-smie-backward-token)
-    (set (make-local-variable 'smie-forward-token-function)
-         'sml-smie-forward-token)
-    (set (make-local-variable 'forward-sexp-function)
-         'smie-forward-sexp-command))
+    (smie-setup sml-smie-op-levels #'sml-smie-rules
+                :backward-token #'sml-smie-backward-token
+                :forward-token #'sml-smie-forward-token))
    (t
     ;; forward-sexp-function is an experimental variable in my hacked Emacs.
     (set (make-local-variable 'forward-sexp-function) 'sml-user-forward-sexp)
