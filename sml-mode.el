@@ -473,19 +473,11 @@ Regexp match data 0 points to the chars."
        (let ((outdent (if (looking-at ".\\( *\\)[^\n ]")
                           (1+ (- (match-end 1) (match-beginning 1)))
                         sml-indent-separator-outdent)))
-         ;; FIXME: This test is really just checking (not
-         ;; (smie-sibling-p)).
          (pcase kind
            (`:before
-            (if (smie-parent-p "(" "{" "[" "=" "d=" "of" "in" "fun")
+            (if (not (smie-sibling-p))
                 `(bound parent (+ point ,(- outdent)) point)))
-           (`:after outdent))))
-      ;; ((eq kind :after)
-      ;;  (forward-char 1)
-      ;;  (ignore-errors
-      ;;    (smie-backward-sexp 'halfsexp)
-      ;;    'point-virtual))
-      ))
+           (`:after outdent))))))
            
     (`(:after . ,(or `"(" `"{" `"[")) (if (not (smie-hanging-p)) 2))
     (`(:before . ,(or `"let" `"(" `"[" `"{")) (if (smie-hanging-p) 'parent))
@@ -500,8 +492,7 @@ Regexp match data 0 points to the chars."
     ;; (("datatype" . "with") . 4)
     (`(:before . "d=")
      (cond
-      ((smie-parent-p "datatype") (if (smie-bolp) 2 nil ;; 'point
-                                      ))
+      ((smie-parent-p "datatype") (if (smie-bolp) 2))
       ((smie-parent-p "structure" "signature") 0)))
     (`(:after . "d=") (if (and (smie-parent-p "val") (smie-next-p "fn")) -3))
     (`(:list-intro . "fn") t)))
