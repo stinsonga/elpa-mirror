@@ -454,47 +454,40 @@ Regexp match data 0 points to the chars."
 
 (defun sml-smie-rules (kind token)
   (pcase (cons kind token)
+    (`(:elem . basic) sml-indent-level)
+    (`(:elem . args) sml-indent-args)
     (`(:after . "struct") 0)
-    (`(:before . "=>") (if (smie-parent-p "fn") 3))
-    (`(:after . "=>") (if (smie-hanging-p) 0 2))
-    (`(:after . "of") 3)
+    (`(:before . "=>") (if (smie-rule-parent-p "fn") 3))
+    (`(:after . "=>") (if (smie-rule-hanging-p) 0 2))
     (`(:before . "of") 1)
-    ((and `(:before . "|") (guard (smie-prev-p "of")))
+    (`(:after . "in") (if (smie-rule-parent-p "local") 0))
+    ;; 
+    (`(:after . "of") 3)
+    ((and `(:before . "|") (guard (smie-rule-prev-p "of")))
      1) ;; In case the language is extended to allow a | directly after of.
-    (`(,_ . ,(or `"|" `"d|" `";" `","))
-     ;; Shift single-char separators 2 columns left if they appear
-     ;; at the beginning of a line so the content is aligned
-     ;; (assuming exactly one space after the separator is used).
-     (cond
-      ((smie-bolp)
-       ;; FIXME: Rather than consult the number of spaces, we could *set* the
-       ;; number of spaces so as to align the separator with the close-paren
-       ;; while aligning the content with the rest.
-       (let ((outdent (if (looking-at ".\\( *\\)[^\n ]")
-                          (1+ (- (match-end 1) (match-beginning 1)))
-                        sml-indent-separator-outdent)))
-         (pcase kind
-           (`:before
-            (if (not (smie-sibling-p))
-                `(bound parent (+ point ,(- outdent)) point)))
-           (`:after outdent))))))
-           
-    (`(:after . ,(or `"(" `"{" `"[")) (if (not (smie-hanging-p)) 2))
-    (`(:before . ,(or `"let" `"(" `"[" `"{")) (if (smie-hanging-p) 'parent))
-    (`(:before . "if") (if (smie-prev-p "else") 'parent)) ;'point
-    (`(:before . "fn") (if (smie-prev-p "=>") 'parent)) ;'point
-    (`(:after . "in") (if (smie-parent-p "local") 0))
-    (`(:after . "else") (if (smie-hanging-p) 0)) ;; (:next "if" 0)
+    (`(,_ . ,(or `"|" `"d|" `";" `",")) (smie-rule-separator kind))
+    (`(:after . ,(or `"(" `"{" `"[")) (if (not (smie-rule-hanging-p)) 2))
+    ;; Treat purely syntactic block-constructs as being part of their parent,
+    ;; when the opening statement is hanging.
+    (`(:before . ,(or `"let" `"(" `"[" `"{"))
+     (if (smie-rule-hanging-p) 'parent))
+    ;; Treat if ... else if ... as a single long syntactic construct.
+    (`(:before . "if") (if (smie-rule-prev-p "else") 'parent))
+    ;; Similarly, treat fn a => fn b => ... as a single construct.
+    (`(:before . "fn") (if (smie-rule-prev-p "=>") 'parent))
+    (`(:after . "else") (if (smie-rule-hanging-p) 0)) ;; (:next "if" 0)
     (`(:before . "and")
+     ;; FIXME: maybe "and" (c|sh)ould be handled as an smie-separator.
      (cond
-      ((smie-parent-p "datatype") 5)   ;=(- (length "datatype") (length "and"))
-      ((smie-parent-p "fun" "val") 0)))
+      ((smie-rule-parent-p "datatype") (if sml-rightalign-and 5 0))
+      ((smie-rule-parent-p "fun" "val") 0)))
     ;; (("datatype" . "with") . 4)
     (`(:before . "d=")
      (cond
-      ((smie-parent-p "datatype") (if (smie-bolp) 2))
-      ((smie-parent-p "structure" "signature") 0)))
-    (`(:after . "d=") (if (and (smie-parent-p "val") (smie-next-p "fn")) -3))
+      ((smie-rule-parent-p "datatype") (if (smie-rule-bolp) 2))
+      ((smie-rule-parent-p "structure" "signature") 0)))
+    (`(:after . "d=")
+     (if (and (smie-rule-parent-p "val") (smie-rule-next-p "fn")) -3))
     (`(:list-intro . "fn") t)))
 
 (defun sml-smie-definitional-equal-p ()
