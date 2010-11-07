@@ -361,8 +361,8 @@ Regexp match data 0 points to the chars."
 
 ;;; Indentation with SMIE
 
-(defconst sml-smie-op-levels
-  (when (fboundp 'smie-prec2-levels)
+(defconst sml-smie-grammar
+  (when (fboundp 'smie-prec2->grammar)
     ;; We have several problem areas where SML's syntax can't be handled by an
     ;; operator precedence grammar:
     ;; 
@@ -379,9 +379,9 @@ Regexp match data 0 points to the chars."
     ;; "functor foo (...) where type a = b = ..." the first `=' looks very much
     ;;   like a `definitional-=' even tho it's just an equality constraint.
     ;;   Currently I don't even try to handle `where' at all.
-    (smie-prec2-levels
+    (smie-prec2->grammar
      (smie-merge-prec2s
-      (smie-bnf-precedence-table
+      (smie-bnf->prec2
        '((exp ("if" exp "then" exp "else" exp)
               ("case" exp "of" branches)
               ("let" decls "in" cmds "end")
@@ -439,7 +439,7 @@ Regexp match data 0 points to the chars."
        '((assoc "orelse") (assoc "andalso") (nonassoc ":"))
        '((assoc ";")) '((assoc ",")) '((assoc "d|")))
 
-      (smie-precs-precedence-table
+      (smie-precs->prec2
        '((nonassoc "andalso")                     ;To anchor the prec-table.
          (assoc "before")                         ;0
          (assoc ":=" "o")                         ;3
@@ -453,43 +453,50 @@ Regexp match data 0 points to the chars."
 (defvar sml-indent-separator-outdent 2)
 
 (defun sml-smie-rules (kind token)
-  (pcase (cons kind token)
-    (`(:elem . basic) sml-indent-level)
-    (`(:elem . args) sml-indent-args)
-    (`(:after . "struct") 0)
-    (`(:before . "=>") (if (smie-rule-parent-p "fn") 3))
-    (`(:after . "=>") (if (smie-rule-hanging-p) 0 2))
-    (`(:before . "of") 1)
-    (`(:after . "in") (if (smie-rule-parent-p "local") 0))
-    ;; 
-    (`(:after . "of") 3)
-    ((and `(:before . "|") (guard (smie-rule-prev-p "of")))
-     1) ;; In case the language is extended to allow a | directly after of.
-    (`(,_ . ,(or `"|" `"d|" `";" `",")) (smie-rule-separator kind))
-    (`(:after . ,(or `"(" `"{" `"[")) (if (not (smie-rule-hanging-p)) 2))
-    ;; Treat purely syntactic block-constructs as being part of their parent,
-    ;; when the opening statement is hanging.
-    (`(:before . ,(or `"let" `"(" `"[" `"{"))
-     (if (smie-rule-hanging-p) 'parent))
-    ;; Treat if ... else if ... as a single long syntactic construct.
-    (`(:before . "if") (if (smie-rule-prev-p "else") 'parent))
-    ;; Similarly, treat fn a => fn b => ... as a single construct.
-    (`(:before . "fn") (if (smie-rule-prev-p "=>") 'parent))
-    (`(:after . "else") (if (smie-rule-hanging-p) 0)) ;; (:next "if" 0)
-    (`(:before . "and")
-     ;; FIXME: maybe "and" (c|sh)ould be handled as an smie-separator.
+  ;; I much preferred the pcase version of the code, especially while
+  ;; edebugging the code.  But that will have to wait until we get rid of
+  ;; support for Emacs-23.
+  (case kind
+    (:elem (case token
+             (basic sml-indent-level)
+             (args  sml-indent-args)))
+    (:list-intro (member token '("fn")))
+    (:after
      (cond
-      ((smie-rule-parent-p "datatype") (if sml-rightalign-and 5 0))
-      ((smie-rule-parent-p "fun" "val") 0)))
-    ;; (("datatype" . "with") . 4)
-    (`(:before . "d=")
+      ((equal token "struct") 0)
+      ((equal token "=>") (if (smie-rule-hanging-p) 0 2))
+      ((equal token "in") (if (smie-rule-parent-p "local") 0))
+      ((equal token "of") 3)
+      ((member token '("(" "{" "[")) (if (not (smie-rule-hanging-p)) 2))
+      ((equal token "else") (if (smie-rule-hanging-p) 0)) ;; (:next "if" 0)
+      ((equal token "d=")
+       (if (and (smie-rule-parent-p "val") (smie-rule-next-p "fn")) -3))))
+    (:before
      (cond
-      ((smie-rule-parent-p "datatype") (if (smie-rule-bolp) 2))
-      ((smie-rule-parent-p "structure" "signature") 0)))
-    (`(:after . "d=")
-     (if (and (smie-rule-parent-p "val") (smie-rule-next-p "fn")) -3))
-    (`(:list-intro . "fn") t)))
-
+      ((equal token "=>") (if (smie-rule-parent-p "fn") 3))
+      ((equal token "of") 1)
+      ;; In case the language is extended to allow a | directly after of.
+      ((and (equal token "|") (smie-rule-prev-p "of")) 1)
+      ;; FIXME: This should also be called for the :after case.
+      ((member token '("|" "d|" ";" ",")) (smie-rule-separator kind))
+      ;; Treat purely syntactic block-constructs as being part of their parent,
+      ;; when the opening statement is hanging.
+      ((member token '("let" "(" "[" "{"))
+       (if (smie-rule-hanging-p) (smie-rule-parent)))
+      ;; Treat if ... else if ... as a single long syntactic construct.
+      ((equal token "if") (if (smie-rule-prev-p "else") (smie-rule-parent)))
+      ;; Similarly, treat fn a => fn b => ... as a single construct.
+      ((equal token "fn") (if (smie-rule-prev-p "=>") (smie-rule-parent)))
+      ((equal token "and")
+       ;; FIXME: maybe "and" (c|sh)ould be handled as an smie-separator.
+       (cond
+        ((smie-rule-parent-p "datatype") (if sml-rightalign-and 5 0))
+        ((smie-rule-parent-p "fun" "val") 0)))
+      ((equal token "d=")
+       (cond
+        ((smie-rule-parent-p "datatype") (if (smie-rule-bolp) 2))
+        ((smie-rule-parent-p "structure" "signature") 0)))))))
+    
 (defun sml-smie-definitional-equal-p ()
   "Figure out which kind of \"=\" this is.
 Assumes point is right before the = sign."
@@ -633,7 +640,7 @@ This mode runs `sml-mode-hook' just before exiting.
   ;; Setup indentation and sexp-navigation.
   (cond
    ((and sml-use-smie (fboundp 'smie-setup))
-    (smie-setup sml-smie-op-levels #'sml-smie-rules
+    (smie-setup sml-smie-grammar #'sml-smie-rules
                 :backward-token #'sml-smie-backward-token
                 :forward-token #'sml-smie-forward-token))
    (t
