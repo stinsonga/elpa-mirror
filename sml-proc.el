@@ -1,6 +1,6 @@
 ;;; sml-proc.el --- Comint based interaction mode for Standard ML.
 
-;; Copyright (C) 1999, 2000, 2003, 2004, 2005, 2007  Stefan Monnier
+;; Copyright (C) 1999, 2000, 2003, 2004, 2005, 2007, 2010  Stefan Monnier
 ;; Copyright (C) 1994-1997  Matthew J. Morley
 ;; Copyright (C) 1989       Lars Bo Nielsen
 
@@ -91,7 +91,6 @@
 
 (eval-when-compile (require 'cl))
 (require 'sml-mode)
-(require 'sml-util)
 (require 'comint)
 (require 'compile)
 
@@ -262,14 +261,14 @@ See `compilation-error-regexp-alist' for a description of the format.")
 
 ;;; CODE
 
-(defmap inferior-sml-mode-map
-  '(("\C-c\C-s"	. run-sml)
-    ("\C-c\C-l"	. sml-load-file)
-    ("\t"	. comint-dynamic-complete))
-  "Keymap for inferior-sml mode"
-  :inherit comint-mode-map
-  :group 'sml-proc)
-
+(defvar inferior-sml-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map comint-mode-map)
+    (define-key map "\C-c\C-s" 'run-sml)
+    (define-key map "\C-c\C-l" 'sml-load-file)
+    (define-key map "\t" 'comint-dynamic-complete)
+    map)
+  "Keymap for inferior-sml mode")
 
 ;; buffer-local
 

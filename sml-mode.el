@@ -70,14 +70,13 @@
 ;;; Code:
 
 (eval-when-compile (require 'cl))
-(require 'sml-util)
 (require 'sml-defs)
 
 (defvar sml-use-smie t)
 
 (require 'smie nil 'noerror)
 (unless (and sml-use-smie (fboundp 'smie-setup))
-  (require 'sml-indent))
+  (require 'sml-oldindent))
 
 (condition-case nil (require 'skeleton) (error nil))
 
@@ -326,8 +325,11 @@ Regexp match data 0 points to the chars."
 ;; Code to handle nested comments and unusual string escape sequences
 ;;
 
-(defsyntax sml-syntax-prop-table
-  '((?\\ . ".") (?* . "."))
+(defvar sml-syntax-prop-table
+  (let ((st (make-syntax-table)))
+    (modify-syntax-entry ?\\ "." st)
+    (modify-syntax-entry ?* "." st)
+    st)
   "Syntax table for text-properties")
 
 ;; For Emacsen that have no built-in support for nested comments
@@ -620,7 +622,7 @@ Assumes point is right before the | symbol."
 		      (when (looking-at sml-tyvarseq-re)
 			(goto-char (match-end 0)))
 		      (point)))
-	      (name (sml-forward-sym)))
+	      (name (sml-smie-forward-token)))
 	  ;; Eliminate trivial renamings.
 	  (when (or (not (member kind '("structure" "signature")))
 		    (progn (search-forward "=")
@@ -666,7 +668,6 @@ This mode runs `sml-mode-hook' just before exiting.
                 :backward-token #'sml-smie-backward-token
                 :forward-token #'sml-smie-forward-token))
    (t
-    ;; forward-sexp-function is an experimental variable in my hacked Emacs.
     (set (make-local-variable 'forward-sexp-function) 'sml-user-forward-sexp)
     (set (make-local-variable 'indent-line-function) 'sml-indent-line)))
   (set (make-local-variable 'parse-sexp-ignore-comments) t)
@@ -682,55 +683,58 @@ This mode runs `sml-mode-hook' just before exiting.
 Point has to be right after the `and' symbol and is not preserved."
   (forward-comment (point-max))
   (if (looking-at sml-tyvarseq-re) (goto-char (match-end 0)))
-  (let ((sym (sml-forward-sym)))
+  (let ((sym (sml-smie-forward-token)))
     (forward-comment (point-max))
     (unless (or (member sym '(nil "d="))
-		(member (sml-forward-sym) '("d=")))
+		(member (sml-smie-forward-token) '("d=")))
       sym)))
+
+(defun sml-find-forward (re)
+  (while (progn (forward-comment (point-max))
+                (not (looking-at re)))
+    (or (ignore-errors (forward-sexp 1) t) (forward-char 1))))
 
 (defun sml-electric-pipe ()
   "Insert a \"|\".
 Depending on the context insert the name of function, a \"=>\" etc."
+  ;; FIXME: Make it a skeleton.
   (interactive)
-  (sml-with-ist
-   (unless (save-excursion (skip-chars-backward "\t ") (bolp)) (insert "\n"))
-   (insert "| ")
-   (let ((text
-	  (save-excursion
-	    (backward-char 2)		;back over the just inserted "| "
-	    (let ((sym (sml-find-matching-starter sml-pipeheads
-						  (sml-op-prec "|" 'back))))
-	      (sml-forward-sym)
-	      (forward-comment (point-max))
-	      (cond
-	       ((string= sym "|")
-		(let ((f (sml-forward-sym)))
-		  (sml-find-forward "\\(=>\\|=\\||\\)\\S.")
-		  (cond
-		   ((looking-at "|") "") ;probably a datatype
-		   ((looking-at "=>") " => ") ;`case', or `fn' or `handle'
-		   ((looking-at "=") (concat f "  = "))))) ;a function
-	       ((string= sym "and")
-		;; could be a datatype or a function
-		(setq sym (sml-funname-of-and))
-		(if sym (concat sym "  = ") ""))
-	       ;; trivial cases
-	       ((string= sym "fun")
-		(while (and (setq sym (sml-forward-sym))
-			    (string-match "^'" sym))
-		  (forward-comment (point-max)))
-		(concat sym "  = "))
-	       ((member sym '("case" "handle" "fn" "of")) " => ")
-	       ;;((member sym '("abstype" "datatype")) "")
-	       (t ""))))))
+  (unless (save-excursion (skip-chars-backward "\t ") (bolp)) (insert "\n"))
+  (insert "| ")
+  (let ((text
+         (save-excursion
+           (funcall forward-sexp-function -1)
+           (let ((sym (save-excursion (sml-smie-backward-token))))
+             (forward-comment (point-max))
+             (cond
+              ((string= sym "|")
+               (let ((f (sml-smie-forward-token)))
+                 (sml-find-forward "\\(=>\\|=\\||\\)\\S.")
+                 (cond
+                  ((looking-at "|") "")       ;probably a datatype
+                  ((looking-at "=>") " => ")  ;`case', or `fn' or `handle'
+                  ((looking-at "=") (concat f "  = "))))) ;a function
+              ((string= sym "and")
+               ;; could be a datatype or a function
+               (setq sym (sml-funname-of-and))
+               (if sym (concat sym "  = ") ""))
+              ;; trivial cases
+              ((string= sym "fun")
+               (while (and (setq sym (sml-smie-forward-token))
+                           (string-match "^'" sym))
+                 (forward-comment (point-max)))
+               (concat sym "  = "))
+              ((member sym '("case" "handle" "fn" "of")) " => ")
+              ;;((member sym '("abstype" "datatype")) "")
+              (t ""))))))
 
-     (insert text)
-     (indent-according-to-mode)
-     (beginning-of-line)
-     (skip-chars-forward "\t |")
-     (skip-syntax-forward "w")
-     (skip-chars-forward "\t ")
-     (when (eq ?= (char-after)) (backward-char)))))
+    (insert text)
+    (indent-according-to-mode)
+    (beginning-of-line)
+    (skip-chars-forward "\t |")
+    (skip-syntax-forward "w")
+    (skip-chars-forward "\t ")
+    (when (eq ?= (char-after)) (backward-char))))
 
 (defun sml-electric-semi ()
   "Insert a \;.
@@ -779,8 +783,8 @@ If anyone has a good algorithm for this..."
   (let ((sym (sml-find-matching-starter sml-starters-syms)))
     (if (member sym '("fun" "and" "functor" "signature" "structure"
 		      "abstraction" "datatype" "abstype"))
-	(save-excursion (sml-forward-sym) (forward-comment (point-max))
-			(sml-forward-sym))
+	(save-excursion (sml-smie-forward-token) (forward-comment (point-max))
+			(sml-smie-forward-token))
       ;; We're inside a "non function declaration": let's skip all other
       ;; declarations that we find at the same level and try again.
       (sml-skip-siblings)
@@ -1008,10 +1012,10 @@ See also `edit-kbd-macro' which is bound to \\[edit-kbd-macro]."
 
 (defun sml-defuse-symdata-at-point ()
   (save-excursion
-    (sml-forward-sym)
+    (sml-smie-forward-token)
     (let ((symname (sml-backward-sym)))
       (if (equal symname "op")
-          (save-excursion (setq symname (sml-forward-sym))))
+          (save-excursion (setq symname (sml-smie-forward-token))))
       (when (string-match "op " symname)
         (setq symname (substring symname (match-end 0)))
         (forward-word)

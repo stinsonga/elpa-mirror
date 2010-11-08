@@ -1,5 +1,5 @@
 PACKAGE = sml-mode
-ELFILES	= sml-util.el sml-defs.el sml-mode.el sml-proc.el sml-indent.el sml-move.el
+ELFILES	= sml-defs.el sml-mode.el sml-proc.el sml-oldindent.el
 
 default: elcfiles
 
