@@ -59,6 +59,8 @@ val ber = 1;
 val sdfg = 1
 val tut = fn (x,y) z y e r =>
              body
+val tut = fn (x,y) => fn z y => fn e r =>
+             body
 val tut = fn (x,y)
              z
              y e
