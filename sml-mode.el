@@ -510,9 +510,31 @@ Assumes point is right before the = sign."
   ;; One known problem case is code like:
   ;; "functor foo (structure s : S) where type t = s.t ="
   ;; where the "type t = s.t" is mistaken for a type definition.
-  (save-excursion
-    (and (re-search-backward (concat "\\(" sml-=-starter-re "\\)\\|=") nil t)
-         (match-beginning 1))))
+  (let ((re (concat "\\(" sml-=-starter-re "\\)\\|=")))
+    (save-excursion
+      (and (re-search-backward re nil t)
+           (or (match-beginning 1)
+               ;; If we first hit a "=", then that = is probably definitional
+               ;; and  we're an equality, but not necessarily.  One known
+               ;; problem case is code like:
+               ;; "functor foo (structure s : S) where type t = s.t ="
+               ;; where the first = is more like an equality (tho it doesn't
+               ;; matter much) and the second is definitional.
+               ;;
+               ;; FIXME: The test below could be used to recognize that the
+               ;; second = is not a mere equality, but that's not enough to
+               ;; parse the construct properly: we'd need something
+               ;; like a third kind of = token for structure definitions, in
+               ;; order for the parser to be able to skip the "type t = s.t"
+               ;; as a sub-expression.
+               ;;
+               ;; (and (not (looking-at "=>"))
+               ;;      (not (eq ?< (char-before))) ;Not a <=
+               ;;      (re-search-backward re nil t)
+               ;;      (match-beginning 1)
+               ;;      (equal "type" (buffer-substring (- (match-end 1) 4)
+               ;;                                      (match-end 1))))
+               )))))
 
 (defun sml-smie-non-nested-of-p ()
   ;; FIXME: Maybe datatype-|-p makes this nested-of business unnecessary.
