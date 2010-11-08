@@ -22,8 +22,6 @@
 ;;; Code:
 
 (eval-when-compile (require 'cl))
-(require 'sml-util)
-
 
 (defgroup sml ()
   "Editing SML code."
@@ -40,37 +38,45 @@ notion of \"the end of an outline\".")
 ;;; Internal defines
 ;;; 
 
-(defmap sml-mode-map
-  ;; smarter cursor movement
-  '(;; (forward-sexp	. sml-user-forward-sexp)
-    ;; (backward-sexp	. sml-user-backward-sexp)
+(defvar sml-mode-map
+  (let ((map (make-sparse-keymap)))
     ;; Text-formatting commands:
-    ("\C-c\C-m"	. sml-insert-form)
-    ("\C-c\C-i"	. sml-mode-info)
-    ("\M-|"	. sml-electric-pipe)
-    ("\M-\ "	. sml-electric-space)
-    ("\;"	. sml-electric-semi)
-    ("\M-\t"	. sml-back-to-outer-indent)
+    (define-key map "\C-c\C-m" 'sml-insert-form)
+    (define-key map "\C-c\C-i" 'sml-mode-info)
+    (define-key map "\M-|" 'sml-electric-pipe)
+    (define-key map "\M-\ " 'sml-electric-space)
+    (define-key map "\;" 'sml-electric-semi)
+    (define-key map "\M-\t" 'sml-back-to-outer-indent)
     ;; Process commands added to sml-mode-map -- these should autoload
-    ("\C-c\C-l"	. sml-load-file)
-    ("\C-c\C-c" . sml-compile)
-    ("\C-c\C-s" . switch-to-sml)
-    ("\C-c\C-r" . sml-send-region)
-    ("\C-c\C-b" . sml-send-buffer)
-    ([(meta shift down-mouse-1)] . sml-drag-region))
-  "The keymap used in `sml-mode'."
-  ;; :inherit sml-bindings
-  :group 'sml)
+    (define-key map "\C-c\C-l" 'sml-load-file)
+    (define-key map "\C-c\C-c" 'sml-compile)
+    (define-key map "\C-c\C-s" 'switch-to-sml)
+    (define-key map "\C-c\C-r" 'sml-send-region)
+    (define-key map "\C-c\C-b" 'sml-send-buffer)
+    (define-key map [(meta shift down-mouse-1)] 'sml-drag-region)
+    map)
+  "The keymap used in `sml-mode'.")
 
-(defsyntax sml-mode-syntax-table
-  `((?\*   . ,(if sml-builtin-nested-comments-flag ". 23n" ". 23"))
-    (?\(   . "()1")
-    (?\)   . ")(4")
-    ("._'" . "_")
-    (",;"  . ".")
+(defvar sml-builtin-nested-comments-flag
+  (ignore-errors
+    (not (equal (let ((st (make-syntax-table)))
+		  (modify-syntax-entry ?\* ". 23n" st) st)
+		(let ((st (make-syntax-table)))
+		  (modify-syntax-entry ?\* ". 23" st) st))))
+  "Non-nil means this Emacs understands the `n' in syntax entries.")
+
+(defvar sml-mode-syntax-table
+  (let ((st (make-syntax-table)))
+    (modify-syntax-entry ?\* (if sml-builtin-nested-comments-flag
+                                 ". 23n" ". 23") st)
+    (modify-syntax-entry ?\( "()1" st)
+    (modify-syntax-entry ?\) ")(4" st)
+    (mapc (lambda (c) (modify-syntax-entry c "_" st)) "._'")
+    (mapc (lambda (c) (modify-syntax-entry c "." st)) ",;")
     ;; `!' is not really a prefix-char, oh well!
-    ("~#!" . "'")
-    ("%&$+-/:<=>?@`^|"	 . "."))
+    (mapc (lambda (c) (modify-syntax-entry c "'"  st)) "~#!")
+    (mapc (lambda (c) (modify-syntax-entry c "."  st)) "%&$+-/:<=>?@`^|")
+    st)
   "The syntax table used in `sml-mode'.")
 
 
@@ -170,65 +176,6 @@ notion of \"the end of an outline\".")
   (concat "\\S.|\\S.\\|" (sml-syms-re (cdr sml-=-starter-syms)))
   "Symbols that can be followed by a `='.")
 
-(defconst sml-indent-rule
-  (sml-preproc-alist
-   `(("struct" . 0)
-     (,sml-module-head-syms "d=" 0)
-     ("local" "in" 0)
-     ;;("of" . (3 nil))
-     ;;("else" . (sml-indent-level 0))
-     ;;(("in" "fun" "and" "of") . (sml-indent-level nil))
-     ("if" "else" 0)
-     (,sml-=-starter-syms nil)
-     (("abstype" "case" "datatype" "if" "then" "else" "sharing" "infix" "infixr"
-       "let" "local" "nonfix" "open" "raise" "sig" "struct" "type" "val" "while"
-       "do" "with" "withtype")))))
-
-(defconst sml-starters-indent-after
-  (sml-syms-re '("let" "local" "struct" "in" "sig" "with"))
-  "Indent after these.")
-
-(defconst sml-delegate
-  (sml-preproc-alist
-   `((("of" "else" "then" "d=") . (not (sml-bolp)))
-     ("in" . t)))
-  "Words which might delegate indentation to their parent.")
-
-(defcustom sml-symbol-indent
-  '(("fn" . -3)
-    ("of" . 1)
-    ("|" . -2)
-    ("," . -2)
-    (";" . -2)
-    ;;("in" . 1)
-    ("d=" . 2))
-  "Special indentation alist for some symbols.
-An entry like (\"in\" . 1) indicates that a line starting with the
-symbol `in' should be indented one char further to the right.
-This is only used in a few specific cases, so it does not work
-for all symbols and in all lines starting with the given symbol."
-  :group 'sml
-  :type '(repeat (cons string integer)))
-
-(defconst sml-open-paren
-  (sml-preproc-alist
-   `((,(list* "with" "in" sml-begin-syms) ,sml-begin-syms-re "\\<end\\>")))
-  "Symbols that should behave somewhat like opening parens.")
-
-(defconst sml-close-paren
-  `(("in" "\\<l\\(ocal\\|et\\)\\>")
-    ("with" "\\<abstype\\>")
-    ("withtype" "\\<\\(abs\\|data\\)type\\>")
-    ("end" ,sml-begin-syms-re)
-    ("then" "\\<if\\>")
-    ("else" "\\<if\\>" (sml-bolp))
-    ("of" "\\<case\\>")
-    ("d=" nil))
-  "Symbols that should behave somewhat like close parens.")
-
-(defconst sml-agglomerate-re "\\<else[ \t]+if\\>"
-  "Regexp of compound symbols (pairs of symbols to be considered as one).")
-
 (defconst sml-non-nested-of-starter-re
   (sml-syms-re '("datatype" "abstype" "exception"))
   "Symbols that can introduce an `of' that shouldn't behave like a paren.")
@@ -240,9 +187,6 @@ for all symbols and in all lines starting with the given symbol."
 	    "open" "type" "val" "and"
 	    "withtype" "with"))
   "The starters of new expressions.")
-
-(defconst sml-exptrail-syms
-  '("if" "then" "else" "while" "withtype" "do" "case" "of" "raise" "fn"))
 
 (defconst sml-pipeheads
    '("|" "of" "fun" "fn" "and" "handle" "datatype" "abstype")
