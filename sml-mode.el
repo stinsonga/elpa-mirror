@@ -406,6 +406,9 @@ Regexp match data 0 points to the chars."
                 (sexp "d=" databranches)
                 (funbranches "|" funbranches)
                 (sexp "=of" type)       ;After "exception".
+                ;; FIXME: Just like PROCEDURE in Pascal and Modula-2, this
+                ;; interacts poorly with the other constructs since I
+                ;; can't make "local" a separator like fun/val/type/...
                 ("local" decls "in" decls "end")
                 (decls "functor" decls)
                 (decls "signature" decls)
@@ -486,9 +489,10 @@ Regexp match data 0 points to the chars."
       ((member token '("let" "(" "[" "{"))
        (if (smie-rule-hanging-p) (smie-rule-parent)))
       ;; Treat if ... else if ... as a single long syntactic construct.
-      ((equal token "if") (if (smie-rule-prev-p "else") (smie-rule-parent)))
       ;; Similarly, treat fn a => fn b => ... as a single construct.
-      ((equal token "fn") (if (smie-rule-prev-p "=>") (smie-rule-parent)))
+      ((member token '("if" "fn"))
+       (and (not (smie-rule-bolp)) (smie-rule-prev-p "else")
+            (smie-rule-parent)))
       ((equal token "and")
        ;; FIXME: maybe "and" (c|sh)ould be handled as an smie-separator.
        (cond
@@ -497,7 +501,17 @@ Regexp match data 0 points to the chars."
       ((equal token "d=")
        (cond
         ((smie-rule-parent-p "datatype") (if (smie-rule-bolp) 2))
-        ((smie-rule-parent-p "structure" "signature") 0)))))))
+        ((smie-rule-parent-p "structure" "signature") 0)))
+      ;; FIXME: type/val/fun/... are separators but "local" is not, even though
+      ;; it appears in the same list.  Try to fix up the problem by hand.
+      ((equal token "local")
+       (let ((smie-grammar
+              ;; FIXME:   ¡¡BIG UGLY HACK!!
+              ;; Temporarily pretend "local" behaves like "fun".
+              (cons (cons "local" (cdr (assoc "fun" smie-grammar)))
+                    smie-grammar)))
+         (smie-rule-parent)))
+      ))))
     
 (defun sml-smie-definitional-equal-p ()
   "Figure out which kind of \"=\" this is.
