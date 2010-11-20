@@ -1,5 +1,15 @@
 2010-11-20  Teodor Zlatanov  <tzz@lifelogs.com>
 
+	* html/index.html, html/layout.css : Initial import.
+
+	* admin/org-synch.el (org-synch): Use just the current directory
+	and files.
+
+	* admin/package-update.sh: Export tarball after everything else is done.
+
+	* admin/org-synch.sh, admin/package-update.sh: Rewrite for
+	in-place exporting.
+
 	* packages/archive-contents, packages/auctex-11.86,
 	packages/auctex-readme.txt, packages/company-0.5/,
 	packages/company-readme.txt, packages/elpa.rss,

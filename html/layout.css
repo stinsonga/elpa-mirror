@@ -1,0 +1,87 @@
+/* This is heavily cut-down version of http://www.gnu.org/layout.css */
+
+
+/*
+layout.css -- css stylesheet used on www.gnu.org
+
+Copyright (C) 2006, 2007, 2008, 2009 Free Software Foundation
+
+Permission is hereby granted, free of charge, to any person
+obtaining a copy of this software and associated documentation
+files (the "Software"), to deal in the Software without
+restriction, including without limitation the rights to use,
+copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+*/
+
+html, body{
+        padding: 0;
+        color: #35382a;
+        max-width: 58em; margin: 0 auto 0; position: relative; min-width: 902px;
+        padding-left: 10px; padding-right: 10px;
+        background-color: #fff;  padding-bottom: 1.8em;  margin-top: 0.5em; 
+}
+
+body{
+    font-family: sans-serif;
+}
+
+a:hover{ color: red; }
+
+h1 {
+ background-color: #3465a4; color: white; font-size: 2em;
+ margin-bottom: 0.3em; font-weight:bold; text-align: center; line-height: 1.6em; }
+
+h2, h3, {line-height: 1.5em;}
+
+h2{ font-size: 1.6em; }
+
+h3{ font-size: 1.3em; }
+
+img{ border: 0; }
+
+.nocenter{ text-align: left; }
+
+ul { list-style: square; margin-left: 1.4em; list-style-image:url(bullet.gif);  }
+
+ol{ list-style: decimal; margin-left: 1.9em; }
+
+li, dd,  p{
+    padding-bottom: 1em; line-height: 1.5em; }
+
+dt{ font-weight: bold;  }
+
+pre {
+padding-left: 1.5em;
+padding-right: 1.5em;
+margin-top: 1em;
+margin-bottom: 1em;
+font-size: 0.9em;
+display: block;
+background-color: #eeeeee;
+color: #000000;
+font-family: monospace;
+}
+
+strong, b{ font-weight: bold; }
+
+em, i, var{ font-style: italic; }
+
+blockquote{ margin: 1em; font-style: italic; }
+
+code, kbd, samp, tt{ font-family: monospace; }
+
+.center{ text-align:center; }
+
+.big{ font-size: 130%; padding-top: 0.7em; }
+
+.inline-list li { display: inline }
+
+.highlight{background-color: #ff6;}
+
+h2 a{color: yellow !important;}
