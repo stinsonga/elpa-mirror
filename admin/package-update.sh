@@ -24,10 +24,6 @@ else
 fi
 
 
-## Create emacs-packages-latest.tgz
-echo "Exporting packages into $TARBALL (root = $TARBALL_ROOT)" >> $LOG
-/usr/bin/bzr export --format=tgz --root=$TARBALL_ROOT $TARBALL $REPO_PACKAGES
-
 ## Create the world-facing copy
 echo "[$TMPROOT -> $PKGROOT] Creating the world-facing package repository copy in $PKGROOT" >> $LOG
 TMPROOT=$PKGROOT-new
@@ -46,6 +42,9 @@ echo "[$TMPROOT -> $PKGROOT] Moving $TMPROOT to $PKGROOT" >> $LOG
 /bin/mv $PKGROOT $PKGROOT-old
 /bin/mv $TMPROOT $PKGROOT
 /bin/rm -rf $PKGROOT-old
+
+echo "Exporting packages into $TARBALL (root = $TARBALL_ROOT)" >> $LOG
+/usr/bin/bzr export --format=tgz --root=$TARBALL_ROOT $TARBALL $REPO_PACKAGES
 
 /bin/chmod -R a+rX $PKGROOT
 
