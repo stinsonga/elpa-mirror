@@ -1,3 +1,18 @@
+2010-11-25  Teodor Zlatanov  <tzz@lifelogs.com>
+
+	* admin/org-synch.el (org-synch): Take a package filename
+	parameter instead of guessing the package name.  Extract the date
+	as a fixed substring and do sanity checking on it.
+
+	* admin/org-synch.sh: Use PATH instead of explicit executables.
+	Qualify $pkgname consistently.  Run org-synch.el with --eval to
+	pass $pkgname directly.
+
+	* admin/package-update.sh: Disable org-mode fetch by default.  Add
+	option ($2 set to anything) to run fetchers anyway.  Use PATH
+	instead of explicit executables.  Create tarballs from the
+	unpackages packages in $PACKAGE_TARBALLS.
+
 2010-11-20  Teodor Zlatanov  <tzz@lifelogs.com>
 
 	* html/index.html, html/layout.css : Initial import.
