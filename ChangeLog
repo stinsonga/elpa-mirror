@@ -1,5 +1,7 @@
 2010-11-25  Teodor Zlatanov  <tzz@lifelogs.com>
 
+	* README: Explain how to run the repo build script.
+
 	* admin/org-synch.el (org-synch): Take a package filename
 	parameter instead of guessing the package name.  Extract the date
 	as a fixed substring and do sanity checking on it.
