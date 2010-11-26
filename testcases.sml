@@ -67,16 +67,23 @@ val tut = fn (x,y)
              r =>
              body
 val tut =
-    (let val a = 1 val b = 2
-         val c = 3
-     in
-	 let
-             val x = 3
-	 in
-             x +   a * b
-                   * c
-	 end
-     end)
+    (let
+        local
+            val x = 1 in val x = x end
+        val a = 1 val b = 2
+        local val x = 1 in val x = x end
+        local val x = 1 in val x = x end
+            local val x = 1 in val x = x end (* fixindent *)
+            local val x = 1 in val x = x end
+            val c = 3
+    in
+	let
+            val x = 3
+	in
+            x +   a * b
+                  * c
+	end
+    end)
 
 val x =
     (* From "Christopher Dutchyn" <cdutchyn@cs.ubc.ca> *)
@@ -164,7 +171,7 @@ val x = if foo then
 val y = if foo
 	then 1
 	else if foo
-	then 2
+	then 2              (* Could also be indented by a basic offset.  *)
 	else 3
 
 val yt = 4
