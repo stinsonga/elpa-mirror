@@ -507,19 +507,22 @@ Regexp match data 0 points to the chars."
        (cond
         ((smie-rule-parent-p "datatype") (if (smie-rule-bolp) 2))
         ((smie-rule-parent-p "structure" "signature") 0)))
+      ;; Indent an expression starting with "local" as if it were starting
+      ;; with "fun".
+      ((equal token "local") (smie-indent-keyword "fun"))
       ;; FIXME: type/val/fun/... are separators but "local" is not, even though
       ;; it appears in the same list.  Try to fix up the problem by hand.
-      ((or (equal token "local")
-           (equal (cdr (assoc token smie-grammar))
-                  (cdr (assoc "fun" smie-grammar))))
-       (let ((parent (save-excursion (smie-backward-sexp))))
-         (when (or (and (equal (nth 2 parent) "local")
-                        (null (car parent)))
-                   (progn
-                     (setq parent (save-excursion (smie-backward-sexp "fun")))
-                     (eq (car parent) (nth 1 (assoc "fun" smie-grammar)))))
-           (goto-char (nth 1 parent))
-           (cons 'column (smie-indent-virtual)))))
+      ;; ((or (equal token "local")
+      ;;      (equal (cdr (assoc token smie-grammar))
+      ;;             (cdr (assoc "fun" smie-grammar))))
+      ;;  (let ((parent (save-excursion (smie-backward-sexp))))
+      ;;    (when (or (and (equal (nth 2 parent) "local")
+      ;;                   (null (car parent)))
+      ;;              (progn
+      ;;                (setq parent (save-excursion (smie-backward-sexp "fun")))
+      ;;                (eq (car parent) (nth 1 (assoc "fun" smie-grammar)))))
+      ;;      (goto-char (nth 1 parent))
+      ;;      (cons 'column (smie-indent-virtual)))))
       ))))
     
 (defun sml-smie-definitional-equal-p ()
