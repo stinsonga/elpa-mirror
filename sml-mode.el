@@ -410,6 +410,7 @@ Regexp match data 0 points to the chars."
                 ;; interacts poorly with the other constructs since I
                 ;; can't make "local" a separator like fun/val/type/...
                 ("local" decls "in" decls "end")
+                ;; (decls "local" decls "in" decls "end")
                 (decls "functor" decls)
                 (decls "signature" decls)
                 (decls "structure" decls)
@@ -434,12 +435,15 @@ Regexp match data 0 points to the chars."
          ;;       ("signature" marg "d=" mexp))
          (marg (marg ":" type) (marg ":>" type))
          (toplevel (decls) (exp) (toplevel ";" toplevel)))
+       ;; '(("local" . opener))
        ;; '((nonassoc "else") (right "handle"))
        '((nonassoc "of") (assoc "|")) ; "case a of b => case c of d => e | f"
        '((nonassoc "handle") (assoc "|")) ; Idem for "handle".
        '((assoc "->") (assoc "*"))
        '((assoc "val" "fun" "type" "datatype" "abstype" "open" "infix" "infixr"
-                "nonfix" "functor" "signature" "structure" "exception")
+                "nonfix" "functor" "signature" "structure" "exception"
+                ;; "local"
+                )
          (assoc "and"))
        '((assoc "orelse") (assoc "andalso") (nonassoc ":"))
        '((assoc ";")) '((assoc ",")) '((assoc "d|")))
@@ -474,6 +478,7 @@ Regexp match data 0 points to the chars."
       ((equal token "of") 3)
       ((member token '("(" "{" "[")) (if (not (smie-rule-hanging-p)) 2))
       ((equal token "else") (if (smie-rule-hanging-p) 0)) ;; (:next "if" 0)
+      ((member token '("|" "d|" ";" ",")) (smie-rule-separator kind))
       ((equal token "d=")
        (if (and (smie-rule-parent-p "val") (smie-rule-next-p "fn")) -3))))
     (:before
@@ -482,7 +487,6 @@ Regexp match data 0 points to the chars."
       ((equal token "of") 1)
       ;; In case the language is extended to allow a | directly after of.
       ((and (equal token "|") (smie-rule-prev-p "of")) 1)
-      ;; FIXME: This should also be called for the :after case.
       ((member token '("|" "d|" ";" ",")) (smie-rule-separator kind))
       ;; Treat purely syntactic block-constructs as being part of their parent,
       ;; when the opening statement is hanging.
@@ -491,7 +495,8 @@ Regexp match data 0 points to the chars."
       ;; Treat if ... else if ... as a single long syntactic construct.
       ;; Similarly, treat fn a => fn b => ... as a single construct.
       ((member token '("if" "fn"))
-       (and (not (smie-rule-bolp)) (smie-rule-prev-p "else")
+       (and (not (smie-rule-bolp))
+            (smie-rule-prev-p (if (equal token "if") "else" "=>"))
             (smie-rule-parent)))
       ((equal token "and")
        ;; FIXME: maybe "and" (c|sh)ould be handled as an smie-separator.
@@ -504,13 +509,17 @@ Regexp match data 0 points to the chars."
         ((smie-rule-parent-p "structure" "signature") 0)))
       ;; FIXME: type/val/fun/... are separators but "local" is not, even though
       ;; it appears in the same list.  Try to fix up the problem by hand.
-      ((equal token "local")
-       (let ((smie-grammar
-              ;; FIXME:   ¡¡BIG UGLY HACK!!
-              ;; Temporarily pretend "local" behaves like "fun".
-              (cons (cons "local" (cdr (assoc "fun" smie-grammar)))
-                    smie-grammar)))
-         (smie-rule-parent)))
+      ((or (equal token "local")
+           (equal (cdr (assoc token smie-grammar))
+                  (cdr (assoc "fun" smie-grammar))))
+       (let ((parent (save-excursion (smie-backward-sexp))))
+         (when (or (and (equal (nth 2 parent) "local")
+                        (null (car parent)))
+                   (progn
+                     (setq parent (save-excursion (smie-backward-sexp "fun")))
+                     (eq (car parent) (nth 1 (assoc "fun" smie-grammar)))))
+           (goto-char (nth 1 parent))
+           (cons 'column (smie-indent-virtual)))))
       ))))
     
 (defun sml-smie-definitional-equal-p ()
