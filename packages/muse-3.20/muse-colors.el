@@ -187,16 +187,13 @@ used as the filename of the image."
   (add-hook 'after-make-frame-functions #'muse-make-faces))
 
 (defface muse-link
-  '((((class color) (background light))
-     (:foreground "blue" :underline "blue" :bold t))
-    (((class color) (background dark))
-     (:foreground "cyan" :underline "cyan" :bold t))
-    (t (:bold t)))
+  '((t :inherit link))
   "Face for Muse cross-references."
   :group 'muse-colors)
 
 (defface muse-bad-link
-  '((((class color) (background light))
+  '((default :inherit link)
+    (((class color) (background light))
      (:foreground "red" :underline "red" :bold t))
     (((class color) (background dark))
      (:foreground "coral" :underline "coral" :bold t))
