@@ -138,6 +138,13 @@ Use here one of `re-search-forward' or `search-forward'."
   :group 'ioccur
   :type 'boolean)
 
+(defcustom ioccur-fontify-buffer-p t
+  "*Fontify `ioccur-current-buffer' when non--nil.
+This allow to have syntactic coloration in `ioccur-buffer' but
+it slow down the start of ioccur at first time on large buffers."
+  :group 'ioccur
+  :type 'boolean)
+
 (defvar ioccur-read-char-or-event-skip-read-key nil
   "*Force not using `read-key' even if bounded.
 You should not have to set this yourself.
@@ -481,28 +488,15 @@ See `ioccur-find-buffer-matching1'."
     (pop-to-buffer ioccur-current-buffer)
     (goto-char pos)))
 
-
 (defun ioccur-goto-line (lineno)
   "Goto LINENO without modifying outline visibility if needed."
   (flet ((gotoline (numline)
            (goto-char (point-min)) (forward-line (1- numline))))
-    (if (and (fboundp 'org-save-outline-visibility)
-             (or (eq major-mode 'org-mode)
-                 outline-minor-mode))
+    (if (or (eq major-mode 'org-mode)
+            outline-minor-mode)
         (progn
-          ;; Open all, goto line LINENO, move to
-          ;; precedent heading and restore precedent state
-          ;; of visibility.
-          (org-save-outline-visibility nil
-            (show-all)
-            (gotoline lineno)
-            (outline-previous-heading))
-          ;; Make heading visible
-          (outline-show-heading)
-          ;; Open heading
-          (show-subtree)
-          (gotoline lineno))
-        (show-all)
+          (gotoline lineno)
+          (org-reveal))
         (gotoline lineno))))
 
 (defun ioccur-forward-line (n)
@@ -924,8 +918,9 @@ for commands provided in the `ioccur-buffer'."
   (setq ioccur-exit-and-quit-p nil)
   (setq ioccur-success nil)
   (setq ioccur-current-buffer (buffer-name (current-buffer)))
-  (message "Fontifying buffer...Please wait it could be long.")
-  (jit-lock-fontify-now) (message nil)
+  (when ioccur-fontify-buffer-p
+    (message "Fontifying buffer...Please wait it could be long.")
+    (jit-lock-fontify-now) (message nil))
   (setq ioccur-buffer (concat "*ioccur-" ioccur-current-buffer "*"))
   (setq ioccur-last-window-configuration (current-window-configuration))
   (if (and (not initial-input)
