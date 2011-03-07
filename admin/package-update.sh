@@ -84,9 +84,6 @@ echo "Creating multi-file package tarballs in $TMP_PKGROOT" >> $LOG
 cd $TMP_PKGROOT
 for pt in *; do
     if [ -d $pt ]; then
-	if [ -f $pt/README ]; then
-	    cp $pt/README $pt-readme.txt;
-	fi
 	echo "Creating tarball $TMP_PKGROOT/$pt.tar" >> $LOG
 	tar -cf $pt.tar $pt --remove-files
     fi
