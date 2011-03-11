@@ -11,7 +11,7 @@
 ## If a second argument FULL-UPDATE is specified (whatever its value),
 ## also create the following:
 ##   - the archive admin scripts in DEST/admin
-##   - a tarball contianing the entire archive in
+##   - a tarball containing the entire archive in
 ##     DEST/packages/emacs-packages-latest.tgz
 ##   - the Org mode daily package
 
