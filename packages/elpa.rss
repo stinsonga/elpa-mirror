@@ -5,6 +5,12 @@
     <language>en</language>
     <description>News for the Emacs Lisp Package Archive</description>
 <item>
+<title>load-dir version 0.0.2</title>
+<link>http://elpa.gnu.org/packages/news.html</link>
+<description>Modularize your .emacs: autoload Lisp snippets</description>
+<pubDate>Sat, 26 March 2011 06:10:00 -0500</pubDate>
+</item>
+<item>
 <title>auctex.tar version 11.86</title>
 <link>http://elpa.gnu.org/packages/news.html</link>
 <description>integrated environment for *TeX*</description>

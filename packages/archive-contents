@@ -8,6 +8,9 @@
  (debbugs .
        [(0 1)
 	nil "SOAP library to access debbugs servers" tar])
+ (load-dir .
+       [(0 0 2)
+	nil "Modularize your .emacs: autoload Lisp snippets." single])
  (muse .
        [(3 20)
 	nil "Authoring and publishing tool" tar])
