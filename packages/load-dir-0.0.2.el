@@ -80,6 +80,7 @@ directories will be loaded."
                  directory
                  (repeat :tag "Directories" directory)))
 
+;;;###autoload
 (defun load-dirs ()
   "Load all Emacs Lisp files in `load-dirs'.
 Will not load a file twice (use `load-dir-reload' for that).
