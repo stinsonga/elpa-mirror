@@ -1,3 +1,20 @@
+2011-04-20  Stefan Monnier  <monnier@iro.umontreal.ca>
+
+	* packages/all-1.0.el: Change version.  Address byte-compiler warnings.
+	Rename the `marker' property to `all-marker'.
+	(all-mode-map): Move initialization into declaration.
+	(all-buffer): Mark buffer-local.
+	(all-mode): Use define-derived-mode.  Setup the change-functions
+	buffer-locally.
+	(all): Use read-string.  Let-bind all-initialization-p.
+	(all-insert): Use a `match' face text property rather then
+	a `highlight' face overlay for the match highlight.
+	* admin/archive-contents.el (batch-make-archive-contents): Don't burp
+	if a commentary section is missing.
+	* .bzrignore: Ignore .elc files.
+	* packages/load-dir-0.0.2.el: Update Commentary from
+	load-dir-readme.txt.
+
 2011-04-20  Per Abrahamsen  <abraham@dina.kvl.dk>
 
 	* packages/all-19970304.el: New package.

@@ -1,10 +1,10 @@
-;;; all.el --- Edit all lines matching a given regexp.
+;;; all.el --- Edit all lines matching a given regexp
 
-;; Copyright (C) 1985, 1986, 1987, 1992, 1994, 2011 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1987, 1992, 1994, 2011 Free Software Foundation, Inc.
 ;; Copyright (C) 1994 Per Abrahamsen
 
 ;; Author: Per Abrahamsen <abraham@dina.kvl.dk>
-;; Version: $Id: all.el,v 5.2 1997/03/04 10:29:42 abraham Exp $
+;; Version: 1.0
 ;; Keywords: matching
 
 ;; LCD Archive Entry:
@@ -28,13 +28,11 @@
 
 ;;; Commentary:
 
-;; Just like occur, except that changes in the *All* buffer is
+;; Just like occur, except that changes in the *All* buffer are
 ;; propagated to the original buffer.
 
-;; I also added highlighting of the matches.
-
 ;; You can no longer use mouse-2 to find a match in the original file,
-;; since the default definition of mouse to is useful.  
+;; since the default definition of mouse too is useful.
 ;; However, `C-c C-c' still works.
 
 ;; Line numbers are not listed in the *All* buffer.
@@ -44,47 +42,40 @@
 ;; Some limitations:
 
 ;; - Undo in the *All* buffer is an ordinary change in the original.
-;; - Changes to the original buffer is not reflected in the *All* buffer.
+;; - Changes to the original buffer are not reflected in the *All* buffer.
 ;; - A single change in the *All* buffer must be limited to a single match.
-
-;; Requires GNU Emacs 19.23 or later.
 
 ;;; Code: 
 
-(defvar all-mode-map ())
-
-(if all-mode-map
-    ()
-  (setq all-mode-map (make-sparse-keymap))
-  (define-key all-mode-map "\C-c\C-c" 'all-mode-goto))
+(defvar all-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "\C-c\C-c" 'all-mode-goto)
+    map))
 
 (defvar all-buffer nil)
+(make-variable-buffer-local 'all-buffer)
 
-(defun all-mode ()
+(define-derived-mode all-mode fundamental-mode "All"
   "Major mode for output from \\[all].
 
 All changes made in this buffer will be propagated to the buffer where
 you ran \\[all].
 
 Press \\[all-mode-goto] to go to the same spot in the original buffer."
-  (kill-all-local-variables)
-  (use-local-map all-mode-map)
-  (setq major-mode 'all-mode)
-  (setq mode-name "All")
-  (make-local-variable 'all-buffer)
-  (run-hooks 'all-mode-hook))
+  (add-hook 'before-change-functions 'all-before-change-function nil 'local)
+  (add-hook 'after-change-functions 'all-after-change-function nil 'local))
 
 (defun all-mode-find (pos)
   ;; Find position in original buffer corresponding to POS.
   (let ((overlay (all-mode-find-overlay pos)))
     (if overlay
-	(+ (marker-position (overlay-get overlay 'marker))
+	(+ (marker-position (overlay-get overlay 'all-marker))
 	   (- pos (overlay-start overlay))))))
 
 (defun all-mode-find-overlay (pos)
   ;; Find the overlay containing POS.
   (let ((overlays (overlays-at pos)))
-    (while (and overlays (null (overlay-get (car overlays) 'marker)))
+    (while (and overlays (null (overlay-get (car overlays) 'all-marker)))
       (setq overlays (cdr overlays)))
     (car-safe overlays)))
 
@@ -100,15 +91,13 @@ Press \\[all-mode-goto] to go to the same spot in the original buffer."
 (defvar all-initialization-p nil)
 
 (defun all-before-change-function (from to)
-  ;; Check that change is legal
+  ;; Check that change is legal.
   (and all-buffer
        (not all-initialization-p)
        (let ((start (all-mode-find-overlay from))
 	     (end (all-mode-find-overlay to)))
 	 (not (and start (eq start end))))
        (error "Changes should be limited to a single text piece")))
-
-(add-hook 'before-change-functions 'all-before-change-function)
 
 (defun all-after-change-function (from to length)
   ;; Propagate changes from *All* buffer.
@@ -117,15 +106,11 @@ Press \\[all-mode-goto] to go to the same spot in the original buffer."
        (let ((buffer (current-buffer))
 	     (pos (all-mode-find from)))
 	 (if pos
-	     (progn
-	       (set-buffer all-buffer)
-	       (delete-region pos (+ pos length))
+	     (with-current-buffer all-buffer
 	       (save-excursion
 		 (goto-char pos)
-		 (insert-buffer-substring buffer from to))
-	       (set-buffer buffer))))))
-
-(add-hook 'after-change-functions 'all-after-change-function)
+                 (delete-region pos (+ pos length))
+		 (insert-buffer-substring buffer from to)))))))
 
 ;;;###autoload
 (defun all (regexp &optional nlines)
@@ -140,29 +125,24 @@ Interactively it is the prefix arg.
 
 The lines are shown in a buffer named `*All*'.
 Any changes made in that buffer will be propagated to this buffer."
-  (interactive (list (let* ((default (car regexp-history))
-			    (input 
-			     (read-from-minibuffer
-			      (if default
-				  (format 
-   "Edit lines matching regexp (default `%s'): " default)
-				"Edit lines matching regexp: ")
-			      nil nil nil
-			      'regexp-history)))
-		       (if (> (length input) 0) input
-			 (setcar regexp-history default)))
-		     current-prefix-arg))
+  (interactive
+   (list (let* ((default (car regexp-history)))
+           (read-string
+            (if default
+                (format 
+                 "Edit lines matching regexp (default `%s'): " default)
+              "Edit lines matching regexp: ")
+            nil 'regexp-history default))
+         current-prefix-arg))
   (setq nlines (if nlines (prefix-numeric-value nlines)
 		 list-matching-lines-default-context-lines))
-  (setq all-initialization-p t)
-  (let ((first t)
-	(buffer (current-buffer))
+  (let ((all-initialization-p t)
+        (buffer (current-buffer))
 	(prevend nil)
 	(prevstart nil)
 	(prevpos (point-min)))
     (with-output-to-temp-buffer "*All*"
-      (save-excursion
-	(set-buffer standard-output)
+      (with-current-buffer standard-output
 	(all-mode)
 	(setq all-buffer buffer)
 	(insert "Lines matching ")
@@ -172,7 +152,7 @@ Any changes made in that buffer will be propagated to this buffer."
       (if (eq buffer standard-output)
 	  (goto-char (point-max)))
       (save-excursion
-	(beginning-of-buffer)
+	(goto-char (point-min))
 	;; Find next match, but give up if prev match was at end of buffer.
 	(while (and (not (= prevpos (point-max)))
 		    (re-search-forward regexp nil t))
@@ -189,39 +169,36 @@ Any changes made in that buffer will be propagated to this buffer."
 			(if (> nlines 0)
 			    (forward-line (1+ nlines))
 			    (forward-line 1))
-			(point)))
-		 marker)
+			(point))))
 	    (cond ((null prevend)
 		   (setq prevstart start
 			prevend end))
 		  ((> start prevend)
-		   (all-insert)
+		   (all-insert prevstart prevend regexp nlines)
 		   (setq prevstart start
 			 prevend end))
 		  (t
 		   (setq prevend end)))))
 	(if prevend
-	    (all-insert)))))
-  (setq all-initialization-p nil))
+	    (all-insert prevstart prevend regexp nlines))))))
 
-(defun all-insert ()
+(defun all-insert (start end regexp nlines)
   ;; Insert match.
-  (save-excursion
-    (setq marker (make-marker))
-    (set-marker marker prevstart)
-    (set-buffer standard-output)
-    (let ((from (point))
-	  to)
-      (insert-buffer-substring buffer prevstart prevend)
-      (setq to (point))
-      (overlay-put (make-overlay from to) 'marker marker)
-      (goto-char from)
-      (while (re-search-forward regexp to t)
-	(overlay-put (make-overlay (match-beginning 0) (match-end 0))
-		     'face 'highlight))
-      (goto-char to)
-      (if (> nlines 0)
-	  (insert "--------\n")))))
+  (let ((marker (copy-marker start))
+        (buffer (current-buffer)))
+    (with-current-buffer standard-output
+      (let ((from (point))
+            to)
+        (insert-buffer-substring buffer start end)
+        (setq to (point))
+        (overlay-put (make-overlay from to) 'all-marker marker)
+        (goto-char from)
+        (while (re-search-forward regexp to t)
+          (put-text-property (match-beginning 0) (match-end 0)
+                             'face 'match))
+        (goto-char to)
+        (if (> nlines 0)
+            (insert "--------\n"))))))
 
 (provide 'all)
 
