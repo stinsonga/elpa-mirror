@@ -1,4 +1,4 @@
-;;; js2-mode.el --- improved JavaScript editing mode
+;;; js2-mode.el --- Improved JavaScript editing mode
 
 ;; Copyright (C) 2009  Free Software Foundation, Inc.
 

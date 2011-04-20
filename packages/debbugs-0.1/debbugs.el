@@ -34,6 +34,7 @@
 
 ;(setq soap-debug t message-log-max t)
 (require 'soap-client)
+(eval-when-compile (require 'cl))
 
 (defcustom debbugs-port "gnu.org"
   "The port instance to be applied from `debbugs-wsdl'.
@@ -99,7 +100,7 @@ Example:
 	    val (pop query)
 	    vec (vconcat vec (list (substring (symbol-name key) 1))))
       (unless (and (keywordp key) (stringp val))
-	(t (error "Wrong query: %s %s" key val)))
+        (error "Wrong query: %s %s" key val))
       (case key
 	((:package :severity :tag)
 	 ;; Value shall be one word.
