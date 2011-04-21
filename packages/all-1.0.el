@@ -21,7 +21,7 @@
 ;; but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
-;; 
+;;
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program; if not, write to the Free Software
 ;; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
@@ -32,7 +32,7 @@
 ;; propagated to the original buffer.
 
 ;; You can no longer use mouse-2 to find a match in the original file,
-;; since the default definition of mouse too is useful.
+;; since the default definition of mouse is too useful.
 ;; However, `C-c C-c' still works.
 
 ;; Line numbers are not listed in the *All* buffer.

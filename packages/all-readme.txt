@@ -2,7 +2,7 @@ Just like occur, except that changes in the *All* buffer are
 propagated to the original buffer.
 
 You can no longer use mouse-2 to find a match in the original file,
-since the default definition of mouse too is useful.
+since the default definition of mouse is too useful.
 However, `C-c C-c' still works.
 
 Line numbers are not listed in the *All* buffer.
