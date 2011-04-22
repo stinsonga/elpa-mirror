@@ -6,7 +6,7 @@
 ## This creates a package archive beginning in DEST.
 ##
 ## The package archive itself is created in DEST/packages.  This dir
-## contains the package files and the `archive-contents' listing file.
+## contains the package files.
 ##
 ## If a second argument FULL-UPDATE is specified (whatever its value),
 ## also create the following:
@@ -79,7 +79,12 @@ else
     $ADMINROOT/org-synch.sh $TMP_PKGROOT $ADMINROOT >> $LOG 2>&1
 fi
 
+## Generate archive-contents and the readme files.
+
+$EMACS -batch -l $REPO_ROOT_DIR/admin/archive-contents.el -f batch-make-archive-contents
+
 ## Tar up the multi-file packages.
+
 echo "Creating multi-file package tarballs in $TMP_PKGROOT" >> $LOG
 cd $TMP_PKGROOT
 for pt in *; do
