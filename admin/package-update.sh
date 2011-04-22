@@ -15,12 +15,13 @@
 ##     DEST/packages/emacs-packages-latest.tgz
 ##   - the Org mode daily package
 
-PATH=/bin:/usr/bin:/usr/local/bin
+PATH="/bin:/usr/bin:/usr/local/bin:${PATH}"
 DEST=${1%/}
 FULL=$2
 
 EMACS=emacs
 BZR=bzr
+TAR=tar
 
 LOG=$DEST/update-log
 PKGROOT=$DEST/packages
@@ -29,7 +30,7 @@ REPO_PACKAGES=packages
 
 ## Parse arguments
 if [ -z $DEST ]; then
-    echo "Syntax: $0 HOMEDIR [fetch-extras-boolean]"
+    echo "Syntax: $0 DEST [fetch-extras-boolean]"
     exit 1
 elif [ -d $DEST ]; then
     echo "Installing into '$DEST', log is '$LOG'"
@@ -81,12 +82,14 @@ fi
 
 ## Generate archive-contents and the readme files.
 
+cd $TMP_PKGROOT
+$TAR xf *.tar
+rm -f *.tar
 $EMACS -batch -l $REPO_ROOT_DIR/admin/archive-contents.el -f batch-make-archive-contents
 
 ## Tar up the multi-file packages.
 
 echo "Creating multi-file package tarballs in $TMP_PKGROOT" >> $LOG
-cd $TMP_PKGROOT
 for pt in *; do
     if [ -d $pt ]; then
 	echo "Creating tarball $TMP_PKGROOT/$pt.tar" >> $LOG
