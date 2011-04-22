@@ -2,7 +2,7 @@
 
 # this script expects $1 to be the download directory and $2 to have org-synch.el
 
-PATH=/bin:/usr/bin:/usr/local/bin
+PATH="/bin:/usr/bin:/usr/local/bin:${PATH}"
 
 pkgname=`curl -s http://orgmode.org/pkg/daily/|perl -ne 'push @f, $1 if m/(org-\d{8}\.tar)/; END { @f = sort @f; print "$f[-1]\n"}'`
 
