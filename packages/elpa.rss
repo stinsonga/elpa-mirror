@@ -5,6 +5,12 @@
     <language>en</language>
     <description>News for the Emacs Lisp Package Archive</description>
 <item>
+<title>epoch-view version 0.0.1</title>
+<link>http://elpa.gnu.org/packages/news.html</link>
+<description>View Unix epoch timestamps as dates</description>
+<pubDate>Mon, 25 April 2011 20:10:00 -0500</pubDate>
+</item>
+<item>
 <title>load-dir version 0.0.2</title>
 <link>http://elpa.gnu.org/packages/news.html</link>
 <description>Modularize your .emacs: autoload Lisp snippets</description>
