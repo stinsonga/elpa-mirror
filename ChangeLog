@@ -1,5 +1,7 @@
 2011-04-26  Teodor Zlatanov  <tzz@lifelogs.com>
 
+	* html/index.html: Add link to /packages directory in the front page.
+
 	* packages/markchars-0.2.0.el: New package.
 
 	* packages/epoch-view-0.0.1.el: New package.
