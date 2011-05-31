@@ -1,3 +1,16 @@
+2011-05-31  Teodor Zlatanov  <tzz@lifelogs.com>
+
+	* packages/uni-confusables-0.1/confusables.txt: Unicode UTS-39
+	confusables mapping database.
+
+	* packages/uni-confusables-0.1/gen-confusables.el: Add converter
+	from confusables.txt to uni-confusables.el.
+
+	* packages/uni-confusables-0.1/uni-confusables.el: Add generated
+	file.
+
+	* packages/uni-confusables-0.1/uni-confusables-pkg.el: Add package tag.
+
 2011-04-26  Teodor Zlatanov  <tzz@lifelogs.com>
 
 	* html/index.html: Add link to /packages directory in the front page.
