@@ -315,35 +315,42 @@ Special commands:
              count (match-string 0) regexp)
          do (forward-line 1)))))
 
+
+(defun ioccur-print-match (str &optional all)
+  "Highlight in string STR all occurences matching `ioccur-pattern'.
+If ALL is non--nil highlight the whole string STR."
+  (condition-case nil
+      (with-temp-buffer
+        (insert str)
+        (goto-char (point-min))
+        (if all
+            (add-text-properties
+             (point) (point-at-eol)
+             '(face ioccur-match-face))  
+            (while (and (funcall ioccur-search-function ioccur-pattern nil t)
+                        ;; Don't try to highlight line with a length <= 0.
+                        (> (- (match-end 0) (match-beginning 0)) 0))
+              (add-text-properties
+               (match-beginning 0) (match-end 0)
+               '(face ioccur-match-face))))
+        (buffer-string))
+    (error nil)))
+
 (defun ioccur-print-line (line nline match regexp)
   "Prepare and insert a matched LINE at line number NLINE in `ioccur-buffer'."
   (with-current-buffer ioccur-buffer
     (let* ((lineno             (int-to-string (1+ nline)))
-           (trunc-line         (ioccur-truncate-line line))
-           (whole-line-matched (string= match line)))
+           (whole-line-matched (string= match line))
+           (hightline          (if ioccur-highlight-match-p
+                                   (ioccur-print-match
+                                    line
+                                    whole-line-matched)
+                                   line))
+           (trunc-line          (ioccur-truncate-line hightline)))
       (incf ioccur-count-occurences)
       (insert " " (propertize lineno 'face 'ioccur-num-line-face
                               'help-echo line)
-              ":" trunc-line "\n")
-      (when ioccur-highlight-match-p
-        (if whole-line-matched ; Regexp match the whole line, highlight it.
-            (save-excursion
-              (forward-line -1) (re-search-forward "\\(\\s-[0-9]+:\\)" nil t)
-              (put-text-property (point) (point-at-eol)
-                                 'face 'ioccur-match-face))
-            (ioccur-highlight-match-on-line regexp))))))
-
-(defun ioccur-highlight-match-on-line (regexp)
-  "Highlight all occurences of REGEXP on precedent line."
-  (save-excursion
-    (forward-line -1) (re-search-forward "\\(\\s-[0-9]+:\\)" nil t)
-    (while (and (funcall ioccur-search-function regexp (point-at-eol) t)
-                ;; If length of match is null exit loop.
-                ;; e.g when searching "^".
-                (> (- (match-end 0) (match-beginning 0)) 0))
-      (put-text-property (match-beginning 0) (point)
-                         'face 'ioccur-match-face))))
-
+              ":" trunc-line "\n"))))
 
 (defun* ioccur-truncate-line (line &optional (columns ioccur-length-line))
   "Remove indentation in LINE and truncate modified LINE of num COLUMNS.
@@ -550,7 +557,8 @@ Move point to first occurence of `ioccur-pattern'."
       (if win-conf
           (set-window-configuration win-conf)
           (pop-to-buffer ioccur-current-buffer))
-      (ioccur-goto-line pos) (recenter)
+      (ioccur-goto-line pos)
+      (recenter)
       ;; Go to beginning of first occurence in this line
       ;; of what match `ioccur-pattern'.
       (when (funcall ioccur-search-function
@@ -568,11 +576,13 @@ Move point to first occurence of `ioccur-pattern'."
       (delete-overlay ioccur-match-overlay))))
 
 ;;;###autoload
-(defun ioccur-jump-without-quit ()
-  "Jump to line in `ioccur-current-buffer' without quiting."
+(defun ioccur-jump-without-quit (&optional mark)
+  "Jump to line in `ioccur-current-buffer' without quitting."
   (interactive)
-  (and (ioccur-jump ioccur-last-window-configuration)
-       (switch-to-buffer-other-window ioccur-buffer t)))
+  (when (ioccur-jump ioccur-last-window-configuration)
+    (and mark (set-marker (mark-marker) (point))
+         (push-mark (point) 'nomsg))
+    (switch-to-buffer-other-window ioccur-buffer t)))
 
 ;;;###autoload
 (defun ioccur-scroll-other-window-down ()
@@ -745,6 +755,8 @@ START-POINT is the point where we start searching in buffer."
                   (setq ioccur-quit-flag t) nil)
                  ((right ?\C-z)                 ; Persistent action.
                   (ioccur-jump-without-quit) t)
+                 ((?\C- )                       ; Persistent action save mark.
+                  (ioccur-jump-without-quit t) t)                 
                  ((left ?\C-j)                  ; Jump and kill search buffer.
                   (setq ioccur-exit-and-quit-p t) nil)
                  ((next ?\C-v)                  ; Scroll down.
@@ -820,6 +832,7 @@ C-n or <down>      Next line.\n
 C-p or <up>        Precedent line.\n
 C-v and M-v/C-t    Scroll up and down.\n
 C-z or <right>     Jump without quitting loop.\n
+C-TAB              Jump without quitting and save to mark-ring.\n
 C-j or <left>      Jump and kill `ioccur-buffer'.\n
 RET                Exit keeping `ioccur-buffer'.\n
 DEL                Remove last character entered.\n
@@ -987,23 +1000,13 @@ for commands provided in the `ioccur-buffer'."
 
 (defun ioccur-save-history ()
   "Save last ioccur element found in `ioccur-history'."
-  ;; Push elm in history if not already there or empty.
-  (unless (or (member ioccur-pattern ioccur-history)
-              (string= ioccur-pattern ""))
-    (push ioccur-pattern ioccur-history))
-  ;; If elm already exists in history ring
-  ;; push it on top of stack.
-  (let ((pos-hist-elm (ioccur-position
-                       ioccur-pattern
-                       ioccur-history :test 'equal)))
-    (unless (string= (car ioccur-history)
-                     ioccur-pattern)
-      (push (pop (nthcdr pos-hist-elm ioccur-history))
-            ioccur-history)))
-  (when (> (length ioccur-history) ioccur-max-length-history)
-    (setq ioccur-history (delete (car (last ioccur-history))
-                                 ioccur-history)))
-  (setq ioccur-success t))
+  (unless (string= ioccur-pattern "")
+    (setq ioccur-history
+          (cons ioccur-pattern (delete ioccur-pattern ioccur-history)))
+    (when (> (length ioccur-history) ioccur-max-length-history)
+      (setq ioccur-history (delete (car (last ioccur-history))
+                                         ioccur-history)))
+    (setq ioccur-success t)))
 
 (defun ioccur-cancel-search ()
   "Cancel timer used for ioccur searching."
