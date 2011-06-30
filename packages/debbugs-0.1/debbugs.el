@@ -36,13 +36,53 @@
 (require 'soap-client)
 (eval-when-compile (require 'cl))
 
+(defgroup debbugs nil
+  "Debbugs library"
+  :group 'hypermedia)
+
+(defcustom debbugs-servers
+  '(("gnu.org"
+     :wsdl "http://debbugs.gnu.org/cgi/soap.cgi?WSDL"
+     :bugreport-url "http://debbugs.gnu.org/cgi/bugreport.cgi")
+    ("debian.org"
+     :wsdl "http://bugs.debian.org/cgi-bin/soap.cgi?WSDL"
+     :bugreport-url "http://bugs.debian.org/cgi-bin/bugreport.cgi"))
+  "*List of Debbugs server specifiers.
+Each entry is a list that contains a string identifying the port
+name and the server parameters in keyword-value form. Allowed
+keywords are:
+
+`:wsdl' -- Location of WSDL. The value is a string with URL that
+should return the WSDL specification of Debbugs/SOAP service.
+
+`:bugreport-url' -- URL of the server script that returns mboxes
+with bug logs.
+
+The list initially contains two predefined and configured Debbugs
+servers: \"gnu.org\" and \"debian.org\"."
+  :group 'debbugs
+  :link '(custom-manual "(debbugs)Debbugs server specifiers")
+  :type '(choice
+	  (const nil)
+	  (repeat
+	   (cons :tag "Server"
+		 (string :tag "Port name")
+		 (checklist :tag "Options" :greedy t
+			    (group :inline t
+				   (const :format "" :value :wsdl)
+				   (string :tag "WSDL"))
+			    (group :inline t
+				   (const :format "" :value :bugreport-url)
+				   (string :tag "Bugreport URL")))))))
+
 (defcustom debbugs-port "gnu.org"
   "The port instance to be applied from `debbugs-wsdl'.
 This corresponds to the Debbugs server to be accessed, either
-\"gnu.org\", or \"debian.org\"."
+\"gnu.org\", or \"debian.org\", or user defined port name."
   ;; Maybe we should create an own group?
-  :group 'emacsbug
-  :type '(choice :tag "Debbugs server" (const "gnu.org") (const "debian.org")))
+  :group 'debbugs
+  :type '(choice :tag "Debbugs server" (const "gnu.org") (const "debian.org")
+		 (string :tag "user defined port name")))
 
 ;; It would be nice if we could retrieve it from the debbugs server.
 ;; Not supported yet.
@@ -100,7 +140,7 @@ Example:
 	    val (pop query)
 	    vec (vconcat vec (list (substring (symbol-name key) 1))))
       (unless (and (keywordp key) (stringp val))
-        (error "Wrong query: %s %s" key val))
+	(error "Wrong query: %s %s" key val))
       (case key
 	((:package :severity :tag)
 	 ;; Value shall be one word.
@@ -298,6 +338,40 @@ Example: Return the first message of last submitted bug.
 		  (debbugs-get-attribute (car messages) 'body))
 	    (debbugs-get-attribute (car messages) 'attachments))))
 
+(defun debbugs-get-mbox (bug-number mbox-type &optional filename)
+  "Download mbox with messages of bug BUG-NUMBER from Debbugs server.
+BUG-NUMBER is a number of bug. It must be of integer type.
+
+MBOX-TYPE specifies a type of mbox and can be one of the
+following symbols:
+
+   `mboxfolder': Download mbox folder.
+
+   `mboxmaint': Download maintainer's mbox.
+
+   `mboxstat', `mboxstatus': Download status mbox. The use of
+   either symbol depends on actual Debbugs server
+   configuration. For gnu.org, use the former; for debian.org -
+   the latter.
+
+FILENAME, if non-nil, is the name of file to store mbox. If
+FILENAME is nil, the downloaded mbox is inserted into the current
+buffer."
+  (let (url (mt "") bn)
+    (unless (setq url (plist-get
+		       (cdr (assoc debbugs-port debbugs-servers))
+		       :bugreport-url))
+      (error "URL of bugreport script for port %s is not specified"
+	     debbugs-port))
+    (setq bn (format "bug=%s;" (number-to-string bug-number)))
+    (unless (eq mbox-type 'mboxfolder)
+      (if (memq mbox-type '(mboxmaint mboxstat mboxstatus))
+	  (setq mt (concat (symbol-name mbox-type) "=yes;"))
+	(error "Unknown mbox type: %s" mbox-type)))
+    (setq url (concat url (format "?%s%smbox=yes" bn mt)))
+    (if filename
+	(url-copy-file url filename t)
+      (url-insert-file-contents url))))
 
 (provide 'debbugs)
 
