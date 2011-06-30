@@ -1,3 +1,8 @@
+2011-06-30  Lars Magne Ingebrigtsen  <larsi@gnus.org>
+
+	* debbugs.el (debbugs-emacs): New function and modes for listing
+	the Emacs bugs, reading them and updating them.
+
 2011-06-12  Evgeny M. Zubok <zoubok@mail.ru>
 
 	* debbugs.el (top): Pacify byte compiler.

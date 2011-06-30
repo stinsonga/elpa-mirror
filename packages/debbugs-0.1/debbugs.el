@@ -373,6 +373,162 @@ buffer."
 	(url-copy-file url filename t)
       (url-insert-file-contents url))))
 
+;; Interface for the Emacs bug tracker.
+
+(autoload 'gnus-read-ephemeral-emacs-bug-group "gnus-group")
+(autoload 'mail-header-subject "nnheader")
+(autoload 'gnus-summary-article-header "gnus-sum")
+(autoload 'message-make-from "message")
+
+(defface debbugs-new '((t (:foreground "red")))
+  "Face for new reports that nobody has answered.")
+
+(defface debbugs-handled '((t (:foreground "ForestGreen")))
+  "Face for new reports that nobody has answered.")
+
+(defface debbugs-stale '((t (:foreground "orange")))
+  "Face for new reports that nobody has answered.")
+
+(defun debbugs-emacs (severities &optional package list-done)
+  "List all outstanding Emacs bugs."
+  (interactive
+   (list
+    (completing-read "Severity: "
+		     '("important" "normal" "minor" "wishlist")
+		     nil t "normal")))
+  (unless (consp severities)
+    (setq severities (list severities)))
+  (pop-to-buffer (get-buffer-create "*Emacs Bugs*"))
+  (debbugs-mode)
+  (let ((buffer-read-only nil)
+	(ids nil))
+    (dolist (severity severities)
+      (setq ids (nconc ids
+		       (debbugs-get-bugs :package (or package "emacs")
+					 :severity severity))))
+    (erase-buffer)
+    (dolist (status (sort (apply 'debbugs-get-status ids)
+			  (lambda (s1 s2)
+			    (< (cdr (assq 'id s1))
+			       (cdr (assq 'id s2))))))
+      (when (or list-done
+		(not (equal (cdr (assq 'pending status)) "done")))
+	(let ((address (mail-header-parse-address
+			(decode-coding-string (cdr (assq 'originator status))
+					      'utf-8))))
+	  (setq address
+		;; Prefer the name over the address.
+		(or (cdr address)
+		    (car address)))
+	  (insert
+	   (format "%5d %-20s [%-23s] %s\n"
+		   (cdr (assq 'id status))
+		   (let ((words
+			  (mapconcat
+			   'identity
+			   (cons (cdr (assq 'severity status))
+				 (cdr (assq 'keywords status)))
+			   ",")))
+		     (unless (equal (cdr (assq 'pending status)) "pending")
+		       (setq words (concat words "," (cdr (assq 'pending status)))))
+		     (if (> (length words) 20)
+			 (substring words 0 20)
+		       words))
+		   (if (> (length address) 23)
+		       (substring address 0 23)
+		     address)
+		   (decode-coding-string (cdr (assq 'subject status))
+					 'utf-8)))
+	  (forward-line -1)
+	  (put-text-property
+	   (+ (point) 5) (+ (point) 26)
+	   'face
+	   (cond
+	    ((= (cdr (assq 'date status))
+		(cdr (assq 'log_modified status)))
+	     'debbugs-new)
+	    ((< (- (float-time)
+		   (cdr (assq 'log_modified status)))
+		(* 60 60 24 4))
+	     'debbugs-handled)
+	    (t
+	     'debbugs-stale)))
+	  (forward-line 1)))))
+  (goto-char (point-min)))
+
+(defvar debbugs-mode-map nil)
+(unless debbugs-mode-map
+  (setq debbugs-mode-map (make-sparse-keymap))
+  (define-key debbugs-mode-map "\r" 'debbugs-select-report))
+
+(defun debbugs-mode ()
+  "Major mode for listing bug reports.
+
+All normal editing commands are switched off.
+\\<debbugs-mode-map>
+
+The following commands are available:
+
+\\{debbugs-mode-map}"
+  (interactive)
+  (kill-all-local-variables)
+  (setq major-mode 'debbugs-mode)
+  (setq mode-name "Debbugs")
+  (use-local-map debbugs-mode-map)
+  (buffer-disable-undo)
+  (setq truncate-lines t)
+  (setq buffer-read-only t))
+
+(defun debbugs-select-report ()
+  "Select the report on the current line."
+  (interactive)
+  (let (id)
+    (save-excursion
+      (beginning-of-line)
+      (if (not (looking-at " *\\([0-9]+\\)"))
+	  (error "No bug report on the current line")
+	(setq id (string-to-number (match-string 1)))))
+    (gnus-read-ephemeral-emacs-bug-group
+     id (cons (current-buffer)
+	      (current-window-configuration)))
+    (debbugs-summary-mode 1)))
+
+(defvar debbugs-summary-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "C" 'debbugs-send-control-message)
+    map))
+
+(define-minor-mode debbugs-summary-mode
+  "Minor mode for providing a debbugs interface in Gnus summary buffers.
+
+\\{debbugs-summary-mode-map}"
+  :lighter " Debbugs" :keymap debbugs-summary-mode-map
+  nil)
+
+(defun debbugs-send-control-message (message)
+  "Send a control message for the current bug report."
+  (interactive
+   (list (completing-read "Control message: "
+			  '("important" "normal" "minor" "wishlist"
+			    "wontfix" "close"))))
+  (let* ((subject (mail-header-subject (gnus-summary-article-header)))
+	 (id
+	  (if (string-match "bug#\\([0-9]+\\)" subject)
+	      (string-to-number (match-string 1 subject))
+	    (error "No bug number present"))))
+    (with-temp-buffer
+      (insert "To: control@debbugs.gnu.org\n"
+	      "From: " (message-make-from) "\n"
+	      (format "Subject: control message for bug #%d\n" id)
+	      "\n"
+	      (cond
+	       ((equal message "close")
+		(format "close %d\n" id))
+	       (t
+		(format "tags %d %s\n" id message)))
+	      "thanks\n")
+      (funcall send-mail-function))))
+
 (provide 'debbugs)
 
 ;;; TODO:
