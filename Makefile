@@ -3,14 +3,16 @@
 EMACS=emacs
 
 ARCHIVE_TMP=archive-tmp
-PACKAGE_SITE_DIR=site
+SITE_DIR=site
+
+.PHONY: archive-tmp process-archive archive-full org-fetch clean all
 
 ## Set up the source files for direct usage, by pointing
-## `package-directory-list' to site/
+## `package-directory-list' to the site/ directory.
 site: packages
-	mkdir -p $(PACKAGE_SITE_DIR)
-
-.PHONY: archive-tmp process-archive archive-full org-fetch
+	mkdir -p $(SITE_DIR)
+	$(EMACS) -batch -l $(CURDIR)/admin/archive-contents.el \
+	  --eval "(batch-make-site-dir \"packages\" \"$(SITE_DIR)\")"
 
 ## Deploy the package archive to archive/, with packages in
 ## archive/packages/:
@@ -53,3 +55,8 @@ org-fetch: archive-tmp
 		rm -f $${pkgname}.tar; \
 		mv $${pkgname} org; \
 	fi
+
+clean:
+	rm -rf archive $(ARCHIVE_TMP) $(SITE_DIR)
+
+all: site
