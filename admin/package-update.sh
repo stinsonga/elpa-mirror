@@ -65,8 +65,6 @@ echo "Exporting packages to temporary working directory $TMP_PKGROOT" >> $LOG
 rm -rf $TMP_PKGROOT
 $BZR export $TMP_PKGROOT $REPO_PACKAGES
 
-## Call the `make-package-archive' Lisp function.
-
 ## If second arg is provided, copy in the admin directory and run the
 ## Org daily synch scripts
 if [ -z $FULL ]; then
