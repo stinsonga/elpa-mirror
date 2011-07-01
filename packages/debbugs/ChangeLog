@@ -4,6 +4,7 @@
 	(debbugs-select-report): Set the minor summary mode in the right
 	buffer.
 	(debbugs-send-control-message): Fix typo in the "done" case.
+	(debbugs-emacs): Allow listing archived bugs.
 
 2011-06-30  Lars Magne Ingebrigtsen  <larsi@gnus.org>
 

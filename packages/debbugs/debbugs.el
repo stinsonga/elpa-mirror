@@ -389,7 +389,7 @@ buffer."
 (defface debbugs-stale '((t (:foreground "orange")))
   "Face for new reports that nobody has answered.")
 
-(defun debbugs-emacs (severities &optional package list-done)
+(defun debbugs-emacs (severities &optional package list-done archivedp)
   "List all outstanding Emacs bugs."
   (interactive
    (list
@@ -405,7 +405,9 @@ buffer."
     (dolist (severity severities)
       (setq ids (nconc ids
 		       (debbugs-get-bugs :package (or package "emacs")
-					 :severity severity))))
+					 :severity severity
+					 :archive (if archivedp
+						      "1" "0")))))
     (erase-buffer)
     (dolist (status (sort (apply 'debbugs-get-status ids)
 			  (lambda (s1 s2)
