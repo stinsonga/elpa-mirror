@@ -532,7 +532,7 @@ fixed, and then closed."
 	       ((equal message "close")
 		(format "close %d\n" id))
 	       ((equal message "done")
-		(format "tags %d fixed\bclose %d\n" id id))
+		(format "tags %d fixed\nclose %d\n" id id))
 	       ((member message '("important" "normal" "minor" "wishlist"))
 		(format "severity %d %s\n" id message))
 	       (t
