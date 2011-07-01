@@ -491,7 +491,8 @@ The following commands are available:
     (gnus-read-ephemeral-emacs-bug-group
      id (cons (current-buffer)
 	      (current-window-configuration)))
-    (debbugs-summary-mode 1)))
+    (with-current-buffer (window-buffer (selected-window))
+      (debbugs-summary-mode 1))))
 
 (defvar debbugs-summary-mode-map
   (let ((map (make-sparse-keymap)))
@@ -508,7 +509,7 @@ The following commands are available:
 (defun debbugs-send-control-message (message)
   "Send a control message for the current bug report.
 You can set the severity or add a tag, or close the report.  If
-you use the special `done' MESSAGE, the report will be marked as
+you use the special \"done\" MESSAGE, the report will be marked as
 fixed, and then closed."
   (interactive
    (list (completing-read
