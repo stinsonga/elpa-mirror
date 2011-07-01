@@ -506,11 +506,17 @@ The following commands are available:
   nil)
 
 (defun debbugs-send-control-message (message)
-  "Send a control message for the current bug report."
+  "Send a control message for the current bug report.
+You can set the severity or add a tag, or close the report.  If
+you use the special `done' MESSAGE, the report will be marked as
+fixed, and then closed."
   (interactive
-   (list (completing-read "Control message: "
-			  '("important" "normal" "minor" "wishlist"
-			    "wontfix" "close"))))
+   (list (completing-read
+	  "Control message: "
+	  '("important" "normal" "minor" "wishlist"
+	    "close" "done"
+	    "patch" "wontfix" "moreinfo" "unreproducible" "fixed" "notabug")
+	  nil t)))
   (let* ((subject (mail-header-subject (gnus-summary-article-header)))
 	 (id
 	  (if (string-match "bug#\\([0-9]+\\)" subject)
@@ -524,9 +530,12 @@ The following commands are available:
 	      (cond
 	       ((equal message "close")
 		(format "close %d\n" id))
+	       ((equal message "done")
+		(format "tags %d fixed\bclose %d\n" id id))
+	       ((member message '("important" "normal" "minor" "wishlist"))
+		(format "severity %d %s\n" id message))
 	       (t
-		(format "tags %d %s\n" id message)))
-	      "thanks\n")
+		(format "tags %d %s\n" id message))))
       (funcall send-mail-function))))
 
 (provide 'debbugs)

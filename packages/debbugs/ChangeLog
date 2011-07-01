@@ -1,3 +1,7 @@
+2011-07-01  Lars Magne Ingebrigtsen  <larsi@gnus.org>
+
+	* debbugs.el (debbugs-send-control-message): Add severity and "done".
+
 2011-06-30  Lars Magne Ingebrigtsen  <larsi@gnus.org>
 
 	* debbugs.el (debbugs-emacs): New function and modes for listing
