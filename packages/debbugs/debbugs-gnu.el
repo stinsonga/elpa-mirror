@@ -60,7 +60,7 @@
   (let ((debbugs-port "gnu.org")
 	(buffer-read-only nil)
 	(ids nil)
-	(default 400))
+	(default 500))
     (dolist (severity severities)
       (setq ids (nconc ids
 		       (debbugs-get-bugs :package (or package "emacs")
@@ -208,9 +208,20 @@ fixed, and then closed."
 	  (when (member message '("close" "done"))
 	    (read-string
 	     "Version: "
-	     (if (string-match "^\\(\\([.0-9]+\\)*\\)\\.[0-9]+$" emacs-version)
-		 (match-string 1 emacs-version)
-	       emacs-version)))))
+	     (cond
+	      ;; Emacs development versions.
+	      ((string-match
+		"^\\([0-9]+\\)\\.\\([0-9]+\\)\\.\\([0-9]+\\)\\." emacs-version)
+	       (format "%s.%d"
+		       (match-string 1 emacs-version)
+		       (1+ (string-to-number (match-string 2 emacs-version)))))
+	      ;; Emacs release versions.
+	      ((string-match
+		"^\\([0-9]+\\)\\.\\([0-9]+\\)\\.\\([0-9]+\\)$" emacs-version)
+	       (format "%s.%s"
+		       (match-string 1 emacs-version)
+		       (match-string 2 emacs-version)))
+	      (t emacs-version))))))
     (with-temp-buffer
       (insert "To: control@debbugs.gnu.org\n"
 	      "From: " (message-make-from) "\n"
