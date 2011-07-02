@@ -1,3 +1,10 @@
+2011-07-02  Michael Albinus  <michael.albinus@gmx.de>
+
+	* debbugs-gnu.el (debbugs-emacs): Move reporting lines to
+	`debbugs-show-reports'.  Create widgets for every report page.
+	(debbugs-show-reports): New defun.
+	(debbugs-select-report): Handle also page links.
+
 2011-07-02  Lars Magne Ingebrigtsen  <larsi@gnus.org>
 
 	* debbugs-gnu.el (debbugs-summary-mode): Make sure we don't Cc

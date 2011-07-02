@@ -27,6 +27,7 @@
 ;;; Code:
 
 (require 'debbugs)
+(require 'widget)
 (eval-when-compile (require 'cl))
 
 (autoload 'gnus-read-ephemeral-emacs-bug-group "gnus-group")
@@ -55,33 +56,80 @@
 		     nil t "normal")))
   (unless (consp severities)
     (setq severities (list severities)))
-  (pop-to-buffer (get-buffer-create "*Emacs Bugs*"))
-  (debbugs-mode)
   (let ((debbugs-port "gnu.org")
-	(buffer-read-only nil)
-	(ids nil)
-	(default 500))
+	(default 500)
+	ids widgets)
     (dolist (severity severities)
       (setq ids (nconc ids
 		       (debbugs-get-bugs :package (or package "emacs")
 					 :severity severity
 					 :archive (if archivedp
 						      "1" "0")))))
+    (setq ids (sort ids '<))
+
+    (if (> (length ids) default)
+	(let ((cursor-in-echo-area nil))
+	  (setq default
+		(string-to-number
+		 (read-string
+		  (format
+		   "How many reports (available %d, default %d): "
+		   (length ids) default)
+		  nil
+		  nil
+		  (number-to-string default))))))
+
+    (if (> (length ids) default)
+	(let ((i 0))
+	  (while ids
+	    (setq i (1+ i)
+		  widgets (append
+			   widgets
+			   (list
+			    (widget-convert
+			     'push-button
+			     :follow-link 'mouse-face
+			     :notify (lambda (widget &rest ignore)
+				       (debbugs-show-reports
+					(widget-get widget :suppress-done)
+					widget
+					(widget-get widget :widgets)))
+			     :suppress-done suppress-done
+			     :buffer-name (format "*Emacs Bugs*<%d>" i)
+			     :bug-ids (butlast ids (- (length ids) default))
+			     (format " %d" i))))
+		  ids (last ids (- (length ids) default))))
+	  (debbugs-show-reports suppress-done (car widgets) widgets))
+
+      (debbugs-show-reports suppress-done
+			    (widget-convert
+			     'const
+			     :buffer-name "*Emacs Bugs*"
+			     :bug-ids ids)
+			    nil))))
+
+(defun debbugs-show-reports (suppress-done widget widgets)
+  "Show bug reports as given in WIDGET property :bug-ids."
+  (pop-to-buffer (get-buffer-create (widget-get widget :buffer-name)))
+  (debbugs-mode)
+  (let ((inhibit-read-only t))
     (erase-buffer)
 
-    (when (> (length ids) default)
-      (let* ((cursor-in-echo-area nil)
-	     (input
-	      (read-string
-	       (format
-		"How many reports (available %d, default %d): "
-		(length ids) default)
-	       nil
-	       nil
-	       (number-to-string default))))
-	(setq ids (last (sort ids '<) (string-to-number input)))))
+    (when widgets
+      (widget-insert "Page:")
+      (mapc
+       (lambda (obj)
+	 (widget-insert " ")
+	 (widget-put obj :widgets widgets)
+	 (if (eq obj widget)
+	     (widget-put obj :button-face 'widget-button-pressed)
+	   (widget-put obj :button-face 'widget-button-face))
+	 (widget-apply obj :create))
+       widgets)
+      (widget-insert "\n\n"))
 
-    (dolist (status (sort (apply 'debbugs-get-status ids)
+    (dolist (status (sort (apply 'debbugs-get-status
+				 (widget-get widget :bug-ids))
 			  (lambda (s1 s2)
 			    (< (cdr (assq 'id s1))
 			       (cdr (assq 'id s2))))))
@@ -139,8 +187,22 @@
 	     'debbugs-handled)
 	    (t
 	     'debbugs-stale)))
-	  (forward-line 1)))))
-  (goto-char (point-min)))
+	  (forward-line 1))))
+
+    (when widgets
+      (widget-insert "\nPage:")
+      (mapc
+       (lambda (obj)
+	 (widget-insert " ")
+	 (widget-put obj :widgets widgets)
+	 (if (eq obj widget)
+	     (widget-put obj :button-face 'widget-button-pressed)
+	   (widget-put obj :button-face 'widget-button-face))
+	 (widget-apply obj :create))
+       widgets)
+      (widget-setup))
+
+    (goto-char (point-min))))
 
 (defvar debbugs-mode-map
   (let ((map (make-sparse-keymap)))
@@ -207,15 +269,21 @@ The following commands are available:
   (let (id)
     (save-excursion
       (beginning-of-line)
-      (if (not (looking-at " *\\([0-9]+\\)"))
-	  (error "No bug report on the current line")
-	(setq id (string-to-number (match-string 1)))))
-    (gnus-read-ephemeral-emacs-bug-group
-     id (cons (current-buffer)
-	      (current-window-configuration)))
-    (with-current-buffer (window-buffer (selected-window))
-      (debbugs-summary-mode 1)
-      (set (make-local-variable 'debbugs-bug-number) id))))
+      (cond
+       ((looking-at " *\\([0-9]+\\)")
+	(setq id (string-to-number (match-string 1))))
+       ((looking-at "Page:") nil)
+       (t (error "No bug report on the current line"))))
+    (if (null id)
+	;; We go to another buffer.
+	(widget-button-press (point))
+      ;; We open the report messages.
+      (gnus-read-ephemeral-emacs-bug-group
+       id (cons (current-buffer)
+		(current-window-configuration)))
+      (with-current-buffer (window-buffer (selected-window))
+	(debbugs-summary-mode 1)
+	(set (make-local-variable 'debbugs-bug-number) id)))))
 
 (defvar debbugs-summary-mode-map
   (let ((map (make-sparse-keymap)))
