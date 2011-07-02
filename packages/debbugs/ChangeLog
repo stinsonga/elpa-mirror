@@ -1,3 +1,9 @@
+2011-07-02  Michael Albinus  <michael.albinus@gmx.de>
+
+	* debbugs.el (debbugs-emacs): Let-bind `debbugs-port' to "gnu.org".
+	Ask how many reports to retrieve, when `debbugs-get-bugs' returns
+	more than 400 hits.
+
 2011-07-01  Lars Magne Ingebrigtsen  <larsi@gnus.org>
 
 	* debbugs.el (debbugs-send-control-message): Add severity and "done".

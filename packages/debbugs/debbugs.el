@@ -400,8 +400,10 @@ buffer."
     (setq severities (list severities)))
   (pop-to-buffer (get-buffer-create "*Emacs Bugs*"))
   (debbugs-mode)
-  (let ((buffer-read-only nil)
-	(ids nil))
+  (let ((debbugs-port "gnu.org")
+	(buffer-read-only nil)
+	(ids nil)
+	(default 400))
     (dolist (severity severities)
       (setq ids (nconc ids
 		       (debbugs-get-bugs :package (or package "emacs")
@@ -409,6 +411,19 @@ buffer."
 					 :archive (if archivedp
 						      "1" "0")))))
     (erase-buffer)
+
+    (when (> (length ids) default)
+      (let* ((cursor-in-echo-area nil)
+	     (input
+	      (read-string
+	       (format
+		"How many reports (available %d, default %d): "
+		(length ids) default)
+	       nil
+	       nil
+	       (number-to-string default))))
+	(setq ids (last (sort ids '<) (string-to-number input)))))
+
     (dolist (status (sort (apply 'debbugs-get-status ids)
 			  (lambda (s1 s2)
 			    (< (cdr (assq 'id s1))
