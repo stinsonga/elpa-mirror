@@ -532,7 +532,9 @@ fixed, and then closed."
    (list (completing-read
 	  "Control message: "
 	  '("important" "normal" "minor" "wishlist"
-	    "close" "done"
+	    "done"
+	    "unarchive" "reopen" "close"
+	    "merge" "forcemerge"
 	    "patch" "wontfix" "moreinfo" "unreproducible" "fixed" "notabug")
 	  nil t)))
   (let* ((subject (mail-header-subject (gnus-summary-article-header)))
@@ -546,8 +548,11 @@ fixed, and then closed."
 	      (format "Subject: control message for bug #%d\n" id)
 	      "\n"
 	      (cond
-	       ((equal message "close")
-		(format "close %d\n" id))
+	       ((member message '("unarchive" "reopen" "close"))
+		(format "%s %d\n" message id))
+	       ((member message '("merge" "forcemerge"))
+		(format "%s %d %s\n" message id
+			(read-string "Merge with bug #: ")))
 	       ((equal message "done")
 		(format "tags %d fixed\nclose %d\n" id id))
 	       ((member message '("important" "normal" "minor" "wishlist"))
