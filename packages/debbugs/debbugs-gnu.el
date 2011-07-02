@@ -244,7 +244,8 @@ The following commands are available:
   (interactive)
   (beginning-of-line)
   (let ((buffer-read-only nil)
-	(current-bug (buffer-substring (point) (+ (point) 5))))
+	(current-bug (and (not (eobp))
+			  (buffer-substring (point) (+ (point) 5)))))
     (goto-char (point-min))
     (setq debbugs-sort-state
 	  (if (eq debbugs-sort-state 'number)
@@ -258,8 +259,10 @@ The following commands are available:
 	 (or (cdr (assq (get-text-property (+ (point) 7) 'face)
 			debbugs-state-preference))
 	     10))))
-    (goto-char (point-min))
-    (re-search-forward (concat "^" current-bug) nil t)))
+    (if (not current-bug)
+	(goto-char (point-max))
+      (goto-char (point-min))
+      (re-search-forward (concat "^" current-bug) nil t))))
 
 (defvar debbugs-bug-number nil)
 

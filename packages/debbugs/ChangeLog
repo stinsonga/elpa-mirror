@@ -15,6 +15,7 @@
 	entry, so that we don't have to rely on subject header mangling,
 	which is fragile.
 	(debbugs-emacs): Display multiple merges prettier.
+	(debbugs-toggle-sort): Allow sorting from the final line.
 
 2011-07-02  Michael Albinus  <michael.albinus@gmx.de>
 
