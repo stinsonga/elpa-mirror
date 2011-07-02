@@ -2,6 +2,8 @@
 
 	* debbugs-gnu.el (debbugs-emacs): Propertize with 'help-echo.
 	(debbugs-mode-map): Define key "q".
+	(debbugs-send-control-message): Prompt for version number for
+	"close" and "done" control messages.
 
 2011-07-02  Michael Albinus  <michael.albinus@gmx.de>
 

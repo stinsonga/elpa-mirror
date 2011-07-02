@@ -203,20 +203,29 @@ fixed, and then closed."
 	 (id
 	  (if (string-match "bug#\\([0-9]+\\)" subject)
 	      (string-to-number (match-string 1 subject))
-	    (error "No bug number present"))))
+	    (error "No bug number present")))
+	 (version
+	  (when (member message '("close" "done"))
+	    (read-string
+	     "Version: "
+	     (if (string-match "^\\(\\([.0-9]+\\)*\\)\\.[0-9]+$" emacs-version)
+		 (match-string 1 emacs-version)
+	       emacs-version)))))
     (with-temp-buffer
       (insert "To: control@debbugs.gnu.org\n"
 	      "From: " (message-make-from) "\n"
 	      (format "Subject: control message for bug #%d\n" id)
 	      "\n"
 	      (cond
-	       ((member message '("unarchive" "reopen" "close"))
+	       ((member message '("unarchive" "reopen"))
 		(format "%s %d\n" message id))
 	       ((member message '("merge" "forcemerge"))
 		(format "%s %d %s\n" message id
 			(read-string "Merge with bug #: ")))
+	       ((equal message "close")
+		(format "close %d %s\n" id version))
 	       ((equal message "done")
-		(format "tags %d fixed\nclose %d\n" id id))
+		(format "tags %d fixed\nclose %d %s\n" id id version))
 	       ((member message '("important" "normal" "minor" "wishlist"))
 		(format "severity %d %s\n" id message))
 	       (t
