@@ -389,6 +389,9 @@ buffer."
 (defface debbugs-stale '((t (:foreground "orange")))
   "Face for new reports that nobody has answered.")
 
+(defface debbugs-done '((t (:foreground "DarkGrey")))
+  "Face for closed bug reports.")
+
 (defun debbugs-emacs (severities &optional package list-done archivedp)
   "List all outstanding Emacs bugs."
   (interactive
@@ -461,6 +464,8 @@ buffer."
 	   (+ (point) 5) (+ (point) 26)
 	   'face
 	   (cond
+	    ((equal (cdr (assq 'pending status)) "done")
+	     'debbugs-done)
 	    ((= (cdr (assq 'date status))
 		(cdr (assq 'log_modified status)))
 	     'debbugs-new)
