@@ -46,7 +46,7 @@
 (defface debbugs-done '((t (:foreground "DarkGrey")))
   "Face for closed bug reports.")
 
-(defun debbugs-emacs (severities &optional package list-done archivedp)
+(defun debbugs-emacs (severities &optional package suppress-done archivedp)
   "List all outstanding Emacs bugs."
   (interactive
    (list
@@ -85,7 +85,7 @@
 			  (lambda (s1 s2)
 			    (< (cdr (assq 'id s1))
 			       (cdr (assq 'id s2))))))
-      (when (or list-done
+      (when (or (not suppress-done)
 		(not (equal (cdr (assq 'pending status)) "done")))
 	(let ((address (mail-header-parse-address
 			(decode-coding-string (cdr (assq 'originator status))
