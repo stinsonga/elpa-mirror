@@ -1,3 +1,11 @@
+2011-07-02  Michael Albinus  <michael.albinus@gmx.de>
+
+	* debbugs.el (debbugs-new, debbugs-handled, debbugs-stale)
+	(debbugs-done, debbugs-emacs, debbugs-mode-map, debbugs-mode)
+	(debbugs-select-report, debbugs-summary-mode-map)
+	(debbugs-summary-mode, debbugs-send-control-message): Move to ...
+	* debbugs-gnu.el: New file.
+
 2011-07-02  Lars Magne Ingebrigtsen  <larsi@gnus.org>
 
 	* debbugs.el (debbugs-send-control-message): Add more control
