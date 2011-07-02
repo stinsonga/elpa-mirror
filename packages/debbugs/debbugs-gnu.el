@@ -91,7 +91,8 @@
 			(decode-coding-string (cdr (assq 'originator status))
 					      'utf-8)))
 	      (subject (decode-coding-string (cdr (assq 'subject status))
-					     'utf-8)))
+					     'utf-8))
+	      merged)
 	  (setq address
 		;; Prefer the name over the address.
 		(or (cdr address)
@@ -108,8 +109,12 @@
 		     (unless (equal (cdr (assq 'pending status)) "pending")
 		       (setq words
 			     (concat words "," (cdr (assq 'pending status)))))
-		     (when (cdr (assq 'mergedwith status))
-		       (setq words (format "%s,%s" (cdr (assq 'mergedwith status))
+		     (when (setq merged (cdr (assq 'mergedwith status)))
+		       (setq words (format "%s,%s"
+					   (if (numberp merged)
+					       merged
+					     (mapconcat 'number-to-string merged
+							","))
 					   words)))
 		     (if (> (length words) 20)
 			 (propertize (substring words 0 20) 'help-echo words)

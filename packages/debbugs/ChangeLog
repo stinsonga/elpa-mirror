@@ -7,6 +7,7 @@
 	(debbugs-send-control-message): Record the bug number on group
 	entry, so that we don't have to rely on subject header mangling,
 	which is fragile.
+	(debbugs-emacs): Display multiple merges prettier.
 
 2011-07-02  Michael Albinus  <michael.albinus@gmx.de>
 
