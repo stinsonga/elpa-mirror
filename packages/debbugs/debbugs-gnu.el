@@ -89,7 +89,9 @@
 		(not (equal (cdr (assq 'pending status)) "done")))
 	(let ((address (mail-header-parse-address
 			(decode-coding-string (cdr (assq 'originator status))
-					      'utf-8))))
+					      'utf-8)))
+	      (subject (decode-coding-string (cdr (assq 'subject status))
+					     'utf-8)))
 	  (setq address
 		;; Prefer the name over the address.
 		(or (cdr address)
@@ -104,15 +106,15 @@
 				 (cdr (assq 'keywords status)))
 			   ",")))
 		     (unless (equal (cdr (assq 'pending status)) "pending")
-		       (setq words (concat words "," (cdr (assq 'pending status)))))
+		       (setq words
+			     (concat words "," (cdr (assq 'pending status)))))
 		     (if (> (length words) 20)
-			 (substring words 0 20)
+			 (propertize (substring words 0 20) 'help-echo words)
 		       words))
 		   (if (> (length address) 23)
-		       (substring address 0 23)
+		       (propertize (substring address 0 23) 'help-echo address)
 		     address)
-		   (decode-coding-string (cdr (assq 'subject status))
-					 'utf-8)))
+		   (propertize subject 'help-echo subject)))
 	  (forward-line -1)
 	  (put-text-property
 	   (+ (point) 5) (+ (point) 26)
@@ -135,7 +137,8 @@
 (defvar debbugs-mode-map nil)
 (unless debbugs-mode-map
   (setq debbugs-mode-map (make-sparse-keymap))
-  (define-key debbugs-mode-map "\r" 'debbugs-select-report))
+  (define-key debbugs-mode-map "\r" 'debbugs-select-report)
+  (define-key debbugs-mode-map "q"  'kill-buffer))
 
 (defun debbugs-mode ()
   "Major mode for listing bug reports.
