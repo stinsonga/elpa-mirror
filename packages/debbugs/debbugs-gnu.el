@@ -183,7 +183,20 @@ The following commands are available:
 
 \\{debbugs-summary-mode-map}"
   :lighter " Debbugs" :keymap debbugs-summary-mode-map
-  nil)
+  (set (make-local-variable 'gnus-posting-styles)
+       '((".*"
+	  (eval
+	   (with-current-buffer gnus-article-copy
+	     (set (make-local-variable 'message-prune-recipient-rules)
+		  '((".*@debbugs.*" "emacs-pretest-bug")
+		    (".*@debbugs.*" "bug-gnu-emacs")))
+	     (set (make-local-variable 'message-alter-recipients-function)
+		  (lambda (address)
+		    (if (string-match "\\([0-9]+\\)@donarmstrong" (car address))
+			(let ((new (format "%s@debbugs.gnu.org"
+					   (match-string 1 (car address)))))
+			  (cons new new))
+		      address)))))))))
 
 (defun debbugs-send-control-message (message)
   "Send a control message for the current bug report.
