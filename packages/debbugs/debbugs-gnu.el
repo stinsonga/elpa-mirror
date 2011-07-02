@@ -108,6 +108,9 @@
 		     (unless (equal (cdr (assq 'pending status)) "pending")
 		       (setq words
 			     (concat words "," (cdr (assq 'pending status)))))
+		     (when (cdr (assq 'mergedwith status))
+		       (setq words (format "%s,%s" (cdr (assq 'mergedwith status))
+					   words)))
 		     (if (> (length words) 20)
 			 (propertize (substring words 0 20) 'help-echo words)
 		       words))
@@ -191,6 +194,8 @@ The following commands are available:
     (goto-char (point-min))
     (re-search-forward (concat "^" current-bug) nil t)))
 
+(defvar debbugs-bug-number nil)
+
 (defun debbugs-select-report ()
   "Select the report on the current line."
   (interactive)
@@ -204,7 +209,8 @@ The following commands are available:
      id (cons (current-buffer)
 	      (current-window-configuration)))
     (with-current-buffer (window-buffer (selected-window))
-      (debbugs-summary-mode 1))))
+      (debbugs-summary-mode 1)
+      (set (make-local-variable 'debbugs-bug-number) id))))
 
 (defvar debbugs-summary-mode-map
   (let ((map (make-sparse-keymap)))
@@ -245,11 +251,7 @@ fixed, and then closed."
 	    "merge" "forcemerge"
 	    "patch" "wontfix" "moreinfo" "unreproducible" "fixed" "notabug")
 	  nil t)))
-  (let* ((subject (mail-header-subject (gnus-summary-article-header)))
-	 (id
-	  (if (string-match "bug#\\([0-9]+\\)" subject)
-	      (string-to-number (match-string 1 subject))
-	    (error "No bug number present")))
+  (let* ((id debbugs-bug-number)	; Set on group entry.
 	 (version
 	  (when (member message '("close" "done"))
 	    (read-string
