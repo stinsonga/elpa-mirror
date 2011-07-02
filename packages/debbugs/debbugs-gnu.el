@@ -134,11 +134,14 @@
 	  (forward-line 1)))))
   (goto-char (point-min)))
 
-(defvar debbugs-mode-map nil)
-(unless debbugs-mode-map
-  (setq debbugs-mode-map (make-sparse-keymap))
-  (define-key debbugs-mode-map "\r" 'debbugs-select-report)
-  (define-key debbugs-mode-map "q"  'kill-buffer))
+(defvar debbugs-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "\r" 'debbugs-select-report)
+    (define-key map "q" 'kill-buffer)
+    (define-key map "s" 'debbugs-toggle-sort)
+    map))
+
+(defvar debbugs-sort-state 'number)
 
 (defun debbugs-mode ()
   "Major mode for listing bug reports.
@@ -154,9 +157,39 @@ The following commands are available:
   (setq major-mode 'debbugs-mode)
   (setq mode-name "Debbugs")
   (use-local-map debbugs-mode-map)
+  (set (make-local-variable 'debbugs-sort-state)
+       'number)
   (buffer-disable-undo)
   (setq truncate-lines t)
   (setq buffer-read-only t))
+
+(defvar debbugs-state-preference
+  '((debbugs-new . 1)
+    (debbugs-stale . 2)
+    (debbugs-handled . 3)
+    (debbugs-done . 4)))
+
+(defun debbugs-toggle-sort ()
+  "Toggle sorting by age and by state."
+  (interactive)
+  (beginning-of-line)
+  (let ((buffer-read-only nil)
+	(current-bug (buffer-substring (point) (+ (point) 5))))
+    (goto-char (point-min))
+    (setq debbugs-sort-state
+	  (if (eq debbugs-sort-state 'number)
+	      'state
+	    'number))
+    (sort-subr
+     nil (lambda () (forward-line 1)) 'end-of-line
+     (lambda ()
+       (if (eq debbugs-sort-state 'number)
+	   (string-to-number (buffer-substring (point) (+ (point) 5)))
+	 (or (cdr (assq (get-text-property (+ (point) 7) 'face)
+			debbugs-state-preference))
+	     10))))
+    (goto-char (point-min))
+    (re-search-forward (concat "^" current-bug) nil t)))
 
 (defun debbugs-select-report ()
   "Select the report on the current line."

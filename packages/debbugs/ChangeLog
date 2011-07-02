@@ -3,6 +3,7 @@
 	* debbugs-gnu.el (debbugs-summary-mode): Make sure we don't Cc
 	both bug-gnu-emacs (etc) and debbugs.
 	(debbugs-emacs): Default to list the done bugs.
+	(debbugs-toggle-sort): New command and keystroke.
 
 2011-07-02  Michael Albinus  <michael.albinus@gmx.de>
 
