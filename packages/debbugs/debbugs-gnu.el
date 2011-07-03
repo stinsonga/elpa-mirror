@@ -336,7 +336,8 @@ The following commands are available:
 	   (with-current-buffer gnus-article-copy
 	     (set (make-local-variable 'message-prune-recipient-rules)
 		  '((".*@debbugs.*" "emacs-pretest-bug")
-		    (".*@debbugs.*" "bug-gnu-emacs")))
+		    (".*@debbugs.*" "bug-gnu-emacs")
+		    ("[0-9]+@debbugs.*" "submit@debbugs.gnu.org")))
 	     (set (make-local-variable 'message-alter-recipients-function)
 		  (lambda (address)
 		    (if (string-match "\\([0-9]+\\)@donarmstrong" (car address))

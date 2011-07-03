@@ -10,6 +10,7 @@
 	(debbugs-toggle-sort): Make sorting work again.
 	(debbugs-toggle-sort): Use `debbugs-current-id'.
 	(debbugs-toggle-sort): Don't move point around so much.
+	(debbugs-summary-mode): Ignore submit@debbugs addresses, too.
 
 2011-07-03  Michael Albinus  <michael.albinus@gmx.de>
 
