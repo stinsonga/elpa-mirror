@@ -174,6 +174,8 @@
 		     address)
 		   (propertize subject 'help-echo subject)))
 	  (forward-line -1)
+	  (put-text-property (point) (1+ (point))
+			     'debbugs-status status)
 	  (put-text-property
 	   (+ (point) 5) (+ (point) 26)
 	   'face
@@ -268,27 +270,23 @@ The following commands are available:
 
 (defvar debbugs-bug-number nil)
 
-(defun debbugs-select-report ()
+(defun debbugs-current-id ()
+  (cdr (assq 'id (get-text-property (line-beginning-position)
+				    'debbugs-status))))
+
+(defun debbugs-select-report (id)
   "Select the report on the current line."
-  (interactive)
-  (let (id)
-    (save-excursion
-      (beginning-of-line)
-      (cond
-       ((looking-at " *\\([0-9]+\\)")
-	(setq id (string-to-number (match-string 1))))
-       ((looking-at "Page:") nil)
-       (t (error "No bug report on the current line"))))
-    (if (null id)
-	;; We go to another buffer.
-	(widget-button-press (point))
-      ;; We open the report messages.
-      (gnus-read-ephemeral-emacs-bug-group
-       id (cons (current-buffer)
-		(current-window-configuration)))
-      (with-current-buffer (window-buffer (selected-window))
-	(debbugs-summary-mode 1)
-	(set (make-local-variable 'debbugs-bug-number) id)))))
+  (interactive (list (debbugs-current-id)))
+  (if (null id)
+      ;; We go to another buffer.
+      (widget-button-press (point))
+    ;; We open the report messages.
+    (gnus-read-ephemeral-emacs-bug-group
+     id (cons (current-buffer)
+	      (current-window-configuration)))
+    (with-current-buffer (window-buffer (selected-window))
+      (debbugs-summary-mode 1)
+      (set (make-local-variable 'debbugs-bug-number) id))))
 
 (defvar debbugs-summary-mode-map
   (let ((map (make-sparse-keymap)))
