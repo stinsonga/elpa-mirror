@@ -317,7 +317,7 @@ The following commands are available:
 	    (current-window-configuration)))
   (with-current-buffer (window-buffer (selected-window))
     (debbugs-summary-mode 1)
-    (set (make-local-variable 'debbugs-bug-number) id)))))
+    (set (make-local-variable 'debbugs-bug-number) id)))
 
 (defvar debbugs-summary-mode-map
   (let ((map (make-sparse-keymap)))
