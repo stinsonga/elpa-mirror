@@ -256,7 +256,8 @@ The following commands are available:
   (beginning-of-line)
   (let ((buffer-read-only nil)
 	(before-change-functions nil)
-	(current-bug (debbugs-current-id t)))
+	(current-bug (debbugs-current-id t))
+	(start-point (point)))
     (setq debbugs-sort-state
 	  (if (eq debbugs-sort-state 'number)
 	      'state
@@ -286,7 +287,7 @@ The following commands are available:
 			  debbugs-state-preference))
 	       10)))))
     (if (not current-bug)
-	(goto-char (point-max))
+	(goto-char start-point)
       (goto-char (point-min))
       (re-search-forward (format "^%d" current-bug) nil t))))
 
