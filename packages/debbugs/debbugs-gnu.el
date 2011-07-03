@@ -47,6 +47,11 @@
 (defface debbugs-done '((t (:foreground "DarkGrey")))
   "Face for closed bug reports.")
 
+(defvar debbugs-widget-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "\r" 'widget-button-press)
+    map))
+
 (defun debbugs-emacs (severities &optional package suppress-done archivedp)
   "List all outstanding Emacs bugs."
   (interactive
@@ -96,6 +101,7 @@
 					(widget-get widget :suppress-done)
 					widget
 					(widget-get widget :widgets)))
+			     :keymap debbugs-widget-map
 			     :suppress-done suppress-done
 			     :buffer-name (format "*Emacs Bugs*<%d>" i)
 			     :bug-ids (butlast ids (- (length ids) default))
@@ -213,6 +219,7 @@
     (define-key map "\r" 'debbugs-select-report)
     (define-key map "q" 'kill-buffer)
     (define-key map "s" 'debbugs-toggle-sort)
+    (define-key map "d" 'debbugs-display-status)
     map))
 
 (defvar debbugs-sort-state 'number)
@@ -271,22 +278,30 @@ The following commands are available:
 (defvar debbugs-bug-number nil)
 
 (defun debbugs-current-id ()
-  (cdr (assq 'id (get-text-property (line-beginning-position)
-				    'debbugs-status))))
+  (or (cdr (assq 'id (get-text-property (line-beginning-position)
+					'debbugs-status)))
+      (error "No bug on the current line")))
+
+(defun debbugs-display-status (id)
+  "Display the status of the report on the current line."
+  (interactive (list (debbugs-current-id)))
+  (let ((status (get-text-property (line-beginning-position)
+				   'debbugs-status)))
+    (pop-to-buffer "*Bug Status*")
+    (erase-buffer)
+    (pp status (current-buffer))
+    (goto-char (point-min))))
 
 (defun debbugs-select-report (id)
   "Select the report on the current line."
   (interactive (list (debbugs-current-id)))
-  (if (null id)
-      ;; We go to another buffer.
-      (widget-button-press (point))
-    ;; We open the report messages.
-    (gnus-read-ephemeral-emacs-bug-group
-     id (cons (current-buffer)
-	      (current-window-configuration)))
-    (with-current-buffer (window-buffer (selected-window))
-      (debbugs-summary-mode 1)
-      (set (make-local-variable 'debbugs-bug-number) id))))
+  ;; We open the report messages.
+  (gnus-read-ephemeral-emacs-bug-group
+   id (cons (current-buffer)
+	    (current-window-configuration)))
+  (with-current-buffer (window-buffer (selected-window))
+    (debbugs-summary-mode 1)
+    (set (make-local-variable 'debbugs-bug-number) id)))))
 
 (defvar debbugs-summary-mode-map
   (let ((map (make-sparse-keymap)))

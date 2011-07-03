@@ -4,6 +4,9 @@
 	clickable links, since that requires you to select certain parts
 	of the line, which is annoying.
 	(debbugs-show-reports): Store the status in the buffer.
+	(debbugs-display-status): New command and keystroke.
+	(debbugs-widget-map): New keymap.
+	(debbugs-emacs): Use it.
 
 2011-07-03  Michael Albinus  <michael.albinus@gmx.de>
 
