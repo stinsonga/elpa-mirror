@@ -1,3 +1,9 @@
+2011-07-03  Lars Magne Ingebrigtsen  <larsi@gnus.org>
+
+	* debbugs-gnu.el (debbugs-emacs): Don't use widgets to provide
+	clickable links, since that requires you to select certain parts
+	of the line, which is annoying.
+
 2011-07-03  Michael Albinus  <michael.albinus@gmx.de>
 
 	* debbugs-gnu.el (debbugs-emacs, debbugs-show-reports): Rewrite in
