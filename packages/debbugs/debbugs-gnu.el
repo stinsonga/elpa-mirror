@@ -255,21 +255,37 @@ The following commands are available:
   (interactive)
   (beginning-of-line)
   (let ((buffer-read-only nil)
+	(before-change-functions nil)
 	(current-bug (and (not (eobp))
 			  (buffer-substring (point) (+ (point) 5)))))
-    (goto-char (point-min))
     (setq debbugs-sort-state
 	  (if (eq debbugs-sort-state 'number)
 	      'state
 	    'number))
-    (sort-subr
-     nil (lambda () (forward-line 1)) 'end-of-line
-     (lambda ()
-       (if (eq debbugs-sort-state 'number)
-	   (string-to-number (buffer-substring (point) (+ (point) 5)))
-	 (or (cdr (assq (get-text-property (+ (point) 7) 'face)
-			debbugs-state-preference))
-	     10))))
+    (goto-char (point-min))
+    (while (and (not (eobp))
+		(not (get-text-property (point) 'debbugs-status)))
+      (forward-line 1))
+    (save-restriction
+      (narrow-to-region
+       (point)
+       (progn
+	 (goto-char (point-max))
+	 (beginning-of-line)
+	 (while (and (not (bobp))
+		     (not (get-text-property (point) 'debbugs-status)))
+	   (forward-line -1))
+	 (forward-line 1)
+	 (point)))
+      (goto-char (point-min))
+      (sort-subr
+       nil (lambda () (forward-line 1)) 'end-of-line
+       (lambda ()
+	 (if (eq debbugs-sort-state 'number)
+	     (string-to-number (buffer-substring (point) (+ (point) 5)))
+	   (or (cdr (assq (get-text-property (+ (point) 7) 'face)
+			  debbugs-state-preference))
+	       10)))))
     (if (not current-bug)
 	(goto-char (point-max))
       (goto-char (point-min))
