@@ -47,6 +47,9 @@
 (defface debbugs-done '((t (:foreground "DarkGrey")))
   "Face for closed bug reports.")
 
+(defface debbugs-owner '((t (:foreground "red")))
+  "Face for new reports owned by me.")
+
 (defvar debbugs-widget-map
   (let ((map (make-sparse-keymap)))
     (define-key map "\r" 'widget-button-press)
@@ -151,6 +154,10 @@
 	(let ((address (mail-header-parse-address
 			(decode-coding-string (cdr (assq 'originator status))
 					      'utf-8)))
+	      (owner (if (cdr (assq 'owner status))
+			 (car (mail-header-parse-address
+			       (decode-coding-string (cdr (assq 'owner status))
+						     'utf-8)))))
 	      (subject (decode-coding-string (cdr (assq 'subject status))
 					     'utf-8))
 	      merged)
@@ -183,7 +190,11 @@
 		   (if (> (length address) 23)
 		       (propertize (substring address 0 23) 'help-echo address)
 		     address)
-		   (propertize subject 'help-echo subject)))
+		   (if (and (stringp owner)
+			    (string-equal owner user-mail-address))
+		       (propertize subject
+				   'face 'debbugs-owner 'help-echo subject)
+		     (propertize subject 'help-echo subject))))
 	  (forward-line -1)
 	  (put-text-property (point) (1+ (point))
 			     'debbugs-status status)
@@ -202,6 +213,8 @@
 	     'debbugs-handled)
 	    (t
 	     'debbugs-stale)))
+	  (put-text-property
+	   (point-at-bol) (point-at-eol) 'mouse-face widget-mouse-face)
 	  (forward-line 1))))
 
     (when widgets
@@ -215,6 +228,8 @@
 (defvar debbugs-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "\r" 'debbugs-select-report)
+    (define-key map [mouse-1] 'debbugs-select-report)
+    (define-key map [mouse-2] 'debbugs-select-report)
     (define-key map "q" 'kill-buffer)
     (define-key map "s" 'debbugs-toggle-sort)
     (define-key map "d" 'debbugs-display-status)
@@ -356,6 +371,7 @@ fixed, and then closed."
 	    "done"
 	    "unarchive" "reopen" "close"
 	    "merge" "forcemerge"
+	    "owner" "noowner"
 	    "patch" "wontfix" "moreinfo" "unreproducible" "fixed" "notabug")
 	  nil t)))
   (let* ((id debbugs-bug-number)	; Set on group entry.
@@ -383,11 +399,13 @@ fixed, and then closed."
 	      (format "Subject: control message for bug #%d\n" id)
 	      "\n"
 	      (cond
-	       ((member message '("unarchive" "reopen"))
+	       ((member message '("unarchive" "reopen" "noowner"))
 		(format "%s %d\n" message id))
 	       ((member message '("merge" "forcemerge"))
 		(format "%s %d %s\n" message id
 			(read-string "Merge with bug #: ")))
+	       ((equal message "owner")
+		(format "owner %d !\n" id))
 	       ((equal message "close")
 		(format "close %d %s\n" id version))
 	       ((equal message "done")

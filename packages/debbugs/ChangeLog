@@ -6,6 +6,11 @@
 	(debbugs-show-reports): Remove suppress-done from arguments. It
 	must be read from the widget anyway. Tune inserting of bottom line
 	widgets.
+	(debbugs-owner): New face.
+	(debbugs-show-reports): Mark subject if the user is the bug's
+	owner.  Add mouse-face.
+	(debbugs-mode-map): Add [mouse-1] and [mouse-2].
+	(debbugs-send-control-message): Add "owner" and "noowner" messages.
 
 2011-07-03  Lars Magne Ingebrigtsen  <larsi@gnus.org>
 
