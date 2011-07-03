@@ -8,6 +8,7 @@
 	(debbugs-widget-map): New keymap.
 	(debbugs-emacs): Use it.
 	(debbugs-toggle-sort): Make sorting work again.
+	(debbugs-toggle-sort): Use `debbugs-current-id'.
 
 2011-07-03  Michael Albinus  <michael.albinus@gmx.de>
 

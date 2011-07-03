@@ -256,8 +256,7 @@ The following commands are available:
   (beginning-of-line)
   (let ((buffer-read-only nil)
 	(before-change-functions nil)
-	(current-bug (and (not (eobp))
-			  (buffer-substring (point) (+ (point) 5)))))
+	(current-bug (debbugs-current-id t)))
     (setq debbugs-sort-state
 	  (if (eq debbugs-sort-state 'number)
 	      'state
@@ -282,21 +281,22 @@ The following commands are available:
        nil (lambda () (forward-line 1)) 'end-of-line
        (lambda ()
 	 (if (eq debbugs-sort-state 'number)
-	     (string-to-number (buffer-substring (point) (+ (point) 5)))
+	     (debbugs-current-id)
 	   (or (cdr (assq (get-text-property (+ (point) 7) 'face)
 			  debbugs-state-preference))
 	       10)))))
     (if (not current-bug)
 	(goto-char (point-max))
       (goto-char (point-min))
-      (re-search-forward (concat "^" current-bug) nil t))))
+      (re-search-forward (format "^%d" current-bug) nil t))))
 
 (defvar debbugs-bug-number nil)
 
-(defun debbugs-current-id ()
+(defun debbugs-current-id (&optional noerror)
   (or (cdr (assq 'id (get-text-property (line-beginning-position)
 					'debbugs-status)))
-      (error "No bug on the current line")))
+      (and (not noerror)
+	   (error "No bug on the current line"))))
 
 (defun debbugs-display-status (id)
   "Display the status of the report on the current line."
