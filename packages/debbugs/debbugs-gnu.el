@@ -50,6 +50,8 @@
 (defvar debbugs-widget-map
   (let ((map (make-sparse-keymap)))
     (define-key map "\r" 'widget-button-press)
+    (define-key map [mouse-1] 'widget-button-press)
+    (define-key map [mouse-2] 'widget-button-press)
     map))
 
 (defun debbugs-emacs (severities &optional package suppress-done archivedp)
@@ -98,36 +100,39 @@
 			     :follow-link 'mouse-face
 			     :notify (lambda (widget &rest ignore)
 				       (debbugs-show-reports
-					(widget-get widget :suppress-done)
 					widget
 					(widget-get widget :widgets)))
 			     :keymap debbugs-widget-map
 			     :suppress-done suppress-done
 			     :buffer-name (format "*Emacs Bugs*<%d>" i)
-			     :bug-ids (butlast ids (- (length ids) default))
-			     (format " %d" i))))
+			     :bug-ids curr-ids
+			     :help-echo (format
+					 "%d-%d"
+					 (car ids) (car (last curr-ids)))
+			     :format " %[%v%]"
+			     (number-to-string i))))
 		  ids (last ids (- (length ids) default))))
-	  (debbugs-show-reports suppress-done (car widgets) widgets))
+	  (debbugs-show-reports (car widgets) widgets))
 
-      (debbugs-show-reports suppress-done
-			    (widget-convert
+      (debbugs-show-reports (widget-convert
 			     'const
+			     :suppress-done suppress-done
 			     :buffer-name "*Emacs Bugs*"
 			     :bug-ids ids)
 			    nil))))
 
-(defun debbugs-show-reports (suppress-done widget widgets)
+(defun debbugs-show-reports (widget widgets)
   "Show bug reports as given in WIDGET property :bug-ids."
   (pop-to-buffer (get-buffer-create (widget-get widget :buffer-name)))
   (debbugs-mode)
-  (let ((inhibit-read-only t))
+  (let ((inhibit-read-only t)
+	(suppress-done (widget-get widget :suppress-done)))
     (erase-buffer)
 
     (when widgets
       (widget-insert "Page:")
       (mapc
        (lambda (obj)
-	 (widget-insert " ")
 	 (widget-put obj :widgets widgets)
 	 (if (eq obj widget)
 	     (widget-put obj :button-face 'widget-button-pressed)
@@ -201,17 +206,10 @@
 
     (when widgets
       (widget-insert "\nPage:")
-      (mapc
-       (lambda (obj)
-	 (widget-insert " ")
-	 (widget-put obj :widgets widgets)
-	 (if (eq obj widget)
-	     (widget-put obj :button-face 'widget-button-pressed)
-	   (widget-put obj :button-face 'widget-button-face))
-	 (widget-apply obj :create))
-       widgets)
+      (mapc (lambda (obj) (widget-apply obj :create)) widgets)
       (widget-setup))
 
+    (set-buffer-modified-p nil)
     (goto-char (point-min))))
 
 (defvar debbugs-mode-map
