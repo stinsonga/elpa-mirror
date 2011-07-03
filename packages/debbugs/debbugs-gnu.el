@@ -223,7 +223,9 @@
       (widget-setup))
 
     (set-buffer-modified-p nil)
-    (goto-char (point-min))))
+    (goto-char (point-min))
+    (put-text-property (point) (1+ (point)) 'debbugs-current-widget
+		       (list widget widgets))))
 
 (defvar debbugs-mode-map
   (let ((map (make-sparse-keymap)))
@@ -233,7 +235,15 @@
     (define-key map "q" 'kill-buffer)
     (define-key map "s" 'debbugs-toggle-sort)
     (define-key map "d" 'debbugs-display-status)
+    (define-key map "g" 'debbugs-rescan)
     map))
+
+(defun debbugs-rescan ()
+  "Rescan the current set of bug reports."
+  (interactive)
+  (apply 'debbugs-show-reports
+	 (get-text-property (point-min)
+			    'debbugs-current-widget)))
 
 (defvar debbugs-sort-state 'number)
 

@@ -1,3 +1,7 @@
+2011-07-03  Lars Magne Ingebrigtsen  <larsi@gnus.org>
+
+	* debbugs-gnu.el (debbugs-rescan): New command and keystroke.
+
 2011-07-03  Michael Albinus  <michael.albinus@gmx.de>
 
 	* debbugs-gnu.el (debbugs-widget-map): Add [mouse-1] and [mouse-2].
