@@ -1,3 +1,12 @@
+2011-07-03  Michael Albinus  <michael.albinus@gmx.de>
+
+	* debbugs-gnu.el (debbugs-emacs, debbugs-show-reports): Rewrite in
+	order to use widgets exclusively.
+	(debbugs-widget-format-handler): New defun.
+	(debbugs-mode-map): Derive from `special-mode-map'. Use
+	`widget-keymap' as parent map.
+	(debbugs-select-report): Add bug id as parameter.
+
 2011-07-02  Michael Albinus  <michael.albinus@gmx.de>
 
 	* debbugs-gnu.el (debbugs-emacs): Move reporting lines to

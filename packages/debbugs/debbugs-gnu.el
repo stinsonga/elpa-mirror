@@ -80,9 +80,11 @@
 		  (number-to-string default))))))
 
     (if (> (length ids) default)
-	(let ((i 0))
+	(let ((i 0)
+	      curr-ids)
 	  (while ids
 	    (setq i (1+ i)
+		  curr-ids (butlast ids (- (length ids) default))
 		  widgets (append
 			   widgets
 			   (list
@@ -91,124 +93,158 @@
 			     :follow-link 'mouse-face
 			     :notify (lambda (widget &rest ignore)
 				       (debbugs-show-reports
-					(widget-get widget :suppress-done)
 					widget
-					(widget-get widget :widgets)))
-			     :suppress-done suppress-done
-			     :buffer-name (format "*Emacs Bugs*<%d>" i)
-			     :bug-ids (butlast ids (- (length ids) default))
-			     (format " %d" i))))
+					(widget-get widget :debbugs-widgets)))
+			     :debbugs-suppress-done suppress-done
+			     :debbugs-buffer-name (format "*Emacs Bugs*<%d>" i)
+			     :debbugs-ids curr-ids
+			     :help-echo (format
+					 "%d-%d"
+					 (car ids) (car (last curr-ids)))
+			     :format " %[%v%]"
+			     (number-to-string i))))
 		  ids (last ids (- (length ids) default))))
-	  (debbugs-show-reports suppress-done (car widgets) widgets))
+	  (debbugs-show-reports (car widgets) widgets))
 
-      (debbugs-show-reports suppress-done
-			    (widget-convert
+      (debbugs-show-reports (widget-convert
 			     'const
-			     :buffer-name "*Emacs Bugs*"
-			     :bug-ids ids)
+			     :debbugs-suppress-done suppress-done
+			     :debbugs-buffer-name "*Emacs Bugs*"
+			     :debbugs-ids ids)
 			    nil))))
 
-(defun debbugs-show-reports (suppress-done widget widgets)
-  "Show bug reports as given in WIDGET property :bug-ids."
-  (pop-to-buffer (get-buffer-create (widget-get widget :buffer-name)))
+(defun debbugs-widget-format-handler (widget escape)
+  (cond
+   ;; That's the only format we support.
+   ((eq escape ?f)
+    (let ((size (widget-get widget :debbugs-size))
+	  (string (format (widget-get widget :debbugs-format)
+			  (widget-value widget))))
+      (insert
+       (cond
+	((and (numberp size) (> (length string) size))
+	 (propertize (substring string 0 size) 'help-echo string))
+	((numberp size) string)
+	(t (propertize string 'help-echo string))))))
+   ;; Error handling.
+   (t
+    (widget-default-format-handler widget escape))))
+
+(defun debbugs-show-reports (widget widgets)
+  "Show bug reports as given in WIDGET property :debbugs-ids."
+  (pop-to-buffer (get-buffer-create (widget-get widget :debbugs-buffer-name)))
   (debbugs-mode)
-  (let ((inhibit-read-only t))
+  (let ((suppress-done (widget-get widget :debbugs-suppress-done)))
     (erase-buffer)
 
     (when widgets
       (widget-insert "Page:")
       (mapc
        (lambda (obj)
-	 (widget-insert " ")
-	 (widget-put obj :widgets widgets)
-	 (if (eq obj widget)
-	     (widget-put obj :button-face 'widget-button-pressed)
-	   (widget-put obj :button-face 'widget-button-face))
+	 (widget-put obj :debbugs-widgets widgets)
+	 (widget-put obj :button-face
+		     (if (eq obj widget)
+			 'widget-button-pressed
+		       'widget-button-face))
 	 (widget-apply obj :create))
        widgets)
       (widget-insert "\n\n"))
 
     (dolist (status (sort (apply 'debbugs-get-status
-				 (widget-get widget :bug-ids))
+				 (widget-get widget :debbugs-ids))
 			  (lambda (s1 s2)
 			    (< (cdr (assq 'id s1))
 			       (cdr (assq 'id s2))))))
       (when (or (not suppress-done)
 		(not (equal (cdr (assq 'pending status)) "done")))
-	(let ((address (mail-header-parse-address
+	(let ((id (cdr (assq 'id status)))
+	      (face
+	       (cond
+		((equal (cdr (assq 'pending status)) "done")
+		 'debbugs-done)
+		((= (cdr (assq 'date status))
+		    (cdr (assq 'log_modified status)))
+		 'debbugs-new)
+		((< (- (float-time)
+		       (cdr (assq 'log_modified status)))
+		    (* 60 60 24 4))
+		 'debbugs-handled)
+		(t
+		 'debbugs-stale)))
+	      (words
+	       (mapconcat
+		'identity
+		(cons (cdr (assq 'severity status))
+		      (cdr (assq 'keywords status)))
+		","))
+	      (address (mail-header-parse-address
 			(decode-coding-string (cdr (assq 'originator status))
 					      'utf-8)))
 	      (subject (decode-coding-string (cdr (assq 'subject status))
 					     'utf-8))
 	      merged)
+	  (unless (equal (cdr (assq 'pending status)) "pending")
+	    (setq words
+		  (concat words "," (cdr (assq 'pending status)))))
+	  (when (setq merged (cdr (assq 'mergedwith status)))
+	    (setq words (format "%s,%s"
+				(if (numberp merged)
+				    merged
+				  (mapconcat 'number-to-string merged ","))
+				words)))
 	  (setq address
 		;; Prefer the name over the address.
 		(or (cdr address)
 		    (car address)))
-	  (insert
-	   (format "%5d %-20s [%-23s] %s\n"
-		   (cdr (assq 'id status))
-		   (let ((words
-			  (mapconcat
-			   'identity
-			   (cons (cdr (assq 'severity status))
-				 (cdr (assq 'keywords status)))
-			   ",")))
-		     (unless (equal (cdr (assq 'pending status)) "pending")
-		       (setq words
-			     (concat words "," (cdr (assq 'pending status)))))
-		     (when (setq merged (cdr (assq 'mergedwith status)))
-		       (setq words (format "%s,%s"
-					   (if (numberp merged)
-					       merged
-					     (mapconcat 'number-to-string merged
-							","))
-					   words)))
-		     (if (> (length words) 20)
-			 (propertize (substring words 0 20) 'help-echo words)
-		       words))
-		   (if (> (length address) 23)
-		       (propertize (substring address 0 23) 'help-echo address)
-		     address)
-		   (propertize subject 'help-echo subject)))
-	  (forward-line -1)
-	  (put-text-property
-	   (+ (point) 5) (+ (point) 26)
-	   'face
-	   (cond
-	    ((equal (cdr (assq 'pending status)) "done")
-	     'debbugs-done)
-	    ((= (cdr (assq 'date status))
-		(cdr (assq 'log_modified status)))
-	     'debbugs-new)
-	    ((< (- (float-time)
-		   (cdr (assq 'log_modified status)))
-		(* 60 60 24 4))
-	     'debbugs-handled)
-	    (t
-	     'debbugs-stale)))
-	  (forward-line 1))))
+
+	  (widget-create 'const
+			 :format "%f"
+			 :debbugs-format "%5d"
+			 :debbugs-size 5
+			 :debbugs-status status
+			 :format-handler 'debbugs-widget-format-handler
+			 id)
+
+	  (widget-create 'const
+			 :format " %{%f%}"
+			 :debbugs-format "%-20s"
+			 :debbugs-size 20
+			 :format-handler 'debbugs-widget-format-handler
+			 :sample-face face
+			 words)
+
+	  (widget-create 'const
+			 :format " [%f]"
+			 :debbugs-format "%-23s"
+			 :debbugs-size 23
+			 :format-handler 'debbugs-widget-format-handler
+			 address)
+
+	  (let ((widget-link-prefix "")
+		(widget-link-suffix ""))
+	    (widget-create 'link
+			   :format " %[%v%]\n"
+			   :debbugs-id id
+			   :follow-link 'mouse-face
+			   :notify (lambda (widget &rest ignore)
+				     (debbugs-select-report
+				      (widget-get widget :debbugs-id)))
+			   :help-echo subject
+			   subject)))))
 
     (when widgets
       (widget-insert "\nPage:")
-      (mapc
-       (lambda (obj)
-	 (widget-insert " ")
-	 (widget-put obj :widgets widgets)
-	 (if (eq obj widget)
-	     (widget-put obj :button-face 'widget-button-pressed)
-	   (widget-put obj :button-face 'widget-button-face))
-	 (widget-apply obj :create))
-       widgets)
-      (widget-setup))
+      (mapc (lambda (obj) (widget-apply obj :create)) widgets))
 
+    (widget-setup)
+    (set-buffer-modified-p nil)
     (goto-char (point-min))))
 
 (defvar debbugs-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map "\r" 'debbugs-select-report)
+  (let ((map (copy-keymap special-mode-map)))
     (define-key map "q" 'kill-buffer)
     (define-key map "s" 'debbugs-toggle-sort)
+    (set-keymap-parent map widget-keymap)
     map))
 
 (defvar debbugs-sort-state 'number)
@@ -266,27 +302,15 @@ The following commands are available:
 
 (defvar debbugs-bug-number nil)
 
-(defun debbugs-select-report ()
-  "Select the report on the current line."
+(defun debbugs-select-report (id)
+  "Select the report for ID."
   (interactive)
-  (let (id)
-    (save-excursion
-      (beginning-of-line)
-      (cond
-       ((looking-at " *\\([0-9]+\\)")
-	(setq id (string-to-number (match-string 1))))
-       ((looking-at "Page:") nil)
-       (t (error "No bug report on the current line"))))
-    (if (null id)
-	;; We go to another buffer.
-	(widget-button-press (point))
-      ;; We open the report messages.
-      (gnus-read-ephemeral-emacs-bug-group
-       id (cons (current-buffer)
-		(current-window-configuration)))
-      (with-current-buffer (window-buffer (selected-window))
-	(debbugs-summary-mode 1)
-	(set (make-local-variable 'debbugs-bug-number) id)))))
+  (gnus-read-ephemeral-emacs-bug-group
+   id (cons (current-buffer)
+	    (current-window-configuration)))
+  (with-current-buffer (window-buffer (selected-window))
+    (debbugs-summary-mode 1)
+    (set (make-local-variable 'debbugs-bug-number) id)))
 
 (defvar debbugs-summary-mode-map
   (let ((map (make-sparse-keymap)))
