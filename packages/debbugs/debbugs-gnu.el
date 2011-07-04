@@ -124,6 +124,8 @@
 			     :bug-ids ids)
 			    nil))))
 
+(defvar debbugs-current-widget nil)
+
 (defun debbugs-show-reports (widget widgets)
   "Show bug reports as given in WIDGET property :bug-ids."
   (pop-to-buffer (get-buffer-create (widget-get widget :buffer-name)))
@@ -223,9 +225,9 @@
       (widget-setup))
 
     (set-buffer-modified-p nil)
-    (goto-char (point-min))
-    (put-text-property (point) (1+ (point)) 'debbugs-current-widget
-		       (list widget widgets))))
+    (set (make-local-variable 'debbugs-current-widget)
+	 (list widget widgets))
+    (goto-char (point-min))))
 
 (defvar debbugs-mode-map
   (let ((map (make-sparse-keymap)))
@@ -241,9 +243,7 @@
 (defun debbugs-rescan ()
   "Rescan the current set of bug reports."
   (interactive)
-  (apply 'debbugs-show-reports
-	 (get-text-property (point-min)
-			    'debbugs-current-widget)))
+  (apply 'debbugs-show-reports debbugs-current-widget))
 
 (defvar debbugs-sort-state 'number)
 
