@@ -39,7 +39,7 @@
   "Face for new reports that nobody has answered.")
 
 (defface debbugs-handled '((t (:foreground "ForestGreen")))
-  "Face for new reports that nobody has answered.")
+  "Face for new reports that have been modified recently.")
 
 (defface debbugs-stale '((t (:foreground "orange")))
   "Face for new reports that nobody has answered.")
@@ -50,12 +50,37 @@
 (defface debbugs-owner '((t (:foreground "red")))
   "Face for new reports owned by me.")
 
+(defface debbugs-tagged '((t (:inverse-video t)))
+  "Face for reports that have been tagged locally.")
+
 (defvar debbugs-widget-map
   (let ((map (make-sparse-keymap)))
     (define-key map "\r" 'widget-button-press)
     (define-key map [mouse-1] 'widget-button-press)
     (define-key map [mouse-2] 'widget-button-press)
     map))
+
+(defvar debbugs-persistency-file
+    (expand-file-name (locate-user-emacs-file "debbugs")))
+
+(when (file-exists-p debbugs-persistency-file)
+  (ignore-errors
+    (with-temp-buffer
+      (insert-file-contents debbugs-persistency-file)
+      (eval (read (current-buffer))))))
+
+(defun debbugs-dump-persistency-file ()
+  (ignore-errors
+    (with-temp-buffer
+      (insert
+       ";; -*- emacs-lisp -*-\n"
+       ";; Debbugs tags connection history.  Don't change this file.\n\n"
+       (format "(setq debbugs-local-tags '%S)" (sort debbugs-local-tags '<)))
+      (write-region
+       (point-min) (point-max) debbugs-persistency-file))))
+
+(unless noninteractive
+  (add-hook 'kill-emacs-hook 'debbugs-dump-persistency-file))
 
 (defun debbugs-emacs (severities &optional package suppress-done archivedp)
   "List all outstanding Emacs bugs."
@@ -126,6 +151,8 @@
 
 (defvar debbugs-current-widget nil)
 
+(defvar debbugs-local-tags nil)
+
 (defun debbugs-show-reports (widget widgets)
   "Show bug reports as given in WIDGET property :bug-ids."
   (pop-to-buffer (get-buffer-create (widget-get widget :buffer-name)))
@@ -153,42 +180,55 @@
 			       (cdr (assq 'id s2))))))
       (when (or (not suppress-done)
 		(not (equal (cdr (assq 'pending status)) "done")))
-	(let ((address (mail-header-parse-address
-			(decode-coding-string (cdr (assq 'originator status))
-					      'utf-8)))
-	      (owner (if (cdr (assq 'owner status))
-			 (car (mail-header-parse-address
-			       (decode-coding-string (cdr (assq 'owner status))
-						     'utf-8)))))
-	      (subject (decode-coding-string (cdr (assq 'subject status))
-					     'utf-8))
-	      merged)
+	(let* ((id (cdr (assq 'id status)))
+	       (words
+		(mapconcat
+		 'identity
+		 (cons (cdr (assq 'severity status))
+		       (cdr (assq 'keywords status)))
+		 ","))
+	       (face (cond
+		      ((equal (cdr (assq 'pending status)) "done")
+		       'debbugs-done)
+		      ((= (cdr (assq 'date status))
+			  (cdr (assq 'log_modified status)))
+		       'debbugs-new)
+		      ((< (- (float-time)
+			     (cdr (assq 'log_modified status)))
+			  (* 60 60 24 4))
+		       'debbugs-handled)
+		      (t
+		       'debbugs-stale)))
+	       (address (mail-header-parse-address
+			 (decode-coding-string (cdr (assq 'originator status))
+					       'utf-8)))
+	       (owner (if (cdr (assq 'owner status))
+			  (car (mail-header-parse-address
+				(decode-coding-string (cdr (assq 'owner status))
+						      'utf-8)))))
+	       (subject (decode-coding-string (cdr (assq 'subject status))
+					      'utf-8))
+	       merged)
+	  (unless (equal (cdr (assq 'pending status)) "pending")
+	    (setq words
+		  (concat words "," (cdr (assq 'pending status)))))
+	  (when (setq merged (cdr (assq 'mergedwith status)))
+	    (setq words (format "%s,%s"
+				(if (numberp merged)
+				    merged
+				  (mapconcat 'number-to-string merged ","))
+				words)))
+	  (setq words (propertize words 'face face))
 	  (setq address
 		;; Prefer the name over the address.
 		(or (cdr address)
 		    (car address)))
 	  (insert
 	   (format "%5d %-20s [%-23s] %s\n"
-		   (cdr (assq 'id status))
-		   (let ((words
-			  (mapconcat
-			   'identity
-			   (cons (cdr (assq 'severity status))
-				 (cdr (assq 'keywords status)))
-			   ",")))
-		     (unless (equal (cdr (assq 'pending status)) "pending")
-		       (setq words
-			     (concat words "," (cdr (assq 'pending status)))))
-		     (when (setq merged (cdr (assq 'mergedwith status)))
-		       (setq words (format "%s,%s"
-					   (if (numberp merged)
-					       merged
-					     (mapconcat 'number-to-string merged
-							","))
-					   words)))
-		     (if (> (length words) 20)
-			 (propertize (substring words 0 20) 'help-echo words)
-		       words))
+		   id
+		   (if (> (length words) 20)
+		       (propertize (substring words 0 20) 'help-echo words)
+		     words)
 		   (if (> (length address) 23)
 		       (propertize (substring address 0 23) 'help-echo address)
 		     address)
@@ -198,25 +238,13 @@
 				   'face 'debbugs-owner 'help-echo subject)
 		     (propertize subject 'help-echo subject))))
 	  (forward-line -1)
-	  (put-text-property (point) (1+ (point))
-			     'debbugs-status status)
-	  (put-text-property
-	   (+ (point) 5) (+ (point) 26)
-	   'face
-	   (cond
-	    ((equal (cdr (assq 'pending status)) "done")
-	     'debbugs-done)
-	    ((= (cdr (assq 'date status))
-		(cdr (assq 'log_modified status)))
-	     'debbugs-new)
-	    ((< (- (float-time)
-		   (cdr (assq 'log_modified status)))
-		(* 60 60 24 4))
-	     'debbugs-handled)
-	    (t
-	     'debbugs-stale)))
+	  (put-text-property (point) (1+ (point)) 'debbugs-status status)
 	  (put-text-property
 	   (point-at-bol) (point-at-eol) 'mouse-face widget-mouse-face)
+	  (when (memq id debbugs-local-tags)
+	    (put-text-property
+	     (+ (point) (- 5 (length (number-to-string id)))) (+ (point) 5)
+	     'face 'debbugs-tagged))
 	  (forward-line 1))))
 
     (when widgets
@@ -236,8 +264,10 @@
     (define-key map [mouse-2] 'debbugs-select-report)
     (define-key map "q" 'kill-buffer)
     (define-key map "s" 'debbugs-toggle-sort)
+    (define-key map "t" 'debbugs-toggle-tag)
     (define-key map "d" 'debbugs-display-status)
     (define-key map "g" 'debbugs-rescan)
+    (define-key map "C" 'debbugs-send-control-message)
     map))
 
 (defun debbugs-rescan ()
@@ -314,6 +344,22 @@ The following commands are available:
       (goto-char (point-min))
       (re-search-forward (format "^%d" current-bug) nil t))))
 
+(defun debbugs-toggle-tag ()
+  "Toggle tag of the report in the current line."
+  (interactive)
+  (save-excursion
+    (beginning-of-line)
+    (let ((inhibit-read-only t)
+	  (id (debbugs-current-id)))
+      (if (memq id debbugs-local-tags)
+	  (progn
+	    (setq debbugs-local-tags (delq id debbugs-local-tags))
+	    (put-text-property (point) (+ (point) 5) 'face 'default))
+	(add-to-list 'debbugs-local-tags id)
+	(put-text-property
+	 (+ (point) (- 5 (length (number-to-string id)))) (+ (point) 5)
+	 'face 'debbugs-tagged)))))
+
 (defvar debbugs-bug-number nil)
 
 (defun debbugs-current-id (&optional noerror)
@@ -328,11 +374,10 @@ The following commands are available:
 (defun debbugs-display-status (status)
   "Display the status of the report on the current line."
   (interactive (list (debbugs-current-status)))
-  (let ((status (debbugs-current-status)))
-    (pop-to-buffer "*Bug Status*")
-    (erase-buffer)
-    (pp status (current-buffer))
-    (goto-char (point-min))))
+  (pop-to-buffer "*Bug Status*")
+  (erase-buffer)
+  (pp status (current-buffer))
+  (goto-char (point-min)))
 
 (defun debbugs-select-report ()
   "Select the report on the current line."
@@ -392,7 +437,8 @@ fixed, and then closed."
 	    "owner" "noowner"
 	    "patch" "wontfix" "moreinfo" "unreproducible" "fixed" "notabug")
 	  nil t)))
-  (let* ((id debbugs-bug-number)	; Set on group entry.
+  (let* ((id (or debbugs-bug-number	; Set on group entry.
+		 (debbugs-current-id)))
 	 (version
 	  (when (member message '("close" "done"))
 	    (read-string
