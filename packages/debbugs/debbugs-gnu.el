@@ -317,31 +317,39 @@ The following commands are available:
 (defvar debbugs-bug-number nil)
 
 (defun debbugs-current-id (&optional noerror)
-  (or (cdr (assq 'id (get-text-property (line-beginning-position)
-					'debbugs-status)))
+  (or (cdr (assq 'id (debbugs-current-status)))
       (and (not noerror)
 	   (error "No bug on the current line"))))
 
-(defun debbugs-display-status (id)
+(defun debbugs-current-status ()
+  (get-text-property (line-beginning-position)
+		     'debbugs-status))
+
+(defun debbugs-display-status (status)
   "Display the status of the report on the current line."
-  (interactive (list (debbugs-current-id)))
-  (let ((status (get-text-property (line-beginning-position)
-				   'debbugs-status)))
+  (interactive (list (debbugs-current-status)))
+  (let ((status (debbugs-current-status)))
     (pop-to-buffer "*Bug Status*")
     (erase-buffer)
     (pp status (current-buffer))
     (goto-char (point-min))))
 
-(defun debbugs-select-report (id)
+(defun debbugs-select-report ()
   "Select the report on the current line."
-  (interactive (list (debbugs-current-id)))
+  (interactive)
   ;; We open the report messages.
-  (gnus-read-ephemeral-emacs-bug-group
-   id (cons (current-buffer)
-	    (current-window-configuration)))
-  (with-current-buffer (window-buffer (selected-window))
-    (debbugs-summary-mode 1)
-    (set (make-local-variable 'debbugs-bug-number) id)))
+  (let* ((status (debbugs-current-status))
+	 (id (cdr (assq 'id status)))
+	 (merged (cdr (assq 'mergedwith status))))
+    (gnus-read-ephemeral-emacs-bug-group
+     (cons id (if (listp merged)
+		  merged
+		(list merged)))
+     (cons (current-buffer)
+	   (current-window-configuration)))
+    (with-current-buffer (window-buffer (selected-window))
+      (debbugs-summary-mode 1)
+      (set (make-local-variable 'debbugs-bug-number) id))))
 
 (defvar debbugs-summary-mode-map
   (let ((map (make-sparse-keymap)))

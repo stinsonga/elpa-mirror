@@ -1,3 +1,8 @@
+2011-07-04  Lars Magne Ingebrigtsen  <larsi@gnus.org>
+
+	* debbugs-gnu.el (debbugs-select-report): Fetch all merged
+	reports.
+
 2011-07-03  Lars Magne Ingebrigtsen  <larsi@gnus.org>
 
 	* debbugs-gnu.el (debbugs-rescan): New command and keystroke.
