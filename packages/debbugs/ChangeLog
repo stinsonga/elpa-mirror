@@ -1,3 +1,18 @@
+2011-07-05  Michael Albinus  <michael.albinus@gmx.de>
+
+	* debbugs-gnu.el (debbugs-owner): Removed.  We use `debbugs-tagged'
+	uniquely.
+	(debbugs-widgets, debbugs-package, debbugs-severities)
+	(debbugs-archive): New defvars.
+	(debbugs-local-tags, debbugs-persistency-file)
+	(debbugs-dump-persistency-file): Add docstring.
+	(debbugs-emacs): Use new defvars.
+	(debbugs-show-reports):  Remove widgets from arguments.  Mark bugs
+	submitted by user.
+	(debbugs-mode-map): Add "x" (for purge "done" bugs).
+	(debbugs-rescan): On the last page, check also for new arrived bugs.
+	(debbugs-suppress-done): New defun.
+
 2011-07-04  Michael Albinus  <michael.albinus@gmx.de>
 
 	* debbugs-gnu.el (debbugs-tagged): New face.
@@ -27,9 +42,9 @@
 	* debbugs-gnu.el (debbugs-widget-map): Add [mouse-1] and [mouse-2].
 	(debbugs-emacs): Add :help-echo and :suppress-done for report
 	pages' widgets.
-	(debbugs-show-reports): Remove suppress-done from arguments. It
-	must be read from the widget anyway. Tune inserting of bottom line
-	widgets.
+	(debbugs-show-reports): Remove suppress-done from arguments.  It
+	must be read from the widget anyway.  Tune inserting of bottom
+	line widgets.
 	(debbugs-owner): New face.
 	(debbugs-show-reports): Mark subject if the user is the bug's
 	owner.  Add mouse-face.
