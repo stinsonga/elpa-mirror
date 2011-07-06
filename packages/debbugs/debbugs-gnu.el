@@ -35,6 +35,10 @@
 (autoload 'gnus-summary-article-header "gnus-sum")
 (autoload 'message-make-from "message")
 
+(defgroup debbugs-gnu ()
+  "UI for the debbugs.gnu.org bug tracker."
+  :group 'debbugs)
+
 (defface debbugs-new '((t (:foreground "red")))
   "Face for new reports that nobody has answered.")
 
@@ -166,6 +170,8 @@
 	:bug-ids ids)))))
 
 (defvar debbugs-current-widget nil)
+
+(defvar widget-mouse-face)
 
 (defun debbugs-show-reports (widget)
   "Show bug reports as given in WIDGET property :bug-ids."
@@ -419,7 +425,7 @@ The following commands are available:
     (unless (widget-get debbugs-current-widget :suppress-done)
       (let ((inhibit-read-only t))
 	(widget-put debbugs-current-widget :suppress-done t)
-	(beginning-of-buffer)
+	(goto-char (point-min))
 	(while (and (not (eobp))
 		    (not (get-text-property (point) 'debbugs-status)))
 	  (forward-line 1))
@@ -469,6 +475,8 @@ The following commands are available:
   (let ((map (make-sparse-keymap)))
     (define-key map "C" 'debbugs-send-control-message)
     map))
+
+(defvar gnus-posting-styles)
 
 (define-minor-mode debbugs-summary-mode
   "Minor mode for providing a debbugs interface in Gnus summary buffers.

@@ -1,3 +1,9 @@
+2011-07-06  Stefan Monnier  <monnier@iro.umontreal.ca>
+
+	* debbugs-gnu.el (debbugs-gnu): New group.
+	(widget-mouse-face, gnus-posting-styles): Declare.
+	(debbugs-suppress-done): Avoid beginning-of-buffer.
+
 2011-07-06  Lars Magne Ingebrigtsen  <larsi@gnus.org>
 
 	* debbugs-gnu.el (debbugs-toggle-sort): Sort the tagged bugs at
@@ -8,7 +14,7 @@
 
 2011-07-05  Michael Albinus  <michael.albinus@gmx.de>
 
-	* debbugs-gnu.el (debbugs-owner): Removed.  We use `debbugs-tagged'
+	* debbugs-gnu.el (debbugs-owner): Remove.  We use `debbugs-tagged'
 	uniquely.
 	(debbugs-widgets, debbugs-package, debbugs-severities)
 	(debbugs-archive): New defvars.
@@ -50,8 +56,8 @@
 	* debbugs-gnu.el (debbugs-widget-map): Add [mouse-1] and [mouse-2].
 	(debbugs-emacs): Add :help-echo and :suppress-done for report
 	pages' widgets.
-	(debbugs-show-reports): Remove suppress-done from arguments.  It
-	must be read from the widget anyway.  Tune inserting of bottom
+	(debbugs-show-reports): Remove suppress-done from arguments.
+	It must be read from the widget anyway.  Tune inserting of bottom
 	line widgets.
 	(debbugs-owner): New face.
 	(debbugs-show-reports): Mark subject if the user is the bug's
