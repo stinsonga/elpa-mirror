@@ -73,7 +73,8 @@
       (insert
        ";; -*- emacs-lisp -*-\n"
        ";; Debbugs tags connection history.  Don't change this file.\n\n"
-       (format "(setq debbugs-local-tags '%S)" (sort debbugs-local-tags '<)))
+       (format "(setq debbugs-local-tags '%S)"
+	       (sort (copy-sequence debbugs-local-tags) '<)))
       (write-region
        (point-min) (point-max) debbugs-persistency-file))))
 
