@@ -1,3 +1,8 @@
+2011-07-06  Lars Magne Ingebrigtsen  <larsi@gnus.org>
+
+	* debbugs-gnu.el (debbugs-toggle-sort): Sort the tagged bugs at
+	the end.
+
 2011-07-05  Michael Albinus  <michael.albinus@gmx.de>
 
 	* debbugs-gnu.el (debbugs-owner): Removed.  We use `debbugs-tagged'

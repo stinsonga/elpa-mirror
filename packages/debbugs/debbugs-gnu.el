@@ -382,11 +382,15 @@ The following commands are available:
       (sort-subr
        nil (lambda () (forward-line 1)) 'end-of-line
        (lambda ()
-	 (if (eq debbugs-sort-state 'number)
-	     (debbugs-current-id)
-	   (or (cdr (assq (get-text-property (+ (point) 7) 'face)
-			  debbugs-state-preference))
-	       10)))))
+	 (let ((id (debbugs-current-id)))
+	   (if (eq debbugs-sort-state 'number)
+	       id
+	     ;; Sort the tagged ones at the end.
+	     (or (and (memq id debbugs-local-tags)
+		      20)
+		 (cdr (assq (get-text-property (+ (point) 7) 'face)
+			    debbugs-state-preference))
+		 10))))))
     (if (not current-bug)
 	(goto-char start-point)
       (goto-char (point-min))
