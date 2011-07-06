@@ -66,13 +66,6 @@
   (expand-file-name (locate-user-emacs-file "debbugs"))
   "File name of a persistency store for debbugs variables")
 
-;; Initialize variables.
-(when (file-exists-p debbugs-persistency-file)
-  (ignore-errors
-    (with-temp-buffer
-      (insert-file-contents debbugs-persistency-file)
-      (eval (read (current-buffer))))))
-
 (defun debbugs-dump-persistency-file ()
   "Function to store debbugs variables persistently."
   (ignore-errors
@@ -104,6 +97,12 @@
     (completing-read "Severity: "
 		     '("important" "normal" "minor" "wishlist")
 		     nil t "normal")))
+  ;; Initialize variables.
+  (when (and (file-exists-p debbugs-persistency-file)
+	     (not debbugs-local-tags))
+    (with-temp-buffer
+      (insert-file-contents debbugs-persistency-file)
+      (eval (read (current-buffer)))))
   (unless (consp severities)
     (setq severities (list severities)))
 

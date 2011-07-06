@@ -2,6 +2,7 @@
 
 	* debbugs-gnu.el (debbugs-toggle-sort): Sort the tagged bugs at
 	the end.
+	(debbugs-emacs): Init the saved bugs on call, not on load.
 
 2011-07-05  Michael Albinus  <michael.albinus@gmx.de>
 
