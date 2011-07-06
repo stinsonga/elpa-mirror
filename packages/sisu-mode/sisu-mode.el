@@ -338,10 +338,9 @@
 
 ;;{{{ Sisu & Autoload:
 
-;;###autoload
+;;;###autoload
 (define-derived-mode sisu-mode text-mode "SiSU"
   "Major mode for editing SiSU files."
-  (interactive)
   (modify-syntax-entry ?\'  ".")
   ;(flyspell-mode nil)
 

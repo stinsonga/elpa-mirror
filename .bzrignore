@@ -1,3 +1,6 @@
 *.elc
 archive
 site
+packages/*/*-autoloads.el
+packages/*/*-pkg.el
+core
