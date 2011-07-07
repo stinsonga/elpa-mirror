@@ -1,3 +1,17 @@
+2011-07-07  Michael Albinus  <michael.albinus@gmx.de>
+
+	* debbugs-gnu.el (top): Add ;;; Commentary.
+	(debbugs-default-severities, debbugs-default-packages)
+	(debbugs-default-hits-per-page): New customer options.
+	(debbugs-current-severities, debbugs-current-packages)
+	(debbugs-current-archive): Renamed from `debbugs-severities',
+	`debbugs-package', `debbugs-archive'.
+	(debbugs-emacs): Reorder arguments.  If called interactively with
+	prefix, ask for optional arguments values.  Loop also for several
+	packages.
+	(debbugs-show-reports): Let-bind `debbugs-port'.
+	(debbugs-rescan): Loop also for several packages.
+
 2011-07-07  Lars Magne Ingebrigtsen  <larsi@gnus.org>
 
 	* debbugs-gnu.el (debbugs-mode-map): Bind `q' to `bury-buffer',

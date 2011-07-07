@@ -24,6 +24,60 @@
 
 ;;; Commentary:
 
+;; This package provides an interface to bug reports which are located
+;; on the GNU bug tracker debbugs.gnu.org.  It's main purpose is to
+;; show and manipulate bug reports from Emacs, but it could be used
+;; also for other GNU projects which use the same bug tracker.
+
+;; If you have `debbugs-gnu.el' in your load-path, you could enable
+;; the bug tracker command by the following line in your ~/.emacs
+;;
+;;   (autoload 'debbugs-emacs "debbugs-gnu" "" 'interactive)
+
+;; The bug tracker is called interactively by
+;;
+;;   M-x debbugs-emacs
+
+;; It asks for the severities, for which bugs shall be shown. This can
+;; be either just one severity, or a list of severities, separated by
+;; comma.  Valid severities are "important", "normal", "minor" or
+;; "wishlist".
+
+;; If a prefix is given, more search parameters are asked for, like
+;; packages (also a comma separated list, "emacs" is the default),
+;; whether archived bugs shall be shown, and whether closed bugs shall
+;; be shown.
+
+;; The bug reports are downloaded from the bug tracker.  In order to
+;; not generate too much load of the server, up to 500 bugs will be
+;; downloaded at once.  If there are more hits, you will be asked to
+;; change this limit, but please don't increase this number too much.
+
+;; These default values could be changed also by customer options
+;; `debbugs-default-severities', `debbugs-default-packages' and
+;; `debbugs-default-hits-per-page'.
+
+;; The command creates one or more pages of bug lists.  Every bug is
+;; shown in one line, including the bug number, the status (combining
+;; merged bug numbers, keywords and severities), the name of the
+;; submitter, and the title of the bug.  On every bug line you could
+;; apply the following actions by the following keystrokes:
+
+;;   RET: Show corresponding messages in Gnus
+;;   "C": Send a control message
+;;   "t": Mark the bug locally as tagged
+;;   "d": Show bug attributes
+
+;; Furthermore, you could apply the global actions
+
+;;   "s": Toggle bug sorting
+;;   "g": Rescan bugs
+;;   "x": Suppress closed bugs
+;;   "q": Quit the buffer
+
+;; When you visit the related bug messages in Gnus, you could also
+;; send control messages by keystroke "C".
+
 ;;; Code:
 
 (require 'debbugs)
@@ -38,6 +92,31 @@
 (defgroup debbugs-gnu ()
   "UI for the debbugs.gnu.org bug tracker."
   :group 'debbugs)
+
+(defcustom debbugs-default-severities '("normal")
+  "*The list severities bugs are searched for."
+  :group 'debbugs-gnu
+  :type '(set (const "important")
+	      (const "normal")
+	      (const "minor")
+	      (const "wishlist"))
+  :version "24.1")
+
+(defcustom debbugs-default-packages '("emacs")
+  "*The list of packages to be searched for."
+  :group 'debbugs-gnu
+  :type '(set (const "automake")
+	      (const "coreutils")
+	      (const "emacs")
+	      (const "gnus")
+	      (const "libtool"))
+  :version "24.1")
+
+(defcustom debbugs-default-hits-per-page 500
+  "*The number of bugs shown per page."
+  :group 'debbugs-gnu
+  :type 'integer
+  :version "24.1")
 
 (defface debbugs-new '((t (:foreground "red")))
   "Face for new reports that nobody has answered.")
@@ -86,64 +165,82 @@
 (unless noninteractive
   (add-hook 'kill-emacs-hook 'debbugs-dump-persistency-file))
 
-(defvar debbugs-package nil
-  "The package name to be searched for.")
-
-(defvar debbugs-severities nil
+(defvar debbugs-current-severities nil
   "The severities strings to be searched for.")
 
-(defvar debbugs-archive nil
-  "The archive flag to be searched for.")
+(defvar debbugs-current-packages nil
+  "The package names to be searched for.")
 
-(defun debbugs-emacs (severities &optional package suppress-done archivedp)
+(defvar debbugs-current-archive nil
+  "Whether to search in the archive.")
+
+(defun debbugs-emacs (severities &optional packages archivedp suppress-done)
   "List all outstanding Emacs bugs."
   (interactive
-   (list
-    (completing-read "Severity: "
-		     '("important" "normal" "minor" "wishlist")
-		     nil t "normal")))
+   (let (archivedp)
+     (list
+      (completing-read-multiple
+       "Severity: "
+       (mapcar 'cadr (cdr (get 'debbugs-default-severities 'custom-type)))
+       nil t (mapconcat 'identity debbugs-default-severities ","))
+      ;; The optional parameters are asked only when there is a prefix.
+      (if current-prefix-arg
+	  (completing-read-multiple
+	   "Packages: "
+	   (mapcar 'cadr (cdr (get 'debbugs-default-packages 'custom-type)))
+	   nil t (mapconcat 'identity debbugs-default-packages ","))
+	debbugs-default-packages)
+      (when current-prefix-arg
+	(setq archivedp (y-or-n-p "Show archived bugs?")))
+      (when (and current-prefix-arg (not archivedp))
+	(y-or-n-p "Suppress closed bugs?")))))
+
   ;; Initialize variables.
   (when (and (file-exists-p debbugs-persistency-file)
 	     (not debbugs-local-tags))
     (with-temp-buffer
       (insert-file-contents debbugs-persistency-file)
       (eval (read (current-buffer)))))
+  ;; Set lists.
   (unless (consp severities)
     (setq severities (list severities)))
+  (unless (consp packages)
+    (setq packages (list packages)))
 
-  (setq debbugs-package (or package "emacs")
-	debbugs-severities severities
-	debbugs-archive (if archivedp "1" "0")
+  (setq debbugs-current-severities severities
+	debbugs-current-packages packages
+	debbugs-current-archive (if archivedp "1" "0")
 	debbugs-widgets nil)
 
   (let ((debbugs-port "gnu.org")
-	(default 500)
+	(hits debbugs-default-hits-per-page)
 	ids)
-    (dolist (severity debbugs-severities)
-      (setq ids (nconc ids
-		       (debbugs-get-bugs :package debbugs-package
-					 :severity severity
-					 :archive debbugs-archive))))
+    (dolist (severity debbugs-current-severities)
+      (dolist (package debbugs-current-packages)
+	(setq ids (nconc ids
+			 (debbugs-get-bugs :package package
+					   :severity severity
+					   :archive debbugs-current-archive)))))
     (setq ids (sort ids '<))
 
-    (if (> (length ids) default)
+    (if (> (length ids) hits)
 	(let ((cursor-in-echo-area nil))
-	  (setq default
+	  (setq hits
 		(string-to-number
 		 (read-string
 		  (format
 		   "How many reports (available %d, default %d): "
-		   (length ids) default)
+		   (length ids) hits)
 		  nil
 		  nil
-		  (number-to-string default))))))
+		  (number-to-string hits))))))
 
-    (if (> (length ids) default)
+    (if (> (length ids) hits)
 	(let ((i 0)
 	      curr-ids)
 	  (while ids
 	    (setq i (1+ i)
-		  curr-ids (butlast ids (- (length ids) default)))
+		  curr-ids (butlast ids (- (length ids) hits)))
 	    (add-to-list
 	     'debbugs-widgets
 	     (widget-convert
@@ -159,7 +256,7 @@
 	      :format " %[%v%]"
 	      (number-to-string i))
 	     'append)
-	    (setq ids (last ids (- (length ids) default))))
+	    (setq ids (last ids (- (length ids) hits))))
 	  (debbugs-show-reports (car debbugs-widgets)))
 
       (debbugs-show-reports
@@ -178,6 +275,7 @@
   (pop-to-buffer (get-buffer-create (widget-get widget :buffer-name)))
   (debbugs-mode)
   (let ((inhibit-read-only t)
+	(debbugs-port "gnu.org")
 	(suppress-done (widget-get widget :suppress-done)))
     (erase-buffer)
 
@@ -310,11 +408,13 @@
 	  (first-id (car (widget-get debbugs-current-widget :bug-ids)))
 	  (last-id  (car (last (widget-get debbugs-current-widget :bug-ids))))
 	  ids)
-      (dolist (severity debbugs-severities)
-	(setq ids (nconc ids
-			 (debbugs-get-bugs :package debbugs-package
-					   :severity severity
-					   :archive debbugs-archive))))
+      (dolist (severity debbugs-current-severities)
+	(dolist (package debbugs-current-packages)
+	  (setq ids
+		(nconc ids
+		       (debbugs-get-bugs :package package
+					 :severity severity
+					 :archive debbugs-current-archive)))))
       (setq ids (sort ids '<))
 
       (while (and (<= first-id last-id) (not (memq first-id ids)))
