@@ -499,11 +499,14 @@ The following commands are available:
 			  (cons new new))
 		      address)))))))))
 
-(defun debbugs-send-control-message (message)
+(defun debbugs-send-control-message (message &optional reverse)
   "Send a control message for the current bug report.
 You can set the severity or add a tag, or close the report.  If
 you use the special \"done\" MESSAGE, the report will be marked as
-fixed, and then closed."
+fixed, and then closed.
+
+If given a prefix, and given a tag to set, the tag will be
+removed instead."
   (interactive
    (list (completing-read
 	  "Control message: "
@@ -513,7 +516,8 @@ fixed, and then closed."
 	    "merge" "forcemerge"
 	    "owner" "noowner"
 	    "patch" "wontfix" "moreinfo" "unreproducible" "fixed" "notabug")
-	  nil t)))
+	  nil t)
+	 current-prefix-arg))
   (let* ((id (or debbugs-bug-number	; Set on group entry.
 		 (debbugs-current-id)))
 	 (version
@@ -554,7 +558,9 @@ fixed, and then closed."
 	       ((member message '("important" "normal" "minor" "wishlist"))
 		(format "severity %d %s\n" id message))
 	       (t
-		(format "tags %d %s\n" id message))))
+		(format "tags %d%s %s\n"
+			id (if reverse " -" "")
+			message))))
       (funcall send-mail-function))))
 
 (provide 'debbugs-gnu)

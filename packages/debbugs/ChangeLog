@@ -2,6 +2,7 @@
 
 	* debbugs-gnu.el (debbugs-mode-map): Bind `q' to `bury-buffer',
 	which seems more useful.
+	(debbugs-send-control-message): Allow reversing tags.
 
 2011-07-06  Stefan Monnier  <monnier@iro.umontreal.ca>
 
