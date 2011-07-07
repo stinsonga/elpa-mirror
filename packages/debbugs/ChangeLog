@@ -1,3 +1,8 @@
+2011-07-07  Lars Magne Ingebrigtsen  <larsi@gnus.org>
+
+	* debbugs-gnu.el (debbugs-mode-map): Bind `q' to `bury-buffer',
+	which seems more useful.
+
 2011-07-06  Stefan Monnier  <monnier@iro.umontreal.ca>
 
 	* debbugs-gnu.el (debbugs-gnu): New group.

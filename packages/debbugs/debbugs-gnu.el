@@ -289,7 +289,7 @@
     (define-key map "\r" 'debbugs-select-report)
     (define-key map [mouse-1] 'debbugs-select-report)
     (define-key map [mouse-2] 'debbugs-select-report)
-    (define-key map "q" 'kill-buffer)
+    (define-key map "q" 'bury-buffer)
     (define-key map "s" 'debbugs-toggle-sort)
     (define-key map "t" 'debbugs-toggle-tag)
     (define-key map "d" 'debbugs-display-status)
