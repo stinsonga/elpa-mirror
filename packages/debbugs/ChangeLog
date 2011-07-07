@@ -19,6 +19,8 @@
 	(debbugs-send-control-message): Allow reversing tags.
 	(debbugs-summary-mode): Remove quiet@debbugs.gnu.org from the
 	list, too.
+	(debbugs-toggle-tag): Save the list of tagged articles
+	immediately.  Waiting until exit is too brittle.
 
 2011-07-06  Stefan Monnier  <monnier@iro.umontreal.ca>
 

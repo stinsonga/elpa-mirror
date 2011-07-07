@@ -151,19 +151,12 @@
 
 (defun debbugs-dump-persistency-file ()
   "Function to store debbugs variables persistently."
-  (ignore-errors
-    (with-temp-buffer
-      (insert
-       ";; -*- emacs-lisp -*-\n"
-       ";; Debbugs tags connection history.  Don't change this file.\n\n"
-       (format "(setq debbugs-local-tags '%S)"
-	       (sort (copy-sequence debbugs-local-tags) '<)))
-      (write-region
-       (point-min) (point-max) debbugs-persistency-file))))
-
-;; Save variables.
-(unless noninteractive
-  (add-hook 'kill-emacs-hook 'debbugs-dump-persistency-file))
+  (with-temp-file debbugs-persistency-file
+    (insert
+     ";; -*- emacs-lisp -*-\n"
+     ";; Debbugs tags connection history.  Don't change this file.\n\n"
+     (format "(setq debbugs-local-tags '%S)"
+	     (sort (copy-sequence debbugs-local-tags) '<)))))
 
 (defvar debbugs-current-severities nil
   "The severities strings to be searched for.")
@@ -516,7 +509,8 @@ The following commands are available:
 	(add-to-list 'debbugs-local-tags id)
 	(put-text-property
 	 (+ (point) (- 5 (length (number-to-string id)))) (+ (point) 5)
-	 'face 'debbugs-tagged)))))
+	 'face 'debbugs-tagged))))
+  (debbugs-dump-persistency-file))
 
 (defun debbugs-suppress-done ()
   "Suppress bugs marked as done."
