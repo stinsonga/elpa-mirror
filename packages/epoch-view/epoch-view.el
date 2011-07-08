@@ -1,4 +1,4 @@
-;;; epoch-view.el --- minor mode to visualize epoch timestamps
+;;; epoch-view.el --- Minor mode to visualize epoch timestamps
 
 ;; Copyright (C) 2010
 ;;   Free Software Foundation, Inc.
@@ -28,10 +28,11 @@
 ;; instead of Unix epoch times.  This mode turns on font-lock and
 ;; leaves it on forever.  You may or may not like that.
 
-;; TODO: instead of letting font-lock-mode manage the `display'
-;; property, manage it ourselves so when multiple modes specify
-;; `display' it won't get wiped out when this mode doesn't need it
-;; anymore.
+;;; TODO:
+
+;; Instead of letting font-lock-mode manage the `display' property,
+;; manage it ourselves so when multiple modes specify `display' it
+;; won't get wiped out when this mode doesn't need it anymore.
 
 ;;; Code:
 

@@ -1,4 +1,4 @@
-;;; load-dir.el --- load all Emacs Lisp files in given directories
+;;; load-dir.el --- Load all Emacs Lisp files in a given directory
 
 ;; Copyright (C) 2011 Free Software Foundation, Inc
 
@@ -31,12 +31,13 @@
 ;; it, so for instance adding a lambda to a hook is usually safe.
 ;;
 ;; You can specify ~/.emacs.d/load.d, a single directory, or a list of
-;; directories.  The file search can be recursive.
+;; directories.  The file search can be recursive.  See the
+;; customizable variable `load-dirs' for details.
 ;;
-;; The intent with ~/.emacs.d/load.d is to give package installers like
+;; The intent of ~/.emacs.d/load.d is to give package installers like
 ;; el-get.el (see https://github.com/dimitri/el-get) and other tools a
-;; way to easily bootstrap themselves without necessarily modifying your
-;; .emacs or custom files directly.
+;; way to easily bootstrap themselves without necessarily modifying
+;; your .emacs or custom files directly.
 
 ;;; Code:
 
