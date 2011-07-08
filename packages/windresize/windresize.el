@@ -1,4 +1,4 @@
-;;; windresize.el --- resize windows interactively
+;;; windresize.el --- Resize windows interactively
 ;;
 ;; Copyright (C) 2011  Free Software Foundation, Inc.
 ;;
@@ -23,12 +23,19 @@
 ;; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 ;;
 ;; This is not part of GNU Emacs.
-;;
+
 ;;; Commentary:
+
+;; This mode lets you edit the window configuration interactively just
+;; by using the keyboard.
 ;;
-;; This mode let's you edit the window configuration interactively just
-;; by using the keyboard.  Quickstart: M-x windresize
+;; To use it, type M-x windresize; this enters put Emacs in a state
+;; where the up/down and left/right arrow keys resize the window
+;; dimensions.  To return Emacs to its ordinary state, type RET.
 ;;
+;; See the docstring of `windresize' for a detailed description of the
+;; other commands that are available while windresize is active.
+
 ;;; History:
 ;;
 ;; This was largely inspired by Hirose Yuuji and Bob Wiener original
