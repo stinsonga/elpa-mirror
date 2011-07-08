@@ -1,3 +1,10 @@
+2011-07-08  Michael Albinus  <michael.albinus@gmx.de>
+
+	* debbugs-gnu.el (debbugs-gnu-*): Rename from `debbugs-*'.
+	(debbugs-gnu-default-severities): Add pseudo severity "tagged".
+	(debbugs-gnu-get-bugs): New defun.
+	(debbugs-gnu, debbugs-gnu-rescan): Use it.
+
 2011-07-07  Michael Albinus  <michael.albinus@gmx.de>
 
 	* debbugs-gnu.el (top): Add ;;; Commentary.

@@ -32,16 +32,17 @@
 ;; If you have `debbugs-gnu.el' in your load-path, you could enable
 ;; the bug tracker command by the following line in your ~/.emacs
 ;;
-;;   (autoload 'debbugs-emacs "debbugs-gnu" "" 'interactive)
+;;   (autoload 'debbugs-gnu "debbugs-gnu" "" 'interactive)
 
 ;; The bug tracker is called interactively by
 ;;
-;;   M-x debbugs-emacs
+;;   M-x debbugs-gnu
 
 ;; It asks for the severities, for which bugs shall be shown. This can
 ;; be either just one severity, or a list of severities, separated by
 ;; comma.  Valid severities are "important", "normal", "minor" or
-;; "wishlist".
+;; "wishlist".  There is also the pseudo severity "tagged", which
+;; selects locally tagged bugs.
 
 ;; If a prefix is given, more search parameters are asked for, like
 ;; packages (also a comma separated list, "emacs" is the default),
@@ -54,8 +55,8 @@
 ;; change this limit, but please don't increase this number too much.
 
 ;; These default values could be changed also by customer options
-;; `debbugs-default-severities', `debbugs-default-packages' and
-;; `debbugs-default-hits-per-page'.
+;; `debbugs-gnu-default-severities', `debbugs-gnu-default-packages'
+;; and `debbugs-gnu-default-hits-per-page'.
 
 ;; The command creates one or more pages of bug lists.  Every bug is
 ;; shown in one line, including the bug number, the status (combining
@@ -91,18 +92,21 @@
 
 (defgroup debbugs-gnu ()
   "UI for the debbugs.gnu.org bug tracker."
-  :group 'debbugs)
+  :group 'debbugs
+  :version "24.1")
 
-(defcustom debbugs-default-severities '("normal")
-  "*The list severities bugs are searched for."
+(defcustom debbugs-gnu-default-severities '("normal")
+  "*The list severities bugs are searched for.
+\"tagged\" is not a severity but marks locally tagged bugs."
   :group 'debbugs-gnu
   :type '(set (const "important")
 	      (const "normal")
 	      (const "minor")
-	      (const "wishlist"))
+	      (const "wishlist")
+	      (const "tagged"))
   :version "24.1")
 
-(defcustom debbugs-default-packages '("emacs")
+(defcustom debbugs-gnu-default-packages '("emacs")
   "*The list of packages to be searched for."
   :group 'debbugs-gnu
   :type '(set (const "automake")
@@ -112,87 +116,87 @@
 	      (const "libtool"))
   :version "24.1")
 
-(defcustom debbugs-default-hits-per-page 500
+(defcustom debbugs-gnu-default-hits-per-page 500
   "*The number of bugs shown per page."
   :group 'debbugs-gnu
   :type 'integer
   :version "24.1")
 
-(defface debbugs-new '((t (:foreground "red")))
+(defface debbugs-gnu-new '((t (:foreground "red")))
   "Face for new reports that nobody has answered.")
 
-(defface debbugs-handled '((t (:foreground "ForestGreen")))
+(defface debbugs-gnu-handled '((t (:foreground "ForestGreen")))
   "Face for new reports that have been modified recently.")
 
-(defface debbugs-stale '((t (:foreground "orange")))
+(defface debbugs-gnu-stale '((t (:foreground "orange")))
   "Face for new reports that nobody has answered.")
 
-(defface debbugs-done '((t (:foreground "DarkGrey")))
+(defface debbugs-gnu-done '((t (:foreground "DarkGrey")))
   "Face for closed bug reports.")
 
-(defface debbugs-tagged '((t (:foreground "red")))
+(defface debbugs-gnu-tagged '((t (:foreground "red")))
   "Face for reports that have been tagged locally.")
 
-(defvar debbugs-widgets nil)
+(defvar debbugs-gnu-widgets nil)
 
-(defvar debbugs-widget-map
+(defvar debbugs-gnu-widget-map
   (let ((map (make-sparse-keymap)))
     (define-key map "\r" 'widget-button-press)
     (define-key map [mouse-1] 'widget-button-press)
     (define-key map [mouse-2] 'widget-button-press)
     map))
 
-(defvar debbugs-local-tags nil
+(defvar debbugs-gnu-local-tags nil
   "List of bug numbers tagged locally, and kept persistent.")
 
-(defvar debbugs-persistency-file
+(defvar debbugs-gnu-persistency-file
   (expand-file-name (locate-user-emacs-file "debbugs"))
   "File name of a persistency store for debbugs variables")
 
-(defun debbugs-dump-persistency-file ()
+(defun debbugs-gnu-dump-persistency-file ()
   "Function to store debbugs variables persistently."
-  (with-temp-file debbugs-persistency-file
+  (with-temp-file debbugs-gnu-persistency-file
     (insert
      ";; -*- emacs-lisp -*-\n"
      ";; Debbugs tags connection history.  Don't change this file.\n\n"
-     (format "(setq debbugs-local-tags '%S)"
-	     (sort (copy-sequence debbugs-local-tags) '<)))))
+     (format "(setq debbugs-gnu-local-tags '%S)"
+	     (sort (copy-sequence debbugs-gnu-local-tags) '<)))))
 
-(defvar debbugs-current-severities nil
+(defvar debbugs-gnu-current-severities nil
   "The severities strings to be searched for.")
 
-(defvar debbugs-current-packages nil
+(defvar debbugs-gnu-current-packages nil
   "The package names to be searched for.")
 
-(defvar debbugs-current-archive nil
+(defvar debbugs-gnu-current-archive nil
   "Whether to search in the archive.")
 
-(defun debbugs-emacs (severities &optional packages archivedp suppress-done)
+(defun debbugs-gnu (severities &optional packages archivedp suppress-done)
   "List all outstanding Emacs bugs."
   (interactive
    (let (archivedp)
      (list
       (completing-read-multiple
        "Severity: "
-       (mapcar 'cadr (cdr (get 'debbugs-default-severities 'custom-type)))
-       nil t (mapconcat 'identity debbugs-default-severities ","))
+       (mapcar 'cadr (cdr (get 'debbugs-gnu-default-severities 'custom-type)))
+       nil t (mapconcat 'identity debbugs-gnu-default-severities ","))
       ;; The optional parameters are asked only when there is a prefix.
       (if current-prefix-arg
 	  (completing-read-multiple
 	   "Packages: "
-	   (mapcar 'cadr (cdr (get 'debbugs-default-packages 'custom-type)))
-	   nil t (mapconcat 'identity debbugs-default-packages ","))
-	debbugs-default-packages)
+	   (mapcar 'cadr (cdr (get 'debbugs-gnu-default-packages 'custom-type)))
+	   nil t (mapconcat 'identity debbugs-gnu-default-packages ","))
+	debbugs-gnu-default-packages)
       (when current-prefix-arg
 	(setq archivedp (y-or-n-p "Show archived bugs?")))
       (when (and current-prefix-arg (not archivedp))
 	(y-or-n-p "Suppress closed bugs?")))))
 
   ;; Initialize variables.
-  (when (and (file-exists-p debbugs-persistency-file)
-	     (not debbugs-local-tags))
+  (when (and (file-exists-p debbugs-gnu-persistency-file)
+	     (not debbugs-gnu-local-tags))
     (with-temp-buffer
-      (insert-file-contents debbugs-persistency-file)
+      (insert-file-contents debbugs-gnu-persistency-file)
       (eval (read (current-buffer)))))
   ;; Set lists.
   (unless (consp severities)
@@ -200,21 +204,13 @@
   (unless (consp packages)
     (setq packages (list packages)))
 
-  (setq debbugs-current-severities severities
-	debbugs-current-packages packages
-	debbugs-current-archive (if archivedp "1" "0")
-	debbugs-widgets nil)
+  (setq debbugs-gnu-current-severities severities
+	debbugs-gnu-current-packages packages
+	debbugs-gnu-current-archive (if archivedp "1" "0")
+	debbugs-gnu-widgets nil)
 
-  (let ((debbugs-port "gnu.org")
-	(hits debbugs-default-hits-per-page)
-	ids)
-    (dolist (severity debbugs-current-severities)
-      (dolist (package debbugs-current-packages)
-	(setq ids (nconc ids
-			 (debbugs-get-bugs :package package
-					   :severity severity
-					   :archive debbugs-current-archive)))))
-    (setq ids (sort ids '<))
+  (let ((hits debbugs-gnu-default-hits-per-page)
+	(ids (debbugs-gnu-get-bugs)))
 
     (if (> (length ids) hits)
 	(let ((cursor-in-echo-area nil))
@@ -235,13 +231,13 @@
 	    (setq i (1+ i)
 		  curr-ids (butlast ids (- (length ids) hits)))
 	    (add-to-list
-	     'debbugs-widgets
+	     'debbugs-gnu-widgets
 	     (widget-convert
 	      'push-button
 	      :follow-link 'mouse-face
 	      :notify (lambda (widget &rest ignore)
-			(debbugs-show-reports widget))
-	      :keymap debbugs-widget-map
+			(debbugs-gnu-show-reports widget))
+	      :keymap debbugs-gnu-widget-map
 	      :suppress-done suppress-done
 	      :buffer-name (format "*Emacs Bugs*<%d>" i)
 	      :bug-ids curr-ids
@@ -250,29 +246,45 @@
 	      (number-to-string i))
 	     'append)
 	    (setq ids (last ids (- (length ids) hits))))
-	  (debbugs-show-reports (car debbugs-widgets)))
+	  (debbugs-gnu-show-reports (car debbugs-gnu-widgets)))
 
-      (debbugs-show-reports
+      (debbugs-gnu-show-reports
        (widget-convert
 	'const
 	:suppress-done suppress-done
 	:buffer-name "*Emacs Bugs*"
 	:bug-ids ids)))))
 
-(defvar debbugs-current-widget nil)
+(defun debbugs-gnu-get-bugs ()
+  "Retrieve bugs numbers from debbugs.gnu.org according search criteria."
+  (let ((debbugs-port "gnu.org")
+	ids)
+    (dolist (severity debbugs-gnu-current-severities)
+      (if (string-equal severity "tagged")
+	  (setq ids (nconc ids (copy-sequence debbugs-gnu-local-tags)))
+	(dolist (package debbugs-gnu-current-packages)
+	  (setq ids
+		(nconc ids
+		       (debbugs-get-bugs
+			:package package
+			:severity severity
+			:archive debbugs-gnu-current-archive))))))
+    (sort ids '<)))
+
+(defvar debbugs-gnu-current-widget nil)
 
 (defvar widget-mouse-face)
 
-(defun debbugs-show-reports (widget)
+(defun debbugs-gnu-show-reports (widget)
   "Show bug reports as given in WIDGET property :bug-ids."
   (pop-to-buffer (get-buffer-create (widget-get widget :buffer-name)))
-  (debbugs-mode)
+  (debbugs-gnu-mode)
   (let ((inhibit-read-only t)
 	(debbugs-port "gnu.org")
 	(suppress-done (widget-get widget :suppress-done)))
     (erase-buffer)
 
-    (when debbugs-widgets
+    (when debbugs-gnu-widgets
       (widget-insert "Page:")
       (mapc
        (lambda (obj)
@@ -280,7 +292,7 @@
 	     (widget-put obj :button-face 'widget-button-pressed)
 	   (widget-put obj :button-face 'widget-button-face))
 	 (widget-apply obj :create))
-       debbugs-widgets)
+       debbugs-gnu-widgets)
       (widget-insert "\n\n"))
 
     (dolist (status (sort (apply 'debbugs-get-status
@@ -299,16 +311,16 @@
 		 ","))
 	       (face (cond
 		      ((equal (cdr (assq 'pending status)) "done")
-		       'debbugs-done)
+		       'debbugs-gnu-done)
 		      ((= (cdr (assq 'date status))
 			  (cdr (assq 'log_modified status)))
-		       'debbugs-new)
+		       'debbugs-gnu-new)
 		      ((< (- (float-time)
 			     (cdr (assq 'log_modified status)))
 			  (* 60 60 24 4))
-		       'debbugs-handled)
+		       'debbugs-gnu-handled)
 		      (t
-		       'debbugs-stale)))
+		       'debbugs-gnu-stale)))
 	       (address (mail-header-parse-address
 			 (decode-coding-string (cdr (assq 'originator status))
 					       'utf-8)))
@@ -338,7 +350,7 @@
 		 ;; Mark own submitted bugs.
 		 (if (and (stringp (car address))
 			  (string-equal (car address) user-mail-address))
-		     'debbugs-tagged
+		     'debbugs-gnu-tagged
 		   'default)))
 	  (insert
 	   (format "%5d %-20s [%-23s] %s\n"
@@ -353,118 +365,110 @@
 		   (if (and (stringp owner)
 			    (string-equal owner user-mail-address))
 		       (propertize subject
-				   'face 'debbugs-tagged 'help-echo subject)
+				   'face 'debbugs-gnu-tagged 'help-echo subject)
 		     (propertize subject 'help-echo subject))))
 	  (forward-line -1)
-	  (put-text-property (point) (1+ (point)) 'debbugs-status status)
+	  (put-text-property (point) (1+ (point)) 'debbugs-gnu-status status)
 	  (put-text-property
 	   (point-at-bol) (point-at-eol) 'mouse-face widget-mouse-face)
-	  (when (memq id debbugs-local-tags)
+	  (when (memq id debbugs-gnu-local-tags)
 	    (put-text-property
 	     (+ (point) (- 5 (length (number-to-string id)))) (+ (point) 5)
-	     'face 'debbugs-tagged))
+	     'face 'debbugs-gnu-tagged))
 	  (forward-line 1))))
 
-    (when debbugs-widgets
+    (when debbugs-gnu-widgets
       (widget-insert "\nPage:")
-      (mapc (lambda (obj) (widget-apply obj :create)) debbugs-widgets)
+      (mapc (lambda (obj) (widget-apply obj :create)) debbugs-gnu-widgets)
       (widget-setup))
 
     (set-buffer-modified-p nil)
-    (set (make-local-variable 'debbugs-current-widget)
+    (set (make-local-variable 'debbugs-gnu-current-widget)
 	 widget)
     (goto-char (point-min))))
 
-(defvar debbugs-mode-map
+(defvar debbugs-gnu-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map "\r" 'debbugs-select-report)
-    (define-key map [mouse-1] 'debbugs-select-report)
-    (define-key map [mouse-2] 'debbugs-select-report)
+    (define-key map "\r" 'debbugs-gnu-select-report)
+    (define-key map [mouse-1] 'debbugs-gnu-select-report)
+    (define-key map [mouse-2] 'debbugs-gnu-select-report)
     (define-key map "q" 'bury-buffer)
-    (define-key map "s" 'debbugs-toggle-sort)
-    (define-key map "t" 'debbugs-toggle-tag)
-    (define-key map "d" 'debbugs-display-status)
-    (define-key map "g" 'debbugs-rescan)
-    (define-key map "x" 'debbugs-suppress-done)
-    (define-key map "C" 'debbugs-send-control-message)
+    (define-key map "s" 'debbugs-gnu-toggle-sort)
+    (define-key map "t" 'debbugs-gnu-toggle-tag)
+    (define-key map "d" 'debbugs-gnu-display-status)
+    (define-key map "g" 'debbugs-gnu-rescan)
+    (define-key map "x" 'debbugs-gnu-suppress-done)
+    (define-key map "C" 'debbugs-gnu-send-control-message)
     map))
 
-(defun debbugs-rescan ()
+(defun debbugs-gnu-rescan ()
   "Rescan the current set of bug reports."
   (interactive)
 
   ;; The last page will be provided with new bug ids.
   ;; TODO: Do it also for the other pages.
-  (when (and debbugs-widgets
-	     (eq debbugs-current-widget (car (last debbugs-widgets))))
-    (let ((debbugs-port "gnu.org")
-	  (first-id (car (widget-get debbugs-current-widget :bug-ids)))
-	  (last-id  (car (last (widget-get debbugs-current-widget :bug-ids))))
-	  ids)
-      (dolist (severity debbugs-current-severities)
-	(dolist (package debbugs-current-packages)
-	  (setq ids
-		(nconc ids
-		       (debbugs-get-bugs :package package
-					 :severity severity
-					 :archive debbugs-current-archive)))))
-      (setq ids (sort ids '<))
+  (when (and debbugs-gnu-widgets
+	     (eq debbugs-gnu-current-widget (car (last debbugs-gnu-widgets))))
+    (let ((first-id (car (widget-get debbugs-gnu-current-widget :bug-ids)))
+	  (last-id  (car
+		     (last (widget-get debbugs-gnu-current-widget :bug-ids))))
+	  (ids (debbugs-gnu-get-bugs)))
 
       (while (and (<= first-id last-id) (not (memq first-id ids)))
 	(setq first-id (1+ first-id)))
 
       (when (<= first-id last-id)
-	(widget-put debbugs-current-widget :bug-ids (memq first-id ids)))))
+	(widget-put debbugs-gnu-current-widget :bug-ids (memq first-id ids)))))
 
   ;; Refresh the buffer.  `save-excursion' does not work, so we
   ;; remember the position.
   (let ((pos (point)))
-    (debbugs-show-reports debbugs-current-widget)
+    (debbugs-gnu-show-reports debbugs-gnu-current-widget)
     (goto-char pos)))
 
-(defvar debbugs-sort-state 'number)
+(defvar debbugs-gnu-sort-state 'number)
 
-(defun debbugs-mode ()
+(defun debbugs-gnu-mode ()
   "Major mode for listing bug reports.
 
 All normal editing commands are switched off.
-\\<debbugs-mode-map>
+\\<debbugs-gnu-mode-map>
 
 The following commands are available:
 
-\\{debbugs-mode-map}"
+\\{debbugs-gnu-mode-map}"
   (interactive)
   (kill-all-local-variables)
-  (setq major-mode 'debbugs-mode)
+  (setq major-mode 'debbugs-gnu-mode)
   (setq mode-name "Debbugs")
-  (use-local-map debbugs-mode-map)
-  (set (make-local-variable 'debbugs-sort-state)
+  (use-local-map debbugs-gnu-mode-map)
+  (set (make-local-variable 'debbugs-gnu-sort-state)
        'number)
   (buffer-disable-undo)
   (setq truncate-lines t)
   (setq buffer-read-only t))
 
-(defvar debbugs-state-preference
-  '((debbugs-new . 1)
-    (debbugs-stale . 2)
-    (debbugs-handled . 3)
-    (debbugs-done . 4)))
+(defvar debbugs-gnu-state-preference
+  '((debbugs-gnu-new . 1)
+    (debbugs-gnu-stale . 2)
+    (debbugs-gnu-handled . 3)
+    (debbugs-gnu-done . 4)))
 
-(defun debbugs-toggle-sort ()
+(defun debbugs-gnu-toggle-sort ()
   "Toggle sorting by age and by state."
   (interactive)
   (beginning-of-line)
   (let ((buffer-read-only nil)
 	(before-change-functions nil)
-	(current-bug (debbugs-current-id t))
+	(current-bug (debbugs-gnu-current-id t))
 	(start-point (point)))
-    (setq debbugs-sort-state
-	  (if (eq debbugs-sort-state 'number)
+    (setq debbugs-gnu-sort-state
+	  (if (eq debbugs-gnu-sort-state 'number)
 	      'state
 	    'number))
     (goto-char (point-min))
     (while (and (not (eobp))
-		(not (get-text-property (point) 'debbugs-status)))
+		(not (get-text-property (point) 'debbugs-gnu-status)))
       (forward-line 1))
     (save-restriction
       (narrow-to-region
@@ -473,7 +477,7 @@ The following commands are available:
 	 (goto-char (point-max))
 	 (beginning-of-line)
 	 (while (and (not (bobp))
-		     (not (get-text-property (point) 'debbugs-status)))
+		     (not (get-text-property (point) 'debbugs-gnu-status)))
 	   (forward-line -1))
 	 (forward-line 1)
 	 (point)))
@@ -481,78 +485,78 @@ The following commands are available:
       (sort-subr
        nil (lambda () (forward-line 1)) 'end-of-line
        (lambda ()
-	 (let ((id (debbugs-current-id)))
-	   (if (eq debbugs-sort-state 'number)
+	 (let ((id (debbugs-gnu-current-id)))
+	   (if (eq debbugs-gnu-sort-state 'number)
 	       id
 	     ;; Sort the tagged ones at the end.
-	     (or (and (memq id debbugs-local-tags)
+	     (or (and (memq id debbugs-gnu-local-tags)
 		      20)
 		 (cdr (assq (get-text-property (+ (point) 7) 'face)
-			    debbugs-state-preference))
+			    debbugs-gnu-state-preference))
 		 10))))))
     (if (not current-bug)
 	(goto-char start-point)
       (goto-char (point-min))
       (re-search-forward (format "^%d" current-bug) nil t))))
 
-(defun debbugs-toggle-tag ()
+(defun debbugs-gnu-toggle-tag ()
   "Toggle tag of the report in the current line."
   (interactive)
   (save-excursion
     (beginning-of-line)
     (let ((inhibit-read-only t)
-	  (id (debbugs-current-id)))
-      (if (memq id debbugs-local-tags)
+	  (id (debbugs-gnu-current-id)))
+      (if (memq id debbugs-gnu-local-tags)
 	  (progn
-	    (setq debbugs-local-tags (delq id debbugs-local-tags))
+	    (setq debbugs-gnu-local-tags (delq id debbugs-gnu-local-tags))
 	    (put-text-property (point) (+ (point) 5) 'face 'default))
-	(add-to-list 'debbugs-local-tags id)
+	(add-to-list 'debbugs-gnu-local-tags id)
 	(put-text-property
 	 (+ (point) (- 5 (length (number-to-string id)))) (+ (point) 5)
-	 'face 'debbugs-tagged))))
-  (debbugs-dump-persistency-file))
+	 'face 'debbugs-gnu-tagged))))
+  (debbugs-gnu-dump-persistency-file))
 
-(defun debbugs-suppress-done ()
+(defun debbugs-gnu-suppress-done ()
   "Suppress bugs marked as done."
   (interactive)
   (save-excursion
-    (unless (widget-get debbugs-current-widget :suppress-done)
+    (unless (widget-get debbugs-gnu-current-widget :suppress-done)
       (let ((inhibit-read-only t))
-	(widget-put debbugs-current-widget :suppress-done t)
+	(widget-put debbugs-gnu-current-widget :suppress-done t)
 	(goto-char (point-min))
 	(while (and (not (eobp))
-		    (not (get-text-property (point) 'debbugs-status)))
+		    (not (get-text-property (point) 'debbugs-gnu-status)))
 	  (forward-line 1))
 	(while  (and (not (eobp))
-		     (get-text-property (point) 'debbugs-status))
-	  (if (equal (cdr (assq 'pending (debbugs-current-status))) "done")
+		     (get-text-property (point) 'debbugs-gnu-status))
+	  (if (equal (cdr (assq 'pending (debbugs-gnu-current-status))) "done")
 	      (kill-region (point) (progn (forward-line 1) (point)))
 	    (forward-line 1)))))))
 
-(defvar debbugs-bug-number nil)
+(defvar debbugs-gnu-bug-number nil)
 
-(defun debbugs-current-id (&optional noerror)
-  (or (cdr (assq 'id (debbugs-current-status)))
+(defun debbugs-gnu-current-id (&optional noerror)
+  (or (cdr (assq 'id (debbugs-gnu-current-status)))
       (and (not noerror)
 	   (error "No bug on the current line"))))
 
-(defun debbugs-current-status ()
+(defun debbugs-gnu-current-status ()
   (get-text-property (line-beginning-position)
-		     'debbugs-status))
+		     'debbugs-gnu-status))
 
-(defun debbugs-display-status (status)
+(defun debbugs-gnu-display-status (status)
   "Display the status of the report on the current line."
-  (interactive (list (debbugs-current-status)))
+  (interactive (list (debbugs-gnu-current-status)))
   (pop-to-buffer "*Bug Status*")
   (erase-buffer)
   (pp status (current-buffer))
   (goto-char (point-min)))
 
-(defun debbugs-select-report ()
+(defun debbugs-gnu-select-report ()
   "Select the report on the current line."
   (interactive)
   ;; We open the report messages.
-  (let* ((status (debbugs-current-status))
+  (let* ((status (debbugs-gnu-current-status))
 	 (id (cdr (assq 'id status)))
 	 (merged (cdr (assq 'mergedwith status))))
     (gnus-read-ephemeral-emacs-bug-group
@@ -562,21 +566,21 @@ The following commands are available:
      (cons (current-buffer)
 	   (current-window-configuration)))
     (with-current-buffer (window-buffer (selected-window))
-      (debbugs-summary-mode 1)
-      (set (make-local-variable 'debbugs-bug-number) id))))
+      (debbugs-gnu-summary-mode 1)
+      (set (make-local-variable 'debbugs-gnu-bug-number) id))))
 
-(defvar debbugs-summary-mode-map
+(defvar debbugs-gnu-summary-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map "C" 'debbugs-send-control-message)
+    (define-key map "C" 'debbugs-gnu-send-control-message)
     map))
 
 (defvar gnus-posting-styles)
 
-(define-minor-mode debbugs-summary-mode
+(define-minor-mode debbugs-gnu-summary-mode
   "Minor mode for providing a debbugs interface in Gnus summary buffers.
 
-\\{debbugs-summary-mode-map}"
-  :lighter " Debbugs" :keymap debbugs-summary-mode-map
+\\{debbugs-gnu-summary-mode-map}"
+  :lighter " Debbugs" :keymap debbugs-gnu-summary-mode-map
   (set (make-local-variable 'gnus-posting-styles)
        '((".*"
 	  (eval
@@ -594,7 +598,7 @@ The following commands are available:
 			  (cons new new))
 		      address)))))))))
 
-(defun debbugs-send-control-message (message &optional reverse)
+(defun debbugs-gnu-send-control-message (message &optional reverse)
   "Send a control message for the current bug report.
 You can set the severity or add a tag, or close the report.  If
 you use the special \"done\" MESSAGE, the report will be marked as
@@ -613,8 +617,8 @@ removed instead."
 	    "patch" "wontfix" "moreinfo" "unreproducible" "fixed" "notabug")
 	  nil t)
 	 current-prefix-arg))
-  (let* ((id (or debbugs-bug-number	; Set on group entry.
-		 (debbugs-current-id)))
+  (let* ((id (or debbugs-gnu-bug-number	; Set on group entry.
+		 (debbugs-gnu-current-id)))
 	 (version
 	  (when (member message '("close" "done"))
 	    (read-string
