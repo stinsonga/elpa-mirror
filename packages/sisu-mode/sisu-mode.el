@@ -1,4 +1,4 @@
-;;; sisu-mode.el --- a major-mode for highlighting a hierarchy structured text.
+;;; sisu-mode.el --- Major mode for SiSU markup text
 
 ;; Copyright (C) 2011  Free Software Foundation, Inc.
 
@@ -16,7 +16,7 @@
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation; either version 3, or (at your option)
 ;; any later version.
-;; 
+;;
 ;; This program is distributed in the hope that it will be useful,
 ;; but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -31,20 +31,17 @@
 
 ;;; Commentary:
 
-;;
-;; To enter sisu-mode automatically, add (autoload 'sisu-mode "sisu-mode")
-;; to your .emacs file and change the first line of your sisu file to:
-;; # -*- Sisu -*-
-;; if it doesn't have a .sisu extension.
-;;
-;; To handle .sisu files, e.g., 'filename.sisu', add something like
-;; (add-to-list 'auto-mode-alist '("\\.sisu$" . sisu-mode))
-;; to your .emacs file
+;; SiSU (http://www.sisudoc.org/) is a document structuring and
+;; publishing framework.  This package provides an Emacs major mode
+;; for SiSU markup.
 
-;;
-;; The documentation for the "Structure Of The Hierarchy Text" can be found in
-;; the sisustring for the sisu-mode function.
-;;
+;; When this package is installed, files ending in ".sisu" are
+;; automatically associated with sisu-mode.  If a file doesn't have a
+;; .sisu extension, add a first line:
+;; # -*- Sisu -*-
+
+;; The documentation for the "Structure Of The Hierarchy Text" can be
+;; found in the sisustring for the sisu-mode function.
 
 ;;; Code:
 
@@ -340,7 +337,9 @@
 
 ;;;###autoload
 (define-derived-mode sisu-mode text-mode "SiSU"
-  "Major mode for editing SiSU files."
+  "Major mode for editing SiSU files.
+SiSU (http://www.sisudoc.org/) is a document structuring and
+publishing framework.  This major mode handles SiSU markup."
   (modify-syntax-entry ?\'  ".")
   ;(flyspell-mode nil)
 
@@ -362,6 +361,8 @@
     ((?_ . "w"))      ; SYNTAX-ALIST
     ))
   (run-hooks 'sisu-mode-hook))
+
+;;;###autoload (add-to-list 'auto-mode-alist '("\\.sisu\\'" . sisu-mode))
 
 (provide 'sisu-mode)
 
