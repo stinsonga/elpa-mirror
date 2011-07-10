@@ -317,7 +317,7 @@
 		       'debbugs-gnu-new)
 		      ((< (- (float-time)
 			     (cdr (assq 'log_modified status)))
-			  (* 60 60 24 4))
+			  (* 60 60 24 7))
 		       'debbugs-gnu-handled)
 		      (t
 		       'debbugs-gnu-stale)))
