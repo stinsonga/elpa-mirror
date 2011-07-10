@@ -610,7 +610,7 @@ removed instead."
    (list (completing-read
 	  "Control message: "
 	  '("important" "normal" "minor" "wishlist"
-	    "done" "donenotabug" "donewontfix"
+	    "done" "donenotabug" "donewontfix" "doneunreproducible"
 	    "unarchive" "reopen" "close"
 	    "merge" "forcemerge"
 	    "owner" "noowner"
