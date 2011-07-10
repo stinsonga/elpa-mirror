@@ -654,7 +654,8 @@ removed instead."
 		(format "close %d %s\n" id version))
 	       ((equal message "done")
 		(format "tags %d fixed\nclose %d %s\n" id id version))
-	       ((member message '("donenotabug" "donewontfix"))
+	       ((member message '("donenotabug" "donewontfix"
+				  "doneunreproducible"))
 		(format "tags %d %s\nclose %d\n" id (substring message 4) id))
 	       ((member message '("important" "normal" "minor" "wishlist"))
 		(format "severity %d %s\n" id message))
