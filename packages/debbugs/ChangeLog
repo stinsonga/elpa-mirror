@@ -1,5 +1,12 @@
 2011-07-11  Michael Albinus  <michael.albinus@gmx.de>
 
+	* debbugs-gnu.el (debbugs-gnu-sort-state): Give tagged bugs
+	priority 20.  In case there is just the severity list '("tagged"),
+	do not use that priority.
+	(debbugs-gnu-sort-title): Fix silly bug.
+
+2011-07-11  Michael Albinus  <michael.albinus@gmx.de>
+
 	* debbugs-gnu.el (top): Require `tabulated-list'.  Autoload
 	`widget-convert'.
 	(debbugs-gnu-handled, debbugs-gnu-stale): Fix docstring.

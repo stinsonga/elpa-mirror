@@ -71,13 +71,18 @@
 
 ;; Furthermore, you could apply the global actions
 
-;;   "s": Toggle bug sorting
 ;;   "g": Rescan bugs
-;;   "x": Suppress closed bugs
 ;;   "q": Quit the buffer
+;;   "s": Toggle bug sorting for age or for state
+;;   "x": Toggle suppressing of closed bugs
 
 ;; When you visit the related bug messages in Gnus, you could also
 ;; send control messages by keystroke "C".
+
+;; In the header line of every bug list page, you can toggle sorting
+;; per column by selecting a column with the mouse.  The sorting
+;; happens as expected for the respective column; sorting in the Title
+;; column is depending on whether you are the owner of a bug.
 
 ;;; Code:
 
@@ -370,7 +375,7 @@
 Used instead of `tabulated-list-print-entry'."
   ;; This shall be in `debbugs-gnu-show-reports'.  But
   ;; `tabulated-list-print' erases the buffer, therefore we do it
-  ;; here.
+  ;; here.  (bug#9047)
   (when (and debbugs-gnu-widgets (= (point) (point-min)))
     (widget-insert "Page:")
     (mapc
@@ -418,6 +423,7 @@ Used instead of `tabulated-list-print-entry'."
       ;; Insert title.
       (indent-to (setq pos (+ pos submitter-length 1)) 1)
       (insert (propertize title 'help-echo title))
+      ;; Add properties.
       (add-text-properties
        beg (point) `(tabulated-list-id ,list-id mouse-face ,widget-mouse-face))
       (insert ?\n))))
@@ -501,22 +507,26 @@ The following commands are available:
 	(st1 (aref (nth 1 s1) 1))
 	(id2 (cdr (assq 'id (car s2))))
 	(st2 (aref (nth 1 s2) 1)))
-    (< (or (and (memq id1 debbugs-gnu-local-tags) 0)
+    (< (or (and (memq id1 debbugs-gnu-local-tags)
+		(not (equal debbugs-gnu-current-severities '("tagged")))
+		20)
 	   (cdr (assq (get-text-property 0 'face st1)
 		      debbugs-gnu-state-preference))
 	   10)
-       (or (and (memq id2 debbugs-gnu-local-tags) 0)
+       (or (and (memq id2 debbugs-gnu-local-tags)
+		(not (equal debbugs-gnu-current-severities '("tagged")))
+		20)
 	   (cdr (assq (get-text-property 0 'face st2)
 		      debbugs-gnu-state-preference))
 	   10))))
 
 (defun debbugs-gnu-sort-title (s1 s2)
-  (let ((owner1 (cdr (assq 'owner (car s1))))
-	(owner2 (cdr (assq 'owner (car s2)))))
-    (and (stringp owner1)
-	 (string-equal owner1 user-mail-address)
-	 (or (not (stringp owner2))
-	     (not (string-equal owner1 user-mail-address))))))
+  (let ((owner (if (cdr (assq 'owner (car s1)))
+		   (car (mail-header-parse-address
+			 (decode-coding-string (cdr (assq 'owner (car s1)))
+					       'utf-8))))))
+    (and (stringp owner)
+	 (string-equal owner user-mail-address))))
 
 (defun debbugs-gnu-toggle-sort ()
   "Toggle sorting by age and by state."
