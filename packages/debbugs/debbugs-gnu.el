@@ -83,8 +83,10 @@
 
 (require 'debbugs)
 (require 'widget)
+(require 'tabulated-list)
 (eval-when-compile (require 'cl))
 
+(autoload 'widget-convert "wid-edit.el")
 (autoload 'gnus-read-ephemeral-emacs-bug-group "gnus-group")
 (autoload 'mail-header-subject "nnheader")
 (autoload 'gnus-summary-article-header "gnus-sum")
@@ -126,10 +128,10 @@
   "Face for new reports that nobody has answered.")
 
 (defface debbugs-gnu-handled '((t (:foreground "ForestGreen")))
-  "Face for new reports that have been modified recently.")
+  "Face for reports that have been modified recently.")
 
 (defface debbugs-gnu-stale '((t (:foreground "orange")))
-  "Face for new reports that nobody has answered.")
+  "Face for reports that have not been touched for a week.")
 
 (defface debbugs-gnu-done '((t (:foreground "DarkGrey")))
   "Face for closed bug reports.")
@@ -259,7 +261,7 @@
   "Retrieve bugs numbers from debbugs.gnu.org according search criteria."
   (let ((debbugs-port "gnu.org")
 	ids)
-    (dolist (severity debbugs-gnu-current-severities)
+    (dolist (severity debbugs-gnu-current-severities ids)
       (if (string-equal severity "tagged")
 	  (setq ids (nconc ids (copy-sequence debbugs-gnu-local-tags)))
 	(dolist (package debbugs-gnu-current-packages)
@@ -268,8 +270,7 @@
 		       (debbugs-get-bugs
 			:package package
 			:severity severity
-			:archive debbugs-gnu-current-archive))))))
-    (sort ids '<)))
+			:archive debbugs-gnu-current-archive))))))))
 
 (defvar debbugs-gnu-current-widget nil)
 
@@ -280,115 +281,150 @@
   (pop-to-buffer (get-buffer-create (widget-get widget :buffer-name)))
   (debbugs-gnu-mode)
   (let ((inhibit-read-only t)
-	(debbugs-port "gnu.org")
-	(suppress-done (widget-get widget :suppress-done)))
-    (erase-buffer)
+	(debbugs-port "gnu.org"))
 
-    (when debbugs-gnu-widgets
-      (widget-insert "Page:")
-      (mapc
-       (lambda (obj)
-	 (if (eq obj widget)
-	     (widget-put obj :button-face 'widget-button-pressed)
-	   (widget-put obj :button-face 'widget-button-face))
-	 (widget-apply obj :create))
-       debbugs-gnu-widgets)
-      (widget-insert "\n\n"))
-
-    (dolist (status (sort (apply 'debbugs-get-status
-				 (widget-get widget :bug-ids))
-			  (lambda (s1 s2)
-			    (< (cdr (assq 'id s1))
-			       (cdr (assq 'id s2))))))
-      (when (or (not suppress-done)
-		(not (equal (cdr (assq 'pending status)) "done")))
-	(let* ((id (cdr (assq 'id status)))
-	       (words
-		(mapconcat
-		 'identity
-		 (cons (cdr (assq 'severity status))
-		       (cdr (assq 'keywords status)))
-		 ","))
-	       (face (cond
-		      ((equal (cdr (assq 'pending status)) "done")
-		       'debbugs-gnu-done)
-		      ((= (cdr (assq 'date status))
-			  (cdr (assq 'log_modified status)))
-		       'debbugs-gnu-new)
-		      ((< (- (float-time)
-			     (cdr (assq 'log_modified status)))
-			  (* 60 60 24 7))
-		       'debbugs-gnu-handled)
-		      (t
-		       'debbugs-gnu-stale)))
-	       (address (mail-header-parse-address
-			 (decode-coding-string (cdr (assq 'originator status))
-					       'utf-8)))
-	       (owner (if (cdr (assq 'owner status))
-			  (car (mail-header-parse-address
-				(decode-coding-string (cdr (assq 'owner status))
-						      'utf-8)))))
-	       (subject (decode-coding-string (cdr (assq 'subject status))
-					      'utf-8))
-	       merged)
-	  (unless (equal (cdr (assq 'pending status)) "pending")
-	    (setq words
-		  (concat words "," (cdr (assq 'pending status)))))
-	  (when (setq merged (cdr (assq 'mergedwith status)))
-	    (setq words (format "%s,%s"
-				(if (numberp merged)
-				    merged
-				  (mapconcat 'number-to-string merged ","))
-				words)))
-	  (setq words (propertize words 'face face))
-	  (setq address
-		(propertize
-		 ;; Prefer the name over the address.
-		 (or (cdr address)
-		     (car address))
-		 'face
-		 ;; Mark own submitted bugs.
-		 (if (and (stringp (car address))
-			  (string-equal (car address) user-mail-address))
-		     'debbugs-gnu-tagged
-		   'default)))
-	  (insert
-	   (format "%5d %-20s [%-23s] %s\n"
-		   id
-		   (if (> (length words) 20)
-		       (propertize (substring words 0 20) 'help-echo words)
-		     words)
-		   (if (> (length address) 23)
-		       (propertize (substring address 0 23) 'help-echo address)
-		     address)
-		   ;; Mark owned bugs.
-		   (if (and (stringp owner)
-			    (string-equal owner user-mail-address))
-		       (propertize subject
-				   'face 'debbugs-gnu-tagged 'help-echo subject)
-		     (propertize subject 'help-echo subject))))
-	  (forward-line -1)
-	  (put-text-property (point) (1+ (point)) 'debbugs-gnu-status status)
-	  (put-text-property
-	   (point-at-bol) (point-at-eol) 'mouse-face widget-mouse-face)
-	  (when (memq id debbugs-gnu-local-tags)
-	    (put-text-property
-	     (+ (point) (- 5 (length (number-to-string id)))) (+ (point) 5)
-	     'face 'debbugs-gnu-tagged))
-	  (forward-line 1))))
-
-    (when debbugs-gnu-widgets
-      (widget-insert "\nPage:")
-      (mapc (lambda (obj) (widget-apply obj :create)) debbugs-gnu-widgets)
-      (widget-setup))
-
-    (set-buffer-modified-p nil)
     (set (make-local-variable 'debbugs-gnu-current-widget)
 	 widget)
+
+    (dolist (status (apply 'debbugs-get-status (widget-get widget :bug-ids)))
+      (let* ((id (cdr (assq 'id status)))
+	     (words
+	      (mapconcat
+	       'identity
+	       (cons (cdr (assq 'severity status))
+		     (cdr (assq 'keywords status)))
+	       ","))
+	     (address (mail-header-parse-address
+		       (decode-coding-string (cdr (assq 'originator status))
+					     'utf-8)))
+	     (owner (if (cdr (assq 'owner status))
+			(car (mail-header-parse-address
+			      (decode-coding-string (cdr (assq 'owner status))
+						    'utf-8)))))
+	     (subject (decode-coding-string (cdr (assq 'subject status))
+					    'utf-8))
+	     merged)
+	(unless (equal (cdr (assq 'pending status)) "pending")
+	  (setq words
+		(concat words "," (cdr (assq 'pending status)))))
+	(when (setq merged (cdr (assq 'mergedwith status)))
+	  (setq words (format "%s,%s"
+			      (if (numberp merged)
+				  merged
+				(mapconcat 'number-to-string merged ","))
+			      words)))
+	(add-to-list
+	 'tabulated-list-entries
+	 (list
+	  status
+	  (vector
+	   (propertize
+	    (format "%5d" id)
+	    'face
+	    ;; Mark tagged bugs.
+	    (if (memq id debbugs-gnu-local-tags)
+		'debbugs-gnu-tagged
+	      'default))
+	   (propertize
+	    ;; Mark status and age.
+	    words
+	    'face
+	    (cond
+	     ((equal (cdr (assq 'pending status)) "done")
+	      'debbugs-gnu-done)
+	     ((= (cdr (assq 'date status))
+		 (cdr (assq 'log_modified status)))
+	      'debbugs-gnu-new)
+	     ((< (- (float-time)
+		    (cdr (assq 'log_modified status)))
+		 (* 60 60 24 7))
+	      'debbugs-gnu-handled)
+	     (t
+	      'debbugs-gnu-stale)))
+	   (propertize
+	    ;; Prefer the name over the address.
+	    (or (cdr address)
+		(car address))
+	    'face
+	    ;; Mark own submitted bugs.
+	    (if (and (stringp (car address))
+		     (string-equal (car address) user-mail-address))
+		'debbugs-gnu-tagged
+	      'default))
+	   (propertize
+	    subject
+	    'face
+	    ;; Mark owned bugs.
+	    (if (and (stringp owner)
+		     (string-equal owner user-mail-address))
+		'debbugs-gnu-tagged
+	      'default))))
+	 'append)))
+    (tabulated-list-print)
+
+    (set-buffer-modified-p nil)
     (goto-char (point-min))))
+
+(defun debbugs-gnu-print-entry (list-id cols)
+  "Insert a debbugs entry at point.
+Used instead of `tabulated-list-print-entry'."
+  ;; This shall be in `debbugs-gnu-show-reports'.  But
+  ;; `tabulated-list-print' erases the buffer, therefore we do it
+  ;; here.
+  (when (and debbugs-gnu-widgets (= (point) (point-min)))
+    (widget-insert "Page:")
+    (mapc
+     (lambda (obj)
+       (if (eq obj debbugs-gnu-current-widget)
+	   (widget-put obj :button-face 'widget-button-pressed)
+	 (widget-put obj :button-face 'widget-button-face))
+       (widget-apply obj :create))
+     debbugs-gnu-widgets)
+    (widget-insert "\n\n")
+    (save-excursion
+      (widget-insert "\nPage:")
+      (mapc (lambda (obj) (widget-apply obj :create)) debbugs-gnu-widgets)
+      (widget-setup)))
+
+  (when (or (not (widget-get debbugs-gnu-current-widget :suppress-done))
+	    (not (equal (cdr (assq 'pending list-id)) "done")))
+    (let ((beg (point))
+	  (pos 0)
+	  (id               (aref cols 0))
+	  (id-length        (nth 1 (aref tabulated-list-format 0)))
+	  (state            (aref cols 1))
+	  (state-length     (nth 1 (aref tabulated-list-format 1)))
+	  (submitter        (aref cols 2))
+	  (submitter-length (nth 1 (aref tabulated-list-format 2)))
+	  (title            (aref cols 3))
+	  (title-length     (nth 1 (aref tabulated-list-format 3))))
+      ;; Insert id.
+      (indent-to (- id-length (length id)))
+      (insert id)
+      ;; Insert state.
+      (indent-to (setq pos (+ pos id-length 1)) 1)
+      (insert (if (> (length state) state-length)
+		  (propertize (substring state 0 state-length)
+			      'help-echo state)
+		state))
+      ;; Insert submitter.
+      (indent-to (setq pos (+ pos state-length 1)) 1)
+      (insert "[" (if (> (length submitter) (- submitter-length 2))
+		      (propertize (substring submitter 0 (- submitter-length 2))
+				  'help-echo submitter)
+		    submitter))
+      (indent-to (+ pos (1- submitter-length)))
+      (insert "]")
+      ;; Insert title.
+      (indent-to (setq pos (+ pos submitter-length 1)) 1)
+      (insert (propertize title 'help-echo title))
+      (add-text-properties
+       beg (point) `(tabulated-list-id ,list-id mouse-face ,widget-mouse-face))
+      (insert ?\n))))
 
 (defvar debbugs-gnu-mode-map
   (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map tabulated-list-mode-map)
     (define-key map "\r" 'debbugs-gnu-select-report)
     (define-key map [mouse-1] 'debbugs-gnu-select-report)
     (define-key map [mouse-2] 'debbugs-gnu-select-report)
@@ -397,7 +433,7 @@
     (define-key map "t" 'debbugs-gnu-toggle-tag)
     (define-key map "d" 'debbugs-gnu-display-status)
     (define-key map "g" 'debbugs-gnu-rescan)
-    (define-key map "x" 'debbugs-gnu-suppress-done)
+    (define-key map "x" 'debbugs-gnu-toggle-suppress-done)
     (define-key map "C" 'debbugs-gnu-send-control-message)
     map))
 
@@ -428,7 +464,7 @@
 
 (defvar debbugs-gnu-sort-state 'number)
 
-(defun debbugs-gnu-mode ()
+(define-derived-mode debbugs-gnu-mode tabulated-list-mode "Debbugs"
   "Major mode for listing bug reports.
 
 All normal editing commands are switched off.
@@ -437,16 +473,22 @@ All normal editing commands are switched off.
 The following commands are available:
 
 \\{debbugs-gnu-mode-map}"
-  (interactive)
-  (kill-all-local-variables)
-  (setq major-mode 'debbugs-gnu-mode)
-  (setq mode-name "Debbugs")
-  (use-local-map debbugs-gnu-mode-map)
   (set (make-local-variable 'debbugs-gnu-sort-state)
        'number)
+  (setq tabulated-list-format [("Id"         5 debbugs-gnu-sort-id)
+			       ("State"     20 debbugs-gnu-sort-state)
+			       ("Submitter" 25 t)
+			       ("Title"     10 debbugs-gnu-sort-title)])
+  (setq tabulated-list-sort-key (cons "Id" nil))
+  (setq tabulated-list-printer 'debbugs-gnu-print-entry)
+  (tabulated-list-init-header)
   (buffer-disable-undo)
   (setq truncate-lines t)
   (setq buffer-read-only t))
+
+(defun debbugs-gnu-sort-id (s1 s2)
+  (< (cdr (assq 'id (car s1)))
+     (cdr (assq 'id (car s2)))))
 
 (defvar debbugs-gnu-state-preference
   '((debbugs-gnu-new . 1)
@@ -454,50 +496,39 @@ The following commands are available:
     (debbugs-gnu-handled . 3)
     (debbugs-gnu-done . 4)))
 
+(defun debbugs-gnu-sort-state (s1 s2)
+  (let ((id1 (cdr (assq 'id (car s1))))
+	(st1 (aref (nth 1 s1) 1))
+	(id2 (cdr (assq 'id (car s2))))
+	(st2 (aref (nth 1 s2) 1)))
+    (< (or (and (memq id1 debbugs-gnu-local-tags) 0)
+	   (cdr (assq (get-text-property 0 'face st1)
+		      debbugs-gnu-state-preference))
+	   10)
+       (or (and (memq id2 debbugs-gnu-local-tags) 0)
+	   (cdr (assq (get-text-property 0 'face st2)
+		      debbugs-gnu-state-preference))
+	   10))))
+
+(defun debbugs-gnu-sort-title (s1 s2)
+  (let ((owner1 (cdr (assq 'owner (car s1))))
+	(owner2 (cdr (assq 'owner (car s2)))))
+    (and (stringp owner1)
+	 (string-equal owner1 user-mail-address)
+	 (or (not (stringp owner2))
+	     (not (string-equal owner1 user-mail-address))))))
+
 (defun debbugs-gnu-toggle-sort ()
   "Toggle sorting by age and by state."
   (interactive)
-  (beginning-of-line)
-  (let ((buffer-read-only nil)
-	(before-change-functions nil)
-	(current-bug (debbugs-gnu-current-id t))
-	(start-point (point)))
-    (setq debbugs-gnu-sort-state
-	  (if (eq debbugs-gnu-sort-state 'number)
-	      'state
-	    'number))
-    (goto-char (point-min))
-    (while (and (not (eobp))
-		(not (get-text-property (point) 'debbugs-gnu-status)))
-      (forward-line 1))
-    (save-restriction
-      (narrow-to-region
-       (point)
-       (progn
-	 (goto-char (point-max))
-	 (beginning-of-line)
-	 (while (and (not (bobp))
-		     (not (get-text-property (point) 'debbugs-gnu-status)))
-	   (forward-line -1))
-	 (forward-line 1)
-	 (point)))
-      (goto-char (point-min))
-      (sort-subr
-       nil (lambda () (forward-line 1)) 'end-of-line
-       (lambda ()
-	 (let ((id (debbugs-gnu-current-id)))
-	   (if (eq debbugs-gnu-sort-state 'number)
-	       id
-	     ;; Sort the tagged ones at the end.
-	     (or (and (memq id debbugs-gnu-local-tags)
-		      20)
-		 (cdr (assq (get-text-property (+ (point) 7) 'face)
-			    debbugs-gnu-state-preference))
-		 10))))))
-    (if (not current-bug)
-	(goto-char start-point)
-      (goto-char (point-min))
-      (re-search-forward (format "^%d" current-bug) nil t))))
+  (if (eq debbugs-gnu-sort-state 'number)
+      (progn
+	(setq debbugs-gnu-sort-state 'state)
+	(setq tabulated-list-sort-key (cons "Id" nil)))
+    (setq debbugs-gnu-sort-state 'number)
+    (setq tabulated-list-sort-key (cons "State" nil)))
+  (tabulated-list-init-header)
+  (tabulated-list-print))
 
 (defun debbugs-gnu-toggle-tag ()
   "Toggle tag of the report in the current line."
@@ -516,22 +547,13 @@ The following commands are available:
 	 'face 'debbugs-gnu-tagged))))
   (debbugs-gnu-dump-persistency-file))
 
-(defun debbugs-gnu-suppress-done ()
+(defun debbugs-gnu-toggle-suppress-done ()
   "Suppress bugs marked as done."
   (interactive)
-  (save-excursion
-    (unless (widget-get debbugs-gnu-current-widget :suppress-done)
-      (let ((inhibit-read-only t))
-	(widget-put debbugs-gnu-current-widget :suppress-done t)
-	(goto-char (point-min))
-	(while (and (not (eobp))
-		    (not (get-text-property (point) 'debbugs-gnu-status)))
-	  (forward-line 1))
-	(while  (and (not (eobp))
-		     (get-text-property (point) 'debbugs-gnu-status))
-	  (if (equal (cdr (assq 'pending (debbugs-gnu-current-status))) "done")
-	      (kill-region (point) (progn (forward-line 1) (point)))
-	    (forward-line 1)))))))
+  (widget-put debbugs-gnu-current-widget :suppress-done
+	      (not (widget-get debbugs-gnu-current-widget :suppress-done)))
+  (tabulated-list-init-header)
+  (tabulated-list-print))
 
 (defvar debbugs-gnu-bug-number nil)
 
@@ -541,8 +563,7 @@ The following commands are available:
 	   (error "No bug on the current line"))))
 
 (defun debbugs-gnu-current-status ()
-  (get-text-property (line-beginning-position)
-		     'debbugs-gnu-status))
+  (get-text-property (line-beginning-position) 'tabulated-list-id))
 
 (defun debbugs-gnu-display-status (status)
   "Display the status of the report on the current line."

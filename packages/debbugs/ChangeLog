@@ -1,3 +1,22 @@
+2011-07-11  Michael Albinus  <michael.albinus@gmx.de>
+
+	* debbugs-gnu.el (top): Require `tabulated-list'.  Autoload
+	`widget-convert'.
+	(debbugs-gnu-handled, debbugs-gnu-stale): Fix docstring.
+	(debbugs-gnu-get-bugs): Do not sort ids, it is done later anyway.
+	(debbugs-gnu-show-reports): Move inserting of text to ...
+	(debbugs-gnu-print-entry): New defun.
+	(debbugs-gnu-mode-map): Set parent map to `tabulated-list-mode-map'.
+	(debbugs-gnu-mode): Derive from `tabulated-list-mode'.  Initialize
+	`tabulated-list-*' objects.
+	(debbugs-gnu-sort-id, debbugs-gnu-sort-state)
+	(debbugs-gnu-sort-title): New defuns.  Sort functions for
+	respective columns.
+	(debbugs-gnu-toggle-sort): Use `tabulated-list' functions.
+	(debbugs-gnu-toggle-suppress-done): Renamed from
+	`debbugs-gnu-suppress-done'.  Use `tabulated-list' functions.
+	(debbugs-gnu-current-status): Use text property `tabulated-list-id'.
+
 2011-07-10  Lars Magne Ingebrigtsen  <larsi@gnus.org>
 
 	* debbugs-gnu.el (debbugs-gnu-send-control-message): Add
