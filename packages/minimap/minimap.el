@@ -1,4 +1,4 @@
-;;; minimap.el --- Sidebar showing a minimap of the current buffer
+;;; minimap.el --- Sidebar showing a "mini-map" of a buffer
 
 ;; Copyright (C) 2009-2011 Free Software Foundation, Inc.
 
