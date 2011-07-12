@@ -41,13 +41,15 @@
 ;; It asks for the severities, for which bugs shall be shown. This can
 ;; be either just one severity, or a list of severities, separated by
 ;; comma.  Valid severities are "important", "normal", "minor" or
-;; "wishlist".  There is also the pseudo severity "tagged", which
-;; selects locally tagged bugs.
+;; "wishlist".  If no severity is given, all bugs are selected.
 
-;; If a prefix is given, more search parameters are asked for, like
-;; packages (also a comma separated list, "emacs" is the default),
-;; whether archived bugs shall be shown, and whether closed bugs shall
-;; be shown.
+;; There is also the pseudo severity "tagged", which selects locally
+;; tagged bugs.
+
+;; If a prefix is given to the command, more search parameters are
+;; asked for, like packages (also a comma separated list, "emacs" is
+;; the default), whether archived bugs shall be shown, and whether
+;; closed bugs shall be shown.
 
 ;; The bug reports are downloaded from the bug tracker.  In order to
 ;; not generate too much load of the server, up to 500 bugs will be
@@ -265,17 +267,17 @@
 (defun debbugs-gnu-get-bugs ()
   "Retrieve bugs numbers from debbugs.gnu.org according search criteria."
   (let ((debbugs-port "gnu.org")
-	ids)
-    (dolist (severity debbugs-gnu-current-severities ids)
+	args ids)
+    (dolist (severity debbugs-gnu-current-severities (sort ids '<))
       (if (string-equal severity "tagged")
 	  (setq ids (nconc ids (copy-sequence debbugs-gnu-local-tags)))
 	(dolist (package debbugs-gnu-current-packages)
-	  (setq ids
-		(nconc ids
-		       (debbugs-get-bugs
-			:package package
-			:severity severity
-			:archive debbugs-gnu-current-archive))))))))
+	  (setq args `(:archive ,debbugs-gnu-current-archive))
+	  (when (not (zerop (length severity)))
+	    (setq args (append args `(:severity ,severity))))
+	  (when (not (zerop (length package)))
+	    (setq args (append args `(:package ,package))))
+	  (setq ids (nconc ids (apply 'debbugs-get-bugs args))))))))
 
 (defvar debbugs-gnu-current-widget nil)
 
@@ -288,6 +290,7 @@
   (let ((inhibit-read-only t)
 	(debbugs-port "gnu.org"))
 
+    (erase-buffer)
     (set (make-local-variable 'debbugs-gnu-current-widget)
 	 widget)
 
@@ -365,6 +368,7 @@
 		'debbugs-gnu-tagged
 	      'default))))
 	 'append)))
+    (tabulated-list-init-header)
     (tabulated-list-print)
 
     (set-buffer-modified-p nil)
@@ -487,7 +491,6 @@ The following commands are available:
 			       ("Title"     10 debbugs-gnu-sort-title)])
   (setq tabulated-list-sort-key (cons "Id" nil))
   (setq tabulated-list-printer 'debbugs-gnu-print-entry)
-  (tabulated-list-init-header)
   (buffer-disable-undo)
   (setq truncate-lines t)
   (setq buffer-read-only t))
@@ -496,29 +499,51 @@ The following commands are available:
   (< (cdr (assq 'id (car s1)))
      (cdr (assq 'id (car s2)))))
 
-(defvar debbugs-gnu-state-preference
+(defconst debbugs-gnu-state-preference
   '((debbugs-gnu-new . 1)
     (debbugs-gnu-stale . 2)
     (debbugs-gnu-handled . 3)
     (debbugs-gnu-done . 4)))
 
+(defun debbugs-gnu-get-state-preference (face-string)
+  (or (cdr (assq (get-text-property 0 'face face-string)
+		 debbugs-gnu-state-preference))
+      10))
+
+(defconst debbugs-gnu-severity-preference
+  '(("important" . 1)
+    ("normal" . 2)
+    ("minor" . 3)
+    ("wishlist" . 4)))
+
+(defun debbugs-gnu-get-severity-preference (state)
+  (or (cdr (assoc (cdr (assq 'severity state))
+		  debbugs-gnu-severity-preference))
+      10))
+
 (defun debbugs-gnu-sort-state (s1 s2)
   (let ((id1 (cdr (assq 'id (car s1))))
-	(st1 (aref (nth 1 s1) 1))
+	(age1 (debbugs-gnu-get-state-preference (aref (nth 1 s1) 1)))
 	(id2 (cdr (assq 'id (car s2))))
-	(st2 (aref (nth 1 s2) 1)))
-    (< (or (and (memq id1 debbugs-gnu-local-tags)
-		(not (equal debbugs-gnu-current-severities '("tagged")))
-		20)
-	   (cdr (assq (get-text-property 0 'face st1)
-		      debbugs-gnu-state-preference))
-	   10)
-       (or (and (memq id2 debbugs-gnu-local-tags)
-		(not (equal debbugs-gnu-current-severities '("tagged")))
-		20)
-	   (cdr (assq (get-text-property 0 'face st2)
-		      debbugs-gnu-state-preference))
-	   10))))
+	(age2 (debbugs-gnu-get-state-preference (aref (nth 1 s2) 1))))
+    (cond
+     ;; Tagged bugs go to the end.
+     ((and (not (memq id1 debbugs-gnu-local-tags))
+	   (memq id2 debbugs-gnu-local-tags))
+      t)
+     ((and (memq id1 debbugs-gnu-local-tags)
+	   (not (memq id2 debbugs-gnu-local-tags)))
+      nil)
+     ;; Then, we check the age of the bugs.
+     ((< age1 age2)
+      t)
+     ((> age1 age2)
+      nil)
+     ;; If they have the same age, we check for severity.
+     ((< (debbugs-gnu-get-severity-preference (car s1))
+	 (debbugs-gnu-get-severity-preference (car s2)))
+      t)
+     (t nil))))
 
 (defun debbugs-gnu-sort-title (s1 s2)
   (let ((owner (if (cdr (assq 'owner (car s1)))
