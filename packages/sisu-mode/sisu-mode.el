@@ -4,7 +4,7 @@
 
 ;; Author: Ambrose Kofi Laing (& Ralph Amissah)
 ;; Keywords: text, processes, tools
-;; Version: 3.0.3 2011-03-11 (2008-12-14)
+;; Version: 3.0.3
 ;; License: GPLv3
 ;; Home URL: SiSU:   http://www.jus.uio.no/sisu
 ;; originally looked at (based on) doc-mode, with kind permission of the author

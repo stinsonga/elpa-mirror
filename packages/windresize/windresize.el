@@ -7,6 +7,7 @@
 ;; Maintainer: Bastien <bzg AT altern DOT org>
 ;; Keywords: window
 ;; Description: Set window configuration with keystrokes
+;; Version: 0.1
 ;;
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
