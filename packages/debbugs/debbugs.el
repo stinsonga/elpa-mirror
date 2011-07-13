@@ -144,7 +144,7 @@ Example:
       (case key
 	((:package :severity :tag)
 	 ;; Value shall be one word.
-	 (if (string-match "\\`[-A-Za-z]+\\'" val)
+	 (if (string-match "\\`\\S-+\\'" val)
 	     (setq vec (vconcat vec (list val)))
 	   (error "Wrong %s: %s" (substring (symbol-name key) 1) val)))
 	;; Value is an email address.
