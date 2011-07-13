@@ -144,9 +144,9 @@ Example:
       (case key
 	((:package :severity :tag)
 	 ;; Value shall be one word.
-	 (if (string-match "\\`[A-Za-z]+\\'" val)
+	 (if (string-match "\\`[-A-Za-z]+\\'" val)
 	     (setq vec (vconcat vec (list val)))
-	   (error "Wrong %s: %s" (car (last vec)) val)))
+	   (error "Wrong %s: %s" (substring (symbol-name key) 1) val)))
 	;; Value is an email address.
 	((:owner :submitter)
 	 (if (string-match "\\`\\S-+\\'" val)
@@ -156,13 +156,13 @@ Example:
 	       (when (string-match "<\\(.+\\)>" val)
 		 (setq val (match-string 1 val)))
 	       (setq vec (vconcat vec (list val))))
-	   (error "Wrong %s: %s" (car (last vec)) val)))
+	   (error "Wrong %s: %s" (substring (symbol-name key) 1) val)))
 	(:archive
 	 ;; Value is `0' or `1' or `both'.
 	 (if (string-match "\\`\\(0\\|1\\|both\\)\\'" val)
 	     (setq vec (vconcat vec (list val)))
-	   (error "Wrong %s: %s" (car (last vec)) val)))
-	(t (error "Unknown key: %s" (car (last vec))))))
+	   (error "Wrong %s: %s" (substring (symbol-name key) 1) val)))
+	(t (error "Unknown key: %s" (substring (symbol-name key) 1)))))
 
     (unless (null query)
       (error "Unknown key: %s" (car query)))
