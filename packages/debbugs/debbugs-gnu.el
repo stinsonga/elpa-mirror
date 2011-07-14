@@ -591,6 +591,7 @@ The following commands are available:
   (tabulated-list-print))
 
 (defvar debbugs-gnu-bug-number nil)
+(defvar debbugs-gnu-subject nil)
 
 (defun debbugs-gnu-current-id (&optional noerror)
   (or (cdr (assq 'id (debbugs-gnu-current-status)))
@@ -622,8 +623,10 @@ The following commands are available:
      (cons (current-buffer)
 	   (current-window-configuration)))
     (with-current-buffer (window-buffer (selected-window))
-      (debbugs-gnu-summary-mode 1)
-      (set (make-local-variable 'debbugs-gnu-bug-number) id))))
+      (set (make-local-variable 'debbugs-gnu-bug-number) id)
+      (set (make-local-variable 'debbugs-gnu-subject)
+	   (format "Re: bug#%d %s" id (cdr (assq 'subject status))))
+      (debbugs-gnu-summary-mode 1))))
 
 (defvar debbugs-gnu-summary-mode-map
   (let ((map (make-sparse-keymap)))
@@ -638,7 +641,7 @@ The following commands are available:
 \\{debbugs-gnu-summary-mode-map}"
   :lighter " Debbugs" :keymap debbugs-gnu-summary-mode-map
   (set (make-local-variable 'gnus-posting-styles)
-       '((".*"
+       `((".*"
 	  (eval
 	   (with-current-buffer gnus-article-copy
 	     (set (make-local-variable 'message-prune-recipient-rules)
@@ -652,7 +655,10 @@ The following commands are available:
 			(let ((new (format "%s@debbugs.gnu.org"
 					   (match-string 1 (car address)))))
 			  (cons new new))
-		      address)))))))))
+		      address)))
+	     ;; `gnus-posting-styles' is eval'ed after
+	     ;; `message-simplify-subject'.  So we cannot use m-s-s.
+	     (setq subject ,debbugs-gnu-subject)))))))
 
 (defun debbugs-gnu-send-control-message (message &optional reverse)
   "Send a control message for the current bug report.
