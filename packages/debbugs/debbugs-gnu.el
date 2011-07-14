@@ -676,7 +676,8 @@ removed instead."
 	    "unarchive" "reopen" "close"
 	    "merge" "forcemerge"
 	    "owner" "noowner"
-	    "patch" "wontfix" "moreinfo" "unreproducible" "fixed" "notabug")
+	    "patch" "wontfix" "moreinfo" "unreproducible" "fixed" "notabug"
+	    "pending" "help" "security" "confirmed")
 	  nil t)
 	 current-prefix-arg))
   (let* ((id (or debbugs-gnu-bug-number	; Set on group entry.

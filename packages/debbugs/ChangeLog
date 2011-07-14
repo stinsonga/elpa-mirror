@@ -1,3 +1,8 @@
+2011-07-14  Lars Magne Ingebrigtsen  <larsi@gnus.org>
+
+	* debbugs-gnu.el (debbugs-gnu-send-control-message): Add "pending"
+	etc.
+
 2011-07-14  Michael Albinus  <michael.albinus@gmx.de>
 
 	* debbugs-gnu.el (debbugs-gnu-subject): New defvar.
