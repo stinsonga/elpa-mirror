@@ -137,6 +137,9 @@
 (defface debbugs-gnu-handled '((t (:foreground "ForestGreen")))
   "Face for reports that have been modified recently.")
 
+(defface debbugs-gnu-pending '((t (:foreground "MidnightBlue")))
+  "Face for reports that have been modified recently.")
+
 (defface debbugs-gnu-stale '((t (:foreground "orange")))
   "Face for reports that have not been touched for a week.")
 
@@ -340,6 +343,8 @@
 	    (cond
 	     ((equal (cdr (assq 'pending status)) "done")
 	      'debbugs-gnu-done)
+	     ((member "pending" (cdr (assq 'keywords status)))
+	      'debbugs-gnu-pending)
 	     ((= (cdr (assq 'date status))
 		 (cdr (assq 'log_modified status)))
 	      'debbugs-gnu-new)
@@ -503,7 +508,8 @@ The following commands are available:
   '((debbugs-gnu-new . 1)
     (debbugs-gnu-stale . 2)
     (debbugs-gnu-handled . 3)
-    (debbugs-gnu-done . 4)))
+    (debbugs-gnu-done . 4)
+    (debbugs-gnu-pending . 5)))
 
 (defun debbugs-gnu-get-state-preference (face-string)
   (or (cdr (assq (get-text-property 0 'face face-string)

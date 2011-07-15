@@ -1,3 +1,8 @@
+2011-07-15  Lars Magne Ingebrigtsen  <larsi@gnus.org>
+
+	* debbugs-gnu.el (debbugs-gnu-pending): New face.
+	(debbugs-gnu-state-preference): Sort pending towards the end.
+
 2011-07-14  Lars Magne Ingebrigtsen  <larsi@gnus.org>
 
 	* debbugs-gnu.el (debbugs-gnu-send-control-message): Add "pending"
