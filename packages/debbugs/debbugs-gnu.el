@@ -40,8 +40,10 @@
 
 ;; It asks for the severities, for which bugs shall be shown. This can
 ;; be either just one severity, or a list of severities, separated by
-;; comma.  Valid severities are "important", "normal", "minor" or
-;; "wishlist".  If no severity is given, all bugs are selected.
+;; comma.  Valid severities are "serious", "important", "normal",
+;; "minor" or "wishlist".  Severities "critical" and "grave" are not
+;; used, although configured on the GNU bug tracker.  If no severity
+;; is given, all bugs are selected.
 
 ;; There is also the pseudo severity "tagged", which selects locally
 ;; tagged bugs.
@@ -108,7 +110,8 @@
   "*The list severities bugs are searched for.
 \"tagged\" is not a severity but marks locally tagged bugs."
   :group 'debbugs-gnu
-  :type '(set (const "important")
+  :type '(set (const "serious")
+	      (const "important")
 	      (const "normal")
 	      (const "minor")
 	      (const "wishlist")
@@ -517,10 +520,11 @@ The following commands are available:
       10))
 
 (defconst debbugs-gnu-severity-preference
-  '(("important" . 1)
-    ("normal" . 2)
-    ("minor" . 3)
-    ("wishlist" . 4)))
+  '(("serious" . 1)
+    ("important" . 2)
+    ("normal" . 3)
+    ("minor" . 4)
+    ("wishlist" . 5)))
 
 (defun debbugs-gnu-get-severity-preference (state)
   (or (cdr (assoc (cdr (assq 'severity state))
@@ -631,7 +635,7 @@ The following commands are available:
     (with-current-buffer (window-buffer (selected-window))
       (set (make-local-variable 'debbugs-gnu-bug-number) id)
       (set (make-local-variable 'debbugs-gnu-subject)
-	   (format "Re: bug#%d %s" id (cdr (assq 'subject status))))
+	   (format "Re: bug#%d: %s" id (cdr (assq 'subject status))))
       (debbugs-gnu-summary-mode 1))))
 
 (defvar debbugs-gnu-summary-mode-map
@@ -677,7 +681,7 @@ removed instead."
   (interactive
    (list (completing-read
 	  "Control message: "
-	  '("important" "normal" "minor" "wishlist"
+	  '("serious" "important" "normal" "minor" "wishlist"
 	    "done" "donenotabug" "donewontfix" "doneunreproducible"
 	    "unarchive" "reopen" "close"
 	    "merge" "forcemerge"
@@ -726,7 +730,8 @@ removed instead."
 	       ((member message '("donenotabug" "donewontfix"
 				  "doneunreproducible"))
 		(format "tags %d %s\nclose %d\n" id (substring message 4) id))
-	       ((member message '("important" "normal" "minor" "wishlist"))
+	       ((member message '("serious" "important" "normal"
+				  "minor" "wishlist"))
 		(format "severity %d %s\n" id message))
 	       (t
 		(format "tags %d%s %s\n"
@@ -737,9 +742,5 @@ removed instead."
 (provide 'debbugs-gnu)
 
 ;;; TODO:
-
-;; * Widget-oriented bug overview like webDDTs.
-;; * Actions on bugs.
-;; * Integration into gnus (nnir).
 
 ;;; debbugs-gnu.el ends here

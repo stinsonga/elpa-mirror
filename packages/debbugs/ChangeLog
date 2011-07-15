@@ -1,3 +1,10 @@
+2011-07-15  Michael Albinus  <michael.albinus@gmx.de>
+
+	* debbugs-gnu.el (debbugs-gnu-default-severities)
+	(debbugs-gnu-severity-preference)
+	(debbugs-gnu-send-control-message): Add "serious".
+	(debbugs-gnu-select-report): Add ":" in reply subject.
+
 2011-07-15  Lars Magne Ingebrigtsen  <larsi@gnus.org>
 
 	* debbugs-gnu.el (debbugs-gnu-pending): New face.
