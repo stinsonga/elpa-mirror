@@ -1,3 +1,7 @@
+2011-07-16  Lars Magne Ingebrigtsen  <larsi@gnus.org>
+
+	* debbugs-gnu.el (debbugs-gnu-send-control-message): Add "invalid".
+
 2011-07-15  Michael Albinus  <michael.albinus@gmx.de>
 
 	* debbugs-gnu.el (debbugs-gnu-default-severities)

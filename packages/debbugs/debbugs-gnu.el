@@ -686,6 +686,7 @@ removed instead."
 	    "unarchive" "reopen" "close"
 	    "merge" "forcemerge"
 	    "owner" "noowner"
+	    "invalid"
 	    "patch" "wontfix" "moreinfo" "unreproducible" "fixed" "notabug"
 	    "pending" "help" "security" "confirmed")
 	  nil t)
@@ -733,6 +734,9 @@ removed instead."
 	       ((member message '("serious" "important" "normal"
 				  "minor" "wishlist"))
 		(format "severity %d %s\n" id message))
+	       ((equal message "invalid")
+		(format "tags %d notabug\ntags %d wontfix\nclose %d\n"
+			id id id))
 	       (t
 		(format "tags %d%s %s\n"
 			id (if reverse " -" "")
