@@ -321,6 +321,9 @@
 	(unless (equal (cdr (assq 'pending status)) "pending")
 	  (setq words
 		(concat words "," (cdr (assq 'pending status)))))
+	(let ((packages (delete "emacs" (cdr (assq 'package status)))))
+	  (when packages
+	    (setq words (concat words "," (mapconcat 'identity packages ",")))))
 	(when (setq merged (cdr (assq 'mergedwith status)))
 	  (setq words (format "%s,%s"
 			      (if (numberp merged)

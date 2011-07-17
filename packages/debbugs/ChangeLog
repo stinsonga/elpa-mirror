@@ -1,3 +1,8 @@
+2011-07-17  Lars Magne Ingebrigtsen  <larsi@gnus.org>
+
+	* debbugs-gnu.el (debbugs-gnu-show-reports): Add packages to the
+	status bar.
+
 2011-07-16  Lars Magne Ingebrigtsen  <larsi@gnus.org>
 
 	* debbugs-gnu.el (debbugs-gnu-send-control-message): Add "invalid".
