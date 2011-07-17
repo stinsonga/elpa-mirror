@@ -1,3 +1,7 @@
+2011-07-17  Evgeny M. Zubok <zoubok@mail.ru>
+
+	* debbugs.texi: New file.
+
 2011-07-17  Michael Albinus  <michael.albinus@gmx.de>
 
 	* debbugs-gnu.el (debbugs-gnu-get-bugs): It is sufficient to have
@@ -248,6 +252,7 @@
 	(debbugs-done, debbugs-emacs, debbugs-mode-map, debbugs-mode)
 	(debbugs-select-report, debbugs-summary-mode-map)
 	(debbugs-summary-mode, debbugs-send-control-message): Move to ...
+
 	* debbugs-gnu.el: New file.
 
 2011-07-02  Lars Magne Ingebrigtsen  <larsi@gnus.org>
