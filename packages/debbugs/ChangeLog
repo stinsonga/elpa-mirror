@@ -1,3 +1,9 @@
+2011-07-17  Evgeny M. Zubok <zoubok@mail.ru>
+
+	* debbugs.el (debbugs-get-bugs): Add search keywords :src :maint
+	:correspondent :affects and :status.  Improvement of docstring,
+	document the new keywords and multiple values for one keyword.
+
 2011-07-17  Lars Magne Ingebrigtsen  <larsi@gnus.org>
 
 	* debbugs-gnu.el (debbugs-gnu-show-reports): Add packages to the

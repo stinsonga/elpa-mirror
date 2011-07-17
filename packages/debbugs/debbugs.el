@@ -98,22 +98,34 @@ This corresponds to the Debbugs server to be accessed, either
 (defun debbugs-get-bugs (&rest query)
   "Return a list of bug numbers which match QUERY.
 
-QUERY is a keyword value sequence, whereby the values are strings.
-All queries are concatenated via AND.
+QUERY is a sequence of keyword-value pairs where the values are
+strings, i. e. :KEYWORD \"VALUE\" [:KEYWORD \"VALUE\"]*
+
+The keyword-value pair is a subquery.  The keywords are allowed to
+have multiple occurrence within the query at any place.  The
+subqueries with the same keyword form the logical subquery, which
+returns the union of bugs of every subquery it contains.
+
+The result of the QUERY is an intersection of results of all
+subqueries.
 
 Valid keywords are:
 
   :package -- The value is the name of the package a bug belongs
   to, like \"emacs\", \"coreutils\", \"gnus\", or \"tramp\".
 
-  :severity -- This is the severity of the bug.  Currently,
-  there exists the severities \"important\", \"grave\",
-  \"normal\", \"minor\" and \"wishlist\".
+  :src -- This is used to retrieve bugs that belong to source
+  with given name.
+
+  :severity -- This is the severity of the bug.  The exact set of
+  allowed values depends on the Debbugs port.  Examples are
+  \"normal\", \"minor\", \"wishlist\" etc.
 
   :tag -- An arbitrary string the bug is annotated with.
   Usually, this is used to mark the status of the bug, like
   \"fixed\", \"moreinfo\", \"notabug\", \"patch\",
-  \"unreproducible\" or \"wontfix\".
+  \"unreproducible\" or \"wontfix\".  The exact set of tags
+  depends on the Debbugs port.
 
   :owner -- This is used to identify bugs by the owner's email
   address.  The special email address \"me\" is used as pattern,
@@ -123,50 +135,78 @@ Valid keywords are:
   by the submitter's email address.  The special email address
   \"me\" is used as pattern, replaced with `user-mail-address'.
 
+  :maint -- This is used to find bugs of the packages which are
+  maintained by the person with the given email address.  The
+  special email address \"me\" is used as pattern, replaced with
+  `user-mail-address'.
+
+  :correspondent -- This allows to find bug reports where the
+  person with the given email address has participated.  The
+  special email address \"me\" is used as pattern, replaced with
+  `user-mail-address'.
+
+  :affects -- With this keyword it is possible to find bugs which
+  affect the package with the given name.  The bugs are chosen by
+  the value of field `affects' in bug's status.  The returned bugs
+  do not necessary belong to this package.
+
+  :status -- Status of bug.  Valid values are \"done\",
+  \"forwarded\" and \"open\".
+
   :archive -- A keyword to filter for bugs which are already
   archived, or not.  Valid values are \"0\" (not archived),
   \"1\" (archived) or \"both\".  If this keyword is not given in
   the query, `:archive \"0\"' is assumed by default.
 
-Example:
+Example.  Get all opened and forwarded release critical bugs for
+the packages which are maintained by \"me\" and which have a
+patch:
 
-  \(debbugs-get-bugs :submitter \"me\" :archive \"both\")
-  => \(5516 5551 5645 7259)"
+  \(debbugs-get-bugs :maint \"me\" :tag \"patch\"
+                     :severity \"critical\"
+                     :status \"open\"
+                     :severity \"grave\"
+                     :status \"forwarded\"
+                     :severity \"serious\"))"
 
-  (let (vec key val)
+  (let (vec kw key val)
     ;; Check query.
     (while (and (consp query) (<= 2 (length query)))
-      (setq key (pop query)
-	    val (pop query)
-	    vec (vconcat vec (list (substring (symbol-name key) 1))))
-      (unless (and (keywordp key) (stringp val))
-	(error "Wrong query: %s %s" key val))
-      (case key
-	((:package :severity :tag)
+      (setq kw (pop query)
+	    val (pop query))
+      (unless (and (keywordp kw) (stringp val))
+	(error "Wrong query: %s %s" kw val))
+      (setq key (substring (symbol-name kw) 1))
+      (case kw
+	((:package :severity :tag :src :affects)
 	 ;; Value shall be one word.
 	 (if (string-match "\\`\\S-+\\'" val)
-	     (setq vec (vconcat vec (list val)))
-	   (error "Wrong %s: %s" (substring (symbol-name key) 1) val)))
-	;; Value is an email address.
-	((:owner :submitter)
+	     (setq vec (vconcat vec (list key val)))
+	   (error "Wrong %s: %s" key val)))
+	((:owner :submitter :maint :correspondent)
+	 ;; Value is an email address.
 	 (if (string-match "\\`\\S-+\\'" val)
 	     (progn
 	       (when (string-equal "me" val)
 		 (setq val user-mail-address))
 	       (when (string-match "<\\(.+\\)>" val)
 		 (setq val (match-string 1 val)))
-	       (setq vec (vconcat vec (list val))))
-	   (error "Wrong %s: %s" (substring (symbol-name key) 1) val)))
+	       (setq vec (vconcat vec (list key val))))
+	   (error "Wrong %s: %s" key val)))
+	(:status
+	 ;; Possible values: "done", "forwarded" and "open"
+	 (if (string-match "\\`\\(done\\|forwarded\\|open\\)\\'" val)
+	     (setq vec (vconcat vec (list key val)))
+	   (error "Wrong %s: %s" key val)))
 	(:archive
 	 ;; Value is `0' or `1' or `both'.
 	 (if (string-match "\\`\\(0\\|1\\|both\\)\\'" val)
-	     (setq vec (vconcat vec (list val)))
-	   (error "Wrong %s: %s" (substring (symbol-name key) 1) val)))
-	(t (error "Unknown key: %s" (substring (symbol-name key) 1)))))
+	     (setq vec (vconcat vec (list key val)))
+	   (error "Wrong %s: %s" key val)))
+	(t (error "Unknown key: %s" kw))))
 
     (unless (null query)
       (error "Unknown key: %s" (car query)))
-
     (sort (car (soap-invoke debbugs-wsdl debbugs-port "get_bugs" vec)) '<)))
 
 (defun debbugs-newest-bugs (amount)
