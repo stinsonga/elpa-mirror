@@ -1,3 +1,8 @@
+2011-07-17  Michael Albinus  <michael.albinus@gmx.de>
+
+	* debbugs-gnu.el (debbugs-gnu-get-bugs): It is sufficient to have
+	just one `debbugs-get-bugs' call.
+
 2011-07-17  Evgeny M. Zubok <zoubok@mail.ru>
 
 	* debbugs.el (debbugs-get-bugs): Add search keywords :src :maint
