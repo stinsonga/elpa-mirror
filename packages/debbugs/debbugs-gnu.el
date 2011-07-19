@@ -53,14 +53,24 @@
 ;; the default), whether archived bugs shall be shown, and whether
 ;; closed bugs shall be shown.
 
+;; Another command is
+;;
+;;   M-x debbugs-gnu-search
+
+;; It behaves like `debbugs-gnu', additionally it asks for key-value
+;; pairs to filter bugs.  Keys are as described in
+;; `debbugs-get-status', the corresponding value must be a regular
+;; expression to match for.  The other parameters are as described
+;; in `debbugs-gnu'.
+
 ;; The bug reports are downloaded from the bug tracker.  In order to
 ;; not generate too much load of the server, up to 500 bugs will be
 ;; downloaded at once.  If there are more hits, you will be asked to
 ;; change this limit, but please don't increase this number too much.
 
 ;; These default values could be changed also by customer options
-;; `debbugs-gnu-default-severities', `debbugs-gnu-default-packages'
-;; and `debbugs-gnu-default-hits-per-page'.
+;; `debbugs-gnu-default-severities', `debbugs-gnu-default-packages',
+;; `debbugs-gnu-default-hits-per-page' and `debbugs-gnu-default-suppress-bugs'.
 
 ;; The command creates one or more pages of bug lists.  Every bug is
 ;; shown in one line, including the bug number, the status (combining
@@ -78,7 +88,7 @@
 ;;   "g": Rescan bugs
 ;;   "q": Quit the buffer
 ;;   "s": Toggle bug sorting for age or for state
-;;   "x": Toggle suppressing of closed bugs
+;;   "x": Toggle suppressing of bugs
 
 ;; When you visit the related bug messages in Gnus, you could also
 ;; send control messages by keystroke "C".
@@ -134,6 +144,16 @@
   :type 'integer
   :version "24.1")
 
+(defcustom debbugs-gnu-default-suppress-bugs
+  '((pending . "done"))
+  "*A list of specs for bugs to be suppressed.
+An element of this list is a cons cell \(KEY . REGEXP\), with key
+being returned by `debbugs-get-status', and VAL a regular
+expression matchin the corresponding value, a string."
+  :group 'debbugs-gnu
+  :type '(alist :key-type symbol :value-type regexp)
+  :version "24.1")
+
 (defface debbugs-gnu-new '((t (:foreground "red")))
   "Face for new reports that nobody has answered.")
 
@@ -141,7 +161,7 @@
   "Face for reports that have been modified recently.")
 
 (defface debbugs-gnu-pending '((t (:foreground "MidnightBlue")))
-  "Face for reports that have been modified recently.")
+  "Face for reports that are pending.")
 
 (defface debbugs-gnu-stale '((t (:foreground "orange")))
   "Face for reports that have not been touched for a week.")
@@ -177,6 +197,9 @@
      (format "(setq debbugs-gnu-local-tags '%S)"
 	     (sort (copy-sequence debbugs-gnu-local-tags) '<)))))
 
+(defvar debbugs-gnu-current-query nil
+  "The query object of the current search.")
+
 (defvar debbugs-gnu-current-severities nil
   "The severities strings to be searched for.")
 
@@ -186,7 +209,27 @@
 (defvar debbugs-gnu-current-archive nil
   "Whether to search in the archive.")
 
-(defun debbugs-gnu (severities &optional packages archivedp suppress-done)
+(defun debbugs-gnu-search
+  (query &optional severities packages archivedp suppress)
+  "Search for Emacs bugs interactively."
+  (interactive
+   (list
+    (let ((continue t)
+	  key val query)
+      (while continue
+	(setq key (read-string "Enter attribute: ")
+	      val (when  (not (zerop (length key)))
+		    (read-regexp "Enter regexp")))
+	(if (and (not (zerop (length key))) (not (zerop (length val))))
+	    (add-to-list 'query (cons (intern key) val))
+	  (setq continue nil)))
+      query)))
+  (setq debbugs-gnu-current-query query)
+  (if (called-interactively-p 'interactive)
+      (call-interactively 'debbugs-gnu)
+    (debbugs-gnu severities packages archivedp suppress)))
+
+(defun debbugs-gnu (severities &optional packages archivedp suppress)
   "List all outstanding Emacs bugs."
   (interactive
    (let (archivedp)
@@ -205,7 +248,7 @@
       (when current-prefix-arg
 	(setq archivedp (y-or-n-p "Show archived bugs?")))
       (when (and current-prefix-arg (not archivedp))
-	(y-or-n-p "Suppress closed bugs?")))))
+	(y-or-n-p "Suppress unwanted bugs?")))))
 
   ;; Initialize variables.
   (when (and (file-exists-p debbugs-gnu-persistency-file)
@@ -253,7 +296,7 @@
 	      :notify (lambda (widget &rest ignore)
 			(debbugs-gnu-show-reports widget))
 	      :keymap debbugs-gnu-widget-map
-	      :suppress-done suppress-done
+	      :suppress suppress
 	      :buffer-name (format "*Emacs Bugs*<%d>" i)
 	      :bug-ids curr-ids
 	      :help-echo (format "%d-%d" (car ids) (car (last curr-ids)))
@@ -266,7 +309,7 @@
       (debbugs-gnu-show-reports
        (widget-convert
 	'const
-	:suppress-done suppress-done
+	:suppress suppress
 	:buffer-name "*Emacs Bugs*"
 	:bug-ids ids)))))
 
@@ -405,18 +448,35 @@ Used instead of `tabulated-list-print-entry'."
       (mapc (lambda (obj) (widget-apply obj :create)) debbugs-gnu-widgets)
       (widget-setup)))
 
-  (when (or (not (widget-get debbugs-gnu-current-widget :suppress-done))
-	    (not (equal (cdr (assq 'pending list-id)) "done")))
-    (let ((beg (point))
-	  (pos 0)
-	  (id               (aref cols 0))
-	  (id-length        (nth 1 (aref tabulated-list-format 0)))
-	  (state            (aref cols 1))
-	  (state-length     (nth 1 (aref tabulated-list-format 1)))
-	  (submitter        (aref cols 2))
-	  (submitter-length (nth 1 (aref tabulated-list-format 2)))
-	  (title            (aref cols 3))
-	  (title-length     (nth 1 (aref tabulated-list-format 3))))
+  (let ((beg (point))
+	(pos 0)
+	(case-fold-search t)
+	(id               (aref cols 0))
+	(id-length        (nth 1 (aref tabulated-list-format 0)))
+	(state            (aref cols 1))
+	(state-length     (nth 1 (aref tabulated-list-format 1)))
+	(submitter        (aref cols 2))
+	(submitter-length (nth 1 (aref tabulated-list-format 2)))
+	(title            (aref cols 3))
+	(title-length     (nth 1 (aref tabulated-list-format 3))))
+    (when (and
+	   ;; Filter suppressed bugs.
+	   (or (not (widget-get debbugs-gnu-current-widget :suppress))
+	       (not (catch :suppress
+		      (dolist (check debbugs-gnu-default-suppress-bugs)
+			(when
+			    (string-match
+			     (cdr check)
+			     (or (cdr (assq (car check) list-id)) ""))
+			  (throw :suppress t))))))
+	   ;; Filter search list.
+	   (not (catch :suppress
+		  (dolist (check debbugs-gnu-current-query)
+		    (when (not
+			   (string-match
+			    (cdr check)
+			    (or (cdr (assq (car check) list-id)) "")))
+		      (throw :suppress t))))))
       ;; Insert id.
       (indent-to (- id-length (length id)))
       (insert id)
@@ -453,7 +513,7 @@ Used instead of `tabulated-list-print-entry'."
     (define-key map "t" 'debbugs-gnu-toggle-tag)
     (define-key map "d" 'debbugs-gnu-display-status)
     (define-key map "g" 'debbugs-gnu-rescan)
-    (define-key map "x" 'debbugs-gnu-toggle-suppress-done)
+    (define-key map "x" 'debbugs-gnu-toggle-suppress)
     (define-key map "C" 'debbugs-gnu-send-control-message)
     map))
 
@@ -594,11 +654,11 @@ The following commands are available:
 	 'face 'debbugs-gnu-tagged))))
   (debbugs-gnu-dump-persistency-file))
 
-(defun debbugs-gnu-toggle-suppress-done ()
-  "Suppress bugs marked as done."
+(defun debbugs-gnu-toggle-suppress ()
+  "Suppress bugs marked in `debbugs-gnu-suppress-bugs'."
   (interactive)
-  (widget-put debbugs-gnu-current-widget :suppress-done
-	      (not (widget-get debbugs-gnu-current-widget :suppress-done)))
+  (widget-put debbugs-gnu-current-widget :suppress
+	      (not (widget-get debbugs-gnu-current-widget :suppress)))
   (tabulated-list-init-header)
   (tabulated-list-print))
 

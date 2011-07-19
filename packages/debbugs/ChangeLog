@@ -1,3 +1,17 @@
+2011-07-19  Michael Albinus  <michael.albinus@gmx.de>
+
+	* debbugs-gnu.el (debbugs-gnu-default-suppress-bugs): New customer
+	option.
+	(debbugs-gnu-pending): Fix docstring.
+	(debbugs-gnu-current-query): New defvar.
+	(debbugs-gnu-search): New command.
+	(debbugs-gnu): Rename SUPPRESS-DONE to SUPPRESS.  Fix interactive
+	query.
+	(debbugs-gnu-print-entry): Filter according to
+	`debbugs-gnu-default-suppress-bugs' and `debbugs-gnu-current-query'.
+	(debbugs-gnu-toggle-suppress): Renamed from
+	`debbugs-gnu-toggle-suppress-done'.
+
 2011-07-17  Evgeny M. Zubok <zoubok@mail.ru>
 
 	* debbugs.texi: New file.
