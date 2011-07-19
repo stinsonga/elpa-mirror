@@ -337,7 +337,6 @@ expression matchin the corresponding value, a string."
   (debbugs-gnu-mode)
   (let ((inhibit-read-only t)
 	(debbugs-port "gnu.org"))
-
     (erase-buffer)
     (set (make-local-variable 'debbugs-gnu-current-widget)
 	 widget)
@@ -732,6 +731,17 @@ The following commands are available:
 	     ;; `message-simplify-subject'.  So we cannot use m-s-s.
 	     (setq subject ,debbugs-gnu-subject)))))))
 
+(defun debbugs-guess-current-id ()
+  "Guess the ID based on \"#23\"."
+  (save-excursion
+    (beginning-of-line)
+    (and
+     (or (re-search-forward "#\\([0-9]+\\)" (line-end-position) t)
+	 (progn
+	   (goto-char (point-min))
+	   (re-search-forward "#\\([0-9]+\\)" nil t)))
+     (string-to-number (match-string 1)))))
+
 (defun debbugs-gnu-send-control-message (message &optional reverse)
   "Send a control message for the current bug report.
 You can set the severity or add a tag, or close the report.  If
@@ -754,6 +764,7 @@ removed instead."
 	  nil t)
 	 current-prefix-arg))
   (let* ((id (or debbugs-gnu-bug-number	; Set on group entry.
+		 (debbugs-guess-current-id)
 		 (debbugs-gnu-current-id)))
 	 (version
 	  (when (member message '("close" "done"))
