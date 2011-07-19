@@ -714,22 +714,24 @@ The following commands are available:
   (set (make-local-variable 'gnus-posting-styles)
        `((".*"
 	  (eval
-	   (with-current-buffer gnus-article-copy
-	     (set (make-local-variable 'message-prune-recipient-rules)
-		  '((".*@debbugs.*" "emacs-pretest-bug")
-		    (".*@debbugs.*" "bug-gnu-emacs")
-		    ("[0-9]+@debbugs.*" "submit@debbugs.gnu.org")
-		    ("[0-9]+@debbugs.*" "quiet@debbugs.gnu.org")))
-	     (set (make-local-variable 'message-alter-recipients-function)
-		  (lambda (address)
-		    (if (string-match "\\([0-9]+\\)@donarmstrong" (car address))
-			(let ((new (format "%s@debbugs.gnu.org"
-					   (match-string 1 (car address)))))
-			  (cons new new))
-		      address)))
-	     ;; `gnus-posting-styles' is eval'ed after
-	     ;; `message-simplify-subject'.  So we cannot use m-s-s.
-	     (setq subject ,debbugs-gnu-subject)))))))
+	   (when (buffer-live-p gnus-article-copy)
+	     (with-current-buffer gnus-article-copy
+	       (set (make-local-variable 'message-prune-recipient-rules)
+		    '((".*@debbugs.*" "emacs-pretest-bug")
+		      (".*@debbugs.*" "bug-gnu-emacs")
+		      ("[0-9]+@debbugs.*" "submit@debbugs.gnu.org")
+		      ("[0-9]+@debbugs.*" "quiet@debbugs.gnu.org")))
+	       (set (make-local-variable 'message-alter-recipients-function)
+		    (lambda (address)
+		      (if (string-match "\\([0-9]+\\)@donarmstrong"
+					(car address))
+			  (let ((new (format "%s@debbugs.gnu.org"
+					     (match-string 1 (car address)))))
+			    (cons new new))
+			address)))
+	       ;; `gnus-posting-styles' is eval'ed after
+	       ;; `message-simplify-subject'.  So we cannot use m-s-s.
+	       (setq subject ,debbugs-gnu-subject))))))))
 
 (defun debbugs-guess-current-id ()
   "Guess the ID based on \"#23\"."

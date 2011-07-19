@@ -2,6 +2,7 @@
 
 	* debbugs-gnu.el (debbugs-guess-current-id): New function.
 	(debbugs-gnu-send-control-message): Use it.
+	(debbugs-gnu-summary-mode): Make sure `gnus-article-copy' is alive.
 
 2011-07-19  Michael Albinus  <michael.albinus@gmx.de>
 
