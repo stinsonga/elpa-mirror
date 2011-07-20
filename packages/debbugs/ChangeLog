@@ -1,3 +1,8 @@
+2011-07-20  Michael Albinus  <michael.albinus@gmx.de>
+
+	* debbugs.texi (top): Add a title page.
+	(all): Correct some typos.
+
 2011-07-19  Lars Magne Ingebrigtsen  <larsi@gnus.org>
 
 	* debbugs-gnu.el (debbugs-guess-current-id): New function.
