@@ -1,5 +1,9 @@
 2011-07-20  Michael Albinus  <michael.albinus@gmx.de>
 
+	* debbugs-gnu.el (debbugs-gnu-get-bugs): If
+	`debbugs-gnu-current-severities' contains only the pseudo-severity
+	"tagged", return just the local tagged bugs.
+
 	* debbugs.texi (top): Add a title page.
 	(all): Correct some typos.
 

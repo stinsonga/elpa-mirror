@@ -317,15 +317,26 @@ expression matchin the corresponding value, a string."
   "Retrieve bugs numbers from debbugs.gnu.org according search criteria."
   (let ((debbugs-port "gnu.org")
 	(args `(:archive ,debbugs-gnu-current-archive))
-	(ids (when (member "tagged" debbugs-gnu-current-severities)
-	       (copy-sequence debbugs-gnu-local-tags))))
-    (dolist (severity (delete "tagged" debbugs-gnu-current-severities))
-      (when (not (zerop (length severity)))
-	(setq args (append args `(:severity ,severity)))))
-    (dolist (package debbugs-gnu-current-packages)
-      (when (not (zerop (length package)))
-	(setq args (append args `(:package ,package)))))
-    (sort (nconc ids (apply 'debbugs-get-bugs args)) '<)))
+	(tagged (when (member "tagged" debbugs-gnu-current-severities)
+		  (copy-sequence debbugs-gnu-local-tags)))
+	(severities
+	 (delete "tagged" (copy-sequence debbugs-gnu-current-severities)))
+	ids)
+    (if (null severities)
+	;; If `debbugs-gnu-current-severities' contains only the
+	;; pseudo-severity "tagged", we return just the local tagged
+	;; bugs.
+	(sort tagged '<)
+      ;; Otherwise, we retrieve the bugs from the server.
+      (dolist (severity severities)
+	(when (not (zerop (length severity)))
+	  (setq args (append args `(:severity ,severity)))))
+      (dolist (package debbugs-gnu-current-packages)
+	(when (not (zerop (length package)))
+	  (setq args (append args `(:package ,package)))))
+      (setq ids (apply 'debbugs-get-bugs args))
+      (dolist (id tagged (sort ids '<))
+	(add-to-list 'ids id)))))
 
 (defvar debbugs-gnu-current-widget nil)
 
