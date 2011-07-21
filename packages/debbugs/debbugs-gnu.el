@@ -224,10 +224,10 @@ expression matchin the corresponding value, a string."
 	    (add-to-list 'query (cons (intern key) val))
 	  (setq continue nil)))
       query)))
-  (setq debbugs-gnu-current-query query)
-  (if (called-interactively-p 'interactive)
-      (call-interactively 'debbugs-gnu)
-    (debbugs-gnu severities packages archivedp suppress)))
+  (let ((debbugs-gnu-current-query query))
+    (if (called-interactively-p 'interactive)
+	(call-interactively 'debbugs-gnu)
+      (debbugs-gnu severities packages archivedp suppress))))
 
 (defun debbugs-gnu (severities &optional packages archivedp suppress)
   "List all outstanding Emacs bugs."
@@ -299,6 +299,7 @@ expression matchin the corresponding value, a string."
 	      :suppress suppress
 	      :buffer-name (format "*Emacs Bugs*<%d>" i)
 	      :bug-ids curr-ids
+	      :query debbugs-gnu-current-query
 	      :help-echo (format "%d-%d" (car ids) (car (last curr-ids)))
 	      :format " %[%v%]"
 	      (number-to-string i))
@@ -311,7 +312,8 @@ expression matchin the corresponding value, a string."
 	'const
 	:suppress suppress
 	:buffer-name "*Emacs Bugs*"
-	:bug-ids ids)))))
+	:bug-ids ids
+	:query debbugs-gnu-current-query)))))
 
 (defun debbugs-gnu-get-bugs ()
   "Retrieve bugs numbers from debbugs.gnu.org according search criteria."
@@ -481,7 +483,7 @@ Used instead of `tabulated-list-print-entry'."
 			  (throw :suppress t))))))
 	   ;; Filter search list.
 	   (not (catch :suppress
-		  (dolist (check debbugs-gnu-current-query)
+		  (dolist (check (widget-get debbugs-gnu-current-widget :query))
 		    (when (not
 			   (string-match
 			    (cdr check)
@@ -744,7 +746,7 @@ The following commands are available:
 	       ;; `message-simplify-subject'.  So we cannot use m-s-s.
 	       (setq subject ,debbugs-gnu-subject))))))))
 
-(defun debbugs-guess-current-id ()
+(defun debbugs-gnu-guess-current-id ()
   "Guess the ID based on \"#23\"."
   (save-excursion
     (beginning-of-line)
@@ -777,7 +779,7 @@ removed instead."
 	  nil t)
 	 current-prefix-arg))
   (let* ((id (or debbugs-gnu-bug-number	; Set on group entry.
-		 (debbugs-guess-current-id)
+		 (debbugs-gnu-guess-current-id)
 		 (debbugs-gnu-current-id)))
 	 (version
 	  (when (member message '("close" "done"))

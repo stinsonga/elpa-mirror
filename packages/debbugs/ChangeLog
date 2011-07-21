@@ -1,3 +1,12 @@
+2011-07-21  Michael Albinus  <michael.albinus@gmx.de>
+
+	* debbugs-gnu.el (debbugs-gnu-search): Let-bind
+	`debbugs-gnu-current-query'.
+	(debbugs-gnu): Add attribute :query to the widgets.
+	(debbugs-gnu-print-entry): Get query from `debbugs-gnu-current-widget'.
+	(debbugs-gnu-guess-current-id): Rename from `debbugs-guess-current-id'.
+	(debbugs-gnu-send-control-message): Use it.
+
 2011-07-20  Michael Albinus  <michael.albinus@gmx.de>
 
 	* debbugs-gnu.el (debbugs-gnu-get-bugs): If
