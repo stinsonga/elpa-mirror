@@ -208,7 +208,7 @@ It has the same format as `debbugs-gnu-default-suppress-bugs'.")
 It will be applied client-side, when parsing the results of
 `debbugs-get-status'.  It has a similar format as
 `debbugs-gnu-default-suppress-bugs'.  In case of keys representing
-a date, there are entries \(KEY FUNCTION . DATE\).")
+a date, value is the cons cell \(BEFORE . AFTER\).")
 
 (defun debbugs-gnu-calendar-read (prompt acceptable &optional initial-contents)
   "Return a string read from the minibuffer.
@@ -225,7 +225,7 @@ Key-value pairs are requested interactively.  If a key cannot be
 queried by a SOAP request, it is marked as \"client-side filter\"."
   (interactive)
   (let ((date-format "\\([[:digit:]]\\{4\\}\\)-\\([[:digit:]]\\{1,2\\}\\)-\\([[:digit:]]\\{1,2\\}\\)")
-	key val severities packages archivedp)
+	key val1 val2 severities packages archivedp)
     (catch :finished
       (while t
 	(setq key (completing-read
@@ -261,56 +261,53 @@ queried by a SOAP request, it is marked as \"client-side filter\"."
 	  (setq archivedp t))
 
 	 ((member key '("src" "tag"))
-	  (setq val (read-string (format "Enter %s: " key)))
-	  (when (not (zerop (length val)))
-	    (add-to-list 'debbugs-gnu-current-query (cons (intern key) val))))
+	  (setq val1 (read-string (format "Enter %s: " key)))
+	  (when (not (zerop (length val1)))
+	    (add-to-list 'debbugs-gnu-current-query (cons (intern key) val1))))
 
 	 ((member key '("owner" "submitter" "maint" "correspondent"))
-	  (setq val (read-string "Enter email address: "))
-	  (when (not (zerop (length val)))
-	    (add-to-list 'debbugs-gnu-current-query (cons (intern key) val))))
+	  (setq val1 (read-string "Enter email address: "))
+	  (when (not (zerop (length val1)))
+	    (add-to-list 'debbugs-gnu-current-query (cons (intern key) val1))))
 
 	 ;; Client-side filters.
 	 ((member key '("date" "log_modified" "last_modified"
 			"found_date" "fixed_date" "unarchived"))
-	  (setq val
+	  (setq val1
 		(debbugs-gnu-calendar-read
 		 (format "Enter %s before YYYY-MM-DD (client-side filter): "
 			 key)
 		 (lambda (x)
 		   (string-match (concat "^\\(" date-format "\\|\\)$") x))))
-	  (when (string-match date-format val)
-	    (add-to-list
-	     'debbugs-gnu-current-filter
-	     (cons (intern key)
-		   (cons '>
-			 (float-time
+	  (if (string-match date-format val1)
+	      (setq val1 (float-time
 			  (encode-time
 			   0 0 0
-			   (string-to-number (match-string 3 val))
-			   (string-to-number (match-string 2 val))
-			   (string-to-number (match-string 1 val))))))))
-	  (setq val
+			   (string-to-number (match-string 3 val1))
+			   (string-to-number (match-string 2 val1))
+			   (string-to-number (match-string 1 val1)))))
+	    (setq val1 nil))
+	  (setq val2
 		(debbugs-gnu-calendar-read
 		 (format "Enter %s after YYYY-MM-DD (client-side filter): " key)
 		 (lambda (x)
 		   (string-match (concat "^\\(" date-format "\\|\\)$") x))))
-	  (when (string-match date-format val)
-	    (add-to-list
-	     'debbugs-gnu-current-filter
-	     (cons (intern key)
-		   (cons '<
-			 (float-time
+	  (if (string-match date-format val2)
+	      (setq val2 (float-time
 			  (encode-time
 			   0 0 0
-			   (string-to-number (match-string 3 val))
-			   (string-to-number (match-string 2 val))
-			   (string-to-number (match-string 1 val)))))))))
+			   (string-to-number (match-string 3 val2))
+			   (string-to-number (match-string 2 val2))
+			   (string-to-number (match-string 1 val2)))))
+	    (setq val2 nil))
+	  (when (or val1 val2)
+	    (add-to-list
+	     'debbugs-gnu-current-filter (cons (intern key) (cons val1 val2)))))
 
 	 ((not (zerop (length key)))
-	  (setq val (read-regexp "Enter regexp (client-side filter)"))
-	  (when (not (zerop (length val)))
-	    (add-to-list 'debbugs-gnu-current-filter (cons (intern key) val))))
+	  (setq val1 (read-regexp "Enter regexp (client-side filter)"))
+	  (when (not (zerop (length val1)))
+	    (add-to-list 'debbugs-gnu-current-filter (cons (intern key) val1))))
 
 	 ;; The End.
 	 (t (throw :finished nil)))))
@@ -579,18 +576,17 @@ Used instead of `tabulated-list-print-entry'."
 	   (not (catch :suppress
 		  (dolist (check
 			   (widget-get debbugs-gnu-current-widget :filter))
-		    ;; Regular expression.
-		    (if (stringp (cdr check))
-			(when (not
-			       (string-match
-				(cdr check)
-				(or (cdr (assq (car check) list-id)) "")))
-			  (throw :suppress t)))
-		    ;; Time value.
-		    (when (and (numberp (cdr (assq (car check) list-id)))
-			       (funcall (cadr check) (cddr check)
-					(cdr (assq (car check) list-id))))
-		      (throw :suppress t))))))
+		    (let ((val (cdr (assq (car check) list-id))))
+		      (if (stringp (cdr check))
+			  ;; Regular expression.
+			  (when (not (string-match (cdr check) (or val "")))
+			    (throw :suppress t))
+			;; Time value.
+			(when (or (and (numberp (cadr check))
+				       (< (cadr check) val))
+				  (and (numberp (cddr check))
+				       (> (cddr check) val)))
+			  (throw :suppress t))))))))
 
       ;; Insert id.
       (indent-to (- id-length (length id)))
