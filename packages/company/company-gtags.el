@@ -1,6 +1,6 @@
-;;; company-gtags.el --- a company-mode completion back-end for GNU Global
+;;; company-gtags.el --- A company-mode completion back-end for GNU Global
 
-;; Copyright (C) 2009, 2010 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2011  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 
@@ -19,6 +19,10 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 
+
+;;; Commentary:
+;; 
+
 ;;; Code:
 
 (require 'company)
@@ -26,7 +30,7 @@
 
 (defcustom company-gtags-executable
   (executable-find "global")
-  "*Location of GNU global executable"
+  "*Location of GNU global executable."
   :type 'string
   :group 'company)
 
@@ -69,15 +73,15 @@
   "A `company-mode' completion back-end for GNU Global."
   (interactive (list 'interactive))
   (case command
-    ('interactive (company-begin-backend 'company-gtags))
-    ('prefix (and company-gtags-executable
-                  (memq major-mode company-gtags-modes)
-                  (not (company-in-string-or-comment))
-                  (company-gtags--tags-available-p)
-                  (or (company-grab-symbol) 'stop)))
-    ('candidates (company-gtags-fetch-tags arg))
-    ('sorted t)
-    ('location (company-gtags-location arg))))
+    (interactive (company-begin-backend 'company-gtags))
+    (prefix (and company-gtags-executable
+                 (memq major-mode company-gtags-modes)
+                 (not (company-in-string-or-comment))
+                 (company-gtags--tags-available-p)
+                 (or (company-grab-symbol) 'stop)))
+    (candidates (company-gtags-fetch-tags arg))
+    (sorted t)
+    (location (company-gtags-location arg))))
 
 (provide 'company-gtags)
 ;;; company-gtags.el ends here

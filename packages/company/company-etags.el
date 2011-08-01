@@ -1,6 +1,6 @@
-;;; company-etags.el --- a company-mode completion back-end for etags
+;;; company-etags.el --- A company-mode completion back-end for etags
 
-;; Copyright (C) 2009, 2010 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2011  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 
@@ -18,6 +18,10 @@
 
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+
+
+;;; Commentary:
+;; 
 
 ;;; Code:
 
@@ -57,24 +61,24 @@ buffer automatically."
   "A `company-mode' completion back-end for etags."
   (interactive (list 'interactive))
   (case command
-    ('interactive (company-begin-backend 'company-etags))
-    ('prefix (and (memq major-mode company-etags-modes)
-                  (not (company-in-string-or-comment))
-                  (require 'etags nil t)
-                  (company-etags-buffer-table)
-                  (or (company-grab-symbol) 'stop)))
-    ('candidates (let ((tags-table-list (company-etags-buffer-table))
-                       (completion-ignore-case nil))
-                   (and (or tags-file-name tags-table-list)
-                        (fboundp 'tags-completion-table)
-                        tags-table-list
-                        (all-completions arg (tags-completion-table)))))
-    ('location (let ((tags-table-list (company-etags-buffer-table)))
-                 (when (fboundp 'find-tag-noselect)
-                   (save-excursion
-                     (let ((buffer (find-tag-noselect arg)))
-                       (cons buffer (with-current-buffer buffer (point))))))))
-    ('sorted t)))
+    (interactive (company-begin-backend 'company-etags))
+    (prefix (and (memq major-mode company-etags-modes)
+                 (not (company-in-string-or-comment))
+                 (require 'etags nil t)
+                 (company-etags-buffer-table)
+                 (or (company-grab-symbol) 'stop)))
+    (candidates (let ((tags-table-list (company-etags-buffer-table))
+                      (completion-ignore-case nil))
+                  (and (or tags-file-name tags-table-list)
+                       (fboundp 'tags-completion-table)
+                       tags-table-list
+                       (all-completions arg (tags-completion-table)))))
+    (location (let ((tags-table-list (company-etags-buffer-table)))
+                (when (fboundp 'find-tag-noselect)
+                  (save-excursion
+                    (let ((buffer (find-tag-noselect arg)))
+                      (cons buffer (with-current-buffer buffer (point))))))))
+    (sorted t)))
 
 (provide 'company-etags)
 ;;; company-etags.el ends here

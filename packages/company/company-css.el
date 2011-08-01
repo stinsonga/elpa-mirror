@@ -1,6 +1,6 @@
-;;; company-css.el --- a company-mode completion back-end for css-mode
+;;; company-css.el --- A company-mode completion back-end for css-mode
 
-;; Copyright (C) 2009 Free Software Foundation, Inc.
+;; Copyright (C) 2009, 2011  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 
@@ -18,6 +18,8 @@
 
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+
+;;; Commentary:
 
 ;;; Code:
 
@@ -245,7 +247,7 @@
           "\\)*"
           "\\(\\(?:#\\|\\_<[[:alpha:]]\\)\\(?:[[:alnum:]-#]*\\_>\\)?\\_>\\|\\)"
           "\\=")
-  "A regular expression matching CSS tags")
+  "A regular expression matching CSS tags.")
 
 ;;; pseudo id
 (defconst company-css-pseudo-regexp
@@ -259,7 +261,7 @@
           "\\)*"
           "\\(?:\\(?:\\#\\|\\_<[[:alpha:]]\\)[[:alnum:]-#]*\\):"
           "\\([[:alpha:]-]+\\_>\\|\\)\\_>\\=")
-  "A regular expression matching CSS pseudo classes")
+  "A regular expression matching CSS pseudo classes.")
 
 ;;; properties
 
@@ -272,20 +274,20 @@ Returns \"\" if no property found, but feasible at this position."
 ;;; values
 (defconst company-css-property-value-regexp
   "\\_<\\([[:alpha:]-]+\\):\\(?:[^};]*[[:space:]]+\\)?\\([^};]*\\_>\\|\\)\\="
-  "A regular expression matching CSS tags")
+  "A regular expression matching CSS tags.")
 
 ;;;###autoload
 (defun company-css (command &optional arg &rest ignored)
   "A `company-mode' completion back-end for `css-mode'."
   (interactive (list 'interactive))
   (case command
-    ('interactive (company-begin-backend 'company-css))
-    ('prefix (and (derived-mode-p 'css-mode)
+    (interactive (company-begin-backend 'company-css))
+    (prefix (and (derived-mode-p 'css-mode)
                   (or (company-grab company-css-tag-regexp 1)
                       (company-grab company-css-pseudo-regexp 1)
                       (company-grab company-css-property-value-regexp 2)
                       (company-css-grab-property))))
-    ('candidates
+    (candidates
      (cond
       ((company-grab company-css-tag-regexp 1)
        (all-completions arg company-css-html-tags))
@@ -297,7 +299,7 @@ Returns \"\" if no property found, but feasible at this position."
                          (company-grab company-css-property-value-regexp 1))))
       ((company-css-grab-property)
        (all-completions arg company-css-property-alist))))
-    ('sorted t)))
+    (sorted t)))
 
 (provide 'company-css)
 ;;; company-css.el ends here

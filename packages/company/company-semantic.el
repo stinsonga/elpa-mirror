@@ -1,6 +1,6 @@
-;;; company-semantic.el --- a company-mode back-end using CEDET Semantic
+;;; company-semantic.el --- A company-mode back-end using CEDET Semantic
 
-;; Copyright (C) 2009, 2010 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2011  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 
@@ -19,6 +19,10 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 
+
+;;; Commentary:
+;; 
+
 ;;; Code:
 
 (require 'company)
@@ -34,7 +38,7 @@
 (defvar company-semantic-modes '(c-mode c++-mode jde-mode java-mode))
 
 (defvar company-semantic--current-tags nil
-  "Tags for the current context")
+  "Tags for the current context.")
 
 (defun company-semantic-doc-or-summary (tag)
   (or (semantic-documentation-for-tag tag)
@@ -101,25 +105,25 @@ Symbols are chained by \".\" or \"->\"."
   "A `company-mode' completion back-end using CEDET Semantic."
   (interactive (list 'interactive))
   (case command
-    ('interactive (company-begin-backend 'company-semantic))
-    ('prefix (and (memq major-mode company-semantic-modes)
-                  (semantic-active-p)
-                  (not (company-in-string-or-comment))
-                  (or (company-semantic--grab) 'stop)))
-    ('candidates (if (and (equal arg "")
-                          (not (looking-back "->\\|\\.")))
-                     (company-semantic-completions-raw arg)
-                   (company-semantic-completions arg)))
-    ('meta (funcall company-semantic-metadata-function
-                    (assoc arg company-semantic--current-tags)))
-    ('doc-buffer (company-semantic-doc-buffer
-                  (assoc arg company-semantic--current-tags)))
-    ;; because "" is an empty context and doesn't return local variables
-    ('no-cache (equal arg ""))
-    ('location (let ((tag (assoc arg company-semantic--current-tags)))
-                 (when (buffer-live-p (semantic-tag-buffer tag))
-                   (cons (semantic-tag-buffer tag)
-                         (semantic-tag-start tag)))))))
+    (interactive (company-begin-backend 'company-semantic))
+    (prefix (and (memq major-mode company-semantic-modes)
+                 (semantic-active-p)
+                 (not (company-in-string-or-comment))
+                 (or (company-semantic--grab) 'stop)))
+    (candidates (if (and (equal arg "")
+                         (not (looking-back "->\\|\\.")))
+                    (company-semantic-completions-raw arg)
+                  (company-semantic-completions arg)))
+    (meta (funcall company-semantic-metadata-function
+                   (assoc arg company-semantic--current-tags)))
+    (doc-buffer (company-semantic-doc-buffer
+                 (assoc arg company-semantic--current-tags)))
+    ;; Because "" is an empty context and doesn't return local variables.
+    (no-cache (equal arg ""))
+    (location (let ((tag (assoc arg company-semantic--current-tags)))
+                (when (buffer-live-p (semantic-tag-buffer tag))
+                  (cons (semantic-tag-buffer tag)
+                        (semantic-tag-start tag)))))))
 
 (provide 'company-semantic)
 ;;; company-semantic.el ends here

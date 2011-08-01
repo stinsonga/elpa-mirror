@@ -1,6 +1,6 @@
-;;; company-eclim.el --- a company-mode completion back-end for eclim.
+;;; company-eclim.el --- A company-mode completion back-end for eclim.
 
-;; Copyright (C) 2009 Free Software Foundation, Inc.
+;; Copyright (C) 2009, 2011  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 
@@ -19,6 +19,10 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 
+
+;;; Commentary:
+;; 
+
 ;;; Code:
 
 (require 'company)
@@ -35,7 +39,7 @@
 
 (defcustom company-eclim-executable
   (or (executable-find "eclim") (company-eclim-executable-find))
-  "*Location of eclim executable"
+  "*Location of eclim executable."
   :group 'company
   :type 'file)
 
@@ -127,17 +131,17 @@ Completions only work correctly when the buffer has been saved.
 `company-eclim-auto-save' determines whether to do this automatically."
   (interactive (list 'interactive))
   (case command
-    ('interactive (company-begin-backend 'company-eclim))
-    ('prefix (and (derived-mode-p 'java-mode 'jde-mode)
-                  buffer-file-name
-                  company-eclim-executable
-                  (company-eclim--project-name)
-                  (not (company-in-string-or-comment))
-                  (or (company-grab-symbol) 'stop)))
-    ('candidates (company-eclim--candidates arg))
-    ('meta (cadr (assoc arg company-eclim--doc)))
+    (interactive (company-begin-backend 'company-eclim))
+    (prefix (and (derived-mode-p 'java-mode 'jde-mode)
+                 buffer-file-name
+                 company-eclim-executable
+                 (company-eclim--project-name)
+                 (not (company-in-string-or-comment))
+                 (or (company-grab-symbol) 'stop)))
+    (candidates (company-eclim--candidates arg))
+    (meta (cadr (assoc arg company-eclim--doc)))
     ;; because "" doesn't return everything
-    ('no-cache (equal arg ""))))
+    (no-cache (equal arg ""))))
 
 (provide 'company-eclim)
 ;;; company-eclim.el ends here

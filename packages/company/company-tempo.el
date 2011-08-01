@@ -1,6 +1,6 @@
-;;; company-tempo.el --- a company-mode completion back-end for tempo
+;;; company-tempo.el --- A company-mode completion back-end for tempo
 
-;; Copyright (C) 2009, 2010 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2011  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 
@@ -18,6 +18,10 @@
 
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+
+
+;;; Commentary:
+;; 
 
 ;;; Code:
 
@@ -47,13 +51,13 @@
   "A `company-mode' completion back-end for tempo."
   (interactive (list 'interactive))
   (case command
-    ('interactive (company-begin-backend 'company-tempo
-                                         'company-tempo-insert))
-    ('prefix (or (car (tempo-find-match-string tempo-match-finder)) ""))
-    ('candidates (all-completions arg (tempo-build-collection)))
-    ('meta (company-tempo-meta arg))
-    ('require-match t)
-    ('sorted t)))
+    (interactive (company-begin-backend 'company-tempo
+                                        'company-tempo-insert))
+    (prefix (or (car (tempo-find-match-string tempo-match-finder)) ""))
+    (candidates (all-completions arg (tempo-build-collection)))
+    (meta (company-tempo-meta arg))
+    (require-match t)
+    (sorted t)))
 
 (provide 'company-tempo)
 ;;; company-tempo.el ends here

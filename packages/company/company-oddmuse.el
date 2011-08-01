@@ -1,6 +1,6 @@
-;;; company-oddmuse.el --- a company-mode completion back-end for oddmuse-mode
+;;; company-oddmuse.el --- A company-mode completion back-end for oddmuse-mode
 
-;; Copyright (C) 2009, 2010 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2011  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 
@@ -19,6 +19,10 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 
+
+;;; Commentary:
+;; 
+
 ;;; Code:
 
 (require 'company)
@@ -31,23 +35,23 @@
 
 (defun company-oddmuse-get-page-table ()
   (case major-mode
-    ('yaoddmuse-mode (with-no-warnings
-                       (yaoddmuse-get-pagename-table yaoddmuse-wikiname)))
-    ('oddmuse-mode (with-no-warnings
-                     (oddmuse-make-completion-table oddmuse-wiki)))))
+    (yaoddmuse-mode (with-no-warnings
+                      (yaoddmuse-get-pagename-table yaoddmuse-wikiname)))
+    (oddmuse-mode (with-no-warnings
+                    (oddmuse-make-completion-table oddmuse-wiki)))))
 
 ;;;###autoload
 (defun company-oddmuse (command &optional arg &rest ignored)
   "A `company-mode' completion back-end for `oddmuse-mode'."
   (interactive (list 'interactive))
   (case command
-    ('interactive (company-begin-backend 'company-oddmuse))
-    ('prefix (let ((case-fold-search nil))
-               (and (memq major-mode '(oddmuse-mode yaoddmuse-mode))
-                    (looking-back company-oddmuse-link-regexp (point-at-bol))
-                    (or (match-string 1)
-                        (match-string 2)))))
-    ('candidates (all-completions arg (company-oddmuse-get-page-table)))))
+    (interactive (company-begin-backend 'company-oddmuse))
+    (prefix (let ((case-fold-search nil))
+              (and (memq major-mode '(oddmuse-mode yaoddmuse-mode))
+                   (looking-back company-oddmuse-link-regexp (point-at-bol))
+                   (or (match-string 1)
+                       (match-string 2)))))
+    (candidates (all-completions arg (company-oddmuse-get-page-table)))))
 
 (provide 'company-oddmuse)
 ;;; company-oddmuse.el ends here

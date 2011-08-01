@@ -1,6 +1,6 @@
-;;; company-files.el --- a company-mode completion back-end for file names
+;;; company-files.el --- A company-mode completion back-end for file names
 
-;; Copyright (C) 2009, 2010 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2011  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 
@@ -18,6 +18,10 @@
 
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+
+
+;;; Commentary:
+;; 
 
 ;;; Code:
 
@@ -69,16 +73,16 @@
 
 ;;;###autoload
 (defun company-files (command &optional arg &rest ignored)
-  "a `company-mode' completion back-end existing file names."
+  "A `company-mode' completion back-end existing file names."
   (interactive (list 'interactive))
   (case command
-    ('interactive (company-begin-backend 'company-files))
-    ('prefix (company-files-grab-existing-name))
-    ('candidates (company-files-complete arg))
-    ('location (cons (dired-noselect
-                      (file-name-directory (directory-file-name arg))) 1))
-    ('sorted t)
-    ('no-cache t)))
+    (interactive (company-begin-backend 'company-files))
+    (prefix (company-files-grab-existing-name))
+    (candidates (company-files-complete arg))
+    (location (cons (dired-noselect
+                     (file-name-directory (directory-file-name arg))) 1))
+    (sorted t)
+    (no-cache t)))
 
 (provide 'company-files)
 ;;; company-files.el ends here

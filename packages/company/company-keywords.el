@@ -1,6 +1,6 @@
-;;; company-keywords.el --- a company back-end for programming language keywords
+;;; company-keywords.el --- A company back-end for programming language keywords
 
-;; Copyright (C) 2009, 2010 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2011  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 
@@ -18,6 +18,10 @@
 
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+
+
+;;; Commentary:
+;; 
 
 ;;; Code:
 
@@ -215,17 +219,17 @@
   "A `company-mode' back-end for programming language keywords."
   (interactive (list 'interactive))
   (case command
-    ('interactive (company-begin-backend 'company-))
-    ('prefix (and (assq major-mode company-keywords-alist)
-                  (not (company-in-string-or-comment))
-                  (or (company-grab-symbol) 'stop)))
-    ('candidates
+    (interactive (company-begin-backend 'company-))
+    (prefix (and (assq major-mode company-keywords-alist)
+                 (not (company-in-string-or-comment))
+                 (or (company-grab-symbol) 'stop)))
+    (candidates
      (let ((completion-ignore-case nil)
            (symbols (cdr (assq major-mode company-keywords-alist))))
        (all-completions arg (if (consp symbols)
                                 symbols
                               (cdr (assq symbols company-keywords-alist))))))
-    ('sorted t)))
+    (sorted t)))
 
 (provide 'company-keywords)
 ;;; company-keywords.el ends here

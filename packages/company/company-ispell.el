@@ -1,6 +1,6 @@
-;;; company-ispell.el --- a company-mode completion back-end using ispell
+;;; company-ispell.el --- A company-mode completion back-end using ispell
 
-;; Copyright (C) 2009, 2010 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2011  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 
@@ -18,6 +18,10 @@
 
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+
+
+;;; Commentary:
+;; 
 
 ;;; Code:
 
@@ -50,13 +54,13 @@ If nil, use `ispell-complete-word-dict'."
   "A `company-mode' completion back-end using ispell."
   (interactive (list 'interactive))
   (case command
-    ('interactive (company-begin-backend 'company-ispell))
-    ('prefix (when (company-ispell-available)
-               (company-grab-word)))
-    ('candidates (lookup-words arg (or company-ispell-dictionary
-                                       ispell-complete-word-dict)))
-    ('sorted t)
-    ('ignore-case t)))
+    (interactive (company-begin-backend 'company-ispell))
+    (prefix (when (company-ispell-available)
+              (company-grab-word)))
+    (candidates (lookup-words arg (or company-ispell-dictionary
+                                      ispell-complete-word-dict)))
+    (sorted t)
+    (ignore-case t)))
 
 (provide 'company-ispell)
 ;;; company-ispell.el ends here

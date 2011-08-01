@@ -1,6 +1,6 @@
-;;; company-xcode.el --- a company-mode completion back-end for Xcode projects
+;;; company-xcode.el --- A company-mode completion back-end for Xcode projects
 
-;; Copyright (C) 2009, 2010 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2011  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 
@@ -19,13 +19,17 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 
+
+;;; Commentary:
+;; 
+
 ;;; Code:
 
 (require 'company)
 (eval-when-compile (require 'cl))
 
 (defcustom company-xcode-xcodeindex-executable (executable-find "xcodeindex")
-  "*Location of xcodeindex executable"
+  "*Location of xcodeindex executable."
   :group 'company-xcode
   :type 'file)
 
@@ -39,7 +43,7 @@
 (defcustom company-xcode-types
   '("Class" "Constant" "Enum" "Macro" "Modeled Class" "Structure"
     "Type" "Union" "Function")
-  "*The types of symbols offered by `company-xcode'
+  "*The types of symbols offered by `company-xcode'.
 No context-enabled completion is available.  Types like methods will be
 offered regardless of whether the class supports them.  The defaults should be
 valid in most contexts."
@@ -104,14 +108,14 @@ valid in most contexts."
   "A `company-mode' completion back-end for Xcode projects."
   (interactive (list 'interactive))
   (case command
-    ('interactive (company-begin-backend 'company-xcode))
-    ('prefix (and company-xcode-xcodeindex-executable
+    (interactive (company-begin-backend 'company-xcode))
+    (prefix (and company-xcode-xcodeindex-executable
+                 (company-xcode-tags)
+                 (not (company-in-string-or-comment))
+                 (or (company-grab-symbol) 'stop)))
+    (candidates (let ((completion-ignore-case nil))
                   (company-xcode-tags)
-                  (not (company-in-string-or-comment))
-                  (or (company-grab-symbol) 'stop)))
-    ('candidates (let ((completion-ignore-case nil))
-                   (company-xcode-tags)
-                   (all-completions arg (company-xcode-tags))))))
+                  (all-completions arg (company-xcode-tags))))))
 
 
 (provide 'company-xcode)

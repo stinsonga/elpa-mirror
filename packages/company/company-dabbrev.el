@@ -1,6 +1,6 @@
-;;; company-dabbrev.el --- a dabbrev-like company-mode completion back-end
+;;; company-dabbrev.el --- A dabbrev-like company-mode completion back-end
 
-;; Copyright (C) 2009 Free Software Foundation, Inc.
+;; Copyright (C) 2009, 2011  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 
@@ -19,6 +19,10 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 
+
+;;; Commentary:
+;; 
+
 ;;; Code:
 
 (require 'company)
@@ -26,8 +30,8 @@
 
 (defcustom company-dabbrev-other-buffers 'all
   "*Determines whether `company-dabbrev' should search other buffers.
-If 'all, search all other buffers.  If t, search buffers with the same
-major-mode.
+If `all', search all other buffers.  If t, search buffers with the same
+major mode.
 See also `company-dabbrev-time-limit'."
   :group 'company
   :type '(choice (const :tag "Off" nil)
@@ -108,15 +112,15 @@ See also `company-dabbrev-time-limit'."
   "A dabbrev-like `company-mode' completion back-end."
   (interactive (list 'interactive))
   (case command
-    ('interactive (company-begin-backend 'company-dabbrev))
-    ('prefix (company-grab-word))
-    ('candidates
+    (interactive (company-begin-backend 'company-dabbrev))
+    (prefix (company-grab-word))
+    (candidates
      (mapcar 'downcase
              (company-dabbrev--search (company-dabbrev--make-regexp arg)
                                       company-dabbrev-time-limit
                                       company-dabbrev-other-buffers)))
-    ('ignore-case t)
-    ('duplicates t)))
+    (ignore-case t)
+    (duplicates t)))
 
 (provide 'company-dabbrev)
 ;;; company-dabbrev.el ends here

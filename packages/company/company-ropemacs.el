@@ -1,6 +1,6 @@
-;;; company-ropemacs.el --- a company-mode completion back-end for pysmell.el
+;;; company-ropemacs.el --- A company-mode completion back-end for pysmell.el
 
-;; Copyright (C) 2009, 2010 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2011  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 
@@ -18,6 +18,10 @@
 
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+
+
+;;; Commentary:
+;; 
 
 ;;; Code:
 
@@ -61,14 +65,14 @@
   "A `company-mode' completion back-end for ropemacs."
   (interactive (list 'interactive))
   (case command
-    ('interactive (company-begin-backend 'company-ropemacs))
-    ('prefix (and (derived-mode-p 'python-mode)
-                  (not (company-in-string-or-comment))
-                  (company-ropemacs--grab-symbol)))
-    ('candidates (mapcar (lambda (element) (concat arg element))
-                         (rope-completions)))
-    ('doc-buffer (company-ropemacs-doc-buffer arg))
-    ('location (company-ropemacs-location arg))))
+    (interactive (company-begin-backend 'company-ropemacs))
+    (prefix (and (derived-mode-p 'python-mode)
+                 (not (company-in-string-or-comment))
+                 (company-ropemacs--grab-symbol)))
+    (candidates (mapcar (lambda (element) (concat arg element))
+                        (rope-completions)))
+    (doc-buffer (company-ropemacs-doc-buffer arg))
+    (location (company-ropemacs-location arg))))
 
 (provide 'company-ropemacs)
 ;;; company-ropemacs.el ends here

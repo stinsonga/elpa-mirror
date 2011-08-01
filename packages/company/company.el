@@ -1,11 +1,11 @@
-;;; company.el --- extensible inline text completion mechanism
+;;; company.el --- Extensible inline text completion mechanism
 
-;; Copyright (C) 2009, 2010 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2011  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 ;; Version: 0.5
 ;; Keywords: abbrev, convenience, matching
-;; URL: http://nschum.de/src/emacs/company/
+;; URL: http://nschum.de/src/emacs/company-mode/
 ;; Compatibility: GNU Emacs 22.x, GNU Emacs 23.x
 
 ;; This file is part of GNU Emacs.
@@ -48,10 +48,10 @@
 ;;
 ;; (defun company-my-backend (command &optional arg &rest ignored)
 ;;   (case command
-;;     ('prefix (when (looking-back "foo\\>")
+;;     (prefix (when (looking-back "foo\\>")
 ;;                (match-string 0)))
-;;     ('candidates (list "foobar" "foobaz" "foobarbaz"))
-;;     ('meta (format "This value is named %s" arg))))
+;;     (candidates (list "foobar" "foobaz" "foobarbaz"))
+;;     (meta (format "This value is named %s" arg))))
 ;;
 ;; Sometimes it is a good idea to mix two back-ends together, for example to
 ;; enrich gtags with dabbrev-code results (to emulate local variables):
@@ -307,7 +307,29 @@ If this many lines are not available, prefer to display the tooltip above."
                         (assq backend company-safe-backends))
                 (return t))))))
 
-(defcustom company-backends '(company-elisp company-nxml company-css
+(defun company-capf (command &optional arg &rest args)
+  "Adapter for Company completion to use `completion-at-point-functions'."
+  (interactive (list 'interactive))
+  (case command
+    (interactive (company-begin-backend 'company-capf))
+    (prefix
+     (let ((res (run-hook-wrapped 'completion-at-point-functions
+                                  ;; Ignore misbehaving functions.
+                                  #'completion--capf-wrapper 'optimist)))
+       (when (consp res)
+         (if (> (nth 1 res) (point))
+             'stop
+           (buffer-substring-no-properties (nth 0 res) (point))))))
+    (candidates
+     (let ((res (run-hook-wrapped 'completion-at-point-functions
+                                  ;; Ignore misbehaving functions.
+                                  #'completion--capf-wrapper 'optimist)))
+       (when (consp res)
+         (all-completions arg (nth 2 res)
+                          (plist-get (nthcdr 3 res) :predicate)))))))
+
+(defcustom company-backends '(;; company-capf ;FIXME: Untested!
+                              company-elisp company-nxml company-css
                               company-eclim company-semantic company-clang
                               company-xcode company-ropemacs
                               (company-gtags company-etags company-dabbrev-code
@@ -325,7 +347,7 @@ Each back-end is a function that takes a variable number of arguments.
 The first argument is the command requested from the back-end.  It is one
 of the following:
 
-'prefix: The back-end should return the text to be completed.  It must be
+`prefix': The back-end should return the text to be completed.  It must be
 text immediately before `point'.  Returning nil passes control to the next
 back-end.  The function should return 'stop if it should complete but cannot
 \(e.g. if it is in the middle of a string\).  If the returned value is only
@@ -333,33 +355,33 @@ part of the prefix (e.g. the part after \"->\" in C), the back-end may return a
 cons of prefix and prefix length, which is then used in the
 `company-minimum-prefix-length' test.
 
-'candidates: The second argument is the prefix to be completed.  The
+`candidates': The second argument is the prefix to be completed.  The
 return value should be a list of candidates that start with the prefix.
 
 Optional commands:
 
-'sorted: The back-end may return t here to indicate that the candidates
+`sorted': The back-end may return t here to indicate that the candidates
 are sorted and will not need to be sorted again.
 
-'duplicates: If non-nil, company will take care of removing duplicates
+`duplicates': If non-nil, company will take care of removing duplicates
 from the list.
 
-'no-cache: Usually company doesn't ask for candidates again as completion
+`no-cache': Usually company doesn't ask for candidates again as completion
 progresses, unless the back-end returns t for this command.  The second
 argument is the latest prefix.
 
-'meta: The second argument is a completion candidate.  The back-end should
+`meta': The second argument is a completion candidate.  The back-end should
 return a (short) documentation string for it.
 
-'doc-buffer: The second argument is a completion candidate.  The back-end should
-create a buffer (preferably with `company-doc-buffer'), fill it with
-documentation and return it.
+`doc-buffer': The second argument is a completion candidate.
+The back-end should create a buffer (preferably with `company-doc-buffer'),
+fill it with documentation and return it.
 
-'location: The second argument is a completion candidate.  The back-end can
+`location': The second argument is a completion candidate.  The back-end can
 return the cons of buffer and buffer location, or of file and line
 number where the completion candidate was defined.
 
-'require-match: If this value is t, the user is not allowed to enter anything
+`require-match': If this value is t, the user is not allowed to enter anything
 not offering as a candidate.  Use with care!  The default value nil gives the
 user that choice with `company-require-match'.  Return value 'never overrides
 that option the other way around.
@@ -694,11 +716,11 @@ keymap during active completions (`company-active-map'):
 
 (defun company--multi-backend-adapter (backends command &rest args)
   (case command
-    ('candidates
+    (candidates
      (apply 'append (mapcar (lambda (backend) (apply backend command args))
                             backends)))
-    ('sorted nil)
-    ('duplicates t)
+    (sorted nil)
+    (duplicates t)
     (otherwise
      (let (value)
        (dolist (backend backends)
@@ -1800,8 +1822,8 @@ Returns a negative number if the tooltip should be displayed above point."
 (defun company-pseudo-tooltip-frontend (command)
   "A `company-mode' front-end similar to a tool-tip but based on overlays."
   (case command
-    ('pre-command (company-pseudo-tooltip-hide-temporarily))
-    ('post-command
+    (pre-command (company-pseudo-tooltip-hide-temporarily))
+    (post-command
      (let ((old-height (if (overlayp company-pseudo-tooltip-overlay)
                            (overlay-get company-pseudo-tooltip-overlay
                                         'company-height)
@@ -1813,9 +1835,9 @@ Returns a negative number if the tooltip should be displayed above point."
          (company-pseudo-tooltip-show-at-point (- (point)
                                                   (length company-prefix)))))
      (company-pseudo-tooltip-unhide))
-    ('hide (company-pseudo-tooltip-hide)
+    (hide (company-pseudo-tooltip-hide)
            (setq company-tooltip-offset 0))
-    ('update (when (overlayp company-pseudo-tooltip-overlay)
+    (update (when (overlayp company-pseudo-tooltip-overlay)
                (company-pseudo-tooltip-edit company-candidates
                                             company-selection)))))
 
@@ -1865,9 +1887,9 @@ Returns a negative number if the tooltip should be displayed above point."
 (defun company-preview-frontend (command)
   "A `company-mode' front-end showing the selection as if it had been inserted."
   (case command
-    ('pre-command (company-preview-hide))
-    ('post-command (company-preview-show-at-point (point)))
-    ('hide (company-preview-hide))))
+    (pre-command (company-preview-hide))
+    (post-command (company-preview-show-at-point (point)))
+    (hide (company-preview-hide))))
 
 (defun company-preview-if-just-one-frontend (command)
   "`company-preview-frontend', but only shown for single candidates."
@@ -1963,23 +1985,23 @@ Returns a negative number if the tooltip should be displayed above point."
 (defun company-echo-frontend (command)
   "A `company-mode' front-end showing the candidates in the echo area."
   (case command
-    ('pre-command (company-echo-show-soon))
-    ('post-command (company-echo-show-soon 'company-echo-format))
-    ('hide (company-echo-hide))))
+    (pre-command (company-echo-show-soon))
+    (post-command (company-echo-show-soon 'company-echo-format))
+    (hide (company-echo-hide))))
 
 (defun company-echo-strip-common-frontend (command)
   "A `company-mode' front-end showing the candidates in the echo area."
   (case command
-    ('pre-command (company-echo-show-soon))
-    ('post-command (company-echo-show-soon 'company-echo-strip-common-format))
-    ('hide (company-echo-hide))))
+    (pre-command (company-echo-show-soon))
+    (post-command (company-echo-show-soon 'company-echo-strip-common-format))
+    (hide (company-echo-hide))))
 
 (defun company-echo-metadata-frontend (command)
   "A `company-mode' front-end showing the documentation in the echo area."
   (case command
-    ('pre-command (company-echo-show-soon))
-    ('post-command (company-echo-show-soon 'company-fetch-metadata))
-    ('hide (company-echo-hide))))
+    (pre-command (company-echo-show-soon))
+    (post-command (company-echo-show-soon 'company-fetch-metadata))
+    (hide (company-echo-hide))))
 
 ;; templates ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
