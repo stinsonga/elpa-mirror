@@ -55,6 +55,24 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>. -->
           </restriction>
         </complexContent>
        </complexType>
+
+      <complexType name="ArrayOfArrayOfAnyType">
+        <complexContent>
+          <restriction base="soapenc:Array">
+            <attribute ref="soapenc:arrayType"
+		       wsdl:arrayType="types:ArrayOfAnyType[]"/>
+          </restriction>
+        </complexContent>
+       </complexType>
+
+      <complexType name="ArrayOfArrayOfArrayOfAnyType">
+        <complexContent>
+          <restriction base="soapenc:Array">
+            <attribute ref="soapenc:arrayType"
+		       wsdl:arrayType="types:ArrayOfArrayOfAnyType[]"/>
+          </restriction>
+        </complexContent>
+       </complexType>
     </schema>
 
     <schema targetNamespace="http://xml.apache.org/xml-soap"
@@ -103,6 +121,14 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>. -->
   </wsdl:message>
   <wsdl:message name="newest_bugsResponse">
     <wsdl:part name="soapenc:Array" type="types:ArrayOfBugNumber"/>
+  </wsdl:message>
+
+  <wsdl:message name="search_estRequest">
+    <wsdl:part name="query" type="types:ArrayOfArrayOfAnyType"
+	       minOccurs="1" maxOccurs="unbounded"/>
+  </wsdl:message>
+  <wsdl:message name="search_estResponse">
+    <wsdl:part name="soapenc:Array" type="types:ArrayOfArrayOfArrayOfAnyType"/>
   </wsdl:message>
 
   <wsdl:portType name="Debbugs/SOAP">
@@ -159,6 +185,21 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>. -->
 	    use="encoded"/>
       </wsdl:input>
       <wsdl:output message="tns:newest_bugsResponse">
+        <soap:body
+	    encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+	    namespace="urn:Debbugs/SOAP"
+	    use="encoded"/>
+      </wsdl:output>
+    </wsdl:operation>
+
+    <wsdl:operation name="search_est" parameterOrder="query">
+      <wsdl:input message="tns:search_estRequest">
+        <soap:body
+	    encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+	    namespace="urn:Debbugs/SOAP"
+	    use="encoded"/>
+      </wsdl:input>
+      <wsdl:output message="tns:search_estResponse">
         <soap:body
 	    encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
 	    namespace="urn:Debbugs/SOAP"
@@ -226,6 +267,22 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>. -->
 	    use="encoded"/>
       </wsdl:input>
       <wsdl:output name="newest_bugsResponse">
+        <wsdlsoap:body
+	    encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+	    namespace="urn:Debbugs/SOAP"
+	    use="encoded"/>
+      </wsdl:output>
+    </wsdl:operation>
+
+    <wsdl:operation name="search_est">
+      <wsdlsoap:operation soapAction="Debbugs/SOAP"/>
+      <wsdl:input name="search_estRequest">
+        <wsdlsoap:body
+	    encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+	    namespace="urn:Debbugs/SOAP"
+	    use="encoded"/>
+      </wsdl:input>
+      <wsdl:output name="search_estResponse">
         <wsdlsoap:body
 	    encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
 	    namespace="urn:Debbugs/SOAP"

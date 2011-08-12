@@ -1,1 +1,1 @@
-(define-package "debbugs" "0.1" "SOAP library to access debbugs servers")
+(define-package "debbugs" "0.2" "SOAP library to access debbugs servers")

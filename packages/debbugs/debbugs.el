@@ -5,7 +5,7 @@
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, hypermedia
 ;; Package: debbugs
-;; Version: 0.1
+;; Version: 0.2
 
 ;; This file is part of GNU Emacs.
 
@@ -99,7 +99,7 @@ This corresponds to the Debbugs server to be accessed, either
   "Return a list of bug numbers which match QUERY.
 
 QUERY is a sequence of keyword-value pairs where the values are
-strings, i. e. :KEYWORD \"VALUE\" [:KEYWORD \"VALUE\"]*
+strings, i.e. :KEYWORD \"VALUE\" [:KEYWORD \"VALUE\"]*
 
 The keyword-value pair is a subquery.  The keywords are allowed to
 have multiple occurrence within the query at any place.  The
@@ -335,6 +335,252 @@ Every message is an association list with the following attributes:
   `attachments' A list of possible attachments, or `nil'.  Not
   implemented yet server side."
   (car (soap-invoke debbugs-wsdl debbugs-port "get_bug_log" bug-number)))
+
+(defun debbugs-search-est (&rest query)
+  "Return the result of a full text search according to QUERY.
+
+QUERY is a sequence of lists of keyword-value pairs where the
+values are strings or numbers, i.e. :KEYWORD \"VALUE\" [:KEYWORD
+VALUE]*
+
+Every sublist of the QUERY forms a hyperestraier condition.  A
+detailed description of hyperestraier conditions can be found at
+URL `http://fallabs.com/hyperestraier/uguide-en.html#searchcond'.
+
+The following conditions are possible:
+
+\[:phrase SEARCH-PHRASE :skip NUMBER :max NUMBER\]
+
+  The string SEARCH-PHRASE forms the search on the database.  It
+  contains words to be searched for, combined by operators like
+  AND, ANDNOT and OR.  If there is no operator between the words,
+  AND is used by default.  The phrase keyword and value can also
+  be omitted, this is useful in combination with other conditions.
+
+  :skip and :max are optional.  They specify, how many hits are
+  skipped, and how many maximal hits are returned.  This can be
+  used for paged results.  Per default, :skip is 0 and :max is 10.
+
+  There must be exactly one such condition.
+
+\[ATTRIBUTE VALUE+ :operation OPERATION :order ORDER\]
+
+  ATTRIBUTE is one of the following keywords:
+
+  :status --  Status of bug.  Valid values are \"done\",
+  \"forwarded\" and \"open\".
+
+  :subject, :@title -- The subject of a message or the title of
+  the bug, a string.
+
+  :date, :@cdate -- The submission or modification dates of a
+  message, a number.
+
+  :submitter, :@author -- The email address of the submitter of a
+  bug or the author of a message belonging to this bug, a string.
+  The special email address \"me\" is used as pattern, replaced
+  with `user-mail-address'.
+
+  :package -- The value is the name of the package a bug belongs
+  to, like \"emacs\", \"coreutils\", \"gnus\", or \"tramp\".
+
+  :tags -- An arbitrary string the bug is annotated with.
+
+  :severity -- This is the severity of the bug.  The exact set of
+  allowed values depends on the Debbugs port.  Examples are
+  \"normal\", \"minor\", \"wishlist\" etc.
+
+  :operator defines the comparison operator to be applied to
+  ATTRIBUTE.  For string attributes this could be \"STREQ\" \(is
+  equal to the string), \"STRNE\" \(is not equal to the string),
+  \"STRINC\" \(includes the string), \"STRBW\" \(begins with the
+  string), \"STREW\" \(ends with the string), \"STRAND\"
+  \(includes all tokens in the string), \"STROR\" \(includes at
+  least one token in the string), \"STROREQ\" \(is equal to at
+  least one token in the string) or \"STRRX\" \(matches regular
+  expressions of the string).  For operators with tokens, several
+  values for ATTRIBUTE shall be used.
+
+  Numbers can be compared by the operators \"NUMEQ\" \(is equal
+  to the number), \"NUMNE\" \(is not equal to the number),
+  \"NUMGT\" \(is greater than the number), \"NUMGE\" \(is greater
+  than or equal to the number), \"NUMLT\" \(is less than the
+  number), \"NUMLE\" \(is less than or equal to the number) or
+  \"NUMBT\" \(is between the two numbers).  In the last case,
+  there must be two values for ATTRIBUTE.
+
+  If an operator is leaded by \"!\", the meaning is inverted.  If
+  a string operator is leaded by \"I\", the case of the value is
+  ignored.
+
+  The optional :order can be specified only in one condition.  It
+  means, that ATTRIBUTE is used for sorting the results.  The
+  following order operators exist: \"STRA\" \(ascending by
+  string), \"STRD\" \(descending by string), \"NUMA\" \(ascending
+  by number) or \"NUMD\" \(descending by number).
+
+  A special case is an :order, where there is no corresponding
+  attribute value and no operator.  In this case, ATTRIBUTE is
+  not used for the search.
+
+The result of the QUERY is a list of association lists with the
+same attributes as in the conditions.  Additional attributes are
+
+  `id': The bug number.
+
+  `msg_num': The number of the message inside the bug log.
+
+  `snippet': The surrounding text found by the search.  For the
+  syntax of the snippet, consult the hyperestraier user guide.
+
+Examples:
+
+  \(debbugs-search-est
+    '\(:phrase \"armstrong AND debbugs\" :skip 10 :max 2)
+    '\(:severity \"normal\" :operator \"STRINC\")
+    '\(:date :order \"NUMA\"))
+
+  => \(\(\(msg_num . 21)
+       \(date . 1229208302)
+       \(@author . \"Glenn Morris <rgm@gnu.org>\")
+       \(@title . \"Re: bug#1567: Mailing an archived bug\")
+       \(id . 1567)
+       \(severity . \"normal\")
+       \(@cdate . \"Wed, 17 Dec 2008 14:34:50 -0500\")
+       \(snippet . \"...\")
+       \(subject . \"Mailing an archived bug\")
+       \(package . \"debbugs.gnu.org\"))
+      ...)
+
+  ;; Show all messages from me between 2011-08-01 and 2011-08-31.
+  \(debbugs-search-est
+    '\(:max 20)
+    '\(:@author \"me\" :operator \"ISTRINC\")
+    `\(:date
+      ,\(floor \(float-time \(encode-time 0 0 0  1 8 2011)))
+      ,\(floor \(float-time \(encode-time 0 0 0 31 8 2011)))
+      :operator \"NUMBT\"))"
+
+  (let (args result)
+    ;; Compile search arguments.
+    (dolist (elt query)
+      (let (vec kw key val
+	    phrase-cond attr-cond)
+
+	;; Phrase is mandatory, even if empty.
+	(when (and (or  (member :skip elt) (member :max elt))
+		   (not (member :phrase elt)))
+	  (setq vec (vector "phrase" "")))
+
+	;; Parse condition.
+	(while (consp elt)
+	  (setq kw (pop elt))
+	  (unless (keywordp kw)
+	    (error "Wrong keyword: %s" kw))
+	  (setq key (substring (symbol-name kw) 1))
+	  (case kw
+	    ;; Phrase condition.
+	    (:phrase
+	     ;; It shouldn't happen in an attribute condition.
+	     (if attr-cond
+		 (error "Wrong keyword: %s" kw))
+	     (setq phrase-cond t val (pop elt))
+	     ;; Value is a string.
+	     (if (stringp val)
+		 (setq vec (vconcat vec (list key val)))
+	       (error "Wrong %s: %s" key val)))
+
+	    ((:skip :max)
+	     ;; It shouldn't happen in an attribute condition.
+	     (if attr-cond
+		 (error "Wrong keyword: %s" kw))
+	     (setq phrase-cond t val (pop elt))
+	     ;; Value is a number.
+	     (if (numberp val)
+		 (setq vec (vconcat vec (list key (number-to-string val))))
+	       (error "Wrong %s: %s" key val)))
+
+	    ;; Attribute condition.
+	    ((:submitter :@author)
+	     ;; It shouldn't happen in a phrase condition.
+	     (if phrase-cond
+		 (error "Wrong keyword: %s" kw))
+	     (if (not (stringp (car elt)))
+		 (setq vec (vconcat vec (list key "")))
+	       ;; Value is an email address.
+	       (while (and (stringp (car elt))
+			   (string-match "\\`\\S-+\\'" (car elt)))
+		 (when (string-equal "me" (car elt))
+		   (setcar elt user-mail-address))
+		 (when (string-match "<\\(.+\\)>" (car elt))
+		   (setcar elt (match-string 1 (car elt))))
+		 (add-to-list 'val (pop elt) 'append))
+	       (setq vec
+		     (vconcat vec (list key (mapconcat 'identity val " "))))))
+
+	    (:status
+	     ;; It shouldn't happen in a phrase condition.
+	     (if phrase-cond
+		 (error "Wrong keyword: %s" kw))
+	     (setq attr-cond t)
+	     (if (not (stringp (car elt)))
+		 (setq vec (vconcat vec (list key "")))
+	       ;; Possible values: "done", "forwarded" and "open"
+	       (while  (and (stringp (car elt))
+			    (string-match
+			     "\\`\\(done\\|forwarded\\|open\\)\\'" (car elt)))
+		 (add-to-list 'val (pop elt) 'append))
+	       (setq vec
+		     (vconcat vec (list key (mapconcat 'identity val " "))))))
+
+	    ((:subject :package :tags :severity :@title)
+	     ;; It shouldn't happen in a phrase condition.
+	     (if phrase-cond
+		 (error "Wrong keyword: %s" kw))
+	     (setq attr-cond t)
+	     (if (not (stringp (car elt)))
+		 (setq vec (vconcat vec (list key "")))
+	       ;; Just a string.
+	       (while (stringp (car elt))
+		 (add-to-list 'val (pop elt) 'append))
+	       (setq vec
+		     (vconcat vec (list key (mapconcat 'identity val " "))))))
+
+	    ((:date :@cdate)
+	     ;; It shouldn't happen in a phrase condition.
+	     (if phrase-cond
+		 (error "Wrong keyword: %s" kw))
+	     (setq attr-cond t)
+	     (if (not (numberp (car elt)))
+		 (setq vec (vconcat vec (list key "")))
+	       ;; Just a number.
+	       (while (numberp (car elt))
+		 (add-to-list 'val (pop elt) 'append))
+	       (setq vec
+		     (vconcat
+		      vec (list key (mapconcat 'number-to-string val " "))))))
+
+	    ((:operator :order)
+	     ;; It shouldn't happen in a phrase condition.
+	     (if phrase-cond
+		 (error "Wrong keyword: %s" kw))
+	     (setq attr-cond t val (pop elt))
+	     ;; Value is a number.
+	     (if (stringp val)
+		 (setq vec (vconcat vec (list key val)))
+	       (error "Wrong %s: %s" key val)))
+
+	    (t (error "Unknown key: %s" kw))))
+
+	(setq args (vconcat args (list vec)))))
+
+    (setq result
+	  (car (soap-invoke debbugs-wsdl debbugs-port "search_est" args)))
+    ;; The result contains lists (key value).  We transform it into
+    ;; cons cells (key . value).
+    (dolist (elt1 result result)
+      (dolist (elt2 elt1)
+	(setcdr elt2 (cadr elt2))))))
 
 (defun debbugs-get-attribute (bug-or-message attribute)
   "Return the value of key ATTRIBUTE.
