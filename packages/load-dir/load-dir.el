@@ -121,7 +121,7 @@ Recurses into subdirectories if `load-dir-recursive' is t."
           (add-to-list 'load-dir-loaded f))))
 
     (when load-dir-recursive
-      (dolist (f (directory-files dir t))
+      (dolist (f (directory-files dir t directory-files-no-dot-files-regexp))
         (when (file-directory-p f)
           (load-dir-one f))))))
 

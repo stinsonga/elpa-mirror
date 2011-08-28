@@ -1,3 +1,8 @@
+2011-08-28  PJ Weisberg  <pjweisberg@gmail.com>  (tiny change)
+
+	* packages/load-dir/load-dir.el (load-dir-one): Avoid infinite
+	recursion.
+
 2011-05-31  Teodor Zlatanov  <tzz@lifelogs.com>
 
 	* packages/uni-confusables-0.1/confusables.txt: Unicode UTS-39
