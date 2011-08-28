@@ -5,7 +5,7 @@
 ;; Authors: Teodor Zlatanov <tzz@lifelogs.com>,
 ;;          Ben Key <bkey76@gmail.com>
 ;; With-Help-From: Evans Winner <ego111@gmail.com>, PJ Weisberg <pj@irregularexpressions.net>
-;; Version: 0.0.2
+;; Version: 0.0.3
 ;; Keywords: lisp, files, convenience
 
 ;; This file is part of GNU Emacs.
