@@ -288,37 +288,38 @@ Example:
        \(last_modified . 1271200046.0)
        \(pending . \"pending\")
        \(package \"emacs\")))"
-  (let ((object
-	 (car
-	  (soap-invoke
-	   debbugs-wsdl debbugs-port "get_status"
-	   (apply 'vector bug-numbers)))))
-    (mapcar
-     (lambda (x)
-       (let (y)
-	 ;; "archived" is the number 1 or 0.
-	 (setq y (assoc 'archived (cdr (assoc 'value x))))
-	 (setcdr y (= (cdr y) 1))
-	 ;; "found_versions" and "fixed_versions" are lists,
-	 ;; containing strings or numbers.
-	 (dolist (attribute '(found_versions fixed_versions))
-	   (setq y (assoc attribute (cdr (assoc 'value x))))
-	   (setcdr y (mapcar
-		      (lambda (z) (if (numberp z) (number-to-string z) z))
-		      (cdr y))))
-	 ;; "mergedwith" is a string, containing blank separated bug numbers.
-	 (setq y (assoc 'mergedwith (cdr (assoc 'value x))))
-	 (when (stringp (cdr y))
-	   (setcdr y (mapcar 'string-to-number (split-string (cdr y) " " t))))
-	 ;; "package" is a string, containing comma separated package names.
-	 ;; "keywords" and "tags" are strings, containing blank
-	 ;; separated package names.
-	 (dolist (attribute '(package keywords tags))
-	   (setq y (assoc attribute (cdr (assoc 'value x))))
+  (when bug-numbers
+    (let ((object
+	   (car
+	    (soap-invoke
+	     debbugs-wsdl debbugs-port "get_status"
+	     (apply 'vector bug-numbers)))))
+      (mapcar
+       (lambda (x)
+	 (let (y)
+	   ;; "archived" is the number 1 or 0.
+	   (setq y (assoc 'archived (cdr (assoc 'value x))))
+	   (setcdr y (= (cdr y) 1))
+	   ;; "found_versions" and "fixed_versions" are lists,
+	   ;; containing strings or numbers.
+	   (dolist (attribute '(found_versions fixed_versions))
+	     (setq y (assoc attribute (cdr (assoc 'value x))))
+	     (setcdr y (mapcar
+			(lambda (z) (if (numberp z) (number-to-string z) z))
+			(cdr y))))
+	   ;; "mergedwith" is a string, containing blank separated bug numbers.
+	   (setq y (assoc 'mergedwith (cdr (assoc 'value x))))
 	   (when (stringp (cdr y))
-	     (setcdr y (split-string (cdr y) ",\\| " t))))
-	 (cdr (assoc 'value x))))
-     object)))
+	     (setcdr y (mapcar 'string-to-number (split-string (cdr y) " " t))))
+	   ;; "package" is a string, containing comma separated
+	   ;; package names.  "keywords" and "tags" are strings,
+	   ;; containing blank separated package names.
+	   (dolist (attribute '(package keywords tags))
+	     (setq y (assoc attribute (cdr (assoc 'value x))))
+	     (when (stringp (cdr y))
+	       (setcdr y (split-string (cdr y) ",\\| " t))))
+	   (cdr (assoc 'value x))))
+       object))))
 
 (defun debbugs-get-bug-log (bug-number)
   "Return a list of messages related to BUG-NUMBER.
