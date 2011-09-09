@@ -791,17 +791,29 @@ START-POINT is the point where we start searching in buffer."
                     ;; After a search `ioccur-print-results' have put point
                     ;; to point-max, so reset position.
                     (when yank-point (goto-char yank-point))
-                    (forward-word 1)
-                    (setq initial-input (buffer-substring-no-properties
-                                         yank-point (point)))
-                    (setq yank-point (point))   ; End of last forward-word
-                    (insert-initial-input) t))
+                    (let ((pmax (point-at-eol))
+                          (eoword (save-excursion (forward-word 1) (point))))
+                      ;; Don't yank further than eol.
+                      (unless (> eoword pmax)
+                        (goto-char eoword)
+                        (setq initial-input (buffer-substring-no-properties
+                                             yank-point (point)))
+                        (setq yank-point (point)) ; End of last forward-word
+                        (insert-initial-input)))) t)
                  ((?\t ?\M-p)                   ; Precedent history elm.
                   (start-timer)
                   (cycle-hist -1))
                  ((backtab ?\M-n)               ; Next history elm.
                   (start-timer)
                   (cycle-hist 1))
+                 (?\C-q                         ; quoted-insert
+                  (stop-timer)
+                  (let ((char (with-temp-buffer
+                                (call-interactively 'quoted-insert)
+                                (buffer-string))))
+                    (push (string-to-char char) tmp-list))
+                  (start-timer)
+                  t)
                  (t                             ; Store character.
                   (start-timer)
                   (if (characterp char)
