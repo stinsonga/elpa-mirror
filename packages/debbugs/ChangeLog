@@ -1,3 +1,12 @@
+2011-09-11  Michael Albinus  <michael.albinus@gmx.de>
+
+	* debbugs-gnu.el (debbugs-gnu-phrase-prompt): New defconst.
+	(debbugs-gnu-search): Use it.  Use `unwind-protect'.  Apply
+	default values for "status".
+	(debbugs-gnu): Fix `unwind-protect' form.
+	(debbugs-gnu-mode-map): Do not define "q", it is derived from
+	`special-mode'.
+
 2011-09-09  Michael Albinus  <michael.albinus@gmx.de>
 
 	* debbugs-gnu.el (debbugs-gnu-search): Add full text search.

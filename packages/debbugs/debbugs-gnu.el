@@ -222,6 +222,16 @@ Derived from `calendar-read'."
       (setq value (read-string prompt initial-contents)))
     value))
 
+(defconst debbugs-gnu-phrase-prompt
+  (propertize
+   "Enter search phrase: "
+   'help-echo "\
+The search phrase contains words to be searched for, combined by
+operators like AND, ANDNOT and OR.  If there is no operator
+between the words, AND is used by default.  The phrase can also
+be empty, in this case only the following attributes are used for
+search."))
+
 ;;;###autoload
 (defun debbugs-gnu-search ()
   "Search for Emacs bugs interactively.
@@ -232,121 +242,135 @@ returned.  If a key cannot be queried by a SOAP request, it is
 marked as \"client-side filter\"."
   (interactive)
 
-  ;; Reset query and filter.
-  (setq debbugs-gnu-current-query nil
-	debbugs-gnu-current-filter nil)
+  (unwind-protect
+      (let ((date-format "\\([[:digit:]]\\{4\\}\\)-\\([[:digit:]]\\{1,2\\}\\)-\\([[:digit:]]\\{1,2\\}\\)")
+	    key val1 val2 phrase severities packages archivedp)
 
-  (let ((date-format "\\([[:digit:]]\\{4\\}\\)-\\([[:digit:]]\\{1,2\\}\\)-\\([[:digit:]]\\{1,2\\}\\)")
-	key val1 val2 phrase severities packages archivedp)
+	;; Check for the phrase.
+	(setq phrase (read-string debbugs-gnu-phrase-prompt))
+	(if (zerop (length phrase))
+	    (setq phrase nil)
+	  (add-to-list 'debbugs-gnu-current-query (cons 'phrase phrase)))
 
-    ;; Check for the phrase.
-    (setq phrase (read-string "Enter search phrase: "))
-    (if (zerop (length phrase))
-	(setq phrase nil)
-      (add-to-list 'debbugs-gnu-current-query (cons 'phrase phrase)))
+	;; The other queries.
+	(catch :finished
+	  (while t
+	    (setq key (completing-read
+		       "Enter attribute: "
+		       (if phrase
+			   '("severity" "package" "tags" "submitter" "date"
+			     "subject" "status")
+			 '("severity" "package" "archive" "src" "tag"
+			   "owner" "submitter" "maint" "correspondent"
+			   "date" "log_modified" "last_modified"
+			   "found_date" "fixed_date" "unarchived"
+			   "subject" "done" "forwarded" "msgid" "summary"))
+		       nil t))
+	    (cond
+	     ;; Server-side queries.
+	     ((equal key "severity")
+	      (setq
+	       severities
+	       (completing-read-multiple
+		"Enter severities: "
+		(mapcar
+		 'cadr (cdr (get 'debbugs-gnu-default-severities 'custom-type)))
+		nil t
+		(mapconcat 'identity debbugs-gnu-default-severities ","))))
 
-    ;; The other queries.
-    (catch :finished
-      (while t
-	(setq key (completing-read
-		   "Enter attribute: "
-		   (if phrase
-		       '("severity" "package" "tags" "submitter" "date"
-			 "subject" "status")
-		     '("severity" "package" "archive" "src" "tag"
-		       "owner" "submitter" "maint" "correspondent"
-		       "date" "log_modified" "last_modified"
-		       "found_date" "fixed_date" "unarchived"
-		       "subject" "done" "forwarded" "msgid" "summary"))
-		   nil t))
-	(cond
-	 ;; Server-side queries.
-	 ((equal key "severity")
-	  (setq
-	   severities
-	   (completing-read-multiple
-	    "Enter severities: "
-	    (mapcar
-	     'cadr (cdr (get 'debbugs-gnu-default-severities 'custom-type)))
-	    nil t (mapconcat 'identity debbugs-gnu-default-severities ","))))
+	     ((equal key "package")
+	      (setq
+	       packages
+	       (completing-read-multiple
+		"Enter packages: "
+		(mapcar
+		 'cadr (cdr (get 'debbugs-gnu-default-packages 'custom-type)))
+		nil t (mapconcat 'identity debbugs-gnu-default-packages ","))))
 
-	 ((equal key "package")
-	  (setq
-	   packages
-	   (completing-read-multiple
-	    "Enter packages: "
-	    (mapcar
-	     'cadr (cdr (get 'debbugs-gnu-default-packages 'custom-type)))
-	    nil t (mapconcat 'identity debbugs-gnu-default-packages ","))))
+	     ((equal key "archive")
+	      ;; We simplify, by assuming just archived bugs are requested.
+	      (setq archivedp t))
 
-	 ((equal key "archive")
-	  ;; We simplify, by assuming just archived bugs are requested.
-	  (setq archivedp t))
+	     ((member key '("src" "tag" "tags"))
+	      (setq val1 (read-string (format "Enter %s: " key)))
+	      (when (not (zerop (length val1)))
+		(add-to-list
+		 'debbugs-gnu-current-query (cons (intern key) val1))))
 
-	 ((member key '("src" "tag" "tags"))
-	  (setq val1 (read-string (format "Enter %s: " key)))
-	  (when (not (zerop (length val1)))
-	    (add-to-list 'debbugs-gnu-current-query (cons (intern key) val1))))
+	     ((member key '("owner" "submitter" "maint" "correspondent"))
+	      (setq val1 (read-string "Enter email address: "))
+	      (when (not (zerop (length val1)))
+		(add-to-list
+		 'debbugs-gnu-current-query (cons (intern key) val1))))
 
-	 ((member key '("owner" "submitter" "maint" "correspondent"))
-	  (setq val1 (read-string "Enter email address: "))
-	  (when (not (zerop (length val1)))
-	    (add-to-list 'debbugs-gnu-current-query (cons (intern key) val1))))
-
-	 ;; Client-side filters.
-	 ((member key '("date" "log_modified" "last_modified"
-			"found_date" "fixed_date" "unarchived"))
-	  (setq val1
-		(debbugs-gnu-calendar-read
-		 (format "Enter %s before YYYY-MM-DD%s: "
-			 key (if phrase "" " (client-side filter)"))
-		 (lambda (x)
-		   (string-match (concat "^\\(" date-format "\\|\\)$") x))))
-	  (if (string-match date-format val1)
-	      (setq val1 (floor
-			  (float-time
-			   (encode-time
-			    0 0 0
-			    (string-to-number (match-string 3 val1))
-			    (string-to-number (match-string 2 val1))
-			    (string-to-number (match-string 1 val1))))))
-	    (setq val1 nil))
-	  (setq val2
-		(debbugs-gnu-calendar-read
-		 (format "Enter %s after YYYY-MM-DD%s: "
-			 key (if phrase "" " (client-side filter)"))
-		 (lambda (x)
-		   (string-match (concat "^\\(" date-format "\\|\\)$") x))))
-	  (if (string-match date-format val2)
-	      (setq val2 (floor
-			  (float-time
-			   (encode-time
-			    0 0 0
-			    (string-to-number (match-string 3 val2))
-			    (string-to-number (match-string 2 val2))
-			    (string-to-number (match-string 1 val2))))))
-	    (setq val2 nil))
-	  (when (or val1 val2)
+	     ((equal key "status")
+	      (setq
+	       val1
+	       (completing-read "Enter status: " '("done" "forwarded" "open")))
+	      (when (not (zerop (length val1)))
 	    (add-to-list
-	     (if phrase 'debbugs-gnu-current-query 'debbugs-gnu-current-filter)
-	     (cons (intern key) (cons val1 val2)))))
+	     'debbugs-gnu-current-query (cons (intern key) val1))))
 
-	 ((not (zerop (length key)))
-	  (setq val1
-		(funcall
-		 (if phrase 'read-string 'read-regexp)
-		 (format "Enter %s%s"
-			 key (if phrase ": " " (client-side filter)"))))
-	  (when (not (zerop (length val1)))
-	    (add-to-list
- 	     (if phrase 'debbugs-gnu-current-query 'debbugs-gnu-current-filter)
-	     (cons (intern key) val1))))
+	     ;; Client-side filters.
+	     ((member key '("date" "log_modified" "last_modified"
+			    "found_date" "fixed_date" "unarchived"))
+	      (setq val1
+		    (debbugs-gnu-calendar-read
+		     (format "Enter %s before YYYY-MM-DD%s: "
+			     key (if phrase "" " (client-side filter)"))
+		     (lambda (x)
+		       (string-match (concat "^\\(" date-format "\\|\\)$") x))))
+	      (if (string-match date-format val1)
+		  (setq val1 (floor
+			      (float-time
+			       (encode-time
+				0 0 0
+				(string-to-number (match-string 3 val1))
+				(string-to-number (match-string 2 val1))
+				(string-to-number (match-string 1 val1))))))
+		(setq val1 nil))
+	      (setq val2
+		    (debbugs-gnu-calendar-read
+		     (format "Enter %s after YYYY-MM-DD%s: "
+			     key (if phrase "" " (client-side filter)"))
+		     (lambda (x)
+		       (string-match (concat "^\\(" date-format "\\|\\)$") x))))
+	      (if (string-match date-format val2)
+		  (setq val2 (floor
+			      (float-time
+			       (encode-time
+				0 0 0
+				(string-to-number (match-string 3 val2))
+				(string-to-number (match-string 2 val2))
+				(string-to-number (match-string 1 val2))))))
+		(setq val2 nil))
+	      (when (or val1 val2)
+		(add-to-list
+		 (if phrase
+		     'debbugs-gnu-current-query 'debbugs-gnu-current-filter)
+		 (cons (intern key) (cons val1 val2)))))
 
-	 ;; The End.
-	 (t (throw :finished nil)))))
+	     ((not (zerop (length key)))
+	      (setq val1
+		    (funcall
+		     (if phrase 'read-string 'read-regexp)
+		     (format "Enter %s%s"
+			     key (if phrase ": " " (client-side filter)"))))
+	      (when (not (zerop (length val1)))
+		(add-to-list
+		 (if phrase
+		     'debbugs-gnu-current-query 'debbugs-gnu-current-filter)
+		 (cons (intern key) val1))))
 
-    ;; Do the search.
-    (debbugs-gnu severities packages archivedp)))
+	     ;; The End.
+	     (t (throw :finished nil)))))
+
+	;; Do the search.
+	(debbugs-gnu severities packages archivedp))
+
+    ;; Reset query and filter.
+    (setq debbugs-gnu-current-query nil
+	  debbugs-gnu-current-filter nil)))
 
 ;;;###autoload
 (defun debbugs-gnu (severities &optional packages archivedp suppress)
@@ -437,11 +461,11 @@ marked as \"client-side filter\"."
 	    :buffer-name "*Emacs Bugs*"
 	    :bug-ids ids
 	    :query debbugs-gnu-current-query
-	    :filter debbugs-gnu-current-filter)))))
+	    :filter debbugs-gnu-current-filter))))
 
-  ;; Reset query and filter.
-  (setq debbugs-gnu-current-query nil
-	debbugs-gnu-current-filter nil))
+    ;; Reset query and filter.
+    (setq debbugs-gnu-current-query nil
+	  debbugs-gnu-current-filter nil)))
 
 (defun debbugs-gnu-get-bugs (query)
   "Retrieve bugs numbers from debbugs.gnu.org according search criteria."
@@ -675,7 +699,6 @@ Used instead of `tabulated-list-print-entry'."
     (define-key map "\r" 'debbugs-gnu-select-report)
     (define-key map [mouse-1] 'debbugs-gnu-select-report)
     (define-key map [mouse-2] 'debbugs-gnu-select-report)
-    (define-key map "q" 'bury-buffer)
     (define-key map "s" 'debbugs-gnu-toggle-sort)
     (define-key map "t" 'debbugs-gnu-toggle-tag)
     (define-key map "d" 'debbugs-gnu-display-status)
