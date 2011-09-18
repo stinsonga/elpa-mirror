@@ -590,7 +590,7 @@ marked as \"client-side filter\"."
 		'debbugs-gnu-new)
 	       ((< (- (float-time)
 		      (cdr (assq 'log_modified status)))
-		   (* 60 60 24 7))
+		   (* 60 60 24 7 2))
 		'debbugs-gnu-handled)
 	       (t
 		'debbugs-gnu-stale)))
