@@ -555,55 +555,64 @@ marked as \"client-side filter\"."
 				  merged
 				(mapconcat 'number-to-string merged ","))
 			      words)))
-	(add-to-list
-	 'tabulated-list-entries
-	 (list
-	  status
-	  (vector
-	   (propertize
-	    (format "%5d" id)
-	    'face
-	    ;; Mark tagged bugs.
-	    (if (memq id debbugs-gnu-local-tags)
-		'debbugs-gnu-tagged
-	      'default))
-	   (propertize
-	    ;; Mark status and age.
-	    words
-	    'face
-	    (cond
-	     ((equal (cdr (assq 'pending status)) "done")
-	      'debbugs-gnu-done)
-	     ((member "pending" (cdr (assq 'keywords status)))
-	      'debbugs-gnu-pending)
-	     ((= (cdr (assq 'date status))
-		 (cdr (assq 'log_modified status)))
-	      'debbugs-gnu-new)
-	     ((< (- (float-time)
-		    (cdr (assq 'log_modified status)))
-		 (* 60 60 24 7))
-	      'debbugs-gnu-handled)
-	     (t
-	      'debbugs-gnu-stale)))
-	   (propertize
-	    ;; Prefer the name over the address.
-	    (or (cdr address)
-		(car address))
-	    'face
-	    ;; Mark own submitted bugs.
-	    (if (and (stringp (car address))
-		     (string-equal (car address) user-mail-address))
-		'debbugs-gnu-tagged
-	      'default))
-	   (propertize
-	    subject
-	    'face
-	    ;; Mark owned bugs.
-	    (if (and (stringp owner)
-		     (string-equal owner user-mail-address))
-		'debbugs-gnu-tagged
-	      'default))))
-	 'append)))
+	(when (or (not merged)
+		  (not (let ((found nil))
+			 (dolist (id (if (listp merged)
+					 merged
+				       (list merged)))
+			   (dolist (entry tabulated-list-entries)
+			     (when (equal id (cdr (assq 'id (car entry))))
+			       (setq found t))))
+			 found)))
+	  (add-to-list
+	   'tabulated-list-entries
+	   (list
+	    status
+	    (vector
+	     (propertize
+	      (format "%5d" id)
+	      'face
+	      ;; Mark tagged bugs.
+	      (if (memq id debbugs-gnu-local-tags)
+		  'debbugs-gnu-tagged
+		'default))
+	     (propertize
+	      ;; Mark status and age.
+	      words
+	      'face
+	      (cond
+	       ((equal (cdr (assq 'pending status)) "done")
+		'debbugs-gnu-done)
+	       ((member "pending" (cdr (assq 'keywords status)))
+		'debbugs-gnu-pending)
+	       ((= (cdr (assq 'date status))
+		   (cdr (assq 'log_modified status)))
+		'debbugs-gnu-new)
+	       ((< (- (float-time)
+		      (cdr (assq 'log_modified status)))
+		   (* 60 60 24 7))
+		'debbugs-gnu-handled)
+	       (t
+		'debbugs-gnu-stale)))
+	     (propertize
+	      ;; Prefer the name over the address.
+	      (or (cdr address)
+		  (car address))
+	      'face
+	      ;; Mark own submitted bugs.
+	      (if (and (stringp (car address))
+		       (string-equal (car address) user-mail-address))
+		  'debbugs-gnu-tagged
+		'default))
+	     (propertize
+	      subject
+	      'face
+	      ;; Mark owned bugs.
+	      (if (and (stringp owner)
+		       (string-equal owner user-mail-address))
+		  'debbugs-gnu-tagged
+		'default))))
+	   'append))))
     (tabulated-list-init-header)
     (tabulated-list-print)
 
@@ -953,6 +962,7 @@ removed instead."
 	    "merge" "forcemerge"
 	    "owner" "noowner"
 	    "invalid"
+	    "reassign"
 	    "patch" "wontfix" "moreinfo" "unreproducible" "fixed" "notabug"
 	    "pending" "help" "security" "confirmed")
 	  nil t)
@@ -991,6 +1001,8 @@ removed instead."
 			(read-string "Merge with bug #: ")))
 	       ((equal message "owner")
 		(format "owner %d !\n" id))
+	       ((equal message "reassign")
+		(format "reassign %d %s\n" id (read-string "Package: ")))
 	       ((equal message "close")
 		(format "close %d %s\n" id version))
 	       ((equal message "done")
