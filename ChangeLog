@@ -1,5 +1,7 @@
 2011-09-23  Julien Danjou  <julien@danjou.info>
 
+	* packages/rainbow-mode/rainbow-mode.el: Update to version 0.2.
+
 	* packages/oauth2/oauth2.el: New package.
 
 2011-08-28  PJ Weisberg  <pjweisberg@gmail.com>
