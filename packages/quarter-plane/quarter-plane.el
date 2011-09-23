@@ -53,15 +53,8 @@
     (define-key map [remap mouse-set-point] 'picture-mouse-set-point)
     map))
 
-(defconst quarter-plane-saved-symbols
-  '(truncate-lines show-trailing-whitespace)
-  "Buffer-local variables whose modified by `quarter-plane-mode`.
-Their values are saved when `quarter-plane-mode` is enabled and restored
-when it's disabled.")
-
-(defvar quarter-plane-saved-values)
+(defvar quarter-plane-saved-values nil)
 (make-variable-buffer-local 'quarter-plane-saved-values)
-(put 'quarter-plane-saved-values 'permanent-local t)
 
 ;;;###autoload
 (define-minor-mode quarter-plane-mode
@@ -75,29 +68,30 @@ infinitely down and to the right, inserting spaces as necessary.
 Excess whitespace is trimmed when saving or exiting Quarter-Plane mode.
 
 Because it works by inserting spaces, Quarter-Plane mode won't work in
-read-only buffers
+read-only buffers.
 
 \\{quarter-plane-mode-map}"
   :lighter " Plane"
   :group 'picture
   :keymap quarter-plane-mode-map
-  (cond
-   (quarter-plane-mode
+  (remove-hook 'before-save-hook 'quarter-plane-delete-whitespace t)
+  (dolist (symval (prog1 quarter-plane-saved-values
+                    (setq quarter-plane-saved-values nil)))
+    (set (car symval) (cdr symval)))
+  (when quarter-plane-mode
     (add-hook 'before-save-hook 'quarter-plane-delete-whitespace nil t)
-    (setq quarter-plane-saved-values nil)
-    (dolist (sym quarter-plane-saved-symbols)
-      (push (symbol-value sym) quarter-plane-saved-values))
-    (setq quarter-plane-saved-values (nreverse quarter-plane-saved-values))
-    (setq truncate-lines t)
-    (setq show-trailing-whitespace nil))
-   (t
-    (remove-hook 'before-save-hook 'quarter-plane-delete-whitespace t)
-    (dolist (sym quarter-plane-saved-symbols)
-      (set sym (pop quarter-plane-saved-values))))))
+    ;; Since quarter-plane-mode is not permanent-local, it should turn itself
+    ;; off cleanly.
+    (add-hook 'change-major-mode-hook (lambda () (quarter-plane-mode -1)) nil t)
+    (dolist (symval '((truncate-lines . t)
+                      (show-trailing-whitespace . nil)))
+      (push (cons (car symval) (symbol-value (car symval)))
+            quarter-plane-saved-values)
+      (set (car symval) (cdr symval)))))
 
 ;;;###autoload
 (define-global-minor-mode global-quarter-plane-mode quarter-plane-mode
-  turn-on-quarter-plane-mode
+  quarter-plane-mode
   :group 'picture)
 
 (defun quarter-plane-delete-whitespace ()

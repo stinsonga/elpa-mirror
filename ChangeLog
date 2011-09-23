@@ -1,4 +1,4 @@
-2011-08-28  PJ Weisberg  <pjweisberg@gmail.com>  (tiny change)
+2011-08-28  PJ Weisberg  <pjweisberg@gmail.com>
 
 	* packages/load-dir/load-dir.el (load-dir-one): Avoid infinite
 	recursion.
