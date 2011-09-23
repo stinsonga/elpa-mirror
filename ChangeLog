@@ -1,3 +1,7 @@
+2011-09-23  Julien Danjou  <julien@danjou.info>
+
+	* packages/oauth2/oauth2.el: New package.
+
 2011-08-28  PJ Weisberg  <pjweisberg@gmail.com>
 
 	* packages/load-dir/load-dir.el (load-dir-one): Avoid infinite
