@@ -167,7 +167,7 @@ patch:
                      :status \"open\"
                      :severity \"grave\"
                      :status \"forwarded\"
-                     :severity \"serious\"))"
+                     :severity \"serious\")"
 
   (let (vec kw key val)
     ;; Check query.
@@ -627,7 +627,7 @@ Example: Return the first message of last submitted bug.
 
 (defun debbugs-get-mbox (bug-number mbox-type &optional filename)
   "Download mbox with messages of bug BUG-NUMBER from Debbugs server.
-BUG-NUMBER is a number of bug. It must be of integer type.
+BUG-NUMBER is a number of bug.  It must be of integer type.
 
 MBOX-TYPE specifies a type of mbox and can be one of the
 following symbols:
@@ -636,14 +636,13 @@ following symbols:
 
    `mboxmaint': Download maintainer's mbox.
 
-   `mboxstat', `mboxstatus': Download status mbox. The use of
-   either symbol depends on actual Debbugs server
-   configuration. For gnu.org, use the former; for debian.org -
-   the latter.
+   `mboxstat', `mboxstatus': Download status mbox.  The use of
+   either symbol depends on actual Debbugs server configuration.
+   For gnu.org, use the former; for debian.org - the latter.
 
-FILENAME, if non-nil, is the name of file to store mbox. If
-FILENAME is nil, the downloaded mbox is inserted into the current
-buffer."
+FILENAME, if non-`nil', is the name of file to store mbox.  If
+FILENAME is `nil', the downloaded mbox is inserted into the
+current buffer."
   (let (url (mt "") bn)
     (unless (setq url (plist-get
 		       (cdr (assoc debbugs-port debbugs-servers))
