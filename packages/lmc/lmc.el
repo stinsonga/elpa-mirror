@@ -24,18 +24,39 @@
 
 ;; The simulator uses a plain editable buffer, so you can edit the machine
 ;; words just like any other text, and every word can be given a name (label)
-;; which can also be edited in the normal way.
+;; which can also be edited in the normal way.  Additionally to the labels it
+;; shows the disassembled meaning of instruction words.  Of course, it can't
+;; always know which words are meant to be code rather than data, so it relies
+;; on information from the assembler to do that, and otherwise just marks every
+;; word it executes as being "code".
 
-;; The assembly uses a slightly different (Lispish) syntax where each
-;; instruction needs to be wrapped in parentheses.  Other than hat it's the
-;; same assembly as documented elsewhere (accepts a few mnemonic variants, such
-;; as IN/INP, STA/STO).
-;; The lmc-asm-mode supports all the usual editing features such as label
+;; The assembly uses a slightly different (Lispish) syntax where comments start
+;; with ";", and each instruction needs to be wrapped in parentheses.
+;; Other than that it's the same assembly as documented elsewhere
+;; (accepts a few mnemonic variants, such as IN/INP, STA/STO, BR/BRA).
+;; Another difference is that the DAT mnemonic accepts any number of words
+;; rather than just one.
+;;
+;; So the assembly (stored in files with extension ".elmc") looks like:
+;;
+;;   label1
+;;          (BR label2) ;Useless extra jump.
+;;   label2
+;;          (LDA data1) ;Cleverest part of the algorithm.
+;;          (ADD data2)
+;;          (STO data1)
+;;          (BR label1)
+;;          
+;;   data1  (DAT 0)
+;;   data2  (DAT 050 060 070)
+;;
+;; And actually, since the assembler re-uses the Emacs Lisp reader to parse the
+;; code, you can use binary, octal, and hexadecimal constants as well, using
+;; the notations #b101010, #o277, and #x5F respectively.
+;; 
+;; The lmc-asm-mode supports the usual editing features such as label
 ;; completion, mnemonic completion, jumping to a label, automatic indentation,
-;; and even code folding.
-
-;; FIXME:
-;; - can't set lmc-pc and lmc-acc.
+;; and code folding.
 
 ;;; Code:
 
@@ -98,7 +119,9 @@
           (setq pos (+ pos (if (eq (car cmd) 'DAT)
                                (1- (length cmd)) 1)))
         ;; (assert (symbolp cmd))
-        (push (cons cmd pos) labels)))
+        (if (assq cmd labels)
+            (error "Duplicate label %S" cmd)
+          (push (cons cmd pos) labels))))
     ;; Second pass, do the actual assembly.
     (let* ((words ())
            (ll nil)
@@ -168,8 +191,8 @@
   (let ((code (car (rassq (/ word 100) lmc-mnemonic-1-table))))
     (cond
      (code (list code (mod word 100)))
-     ((rassq word lmc-mnemonic-1-table)
-      (list (car (rassq word lmc-mnemonic-1-table)))))))
+     ((rassq word lmc-mnemonic-0-table)
+      (list (car (rassq word lmc-mnemonic-0-table)))))))
 
 (defun lmc-addr->point (addr)
   (goto-char (point-min))
@@ -320,13 +343,32 @@
 (defvar lmc-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "\C-c\C-s" 'lmc-step)
+    (define-key map "\C-c\C-r" 'lmc-run)
     (define-key map "\C-c\C-l" 'lmc-load-file)
+    (define-key map "\C-c\C-a" 'lmc-set-acc)
+    (define-key map "\C-c\C-p" 'lmc-set-pc)
     map))
 
 (easy-menu-define lmc-menu lmc-mode-map "Menu for LMC-Sim."
   '("LMC-Sim"
     ["Step" lmc-step (not (lmc-stopped-p))]
-    ["Load file" lmc-load-file]))
+    ["Run" lmc-run (not (lmc-stopped-p))]
+    ["Load file" lmc-load-file]
+    "--"
+    ["Set Program Counter" lmc-set-pc]
+    ["Set Accumulator" lmc-set-acc]))
+
+(defvar lmc-tool-bar-map
+  (let ((map (make-sparse-keymap)))
+    (tool-bar-local-item "gud/next" 'lmc-step 'step map
+                         :label "step" ;; :vert-only t
+                         :enable '(not (lmc-stopped-p))
+                         )
+    (tool-bar-local-item "gud/run" 'lmc-run 'run map
+                         :label "run" ;; :vert-only t
+                         :enable '(not (lmc-stopped-p))
+                         )
+    map))
 
 (define-derived-mode lmc-mode fundamental-mode "LMC-Sim"
   "The simulator of the Little Man Computer."
@@ -337,17 +379,57 @@
        '(lmc-font-lock-keywords t))
   (set (make-local-variable 'font-lock-extra-managed-props)
        '(display help-echo))
+  (set (make-local-variable 'tool-bar-map) lmc-tool-bar-map)
   (add-hook 'after-change-functions #'lmc-after-change nil t)
   (set (make-local-variable 'lmc-label-table) (make-vector 100 nil))
   (set (make-local-variable 'overlay-arrow-position) (point-min-marker))
   (lmc-update-pc)
   ;; (overwrite-mode 1)
   (set (make-local-variable 'header-line-format)
-       '("LMC-Sim  PC=" (:eval (format "%02d" lmc-pc))
-         "  ACC=" (:eval (format "%03d" lmc-acc))
+       `("LMC-Sim  PC="
+         (:eval (format ,(propertize "%02d"
+                                     'mouse-face 'mode-line-highlight
+                                     'help-echo "mouse-2: set the Program Counter"
+                                     'follow-link t
+                                     ;; I'm having problems with mouse-2 to
+                                     ;; mouse-1 remapping in the mode-line and
+                                     ;; header-line, so I over-do it a bit.
+                                     'keymap
+                                     '(keymap
+                                       (header-line keymap
+                                                    (down-mouse-1 . ignore)
+                                                    (mouse-2 . lmc-set-pc)
+                                                    (mouse-1 . lmc-set-pc))))
+                        lmc-pc))
+         "  ACC="
+         (:eval (format ,(propertize "%03d"
+                                     'mouse-face 'mode-line-highlight
+                                     'help-echo "mouse-2: set the Accumulator"
+                                     'follow-link t
+                                     'keymap
+                                     ;; I'm having problems with mouse-2 to
+                                     ;; mouse-1 remapping in the mode-line and
+                                     ;; header-line, so I over-do it a bit.
+                                     '(keymap
+                                       (header-line keymap
+                                                    (down-mouse-1 . ignore)
+                                                    (mouse-2 . lmc-set-acc)
+                                                    (mouse-1 . lmc-set-acc))))
+                        lmc-acc))
          "      Recent output: "
          (:eval (if lmc-output (format "%s" lmc-output) "()"))))
   )
+
+(defun lmc-set-pc (pc)
+  "Set the Program Counter."
+  (interactive (list (read-number "New PC: " lmc-pc)))
+  (setq lmc-pc pc)
+  (lmc-update-pc))
+
+(defun lmc-set-acc (acc)
+  "Set the Accumulator."
+  (interactive (list (read-number "New Accumulator: " lmc-acc)))
+  (setq lmc-acc (mod acc 1000)))
 
 (defun lmc-load (words)
   (pop-to-buffer "*LMC-Sim*")
@@ -377,7 +459,7 @@
         (with-silent-modifications
           (put-text-property (match-beginning 1) (point)
                              'face 'region))
-        (sit-for 0.5))
+        (sit-for 0.2))
       (replace-match (format "  %03d" word) t t nil 1)
       (when lmc-store-flash
         (sit-for 0.1)
@@ -398,7 +480,9 @@
     (case (car code)
       (HLT (if (lmc-stopped-p)
                (error "Already halted")
-             (setq lmc--stopped (lmc--state)) (message "Done.")))
+             (setq lmc--stopped (lmc--state))
+             (force-mode-line-update)
+             (message "Done.")))
       (IN (setq lmc-acc (mod (read-number "Enter a number") 1000))
           (incf lmc-pc))
       (OUT (message "Output: %03d" lmc-acc)
@@ -424,6 +508,14 @@
       ((nil) (error "Invalid instruction %S" inst))
       (t (error "%S not implemented" code))))
   (lmc-update-pc))
+
+(defun lmc-run ()
+  "Run the code until hitting a HLT.
+The machine will also stop if the user presses a key."
+  (interactive)
+  (while (not (or (input-pending-p) (lmc-stopped-p)))
+    (lmc-step)
+    (sit-for 0.05)))
 
 ;;; The LMC assembly language editor.
 
@@ -532,6 +624,19 @@
      (t (forward-comment (point-max)) (lmc-asm-indentation)))))
 
 (defun lmc-asm-indent-line (&optional arg)
+  (save-excursion
+    (back-to-indentation)
+    (when (and (zerop (nth 0 (syntax-ppss)))
+               (looking-at (concat lmc-asm-mnemonic-names-re "\\_>")))
+      ;; Apparently the user forgot to parenthesize the instruction.
+      (insert "(")
+      (if (assq (read (current-buffer)) lmc-mnemonic-0-table)
+          (insert ")")
+        (let ((eol (line-end-position)))
+          (ignore-errors
+            (read (current-buffer))
+            (when (<= (point) eol)
+              (insert ")")))))))
   (let ((indent (lmc-asm-indentation)))
     (cond
      ((null indent) (lisp-indent-line arg))
@@ -567,7 +672,7 @@
     (nreverse prog)))
 
 (defun lmc-asm-load ()
-  "Load current buffer into the LMC simluator."
+  "Load current buffer into the LMC simulator."
   (interactive)
   (let ((initialpos (point))
         (window (if (eq (current-buffer) (window-buffer)) (selected-window))))
