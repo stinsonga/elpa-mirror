@@ -45,7 +45,7 @@ the Debian project but actually used also by the GNU project.  The
 main distinctive feature of Debbugs is that it's mostly email-based.
 All actions on bug reports: opening, closing, changing the status,
 commenting, forwarding are performed via email by sending specially
-composed letters to the partucular mail addresses.  However, searching
+composed letters to the particular mail addresses.  However, searching
 the bug reports, querying bug report status and viewing comments have
 been web-based for a long time.  To overcome this inconvenience the
 Debbugs/SOAP service was introduced.
@@ -165,9 +165,16 @@ Debbugs server the list of bug numbers that match a user's query.
 
 @defun debbugs-get-bugs &rest query
 This function returns a list of bug numbers that match the
-@var{query}.  @var{query} is a key-value pair sequence, where the key
-is a keyword (symbol) and the value is a string.  All queries are
-logically concatenated via AND.
+@var{query}. @var{query} is a sequence of keyword-value pairs where the
+values are strings, i.e. :KEYWORD ``VALUE'' [:KEYWORD ``VALUE'']*
+
+The keyword-value pair is a subquery.  The keywords are allowed to
+have multiple occurrence within the query at any place.  The
+subqueries with the same keyword form the logical subquery, which
+returns the union of bugs of every subquery it contains.
+
+The result of the @var{query} is an intersection of results of all
+subqueries.
 
 Valid keywords are:
 
@@ -175,6 +182,9 @@ Valid keywords are:
 @item :package
 The value is the name of the package a bug belongs to, like @code{"emacs"},
 @code{"coreutils"}, @code{"gnus"}, or @code{"tramp"}.
+
+@item :src
+This is used to retrieve bugs that belong to source with given name.
 
 @item :severity
 This is the severity of the bug.  The exact set of available severities
@@ -194,8 +204,7 @@ An arbitrary string the bug is annotated with.  Usually, this is used
 to mark the status of the bug.  The list of possible tags depends on
 the Debbugs port.
 
-Debian port:
-@code{"patch"}, @code{"wontfix"}, @code{"moreinfo"},
+Debian port: @code{"patch"}, @code{"wontfix"}, @code{"moreinfo"},
 @code{"unreproducible"}, @code{"fixed"}, @code{"potato"},
 @code{"woody"}, @code{"sid"}, @code{"help"}, @code{"security"},
 @code{"upstream"}, @code{"pending"}, @code{"sarge"},
@@ -203,11 +212,15 @@ Debian port:
 @code{"confirmed"}, @code{"ipv6"}, @code{"lfs"},
 @code{"fixed-in-experimental"}, @code{"fixed-upstream"}, @code{"l10n"},
 @code{"etch"}, @code{"etch-ignore"}, @code{"lenny"},
-@code{"lenny-ignore"}.
+@code{"lenny-ignore"}, @code{"squeeze"}, @code{"squeeze-ignore"},
+@code{"wheezy"}, @code{"wheezy-ignore"}. The actual list of tags can be
+found on @uref{http://www.debian.org/Bugs/Developer#tags}.
 
-GNU port:
-@code{"fixed"}, @code{"notabug"}, @code{"wontfix"},
-@code{"unreproducible"}, @code{"moreinfo"}, @code{"patch"}.
+GNU port: @code{"fixed"}, @code{"notabug"}, @code{"wontfix"},
+@code{"unreproducible"}, @code{"moreinfo"}, @code{"patch"},
+@code{"pending"}, @code{"help"}, @code{"security"}, @code{"confirmed"}.
+See @url{http://debbugs.gnu.org/Developer.html#tags} for the actual list
+of tags.
 
 @item :owner
 This is used to identify bugs by the owner's email address.  The
@@ -220,19 +233,44 @@ With this keyword it is possible to filter bugs by the submitter's
 email address.  The special email address @code{"me"} is used as
 pattern, replaced with the variable @code{user-mail-address}.
 
+@item :maint
+This is used to find bugs of the packages which are maintained by the
+person with the given email address.  The special email address
+@code{"me"} is used as pattern, replaced with @code{user-mail-address}.
+
+@item :correspondent
+This allows to find bug reports where the person with the given email
+address has participated.  The special email address @code{"me"} is used
+as pattern, replaced with @code{user-mail-address}.
+
+@item :affects
+With this keyword it is possible to find bugs which affect the package
+with the given name.  The bugs are chosen by the value of field
+@code{affects} in bug's status.  The returned bugs do not necessary
+belong to this package.
+
+@item :status
+Status of bug.  Valid values are @code{"done"}, @code{"forwarded"} and
+@code{"open"}.
+
 @item :archive
-A keyword to filter for bugs which are already archived, or not.
-Valid values are @code{"0"} (not archived), @code{"1"} (archived) or
+A keyword to filter for bugs which are already archived, or not.  Valid
+values are @code{"0"} (not archived), @code{"1"} (archived) or
 @code{"both"}.  If this keyword is not given in the query,
 @code{:archive "0"} is assumed by default.
 @end table
 
-Example.  Get all bug reports that were initiated by me.
+Example.  Get all opened and forwarded release critical bugs for the
+packages which are maintained by @code{"me"} and which have a patch:
 
 @example
-(let ((debbugs-port "gnu.org"))
-  (debbugs-get-bugs :submitter "me" :archive "both"))
-@result{} (5516 5551 5645 7259)
+(let ((debbugs-port "debian.org"))
+  (debbugs-get-bugs :maint "me" :tag "patch"
+                    :severity "critical"
+                    :status "open"
+                    :severity "grave"
+                    :status "forwarded"
+                    :severity "serious"))
 @end example
 @end defun
 
