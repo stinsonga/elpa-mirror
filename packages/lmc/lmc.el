@@ -3,6 +3,7 @@
 ;; Copyright (C) 2011  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
+;; Version: 1.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -114,14 +115,26 @@
     ;; First pass, resolve labels to their positions.
     (dolist (cmd cmds)
       (setq cmd (cdr cmd))              ;Ignore position info at this stage.
-      (if (or (consp cmd)
-              (assq cmd lmc-mnemonic-0-table))
-          (setq pos (+ pos (if (eq (car cmd) 'DAT)
-                               (1- (length cmd)) 1)))
+      (cond
+       ((or (consp cmd)
+            (assq cmd lmc-mnemonic-0-table))
+        (setq pos (+ pos (if (eq (car cmd) 'DAT)
+                             (1- (length cmd)) 1))))
+       ((numberp cmd)
+        (cond
+         ((not (and (natnump cmd) (< cmd 100)))
+          (error "%S is not a valid address" cmd))
+         ((< cmd pos)
+          (error "Address %S already used" cmd))
+         ((rassq pos labels)
+          (error "Label %S needs to come after address %S"
+                 (car (rassq pos labels)) cmd))
+         (t (setq pos cmd))))
+       ((and cmd (symbolp cmd))
         ;; (assert (symbolp cmd))
         (if (assq cmd labels)
             (error "Duplicate label %S" cmd)
-          (push (cons cmd pos) labels))))
+          (push (cons cmd pos) labels)))))
     ;; Second pass, do the actual assembly.
     (let* ((words ())
            (ll nil)
@@ -144,6 +157,9 @@
                    (+ (* 100 (cdr (assq (car cmd) lmc-mnemonic-1-table)))
                       (lmc--resolve (nth 1 cmd) labels 100))
                    'code))
+         ((numberp cmd)
+          (dotimes (_ (- cmd (length words)))
+            (funcall newword 0)))
          ((and cmd (symbolp cmd))
           (assert (eq (cdr (assq cmd labels)) (length words)))
           (setq ll cmd))
@@ -361,14 +377,51 @@
 (defvar lmc-tool-bar-map
   (let ((map (make-sparse-keymap)))
     (tool-bar-local-item "gud/next" 'lmc-step 'step map
-                         :label "step" ;; :vert-only t
+                         :label "Step" ;; :vert-only t
                          :enable '(not (lmc-stopped-p))
                          )
     (tool-bar-local-item "gud/run" 'lmc-run 'run map
-                         :label "run" ;; :vert-only t
+                         :label "Run" ;; :vert-only t
                          :enable '(not (lmc-stopped-p))
                          )
     map))
+
+(defun lmc-tool-bar-to-string (&optional map)
+  (let ((res ""))
+    (map-keymap
+     (lambda (k v)
+       (when (eq (car v) 'menu-item)
+         (let* ((label (nth 1 v))
+                (cmd (nth 2 v))
+                (plist (nthcdr (if (consp (nth 3 v)) 4 3) v))
+                (help-echo (plist-get plist :help))
+                (image     (plist-get plist :image))
+                (enable-exp (if (plist-member plist :enable)
+                                (plist-get plist :enable)
+                              t))
+                (enable (eval enable-exp))
+                (map (let ((map (make-sparse-keymap)))
+                       (define-key map [header-line mouse-1] cmd)
+                       (define-key map [header-line mouse-2] cmd)
+                       map))
+                (button
+                 (propertize " " 'help-echo (or help-echo label)
+                             'keymap map
+                             'face 'header-line
+                             'mouse-face (if enable 'mode-line-highlight)
+                             'rear-nonsticky '(display keymap help-echo)
+                             'display (if (and (eq 'image (car image))
+                                               (not enable))
+                                          `(image :conversion disabled
+                                                  ,@(cdr image))
+                                        image))))
+           (setq res (concat res (propertize " " 'display '(space :width 0.5)
+                                             'face 'header-line
+                                             )
+                             button)))))
+     (or (let ((tool-bar-map map)) (tool-bar-make-keymap))
+         (key-binding [tool-bar])))
+    res))
 
 (define-derived-mode lmc-mode fundamental-mode "LMC-Sim"
   "The simulator of the Little Man Computer."
@@ -379,17 +432,21 @@
        '(lmc-font-lock-keywords t))
   (set (make-local-variable 'font-lock-extra-managed-props)
        '(display help-echo))
-  (set (make-local-variable 'tool-bar-map) lmc-tool-bar-map)
+  ;; (set (make-local-variable 'tool-bar-map) lmc-tool-bar-map)
   (add-hook 'after-change-functions #'lmc-after-change nil t)
   (set (make-local-variable 'lmc-label-table) (make-vector 100 nil))
   (set (make-local-variable 'overlay-arrow-position) (point-min-marker))
   (lmc-update-pc)
   ;; (overwrite-mode 1)
   (set (make-local-variable 'header-line-format)
-       `("LMC-Sim  PC="
+       `(""
+         (:eval (lmc-tool-bar-to-string lmc-tool-bar-map))
+         "  " ,(propertize "LMC-Sim" 'face '(bold italic)) "  "
+         ,(propertize "PC=" 'face 'font-lock-function-name-face)
          (:eval (format ,(propertize "%02d"
                                      'mouse-face 'mode-line-highlight
-                                     'help-echo "mouse-2: set the Program Counter"
+                                     'help-echo
+                                     "mouse-2: set the Program Counter"
                                      'follow-link t
                                      ;; I'm having problems with mouse-2 to
                                      ;; mouse-1 remapping in the mode-line and
@@ -401,7 +458,7 @@
                                                     (mouse-2 . lmc-set-pc)
                                                     (mouse-1 . lmc-set-pc))))
                         lmc-pc))
-         "  ACC="
+         "  " ,(propertize "ACC=" 'face 'font-lock-function-name-face)
          (:eval (format ,(propertize "%03d"
                                      'mouse-face 'mode-line-highlight
                                      'help-echo "mouse-2: set the Accumulator"
@@ -416,7 +473,8 @@
                                                     (mouse-2 . lmc-set-acc)
                                                     (mouse-1 . lmc-set-acc))))
                         lmc-acc))
-         "      Recent output: "
+         "      " ,(propertize "Recent output="
+                               'face 'font-lock-function-name-face)
          (:eval (if lmc-output (format "%s" lmc-output) "()"))))
   )
 
