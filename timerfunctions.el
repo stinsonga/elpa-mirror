@@ -1,5 +1,5 @@
 ;;; timerfunctions.el---enhanced versions of some timer.el functions.
-;; Time-stamp: <2003-05-09 08:23:24 deego>
+;; Time-stamp: <2011-10-04 21:58:10 deego>
 ;; Copyright (C) Deepak Goel 2000, 2001, 2002
 ;; Emacs Lisp Archive entry
 ;; Filename: timerfunctions.el
@@ -170,6 +170,7 @@ numbers.. In particular, they can simply be numbers..
 ;;;TESTS FOLLOW
 (defun tf-test-display-time-internal
   ()
+  (interactive)
   (let ((thisbuffer (buffer-name)))
     (switch-to-buffer-other-window "*scratch*")
     (goto-char (point-max))
@@ -257,6 +258,21 @@ unless you are an expert, that is.."
      (message "third loop ends here."))
     (message "%S" a)
     a))
+
+
+
+(defvar tf-internal-var-recenter 1)
+(defun tf-internal-recenter-toggle-my ()
+  (interactive)
+  (recenter tmpp)
+  (setq tf-internal-var-recenter (- 0 tf-internal-var-recenter)))
+
+(defun tf-example-timer-recenter ()
+  "Changes the screen display every 3 seconds, thus ensuring that you
+  don't time out of ssh sessions."
+  tf-run-with-idle-timer 3 t 3 t nil 'tf-internal-recenter-toggle-my)
+
+
 
 
 (defun tf-wait-until-idle (&optional secs)
