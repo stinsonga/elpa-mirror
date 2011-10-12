@@ -64,6 +64,10 @@
 (eval-when-compile (require 'cl))
 (require 'hexl)
 
+(defgroup lmc ()
+  "Customization group for the Little Man Computer simulator."
+  :group 'languages)
+
 ;;; The LMC-Simulator
 
 (defvar lmc--pc 0 "Program counter for LMC.")
@@ -71,6 +75,27 @@
 
 (defvar lmc-acc 0 "Accumulator for LMC.")
 (make-variable-buffer-local 'lmc--acc)
+
+;; Emacs-22 backward compatibility.
+(defmacro lmc--with-silent-modifications (&rest body)
+  (declare (debug t) (indent 0))
+  (if (fboundp 'with-silent-modifications)
+      `(with-silent-modifications ,@body)
+    (let ((modified (make-symbol "modified")))
+      `(let* ((,modified (buffer-modified-p))
+	      (buffer-undo-list t)
+	      (inhibit-read-only t)
+	      (inhibit-modification-hooks t)
+	      deactivate-mark
+	      ;; Avoid setting and removing file locks and checking
+	      ;; buffer's uptodate-ness w.r.t the underlying file.
+	      buffer-file-name
+	      buffer-file-truename)
+	 (unwind-protect
+	     (progn
+	       ,@body)
+	   (unless ,modified
+	     (restore-buffer-modified-p nil)))))))
 
 ;; (defun lmc-check (cmds)
 ;;   (dolist (cmd cmds)
@@ -506,7 +531,9 @@
       (setq addr (1+ addr))))
   (lmc-update-pc))
 
-(defvar lmc-store-flash t)
+(defcustom lmc-store-flash t
+  "If non-nil, memory words blink when modified."
+  :type 'boolean)
 
 (defun lmc-store-word (addr word)
   (save-excursion
@@ -514,18 +541,18 @@
     (if (not (re-search-forward "\t.*\t\\(.*\\)$" (line-end-position) t))
         (error "Missing memory cell %S" addr)
       (when lmc-store-flash
-        (with-silent-modifications
+        (lmc--with-silent-modifications
           (put-text-property (match-beginning 1) (point)
                              'face 'region))
         (sit-for 0.2))
       (replace-match (format "  %03d" word) t t nil 1)
       (when lmc-store-flash
         (sit-for 0.1)
-        (with-silent-modifications
+        (lmc--with-silent-modifications
           (put-text-property (match-beginning 1) (point)
                              'face 'region))
         (sit-for 0.1)
-        (with-silent-modifications
+        (lmc--with-silent-modifications
           (put-text-property (match-beginning 1) (point)
                              'face nil))
         (sit-for 0.1)))))
