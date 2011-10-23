@@ -3,6 +3,7 @@
 ;; Copyright (C) 2011 Free Software Foundation, Inc.
 
 ;; Author: Thierry Volpiatto <thierry.volpiatto@gmail.com>
+;; Version: 0.1
 
 ;; This file is part of GNU Emacs.
 
@@ -115,7 +116,7 @@ See `with-eldoc-in-minibuffer'."
      (cond (eldoc-in-minibuffer-own-frame-p
             (selected-window))
            ((fboundp 'window-in-direction)
-            (window-in-direction 
+            (window-in-direction
              'above (minibuffer-window)))
            (t (minibuffer-selected-window))))))
 
