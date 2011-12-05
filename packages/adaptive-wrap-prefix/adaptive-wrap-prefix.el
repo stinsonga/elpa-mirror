@@ -1,4 +1,4 @@
-;;; awp-mode.el --- Perform smart line-wrapping with wrap-prefix
+;;; adaptive-wrap-prefix.el --- Perform smart line-wrapping with wrap-prefix
 
 ;; Copyright (C) 2011  Stefan Monnier
 
@@ -21,7 +21,9 @@
 
 ;;; Commentary:
 
-;; 
+;; Set the wrap-prefix property on the fly so that single-long-line paragraphs
+;; get word-wrapped in a way similar to what you'd get with M-q using
+;; adaptive-fill-mode, but without actually changing the buffer's text.
 
 ;;; Code:
 
@@ -48,5 +50,5 @@
         (remove-text-properties (point-min) (point-max) '(wrap-prefix nil))))))
 
 
-(provide 'awp-mode)
-;;; awp-mode.el ends here
+(provide 'adaptive-wrap-prefix)
+;;; adaptive-wrap-prefix.el ends here
