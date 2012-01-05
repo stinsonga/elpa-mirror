@@ -1,4 +1,4 @@
-;;; adaptive-wrap-prefix.el --- Perform smart line-wrapping with wrap-prefix
+;;; adaptive-wrap.el --- Smart line-wrapping with wrap-prefix
 
 ;; Copyright (C) 2011  Stefan Monnier
 
@@ -51,5 +51,5 @@
         (remove-text-properties (point-min) (point-max) '(wrap-prefix nil))))))
 
 
-(provide 'adaptive-wrap-prefix)
-;;; adaptive-wrap-prefix.el ends here
+(provide 'adaptive-wrap)
+;;; adaptive-wrap.el ends here
