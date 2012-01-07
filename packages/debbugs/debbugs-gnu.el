@@ -25,7 +25,7 @@
 ;;; Commentary:
 
 ;; This package provides an interface to bug reports which are located
-;; on the GNU bug tracker debbugs.gnu.org.  It's main purpose is to
+;; on the GNU bug tracker debbugs.gnu.org.  Its main purpose is to
 ;; show and manipulate bug reports from Emacs, but it could be used
 ;; also for other GNU projects which use the same bug tracker.
 
