@@ -1,7 +1,7 @@
 ;;; undo-tree.el --- Treat undo history as a tree
 
 
-;; Copyright (C) 2009-2012 Toby Cubitt
+;; Copyright (C) 2009-2012  Free Software Foundation, Inc
 
 ;; Author: Toby Cubitt <toby-undo-tree@dr-qubit.org>
 ;; Version: 0.3.3
@@ -9,7 +9,7 @@
 ;; URL: http://www.dr-qubit.org/emacs.php
 ;; Git Repository: http://www.dr-qubit.org/git/undo-tree.git
 
-;; This file is NOT part of Emacs.
+;; This file is part of Emacs.
 ;;
 ;; This file is free software: you can redistribute it and/or modify it under
 ;; the terms of the GNU General Public License as published by the Free
