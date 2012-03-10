@@ -943,8 +943,9 @@ C-z or <right> jump without quitting loop.
 C-j or <left>  jump and kill `ioccur-buffer'.
 RET            exit keeping `ioccur-buffer'.
 DEL            remove last character entered.
-C-k            Kill current input.
-M-k             Kill current input as sexp.
+C-k            Kill current input from cursor to eol.
+C-a/e/b/f      Movements in minibuffer.
+M-k            Kill current input as sexp.
 C-w            Yank stuff at point.
 C-g            quit and restore buffer.
 C-s            Toggle split window.
