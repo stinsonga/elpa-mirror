@@ -1,6 +1,6 @@
 ;;; sml-mode.el --- Major mode for editing (Standard) ML
 
-;; Copyright (C) 1999,2000,2004,2007,2010  Stefan Monnier
+;; Copyright (C) 1999,2000,2004,2007,2010-2012  Stefan Monnier
 ;; Copyright (C) 1994-1997  Matthew J. Morley
 ;; Copyright (C) 1989       Lars Bo Nielsen
 
@@ -13,8 +13,6 @@
 ;;      (Stefan Monnier) <monnier@iro.umontreal.ca>
 ;; Maintainer: (Stefan Monnier) <monnier@iro.umontreal.ca>
 ;; Keywords: SML
-;; $Revision$
-;; $Date$
 
 ;; This file is not part of GNU Emacs, but it is distributed under the
 ;; same conditions.
@@ -376,7 +374,7 @@ Regexp match data 0 points to the chars."
     ;;   we want "of A) | B".
     ;; "= A | B" can be "= A ) | B" if the = is from a "fun" definition,
     ;;   but it is "= (A | B" if it is a `datatype' definition (of course, if
-    ;;   the previous introducing the = is `and', deciding whether
+    ;;   the previous token introducing the = is `and', deciding whether
     ;;   it's a datatype or a function requires looking even further back).
     ;; "functor foo (...) where type a = b = ..." the first `=' looks very much
     ;;   like a `definitional-=' even tho it's just an equality constraint.
@@ -599,6 +597,8 @@ Assumes point is right before the | symbol."
      ((equal "op" sym)
       (concat "op " (sml-smie-forward-token-1)))
      ((member sym '("|" "of" "="))
+      ;; The important lexer for indentation's performance is the backward
+      ;; lexer, so for the forward lexer we delegate to the backward one.
       (save-excursion (sml-smie-backward-token)))
      (t sym))))
 
@@ -1223,6 +1223,6 @@ If nil, align it with previous cases."
   (set (make-local-variable 'indent-line-function) 'sml-yacc-indent-line)
   (set (make-local-variable 'font-lock-defaults) sml-yacc-font-lock-defaults))
 
+
 (provide 'sml-mode)
-
 ;;; sml-mode.el ends here
