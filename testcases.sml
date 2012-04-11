@@ -1,4 +1,4 @@
-(* Copyright 1999, 2004, 2007, 2010 Stefan Monnier <monnier@gnu.org> *)
+(* Copyright 1999,2004,2007,2010-2012 Stefan Monnier <monnier@gnu.org> *)
 
 (* sml-mode here treats the second `=' as an equal op because it
  * thinks it's seeing something like "... type t = (s.t = ...)".  FIXME!  *)
@@ -212,20 +212,20 @@ val y = (
              foo("(*")
          * 2;
     end;
-    
+
     let
     in a
      ; b
     end;
-    
+
     let
     in
         a +
-        b + 
+        b +
         c
       ; b
     end;
-    
+
     let
     in if a then
            b
@@ -238,13 +238,13 @@ val y = (
            F => 1
          | D => 2
     end;
-    
+
     let
     in case a
         of F => 1
          | D => 2
     end;
-    
+
     let
     in if a then b else
        c
@@ -307,7 +307,7 @@ exception Unknown
 
 fun split (fdec as (fk,f,args,body)) = let
     val {getLty,addLty,...} = Recover.recover (fdec, false)
-					      
+
     val m = Intmap.new(64, Unknown)
     fun addpurefun f = Intmap.add m (f, false)
     fun funeffect f = (Intmap.map m f) handle Uknown => true
@@ -329,7 +329,7 @@ fun split (fdec as (fk,f,args,body)) = let
  *   mistakenly adding anything to leI.
  *)
 fun sexp env lexp =			(* fixindent *)
-    let 
+    let
 	(* non-side effecting binds are copied to leI if exported *)
 	fun let1 (le,lewrap,lv,vs,effect) =
 	    let  val (leE,leI,fvI,leRet) = sexp (S.add(env, lv)) le
@@ -338,7 +338,7 @@ fun sexp env lexp =			(* fixindent *)
 	       then (leE, leI, fvI, leRet)
 	       else (leE, lewrap leI, addvs(S_rmv(lv, fvI), vs), leRet)
 	    end
-		
+
     in case lexp
 	(* we can completely move both RET and TAPP to the I part *)
 	of F.RECORD (rk,vs,lv,le as F.RET [F.VAR lv']) =>
@@ -349,11 +349,11 @@ fun sexp env lexp =			(* fixindent *)
 	   (fn e => e, lexp, addvs(S.empty, vs), lexp)
 	 | F.TAPP (F.VAR tf,tycs) =>
 	   (fn e => e, lexp, S.singleton tf, lexp)
-	       
+
 	 (* recursive splittable lexps *)
 	 | F.FIX (fdecs,le) => sfix env (fdecs, le)
 	 | F.TFN (tfdec,le) => stfn env (tfdec, le)
-				    
+
 	 (* binding-lexps *)
 	 | F.CON (dc,tycs,v,lv,le) =>
 	   let1(le, fn e => F.CON(dc, tycs, v, lv, e), lv, [v], false)
@@ -363,27 +363,27 @@ fun sexp env lexp =			(* fixindent *)
 	   let1(le, fn e => F.SELECT(v, i, lv, e), lv, [v], false)
 	 | F.PRIMOP (po,vs,lv,le) =>
 	   let1(le, fn e => F.PRIMOP(po, vs, lv, e), lv, vs, PO.effect(#2 po))
-	       
+
 	 (* IMPROVEME: lvs should not be restricted to [lv] *)
 	 | F.LET(lvs as [lv],body as F.TAPP (v,tycs),le) =>
 	   let1(le, fn e => F.LET(lvs, body, e), lv, [v], false)
 	 | F.LET (lvs as [lv],body as F.APP (v as F.VAR f,vs),le) =>
 	   let1(le, fn e => F.LET(lvs, body, e), lv, v::vs, funeffect f)
-	       
+
 	 | F.SWITCH (v,ac,[(dc as F.DATAcon(_,_,lv),le)],NONE) =>
 	   let1(le, fn e => F.SWITCH(v, ac, [(dc, e)], NONE), lv, [v], false)
-	       
+
 	 | F.LET (lvs,body,le) =>
 	   let val (leE,leI,fvI,leRet) = sexp (S.union(S.addList(S.empty, lvs), env)) le
 	   in (fn e => F.LET(lvs, body, leE e), leI, fvI, leRet)
 	   end
-	       
+
 	 (* useless sophistication *)
 	 | F.APP (F.VAR f,args) =>
 	   if funeffect f
 	   then (fn e => e, F.RET[], S.empty, lexp)
 	   else (fn e => e, lexp, addvs(S.singleton f, args), lexp)
-		    
+
 	 (* other non-binding lexps result in unsplittable functions *)
 	 | (F.APP _ | F.TAPP _) => bug "strange (T)APP"
 	 | (F.SWITCH _ | F.RAISE _ | F.BRANCH _ | F.HANDLE _) =>
@@ -410,7 +410,7 @@ and sfix env (fdecs,le) =
 	   end
 	 | [fdec as (fk as {cconv=F.CC_FCT,...},_,_,_)] =>
 	   sfdec env (leE,leI,fvI,leRet) fdec
-		 
+
 	 | _ => (nleE, leI, fvI, leRet)
     end
 
@@ -424,7 +424,7 @@ and sfdec env (leE,leI,fvI,leRet) (fk,f,args,body) =
 	 | _ =>
 	   let val fvbIs = S.listItems(S.difference(fvbI, benv))
 	       val (nfk,fkE) = OU.fk_wrap(fk, NONE)
-					 
+
 	       (* fdecE *)
 	       val fE = cplv f
 	       val fErets = (map F.VAR fvbIs)
@@ -435,7 +435,7 @@ and sfdec env (leE,leI,fvI,leRet) (fk,f,args,body) =
 	       val fdecE = (fkE, fE, args, bodyE)
 	       val fElty = LT.ltc_fct(map #2 args, map getLty fErets)
 	       val _ = addLty(fE, fElty)
-			     
+
 	       (* fdecI *)
 	       val fkI = {inline=F.IH_ALWAYS, cconv=F.CC_FCT,
 			  known=true, isrec=NONE}
@@ -443,7 +443,7 @@ and sfdec env (leE,leI,fvI,leRet) (fk,f,args,body) =
 		   (map (fn lv => (lv, getLty(F.VAR lv))) fvbIs) @ args
 	       val fdecI as (_,fI,_,_) = FU.copyfdec(fkI,f,argsI,bodyI)
 	       val _ = addpurefun fI
-				  
+
 	       (* nfdec *)
 	       val nargs = map (fn (v,t) => (cplv v, t)) args
 	       val argsv = map (fn (v,t) => F.VAR v) nargs
@@ -457,11 +457,11 @@ and sfdec env (leE,leI,fvI,leRet) (fk,f,args,body) =
 			   F.APP(F.VAR fI, (F.VAR lv)::argsv))
 		  end *)
 	       val nfdec = (nfk, f, nargs, nbody)
-			       
+
 	       (* and now, for the whole F.FIX *)
 	       fun nleE e =
 		   F.FIX([fdecE], F.FIX([fdecI], F.FIX([nfdec], leE e)))
-			
+
 	   in if not(S.member(fvI, f)) then (nleE, leI, fvI, leRet)
 	      else (nleE,
 		    F.FIX([fdecI], F.FIX([nfdec], leI)),
@@ -498,7 +498,7 @@ and stfn env (tfdec as (tfk,tf,args,body),le) =
 	       val bodyE = bodyE(F.RET tfEvs)
 	       val tfElty = LT.lt_nvpoly(args, map getLty tfEvs)
 	       val _ = addLty(tfE, tfElty)
-			     
+
 	       (* tfdecI *)
 	       val tfkI = {inline=F.IH_ALWAYS}
 	       val argsI = map (fn (v,k) => (cplv v, k)) args
@@ -512,7 +512,7 @@ and stfn env (tfdec as (tfk,tf,args,body),le) =
 	       fun nleE e =
 		   F.TFN((tfk, tfE, args, bodyE),
 			 F.TFN((tfkI, tf, argsI, bodyI), leE e))
-			
+
 	   in if not(S.member(fvI, tf)) then (nleE, leI, fvI, leRet)
 	      else (nleE,
 		    F.TFN((tfkI, tf, argsI, bodyI), leI),
@@ -528,11 +528,11 @@ in case (bodyI, bodyRet)
     of (F.RET _,_) => ((fk, f, args, bodyE bodyRet), NONE)
      | (_,F.RECORD (rk,vs,lv,F.RET[lv'])) =>
        let val fvbIs = S.listItems fvbI
-				   
+
 	   (* fdecE *)
 	   val bodyE = bodyE(F.RECORD(rk, vs@(map F.VAR fvbIs), lv, F.RET[lv']))
 	   val fdecE as (_,fE,_,_) = (fk, cplv f, args, bodyE)
-					 
+
 	   (* fdecI *)
 	   val argI = mklv()
 	   val argLtys = (map getLty vs) @ (map (getLty o F.VAR) fvbIs)
@@ -541,7 +541,7 @@ in case (bodyI, bodyRet)
 				     (n+1, F.SELECT(F.VAR argI, n, lv, le)))
 				 (length vs, bodyI) fvbIs
 	   val fdecI as (_,fI,_,_) = FU.copyfdec (fk, f, argsI, bodyI)
-						 
+
 	   val nargs = map (fn (v,t) => (cplv v, t)) args
        in
 	   (fdecE, SOME fdecI)
@@ -553,7 +553,7 @@ in case (bodyI, bodyRet)
 			      F.APP(F.VAR fI, [F.VAR argI]))))),
 	   NONE) *)
        end
-	   
+
      | _ => (fdec, NONE)		(* sorry, can't do that *)
 (* (PPFlint.printLexp bodyRet; bug "couldn't find the returned record") *)
 
