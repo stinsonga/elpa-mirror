@@ -1,6 +1,6 @@
 ;;; sml-oldindent.el --- Old navigation and indentation functions for SML
 
-;; Copyright (C) 1999, 2000, 2004, 2007, 2010  Stefan Monnier <monnier@gnu.org>
+;; Copyright (C) 1999,2000,2004,2007,2012  Stefan Monnier <monnier@gnu.org>
 ;;
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -230,7 +230,7 @@ This assumes that we are `looking-at' the OP."
     t))
 
 ;;; 
-;; read a symbol, including the special "op <sym>" case
+;;; Read a symbol, including the special "op <sym>" case
 ;;; 
 
 (defmacro sml-move-read (&rest body)
