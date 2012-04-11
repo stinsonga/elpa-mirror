@@ -365,7 +365,7 @@ Regexp match data 0 points to the chars."
   (when (fboundp 'smie-prec2->grammar)
     ;; We have several problem areas where SML's syntax can't be handled by an
     ;; operator precedence grammar:
-    ;; 
+    ;;
     ;; "= A before B" is "= A) before B" if this is the
     ;;   `boolean-=' but it is "= (A before B)" if it's the `definitional-='.
     ;;   We can work around the problem by tweaking the lexer to return two
@@ -522,7 +522,7 @@ Regexp match data 0 points to the chars."
       ;;      (goto-char (nth 1 parent))
       ;;      (cons 'column (smie-indent-virtual)))))
       ))))
-    
+
 (defun sml-smie-definitional-equal-p ()
   "Figure out which kind of \"=\" this is.
 Assumes point is right before the = sign."
