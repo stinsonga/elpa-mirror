@@ -1,6 +1,6 @@
 ;;; sml-defs.el --- Various definitions for sml-mode
 
-;; Copyright (C) 1999,2000,2003,2005,2007,2010  Stefan Monnier <monnier@gnu.org>
+;; Copyright (C) 1999,2000,2003,2005,2007,2012  Stefan Monnier
 ;;
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -40,6 +40,9 @@ notion of \"the end of an outline\".")
 
 (defvar sml-mode-map
   (let ((map (make-sparse-keymap)))
+    ;; Smarter cursor movement.
+    ;; (define-key map [remap forward-sexp] 'sml-user-forward-sexp)
+    ;; (define-key map [remap backward-sexp] 'sml-user-backward-sexp)
     ;; Text-formatting commands:
     (define-key map "\C-c\C-m" 'sml-insert-form)
     (define-key map "\C-c\C-i" 'sml-mode-info)
@@ -57,7 +60,7 @@ notion of \"the end of an outline\".")
     map)
   "The keymap used in `sml-mode'.")
 
-(defvar sml-builtin-nested-comments-flag
+(defconst sml-builtin-nested-comments-flag
   (ignore-errors
     (not (equal (let ((st (make-syntax-table)))
 		  (modify-syntax-entry ?\* ". 23n" st) st)

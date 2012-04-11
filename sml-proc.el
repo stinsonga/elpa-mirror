@@ -1,11 +1,8 @@
 ;;; sml-proc.el --- Comint based interaction mode for Standard ML.
 
-;; Copyright (C) 1999, 2000, 2003, 2004, 2005, 2007, 2010  Stefan Monnier
+;; Copyright (C) 1999,2000,2003,2004,2005,2007,2012  Stefan Monnier
 ;; Copyright (C) 1994-1997  Matthew J. Morley
 ;; Copyright (C) 1989       Lars Bo Nielsen
-
-;; $Revision$
-;; $Date$
 
 ;; ====================================================================
 
@@ -266,7 +263,9 @@ See `compilation-error-regexp-alist' for a description of the format.")
     (set-keymap-parent map comint-mode-map)
     (define-key map "\C-c\C-s" 'run-sml)
     (define-key map "\C-c\C-l" 'sml-load-file)
-    (define-key map "\t" 'comint-dynamic-complete)
+    (define-key map "\t"
+      (if (fboundp 'completion-at-point)
+          'completion-at-point 'comint-dynamic-complete))
     map)
   "Keymap for inferior-sml mode")
 
