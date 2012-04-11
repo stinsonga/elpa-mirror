@@ -1,4 +1,4 @@
-;;; sml-oldindent.el --- Old navigation and indentation functions for SML
+;;; sml-oldindent.el --- Navigation and indentation for SML without SMIE
 
 ;; Copyright (C) 1999,2000,2004,2007,2012  Stefan Monnier <monnier@gnu.org>
 ;;
@@ -25,22 +25,44 @@
 (eval-when-compile (require 'cl))
 (require 'sml-defs)
 
-;;; First code previously help in sml-util.el and sml-defs.el.
-
-(require 'cl)				;for `reduce'
 (defun sml-preproc-alist (al)
   "Expand an alist AL where keys can be lists of keys into a normal one."
-  (reduce (lambda (x al)
-	    (let ((k (car x))
-		  (v (cdr x)))
-	      (if (consp k)
-		  (append (mapcar (lambda (y) (cons y v)) k) al)
-		(cons x al))))
-	  al
-	  :initial-value nil
-	  :from-end t))
+  (apply #'nconc
+         (mapcar (lambda (x)
+                   (let ((k (car x))
+                         (v (cdr x)))
+                     (if (consp k)
+                         (mapcar (lambda (y) (cons y v)) k)
+                       (list x))))
+                 al)))
 
+(defconst sml-begin-syms
+  '("let" "abstype" "local" "struct" "sig")
+  "Symbols matching the `end' symbol.")
 
+(defconst sml-begin-syms-re
+  (sml-syms-re sml-begin-syms)
+  "Symbols matching the `end' symbol.")
+
+;; (defconst sml-user-begin-symbols-re
+;;   (sml-syms-re '("let" "abstype" "local" "struct" "sig" "in" "with"))
+;;   "Symbols matching (loosely) the `end' symbol.")
+
+(defconst sml-sexp-head-symbols-re
+  (sml-syms-re `("let" "abstype" "local" "struct" "sig" "in" "with"
+                 "if" "then" "else" "case" "of" "fn" "fun" "val" "and"
+                 "datatype" "type" "exception" "open" "infix" "infixr" "nonfix"
+                 ,@sml-module-head-syms
+                 "handle" "raise"))
+  "Symbols starting an sexp.")
+
+;; (defconst sml-not-arg-start-re
+;;   (sml-syms-re '("in" "of" "end" "andalso"))
+;;   "Symbols that can't be found at the head of an arg.")
+
+;; (defconst sml-not-arg-re
+;;   (sml-syms-re '("in" "of" "end" "andalso"))
+;;   "Symbols that should not be confused with an arg.")
 
 (defconst sml-indent-rule
   (sml-preproc-alist
@@ -96,8 +118,6 @@ for all symbols and in all lines starting with the given symbol."
 
 (defconst sml-agglomerate-re "\\<else[ \t]+if\\>"
   "Regexp of compound symbols (pairs of symbols to be considered as one).")
-
-;;; Then, the buffer navigation (formerly sml-move.el).
 
 (defvar sml-internal-syntax-table
   (let ((st (make-syntax-table sml-mode-syntax-table)))
@@ -409,7 +429,11 @@ Returns T if the move indeed moved through one sexp and NIL if not."
 (defun sml-backward-arg () (sml-backward-sexp 1000))
 (defun sml-forward-arg () (sml-forward-sexp 1000))
 
-;;; Then the indentation code (previously in sml-mode.el).
+(provide 'sml-move)
+
+(defvar sml-rightalign-and)
+(defvar sml-indent-args)
+(defvar sml-indent-level)
 
 (defun sml-indent-line ()
   "Indent current line of ML code."
@@ -419,6 +443,21 @@ Returns T if the move indeed moved through one sexp and NIL if not."
     (if savep
 	(save-excursion (indent-line-to indent))
       (indent-line-to indent))))
+
+(defun sml-find-comment-indent ()
+  (save-excursion
+    (let ((depth 1))
+      (while (> depth 0)
+	(if (re-search-backward "(\\*\\|\\*)" nil t)
+	    (cond
+	     ;; FIXME: That's just a stop-gap.
+	     ((eq (get-text-property (point) 'face) 'font-lock-string-face))
+	     ((looking-at "*)") (incf depth))
+	     ((looking-at comment-start-skip) (decf depth)))
+	  (setq depth -1)))
+      (if (= depth 0)
+	  (1+ (current-column))
+	nil))))
 
 (defun sml-calculate-indentation ()
   (save-excursion
@@ -469,21 +508,6 @@ Returns T if the move indeed moved through one sexp and NIL if not."
 	(sml-indent-arg)
 	(sml-indent-default))))))
 
-(defun sml-find-comment-indent ()
-  (save-excursion
-    (let ((depth 1))
-      (while (> depth 0)
-	(if (re-search-backward "(\\*\\|\\*)" nil t)
-	    (cond
-	     ;; FIXME: That's just a stop-gap.
-	     ((eq (get-text-property (point) 'face) 'font-lock-string-face))
-	     ((looking-at "*)") (incf depth))
-	     ((looking-at comment-start-skip) (decf depth)))
-	  (setq depth -1)))
-      (if (= depth 0)
-	  (1+ (current-column))
-	nil))))
-
 (defsubst sml-bolp ()
   (save-excursion (skip-chars-backward " \t|") (bolp)))
 
@@ -495,7 +519,6 @@ Returns T if the move indeed moved through one sexp and NIL if not."
                  (sml-backward-sym))))
       (if (member sym '(";" "d=")) (setq sym nil))
       sym)))
-
 
 (defun sml-indent-starter (orig-sym)
   "Return the indentation to use for a symbol in `sml-starters-syms'.
@@ -687,7 +710,6 @@ Optional argument STYLE is currently ignored."
 		 (not (or (member sym syms) (bobp)))))
       (if (member sym syms) sym))))
 
-(provide 'sml-move)
 (provide 'sml-oldindent)
 
 ;;; sml-oldindent.el ends here
