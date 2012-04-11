@@ -124,7 +124,7 @@ for all symbols and in all lines starting with the given symbol."
     (modify-syntax-entry ?_ "w" st)
     (modify-syntax-entry ?' "w" st)
     (modify-syntax-entry ?. "w" st)
-    ;; treating `~' as a word constituent is not quite right, but
+    ;; Treating `~' as a word constituent is not quite right, but
     ;; close enough.  Think about 12.3E~2 for example.  Also `~' on its
     ;; own *is* a nonfix symbol.
     (modify-syntax-entry ?~ "w" st)
@@ -262,17 +262,6 @@ This assumes that we are `looking-at' the OP."
 (def-edebug-spec sml-move-read t)
 
 (defun sml-poly-equal-p ()
-  ;; Figure out which kind of "=" this is.
-  ;; The idea is to look backward for the first occurrence of a token that
-  ;; requires a definitional "=" and then see if there's such a definitional
-  ;; equal between that token and ourselves (in which case we're not
-  ;; a definitional = ourselves).
-  ;; The "search for =" is naive and will match "=>" and "<=", but it turns
-  ;; out to be OK in practice because such tokens very rarely (if ever) appear
-  ;; between the =-starter and the corresponding definitional equal.
-  ;; One known problem case is code like:
-  ;; "functor foo (structure s : S) where type t = s.t ="
-  ;; where the "type t = s.t" is mistaken for a type definition.
   (< (sml-point-after (re-search-backward sml-=-starter-re nil 'move))
      (sml-point-after (re-search-backward "=" nil 'move))))
 
