@@ -143,34 +143,6 @@ notion of \"the end of an outline\".")
   '("signature" "structure" "functor" "abstraction"))
 
 
-(defconst sml-begin-syms
-  '("let" "abstype" "local" "struct" "sig")
-  "Symbols matching the `end' symbol.")
-
-(defconst sml-begin-syms-re
-  (sml-syms-re sml-begin-syms)
-  "Symbols matching the `end' symbol.")
-
-;; (defconst sml-user-begin-symbols-re
-;;   (sml-syms-re '("let" "abstype" "local" "struct" "sig" "in" "with"))
-;;   "Symbols matching (loosely) the `end' symbol.")
-
-(defconst sml-sexp-head-symbols-re
-  (sml-syms-re `("let" "abstype" "local" "struct" "sig" "in" "with"
-                 "if" "then" "else" "case" "of" "fn" "fun" "val" "and"
-                 "datatype" "type" "exception" "open" "infix" "infixr" "nonfix"
-                 ,@sml-module-head-syms
-                 "handle" "raise"))
-  "Symbols starting an sexp.")
-
-;; (defconst sml-not-arg-start-re
-;;   (sml-syms-re '("in" "of" "end" "andalso"))
-;;   "Symbols that can't be found at the head of an arg.")
-
-;; (defconst sml-not-arg-re
-;;   (sml-syms-re '("in" "of" "end" "andalso"))
-;;   "Symbols that should not be confused with an arg.")
-
 (defconst sml-=-starter-syms
   (list* "|" "val" "fun" "and" "datatype" "type" "abstype" "eqtype"
 	 sml-module-head-syms)

@@ -69,6 +69,7 @@
 
 (eval-when-compile (require 'cl))
 (require 'sml-defs)
+(require 'sml-oldindent)
 
 (defvar sml-use-smie t)
 
@@ -684,6 +685,8 @@ This mode runs `sml-mode-hook' just before exiting.
   (unless (boundp 'skeleton-positions) (set (make-local-variable '@) nil))
   (sml-mode-variables))
 
+(defvar comment-quote-nested)
+
 (defun sml-mode-variables ()
   (set-syntax-table sml-mode-syntax-table)
   (setq local-abbrev-table sml-mode-abbrev-table)
@@ -1002,6 +1005,7 @@ See also `edit-kbd-macro' which is bound to \\[edit-kbd-macro]."
      ;; If subgroup 1 matched, then it's a warning, otherwise it's an error.
      ,@(if (fboundp 'compilation-fake-loc) '((1))))))
 
+(defvar compilation-error-regexp-alist)
 (eval-after-load "compile"
   '(dolist (x sml-mlton-error-regexp-alist)
      (add-to-list 'compilation-error-regexp-alist x)))
