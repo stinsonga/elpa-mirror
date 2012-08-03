@@ -1,3 +1,4 @@
+;; -*- lexical-binding: t -*-
 ;; Copyright (C) 2012 Free Software Foundation, Inc.
 
 ;; Author: Christopher Schmidt <christopher@ch.ristopher.com>
@@ -61,7 +62,6 @@
   (insert data))
 
 ;; Local Variables:
-;; lexical-binding: t
 ;; fill-column: 80
 ;; indent-tabs-mode: nil
 ;; End:
