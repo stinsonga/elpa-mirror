@@ -52,12 +52,10 @@
     (goto-char (point-min))
     (replace-regexp "^; \\*\\*\\* \\(.*\\)" "=== \\1 ===\n")
     (goto-char (point-min))
-    (replace-regexp "^\n\\(?1:\\((\\|\\.\\)\\(.*\n\\)+?\\)\n"
+    (replace-regexp "^\n\\(?1:\\((\\|\\.\\)\\(.*\n\\)+?\\)\\(?:\n\\|\\'\\)"
                     "\n<pre>\n\\1</pre>\n\n")
     (goto-char (point-min))
     (replace-regexp "ELPA" "[[ELPA]]")
-    (goto-char (point-min))
-    (replace-regexp "\\(this\\( \\|\n\\)file\\)" "\\1 (Lisp:ampc.el)")
     (setf data (buffer-string)))
   (insert data))
 
