@@ -69,6 +69,7 @@
 
 (eval-when-compile (require 'cl))
 (require 'smie nil 'noerror)
+(require 'sml-prog-proc)
 
 (defgroup sml ()
   "Editing SML code."
@@ -125,12 +126,6 @@ notion of \"the end of an outline\".")
     (define-key map "\M-|" 'sml-electric-pipe)
     (define-key map "\M-\ " 'sml-electric-space)
     (define-key map [backtab] 'sml-back-to-outer-indent)
-    ;; Process commands added to sml-mode-map -- these should autoload.
-    (define-key map "\C-c\C-l" 'sml-load-file)
-    (define-key map "\C-c\C-c" 'sml-compile)
-    (define-key map "\C-c\C-s" 'switch-to-sml)
-    (define-key map "\C-c\C-r" 'sml-send-region)
-    (define-key map "\C-c\C-b" 'sml-send-buffer)
     map)
   "The keymap used in `sml-mode'.")
 
@@ -660,6 +655,272 @@ Assumes point is right before the | symbol."
 		  alist)))))
     alist))
 
+;;; Prog-Proc support.     ;FIXME-copyright.
+
+(defcustom sml-program-name "sml"
+  "Program to run as Standard ML read-eval-print loop."
+  :type 'string)
+
+(defcustom sml-default-arg ""
+  "Default command line option to pass to `sml-program-name', if any."
+  :type 'string)
+
+(defcustom sml-host-name ""
+  "Host on which to run `sml-program-name'."
+  :type 'string)
+
+(defcustom sml-config-file "~/.smlproc.sml"
+  "File that should be fed to the ML process when started."
+  :type 'string)
+
+
+(defcustom sml-prompt-regexp "^[-=>#] *"
+  "Regexp used to recognise prompts in the inferior ML process."
+  :type 'regexp)
+
+;; FIXME: Try to auto-detect the process and set those vars accordingly.
+
+(defvar sml-use-command "use \"%s\""
+  "Template for loading a file into the inferior ML process.
+Set to \"use \\\"%s\\\"\" for SML/NJ or Edinburgh ML; 
+set to \"PolyML.use \\\"%s\\\"\" for Poly/ML, etc.")
+
+(defvar sml-cd-command "OS.FileSys.chDir \"%s\""
+  "Command template for changing working directories under ML.
+Set this to nil if your compiler can't change directories.
+
+The format specifier \"%s\" will be converted into the directory name
+specified when running the command \\[sml-cd].")
+
+(defvar sml-error-regexp-alist
+  `( ;; Poly/ML messages
+    ("^\\(Error\\|Warning:\\) in '\\(.+\\)', line \\([0-9]+\\)" 2 3)
+    ;; Moscow ML
+    ("^File \"\\([^\"]+\\)\", line \\([0-9]+\\)\\(-\\([0-9]+\\)\\)?, characters \\([0-9]+\\)-\\([0-9]+\\):" 1 2 5)
+    ;; SML/NJ:  the file-pattern is anchored to avoid
+    ;; pathological behavior with very long lines.
+    ("^[-= ]*\\(.*[^\n)]\\)\\( (.*)\\)?:\\([0-9]+\\)\\.\\([0-9]+\\)\\(-\\([0-9]+\\)\\.\\([0-9]+\\)\\)? \\(Error\\|Warnin\\(g\\)\\): .*" 1
+     (3 . 6) (4 . 7) (9))
+    ;; SML/NJ's exceptions:  see above.
+    ("^ +\\(raised at: \\)?\\(.+\\):\\([0-9]+\\)\\.\\([0-9]+\\)\\(-\\([0-9]+\\)\\.\\([0-9]+\\)\\)" 2
+     (3 . 6) (4 . 7)))
+  "Alist that specifies how to match errors in compiler output.
+See `compilation-error-regexp-alist' for a description of the format.")
+
+(defconst sml-pp-functions
+  (sml-prog-proc-make :name "SML"
+                      :run (lambda () (call-interactively #'sml-run))
+                      :load-cmd (lambda (file)
+                                  ;; `sml-use-command' was defined a long time
+                                  ;; ago not to include a final semi-colon.
+                                  (concat (format sml-use-command file) ";"))
+                      :chdir-cmd (lambda (dir)
+                                   ;; `sml-cd-command' was defined a long time
+                                   ;; ago not to include a final semi-colon.
+                                   (concat (format sml-cd-command dir) ";"))))
+
+;; font-lock support
+(defconst inferior-sml-font-lock-keywords
+  `(;; prompt and following interactive command
+    ;; FIXME: Actually, this should already be taken care of by comint.
+    (,(concat "\\(" sml-prompt-regexp "\\)\\(.*\\)")
+     (1 font-lock-prompt-face)
+     (2 font-lock-command-face keep))
+    ;; CM's messages
+    ("^\\[\\(.*GC #.*\n\\)*.*\\]" . font-lock-comment-face)
+    ;; SML/NJ's irritating GC messages
+    ("^GC #.*" . font-lock-comment-face))
+  "Font-locking specification for inferior SML mode.")
+
+(defface font-lock-prompt-face
+  '((t (:bold t)))
+  "Font Lock mode face used to highlight prompts."
+  :group 'font-lock-highlighting-faces)
+(defvar font-lock-prompt-face 'font-lock-prompt-face
+  "Face name to use for prompts.")
+
+(defface font-lock-command-face
+  '((t (:bold t)))
+  "Font Lock mode face used to highlight interactive commands."
+  :group 'font-lock-highlighting-faces)
+(defvar font-lock-command-face 'font-lock-command-face
+  "Face name to use for interactive commands.")
+
+(defconst inferior-sml-font-lock-defaults
+  '(inferior-sml-font-lock-keywords nil nil nil nil))
+
+(defun sml--read-run-cmd ()
+  (list
+   (read-string "ML command: " sml-program-name)
+   (if (or current-prefix-arg (> (length sml-default-arg) 0))
+       (read-string "Any args: " sml-default-arg)
+     sml-default-arg)
+   (if (or current-prefix-arg (> (length sml-host-name) 0))
+       (read-string "On host: " sml-host-name)
+     sml-host-name)))
+
+(defun sml-run (cmd arg &optional host)
+  "Run the program CMD with given arguments ARG.
+The command is run in buffer *CMD* using mode `inferior-sml-mode'.
+If the buffer already exists and has a running process, then
+just go to this buffer.
+
+If a prefix argument is used, the user is also prompted for a HOST
+on which to run CMD using `remote-shell-program'.
+
+\(Type \\[describe-mode] in the process's buffer for a list of commands.)"
+  (interactive (sml--read-run-cmd))
+  (let* ((pname (file-name-nondirectory cmd))
+         (args (split-string arg))
+	 (file (when (and sml-config-file (file-exists-p sml-config-file))
+		 sml-config-file)))
+    ;; and this -- to keep these as defaults even if
+    ;; they're set in the mode hooks.
+    (setq sml-program-name cmd)
+    (setq sml-default-arg arg)
+    (setq sml-host-name host)
+    ;; For remote execution, use `remote-shell-program'
+    (when (> (length host) 0)
+      (setq args (list* host "cd" default-directory ";" cmd args))
+      (setq cmd remote-shell-program))
+    ;; Go for it.
+    (save-current-buffer
+      (let ((exec-path (if (and (file-name-directory cmd)
+                                (not (file-name-absolute-p cmd)))
+                           ;; If the command has slashes, make sure we
+                           ;; first look relative to the current directory.
+                           ;; Emacs-21 does it for us, but not Emacs-20.
+                           (cons default-directory exec-path) exec-path)))
+        (pop-to-buffer (apply 'make-comint pname cmd file args)))
+
+      (inferior-sml-mode)
+      (goto-char (point-max))
+      (current-buffer))))
+
+(defvar inferior-sml-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map comint-mode-map)
+    (define-key map "\C-c\C-s" 'run-sml)
+    (define-key map "\C-c\C-l" 'sml-load-file)
+    (define-key map "\t" 'completion-at-point)
+    map)
+  "Keymap for inferior-sml mode")
+
+
+(declare-function smerge-refine-subst "smerge-mode"
+                  (beg1 end1 beg2 end2 props-c))
+
+(defun inferior-sml-next-error-hook ()
+  ;; Try to recognize SML/NJ type error message and to highlight finely the
+  ;; difference between the two types (in case they're large, it's not
+  ;; always obvious to spot it).
+  ;;
+  ;; Sample messages:
+  ;; 
+  ;; Data.sml:31.9-33.33 Error: right-hand-side of clause doesn't agree with function result type [tycon mismatch]
+  ;;   expression:  Hstring
+  ;;   result type:  Hstring * int
+  ;;   in declaration:
+  ;;     des2hs = (fn SYM_ID hs => hs
+  ;;                | SYM_OP hs => hs
+  ;;                | SYM_CHR hs => hs)
+  ;; Data.sml:35.44-35.63 Error: operator and operand don't agree [tycon mismatch]
+  ;;   operator domain: Hstring * Hstring
+  ;;   operand:         (Hstring * int) * (Hstring * int)
+  ;;   in expression:
+  ;;     HSTRING.ieq (h1,h2)
+  ;; vparse.sml:1861.6-1922.14 Error: case object and rules don't agree [tycon mismatch]
+  ;;   rule domain: STConstraints list list option
+  ;;   object: STConstraints list option
+  ;;   in expression:
+  (save-current-buffer
+    (when (and (derived-mode-p 'sml-mode 'inferior-sml-mode)
+               (boundp 'next-error-last-buffer)
+               (bufferp next-error-last-buffer)
+               (set-buffer next-error-last-buffer)
+               (derived-mode-p 'inferior-sml-mode)
+               ;; The position of `point' is not guaranteed :-(
+               (looking-at (concat ".*\\[tycon mismatch\\]\n"
+                                   "  \\(operator domain\\|expression\\|rule domain\\): +")))
+      (require 'smerge-mode)
+      (save-excursion
+        (let ((b1 (match-end 0))
+              e1 b2 e2)
+          (when (re-search-forward "\n  in \\(expression\\|declaration\\):\n"
+                                   nil t)
+            (setq e2 (match-beginning 0))
+            (when (re-search-backward
+                   "\n  \\(operand\\|result type\\|object\\): +"
+                   b1 t)
+              (setq e1 (match-beginning 0))
+              (setq b2 (match-end 0))
+              (smerge-refine-subst b1 e1 b2 e2
+                                   '((face . smerge-refined-change))))))))))
+
+(define-derived-mode inferior-sml-mode sml-prog-proc-comint-mode "Inferior-SML"
+  "Major mode for interacting with an inferior ML process.
+
+The following commands are available:
+\\{inferior-sml-mode-map}
+
+An ML process can be fired up (again) with \\[sml].
+
+Customisation: Entry to this mode runs the hooks on `comint-mode-hook'
+and `inferior-sml-mode-hook' (in that order).
+
+Variables controlling behaviour of this mode are
+
+`sml-program-name' (default \"sml\")
+    Program to run as ML.
+
+`sml-use-command' (default \"use \\\"%s\\\"\")
+    Template for loading a file into the inferior ML process.
+
+`sml-cd-command' (default \"System.Directory.cd \\\"%s\\\"\")
+    ML command for changing directories in ML process (if possible).
+
+`sml-prompt-regexp' (default \"^[\\-=] *\")
+    Regexp used to recognise prompts in the inferior ML process.
+
+You can send text to the inferior ML process from other buffers containing
+ML source.
+    `switch-to-sml' switches the current buffer to the ML process buffer.
+    `sml-send-function' sends the current *paragraph* to the ML process.
+    `sml-send-region' sends the current region to the ML process.
+
+    Prefixing the sml-send-<whatever> commands with \\[universal-argument]
+    causes a switch to the ML process buffer after sending the text.
+
+For information on running multiple processes in multiple buffers, see
+documentation for variable `sml-buffer'.
+
+Commands:
+RET after the end of the process' output sends the text from the
+    end of process to point.
+RET before the end of the process' output copies the current line
+    to the end of the process' output, and sends it.
+DEL converts tabs to spaces as it moves back.
+TAB file name completion, as in shell-mode, etc.."
+  (setq comint-prompt-regexp sml-prompt-regexp)
+  (sml-mode-variables)
+
+  ;; We have to install it globally, 'cause it's run in the *source* buffer :-(
+  (add-hook 'next-error-hook 'inferior-sml-next-error-hook)
+
+  ;; Make TAB add a " rather than a space at the end of a file name.
+  (set (make-local-variable 'comint-completion-addsuffix) '(?/ . ?\"))
+
+  (set (make-local-variable 'font-lock-defaults)
+       inferior-sml-font-lock-defaults)
+
+  ;; Compilation support (used for `next-error').
+  (set (make-local-variable 'compilation-error-regexp-alist)
+       sml-error-regexp-alist)
+  ;; FIXME: move it to sml-mode?
+  (set (make-local-variable 'compilation-error-screen-columns) nil)
+
+  (setq mode-line-process '(": %s")))
+
 ;;; MORE CODE FOR SML-MODE
 
 ;;;###autoload
@@ -670,11 +931,12 @@ Assumes point is right before the | symbol."
 (defvar electric-layout-rules)
 
 ;;;###autoload
-(define-derived-mode sml-mode prog-mode "SML"
+(define-derived-mode sml-mode sml-prog-proc-mode "SML"
   "\\<sml-mode-map>Major mode for editing Standard ML code.
 This mode runs `sml-mode-hook' just before exiting.
 See also (info \"(sml-mode)Top\").
 \\{sml-mode-map}"
+  (set (make-local-variable 'sml-prog-proc-functions) sml-pp-functions)
   (set (make-local-variable 'font-lock-defaults) sml-font-lock-defaults)
   (set (make-local-variable 'outline-regexp) sml-outline-regexp)
   (set (make-local-variable 'imenu-create-index-function)
