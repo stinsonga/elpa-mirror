@@ -70,8 +70,6 @@
 (eval-when-compile (require 'cl))
 (require 'smie nil 'noerror)
 
-(condition-case nil (require 'skeleton) (error nil))
-
 (defgroup sml ()
   "Editing SML code."
   :group 'languages)
@@ -265,7 +263,7 @@ alignment and can thus lead to nasty surprises w.r.t layout."
     ("'b" . ?β)
     ("'c" . ?γ)
     ("'d" . ?δ)
-    ))))
+    ))
 
 (defun sml-font-lock-compose-symbol ()
   "Compose a sequence of ascii chars into a symbol.
@@ -299,7 +297,7 @@ Regexp match data 0 points to the chars."
 (defconst sml-font-lock-keywords
   `(;;(sml-font-comments-and-strings)
     (,(concat "\\_<\\(fun\\|and\\)\\s-+" sml-tyvarseq-re
-              "\\(" sml-re-id "\\)\\s-+[^ \t\n=]")
+              "\\(" sml-id-re "\\)\\s-+[^ \t\n=]")
      (1 font-lock-keyword-face)
      (6 font-lock-function-name-face))
     (,(concat "\\_<\\(\\(data\\|abs\\|with\\|eq\\)?type\\)\\s-+"
@@ -312,7 +310,7 @@ Regexp match data 0 points to the chars."
      ;;(6 font-lock-variable-def-face nil t)
      (3 font-lock-variable-name-face))
     (,(concat "\\_<\\(structure\\|functor\\|abstraction\\)\\s-+\\("
-              sml-re-id "\\)")
+              sml-id-re "\\)")
      (1 font-lock-keyword-face)
      (2 font-lock-module-def-face))
     (,(concat "\\_<\\(signature\\)\\s-+\\(" sml-id-re "\\)")
@@ -884,11 +882,7 @@ signature, structure, and functor by default.")
   (let ((fsym (intern (concat "sml-form-" name))))
     `(progn
        (add-to-list 'sml-forms-alist ',(cons name fsym))
-       (condition-case err
-           ;; Try to use the new `system' flag.
-           (define-abbrev sml-mode-abbrev-table ,name "" ',fsym nil 'system)
-         (wrong-number-of-arguments
-          (define-abbrev sml-mode-abbrev-table ,name "" ',fsym)))
+       (define-abbrev sml-mode-abbrev-table ,name "" ',fsym nil 'system)
        (let ((abbrev (abbrev-symbol ,name sml-mode-abbrev-table)))
          (abbrev-put abbrev :case-fixed t)
          (abbrev-put abbrev :enable-function
@@ -946,7 +940,7 @@ signature, structure, and functor by default.")
 
 ;;
 
-(defun sml-forms-menu (menu)
+(defun sml-forms-menu (_menu)
   (mapcar (lambda (x) (vector (car x) (cdr x) t))
 	  sml-forms-alist))
 
@@ -1035,9 +1029,10 @@ See also `edit-kbd-macro' which is bound to \\[edit-kbd-macro]."
 (defun sml-mlton-typecheck (mainfile)
   "typecheck using MLton."
   (interactive
-   (list (if (and mainfile (not current-prefix-arg))
-             mainfile
+   (list (if (and sml-mlton-mainfile (not current-prefix-arg))
+             sml-mlton-mainfile
            (read-file-name "Main file: "))))
+  (setq sml-mlton-mainfile mainfile)
   (save-some-buffers)
   (require 'compile)
   (dolist (x sml-mlton-error-regexp-alist)
