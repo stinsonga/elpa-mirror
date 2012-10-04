@@ -292,6 +292,9 @@ If prefix argument ECHO is set, then it only reports on the current state."
       (compilation-fake-loc (cdr sml-temp-file) (car sml-temp-file)))
   str)
 
+(declare-function smerge-refine-subst "smerge-mode"
+                  (beg1 end1 beg2 end2 props-c))
+
 (defun inferior-sml-next-error-hook ()
   ;; Try to recognize SML/NJ type error message and to highlight finely the
   ;; difference between the two types (in case they're large, it's not
@@ -658,21 +661,22 @@ Prefix arg AND-GO also means to `switch-to-sml' afterwards."
 
 (defvar sml-prog-proc-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key [?\C-c ?\C-l] 'sml-prog-proc-load-file)
-    (define-key [?\C-c ?\C-c] 'sml-prog-proc-compile)
-    (define-key [?\C-c ?\C-z] 'sml-prog-proc-switch-to)
-    (define-key [?\C-c ?\C-r] 'sml-prog-proc-send-region)
-    (define-key [?\C-c ?\C-b] 'sml-prog-proc-send-buffer)
+    (define-key map [?\C-c ?\C-l] 'sml-prog-proc-load-file)
+    (define-key map [?\C-c ?\C-c] 'sml-prog-proc-compile)
+    (define-key map [?\C-c ?\C-z] 'sml-prog-proc-switch-to)
+    (define-key map [?\C-c ?\C-r] 'sml-prog-proc-send-region)
+    (define-key map [?\C-c ?\C-b] 'sml-prog-proc-send-buffer)
     map)
   "Keymap for `sml-prog-proc-mode'.")
 
-(defvar sml-prog-proc-buffer nil
+(defvar sml-prog-proc--buffer nil
   "The inferior-process buffer to which to send code.")
-(make-variable-buffer-local 'sml-prog-proc-buffer)
+(make-variable-buffer-local 'sml-prog-proc--buffer)
 
 (defstruct (sml-prog-proc-functions
+            (:constructor sml-prog-proc-make)
             (:predicate nil)
-            (:copy nil))
+            (:copier nil))
   (run :read-only t)
   (load-cmd :read-only t))
 
@@ -680,18 +684,19 @@ Prefix arg AND-GO also means to `switch-to-sml' afterwards."
   "Struct containing the various functions to create a new process, ...")
 
 (defmacro sml-prog-proc--call (method &rest args)
-  `(sml-prog-proc--apply
+  `(sml-prog-proc--funcall
     #',(intern (format "sml-prog-proc-functions-%s" method))
-    args))
-(defun sml-prog-proc--apply (selector &rest args)
+    ,@args))
+(defun sml-prog-proc--funcall (selector &rest args)
   (if (not sml-prog-proc-functions)
+      ;; FIXME: Look for available ones and pick one.
       (error "Not an `sml-prog-proc' buffer")
     (apply (funcall selector sml-prog-proc-functions) args)))
 
 (defun sml-prog-proc-proc ()
   "Return the inferior process for the code in current buffer."
-  (or (and (buffer-live-p sml-prog-proc-buffer)
-           (get-buffer-process sml-prog-proc-buffer))
+  (or (and (buffer-live-p sml-prog-proc--buffer)
+           (get-buffer-process sml-prog-proc--buffer))
       (sml-prog-proc--call run)))
 
 (defun sml-prog-proc-switch-to ()
@@ -717,7 +722,7 @@ to the buffer where the process is running."
     (sml-prog-proc-send-string proc (sml-prog-proc--call load-cmd file))
     (when and-go (pop-to-buffer (process-buffer proc)))))
 
-(defvar sml-prog-proc-tmp-file nil)
+(defvar sml-prog-proc--tmp-file nil)
 
 (defun sml-prog-proc-send-region (start end &optional and-go)
   "Send the content of the region to the read-eval-print process.
@@ -727,12 +732,12 @@ switch to the process's buffer."
   (if (> start end) (let ((tmp end)) (setq end start) (setq start tmp))
     (if (= start end) (error "Nothing to send: the region is empty")))
   (let ((proc (sml-prog-proc-proc))
-        (tmp (make-temp-file "sml-prog-proc")))
+        (tmp (make-temp-file "emacs-region")))
     (write-region start end tmp nil 'silently)
-    (when sml-prog-proc-tmp-file
-      (ignore-errors (delete-file (car sml-prog-proc-tmp-file)))
-      (set-marker (cdr sml-prog-proc-tmp-file) nil))
-    (setq sml-prog-proc-tmp-file (cons tmp (copy-marker start)))
+    (when sml-prog-proc--tmp-file
+      (ignore-errors (delete-file (car sml-prog-proc--tmp-file)))
+      (set-marker (cdr sml-prog-proc--tmp-file) nil))
+    (setq sml-prog-proc--tmp-file (cons tmp (copy-marker start)))
     (sml-prog-proc-send-string proc (sml-prog-proc--call load-cmd tmp))
     (when and-go (pop-to-buffer (process-buffer proc)))))
 
