@@ -1,6 +1,6 @@
 # Makefile for emacs-lisp package
 
-# Copyright (C) 1998, 1999, 2004, 2007, 2010  Stefan Monnier <monnier@gnu.org>
+# Copyright (C) 1998,1999,2004,2007,2010-2012  Stefan Monnier <monnier@gnu.org>
 
 # This file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -159,14 +159,15 @@ $(PACKAGE)-startup.el: $(ELFILES)
 
 #TAG = $(shell echo v$(VERSION) | tr '.' '_')
 URL=$(shell sed -n -e '5p' .svn/entries)
-TAG=$(shell dirname "$(URL)")/releases/$(PACKAGE)-$(VERSION)
+#TAG=$(shell dirname "$(URL)")/releases/$(PACKAGE)-$(VERSION)
+TAG="v$(VERSION)"
 ftpdir=/u/monnier/html/elisp/
 cvsmodule=$(shell cat CVS/Repository)
 cvsroot=$(shell cat CVS/Root)
 
 dist:
-	svn cp . "$(TAG)" &&\
-	svn export "$(TAG)" "$(TMP)/$(PACKAGE)-$(VERSION)" &&\
+	echo bzr tag "$(TAG)" &&\
+	bzr export "$(TMP)/$(PACKAGE)-$(VERSION)" &&\
 	cd "$(TMP)/$(PACKAGE)-$(VERSION)" &&\
 	$(MAKE) info $(PACKAGE)-startup.el &&\
 	cd .. &&\
