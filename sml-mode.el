@@ -683,6 +683,16 @@ Assumes point is right before the | symbol."
   "Regexp used to recognise prompts in the inferior ML process."
   :type 'regexp)
 
+(defcustom sml-compile-commands-alist
+  '(("CMB.make();" . "all-files.cm")
+    ("CMB.make();" . "pathconfig")
+    ("CM.make();" . "sources.cm")
+    ("use \"load-all\";" . "load-all"))
+  "Commands used by default by `sml-prog-proc-compile'.
+Each command is associated with its \"main\" file.
+It is perfectly OK to associate several files with a command or several
+commands with the same file.")
+
 ;; FIXME: Try to auto-detect the process and set those vars accordingly.
 
 (defvar sml-use-command "use \"%s\""
@@ -722,7 +732,9 @@ See `compilation-error-regexp-alist' for a description of the format.")
                   :chdir-cmd (lambda (dir)
                                ;; `sml-cd-command' was defined a long time
                                ;; ago not to include a final semi-colon.
-                               (concat (format sml-cd-command dir) ";"))))
+                               (concat (format sml-cd-command dir) ";"))
+                  :compile-commands-alist sml-compile-commands-alist
+                  ))
 
 ;; font-lock support
 (defconst inferior-sml-font-lock-keywords
@@ -925,81 +937,6 @@ TAB file name completion, as in shell-mode, etc.."
   (set (make-local-variable 'compilation-error-screen-columns) nil)
 
   (setq mode-line-process '(": %s")))
-
-(defcustom sml-compile-command "CM.make()"
-  "The command used by default by `sml-compile'.
-See also `sml-compile-commands-alist'.")
-
-(defcustom sml-compile-commands-alist
-  '(("CMB.make()" . "all-files.cm")
-    ("CMB.make()" . "pathconfig")
-    ("CM.make()" . "sources.cm")
-    ("use \"load-all\"" . "load-all"))
-  "Commands used by default by `sml-compile'.
-Each command is associated with its \"main\" file.
-It is perfectly OK to associate several files with a command or several
-commands with the same file.")
-
-(defun sml-compile (command &optional and-go)
-  "Pass a COMMAND to the SML process to compile the current program.
-
-You can then use the command \\[next-error] to find the next error message
-and move to the source code that caused it.
-
-Interactively, prompts for the command if `compilation-read-command' is
-non-nil.  With prefix arg, always prompts.
-
-Prefix arg AND-GO also means to `switch-to-sml' afterwards."
-  (interactive
-   (let* ((dir default-directory)
-	  (cmd "cd \"."))
-     ;; Look for files to determine the default command.
-     (while (and (stringp dir)
-                 (progn
-                   (dolist (cf sml-compile-commands-alist)
-                     (when (file-exists-p (expand-file-name (cdr cf) dir))
-                       (setq cmd (concat cmd "\"; " (car cf)))
-                       (return nil)))
-                   (not cmd)))
-       (let ((newdir (file-name-directory (directory-file-name dir))))
-	 (setq dir (unless (equal newdir dir) newdir))
-	 (setq cmd (concat cmd "/.."))))
-     (setq cmd
-	   (cond
-	    ((local-variable-p 'sml-compile-command) sml-compile-command)
-	    ((string-match "^\\s-*cd\\s-+\"\\.\"\\s-*;\\s-*" cmd)
-	     (substring cmd (match-end 0)))
-	    ((string-match "^\\s-*cd\\s-+\"\\(\\./\\)" cmd)
-	     (replace-match "" t t cmd 1))
-	    ((string-match ";" cmd) cmd)
-	    (t sml-compile-command)))
-     ;; code taken from compile.el
-     (if (or compilation-read-command current-prefix-arg)
-	 (list (read-from-minibuffer "Compile command: "
-				     cmd nil nil '(compile-history . 1)))
-       (list cmd))))
-     ;; ;; now look for command's file to determine the directory
-     ;; (setq dir default-directory)
-     ;; (while (and (stringp dir)
-     ;; 	    (dolist (cf sml-compile-commands-alist t)
-     ;; 	      (when (and (equal cmd (car cf))
-     ;; 			 (file-exists-p (expand-file-name (cdr cf) dir)))
-     ;; 		(return nil))))
-     ;;   (let ((newdir (file-name-directory (directory-file-name dir))))
-     ;;     (setq dir (unless (equal newdir dir) newdir))))
-     ;; (setq dir (or dir default-directory))
-     ;; (list cmd dir)))
-  (set (make-local-variable 'sml-compile-command) command)
-  (save-some-buffers (not compilation-ask-about-save) nil)
-  (let ((dir default-directory))
-    (when (string-match "^\\s-*cd\\s-+\"\\([^\"]+\\)\"\\s-*;" command)
-      (setq dir (match-string 1 command))
-      (setq command (replace-match "" t t command)))
-    (setq dir (expand-file-name dir))
-    (with-current-buffer (sml-proc-buffer)
-      (setq default-directory dir)
-      (sml-send-string (concat (format sml-cd-command dir) "; " command)
-                       t and-go))))
 
 ;;; MORE CODE FOR SML-MODE
 

@@ -63,20 +63,19 @@
   (name :read-only t)
   (run :read-only t)
   (load-cmd :read-only t)
-  (chdir-cmd :read-only t))
+  (chdir-cmd :read-only t)
+  (compile-commands-alist :read-only t))
 
 (defvar prog-proc-functions nil
   "Struct containing the various functions to create a new process, ...")
 
-(defmacro prog-proc--call (method &rest args)
-  `(prog-proc--funcall
-    #',(intern (format "prog-proc-functions-%s" method))
-    ,@args))
-(defun prog-proc--funcall (selector &rest args)
-  (if (not prog-proc-functions)
+(defmacro prog-proc--prop (prop)
+  `(,(intern (format "prog-proc-functions-%s" prop))
+    (or prog-proc-functions
       ;; FIXME: Look for available ones and pick one.
-      (error "Not an `prog-proc' buffer")
-    (apply (funcall selector prog-proc-functions) args)))
+        (error "Not an `prog-proc' buffer"))))
+(defmacro prog-proc--call (method &rest args)
+  `(funcall (prog-proc--prop ,method) ,@args))
 
 ;; The inferior process and his buffer are basically interchangeable.
 ;; Currently the code takes prog-proc--buffer as the main reference,
@@ -195,6 +194,80 @@ AND-GO if non-nil indicate to additionally switch to the process's buffer."
 
   (add-hook 'comint-input-filter-functions
             #'prog-proc-comint-input-filter-function nil t))
+
+(defvar prog-proc-compile-command nil
+  "The command used by default by `prog-proc-compile'.
+See also `prog-proc-compile-commands-alist'.")
+
+(defvar prog-proc-compile-commands-alist nil
+  "Commands used by default by `prog-proc-compile'.
+Each command is associated with its \"main\" file.
+It is perfectly OK to associate several files with a command or several
+commands with the same file.")
+
+(defun prog-proc-compile (command &optional and-go)
+  "Pass COMMAND to the read-eval-loop process to compile the current file.
+
+You can then use the command \\[next-error] to find the next error message
+and move to the source code that caused it.
+
+Interactively, prompts for the command if `compilation-read-command' is
+non-nil.  With prefix arg, always prompts.
+
+Prefix arg AND-GO also means to switch to the read-eval-loop buffer afterwards."
+  (interactive
+   (let* ((dir default-directory)
+	  (cmd "cd \"."))
+     ;; Look for files to determine the default command.
+     (while (and (stringp dir)
+                 (progn
+                   (dolist (cf (prog-proc--prop compile-commands-alist))
+                     (when (file-exists-p (expand-file-name (cdr cf) dir))
+                       (setq cmd (concat cmd "\"; " (car cf)))
+                       (return nil)))
+                   (not cmd)))
+       (let ((newdir (file-name-directory (directory-file-name dir))))
+	 (setq dir (unless (equal newdir dir) newdir))
+	 (setq cmd (concat cmd "/.."))))
+     (setq cmd
+	   (cond
+	    ((local-variable-p 'prog-proc-compile-command)
+             prog-proc-compile-command)
+	    ((string-match "^\\s-*cd\\s-+\"\\.\"\\s-*;\\s-*" cmd)
+	     (substring cmd (match-end 0)))
+	    ((string-match "^\\s-*cd\\s-+\"\\(\\./\\)" cmd)
+	     (replace-match "" t t cmd 1))
+	    ((string-match ";" cmd) cmd)
+	    (t prog-proc-compile-command)))
+     ;; code taken from compile.el
+     (list (if (or compilation-read-command current-prefix-arg)
+               (read-from-minibuffer "Compile command: "
+				     cmd nil nil '(compile-history . 1))
+             cmd))))
+     ;; ;; now look for command's file to determine the directory
+     ;; (setq dir default-directory)
+     ;; (while (and (stringp dir)
+     ;; 	    (dolist (cf (prog-proc--prop compile-commands-alist) t)
+     ;; 	      (when (and (equal cmd (car cf))
+     ;; 			 (file-exists-p (expand-file-name (cdr cf) dir)))
+     ;; 		(return nil))))
+     ;;   (let ((newdir (file-name-directory (directory-file-name dir))))
+     ;;     (setq dir (unless (equal newdir dir) newdir))))
+     ;; (setq dir (or dir default-directory))
+     ;; (list cmd dir)))
+  (set (make-local-variable 'prog-proc-compile-command) command)
+  (save-some-buffers (not compilation-ask-about-save) nil)
+  (let ((dir default-directory))
+    (when (string-match "^\\s-*cd\\s-+\"\\([^\"]+\\)\"\\s-*;" command)
+      (setq dir (match-string 1 command))
+      (setq command (replace-match "" t t command)))
+    (setq dir (expand-file-name dir))
+    (let ((proc (prog-proc-proc)))
+      (with-current-buffer (process-buffer proc)
+        (setq default-directory dir)
+        (prog-proc-send-string
+         proc (concat (prog-proc--call chdir-cmd dir) "\n" command))
+        (when and-go (pop-to-buffer (process-buffer proc)))))))
 
 (provide 'prog-proc)
 ;;; prog-proc.el ends here
