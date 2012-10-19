@@ -69,7 +69,8 @@
 
 (eval-when-compile (require 'cl))
 (require 'smie nil 'noerror)
-(require 'sml-prog-proc)
+(require 'electric)
+(require 'prog-proc)
 
 (defgroup sml ()
   "Editing SML code."
@@ -88,6 +89,10 @@
 If nil:					If t:
 	datatype a = A				datatype a = A
 	and b = B				     and b = B"
+  :type 'boolean)
+
+(defcustom sml-electric-pipe-mode t
+  "If non-nil, automatically insert appropriate template when hitting |."
   :type 'boolean)
 
 (defvar sml-mode-hook nil
@@ -208,7 +213,8 @@ notion of \"the end of an outline\".")
   "The starters of new expressions.")
 
 (defconst sml-pipeheads
-   '("|" "of" "fun" "fn" "and" "handle" "datatype" "abstype")
+  '("|" "of" "fun" "fn" "and" "handle" "datatype" "abstype"
+    "(" "{" "[")
    "A `|' corresponds to one of these.")
 
 (defconst sml-keywords-regexp
@@ -225,7 +231,7 @@ notion of \"the end of an outline\".")
   (defconst sml-id-re "\\sw\\(?:\\sw\\|\\s_\\)*"))
 
 (defconst sml-tyvarseq-re
-  (concat "\\(\\('+" sml-id-re "\\|(\\([,']\\|" sml-id-re
+  (concat "\\(?:\\(?:'+" sml-id-re "\\|(\\(?:[,']\\|" sml-id-re
           "\\|\\s-\\)+)\\)\\s-+\\)?"))
 
 ;;; Font-lock settings ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -294,16 +300,15 @@ Regexp match data 0 points to the chars."
     (,(concat "\\_<\\(fun\\|and\\)\\s-+" sml-tyvarseq-re
               "\\(" sml-id-re "\\)\\s-+[^ \t\n=]")
      (1 font-lock-keyword-face)
-     (6 font-lock-function-name-face))
-    (,(concat "\\_<\\(\\(data\\|abs\\|with\\|eq\\)?type\\)\\s-+"
+     (2 font-lock-function-name-face))
+    (,(concat "\\_<\\(\\(?:data\\|abs\\|with\\|eq\\)?type\\)\\s-+"
               sml-tyvarseq-re "\\(" sml-id-re "\\)")
      (1 font-lock-keyword-face)
-     (7 font-lock-type-def-face))
-    (,(concat "\\_<\\(val\\)\\s-+\\(" sml-id-re "\\_>\\s-*\\)?\\("
+     (2 font-lock-type-def-face))
+    (,(concat "\\_<\\(val\\)\\s-+\\(?:" sml-id-re "\\_>\\s-*\\)?\\("
               sml-id-re "\\)\\s-*[=:]")
      (1 font-lock-keyword-face)
-     ;;(6 font-lock-variable-def-face nil t)
-     (3 font-lock-variable-name-face))
+     (2 font-lock-variable-name-face))
     (,(concat "\\_<\\(structure\\|functor\\|abstraction\\)\\s-+\\("
               sml-id-re "\\)")
      (1 font-lock-keyword-face)
@@ -708,16 +713,16 @@ specified when running the command \\[sml-cd].")
 See `compilation-error-regexp-alist' for a description of the format.")
 
 (defconst sml-pp-functions
-  (sml-prog-proc-make :name "SML"
-                      :run (lambda () (call-interactively #'sml-run))
-                      :load-cmd (lambda (file)
-                                  ;; `sml-use-command' was defined a long time
-                                  ;; ago not to include a final semi-colon.
-                                  (concat (format sml-use-command file) ";"))
-                      :chdir-cmd (lambda (dir)
-                                   ;; `sml-cd-command' was defined a long time
-                                   ;; ago not to include a final semi-colon.
-                                   (concat (format sml-cd-command dir) ";"))))
+  (prog-proc-make :name "SML"
+                  :run (lambda () (call-interactively #'sml-run))
+                  :load-cmd (lambda (file)
+                              ;; `sml-use-command' was defined a long time
+                              ;; ago not to include a final semi-colon.
+                              (concat (format sml-use-command file) ";"))
+                  :chdir-cmd (lambda (dir)
+                               ;; `sml-cd-command' was defined a long time
+                               ;; ago not to include a final semi-colon.
+                               (concat (format sml-cd-command dir) ";"))))
 
 ;; font-lock support
 (defconst inferior-sml-font-lock-keywords
@@ -857,7 +862,7 @@ on which to run CMD using `remote-shell-program'.
               (smerge-refine-subst b1 e1 b2 e2
                                    '((face . smerge-refined-change))))))))))
 
-(define-derived-mode inferior-sml-mode sml-prog-proc-comint-mode "Inferior-SML"
+(define-derived-mode inferior-sml-mode prog-proc-comint-mode "Inferior-SML"
   "Major mode for interacting with an inferior ML process.
 
 The following commands are available:
@@ -950,9 +955,12 @@ Prefix arg AND-GO also means to `switch-to-sml' afterwards."
 	  (cmd "cd \"."))
      ;; Look for files to determine the default command.
      (while (and (stringp dir)
-		 (dolist (cf sml-compile-commands-alist 1)
-		   (when (file-exists-p (expand-file-name (cdr cf) dir))
-		     (setq cmd (concat cmd "\"; " (car cf))) (return nil))))
+                 (progn
+                   (dolist (cf sml-compile-commands-alist)
+                     (when (file-exists-p (expand-file-name (cdr cf) dir))
+                       (setq cmd (concat cmd "\"; " (car cf)))
+                       (return nil)))
+                   (not cmd)))
        (let ((newdir (file-name-directory (directory-file-name dir))))
 	 (setq dir (unless (equal newdir dir) newdir))
 	 (setq cmd (concat cmd "/.."))))
@@ -999,16 +1007,14 @@ Prefix arg AND-GO also means to `switch-to-sml' afterwards."
 (add-to-list 'auto-mode-alist '("\\.s\\(ml\\|ig\\)\\'" . sml-mode))
 
 (defvar comment-quote-nested)
-(defvar electric-indent-chars)
-(defvar electric-layout-rules)
 
 ;;;###autoload
-(define-derived-mode sml-mode sml-prog-proc-mode "SML"
+(define-derived-mode sml-mode prog-proc-mode "SML"
   "\\<sml-mode-map>Major mode for editing Standard ML code.
 This mode runs `sml-mode-hook' just before exiting.
 See also (info \"(sml-mode)Top\").
 \\{sml-mode-map}"
-  (set (make-local-variable 'sml-prog-proc-functions) sml-pp-functions)
+  (set (make-local-variable 'prog-proc-functions) sml-pp-functions)
   (set (make-local-variable 'font-lock-defaults) sml-font-lock-defaults)
   (set (make-local-variable 'outline-regexp) sml-outline-regexp)
   (set (make-local-variable 'imenu-create-index-function)
@@ -1030,6 +1036,8 @@ See also (info \"(sml-mode)Top\").
                                  (progn (skip-chars-forward " \t;")
                                         (eolp)))
                        'after))))))
+  (when sml-electric-pipe-mode
+    (add-hook 'post-self-insert-hook #'sml-post-self-insert-pipe nil t))
   (sml-mode-variables))
 
 (defun sml-mode-variables ()
@@ -1063,50 +1071,63 @@ Point has to be right after the `and' symbol and is not preserved."
                 (not (looking-at re)))
     (or (ignore-errors (forward-sexp 1) t) (forward-char 1))))
 
-(defun sml-electric-pipe ()             ;FIXME: Use post-self-insert-hook?
+(defun sml-electric-pipe ()
   "Insert a \"|\".
 Depending on the context insert the name of function, a \"=>\" etc."
-  ;; FIXME: Make it a skeleton.
   (interactive)
   (unless (save-excursion (skip-chars-backward "\t ") (bolp)) (insert "\n"))
   (insert "| ")
-  (let ((text
-         (save-excursion
-           (backward-char 2)		;back over the just inserted "| "
-           (let ((sym (sml-find-matching-starter sml-pipeheads
-                                                 ;; (sml-op-prec "|" 'back)
-                                                 )))
-             (sml-smie-forward-token)
-             (forward-comment (point-max))
-             (cond
-              ((string= sym "|")
-               (let ((f (sml-smie-forward-token)))
-                 (sml-find-forward "\\(=>\\|=\\||\\)\\S.")
-                 (cond
-                  ((looking-at "|") "")      ;probably a datatype
-                  ((looking-at "=>") " => ") ;`case', or `fn' or `handle'
-                  ((looking-at "=") (concat f "  = "))))) ;a function
-              ((string= sym "and")
-               ;; could be a datatype or a function
-               (setq sym (sml-funname-of-and))
-               (if sym (concat sym "  = ") ""))
-              ;; trivial cases
-              ((string= sym "fun")
-               (while (and (setq sym (sml-smie-forward-token))
-                           (string-match "^'" sym))
-                 (forward-comment (point-max)))
-               (concat sym "  = "))
-              ((member sym '("case" "handle" "fn" "of")) " => ")
-              ;;((member sym '("abstype" "datatype")) "")
-              (t ""))))))
+  (unless (sml-post-self-insert-pipe (1- (point)))
+    (indent-according-to-mode)))
 
-    (insert text)
-    (indent-according-to-mode)
-    (beginning-of-line)
-    (skip-chars-forward "\t |")
-    (skip-syntax-forward "w_")
-    (skip-chars-forward "\t ")
-    (when (eq ?= (char-after)) (backward-char))))
+(defun sml-post-self-insert-pipe (&optional acp)
+  (when (or acp (and (eq ?| last-command-event)
+                     (setq acp (electric--after-char-pos))))
+    (let ((text
+           (save-excursion
+             (goto-char (1- acp))       ;Jump before the "|" we just inserted.
+             (let ((sym (sml-find-matching-starter sml-pipeheads
+                                                   ;; (sml-op-prec "|" 'back)
+                                                   )))
+               (sml-smie-forward-token)
+               (forward-comment (point-max))
+               (cond
+                ((string= sym "|")
+                 (let ((f (sml-smie-forward-token)))
+                   (sml-find-forward "\\(=>\\|=\\||\\)\\S.")
+                   (cond
+                    ((looking-at "|") nil)     ; A datatype or an OR pattern?
+                    ((looking-at "=>") " => ") ;`case', or `fn' or `handle'.
+                    ((looking-at "=")          ;A function.
+                     (cons (concat f " ")" = ")))))
+                ((string= sym "and")
+                 ;; Could be a datatype or a function.
+                 (let ((funname (sml-funname-of-and)))
+                   (if funname (cons (concat funname " ") " = ") nil)))
+                ((string= sym "fun")
+                 (while (and (setq sym (sml-smie-forward-token))
+                             (string-match "^'" sym))
+                   (forward-comment (point-max)))
+                 (cons (concat sym " ") " = "))
+                ((member sym '("case" "handle" "of")) " => ") ;; "fn"?
+                ;;((member sym '("abstype" "datatype")) "")
+                (t nil))))))
+      (when text
+        (save-excursion
+          (goto-char (1- acp))
+          (unless (save-excursion (skip-chars-backward "\t ") (bolp))
+            (insert "\n")))
+        (unless (memq (char-before) '(?\s ?\t)) (insert " "))
+        (let ((use-region (and (use-region-p) (< (point) (mark)))))
+          ;; (skeleton-proxy-new `(nil ,(if (consp text) (pop text)) _ ,text))
+          (when (consp text) (insert (pop text)))
+          (if (not use-region)
+              (save-excursion (insert text))
+            (goto-char (mark))
+            (insert text)))
+        (indent-according-to-mode)
+        t))))
+
 
 ;;; Misc
 

@@ -1,3 +1,19 @@
+2012-10-19  Stefan Monnier  <monnier@iro.umontreal.ca>
+
+	* sml-mode.el (sml-electric-pipe-mode): New var.
+	(sml-pipeheads): Add (, {, and [ to more reliably detect cases where
+	the pipe is not part of a case/fun/...
+	(sml-tyvarseq-re): Use shy groups.
+	(sml-font-lock-keywords): Adjust accordingly.
+	(sml-compile): Avoid the 3rd part of dolist's spec.
+	(sml-post-self-insert-pipe): New fun, extracted from sml-electric-pipe.
+	(sml-mode): Use it to obey sml-electric-pipe-mode.
+	(sml-electric-pipe): Use sml-post-self-insert-pipe.
+
+	* prog-proc.el: Rename from sml-prog-proc.el.
+
+	* makefile.pkg (ELFILES): Remove sml-proc.el.
+
 2012-04-11  Stefan Monnier  <monnier@iro.umontreal.ca>
 
 	Merge sml-defs.el into sml-mode.el.
