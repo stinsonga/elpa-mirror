@@ -542,24 +542,6 @@ space.  Another way to insert those skeletons is to use
 @code{sml-insert-form}, described below.
 @end deffn
 
-@deffn Command sml-electric-semi
-Key: @kbd{;}
-@kindex @kbd{;}
-
-Just inserts a semi-colon, usually. The behaviour of this command is
-governed by the variable @code{sml-electric-semi-mode}.
-@end deffn
-
-
-@defvr Variable sml-electric-semi-mode
-Default: @code{nil}
-
-If this variable is @code{nil}, @code{sml-electric-semi} just inserts a
-semi-colon, otherwise it inserts a semi-colon and a newline, and indents
-the newline for SML.
-@end defvr
-
-
 @deffn Command sml-insert-form
 Key: @kbd{C-c @key{RET}}
 @kindex @kbd{C-c @key{RET}}
@@ -944,7 +926,7 @@ Defaults,,Indentation Defaults}), and other defaults, is through the
   (setq sml-indent-level 2)        ; conserve on horizontal space
   (setq words-include-escape t)    ; \ loses word break status
   (setq indent-tabs-mode nil))     ; never ever indent with tabs
-(add-hook 'sml-mode-hook 'my-sml-mode-hook)
+(add-hook 'sml-mode-hook #'my-sml-mode-hook)
 @end lisp
 @noindent
 The body of @code{my-sml-mode-hook} is a sequence of assignments. In this
