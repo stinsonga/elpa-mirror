@@ -1,5 +1,5 @@
 PACKAGE = sml-mode
-ELFILES	= sml-mode.el prog-proc.el
+ELFILES	= sml-mode.el
 
 default: elcfiles
 

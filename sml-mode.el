@@ -1,76 +1,53 @@
 ;;; sml-mode.el --- Major mode for editing (Standard) ML  -*- lexical-binding: t; coding: utf-8 -*-
 
-;; Copyright (C) 1999,2000,2004,2007,2010-2012  Stefan Monnier
-;; Copyright (C) 1994-1997  Matthew J. Morley
-;; Copyright (C) 1989       Lars Bo Nielsen
+;; Copyright (C) 1989,1999,2000,2004,2007,2010-2012  Free Software Foundation, Inc.
 
-;; Author: Lars Bo Nielsen
+;; Maintainer: (Stefan Monnier) <monnier@iro.umontreal.ca>
+;; Version: 6.0
+;; Keywords: SML
+;; Authors of previous versions:
+;;      Lars Bo Nielsen
 ;;      Olin Shivers
 ;;	Fritz Knabe (?)
 ;;	Steven Gilmore (?)
-;;	Matthew Morley <mjm@scs.leeds.ac.uk> (aka <matthew@verisity.com>)
-;;	Matthias Blume <blume@cs.princeton.edu> (aka <blume@kurims.kyoto-u.ac.jp>)
+;;	Matthew Morley <mjm@scs.leeds.ac.uk>
+;;	Matthias Blume <blume@cs.princeton.edu>
 ;;      (Stefan Monnier) <monnier@iro.umontreal.ca>
-;; Maintainer: (Stefan Monnier) <monnier@iro.umontreal.ca>
-;; Keywords: SML
 
-;; This file is not part of GNU Emacs, but it is distributed under the
-;; same conditions.
+;; This file is part of GNU Emacs.
 
-;; This program is free software; you can redistribute it and/or
-;; modify it under the terms of the GNU General Public License as
-;; published by the Free Software Foundation; either version 3, or (at
-;; your option) any later version.
+;; GNU Emacs is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
 
-;; This program is distributed in the hope that it will be useful, but
-;; WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-;; General Public License for more details.
+;; GNU Emacs is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING. If not, write to the
-;; Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
-;;; HISTORY
-
-;; Still under construction: History obscure, needs a biographer as
-;; well as a M-x doctor. Change Log on request.
-
-;; Hacked by Olin Shivers for comint from Lars Bo Nielsen's sml.el.
-
-;; Hacked by Matthew Morley to incorporate Fritz Knabe's hilite and
-;; font-lock patterns, some of Steven Gilmore's (reduced) easy-menus,
-;; and numerous bugs and bug-fixes.
-
-;;; DESCRIPTION
-
-;; See accompanying info file: sml-mode.info
-
-;;; FOR YOUR .EMACS FILE
-
-;; If sml-mode.el lives in some non-standard directory, you must tell
-;; emacs where to get it. This may or may not be necessary:
-
-;; (add-to-list 'load-path "~jones/lib/emacs/")
-
-;; Then to access the commands autoload sml-mode with that command:
-
-;; (load "sml-mode-startup")
-
-;; sml-mode-hook is run whenever a new sml-mode buffer is created.
-
-;; Finally, there are inferior-sml-{mode,load}-hooks -- see comments
-;; in sml-proc.el. For much more information consult the mode's *info*
-;; tree.
+;; A major mode to edit Standard ML (SML) code.
+;; Provides the following features, among others:
+;; - Indentation.
+;; - Syntax highlighting.
+;; - Prettified display of ->, =>, fn, ...
+;; - Imenu.
+;; - which-function-mode.
+;; - Skeletons/templates.
+;; - Electric pipe key.
+;; - outline-minor-mode (with some known problems).
+;; - Interaction with a read-eval-print loop.
 
 ;;; Code:
 
 (eval-when-compile (require 'cl))
 (require 'smie nil 'noerror)
 (require 'electric)
-(require 'prog-proc)
 
 (defgroup sml ()
   "Editing SML code."
@@ -98,18 +75,6 @@ If nil:					If t:
 (defvar sml-mode-hook nil
   "Run upon entering `sml-mode'.
 This is a good place to put your preferred key bindings.")
-
-;;; Autoload functions -- no-doc is another idea cribbed from AucTeX!
-;; FIXME-copyright: probably include sml-proc.el in sml-mode.el.
-(let ((sml-no-doc
-       "This function is part of sml-proc, and has not yet been loaded.
-Full documentation will be available after autoloading the function."))
-
-  (autoload 'sml-compile	"sml-proc"   sml-no-doc t)
-  (autoload 'sml-load-file	"sml-proc"   sml-no-doc t)
-  (autoload 'switch-to-sml	"sml-proc"   sml-no-doc t)
-  (autoload 'sml-send-region	"sml-proc"   sml-no-doc t)
-  (autoload 'sml-send-buffer	"sml-proc"   sml-no-doc t))
 
 ;; font-lock setup
 
@@ -150,34 +115,24 @@ notion of \"the end of an outline\".")
 
 (easy-menu-define sml-mode-menu sml-mode-map "Menu used in `sml-mode'."
   '("SML"
-    ("Process"                          ;FIXME-copyright.
-     ["Start default ML compiler" run-sml		t]
+    ("Process"
+     ["Start SML repl"		run-sml		t]
      ["-" nil nil]
-     ["run CM.make"		sml-compile	t]
-     ["load ML source file"	sml-load-file	t]
-     ["switch to ML buffer"	switch-to-sml	t]
+     ["Compile the project"	sml-prog-proc-compile	t]
+     ["Send file"		sml-prog-proc-load-file	t]
+     ["Switch to SML repl"	sml-prog-proc-switch-to	t]
      ["--" nil nil]
-     ["send buffer contents"	sml-send-buffer	t]
-     ["send region"		sml-send-region	t]
-     ["send function"		sml-send-function t]
-     ["goto next error"		next-error	(featurep 'sml-proc)]
-     ["---" nil nil]
-     ["Help for Inferior ML"	(describe-function 'inferior-sml-mode)
-      :active (featurep 'sml-proc)])
-    ["insert SML form"   sml-insert-form t] ;FIXME-copyright.
+     ["Send buffer"		sml-prog-proc-send-buffer	t]
+     ["Send region"		sml-prog-proc-send-region	t]
+     ["Send function"		sml-send-function t]
+     ["Goto next error"		next-error	t])
+    ["Insert SML form"		sml-insert-form t]
     ("Forms" :filter sml-forms-menu)
-    ("Format/Mode Variables" ;FIXME-copyright.
-     ["indent region"             indent-region t]
-     ["outdent"                   sml-back-to-outer-indent t]
-     ;; ["-" nil nil]
-     ;; ["set indent-level"          sml-indent-level t]
-     ;; ["set pipe-indent"           sml-pipe-indent t]
-     ;; ["--" nil nil]
-     ;; ["toggle type-of-indent"     sml-type-of-indent t]
-     ;; ["toggle nested-if-indent"   sml-nested-if-indent t]
-     )
+    ["Indent region"		indent-region t]
+    ["Outdent line"		sml-back-to-outer-indent t]
     ["-----" nil nil]
-    ["SML mode help (brief)"       describe-mode t])) ;FIXME-copyright.
+    ["Customize SML-mode"  (customize-group 'sml)	t]
+    ["SML mode help"       describe-mode t]))
 
 ;;
 ;; Regexps
@@ -351,7 +306,7 @@ Regexp match data 0 points to the chars."
     (modify-syntax-entry ?\\ "." st)
     (modify-syntax-entry ?* "." st)
     st)
-  "Syntax table for text-properties")
+  "Syntax table for text-properties.")
 
 (defconst sml-font-lock-syntactic-keywords
   `(("^\\s-*\\(\\\\\\)" (1 ',sml-syntax-prop-table))))
@@ -660,10 +615,248 @@ Assumes point is right before the | symbol."
 		  alist)))))
     alist))
 
-;;; Prog-Proc support.     ;FIXME-copyright.
+;;; Generic prog-proc interaction.
+
+(require 'comint)
+(require 'compile)
+
+(defvar sml-prog-proc-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [?\C-c ?\C-l] 'sml-prog-proc-load-file)
+    (define-key map [?\C-c ?\C-c] 'sml-prog-proc-compile)
+    (define-key map [?\C-c ?\C-z] 'sml-prog-proc-switch-to)
+    (define-key map [?\C-c ?\C-r] 'sml-prog-proc-send-region)
+    (define-key map [?\C-c ?\C-b] 'sml-prog-proc-send-buffer)
+    ;; FIXME: Add
+    ;; (define-key map [?\M-C-x] 'sml-prog-proc-send-defun)
+    ;; (define-key map [?\C-x ?\C-e] 'sml-prog-proc-send-last-sexp)
+    ;; FIXME: Add menu.  Now, that's trickier because keymap inheritance
+    ;; doesn't play nicely with menus!
+    map)
+  "Keymap for `sml-prog-proc-mode'.")
+
+(defvar sml-prog-proc--buffer nil
+  "The inferior-process buffer to which to send code.")
+(make-variable-buffer-local 'sml-prog-proc--buffer)
+
+(defstruct (sml-prog-proc-descriptor
+            (:constructor sml-prog-proc-make)
+            (:predicate nil)
+            (:copier nil))
+  (name nil :read-only t)
+  (run nil :read-only t)
+  (load-cmd nil :read-only t)
+  (chdir-cmd nil :read-only t)
+  (command-eol "\n" :read-only t)
+  (compile-commands-alist nil :read-only t))
+
+(defvar sml-prog-proc-descriptor nil
+  "Struct containing the various functions to create a new process, ...")
+
+(defmacro sml-prog-proc--prop (prop)
+  `(,(intern (format "sml-prog-proc-descriptor-%s" prop))
+    (or sml-prog-proc-descriptor
+        ;; FIXME: Look for available ones and pick one.
+        (error "Not a `sml-prog-proc' buffer"))))
+(defmacro sml-prog-proc--call (method &rest args)
+  `(funcall (sml-prog-proc--prop ,method) ,@args))
+
+;; The inferior process and his buffer are basically interchangeable.
+;; Currently the code takes sml-prog-proc--buffer as the main reference,
+;; but all users should either use sml-prog-proc-proc or sml-prog-proc-buffer
+;; to find the info.
+
+(defun sml-prog-proc-proc ()
+  "Return the inferior process for the code in current buffer."
+  (or (and (buffer-live-p sml-prog-proc--buffer)
+           (get-buffer-process sml-prog-proc--buffer))
+      (when (derived-mode-p 'sml-prog-proc-mode 'sml-prog-proc-comint-mode)
+        (setq sml-prog-proc--buffer (current-buffer))
+        (get-buffer-process sml-prog-proc--buffer))
+      (let ((ppd sml-prog-proc-descriptor)
+            (buf (sml-prog-proc--call run)))
+        (with-current-buffer buf
+          (if (and ppd (null sml-prog-proc-descriptor))
+              (set (make-local-variable 'sml-prog-proc-descriptor) ppd)))
+        (setq sml-prog-proc--buffer buf)
+        (get-buffer-process sml-prog-proc--buffer))))
+
+(defun sml-prog-proc-buffer ()
+  "Return the buffer of the inferior process."
+  (process-buffer (sml-prog-proc-proc)))
+
+(defun sml-prog-proc-switch-to ()
+  "Switch to the buffer running the read-eval-print process."
+  (pop-to-buffer (sml-prog-proc-buffer)))
+
+(defun sml-prog-proc-send-string (proc str)
+  "Send command STR to PROC, with an EOL terminator appended."
+  (with-current-buffer (process-buffer proc)
+    ;; FIXME: comint-send-string does not pass the string through
+    ;; comint-input-filter-function, so we have to do it by hand.
+    ;; Maybe we should insert the command into the buffer and then call
+    ;; comint-send-input?
+    (sml-prog-proc-comint-input-filter-function nil)
+    (comint-send-string proc (concat str (sml-prog-proc--prop command-eol)))))
+
+(defun sml-prog-proc-load-file (file &optional and-go)
+  "Load FILE into the read-eval-print process.
+FILE is the file visited by the current buffer.
+If prefix argument AND-GO is used, then we additionally switch
+to the buffer where the process is running."
+  (interactive
+   (list (or buffer-file-name
+             (read-file-name "File to load: " nil nil t))
+         current-prefix-arg))
+  (comint-check-source file)
+  (let ((proc (sml-prog-proc-proc)))
+    (sml-prog-proc-send-string proc (sml-prog-proc--call load-cmd file))
+    (when and-go (pop-to-buffer (process-buffer proc)))))
+
+(defvar sml-prog-proc--tmp-file nil)
+
+(defun sml-prog-proc-send-region (start end &optional and-go)
+  "Send the content of the region to the read-eval-print process.
+START..END delimit the region; AND-GO if non-nil indicate to additionally
+switch to the process's buffer."
+  (interactive "r\nP")
+  (if (> start end) (let ((tmp end)) (setq end start) (setq start tmp))
+    (if (= start end) (error "Nothing to send: the region is empty")))
+  (let ((proc (sml-prog-proc-proc))
+        (tmp (make-temp-file "emacs-region")))
+    (write-region start end tmp nil 'silently)
+    (when sml-prog-proc--tmp-file
+      (ignore-errors (delete-file (car sml-prog-proc--tmp-file)))
+      (set-marker (cdr sml-prog-proc--tmp-file) nil))
+    (setq sml-prog-proc--tmp-file (cons tmp (copy-marker start)))
+    (sml-prog-proc-send-string proc (sml-prog-proc--call load-cmd tmp))
+    (when and-go (pop-to-buffer (process-buffer proc)))))
+
+(defun sml-prog-proc-send-buffer (&optional and-go)
+  "Send the content of the current buffer to the read-eval-print process.
+AND-GO if non-nil indicate to additionally switch to the process's buffer."
+  (interactive "P")
+  (sml-prog-proc-send-region (point-min) (point-max) and-go))
+
+(define-derived-mode sml-prog-proc-mode prog-mode "Sml-Prog-Proc"
+  "Major mode for editing source code and interact with an interactive loop."
+  )
+
+;;; Extended comint-mode for Sml-Prog-Proc.
+
+(defun sml-prog-proc-chdir (dir)
+  "Change the working directory of the inferior process to DIR."
+  (interactive "DChange to directory: ")
+  (let ((dir (expand-file-name dir))
+        (proc (sml-prog-proc-proc)))
+    (with-current-buffer (process-buffer proc)
+      (sml-prog-proc-send-string proc (sml-prog-proc--call chdir-cmd dir))
+      (setq default-directory (file-name-as-directory dir)))))
+
+(defun sml-prog-proc-comint-input-filter-function (str)
+  ;; `compile.el' doesn't know that file location info from errors should be
+  ;; recomputed afresh (without using stale info from earlier compilations).
+  (compilation-forget-errors)       ;Has to run before compilation-fake-loc.
+  (if (and sml-prog-proc--tmp-file (marker-buffer (cdr sml-prog-proc--tmp-file)))
+      (compilation-fake-loc (cdr sml-prog-proc--tmp-file)
+                            (car sml-prog-proc--tmp-file)))
+  str)
+
+(define-derived-mode sml-prog-proc-comint-mode comint-mode "Sml-Prog-Proc-Comint"
+  "Major mode for an inferior process used to run&compile source code."
+  ;; Enable compilation-minor-mode, but only after the child mode is setup
+  ;; since the child-mode might want to add rules to
+  ;; compilation-error-regexp-alist.
+  (add-hook 'after-change-major-mode-hook #'compilation-minor-mode nil t)
+  ;; The keymap of compilation-minor-mode is too unbearable, so we
+  ;; need to hide most of the bindings.
+  (let ((map (make-sparse-keymap)))
+    (dolist (keys '([menu-bar] [follow-link]))
+      ;; Preserve some of the bindings.
+      (define-key map keys (lookup-key compilation-minor-mode-map keys)))
+    (add-to-list 'minor-mode-overriding-map-alist
+                 (cons 'compilation-minor-mode map)))
+
+  (add-hook 'comint-input-filter-functions
+            #'sml-prog-proc-comint-input-filter-function nil t))
+
+(defvar sml-prog-proc--compile-command nil
+  "The command used by default by `sml-prog-proc-compile'.")
+
+(defun sml-prog-proc-compile (command &optional and-go)
+  "Pass COMMAND to the read-eval-loop process to compile the current file.
+
+You can then use the command \\[next-error] to find the next error message
+and move to the source code that caused it.
+
+Interactively, prompts for the command if `compilation-read-command' is
+non-nil.  With prefix arg, always prompts.
+
+Prefix arg AND-GO also means to switch to the read-eval-loop buffer afterwards."
+  (interactive
+   (let* ((dir default-directory)
+	  (cmd "cd \"."))
+     ;; Look for files to determine the default command.
+     (while (and (stringp dir)
+                 (progn
+                   (dolist (cf (sml-prog-proc--prop compile-commands-alist))
+                     (when (file-exists-p (expand-file-name (cdr cf) dir))
+                       (setq cmd (concat cmd "\"; " (car cf)))
+                       (return nil)))
+                   (not cmd)))
+       (let ((newdir (file-name-directory (directory-file-name dir))))
+	 (setq dir (unless (equal newdir dir) newdir))
+	 (setq cmd (concat cmd "/.."))))
+     (setq cmd
+	   (cond
+	    ((local-variable-p 'sml-prog-proc--compile-command)
+             sml-prog-proc--compile-command)
+	    ((string-match "^\\s-*cd\\s-+\"\\.\"\\s-*;\\s-*" cmd)
+	     (substring cmd (match-end 0)))
+	    ((string-match "^\\s-*cd\\s-+\"\\(\\./\\)" cmd)
+	     (replace-match "" t t cmd 1))
+	    ((string-match ";" cmd) cmd)
+	    (t sml-prog-proc--compile-command)))
+     ;; code taken from compile.el
+     (list (if (or compilation-read-command current-prefix-arg)
+               (read-from-minibuffer "Compile command: "
+				     cmd nil nil '(compile-history . 1))
+             cmd))))
+     ;; ;; now look for command's file to determine the directory
+     ;; (setq dir default-directory)
+     ;; (while (and (stringp dir)
+     ;; 	    (dolist (cf (sml-prog-proc--prop compile-commands-alist) t)
+     ;; 	      (when (and (equal cmd (car cf))
+     ;; 			 (file-exists-p (expand-file-name (cdr cf) dir)))
+     ;; 		(return nil))))
+     ;;   (let ((newdir (file-name-directory (directory-file-name dir))))
+     ;;     (setq dir (unless (equal newdir dir) newdir))))
+     ;; (setq dir (or dir default-directory))
+     ;; (list cmd dir)))
+  (set (make-local-variable 'sml-prog-proc--compile-command) command)
+  (save-some-buffers (not compilation-ask-about-save) nil)
+  (let ((dir default-directory))
+    (when (string-match "^\\s-*cd\\s-+\"\\([^\"]+\\)\"\\s-*;" command)
+      (setq dir (match-string 1 command))
+      (setq command (replace-match "" t t command)))
+    (setq dir (expand-file-name dir))
+    (let ((proc (sml-prog-proc-proc))
+          (eol (sml-prog-proc--prop command-eol)))
+      (with-current-buffer (process-buffer proc)
+        (setq default-directory dir)
+        (sml-prog-proc-send-string
+         proc (concat (sml-prog-proc--call chdir-cmd dir)
+                      ;; Strip the newline, to avoid adding a prompt.
+                      (if (string-match "\n\\'" eol)
+                          (replace-match " " t t eol) eol)
+                      command))
+        (when and-go (pop-to-buffer (process-buffer proc)))))))
+
+
+;;; SML Sml-Prog-Proc support.
 
 (defcustom sml-program-name "sml"
-  "Program to run as Standard ML read-eval-print loop."
+  "Program to run as Standard SML read-eval-print loop."
   :type 'string)
 
 (defcustom sml-default-arg ""
@@ -675,20 +868,20 @@ Assumes point is right before the | symbol."
   :type 'string)
 
 (defcustom sml-config-file "~/.smlproc.sml"
-  "File that should be fed to the ML process when started."
+  "File that should be fed to the SML process when started."
   :type 'string)
 
 
 (defcustom sml-prompt-regexp "^[-=>#] *"
-  "Regexp used to recognise prompts in the inferior ML process."
+  "Regexp used to recognise prompts in the inferior SML process."
   :type 'regexp)
 
 (defcustom sml-compile-commands-alist
-  '(("CMB.make();" . "all-files.cm")
-    ("CMB.make();" . "pathconfig")
-    ("CM.make();" . "sources.cm")
-    ("use \"load-all\";" . "load-all"))
-  "Commands used by default by `sml-prog-proc-compile'.
+  '(("CMB.make()" . "all-files.cm")
+    ("CMB.make()" . "pathconfig")
+    ("CM.make()" . "sources.cm")
+    ("use \"load-all\"" . "load-all"))
+  "Commands used by default by `sml-sml-prog-proc-compile'.
 Each command is associated with its \"main\" file.
 It is perfectly OK to associate several files with a command or several
 commands with the same file.")
@@ -696,12 +889,12 @@ commands with the same file.")
 ;; FIXME: Try to auto-detect the process and set those vars accordingly.
 
 (defvar sml-use-command "use \"%s\""
-  "Template for loading a file into the inferior ML process.
+  "Template for loading a file into the inferior SML process.
 Set to \"use \\\"%s\\\"\" for SML/NJ or Edinburgh ML; 
 set to \"PolyML.use \\\"%s\\\"\" for Poly/ML, etc.")
 
 (defvar sml-cd-command "OS.FileSys.chDir \"%s\""
-  "Command template for changing working directories under ML.
+  "Command template for changing working directories under SML.
 Set this to nil if your compiler can't change directories.
 
 The format specifier \"%s\" will be converted into the directory name
@@ -723,17 +916,12 @@ specified when running the command \\[sml-cd].")
 See `compilation-error-regexp-alist' for a description of the format.")
 
 (defconst sml-pp-functions
-  (prog-proc-make :name "SML"
+  (sml-prog-proc-make :name "SML"
                   :run (lambda () (call-interactively #'sml-run))
-                  :load-cmd (lambda (file)
-                              ;; `sml-use-command' was defined a long time
-                              ;; ago not to include a final semi-colon.
-                              (concat (format sml-use-command file) ";"))
-                  :chdir-cmd (lambda (dir)
-                               ;; `sml-cd-command' was defined a long time
-                               ;; ago not to include a final semi-colon.
-                               (concat (format sml-cd-command dir) ";"))
+                  :load-cmd (lambda (file) (format sml-use-command file))
+                  :chdir-cmd (lambda (dir) (format sml-cd-command dir))
                   :compile-commands-alist sml-compile-commands-alist
+                  :command-eol ";\n"
                   ))
 
 ;; font-lock support
@@ -768,7 +956,7 @@ See `compilation-error-regexp-alist' for a description of the format.")
 
 (defun sml--read-run-cmd ()
   (list
-   (read-string "ML command: " sml-program-name)
+   (read-string "SML command: " sml-program-name)
    (if (or current-prefix-arg (> (length sml-default-arg) 0))
        (read-string "Any args: " sml-default-arg)
      sml-default-arg)
@@ -791,7 +979,7 @@ on which to run CMD using `remote-shell-program'.
          (args (split-string arg))
 	 (file (when (and sml-config-file (file-exists-p sml-config-file))
 		 sml-config-file)))
-    ;; and this -- to keep these as defaults even if
+    ;; And this -- to keep these as defaults even if
     ;; they're set in the mode hooks.
     (setq sml-program-name cmd)
     (setq sml-default-arg arg)
@@ -814,6 +1002,15 @@ on which to run CMD using `remote-shell-program'.
       (goto-char (point-max))
       (current-buffer))))
 
+(defun sml-send-function (&optional and-go)
+  "Send current paragraph to the inferior SML process. 
+With a prefix argument AND-GO switch to the repl buffer as well."
+  (interactive "P")
+  (save-excursion
+    (sml-mark-function)
+    (sml-prog-proc-send-region (point) (mark)))
+  (if and-go (sml-prog-proc-switch-to)))
+
 (defvar inferior-sml-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map comint-mode-map)
@@ -821,7 +1018,7 @@ on which to run CMD using `remote-shell-program'.
     (define-key map "\C-c\C-l" 'sml-load-file)
     (define-key map "\t" 'completion-at-point)
     map)
-  "Keymap for inferior-sml mode")
+  "Keymap for inferior-sml mode.")
 
 
 (declare-function smerge-refine-subst "smerge-mode"
@@ -874,13 +1071,13 @@ on which to run CMD using `remote-shell-program'.
               (smerge-refine-subst b1 e1 b2 e2
                                    '((face . smerge-refined-change))))))))))
 
-(define-derived-mode inferior-sml-mode prog-proc-comint-mode "Inferior-SML"
-  "Major mode for interacting with an inferior ML process.
+(define-derived-mode inferior-sml-mode sml-prog-proc-comint-mode "Inferior-SML"
+  "Major mode for interacting with an inferior SML process.
 
 The following commands are available:
 \\{inferior-sml-mode-map}
 
-An ML process can be fired up (again) with \\[sml].
+An SML process can be fired up (again) with \\[sml].
 
 Customisation: Entry to this mode runs the hooks on `comint-mode-hook'
 and `inferior-sml-mode-hook' (in that order).
@@ -888,25 +1085,25 @@ and `inferior-sml-mode-hook' (in that order).
 Variables controlling behaviour of this mode are
 
 `sml-program-name' (default \"sml\")
-    Program to run as ML.
+    Program to run as SML.
 
 `sml-use-command' (default \"use \\\"%s\\\"\")
-    Template for loading a file into the inferior ML process.
+    Template for loading a file into the inferior SML process.
 
 `sml-cd-command' (default \"System.Directory.cd \\\"%s\\\"\")
-    ML command for changing directories in ML process (if possible).
+    SML command for changing directories in SML process (if possible).
 
 `sml-prompt-regexp' (default \"^[\\-=] *\")
-    Regexp used to recognise prompts in the inferior ML process.
+    Regexp used to recognise prompts in the inferior SML process.
 
-You can send text to the inferior ML process from other buffers containing
-ML source.
-    `switch-to-sml' switches the current buffer to the ML process buffer.
-    `sml-send-function' sends the current *paragraph* to the ML process.
-    `sml-send-region' sends the current region to the ML process.
+You can send text to the inferior SML process from other buffers containing
+SML source.
+    `switch-to-sml' switches the current buffer to the SML process buffer.
+    `sml-send-function' sends the current *paragraph* to the SML process.
+    `sml-send-region' sends the current region to the SML process.
 
     Prefixing the sml-send-<whatever> commands with \\[universal-argument]
-    causes a switch to the ML process buffer after sending the text.
+    causes a switch to the SML process buffer after sending the text.
 
 For information on running multiple processes in multiple buffers, see
 documentation for variable `sml-buffer'.
@@ -946,12 +1143,12 @@ TAB file name completion, as in shell-mode, etc.."
 (defvar comment-quote-nested)
 
 ;;;###autoload
-(define-derived-mode sml-mode prog-proc-mode "SML"
+(define-derived-mode sml-mode sml-prog-proc-mode "SML"
   "\\<sml-mode-map>Major mode for editing Standard ML code.
 This mode runs `sml-mode-hook' just before exiting.
 See also (info \"(sml-mode)Top\").
 \\{sml-mode-map}"
-  (set (make-local-variable 'prog-proc-functions) sml-pp-functions)
+  (set (make-local-variable 'sml-prog-proc-descriptor) sml-pp-functions)
   (set (make-local-variable 'font-lock-defaults) sml-font-lock-defaults)
   (set (make-local-variable 'outline-regexp) sml-outline-regexp)
   (set (make-local-variable 'imenu-create-index-function)
@@ -1083,22 +1280,27 @@ Depending on the context insert the name of function, a \"=>\" etc."
         (push-mark nil t t)
         (goto-char beg)))))
 
-(defun sml-back-to-outer-indent ()      ;FIXME-copyright.
+(defun sml-back-to-outer-indent ()
   "Unindents to the next outer level of indentation."
   (interactive)
   (save-excursion
-    (beginning-of-line)
-    (skip-chars-forward "\t ")
-    (let ((start-column (current-column))
-          (indent (current-column)))
-      (if (> start-column 0)
-          (progn
-            (save-excursion
-              (while (>= indent start-column)
-                (setq indent (if (re-search-backward "^[^\n]" nil t)
-                                 (current-indentation)
-                               0))))
-            (backward-delete-char-untabify (- start-column indent)))))))
+    (forward-line 0)
+    (let ((start-column (current-indentation))
+          indent)
+      (when (> start-column 0)
+        (save-excursion
+          (while (>= (setq indent
+                           (if (re-search-backward "^[ \t]*[^\n\t]" nil t)
+                               (current-indentation)
+                             0))
+                     start-column))
+          (skip-chars-forward " \t")
+          (let ((pos (point)))
+            (move-to-column start-column)
+            (when (re-search-backward " \\([^ \t\n]\\)" pos t)
+              (goto-char (match-beginning 1))
+              (setq indent (current-column)))))
+        (indent-line-to indent)))))
 
 (defun sml-find-matching-starter (syms)
   (let ((halfsexp nil)
@@ -1165,8 +1367,7 @@ interactive command) called 'sml-form-NAME'.
 If 'sml-form-NAME' is a function it takes no arguments and should
 insert the template at point\; if this is a command it may accept any
 sensible interactive call arguments\; keyboard macros can't take
-arguments at all.  Apropos keyboard macros, see `name-last-kbd-macro'
-and `sml-addto-forms-alist'.
+arguments at all.
 `sml-forms-alist' understands let, local, case, abstype, datatype,
 signature, structure, and functor by default.")
 
@@ -1244,13 +1445,13 @@ If the point directly precedes a symbol for which an SML form exists,
 the corresponding form is inserted."
   (interactive)
   (let ((abbrev-mode (not abbrev-mode))
-	(last-command-event ?\ )
+	(last-command-event ?\s)
 	;; Bind `this-command' to fool skeleton's special abbrev handling.
 	(this-command 'self-insert-command))
     (call-interactively 'self-insert-command)))
 
-(defun sml-insert-form (name newline)   ;FIXME-copyright.
-  "Interactive short-cut to insert the NAME common ML form.
+(defun sml-insert-form (name newline)
+  "Interactive short-cut to insert the NAME common SML form.
 If a prefix argument is given insert a NEWLINE and indent first, or
 just move to the proper indentation if the line is blank\; otherwise
 insert at point (which forces indentation to current column).
@@ -1273,28 +1474,6 @@ completion from `sml-forms-alist'."
      ((commandp f) (command-execute f))
      (f (funcall f))
      (t (error "Undefined SML form: %s" name)))))
-
-;; See also macros.el in emacs lisp dir.
-
-(defun sml-addto-forms-alist (name)     ;FIXME-copyright.
-  "Assign a name to the last keyboard macro defined.
-Argument NAME is transmogrified to sml-form-NAME which is the symbol
-actually defined.
-
-The symbol's function definition becomes the keyboard macro string.
-
-If that works, NAME is added to `sml-forms-alist' so you'll be able to
-reinvoke the macro through \\[sml-insert-form].  You might want to save
-the macro to use in a later editing session -- see `insert-kbd-macro'
-and add these macros to your .emacs file.
-
-See also `edit-kbd-macro' which is bound to \\[edit-kbd-macro]."
-  (interactive "sName for last kbd macro (\"sml-form-\" will be added): ")
-  (when (string= name "") (error "No command name given"))
-  (let ((fsym (intern (concat "sml-form-" name))))
-    (name-last-kbd-macro fsym)
-    (message "Macro bound to %s" fsym)
-    (add-to-list 'sml-forms-alist (cons name fsym))))
 
 ;;;
 ;;; MLton support
@@ -1319,7 +1498,8 @@ See also `edit-kbd-macro' which is bound to \\[edit-kbd-macro]."
      (add-to-list 'compilation-error-regexp-alist x)))
 
 (defun sml-mlton-typecheck (mainfile)
-  "typecheck using MLton."
+  "Typecheck using MLton.
+MAINFILE is the top level file of the project."
   (interactive
    (list (if (and sml-mlton-mainfile (not current-prefix-arg))
              sml-mlton-mainfile
@@ -1427,7 +1607,7 @@ See also `edit-kbd-macro' which is bound to \\[edit-kbd-macro]."
 ;;;###autoload
 (define-derived-mode sml-cm-mode fundamental-mode "SML-CM"
   "Major mode for SML/NJ's Compilation Manager configuration files."
-  (local-set-key "\C-c\C-c" 'sml-compile)
+  (set (make-local-variable 'sml-prog-proc-descriptor) sml-pp-functions)
   (set (make-local-variable 'font-lock-defaults)
        '(sml-cm-font-lock-keywords nil t nil nil)))
 
