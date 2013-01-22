@@ -187,11 +187,17 @@ CONN is an object path to the connection."
 	    nil
 	  (setq cur-ssid
 		(dbus-byte-array-to-string (car (cadr (assoc "ssid"
-							     (cadr (assoc "802-11-wireless" settings)))))))
+							     (cadr (assoc "802-11-wireless"
+									  settings)))))))
 	  (if (string= cur-ssid ssid)
-	      (setq uuid (car (cadr (assoc "uuid" (cadr (assoc "connection" settings))))))))))))
+	      (setq uuid
+		    (car (cadr (assoc "uuid"
+				      (cadr (assoc "connection"
+						   settings))))))))))))
 
 (defun enwc-nm-get-uuid-by-id (id)
+  "Gets a network connection's uuid by the network's id.
+ID is a string that NetworkManager uses to identify this network."
   (let ((conns (enwc-nm-list-connections))
 	cur-conn cur-id uuid)
     (while (and conns (not uuid))
@@ -218,12 +224,15 @@ CONN is an object path to the connection."
 (defun enwc-nm-get-conn-by-ssid (ssid)
   "Gets the connection path for the access point with ssid SSID."
   (let ((uuid (enwc-nm-get-uuid-by-ssid ssid)))
-    (enwc-nm-get-conn-by-uuid uuid)))
+    (if uuid
+	(enwc-nm-get-conn-by-uuid uuid)
+      nil)))
 
 (defun enwc-nm-get-conn-by-id (id)
+  "Gets a connection object with the id ID.
+ID is the identifier used by Network Manager."
   (let ((uuid (enwc-nm-get-uuid-by-id id)))
     (enwc-nm-get-conn-by-uuid uuid)))
-
 
 ;; Wireless
 (defun enwc-nm-scan ()
@@ -270,6 +279,15 @@ PROP from that access point.  It also sets the channel from the
 			((= ret 1) "Ad-Hoc")
 			((= ret 2) "Infrastructure"))))
     ret))
+
+(defun enwc-nm-get-conn-by-nid (nid)
+  "Gets a connection object with the network id NID."
+  (let* ((ssid (enwc-nm-get-wireless-network-property (nth nid enwc-access-points)
+						      "Ssid"))
+	 (uuid (enwc-nm-get-uuid-by-ssid ssid)))
+    (if uuid
+	(enwc-nm-get-conn-by-uuid uuid)
+      nil)))
 
 (defun enwc-nm-get-encryption-type (id)
   "The NetworkManager get encryption type function.
@@ -386,8 +404,25 @@ This simply checks for the active access point."
   "Get security types."
   (if wired
       nil
-    nil)
+    enwc-nm-sec-types)
   )
+
+(defun enwc-nm-gen-uuid ()
+  (random t)
+  (let ((hex-nums
+	 (mapcar (lambda (x)
+		   (random 65535))
+		 (number-sequence 0 7)))
+	fin-str)
+    (setq fin-str (format "%04x%04x-%04x-%04x-%04x-%04x%04x%04x"
+			  (nth 0 hex-nums)
+			  (nth 1 hex-nums)
+			  (nth 2 hex-nums)
+			  (nth 3 hex-nums)
+			  (nth 4 hex-nums)
+			  (nth 5 hex-nums)
+			  (nth 6 hex-nums)
+			  (nth 7 hex-nums)))))
 
 (defun enwc-nm-convert-addr (addr)
   (let* ((hex-addr (format "%08x" addr))
@@ -452,47 +487,110 @@ PREFIX is an integer <= 32."
     (setq pf (1- pf)))
   netmask))
 
+
 (defun enwc-nm-get-ip-addr (wired id)
   "Gets the IP Address of a connection profile."
-  (let ((props (enwc-nm-get-settings (nth id enwc-access-points)))
+  (let ((props (enwc-nm-get-settings (enwc-nm-get-conn-by-nid id)))
 	ipaddr ret-addr)
-    (setq ipaddr (nth 0 (caar (cadr (assoc "addresses"
-					   (cadr (assoc "ipv4"
-							props)))))))
-    (setq ret-addr (enwc-nm-convert-addr ipaddr))))
+    (if (not props)
+	(setq ret-addr "")
+      (setq ipaddr (nth 0 (caar (cadr (assoc "addresses"
+					     (cadr (assoc "ipv4"
+							  props)))))))
+      (setq ret-addr (enwc-nm-convert-addr ipaddr)))))
 
 (defun enwc-nm-get-netmask (wired id)
   "Gets the Netmask of a connection profile."
-  (let ((props (enwc-nm-get-settings (nth id enwc-access-points)))
+  (let ((props (enwc-nm-get-settings (enwc-nm-get-conn-by-nid id)))
 	ipaddr hex-addr ret-addr)
-    (setq ipaddr (nth 3 (caar (cadr (assoc "addresses"
-					   (cadr (assoc "ipv4"
-							props)))))))
-    (setq hex-addr (enwc-nm-prefix-to-netmask ipaddr))
-    (setq ret-addr (format "%i.%i.%i.%i"
-			   (logand hex-addr 255)
-			   (logand (lsh hex-addr -8) 255)
-			   (logand (lsh hex-addr -16) 255)
-			   (logand (lsh hex-addr -24) 255)))))
+    (if (not props)
+	(setq ret-addr "")
+      (setq ipaddr (nth 3 (caar (cadr (assoc "addresses"
+					     (cadr (assoc "ipv4"
+							  props)))))))
+      (setq hex-addr (enwc-nm-prefix-to-netmask ipaddr))
+      (setq ret-addr (format "%i.%i.%i.%i"
+			     (logand hex-addr 255)
+			     (logand (lsh hex-addr -8) 255)
+			     (logand (lsh hex-addr -16) 255)
+			     (logand (lsh hex-addr -24) 255))))))
     
 
 (defun enwc-nm-get-gateway (wired id)
   "Gets the Gateway of a connection profile."
-  (let ((props (enwc-nm-get-settings (nth id enwc-access-points)))
+  (let ((props (enwc-nm-get-settings (enwc-nm-get-conn-by-nid id)))
 	ipaddr ret-addr)
-    (setq ipaddr (nth 2 (caar (cadr (assoc "addresses"
-					   (cadr (assoc "ipv4"
-							props)))))))
-    (setq ret-addr (enwc-nm-convert-addr ipaddr))))
+    (if (not props)
+	(setq ret-addr "")
+      (setq ipaddr (nth 2 (caar (cadr (assoc "addresses"
+					     (cadr (assoc "ipv4"
+							  props)))))))
+      (setq ret-addr (enwc-nm-convert-addr ipaddr)))))
 
 (defun enwc-nm-get-dns (wired id)
   "Gets the DNS settings of a connection profile."
-  (let ((props (enwc-nm-get-settings (nth id enwc-access-points)))
+  (let ((props (enwc-nm-get-settings (enwc-nm-get-conn-by-nid id)))
 	dns-list)
     (setq dns-list (car (cadr (assoc "dns" (cadr (assoc "ipv4"
 							props))))))
     (mapcar 'enwc-nm-convert-addr
 	    dns-list)))
+
+(defun enwc-nm-process-enctype (settings nw-settings)
+  "Process the encryption type.
+Sets up the encryption type passed in through SETTINGS."
+  (let* ((ret-list nw-settings)
+	 (req-list (nthcdr 6 settings))
+	 (enctype (assoc "enctype" settings))
+	 key-mgmt
+	 new-list name-list
+	 ;;(name-list (cdr (assoc "reqs" (cdr (assoc enctype enwc-nm-sec-types)))))
+	 key-name)
+
+    ;; There is a possibility that any of these don't exist in
+    ;; nw-settings.
+
+    (setq new-list `("802-11-wireless-security" (("pairwise" (("wep40" "wep104")))
+						 ("group" (("wep40" "wep104")))
+						 ("auth-alg" (nil))
+						 ("key-mgmt" (nil)))))
+
+    (if (not (assoc "802-11-wireless-security" ret-list))
+	(setq ret-list (append ret-list (list new-list))))
+
+    (if (or (string= enctype "eap-leap")
+	    (string= enctype "eap-peap")
+	    (string= enctype "eap-tls")
+	    (string= enctype "eap-ttls"))
+	(progn
+	  (setq key-name "802-1x")
+	  (setq key-mgmt "ieee8021x")
+	  (setcdr (assoc "eap" (cadr (assoc "802-1x" ret-list)))
+		  (list (list (list (substring enctype 3))))))
+      (setq key-name "802-11-wireless-security")
+      (setq key-mgmt
+	    (cond ((string= enctype "wep") "none")
+		  ((string= enctype "wpa-psk") "wpa-psk")
+		  ((string= enctype "leap") "iee8021x"))))
+    (setcdr (assoc "key-mgmt" (cadr (assoc "802-11-wireless-security" ret-list)))
+	    (list (list key-mgmt)))
+
+    (if (string= enctype "leap")
+	(setcdr (assoc "auth-alg" (cadr (assoc "802-11-wireless-security" ret-list)))
+		(list (list "leap"))))
+
+    (setq name-list (cons key-name
+			  (list (mapcar (lambda (x)
+					  (cons (car x)
+						(cons (cons (cdr x) nil)
+						      nil)))
+					req-list))))
+
+    (if (not (assoc key-name ret-list))
+	(setq ret-list (append ret-list (list name-list)))
+      (setcdr (assoc key-name ret-list) (list name-list)))
+
+    ret-list))
 
 (defun enwc-nm-finalize-settings (settings)
   "Sets up all of the D-BUS types of a settings list.
@@ -526,10 +624,68 @@ such as :array, :dict-entry, etc."
 		settings)
 	  (nreverse first-one))))
 
+(defun enwc-nm-create-settings (wired ssid)
+  (let ((uuid (enwc-nm-gen-uuid))
+	(id (concat ssid " settings"))
+	type
+	ret-list
+	conn-list
+	ipv4-list ipv6-list
+	mod-list
+	new-ssid
+	80211-list)
 
-(defun enwc-nm-setup-settings (id settings)
-  (let ((props (enwc-nm-get-settings (nth id enwc-access-points)))
-	ret-list)
+    (if (not wired)
+	(setq new-ssid (dbus-string-to-byte-array ssid))
+	(progn
+	  (setq 80211-list `("802-11-wireless" (("security" (nil))
+						("ssid" (,new-ssid))
+						("mode" ("infrastructure")))))
+
+	  (setq ret-list (append ret-list (list 80211-list))
+		type "802-11-wireless"))
+      (setq type "802-3-ethernet"))
+    (setq conn-list `("connection" (("id" (,id))
+				    ("uuid" (,uuid))
+				    ("autoconnect" (nil))
+				    ("type" (,type)))))
+
+    (setq ipv4-list '("ipv4" (("addresses" (nil))
+			      ("dns" (nil))
+			      ("method" ("auto"))
+			      ("routes" (nil)))))
+
+    (setq ipv6-list '("ipv4" (("addresses" (nil))
+			      ("dns" (nil))
+			      ("method" ("auto"))
+			      ("routes" (nil)))))
+
+    (setq ret-list (append ret-list (list conn-list)))
+    (setq ret-list (append ret-list (list ipv4-list)))
+    (setq ret-list (append ret-list (list ipv6-list)))
+    ))
+
+(defun enwc-nm-setup-settings (wired id settings)
+  "Sets up NetworkManager settings.
+Gets the current network properties of network ID
+and uses the information in the association list SETTINGS
+to put it in the form that NetworkManager will recognize."
+  (let* ((ssid (enwc-nm-get-wireless-network-property (nth id enwc-access-points) "Ssid"))
+	 (uuid (enwc-nm-get-uuid-by-ssid ssid))
+	 conn props)
+
+    (if uuid
+	(setq conn (enwc-nm-get-conn-by-uuid uuid)))
+
+    (setq props
+	  (if conn
+	      (enwc-nm-get-settings (enwc-nm-get-conn-by-nid id))
+	    (enwc-nm-create-settings wired ssid)))
+
+    (setcdr (assoc "type" (cadr (assoc "connection" props)))
+	    (list (list (cond (wired "802-3-ethernet")
+			      ((not wired) "802-11-wireless")))))
+
     (setcdr (assoc "addresses" (cadr (assoc "ipv4" props)))
 	    (list (list (list (list (enwc-nm-addr-back
 				     (cdr (assoc "addr" settings)))
@@ -538,25 +694,30 @@ such as :array, :dict-entry, etc."
 									    settings))))
 				    (enwc-nm-addr-back
 				     (cdr (assoc "gateway" settings))))))))
+
     (setcdr (assoc "dns" (cadr (assoc "ipv4" props)))
 	    (list (list (list (enwc-nm-addr-back
 			       (cdr (assoc "dns1" settings)))
 			      (enwc-nm-addr-back
 			       (cdr (assoc "dns2" settings)))))))
-    ))
+
+    (setq props (enwc-nm-process-enctype settings props))
+
+    (enwc-nm-finalize-settings props)))
 
 (defun enwc-nm-save-nw-settings (wired id settings)
   "Saves network settings.
 ID is the network id of the profile to save,
 WIRED denotes whether or not this is a wired profile,
 and SETTINGS is the list of settings."
-  (dbus-call-method :system
-		    enwc-nm-dbus-service
-		    (nth id enwc-access-points)
-		    enwc-nm-dbus-connections-interface
-		    :timeout 25000
-		    "Update"
-		    (enwc-nm-setup-settings id settings)))
+  (let ((mod-sets (enwc-nm-setup-settings wired id settings)))
+    (dbus-call-method :system
+		      enwc-nm-dbus-service
+		      (nth id enwc-access-points)
+		      enwc-nm-dbus-connections-interface
+		      :timeout 25000
+		      "Update"
+		      mod-sets)))
 
 (defun enwc-nm-setup ()
   (setq enwc-nm-wired-dev (enwc-nm-get-device-by-name enwc-wired-device)
