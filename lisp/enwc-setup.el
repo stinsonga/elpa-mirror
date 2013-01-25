@@ -39,6 +39,9 @@
 	  enwc-get-wireless-nw-prop-func (intern (concat "enwc-"
 							 sym-name
 							 "-get-wireless-network-property"))
+	  enwc-get-wireless-nw-props-func (intern (concat "enwc-"
+							  sym-name
+							  "-get-wireless-nw-props"))
 	  enwc-details-list (symbol-value (intern (concat "enwc-"
 							  sym-name
 							  "-details-list")))
@@ -81,6 +84,9 @@
 	  enwc-get-dns-func (intern (concat "enwc-"
 					    sym-name
 					    "-get-dns"))
+	  enwc-get-nw-info-func (intern (concat "enwc-"
+						sym-name
+						"-get-nw-info"))
 	  enwc-save-nw-settings-func (intern (concat "enwc-"
 						     sym-name
 						     "-save-nw-settings"))
@@ -88,8 +94,9 @@
     (funcall (intern (concat "enwc-" sym-name "-setup")))))
 
 (defun enwc-setup ()
-  "Sets up enwc mode and confirms that one of the backends
- can be found on D-Bus."
+  "Sets up ENWC.
+This setups ENWC and confirms that one of the backends can be found
+on D-Bus."
   (setq global-mode-string (append global-mode-string
 				   '(enwc-display-string)))
   (run-at-time t 1 'enwc-update-mode-line)

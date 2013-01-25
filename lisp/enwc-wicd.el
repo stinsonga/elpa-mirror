@@ -99,6 +99,11 @@ from wireless network with id ID."
   (enwc-wicd-dbus-wireless-call-method "GetWirelessProperty"
 				       id prop))
 
+(defun enwc-wicd-get-wireless-nw-props (id)
+  (mapcar (lambda (x)
+	    (cons x (enwc-wicd-get-wireless-network-property id x)))
+	  enwc-wicd-details-list))
+
 (defun enwc-wicd-get-encryption-type (id)
   "Wicd get encryption type function.
 This calls the D-Bus method on Wicd to get the encryption_method
@@ -201,6 +206,14 @@ functions, allowing for a single function that checks for wired."
   (if wired
       (enwc-wicd-get-wired-nw-prop id ent)
   (enwc-wicd-get-wireless-network-property id ent)))
+
+(defun enwc-wicd-get-nw-info (wired id)
+  (let ((dns-list (enwc-wicd-get-dns wired id)))
+    (list (cons (cons "addr" (enwc-wicd-get-ip-addr wired id)) nil)
+	  (cons (cons "netmask" (enwc-wicd-get-netmask wired id)) nil)
+	  (cons (cons "gateway" (enwc-wicd-get-gateway wired id)) nil)
+	  (cons (cons "dns1" (nth 0 dns-list)) nil)
+	  (cons (cons "dns2" (nth 1 dns-list)) nil))))
 
 (defun enwc-wicd-get-ip-addr (wired id)
   "Gets the IP Address from the network with id ID.
