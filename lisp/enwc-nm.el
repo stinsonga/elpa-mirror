@@ -96,35 +96,35 @@
 
 (defvar enwc-nm-sec-types
   '(("eap-leap" . (("Name" . "eap-leap")
-		   ("reqs" . (("identity" . "Username")
-			      ("password" . "Password")))))
+		   ("reqs" . ((("identity" . "Username")
+			       ("password" . "Password"))))))
     ("eap-peap" . (("Name" . "eap-peap")
-		   ("reqs" . (("anonymous-identity" . "Anonymous Identity")
-			      ("ca-cert" . "CA Certificate")
-			      ("phase2-auth" . "Inner Authentication")
-			      ("phase1-peapver" . "PEAP Version")
-			      ("identity" . "Username")
-			      ("password" . "Password")))))
+		   ("reqs" . ((("anonymous-identity" . "Anonymous Identity")
+			       ("ca-cert" . "CA Certificate")
+			       ("phase2-auth" . "Inner Authentication")
+			       ("phase1-peapver" . "PEAP Version")
+			       ("identity" . "Username")
+			       ("password" . "Password"))))))
     ("eap-tls" . (("Name" . "eap-tls")
-		  ("reqs" . (("identity" . "Identity")
-			     ("client-cert" . "User Certificate")
-			     ("ca-cert" . "CA Certificate")
-			     ("private-key" . "Private Key")
-			     ("private-key-password" . "Private Key Password")))))
-    ("eap-ttls" . (("Name" . "eap-ttls")
-		   ("reqs" . (("anonymous-identity" . "Anonymous Identity")
+		  ("reqs" . ((("identity" . "Identity")
+			      ("client-cert" . "User Certificate")
 			      ("ca-cert" . "CA Certificate")
-			      ("phase2-auth" . "Inner Authentication")
-			      ("identity" . "Username")
-			      ("password" . "Password")))))
+			      ("private-key" . "Private Key")
+			      ("private-key-password" . "Private Key Password"))))))
+    ("eap-ttls" . (("Name" . "eap-ttls")
+		   ("reqs" . ((("anonymous-identity" . "Anonymous Identity")
+			       ("ca-cert" . "CA Certificate")
+			       ("phase2-auth" . "Inner Authentication")
+			       ("identity" . "Username")
+			       ("password" . "Password"))))))
     ("wpa-psk" . (("Name" . "wpa2")
-		  ("reqs" . (("psk" . "PSK")))))
+		  ("reqs" . ((("psk" . "PSK"))))))
     ("wep" . (("Name" . "wep")
-	      ("reqs" . (("wep-key0" . "WEP Key")
-			 ("wep-key-type" . "WEP Key Type")))))
+	      ("reqs" . ((("wep-key0" . "WEP Key")
+			  ("wep-key-type" . "WEP Key Type"))))))
     ("leap" . (("Name" . "leap")
-	       ("reqs" . (("leap-username" . "Username")
-			  ("leap-password" . "Password")))))
+	       ("reqs" . ((("leap-username" . "Username")
+			  ("leap-password" . "Password"))))))
     )
   "The security types for NetworkManager.
 This is still in the process of being worked on."
@@ -144,6 +144,9 @@ This is still in the process of being worked on."
 
 (defvar enwc-nm-wired-p nil
   "Whether or not NetworkManager is wired.")
+
+(defvar enwc-nm-edit-info nil
+  "The information for the network connection being edited.")
 
 (defun enwc-nm-get-settings (conn)
   "Gets the connection settings.
@@ -193,7 +196,8 @@ CONN is an object path to the connection."
 	      (setq uuid
 		    (car (cadr (assoc "uuid"
 				      (cadr (assoc "connection"
-						   settings))))))))))))
+						   settings))))))))))
+    uuid))
 
 (defun enwc-nm-get-uuid-by-id (id)
   "Gets a network connection's uuid by the network's id.
@@ -264,25 +268,61 @@ This runs like normal, using element ID of `enwc-access-points'
 PROP from that access point.  It also sets the channel from the
  frequency if necessary."
   (let ((ap (nth id enwc-access-points))
+	(mod-prop prop)
 	ret)
+    (if (string= mod-prop "essid")
+	(setq mod-prop "Ssid"))
     (setq ret (dbus-get-property :system
 				 enwc-nm-dbus-service
 				 ap
 				 enwc-nm-dbus-accesspoint-interface
-				 prop))
-    (if (string= prop "Frequency")
+				 mod-prop))
+    (if (not ret)
+	(progn
+	  (if (not enwc-nm-edit-info)
+	      (setq ret ""))
+	  (progn
+	    (setq ret (assoc mod-prop
+			     (cadr (assoc "802-1x"
+					  enwc-nm-edit-info))))
+	    (if (not ret)
+		(setq ret (assoc mod-prop
+				 (cadr (assoc "802-11-wireless-security"
+					      enwc-nm-edit-info)))))
+	    (setq ret (car (cadr ret))))))
+    (if (string= mod-prop "Frequency")
 	(setq ret (number-to-string (1+ (/ (- ret 2412) 5)))))
-    (if (string= prop "Ssid")
+    (if (string= mod-prop "Ssid")
 	(setq ret (dbus-byte-array-to-string ret)))
-    (if (string= prop "Mode")
+    (if (string= mod-prop "Mode")
 	(setq ret (cond ((= ret 0) "Unknown")
 			((= ret 1) "Ad-Hoc")
 			((= ret 2) "Infrastructure"))))
     ret))
 
+(defun enwc-nm-get-wireless-nw-props (id)
+  (let ((ap (nth id enwc-access-points))
+	tmp-val
+	ret)
+    (setq ret (dbus-get-all-properties :system
+				       enwc-nm-dbus-service
+				       ap
+				       enwc-nm-dbus-accesspoint-interface))
+    (setq tmp-val (cdr (assoc "Mode" ret)))
+    (setcdr (assoc "Frequency" ret)
+	    (number-to-string (1+ (/ (- (cdr (assoc "Frequency" ret))
+					2412) 5))))
+    (setcdr (assoc "Ssid" ret)
+	    (dbus-byte-array-to-string (cdr (assoc "Ssid" ret))))
+    (setcdr (assoc "Mode" ret)
+	    (cond ((= tmp-val 0) "Unkown")
+		  ((= tmp-val 1) "Ad-Hoc")
+		  ((= tmp-val 2) "Infrastructure")))
+    ret))
+
 (defun enwc-nm-get-conn-by-nid (nid)
   "Gets a connection object with the network id NID."
-  (let* ((ssid (enwc-nm-get-wireless-network-property (nth nid enwc-access-points)
+  (let* ((ssid (enwc-nm-get-wireless-network-property nid
 						      "Ssid"))
 	 (uuid (enwc-nm-get-uuid-by-ssid ssid)))
     (if uuid
@@ -425,21 +465,23 @@ This simply checks for the active access point."
 			  (nth 7 hex-nums)))))
 
 (defun enwc-nm-convert-addr (addr)
-  (let* ((hex-addr (format "%08x" addr))
-	 (ret-addr (format "%i.%i.%i.%i"
-			   (string-to-number (substring hex-addr
-							6 8)
-					     16)
-			   (string-to-number (substring hex-addr
-							4 6)
-					     16)
-			   (string-to-number (substring hex-addr
-							2 4)
-					     16)
-			   (string-to-number (substring hex-addr
-							0 2)
-					     16))))
-    ret-addr))
+  (if addr
+      (let* ((hex-addr (format "%08x" addr))
+	     (ret-addr (format "%i.%i.%i.%i"
+			       (string-to-number (substring hex-addr
+							    6 8)
+						 16)
+			       (string-to-number (substring hex-addr
+							    4 6)
+						 16)
+			       (string-to-number (substring hex-addr
+							    2 4)
+						 16)
+			       (string-to-number (substring hex-addr
+							    0 2)
+						 16))))
+	ret-addr)
+    ""))
 
 (defun enwc-nm-addr-back (addr)
   (let ((bytes (split-string addr "."))
@@ -458,22 +500,24 @@ This simply checks for the active access point."
 (defun enwc-nm-netmask-to-prefix (netmask)
   "Converts a netmask to a prefix.
 NETMASK is an ip address in network byte order."
-  (let* ((mask netmask)
-	 (cur-pos 3)
-	 (cur-mark (logand (lsh mask (* -8 cur-pos)) 255))
-	 (pf 0))
-    (while (and (eq cur-mark 255) (>= cur-pos 0))
-      (setq pf (+ pf 8))
-      (setq cur-pos (1- cur-pos))
-      (setq cur-mark (logand (lsh mask (* -8 cur-pos)) 255))
-    )
+  (if netmask
+      (let* ((mask netmask)
+	     (cur-pos 3)
+	     (cur-mark (logand (lsh mask (* -8 cur-pos)) 255))
+	     (pf 0))
+	(while (and (eq cur-mark 255) (>= cur-pos 0))
+	  (setq pf (+ pf 8))
+	  (setq cur-pos (1- cur-pos))
+	  (setq cur-mark (logand (lsh mask (* -8 cur-pos)) 255))
+	  )
 
-    (if (>= cur-pos 0)
-	(let ((v (logand (lsh mask (* -8 cur-pos)) 255)))
-	  (while (not (eq v 0))
-	    (setq pf (1+ pf))
-	    (setq v (lsh v 1)))))
-    pf))
+	(if (>= cur-pos 0)
+	    (let ((v (logand (lsh mask (* -8 cur-pos)) 255)))
+	      (while (not (eq v 0))
+		(setq pf (1+ pf))
+		(setq v (lsh v 1)))))
+	pf)
+    0))
 
 (defun enwc-nm-prefix-to-netmask (prefix)
   "Converts a prefix to a netmask.
@@ -487,6 +531,49 @@ PREFIX is an integer <= 32."
     (setq pf (1- pf)))
   netmask))
 
+(defun enwc-nm-get-nw-info (wired id)
+  (let ((conn (enwc-nm-get-conn-by-nid id)))
+    (if conn
+	(setq enwc-nm-edit-info
+	      (enwc-nm-get-settings conn))))
+
+  (let (ip-addr netmask gateway dns-list nw-info)
+    (if enwc-nm-edit-info
+	(progn
+	  (setq ip-addr (nth 0 (caar (cadr (assoc "addresses"
+						  (cadr (assoc "ipv4"
+							       enwc-nm-edit-info))))))
+		netmask (nth 3 (caar (cadr (assoc "addresses"
+						  (cadr (assoc "ipv4"
+							       enwc-nm-edit-info))))))
+		gateway (nth 2 (caar (cadr (assoc "address"
+						  (cadr (assoc "ipv4"
+							       enwc-nm-edit-info))))))
+		dns-list (car (cadr (assoc "dns" (cadr (assoc "ipv4"
+							      enwc-nm-edit-info))))))
+	  (setq ip-addr (enwc-nm-convert-addr ip-addr)
+		netmask (enwc-nm-convert-addr netmask)
+		gateway (enwc-nm-convert-addr gateway)
+		dns-list (mapcar 'enwc-nm-convert-addr
+				 dns-list))
+	  (setq nw-info (list (cons (cons "addr"
+					  ip-addr) nil)
+			      (cons (cons "netmask"
+					  netmask) nil)
+			      (cons (cons "gateway"
+					  gateway) nil)
+			      (cons (cons "dns1"
+					  (nth 0
+					       dns-list))
+				    nil)
+			      (cons (cons "dns2"
+					  (nth 1
+					       dns-list))
+				    nil)
+			      (cons (cons "enctype"
+					  "None") nil)
+			      )))
+      nil)))
 
 (defun enwc-nm-get-ip-addr (wired id)
   "Gets the IP Address of a connection profile."
@@ -541,7 +628,7 @@ PREFIX is an integer <= 32."
 Sets up the encryption type passed in through SETTINGS."
   (let* ((ret-list nw-settings)
 	 (req-list (nthcdr 6 settings))
-	 (enctype (assoc "enctype" settings))
+	 (enctype (cdr (assoc "enctype" settings)))
 	 key-mgmt
 	 new-list name-list
 	 ;;(name-list (cdr (assoc "reqs" (cdr (assoc enctype enwc-nm-sec-types)))))
@@ -565,8 +652,10 @@ Sets up the encryption type passed in through SETTINGS."
 	(progn
 	  (setq key-name "802-1x")
 	  (setq key-mgmt "ieee8021x")
-	  (setcdr (assoc "eap" (cadr (assoc "802-1x" ret-list)))
-		  (list (list (list (substring enctype 3))))))
+	  (setq req-list (push (cons "eap" (substring enctype 4)) req-list))
+	  (print req-list)
+	  ;;(setcdr (assoc "eap" (cadr (assoc "802-1x" ret-list))) (list (list (list (substring enctype 4)))))
+	  )
       (setq key-name "802-11-wireless-security")
       (setq key-mgmt
 	    (cond ((string= enctype "wep") "none")
@@ -670,38 +759,56 @@ such as :array, :dict-entry, etc."
 Gets the current network properties of network ID
 and uses the information in the association list SETTINGS
 to put it in the form that NetworkManager will recognize."
-  (let* ((ssid (enwc-nm-get-wireless-network-property (nth id enwc-access-points) "Ssid"))
-	 (uuid (enwc-nm-get-uuid-by-ssid ssid))
-	 conn props)
+  (print settings)
+  (let (ssid uuid conn props)
 
-    (if uuid
-	(setq conn (enwc-nm-get-conn-by-uuid uuid)))
+    (if (not enwc-nm-edit-info)
+	(progn
+	  (setq ssid
+		(enwc-nm-get-wireless-network-property (nth id
+							    enwc-access-points)
+						       "Ssid"))
+	  (setq props (enwc-nm-create-settings wired ssid)))
+      (setq props enwc-nm-edit-info))
 
-    (setq props
-	  (if conn
-	      (enwc-nm-get-settings (enwc-nm-get-conn-by-nid id))
-	    (enwc-nm-create-settings wired ssid)))
+    (print enwc-nm-edit-info)
+	  ;; (setq uuid (enwc-nm-get-uuid-by-ssid ssid))
+	  ;; (if uuid
+	  ;;     (setq conn (enwc-nm-get-conn-by-uuid uuid)))))
+
+    ;; (setq props
+    ;; 	  (if conn
+    ;; 	      (enwc-nm-get-settings (enwc-nm-get-conn-by-nid id))
+    ;; 	    (enwc-nm-create-settings wired ssid)))
 
     (setcdr (assoc "type" (cadr (assoc "connection" props)))
 	    (list (list (cond (wired "802-3-ethernet")
 			      ((not wired) "802-11-wireless")))))
 
-    (setcdr (assoc "addresses" (cadr (assoc "ipv4" props)))
-	    (list (list (list (list (enwc-nm-addr-back
-				     (cdr (assoc "addr" settings)))
-				    (enwc-nm-netmask-to-prefix (enwc-nm-addr-back
-								(cdr (assoc "netmask"
-									    settings))))
-				    (enwc-nm-addr-back
-				     (cdr (assoc "gateway" settings))))))))
+    (if (= (length (cdr (assoc "addr" settings))) 0)
+	(setcdr (assoc "addresses" (cadr (assoc "ipv4" props)))
+		(cons nil nil))
 
-    (setcdr (assoc "dns" (cadr (assoc "ipv4" props)))
-	    (list (list (list (enwc-nm-addr-back
-			       (cdr (assoc "dns1" settings)))
-			      (enwc-nm-addr-back
-			       (cdr (assoc "dns2" settings)))))))
+      (setcdr (assoc "addresses" (cadr (assoc "ipv4" props)))
+	      (list (list (list (list (enwc-nm-addr-back
+				       (cdr (assoc "addr" settings)))
+				      (enwc-nm-netmask-to-prefix (enwc-nm-addr-back
+								  (cdr (assoc "netmask"
+									      settings))))
+				      (enwc-nm-addr-back
+				       (cdr (assoc "gateway" settings)))))))))
+
+    (if (= (length (cdr (assoc "dns1" settings))) 0)
+	(setcdr (assoc "dns" (cadr (assoc "ipv4" props)))
+		(cons nil nil))
+      (setcdr (assoc "dns" (cadr (assoc "ipv4" props)))
+	      (list (list (list (enwc-nm-addr-back
+				 (cdr (assoc "dns1" settings)))
+				(enwc-nm-addr-back
+				 (cdr (assoc "dns2" settings))))))))
 
     (setq props (enwc-nm-process-enctype settings props))
+    (print props)
 
     (enwc-nm-finalize-settings props)))
 
@@ -711,13 +818,15 @@ ID is the network id of the profile to save,
 WIRED denotes whether or not this is a wired profile,
 and SETTINGS is the list of settings."
   (let ((mod-sets (enwc-nm-setup-settings wired id settings)))
-    (dbus-call-method :system
-		      enwc-nm-dbus-service
-		      (nth id enwc-access-points)
-		      enwc-nm-dbus-connections-interface
-		      :timeout 25000
-		      "Update"
-		      mod-sets)))
+    (if (not nil)
+	(dbus-call-method :system
+			  enwc-nm-dbus-service
+			  (nth id enwc-access-points)
+			  enwc-nm-dbus-connections-interface
+			  (if (not enwc-nm-edit-info) "AddConnection"
+			    "Update")
+			  :timeout 25000
+			  :array mod-sets))))
 
 (defun enwc-nm-setup ()
   (setq enwc-nm-wired-dev (enwc-nm-get-device-by-name enwc-wired-device)
@@ -744,7 +853,7 @@ and SETTINGS is the list of settings."
 					  enwc-nm-dbus-wireless-interface
 					  "ActiveAccessPoint")))
 	  (if (string= cur-net "/")
-	      -1
+	      "/"
 	    cur-net)))
 
   (dbus-register-signal :system

@@ -62,7 +62,7 @@
   :group 'enwc
   :type 'string)
 
-(defcustom enwc-backends '(wicd nm)
+(defcustom enwc-backends '(nm wicd)
   "The list of backends to be used by ENWC.
 These will be checked in the order designated here,
 and the first active backend found will be used."
@@ -84,6 +84,8 @@ This is redefined during setup to be the function to get the network
   "A function variable to be used in `enwc-get-wireless-nw-prop'.
 This is redefined during setup to be the function to get
 a wireless network property.")
+
+(defvar enwc-get-wireless-nw-props-func nil)
 
 (defvar enwc-get-encryption-type-func nil
   "A function variable to be used in `enwc-get-encryption-type'.
@@ -159,6 +161,8 @@ the Gateway of a given network.")
   "The function variable to be used in `enwc-get-dns'.
 This is redefined during setup to be the function to get
 the DNS Server Addresses for a given network.")
+
+(defvar enwc-get-nw-info-func nil)
 
 (defvar enwc-save-nw-settings-func nil
   "The function variable to be used in `enwc-save-nw-settings'.
@@ -284,6 +288,9 @@ in progress.  Returns `non-NIL' if there is one,
 ID and returns it."
   (funcall enwc-get-wireless-nw-prop-func id prop))
 
+(defun enwc-get-wireless-nw-props (id)
+  (funcall enwc-get-wireless-nw-props-func id))
+
 (defun enwc-get-encryption-type (id)
   "Gets the encryption type used by the wireless
 network with id ID."
@@ -360,6 +367,9 @@ WIRED is set to indicate whether or not this is
 a wired network."
   (funcall enwc-get-dns-func wired id))
 
+(defun enwc-get-nw-info (wired id)
+  (funcall enwc-get-nw-info-func wired id))
+
 (defun enwc-save-nw-settings (wired id settings)
   "Saves network settings SETTINGS to the network profile with
 network id ID.
@@ -431,10 +441,13 @@ the scan results."
 	    enwc-essid-width 5)
       (setq enwc-last-scan
 	    (mapcar (lambda (x)
-		      (let ((ret-itm (cons (cons "id" cur-id) nil)))
+		      (let ((ret-itm (cons (cons "id" cur-id) nil))
+			    (prop-list (enwc-get-wireless-nw-props x))
+			    )
 			(setq cur-id (1+ cur-id))
 			(dolist (det enwc-details-list)
-			  (let ((cur-item (enwc-get-wireless-nw-prop x det))
+			  (let (;;(cur-item (enwc-get-wireless-nw-prop x det))
+				(cur-item (cdr (assoc det prop-list)))
 				(ident (enwc-detail-to-ident det))
 				pos-len)
 			    (if (string= ident "essid")
@@ -732,8 +745,8 @@ WIDGET is always the menu drop-down of security types."
     (if (string= (widget-value widget) "None")
 	nil
       (setq type-wid-list
-	    (cadr (assoc "reqs"
-			 (cdr (assoc (widget-value widget)
+	    (cdr (assoc "reqs"
+			(cadr (assoc (widget-value widget)
 				     (enwc-get-sec-types enwc-using-wired))))))
       (setq reqs
 	    (mapcar (lambda (x)
@@ -760,6 +773,8 @@ and redisplays the settings from the network profile
       (kill-buffer "*ENWC Edit*"))
   (with-current-buffer (get-buffer-create "*ENWC Edit*")
     (let ((sec-types (enwc-get-sec-types enwc-using-wired))
+	  (nw-info (enwc-get-nw-info enwc-using-wired enwc-edit-id))
+	  ip-addr netmask gateway dns-1 dns-2
 	  addr-wid net-wid gate-wid
 	  dns-1-wid dns-2-wid dns-list
 	  type-wid type-wid-list)
@@ -770,40 +785,38 @@ and redisplays the settings from the network profile
 					      enwc-last-scan)))
 			     "\n"))
       (widget-insert "\n")
+      ;; ip
       (widget-insert "IPv4 Settings:\n")
       (setq addr-wid (widget-create 'editable-field
 				    :format "  Address: %v"
-				    :value (enwc-get-ip-addr enwc-using-wired
-							     enwc-edit-id)))
-      ;;ip
+				    :value (or (assoc "addr" nw-info) "")))
+      ;; netmask
       (setq net-wid (widget-create 'editable-field
 				   :format "  Netmask: %v"
-				   :value (enwc-get-netmask enwc-using-wired
-							    enwc-edit-id)))
-      ;;netmask
+				   :value (or (assoc "netmask" nw-info) "")))
+
+      ;; gateway
       (setq gate-wid (widget-create 'editable-field
 				    :format "  Gateway: %v"
-				    :value (enwc-get-gateway enwc-using-wired
-							     enwc-edit-id)))
-      ;;gateway
+				    :value (or (assoc "gateway" nw-info) "")))
+      ;; dns1
       (widget-insert "\n")
-      (setq dns-list (enwc-get-dns enwc-using-wired enwc-edit-id))
+      ;;(setq dns-list (enwc-get-dns enwc-using-wired enwc-edit-id))
       (setq dns-1-wid (widget-create 'editable-field
 				     :format "    DNS 1: %v"
-				     :value (nth 0 dns-list)))
-      ;;dns1
+				     :value (or (assoc "dns1" nw-info) "")))
+
+      ;; dns2
       (setq dns-2-wid (widget-create 'editable-field
 				     :format "    DNS 2: %v"
-				     :value (nth 1 dns-list)))
-      ;;dns2
+				     :value (or (assoc "dns2" nw-info) "")))
+
       (widget-insert "\n")
       (widget-insert "Security:\n")
       (setq type-wid (apply 'widget-create
       			    'menu-choice
        			    :tag "Type "
-			    :value (enwc-get-nw-prop enwc-using-wired
-						     enwc-edit-id
-						     "enctype")
+			    :value (or (assoc "enctype" nw-info) "None")
 			    :notify 'enwc-display-sec-reqs
        			    '(item :tag "No Encryption"
 				   :value "None")
@@ -879,6 +892,7 @@ and redisplays the settings from the network profile
 		    (cons (cons (car x)
 				(widget-field-value-get (widget-at)))
 			  nil))))
+    (print settings)
 
     (enwc-save-nw-settings enwc-using-wired enwc-edit-id settings)))
 
