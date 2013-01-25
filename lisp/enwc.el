@@ -745,8 +745,8 @@ WIDGET is always the menu drop-down of security types."
     (if (string= (widget-value widget) "None")
 	nil
       (setq type-wid-list
-	    (cdr (assoc "reqs"
-			(cadr (assoc (widget-value widget)
+	    (cadr (assoc "reqs"
+			 (cdr (assoc (widget-value widget)
 				     (enwc-get-sec-types enwc-using-wired))))))
       (setq reqs
 	    (mapcar (lambda (x)
@@ -887,11 +887,12 @@ and redisplays the settings from the network profile
 				       (enwc-get-sec-types enwc-using-wired)))))))
     (dolist (x type-wid-list)
       (widget-forward 1)
-      (setq settings
-	    (append settings
-		    (cons (cons (car x)
-				(widget-field-value-get (widget-at)))
-			  nil))))
+      (if (not (string= (widget-field-value-get (widget-at)) ""))
+	  (setq settings
+		(append settings
+			(cons (cons (car x)
+				    (widget-field-value-get (widget-at)))
+			      nil)))))
     (print settings)
 
     (enwc-save-nw-settings enwc-using-wired enwc-edit-id settings)))

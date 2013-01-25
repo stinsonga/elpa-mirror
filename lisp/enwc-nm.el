@@ -679,6 +679,14 @@ Sets up the encryption type passed in through SETTINGS."
 	(setq ret-list (append ret-list (list name-list)))
       (setcdr (assoc key-name ret-list) (list name-list)))
 
+
+    (if (or (string= enctype "eap-leap")
+	    (string= enctype "eap-peap")
+	    (string= enctype "eap-tls")
+	    (string= enctype "eap-ttls"))
+	(setcdr (assoc "eap" (cadr (assoc "802-1x" ret-list)))
+		(cons (cons (cons (substring enctype 4) nil) nil) nil)))
+
     ret-list))
 
 (defun enwc-nm-finalize-settings (settings)
@@ -787,7 +795,7 @@ to put it in the form that NetworkManager will recognize."
 
     (if (= (length (cdr (assoc "addr" settings))) 0)
 	(setcdr (assoc "addresses" (cadr (assoc "ipv4" props)))
-		(cons nil nil))
+		(cons (cons nil nil) nil))
 
       (setcdr (assoc "addresses" (cadr (assoc "ipv4" props)))
 	      (list (list (list (list (enwc-nm-addr-back
@@ -800,7 +808,7 @@ to put it in the form that NetworkManager will recognize."
 
     (if (= (length (cdr (assoc "dns1" settings))) 0)
 	(setcdr (assoc "dns" (cadr (assoc "ipv4" props)))
-		(cons nil nil))
+		(cons (cons nil nil) nil))
       (setcdr (assoc "dns" (cadr (assoc "ipv4" props)))
 	      (list (list (list (enwc-nm-addr-back
 				 (cdr (assoc "dns1" settings)))
@@ -818,15 +826,19 @@ ID is the network id of the profile to save,
 WIRED denotes whether or not this is a wired profile,
 and SETTINGS is the list of settings."
   (let ((mod-sets (enwc-nm-setup-settings wired id settings)))
-    (if (not nil)
-	(dbus-call-method :system
-			  enwc-nm-dbus-service
-			  (nth id enwc-access-points)
-			  enwc-nm-dbus-connections-interface
-			  (if (not enwc-nm-edit-info) "AddConnection"
-			    "Update")
-			  :timeout 25000
-			  :array mod-sets))))
+    (print mod-sets)
+    (print id)
+    (dbus-call-method :system
+		      enwc-nm-dbus-service
+		      ;;(nth id enwc-access-points)
+		      (enwc-nm-get-conn-by-nid id)
+		      enwc-nm-dbus-connections-interface
+		      (if (not enwc-nm-edit-info)
+			  "AddConnection"
+			"Update")
+		      :timeout 25000
+		      :array mod-sets)
+    ))
 
 (defun enwc-nm-setup ()
   (setq enwc-nm-wired-dev (enwc-nm-get-device-by-name enwc-wired-device)
