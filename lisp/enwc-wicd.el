@@ -62,6 +62,10 @@
   '("essid" "bssid" "quality" "encryption" "mode" "channel")
   "The list of the desired details to be obtained from each network.")
 
+(defvar enwc-wicd-current-ap "")
+
+(defvar enwc-wicd-current-nw-id -1)
+
 (defun enwc-wicd-dbus-wireless-call-method (method &rest args)
   "Calls D-Bus method METHOD with arguments ARGS within
 the wicd wireless interface."
@@ -70,7 +74,7 @@ the wicd wireless interface."
 	 enwc-wicd-dbus-wireless-path
 	 enwc-wicd-dbus-wireless-interface
 	 method
-	 :timeout 25000
+	 :timeout 2000
 	 args))
 
 (defun enwc-wicd-dbus-wired-call-method (method &rest args)
@@ -121,7 +125,10 @@ network with id ID."
   "Wicd get current network id function.
 This calls the D-Bus method on Wicd to get the current
 wireless network id."
-  (enwc-wicd-dbus-wireless-call-method "GetCurrentNetworkID"))
+  ;;(enwc-wicd-dbus-wireless-call-method "GetCurrentNetworkID"))
+  (if wired
+      -1
+    enwc-wicd-current-nw-id))
 
 (defun enwc-wicd-check-connecting ()
   "The Wicd check connecting function."
@@ -281,6 +288,17 @@ the network with id ID."
     (enwc-wicd-save-nw-profile wired id))
   )
 
+(defun enwc-wicd-wireless-prop-changed (state info)
+  (if state
+      (if (eq state 0)
+	  (setq enwc-wicd-current-ap ""
+		enwc-wicd-current-nw-id -1)
+	(setq enwc-wicd-current-ap (caadr info)
+	      enwc-wicd-current-nw-id (or (and info
+					       (string-to-number (caar (cdddr info))))
+					  -1)))
+  ))
+
 (defun enwc-wicd-setup ()
   ;; Thanks to Michael Albinus for pointing out this signal.
   (dbus-register-signal :system
@@ -288,7 +306,15 @@ the network with id ID."
 			enwc-wicd-dbus-wireless-path
 			enwc-wicd-dbus-wireless-interface
 			"SendEndScanSignal"
-			'enwc-process-scan))
+			'enwc-process-scan)
+
+  (dbus-register-signal :system
+			enwc-wicd-dbus-service
+			"/org/wicd/daemon"
+			enwc-wicd-dbus-service
+			"StatusChanged"
+			'enwc-wicd-wireless-prop-changed)
+  )
 
 (provide 'enwc-wicd)
 
