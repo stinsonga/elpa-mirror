@@ -717,7 +717,7 @@ Moves to the enwc buffer if necessary."
   (interactive)
   (if (not (eq major-mode 'enwc-mode))
       (enwc-setup-buffer))
-  (let ((id (- (line-number-at-pos) 2)))
+  (let ((id (- (line-number-at-pos) 1)))
     (enwc-connect-to-network id)))
 
 (defun enwc-disconnect ()
@@ -950,7 +950,7 @@ and redisplays the settings from the network profile
 (defun enwc-edit-entry-at-point ()
   "Edit the current network entry."
   (interactive)
-  (setq enwc-edit-id (- (line-number-at-pos) 2))
+  (setq enwc-edit-id (- (line-number-at-pos) 1))
   (select-window (split-window))
   (enwc-setup-edit-buffer))
 
