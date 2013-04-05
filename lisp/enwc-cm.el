@@ -1,6 +1,6 @@
 ;; enwc-cm.el
 
-;; Copyright (C) 2012 Ian Dunn
+;; Copyright (C) 2012,2013 Free Software Foundation
 
 ;; Author: Ian Dunn
 ;; Keywords: enwc, network, wicd, manager, nm
