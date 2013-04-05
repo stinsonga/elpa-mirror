@@ -24,7 +24,7 @@
 
 
 ;;; Commentary:
-
+;; TODO
 
 (require 'enwc)
 
@@ -74,7 +74,7 @@ the wicd wireless interface."
 	 enwc-wicd-dbus-wireless-path
 	 enwc-wicd-dbus-wireless-interface
 	 method
-	 :timeout 2000
+	 :timeout 25000
 	 args))
 
 (defun enwc-wicd-dbus-wired-call-method (method &rest args)
@@ -96,17 +96,49 @@ the wicd wired interface."
   "Wicd get networks function.  Just returns a number sequence."
   (number-sequence 0 (1- (enwc-wicd-dbus-wireless-call-method "GetNumberOfNetworks"))))
 
+(defvar enwc-wicd-prop-values nil)
+(defvar enwc-wicd-prop-num 0)
+
+(defun enwc-wicd-nw-prop-handler (&rest args)
+  (setq enwc-wicd-prop-values (cons args enwc-wicd-prop-values))
+  (setq enwc-wicd-prop-num (1+ enwc-wicd-prop-num)))
+
 (defun enwc-wicd-get-wireless-network-property (id prop)
   "Wicd get wireless network property function.
 This calls the D-Bus method on Wicd to get the property PROP
 from wireless network with id ID."
-  (enwc-wicd-dbus-wireless-call-method "GetWirelessProperty"
-				       id prop))
+  (dbus-call-method-asynchronously :system
+				   enwc-wicd-dbus-service
+				   enwc-wicd-dbus-wireless-path
+				   enwc-wicd-dbus-wireless-interface
+				   "GetWirelessProperty"
+				   'enwc-wicd-nw-prop-handler
+				   :int32 id
+				   :string prop)
+
+  ;;(enwc-wicd-dbus-wireless-call-method "GetWirelessProperty" id prop)
+  )
+
+(defun enwc-wicd-build-prop-list (prop-list det-list)
+  (let (ret
+	(act-det-list (reverse det-list)))
+    (while prop-list
+      (let ((cur-prop (pop prop-list))
+	    (cur-det (pop act-det-list)))
+	(setq ret (append ret (cons (cons cur-det (car cur-prop)) nil)))
+	))
+    ret))
 
 (defun enwc-wicd-get-wireless-nw-props (id)
-  (mapcar (lambda (x)
-	    (cons x (enwc-wicd-get-wireless-network-property id x)))
-	  enwc-wicd-details-list))
+  (setq enwc-wicd-prop-values nil)
+  (setq enwc-wicd-prop-num 0)
+  (mapc (lambda (x)
+	    (enwc-wicd-get-wireless-network-property id x))
+	  enwc-wicd-details-list)
+  ;; Wait for less than a second.
+  (while (< enwc-wicd-prop-num 6)
+    (read-event nil nil 0.001))
+  (enwc-wicd-build-prop-list enwc-wicd-prop-values enwc-wicd-details-list))
 
 (defun enwc-wicd-get-encryption-type (id)
   "Wicd get encryption type function.
@@ -212,7 +244,7 @@ This function is a wrapper around the *-get-(wired|wireless)-nw-prop
 functions, allowing for a single function that checks for wired."
   (if wired
       (enwc-wicd-get-wired-nw-prop id ent)
-  (enwc-wicd-get-wireless-network-property id ent)))
+    (enwc-wicd-dbus-wireless-call-method "GetWirelessProperty" id ent)))
 
 (defun enwc-wicd-get-nw-info (wired id)
   (let ((dns-list (enwc-wicd-get-dns wired id)))
@@ -293,9 +325,11 @@ the network with id ID."
       (if (eq state 0)
 	  (setq enwc-wicd-current-ap ""
 		enwc-wicd-current-nw-id -1)
-	(setq enwc-wicd-current-ap (caadr info)
+	(setq enwc-wicd-current-ap (car (cadr info))
 	      enwc-wicd-current-nw-id (or (and info
-					       (string-to-number (caar (cdddr info))))
+					       (nthcdr 3 info)
+					       (caar (nthcdr 3 info))
+					       (string-to-number (caar (nthcdr 3 info))))
 					  -1)))
   ))
 
