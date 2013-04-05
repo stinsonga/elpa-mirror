@@ -1,6 +1,6 @@
 ;;; enwc.el --- The Emacs Network Client
 
-;; Copyright (C) 2012 Ian Dunn
+;; Copyright (C) 2012,2013 Free Software Foundation
 
 ;; Author: Ian Dunn
 ;; Keywords: enwc, network, wicd, manager, nm
@@ -977,7 +977,7 @@ and redisplays the settings from the network profile
     map)
   "The keymap for editable fields within the ENWC edit buffer.")
 
-(define-derived-mode enwc-mode tabulated-list-mode "*ENWC*"
+(define-derived-mode enwc-mode tabulated-list-mode "enwc"
   "Mode for working with network connections.
 \\{enwc-mode-map}"
   ;;(setq buffer-read-only t)
