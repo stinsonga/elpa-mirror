@@ -1,8 +1,11 @@
 *.elc
+*~
+ChangeLog
 archive
-site
+core
+externals-list
 packages/*/*-autoloads.el
 packages/*/*-pkg.el
-core
-ChangeLog
 packages/.changelog-witness
+packages/dismal
+site
