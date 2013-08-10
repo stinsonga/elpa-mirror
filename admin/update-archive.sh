@@ -62,9 +62,20 @@ check_copyright () {
 
 cd ~elpa/build
 
-(cd ~elpa/elpa; bzr up)
+(cd ~elpa/elpa;
 
-check_copyright
+ # Fetch changes.
+ git pull || signal_error "git pull failed";
+
+ # Refresh the ChangeLog files.  This needs to be done in
+ # the source tree, because it needs the Bzr data!
+ (cd packages;
+  emacs -batch -l ../admin/archive-contents.el -f batch-prepare-packages);
+
+ emacs --batch -l admin/archive-contents.el -f archive-add/remove-externals;
+
+ check_copyright
+ )
 
 rm -rf archive                  # In case there's one left over!
 make archive-full >make.log 2>&1 || {
