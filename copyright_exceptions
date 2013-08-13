@@ -1,0 +1,49 @@
+./auctex/latex.el:   "pounds" "copyright"
+./auctex/multi-prompt.el
+./auctex/style/amsart.el
+./auctex/style/amsbook.el
+./auctex/style/amsbsy.el
+./auctex/style/amsmath.el:;; FIXME: What about the copyright for <= 2001?
+./auctex/style/amsopn.el
+./auctex/style/amstext.el
+./auctex/style/article.el
+./auctex/style/beamer.el
+./auctex/style/book.el
+./auctex/style/czech.el
+./auctex/style/danish.el
+./auctex/style/dk.el
+./auctex/style/dutch.el
+./auctex/style/foils.el
+./auctex/style/german.el
+./auctex/style/graphics.el
+./auctex/style/j-article.el
+./auctex/style/j-book.el
+./auctex/style/j-report.el
+./auctex/style/jarticle.el
+./auctex/style/jbook.el
+./auctex/style/jreport.el
+./auctex/style/jsarticle.el
+./auctex/style/jsbook.el
+./auctex/style/jurabib.el:;; you assign the copyright to the FSF.
+./auctex/style/letter.el
+./auctex/style/natbib.el
+./auctex/style/ngerman.el
+./auctex/style/plfonts.el
+./auctex/style/plhb.el
+./auctex/style/report.el
+./auctex/style/scrartcl.el
+./auctex/style/scrbook.el
+./auctex/style/scrlttr2.el
+./auctex/style/scrpage2.el
+./auctex/style/scrreprt.el
+./auctex/style/slovak.el
+./auctex/style/swedish.el
+./auctex/style/virtex.el
+./auctex/tex-fold.el:    ("(C)" ("copyright"))
+./auctex/tex-info.el:   '("copyright" nil)
+./muse/htmlize-hack.el
+./uni-confusables/gen-confusables.el:      (insert ";; Copyright (C) 1991-2009, 2010 Unicode, Inc.
+./uni-confusables/gen-confusables.el:;; for the copyright and permission notice.\n\n")
+./uni-confusables/uni-confusables.el
+./uni-confusables/uni-confusables.el:;; Copyright (C) 1991-2009, 2010 Unicode, Inc.
+./uni-confusables/uni-confusables.el:;; for the copyright and permission notice.

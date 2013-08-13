@@ -1,33 +1,20 @@
 #!/bin/sh -x
 
-batchmode=no
+makelog=""
+buildir="$(pwd)"
 
 export LANG=C
 case "$1" in
-    "--batch") batchmode=yes ;;
+    "--batch")
+        makelog="$(pwd)/make.log"
+        exec >"$makelog" 2>&1
+        ;;
 esac
 
-# Return on STDOUT the files that don't seem to have the needed copyright
-# notice, or that have a copyright notice that looks suspicious.
-copyright_notices () {
-    find . -name '*.el' -print0 |
-        xargs -0 grep -L 'Free Software Foundation, Inc' |
-        grep -v '\(\.dir-locals\|.-\(pkg\|autoloads\)\)\.el$'
-
-    find . -name '*.el' -print |
-        while read f; do
-            sed -n -e '/[Cc]opyright.*, *[1-9][-0-9]*,\?$/N' \
-                -e '/Free Software Foundation/d' \
-                -e "s|^\\(.*[Cc]opyright\\)|$(echo $f | tr '|' '_'):\\1|p" "$f"
-        done
-}
-
 # Send an email to warn about a problem.
-# Takes the body on STDIN and the subject as argument.
 signal_error () {
     title="$*"
-    if [ "no" = "$batchmode" ]; then
-        cat -
+    if [ "" = "$makelog" ]; then
         echo "Error: $title"
     else
         mx_gnu_org="$(host -t mx gnu.org | sed 's/.*[ 	]//')"
@@ -41,37 +28,24 @@ To: emacs-elpa-diffs@gnu.org
 Subject: $title
 
 ENDDOC
-         cat -
+         cat "$makelog"
          echo "."; sleep 1) | telnet "$mx_gnu_org" smtp
     fi
+    exit 1
 }
 
-check_copyright () {
-    base="copyright_exceptions"
-    (cd $1/packages; copyright_notices) >"$base.new"
-    if [ -r "$base.old" ] &&
-       ! diff "$base.old" "$base.new" >/dev/null;
-    then
-        diff -u "$base.old" "$base.new" |
-            signal_error "Copyright notices changed"
-        exit 1
-    else
-        mv "$base.new" "$base.old"
-    fi
-}
 
-#cd ~elpa/build
+cd ../elpa
 
-(cd ../elpa;
+# Fetch changes.
+git pull || signal_error "git pull failed"
 
- # Fetch changes.
- git pull || signal_error "git pull failed";
+# Setup and update externals.
+make externals
 
- # Setup and update externals.
- make externals
- )
+make check_copyrights || signal_error "check_copyright failed"
 
-#check_copyright ../elpa
+cd "$buildir"
 
 rsync -av --delete --exclude=ChangeLog --exclude=.git ../elpa/packages ./
 
@@ -82,9 +56,8 @@ emacs -batch -l admin/archive-contents.el \
 
 
 rm -rf archive                  # In case there's one left over!
-make archive-full >make.log 2>&1 || {
-    signal_error "make archive-full failed" <make.log
-    exit 1
+make archive-full || {
+    signal_error "make archive-full failed"
 }
 latest="emacs-packages-latest.tgz"
 (cd archive
@@ -106,14 +79,17 @@ latest="emacs-packages-latest.tgz"
          */archive-contents | *-readme.txt ) mv "$f" "$dst" ;;
          * ) if [ -r "$dst" ]
              then rm "$f"
-             else mv "$f" "$dst"
+             else
+                 # FIXME: Announce the new package/version on
+                 # gnu.emacs.sources!
+                 mv "$f" "$dst"
              fi ;;
      esac
  done
  mv build/archive/"$latest" staging/
  rm -rf build/archive)
 
-# Make the HTML files.
+# Make the HTML and readme.txt files.
 (cd ../staging/packages
  emacs --batch -l ../../build/admin/archive-contents.el \
        --eval '(batch-html-make-index)')
