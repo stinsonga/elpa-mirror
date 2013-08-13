@@ -48,7 +48,7 @@ ENDDOC
 
 check_copyright () {
     base="copyright_exceptions"
-    (cd packages; copyright_notices) >"$base.new"
+    (cd $1/packages; copyright_notices) >"$base.new"
     if [ -r "$base.old" ] &&
        ! diff "$base.old" "$base.new" >/dev/null;
     then
@@ -60,22 +60,26 @@ check_copyright () {
     fi
 }
 
-cd ~elpa/build
+#cd ~elpa/build
 
-(cd ~elpa/elpa;
+(cd ../elpa;
 
  # Fetch changes.
  git pull || signal_error "git pull failed";
 
- # Refresh the ChangeLog files.  This needs to be done in
- # the source tree, because it needs the Bzr data!
- (cd packages;
-  emacs -batch -l ../admin/archive-contents.el -f batch-prepare-packages);
-
- emacs --batch -l admin/archive-contents.el -f archive-add/remove-externals;
-
- check_copyright
+ # Setup and update externals.
+ make externals
  )
+
+#check_copyright ../elpa
+
+rsync -av --delete --exclude=ChangeLog --exclude=.git ../elpa/packages ./
+
+# Refresh the ChangeLog files.  This needs to be done in
+# the source tree, because it needs the VCS data!
+emacs -batch -l admin/archive-contents.el \
+      -eval '(archive-prepare-packages "../elpa")'
+
 
 rm -rf archive                  # In case there's one left over!
 make archive-full >make.log 2>&1 || {
@@ -85,7 +89,8 @@ make archive-full >make.log 2>&1 || {
 latest="emacs-packages-latest.tgz"
 (cd archive
  tar zcf "$latest" packages)
-(cd ~elpa
+(cd ../
+ mkdir -p staging/packages
  # Not sure why we have `staging-old', but let's keep it for now.
  rm -rf staging-old
  cp -a staging staging-old
@@ -109,9 +114,6 @@ latest="emacs-packages-latest.tgz"
  rm -rf build/archive)
 
 # Make the HTML files.
-(cd ~elpa/staging/packages
- emacs --batch -l ~elpa/build/admin/archive-contents.el \
+(cd ../staging/packages
+ emacs --batch -l ../../build/admin/archive-contents.el \
        --eval '(batch-html-make-index)')
-
-# "make archive-full" already does fetch the daily org build.
-#admin/org-synch.sh ~elpa/staging/packages ~elpa/build/admin
