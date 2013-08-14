@@ -1,0 +1,36 @@
+;; -*- emacs-lisp -*-
+
+;; List of packages that are maintained externally.
+;; The list is made of elements of the form (NAME KIND URL).
+;;
+;; Where NAME is the name of the package;
+;;
+;; KIND can be one of:
+;;  :subtree  = a "git subtree" in the `master' branch.
+;;  :external = kept in a separate `externals/<name>' branch.
+;;
+;; And URL is the URL of the remote git repository that we want to track.
+;; It can be nil, in which case we don't track anything (useless for
+;; :subtree, but not for :external).
+
+;; The FIXMEs indicate that the branch can't be merged as is because it needs
+;; some manual intervention (typically, because the two branches have
+;; diverged).
+
+(("ack"			:subtree "https://github.com/leoliu/ack-el")
+ ;; In need of serious manual sync as well.
+ ;;FIXME:("auctex"	:subtree "git://git.sv.gnu.org/auctex.git")
+ ("coffee-mode"		:subtree "https://github.com/defunkt/coffee-mode")
+ ("company"		:subtree "https://github.com/company-mode/company-mode.git")
+ ("dismal"		:external nil)
+ ("eldoc-eval"		:subtree "https://github.com/thierryvolpiatto/eldoc-eval.git")
+ ("enwc"		:subtree "bzr::bzr://bzr.savannah.nongnu.org/enwc/trunk")
+ ("f90-interface-browser" :subtree "http://github.com/wence-/f90-iface")
+ ("ggtags"		:subtree "https://github.com/leoliu/ggtags")
+ ("ioccur"		:subtree "https://github.com/thierryvolpiatto/ioccur.git")
+ ("js2-mode"		:subtree "https://github.com/mooz/js2-mode.git")
+ ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
+ ;;FIXME:("vlf"		:subtree ??)
+ ("websocket"		:subtree "https://github.com/ahyatt/emacs-websocket.git")
+ ;;FIXME:("yasnippet"	:subtree "https://github.com/capitaomorte/yasnippet.git")
+ )
