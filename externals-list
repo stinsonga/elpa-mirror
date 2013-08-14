@@ -13,15 +13,24 @@
 ;; It can be nil, in which case we don't track anything (useless for
 ;; :subtree, but not for :external).
 
-(("dismal"		:external nil)
- ;("org"		:external ??)
- ("js2-mode"		:subtree   "https://github.com/mooz/js2-mode.git")
- ("websocket"		:subtree   "https://github.com/ahyatt/emacs-websocket.git")
- ("eldoc-eval"		:subtree   "https://github.com/thierryvolpiatto/eldoc-eval.git")
- ("company"		:subtree   "https://github.com/company-mode/company-mode.git")
- ;; In need of serious manual sync.
- ;; ("yasnippet"		:subtree "https://github.com/capitaomorte/yasnippet.git")
+;; The FIXMEs indicate that the branch can't be merged as is because it needs
+;; some manual intervention (typically, because the two branches have
+;; diverged).
+
+(("ack"			:subtree "https://github.com/leoliu/ack-el")
  ;; In need of serious manual sync as well.
- ;; ("auctex"		:subtree "git://git.sv.gnu.org/auctex.git")
- ("ioccur"		:subtree   "https://github.com/thierryvolpiatto/ioccur.git")
- ("f90-interface-browser" :subtree "http://github.com/wence-/f90-iface"))
+ ;;FIXME:("auctex"	:subtree "git://git.sv.gnu.org/auctex.git")
+ ("coffee-mode"		:subtree "https://github.com/defunkt/coffee-mode")
+ ("company"		:subtree "https://github.com/company-mode/company-mode.git")
+ ("dismal"		:external nil)
+ ("eldoc-eval"		:subtree "https://github.com/thierryvolpiatto/eldoc-eval.git")
+ ("enwc"		:subtree "bzr::bzr://bzr.savannah.nongnu.org/enwc/trunk")
+ ("f90-interface-browser" :subtree "http://github.com/wence-/f90-iface")
+ ("ggtags"		:subtree "https://github.com/leoliu/ggtags")
+ ("ioccur"		:subtree "https://github.com/thierryvolpiatto/ioccur.git")
+ ("js2-mode"		:subtree "https://github.com/mooz/js2-mode.git")
+ ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
+ ;;FIXME:("vlf"		:subtree ??)
+ ("websocket"		:subtree "https://github.com/ahyatt/emacs-websocket.git")
+ ;;FIXME:("yasnippet"	:subtree "https://github.com/capitaomorte/yasnippet.git")
+ )
