@@ -1,1 +1,7 @@
-.bzrignore
+*.elc
+*~
+ChangeLog
+core
+packages/*/*-autoloads.el
+packages/*/*-pkg.el
+packages/dismal
