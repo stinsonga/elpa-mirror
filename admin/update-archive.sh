@@ -40,10 +40,15 @@ cd ../elpa
 # Fetch changes.
 git pull || signal_error "git pull failed"
 
-# Setup and update externals.
-make externals
+# Remember we're inside the "elpa" branch which we don't want to trust,
+# So always refer to the makefile and admins files from $builddir".
 
-make check_copyrights || signal_error "check_copyright failed"
+# Setup and update externals.
+emacs --batch -l "$buildir/admin/archive-contents.el" \
+      -f archive-add/remove/update-externals
+
+make -f "$buildir/GNUmakefile" check_copyrights ||
+    signal_error "check_copyright failed"
 
 cd "$buildir"
 
