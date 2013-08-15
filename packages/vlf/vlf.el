@@ -8,7 +8,7 @@
 ;; Authors: 2006 Mathias Dahl <mathias.dahl@gmail.com>
 ;;          2012 Sam Steingold <sds@gnu.org>
 ;;          2013 Andrey Kotlarski <m00naticus@gmail.com>
-;; URL: https://github.com/m00natic/vlf
+;; URL: https://github.com/m00natic/vlfi
 
 ;; This file is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
