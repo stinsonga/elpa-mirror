@@ -18,7 +18,6 @@
 ;; diverged).
 
 (("ack"			:subtree "https://github.com/leoliu/ack-el")
- ;; In need of serious manual sync as well.
  ;;FIXME:("auctex"	:subtree "git://git.sv.gnu.org/auctex.git")
  ("coffee-mode"		:subtree "https://github.com/defunkt/coffee-mode")
  ("company"		:subtree "https://github.com/company-mode/company-mode.git")
