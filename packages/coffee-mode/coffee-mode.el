@@ -73,6 +73,19 @@
 
 ;; Please file bugs at <http://github.com/defunkt/coffee-mode/issues>
 
+;; Thanks:
+
+;; Major thanks to http://xahlee.org/emacs/elisp_syntax_coloring.html
+;; the instructions.
+
+;; Also thanks to Jason Blevins's markdown-mode.el and Steve Yegge's
+;; js2-mode for guidance.
+
+;; TODO:
+;; - Execute {buffer,region,line} and show output in new buffer
+;; - Make prototype accessor assignments like `String::length: -> 10` pretty.
+;; - mirror-mode - close brackets and parens automatically
+
 ;;; Code:
 
 (require 'comint)
