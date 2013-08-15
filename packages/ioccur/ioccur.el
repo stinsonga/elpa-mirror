@@ -328,6 +328,7 @@ Special commands:
                   count (match-string 0) regexp)
               do (forward-line 1))))))
 
+
 (defun ioccur-print-match (str &optional all)
   "Highlight in string STR all occurences matching `ioccur-pattern'.
 If ALL is non--nil highlight the whole string STR."
