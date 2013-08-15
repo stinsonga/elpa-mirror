@@ -4,8 +4,9 @@
 
 ;; Author: Lawrence Mitchell <wence@gmx.li>
 ;; Created: 2011-07-06
-;; Available-from: http://github.com/wence-/f90-iface/
+;; URL: http://github.com/wence-/f90-iface/
 ;; Version: 1.1
+;; Package-Type: simple
 
 ;; COPYRIGHT NOTICE
 
