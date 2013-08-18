@@ -29,6 +29,7 @@
  ("ioccur"		:subtree "https://github.com/thierryvolpiatto/ioccur.git")
  ("js2-mode"		:subtree "https://github.com/mooz/js2-mode.git")
  ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
+ ("temp-buffer-browse"  :subtree "https://github.com/leoliu/temp-buffer-browse")
  ;;FIXME:("vlf"		:subtree ??)
  ("websocket"		:subtree "https://github.com/ahyatt/emacs-websocket.git")
  ;;FIXME:("yasnippet"	:subtree "https://github.com/capitaomorte/yasnippet.git")
