@@ -39,27 +39,26 @@
 ;; Users of own minibuffer frame will have to set
 ;; `eldoc-in-minibuffer-own-frame-p' to non-nil.
 ;;
-;; You can turn off eldoc support in minibuffer any time
-;; by setting `eldoc-in-minibuffer' to nil.
+;; You can turn On/Off eldoc support in minibuffer any time
+;; with `eldoc-in-minibuffer-mode'.
+;;
+;;; Install:
+;; Add to .emacs:
+;;
+;;   (autoload 'eldoc-in-minibuffer-mode "eldoc-eval")
+;;   (eldoc-in-minibuffer-mode 1)
+
 
 ;;; Code:
 (require 'eldoc)
-
-;; FIXME: This has no autoloads and (require 'eldoc-eval) will change Emacs's
-;; behavior, against usual conventions.  The fix is to define
-;; eldoc-in-minibuffer as a (global) minor mode, then autoload it.  So the
-;; default value will be nil, and the user can enable it with
-;; (eldoc-in-minibuffer 1) or by customizing eldoc-in-minibuffer, rather than
-;; by adding (require 'eldoc-eval) in her .emacs.
 
 ;;; Minibuffer support.
 ;;  Enable displaying eldoc info in something else
 ;;  Than minibuffer when this one is in use.
 ;;
-(defcustom eldoc-in-minibuffer t
-  "Turn on eldoc in minibuffer."
-  :group 'eldoc
-  :type 'bolean)
+(defgroup eldoc-eval nil
+  "Show eldoc infos in mode line while minibuffer is in use."
+  :group 'eldoc)
 
 (defcustom eldoc-in-minibuffer-show-fn 'eldoc-show-in-mode-line
   "A function to display eldoc info.
@@ -86,21 +85,23 @@ Should take one arg: the string to display"
 ;; New implementation of eldoc in minibuffer that come
 ;; with Emacs-24.4 show the eldoc info of current-buffer while
 ;; minibuffer is in use, disable this and inline old Emacs behavior.
+;;
+(defconst eldoc-eval--old-message-function (and (boundp 'eldoc-message-function)
+                                                eldoc-message-function))
 
-(when (boundp 'eldoc-message-function)
-  (setq eldoc-message-function 'message)
-
-  (defadvice eldoc-display-message-no-interference-p
-      (around eldoc-eval activate)
-    (if (not eldoc-in-minibuffer)
-        ad-do-it
-      (and eldoc-mode
-           (not executing-kbd-macro)
-           (not (and (boundp 'edebug-active) edebug-active))
-           ;; Having this mode operate in an active minibuffer/echo area causes
-           ;; interference with what's going on there.
-           (not cursor-in-echo-area)
-           (not (eq (selected-window) (minibuffer-window)))))))
+(defun eldoc-display-message-no-interference-p ()
+  (let (result)
+    (and eldoc-mode
+         (not executing-kbd-macro)
+         (setq result (not (and (boundp 'edebug-active) edebug-active)))
+         (if (and (not eldoc-in-minibuffer-mode)
+                  ;; If this is non--nil we are in emacs-24.4
+                  eldoc-eval--old-message-function)
+             result
+             ;; Having this mode operate in an active minibuffer/echo area causes
+             ;; interference with what's going on there.
+             (not cursor-in-echo-area)
+             (not (eq (selected-window) (minibuffer-window)))))))
 
 ;; Internal.
 (defvar eldoc-active-minibuffers-list nil
@@ -117,10 +118,10 @@ See `with-eldoc-in-minibuffer'."
 (defmacro with-eldoc-in-minibuffer (&rest body)
   "Enable eldoc support for minibuffer input that runs in BODY."
   (declare (indent 0) (debug t))
-  `(let ((timer (and eldoc-in-minibuffer
+  `(let ((timer (and eldoc-in-minibuffer-mode
                      (run-with-idle-timer
                       eldoc-idle-delay
-                      'repeat 'eldoc-mode-in-minibuffer))))
+                      'repeat 'run-eldoc-in-minibuffer))))
      (unwind-protect
          (minibuffer-with-setup-hook
              ;; When minibuffer is activated in body,
@@ -170,11 +171,37 @@ See `with-eldoc-in-minibuffer'."
 
 (defun eldoc-mode-line-toggle-rolling ()
   (interactive)
-  (setq eldoc-mode-line-rolling-flag (not eldoc-mode-line-rolling-flag)))
-(define-key minibuffer-local-map (kbd "<C-M-right>") 'eldoc-mode-line-toggle-rolling)
+  (if (and eldoc-in-minibuffer-mode
+           (minibuffer-window-active-p (selected-window)))
+      (setq eldoc-mode-line-rolling-flag (not eldoc-mode-line-rolling-flag))
+      (error "No active minibuffer found")))
 
-(defun eldoc-mode-in-minibuffer ()
-  "Show eldoc for current minibuffer input."
+(defvar eldoc-mode-in-minibuffer-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "M-:") 'eval-expression-with-eldoc)
+    map))
+
+;;;###autoload
+(define-minor-mode eldoc-in-minibuffer-mode
+    "Show eldoc for current minibuffer input."
+  :global t
+  :keymap eldoc-mode-in-minibuffer-map
+  (if eldoc-in-minibuffer-mode
+      (progn
+        (add-hook 'minibuffer-exit-hook
+                  (lambda ()
+                    (setq eldoc-mode-line-rolling-flag nil)))
+        (and (boundp 'eldoc-message-function)
+             (setq eldoc-message-function 'message))
+        (define-key minibuffer-local-map (kbd "C-@")
+          'eldoc-mode-line-toggle-rolling)
+        (setq eldoc-minor-mode-string " Eldoc-eval"))
+      (setq eldoc-minor-mode-string " Eldoc")
+      (and (boundp 'eldoc-message-function)
+           (setq eldoc-message-function eldoc-eval--old-message-function))
+      (define-key minibuffer-local-map (kbd "C-@") 'set-mark-command)))
+
+(defun run-eldoc-in-minibuffer ()
   (let ((buf (window-buffer (active-minibuffer-window))))
     ;; If this minibuffer have been started with
     ;;`with-eldoc-in-minibuffer' give it eldoc support
@@ -195,17 +222,12 @@ See `with-eldoc-in-minibuffer'."
       (beginning-of-buffer nil)
       (error (message "Eldoc in minibuffer error: %S" err)))))
 
+;;;###autoload
 (defun eval-expression-with-eldoc ()
   "Eval expression with eldoc support in mode-line."
   (interactive)
   (with-eldoc-in-minibuffer
     (call-interactively eval-preferred-function)))
-
-;; Bind it to `M-:'.
-
-;; FIXME: Turn eldoc-in-minibuffer into a global minor mode, and place this
-;; binding in its keymap.
-(global-set-key [remap eval-expression] 'eval-expression-with-eldoc)
 
 
 (provide 'eldoc-eval)
