@@ -24,12 +24,13 @@
 
 ;;; Commentary:
 
-;; A minor mode for editing shen source code.  Shen is a modern lisp
+;; A major mode for editing Shen source code.  Shen is a modern Lisp
 ;; dialect with support for functional and declarative programming,
 ;; pattern matching and a very powerful type system.  See the
-;; following for more information on Shen. http://www.shenlanguage.org
+;; following for more information on Shen.  http://www.shenlanguage.org
 
 ;;; Code:
+(eval-when-compile (require 'cl))
 (require 'lisp-mode)
 (require 'imenu)
 
@@ -363,7 +364,7 @@
       ;; shallow indent because we're in the body
       edge)))
 
-(defun shen-package-indent (state indent-point normal-indent)
+(defun shen-package-indent (_state _indent-point _normal-indent)
   (- (current-column) 8))
 
 (put 'let 'shen-indent-function 'shen-let-indent)
@@ -398,31 +399,31 @@
 (unless (fboundp 'prog-mode)
   (defalias 'prog-mode 'fundamental-mode))
 
+;;;###autoload
 (define-derived-mode shen-mode prog-mode "shen"
   "Major mode for editing Shen code."
   :syntax-table shen-mode-syntax-table
-  ;; set a variety of local variables
-  ((lambda (local-vars)
-     (dolist (pair local-vars)
-       (set (make-local-variable (car pair)) (cdr pair))))
-   `((adaptive-fill-mode . nil)
-     (fill-paragraph-function . lisp-fill-paragraph)
-     (indent-line-function . lisp-indent-line)
-     (lisp-indent-function . shen-indent-function)
-     (parse-sexp-ignore-comments . t)
-     (comment-start . "\\* ")
-     (comment-end . " *\\")
-     (comment-add . 0)
-     (comment-column . 32)
-     (parse-sexp-ignore-comments . t)
-     (comment-use-global-state . nil)
-     (comment-multi-line . t)
-     (eldoc-documentation-function . shen-mode-eldoc)
-     (imenu-case-fold-search . t)
-     (imenu-generic-expression . ,shen-imenu-generic-expression)
-     (mode-name . "Shen")
-     (font-lock-defaults . (shen-font-lock-keywords)))))
+  ;; Set a variety of local variables.
+  (dolist (pair `((adaptive-fill-mode . nil)
+                  (fill-paragraph-function . lisp-fill-paragraph)
+                  (indent-line-function . lisp-indent-line)
+                  (lisp-indent-function . shen-indent-function)
+                  (parse-sexp-ignore-comments . t)
+                  (comment-start . "\\* ")
+                  (comment-end . " *\\")
+                  (comment-add . 0)
+                  (comment-column . 32)
+                  (parse-sexp-ignore-comments . t)
+                  (comment-use-global-state . nil)
+                  (comment-multi-line . t)
+                  (eldoc-documentation-function . shen-mode-eldoc)
+                  (imenu-case-fold-search . t)
+                  (imenu-generic-expression . ,shen-imenu-generic-expression)
+                  (mode-name . "Shen")
+                  (font-lock-defaults . (shen-font-lock-keywords))))
+    (set (make-local-variable (car pair)) (cdr pair))))
 
+;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.shen\\'" . shen-mode))
 
 (provide 'shen-mode)
