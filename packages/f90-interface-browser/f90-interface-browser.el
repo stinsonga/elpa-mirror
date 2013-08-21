@@ -1,6 +1,6 @@
 ;;; f90-interface-browser.el --- Parse and browse f90 interfaces
 
-;; Copyright (C) 2011, 2012  Free Software Foundation, Inc
+;; Copyright (C) 2011, 2012, 2013  Free Software Foundation, Inc
 
 ;; Author: Lawrence Mitchell <wence@gmx.li>
 ;; Created: 2011-07-06
@@ -103,7 +103,7 @@
 ;;; Code:
 
 ;;; Preamble
-(require 'cl)
+(eval-when-compile (require 'cl))
 (require 'thingatpt)
 (require 'f90)
 (require 'etags)
@@ -593,7 +593,6 @@ first (length ARGLIST) args of SPECIALISER."
                    (<= n-passed-args n-spec-args)))
       (loop for arg in arglist
             for spec-arg in spec-arglist
-            with match = nil
             unless (or (null arg)
                        (string= (f90-get-parsed-type-typename arg)
                                 (f90-get-parsed-type-typename spec-arg)))
@@ -1029,13 +1028,12 @@ dealt with correctly."
                           (setcdr (assoc "dimension" dec)
                                   (1+ (f90-count-commas
                                        (match-string 2 name))))
-                        (add-to-list 'dec
-                                     (cons "dimension"
-                                           (1+ (f90-count-commas
-                                                (match-string 2 name))))
-                                     t))
+                        (push (cons "dimension"
+                                    (1+ (f90-count-commas
+                                         (match-string 2 name))))
+                              dec))
                       (setq name (match-string 1 name)))
-            collect (cons name dec)))))
+            collect (cons name (nreverse dec))))))
 
 (defun f90-split-declaration (dec)
   "Split and parse a type declaration DEC.

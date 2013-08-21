@@ -17,6 +17,10 @@
 
 ;;; Code:
 
+(require 'cl-lib)
+
+;; FIXME: Convert to use ERT.
+
 (defvar *test-name* nil)
 
 (defvar *test-tests* (make-hash-table :test 'eq))
@@ -35,17 +39,18 @@
 (defmacro test-check (&rest forms)
   "Run each expression in 'forms' as a test case."
   `(test-combine-results
-    ,@(loop for (expr res) in forms
-            collect `(test-report-result (equal (condition-case err
-                                                    ,expr
-                                                  (error (gensym))) ',res)
-                                         ',expr ',res))))
+    ,@(cl-loop for (expr res) in forms
+               collect `(test-report-result (equal (condition-case _
+                                                       ,expr
+                                                     (error (cl-gensym)))
+                                                   ',res)
+                                            ',expr ',res))))
 
 (defmacro test-combine-results (&rest forms)
   "Combine the results (as booleans) of evaluating 'forms' in order."
   (let ((result (make-symbol "result")))
     `(let ((,result t))
-       ,@(loop for f in forms collect `(unless ,f (setf ,result nil)))
+       ,@(cl-loop for f in forms collect `(unless ,f (setf ,result nil)))
        ,result)))
 
 (defun test-report-result (result res req)
@@ -80,10 +85,10 @@
     ("integer" ("dimension" . 1)))))
 
 (deftest parse-declaration ()
-  (flet ((fun (str) (with-temp-buffer
-                      (insert str)
-                      (goto-char (point-min))
-                      (f90-parse-single-type-declaration))))
+  (cl-flet ((fun (str) (with-temp-buffer
+                         (insert str)
+                         (goto-char (point-min))
+                         (f90-parse-single-type-declaration))))
     (test-check
      ((fun "integer :: name") (("name" "integer")))
      ((fun "integer :: name1, name2") (("name1" "integer")
