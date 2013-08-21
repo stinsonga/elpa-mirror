@@ -195,7 +195,7 @@
         ;; FIXME: Make it 2?
         (should (eq (overlay-get ov 'company-height) company-tooltip-limit))
         (should (eq (overlay-get ov 'company-column) col))
-        (should (string= (overlay-get ov 'company-before)
+        (should (string= (overlay-get ov 'company-after)
                          " 123\nc45 c\nddd\n")))))))
 
 (ert-deftest company-column-with-composition ()
@@ -280,6 +280,14 @@
       (should (looking-at "arg0"))
       (should (equal "int a"
                      (overlay-get (company-template-field-at) 'display))))))
+
+(ert-deftest company-template-c-like-templatify-trims-after-closing-paren ()
+  (with-temp-buffer
+    (let ((text "foo(int a, short b)!@ #1334 a"))
+      (insert text)
+      (company-template-c-like-templatify text)
+      (should (equal "foo(arg0, arg1)" (buffer-string)))
+      (should (looking-at "arg0")))))
 
 ;;; Elisp
 
