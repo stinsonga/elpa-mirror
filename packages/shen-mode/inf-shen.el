@@ -1,6 +1,6 @@
 ;;; inferior-shen-mode --- an inferior-shen mode
 
-;; Copyright (C) 2011 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2013 Free Software Foundation, Inc.
 
 ;; Authors: Michael Ilseman, Eric Schulte <schulte.eric@gmail.com>
 ;; Version: 0.1
@@ -27,6 +27,7 @@
 ;; This file defines an inferior Shen mode.
 
 ;;; Code:
+(eval-when-compile (require 'cl))
 (require 'comint)
 (require 'shen-mode)
 
@@ -37,22 +38,21 @@ Input matching this regexp is not saved on the input history in Inferior Shen
 mode.  Default is whitespace followed by 0 or 1 single-letter colon-keyword
 \(as in :a, :c, etc.)")
 
-(defvar inferior-shen-mode-map nil)
-(unless inferior-shen-mode-map
-  (setq inferior-shen-mode-map (copy-keymap comint-mode-map))
-;  (set-keymap-parent inferior-shen-mode-map shen-mode-shared-map)
-  (define-key inferior-shen-mode-map "\C-x\C-e" 'shen-eval-last-sexp)
-  (define-key inferior-shen-mode-map "\C-c\C-l" 'shen-load-file)
-  (define-key inferior-shen-mode-map "\C-c\C-k" 'shen-compile-file)
-  (define-key inferior-shen-mode-map "\C-c\C-a" 'shen-show-arglist)
-  (define-key inferior-shen-mode-map "\C-c\C-d" 'shen-describe-sym)
-  (define-key inferior-shen-mode-map "\C-c\C-f"
-    'shen-show-function-documentation)
-  (define-key inferior-shen-mode-map "\C-c\C-v"
-    'shen-show-variable-documentation))
+(defvar inferior-shen-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map comint-mode-map)
+    ;; (set-keymap-parent inferior-shen-mode-map shen-mode-shared-map)
+    (define-key map "\C-x\C-e" 'shen-eval-last-sexp)
+    (define-key map "\C-c\C-l" 'shen-load-file)
+    (define-key map "\C-c\C-k" 'shen-compile-file)
+    (define-key map "\C-c\C-a" 'shen-show-arglist)
+    (define-key map "\C-c\C-d" 'shen-describe-sym)
+    (define-key map "\C-c\C-f" 'shen-show-function-documentation)
+    (define-key map "\C-c\C-v" 'shen-show-variable-documentation)
+    map))
 
-;;; These commands augment Shen mode, so you can process Shen code in
-;;; the source files.
+;; These commands augment Shen mode, so you can process Shen code in
+;; the source files.
 (define-key shen-mode-map "\M-\C-x"  'shen-eval-defun)     ; Gnu convention
 (define-key shen-mode-map "\C-x\C-e" 'shen-eval-last-sexp) ; Gnu convention
 (define-key shen-mode-map "\C-c\C-e" 'shen-eval-defun)
@@ -67,16 +67,16 @@ mode.  Default is whitespace followed by 0 or 1 single-letter colon-keyword
 (define-key shen-mode-map "\C-c\C-v" 'shen-show-variable-documentation)
 
 
-;;; This function exists for backwards compatibility.
-;;; Previous versions of this package bound commands to C-c <letter>
-;;; bindings, which is not allowed by the gnumacs standard.
+;; This function exists for backwards compatibility.
+;; Previous versions of this package bound commands to C-c <letter>
+;; bindings, which is not allowed by the gnumacs standard.
 
-;;;  "This function binds many inferior-shen commands to C-c <letter> bindings,
-;;;where they are more accessible. C-c <letter> bindings are reserved for the
-;;;user, so these bindings are non-standard. If you want them, you should
-;;;have this function called by the inferior-shen-load-hook:
-;;;    (setq inferior-shen-load-hook '(inferior-shen-install-letter-bindings))
-;;;You can modify this function to install just the bindings you want."
+;;  "This function binds many inferior-shen commands to C-c <letter> bindings,
+;;where they are more accessible. C-c <letter> bindings are reserved for the
+;;user, so these bindings are non-standard. If you want them, you should
+;;have this function called by the inferior-shen-load-hook:
+;;    (setq inferior-shen-load-hook '(inferior-shen-install-letter-bindings))
+;;You can modify this function to install just the bindings you want."
 (defun inferior-shen-install-letter-bindings ()
   (define-key shen-mode-map "\C-ce" 'shen-eval-defun-and-go)
   (define-key shen-mode-map "\C-cr" 'shen-eval-region-and-go)
@@ -98,11 +98,9 @@ mode.  Default is whitespace followed by 0 or 1 single-letter colon-keyword
     'shen-show-variable-documentation))
 
 
-;;;###autoload
 (defvar inferior-shen-program "shen"
   "*Program name for invoking an inferior Shen with for Inferior Shen mode.")
 
-;;;###autoload
 (defvar inferior-shen-load-command "(load \"%s\")\n"
   "*Format-string for building a Shen expression to load a file.
 This format string should use `%s' to substitute a file name
@@ -112,7 +110,6 @@ The string \"(progn (load \\\"%s\\\" :verbose nil :print t) (values))\\n\"
 produces cosmetically superior output for this application,
 but it works only in Common Shen.")
 
-;;;###autoload
 (defvar inferior-shen-prompt "^[^> \n]*>+:? *"
   "Regexp to recognise prompts in the Inferior Shen mode.
 Defaults to \"^[^> \\n]*>+:? *\", which works pretty good for Lucid, kcl,
@@ -164,13 +161,12 @@ one process, this does the right thing.  If you run multiple
 processes, you can change `inferior-shen-buffer' to another process
 buffer with \\[set-variable].")
 
-;;;###autoload
 (defvar inferior-shen-mode-hook '()
   "*Hook for customising Inferior Shen mode.")
 
 (put 'inferior-shen-mode 'mode-class 'special)
 
-(defun inferior-shen-mode ()
+(define-derived-mode inferior-shen-mode comint-mode "Inferior Shen"
   "Major mode for interacting with an inferior Shen process.
 Runs a Shen interpreter as a subprocess of Emacs, with Shen I/O through an
 Emacs buffer.  Variable `inferior-shen-program' controls which Shen interpreter
@@ -210,18 +206,12 @@ C-M-q does Tab on each line starting within following expression.
 Paragraphs are separated only by blank lines.  Semicolons start comments.
 If you accidentally suspend your process, use \\[comint-continue-subjob]
 to continue it."
-  (interactive)
-  (comint-mode)
   (set (make-local-variable 'font-lock-defaults) '(shen-font-lock-keywords))
   (setq comint-prompt-regexp inferior-shen-prompt)
-  (setq major-mode 'inferior-shen-mode)
-  (setq mode-name "Inferior Shen")
   (setq mode-line-process '(":%s"))
 
-  (use-local-map inferior-shen-mode-map)    ;c-c c-k for "kompile" file
   (setq comint-get-old-input (function shen-get-old-input))
-  (setq comint-input-filter (function shen-input-filter))
-  (run-hooks 'inferior-shen-mode-hook))
+  (setq comint-input-filter (function shen-input-filter)))
 
 (defun shen-get-old-input ()
   "Return a string containing the sexp ending at point."
@@ -287,7 +277,7 @@ containing the shen source code about to be evaluated.")
   "Check if parentheses in the region are balanced."
   (save-restriction (save-excursion
     (let ((deactivate-mark nil))
-      (condition-case c
+      (condition-case _
           (progn (narrow-to-region start end) (goto-char (point-min))
                  (while (/= 0 (- (point) (forward-list)))) t)
           (scan-error (signal 'scan-error '("Parentheses not balanced."))))))))
@@ -311,8 +301,7 @@ Prefix argument means switch to the Shen buffer afterwards."
     (comint-send-string (inferior-shen-proc) "\n")
     (accept-process-output (inferior-shen-proc))
     (sit-for 0)
-    (save-excursion
-      (set-buffer inferior-shen-buffer)
+    (with-current-buffer inferior-shen-buffer
       (goto-char before-input)
       (setq result (buffer-substring (point) (point-at-eol)))
       (message "%s" result)
@@ -380,10 +369,10 @@ With argument, positions cursor at end of buffer."
     (goto-char (point-max))))
 
 
-;;; Now that shen-compile/eval-defun/region takes an optional prefix arg,
-;;; these commands are redundant. But they are kept around for the user
-;;; to bind if he wishes, for backwards functionality, and because it's
-;;; easier to type C-c e than C-u C-c C-e.
+;; Now that shen-compile/eval-defun/region takes an optional prefix arg,
+;; these commands are redundant. But they are kept around for the user
+;; to bind if he wishes, for backwards functionality, and because it's
+;; easier to type C-c e than C-u C-c C-e.
 (defun shen-eval-region-and-go (start end)
   "Send the current region to the inferior Shen, and switch to its buffer."
   (interactive "r")
@@ -404,42 +393,42 @@ With argument, positions cursor at end of buffer."
   (interactive)
   (shen-compile-defun t))
 
-;;; A version of the form in H. Shevis' soar-mode.el package. Less robust.
-;;; (defun shen-compile-sexp (start end)
-;;;   "Compile the s-expression bounded by START and END in the inferior shen.
-;;; If the sexp isn't a DEFUN form, it is evaluated instead."
-;;;   (cond ((looking-at "(defun\\s +")
-;;; 	 (goto-char (match-end 0))
-;;; 	 (let ((name-start (point)))
-;;; 	   (forward-sexp 1)
-;;; 	   (process-send-string "inferior-shen"
-;;; 				(format "(compile '%s #'(lambda "
-;;; 					(buffer-substring name-start
-;;; 							  (point)))))
-;;; 	 (let ((body-start (point)))
-;;; 	   (goto-char start) (forward-sexp 1) ; Can't use end-of-defun.
-;;; 	   (process-send-region "inferior-shen"
-;;; 				(buffer-substring body-start (point))))
-;;; 	 (process-send-string "inferior-shen" ")\n"))
-;;; 	(t (shen-eval-region start end)))))
-;;;
-;;; (defun shen-compile-region (start end)
-;;;   "Each s-expression in the current region is compiled (if a DEFUN)
-;;; or evaluated (if not) in the inferior shen."
-;;;   (interactive "r")
-;;;   (save-excursion
-;;;     (goto-char start) (end-of-defun) (beginning-of-defun) ; error check
-;;;     (if (< (point) start) (error "region begins in middle of defun"))
-;;;     (goto-char start)
-;;;     (let ((s start))
-;;;       (end-of-defun)
-;;;       (while (<= (point) end) ; Zip through
-;;; 	(shen-compile-sexp s (point)) ; compiling up defun-sized chunks.
-;;; 	(setq s (point))
-;;; 	(end-of-defun))
-;;;       (if (< s end) (shen-compile-sexp s end)))))
-;;;
-;;; End of HS-style code
+;; A version of the form in H. Shevis' soar-mode.el package. Less robust.
+;; (defun shen-compile-sexp (start end)
+;;   "Compile the s-expression bounded by START and END in the inferior shen.
+;; If the sexp isn't a DEFUN form, it is evaluated instead."
+;;   (cond ((looking-at "(defun\\s +")
+;; 	 (goto-char (match-end 0))
+;; 	 (let ((name-start (point)))
+;; 	   (forward-sexp 1)
+;; 	   (process-send-string "inferior-shen"
+;; 				(format "(compile '%s #'(lambda "
+;; 					(buffer-substring name-start
+;; 							  (point)))))
+;; 	 (let ((body-start (point)))
+;; 	   (goto-char start) (forward-sexp 1) ; Can't use end-of-defun.
+;; 	   (process-send-region "inferior-shen"
+;; 				(buffer-substring body-start (point))))
+;; 	 (process-send-string "inferior-shen" ")\n"))
+;; 	(t (shen-eval-region start end)))))
+;;
+;; (defun shen-compile-region (start end)
+;;   "Each s-expression in the current region is compiled (if a DEFUN)
+;; or evaluated (if not) in the inferior shen."
+;;   (interactive "r")
+;;   (save-excursion
+;;     (goto-char start) (end-of-defun) (beginning-of-defun) ; error check
+;;     (if (< (point) start) (error "region begins in middle of defun"))
+;;     (goto-char start)
+;;     (let ((s start))
+;;       (end-of-defun)
+;;       (while (<= (point) end) ; Zip through
+;; 	(shen-compile-sexp s (point)) ; compiling up defun-sized chunks.
+;; 	(setq s (point))
+;; 	(end-of-defun))
+;;       (if (< s end) (shen-compile-sexp s end)))))
+;;
+;; End of HS-style code
 
 
 (defvar shen-prev-l/c-dir/file nil
@@ -516,8 +505,8 @@ Used by these commands to determine defaults.")
 ;;; Ancillary functions
 ;;; ===================
 
-;;; Reads a string from the user.
 (defun shen-symprompt (prompt default)
+  "Read a string from the user."
   (list (let* ((prompt (if default
 			   (format "%s (default %s): " prompt default)
 			 (concat prompt ": ")))
@@ -525,9 +514,9 @@ Used by these commands to determine defaults.")
 	  (if (zerop (length ans)) default ans))))
 
 
-;;; Adapted from function-called-at-point in help.el.
+;; Adapted from function-called-at-point in help.el.
 (defun shen-fn-called-at-pt ()
-  "Returns the name of the function called in the current call.
+  "Return the name of the function called in the current call.
 The value is nil if it can't find one."
   (condition-case nil
       (save-excursion
@@ -540,7 +529,7 @@ The value is nil if it can't find one."
     (error nil)))
 
 
-;;; Adapted from variable-at-point in help.el.
+;; Adapted from variable-at-point in help.el.
 (defun shen-var-at-pt ()
   (condition-case ()
       (save-excursion
