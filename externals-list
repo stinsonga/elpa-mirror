@@ -24,7 +24,7 @@
  ("dismal"		:external nil)
  ("eldoc-eval"		:subtree "https://github.com/thierryvolpiatto/eldoc-eval.git")
  ("enwc"		:subtree "bzr::bzr://bzr.savannah.nongnu.org/enwc/trunk")
- ("f90-interface-browser" :subtree "http://github.com/wence-/f90-iface")
+ ("f90-interface-browser" :subtree "https://github.com/wence-/f90-iface")
  ("ggtags"		:subtree "https://github.com/leoliu/ggtags")
  ("ioccur"		:subtree "https://github.com/thierryvolpiatto/ioccur.git")
  ("js2-mode"		:subtree "https://github.com/mooz/js2-mode.git")
