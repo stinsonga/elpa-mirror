@@ -156,8 +156,8 @@ By default it matches nonascii-chars."
   "Assign markchars confusable properties between BEG and END."
   (let* ((text (buffer-substring-no-properties beg end))
          (scripts (mapcar
-                  '(lambda (c) (aref char-script-table c))
-                  (string-to-list text)))
+                   (lambda (c) (aref char-script-table c))
+                   (string-to-list text)))
          ;; `scripts-extra' is not nil is there was more than one script
          (scripts-extra (delq (car scripts) scripts)))
     (when scripts-extra
