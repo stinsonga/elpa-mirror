@@ -6,6 +6,7 @@
 ;; Version: 1.04
 ;; Created: 1997-09-11
 ;; Keywords: games
+;; Package-Type: multi
 
 ;; This file is part of XEmacs.
 
