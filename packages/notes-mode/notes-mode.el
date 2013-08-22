@@ -1,8 +1,9 @@
 ;;; notes-mode.el --- Indexing system for on-line note-taking
 
-;;; Copyright (C) 1994-2007,2012  Free Software Foundation, Inc.
+;; Copyright (C) 1994-2007,2012  Free Software Foundation, Inc.
 
 ;; Author: <johnh@isi.edu>.
+;; Version: 1.30
 
 ;; This file is part of GNU Emacs.
 
