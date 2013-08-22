@@ -4,6 +4,7 @@
 
 ;; Author: Ian Dunn
 ;; Keywords: enwc, network, wicd, manager, nm
+;; Version: 1.0
 
 ;; This file is part of ENWC
 
