@@ -1,4 +1,4 @@
-;;; register-list.el ---  Interactively list/edit registers
+;;; register-list.el ---  Interactively list/edit registers  -*- lexical-binding:t -*-
 ;;
 ;; Copyright (C) 2011-2013  Free Software Foundation, Inc.
 ;;
@@ -70,13 +70,11 @@
 
 (defcustom register-list-string-width nil
   "Maximum width for the register value string."
-  :type 'integer
-  :group 'register-list)
+  :type 'integer)
 
 (defcustom register-list-preserve-fontification nil
   "Non-nil means keep the value strings fontified."
-  :type 'integer
-  :group 'register-list)
+  :type 'integer)
 
 (defcustom register-list-default-types "[FNMRSW]"
   "A regexp matching the default register types to list.
@@ -84,13 +82,11 @@
 The available types are: [F]rame [N]umber [M]arkers [R]ectangle
 \[S]string and [W]window.  [FW] will list markers, frame and
 window configuration, [SM] will list strings and markers, etc."
-  :type 'regexp
-  :group 'register-list)
+  :type 'regexp)
 
 (defface register-list-off-rectangle
   '((t (:inverse-video t)))
-  "Face used to show what falls out of a rectangle."
-  :group 'register-list)
+  "Face used to show what falls out of a rectangle.")
 
 ;;; Variables, map, mode
 
@@ -162,11 +158,12 @@ Saved before editing the value of a register.")
 (defmacro register-list-preserve-pos (force-line &rest body)
   "Preserve the position and execute BODY.
 If FORCE-LINE is non-nil, force moving to this line."
-  `(let ((line (line-number-at-pos (point)))
+  (declare (debug t) (indent 1))
+  `(let (,@(unless force-line '((line (line-number-at-pos (point)))))
 	 (col (current-column)))
      ,@body
      (goto-char (point-min))
-     (line-move ,(or (eval force-line) '(1- line)) t)
+     (forward-line ,(or force-line '(1- line)))
      (line-move-to-column col)))
 
 (defmacro register-list-map-lines (let-vals &rest body)
@@ -263,10 +260,9 @@ If FORCE-LINE is non-nil, force moving to this line."
   "Refresh the list of registers.
 An optional TYPE argument restrict the list these types."
   (interactive "P")
-  (register-list-preserve-pos
-   (1- (line-number-at-pos (point)))
-   (register-list (or type register-list-current-type)
-		  register-list-current-fontification)))
+  (register-list-preserve-pos nil
+    (register-list (or type register-list-current-type)
+                   register-list-current-fontification)))
 
 (defun register-list-quit nil
   "Quit the register list and kill its buffer."
@@ -276,12 +272,11 @@ An optional TYPE argument restrict the list these types."
 (defun register-list-toggle-fontification nil
   "Toggle fontification of the value strings."
   (interactive)
-  (register-list-preserve-pos
-   nil
-   (setq register-list-current-fontification
-	 (not register-list-current-fontification))
-   (register-list register-list-current-type
-		  register-list-current-fontification)))
+  (register-list-preserve-pos nil
+    (setq register-list-current-fontification
+          (not register-list-current-fontification))
+    (register-list register-list-current-type
+                   register-list-current-fontification)))
 
 (define-derived-mode register-list-mode special-mode "Register List"
   "Major mode for editing a list of register keys.
@@ -359,7 +354,7 @@ The list is displayed in a buffer named `*Register List*' in
 `register-list-mode', which see."
   (interactive)
   (switch-to-buffer (get-buffer-create "*Register List*"))
-  (let ((inhibit-read-only t) reg-alist)
+  (let ((inhibit-read-only t))
     (setq type (or type register-list-default-types))
     (setq register-list-current-fontification
 	  (or fontify register-list-preserve-fontification))
@@ -375,31 +370,29 @@ The list is displayed in a buffer named `*Register List*' in
 		    (propertize "- ---  ----  -----\n"
 				'intangible t
 				'face 'font-lock-comment-delimiter-face)))
-    (mapc
-     (lambda (register)
-       (let* ((key (char-to-string (car register)))
-	      (val (cdr register))
-	      (typ (register-list-get-type val))
-	      (hdl (register-list-get-handler register typ)))
-	 (when (string-match typ type)
-	   (insert
-	    (format "  %s    %s   %s\n"
-		    (propertize key 'face 'bold 'register register
-				'register-handler hdl)
-		    (propertize (concat "[" typ "]")
-				'mouse-face 'highlight
-				'help-echo "mouse-2: restrict to this type"
-				'register-handler
-				`(lambda()
-				   (register-list-preserve-pos nil
-				    (register-list
-				     ,typ ,register-list-current-fontification))))
-		    (propertize (register-list-prepare-string
-				 (register-list-value-to-string val typ) fontify)
-				'mouse-face 'highlight
-				'register-handler hdl
-				'help-echo "mouse-2: use this register"))))))
-     register-alist))
+    (dolist (register register-alist)
+      (let* ((key (char-to-string (car register)))
+             (val (cdr register))
+             (typ (register-list-get-type val))
+             (hdl (register-list-get-handler register typ)))
+        (when (string-match typ type)
+          (insert
+           (format "  %s    %s   %s\n"
+                   (propertize key 'face 'bold 'register register
+                               'register-handler hdl)
+                   (propertize (concat "[" typ "]")
+                               'mouse-face 'highlight
+                               'help-echo "mouse-2: restrict to this type"
+                               'register-handler
+                               (lambda ()
+                                 (register-list-preserve-pos nil
+                                   (register-list
+                                    typ register-list-current-fontification))))
+                   (propertize (register-list-prepare-string
+                                (register-list-value-to-string val typ) fontify)
+                               'mouse-face 'highlight
+                               'register-handler hdl
+                               'help-echo "mouse-2: use this register")))))))
   (register-list-mode)
   (goto-char (point-min))
   (line-move 2 t)
@@ -538,16 +531,16 @@ the register or copy its value into the kill ring."
 (defun register-list-set-key (function)
   "Update the regsiter key by applying FUNCTION."
   (register-list-preserve-pos
-   2 ;; go back to top of the sorted list
-   (beginning-of-line)
-   (let* ((reg-point (next-single-property-change (point) 'register))
-	  (reg (get-text-property reg-point 'register))
-	  (val (car reg)))
-     (setq register-alist (delete reg register-alist))
-     (add-to-list 'register-alist
-		  (cons (setcar reg (funcall function val)) (cdr reg)))
-     (register-list register-list-current-type
-		    register-list-current-fontification))))
+      2 ;; go back to top of the sorted list
+    (beginning-of-line)
+    (let* ((reg-point (next-single-property-change (point) 'register))
+           (reg (get-text-property reg-point 'register))
+           (val (car reg)))
+      (setq register-alist (delete reg register-alist))
+      (add-to-list 'register-alist
+                   (cons (setcar reg (funcall function val)) (cdr reg)))
+      (register-list register-list-current-type
+                     register-list-current-fontification))))
 
 (defun register-list-edit-value nil
   "Edit the value of the register at point."
@@ -557,8 +550,7 @@ the register or copy its value into the kill ring."
 	    (beginning-of-line)
 	    (next-single-property-change (point) 'register)))
 	 (reg (get-text-property reg-at-point 'register))
-	 (val (cdr reg))
-	 new-val)
+	 (val (cdr reg)))
     (if (not (or (stringp val) (numberp val)
 		 (and (listp val) (stringp (car val)))))
 	(message "Can't edit this type of register")
