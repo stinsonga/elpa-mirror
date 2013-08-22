@@ -1,7 +1,7 @@
 #!/usr/bin/python
 ### forward-diffs.py --- forward emacs-diffs mails to maintainers
 
-## Copyright (C) 2012 Free Software Foundation, Inc.
+## Copyright (C) 2012, 2013 Free Software Foundation, Inc.
 
 ## Author: Glenn Morris <rgm@gnu.org>
 
@@ -181,7 +181,7 @@ parser.add_option( "-s", dest="sender", default=None,
                    help="sender address for forwards")
 parser.add_option( "--create", dest="create", default=False,
                    action="store_true", help="create maintfile")
-parser.add_option( "--no-scan", dest="noscan", default=False,
+parser.add_option( "--no-scan", dest="noscan", default=True,
                    action="store_true",
                    help="don't scan for maintainers; implies --no-update")
 parser.add_option( "--no-update", dest="noupdate", default=False,
@@ -217,12 +217,6 @@ if not opts.create:
         parser.error('No sender specified')
 
 
-## Create the maintfile.
-if opts.create:
-    scan_dir( opts.packagedir, opts.maintfile )
-    sys.exit()
-
-
 try:
     lfile = open( opts.logfile, 'a' )
 except Exception as err:
@@ -235,6 +229,12 @@ try:
 except Exception as err:
     lfile.write('Error opening maintfile: %s\n' % str(err))
     sys.exit(1)
+
+## Create the maintfile.
+if opts.create:
+    scan_dir( opts.packagedir, opts.maintfile )
+    sys.exit()
+
 
 ## Each element is package/file: maint1, maint2, ...
 maints = {}
@@ -289,7 +289,14 @@ maints_seen = []
 
 for line in text.splitlines():
 
-    if re.match( 'modified:$', line ):
+    # Look for and process things that look like (Git):
+    #
+    # Summary of changes:
+    #  packages/vlf/vlf.el |    2 +-
+    #  1 files changed, 1 insertions(+), 1 deletions(-)
+
+    #BZR: if re.match( 'modified:$', line ):
+    if re.match( 'Summary of changes:$', line ):
         start = True
         continue
 
@@ -297,11 +304,17 @@ for line in text.splitlines():
 
     ## An empty line or a line with non-empty first character.
     if re.match( '( *$|[^ ])', line ): break
-
+    # Any line that doesn't match the diffstat format (Git).
+    if not re.match( ' [^ ]+ +\| ', line ):
+        lfile.write('Stop scanning at: %s\n' % line)
+        break
 
     if opts.prefix:
-        reg = re.match( '%s([^ ]+)' % opts.prefix, line.strip() )
-        if not reg: continue
+        #BZR: reg = re.match( '%s([^ ]+)' % opts.prefix, line.strip() )
+        reg = re.match( ' %s([^ ]+)' % opts.prefix, line )
+        if not reg:
+            lfile.write('Skip: %s\n' % line)
+            continue
         pfile = reg.group(1)
     else:
         pfile = line.strip()
@@ -326,7 +339,7 @@ for line in text.splitlines():
             lfile.write('Scanning file...\n')
             thismaint = []
             thisfile = os.path.join( opts.packagedir, pfile )
-            scan_file( thisfile, thismaint )
+            # scan_file( thisfile, thismaint )
 
             if thismaint:
                 maints[pfile] = thismaint
