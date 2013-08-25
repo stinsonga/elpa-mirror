@@ -47,3 +47,9 @@
 ./uni-confusables/uni-confusables.el
 ./uni-confusables/uni-confusables.el:;; Copyright (C) 1991-2009, 2010 Unicode, Inc.
 ./uni-confusables/uni-confusables.el:;; for the copyright and permission notice.
+./w3/w3-cus.el:    "copyright" "bookmark" "help" "made" "contents" "top")
+./w3/w3-cus.el:  ;; Glossary, Copyright, Chapter, Section, Subsection, Appendix,
+./w3/w3-latex.el:    (copy . "\\copyright ")
+./w3/w3-toolbar.el:     "Copyright"]
+./w3/w3-toolbar.el:     (w3-fetch (w3-link-is-defined "copyright"))
+./w3/w3-toolbar.el:     (w3-link-is-defined "copyright")

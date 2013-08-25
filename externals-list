@@ -31,6 +31,7 @@
  ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
  ("temp-buffer-browse"  :subtree "https://github.com/leoliu/temp-buffer-browse")
  ;;FIXME:("vlf"		:subtree ??)
+ ("w3"			:external nil)
  ("websocket"		:subtree "https://github.com/ahyatt/emacs-websocket.git")
  ;;FIXME:("yasnippet"	:subtree "https://github.com/capitaomorte/yasnippet.git")
  )
