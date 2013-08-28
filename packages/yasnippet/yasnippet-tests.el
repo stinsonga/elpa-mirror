@@ -31,11 +31,14 @@
 
 ;;; Snippet mechanics
 
+(defun yas--buffer-contents ()
+  (buffer-substring-no-properties (point-min) (point-max)))
+
 (ert-deftest field-navigation ()
   (with-temp-buffer
     (yas-minor-mode 1)
     (yas-expand-snippet "${1:brother} from another ${2:mother}")
-    (should (string= (buffer-substring-no-properties (point-min) (point-max))
+    (should (string= (yas--buffer-contents)
                      "brother from another mother"))
 
     (should (looking-at "brother"))
@@ -48,30 +51,39 @@
   (with-temp-buffer
     (yas-minor-mode 1)
     (yas-expand-snippet "${1:brother} from another $1")
-    (should (string= (buffer-substring-no-properties (point-min) (point-max))
+    (should (string= (yas--buffer-contents)
                      "brother from another brother"))
     (ert-simulate-command `(yas-mock-insert "bla"))
-    (should (string= (buffer-substring-no-properties (point-min) (point-max))
+    (should (string= (yas--buffer-contents)
                      "bla from another bla"))))
 
 (ert-deftest mirror-with-transformation ()
   (with-temp-buffer
     (yas-minor-mode 1)
     (yas-expand-snippet "${1:brother} from another ${1:$(upcase yas-text)}")
-    (should (string= (buffer-substring-no-properties (point-min) (point-max))
+    (should (string= (yas--buffer-contents)
                      "brother from another BROTHER"))
     (ert-simulate-command `(yas-mock-insert "bla"))
-    (should (string= (buffer-substring-no-properties (point-min) (point-max))
+    (should (string= (yas--buffer-contents)
                      "bla from another BLA"))))
+
+(ert-deftest primary-field-transformation ()
+  (with-temp-buffer
+    (yas-minor-mode 1)
+    (let ((snippet "${1:$$(upcase yas/text)}${1:$(concat \"bar\" yas/text)}"))
+      (yas-expand-snippet snippet)
+      (should (string= (yas--buffer-contents) "bar"))
+      (ert-simulate-command `(yas-mock-insert "foo"))
+      (should (string= (yas--buffer-contents) "FOObarFOO")))))
 
 (ert-deftest nested-placeholders-kill-superfield ()
   (with-temp-buffer
     (yas-minor-mode 1)
     (yas-expand-snippet "brother from ${2:another ${3:mother}}!")
-    (should (string= (buffer-substring-no-properties (point-min) (point-max))
+    (should (string= (yas--buffer-contents)
                      "brother from another mother!"))
     (ert-simulate-command `(yas-mock-insert "bla"))
-    (should (string= (buffer-substring-no-properties (point-min) (point-max))
+    (should (string= (yas--buffer-contents)
                      "brother from bla!"))))
 
 (ert-deftest nested-placeholders-use-subfield ()
@@ -80,8 +92,25 @@
     (yas-expand-snippet "brother from ${2:another ${3:mother}}!")
     (ert-simulate-command '(yas-next-field-or-maybe-expand))
     (ert-simulate-command `(yas-mock-insert "bla"))
-    (should (string= (buffer-substring-no-properties (point-min) (point-max))
+    (should (string= (yas--buffer-contents)
                      "brother from another bla!"))))
+
+(ert-deftest mirrors-adjacent-to-fields-with-nested-mirrors ()
+  (with-temp-buffer
+    (yas-minor-mode 1)
+    (yas-expand-snippet "<%= f.submit \"${1:Submit}\"${2:$(and (yas-text) \", :disable_with => '\")}${2:$1ing...}${2:$(and (yas-text) \"'\")} %>")
+    (should (string= (yas--buffer-contents)
+                     "<%= f.submit \"Submit\", :disable_with => 'Submiting...' %>"))
+    (ert-simulate-command `(yas-mock-insert "Send"))
+    (should (string= (yas--buffer-contents)
+                     "<%= f.submit \"Send\", :disable_with => 'Sending...' %>"))))
+
+(ert-deftest deep-nested-mirroring-issue-351 ()
+  (with-temp-buffer
+    (yas-minor-mode 1)
+    (yas-expand-snippet "${1:FOOOOOOO}${2:$1}${3:$2}${4:$3}")
+    (ert-simulate-command `(yas-mock-insert "abc"))
+    (should (string= (yas--buffer-contents) "abcabcabcabc"))))
 
 ;; (ert-deftest in-snippet-undo ()
 ;;   (with-temp-buffer
@@ -90,42 +119,180 @@
 ;;     (ert-simulate-command '(yas-next-field-or-maybe-expand))
 ;;     (ert-simulate-command `(yas-mock-insert "bla"))
 ;;     (ert-simulate-command '(undo))
-;;     (should (string= (buffer-substring-no-properties (point-min) (point-max))
+;;     (should (string= (yas--buffer-contents)
 ;;                      "brother from another mother!"))))
+
+
+;;; Snippet expansion and character escaping
+;;; Thanks to @zw963 (Billy) for the testing
+;;;
+(ert-deftest escape-dollar ()
+  (with-temp-buffer
+    (yas-minor-mode 1)
+    (yas-expand-snippet "bla\\${1:bla}ble")
+    (should (string= (yas--buffer-contents) "bla${1:bla}ble"))))
+
+(ert-deftest escape-closing-brace ()
+  (with-temp-buffer
+    (yas-minor-mode 1)
+    (yas-expand-snippet "bla${1:bla\\}}ble")
+    (should (string= (yas--buffer-contents) "blabla}ble"))
+    (should (string= (yas-field-value 1) "bla}"))))
+
+(ert-deftest escape-backslashes ()
+  (with-temp-buffer
+    (yas-minor-mode 1)
+    (yas-expand-snippet "bla\\ble")
+    (should (string= (yas--buffer-contents) "bla\\ble"))))
+
+(ert-deftest escape-backquotes ()
+  (with-temp-buffer
+    (yas-minor-mode 1)
+    (yas-expand-snippet "bla`(upcase \"foo\\`bar\")`ble")
+    (should (string= (yas--buffer-contents) "blaFOO`BARble"))))
+
+(ert-deftest escape-some-elisp-with-strings ()
+  "elisp with strings and unbalance parens inside it"
+  (with-temp-buffer
+    (yas-minor-mode 1)
+    ;; The rules here is: to output a literal `"' you need to escape
+    ;; it with one backslash. You don't need to escape them in
+    ;; embedded elisp.
+    (yas-expand-snippet "soon \\\"`(concat (upcase \"(my arms\")\"\\\" were all around her\")`")
+    (should (string= (yas--buffer-contents) "soon \"(MY ARMS\" were all around her"))))
+
+(ert-deftest escape-some-elisp-with-backslashes ()
+  (with-temp-buffer
+    (yas-minor-mode 1)
+    ;; And the rule here is: to output a literal `\' inside a string
+    ;; inside embedded elisp you need a total of six `\'
+    (yas-expand-snippet "bla`(upcase \"hey\\\\\\yo\")`ble")
+    (should (string= (yas--buffer-contents) "blaHEY\\YOble"))))
+
+(ert-deftest be-careful-when-escaping-in-yas-selected-text ()
+  (with-temp-buffer
+    (yas-minor-mode 1)
+    (let ((yas/selected-text "He\\\\o world!"))
+      (yas-expand-snippet "Look ma! `(yas/selected-text)`")
+      (should (string= (yas--buffer-contents) "Look ma! He\\\\o world!")))
+    (yas-exit-all-snippets)
+    (erase-buffer)
+    (let ((yas/selected-text "He\"o world!"))
+      (yas-expand-snippet "Look ma! `(yas/selected-text)`")
+      (should (string= (yas--buffer-contents) "Look ma! He\"o world!")))
+    (yas-exit-all-snippets)
+    (erase-buffer)
+    (let ((yas/selected-text "He\"\)\\o world!"))
+      (yas-expand-snippet "Look ma! `(yas/selected-text)`")
+      (should (string= (yas--buffer-contents) "Look ma! He\"\)\\o world!")))
+    (yas-exit-all-snippets)
+    (erase-buffer)))
+
+(ert-deftest be-careful-when-escaping-in-yas-selected-text-2 ()
+  (with-temp-buffer
+    (let ((yas/selected-text "He)}o world!"))
+      (yas-expand-snippet "Look ma! ${1:`(yas/selected-text)`} OK?")
+      (should (string= (yas--buffer-contents) "Look ma! He)}o world! OK?")))))
+
+(ert-deftest example-for-issue-271 ()
+  (with-temp-buffer
+    (yas-minor-mode 1)
+    (let ((yas-selected-text "aaa")
+          (snippet "if ${1:condition}\n`yas/selected-text`\nelse\n$3\nend"))
+      (yas-expand-snippet snippet)
+      (yas-next-field)
+      (ert-simulate-command `(yas-mock-insert "bbb"))
+      (should (string= (yas--buffer-contents) "if condition\naaa\nelse\nbbb\nend")))))
+
+(ert-deftest another-example-for-issue-271 ()
+  ;; expect this to fail in batch mode since `region-active-p' doesn't
+  ;; used by `yas-expand-snippet' doesn't make sense in that context.
+  ;;
+  :expected-result (if noninteractive
+                       :failed
+                     :passed)
+  (with-temp-buffer
+    (yas-minor-mode 1)
+    (let ((snippet "\\${${1:1}:`yas/selected-text`}"))
+      (insert "aaabbbccc")
+      (set-mark 4)
+      (goto-char 7)
+      (yas-expand-snippet snippet)
+      (should (string= (yas--buffer-contents) "aaa${1:bbb}ccc")))))
+
+(ert-deftest string-match-with-subregexp-in-embedded-elisp ()
+  (with-temp-buffer
+    (yas-minor-mode 1)
+    ;; the rule here is: To use regexps in embedded `(elisp)` expressions, write
+    ;; it like you would normal elisp, i.e. no need to escape the backslashes.
+    (let ((snippet "`(if (string-match \"foo\\\\(ba+r\\\\)foo\" \"foobaaaaaaaaaarfoo\")
+                         \"ok\"
+                         \"fail\")`"))
+      (yas-expand-snippet snippet))
+    (should (string= (yas--buffer-contents) "ok"))))
+
+(ert-deftest string-match-with-subregexp-in-mirror-transformations ()
+  (with-temp-buffer
+    (yas-minor-mode 1)
+    ;; the rule here is: To use regexps in embedded `(elisp)` expressions,
+    ;; escape backslashes once, i.e. to use \\( \\) constructs, write \\\\( \\\\).
+    (let ((snippet "$1${1:$(if (string-match \"foo\\\\\\\\(ba+r\\\\\\\\)baz\" yas/text)
+                                \"ok\"
+                                \"fail\")}"))
+      (yas-expand-snippet snippet)
+      (should (string= (yas--buffer-contents) "fail"))
+      (ert-simulate-command `(yas-mock-insert "foobaaar"))
+      (should (string= (yas--buffer-contents) "foobaaarfail"))
+      (ert-simulate-command `(yas-mock-insert "baz"))
+      (should (string= (yas--buffer-contents) "foobaaarbazok")))))
 
 
 ;;; Misc tests
 ;;;
-
 (ert-deftest protection-overlay-no-cheating ()
-  "Protection overlays at the very end of the buffer, are dealt by cheatingly inserting a newline!
+  "Protection overlays at the very end of the buffer are dealt
+  with by cheatingly inserting a newline!
 
 TODO: correct this bug!"
   :expected-result :failed
   (with-temp-buffer
     (yas-minor-mode 1)
     (yas-expand-snippet "${2:brother} from another ${1:mother}")
-    (should (string= (buffer-substring-no-properties (point-min) (point-max))
+    (should (string= (yas--buffer-contents)
                      "brother from another mother") ;; no newline should be here!
             )))
 
 ;;; Loading
 ;;;
+(defmacro yas-with-overriden-buffer-list (&rest body)
+  (let ((saved-sym (gensym)))
+    `(let ((,saved-sym (symbol-function 'buffer-list)))
+       (yas--with-temporary-redefinitions
+           ((buffer-list ()
+                         (remove-if #'(lambda (buf)
+                                        (with-current-buffer buf
+                                          (eq major-mode 'lisp-interaction-mode)))
+                                    (funcall ,saved-sym))))
+         ,@body))))
+
 (defmacro yas-with-some-interesting-snippet-dirs (&rest body)
   `(yas-saving-variables
-    (yas-with-snippet-dirs
-     '((".emacs.d/snippets"
-        ("c-mode"
-         (".yas-parents" . "cc-mode")
-         ("printf" . "printf($1);"))
-        ("emacs-lisp-mode" ("ert-deftest" . "(ert-deftest ${1:name} () $0)"))
-        ("lisp-interaction-mode" (".yas-parents" . "emacs-lisp-mode")))
-       ("library/snippets"
-        ("c-mode" (".yas-parents" . "c++-mode"))
-        ("cc-mode" ("def" . "# define"))
-        ("emacs-lisp-mode" ("dolist" . "(dolist)"))
-        ("lisp-interaction-mode" ("sc" . "brother from another mother"))))
-     ,@body)))
+    (yas-with-overriden-buffer-list
+     (yas-with-snippet-dirs
+       '((".emacs.d/snippets"
+          ("c-mode"
+           (".yas-parents" . "cc-mode")
+           ("printf" . "printf($1);"))  ;; notice the overriding for issue #281
+          ("emacs-lisp-mode" ("ert-deftest" . "(ert-deftest ${1:name} () $0)"))
+          ("lisp-interaction-mode" (".yas-parents" . "emacs-lisp-mode")))
+         ("library/snippets"
+          ("c-mode"
+           (".yas-parents" . "c++-mode")
+           ("printf" . "printf"))
+          ("cc-mode" ("def" . "# define"))
+          ("emacs-lisp-mode" ("dolist" . "(dolist)"))
+          ("lisp-interaction-mode" ("sc" . "brother from another mother"))))
+       ,@body))))
 
 (ert-deftest basic-jit-loading ()
   "Test basic loading and expansion of snippets"
@@ -138,11 +305,28 @@ TODO: correct this bug!"
   (yas-with-some-interesting-snippet-dirs
    (yas-reload-all)
    (yas-recompile-all)
-   (flet ((yas--load-directory-2
-           (&rest dummies)
-           (ert-fail "yas--load-directory-2 shouldn't be called when snippets have been compiled")))
+   (yas--with-temporary-redefinitions ((yas--load-directory-2
+                                        (&rest dummies)
+                                        (declare (ignore dummies))
+                                        (ert-fail "yas--load-directory-2 shouldn't be called when snippets have been compiled")))
      (yas-reload-all)
      (yas--basic-jit-loading-1))))
+
+(ert-deftest loading-with-cyclic-parenthood ()
+  "Test loading when cyclic parenthood is setup."
+  (yas-saving-variables
+   (yas-with-snippet-dirs '((".emacs.d/snippets"
+                             ("c-mode"
+                              (".yas-parents" . "cc-mode"))
+                             ("cc-mode"
+                              (".yas-parents" . "yet-another-c-mode"))
+                             ("yet-another-c-mode"
+                              (".yas-parents" . "c-mode"))))
+     (yas-reload-all)
+     (condition-case nil
+         (yas--all-parents 'c-mode)
+       (error
+        (ert-fail "cyclic parenthood test failed"))))))
 
 (defun yas--basic-jit-loading-1 (&optional compile)
   (with-temp-buffer
@@ -173,34 +357,34 @@ TODO: correct this bug!"
 (defmacro yas-with-even-more-interesting-snippet-dirs (&rest body)
   `(yas-saving-variables
     (yas-with-snippet-dirs
-     `((".emacs.d/snippets"
-        ("c-mode"
-         (".yas-make-groups" . "")
-         ("printf" . "printf($1);")
-         ("foo-group-a"
-          ("fnprintf" . "fprintf($1);")
-          ("snprintf" . "snprintf($1);"))
-         ("foo-group-b"
-          ("strcmp" . "strecmp($1);")
-          ("strcasecmp" . "strcasecmp($1);")))
-        ("lisp-interaction-mode"
-         ("ert-deftest" . "# group: barbar\n# --\n(ert-deftest ${1:name} () $0)"))
-        ("fancy-mode"
-         ("a-guy" . "# uuid: 999\n# --\nyo!")
-         ("a-sir" . "# uuid: 12345\n# --\nindeed!")
-         ("a-lady" . "# uuid: 54321\n# --\noh-la-la!")
-         ("a-beggar" . "# uuid: 0101\n# --\narrrgh!")
-         ("an-outcast" . "# uuid: 666\n# --\narrrgh!")
-         (".yas-setup.el" . , (pp-to-string
-                               '(yas-define-menu 'fancy-mode
-                                                 '((yas-ignore-item "0101")
-                                                   (yas-item "999")
-                                                   (yas-submenu "sirs"
-                                                                ((yas-item "12345")))
-                                                   (yas-submenu "ladies"
-                                                                ((yas-item "54321"))))
-                                                 '("666")))))))
-     ,@body)))
+      `((".emacs.d/snippets"
+         ("c-mode"
+          (".yas-make-groups" . "")
+          ("printf" . "printf($1);")
+          ("foo-group-a"
+           ("fnprintf" . "fprintf($1);")
+           ("snprintf" . "snprintf($1);"))
+          ("foo-group-b"
+           ("strcmp" . "strecmp($1);")
+           ("strcasecmp" . "strcasecmp($1);")))
+         ("lisp-interaction-mode"
+          ("ert-deftest" . "# group: barbar\n# --\n(ert-deftest ${1:name} () $0)"))
+         ("fancy-mode"
+          ("a-guy" . "# uuid: 999\n# --\nyo!")
+          ("a-sir" . "# uuid: 12345\n# --\nindeed!")
+          ("a-lady" . "# uuid: 54321\n# --\noh-la-la!")
+          ("a-beggar" . "# uuid: 0101\n# --\narrrgh!")
+          ("an-outcast" . "# uuid: 666\n# --\narrrgh!")
+          (".yas-setup.el" . , (pp-to-string
+                                '(yas-define-menu 'fancy-mode
+                                                  '((yas-ignore-item "0101")
+                                                    (yas-item "999")
+                                                    (yas-submenu "sirs"
+                                                                 ((yas-item "12345")))
+                                                    (yas-submenu "ladies"
+                                                                 ((yas-item "54321"))))
+                                                  '("666")))))))
+      ,@body)))
 
 (ert-deftest test-yas-define-menu ()
   (let ((yas-use-menu t))
@@ -287,8 +471,55 @@ TODO: be meaner"
                  (find "foofoo" menu :key #'third :test #'string=))))))))
 
 
+;;; The infamous and problematic tab keybinding
+;;;
+(ert-deftest test-yas-tab-binding ()
+  (with-temp-buffer
+    (yas-minor-mode -1)
+    (should (not (eq (key-binding (yas--read-keybinding "<tab>")) 'yas-expand)))
+    (yas-minor-mode 1)
+    (should (eq (key-binding (yas--read-keybinding "<tab>")) 'yas-expand))
+    (yas-expand-snippet "$1 $2 $3")
+    (should (eq (key-binding [(tab)]) 'yas-next-field-or-maybe-expand))
+    (should (eq (key-binding (kbd "TAB")) 'yas-next-field-or-maybe-expand))
+    (should (eq (key-binding [(shift tab)]) 'yas-prev-field))
+    (should (eq (key-binding [backtab]) 'yas-prev-field))))
+
+(ert-deftest test-rebindings ()
+  (unwind-protect
+      (progn
+        (define-key yas-minor-mode-map [tab] nil)
+        (define-key yas-minor-mode-map (kbd "TAB") nil)
+        (define-key yas-minor-mode-map (kbd "SPC") 'yas-expand)
+        (with-temp-buffer
+          (yas-minor-mode 1)
+          (should (not (eq (key-binding (yas--read-keybinding "TAB")) 'yas-expand)))
+          (should (eq (key-binding (yas--read-keybinding "SPC")) 'yas-expand))
+          (yas-reload-all)
+          (should (not (eq (key-binding (yas--read-keybinding "TAB")) 'yas-expand)))
+          (should (eq (key-binding (yas--read-keybinding "SPC")) 'yas-expand))))
+    (setcdr yas-minor-mode-map (cdr (yas--init-minor-keymap)))))
+
+(ert-deftest test-yas-in-org ()
+  (with-temp-buffer
+    (org-mode)
+    (yas-minor-mode 1)
+    (should (eq (key-binding [(tab)]) 'yas-expand))
+    (should (eq (key-binding (kbd "TAB")) 'yas-expand))))
+
+
 ;;; Helpers
 ;;;
+(defun yas/ert ()
+  (interactive)
+  (with-temp-buffer
+    (yas--with-temporary-redefinitions
+        ((message (&rest args)        ;
+                  (declare (ignore args))
+                  nil))
+      (ert t (buffer-name (current-buffer)))
+      (princ (buffer-string)))))
+
 
 (defun yas-should-expand (keys-and-expansions)
   (dolist (key-and-expansion keys-and-expansions)
@@ -297,8 +528,7 @@ TODO: be meaner"
     (insert (car key-and-expansion))
     (let ((yas-fallback-behavior nil))
       (ert-simulate-command '(yas-expand)))
-    (should (string= (buffer-substring-no-properties (point-min) (point-max))
-                       (cdr key-and-expansion))))
+    (should (string= (yas--buffer-contents) (cdr key-and-expansion))))
   (yas-exit-all-snippets))
 
 (defun yas-should-not-expand (keys)
@@ -308,7 +538,7 @@ TODO: be meaner"
     (insert key)
     (let ((yas-fallback-behavior nil))
       (ert-simulate-command '(yas-expand)))
-    (should (string= (buffer-substring-no-properties (point-min) (point-max)) key))))
+    (should (string= (yas--buffer-contents) key))))
 
 (defun yas-mock-insert (string)
   (interactive)
@@ -360,10 +590,11 @@ TODO: be meaner"
           (progn
             (mapc #'yas-make-file-or-dirs dirs)
             (funcall fn))
-        (when (>= emacs-major-version 23)
+        (when (>= emacs-major-version 24)
           (delete-directory default-directory 'recursive))))))
 
 (defmacro yas-with-snippet-dirs (dirs &rest body)
+  (declare (indent defun))
   `(yas-call-with-snippet-dirs ,dirs
                                #'(lambda ()
                                    ,@body)))
