@@ -1,6 +1,6 @@
 ;;; yasnippet-tests.el --- some yasnippet tests
 
-;; Copyright (C) 2012  João Távora
+;; Copyright (C) 2012, 2013  Free Software Foundation, Inc.
 
 ;; Author: João Távora <joaot@siscog.pt>
 ;; Keywords: emulations, convenience
