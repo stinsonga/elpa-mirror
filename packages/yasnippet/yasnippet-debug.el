@@ -1,6 +1,6 @@
 ;;; yasnippet-debug.el --- debug functions for yasnippet
 
-;; Copyright (C) 2010  João Távora
+;; Copyright (C) 2010, 2013  Free Software Foundation, Inc.
 
 ;; Author: João Távora
 ;; Keywords: emulations, convenience
