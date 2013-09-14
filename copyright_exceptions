@@ -1,5 +1,6 @@
 ./auctex/latex.el:   "pounds" "copyright"
 ./auctex/multi-prompt.el
+./auctex/plain-tex.el:   "copyright"
 ./auctex/style/amsart.el
 ./auctex/style/amsbook.el
 ./auctex/style/amsbsy.el
@@ -25,8 +26,7 @@
 ./auctex/style/jsarticle.el
 ./auctex/style/jsbook.el
 ./auctex/style/jurabib.el:;; you assign the copyright to the FSF.
-./auctex/style/letter.el
-./auctex/style/natbib.el
+./auctex/style/latexinfo.el:     '("copyright" nil)
 ./auctex/style/ngerman.el
 ./auctex/style/plfonts.el
 ./auctex/style/plhb.el

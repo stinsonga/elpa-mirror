@@ -52,7 +52,13 @@ make -f "$buildir/GNUmakefile" check_copyrights ||
 
 cd "$buildir"
 
-rsync -av --delete --exclude=ChangeLog --exclude=.git ../elpa/packages ./
+rsync -av --delete \
+      --exclude=ChangeLog \
+      --exclude=.git \
+      --exclude='*.elc' \
+      --exclude='*~' \
+      --exclude='*-autoloads.el' \
+      ../elpa/packages ./
 
 # Refresh the ChangeLog files.  This needs to be done in
 # the source tree, because it needs the VCS data!
