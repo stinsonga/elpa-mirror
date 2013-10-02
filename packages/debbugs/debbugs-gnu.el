@@ -3,18 +3,19 @@
 ;; Copyright (C) 2011-2013 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
+;;         Michael Albinus <michael.albinus@gmx.org>
 ;; Keywords: comm, hypermedia, maint
 ;; Package: debbugs
 ;; Version: 0.4
 
-;; This file is part of GNU Emacs.
+;; This file is not part of GNU Emacs.
 
-;; GNU Emacs is free software: you can redistribute it and/or modify
+;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation, either version 3 of the License, or
 ;; (at your option) any later version.
 
-;; GNU Emacs is distributed in the hope that it will be useful,
+;; This program is distributed in the hope that it will be useful,
 ;; but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
@@ -353,8 +354,8 @@ marked as \"client-side filter\"."
 	       val1
 	       (completing-read "Enter status: " '("done" "forwarded" "open")))
 	      (when (not (zerop (length val1)))
-	    (add-to-list
-	     'debbugs-gnu-current-query (cons (intern key) val1))))
+		(add-to-list
+		 'debbugs-gnu-current-query (cons (intern key) val1))))
 
 	     ;; Client-side filters.
 	     ((member key '("date" "log_modified" "last_modified"
