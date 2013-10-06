@@ -4,7 +4,7 @@
 
 ;; Author: Nikolaj Schumacher
 ;; Maintainer: Dmitry Gutov <dgutov@yandex.ru>
-;; Version: 0.6.10
+;; Version: 0.6.12
 ;; Keywords: abbrev, convenience, matching
 ;; URL: http://company-mode.github.io/
 ;; Compatibility: GNU Emacs 22.x, GNU Emacs 23.x, GNU Emacs 24.x
@@ -408,7 +408,7 @@ immediately when a prefix of `company-minimum-prefix-length' is reached."
                  (const :tag "immediate (t)" t)
                  (number :tag "seconds")))
 
-(defcustom company-begin-commands t
+(defcustom company-begin-commands '(self-insert-command)
   "A list of commands following which company will start completing.
 If this is t, it will complete after any command.  See `company-idle-delay'.
 
@@ -598,14 +598,13 @@ means that `company-mode' is always turned on except in `message-mode' buffers."
 (defun company--column (&optional pos)
   (save-excursion
     (when pos (goto-char pos))
-    (let ((pt (point)))
-      (save-restriction
-        (+ (save-excursion
-             (vertical-motion 0)
-             (narrow-to-region (point) pt)
-             (let ((prefix (get-text-property (point) 'line-prefix)))
-               (if prefix (length prefix) 0)))
-           (current-column))))))
+    (save-restriction
+      (+ (save-excursion
+           (vertical-motion 0)
+           (narrow-to-region (point) (point-max))
+           (let ((prefix (get-text-property (point) 'line-prefix)))
+             (if prefix (length prefix) 0)))
+         (current-column)))))
 
 (defun company--row (&optional pos)
   (save-excursion
@@ -1638,7 +1637,11 @@ Example: \(company-begin-with '\(\"foo\" \"foobar\" \"foobarbaz\"\)\)"
 (defsubst company-round-tab (arg)
   (* (/ (+ arg tab-width) tab-width) tab-width))
 
-(defun company-untabify (str)
+(defun company-plainify (str)
+  (let ((prefix (get-text-property 0 'line-prefix str)))
+    (when prefix ; Keep the original value unmodified, for no special reason.
+      (setq str (concat prefix str))
+      (remove-text-properties 0 (length str) '(line-prefix) str)))
   (let* ((pieces (split-string str "\t"))
          (copy pieces))
     (while (cdr copy)
@@ -1699,10 +1702,6 @@ Example: \(company-begin-with '\(\"foo\" \"foobar\" \"foobarbaz\"\)\)"
     (nreverse lines)))
 
 (defun company-modify-line (old new offset)
-  (let ((prefix (get-text-property 0 'line-prefix old)))
-    (when prefix ; Keep the original value unmodified, for no special reason.
-      (setq old (concat prefix old))
-      (remove-text-properties 0 (length old) '(line-prefix) old)))
   (concat (company-safe-substring old 0 offset)
           new
           (company-safe-substring old (+ offset (length new)))))
@@ -1832,7 +1831,7 @@ Returns a negative number if the tooltip should be displayed above point."
                     (move-to-window-line (+ row (abs height)))
                     (point)))
              (ov (make-overlay beg end))
-             (args (list (mapcar 'company-untabify
+             (args (list (mapcar 'company-plainify
                                  (company-buffer-lines beg end))
                          column nl above)))
 
