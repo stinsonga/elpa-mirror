@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013  Free Software Foundation, Inc.
 
 ;; Author: Barry O'Reilly <gundaetiapo@gmail.com>
-;; Version: 1.0
+;; Version: 1.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -100,7 +100,6 @@
 ;; Future work:
 ;;   - Consider taking a region as input in order to indent a sexp and
 ;;     its siblings in the region. Dedenting would not take a region.
-;;   - Write tests
 
 (require 'cl)
 
@@ -108,6 +107,8 @@
   "Parsing sexps from FROM-POS (inclusive) to TO-POS (exclusive),
 return the position of the last sexp that had depth REL-DEPTH relative
 to FROM-POS. Returns nil if REL-DEPTH is not reached.
+
+May change point.
 
 Examples:
   Region:   a (b c (d)) e (f g (h i)) j
@@ -119,29 +120,41 @@ Examples:
   Returns:  position of (h i)
 
 This function assumes FROM-POS is not in a string or comment."
-  (save-excursion
-    (goto-char from-pos)
-    (let (the-last-pos
-          (parse-state '(0 nil nil nil nil nil nil nil nil)))
-      (while (< (point) to-pos)
-        (setq parse-state
-              (parse-partial-sexp (point)
-                                  to-pos
-                                  nil
-                                  t ; Stop before sexp
-                                  parse-state))
-        (and (not (eq (point) to-pos))
-             (eq (car parse-state) rel-depth)
-             (setq the-last-pos (point)))
-        ;; The previous parse may not advance. To advance and maintain
-        ;; correctness of depth, we parse over the next char.
+  (goto-char from-pos)
+  (let (the-last-pos
+        (parse-state '(0 nil nil nil nil nil nil nil nil)))
+    (while (< (point) to-pos)
+      (setq parse-state
+            (parse-partial-sexp (point)
+                                to-pos
+                                nil
+                                t ; Stop before sexp
+                                parse-state))
+      (and (not (eq (point) to-pos))
+           (eq (car parse-state) rel-depth)
+           (setq the-last-pos (point)))
+      ;; The previous parse may not advance. To advance and maintain
+      ;; correctness of depth, we parse over the next char.
+      (when (< (point) to-pos)
         (setq parse-state
               (parse-partial-sexp (point)
                                   (1+ (point))
                                   nil
                                   nil
-                                  parse-state)))
-      the-last-pos)))
+                                  parse-state))))
+    the-last-pos))
+
+
+(defun adjust-parens-check-prior-sexp ()
+  "Returns true if there is a full sexp before point, else false.
+
+May change point."
+  (let ((pos1 (progn (backward-sexp)
+                      (point)))
+        (pos2 (progn (forward-sexp)
+                     (backward-sexp)
+                     (point))))
+    (>= pos1 pos2)))
 
 (defun adjust-close-paren-for-indent ()
   "Adjust a close parentheses of a sexp so as
@@ -157,9 +170,11 @@ scan-error to propogate up."
     (let ((deleted-paren-pos
            (save-excursion
              (beginning-of-line)
-             (backward-sexp)
              ;; Account for edge case when point has no sexp before it
-             (if (bobp)
+             ;;
+             ;; This is primarily to avoid funny behavior when there
+             ;; is no sexp between bob and point.
+             (if (not (adjust-parens-check-prior-sexp))
                  nil
                ;; If the sexp at point is a list,
                ;; delete its closing paren
@@ -170,10 +185,11 @@ scan-error to propogate up."
                  (point))))))
       (when deleted-paren-pos
         (let ((sexp-to-close
-               (last-sexp-with-relative-depth (point)
-                                              (progn (end-of-line)
-                                                     (point))
-                                              0)))
+               (save-excursion
+                 (last-sexp-with-relative-depth (point)
+                                                (progn (end-of-line)
+                                                       (point))
+                                                0))))
           (when sexp-to-close
             (goto-char sexp-to-close)
             (forward-sexp))
@@ -227,11 +243,11 @@ scan-error to propogate up."
       (and (not (use-region-p))
            (<= orig-pos (point))))))
 
-(defun adjust-parens-and-indent (adjust-function prefix-arg)
+(defun adjust-parens-and-indent (adjust-function parg)
   "Adjust close parens and indent the region over which the parens
 moved."
   (let ((region-of-change (list (point) (point))))
-    (cl-loop for i from 1 to (or prefix-arg 1)
+    (cl-loop for i from 1 to (or parg 1)
              with finished = nil
              while (not finished)
              do
@@ -251,7 +267,7 @@ moved."
     (apply 'indent-region region-of-change))
   (back-to-indentation))
 
-(defun lisp-indent-adjust-parens (&optional prefix-arg)
+(defun lisp-indent-adjust-parens (&optional parg)
   "Indent Lisp code to the next level while adjusting sexp balanced
 expressions to be consistent.
 
@@ -260,10 +276,10 @@ potentially calls the latter."
   (interactive "P")
   (if (adjust-parens-p)
       (adjust-parens-and-indent 'adjust-close-paren-for-indent
-                                prefix-arg)
-    (indent-for-tab-command prefix-arg)))
+                                parg)
+    (indent-for-tab-command parg)))
 
-(defun lisp-dedent-adjust-parens (&optional prefix-arg)
+(defun lisp-dedent-adjust-parens (&optional parg)
   "Dedent Lisp code to the previous level while adjusting sexp
 balanced expressions to be consistent.
 
@@ -271,7 +287,7 @@ Binding to <backtab> (ie Shift-Tab) is a sensible choice."
   (interactive "P")
   (when (adjust-parens-p)
     (adjust-parens-and-indent 'adjust-close-paren-for-dedent
-                              prefix-arg)))
+                              parg)))
 
 (add-hook 'emacs-lisp-mode-hook
           (lambda ()
