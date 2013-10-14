@@ -53,8 +53,8 @@
 ;; function will ask for user tags (a comma separated list), and shows
 ;; just the bugs which are tagged with them.  In general, user tags
 ;; shall be strings denoting to subprojects of the package, like
-;; "cedet" or "tramp" of the package "emacs.  If no user tag is given,
-;; locally tagged bugs are shown.
+;; "cedet" or "tramp" of the package "emacs".  If no user tag is
+;; given, locally tagged bugs are shown.
 
 ;; If a prefix is given to the command, more search parameters are
 ;; asked for, like packages (also a comma separated list, "emacs" is
