@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013  Free Software Foundation, Inc.
 
 ;; Author: Barry O'Reilly <gundaetiapo@gmail.com>
-;; Version: 1.1
+;; Version: 1.2
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -21,8 +21,8 @@
 ;;; Commentary:
 ;;
 ;; This package provides commands for indenting and dedenting Lisp
-;; code such that close parentheses are automatically adjusted to be
-;; consistent with the new level of indentation.
+;; code such that close parentheses and brackets are automatically
+;; adjusted to be consistent with the new level of indentation.
 ;;
 ;; When reading Lisp, the programmer pays attention to open parens and
 ;; the close parens on the same line. But when a sexp spans more than
@@ -101,7 +101,7 @@
 ;;   - Consider taking a region as input in order to indent a sexp and
 ;;     its siblings in the region. Dedenting would not take a region.
 
-(require 'cl)
+(require 'cl-lib)
 
 (defun last-sexp-with-relative-depth (from-pos to-pos rel-depth)
   "Parsing sexps from FROM-POS (inclusive) to TO-POS (exclusive),
@@ -167,22 +167,25 @@ it moved to.
 If there's no close parens to move, either return nil or allow
 scan-error to propogate up."
   (save-excursion
-    (let ((deleted-paren-pos
-           (save-excursion
-             (beginning-of-line)
-             ;; Account for edge case when point has no sexp before it
-             ;;
-             ;; This is primarily to avoid funny behavior when there
-             ;; is no sexp between bob and point.
-             (if (not (adjust-parens-check-prior-sexp))
-                 nil
-               ;; If the sexp at point is a list,
-               ;; delete its closing paren
-               (when (eq (scan-lists (point) 1 0)
-                         (scan-sexps (point) 1))
-                 (forward-sexp)
-                 (delete-char -1)
-                 (point))))))
+    (let* ((deleted-paren-char nil)
+           (deleted-paren-pos
+            (save-excursion
+              (beginning-of-line)
+              ;; Account for edge case when point has no sexp before it
+              ;;
+              ;; This is primarily to avoid funny behavior when there
+              ;; is no sexp between bob and point.
+              (if (not (adjust-parens-check-prior-sexp))
+                  nil
+                ;; If the sexp at point is a list,
+                ;; delete its closing paren
+                (when (eq (scan-lists (point) 1 0)
+                          (scan-sexps (point) 1))
+                  (forward-sexp)
+                  (setq deleted-paren-char (char-before))
+                  (delete-char -1)
+                  (point))))))
+      ;; Invariant: deleted-paren-pos nil iff deleted-paren-char nil
       (when deleted-paren-pos
         (let ((sexp-to-close
                (save-excursion
@@ -195,7 +198,7 @@ scan-error to propogate up."
             (forward-sexp))
           ;; Note: when no sexp-to-close found, line is empty. So put
           ;; close paren after point.
-          (insert ")")
+          (insert deleted-paren-char)
           (list deleted-paren-pos (point)))))))
 
 (defun adjust-close-paren-for-dedent ()
@@ -209,13 +212,16 @@ it moved to.
 If there's no close parens to move, either return nil or allow
 scan-error to propogate up."
   (save-excursion
-    (let ((deleted-paren-pos
-           (save-excursion
-             (when (< (point)
-                      (progn (up-list)
-                             (point)))
-               (delete-char -1)
-               (point)))))
+    (let* ((deleted-paren-char nil)
+           (deleted-paren-pos
+            (save-excursion
+              (when (< (point)
+                       (progn (up-list)
+                              (point)))
+                (setq deleted-paren-char (char-before))
+                (delete-char -1)
+                (point)))))
+      ;; Invariant: deleted-paren-pos nil iff deleted-paren-char nil
       (when deleted-paren-pos
         (let ((sexp-to-close
                ;; Needs to work when dedenting in an empty list, in
@@ -230,7 +236,7 @@ scan-error to propogate up."
               (forward-sexp)
             (backward-up-list)
             (forward-char 1))
-          (insert ")")
+          (insert deleted-paren-char)
           ;; The insertion makes deleted-paren-pos off by 1
           (list (1+ deleted-paren-pos)
                 (point)))))))
