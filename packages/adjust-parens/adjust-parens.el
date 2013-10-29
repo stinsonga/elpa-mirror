@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013  Free Software Foundation, Inc.
 
 ;; Author: Barry O'Reilly <gundaetiapo@gmail.com>
-;; Version: 1.2
+;; Version: 1.3
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -116,7 +116,7 @@ Examples:
   Evaluate: (last-sexp-with-relative-depth pos-a (1+ pos-j) 0)
   Returns:  position of j
 
-  Evaluate: (last-sexp-with-relative-depth pos-a (1+ pos-j) -1)
+  Evaluate: (last-sexp-with-relative-depth pos-a (1+ pos-j) 1)
   Returns:  position of (h i)
 
 This function assumes FROM-POS is not in a string or comment."
