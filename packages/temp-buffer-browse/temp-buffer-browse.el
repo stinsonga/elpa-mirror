@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013  Free Software Foundation, Inc.
 
 ;; Author: Leo Liu <sdl.web@gmail.com>
-;; Version: 1.0
+;; Version: 1.1
 ;; Keywords: convenience
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -28,7 +28,7 @@
 ;;; Code:
 
 (eval-and-compile
-  (or (fboundp 'set-temporary-overlay-map) ; new in 24.4.
+  (or (fboundp 'set-temporary-overlay-map) ; new in 24.3
       (defun set-temporary-overlay-map (map &optional keep-pred)
         "Set MAP as a temporary keymap taking precedence over most other keymaps.
 Note that this does NOT take precedence over the \"overriding\" maps
@@ -60,7 +60,18 @@ non-nil then MAP stays active."
           (add-hook 'pre-command-hook clearfunsym)
           (push alist emulation-mode-map-alists)))))
 
+(defcustom temp-buffer-browse-fringe-bitmap 'centered-vertical-bar
+  "Fringe bitmap to use in the temp buffer window."
+  :type '(restricted-sexp :match-alternatives
+                          ((lambda (s)
+                             (and (symbolp s) (fringe-bitmap-p s)))))
+  :group 'help)
+
 (defvar temp-buffer-browse--window nil)
+
+;; See http://debbugs.gnu.org/15497
+(unless (fringe-bitmap-p 'centered-vertical-bar)
+  (define-fringe-bitmap 'centered-vertical-bar [24] nil nil '(top t)))
 
 (defvar temp-buffer-browse-map
   (let ((map (make-sparse-keymap))
@@ -88,10 +99,11 @@ non-nil then MAP stays active."
     (define-key map [backspace] down)
     map))
 
-(defun temp-buffer-browse-setup ()
-  "Browse temp buffers easily.
-Set up `SPC', `DEL' and `RET' to scroll up, scroll down and close
-the temp buffer window, respectively."
+;;;###autoload
+(defun temp-buffer-browse-activate ()
+  "Activate temporary key bindings for current window.
+Specifically set up keys `SPC', `DEL' and `RET' to scroll up,
+scroll down and close the temp buffer window, respectively."
   (unless (derived-mode-p 'completion-list-mode)
     (setq temp-buffer-browse--window (selected-window))
     ;; When re-using existing window don't call
@@ -104,8 +116,11 @@ the temp buffer window, respectively."
       ;; In case buffer contents are inserted asynchronously such as
       ;; in `slime-inspector-mode'.
       (add-hook 'after-change-functions
-                (lambda (&rest _)
-                  (fit-window-to-buffer nil (floor (frame-height) 2)))
+                (let ((time (float-time)))
+                  (lambda (&rest _)
+                    (when (> (float-time) (+ 0.05 time))
+                      (fit-window-to-buffer nil (floor (frame-height) 2))
+                      (setq time (float-time)))))
                 nil 'local))
     (let ((o (make-overlay (point-min) (point-max))))
       (overlay-put o 'evaporate t)
@@ -114,8 +129,13 @@ the temp buffer window, respectively."
                    (propertize
                     "|" 'display
                     (unless (zerop (or (frame-parameter nil 'left-fringe) 0))
-                      '(left-fringe centered-vertical-bar warning))
+                      `(left-fringe ,temp-buffer-browse-fringe-bitmap warning))
                     'face 'warning))
+      ;; NOTE: breaks `adaptive-wrap-prefix-mode' because overlay's
+      ;; wrap-prefix overrides text property's. Overlay's cannot have
+      ;; negative priority.
+      (unless (bound-and-true-p adaptive-wrap-prefix-mode)
+        (overlay-put o 'wrap-prefix (overlay-get o 'line-prefix)))
       (set-temporary-overlay-map
        temp-buffer-browse-map
        (lambda ()
@@ -125,15 +145,16 @@ the temp buffer window, respectively."
                     (not (member (this-command-keys) '("\C-m" [return])))
                     (eq this-command (lookup-key temp-buffer-browse-map
                                                  (this-command-keys))))
-               (overlay-put o 'line-prefix nil))))))))
+               (ignore (overlay-put o 'line-prefix nil)
+                       (overlay-put o 'wrap-prefix nil)))))))))
 
 ;;;###autoload
 (define-minor-mode temp-buffer-browse-mode nil
   :lighter ""
   :global t
   (if temp-buffer-browse-mode
-      (add-hook 'temp-buffer-show-hook 'temp-buffer-browse-setup t)
-    (remove-hook 'temp-buffer-show-hook 'temp-buffer-browse-setup)))
+      (add-hook 'temp-buffer-show-hook 'temp-buffer-browse-activate t)
+    (remove-hook 'temp-buffer-show-hook 'temp-buffer-browse-activate)))
 
 (provide 'temp-buffer-browse)
 ;;; temp-buffer-browse.el ends here
