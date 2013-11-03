@@ -143,6 +143,12 @@ properly update `ggtags-mode-map'."
   :type 'function
   :group 'ggtags)
 
+(defcustom ggtags-bounds-of-tag-function (lambda ()
+                                           (bounds-of-thing-at-point 'symbol))
+  "Function to get the start and end locations of the tag at point."
+  :type 'function
+  :group 'ggtags)
+
 (defvar ggtags-bug-url "https://github.com/leoliu/ggtags/issues")
 
 (defvar ggtags-current-tag-name nil)
@@ -194,6 +200,10 @@ properly update `ggtags-mode-map'."
       (or (zerop exit)
           (error "`%s' non-zero exit: %s" program output))
       output)))
+
+(defun ggtags-tag-at-point ()
+  (let ((bounds (funcall ggtags-bounds-of-tag-function)))
+    (and bounds (buffer-substring (car bounds) (cdr bounds)))))
 
 ;;; Store for project settings
 
@@ -297,7 +307,7 @@ properly update `ggtags-mode-map'."
 
 (defun ggtags-read-tag ()
   (ggtags-ensure-project)
-  (let ((default (thing-at-point 'symbol))
+  (let ((default (ggtags-tag-at-point))
         (completing-read-function ggtags-completing-read-function))
     (setq ggtags-current-tag-name
           (cond (current-prefix-arg
@@ -385,7 +395,7 @@ With a prefix arg (non-nil DEFINITION) always find defintions."
   (let ((prompt (if (string-match ": *\\'" prompt)
                     (substring prompt 0 (match-beginning 0))
                   prompt))
-        (default (thing-at-point 'symbol)))
+        (default (ggtags-tag-at-point)))
     (read-string (format (if default "%s (default `%s'): "
                            "%s: ")
                          prompt default)
@@ -469,6 +479,24 @@ Global and Emacs."
                 (kill-local-variable 'ggtags-project)))
           (when (window-live-p win)
             (quit-window t win)))))))
+
+(defun ggtags-browse-file-as-hypertext (file)
+  "Browse FILE in hypertext (HTML) form."
+  (interactive (list (if (or current-prefix-arg (not buffer-file-name))
+                         (read-file-name "Browse file: " nil nil t)
+                       buffer-file-name)))
+  (or (and file (file-exists-p file)) (error "File `%s' doesn't exist" file))
+  (ggtags-check-project)
+  (or (file-exists-p (expand-file-name "HTML" (ggtags-current-project-root)))
+      (if (yes-or-no-p "No hypertext form exists; run htags? ")
+          (let ((default-directory (ggtags-current-project-root)))
+            (ggtags-with-ctags-maybe (ggtags-process-string "htags")))
+        (user-error "Aborted")))
+  (let ((url (ggtags-process-string
+              "gozilla" "-p" (format "+%d" (line-number-at-pos)) file)))
+    (when (called-interactively-p 'interactive)
+      (message "Browsing %s" url))
+    (browse-url url)))
 
 (defvar ggtags-current-mark nil)
 
@@ -792,6 +820,7 @@ Global and Emacs."
     (define-key m "\M-s" 'ggtags-find-other-symbol)
     (define-key m "\M-g" 'ggtags-grep)
     (define-key m "\M-i" 'ggtags-idutils-query)
+    (define-key m "\M-b" 'ggtags-browse-file-as-hypertext)
     (define-key m "\M-k" 'ggtags-kill-file-buffers)
     (define-key m (kbd "M-%") 'ggtags-query-replace)
     m))
@@ -816,6 +845,9 @@ Global and Emacs."
       '(menu-item "Customize Ggtags"
                   (lambda () (interactive) (customize-group 'ggtags))))
     (define-key menu [sep2] menu-bar-separator)
+    (define-key menu [browse-hypertext]
+      '(menu-item "Browse as hypertext" ggtags-browse-file-as-hypertext
+                  :enable (ggtags-find-project)))
     (define-key menu [delete-tags]
       '(menu-item "Delete tag files" ggtags-delete-tag-files
                   :enable (ggtags-find-project)))
@@ -883,7 +915,7 @@ Global and Emacs."
     (unless (overlayp ggtags-tag-overlay)
       (setq ggtags-tag-overlay (make-overlay (point) (point)))
       (overlay-put ggtags-tag-overlay 'ggtags t))
-    (let* ((bounds (bounds-of-thing-at-point 'symbol))
+    (let* ((bounds (funcall ggtags-bounds-of-tag-function))
            (valid-tag (when bounds
                         (test-completion
                          (buffer-substring (car bounds) (cdr bounds))
