@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013  Free Software Foundation, Inc.
 
 ;; Author: Leo Liu <sdl.web@gmail.com>
-;; Version: 0.7.1
+;; Version: 0.7.2
 ;; Keywords: tools, convenience
 ;; Created: 2013-01-29
 ;; URL: https://github.com/leoliu/ggtags
@@ -240,8 +240,8 @@ properly update `ggtags-mode-map'."
          (ggtags-list-of-string-p (cdr xs)))))
 
 (defun ggtags-get-libpath ()
-  (split-string (or (getenv "GTAGSLIBPATH") "")
-                (regexp-quote path-separator) t))
+  (let ((path (ggtags-with-process-environment (getenv "GTAGSLIBPATH"))))
+    (and path (split-string path (regexp-quote path-separator) t))))
 
 (defun ggtags-process-string (program &rest args)
   (with-temp-buffer
@@ -290,16 +290,17 @@ properly update `ggtags-mode-map'."
                                 :oversize-p oversize-p)
              ggtags-projects)))
 
-(defvar-local ggtags-project nil)
+(defvar-local ggtags-project 'unset)
 
 ;;;###autoload
 (defun ggtags-find-project ()
-  (or ggtags-project
-      (let ((root (ignore-errors (file-name-as-directory
-                                  (ggtags-process-string "global" "-pr")))))
-        (and root (setq ggtags-project
-                        (or (gethash (file-truename root) ggtags-projects)
-                            (ggtags-make-project root)))))))
+  (if (ggtags-project-p ggtags-project)
+      ggtags-project
+    (let ((root (ignore-errors (file-name-as-directory
+                                (ggtags-process-string "global" "-pr")))))
+      (setq ggtags-project
+            (and root (or (gethash (file-truename root) ggtags-projects)
+                          (ggtags-make-project root)))))))
 
 (defun ggtags-current-project-root ()
   (and (ggtags-find-project)
@@ -354,36 +355,35 @@ properly update `ggtags-mode-map'."
                         t)))
             (message "GTAGS generated in `%s'" root))))))
 
-(defun ggtags-update-tags (&optional single-update)
+(defun ggtags-update-tags (&optional force)
   "Update GNU Global tag database."
-  (interactive)
-  (ggtags-with-process-environment
-   (if single-update
-       (when buffer-file-name
-         (process-file "global" nil 0 nil "--single-update"
-                       (file-truename buffer-file-name)))
-     (ggtags-process-string "global" "-u"))))
+  (interactive "P")
+  (when (or force (and (ggtags-find-project)
+                       (ggtags-project-dirty-p (ggtags-find-project))))
+    (ggtags-with-process-environment
+     (with-temp-message "Running `global -u'"
+       (ggtags-process-string "global" "-u")
+       (setf (ggtags-project-dirty-p (ggtags-find-project)) nil)))))
 
 (defvar ggtags-completion-table
   (let (cache)
     (completion-table-dynamic
      (lambda (prefix)
-       (when (ggtags-find-project)
-         (when (and (ggtags-project-dirty-p (ggtags-find-project))
-                    (not (ggtags-project-oversize-p (ggtags-find-project))))
-           (ggtags-update-tags)
-           (setf (ggtags-project-dirty-p (ggtags-find-project)) nil))
-         (unless (equal prefix (car cache))
-           (setq cache
-                 (cons prefix
-                       (ggtags-with-process-environment
-                        (split-string
-                         (apply #'ggtags-process-string
-                                "global"
-                                (if completion-ignore-case
-                                    (list "--ignore-case" "-Tc" prefix)
-                                  (list "-Tc" prefix)))
-                         "\n" t))))))
+       (when (and (ggtags-find-project)
+                  (not (ggtags-project-oversize-p (ggtags-find-project))))
+         (ggtags-update-tags))
+       (unless (equal prefix (car cache))
+         (setq cache
+               (cons prefix
+                     (ggtags-with-process-environment
+                      (split-string
+                       (apply #'ggtags-process-string
+                              "global"
+                              ;; Note -c alone returns only definitions
+                              (if completion-ignore-case
+                                  (list "--ignore-case" "-Tc" prefix)
+                                (list "-Tc" prefix)))
+                       "\n" t)))))
        (cdr cache)))))
 
 (defun ggtags-read-tag ()
@@ -755,6 +755,13 @@ Global and Emacs."
     (define-key map [remap ggtags-find-tag-dwim] 'undefined)
     map))
 
+(defvar ggtags-mode-map-alist
+  `((ggtags-navigation-mode . ,ggtags-navigation-map)))
+
+;; Higher priority for `ggtags-navigation-mode' to avoid being
+;; hijacked by modes such as `view-mode'.
+(add-to-list 'emulation-mode-map-alists 'ggtags-mode-map-alist)
+
 (defvar ggtags-navigation-mode-map
   (let ((map (make-sparse-keymap))
         (menu (make-sparse-keymap "GG-Navigation")))
@@ -926,7 +933,9 @@ Global and Emacs."
     ;; When oversize update on a per-save basis.
     (when (and buffer-file-name
                (ggtags-project-oversize-p (ggtags-find-project)))
-      (ggtags-update-tags 'single-update))))
+      (ggtags-with-process-environment
+       (process-file "global" nil 0 nil "--single-update"
+                     (file-truename buffer-file-name))))))
 
 (defvar ggtags-mode-prefix-map
   (let ((m (make-sparse-keymap)))
@@ -1005,11 +1014,16 @@ Global and Emacs."
     map))
 
 (defvar ggtags-highlight-tag-overlay nil)
+
 (defvar ggtags-highlight-tag-timer nil)
 
 ;;;###autoload
 (define-minor-mode ggtags-mode nil
   :lighter (:eval (if ggtags-navigation-mode "" " GG"))
+  (unless (timerp ggtags-highlight-tag-timer)
+    (setq ggtags-highlight-tag-timer
+          (run-with-idle-timer
+           ggtags-highlight-tag-delay t 'ggtags-highlight-tag-at-point)))
   (if ggtags-mode
       (progn
         (add-hook 'after-save-hook 'ggtags-after-save-function nil t)
@@ -1037,7 +1051,9 @@ Global and Emacs."
      "S-down-mouse-1 for defintions\nS-down-mouse-3 for references")
 
 (defun ggtags-highlight-tag-at-point ()
-  (when ggtags-mode
+  (when (and ggtags-mode (eq ggtags-project 'unset))
+    (ggtags-find-project))
+  (when (and ggtags-mode ggtags-project)
     (unless (overlayp ggtags-highlight-tag-overlay)
       (let ((o (make-overlay (point) (point) nil t)))
         (setq ggtags-highlight-tag-overlay o)))
@@ -1112,22 +1128,6 @@ Global and Emacs."
       (setq he-expand-list (cdr he-expand-list))
       t)))
 
-;;; Finish up
-
-(when ggtags-highlight-tag-timer
-  (cancel-timer ggtags-highlight-tag-timer))
-
-(setq ggtags-highlight-tag-timer
-      (run-with-idle-timer
-       ggtags-highlight-tag-delay t 'ggtags-highlight-tag-at-point))
-
-;; Higher priority for `ggtags-navigation-mode' to avoid being
-;; hijacked by modes such as `view-mode'.
-(defvar ggtags-mode-map-alist
-  `((ggtags-navigation-mode . ,ggtags-navigation-map)))
-
-(add-to-list 'emulation-mode-map-alists 'ggtags-mode-map-alist)
-
 (defun ggtags-reload (&optional force)
   (interactive "P")
   (unload-feature 'ggtags force)
@@ -1135,7 +1135,8 @@ Global and Emacs."
 
 (defun ggtags-unload-function ()
   (setq emulation-mode-map-alists
-        (delq 'ggtags-mode-map-alist emulation-mode-map-alists)))
+        (delq 'ggtags-mode-map-alist emulation-mode-map-alists))
+  nil)
 
 (provide 'ggtags)
 ;;; ggtags.el ends here

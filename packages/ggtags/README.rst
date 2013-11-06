@@ -15,13 +15,14 @@ Features
 
 #. Automatically update Global's tag files when needed with tuning for
    large source trees.
-#. Build on ``compile.el`` for asynchrony and its large feature-set.
+#. Build on ``compile.el`` for asynchronicity and its large
+   feature-set.
 #. Intuitive navigation among multiple matches with mode-line display
    of current match, total matches and exit status.
 #. Manage Global's environment variables on a per-project basis.
 #. Support all Global search backends: ``grep``, ``idutils`` etc.
 #. Query replace.
-#. Highlight tag at point.
+#. Highlight (definition) tag at point.
 #. Abbreviated display of file names.
 #. Support `exuberant ctags <http://ctags.sourceforge.net/>`_ backend.
 #. Support all Global's output formats: ``grep``, ``ctags-x``,
@@ -62,6 +63,8 @@ More languages/modes are supported if `GNU Global
 
 See ``plugin-factory/README`` in GNU Global source for further
 information.
+
+Also see https://github.com/leoliu/ggtags/wiki for more examples.
 
 Tutorial
 ~~~~~~~~
