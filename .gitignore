@@ -6,3 +6,4 @@ packages/*/*-autoloads.el
 packages/*/*-pkg.el
 packages/dismal
 packages/w3
+packages/auctex
