@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013  Free Software Foundation, Inc.
 
 ;; Author: Leo Liu <sdl.web@gmail.com>
-;; Version: 0.7.4
+;; Version: 0.7.5
 ;; Keywords: tools, convenience
 ;; Created: 2013-01-29
 ;; URL: https://github.com/leoliu/ggtags
@@ -517,11 +517,15 @@ With a prefix arg (non-nil DEFINITION) always find definitions."
           (and (ggtags-find-project)
                (not (ggtags-project-has-rtags (ggtags-find-project)))))
       (ggtags-find-tag 'definition name)
-    (ggtags-find-tag (format "--from-here=%d:%s"
-                             (line-number-at-pos)
-                             (shell-quote-argument
-                              (file-relative-name buffer-file-name)))
-                     name)))
+    (ggtags-find-tag
+     (format "--from-here=%d:%s"
+             (line-number-at-pos)
+             (shell-quote-argument
+              ;; Note `ggtags-global-start' binds default-directory to
+              ;; project root.
+              (file-relative-name buffer-file-name
+                                  (ggtags-current-project-root))))
+     name)))
 
 (defun ggtags-find-reference (name)
   (interactive (list (ggtags-read-tag)))
