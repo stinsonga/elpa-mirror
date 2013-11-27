@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013  Free Software Foundation, Inc.
 
 ;; Author: Barry O'Reilly <gundaetiapo@gmail.com>
-;; Version: 1.3
+;; Version: 2.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -36,6 +36,9 @@
 ;;
 ;; To use:
 ;;   (require 'adjust-parens)
+;;   (add-hook 'emacs-lisp-mode-hook #'adjust-parens-mode)
+;;   (add-hook 'clojure-mode-hook #'adjust-parens-mode)
+;;   ;; etc
 ;;
 ;; This binds two keys in Lisp Mode:
 ;;   (local-set-key (kbd "TAB") 'lisp-indent-adjust-parens)
@@ -246,8 +249,15 @@ scan-error to propogate up."
   (save-excursion
     (let ((orig-pos (point)))
       (back-to-indentation)
-      (and (not (use-region-p))
-           (<= orig-pos (point))))))
+      (and (= orig-pos (point))
+           (not (use-region-p))
+           ;; Current line indented?
+           (let ((indent (calculate-lisp-indent)))
+             (and indent
+                  (= (current-column)
+                     (if (listp indent)
+                         (car indent)
+                       indent))))))))
 
 (defun adjust-parens-and-indent (adjust-function parg)
   "Adjust close parens and indent the region over which the parens
@@ -271,7 +281,8 @@ moved."
                      (setq finished t)))
                (scan-error (setq finished err))))
     (apply 'indent-region region-of-change))
-  (back-to-indentation))
+  (back-to-indentation)
+  t)
 
 (defun lisp-indent-adjust-parens (&optional parg)
   "Indent Lisp code to the next level while adjusting sexp balanced
@@ -279,26 +290,45 @@ expressions to be consistent.
 
 This command can be bound to TAB instead of indent-for-tab-command. It
 potentially calls the latter."
-  (interactive "P")
+  (interactive "p")
   (if (adjust-parens-p)
-      (adjust-parens-and-indent 'adjust-close-paren-for-indent
-                                parg)
+      (adjust-parens-and-indent
+       (if (and parg (< parg 0))
+           #'adjust-close-paren-for-dedent
+         #'adjust-close-paren-for-indent)
+       (and parg (abs parg)))
     (indent-for-tab-command parg)))
 
 (defun lisp-dedent-adjust-parens (&optional parg)
   "Dedent Lisp code to the previous level while adjusting sexp
 balanced expressions to be consistent.
 
-Binding to <backtab> (ie Shift-Tab) is a sensible choice."
-  (interactive "P")
-  (when (adjust-parens-p)
-    (adjust-parens-and-indent 'adjust-close-paren-for-dedent
-                              parg)))
+Returns t iff this function changed the buffer.
 
-(add-hook 'emacs-lisp-mode-hook
-          (lambda ()
-            (local-set-key (kbd "TAB") 'lisp-indent-adjust-parens)
-            (local-set-key (kbd "<backtab>") 'lisp-dedent-adjust-parens)))
+Binding to <backtab> (ie Shift-Tab) is a sensible choice."
+  (interactive "p")
+  (if (adjust-parens-p)
+      (adjust-parens-and-indent
+       (if (and parg (< parg 0))
+           #'adjust-close-paren-for-indent
+         'adjust-close-paren-for-dedent)
+       (and parg (abs parg)))
+    nil))
+
+(defgroup adjust-parens nil
+  "Indent and dedent Lisp code, automatically adjust close parens."
+  :prefix "adjust-parens-"
+  :group 'convenience)
+
+(defvar adjust-parens-mode-map (make-sparse-keymap)
+  "Keymap for `adjust-parens-mode'")
+(define-key adjust-parens-mode-map (kbd "TAB") 'lisp-indent-adjust-parens)
+(define-key adjust-parens-mode-map (kbd "<backtab>") 'lisp-dedent-adjust-parens)
+
+(define-minor-mode adjust-parens-mode
+  "Indent and dedent Lisp code, automatically adjust close parens."
+  :group 'adjust-parens
+  :keymap adjust-parens-mode-map)
 
 (provide 'adjust-parens)
 

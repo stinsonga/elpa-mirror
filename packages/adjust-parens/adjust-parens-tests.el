@@ -32,9 +32,23 @@
                    (buffer-substring-no-properties (point)
                                                    (point-max)))))
 
+(ert-deftest apt-mode-test ()
+  (with-temp-buffer
+    (emacs-lisp-mode)
+    (adjust-parens-mode -1)
+    (should-not (eq (key-binding (kbd "TAB"))
+                    #'lisp-indent-adjust-parens))
+    (adjust-parens-mode 1)
+    (should (eq (key-binding (kbd "TAB"))
+                #'lisp-indent-adjust-parens))
+    (adjust-parens-mode -1)
+    (should-not (eq (key-binding (kbd "TAB"))
+                    #'lisp-indent-adjust-parens))))
+
 (ert-deftest apt-near-bob-test ()
   (with-temp-buffer
     (emacs-lisp-mode)
+    (adjust-parens-mode 1)
     (insert "(foo)\n")
     (lisp-indent-adjust-parens)
     (apt-check-buffer "(foo\n " ")")))
@@ -42,11 +56,12 @@
 (ert-deftest apt-indent-dedent-test ()
   (with-temp-buffer
     (emacs-lisp-mode)
+    (adjust-parens-mode 1)
     (setq indent-tabs-mode nil)
     (insert ";;\n"
             "(let ((x 10) (y (some-func 20))))\n"
             "; Comment")
-    (beginning-of-line)
+    (back-to-indentation)
     (lisp-indent-adjust-parens)
     (apt-check-buffer (concat ";;\n"
                               "(let ((x 10) (y (some-func 20)))\n"
@@ -61,6 +76,42 @@
     (apt-check-buffer (concat ";;\n"
                               "(let ((x 10) (y (some-func 20))\n"
                               "      ")
-                      ")); Comment")))
+                      ")); Comment")
+    ;; Check what happens when point is not at the indentation, or
+    ;; indentation is not correct, or both
+    (beginning-of-line)                 ; Point not at indentation
+    ;; Should simply move point to indentation and not change buffer
+    (lisp-indent-adjust-parens)
+    (apt-check-buffer (concat ";;\n"
+                              "(let ((x 10) (y (some-func 20))\n"
+                              "      ")
+                      ")); Comment")
+
+    ;; Same check for dedent
+    (beginning-of-line)                 ; Point not at indentation
+    ;; Should leave point unchanged
+    (lisp-dedent-adjust-parens)
+    (apt-check-buffer (concat ";;\n"
+                              "(let ((x 10) (y (some-func 20))\n"
+                              "")
+                      "      )); Comment")
+
+    (back-to-indentation)
+    (delete-backward-char 3)            ; Incorrect indentation
+    ;; Should reindent line via indent-for-tab-command and move point to
+    ;; indentation but not change parens
+    (lisp-indent-adjust-parens)
+    (apt-check-buffer (concat ";;\n"
+                              "(let ((x 10) (y (some-func 20))\n"
+                              "      ")
+                      ")); Comment")
+    (insert "   ")                      ; Wrong indentation
+    (forward-char 2)                    ; Point is past indentation
+    ;; Should reindent line without moving point or changing parens
+    (lisp-indent-adjust-parens)
+    (apt-check-buffer (concat ";;\n"
+                              "(let ((x 10) (y (some-func 20))\n"
+                              "      ))")
+                      "; Comment")))
 
 ;;; adjust-parens-tests.el ends here
