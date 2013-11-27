@@ -11,6 +11,7 @@ all: $(ELCFILES)
 clean:
 	@rm -f *.elc
 
-check: $(ELCFILES)
+# Don't depend on $(ELCFILES) so as failures may have a non byte compiled backtrace
+check:
 	@emacs --batch -q --no-site-file -L . -l adjust-parens-tests.el -f ert-run-tests-batch-and-exit
 
