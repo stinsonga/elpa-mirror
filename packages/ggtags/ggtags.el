@@ -1,9 +1,9 @@
-;;; ggtags.el --- GNU Global source code tagging system  -*- lexical-binding: t; -*-
+;;; ggtags.el --- emacs frontend to GNU Global source code tagging system  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2013  Free Software Foundation, Inc.
 
 ;; Author: Leo Liu <sdl.web@gmail.com>
-;; Version: 0.7.7
+;; Version: 0.7.8
 ;; Keywords: tools, convenience
 ;; Created: 2013-01-29
 ;; URL: https://github.com/leoliu/ggtags
@@ -187,12 +187,6 @@ properly update `ggtags-mode-map'."
                 (define-key ggtags-mode-map value ggtags-mode-prefix-map)))
          (set-default sym value))
   :type 'key-sequence
-  :group 'ggtags)
-
-(defcustom ggtags-enable-completion-at-point t
-  "Non-nil to enable completion at point using the tag table."
-  :safe 'booleanp
-  :type 'boolean
   :group 'ggtags)
 
 (defcustom ggtags-completing-read-function completing-read-function
@@ -397,10 +391,11 @@ properly update `ggtags-mode-map'."
         (while (pcase (read-char-choice
                        (format "Save `%s'? (y/n/=/?) " buffer-file-name)
                        '(?y ?n ?= ??))
-                 (?n (user-error "Aborted"))
-                 (?y nil)
-                 (?= (diff-buffer-with-file) 'loop)
-                 (?? (help-form-show) 'loop))))
+                 ;; ` required for 24.1 and 24.2
+                 (`?n (user-error "Aborted"))
+                 (`?y nil)
+                 (`?= (diff-buffer-with-file) 'loop)
+                 (`?? (help-form-show) 'loop))))
     (save-buffer)
     (kill-buffer)))
 
@@ -528,12 +523,14 @@ non-nil."
          (split-window-preferred-function ggtags-split-window-function)
          ;; See http://debbugs.gnu.org/13594
          (display-buffer-overriding-action
-          (if (not ggtags-auto-jump-to-first-match)
-              display-buffer-overriding-action
-            (cons (lambda (buf _action)
-                    (with-current-buffer buf
-                      (derived-mode-p 'ggtags-global-mode)))
-                  (list #'display-buffer-no-window)))))
+          (if (and ggtags-auto-jump-to-first-match
+                   ;; Appeared in emacs 24.4.
+                   (fboundp 'display-buffer-no-window))
+              (cons (lambda (buf _action)
+                      (with-current-buffer buf
+                        (derived-mode-p 'ggtags-global-mode)))
+                    (list #'display-buffer-no-window))
+            display-buffer-overriding-action)))
     (setq ggtags-global-start-marker (point-marker))
     (ggtags-navigation-mode +1)
     (setq ggtags-global-exit-status 0
@@ -688,7 +685,8 @@ Global and Emacs."
               (when (yes-or-no-p "Remove GNU Global tag files? ")
                 (mapc #'delete-file files)
                 (remhash (ggtags-current-project-root) ggtags-projects)
-                (delete-overlay ggtags-highlight-tag-overlay)
+                (and (overlayp ggtags-highlight-tag-overlay)
+                     (delete-overlay ggtags-highlight-tag-overlay))
                 (kill-local-variable 'ggtags-project)))
           (when (window-live-p win)
             (quit-window t win)))))))
@@ -707,7 +705,8 @@ Global and Emacs."
           (let ((default-directory (ggtags-current-project-root)))
             (ggtags-with-process-environment (ggtags-process-string "htags")))
         (user-error "Aborted")))
-  (let ((url (ggtags-process-string "gozilla" "-p" (format "+%d" line) file)))
+  (let ((url (ggtags-process-string "gozilla" "-p" (format "+%d" line)
+                                    (file-relative-name file))))
     (or (equal (file-name-extension
                 (url-filename (url-generic-parse-url url))) "html")
         (user-error "No hypertext form for `%s'" file))
@@ -731,9 +730,10 @@ Global and Emacs."
         (i (- (ring-length find-tag-marker-ring) ggtags-tag-ring-index))
         (message-log-max nil))
     (message "%d%s marker%s" i (pcase (mod i 10)
-                                 (1 "st")
-                                 (2 "nd")
-                                 (3 "rd")
+                                 ;; ` required for 24.1 and 24.2
+                                 (`1 "st")
+                                 (`2 "nd")
+                                 (`3 "rd")
                                  (_ "th"))
              (if (marker-buffer m) "" " (dead)"))
     (if (not (marker-buffer m))
@@ -842,10 +842,11 @@ Global and Emacs."
                     count
                     (funcall (if (= count 1) #'car #'cadr)
                              (pcase db
-                               ("GTAGS"  '("definition" "definitions"))
-                               ("GSYMS"  '("symbol"     "symbols"))
-                               ("GRTAGS" '("reference"  "references"))
-                               ("ID"     '("identifier" "identifiers"))
+                               ;; ` required for 24.1 and 24.2
+                               (`"GTAGS"  '("definition" "definitions"))
+                               (`"GSYMS"  '("symbol"     "symbols"))
+                               (`"GRTAGS" '("reference"  "references"))
+                               (`"ID"     '("identifier" "identifiers"))
                                (_        '("match"      "matches"))))))
           exit-status)))
 
@@ -905,6 +906,13 @@ Global and Emacs."
 
 (defvar-local ggtags-global-output-lines 0)
 
+(defun ggtags-global--display-buffer (&optional buffer)
+  (let ((buffer (or buffer (current-buffer))))
+    (unless (get-buffer-window buffer)
+      (let* ((split-window-preferred-function ggtags-split-window-function)
+             (w (display-buffer (current-buffer) '(nil (allow-no-window . t)))))
+        (and w (compilation-set-window-height w))))))
+
 (defun ggtags-global-filter ()
   "Called from `compilation-filter-hook' (which see)."
   ;; Get rid of line "Using config file '/PATH/TO/.globalrc'." or
@@ -916,11 +924,8 @@ Global and Emacs."
   (ansi-color-apply-on-region compilation-filter-start (point))
   (incf ggtags-global-output-lines
         (count-lines compilation-filter-start (point)))
-  (when (and (> ggtags-global-output-lines 5)
-             (not (get-buffer-window (current-buffer))))
-    (let* ((split-window-preferred-function ggtags-split-window-function)
-           (w (display-buffer (current-buffer) '(nil (allow-no-window . t)))))
-      (and w (compilation-set-window-height w))))
+  (when (> ggtags-global-output-lines 5)
+    (ggtags-global--display-buffer))
   (make-local-variable 'ggtags-global-large-output)
   (when (> ggtags-global-output-lines ggtags-global-large-output)
     (incf ggtags-global-large-output 500)
@@ -929,22 +934,23 @@ Global and Emacs."
                ggtags-global-output-lines))))
 
 (defun ggtags-handle-single-match (buf _how)
-  (when (and ggtags-auto-jump-to-first-match
-             ;; If exit abnormally keep the window for inspection.
-             (zerop ggtags-global-exit-status)
-             (save-excursion
-               (goto-char (point-min))
-               (not (ignore-errors
-                      (goto-char (compilation-next-single-property-change
-                                  (point) 'compilation-message))
-                      (end-of-line)
-                      (compilation-next-single-property-change
-                       (point) 'compilation-message)))))
-    ;; For the `compilation-auto-jump' in idle timer to run. See also:
-    ;; http://debbugs.gnu.org/13829
-    (sit-for 0)
-    (ggtags-navigation-mode -1)
-    (ggtags-navigation-mode-cleanup buf 0)))
+  (if (not (zerop ggtags-global-exit-status))
+      ;; If exit abnormally display the buffer for inspection.
+      (ggtags-global--display-buffer)
+    (when (and ggtags-auto-jump-to-first-match
+               (save-excursion
+                 (goto-char (point-min))
+                 (not (ignore-errors
+                        (goto-char (compilation-next-single-property-change
+                                    (point) 'compilation-message))
+                        (end-of-line)
+                        (compilation-next-single-property-change
+                         (point) 'compilation-message)))))
+      ;; For the `compilation-auto-jump' in idle timer to run. See also:
+      ;; http://debbugs.gnu.org/13829
+      (sit-for 0)
+      (ggtags-navigation-mode -1)
+      (ggtags-navigation-mode-cleanup buf 0))))
 
 (defvar ggtags-global-mode-font-lock-keywords
   '(("^Global \\(exited abnormally\\|interrupt\\|killed\\|terminated\\)\\(?:.*with code \\([0-9]+\\)\\)?.*"
@@ -966,10 +972,13 @@ Global and Emacs."
   (setq-local compilation-error-face 'compilation-info)
   (setq-local compilation-exit-message-function
               'ggtags-global-exit-message-function)
+  ;; See: https://github.com/leoliu/ggtags/issues/26
+  (setq-local find-file-suppress-same-file-warnings t)
   (setq-local truncate-lines t)
   (jit-lock-register #'ggtags-abbreviate-files)
   (add-hook 'compilation-filter-hook 'ggtags-global-filter nil 'local)
   (add-hook 'compilation-finish-functions 'ggtags-handle-single-match nil t)
+  (add-hook 'kill-buffer-hook (lambda () (ggtags-navigation-mode -1)) nil t)
   (define-key ggtags-global-mode-map "\M-o" 'visible-mode))
 
 ;; NOTE: Need this to avoid putting menu items in
@@ -1114,14 +1123,16 @@ Global and Emacs."
 
 (define-minor-mode ggtags-navigation-mode nil
   :lighter
-  (" GG[" (:eval (ggtags-ensure-global-buffer
-                   (let ((index (when (get-text-property (line-beginning-position)
-                                                         'compilation-message)
-                                  ;; Assume the first match appears at line 5
-                                  (- (line-number-at-pos) 4))))
-                     `((:propertize ,(if index
-                                         (number-to-string (max index 0))
-                                       "?") face success) "/"))))
+  (" GG[" (:eval
+           (ignore-errors
+             (ggtags-ensure-global-buffer
+              (let ((index (when (get-text-property (line-beginning-position)
+                                                    'compilation-message)
+                             ;; Assume the first match appears at line 5
+                             (- (line-number-at-pos) 4))))
+                `((:propertize ,(if index
+                                    (number-to-string (max index 0))
+                                  "?") face success) "/")))))
    (:propertize (:eval (number-to-string ggtags-global-match-count))
                 face success)
    (:eval
@@ -1272,11 +1283,9 @@ Global and Emacs."
   (if ggtags-mode
       (progn
         (add-hook 'after-save-hook 'ggtags-after-save-function nil t)
-        (when ggtags-enable-completion-at-point
-          (add-hook 'completion-at-point-functions
-                    #'ggtags-completion-at-point nil t))
-        (or (executable-find "global")
-            (message "Failed to find GNU Global")))
+        ;; Append to serve as a fallback method.
+        (add-hook 'completion-at-point-functions
+                  #'ggtags-completion-at-point t t))
     (remove-hook 'after-save-hook 'ggtags-after-save-function t)
     (remove-hook 'completion-at-point-functions #'ggtags-completion-at-point t)
     (and (overlayp ggtags-highlight-tag-overlay)
