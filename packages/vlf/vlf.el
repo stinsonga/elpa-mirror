@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2006, 2012, 2013  Free Software Foundation, Inc.
 
-;; Version: 1.1
+;; Version: 1.2
 ;; Keywords: large files, utilities
 ;; Maintainer: Andrey Kotlarski <m00naticus@gmail.com>
 ;; Authors: 2006 Mathias Dahl <mathias.dahl@gmail.com>
@@ -45,9 +45,22 @@
 
 (defcustom vlf-batch-size 1024
   "Defines how large each batch of file data is (in bytes)."
-  :type 'integer
-  :group 'vlf)
+  :group 'vlf
+  :type 'integer)
 (put 'vlf-batch-size 'permanent-local t)
+
+;;;###autoload
+(defcustom vlf-application 'ask
+  "Determines when `vlf' will be offered on opening files.
+Possible values are: nil to never use it;
+`ask' offer `vlf' when file size is beyond `large-file-warning-threshold';
+`dont-ask' automatically use `vlf' for large files;
+`always' use `vlf' for all files."
+  :group 'vlf
+  :type '(radio (const :format "%v " nil)
+                (const :format "%v " ask)
+                (const :format "%v " dont-ask)
+                (const :format "%v" always)))
 
 ;;; Keep track of file position.
 (defvar vlf-start-pos 0
@@ -61,11 +74,10 @@
 (put 'vlf-file-size 'permanent-local t)
 
 (defvar vlf-mode-map
-  (let ((map-prefix (make-sparse-keymap))
-        (map (make-sparse-keymap)))
-    (define-key map [next] 'vlf-next-batch)
-    (define-key map [prior] 'vlf-prev-batch)
-    (define-key map "n" 'vlf-next-batch-from-point)
+  (let ((map (make-sparse-keymap)))
+    (define-key map "n" 'vlf-next-batch)
+    (define-key map "p" 'vlf-prev-batch)
+    (define-key map " " 'vlf-next-batch-from-point)
     (define-key map "+" 'vlf-change-batch-size)
     (define-key map "-"
       (lambda () "Decrease vlf batch size by factor of 2."
@@ -78,16 +90,30 @@
     (define-key map "]" 'vlf-end-of-file)
     (define-key map "j" 'vlf-jump-to-chunk)
     (define-key map "l" 'vlf-goto-line)
-    (define-key map "g" 'vlf-refresh)
-    (define-key map-prefix "\C-c\C-v" map)
-    map-prefix)
+    (define-key map "g" 'vlf-revert)
+    map)
   "Keymap for `vlf-mode'.")
+
+(defvar vlf-prefix-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "\C-c\C-v" vlf-mode-map)
+    map)
+  "Prefixed keymap for `vlf-mode'.")
+
+(defmacro vlf-with-undo-disabled (&rest body)
+  "Execute BODY with temporarily disabled undo."
+  `(let ((undo-enabled (not (eq buffer-undo-list t))))
+     (if undo-enabled
+         (buffer-disable-undo))
+     (unwind-protect (progn ,@body)
+       (if undo-enabled
+           (buffer-enable-undo)))))
 
 (define-minor-mode vlf-mode
   "Mode to browse large files in."
   :lighter " VLF"
   :group 'vlf
-  :keymap vlf-mode-map
+  :keymap vlf-prefix-map
   (if vlf-mode
       (progn
         (set (make-local-variable 'require-final-newline) nil)
@@ -95,10 +121,10 @@
         (set (make-local-variable 'revert-buffer-function)
              'vlf-revert)
         (make-local-variable 'vlf-batch-size)
-        (set (make-local-variable 'vlf-start-pos) -1)
-        (make-local-variable 'vlf-end-pos)
         (set (make-local-variable 'vlf-file-size)
-             (vlf-get-file-size buffer-file-name))
+             (vlf-get-file-size buffer-file-truename))
+        (set (make-local-variable 'vlf-start-pos) 0)
+        (set (make-local-variable 'vlf-end-pos) 0)
         (let* ((pos (position-bytes (point)))
                (start (* (/ pos vlf-batch-size) vlf-batch-size)))
           (goto-char (byte-to-position (- pos start)))
@@ -143,36 +169,83 @@ You can customize number of bytes displayed by customizing
   '(define-key dired-mode-map "V" 'dired-vlf))
 
 ;;;###autoload
+(defcustom vlf-forbidden-modes-list
+  '(archive-mode tar-mode jka-compr git-commit-mode image-mode
+                 doc-view-mode doc-view-mode-maybe)
+  "Major modes which VLF will not be automatically applied to."
+  :group 'vlf
+  :type '(list symbol))
+
+;;;###autoload
+(defun vlf-determine-major-mode (filename)
+  "Determine major mode from FILENAME."
+  (let ((name filename)
+        (remote-id (file-remote-p filename))
+        mode)
+    ;; Remove backup-suffixes from file name.
+    (setq name (file-name-sans-versions name))
+    ;; Remove remote file name identification.
+    (and (stringp remote-id)
+         (string-match (regexp-quote remote-id) name)
+         (setq name (substring name (match-end 0))))
+    (setq mode
+          (if (memq system-type '(windows-nt cygwin))
+              ;; System is case-insensitive.
+              (let ((case-fold-search t))
+                (assoc-default name auto-mode-alist 'string-match))
+            ;; System is case-sensitive.
+            (or ;; First match case-sensitively.
+             (let ((case-fold-search nil))
+               (assoc-default name auto-mode-alist 'string-match))
+             ;; Fallback to case-insensitive match.
+             (and auto-mode-case-fold
+                  (let ((case-fold-search t))
+                    (assoc-default name auto-mode-alist
+                                   'string-match))))))
+    (if (and mode (consp mode))
+        (cadr mode)
+      mode)))
+
+;;;###autoload
 (defadvice abort-if-file-too-large (around vlf-if-file-too-large
-                                           (size op-type
-                                                 &optional filename)
                                            compile activate)
   "If file SIZE larger than `large-file-warning-threshold', \
 allow user to view file with `vlf', open it normally, or abort.
 OP-TYPE specifies the file operation being performed over FILENAME."
-  (and large-file-warning-threshold size
-       (> size large-file-warning-threshold)
-       (let ((char nil))
-         (while (not (memq (setq char
-                                 (read-event
-                                  (propertize
-                                   (format
-                                    "File %s is large (%s): \
+  (cond
+   ((or (not size) (zerop size)))
+   ((or (not vlf-application)
+        (not filename)
+        (memq (vlf-determine-major-mode filename)
+              vlf-forbidden-modes-list))
+    ad-do-it)
+   ((eq vlf-application 'always)
+    (vlf filename)
+    (error ""))
+   ((and large-file-warning-threshold
+         (< large-file-warning-threshold size))
+    (if (eq vlf-application 'dont-ask)
+        (progn (vlf filename)
+               (error ""))
+      (let ((char nil))
+        (while (not (memq (setq char
+                                (read-event
+                                 (propertize
+                                  (format
+                                   "File %s is large (%s): \
 %s normally (o), %s with vlf (v) or abort (a)"
-                                    (if filename
-                                        (file-name-nondirectory filename)
-                                      "")
-                                    (file-size-human-readable size)
-                                    op-type op-type)
-                                   'face 'minibuffer-prompt)))
-                           '(?o ?O ?v ?V ?a ?A))))
-         (cond ((memq char '(?o ?O)))
-               ((memq char '(?v ?V))
-                (vlf filename)
-                (error ""))
-               ((memq char '(?a ?A))
-                (error "Aborted"))))))
-
+                                   (if filename
+                                       (file-name-nondirectory filename)
+                                     "")
+                                   (file-size-human-readable size)
+                                   op-type op-type)
+                                  'face 'minibuffer-prompt)))
+                          '(?o ?O ?v ?V ?a ?A))))
+        (cond ((memq char '(?v ?V))
+               (vlf filename)
+               (error ""))
+              ((memq char '(?a ?A))
+               (error "Aborted"))))))))
 
 ;; scroll auto batching
 (defadvice scroll-up (around vlf-scroll-up
@@ -196,7 +269,7 @@ OP-TYPE specifies the file operation being performed over FILENAME."
 (unless (fboundp 'file-size-human-readable)
   (defun file-size-human-readable (file-size)
     "Print FILE-SIZE in MB."
-    (format "%.1fMB" (/ file-size 1048576.0))))
+    (format "%.3fMB" (/ file-size 1048576.0))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; utilities
@@ -222,12 +295,12 @@ with the prefix argument DECREASE it is halved."
 
 (defun vlf-get-file-size (file)
   "Get size in bytes of FILE."
-  (nth 7 (file-attributes file)))
+  (or (nth 7 (file-attributes file)) 0))
 
 (defun vlf-verify-size ()
   "Update file size information if necessary and visited file time."
   (unless (verify-visited-file-modtime (current-buffer))
-    (setq vlf-file-size (vlf-get-file-size buffer-file-name))
+    (setq vlf-file-size (vlf-get-file-size buffer-file-truename))
     (set-visited-file-modtime)))
 
 (defun vlf-insert-file (&optional from-end)
@@ -254,24 +327,18 @@ With FROM-END prefix, start from the back."
 (defun vlf-revert (&optional _ignore-auto noconfirm)
   "Revert current chunk.  Ignore _IGNORE-AUTO.
 Ask for confirmation if NOCONFIRM is nil."
-  (if (or noconfirm
-          (yes-or-no-p (format "Revert buffer from file %s? "
-                               buffer-file-name)))
-      (vlf-move-to-chunk-2 vlf-start-pos vlf-end-pos)))
+  (interactive)
+  (when (or noconfirm
+            (yes-or-no-p (format "Revert buffer from file %s? "
+                                 buffer-file-name)))
+    (set-buffer-modified-p nil)
+    (set-visited-file-modtime)
+    (vlf-move-to-chunk-2 vlf-start-pos vlf-end-pos)))
 
 (defun vlf-jump-to-chunk (n)
   "Go to to chunk N."
   (interactive "nGoto to chunk: ")
   (vlf-move-to-batch (* (1- n) vlf-batch-size)))
-
-(defmacro vlf-with-undo-disabled (&rest body)
-  "Execute BODY with temporarily disabled undo."
-  `(let ((undo-enabled (not (eq buffer-undo-list t))))
-     (if undo-enabled
-         (buffer-disable-undo))
-     (unwind-protect (progn ,@body)
-       (if undo-enabled
-           (buffer-enable-undo)))))
 
 (defun vlf-no-modifications ()
   "Ensure there are no buffer modifications."
@@ -290,8 +357,7 @@ When prefix argument is negative
  append next APPEND number of batches to the existing buffer."
   (interactive "p")
   (vlf-verify-size)
-  (let* ((end (min (+ vlf-end-pos (* vlf-batch-size
-                                     (abs append)))
+  (let* ((end (min (+ vlf-end-pos (* vlf-batch-size (abs append)))
                    vlf-file-size))
          (start (if (< append 0)
                     vlf-start-pos
@@ -307,8 +373,7 @@ When prefix argument is negative
   (interactive "p")
   (if (zerop vlf-start-pos)
       (error "Already at BOF"))
-  (let* ((start (max 0 (- vlf-start-pos (* vlf-batch-size
-                                           (abs prepend)))))
+  (let* ((start (max 0 (- vlf-start-pos (* vlf-batch-size (abs prepend)))))
          (end (if (< prepend 0)
                   vlf-end-pos
                 (+ start vlf-batch-size))))
@@ -328,7 +393,8 @@ When given MINIMAL flag, skip non important operations."
 (defun vlf-next-batch-from-point ()
   "Display batch of file data starting from current point."
   (interactive)
-  (vlf-move-to-batch (+ vlf-start-pos (position-bytes (point)) -1))
+  (let ((start (+ vlf-start-pos (position-bytes (point)) -1)))
+    (vlf-move-to-chunk start (+ start vlf-batch-size)))
   (goto-char (point-min)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -376,7 +442,10 @@ Return t if move hasn't been canceled."
                                         del-pos (point-max)
                                         buffer-file-coding-system
                                         t))))
-                 (setq end (- vlf-end-pos del-len))
+                 (setq end (- (if (zerop vlf-end-pos)
+                                  vlf-file-size
+                                vlf-end-pos)
+                              del-len))
                  (vlf-with-undo-disabled
                   (delete-region del-pos (point-max)))))
               ((< edit-end end)
@@ -412,10 +481,12 @@ Return t if move hasn't been canceled."
                   (goto-char (point-min))
                   (insert (delete-and-extract-region edit-end-pos
                                                      (point-max)))))))
-        (setq vlf-start-pos (- start shift-start)
-              vlf-end-pos (+ end shift-end))
-        (goto-char (or (byte-to-position (- pos vlf-start-pos))
-                       (point-max))))
+        (setq start (- start shift-start))
+        (goto-char (or (byte-to-position (- pos start))
+                       (byte-to-position (- pos vlf-start-pos))
+                       (point-max)))
+        (setq vlf-start-pos start
+              vlf-end-pos (+ end shift-end)))
       (set-buffer-modified-p modified)
       t))))
 
@@ -879,37 +950,42 @@ in file: %s" total-matches line regexp file)
         (display-buffer occur-buffer)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; editing
-
-(defun vlf-refresh ()
-  "Discard edit and refresh chunk from file."
-  (interactive)
-  (set-buffer-modified-p nil)
-  (vlf-move-to-chunk-2 vlf-start-pos vlf-end-pos))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; saving
 
 (defun vlf-write ()
   "Write current chunk to file.  Always return true to disable save.
 If changing size of chunk, shift remaining file content."
   (interactive)
-  (when (and (buffer-modified-p)
-             (or (verify-visited-file-modtime (current-buffer))
-                 (y-or-n-p "File has changed since visited or saved.  \
-Save anyway? ")))
-    (let ((pos (point))
-          (size-change (- vlf-end-pos vlf-start-pos
-                          (length (encode-coding-region
-                                   (point-min) (point-max)
-                                   buffer-file-coding-system t)))))
-      (cond ((zerop size-change)
-             (write-region nil nil buffer-file-name vlf-start-pos t))
-            ((< 0 size-change)
-             (vlf-file-shift-back size-change))
-            (t (vlf-file-shift-forward (- size-change))))
-      (vlf-move-to-chunk-2 vlf-start-pos vlf-end-pos)
-      (goto-char pos)))
+  (and (buffer-modified-p)
+       (or (verify-visited-file-modtime (current-buffer))
+           (y-or-n-p "File has changed since visited or saved.  \
+Save anyway? "))
+       (if (zerop vlf-file-size)           ;new file
+           (progn
+             (write-region nil nil buffer-file-name vlf-start-pos t)
+             (setq vlf-file-size (vlf-get-file-size
+                                  buffer-file-truename)
+                   vlf-end-pos vlf-file-size)
+             (vlf-update-buffer-name))
+         (let* ((region-length (length (encode-coding-region
+                                        (point-min) (point-max)
+                                        buffer-file-coding-system t)))
+                (size-change (- vlf-end-pos vlf-start-pos
+                                region-length)))
+           (if (zerop size-change)
+               (write-region nil nil buffer-file-name vlf-start-pos t)
+             (let ((pos (point)))
+               (if (< 0 size-change)
+                   (vlf-file-shift-back size-change)
+                 (vlf-file-shift-forward (- size-change))
+                 (vlf-verify-size))
+               (vlf-move-to-chunk-2 vlf-start-pos
+                                    (if (< (- vlf-end-pos vlf-start-pos)
+                                           vlf-batch-size)
+                                        (+ vlf-start-pos vlf-batch-size)
+                                      vlf-end-pos))
+               (vlf-update-buffer-name)
+               (goto-char pos))))))
   t)
 
 (defun vlf-file-shift-back (size-change)
