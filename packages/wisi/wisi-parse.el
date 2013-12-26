@@ -27,7 +27,7 @@
 ;;; Code:
 
 (require 'semantic/wisent)
-(eval-when-compile (require 'cl-macs))
+(eval-when-compile (require 'cl-lib))
 
 (cl-defstruct (wisi-parser-state
 	    (:copier nil))
