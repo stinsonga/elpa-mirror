@@ -75,6 +75,8 @@
 If a file needs more than this, it's probably an indication that
 the grammar is excessively redundant.")
 
+(defvar wisi-debug)
+
 (defun wisi-parse (automaton lexer)
   "Parse input using the automaton specified in AUTOMATON.
 
@@ -121,14 +123,17 @@ the grammar is excessively redundant.")
 	      (let ((j (wisi-free-parser parser-states)))
 		(cond
 		 ((= j -1)
-		  ;; add to parser-states; the new parser won't be executed again in this parser-index loop
+		  ;; Add to parser-states; the new parser won't be executed
+		  ;; again in this parser-index loop.
 		  (setq parser-states (vconcat parser-states (vector nil)))
 		  (setq j (1- (length parser-states))))
 		 ((< j parser-index)
-		  ;; the new parser won't be executed again in this parser-index loop; nothing to do
+		  ;; The new parser won't be executed again in this
+		  ;; parser-index loop; nothing to do.
 		  )
 		 (t
-		  ;; don't let the new parser execute again in this parser-index loop
+		  ;; Don't let the new parser execute again in this
+		  ;; parser-index loop.
 		  (setq some-pending t)
 		  (setf (wisi-parser-state-active result)
 			(cl-case (wisi-parser-state-active result)
@@ -139,17 +144,20 @@ the grammar is excessively redundant.")
 		(setq active-parser-count (1+ active-parser-count))
 		(setf (wisi-parser-state-label result) j)
 		(aset parser-states j result))
-	      (when (> wisi-debug 1) (message "spawn parser (%d active)" active-parser-count)))
+	      (when (> wisi-debug 1)
+                (message "spawn parser (%d active)" active-parser-count)))
 
 	    (when (eq 'error (wisi-parser-state-active parser-state))
 	      (setq active-parser-count (1- active-parser-count))
-	      (when (> wisi-debug 1) (message "terminate parser (%d active)" active-parser-count))
+	      (when (> wisi-debug 1)
+                (message "terminate parser (%d active)" active-parser-count))
 	      (cl-case active-parser-count
 		(0
 		 (cond
 		  ((= active-parser-count-prev 1)
-		   ;; we were not in a parallel parse; report the error
-		   (let ((state (aref (wisi-parser-state-stack parser-state) (wisi-parser-state-sp parser-state))))
+		   ;; We were not in a parallel parse; report the error.
+		   (let ((state (aref (wisi-parser-state-stack parser-state)
+                                      (wisi-parser-state-sp parser-state))))
 		     (signal 'wisi-parse-error
 			     (wisi-error-msg "syntax error in grammar state %d; unexpected %s, expecting one of %s"
 					     state
@@ -157,9 +165,9 @@ the grammar is excessively redundant.")
 					     (mapcar 'car (aref actions state))))
 		     ))
 		  (t
-		   ;; report errors from all parsers that failed on this token
+		   ;; Report errors from all parsers that failed on this token.
 		   (let ((msg))
-		     (dotimes (index (length parser-states))
+		     (dotimes (_ (length parser-states))
 		       (let* ((parser-state (aref parser-states parser-index))
 			      (state (aref (wisi-parser-state-stack parser-state)
 					   (wisi-parser-state-sp parser-state))))
@@ -177,22 +185,22 @@ the grammar is excessively redundant.")
 		  ))
 
 		(1
-		 (setf (wisi-parser-state-active parser-state) nil); don't save error for later
+		 (setf (wisi-parser-state-active parser-state) nil); Don't save error for later.
 		 (wisi-execute-pending (wisi-parser-state-pending
 					(aref parser-states (wisi-active-parser parser-states))))
 		 (setf (wisi-parser-state-pending
 			(aref parser-states (wisi-active-parser parser-states)))
 		       nil))
 		(t
-		 ;; we were in a parallel parse, and this parser
+		 ;; We were in a parallel parse, and this parser
 		 ;; failed; mark it inactive, don't save error for
-		 ;; later
+		 ;; later.
 		 (setf (wisi-parser-state-active parser-state) nil)
 		 )))
 	    )));; end dotimes
 
       (when some-pending
-	;; change pending-* parsers to *
+	;; Change pending-* parsers to *.
 	(dotimes (parser-index (length parser-states))
 	  (cond
 	   ((eq (wisi-parser-state-active (aref parser-states parser-index)) 'pending-shift)
@@ -445,4 +453,4 @@ the first and last tokens of the nonterminal."
     ))
 
 (provide 'wisi-parse)
-;; end of file
+;;; wisi-parse.el ends here

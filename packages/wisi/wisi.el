@@ -680,8 +680,7 @@ list (number token_id):
 list (number (token_id token_id)):
    mark all tokens with token_id in the nonterminal given by the number."
   (save-excursion
-    (let (next-keyword-mark
-	  prev-keyword-mark
+    (let (prev-keyword-mark
 	  prev-cache
 	  cache
 	  mark)
@@ -958,7 +957,7 @@ the comment on the previous line."
 (defun wisi-indent-paren (offset)
   "Return indentation OFFSET relative to preceding open paren."
   (save-excursion
-    (ada-goto-open-paren 0)
+    (goto-char (nth 1 (syntax-ppss)))
     (+ (current-column) offset)))
 
 (defun wisi-indent-start (offset cache)
