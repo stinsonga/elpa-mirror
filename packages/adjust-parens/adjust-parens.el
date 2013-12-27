@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013  Free Software Foundation, Inc.
 
 ;; Author: Barry O'Reilly <gundaetiapo@gmail.com>
-;; Version: 2.0
+;; Version: 3.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -259,61 +259,78 @@ scan-error to propogate up."
                          (car indent)
                        indent))))))))
 
-(defun adjust-parens-and-indent (adjust-function parg)
+(defun adjust-parens-and-indent (raw-parg
+                                 adjust-function
+                                 adjust-function-negative
+                                 fallback-function)
   "Adjust close parens and indent the region over which the parens
 moved."
-  (let ((region-of-change (list (point) (point))))
-    (cl-loop for i from 1 to (or parg 1)
-             with finished = nil
-             while (not finished)
-             do
-             (condition-case err
-                 (let ((close-paren-movement
-                        (funcall adjust-function)))
-                   (if close-paren-movement
-                       (setq region-of-change
-                             (list (min (car region-of-change)
-                                        (car close-paren-movement)
-                                        (cadr close-paren-movement))
-                                   (max (cadr region-of-change)
-                                        (car close-paren-movement)
-                                        (cadr close-paren-movement))))
-                     (setq finished t)))
-               (scan-error (setq finished err))))
-    (apply 'indent-region region-of-change))
-  (back-to-indentation)
-  t)
+  (if (adjust-parens-p)
+      (let* ((parg (prefix-numeric-value raw-parg))
+             (adjust-function (if (and parg (< parg 0))
+                                  adjust-function-negative
+                                adjust-function))
+             (region-of-change (list (point) (point))))
+        (cl-loop for i from 1 to (or (and parg (abs parg)) 1)
+                 with finished = nil
+                 while (not finished)
+                 do
+                 (condition-case err
+                     (let ((close-paren-movement
+                            (funcall adjust-function)))
+                       (if close-paren-movement
+                           (setq region-of-change
+                                 (list (min (car region-of-change)
+                                            (car close-paren-movement)
+                                            (cadr close-paren-movement))
+                                       (max (cadr region-of-change)
+                                            (car close-paren-movement)
+                                            (cadr close-paren-movement))))
+                         (setq finished t)))
+                   (scan-error (setq finished err))))
+        (apply 'indent-region region-of-change)
+        (back-to-indentation)
+        t)
+    (funcall fallback-function raw-parg)))
 
-(defun lisp-indent-adjust-parens (&optional parg)
+(defcustom adjust-parens-fallback-indent-function 'indent-for-tab-command
+  "The function to call with prefix arg instead of
+adjust-parens-and-indent when adjust-parens-p returns false."
+  :type 'function
+  :group 'adjust-parens)
+(defun lisp-indent-adjust-parens (&optional raw-parg)
   "Indent Lisp code to the next level while adjusting sexp balanced
 expressions to be consistent.
 
+Returns t if adjust-parens changed the buffer, else returns the
+result of calling adjust-parens-fallback-indent-function.
+
 This command can be bound to TAB instead of indent-for-tab-command. It
 potentially calls the latter."
-  (interactive "p")
-  (if (adjust-parens-p)
-      (adjust-parens-and-indent
-       (if (and parg (< parg 0))
-           #'adjust-close-paren-for-dedent
-         #'adjust-close-paren-for-indent)
-       (and parg (abs parg)))
-    (indent-for-tab-command parg)))
+  (interactive "P")
+  (adjust-parens-and-indent raw-parg
+                            #'adjust-close-paren-for-indent
+                            #'adjust-close-paren-for-dedent
+                            adjust-parens-fallback-indent-function))
 
-(defun lisp-dedent-adjust-parens (&optional parg)
+(defcustom adjust-parens-fallback-dedent-function 'indent-for-tab-command
+  "The function to call with prefix arg instead of
+adjust-parens-and-indent when adjust-parens-p returns false."
+  :type 'function
+  :group 'adjust-parens)
+(defun lisp-dedent-adjust-parens (&optional raw-parg)
   "Dedent Lisp code to the previous level while adjusting sexp
 balanced expressions to be consistent.
 
-Returns t iff this function changed the buffer.
+Returns t if adjust-parens changed the buffer, else returns the
+result of calling adjust-parens-fallback-dedent-function.
 
 Binding to <backtab> (ie Shift-Tab) is a sensible choice."
-  (interactive "p")
-  (if (adjust-parens-p)
-      (adjust-parens-and-indent
-       (if (and parg (< parg 0))
-           #'adjust-close-paren-for-indent
-         'adjust-close-paren-for-dedent)
-       (and parg (abs parg)))
-    nil))
+  (interactive "P")
+  (adjust-parens-and-indent raw-parg
+                            #'adjust-close-paren-for-dedent
+                            #'adjust-close-paren-for-indent
+                            adjust-parens-fallback-dedent-function))
 
 (defgroup adjust-parens nil
   "Indent and dedent Lisp code, automatically adjust close parens."
