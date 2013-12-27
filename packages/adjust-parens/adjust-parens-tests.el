@@ -87,16 +87,6 @@
                               "      ")
                       ")); Comment")
 
-    ;; Same check for dedent
-    (beginning-of-line)                 ; Point not at indentation
-    ;; Should leave point unchanged
-    (lisp-dedent-adjust-parens)
-    (apt-check-buffer (concat ";;\n"
-                              "(let ((x 10) (y (some-func 20))\n"
-                              "")
-                      "      )); Comment")
-
-    (back-to-indentation)
     (delete-backward-char 3)            ; Incorrect indentation
     ;; Should reindent line via indent-for-tab-command and move point to
     ;; indentation but not change parens
