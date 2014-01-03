@@ -1,10 +1,10 @@
 ;;; nlinum.el --- Show line numbers in the margin  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2012  Free Software Foundation, Inc.
+;; Copyright (C) 2012, 2014  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords: convenience
-;; Version: 1.1
+;; Version: 1.2
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -23,6 +23,12 @@
 
 ;; This is like linum-mode, but uses jit-lock to be (hopefully)
 ;; more efficient.
+
+;;; News:
+
+;; v1.2:
+;; - New global mode `global-nlinum-mode'.
+;; - New config var `nlinum-format-function'.
 
 ;;; Code:
 
@@ -63,7 +69,7 @@ Linum mode is a buffer-local minor mode."
   (dolist (win (get-buffer-window-list nil nil t))
     (with-selected-window win (nlinum--setup-window))))
 
-(defun nlinum--new-width ()
+(defun nlinum--flush ()
   (nlinum--setup-windows)
   ;; (kill-local-variable 'nlinum--ol-counter)
   (remove-overlays (point-min) (point-max) 'nlinum t)
@@ -143,6 +149,15 @@ Linum mode is a buffer-local minor mode."
     (setq nlinum--line-number-cache (cons (point) pos))
     pos))
 
+(defvar nlinum-format-function
+  (lambda (line)
+    (let* ((fmt (format "%%%dd" nlinum--width))
+           (str (propertize (format fmt line) 'face 'linum)))
+      str))
+  "Function to build the string representing the line number.
+Takes one argument (the line number) and returns a string whose width
+should be at least equal to `nlinum--width'.")
+
 (defun nlinum--region (start limit)
   (save-excursion
     ;; Text may contain those nasty intangible properties, but
@@ -151,23 +166,20 @@ Linum mode is a buffer-local minor mode."
       (goto-char start)
       (unless (bolp) (forward-line 1))
       (remove-overlays (point) limit 'nlinum t)
-      (let ((line (nlinum--line-number-at-pos))
-            (fmt (format "%%%dd" nlinum--width)))
+      (let ((line (nlinum--line-number-at-pos)))
         (while
             (and (not (eobp)) (< (point) limit)
                  (let* ((ol (make-overlay (point) (1+ (point))))
-                        (str (format fmt line))
+                        (str (funcall nlinum-format-function line))
                         (width (string-width str)))
                    (when (< nlinum--width width)
                      (setq nlinum--width width)
-                     (nlinum--new-width))
+                     (nlinum--flush))
                    (overlay-put ol 'nlinum t)
                    (overlay-put ol 'evaporate t)
                    (overlay-put ol 'before-string
                                 (propertize " " 'display
-                                            `((margin left-margin)
-                                              ,(propertize str
-                                                           'face 'linum))))
+                                            `((margin left-margin) ,str)))
                    ;; (setq nlinum--ol-counter (1- nlinum--ol-counter))
                    ;; (when (= nlinum--ol-counter 0)
                    ;;   (run-with-idle-timer 0.5 nil #'nlinum--flush-overlays
@@ -176,7 +188,10 @@ Linum mode is a buffer-local minor mode."
                    (zerop (forward-line 1))))))))
   ;; (setq nlinum--desc (format "-%d" (nlinum--ol-count)))
   nil)
-                 
-        
+
+;;;###autoload
+(define-globalized-minor-mode global-nlinum-mode nlinum-mode
+  (lambda () (unless (minibufferp) (nlinum-mode))))
+
 (provide 'nlinum)
 ;;; nlinum.el ends here
