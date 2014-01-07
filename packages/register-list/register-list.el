@@ -1,6 +1,6 @@
 ;;; register-list.el ---  Interactively list/edit registers  -*- lexical-binding:t -*-
 ;;
-;; Copyright (C) 2011-2013  Free Software Foundation, Inc.
+;; Copyright (C) 2011-2014  Free Software Foundation, Inc.
 ;;
 ;; Filename: register-list.el
 ;; Author: Bastien Guerry <bzg AT altern DOT org>

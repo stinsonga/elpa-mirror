@@ -1,6 +1,6 @@
 ;;; windresize.el --- Resize windows interactively
 ;;
-;; Copyright (C) 2011  Free Software Foundation, Inc.
+;; Copyright (C) 2011-2014  Free Software Foundation, Inc.
 ;;
 ;; Filename: windresize.el
 ;; Author: Bastien <bzg AT altern DOT org>
