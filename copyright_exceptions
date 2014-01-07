@@ -1,3 +1,17 @@
+./ada-mode/ada-skel.el:    ("copyright_license"
+./ada-mode/ada-skel.el:  "--  Copyright (C) " (format-time-string "%Y ") user-full-name " All Rights Reserved.\n"
+./ada-mode/ada-skel.el:  "--  Copyright (C) " (format-time-string "%Y ") user-full-name " All Rights Reserved.\n"
+./ada-mode/ada-skel.el:  "Example copyright/license skeleton, with automatic year and owner, GPLv3."
+./ada-mode/ada-skel.el:  "Example copyright/license skeleton, with automatic year and owner."
+./ada-mode/ada-skel.el:  "Insert a file header comment, with automatic copyright year and prompt for copyright owner/license.
+./ada-mode/ada-skel.el:  "{copyright_license}\n"
+./ada-mode/gpr-skel.el:    ("copyright_license"
+./ada-mode/gpr-skel.el:  "--  Copyright (C) " (format-time-string "%Y ") user-full-name " All Rights Reserved.\n"
+./ada-mode/gpr-skel.el:  "--  Copyright (C) " (format-time-string "%Y ") user-full-name " All Rights Reserved.\n"
+./ada-mode/gpr-skel.el:  "Example copyright/license skeleton, with automatic year and owner, GPLv3."
+./ada-mode/gpr-skel.el:  "Example copyright/license skeleton, with automatic year and owner."
+./ada-mode/gpr-skel.el:  "Insert a file header comment, with automatic copyright year and prompt for copyright owner/license.
+./ada-mode/gpr-skel.el:  "{copyright_license}\n"
 ./auctex/latex.el:   "pounds" "copyright"
 ./auctex/multi-prompt.el
 ./auctex/plain-tex.el:   "copyright"
