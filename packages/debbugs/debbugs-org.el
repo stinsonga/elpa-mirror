@@ -1,6 +1,6 @@
 ;;; debbugs-org.el --- Org-mode interface for the GNU bug tracker
 
-;; Copyright (C) 2013 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2014 Free Software Foundation, Inc.
 
 ;; Author: Michael Albinus <michael.albinus@gmx.org>
 ;; Keywords: comm, hypermedia, maint, outlines
