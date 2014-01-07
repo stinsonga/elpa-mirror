@@ -1,4 +1,4 @@
-;;; 100secwp.el --- One hundred seconds word puzzle  -*- coding: utf-8; lexical-binding: t -*-
+;;; wpuzzle.el --- find as many word in a given time  -*- coding: utf-8; lexical-binding: t -*-
 
 ;; Copyright (C) 2014  Free Software Foundation, Inc.
 
@@ -40,6 +40,10 @@
 ;;;; INSTALLATION:
 
 ;; Use ELPA
+
+;; install aspell english dictionary. On Ubuntu or Debian type the following:
+
+;; sudo apt-get install aspell aspell-en
 
 ;;;; TODO
 
@@ -416,13 +420,13 @@ The resulting list contains all items that appear in LIST1 but not LIST2."
   (erase-buffer)
   (switch-to-buffer 100secwp-buffer)
   (erase-buffer)
-  (insert "Welcome to 100 seconds word puzzle!
+  (insert (format "Welcome to %d seconds word puzzle!
 
-You have a hundred second to type as many word made out of the
+You have %d seconds to type as many word made out of the
 letters presented. Longer words are worth more points. The letters
 are scored with Scrabble value.
 
-Press any key to start.")
+Press any key to start." 100secwp-time-limit 100secwp-time-limit))
   (while (not (aref (read-key-sequence nil) 0))
     (sit-for 1))
   (100secwp-mode))
