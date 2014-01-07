@@ -494,6 +494,7 @@ Regexp match data 0 points to the chars."
              (basic sml-indent-level)
              (args  sml-indent-args)))
     (:list-intro (member token '("fn")))
+    (:close-all t)
     (:after
      (cond
       ((equal token "struct") 0)

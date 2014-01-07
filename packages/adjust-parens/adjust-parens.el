@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013  Free Software Foundation, Inc.
 
 ;; Author: Barry O'Reilly <gundaetiapo@gmail.com>
-;; Version: 1.2
+;; Version: 3.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -36,6 +36,9 @@
 ;;
 ;; To use:
 ;;   (require 'adjust-parens)
+;;   (add-hook 'emacs-lisp-mode-hook #'adjust-parens-mode)
+;;   (add-hook 'clojure-mode-hook #'adjust-parens-mode)
+;;   ;; etc
 ;;
 ;; This binds two keys in Lisp Mode:
 ;;   (local-set-key (kbd "TAB") 'lisp-indent-adjust-parens)
@@ -116,7 +119,7 @@ Examples:
   Evaluate: (last-sexp-with-relative-depth pos-a (1+ pos-j) 0)
   Returns:  position of j
 
-  Evaluate: (last-sexp-with-relative-depth pos-a (1+ pos-j) -1)
+  Evaluate: (last-sexp-with-relative-depth pos-a (1+ pos-j) 1)
   Returns:  position of (h i)
 
 This function assumes FROM-POS is not in a string or comment."
@@ -246,59 +249,103 @@ scan-error to propogate up."
   (save-excursion
     (let ((orig-pos (point)))
       (back-to-indentation)
-      (and (not (use-region-p))
-           (<= orig-pos (point))))))
+      (and (= orig-pos (point))
+           (not (use-region-p))
+           ;; Current line indented?
+           (let ((indent (calculate-lisp-indent)))
+             (and indent
+                  (= (current-column)
+                     (if (listp indent)
+                         (car indent)
+                       indent))))))))
 
-(defun adjust-parens-and-indent (adjust-function parg)
+(defun adjust-parens-and-indent (raw-parg
+                                 adjust-function
+                                 adjust-function-negative
+                                 fallback-function)
   "Adjust close parens and indent the region over which the parens
 moved."
-  (let ((region-of-change (list (point) (point))))
-    (cl-loop for i from 1 to (or parg 1)
-             with finished = nil
-             while (not finished)
-             do
-             (condition-case err
-                 (let ((close-paren-movement
-                        (funcall adjust-function)))
-                   (if close-paren-movement
-                       (setq region-of-change
-                             (list (min (car region-of-change)
-                                        (car close-paren-movement)
-                                        (cadr close-paren-movement))
-                                   (max (cadr region-of-change)
-                                        (car close-paren-movement)
-                                        (cadr close-paren-movement))))
-                     (setq finished t)))
-               (scan-error (setq finished err))))
-    (apply 'indent-region region-of-change))
-  (back-to-indentation))
+  (if (adjust-parens-p)
+      (let* ((parg (prefix-numeric-value raw-parg))
+             (adjust-function (if (and parg (< parg 0))
+                                  adjust-function-negative
+                                adjust-function))
+             (region-of-change (list (point) (point))))
+        (cl-loop for i from 1 to (or (and parg (abs parg)) 1)
+                 with finished = nil
+                 while (not finished)
+                 do
+                 (condition-case err
+                     (let ((close-paren-movement
+                            (funcall adjust-function)))
+                       (if close-paren-movement
+                           (setq region-of-change
+                                 (list (min (car region-of-change)
+                                            (car close-paren-movement)
+                                            (cadr close-paren-movement))
+                                       (max (cadr region-of-change)
+                                            (car close-paren-movement)
+                                            (cadr close-paren-movement))))
+                         (setq finished t)))
+                   (scan-error (setq finished err))))
+        (apply 'indent-region region-of-change)
+        (back-to-indentation)
+        t)
+    (funcall fallback-function raw-parg)))
 
-(defun lisp-indent-adjust-parens (&optional parg)
+(defcustom adjust-parens-fallback-indent-function 'indent-for-tab-command
+  "The function to call with prefix arg instead of
+adjust-parens-and-indent when adjust-parens-p returns false."
+  :type 'function
+  :group 'adjust-parens)
+(defun lisp-indent-adjust-parens (&optional raw-parg)
   "Indent Lisp code to the next level while adjusting sexp balanced
 expressions to be consistent.
+
+Returns t if adjust-parens changed the buffer, else returns the
+result of calling adjust-parens-fallback-indent-function.
 
 This command can be bound to TAB instead of indent-for-tab-command. It
 potentially calls the latter."
   (interactive "P")
-  (if (adjust-parens-p)
-      (adjust-parens-and-indent 'adjust-close-paren-for-indent
-                                parg)
-    (indent-for-tab-command parg)))
+  (adjust-parens-and-indent raw-parg
+                            #'adjust-close-paren-for-indent
+                            #'adjust-close-paren-for-dedent
+                            adjust-parens-fallback-indent-function))
 
-(defun lisp-dedent-adjust-parens (&optional parg)
+(defcustom adjust-parens-fallback-dedent-function 'indent-for-tab-command
+  "The function to call with prefix arg instead of
+adjust-parens-and-indent when adjust-parens-p returns false."
+  :type 'function
+  :group 'adjust-parens)
+(defun lisp-dedent-adjust-parens (&optional raw-parg)
   "Dedent Lisp code to the previous level while adjusting sexp
 balanced expressions to be consistent.
 
+Returns t if adjust-parens changed the buffer, else returns the
+result of calling adjust-parens-fallback-dedent-function.
+
 Binding to <backtab> (ie Shift-Tab) is a sensible choice."
   (interactive "P")
-  (when (adjust-parens-p)
-    (adjust-parens-and-indent 'adjust-close-paren-for-dedent
-                              parg)))
+  (adjust-parens-and-indent raw-parg
+                            #'adjust-close-paren-for-dedent
+                            #'adjust-close-paren-for-indent
+                            adjust-parens-fallback-dedent-function))
 
-(add-hook 'emacs-lisp-mode-hook
-          (lambda ()
-            (local-set-key (kbd "TAB") 'lisp-indent-adjust-parens)
-            (local-set-key (kbd "<backtab>") 'lisp-dedent-adjust-parens)))
+(defgroup adjust-parens nil
+  "Indent and dedent Lisp code, automatically adjust close parens."
+  :prefix "adjust-parens-"
+  :group 'convenience)
+
+(defvar adjust-parens-mode-map (make-sparse-keymap)
+  "Keymap for `adjust-parens-mode'")
+(define-key adjust-parens-mode-map (kbd "TAB") 'lisp-indent-adjust-parens)
+(define-key adjust-parens-mode-map (kbd "<backtab>") 'lisp-dedent-adjust-parens)
+
+(define-minor-mode adjust-parens-mode
+  "Indent and dedent Lisp code, automatically adjust close parens."
+  :group 'adjust-parens
+  :keymap adjust-parens-mode-map)
 
 (provide 'adjust-parens)
 
