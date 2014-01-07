@@ -1,6 +1,6 @@
 ;;; debbugs.el --- SOAP library to access debbugs servers
 
-;; Copyright (C) 2011-2013 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2014 Free Software Foundation, Inc.
 
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, hypermedia
