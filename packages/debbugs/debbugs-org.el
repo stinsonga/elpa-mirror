@@ -84,11 +84,17 @@
 ;;   "C-c # C": Send a debbugs control message
 ;;   "C-c # t": Mark the bug locally as tagged
 ;;   "C-c # d": Show bug attributes
+;;   "C-c # g": Regenerate text properties with status
 
 ;; The last entry in a TODO record is the link [[Messages]].  If you
 ;; follow this link, a Gnus ephemeral group is opened presenting all
 ;; related messages for this bug.  Here you could also send debbugs
 ;; control messages by keystroke "C".
+
+;; Note that following the [[Messages]] link will only work if you
+;; generated the list of bugs from the current session, or if you hit
+;; C-c # g which will regenerate the text properties containing the
+;; bug status (i.e. the bug number).
 
 ;; Finally, if you simply want to list some bugs with known bug
 ;; numbers, call the command
@@ -329,7 +335,7 @@ returned."
 
 	;; Properties.
 	(insert "  :PROPERTIES:\n")
-	(insert (format "  :DEBGUGS_ID: %s\n" id))
+	(insert (format "  :DEBBUGS_ID: %s\n" id))
 	(when merged
 	  (insert
 	   (format
@@ -359,6 +365,24 @@ returned."
     (org-overview)
     (set-buffer-modified-p nil)))
 
+(defun debbugs-org-regenerate-status ()
+  "Regenerate the `tabulated-list-id' text property.
+This property is used when following the [Messages] link, so you
+need to regenerate it when opening an .org file after you killed
+the corresponding buffer (e.g. by closing Emacs.)"
+  (interactive)
+  (save-excursion
+    (goto-char (point-min))
+    (while (re-search-forward ":DEBBUGS_ID:[ \t]*\\([0-9]+\\)" nil t)
+      (let* ((bugnum (string-to-number (match-string 1)))
+	     (mw (org-entry-get (point) "MERGEDWIDTH"))
+	     (tli (list (cons 'id bugnum)
+			(cons 'bug_num bugnum)
+			(cons 'mergedwidth (if mw (string-to-number mw)))))
+	    (beg (org-back-to-heading t))
+	    (end (org-end-of-subtree t)))
+	(add-text-properties beg end `(tabulated-list-id ,tli))))))
+
 (defun debbugs-org-show-next-reports (hits)
   "Show next HITS of bug reports."
   (with-current-buffer (get-buffer-create "*Org Bugs*")
@@ -382,6 +406,7 @@ returned."
     (define-key map (kbd "C-c # t") 'debbugs-gnu-toggle-tag)
     (define-key map (kbd "C-c # C") 'debbugs-gnu-send-control-message)
     (define-key map (kbd "C-c # d") 'debbugs-gnu-display-status)
+    (define-key map (kbd "C-c # g") 'debbugs-org-regenerate-status)
     map)
   "Keymap for the `debbugs-org-mode' minor mode.")
 
