@@ -84,17 +84,11 @@
 ;;   "C-c # C": Send a debbugs control message
 ;;   "C-c # t": Mark the bug locally as tagged
 ;;   "C-c # d": Show bug attributes
-;;   "C-c # g": Regenerate text properties with status
 
 ;; The last entry in a TODO record is the link [[Messages]].  If you
 ;; follow this link, a Gnus ephemeral group is opened presenting all
 ;; related messages for this bug.  Here you could also send debbugs
 ;; control messages by keystroke "C".
-
-;; Note that following the [[Messages]] link will only work if you
-;; generated the list of bugs from the current session, or if you hit
-;; C-c # g which will regenerate the text properties containing the
-;; bug status (i.e. the bug number).
 
 ;; Finally, if you simply want to list some bugs with known bug
 ;; numbers, call the command
@@ -281,6 +275,9 @@ returned."
   (let ((inhibit-read-only t)
 	(debbugs-port "gnu.org"))
 
+    (when (= (point) (point-min))
+      (insert "# -*- eval: (debbugs-org-mode 1); -*-\n\n"))
+
     (dolist (status
 	     (sort
 	      (apply 'debbugs-get-status bug-numbers)
@@ -370,7 +367,6 @@ returned."
 This property is used when following the [Messages] link, so you
 need to regenerate it when opening an .org file after you killed
 the corresponding buffer (e.g. by closing Emacs.)"
-  (interactive)
   (save-excursion
     (goto-char (point-min))
     (while (re-search-forward ":DEBBUGS_ID:[ \t]*\\([0-9]+\\)" nil t)
@@ -406,13 +402,13 @@ the corresponding buffer (e.g. by closing Emacs.)"
     (define-key map (kbd "C-c # t") 'debbugs-gnu-toggle-tag)
     (define-key map (kbd "C-c # C") 'debbugs-gnu-send-control-message)
     (define-key map (kbd "C-c # d") 'debbugs-gnu-display-status)
-    (define-key map (kbd "C-c # g") 'debbugs-org-regenerate-status)
     map)
   "Keymap for the `debbugs-org-mode' minor mode.")
 
 ;; Make byte-compiler quiet.
 (defvar gnus-posting-styles)
 
+;;;###autoload
 (define-minor-mode debbugs-org-mode
   "Minor mode for providing a debbugs interface in org-mode buffers.
 
@@ -430,7 +426,8 @@ the corresponding buffer (e.g. by closing Emacs.)"
 		      ("[0-9]+@debbugs.*" "quiet@debbugs.gnu.org")))
 	       ;; `gnus-posting-styles' is eval'ed after
 	       ;; `message-simplify-subject'.  So we cannot use m-s-s.
-	       (setq subject ,debbugs-gnu-subject))))))))
+	       (setq subject ,debbugs-gnu-subject)))))))
+  (debbugs-org-regenerate-status))
 
 ;;;###autoload
 (defun debbugs-org-bugs (&rest bugs)
