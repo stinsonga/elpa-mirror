@@ -464,6 +464,9 @@ marked as \"client-side filter\"."
       (add-to-list 'debbugs-gnu-current-query (cons 'package package))))
   (when archivedp
     (add-to-list 'debbugs-gnu-current-query '(archive . "1")))
+  (when suppress
+    (add-to-list 'debbugs-gnu-current-query '(status . "open"))
+    (add-to-list 'debbugs-gnu-current-query '(status . "forwarded")))
   (dolist (tag (if (consp tags) tags (list tags)))
     (when (not (zerop (length tag)))
       (add-to-list 'debbugs-gnu-current-query (cons 'tag tag))))
