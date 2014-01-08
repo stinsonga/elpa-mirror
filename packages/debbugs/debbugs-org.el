@@ -199,7 +199,7 @@ returned."
     (setq debbugs-gnu-current-query nil)))
 
 ;;;###autoload
-(defun debbugs-org (severities &optional packages archivedp tags)
+(defun debbugs-org (severities &optional packages archivedp suppress tags)
   "List all outstanding bugs."
   (interactive
    (let (severities archivedp)
@@ -216,6 +216,8 @@ returned."
 	debbugs-gnu-default-packages)
       (when current-prefix-arg
 	(setq archivedp (y-or-n-p "Show archived bugs?")))
+      (when (and current-prefix-arg (not archivedp))
+	(y-or-n-p "Suppress unwanted bugs?"))
       ;; This one must be asked for severity "tagged".
       (when (member "tagged" severities)
 	(split-string (read-string "User tag(s): ") "," t)))))
@@ -236,6 +238,9 @@ returned."
       (add-to-list 'debbugs-gnu-current-query (cons 'package package))))
   (when archivedp
     (add-to-list 'debbugs-gnu-current-query '(archive . "1")))
+  (when suppress
+    (add-to-list 'debbugs-gnu-current-query '(status . "open"))
+    (add-to-list 'debbugs-gnu-current-query '(status . "forwarded")))
   (dolist (tag (if (consp tags) tags (list tags)))
     (when (not (zerop (length tag)))
       (add-to-list 'debbugs-gnu-current-query (cons 'tag tag))))
