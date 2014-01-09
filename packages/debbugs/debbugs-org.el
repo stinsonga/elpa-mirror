@@ -54,8 +54,9 @@
 ;; given, locally tagged bugs are shown.
 
 ;; If a prefix is given to the command, more search parameters are
-;; asked for, like packages (also a comma separated list, "org-mode" is
-;; the default), or whether archived bugs shall be shown.
+;; asked for, like packages (also a comma separated list, "emacs" is
+;; the default), whether archived bugs shall be shown, and whether
+;; closed bugs shall be shown.
 
 ;; Another command is
 ;;
@@ -126,6 +127,10 @@
 ;; numbers.
 (defvar debbugs-org-ids nil
   "The list of bug ids to be shown following the elisp link.")
+
+(defvar debbugs-org-show-buffer-name "*Org Bugs*"
+  "The buffer name we present the bug reports.
+This could be a temporary buffer, or a buffer linked with a file.")
 
 ;;;###autoload
 (defun debbugs-org-search ()
@@ -245,7 +250,7 @@ returned."
     (when (not (zerop (length tag)))
       (add-to-list 'debbugs-gnu-current-query (cons 'tag tag))))
 
-  (with-current-buffer (get-buffer-create "*Org Bugs*")
+  (with-current-buffer (get-buffer-create debbugs-org-show-buffer-name)
     (erase-buffer))
 
   (unwind-protect
@@ -271,7 +276,7 @@ returned."
 
 (defun debbugs-org-show-reports (bug-numbers)
   "Show bug reports as given in BUG-NUMBERS."
-  (pop-to-buffer (get-buffer-create "*Org Bugs*"))
+  (pop-to-buffer (get-buffer-create debbugs-org-show-buffer-name))
   (org-mode)
   (debbugs-org-mode 1)
   ;; FIXME: Does not show any effect.
@@ -371,7 +376,7 @@ returned."
   "Regenerate the `tabulated-list-id' text property.
 This property is used when following the [Messages] link, so you
 need to regenerate it when opening an .org file after you killed
-the corresponding buffer (e.g. by closing Emacs.)"
+the corresponding buffer (e.g. by closing Emacs)."
   (save-excursion
     (goto-char (point-min))
     (while (re-search-forward ":DEBBUGS_ID:[ \t]*\\([0-9]+\\)" nil t)
@@ -386,7 +391,7 @@ the corresponding buffer (e.g. by closing Emacs.)"
 
 (defun debbugs-org-show-next-reports (hits)
   "Show next HITS of bug reports."
-  (with-current-buffer (get-buffer-create "*Org Bugs*")
+  (with-current-buffer (get-buffer-create debbugs-org-show-buffer-name)
     (save-excursion
       (goto-char (point-max))
       (forward-line -1)
@@ -419,6 +424,8 @@ the corresponding buffer (e.g. by closing Emacs.)"
 
 \\{debbugs-org-mode-map}"
   :lighter " Debbugs" :keymap debbugs-org-mode-map
+  (set (make-local-variable 'debbugs-org-show-buffer-name)
+       (if buffer-file-name (buffer-name) debbugs-org-show-buffer-name))
   (set (make-local-variable 'gnus-posting-styles)
        `((".*"
 	  (eval
