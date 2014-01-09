@@ -177,6 +177,7 @@
   :type '(set (const "automake")
 	      (const "cc-mode")
 	      (const "coreutils")
+	      (const "cppi")
 	      (const "debbugs.gnu.org")
 	      (const "diffutils")
 	      (const "emacs")
@@ -187,10 +188,12 @@
 	      (const "guile")
 	      (const "guix")
 	      (const "gzip")
+	      (const "idutils")
 	      (const "libtool")
 	      (const "ns")
 	      (const "org-mode")
 	      (const "parted")
+	      (const "vc-dwim")
 	      (const "w32")
 	      (const "woodchuck"))
   :version "24.4")
@@ -425,7 +428,7 @@ marked as \"client-side filter\"."
 
 ;;;###autoload
 (defun debbugs-gnu (severities &optional packages archivedp suppress tags)
-  "List all outstanding Emacs bugs."
+  "List all outstanding bugs."
   (interactive
    (let (severities archivedp)
      (list
