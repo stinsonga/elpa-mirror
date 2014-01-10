@@ -125,12 +125,18 @@
 ;; We do not add the bug numbers list to the elisp:link, because this
 ;; would be much too long.  Instead, this variable shall keep the bug
 ;; numbers.
-(defvar debbugs-org-ids nil
+(defvar-local debbugs-org-ids nil
   "The list of bug ids to be shown following the elisp link.")
 
 (defvar debbugs-org-show-buffer-name "*Org Bugs*"
   "The buffer name we present the bug reports.
 This could be a temporary buffer, or a buffer linked with a file.")
+
+(defvar debbugs-org-mode) ;; Silence compiler.
+(defun debbugs-org-show-buffer-name ()
+  "The buffer name we present the bug reports.
+This could be a temporary buffer, or a buffer linked with a file."
+  (if debbugs-org-mode (buffer-name) debbugs-org-show-buffer-name))
 
 ;;;###autoload
 (defun debbugs-org-search ()
@@ -250,44 +256,42 @@ returned."
     (when (not (zerop (length tag)))
       (add-to-list 'debbugs-gnu-current-query (cons 'tag tag))))
 
-  (with-current-buffer (get-buffer-create debbugs-org-show-buffer-name)
-    (erase-buffer))
+    (unwind-protect
+	(with-current-buffer (get-buffer-create (debbugs-org-show-buffer-name))
+	  (erase-buffer)
 
-  (unwind-protect
-      (let ((hits debbugs-gnu-default-hits-per-page))
-	(setq debbugs-org-ids (debbugs-gnu-get-bugs debbugs-gnu-current-query))
+	  (let ((hits debbugs-gnu-default-hits-per-page))
+	    (setq debbugs-org-ids
+		  (debbugs-gnu-get-bugs debbugs-gnu-current-query))
 
-	(when (> (length debbugs-org-ids) hits)
-	  (let ((cursor-in-echo-area nil))
-	    (setq hits
-		  (string-to-number
-		   (read-string
-		    (format
-		     "How many reports (available %d, default %d): "
-		     (length debbugs-org-ids) hits)
-		    nil
-		    nil
-		    (number-to-string hits))))))
+	    (when (> (length debbugs-org-ids) hits)
+	      (let ((cursor-in-echo-area nil))
+		(setq hits
+		      (string-to-number
+		       (read-string
+			(format
+			 "How many reports (available %d, default %d): "
+			 (length debbugs-org-ids) hits)
+			nil
+			nil
+			(number-to-string hits))))))
 
-	(debbugs-org-show-next-reports hits))
+	    (debbugs-org-show-next-reports hits)))
 
-    ;; Reset query.
-    (setq debbugs-gnu-current-query nil)))
+      ;; Reset query.
+      (setq debbugs-gnu-current-query nil)))
 
 (defun debbugs-org-show-reports (bug-numbers)
   "Show bug reports as given in BUG-NUMBERS."
-  (pop-to-buffer (get-buffer-create debbugs-org-show-buffer-name))
-  (org-mode)
-  (debbugs-org-mode 1)
-  ;; FIXME: Does not show any effect.
-  (set (make-local-variable 'org-priority-faces) debbugs-org-priority-faces)
+  (pop-to-buffer (get-buffer-create (debbugs-org-show-buffer-name)))
+  ;; Local variable `debbugs-org-ids' must survive.
+  (let ((doi debbugs-org-ids))
+    (org-mode)
+    (debbugs-org-mode 1)
+    (setq debbugs-org-ids doi))
 
   (let ((inhibit-read-only t)
 	(debbugs-port "gnu.org"))
-
-    (when (= (point) (point-min))
-      (insert "# -*- eval: (debbugs-org-mode 1); -*-\n\n"))
-
     (dolist (status
 	     (sort
 	      (apply 'debbugs-get-status bug-numbers)
@@ -366,11 +370,7 @@ returned."
 	    (seconds-to-time last-modified))))
 
 	;; Add text properties.
-	(add-text-properties beg (point) `(tabulated-list-id ,status))))
-
-    (goto-char (point-min))
-    (org-overview)
-    (set-buffer-modified-p nil)))
+	(add-text-properties beg (point) `(tabulated-list-id ,status))))))
 
 (defun debbugs-org-regenerate-status ()
   "Regenerate the `tabulated-list-id' text property.
@@ -391,21 +391,38 @@ the corresponding buffer (e.g. by closing Emacs)."
 
 (defun debbugs-org-show-next-reports (hits)
   "Show next HITS of bug reports."
-  (with-current-buffer (get-buffer-create debbugs-org-show-buffer-name)
+  (with-current-buffer (get-buffer-create (debbugs-org-show-buffer-name))
     (save-excursion
       (goto-char (point-max))
-      (forward-line -1)
-      (delete-region (point) (point-max))
+      (when (re-search-backward
+	     "^* COMMENT \\[\\[elisp:(debbugs-org-show-next-reports" nil t)
+	(forward-line -1)
+	(delete-region (point) (point-max)))
       (debbugs-org-show-reports
        (butlast debbugs-org-ids (- (length debbugs-org-ids) hits)))
       (setq debbugs-org-ids
 	    (last debbugs-org-ids (- (length debbugs-org-ids) hits)))
+      (goto-char (point-max))
       (when debbugs-org-ids
-	(goto-char (point-max))
 	(insert
 	 (format
-	  "* [[elisp:(debbugs-org-show-next-reports %s)][Next bugs]]\n"
-	  hits))))))
+	  "* COMMENT [[elisp:(debbugs-org-show-next-reports %s)][Next bugs]]\n\n"
+	  hits)))
+      (insert "* COMMENT Local " "Variables\n")
+      (when debbugs-org-ids
+	(insert "#+NAME: init\n"
+		"#+BEGIN_SRC elisp\n"
+		(format "(setq debbugs-org-ids '%s)\n" debbugs-org-ids)
+		"#+END_SRC\n\n"))
+      (insert "# Local " "Variables:\n"
+	      "# mode: org\n"
+	      "# eval: (debbugs-org-mode 1)\n")
+      (when debbugs-org-ids
+	(insert "# eval: (sbe \"init\")\n"))
+      (insert "# End:\n")
+      (goto-char (point-min))
+      (org-overview)
+      (set-buffer-modified-p nil))))
 
 (defconst debbugs-org-mode-map
   (let ((map (make-sparse-keymap)))
@@ -424,8 +441,8 @@ the corresponding buffer (e.g. by closing Emacs)."
 
 \\{debbugs-org-mode-map}"
   :lighter " Debbugs" :keymap debbugs-org-mode-map
-  (set (make-local-variable 'debbugs-org-show-buffer-name)
-       (if buffer-file-name (buffer-name) debbugs-org-show-buffer-name))
+  ;; FIXME: Does not show any effect.
+  (set (make-local-variable 'org-priority-faces) debbugs-org-priority-faces)
   (set (make-local-variable 'gnus-posting-styles)
        `((".*"
 	  (eval
