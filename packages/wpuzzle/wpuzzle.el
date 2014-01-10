@@ -22,7 +22,7 @@
 
 ;;; Commentary:
 
-;; Find as many word as possible in a 100 seconds. Words are scored by
+;; Find as many word as possible in a 100 seconds.  Words are scored by
 ;; length and the scrablle letter value.
 
 ;; M-x 100secwp to start the game
@@ -41,7 +41,7 @@
 
 ;; Use ELPA
 
-;; install aspell english dictionary. On Ubuntu or Debian type the following:
+;; install aspell english dictionary.  On Ubuntu or Debian type the following:
 
 ;; sudo apt-get install aspell aspell-en
 
@@ -67,10 +67,6 @@
 
 ;; search for TODO within the file
 
-;;;; VERSION
-
-;; version 1
-
 ;;; Code:
 
 (require 'thingatpt)
@@ -86,11 +82,11 @@
   "A directory for storing game high score.")
 
 (defvar 100secwp-high-score-file
-  (concat 100secwp-high-score-directory 100secwp-high-score-buffer)
+  (expand-file-name 100secwp-high-score-buffer 100secwp-high-score-directory)
   "Full path to file used for storing game high score.")
 
 (defvar 100secwp-buffer "*100secwp*"
-  "Game buffer")
+  "Game buffer.")
 
 (defvar 100secwp-state
   '((deck-letter)
@@ -141,7 +137,7 @@
 
 (defmacro 100secwp-add (place number)
   "Append number PLACE with CHAR."
-  `(progn (setf ,place (+ ,place ,number))))
+  `(setf ,place (+ ,place ,number)))
 
 (defmacro 100secwp-append (place element)
   "Append to list PLACE with ELEMENT."
@@ -341,17 +337,16 @@ The resulting list contains all items that appear in LIST1 but not LIST2."
 (defun 100secwp-retrieve-high-score ()
   (when (not (file-exists-p 100secwp-high-score-directory))
     (make-directory 100secwp-high-score-directory))
-  (save-window-excursion
-    (let ((buffer (find-file 100secwp-high-score-file)) high-score)
-      (goto-char (point-min))
-      (setq high-score
-            (if (word-at-point)
-                (string-to-number (word-at-point))
-              (erase-buffer)
-              (insert "0")
-              (save-buffer) 0))
-      (kill-buffer buffer)
-      high-score)))
+  (with-current-buffer (find-file-noselect 100secwp-high-score-file)
+    (goto-char (point-min))
+    (prog1
+        (if (word-at-point)
+            (string-to-number (word-at-point))
+          (erase-buffer)
+          (insert "0")
+          (save-buffer)
+          0)
+      (kill-buffer))))
 
 (defun 100secwp-end-game ()
   (let ((max-length 1)
@@ -369,14 +364,14 @@ The resulting list contains all items that appear in LIST1 but not LIST2."
               (int-to-string score) "\n")
       (when (> (100secwp-state score) (100secwp-retrieve-high-score))
         (insert "\nCongratulation, you beat the high score!\n")
-        (save-window-excursion
-          ;; TODO there is duplication with 100secwp-retrieve-high-score
-          ;; maybe it could be refactored in one function setter and getter
-          (let ((buffer (find-file 100secwp-high-score-file)))
-            (erase-buffer)
-            (insert (int-to-string score))
-            (save-buffer)
-            (kill-buffer buffer)))))))
+        ;; TODO there is duplication with 100secwp-retrieve-high-score
+        ;; maybe it could be refactored in one function setter and getter.
+        (with-current-buffer
+            (find-file-noselect 100secwp-high-score-file)
+          (erase-buffer)
+          (insert (int-to-string score))
+          (save-buffer)
+          (kill-buffer))))))
 
 (defun 100secwp-read-input ()
   "Read input from player."
@@ -436,3 +431,6 @@ Press any key to start." 100secwp-time-limit 100secwp-time-limit))
 ;; Local Variables:
 ;; compile-command: "make"
 ;; End:
+
+(provide 'wpuzzle)
+;;; wpuzzle.el ends here
