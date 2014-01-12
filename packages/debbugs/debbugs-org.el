@@ -418,7 +418,8 @@ the corresponding buffer (e.g. by closing Emacs)."
 	      "# mode: org\n"
 	      "# eval: (debbugs-org-mode 1)\n")
       (when debbugs-org-ids
-	(insert "# eval: (sbe \"init\")\n"))
+	(insert (format "# eval: (%s \"init\")\n"
+			(if (macrop 'org-sbe) "org-sbe" "sbe"))))
       (insert "# End:\n")
       (goto-char (point-min))
       (org-overview)
