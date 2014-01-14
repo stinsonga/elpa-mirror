@@ -1,5 +1,13 @@
 # History of user-visible changes
 
+## Next
+
+* Experimental support for non-prefix completion.
+* Starting with Emacs version 24.4, `company-capf` is included in
+  `company-backends` and replaces `company-elisp`.
+* `company-capf` supports completion tables that return non-default boundaries.
+* `company-elisp` is enabled in `inferior-emacs-lisp-mode`.
+
 ## 2013-09-28 (0.6.12)
 
 * Default value of `company-begin-commands` changed to `(self-insert-command)`.
