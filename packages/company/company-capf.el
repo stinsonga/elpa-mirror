@@ -25,10 +25,15 @@
 
 ;;; Code:
 
+(eval-when-compile (require 'cl))
+
 (defun company--capf-data ()
-  (let ((data (run-hook-wrapped 'completion-at-point-functions
-                                ;; Ignore misbehaving functions.
-                                #'completion--capf-wrapper 'optimist)))
+  ;; Ignore tags-completion-at-point-function because it subverts company-etags
+  ;; in the default value of company-backends, where the latter comes later.
+  (letf* (((default-value 'completion-at-point-functions) nil)
+          (data (run-hook-wrapped 'completion-at-point-functions
+                                  ;; Ignore misbehaving functions.
+                                  #'completion--capf-wrapper 'optimist)))
     (when (consp data) data)))
 
 (defun company-capf (command &optional arg &rest _args)
@@ -52,8 +57,19 @@ Requires Emacs 24.1 or newer."
                       (buffer-substring (nth 1 res) (nth 2 res))
                       table pred))
                 (sortfun (cdr (assq 'display-sort-function meta)))
-                (candidates (all-completions arg table pred)))
-           (if sortfun (funcall sortfun candidates) candidates)))))
+                (boundaries (completion-boundaries arg table pred ""))
+                (candidates (completion-all-completions arg table pred (length arg)))
+                (last (last candidates 1)))
+           (when (numberp (cdr last))
+             (setcdr last nil))
+           (when sortfun
+             (setq candidates (funcall sortfun candidates)))
+           (if (not (zerop (car boundaries)))
+               (let ((before (substring arg 0 (car boundaries))))
+                 (mapcar (lambda (candidate)
+                           (concat before candidate))
+                         candidates))
+             candidates)))))
     (`sorted
      (let ((res (company--capf-data)))
        (when res

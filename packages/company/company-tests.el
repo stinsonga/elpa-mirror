@@ -162,6 +162,59 @@
       (should (null company-candidates))
       (should (null (company-explicit-action-p))))))
 
+(ert-deftest company-ignore-case-replaces-prefix ()
+  (with-temp-buffer
+    (company-mode)
+    (let (company-frontends
+          company-end-of-buffer-workaround
+          (company-backends
+           (list (lambda (command &optional arg)
+                   (case command
+                     (prefix (buffer-substring (point-min) (point)))
+                     (candidates '("abcd" "abef"))
+                     (ignore-case t))))))
+      (insert "A")
+      (let (this-command)
+        (company-complete))
+      (should (string= "ab" (buffer-string)))
+      (delete-char -2)
+      (insert "A") ; hack, to keep it in one test
+      (company-complete-selection)
+      (should (string= "abcd" (buffer-string))))))
+
+(ert-deftest company-ignore-case-with-keep-prefix ()
+  (with-temp-buffer
+    (insert "AB")
+    (company-mode)
+    (let (company-frontends
+          (company-backends
+           (list (lambda (command &optional arg)
+                   (case command
+                     (prefix (buffer-substring (point-min) (point)))
+                     (candidates '("abcd" "abef"))
+                     (ignore-case 'keep-prefix))))))
+      (let (this-command)
+        (company-complete))
+      (company-complete-selection)
+      (should (string= "ABcd" (buffer-string))))))
+
+(ert-deftest company-non-prefix-completion ()
+  (with-temp-buffer
+    (insert "tc")
+    (company-mode)
+    (let (company-frontends
+          company-end-of-buffer-workaround
+          (company-backends
+           (list (lambda (command &optional arg)
+                   (case command
+                     (prefix (buffer-substring (point-min) (point)))
+                     (candidates '("tea-cup" "teal-color")))))))
+      (let (this-command)
+        (company-complete))
+      (should (string= "tc" (buffer-string)))
+      (company-complete-selection)
+      (should (string= "tea-cup" (buffer-string))))))
+
 (ert-deftest company-pseudo-tooltip-does-not-get-displaced ()
   :tags '(interactive)
   (with-temp-buffer
@@ -197,6 +250,13 @@
         (should (eq (overlay-get ov 'company-column) col))
         (should (string= (overlay-get ov 'company-after)
                          " 123\nc45 c\nddd\n")))))))
+
+(ert-deftest company-create-lines-shows-numbers ()
+  (let ((company-show-numbers t)
+        (company-candidates '("x" "y" "z"))
+        (company-candidates-length 3))
+    (should (equal '("x 1" "y 2" "z 3")
+                   (company--create-lines 0 999)))))
 
 (ert-deftest company-column-with-composition ()
   (with-temp-buffer
