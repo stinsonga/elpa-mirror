@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014  Free Software Foundation, Inc.
 
 ;; Author: Ivan Kanis <ivan@kanis.fr>
-;; Version: 1.0
+;; Version: 1.1
 
 ;; This file is part of GNU Emacs.
 
@@ -66,6 +66,14 @@
 ;;  - navigate to source code in other window to pretend working while playing
 
 ;; search for TODO within the file
+
+;;;; VERSION
+
+;; version 1
+
+;; version 1.1
+
+;; bump version number to see if it gets published
 
 ;;; Code:
 
