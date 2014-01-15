@@ -1,10 +1,10 @@
 ;;; company.el --- Modular in-buffer completion framework  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2009-2013  Free Software Foundation, Inc.
+;; Copyright (C) 2009-2014  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 ;; Maintainer: Dmitry Gutov <dgutov@yandex.ru>
-;; Version: 0.6.12
+;; Version: 0.6.13
 ;; Keywords: abbrev, convenience, matching
 ;; URL: http://company-mode.github.io/
 ;; Compatibility: GNU Emacs 22.x, GNU Emacs 23.x, GNU Emacs 24.x
@@ -833,8 +833,11 @@ can retrieve meta-data for them."
     ;; responsibility of each respective backend, not ours.
     ;; On the other hand, we don't want to replace non-prefix input in
     ;; `company-complete-common'.
-    (setq company-common (company--safe-candidate
-                          (try-completion company-prefix company-candidates)))))
+    (setq company-common
+          (if (cdr company-candidates)
+              (company--safe-candidate
+               (try-completion company-prefix company-candidates))
+            (car company-candidates)))))
 
 (defun company--safe-candidate (str)
   (or (company-call-backend 'crop str)
@@ -1677,34 +1680,40 @@ Example: \(company-begin-with '\(\"foo\" \"foobar\" \"foobarbaz\"\)\)"
       (pop copy))
     (apply 'concat pieces)))
 
+(defun company--highlight-common (line properties)
+  ;; XXX: Subject to change.
+  (let ((common (or (company-call-backend 'common-part line)
+                    (length company-common))))
+    (add-text-properties 0 common properties line)))
+
 (defun company-fill-propertize (line width selected)
-  (setq line (company-safe-substring line 0 width))
-  (add-text-properties 0 width '(face company-tooltip
-                                 mouse-face company-tooltip-mouse)
-                       line)
-  (add-text-properties 0 (length company-common)
-                       '(face company-tooltip-common
-                         mouse-face company-tooltip-mouse)
-                       line)
-  (when selected
-    (if (and company-search-string
-             (string-match (regexp-quote company-search-string) line
-                           (length company-prefix)))
-        (progn
-          (add-text-properties (match-beginning 0) (match-end 0)
-                               '(face company-tooltip-selection)
-                               line)
-          (when (< (match-beginning 0) (length company-common))
-            (add-text-properties (match-beginning 0) (length company-common)
-                                 '(face company-tooltip-common-selection)
-                                 line)))
-      (add-text-properties 0 width '(face company-tooltip-selection
-                                          mouse-face company-tooltip-selection)
-                           line)
-      (add-text-properties 0 (length company-common)
-                           '(face company-tooltip-common-selection
-                             mouse-face company-tooltip-selection)
-                           line)))
+  (let ((common (or (company-call-backend 'common-part line)
+                    (length company-common))))
+    (setq line (company-safe-substring line 0 width))
+    (add-text-properties 0 width '(face company-tooltip
+                                   mouse-face company-tooltip-mouse)
+                         line)
+    (add-text-properties 0 common '(face company-tooltip-common
+                                    mouse-face company-tooltip-mouse)
+                         line)
+    (when selected
+      (if (and company-search-string
+               (string-match (regexp-quote company-search-string) line
+                             (length company-prefix)))
+          (progn
+            (add-text-properties (match-beginning 0) (match-end 0)
+                                 '(face company-tooltip-selection)
+                                 line)
+            (when (< (match-beginning 0) common)
+              (add-text-properties (match-beginning 0) common
+                                   '(face company-tooltip-common-selection)
+                                   line)))
+        (add-text-properties 0 width '(face company-tooltip-selection
+                                       mouse-face company-tooltip-selection)
+                             line)
+        (add-text-properties 0 common '(face company-tooltip-common-selection
+                                        mouse-face company-tooltip-selection)
+                             line))))
   line)
 
 ;;; replace
