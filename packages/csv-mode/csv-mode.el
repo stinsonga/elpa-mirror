@@ -1,6 +1,6 @@
 ;;; csv-mode.el --- Major mode for editing comma/char separated values  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2003, 2004, 2012, 2013  Free Software Foundation, Inc
+;; Copyright (C) 2003, 2004, 2012, 2013, 2014  Free Software Foundation, Inc
 
 ;; Author: Francis J. Wright <F.J.Wright at qmul.ac.uk>
 ;; Time-stamp: <23 August 2004>
@@ -247,10 +247,6 @@ Number of spaces used by `csv-align-fields' after separators."
 ;;;  Mode definition, key bindings and menu
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defconst csv-mode-line-help-echo
-  ;; See bindings.el for details of `mode-line-format' construction.
-  (get-text-property 0 'help-echo (car (default-value 'mode-line-format)))
-  "Primary default mode line help echo text.")
 
 (defconst csv-mode-line-format
   ;; See bindings.el for details of `mode-line-format' construction.
@@ -260,7 +256,6 @@ Number of spaces used by `csv-align-fields' after separators."
       (setcdr x (cons
                  `(csv-field-index-string
                    ("" csv-field-index-string
-                    ;; ,(propertize "--" 'help-echo csv-mode-line-help-echo)
                     ))
                  (cdr x))))
     ml)
@@ -803,8 +798,7 @@ Called by `csv-field-index-idle-timer'."
 	  (when (not (eq field csv-field-index-old))
 	    (setq csv-field-index-old field
 		  csv-field-index-string
-		  (and field (propertize (format "F%d" field)
-					 'help-echo csv-mode-line-help-echo)))
+		  (and field (format "F%d" field)))
 	    (force-mode-line-update))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
