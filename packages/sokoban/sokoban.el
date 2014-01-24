@@ -2,8 +2,8 @@
 
 ;; Copyright (C) 1998, 2013 Free Software Foundation, Inc.
 
-;; Author: Glynn Clements <glynn.clements@virgin.net>
-;; Version: 1.04
+;; Author: Glynn Clements <glynn.clements@xemacs.org>
+;; Version: 1.4
 ;; Created: 1997-09-11
 ;; Keywords: games
 ;; Package-Type: multi

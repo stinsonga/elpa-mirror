@@ -23,9 +23,14 @@ and the web-pages from this source code:
   of the package, if it's maintained externally.
 - A "News:" section (or "NEWS" file) can/should be used to list the
   user-visible changes of each version.
-- The "Package-Type: simple" header can be used to force the creation
-  of a single-file package even when there are several Elisp files in
-  the source (the other files will simply be ignored).
+- The "Package-Type:" header can be used to force the type of package
+  created (can be either `simple' for single-file packages or `multi' for
+  tarballs).  By default the type is decided based on whether there are
+  several Elisp files in the source (the other files will simply be
+  ignored).
+- If you want some files to not be included in the tarball, you can
+  put a `.elpaignore' file in the root of your package directory, where you
+  can list patterns of files to ignore (this file is passed to tar's -X).
 
 * External branches
 
