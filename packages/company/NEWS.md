@@ -1,5 +1,12 @@
 # History of user-visible changes
 
+## 2014-01-25 (0.6.14)
+
+* The tooltip front-end is rendered with scrollbar, controlled by the user
+  option `company-tooltip-offset-display`.
+* The tooltip front-end is rendered with margins, controlled by the user option
+  `company-tooltip-margin`.
+
 ## 2014-01-14 (0.6.13)
 
 * Experimental support for non-prefix completion.
