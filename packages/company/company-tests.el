@@ -1,6 +1,6 @@
 ;;; company-tests.el --- company-mode tests
 
-;; Copyright (C) 2011, 2013  Free Software Foundation, Inc.
+;; Copyright (C) 2011, 2013-2014  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 
@@ -237,25 +237,26 @@
   (with-temp-buffer
     (save-window-excursion
     (set-window-buffer nil (current-buffer))
-    (insert "aaaa\n bb\nccccc\nddd")
+    (insert "aaaa\n  bb\nccccccc\nddd")
     (search-backward "bb")
     (let ((col (company--column))
           (company-candidates-length 2)
           (company-candidates '("123" "45")))
       (company-pseudo-tooltip-show (company--row) col 0)
       (let ((ov company-pseudo-tooltip-overlay))
-        (should (eq (overlay-get ov 'company-width) 3))
+        ;; With margins.
+        (should (eq (overlay-get ov 'company-width) 5))
         ;; FIXME: Make it 2?
         (should (eq (overlay-get ov 'company-height) company-tooltip-limit))
         (should (eq (overlay-get ov 'company-column) col))
         (should (string= (overlay-get ov 'company-after)
-                         " 123\nc45 c\nddd\n")))))))
+                         "  123 \nc 45  c\nddd\n")))))))
 
 (ert-deftest company-create-lines-shows-numbers ()
   (let ((company-show-numbers t)
         (company-candidates '("x" "y" "z"))
         (company-candidates-length 3))
-    (should (equal '("x 1" "y 2" "z 3")
+    (should (equal '(" x 1 " " y 2 " " z 3 ")
                    (company--create-lines 0 999)))))
 
 (ert-deftest company-column-with-composition ()
@@ -299,6 +300,15 @@
     (should (equal-including-properties
              (company-modify-line str "zz" 10)
              "-*-foobar zz"))))
+
+(ert-deftest company-scrollbar-bounds ()
+  (should (equal nil (company--scrollbar-bounds 0 3 3)))
+  (should (equal nil (company--scrollbar-bounds 0 4 3)))
+  (should (equal '(0 . 0) (company--scrollbar-bounds 0 1 2)))
+  (should (equal '(1 . 1) (company--scrollbar-bounds 2 2 4)))
+  (should (equal '(2 . 3) (company--scrollbar-bounds 7 4 12)))
+  (should (equal '(1 . 2) (company--scrollbar-bounds 3 4 12)))
+  (should (equal '(1 . 3) (company--scrollbar-bounds 4 5 11))))
 
 ;;; Template
 
