@@ -1,9 +1,9 @@
 ;;; lmc.el --- Little Man Computer in Elisp
 
-;; Copyright (C) 2011, 2013  Free Software Foundation, Inc.
+;; Copyright (C) 2011, 2013, 2014  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
-;; Version: 1.2
+;; Version: 1.3
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -576,7 +576,7 @@ Also, when nil, evaluation is interrupted when the user hits a key.")
              (setq lmc--stopped (lmc--state))
              (force-mode-line-update)
              (message "Done.")))
-      (IN (setq lmc-acc (mod (read-number "Enter a number") 1000))
+      (IN (setq lmc-acc (mod (read-number "Enter a number: ") 1000))
           (incf lmc-pc))
       (OUT (message "Output: %03d" lmc-acc)
            (push (format "%03d" lmc-acc) lmc-output)
@@ -711,7 +711,8 @@ The machine will also stop if the user presses a key."
     (cond
      ((> (nth 0 (syntax-ppss)) 0) nil)
      ((looking-at "(") tab-width)
-     ((not (looking-at comment-start-skip)) 0)
+     ((not (looking-at comment-start-skip))
+      (if (looking-at "[ \t]*$") tab-width 0))
      ((not (looking-at "\\s<\\s<")) nil)
      ((save-excursion (forward-comment (- (point))) (bobp)) 0)
      (t (forward-comment (point-max)) (lmc-asm-indentation)))))
