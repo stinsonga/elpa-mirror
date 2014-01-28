@@ -72,7 +72,7 @@ make archive-full || {
 }
 latest="emacs-packages-latest.tgz"
 (cd archive
- tar zcf "$latest" packages)
+ GZIP=--best tar zcf "$latest" packages)
 (cd ../
  mkdir -p staging/packages
  # Not sure why we have `staging-old', but let's keep it for now.

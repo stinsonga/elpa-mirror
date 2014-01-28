@@ -12,6 +12,7 @@
 ./ada-mode/gpr-skel.el:  "Example copyright/license skeleton, with automatic year and owner."
 ./ada-mode/gpr-skel.el:  "Insert a file header comment, with automatic copyright year and prompt for copyright owner/license.
 ./ada-mode/gpr-skel.el:  "{copyright_license}\n"
+./ascii-art-to-unicode/ascii-art-to-unicode.el:;;   - change copyright to FSF
 ./auctex/latex.el:   "pounds" "copyright"
 ./auctex/multi-prompt.el
 ./auctex/plain-tex.el:   "copyright"
