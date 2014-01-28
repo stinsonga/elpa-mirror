@@ -1,10 +1,10 @@
 ;;; company.el --- Modular in-buffer completion framework  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2009-2013  Free Software Foundation, Inc.
+;; Copyright (C) 2009-2014  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 ;; Maintainer: Dmitry Gutov <dgutov@yandex.ru>
-;; Version: 0.6.12
+;; Version: 0.6.14
 ;; Keywords: abbrev, convenience, matching
 ;; URL: http://company-mode.github.io/
 ;; Compatibility: GNU Emacs 22.x, GNU Emacs 23.x, GNU Emacs 24.x
@@ -123,6 +123,21 @@
      :foreground "red"))
   "Face used for the selected common completion in the tooltip.")
 
+(defface company-scrollbar-fg
+  '((((background light))
+     :background "darkred")
+    (((background dark))
+     :background "red"))
+  "Face used for the tooltip scrollbar thumb.")
+
+(defface company-scrollbar-bg
+  '((default :inherit company-tooltip)
+    (((background light))
+     :background "wheat")
+    (((background dark))
+     :background "gold"))
+  "Face used for the tooltip scrollbar background.")
+
 (defface company-preview
   '((t :background "blue4"
        :foreground "wheat"))
@@ -210,6 +225,17 @@ The visualized data is stored in `company-prefix', `company-candidates',
   "The minimum height of the tooltip.
 If this many lines are not available, prefer to display the tooltip above."
   :type 'integer)
+
+(defcustom company-tooltip-margin 1
+  "Width of margin columns to show around the toolip."
+  :type 'integer)
+
+(defcustom company-tooltip-offset-display 'scrollbar
+  "Method using which the tooltip displays scrolling position.
+`scrollbar' means draw a scrollbar to the right of the items.
+`lines' means wrap items in lines with \"before\" and \"after\" counters."
+  :type '(choice (const :tag "Scrollbar" scrollbar)
+                 (const :tag "Two lines" lines)))
 
 (defvar company-safe-backends
   '((company-abbrev . "Abbrev")
@@ -353,7 +379,7 @@ back-end, consider using the `post-completion' command instead."
   :type 'hook)
 
 (defcustom company-minimum-prefix-length 3
-  "The minimum prefix length for automatic completion."
+  "The minimum prefix length for idle completion."
   :type '(integer :tag "prefix length"))
 
 (defcustom company-require-match 'company-explicit-action-p
@@ -371,7 +397,8 @@ This can be overridden by the back-end, if it returns t or `never' to
 (defcustom company-auto-complete nil
   "Determines when to auto-complete.
 If this is enabled, all characters from `company-auto-complete-chars'
-complete the selected completion.  This can also be a function."
+trigger insertion of the selected completion candidate.
+This can also be a function."
   :type '(choice (const :tag "Off" nil)
                  (function :tag "Predicate function")
                  (const :tag "On, if user interaction took place"
@@ -379,9 +406,9 @@ complete the selected completion.  This can also be a function."
                  (const :tag "On" t)))
 
 (defcustom company-auto-complete-chars '(?\  ?\) ?.)
-  "Determines which characters trigger an automatic completion.
+  "Determines which characters trigger auto-completion.
 See `company-auto-complete'.  If this is a string, each string character
-causes completion.  If it is a list of syntax description characters (see
+tiggers auto-completion.  If it is a list of syntax description characters (see
 `modify-syntax-entry'), all characters with that syntax auto-complete.
 
 This can also be a function, which is called with the new input and should
@@ -407,19 +434,20 @@ A character that is part of a valid candidate never triggers auto-completion."
                  (function :tag "Predicate function")))
 
 (defcustom company-idle-delay .7
-  "The idle delay in seconds until automatic completions starts.
-A value of nil means never complete automatically, t means complete
+  "The idle delay in seconds until completion starts automatically.
+A value of nil means no idle completion, t means show candidates
 immediately when a prefix of `company-minimum-prefix-length' is reached."
   :type '(choice (const :tag "never (nil)" nil)
                  (const :tag "immediate (t)" t)
                  (number :tag "seconds")))
 
 (defcustom company-begin-commands '(self-insert-command)
-  "A list of commands following which company will start completing.
-If this is t, it will complete after any command.  See `company-idle-delay'.
+  "A list of commands after which idle completion is allowed.
+If this is t, it can show completions after any command.  See
+`company-idle-delay'.
 
-Alternatively any command with a non-nil `company-begin' property is treated
-as if it was on this list."
+Alternatively, any command with a non-nil `company-begin' property is
+treated as if it was on this list."
   :type '(choice (const :tag "Any command" t)
                  (const :tag "Self insert command" '(self-insert-command))
                  (repeat :tag "Commands" function)))
@@ -722,7 +750,7 @@ means that `company-mode' is always turned on except in `message-mode' buffers."
 (make-variable-buffer-local 'company--explicit-action)
 
 (defvar company--auto-completion nil
-  "Non-nil when current candidate is being completed automatically.
+  "Non-nil when current candidate is being inserted automatically.
 Controlled by `company-auto-complete'.")
 
 (defvar company--point-max nil)
@@ -833,8 +861,11 @@ can retrieve meta-data for them."
     ;; responsibility of each respective backend, not ours.
     ;; On the other hand, we don't want to replace non-prefix input in
     ;; `company-complete-common'.
-    (setq company-common (company--safe-candidate
-                          (try-completion company-prefix company-candidates)))))
+    (setq company-common
+          (if (cdr company-candidates)
+              (company--safe-candidate
+               (try-completion company-prefix company-candidates))
+            (car company-candidates)))))
 
 (defun company--safe-candidate (str)
   (or (company-call-backend 'crop str)
@@ -1404,9 +1435,10 @@ and invoke the normal binding."
              (company--inside-tooltip-p event-col-row ovl-row ovl-height))
         (progn
           (company-set-selection (+ (cdr event-col-row)
-                                    (if (zerop company-tooltip-offset)
-                                        -1
-                                      (- company-tooltip-offset 2))
+                                    (1- company-tooltip-offset)
+                                    (if (and (eq company-tooltip-offset-display 'lines)
+                                             (not (zerop company-tooltip-offset)))
+                                        -1 0)
                                     (- ovl-row)
                                     (if (< ovl-height 0)
                                         (- 1 ovl-height)
@@ -1417,13 +1449,13 @@ and invoke the normal binding."
       nil)))
 
 (defun company-complete-mouse (event)
-  "Complete the candidate picked by the mouse."
+  "Insert the candidate picked by the mouse."
   (interactive "e")
   (when (company-select-mouse event)
     (company-complete-selection)))
 
 (defun company-complete-selection ()
-  "Complete the selected candidate."
+  "Insert the selected candidate."
   (interactive)
   (when (company-manual-begin)
     (let ((result (nth company-selection company-candidates)))
@@ -1432,7 +1464,7 @@ and invoke the normal binding."
       (company-finish result))))
 
 (defun company-complete-common ()
-  "Complete the common part of all candidates."
+  "Insert the common part of all candidates."
   (interactive)
   (when (company-manual-begin)
     (if (and (not (cdr company-candidates))
@@ -1442,10 +1474,10 @@ and invoke the normal binding."
         (company--insert-candidate company-common)))))
 
 (defun company-complete ()
-  "Complete the common part of all candidates or the current selection.
-The first time this is called, the common part is completed, the second
+  "Insert the common part of all candidates or the current selection.
+The first time this is called, the common part is inserted, the second
 time, or when the selection has been changed, the selected candidate is
-completed."
+inserted."
   (interactive)
   (when (company-manual-begin)
     (if (or company-selection-changed
@@ -1455,7 +1487,7 @@ completed."
       (setq this-command 'company-complete-common))))
 
 (defun company-complete-number (n)
-  "Complete the Nth candidate.
+  "Insert the Nth candidate.
 To show the number next to the candidates in some back-ends, enable
 `company-show-numbers'."
   (when (company-manual-begin)
@@ -1638,8 +1670,7 @@ Example: \(company-begin-with '\(\"foo\" \"foobar\" \"foobarbaz\"\)\)"
 (defvar company-tooltip-offset 0)
 (make-variable-buffer-local 'company-tooltip-offset)
 
-(defun company-pseudo-tooltip-update-offset (selection num-lines limit)
-
+(defun company-tooltip--lines-update-offset (selection num-lines limit)
   (decf limit 2)
   (setq company-tooltip-offset
         (max (min selection company-tooltip-offset)
@@ -1659,6 +1690,13 @@ Example: \(company-begin-with '\(\"foo\" \"foobar\" \"foobarbaz\"\)\)"
 
   limit)
 
+(defun company-tooltip--simple-update-offset (selection num-lines limit)
+  (setq company-tooltip-offset
+        (if (< selection company-tooltip-offset)
+            selection
+          (max company-tooltip-offset
+               (- selection limit -1)))))
+
 ;;; propertize
 
 (defsubst company-round-tab (arg)
@@ -1677,34 +1715,47 @@ Example: \(company-begin-with '\(\"foo\" \"foobar\" \"foobarbaz\"\)\)"
       (pop copy))
     (apply 'concat pieces)))
 
+(defun company--highlight-common (line properties)
+  ;; XXX: Subject to change.
+  (let ((common (or (company-call-backend 'common-part line)
+                    (length company-common))))
+    (add-text-properties 0 common properties line)))
+
 (defun company-fill-propertize (line width selected)
-  (setq line (company-safe-substring line 0 width))
-  (add-text-properties 0 width '(face company-tooltip
-                                 mouse-face company-tooltip-mouse)
-                       line)
-  (add-text-properties 0 (length company-common)
-                       '(face company-tooltip-common
-                         mouse-face company-tooltip-mouse)
-                       line)
-  (when selected
-    (if (and company-search-string
-             (string-match (regexp-quote company-search-string) line
-                           (length company-prefix)))
-        (progn
-          (add-text-properties (match-beginning 0) (match-end 0)
-                               '(face company-tooltip-selection)
-                               line)
-          (when (< (match-beginning 0) (length company-common))
-            (add-text-properties (match-beginning 0) (length company-common)
-                                 '(face company-tooltip-common-selection)
-                                 line)))
-      (add-text-properties 0 width '(face company-tooltip-selection
-                                          mouse-face company-tooltip-selection)
-                           line)
-      (add-text-properties 0 (length company-common)
-                           '(face company-tooltip-common-selection
-                             mouse-face company-tooltip-selection)
-                           line)))
+  (let* ((margin company-tooltip-margin)
+         (common (+ (or (company-call-backend 'common-part line)
+                        (length company-common)) margin)))
+    (setq line (concat (company-space-string company-tooltip-margin)
+                       (company-safe-substring
+                        line 0 (+ width company-tooltip-margin)))
+          width (+ width (* 2 margin)))
+
+    (add-text-properties 0 width '(face company-tooltip
+                                   mouse-face company-tooltip-mouse)
+                         line)
+    (add-text-properties margin common
+                         '(face company-tooltip-common
+                           mouse-face company-tooltip-mouse)
+                         line)
+    (when selected
+      (if (and company-search-string
+               (string-match (regexp-quote company-search-string) line
+                             (length company-prefix)))
+          (progn
+            (add-text-properties (match-beginning 0) (match-end 0)
+                                 '(face company-tooltip-selection)
+                                 line)
+            (when (< (match-beginning 0) common)
+              (add-text-properties (match-beginning 0) common
+                                   '(face company-tooltip-common-selection)
+                                   line)))
+        (add-text-properties 0 width '(face company-tooltip-selection
+                                       mouse-face company-tooltip-selection)
+                             line)
+        (add-text-properties margin common
+                             '(face company-tooltip-common-selection
+                               mouse-face company-tooltip-selection)
+                             line))))
   line)
 
 ;;; replace
@@ -1739,24 +1790,32 @@ Example: \(company-begin-with '\(\"foo\" \"foobar\" \"foobarbaz\"\)\)"
     (length lst)))
 
 (defun company--replacement-string (lines old column nl &optional align-top)
+  (decf column company-tooltip-margin)
 
   (let ((width (length (car lines)))
-        (remaining-cols (- (+ (window-width) (window-hscroll))
+        (remaining-cols (- (+ (company--window-width) (window-hscroll))
                            column)))
     (when (> width remaining-cols)
       (decf column (- width remaining-cols))))
 
-  (let (new)
+  (let ((offset (and (< column 0) (- column)))
+        new)
+    (when offset
+      (setq column 0))
     (when align-top
       ;; untouched lines first
       (dotimes (_ (- (length old) (length lines)))
         (push (pop old) new)))
     ;; length into old lines.
     (while old
-      (push (company-modify-line (pop old) (pop lines) column) new))
+      (push (company-modify-line (pop old)
+                                 (company--offset-line (pop lines) offset)
+                                 column) new))
     ;; Append whole new lines.
     (while lines
-      (push (concat (company-space-string column) (pop lines)) new))
+      (push (concat (company-space-string column)
+                    (company--offset-line (pop lines) offset))
+            new))
 
     (let ((str (concat (when nl "\n")
                        (mapconcat 'identity (nreverse new) "\n")
@@ -1764,26 +1823,43 @@ Example: \(company-begin-with '\(\"foo\" \"foobar\" \"foobarbaz\"\)\)"
       (font-lock-append-text-property 0 (length str) 'face 'default str)
       str)))
 
+(defun company--offset-line (line offset)
+  (if (and offset line)
+      (substring line offset)
+    line))
+
 (defun company--create-lines (selection limit)
 
   (let ((len company-candidates-length)
         (numbered 99999)
+        (window-width (company--window-width))
         lines
         width
         lines-copy
         previous
         remainder
+        scrollbar-bounds
         new)
 
+    ;; Maybe clear old offset.
+    (when (<= len (+ company-tooltip-offset limit))
+      (setq company-tooltip-offset 0))
+
     ;; Scroll to offset.
-    (setq limit (company-pseudo-tooltip-update-offset selection len limit))
+    (if (eq company-tooltip-offset-display 'lines)
+        (setq limit (company-tooltip--lines-update-offset selection len limit))
+      (company-tooltip--simple-update-offset selection len limit))
 
-    (when (> company-tooltip-offset 0)
-      (setq previous (format "...(%d)" company-tooltip-offset)))
-
-    (setq remainder (- len limit company-tooltip-offset)
-          remainder (when (> remainder 0)
-                      (setq remainder (format "...(%d)" remainder))))
+    (cond
+     ((eq company-tooltip-offset-display 'scrollbar)
+      (setq scrollbar-bounds (company--scrollbar-bounds company-tooltip-offset
+                                                        limit len)))
+     ((eq company-tooltip-offset-display 'lines)
+      (when (> company-tooltip-offset 0)
+        (setq previous (format "...(%d)" company-tooltip-offset)))
+      (setq remainder (- len limit company-tooltip-offset)
+            remainder (when (> remainder 0)
+                        (setq remainder (format "...(%d)" remainder))))))
 
     (decf selection company-tooltip-offset)
     (setq width (max (length previous) (length remainder))
@@ -1791,10 +1867,14 @@ Example: \(company-begin-with '\(\"foo\" \"foobar\" \"foobarbaz\"\)\)"
           len (min limit len)
           lines-copy lines)
 
+    (decf window-width (* 2 company-tooltip-margin))
+    (when scrollbar-bounds (decf window-width))
+
     (dotimes (_ len)
       (setq width (max (length (pop lines-copy)) width)))
-    (setq width (min (window-width)
-                     (if company-show-numbers
+    (setq width (min window-width
+                     (if (and company-show-numbers
+                              (< company-tooltip-offset 10))
                          (+ 2 width)
                        width)))
     (setq lines-copy lines)
@@ -1804,34 +1884,65 @@ Example: \(company-begin-with '\(\"foo\" \"foobar\" \"foobarbaz\"\)\)"
       (setq numbered company-tooltip-offset))
 
     (when previous
-      (push (propertize (company-safe-substring previous 0 width)
-                        'face 'company-tooltip)
-            new))
+      (push (company--scrollpos-line previous width) new))
 
     (dotimes (i len)
-      (push (company-fill-propertize
-             (if (>= numbered 10)
-                 (company-reformat (pop lines))
-               (incf numbered)
-               (format "%s %d"
-                       (company-safe-substring (company-reformat (pop lines))
-                                               0 (- width 2))
-                       (mod numbered 10)))
-             width (equal i selection))
-            new))
+      (let ((line (company-fill-propertize
+                   (if (>= numbered 10)
+                       (company-reformat (pop lines))
+                     (incf numbered)
+                     (format "%s %d"
+                             (company-safe-substring
+                              (company-reformat (pop lines)) 0 (- width 2))
+                             (mod numbered 10)))
+                   width (equal i selection))))
+        (push (if scrollbar-bounds
+                  (company--scrollbarize line i scrollbar-bounds)
+                line)
+              new)))
 
     (when remainder
-      (push (propertize (company-safe-substring remainder 0 width)
-                        'face 'company-tooltip)
-            new))
+      (push (company--scrollpos-line remainder width) new))
 
     (setq lines (nreverse new))))
+
+(defun company--scrollbar-bounds (offset limit length)
+  (when (> length limit)
+    (let* ((size (ceiling (* limit (float limit)) length))
+           (lower (floor (* limit (float offset)) length))
+           (upper (+ lower size -1)))
+      (cons lower upper))))
+
+(defun company--scrollbarize (line i bounds)
+  (concat line
+          (propertize " " 'face
+                      (if (and (>= i (car bounds)) (<= i (cdr bounds)))
+                          'company-scrollbar-fg
+                        'company-scrollbar-bg))))
+
+(defun company--scrollpos-line (text width)
+  (propertize (concat (company-space-string company-tooltip-margin)
+                      (company-safe-substring text 0 width)
+                      (company-space-string company-tooltip-margin))
+   'face 'company-tooltip))
 
 ;; show
 
 (defsubst company--window-inner-height ()
   (let ((edges (window-inside-edges)))
     (- (nth 3 edges) (nth 1 edges))))
+
+(defsubst company--window-width ()
+  (- (window-width)
+     (cond
+      ((display-graphic-p) 0)
+      ;; Account for the line continuation column.
+      ((version< "24.3.1" emacs-version) 1)
+      ;; Emacs 24.3 and earlier included margins
+      ;; in window-width when in TTY.
+      (t (1+ (let ((margins (window-margins)))
+               (+ (or (car margins) 0)
+                  (or (cdr margins) 0))))))))
 
 (defun company--pseudo-tooltip-height ()
   "Calculate the appropriate tooltip height.
