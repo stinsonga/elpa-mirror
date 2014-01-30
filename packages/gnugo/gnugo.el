@@ -113,7 +113,7 @@
 ;;; Code:
 
 (require 'cl-lib)                       ; use the source luke!
-(ignore-errors (require 'time-date))    ; for `time-subtract'
+(require 'time-date)                    ; for `time-subtract'
 
 ;;;---------------------------------------------------------------------------
 ;;; Political arts
@@ -222,14 +222,6 @@ one is kept."
         (setcdr tail (delete (car tail) (cdr tail)))
         (setq tail (cdr tail))))
     list))
-
-(unless (fboundp 'time-subtract)
-  (defun time-subtract (t1 t2)          ; from repo 2004-10-29
-    "Subtract two time values.
-Return the difference in the format of a time value."
-    (let ((borrow (< (cadr t1) (cadr t2))))
-      (list (- (car t1) (car t2) (if borrow 1 0))
-            (- (+ (if borrow 65536 0) (cadr t1)) (cadr t2))))))
 
 (unless (fboundp 'window-edges)
   (defun window-edges (&optional window)
