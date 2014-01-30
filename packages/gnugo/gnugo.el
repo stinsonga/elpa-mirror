@@ -1711,6 +1711,10 @@ In this mode, keys do not self insert.  Default keybindings:
       (gnugo-put :proc (apply 'start-process "gnugo" nil name
                               "--mode" "gtp" "--quiet"
                               proc-args)))
+    ;; Emacs is too protective sometimes, blech.
+    (remove-hook (make-local-variable 'kill-buffer-query-functions)
+                 'process-kill-buffer-query-function
+                 t)
     (when (or minus-l infile)
       (mapc (lambda (x)
               (apply (lambda (prop q)
