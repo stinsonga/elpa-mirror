@@ -1,6 +1,6 @@
 ;;; gen-confusables.el --- generate uni-confusables.el from confusables.txt
 
-;; Copyright (C) 2011, 2012  Free Software Foundation, Inc.
+;; Copyright (C) 2011, 2012, 2014  Free Software Foundation, Inc.
 
 ;; Author: Teodor Zlatanov <tzz@lifelogs.com>
 
@@ -21,14 +21,14 @@
 
 ;;; Code:
 
-(require 'cl)
+(require 'cl-lib)
 
 (defvar gen-confusables-char-table-single)
 (defvar gen-confusables-char-table-multiple)
 
 (defun gen-confusables-read (file)
   (interactive "fConfusables filename: \n")
-  (flet ((reader (h) (string-to-number h 16)))
+  (cl-flet ((reader (h) (string-to-number h 16)))
     (let ((stable (make-char-table 'confusables-single-script))
           (mtable (make-char-table 'confusables-multiple-script))
           (count 0)
@@ -44,8 +44,8 @@
         (insert-file-contents file)
         (goto-char (point-min))
         (while (re-search-forward confusable-line-regexp nil t)
-          (incf count)
-          (when (and (called-interactively-p)
+          (cl-incf count)
+          (when (and (called-interactively-p 'interactive)
                      (zerop (mod count 100)))
             (message "processed %d lines" count))
           (let* ((from (match-string 1))
@@ -61,16 +61,21 @@
   (interactive "FDumped filename: \n")
   (let ((coding-system-for-write 'utf-8-emacs))
     (with-temp-file file
-      (insert ";; Copyright (C) 1991-2009, 2010 Unicode, Inc.
+      (insert ";;; uni-confusables.el --- Unicode confusables table
+;; Copyright (C) 1991-2009, 2010 Unicode, Inc.
 ;; This file was generated from the Unicode confusables list at
 ;; http://www.unicode.org/Public/security/revision-04/confusables.txt.
 ;; See lisp/international/README in the Emacs trunk
-;; for the copyright and permission notice.\n\n")
+;; for the copyright and permission notice.
+
+;; Version: 0.1
+;; Maintainer: Teodor Zlatanov <tzz@lifelogs.com>
+
+;;; Code:\n\n")
       (dolist (type '(single multiple))
         (let* ((tablesym (intern (format "uni-confusables-char-table-%s" type)))
                (oursym (intern (format "gen-confusables-char-table-%s" type)))
                (ourtable (symbol-value oursym))
-               (ourtablename (symbol-name oursym))
                (tablename (symbol-name tablesym))
                (prop (format "confusables-%s-script" type))
                props)
@@ -98,11 +103,13 @@
                             (nth (* 2 offset) props)
                             (nth (1+ (* 2 offset)) props))))
           (insert ")\n\n")))
+      ;; Use \s escapes in the string, so that this text isn't mis-recognized
+      ;; as applying to this file, but only to the generated file.
       (insert "
-;; Local Variables:
-;; coding: utf-8
-;; no-byte-compile: t
-;; End:
+;;\sLocal\sVariables:
+;;\scoding: utf-8
+;;\sno-byte-compile: t
+;;\sEnd:
 
 ;; uni-confusables.el ends here"))))
 
