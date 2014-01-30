@@ -1002,7 +1002,7 @@ its move."
 
 (defun gnugo-cleanup ()
   (when (gnugo-board-buffer-p)
-    (unless (= 0 (buffer-size))
+    (unless (zerop (buffer-size))
       (message "Thank you for playing GNU Go."))
     (mapc (lambda (sym)
             (setplist sym nil)          ; "...is next to fordliness." --Huxley
@@ -1350,7 +1350,7 @@ turn to play.  Optional second arg NOALT non-nil inhibits this."
          (count (aref monkey 2))
          done ans)
     (cond ((and (numberp spec) (< 0 spec))
-           (setq n spec done (lambda () (= 0 n))))
+           (setq n spec done (lambda () (zerop n))))
           ((string-match "^[a-z]" spec)
            (let ((pos (upcase spec)))
              (setq done `(lambda ()
@@ -1741,7 +1741,7 @@ In this mode, keys do not self insert.  Default keybindings:
               (,(if g-blackp :PW :PB) ,(user-full-name))
               (,(if g-blackp :PB :PW) ,(concat "GNU Go "
                                                (gnugo-query "version")))
-              ,@(when (not (= 0 handicap))
+              ,@(when (not (zerop handicap))
                   `((:HA ,handicap)
                     (:AB ,(gnugo-lsquery "fixed_handicap %d" handicap)
                          nil t)))))))
