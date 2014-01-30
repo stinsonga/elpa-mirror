@@ -209,31 +209,6 @@ For ~t, the value is a snapshot, use `gnugo-refresh' to update it.")
   (defvar gnugo-xpms nil))
 
 ;;;---------------------------------------------------------------------------
-;;; In case Emacs is lacking
-
-(unless (fboundp 'delete-dups)
-  (defun delete-dups (list)             ; from repo 2004-10-29
-    "Destructively remove `equal' duplicates from LIST.
-Store the result in LIST and return it.  LIST must be a proper list.
-Of several `equal' occurrences of an element in LIST, the first
-one is kept."
-    (let ((tail list))
-      (while tail
-        (setcdr tail (delete (car tail) (cdr tail)))
-        (setq tail (cdr tail))))
-    list))
-
-(unless (fboundp 'window-edges)
-  (defun window-edges (&optional window)
-    (let ((cw (/ (frame-pixel-width) (frame-width)))
-          (ch (/ (frame-pixel-height) (frame-height)))
-          (pix-edges (window-pixel-edges window)))
-      (list (/ (nth 0 pix-edges) cw)
-            (/ (nth 1 pix-edges) ch)
-            (/ (nth 2 pix-edges) cw)
-            (/ (nth 3 pix-edges) ch)))))
-
-;;;---------------------------------------------------------------------------
 ;;; Support functions
 
 (put  'gnugo-put 'lisp-indent-function 1)
