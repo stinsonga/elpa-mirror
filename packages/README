@@ -52,3 +52,10 @@ You can check out all the external packages into the `packages' directory
 with the command:
 
    make externals
+
+* Public incubation
+
+If you want to develop a package publicly prior to its first release (to
+benefit from others' feedback, primarily), but not in an external repo,
+you can push to an "ephemeral" branch -- subject to rebase and eventual
+removal upon finishing merge -- for the duration of the incubation.
