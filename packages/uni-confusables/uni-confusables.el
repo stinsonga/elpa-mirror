@@ -1,8 +1,14 @@
+;;; uni-confusables.el --- Unicode confusables table
 ;; Copyright (C) 1991-2009, 2010 Unicode, Inc.
 ;; This file was generated from the Unicode confusables list at
 ;; http://www.unicode.org/Public/security/revision-04/confusables.txt.
 ;; See lisp/international/README in the Emacs trunk
 ;; for the copyright and permission notice.
+
+;; Version: 0.1
+;; Maintainer: Teodor Zlatanov <tzz@lifelogs.com>
+
+;;; Code:
 
 (defvar uni-confusables-char-table-single (make-char-table 'confusables-single-script))
 
