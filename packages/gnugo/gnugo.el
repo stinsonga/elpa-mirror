@@ -112,7 +112,7 @@
 
 ;;; Code:
 
-(require 'cl)                           ; use the source luke!
+(require 'cl-lib)                       ; use the source luke!
 (ignore-errors (require 'time-date))    ; for `time-subtract'
 
 ;;;---------------------------------------------------------------------------
@@ -680,24 +680,25 @@ For all other values of RSEL, do nothing and return nil."
         col
         (mem (aref (gnugo-get :monkey) 1))
         acc node mprop move)
-    (flet ((as-pos (cc) (if (string= "tt" cc)
-                            "PASS"
-                          (setq col (aref cc 0))
-                          (format "%c%d"
-                                  (+ ?A (- (if (> ?i col) col (1+ col)) ?a))
-                                  (- size (- (aref cc 1) ?a)))))
-           (next (byp) (when (setq node (caar mem)
-                                   mprop (or (assq :B node)
-                                             (assq :W node)))
-                         (setq move (as-pos (cdr mprop))
-                               mem (cdr mem))
-                         (push (if byp
-                                   (format "%s%s" move (car mprop))
-                                 move)
-                               acc)))
-           (tell () (message "(%d moves) %s"
-                             (length acc)
-                             (mapconcat 'identity (nreverse acc) " "))))
+    (cl-labels
+        ((as-pos (cc) (if (string= "tt" cc)
+                          "PASS"
+                        (setq col (aref cc 0))
+                        (format "%c%d"
+                                (+ ?A (- (if (> ?i col) col (1+ col)) ?a))
+                                (- size (- (aref cc 1) ?a)))))
+         (next (byp) (when (setq node (caar mem)
+                                 mprop (or (assq :B node)
+                                           (assq :W node)))
+                       (setq move (as-pos (cdr mprop))
+                             mem (cdr mem))
+                       (push (if byp
+                                 (format "%s%s" move (car mprop))
+                               move)
+                             acc)))
+         (tell () (message "(%d moves) %s"
+                           (length acc)
+                           (mapconcat 'identity (nreverse acc) " "))))
       (cond
        ((not rsel)        (while (next nil)) (tell))
        ((equal '(4) rsel) (while (next t))   (tell))
@@ -708,15 +709,16 @@ For all other values of RSEL, do nothing and return nil."
 (defun gnugo-note (property value &optional movep mogrifyp)
   (when mogrifyp
     (let ((sz (gnugo-treeroot :SZ)))
-      (flet ((mog (pos) (if (string= "PASS" pos)
-                            "tt"
-                          (let* ((col (aref pos 0))
-                                 (one (+ ?a (- col (if (< ?H col) 1 0) ?A)))
-                                 (two (+ ?a (- sz (string-to-number
-                                                   (substring pos 1))))))
-                            (format "%c%c" one two)))))
+      (cl-labels
+          ((mog (pos) (if (string= "PASS" pos)
+                          "tt"
+                        (let* ((col (aref pos 0))
+                               (one (+ ?a (- col (if (< ?H col) 1 0) ?A)))
+                               (two (+ ?a (- sz (string-to-number
+                                                 (substring pos 1))))))
+                          (format "%c%c" one two)))))
         (setq value (if (consp value)
-                        (mapcar 'mog value)
+                        (mapcar #'mog value)
                       (mog value))))))
   (let* ((fruit (list (cons property value)))
          (monkey (gnugo-get :monkey))
@@ -739,13 +741,14 @@ For all other values of RSEL, do nothing and return nil."
     (if (or (eq t resign)
             (and (stringp resign)
                  (string-match "[BW][+][Rr]esign" resign)))
-        (flet ((ls (color) (mapcar
-                            (lambda (x)
-                              (cons (list color)
-                                    (split-string x)))
-                            (split-string
-                             (gnugo-query "worm_stones %s" color)
-                             "\n"))))
+        (cl-labels
+            ((ls (color) (mapcar
+                          (lambda (x)
+                            (cons (list color)
+                                  (split-string x)))
+                          (split-string
+                           (gnugo-query "worm_stones %s" color)
+                           "\n"))))
           (let ((live (append (ls "black") (ls "white"))))
             `((live ,@live)
               (dead))))
@@ -1232,15 +1235,16 @@ to enable full functionality."
       (setcdr now (cons group (cdr now)))
       ;; disabled permanently -- too wrong
       (when nil
-        (flet ((populate (group)
-                         (let ((color (caar group)))
-                           (dolist (stone (cdr group))
-                             (gnugo-query "play %s %s" color stone)))))
+        (cl-labels
+            ((populate (group)
+                       (let ((color (caar group)))
+                         (dolist (stone (cdr group))
+                           (gnugo-query "play %s %s" color stone)))))
           (if (eq now live)
               (populate group)
             ;; drastic (and wrong -- clobbers capture info, etc)
             (gnugo-query "clear_board")
-            (mapc 'populate (cdr live)))))
+            (mapc #'populate (cdr live)))))
       ;; here is the desired interface (to be enabled Some Day)
       (when nil
         (gnugo-query "change_dragon_status %s %s"
@@ -1452,11 +1456,12 @@ Also, add the `:RE' SGF property to the root node of the game tree."
                    (y-or-n-p "Game still in play. Stop play now? ")))
     (error "Sorry, game still in play"))
   (unless (gnugo-get :game-over)
-    (flet ((pass (userp)
-                 (message "Playing PASS for %s ..."
-                          (gnugo-get (if userp :user-color :gnugo-color)))
-                 (sit-for 1)
-                 (gnugo-push-move userp "PASS")))
+    (cl-labels
+        ((pass (userp)
+               (message "Playing PASS for %s ..."
+                        (gnugo-get (if userp :user-color :gnugo-color)))
+               (sit-for 1)
+               (gnugo-push-move userp "PASS")))
       (unless (pass t)
         (pass nil)))
     (gnugo-refresh)
@@ -1896,29 +1901,31 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
           ("\C-c\C-p" . gnugo-describe-internal-properties))))
 
 (unless (get 'help :gnugo-gtp-command-spec)
-  (flet ((sget (x) (get x :gnugo-gtp-command-spec))
-         (jam (cmd prop val) (put cmd :gnugo-gtp-command-spec
-                                  (plist-put (sget cmd) prop val)))
-         (add (cmd prop val) (jam cmd prop (let ((cur (plist-get
-                                                       (sget cmd)
-                                                       prop)))
-                                             (append (delete val cur)
-                                                     (list val)))))
-         (defgtp (x &rest props) (dolist (cmd (if (symbolp x) (list x) x))
-                                   (let ((ls props))
-                                     (while ls
-                                       (funcall (if (eq :post-hook (car ls))
-                                                    'add
-                                                  'jam)
-                                                cmd (car ls) (cadr ls))
-                                       (setq ls (cddr ls)))))))
+  (cl-labels
+      ((sget (x) (get x :gnugo-gtp-command-spec))
+       (jam (cmd prop val) (put cmd :gnugo-gtp-command-spec
+                                (plist-put (sget cmd) prop val)))
+       (add (cmd prop val) (jam cmd prop (let ((cur (plist-get
+                                                     (sget cmd)
+                                                     prop)))
+                                           (append (delete val cur)
+                                                   (list val)))))
+       (defgtp (x &rest props) (dolist (cmd (if (symbolp x) (list x) x))
+                                 (let ((ls props))
+                                   (while ls
+                                     (funcall (if (eq :post-hook (car ls))
+                                                  #'add
+                                                #'jam)
+                                              cmd (car ls) (cadr ls))
+                                     (setq ls (cddr ls)))))))
 
     (defgtp 'help :full
       (lambda (sel)
         (info "(gnugo)GTP command reference")
         (when sel (setq sel (intern (car sel))))
         (let (buffer-read-only pad cur spec output found)
-          (flet ((note (s) (insert pad "[NOTE: gnugo.el " s ".]\n")))
+          (cl-labels
+              ((note (s) (insert pad "[NOTE: gnugo.el " s ".]\n")))
             (goto-char (point-min))
             (save-excursion
               (while (re-search-forward "^ *[*] \\([a-zA-Z_]+\\)\\(:.*\\)*\n"
@@ -2069,95 +2076,96 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                         (mapcar (lambda (full)
                          (cons (car full) (cdddr full)))
                                 gnugo/sgf-*r4-properties*)))))
-    (flet ((sw () (skip-chars-forward " \t\n"))
-           (x (end) (let ((beg (point))
-                          (endp (case end
-                                  (:end (lambda (char) (= ?\] char)))
-                                  (:mid (lambda (char) (= ?\: char)))
-                                  (t (lambda (char) (or (= ?\: char)
-                                                        (= ?\] char))))))
-                          c)
-                      (while (not (funcall endp (setq c (char-after))))
-                        (cond ((= ?\\ c)
-                               (delete-char 1)
-                               (if (eolp)
-                                   (kill-line 1)
-                                 (forward-char 1)))
-                              ((looking-at "\\s-+")
-                               (delete-region (point) (match-end 0))
-                               (insert " "))
-                              (t (forward-char 1))))
-                      (buffer-substring-no-properties beg (point))))
-           (one (type end) (unless (eq 'none type)
-                             (forward-char 1)
-                             (let ((s (x end)))
-                               (case type
-                                 ((stone point move simpletext color) s)
-                                 ((number real double) (string-to-number s))
-                                 ((text) s)
-                                 (t (error "Unhandled type: %S" type))))))
-           (val (spec) (cond ((symbolp spec)
-                              (one spec :end))
-                             ((vectorp spec)
-                              ;; todo: check range here.
-                              (one (aref spec 0) :end))
-                             ((eq 'or (car spec))
-                              (let ((v (one (cadr spec) t)))
-                                (if (= ?\] (char-after))
-                                    v
-                                  (forward-char 1)
-                                  ;; todo: this assumes `spec' has the form
-                                  ;;         (or foo (foo . bar))
-                                  ;; i.e., foo is not rescanned.  e.g., `SZ'.
-                                  ;; probably this assumption is consistent
-                                  ;; w/ the SGF authors' desire to make the
-                                  ;; parsing easy, but you never know...
-                                  (cons v (one (cdaddr spec) :end)))))
-                             (t (cons (one (car spec) :mid)
-                                      (one (cdr spec) :end)))))
-           (short (who) (when (eobp)
-                          (error "Unexpected EOF while reading %s" who)))
-           (atvalp () (= ?\[ (char-after)))
-           (PROP () (let (name spec ltype)
-                      (sw) (short 'property)
-                      (when (looking-at "[A-Z]")
-                        (setq name (read (current-buffer))
-                              spec (cdr (assq name specs)))
-                        (sw)
-                        (cons
-                         (cdr (assq name keywords))
-                         (prog1 (if (= 1 (length spec))
-                                    (val (car spec))
-                                  (unless (memq (setq ltype (car spec))
-                                                '(elist list))
-                                    (error "Bad spec: %S" spec))
-                                  (if (and (eq 'elist ltype) (sw)
-                                           (not (atvalp)))
-                                      nil
-                                    (let ((type (cadr spec))
-                                          mo ls)
-                                      (while (and (sw) (atvalp)
-                                                  (setq mo (val type)))
-                                        (push mo ls)
-                                        (forward-char 1))
-                                      (forward-char -1)
-                                      (nreverse ls))))
-                           (forward-char 1))))))
-           (NODE () (let (prop props)
-                      (sw) (short 'node)
-                      (when (= ?\; (char-after))
-                        (forward-char 1)
-                        (while (setq prop (PROP))
-                          (push prop props))
-                        (nreverse props))))
-           (TREE () (let (nodes)
-                      (while (and (sw) (not (eobp)))
-                        (case (char-after)
-                          (?\; (push (NODE) nodes))
-                          (?\( (forward-char 1)
-                               (push (TREE) nodes))
-                          (?\) (forward-char 1))))
-                      (nreverse nodes))))
+    (cl-labels
+        ((sw () (skip-chars-forward " \t\n"))
+         (x (end) (let ((beg (point))
+                        (endp (case end
+                                (:end (lambda (char) (= ?\] char)))
+                                (:mid (lambda (char) (= ?\: char)))
+                                (t (lambda (char) (or (= ?\: char)
+                                                      (= ?\] char))))))
+                        c)
+                    (while (not (funcall endp (setq c (char-after))))
+                      (cond ((= ?\\ c)
+                             (delete-char 1)
+                             (if (eolp)
+                                 (kill-line 1)
+                               (forward-char 1)))
+                            ((looking-at "\\s-+")
+                             (delete-region (point) (match-end 0))
+                             (insert " "))
+                            (t (forward-char 1))))
+                    (buffer-substring-no-properties beg (point))))
+         (one (type end) (unless (eq 'none type)
+                           (forward-char 1)
+                           (let ((s (x end)))
+                             (case type
+                               ((stone point move simpletext color) s)
+                               ((number real double) (string-to-number s))
+                               ((text) s)
+                               (t (error "Unhandled type: %S" type))))))
+         (val (spec) (cond ((symbolp spec)
+                            (one spec :end))
+                           ((vectorp spec)
+                            ;; todo: check range here.
+                            (one (aref spec 0) :end))
+                           ((eq 'or (car spec))
+                            (let ((v (one (cadr spec) t)))
+                              (if (= ?\] (char-after))
+                                  v
+                                (forward-char 1)
+                                ;; todo: this assumes `spec' has the form
+                                ;;         (or foo (foo . bar))
+                                ;; i.e., foo is not rescanned.  e.g., `SZ'.
+                                ;; probably this assumption is consistent
+                                ;; w/ the SGF authors' desire to make the
+                                ;; parsing easy, but you never know...
+                                (cons v (one (cdaddr spec) :end)))))
+                           (t (cons (one (car spec) :mid)
+                                    (one (cdr spec) :end)))))
+         (short (who) (when (eobp)
+                        (error "Unexpected EOF while reading %s" who)))
+         (atvalp () (= ?\[ (char-after)))
+         (PROP () (let (name spec ltype)
+                    (sw) (short 'property)
+                    (when (looking-at "[A-Z]")
+                      (setq name (read (current-buffer))
+                            spec (cdr (assq name specs)))
+                      (sw)
+                      (cons
+                       (cdr (assq name keywords))
+                       (prog1 (if (= 1 (length spec))
+                                  (val (car spec))
+                                (unless (memq (setq ltype (car spec))
+                                              '(elist list))
+                                  (error "Bad spec: %S" spec))
+                                (if (and (eq 'elist ltype) (sw)
+                                         (not (atvalp)))
+                                    nil
+                                  (let ((type (cadr spec))
+                                        mo ls)
+                                    (while (and (sw) (atvalp)
+                                                (setq mo (val type)))
+                                      (push mo ls)
+                                      (forward-char 1))
+                                    (forward-char -1)
+                                    (nreverse ls))))
+                         (forward-char 1))))))
+         (NODE () (let (prop props)
+                    (sw) (short 'node)
+                    (when (= ?\; (char-after))
+                      (forward-char 1)
+                      (while (setq prop (PROP))
+                        (push prop props))
+                      (nreverse props))))
+         (TREE () (let (nodes)
+                    (while (and (sw) (not (eobp)))
+                      (case (char-after)
+                        (?\; (push (NODE) nodes))
+                        (?\( (forward-char 1)
+                             (push (TREE) nodes))
+                        (?\) (forward-char 1))))
+                    (nreverse nodes))))
       (with-temp-buffer
         (insert-file-contents filename)
         (let (trees)
@@ -2183,14 +2191,15 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                        gnugo/sgf-*r4-properties*))
         p name v spec)
     ;; todo: escape special chars for `text' and `simpletext'.
-    (flet ((>>one (v) (insert (format "[%s]" v)))
-           (>>two (v) (insert (format "[%s:%s]" (car v) (cdr v))))
-           (>>nl () (cond ((memq name aft-newline-appreciated)
-                           (insert "\n"))
-                          ((< 60 (current-column))
-                           (save-excursion
-                             (goto-char p)
-                             (insert "\n"))))))
+    (cl-labels
+        ((>>one (v) (insert (format "[%s]" v)))
+         (>>two (v) (insert (format "[%s:%s]" (car v) (cdr v))))
+         (>>nl () (cond ((memq name aft-newline-appreciated)
+                         (insert "\n"))
+                        ((< 60 (current-column))
+                         (save-excursion
+                           (goto-char p)
+                           (insert "\n"))))))
       (with-temp-buffer
         (dolist (tree collection)
           (insert "(")
@@ -2207,8 +2216,8 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                                 '(list elist)))
                      (>>nl)
                      (let ((>> (if (consp (cadr spec))
-                                   '>>two
-                                 '>>one)))
+                                   #'>>two
+                                 #'>>one)))
                        (dolist (little-v v)
                          (setq p (point)) (funcall >> little-v) (>>nl))))
                     ((consp v)
