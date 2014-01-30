@@ -381,7 +381,7 @@ STRING omits the two trailing newlines.  See also `gnugo-query'."
     (let (rv)
       ;; type change => break
       (while (stringp (setq rv (gnugo-get :sync-return)))
-        (accept-process-output proc))
+        (accept-process-output proc 30))
       (gnugo-put :sync-return "")
       rv)))
 
