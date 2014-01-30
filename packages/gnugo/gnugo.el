@@ -109,49 +109,6 @@
 ;; - [your hacking ideas here]
 ;;
 ;; Some gnugo.el hackers update http://www.emacswiki.org -- check it out!
-;;
-;;
-;; History
-;; -------
-;;
-;; Originally gnugo.el was written to interact w/ "gnugo --mode text" and then
-;; "gnugo --mode emacs" as the subprocess.  Those versions were released as
-;; 1.x, w/ x < 14.  In Novemeber 2002, gnugo.el was changed to interact w/
-;; "gnugo --mode gtp", but was released as 1.14 through 1.26, even though the
-;; proper versions should be 2.0.x for "--mode gtp", and 2.1.x for XPM image
-;; support.  (Sorry about the confusion.)
-;;
-;; Thus we arrive at at the current version.  The first gnugo.el to be
-;; released w/ a `gnugo-version' variable is "2.2.0".  The versioning scheme
-;; is strictly monotonically increasing numbers and dots, no letters or other
-;; suffixes (and none of this even/odd crap).  Here we list, aside from the
-;; bugfixes, some of the notable changes introduced in each released version:
-;;
-;; 2.2.x -- uncluttered, letters and numbers hidden, board centered
-;;          buffer name shows last move and current player
-;;          mode-line customization (var `gnugo-mode-line')
-;;          new commands: `=', `h', `s', `F', `R', `l', `U', `C-c C-p'
-;;          program option customization (var `gnugo-program')
-;;          new hooks (vars `gnugo-post-move-hook', `gnugo-board-mode-hook')
-;;          multiple independent buffers/games
-;;          XPM set can be changed on the fly (global and/or local)
-;;          font-locking for "X", "O", "[xo]"
-;;          undo by N moves, by "move pair", or by board position
-;;          grid (letters and numbers) visibility can be toggled
-;;
-;;
-;; History Predicted
-;; -----------------
-;;
-;; If you are an elisp programmer, this section might not apply to you;
-;; the GPL allows you to define the future of the code you receive under
-;; its terms, as long as you do not deny that freedom to subsequent users.
-;;
-;; For users who are not elisp programmers, you can look forward to gradual
-;; refinement in 2.x, splitting into gnugo.el and sgf.el in 3.x, and then
-;; eventual merging into GNU Emacs for 4.x (if RMS gives it the thumbs-up).
-;; If it is not accepted into Emacs at that time, a new maintainer will be
-;; sought.  In any case, it will no longer be bundled w/ ttn-pers-elisp.
 
 ;;; Code:
 
