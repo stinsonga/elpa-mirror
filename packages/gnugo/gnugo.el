@@ -414,10 +414,7 @@ a format string applied to the rest of the args."
                                                'not-yet))))
                     (gnugo-put :w-imul (car imul))
                     (gnugo-put :h-imul (cdr imul)))))))
-    (setplist (gnugo-f 'ispc) (and new
-                                   ;; `(display (space :width 0))'
-                                   ;; works as well, for newer emacs
-                                   '(invisible t)))
+    (setplist (gnugo-f 'ispc) (and new '(display (space :width 0))))
     (gnugo-put :highlight-last-move-spec
       (if new
           '((lambda (p)
