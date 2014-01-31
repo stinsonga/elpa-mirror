@@ -1,0 +1,76 @@
+HACKING gnugo                                           -*- org -*-
+
+This file is both a guide for newcomers and a todo list for oldstayers.
+
+* next (actually "first" (under ELPA) :-D)
+*** TODO code
+***** TODO Set ‘lexical-binding’.
+***** TODO Give ‘lambda’ commands a name and docstring.
+***** TODO Move gnugo-{put,get} doc elsewhere.
+***** TODO Loose the modernization!
+******* DONE ‘zerop’
+******* TODO ‘redisplay’ -- [[file:gnugo.el::defun.gnugo-magic-undo][gnugo-magic-undo]]
+******* TODO ‘(display (space :width 0))’ -- [[file:gnugo.el::defun.gnugo-toggle-image-display][gnugo-toggle-image-display]]
+******* TODO ‘(split-string ... t)’ -- [[file:gnugo.el][gnugo-animate-group]]
+***** TODO ??? Use process-{put,get}.
+***** TODO ??? Drop leading ?* in var docstrings.
+*** TODO Resolve maintenance musings.
+***** Any way to use ‘gnugo-version’ as ";; Version:"?
+***** Should SGF funcs be moved to sgf.el now?
+***** Is sgf.el better in-package or independent (but in ELPA)?
+***** Is ttn-style [[ChangeLog][ChangeLog discipline]] compatible w/ ELPA?
+***** What about related code?
+******* fulminate-gnugo-xpms.el
+******* gnugo-extra.el
+******* mokuxpms.tar.gz / mokuxpms-2.tar.gz / mokuxpms-3.tar.gz
+***** Fast-forward merge (rebase + push) OK?
+*** TODO Finish [[file:NEWS][NEWS]] archeology.
+* fix bugs
+*** [[file:gnugo.el::defun.gnugo-toggle-dead-group][gnugo-toggle-dead-group]] only half-complete
+*** no error-handling in SGF parsing
+* ideas / wishlist
+*** add a few screenshots to package
+*** revamp image support
+*** talk GTP over the network
+*** "assist minor mode" (see gnugo-extra.el for work in progress)
+*** using assist minor mode, gnugo-v-gnugo (ibid)
+*** make gnugo (the external program) support query (read-only) thread
+*** extend GNUGO Board mode to manage another subprocess for analysis only
+*** command ‘C’ to add a comment to the SGF tree
+*** command ‘C-u =’ to label a position
+*** SGF tree display, traversal (belongs in sgf.el)
+*** review game history in another buffer
+*** branch subgame tree at arbitrary point
+*** subgame branch matriculation (maturity: child leaves the family)
+*** dribble the SGF tree
+*** "undo undo undoing"; integrate Emacs undo, GTP undo, subgame branching
+*** make buffer name format configurable (but enforce uniqueness)
+*** more tilde escapes for [[file:gnugo.el::defvar.gnugo-mode-line][gnugo-mode-line]]
+*** make veneration configurable
+*** make animation more configurable; lift same-color-stones-only
+*** restriction; allow sequencing rather than lock-step; include sound
+*** [your hacking ideas here!]
+* tested with (newest first)
+  | Emacs     | GNU Go |
+  |-----------+--------|
+  | 24.3.50.3 | 3.8    |
+  | ?         | 3.6    |
+  | ?         | 3.4    |
+  | ?         | 3.3.15 |
+  | 22.0.50   | ?      |
+  | 21.3      | ?      |
+  |-----------+--------|
+  | <l>       | <l>    |
+* ChangeLog discipline
+*** sync w/ commit message
+*** format
+***** basic: TITLE LF LF [DISCUSSION...] LF LF CLASSIC
+***** short: TITLE "; nfc." [LF LF DISCUSSION...]
+* etc
+#+odd
+
+
+Copyright (C) 2014  Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted provided the copyright notice and this notice are preserved.
