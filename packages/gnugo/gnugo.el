@@ -82,10 +82,7 @@
 
 (defconst gnugo-version "2.2.14"
   "Version of gnugo.el currently loaded.
-Note that more than two dots in the value indicates \"pre-release\",
-or \"alpha\" or \"hackers-invited-all-else-beware\"; use at your own risk!
-The more dots the more courage/foolishness you must find to continue.
-See source code for a history of what means what version-wise.")
+This follows a MAJOR.MINOR.PATCH scheme.")
 
 ;;;---------------------------------------------------------------------------
 ;;; Variables for the uninquisitive programmer
