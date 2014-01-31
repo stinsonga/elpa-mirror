@@ -7,11 +7,11 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 ***** TODO Set ‘lexical-binding’.
 ***** TODO Give ‘lambda’ commands a name and docstring.
 ***** TODO Move gnugo-{put,get} doc elsewhere.
-***** TODO Loose the modernization!
+***** DONE Loose the modernization!
 ******* DONE ‘zerop’
-******* TODO ‘redisplay’ -- [[file:gnugo.el::defun.gnugo-magic-undo][gnugo-magic-undo]]
-******* TODO ‘(display (space :width 0))’ -- [[file:gnugo.el::defun.gnugo-toggle-image-display][gnugo-toggle-image-display]]
-******* TODO ‘(split-string ... t)’ -- [[file:gnugo.el][gnugo-animate-group]]
+******* DONE ‘redisplay’ -- [[file:gnugo.el::defun.gnugo-magic-undo][gnugo-magic-undo]]
+******* DONE ‘(display (space :width 0))’ -- [[file:gnugo.el::defun.gnugo-toggle-image-display][gnugo-toggle-image-display]]
+******* DONE ‘(split-string ... t)’ -- [[file:gnugo.el][gnugo-animate-group]]
 ***** TODO ??? Use process-{put,get}.
 ***** TODO ??? Drop leading ?* in var docstrings.
 *** TODO Resolve maintenance musings.
