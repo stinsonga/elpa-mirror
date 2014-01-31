@@ -1050,10 +1050,7 @@ To start a game try M-x gnugo."
                    (error "No stone at %s" pos))))
     (message "Computing %s ... %s in group." command (length stones))
     (setplist (gnugo-f 'anim) nil)
-    (let* ((spec (let ((spec
-                        ;; `(split-string gnugo-animation-string "" t)'
-                        ;; works as well, for newer emacs versions
-                        (delete "" (split-string gnugo-animation-string ""))))
+    (let* ((spec (let ((spec (split-string gnugo-animation-string "" t)))
                    (cond ((gnugo-get :display-using-images)
                           (let* ((yin (get-text-property (point) 'gnugo-yin))
                                  (yang (gnugo-yang (char-after)))
