@@ -1339,7 +1339,7 @@ turn to play.  Optional second arg NOALT non-nil inhibits this."
       (gnugo-merge-showboard-results)   ; all
       (gnugo-refresh)                   ; this
       (decf n)                          ; is
-      (sit-for 0)))                     ; eye candy
+      (redisplay)))                     ; eye candy
   (let* ((ulastp (string= (gnugo-get :last-mover) (gnugo-get :user-color)))
 
          (ubpos (gnugo-move-history (if ulastp 'car 'cadr))))
