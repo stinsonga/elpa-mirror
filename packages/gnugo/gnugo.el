@@ -54,10 +54,6 @@
 ;; Please report the event to the GNU Go maintainers so that they can improve
 ;; the program.
 ;;
-;; This code was tested with:
-;; - GNU Emacs: 21.3 / 22.0.50 (from CVS)
-;; - GNU Go: 3.3.15 / 3.4 / 3.6
-;;
 ;;
 ;; Meta-Playing (aka Customizing)
 ;; ------------------------------
@@ -75,40 +71,6 @@
 ;; The variable `gnugo-xpms' is a special case.  To set it you need to load
 ;; gnugo-xpms.el (http://www.emacswiki.org) or some other library w/ congruent
 ;; interface.
-;;
-;;
-;; Meta-Meta-Playing (aka Hacking)
-;; -------------------------------
-;;
-;; You may wish to first fix the bugs:
-;; - `gnugo-toggle-dead-group' only half-complete; see docstring for details
-;; - probably sgf handling is not 100% to spec
-;; - subprocess should provide scoring details, gnugo.el not yet blissful
-;;
-;; Otherwise (we can live w/ some bugs), here are some ideas:
-;; - talk GTP over the network
-;; - "assist minor mode" (see gnugo-extra.el for work in progress)
-;; - using assist minor mode, gnugo-v-gnugo (ibid)
-;; - extract GNUGO Board mode and sgf stuff into sgf.el; make gnugo.el use it
-;; - make gnugo (the external program) support query (read-only) thread
-;;   so as to be able to lift "still waiting" restriction
-;; - alternatively, extend GNUGO Board mode to manage another subprocess
-;;   dedicated to analysis (no genmove)
-;; - command `C' to add a comment to the sgf tree
-;; - command `C-u =' to label a position
-;; - sgf tree display, traversal (belongs in sgf.el); review game history
-;;   in another buffer; branch subgame tree at arbitrary point
-;; - subgame branch matriculation (maturity: child leaves the family)
-;; - dribble the sgf tree
-;; - "undo undo undoing"; integrate Emacs undo, GTP undo, subgame branching
-;; - make buffer name format configurable (but enforce uniqueness)
-;; - more tilde escapes for `gnugo-mode-line'
-;; - make veneration configurable
-;; - make animation more configurable; lift same-color-stones-only
-;;   restriction; allow sequencing rather than lock-step; include sound
-;; - [your hacking ideas here]
-;;
-;; Some gnugo.el hackers update http://www.emacswiki.org -- check it out!
 
 ;;; Code:
 
