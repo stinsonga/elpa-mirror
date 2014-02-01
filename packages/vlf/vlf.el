@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2006, 2012-2014 Free Software Foundation, Inc.
 
-;; Version: 1.3
+;; Version: 1.4
 ;; Keywords: large files, utilities
 ;; Maintainer: Andrey Kotlarski <m00naticus@gmail.com>
 ;; Authors: 2006 Mathias Dahl <mathias.dahl@gmail.com>
@@ -27,9 +27,9 @@
 
 ;;; Commentary:
 ;; This package provides the M-x vlf command, which visits part of
-;; large file without loading it entirely.
-;; The buffer uses VLF mode, which provides several commands for
-;; moving around, searching and editing selected part of file.
+;; large file without loading it entirely.  The buffer uses VLF mode,
+;; which provides several commands for moving around, searching,
+;; comparing and editing selected part of file.
 ;; To have it offered when opening large files:
 ;; (require 'vlf-integrate)
 
@@ -41,18 +41,19 @@
 
 (require 'vlf-base)
 
-(autoload 'vlf-write "vlf-write" "Write current chunk to file.")
+(autoload 'vlf-write "vlf-write" "Write current chunk to file." t)
 (autoload 'vlf-re-search-forward "vlf-search"
-  "Search forward for REGEXP prefix COUNT number of times.")
+  "Search forward for REGEXP prefix COUNT number of times." t)
 (autoload 'vlf-re-search-backward "vlf-search"
-  "Search backward for REGEXP prefix COUNT number of times.")
-(autoload 'vlf-goto-line "vlf-search" "Go to line.")
+  "Search backward for REGEXP prefix COUNT number of times." t)
+(autoload 'vlf-goto-line "vlf-search" "Go to line." t)
 (autoload 'vlf-occur "vlf-occur"
-  "Make whole file occur style index for REGEXP.")
+  "Make whole file occur style index for REGEXP." t)
 (autoload 'vlf-toggle-follow "vlf-follow"
-  "Toggle continuous chunk recenter around current point.")
-(autoload 'vlf-stop-follow "vlf-follow"
-  "Stop continuous recenter.")
+  "Toggle continuous chunk recenter around current point." t)
+(autoload 'vlf-stop-follow "vlf-follow" "Stop continuous recenter." t)
+(autoload 'vlf-ediff-buffers "vlf-ediff"
+  "Run batch by batch ediff over VLF buffers." t)
 
 (defvar vlf-mode-map
   (let ((map (make-sparse-keymap)))
@@ -71,6 +72,7 @@
     (define-key map "]" 'vlf-end-of-file)
     (define-key map "j" 'vlf-jump-to-chunk)
     (define-key map "l" 'vlf-goto-line)
+    (define-key map "e" 'vlf-ediff-buffers)
     (define-key map "f" 'vlf-toggle-follow)
     (define-key map "g" 'vlf-revert)
     map)
@@ -120,7 +122,8 @@
 (defun vlf (file)
   "View Large FILE in batches.
 You can customize number of bytes displayed by customizing
-`vlf-batch-size'."
+`vlf-batch-size'.
+Return newly created buffer."
   (interactive "fFile to open: ")
   (let ((vlf-buffer (generate-new-buffer "*vlf*")))
     (set-buffer vlf-buffer)
@@ -185,9 +188,13 @@ When prefix argument is negative
 Normally, the value is doubled;
 with the prefix argument DECREASE it is halved."
   (interactive "P")
-  (setq vlf-batch-size (if decrease
-                           (/ vlf-batch-size 2)
-                         (* vlf-batch-size 2)))
+  (vlf-set-batch-size (if decrease (/ vlf-batch-size 2)
+                        (* vlf-batch-size 2))))
+
+(defun vlf-set-batch-size (size)
+  "Set batch to SIZE bytes and update chunk."
+  (interactive (list (read-number "Size in bytes: " vlf-batch-size)))
+  (setq vlf-batch-size size)
   (vlf-move-to-batch vlf-start-pos))
 
 (defun vlf-beginning-of-file ()
@@ -198,6 +205,7 @@ with the prefix argument DECREASE it is halved."
 (defun vlf-end-of-file ()
   "Jump to end of file content."
   (interactive)
+  (vlf-verify-size)
   (vlf-move-to-batch vlf-file-size))
 
 (defun vlf-revert (&optional _ignore-auto noconfirm)
