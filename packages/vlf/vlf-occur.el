@@ -136,16 +136,17 @@ Prematurely ending indexing will still show what's found so far."
     (let ((start-pos vlf-start-pos)
           (end-pos vlf-end-pos)
           (pos (point)))
-      (vlf-beginning-of-file)
-      (goto-char (point-min))
       (vlf-with-undo-disabled
+       (vlf-beginning-of-file)
+       (goto-char (point-min))
        (unwind-protect (vlf-build-occur regexp (current-buffer))
          (vlf-move-to-chunk start-pos end-pos)
          (goto-char pos))))))
 
 (defun vlf-build-occur (regexp vlf-buffer)
   "Build occur style index for REGEXP over VLF-BUFFER."
-  (let ((case-fold-search t)
+  (let ((tramp-verbose (min 2 tramp-verbose))
+        (case-fold-search t)
         (line 1)
         (last-match-line 0)
         (last-line-pos (point-min))
