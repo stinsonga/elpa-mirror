@@ -27,6 +27,8 @@
 
 ;;; Code:
 
+(require 'vlf)
+
 (defvar vlf-occur-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "n" 'vlf-occur-next-match)

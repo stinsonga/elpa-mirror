@@ -84,6 +84,8 @@ Possible values are: nil to never use it;
         (cadr mode)
       mode)))
 
+(autoload 'vlf "vlf" "View Large FILE in batches." t)
+
 (defadvice abort-if-file-too-large (around vlf-if-file-too-large
                                            compile activate)
   "If file SIZE larger than `large-file-warning-threshold', \
@@ -124,20 +126,23 @@ OP-TYPE specifies the file operation being performed over FILENAME."
               ((memq char '(?a ?A))
                (error "Aborted"))))))))
 
-(eval-after-load "etags"
-  '(progn
-     (defadvice tags-verify-table (around vlf-tags-verify-table
-                                          compile activate)
-       "Temporarily disable `vlf-mode'."
-       (let ((vlf-application nil))
-         ad-do-it))
+;; disable for some functions
+(defmacro vlf-disable-for-function (func file)
+  "Build advice to disable VLF during execution of FUNC\
+defined in FILE."
+  `(eval-after-load ,file
+     '(defadvice ,func (around ,(intern (concat "vlf-"
+                                                (symbol-name func)))
+                               compile activate)
+        "Temporarily disable `vlf-mode'."
+        (let ((vlf-application nil))
+          ad-do-it))))
 
-     (defadvice tag-find-file-of-tag-noselect
-         (around vlf-tag-find-file-of-tag compile activate)
-       "Temporarily disable `vlf-mode'."
-       (let ((vlf-application nil))
-         ad-do-it))))
+(vlf-disable-for-function tags-verify-table "etags")
+(vlf-disable-for-function tag-find-file-of-tag-noselect "etags")
+(vlf-disable-for-function helm-etags-create-buffer "helm-tags")
 
+;; dired
 (defun dired-vlf ()
   "In Dired, visit the file on this line in VLF mode."
   (interactive)
