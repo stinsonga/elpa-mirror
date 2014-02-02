@@ -75,7 +75,12 @@
 If a file needs more than this, it's probably an indication that
 the grammar is excessively redundant.")
 
-(defvar wisi-debug)
+(defvar wisi-debug 0
+  "wisi debug mode:
+0 : normal - ignore parse errors, for indenting new code
+1 : report parse errors (for running tests)
+2 : show parse states, position point at parse errors, debug-on-error works in parser
+3 : also show top 10 items of parser stack.")
 
 (defun wisi-parse (automaton lexer)
   "Parse input using the automaton specified in AUTOMATON.

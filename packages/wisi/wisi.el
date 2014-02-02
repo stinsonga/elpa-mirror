@@ -38,8 +38,8 @@
 ;; that lets us find statement indent points from arbitrary places in
 ;; the code.
 ;;
-;; The grammar for Ada as represented by the EBNF in LRM Annex P is
-;; not LALR(1), so we use a generalized LALR(1) parser (see
+;; For example, the grammar for Ada as represented by the EBNF in LRM
+;; Annex P is not LALR(1), so we use a generalized LALR(1) parser (see
 ;; wisi-parse, wisi-compile).
 ;;
 ;; The parser actions cache indentation and other information as text
@@ -120,7 +120,7 @@
 ;;;; grammar compiler and parser
 ;;
 ;; Since we are using a generalized LALR(1) parser, we cannot use any
-;; of the wisent grammar functions.  We use the OpenToken Ada package
+;; of the wisent grammar functions.  We use OpenToken wisi-generate
 ;; to compile BNF to Elisp source (similar to
 ;; semantic-grammar-create-package), and wisi-compile-grammar to
 ;; compile that to the parser table.
@@ -442,13 +442,6 @@ Also invalidate the Emacs syntax cache."
   "Return `wisi-cache' struct from the `wisi-cache' text property at POS.
 If accessing cache at a marker for a token as set by `wisi-cache-tokens', POS must be (1- mark)."
   (get-text-property pos 'wisi-cache))
-
-(defvar wisi-debug 0
-  "wisi debug mode:
-0 : normal - ignore parse errors, for indenting new code
-1 : report parse errors (for running tests)
-2 : show parse states, position point at parse errors, debug-on-error works in parser
-3 : also show top 10 items of parser stack.")
 
 (defvar-local wisi-parse-error-msg nil)
 
