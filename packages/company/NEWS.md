@@ -1,5 +1,16 @@
 # History of user-visible changes
 
+## Next
+
+* New back-end command, `annotation`, for text displayed inline in the popup
+  that's not a part of completion candidate.
+* `company-capf`, `company-clang` and `company-eclim` use `annotation`.
+* `company-preview*` faces inherit from `company-tooltip-selection` and
+  `company-tooltip-common-selection` on light themes.
+* New user option `company-transformers`.
+* First transformer, `company-sort-by-occurrence`.
+* New user options controlling `company-dabbrev` and `company-dabbrev-code`.
+
 ## 2014-01-25 (0.6.14)
 
 * The tooltip front-end is rendered with scrollbar, controlled by the user
