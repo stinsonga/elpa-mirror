@@ -23,7 +23,7 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 ******* fulminate-gnugo-xpms.el
 ******* gnugo-extra.el
 ******* mokuxpms.tar.gz / mokuxpms-2.tar.gz / mokuxpms-3.tar.gz
-***** Fast-forward merge (rebase + push) OK?
+***** Fast-forward merge (rebase + push) OK? [no]
 *** TODO Finish [[file:NEWS][NEWS]] archeology.
 * fix bugs
 *** [[file:gnugo.el::defun.gnugo-toggle-dead-group][gnugo-toggle-dead-group]] only half-complete
