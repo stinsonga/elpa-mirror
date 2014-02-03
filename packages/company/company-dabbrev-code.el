@@ -55,10 +55,18 @@ See also `company-dabbrev-code-time-limit'."
                  (const :tag "Same major mode" t)
                  (const :tag "All" all)))
 
-(defcustom company-dabbrev-code-time-limit .5
+(defcustom company-dabbrev-code-time-limit .1
   "Determines how long `company-dabbrev-code' should look for matches."
   :type '(choice (const :tag "Off" nil)
                  (number :tag "Seconds")))
+
+(defcustom company-dabbrev-code-everywhere nil
+  "Non-nil to offer completions in comments and strings."
+  :type 'boolean)
+
+(defcustom company-dabbrev-code-ignore-case nil
+  "Non-nil to ignore case in completion candidates."
+  :type 'boolean)
 
 (defsubst company-dabbrev-code--make-regexp (prefix)
   (concat "\\_<" (if (equal prefix "")
@@ -76,13 +84,15 @@ comments or strings."
     (interactive (company-begin-backend 'company-dabbrev-code))
     (prefix (and (or (eq t company-dabbrev-code-modes)
                      (apply 'derived-mode-p company-dabbrev-code-modes))
-                 (not (company-in-string-or-comment))
+                 (or company-dabbrev-code-everywhere
+                     (not (company-in-string-or-comment)))
                  (or (company-grab-symbol) 'stop)))
     (candidates (let ((case-fold-search nil))
                   (company-dabbrev--search
                    (company-dabbrev-code--make-regexp arg)
                    company-dabbrev-code-time-limit
                    company-dabbrev-code-other-buffers t)))
+    (ignore-case company-dabbrev-code-ignore-case)
     (duplicates t)))
 
 (provide 'company-dabbrev-code)

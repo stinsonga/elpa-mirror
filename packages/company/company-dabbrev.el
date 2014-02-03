@@ -41,7 +41,7 @@ See also `company-dabbrev-time-limit'."
                  (const :tag "Same major mode" t)
                  (const :tag "All" all)))
 
-(defcustom company-dabbrev-time-limit .5
+(defcustom company-dabbrev-time-limit .1
   "Determines how many seconds `company-dabbrev' should look for matches."
   :type '(choice (const :tag "Off" nil)
                  (number :tag "Seconds")))
@@ -49,6 +49,12 @@ See also `company-dabbrev-time-limit'."
 (defcustom company-dabbrev-char-regexp "\\sw"
   "A regular expression matching the characters `company-dabbrev' looks for."
   :type 'regexp)
+
+(defcustom company-dabbrev-ignore-case 'keep-prefix
+  "The value of `ignore-case' returned by `company-dabbrev'.")
+
+(defcustom company-dabbrev-minimum-length (1+ company-minimum-prefix-length)
+  "The minimum length for the string to be included.")
 
 (defmacro company-dabrev--time-limit-while (test start limit &rest body)
   (declare (indent 3) (debug t))
@@ -79,7 +85,8 @@ See also `company-dabbrev-time-limit'."
         (setq match (match-string-no-properties 0))
         (if (and ignore-comments (company-in-string-or-comment))
             (re-search-backward "\\s<\\|\\s!\\|\\s\"\\|\\s|" nil t)
-          (push match symbols)))
+          (when (>= (length match) company-dabbrev-minimum-length)
+            (push match symbols))))
       (goto-char (or pos (point-min)))
       ;; search after pos
       (company-dabrev--time-limit-while (re-search-forward regexp nil t)
@@ -87,7 +94,8 @@ See also `company-dabbrev-time-limit'."
         (setq match (match-string-no-properties 0))
         (if (and ignore-comments (company-in-string-or-comment))
             (re-search-forward "\\s>\\|\\s!\\|\\s\"" nil t)
-          (push match symbols)))
+          (when (>= (length match) company-dabbrev-minimum-length)
+            (push match symbols))))
       symbols)))
 
 (defun company-dabbrev--search (regexp &optional limit other-buffers
@@ -120,7 +128,7 @@ See also `company-dabbrev-time-limit'."
              (company-dabbrev--search (company-dabbrev--make-regexp arg)
                                       company-dabbrev-time-limit
                                       company-dabbrev-other-buffers)))
-    (ignore-case 'keep-prefix)
+    (ignore-case company-dabbrev-ignore-case)
     (duplicates t)))
 
 (provide 'company-dabbrev)

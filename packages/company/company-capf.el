@@ -90,8 +90,9 @@ Requires Emacs 24.1 or newer."
             (text-property-not-all start (length arg)
                                    'face value arg))
           (length arg)))))
-    (`duplicates nil) ;Don't bother.
-    (`no-cache t)     ;FIXME: Improve!
+    (`duplicates t)
+    (`no-cache t)   ;Not much can be done here, as long as we handle
+                    ;non-prefix matches.
     (`meta
      (let ((f (plist-get (nthcdr 4 (company--capf-data)) :company-docsig)))
        (when f (funcall f arg))))
@@ -101,6 +102,11 @@ Requires Emacs 24.1 or newer."
     (`location
      (let ((f (plist-get (nthcdr 4 (company--capf-data)) :company-location)))
        (when f (funcall f arg))))
+    (`annotation
+     (save-excursion
+       (goto-char company-point)
+       (let ((f (plist-get (nthcdr 4 (company--capf-data)) :annotation-function)))
+         (when f (funcall f arg)))))
     (`require-match
      (plist-get (nthcdr 4 (company--capf-data)) :company-require-match))
     (`init nil)      ;Don't bother: plenty of other ways to initialize the code.
