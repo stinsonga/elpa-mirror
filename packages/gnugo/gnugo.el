@@ -1045,6 +1045,7 @@ To start a game try M-x gnugo."
 (defun gnugo-animate-group (command)
   (message "Computing %s ..." command)
   (let* ((pos (gnugo-position))
+         (orig-b-m-p (buffer-modified-p))
          (stones (if (memq (char-after) '(?X ?O))
                      (gnugo-lsquery "%s %s" command pos)
                    (error "No stone at %s" pos))))
@@ -1076,7 +1077,8 @@ To start a game try M-x gnugo."
       (while (and (cdr spec)            ; let last linger lest levity lost
                   (sit-for 0.08675309)) ; jenny jenny i got your number...
         (setcar cell (setq spec (cdr spec)))
-        (set-buffer-modified-p t))
+        ;; Force redisplay of overlays.
+        (set-buffer-modified-p orig-b-m-p))
       (sit-for 5)
       (mapc 'delete-overlay ovs)
       t)))
@@ -1199,7 +1201,8 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
   (when (and (file-exists-p filename)
              (not (y-or-n-p "File exists. Continue? ")))
     (error "Not writing %s" filename))
-  (gnugo/sgf-write-file (gnugo-get :sgf-collection) filename))
+  (gnugo/sgf-write-file (gnugo-get :sgf-collection) filename)
+  (set-buffer-modified-p nil))
 
 (defun gnugo-read-sgf-file (filename)
   "Load the first game tree from FILENAME, a file in SGF format."
