@@ -62,10 +62,11 @@ This file is both a guide for newcomers and a todo list for oldstayers.
   |-----------+--------|
   | <l>       | <l>    |
 * ChangeLog discipline
-*** sync w/ commit message
-*** format
+*** based on [[info:standards#Change%20Logs][GNU Coding Standards]]
+*** commit-message format
 ***** basic: TITLE LF LF [DISCUSSION...] LF LF CLASSIC
-***** short: TITLE "; nfc." [LF LF DISCUSSION...]
+***** short: TITLE-FRAGMENT "; nfc." [LF LF DISCUSSION...]
+*** don't bother w/ ChangeLog for "short" commit-message format
 * etc
 #+odd
 
