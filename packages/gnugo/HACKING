@@ -67,6 +67,7 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 ***** basic: TITLE LF LF [DISCUSSION...] LF LF CLASSIC
 ***** short: TITLE-FRAGMENT "; nfc." [LF LF DISCUSSION...]
 *** don't bother w/ ChangeLog for "short" commit-message format
+* other conventions: see [[file:.dir-locals.el][.dir-locals.el]]
 * etc
 #+odd
 
