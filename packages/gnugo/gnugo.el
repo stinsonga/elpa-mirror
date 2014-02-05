@@ -1499,7 +1499,7 @@ Also, add the `:RE' SGF property to the root node of the game tree."
 ;;            "*gnugo command output*" if the output has a newline,
 ;;            otherwise use `message'.
 ;;
-;; :post-hook -- normal hook run after output processing (at the very end).
+;; :post-thunk -- run after output processing (at the very end).
 
 (defun gnugo-command (command)
   "Send the Go Text Protocol COMMAND (a string) to GNU Go.
@@ -1538,10 +1538,8 @@ NOTE: At this time, GTP command handling specification is still
                      (erase-buffer)
                      (insert ans)
                      (message "Doing %s ... done." command)))
-            (let ((hook
-                   ;; do not elide this binding; `run-hooks' needs it
-                   (plist-get spec :post-hook)))
-              (run-hooks 'hook))))))))
+            (let ((thunk (plist-get spec :post-thunk)))
+              (when thunk (funcall thunk)))))))))
 
 ;;;---------------------------------------------------------------------------
 ;;; Major mode for interacting with a GNUGO subprocess
@@ -1832,18 +1830,10 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
       ((sget (x) (get x :gnugo-gtp-command-spec))
        (jam (cmd prop val) (put cmd :gnugo-gtp-command-spec
                                 (plist-put (sget cmd) prop val)))
-       (add (cmd prop val) (jam cmd prop (let ((cur (plist-get
-                                                     (sget cmd)
-                                                     prop)))
-                                           (append (delete val cur)
-                                                   (list val)))))
        (defgtp (x &rest props) (dolist (cmd (if (symbolp x) (list x) x))
                                  (let ((ls props))
                                    (while ls
-                                     (funcall (if (eq :post-hook (car ls))
-                                                  #'add
-                                                #'jam)
-                                              cmd (car ls) (cadr ls))
+                                     (jam cmd (car ls) (cadr ls))
                                      (setq ls (cddr ls)))))))
 
     (defgtp 'help :full
@@ -1887,10 +1877,10 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
               clear_board
               fixed_handicap)
       :output :discard
-      :post-hook (lambda ()
-                   (gnugo-put :game-over nil)
-                   (gnugo-put :last-mover nil)
-                   (gnugo-refresh t)))
+      :post-thunk (lambda ()
+                    (gnugo-put :game-over nil)
+                    (gnugo-put :last-mover nil)
+                    (gnugo-refresh t)))
 
     (defgtp 'loadsgf :full
       (lambda (sel) (gnugo-read-sgf-file (car sel))))
