@@ -740,7 +740,6 @@ For all other values of RSEL, do nothing and return nil."
                   (match-end 0))))
          (new (copy-sequence fg-data))
          (lx (length fg-data))
-         (lb (length bg-data))
          (sx (funcall bop fg-data))
          (sb (funcall bop bg-data))
          (color-key (aref new sx)))     ; blech, heuristic
