@@ -539,7 +539,7 @@ a format string applied to the rest of the args."
     (while (numberp (setq mis (compare-strings bef bef-start nil
                                                aft aft-start nil)))
       (setq aft-sync-backtrack nil
-            inc (if (> 0 mis)
+            inc (if (cl-minusp mis)
                     (- (+ 1 mis))
                   (- mis 1))
             bef-idx (+ bef-start inc)
@@ -733,7 +733,8 @@ For all other values of RSEL, do nothing and return nil."
                         (when (string-match "\\([0-9]+\\)\\s-+[0-9]+\"," s)
                           (setq start (match-end 0))
                           (string-to-number (match-string 1 s)))))
-                  (while (and (<= 0 ncolors) (string-match ",\n" s start))
+                  (while (and (not (cl-minusp ncolors))
+                              (string-match ",\n" s start))
                     (setq start (match-end 0)
                           ncolors (1- ncolors)))
                   (string-match "\"" s start)
@@ -745,7 +746,7 @@ For all other values of RSEL, do nothing and return nil."
          (color-key (aref new sx)))     ; blech, heuristic
     (while (< sx lx)
       (when (and (not (= color-key (aref new sx)))
-                 (< 0 (random 4)))
+                 (cl-plusp (random 4)))
         (aset new sx (aref bg-data sb)))
       (incf sx)
       (incf sb))
@@ -860,7 +861,7 @@ its move."
                           (if under10p 2 4)
                         0))
                    2.0)))
-        (dolist (pair `((tpad . ,(if (and h (< 0 h))
+        (dolist (pair `((tpad . ,(if (and h (cl-plusp h))
                                      `(display ,(make-string h 10))
                                    '(invisible :nogrid)))
                         (gpad . (display
@@ -1303,7 +1304,7 @@ turn to play.  Optional second arg NOALT non-nil inhibits this."
          (mem (aref monkey 1))
          (count (aref monkey 2))
          done ans)
-    (cond ((and (numberp spec) (< 0 spec))
+    (cond ((and (numberp spec) (cl-plusp spec))
            (setq n spec done (lambda () (zerop n))))
           ((string-match "^[a-z]" spec)
            (let ((pos (upcase spec)))
@@ -1626,8 +1627,8 @@ In this mode, keys do not self insert.  Default keybindings:
                         (h (or (car gnugo-option-history) "")))
                     (when (string-match "--mode" o)
                       (error "Found \"--mode\" in `gnugo-program'"))
-                    (when (and o (< 0 (length o))
-                               h (< 0 (length o))
+                    (when (and o (cl-plusp (length o))
+                               h (cl-plusp (length o))
                                (or (< (length h) (length o))
                                    (not (string= (substring h 0 (length o))
                                                  o))))
@@ -1736,7 +1737,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                 acc))
          (n (length all)))
     (if (and (not new-game)
-             (< 0 n)
+             (cl-plusp n)
              (y-or-n-p (format "GNU Go game%s in progress, resume play? "
                                (if (= 1 n) "" "s"))))
         ;; resume
@@ -1887,7 +1888,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
       (lambda (sel) (gnugo-magic-undo
                      (let (n)
                        (cond ((not sel) 1)
-                             ((< 0 (setq n (string-to-number (car sel)))) n)
+                             ((cl-plusp (setq n (string-to-number (car sel)))) n)
                              (t (car sel)))))))))
 
 (provide 'gnugo)
