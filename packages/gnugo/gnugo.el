@@ -326,22 +326,23 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
 STRING omits the two trailing newlines.  See also `gnugo-query'."
   (when (gnugo-get :waitingp)
     (error "Sorry, still waiting for %s to play" (gnugo-get :gnugo-color)))
-  (gnugo-put :sync-return "")
   (let ((proc (gnugo-get :proc)))
+    (process-put proc :srs "")          ; synchronous return stash
     (set-process-filter
      proc (lambda (proc string)
-            (let* ((so-far (gnugo-get :sync-return))
+            (let* ((so-far (process-get proc :srs))
                    (start  (max 0 (- (length so-far) 2))) ; backtrack a little
-                   (full   (gnugo-put :sync-return (concat so-far string))))
+                   (full   (concat so-far string)))
+              (process-put proc :srs full)
               (when (string-match "\n\n" full start)
-                (gnugo-put :sync-return
-                  (cons (current-time) (substring full 0 -2)))))))
+                (process-put proc :srs (cons (current-time)
+                                             (substring full 0 -2)))))))
     (gnugo-send-line message)
     (let (rv)
       ;; type change => break
-      (while (stringp (setq rv (gnugo-get :sync-return)))
+      (while (stringp (setq rv (process-get proc :srs)))
         (accept-process-output proc 30))
-      (gnugo-put :sync-return "")
+      (process-put proc :srs "")
       rv)))
 
 (defun gnugo-query (message-format &rest args)
