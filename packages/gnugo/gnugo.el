@@ -1478,6 +1478,43 @@ Also, add the `:RE' SGF property to the root node of the game tree."
     (erase-buffer)
     (insert blurb)))
 
+(defun gnugo-quit ()
+  "Kill the current buffer, assumed to be in GNUGO Board mode, maybe.
+If the game is not over, ask for confirmation first."
+  (interactive)
+  (if (or (gnugo-get :game-over)
+          (y-or-n-p "Quit? "))
+      (kill-buffer nil)
+    (message "(not quitting)")))
+
+(defun gnugo-leave-me-alone ()
+  "Kill the current buffer unconditionally."
+  (interactive)
+  (kill-buffer nil))
+
+(defun gnugo-fancy-undo (count)
+  "Rewind the game tree in various ways.
+Prefix arg COUNT means to undo that many moves.
+Otherwise, undo repeatedly up to and including the move
+which placed the stone at point."
+  (interactive "P")
+  (gnugo-magic-undo
+   ;; TODO: Move this into `gnugo-magic-undo' proper.
+   (cond ((numberp count) count)
+         ((consp count) (car count))
+         (t (gnugo-position)))))
+
+(defun gnugo-toggle-image-display-command () ; ugh
+  "Toggle use of images to display the board, then refresh."
+  (interactive)
+  (gnugo-toggle-image-display)
+  (save-excursion (gnugo-refresh)))
+
+(defun gnugo-describe-position ()
+  "Display the board position under cursor in the echo area."
+  (interactive)
+  (message "%s" (gnugo-position)))
+
 ;;;---------------------------------------------------------------------------
 ;;; Command properties and gnugo-command
 
@@ -1781,26 +1818,15 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
           (" "        . gnugo-move)
           ("P"        . gnugo-pass)
           ("R"        . gnugo-resign)
-          ("q"        . (lambda () (interactive)
-                          (if (or (gnugo-get :game-over)
-                                  (y-or-n-p "Quit? "))
-                              (kill-buffer nil)
-                            (message "(not quitting)"))))
-          ("Q"        . (lambda () (interactive)
-                          (kill-buffer nil)))
-          ("U"        . (lambda (x) (interactive "P")
-                          (gnugo-magic-undo
-                           (cond ((numberp x) x)
-                                 ((consp x) (car x))
-                                 (t (gnugo-position))))))
+          ("q"        . gnugo-quit)
+          ("Q"        . gnugo-leave-me-alone)
+          ("U"        . gnugo-fancy-undo)
           ("u"        . gnugo-undo-two-moves)
           ("\C-l"     . gnugo-refresh)
           ("\M-_"     . bury-buffer)
           ("_"        . bury-buffer)
           ("h"        . gnugo-move-history)
-          ("i"        . (lambda () (interactive)
-                          (gnugo-toggle-image-display)
-                          (save-excursion (gnugo-refresh))))
+          ("i"        . gnugo-toggle-image-display-command)
           ("w"        . gnugo-worm-stones)
           ("W"        . gnugo-worm-data)
           ("d"        . gnugo-dragon-stones)
@@ -1810,8 +1836,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
           ("!"        . gnugo-estimate-score)
           (":"        . gnugo-command)
           (";"        . gnugo-command)
-          ("="        . (lambda () (interactive)
-                          (message (gnugo-position))))
+          ("="        . gnugo-describe-position)
           ("s"        . gnugo-write-sgf-file)
           ("\C-x\C-s" . gnugo-write-sgf-file)
           ("\C-x\C-w" . gnugo-write-sgf-file)
