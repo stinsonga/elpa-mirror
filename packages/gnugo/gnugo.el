@@ -88,7 +88,7 @@ This follows a MAJOR.MINOR.PATCH scheme.")
 ;;; Variables for the uninquisitive programmer
 
 (defvar gnugo-program "gnugo"
-  "*Command to start an external program that speaks GTP, such as \"gnugo\".
+  "Command to start an external program that speaks GTP, such as \"gnugo\".
 The value may also be in the form \"PROGRAM OPTIONS...\" in which case the
 the command `gnugo' will prefix OPTIONS in its default offering when it
 queries you for additional options.  It is an error for \"--mode\" to appear
@@ -101,10 +101,10 @@ http://www.gnu.org/software/gnugo")
   "Keymap for GNUGO Board mode.")
 
 (defvar gnugo-board-mode-hook nil
-  "*Hook run when entering GNUGO Board mode.")
+  "Hook run when entering GNUGO Board mode.")
 
 (defvar gnugo-post-move-hook nil
-  "*Normal hook run after a move and before the board is refreshed.
+  "Normal hook run after a move and before the board is refreshed.
 Hook functions can prevent the call to `gnugo-refresh' by evaluating:
   (setq inhibit-gnugo-refresh t)
 Initially, when `run-hooks' is called, the current buffer is the GNUGO
@@ -126,13 +126,13 @@ care not to call (directly or indirectly through some other function)
             ;; knows many people may come to know; knowledge does not build
             ;; solely move by move.  Wisdom, on the other hand...
             yada yada yada))
-  "*String whose individual characters are used for animation.
+  "String whose individual characters are used for animation.
 Specifically, the commands `gnugo-worm-stones' and `gnugo-dragon-stones'
 render the stones in their respective result groups as the first character
 in the string, then the next, and so on.")
 
 (defvar gnugo-mode-line "~b ~w :~m :~u"
-  "*A `mode-line-format'-compliant value for GNUGO Board mode.
+  "A `mode-line-format'-compliant value for GNUGO Board mode.
 If a single string, the following special escape sequences are
 replaced with their associated information:
   ~b,~w  black,white captures (a number)
@@ -144,13 +144,13 @@ The times are in seconds, or \"-\" if that information is not available.
 For ~t, the value is a snapshot, use `gnugo-refresh' to update it.")
 
 (defvar gnugo-X-face 'font-lock-string-face
-  "*Name of face to use for X (black) stones.")
+  "Name of face to use for X (black) stones.")
 
 (defvar gnugo-O-face 'font-lock-builtin-face
-  "*Name of face to use for O (white) stones.")
+  "Name of face to use for O (white) stones.")
 
 (defvar gnugo-grid-face 'default
-  "*Name of face to use for the grid (A B C ... 1 2 3 ...).")
+  "Name of face to use for the grid (A B C ... 1 2 3 ...).")
 
 ;;;---------------------------------------------------------------------------
 ;;; Variables for the inquisitive programmer
