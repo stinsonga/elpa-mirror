@@ -174,7 +174,8 @@
   ;; <http://debbugs.gnu.org/Packages.html>
   ;; <http://debbugs.gnu.org/cgi/pkgindex.cgi>
   :group 'debbugs-gnu
-  :type '(set (const "automake")
+  :type '(set (const "auctex")
+	      (const "automake")
 	      (const "cc-mode")
 	      (const "coreutils")
 	      (const "cppi")
@@ -190,6 +191,7 @@
 	      (const "gzip")
 	      (const "idutils")
 	      (const "libtool")
+	      (const "mh-e")
 	      (const "org-mode")
 	      (const "parted")
 	      (const "vc-dwim")
