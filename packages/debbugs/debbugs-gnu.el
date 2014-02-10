@@ -190,11 +190,9 @@
 	      (const "gzip")
 	      (const "idutils")
 	      (const "libtool")
-	      (const "ns")
 	      (const "org-mode")
 	      (const "parted")
 	      (const "vc-dwim")
-	      (const "w32")
 	      (const "woodchuck"))
   :version "24.4")
 
