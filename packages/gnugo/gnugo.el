@@ -1278,6 +1278,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
                  t)
         (gnugo-close-game nil game-over)))
     (gnugo-refresh t)
+    (set-buffer-modified-p nil)
     (message "GNU Go %splays as %s, you as %s (%s)"
              (if samep "" "now ")
              wait play (if samep
