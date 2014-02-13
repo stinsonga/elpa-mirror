@@ -695,6 +695,19 @@ For all other values of RSEL, do nothing and return nil."
         `((live ,@live)
           (dead ,@dead))))))
 
+(defun gnugo--unclose-game ()
+  (dolist (prop '(:game-over            ; all those in -close-game
+                  :scoring-seed
+                  :game-end-time))
+    (gnugo-put prop nil))
+  (let* ((root (car (gnugo-get :sgf-gametree)))
+         (cur (assq :RE root)))
+    (when cur
+      (assert (not (eq cur (car root))) nil
+              ":RE at head of root node: %S"
+              root)
+      (delq cur root))))
+
 (defun gnugo-push-move (userp move)
   (let* ((color (gnugo-get (if userp :user-color :gnugo-color)))
          (start (gnugo-get :waiting-start))
@@ -1325,7 +1338,7 @@ turn to play.  Optional second arg NOALT non-nil inhibits this."
                  (error "%s not occupied by %s" pos u)))))
           (t (error "Bad spec: %S" spec)))
     (when (gnugo-get :game-over)
-      (gnugo-put :game-over nil))
+      (gnugo--unclose-game))
     (while (not (funcall done))
       (setq ans (cdr (gnugo-synchronous-send/return "undo")))
       (unless (= ?= (aref ans 0))
@@ -1904,7 +1917,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
               fixed_handicap)
       :output :discard
       :post-thunk (lambda ()
-                    (gnugo-put :game-over nil)
+                    (gnugo--unclose-game)
                     (gnugo-put :last-mover nil)
                     (gnugo-refresh t)))
 
