@@ -296,14 +296,14 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
 
 (defun gnugo-gate (&optional in-progress-p)
   (unless (gnugo-board-buffer-p)
-    (error "Wrong buffer -- try M-x gnugo"))
+    (user-error "Wrong buffer -- try M-x gnugo"))
   (unless (gnugo-get :proc)
-    (error "No \"gnugo\" process!"))
+    (user-error "No \"gnugo\" process!"))
   (when (gnugo-get :waitingp)
-    (error "Not your turn yet -- please wait for \"\(%s to play\)\""
-           (gnugo-get :user-color)))
+    (user-error "Not your turn yet -- please wait for \"\(%s to play\)\""
+                (gnugo-get :user-color)))
   (when (and (gnugo-get :game-over) in-progress-p)
-    (error "Sorry, game over")))
+    (user-error "Sorry, game over")))
 
 (defun gnugo-sentinel (proc string)
   (let ((status (process-status proc)))
@@ -325,7 +325,8 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
   "Return (TIME . STRING) where TIME is that returned by `current-time' and
 STRING omits the two trailing newlines.  See also `gnugo-query'."
   (when (gnugo-get :waitingp)
-    (error "Sorry, still waiting for %s to play" (gnugo-get :gnugo-color)))
+    (user-error "Sorry, still waiting for %s to play"
+                (gnugo-get :gnugo-color)))
   (let ((proc (gnugo-get :proc)))
     (process-put proc :srs "")          ; synchronous return stash
     (set-process-filter
@@ -391,10 +392,10 @@ a format string applied to the rest of the args."
 
 (defun gnugo-toggle-image-display ()
   (unless (and (fboundp 'display-images-p) (display-images-p))
-    (error "Display does not support images, sorry"))
+    (user-error "Display does not support images, sorry"))
   (require 'gnugo-xpms)
   (unless (and (boundp 'gnugo-xpms) gnugo-xpms)
-    (error "Could not load `gnugo-xpms', sorry"))
+    (user-error "Could not load `gnugo-xpms', sorry"))
   (let ((fresh (or (gnugo-get :local-xpms) gnugo-xpms)))
     (unless (eq fresh (gnugo-get :xpms))
       (gnugo-put :xpms fresh)
@@ -990,7 +991,7 @@ its move."
 
 (defun gnugo-position ()
   (or (get-text-property (point) 'gnugo-position)
-      (error "Not a proper position point")))
+      (user-error "Not a proper position point")))
 
 (defun gnugo-move ()
   "Make a move on the GNUGO Board buffer.
@@ -1004,7 +1005,7 @@ To start a game try M-x gnugo."
          (move (format "play %s %s" (gnugo-get :user-color) pos))
          (accept (cdr (gnugo-synchronous-send/return move))))
     (unless (= ?= (aref accept 0))
-      (error "%s" accept))
+      (user-error "%s" accept))
     (gnugo-push-move t pos)             ; value always nil for non-pass move
     (let (inhibit-gnugo-refresh)
       (run-hooks 'gnugo-post-move-hook)
@@ -1030,7 +1031,7 @@ To start a game try M-x gnugo."
   (let ((accept (cdr (gnugo-synchronous-send/return
                       (format "play %s PASS" (gnugo-get :user-color))))))
     (unless (= ?= (aref accept 0))
-      (error "%s" accept)))
+      (user-error "%s" accept)))
   (let ((donep (gnugo-push-move t "PASS"))
         (buf (current-buffer)))
     (let (inhibit-gnugo-refresh)
@@ -1062,7 +1063,7 @@ To start a game try M-x gnugo."
          (orig-b-m-p (buffer-modified-p))
          (stones (if (memq (char-after) '(?X ?O))
                      (gnugo-lsquery "%s %s" command pos)
-                   (error "No stone at %s" pos))))
+                   (user-error "No stone at %s" pos))))
     (message "Computing %s ... %s in group." command (length stones))
     (setplist (gnugo-f 'anim) nil)
     (let* ((spec (let ((spec (split-string gnugo-animation-string "" t)))
@@ -1154,9 +1155,9 @@ you may consider modifying the `gnugo-toggle-dead-group' source code
 to enable full functionality."
   (interactive)
   (let ((game-over (or (gnugo-get :game-over)
-                       (error "Sorry, game still in play")))
+                       (user-error "Sorry, game still in play")))
         (group (or (get-text-property (point) 'group)
-                   (error "No stone at that position")))
+                   (user-error "No stone at that position")))
         (now (current-time)))
     (gnugo-put :scoring-seed (logior (ash (logand (car now) 255) 16)
                                      (cadr now)))
@@ -1213,7 +1214,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
   (interactive "FWrite game as SGF file: ")
   (when (and (file-exists-p filename)
              (not (y-or-n-p "File exists. Continue? ")))
-    (error "Not writing %s" filename))
+    (user-error "Not writing %s" filename))
   (gnugo/sgf-write-file (gnugo-get :sgf-collection) filename)
   (set-buffer-modified-p nil))
 
@@ -1221,7 +1222,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
   "Load the first game tree from FILENAME, a file in SGF format."
   (interactive "fSGF file to load: ")
   (when (file-directory-p filename)
-    (error "Cannot load a directory (try a filename with extension .sgf)"))
+    (user-error "Cannot load a directory (try a filename with extension .sgf)"))
   (let (ans play wait samep coll)
     ;; problem: requiring GTP `loadsgf' complicates network subproc support;
     ;; todo: skip it altogether when confident about `gnugo/sgf-read-file'
@@ -1229,7 +1230,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
                                         (format "loadsgf %s"
                                                 (expand-file-name filename)))))
                         0))
-      (error "%s" ans))
+      (user-error "%s" ans))
     (setq play (substring ans 2)
           wait (gnugo-other play)
           samep (string= (gnugo-get :user-color) play))
@@ -1327,7 +1328,7 @@ turn to play.  Optional second arg NOALT non-nil inhibits this."
                            (gnugo-goto-pos ,pos)
                            (memq (char-after) '(?. ?+))))
              (when (funcall done)
-               (error "%s already clear" pos))
+               (user-error "%s already clear" pos))
              (let ((u (gnugo-get :user-color)))
                (when (= (save-excursion
                           (gnugo-goto-pos pos)
@@ -1335,14 +1336,14 @@ turn to play.  Optional second arg NOALT non-nil inhibits this."
                         (if (string= "black" u)
                             ?O
                           ?X))
-                 (error "%s not occupied by %s" pos u)))))
-          (t (error "Bad spec: %S" spec)))
+                 (user-error "%s not occupied by %s" pos u)))))
+          (t (user-error "Bad spec: %S" spec)))
     (when (gnugo-get :game-over)
       (gnugo--unclose-game))
     (while (not (funcall done))
       (setq ans (cdr (gnugo-synchronous-send/return "undo")))
       (unless (= ?= (aref ans 0))
-        (error "%s" ans))
+        (user-error "%s" ans))
       (aset monkey 2 (decf count))
       (aset monkey 1 (setq mem (cdr mem)))
       (aset monkey 0 (or (car mem) (gnugo-get :sgf-gametree)))
@@ -1391,7 +1392,7 @@ Also, add the `:RE' SGF property to the root node of the game tree."
   (unless (or (gnugo-get :game-over)
               (and (not (gnugo-get :waitingp))
                    (y-or-n-p "Game still in play. Stop play now? ")))
-    (error "Sorry, game still in play"))
+    (user-error "Sorry, game still in play"))
   (unless (gnugo-get :game-over)
     (cl-labels
         ((pass (userp)
@@ -1678,7 +1679,7 @@ In this mode, keys do not self insert.  Default keybindings:
                         (o (substring gnugo-program (match-end 0)))
                         (h (or (car gnugo-option-history) "")))
                     (when (string-match "--mode" o)
-                      (error "Found \"--mode\" in `gnugo-program'"))
+                      (user-error "Found \"--mode\" in `gnugo-program'"))
                     (when (and o (cl-plusp (length o))
                                h (cl-plusp (length o))
                                (or (< (length h) (length o))
