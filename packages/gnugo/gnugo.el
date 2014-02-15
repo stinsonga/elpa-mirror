@@ -170,12 +170,8 @@ For ~t, the value is a snapshot, use `gnugo-refresh' to update it.")
 ;;;---------------------------------------------------------------------------
 ;;; Support functions
 
-(put  'gnugo-put 'lisp-indent-function 1)
-(defun gnugo-put (key value) (puthash key value gnugo-state))
-(defun gnugo-get (key)       (gethash key gnugo-state))
-
-(let ((docs "Put or get move/game/board-specific properties.
-\(This docstring is shared by `gnugo-put' and `gnugo-get'.\)
+(defun gnugo-put (key value)
+  "Associate move/game/board-specific property KEY with VALUE.
 
 There are many properties, each named by a keyword, that record and control
 how gnugo.el manages each game.  Each GNUGO Board buffer has its own set
@@ -233,9 +229,14 @@ you may never really understand to any degree of personal satisfaction\".
 
  :last-user-bpos -- board position; keep the hapless human happy
 
-As things stabilize probably more info will be added to this docstring."))
-  (put 'gnugo-put 'function-documentation docs)
-  (put 'gnugo-get 'function-documentation docs))
+As things stabilize probably more info will be added to this docstring."
+  (declare (indent 1))
+  (puthash key value gnugo-state))
+
+(defun gnugo-get (key)
+  "Return the move/game/board-specific value for KEY.
+See `gnugo-put'."
+  (gethash key gnugo-state))
 
 (defun gnugo-describe-internal-properties ()
   "Pretty-print `gnugo-state' properties in another buffer.
