@@ -1572,8 +1572,7 @@ NOTE: At this time, GTP command handling specification is still
     (let* ((split (split-string command))
            (cmd (intern (car split)))
            (spec (get cmd :gnugo-gtp-command-spec))
-           (full (plist-get spec :full))
-           (last-message nil))
+           (full (plist-get spec :full)))
       (if full
           (funcall full (cdr split))
         (message "Doing %s ..." command)
