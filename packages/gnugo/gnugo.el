@@ -1717,9 +1717,7 @@ In this mode, keys do not self insert.  Default keybindings:
                               "--mode" "gtp" "--quiet"
                               proc-args)))
     ;; Emacs is too protective sometimes, blech.
-    (remove-hook (make-local-variable 'kill-buffer-query-functions)
-                 'process-kill-buffer-query-function
-                 t)
+    (set-process-query-on-exit-flag (gnugo-get :proc) nil)
     (when (or minus-l infile)
       (mapc (lambda (x)
               (apply (lambda (prop q)
