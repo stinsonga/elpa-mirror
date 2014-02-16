@@ -534,7 +534,23 @@ a format string applied to the rest of the args."
 (defun gnugo-merge-showboard-results ()
   (let ((aft (substring (cdr (gnugo-synchronous-send/return "showboard")) 3))
         (adj 1)                         ; string to buffer position adjustment
-        (sync "[0-9]+ stones$")
+
+        (sync "[0-9]* stones$")
+        ;; Note: `sync' used to start w/ "[0-9]+", but that is too
+        ;; restrictive a condition that fails in the case of:
+        ;;
+        ;; (before)
+        ;;   ... WHITE has captured 1 stones
+        ;;                           ^
+        ;; (after)
+        ;;   ... WHITE has captured 14 stones
+        ;;                           ^
+        ;;
+        ;; where the after count has more digits than the before count,
+        ;; but shares the same leading digits.  In this case, the result
+        ;; of `compare-strings' points to the SPC following the before
+        ;; count (indicated by caret in this example).
+
         (bef (buffer-substring-no-properties (point-min) (point-max)))
         (bef-start 0) (bef-idx 0)
         (aft-start 0) (aft-idx 0)
