@@ -1074,14 +1074,16 @@ To start a game try M-x gnugo."
     (gnugo-push-move t "resign")
     (gnugo-refresh)))
 
-(defun gnugo-animate-group (command)
-  (message "Computing %s ..." command)
+(defun gnugo-animate-group (w/d)
+  ;; W/D is a symbol, either ‘worm’ or ‘dragon’.
   (let* ((pos (gnugo-position))
          (orig-b-m-p (buffer-modified-p))
-         (stones (if (memq (char-after) '(?X ?O))
-                     (gnugo-lsquery "%s %s" command pos)
-                   (user-error "No stone at %s" pos))))
-    (message "Computing %s ... %s in group." command (length stones))
+         blurb stones)
+    (unless (memq (char-after) '(?X ?O))
+      (user-error "No stone at %s" pos))
+    (setq blurb (message "Computing %s stones ..." w/d)
+          stones (gnugo-lsquery "%s_stones %s" w/d pos))
+    (message "%s %s in group." blurb (length stones))
     (setplist (gnugo-f 'anim) nil)
     (let* ((spec (let ((spec (split-string gnugo-animation-string "" t)))
                    (cond ((gnugo-get :display-using-images)
@@ -1129,7 +1131,7 @@ Signal error if done out-of-turn or if game-over.
 See variable `gnugo-animation-string' for customization."
   (interactive)
   (gnugo-gate)
-  (gnugo-animate-group "worm_stones"))
+  (gnugo-animate-group 'worm))
 
 (defun gnugo-worm-data ()
   "Display in another buffer data from \"worm\" at current position.
@@ -1144,7 +1146,7 @@ Signal error if done out-of-turn or if game-over.
 See variable `gnugo-animation-string' for customization."
   (interactive)
   (gnugo-gate)
-  (gnugo-animate-group "dragon_stones"))
+  (gnugo-animate-group 'dragon))
 
 (defun gnugo-dragon-data ()
   "Display in another buffer data from \"dragon\" at current position.
