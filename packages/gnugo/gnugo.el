@@ -1618,54 +1618,9 @@ NOTE: At this time, GTP command handling specification is still
 (defun gnugo-board-mode ()
   "Major mode for playing GNU Go.
 Entering this mode runs the normal hook `gnugo-board-mode-hook'.
-In this mode, keys do not self insert.  Default keybindings:
+In this mode, keys do not self insert.
 
-  ?             View this help.
-
-  RET or SPC    Run `gnugo-move'.
-
-  q or Q        Quit (the latter without confirmation).
-
-  R             Resign.
-
-  u             Run `gnugo-undo-two-moves'.
-
-  U             Pass to `gnugo-magic-undo' either the board position
-                at point (if no prefix arg), or the prefix arg converted
-                to a number.  E.g., to undo 16 moves: `C-u C-u U' (see
-                `universal-argument'); to undo 42 moves: `M-4 M-2 U'.
-
-  C-l           Run `gnugo-refresh'.
-
-  _ or M-_      Bury the Board buffer (when the boss is near).
-
-  P             Run `gnugo-pass'.
-
-  i             Toggle display using XPM images (if supported).
-
-  w             Run `gnugo-worm-stones'.
-  d             Run `gnugo-dragon-stones'.
-
-  W             Run `gnugo-worm-data'.
-  D             Run `gnugo-dragon-data'.
-
-  t             Run `gnugo-toggle-dead-group'.
-
-  !             Run `gnugo-estimate-score'.
-
-  : or ;        Run `gnugo-command' (for GTP commands to GNU Go).
-
-  =             Display board position under point (if valid).
-
-  h             Run `gnugo-move-history'.
-
-  F             Run `gnugo-display-final-score'.
-
-  s             Run `gnugo-write-sgf-file'.
-  or C-x C-w
-  or C-x C-s
-
-  l             Run `gnugo-read-sgf-file'."
+\\{gnugo-board-mode-map}"
   (switch-to-buffer (generate-new-buffer "(Uninitialized GNUGO Board)"))
   (buffer-disable-undo)                 ; todo: undo undo undoing
   (kill-all-local-variables)
@@ -1785,6 +1740,8 @@ In this mode, keys do not self insert.  Default keybindings:
   "Run gnugo in a buffer, or resume a game in progress.
 Prefix arg means skip the game-in-progress check and start a new
 game straight away.
+\\<gnugo-board-mode-map>
+To play, use \\[gnugo-move] to place a stone or \\[gnugo-pass] to pass.
 
 You are queried for additional command-line options (Emacs supplies
 \"--mode gtp --quiet\" automatically).  Here is a list of options
