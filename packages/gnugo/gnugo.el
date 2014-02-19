@@ -313,7 +313,11 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
       (let ((buf (process-buffer proc)))
         (when (buffer-live-p buf)
           (with-current-buffer buf
-            (setq mode-line-process '( " [%s]"))
+            (setq mode-line-process
+                  (list " [%s ("
+                        (propertize (car (split-string string))
+                                    'face 'font-lock-warning-face)
+                        ")]"))
             (when (eq proc (gnugo-get :proc))
               (gnugo-put :proc nil))))))))
 
