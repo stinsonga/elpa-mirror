@@ -98,6 +98,7 @@ the wicd wired interface."
 
 (defvar enwc-wicd-prop-values nil)
 (defvar enwc-wicd-prop-num 0)
+(defvar enwc-wicd-prop-timeout 3)
 
 (defun enwc-wicd-nw-prop-handler (&rest args)
   (setq enwc-wicd-prop-values (cons args enwc-wicd-prop-values))
@@ -113,11 +114,9 @@ from wireless network with id ID."
 				   enwc-wicd-dbus-wireless-interface
 				   "GetWirelessProperty"
 				   'enwc-wicd-nw-prop-handler
+                                   :timeout 1000
 				   :int32 id
-				   :string prop)
-
-  ;;(enwc-wicd-dbus-wireless-call-method "GetWirelessProperty" id prop)
-  )
+				   :string prop))
 
 (defun enwc-wicd-build-prop-list (prop-list det-list)
   (let (ret
@@ -136,8 +135,11 @@ from wireless network with id ID."
 	    (enwc-wicd-get-wireless-network-property id x))
 	  enwc-wicd-details-list)
   ;; Wait for less than a second.
+  (with-timeout (enwc-wicd-prop-timeout)
+      (while (< enwc-wicd-prop-num 6)
+	(read-event nil nil 0.001)))
   (while (< enwc-wicd-prop-num 6)
-    (read-event nil nil 0.001))
+    (enwc-wicd-nw-prop-handler nil))
   (enwc-wicd-build-prop-list enwc-wicd-prop-values enwc-wicd-details-list))
 
 (defun enwc-wicd-get-encryption-type (id)
