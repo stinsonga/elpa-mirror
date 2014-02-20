@@ -308,6 +308,7 @@ network with id ID."
   "Gets the list of wired profiles."
   (funcall enwc-get-wired-profiles-func))
 
+;;TODO: Add hooks to run after connecting.
 (defun enwc-wireless-connect (id)
   "Begins a connection to wireless network with
 id ID."
@@ -446,14 +447,18 @@ the scan results."
   (if (or enwc-using-wired (not enwc-scan-requested))
       nil
     (setq enwc-scan-requested nil)
-    (let ((cur-id 0))
+    (let ((cur-id 0)
+	  (nw-prop-list nil))
       (message "Scanning... Done")
       (setq enwc-access-points (enwc-get-nw)
 	    enwc-essid-width 5)
+      (setq nw-prop-list
+	    (mapcar 'enwc-get-wireless-nw-props
+		    (number-sequence 0 (1- (length enwc-access-points)))))
       (setq enwc-last-scan
 	    (mapcar (lambda (x)
 		      (let ((ret-itm (cons (cons "id" cur-id) nil))
-			    (prop-list (enwc-get-wireless-nw-props x)))
+			    (prop-list (pop nw-prop-list)))
 			(setq cur-id (1+ cur-id))
 			(dolist (det enwc-details-list)
 			  (let ((cur-item (cdr (assoc det prop-list)))
@@ -479,11 +484,7 @@ the scan results."
     (setq enwc-essid-width (1+ enwc-essid-width))
     (setq enwc-scan-done t)
     (if enwc-scan-interactive
-	(progn
-	  (enwc-display-wireless-networks enwc-last-scan)
-	  ;;(goto-char 0)
-	  ;;(forward-line)
-	  ))))
+	  (enwc-display-wireless-networks enwc-last-scan))))
 
 (defun enwc-scan-internal-wired ()
   "The scanning routine for a wired connection.
@@ -541,10 +542,8 @@ NETWORKS must be in the format returned by
 	   (enwc-setup-buffer))
   (if (not (listp networks))
       (error "NETWORKS must be a list of association lists."))
-  (let (;;(inhibit-read-only t)
-	(cur-id (enwc-get-current-nw-id))
+  (let ((cur-id (enwc-get-current-nw-id))
 	entries)
-    ;;(erase-buffer)
     (let ((header enwc-wireless-headers)
 	  (pos 0))
 
@@ -555,17 +554,7 @@ NETWORKS must be in the format returned by
 		    '("ENCRYPT" 9)
 		    '("BSSID" 17)
 		    '("MODE" 15)
-		    '("CHNL" 2)))
-
-      ;; (dolist (hd header)
-      ;; 	(insert (propertize hd 'face 'enwc-header-face))
-      ;; 	(setq pos (length hd))
-      ;; 	(insert-char 32 (- (symbol-value (intern (concat "enwc-"
-      ;; 							 (downcase hd)
-      ;; 							 "-width")))
-      ;; 			   pos)))
-      )
-    ;;(insert "\n")
+		    '("CHNL" 2))))
 
     ;;TODO: Setup faces.
     (dolist (nw networks)
@@ -574,9 +563,9 @@ NETWORKS must be in the format returned by
 	(setq entry (list nil
 			  (vector
 			   (number-to-string (cdr (assoc "id" nw)))
-			   (concat (number-to-string (cdr (assoc "quality" nw)))
+                           (concat (number-to-string (cdr (assoc "quality" nw)))
 				   "%")
-			   (cdr (assoc "essid" nw))
+                           (cdr (assoc "essid" nw))
 			   (cdr (assoc "encryption" nw))
 			   (cdr (assoc "bssid" nw))
 			   (cdr (assoc "mode" nw))
@@ -586,34 +575,7 @@ NETWORKS must be in the format returned by
     (setq tabulated-list-entries (nreverse entries))
     (tabulated-list-init-header)
 
-    ;; (dolist (nw networks)
-    ;;   (let* ((id (propertize (number-to-string (cdr (assoc "id" nw)))
-    ;; 			     'width enwc-id-width))
-    ;; 	     (str (propertize (concat (number-to-string (cdr (assoc "quality"
-    ;; 								    nw)))
-    ;; 				      "%")
-    ;; 			      'width enwc-str-width))
-    ;; 	     (essid (propertize (cdr (assoc "essid" nw))
-    ;; 				'width enwc-essid-width))
-    ;; 	     (encrypt (propertize (cdr (assoc "encryption" nw))
-    ;; 				  'width enwc-encrypt-width))
-    ;; 	     (bssid (propertize (cdr (assoc "bssid" nw))
-    ;; 				'width enwc-bssid-width))
-    ;; 	     (mode (propertize (cdr (assoc "mode" nw))
-    ;; 			       'width enwc-mode-width))
-    ;; 	     (chnl (propertize (cdr (assoc "channel" nw))
-    ;; 			       'width enwc-chnl-width))
-    ;; 	     props)
-
-    ;; 	(setq props (list id str essid encrypt bssid mode chnl))
-
-    ;; 	(dolist (ent props)
-    ;; 	  (if (eq (string-to-number id) cur-id)
-    ;; 	      (setq ent (propertize ent 'face 'enwc-connected-face)))
-    ;; 	  (enwc-insert-ent ent (get-text-property 0 'width ent)))
-    ;; 	(insert "\n")))
-    (tabulated-list-print)
-    ))
+    (tabulated-list-print)))
 
 (defun enwc-display-networks (networks)
   "Displays the network in NETWORKS.  This is an entry to the display
@@ -631,15 +593,15 @@ functions, and checks whether or not ENWC is using wired."
 the ENWC buffer if necessary, and scans and displays the networks."
   (interactive)
   (setq enwc-scan-interactive t)
-  (if (not (eq major-mode 'enwc-mode))
-      (switch-to-buffer "*ENWC*"))
-  (if enwc-using-wired
-      (progn
-	(enwc-scan-internal)
-	;;(enwc-display-networks enwc-last-scan)
-	(goto-char 0)
-	(forward-line))
-    (enwc-scan-internal)))
+  (if (get-buffer "*ENWC*")
+      (with-current-buffer "*ENWC*"
+	(if enwc-using-wired
+	    (progn
+	      (enwc-scan-internal)
+	      ;;(enwc-display-networks enwc-last-scan)
+	      (goto-char 0)
+	      (forward-line))
+	  (enwc-scan-internal)))))
   
 (defun enwc-find-network (essid &optional networks)
   "Checks through NETWORKS for the network with essid ESSID,

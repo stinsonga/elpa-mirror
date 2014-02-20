@@ -1,6 +1,6 @@
 ;;; enwc-wicd.el --- The Wicd backend to ENWC
 
-;; Copyright (C) 2012,2013 Free Software Foundation
+;; Copyright (C) 2012,2013,2014 Free Software Foundation
 
 ;; Author: Ian Dunn
 ;; Keywords: enwc, network, wicd, manager, nm
@@ -100,8 +100,11 @@ the wicd wired interface."
 (defvar enwc-wicd-prop-num 0)
 (defvar enwc-wicd-prop-timeout 3)
 
-(defun enwc-wicd-nw-prop-handler (&rest args)
-  (setq enwc-wicd-prop-values (cons args enwc-wicd-prop-values))
+(defun enwc-wicd-nw-prop-handler (prop &rest args)
+  "The handler for `enwc-wicd-get-wireless-network-property'.
+This receives the value of network property PROP,
+and appends the value to `enwc-wicd-prop-values'."
+  (setq enwc-wicd-prop-values (cons (cons prop (car args)) enwc-wicd-prop-values))
   (setq enwc-wicd-prop-num (1+ enwc-wicd-prop-num)))
 
 (defun enwc-wicd-get-wireless-network-property (id prop)
@@ -113,7 +116,7 @@ from wireless network with id ID."
 				   enwc-wicd-dbus-wireless-path
 				   enwc-wicd-dbus-wireless-interface
 				   "GetWirelessProperty"
-				   'enwc-wicd-nw-prop-handler
+				   `(lambda (x) (enwc-wicd-nw-prop-handler ,prop x))
                                    :timeout 1000
 				   :int32 id
 				   :string prop))
@@ -121,14 +124,21 @@ from wireless network with id ID."
 (defun enwc-wicd-build-prop-list (prop-list det-list)
   (let (ret
 	(act-det-list (reverse det-list)))
-    (while prop-list
-      (let ((cur-prop (pop prop-list))
-	    (cur-det (pop act-det-list)))
-	(setq ret (append ret (cons (cons cur-det (car cur-prop)) nil)))
+    (while act-det-list
+      (let* ((cur-det (pop act-det-list))
+            (cur-prop (assoc cur-det prop-list)))
+        (setq ret
+              (if cur-prop
+                  (cons cur-prop ret)
+                (cons (cons cur-det nil) nil)))
 	))
     ret))
 
 (defun enwc-wicd-get-wireless-nw-props (id)
+  "Get the network properties of a network.
+This function returns an associative list of properties
+for the network with id ID.
+For a list of properties, see `enwc-wicd-details-list'."
   (setq enwc-wicd-prop-values nil)
   (setq enwc-wicd-prop-num 0)
   (mapc (lambda (x)
@@ -138,8 +148,7 @@ from wireless network with id ID."
   (with-timeout (enwc-wicd-prop-timeout)
       (while (< enwc-wicd-prop-num 6)
 	(read-event nil nil 0.001)))
-  (while (< enwc-wicd-prop-num 6)
-    (enwc-wicd-nw-prop-handler nil))
+
   (enwc-wicd-build-prop-list enwc-wicd-prop-values enwc-wicd-details-list))
 
 (defun enwc-wicd-get-encryption-type (id)
@@ -159,7 +168,6 @@ network with id ID."
   "Wicd get current network id function.
 This calls the D-Bus method on Wicd to get the current
 wireless network id."
-  ;;(enwc-wicd-dbus-wireless-call-method "GetCurrentNetworkID"))
   (if wired
       -1
     enwc-wicd-current-nw-id))
@@ -332,8 +340,7 @@ the network with id ID."
 					       (nthcdr 3 info)
 					       (caar (nthcdr 3 info))
 					       (string-to-number (caar (nthcdr 3 info))))
-					  -1)))
-  ))
+					  -1)))))
 
 (defun enwc-wicd-setup ()
   ;; Thanks to Michael Albinus for pointing out this signal.
@@ -349,8 +356,7 @@ the network with id ID."
 			"/org/wicd/daemon"
 			enwc-wicd-dbus-service
 			"StatusChanged"
-			'enwc-wicd-wireless-prop-changed)
-  )
+			'enwc-wicd-wireless-prop-changed))
 
 (provide 'enwc-wicd)
 
