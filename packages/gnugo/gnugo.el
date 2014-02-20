@@ -1850,9 +1850,12 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                                    (while ls
                                      (jam cmd (car ls) (cadr ls))
                                      (setq ls (cddr ls)))))))
+    (cl-macrolet ((deffull (who &body body)
+                    (declare (indent 1))
+                    `(defgtp ',who :full (lambda (sel)
+                                           ,@body))))
 
-    (defgtp 'help :full
-      (lambda (sel)
+      (deffull help
         (info "(gnugo)GTP command reference")
         (when sel (setq sel (intern (car sel))))
         (let (buffer-read-only pad cur spec output found)
@@ -1883,29 +1886,29 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                   (setq found (match-beginning 0))))))
           (cond (found (goto-char found))
                 ((not sel))
-                (t (message "(no such command: %s)" sel))))))
+                (t (message "(no such command: %s)" sel)))))
 
-    (defgtp 'final_score :full
-      (lambda (sel) (gnugo-display-final-score)))
+      (deffull final_score
+        (gnugo-display-final-score))
 
-    (defgtp '(boardsize
-              clear_board
-              fixed_handicap)
-      :output :discard
-      :post-thunk (lambda ()
-                    (gnugo--unclose-game)
-                    (gnugo-put :last-mover nil)
-                    (gnugo-refresh t)))
+      (defgtp '(boardsize
+                clear_board
+                fixed_handicap)
+        :output :discard
+        :post-thunk (lambda ()
+                      (gnugo--unclose-game)
+                      (gnugo-put :last-mover nil)
+                      (gnugo-refresh t)))
 
-    (defgtp 'loadsgf :full
-      (lambda (sel) (gnugo-read-sgf-file (car sel))))
+      (deffull loadsgf
+        (gnugo-read-sgf-file (car sel)))
 
-    (defgtp '(undo gg-undo) :full
-      (lambda (sel) (gnugo-magic-undo
-                     (let (n)
-                       (cond ((not sel) 1)
-                             ((cl-plusp (setq n (string-to-number (car sel)))) n)
-                             (t (car sel)))))))))
+      (deffull (undo gg-undo)
+        (gnugo-magic-undo
+         (let (n)
+           (cond ((not sel) 1)
+                 ((cl-plusp (setq n (string-to-number (car sel)))) n)
+                 (t (car sel)))))))))
 
 (provide 'gnugo)
 
