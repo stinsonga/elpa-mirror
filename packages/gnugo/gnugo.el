@@ -1554,6 +1554,15 @@ which placed the stone at point."
   (interactive)
   (message "%s" (gnugo-position)))
 
+(defun gnugo-switch-to-another ()
+  "Switch to another GNU Go game buffer (if any)."
+  (interactive)
+  (let ((cur (current-buffer)))
+    (switch-to-buffer (cl-find-if 'gnugo-board-buffer-p
+                                  (reverse (buffer-list))))
+    (when (eq cur (current-buffer))
+      (message "(only one)"))))
+
 ;;;---------------------------------------------------------------------------
 ;;; Command properties and gnugo-command
 
@@ -1834,6 +1843,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
           ("\C-x\C-w" . gnugo-write-sgf-file)
           ("l"        . gnugo-read-sgf-file)
           ("F"        . gnugo-display-final-score)
+          ("A"        . gnugo-switch-to-another)
           ;; mouse
           ([(down-mouse-1)] . gnugo-mouse-move)
           ([(down-mouse-2)] . gnugo-mouse-move) ; mitigate accidents
