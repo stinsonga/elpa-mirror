@@ -1813,6 +1813,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
           ("Q"        . gnugo-leave-me-alone)
           ("U"        . gnugo-fancy-undo)
           ("u"        . gnugo-undo-two-moves)
+          ("\C-?"     . gnugo-undo-two-moves)
           ("\C-l"     . gnugo-refresh)
           ("\M-_"     . bury-buffer)
           ("_"        . bury-buffer)
