@@ -3,9 +3,7 @@ HACKING gnugo                                           -*- org -*-
 This file is both a guide for newcomers and a todo list for oldstayers.
 
 * next (actually "first" (under ELPA) :-D)
-*** TODO code
-***** TODO Set ‘lexical-binding’ (if possible!).
-      Hmm, lots of symbol trickery going on; initial attempts FAIL.
+*** DONE code
 ***** DONE Give ‘lambda’ commands a name and docstring.
 ***** DONE Move gnugo-{put,get} doc elsewhere.
 ***** DONE Loose the modernization!
@@ -15,7 +13,7 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 ******* DONE ‘(split-string ... t)’ -- [[file:gnugo.el][gnugo-animate-group]]
 ***** DONE Use process-{put,get}.
 ***** DONE Drop leading ?* in var docstrings.
-*** TODO Resolve maintenance musings.
+*** DONE Resolve maintenance musings.
 ***** Any way to use ‘gnugo-version’ as ";; Version:"? [no]
 ***** Should SGF funcs be moved to sgf.el now? [no]
 ***** Is sgf.el better in-package or independent (but in ELPA)? [in-package]
@@ -38,9 +36,17 @@ This file is both a guide for newcomers and a todo list for oldstayers.
       so the actual release commits will be effectively fast-forward.
 *** DONE Finish [[file:NEWS][NEWS]] archeology.
 * fix bugs
+*** ‘inhibit-gnugo-refresh’: defvar, rename to ‘gnugo-inhibit-refresh’
+*** {next,previous}-line weirdness in the presence of images
+*** ‘-l FILENAME’ lossage
+***** silently clobbers other options (PEBKAC, strictly speaking)
+***** game tree incomplete (doing ‘C-x C-s’ immediately writes empty tree)
 *** [[file:gnugo.el::defun.gnugo-toggle-dead-group][gnugo-toggle-dead-group]] only half-complete
 *** no error-handling in SGF parsing
+*** performance -- ‘compare-strings’ approach too clever/slow :-/
 * ideas / wishlist
+*** set ‘lexical-binding’ (if possible!)
+    Hmm, lots of symbol trickery going on; initial attempts FAIL.
 *** add a few screenshots to package
 *** revamp image support
 *** talk GTP over the network
