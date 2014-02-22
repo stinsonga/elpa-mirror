@@ -652,6 +652,12 @@ For all other values of RSEL, do nothing and return nil."
        ((eq 'cadr rsel) (next nil) (car (next nil)))
        ((eq 'count rsel) (aref (gnugo-get :monkey) 2))))))
 
+(defun gnugo-boss-is-near ()
+  "Do `bury-buffer' until the current one is not a GNU Board."
+  (interactive)
+  (while (gnugo-board-buffer-p)
+    (bury-buffer)))
+
 (defun gnugo-note (property value &optional movep mogrifyp)
   (when mogrifyp
     (let ((sz (gnugo-treeroot :SZ)))
@@ -1824,8 +1830,8 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
           ("u"        . gnugo-undo-two-moves)
           ("\C-?"     . gnugo-undo-two-moves)
           ("\C-l"     . gnugo-refresh)
-          ("\M-_"     . bury-buffer)
-          ("_"        . bury-buffer)
+          ("\M-_"     . gnugo-boss-is-near)
+          ("_"        . gnugo-boss-is-near)
           ("h"        . gnugo-move-history)
           ("i"        . gnugo-toggle-image-display-command)
           ("w"        . gnugo-worm-stones)
