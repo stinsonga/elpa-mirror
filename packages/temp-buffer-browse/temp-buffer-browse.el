@@ -1,9 +1,9 @@
 ;;; temp-buffer-browse.el --- temp buffer browse mode  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2013  Free Software Foundation, Inc.
+;; Copyright (C) 2013-2014  Free Software Foundation, Inc.
 
 ;; Author: Leo Liu <sdl.web@gmail.com>
-;; Version: 1.1
+;; Version: 1.2
 ;; Keywords: convenience
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -28,37 +28,31 @@
 ;;; Code:
 
 (eval-and-compile
-  (or (fboundp 'set-temporary-overlay-map) ; new in 24.3
-      (defun set-temporary-overlay-map (map &optional keep-pred)
-        "Set MAP as a temporary keymap taking precedence over most other keymaps.
-Note that this does NOT take precedence over the \"overriding\" maps
-`overriding-terminal-local-map' and `overriding-local-map' (or the
-`keymap' text property).  Unlike those maps, if no match for a key is
-found in MAP, the normal key lookup sequence then continues.
-
-Normally, MAP is used only once.  If the optional argument
-KEEP-PRED is t, MAP stays active if a key from MAP is used.
-KEEP-PRED can also be a function of no arguments: if it returns
-non-nil then MAP stays active."
-        (let* ((clearfunsym (make-symbol "clear-temporary-overlay-map"))
-               (overlaysym (make-symbol "t"))
-               (alist (list (cons overlaysym map)))
-               (clearfun
-                `(lambda ()
-                   (unless ,(cond ((null keep-pred) nil)
-                                  ((eq t keep-pred)
-                                   `(eq this-command
-                                        (lookup-key ',map
-                                                    (this-command-keys-vector))))
-                                  (t `(funcall ',keep-pred)))
-                     (set ',overlaysym nil) ;Just in case.
-                     (remove-hook 'pre-command-hook ',clearfunsym)
-                     (setq emulation-mode-map-alists
-                           (delq ',alist emulation-mode-map-alists))))))
-          (set overlaysym overlaysym)
-          (fset clearfunsym clearfun)
-          (add-hook 'pre-command-hook clearfunsym)
-          (push alist emulation-mode-map-alists)))))
+  (cond
+   ((fboundp 'set-transient-map) nil)
+   ((fboundp 'set-temporary-overlay-map) ; new in 24.3
+    (defalias 'set-transient-map 'set-temporary-overlay-map))
+   (t
+    (defun set-transient-map (map &optional keep-pred)
+      (let* ((clearfunsym (make-symbol "clear-temporary-overlay-map"))
+             (overlaysym (make-symbol "t"))
+             (alist (list (cons overlaysym map)))
+             (clearfun
+              `(lambda ()
+                 (unless ,(cond ((null keep-pred) nil)
+                                ((eq t keep-pred)
+                                 `(eq this-command
+                                      (lookup-key ',map
+                                                  (this-command-keys-vector))))
+                                (t `(funcall ',keep-pred)))
+                   (set ',overlaysym nil) ;Just in case.
+                   (remove-hook 'pre-command-hook ',clearfunsym)
+                   (setq emulation-mode-map-alists
+                         (delq ',alist emulation-mode-map-alists))))))
+        (set overlaysym overlaysym)
+        (fset clearfunsym clearfun)
+        (add-hook 'pre-command-hook clearfunsym)
+        (push alist emulation-mode-map-alists))))))
 
 (defcustom temp-buffer-browse-fringe-bitmap 'centered-vertical-bar
   "Fringe bitmap to use in the temp buffer window."
@@ -136,7 +130,7 @@ scroll down and close the temp buffer window, respectively."
       ;; negative priority.
       (unless (bound-and-true-p adaptive-wrap-prefix-mode)
         (overlay-put o 'wrap-prefix (overlay-get o 'line-prefix)))
-      (set-temporary-overlay-map
+      (set-transient-map
        temp-buffer-browse-map
        (lambda ()
          ;; When any error happens the keymap is active forever.
@@ -152,9 +146,16 @@ scroll down and close the temp buffer window, respectively."
 (define-minor-mode temp-buffer-browse-mode nil
   :lighter ""
   :global t
-  (if temp-buffer-browse-mode
-      (add-hook 'temp-buffer-show-hook 'temp-buffer-browse-activate t)
-    (remove-hook 'temp-buffer-show-hook 'temp-buffer-browse-activate)))
+  ;; Work around http://debbugs.gnu.org/16038
+  (let ((activate (lambda ()
+                    (unless (derived-mode-p 'fundamental-mode)
+                      (temp-buffer-browse-activate)))))
+    (if temp-buffer-browse-mode
+        (progn
+          (add-hook 'temp-buffer-show-hook 'temp-buffer-browse-activate t)
+          (add-hook 'temp-buffer-window-show-hook activate t))
+      (remove-hook 'temp-buffer-show-hook 'temp-buffer-browse-activate)
+      (remove-hook 'temp-buffer-window-show-hook activate))))
 
 (provide 'temp-buffer-browse)
 ;;; temp-buffer-browse.el ends here
