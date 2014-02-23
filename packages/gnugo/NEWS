@@ -8,6 +8,21 @@ Hint: (highlight-phrase "[0-9][.][0-9][.][0-9]+\\|[0-9]+[.][.][0-9]+"
                         'hi-red-b)
 
 
+- 2.2.15 (or perhaps 2.3.0) | NOT YET RELEASED
+  - now part of ELPA, tweaked for GNU Emacs 24.x
+    - dropped support for XEmacs and older Emacs
+    - use ‘user-error’ for user errors
+  - bugfix: handle sudden jump in captured stones correctly
+  - on SGF save/load indicate buffer not modified
+  - documentation improvements
+    - version numbering scheme documented: MAJOR.MINOR.PATCH
+    - keybinding constructs for ‘gnugo’ and ‘gnugo-board-mode’
+  - message for worm/dragon animation avoids underscore
+  - new commands
+    - ‘A’ (gnugo-switch-to-another)
+    - ‘_’ and ‘M-_’ (gnugo-boss-is-near) -- was ‘bury-buffer’
+  - new keybinding for ‘gnugo-undo-two-moves’: DEL
+
 - 2.2.14 | 2008-03-03
   - start error message w/ a capital letter
   - use ‘(error "%s" X)’ instead of ‘(error X)’
