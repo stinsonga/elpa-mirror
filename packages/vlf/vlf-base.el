@@ -27,16 +27,18 @@
 
 ;;; Code:
 
-(defgroup vlf nil
-  "View Large Files in Emacs."
-  :prefix "vlf-"
-  :group 'files)
-
 (defcustom vlf-batch-size 1024
   "Defines how large each batch of file data is (in bytes)."
-  :group 'vlf
-  :type 'integer)
+  :group 'vlf :type 'integer)
 (put 'vlf-batch-size 'permanent-local t)
+
+(defcustom vlf-before-chunk-update nil
+  "Hook that runs before chunk update."
+  :group 'vlf :type 'hook)
+
+(defcustom vlf-after-chunk-update nil
+  "Hook that runs after chunk update."
+  :group 'vlf :type 'hook)
 
 ;;; Keep track of file position.
 (defvar vlf-start-pos 0
@@ -142,6 +144,7 @@ bytes added to the end."
      ((or (and (<= start vlf-start-pos) (<= edit-end end))
           (not modified)
           (y-or-n-p "Chunk modified, are you sure? "))
+      (run-hooks 'vlf-before-chunk-update)
       (let ((shift-start 0)
             (shift-end 0))
         (let ((pos (+ (position-bytes (point)) vlf-start-pos))
@@ -200,12 +203,14 @@ bytes added to the end."
           (setq vlf-start-pos start))
         (set-buffer-modified-p modified)
         (set-visited-file-modtime)
+        (run-hooks 'vlf-after-chunk-update)
         (cons shift-start shift-end))))))
 
 (defun vlf-move-to-chunk-2 (start end)
   "Unconditionally move to chunk enclosed by START END bytes.
 Return number of bytes moved back for proper decoding and number of
 bytes added to the end."
+  (run-hooks 'vlf-before-chunk-update)
   (vlf-verify-size t)
   (setq vlf-start-pos (max 0 start)
         vlf-end-pos (min end vlf-file-size))
@@ -221,14 +226,16 @@ bytes added to the end."
        (goto-char (or (byte-to-position (+ pos (car shifts)))
                       (point-max)))))
     (set-buffer-modified-p nil)
-    (setq buffer-undo-list nil)
+    (or (eq buffer-undo-list t)
+        (setq buffer-undo-list nil))
+    (run-hooks 'vlf-after-chunk-update)
     shifts))
 
 (defun vlf-insert-file-contents (start end adjust-start adjust-end
                                        &optional position)
   "Adjust chunk at absolute START to END till content can be\
-properly decoded.  ADJUST-START determines if trying to prepend bytes\
- to the beginning, ADJUST-END - append to the end.
+properly decoded.  ADJUST-START determines if trying to prepend bytes
+to the beginning, ADJUST-END - append to the end.
 Use buffer POSITION as start if given.
 Return number of bytes moved back for proper decoding and number of
 bytes added to the end."
@@ -245,7 +252,7 @@ bytes added to the end."
         (setq shift-start (vlf-adjust-start start safe-end position
                                             adjust-end)
               start (- start shift-start))
-      (vlf-insert-file-contents-1 start safe-end position))
+      (vlf-insert-file-contents-1 start safe-end))
     (if adjust-end
         (setq shift-end (- (car (vlf-delete-region position start
                                                    safe-end end
@@ -254,23 +261,9 @@ bytes added to the end."
                            end)))
     (cons shift-start shift-end)))
 
-(defun vlf-insert-file-contents-1 (start end position)
-  "Extract decoded file bytes START to END at POSITION."
-  (let ((coding buffer-file-coding-system))
-    (insert-file-contents-literally buffer-file-name nil start end)
-    (let ((coding-system-for-read coding))
-      (decode-coding-inserted-region position (point-max)
-                                     buffer-file-name nil start end)))
-  (when (eq (detect-coding-region position (min (+ position
-                                                   vlf-sample-size)
-                                                (point-max)) t)
-            'no-conversion)
-    (delete-region position (point-max))
-    (insert-file-contents-literally buffer-file-name nil start end)
-    (let ((coding-system-for-read nil))
-      (decode-coding-inserted-region position (point-max)
-                                     buffer-file-name nil start end)))
-  (setq buffer-file-coding-system last-coding-system-used))
+(defun vlf-insert-file-contents-1 (start end)
+  "Extract decoded file bytes START to END."
+  (insert-file-contents buffer-file-name nil start end))
 
 (defun vlf-adjust-start (start end position adjust-end)
   "Adjust chunk beginning at absolute START to END till content can\
@@ -283,8 +276,8 @@ Return number of bytes moved back for proper decoding."
          (strict (or (= sample-end vlf-file-size)
                      (and (not adjust-end) (= sample-end end))))
          (shift 0))
-    (while (and (progn (vlf-insert-file-contents-1
-                        safe-start sample-end position)
+    (while (and (progn (vlf-insert-file-contents-1 safe-start
+                                                   sample-end)
                        (not (zerop safe-start)))
                 (< shift 3)
                 (let ((diff (- chunk-size
@@ -304,7 +297,7 @@ Return number of bytes moved back for proper decoding."
                                              position t 'start)))
     (unless (= sample-end end)
       (delete-region position (point-max))
-      (vlf-insert-file-contents-1 safe-start end position))
+      (vlf-insert-file-contents-1 safe-start end))
     (- start safe-start)))
 
 (defun vlf-delete-region (position start end border cut-point from-start
