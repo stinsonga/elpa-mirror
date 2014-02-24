@@ -3,6 +3,10 @@ HACKING gnugo                                           -*- org -*-
 This file is both a guide for newcomers and a todo list for oldstayers.
 
 * next (actually "first" (under ELPA) :-D)
+*** DONE Fix bugs.
+***** DONE ‘inhibit-gnugo-refresh’: defvar, rename to ‘gnugo-inhibit-refresh’
+***** DONE (w/images) grid horizontal spacing OBOE
+***** DONE handle sudden jump in captured stones correctly
 *** DONE code
 ***** DONE Give ‘lambda’ commands a name and docstring.
 ***** DONE Move gnugo-{put,get} doc elsewhere.
@@ -36,7 +40,6 @@ This file is both a guide for newcomers and a todo list for oldstayers.
       so the actual release commits will be effectively fast-forward.
 *** DONE Finish [[file:NEWS][NEWS]] archeology.
 * fix bugs
-*** ‘inhibit-gnugo-refresh’: defvar, rename to ‘gnugo-inhibit-refresh’
 *** {next,previous}-line weirdness in the presence of images
 *** ‘-l FILENAME’ lossage
 ***** silently clobbers other options (PEBKAC, strictly speaking)
