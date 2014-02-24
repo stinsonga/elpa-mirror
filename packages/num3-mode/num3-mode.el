@@ -4,8 +4,8 @@
 
 ;; Author: Felix Lee <felix8a@gmail.com>, Michal Nazarewicz <mina86@mina86.com>
 ;; Maintainer: Michal Nazarewicz <mina86@mina86.com>
-;; Keywoards: faces, minor-mode
-;; Version: 1.1
+;; Keywords: faces, minor-mode
+;; Version: 1.2
 
 ;; GNU Emacs is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -98,9 +98,11 @@ where) decimal point (would be) is."
 (define-globalized-minor-mode global-num3-mode num3-mode num3-mode)
 
 (defconst num3--number-re
-  (concat    "\\(?:0[xX]\\|#\\)\\([0-9a-fA-F]+\\)"  ; 1 = hexadecimal
-          "\\|\\([0-9]+\\)"                         ; 2 = decimal
-          "\\|\\.\\([0-9]+\\)"))                    ; 3 = fraction
+  (concat "[0#][xX]\\([[:xdigit:]]+\\)"       ; 1 = hexadecimal
+        "\\|\\(?1:\\b\\(?:[0-9]+[a-fA-F]\\|"  ; 1 = hexadecimal
+                 "[a-fA-F]+[0-9]\\)[[:xdigit:]]*\\b\\)"
+        "\\|\\([0-9]+\\)"                     ; 2 = decimal
+        "\\|\\.\\([0-9]+\\)"))                ; 3 = fraction
 
 (defun num3--matcher (lim)
   "Function used as a font-lock-keywoard handler used in `num3-mode'.
