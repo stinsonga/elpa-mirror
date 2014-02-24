@@ -103,10 +103,13 @@ http://www.gnu.org/software/gnugo")
 (defvar gnugo-board-mode-hook nil
   "Hook run when entering GNUGO Board mode.")
 
+(defvar gnugo-inhibit-refresh nil
+  "Used in `gnugo-post-move-hook'.")
+
 (defvar gnugo-post-move-hook nil
   "Normal hook run after a move and before the board is refreshed.
 Hook functions can prevent the call to `gnugo-refresh' by evaluating:
-  (setq inhibit-gnugo-refresh t)
+  (setq gnugo-inhibit-refresh t)
 Initially, when `run-hooks' is called, the current buffer is the GNUGO
 Board buffer of the game.  Hook functions that switch buffers must take
 care not to call (directly or indirectly through some other function)
@@ -996,9 +999,9 @@ its move."
           (gnugo-put :waitingp nil)
           (gnugo-push-move nil pos-or-pass)
           (let ((buf (current-buffer)))
-            (let (inhibit-gnugo-refresh)
+            (let (gnugo-inhibit-refresh)
               (run-hooks 'gnugo-post-move-hook)
-              (unless inhibit-gnugo-refresh
+              (unless gnugo-inhibit-refresh
                 (with-current-buffer buf
                   (gnugo-refresh))))))))))
 
@@ -1044,9 +1047,9 @@ To start a game try M-x gnugo."
     (unless (= ?= (aref accept 0))
       (user-error "%s" accept))
     (gnugo-push-move t pos)             ; value always nil for non-pass move
-    (let (inhibit-gnugo-refresh)
+    (let (gnugo-inhibit-refresh)
       (run-hooks 'gnugo-post-move-hook)
-      (unless inhibit-gnugo-refresh
+      (unless gnugo-inhibit-refresh
         (with-current-buffer buf
           (gnugo-refresh))))
     (with-current-buffer buf
@@ -1071,9 +1074,9 @@ To start a game try M-x gnugo."
       (user-error "%s" accept)))
   (let ((donep (gnugo-push-move t "PASS"))
         (buf (current-buffer)))
-    (let (inhibit-gnugo-refresh)
+    (let (gnugo-inhibit-refresh)
       (run-hooks 'gnugo-post-move-hook)
-      (unless inhibit-gnugo-refresh
+      (unless gnugo-inhibit-refresh
         (with-current-buffer buf
           (gnugo-refresh))))
     (unless donep
