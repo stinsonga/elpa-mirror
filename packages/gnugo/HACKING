@@ -2,43 +2,7 @@ HACKING gnugo                                           -*- org -*-
 
 This file is both a guide for newcomers and a todo list for oldstayers.
 
-* next (actually "first" (under ELPA) :-D)
-*** DONE Fix bugs.
-***** DONE ‘inhibit-gnugo-refresh’: defvar, rename to ‘gnugo-inhibit-refresh’
-***** DONE (w/images) grid horizontal spacing OBOE
-***** DONE handle sudden jump in captured stones correctly
-*** DONE code
-***** DONE Give ‘lambda’ commands a name and docstring.
-***** DONE Move gnugo-{put,get} doc elsewhere.
-***** DONE Loose the modernization!
-******* DONE ‘zerop’
-******* DONE ‘redisplay’ -- [[file:gnugo.el::defun.gnugo-magic-undo][gnugo-magic-undo]]
-******* DONE ‘(display (space :width 0))’ -- [[file:gnugo.el::defun.gnugo-toggle-image-display][gnugo-toggle-image-display]]
-******* DONE ‘(split-string ... t)’ -- [[file:gnugo.el][gnugo-animate-group]]
-***** DONE Use process-{put,get}.
-***** DONE Drop leading ?* in var docstrings.
-*** DONE Resolve maintenance musings.
-***** Any way to use ‘gnugo-version’ as ";; Version:"? [no]
-***** Should SGF funcs be moved to sgf.el now? [no]
-***** Is sgf.el better in-package or independent (but in ELPA)? [in-package]
-      SGF is obsoleted by UTF-8-friendly formats (XML, ugh).
-      => Wait -- perhaps forever -- for GNU Go to lead the way.
-***** Is ttn-style [[ChangeLog][ChangeLog discipline]] compatible w/ ELPA? [maybe]
-      Probably yes per se, but the VCS/ChangeLog sync does not jive
-      w/ potential successor maintainers, making them harder to find.
-      => Drop that facet from ttn-style (requires SMOP... :-/).
-***** What about related code? [partial]
-      => Incorporate some of the minor stuff (e.g., keybindings).
-******* fulminate-gnugo-xpms.el
-******* gnugo-extra.el
-******* mokuxpms.tar.gz / mokuxpms-2.tar.gz / mokuxpms-3.tar.gz
-***** Fast-forward merge (rebase + push) OK? [no]
-      At least, not for duration of the (wip) initial phase
-      (which should be ending RSN, no?).
-      However, dropping VCS/ChangeLog sync facet from ttn-style
-      requires a rewrite of the branch (sans ChangeLog file) anyway,
-      so the actual release commits will be effectively fast-forward.
-*** DONE Finish [[file:NEWS][NEWS]] archeology.
+* next
 * fix bugs
 *** {next,previous}-line weirdness in the presence of images
 *** ‘-l FILENAME’ lossage

@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014  Free Software Foundation, Inc.
 
 ;; Author: Thien-Thi Nguyen <ttn@gnu.org>
-;; Version: 2.2.14
+;; Version: 2.3.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@
 ;;;---------------------------------------------------------------------------
 ;;; Political arts
 
-(defconst gnugo-version "2.2.14"
+(defconst gnugo-version "2.3.0"
   "Version of gnugo.el currently loaded.
 This follows a MAJOR.MINOR.PATCH scheme.")
 
