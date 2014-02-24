@@ -917,7 +917,17 @@ its move."
                                                   (under10p 0)
                                                   (t 1))))))
                         (gspc . ,(when imagesp
-                                   `(display (space-width ,(- wmul 1.0)))))
+                                   `(display
+                                     (space-width
+                                      ,(-
+                                        ;; DWR: image width alone => OBOE!
+                                        ;;- wmul
+                                        ;; NB: ‘(* wmul cw)’ is the same
+                                        ;; as ‘(car (image-size ... t))’.
+                                        (let ((cw (frame-char-width)))
+                                          (/ (+ 1.0 (* wmul cw))
+                                             cw))
+                                        1.0)))))
                         (lpad . ,(let ((d `(display (space :align-to ,w))))
                                    ;; We distinguish between these cases to
                                    ;; workaround a display bug whereby the
