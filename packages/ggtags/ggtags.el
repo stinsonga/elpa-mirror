@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013-2014  Free Software Foundation, Inc.
 
 ;; Author: Leo Liu <sdl.web@gmail.com>
-;; Version: 0.7.10
+;; Version: 0.7.11
 ;; Keywords: tools, convenience
 ;; Created: 2013-01-29
 ;; URL: https://github.com/leoliu/ggtags
@@ -60,6 +60,7 @@
 
 (require 'compile)
 (require 'etags)
+(require 'tabulated-list)               ;preloaded since 24.3
 
 (eval-when-compile
   (unless (fboundp 'setq-local)
@@ -104,7 +105,7 @@ automatically switches to 'global --single-update'."
                  number)
   :group 'ggtags)
 
-(defcustom ggtags-project-duration 3600
+(defcustom ggtags-project-duration 600
   "Seconds to keep information of a project in memory."
   :type 'number
   :group 'ggtags)
@@ -114,7 +115,7 @@ automatically switches to 'global --single-update'."
 Elements are run through `substitute-env-vars' before use.
 GTAGSROOT will always be expanded to current project root
 directory. This is intended for project-wise ggtags-specific
-process environment settings. Note on remote host (e.g. tramp)
+process environment settings. Note on remote hosts (e.g. tramp)
 directory local variables is not enabled by default per
 `enable-remote-dir-locals' (which see)."
   :safe 'ggtags-list-of-string-p
@@ -174,6 +175,12 @@ If an integer abbreviate only names longer than that number."
 (defcustom ggtags-global-large-output 1000
   "Number of lines in the Global buffer to indicate large output."
   :type 'number
+  :group 'ggtags)
+
+(defcustom ggtags-global-next-error-hook nil
+  "Hook run immediately after finding a tag."
+  :options '(reposition-window recenter)
+  :type 'hook
   :group 'ggtags)
 
 (defcustom ggtags-mode-prefix-key "\C-c"
@@ -310,7 +317,7 @@ properly update `ggtags-mode-map'."
     (size (when-let (project (or project (ggtags-find-project)))
             (> (ggtags-project-tag-size project) size)))))
 
-(defvar-local ggtags-project-root nil
+(defvar-local ggtags-project-root 'unset
   "Internal variable for project root directory.")
 
 ;;;###autoload
@@ -335,11 +342,13 @@ properly update `ggtags-mode-map'."
                                   default-directory
                                   (lambda (dir)
                                     (file-regular-p (expand-file-name "GTAGS" dir)))))
-                  (file-truename gtags))))
+                  ;; `file-truename' may strip the trailing '/' on
+                  ;; remote hosts, see http://debbugs.gnu.org/16851
+                  (file-name-as-directory (file-truename gtags)))))
       (when ggtags-project-root
-        (or (gethash ggtags-project-root ggtags-projects)
-            (ggtags-make-project ggtags-project-root))
-        (ggtags-find-project)))))
+        (if (gethash ggtags-project-root ggtags-projects)
+            (ggtags-find-project)
+          (ggtags-make-project ggtags-project-root))))))
 
 (defun ggtags-current-project-root ()
   (and (ggtags-find-project)
@@ -356,6 +365,8 @@ properly update `ggtags-mode-map'."
         ;; Need checking because `ggtags-create-tags' can create tags
         ;; in any directory.
         (ggtags-check-project))))
+
+(defvar delete-trailing-lines)          ;new in 24.3
 
 (defun ggtags-save-project-settings (&optional noconfirm)
   "Save Gnu Global's specific environment variables."
@@ -410,6 +421,11 @@ properly update `ggtags-mode-map'."
       (message "Project read-only-mode is %s" (if val "on" "off")))
     val))
 
+(defun ggtags-visit-project-root ()
+  (interactive)
+  (ggtags-check-project)
+  (dired (ggtags-current-project-root)))
+
 (defmacro ggtags-with-current-project (&rest body)
   "Eval BODY in current project's `process-environment'."
   (declare (debug t))
@@ -440,8 +456,8 @@ properly update `ggtags-mode-map'."
   (interactive "DRoot directory: ")
   (let ((process-environment process-environment))
     (when (zerop (length root)) (error "No root directory provided"))
-    (setenv "GTAGSROOT"
-            (directory-file-name (file-name-as-directory root)))
+    (setenv "GTAGSROOT" (expand-file-name
+                         (directory-file-name (file-name-as-directory root))))
     (ggtags-with-current-project
      (and (not (getenv "GTAGSLABEL"))
           (yes-or-no-p "Use `ctags' backend? ")
@@ -580,9 +596,9 @@ non-nil."
       (ignore-errors (compilation-next-error 1))
       (compile-goto-error))))
 
-(defun ggtags-find-tag (cmd name)
+(defun ggtags-find-tag (cmd &rest args)
   (ggtags-check-project)
-  (ggtags-global-start (ggtags-global-build-command cmd name)))
+  (ggtags-global-start (apply #'ggtags-global-build-command cmd args)))
 
 ;;;###autoload
 (defun ggtags-find-tag-dwim (name &optional definition)
@@ -626,10 +642,12 @@ With a prefix arg (non-nil DEFINITION) always find definitions."
                     (substring prompt 0 (match-beginning 0))
                   prompt))
         (default (ggtags-tag-at-point)))
-    (read-string (format (if default "%s (default `%s'): "
-                           "%s: ")
+    (read-string (format (if default "%s (default `%s'): " "%s: ")
                          prompt default)
-                 nil nil (and default (substring-no-properties default)))))
+                 nil nil default)))
+
+(defun ggtags-quote-pattern (pattern)
+  (prin1-to-string (substring-no-properties pattern)))
 
 (defun ggtags-grep (pattern &optional invert-match)
   "Use `global --grep' to search for lines matching PATTERN.
@@ -638,13 +656,12 @@ Invert the match when called with a prefix arg \\[universal-argument]."
                                              "Inverted grep pattern"
                                            "Grep pattern"))
                      current-prefix-arg))
-  (ggtags-find-tag 'grep (format "%s--regexp %S"
-                                 (if invert-match "--invert-match " "")
-                                 pattern)))
+  (ggtags-find-tag 'grep (and invert-match "--invert-match")
+                   "--" (ggtags-quote-pattern pattern)))
 
 (defun ggtags-idutils-query (pattern)
   (interactive (list (ggtags-read-string "ID query pattern")))
-  (ggtags-find-tag 'idutils (format "--regexp %S" pattern)))
+  (ggtags-find-tag 'idutils "--" (ggtags-quote-pattern pattern)))
 
 (defun ggtags-find-file (pattern &optional invert-match)
   (interactive (list (ggtags-read-string (if current-prefix-arg
@@ -652,9 +669,8 @@ Invert the match when called with a prefix arg \\[universal-argument]."
                                            "Path pattern"))
                      current-prefix-arg))
   (let ((ggtags-global-output-format 'path))
-    (ggtags-find-tag 'path (format "%s--regexp %S"
-                                   (if invert-match "--invert-match " "")
-                                   pattern))))
+    (ggtags-find-tag 'path (and invert-match "--invert-match")
+                     "--" (ggtags-quote-pattern pattern))))
 
 ;; NOTE: Coloured output in grep requested: http://goo.gl/Y9IcX
 (defun ggtags-find-tag-regexp (regexp directory)
@@ -667,11 +683,9 @@ Invert the match when called with a prefix arg \\[universal-argument]."
                (read-directory-name "Directory: " nil nil t)
              (ggtags-current-project-root)))))
   (ggtags-check-project)
-  (let ((root (file-name-as-directory directory))
-        (cmd (ggtags-global-build-command
-              nil nil "-l" "--regexp"
-              (prin1-to-string (substring-no-properties regexp)))))
-    (ggtags-global-start cmd root)))
+  (ggtags-global-start
+   (ggtags-global-build-command nil nil "-l" "--" (ggtags-quote-pattern regexp))
+   (file-name-as-directory directory)))
 
 (defun ggtags-query-replace (from to &optional delimited)
   "Query replace FROM with TO on files in the Global buffer.
@@ -884,9 +898,16 @@ Global and Emacs."
                                (`"GTAGS"  '("definition" "definitions"))
                                (`"GSYMS"  '("symbol"     "symbols"))
                                (`"GRTAGS" '("reference"  "references"))
+                               (`"GPATH"  '("file"       "files"))
                                (`"ID"     '("identifier" "identifiers"))
                                (_         '("match"      "matches"))))))
           exit-status)))
+
+(defun ggtags-global-column (start)
+  ;; START is the beginning position of source text.
+  (when-let (mbeg (text-property-any start (line-end-position) 'global-color t))
+    (setq ggtags-current-tag-name nil)
+    (- mbeg start)))
 
 ;;; NOTE: Must not match the 'Global started at Mon Jun 3 10:24:13'
 ;;; line or `compilation-auto-jump' will jump there and fail. See
@@ -894,16 +915,17 @@ Global and Emacs."
 ;;; `compilation-error-regexp-alist-alist'.
 (defvar ggtags-global-error-regexp-alist-alist
   (append
-   '((path "^\\(?:[^/\n]*/\\)?[^ )\t\n]+$" 0)
+   `((path "^\\(?:[^/\n]*/\\)?[^ )\t\n]+$" 0)
      ;; ACTIVE_ESCAPE	src/dialog.cc	172
      (ctags "^\\([^ \t\n]+\\)[ \t]+\\(.*?\\)[ \t]+\\([0-9]+\\)$"
             2 3 nil nil 2 (1 font-lock-function-name-face))
      ;; ACTIVE_ESCAPE     172 src/dialog.cc    #undef ACTIVE_ESCAPE
      (ctags-x "^\\([^ \t\n]+\\)[ \t]+\\([0-9]+\\)[ \t]+\\(\\(?:[^/\n]*/\\)?[^ \t\n]+\\)"
-              3 2 nil nil 3 (1 font-lock-function-name-face))
+              3 2 (,(lambda () (ggtags-global-column (1+ (match-end 0)))))
+              nil 3 (1 font-lock-function-name-face))
      ;; src/dialog.cc:172:#undef ACTIVE_ESCAPE
      (grep "^\\(.+?\\):\\([0-9]+\\):\\(?:$\\|[^0-9\n]\\|[0-9][^0-9\n]\\|[0-9][0-9].\\)"
-           1 2 nil nil 1)
+           1 2 (,(lambda () (ggtags-global-column (1+ (match-end 2))))) nil 1)
      ;; src/dialog.cc ACTIVE_ESCAPE 172 #undef ACTIVE_ESCAPE
      (cscope "^\\(.+?\\)[ \t]+\\([^ \t\n]+\\)[ \t]+\\([0-9]+\\).*\\(?:[^0-9\n]\\|[^0-9\n][0-9]\\|[^:\n][0-9][0-9]\\)$"
              1 3 nil nil 1 (2 font-lock-function-name-face)))
@@ -953,13 +975,18 @@ Global and Emacs."
 
 (defun ggtags-global-filter ()
   "Called from `compilation-filter-hook' (which see)."
+  (let ((ansi-color-apply-face-function
+         (lambda (beg end face)
+           (when face
+             (ansi-color-apply-overlay-face beg end face)
+             (put-text-property beg end 'global-color t)))))
+    (ansi-color-apply-on-region compilation-filter-start (point)))
   ;; Get rid of line "Using config file '/PATH/TO/.globalrc'." or
   ;; "Using default configuration."
   (when (re-search-backward
          "^ *Using \\(?:config file '.*\\|default configuration.\\)\n"
          compilation-filter-start t)
     (replace-match ""))
-  (ansi-color-apply-on-region compilation-filter-start (point))
   (incf ggtags-global-output-lines
         (count-lines compilation-filter-start (point)))
   (when (> ggtags-global-output-lines 5)
@@ -996,6 +1023,8 @@ Global and Emacs."
      (2 'compilation-error nil t))
     ("^Global found \\([0-9]+\\)" (1 compilation-info-face))))
 
+(defvar compilation-always-kill)        ;new in 24.3
+
 (define-compilation-mode ggtags-global-mode "Global"
   "A mode for showing outputs from gnu global."
   ;; Make it buffer local for `ggtags-abbreviate-files'.
@@ -1005,6 +1034,9 @@ Global and Emacs."
   (setq-local compilation-auto-jump-to-first-error
               ggtags-auto-jump-to-first-match)
   (setq-local compilation-scroll-output 'first-error)
+  ;; See `compilation-move-to-column' for details.
+  (setq-local compilation-first-column 0)
+  (setq-local compilation-error-screen-columns nil)
   (setq-local compilation-disable-input t)
   (setq-local compilation-always-kill t)
   (setq-local compilation-error-face 'compilation-info)
@@ -1146,7 +1178,7 @@ Global and Emacs."
 
 (defvar ggtags-global-line-overlay nil)
 
-(defun ggtags-global-next-error-hook ()
+(defun ggtags-global-next-error-function ()
   (ggtags-move-to-tag)
   (ggtags-global-save-start-marker)
   (ignore-errors
@@ -1156,7 +1188,8 @@ Global and Emacs."
         (overlay-put ggtags-global-line-overlay 'face 'ggtags-global-line))
       (move-overlay ggtags-global-line-overlay
                     (line-beginning-position) (line-end-position)
-                    (current-buffer)))))
+                    (current-buffer))))
+  (run-hooks 'ggtags-global-next-error-hook))
 
 (define-minor-mode ggtags-navigation-mode nil
   :lighter
@@ -1180,9 +1213,9 @@ Global and Emacs."
   :global t
   (if ggtags-navigation-mode
       (progn
-        (add-hook 'next-error-hook 'ggtags-global-next-error-hook)
+        (add-hook 'next-error-hook 'ggtags-global-next-error-function)
         (add-hook 'minibuffer-setup-hook 'ggtags-minibuffer-setup-function))
-    (remove-hook 'next-error-hook 'ggtags-global-next-error-hook)
+    (remove-hook 'next-error-hook 'ggtags-global-next-error-function)
     (remove-hook 'minibuffer-setup-hook 'ggtags-minibuffer-setup-function)))
 
 (defun ggtags-minibuffer-setup-function ()
@@ -1233,6 +1266,7 @@ Global and Emacs."
     (define-key m "\M-b" 'ggtags-browse-file-as-hypertext)
     (define-key m "\M-k" 'ggtags-kill-file-buffers)
     (define-key m "\M-h" 'ggtags-view-tag-history)
+    (define-key m "\M-j" 'ggtags-visit-project-root)
     (define-key m (kbd "M-%") 'ggtags-query-replace)
     m))
 
@@ -1260,6 +1294,8 @@ Global and Emacs."
     (define-key menu [toggle-read-only]
       '(menu-item "Toggle project read-only" ggtags-toggle-project-read-only
                   :button (:toggle . buffer-read-only)))
+    (define-key menu [visit-project-root]
+      '(menu-item "Visit project root" ggtags-visit-project-root))
     (define-key menu [sep2] menu-bar-separator)
     (define-key menu [browse-hypertext]
       '(menu-item "Browse as hypertext" ggtags-browse-file-as-hypertext
@@ -1331,8 +1367,13 @@ Global and Emacs."
 
 (defvar ggtags-highlight-tag-map
   (let ((map (make-sparse-keymap)))
-    (define-key map [S-down-mouse-1] 'ggtags-find-tag-dwim)
-    (define-key map [S-down-mouse-3] 'ggtags-find-reference)
+    ;; Bind down- events so that the global keymap won't ``shine
+    ;; through''. See `mode-line-buffer-identification-keymap' for
+    ;; similar workaround.
+    (define-key map [S-mouse-1] 'ggtags-find-tag-dwim)
+    (define-key map [S-down-mouse-1] 'ignore)
+    (define-key map [S-mouse-3] 'ggtags-find-reference)
+    (define-key map [S-down-mouse-3] 'ignore)
     map)
   "Keymap used for valid tag at point.")
 
@@ -1340,7 +1381,7 @@ Global and Emacs."
 (put 'ggtags-active-tag 'keymap ggtags-highlight-tag-map)
 ;; (put 'ggtags-active-tag 'mouse-face 'match)
 (put 'ggtags-active-tag 'help-echo
-     "S-down-mouse-1 for definitions\nS-down-mouse-3 for references")
+     "S-mouse-1 for definitions\nS-mouse-3 for references")
 
 (defun ggtags-highlight-tag-at-point ()
   (when (and ggtags-mode ggtags-project-root (ggtags-find-project))
