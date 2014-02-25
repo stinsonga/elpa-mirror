@@ -56,6 +56,7 @@
 ./auctex/style/virtex.el
 ./auctex/tex-fold.el:    ("(C)" ("copyright"))
 ./auctex/tex-info.el:   '("copyright" nil)
+./gnugo/gnugo.el:    (CP "Copyright"       game  simpletext)
 ./muse/htmlize-hack.el
 ./uni-confusables/gen-confusables.el:;; Copyright (C) 1991-2009, 2010 Unicode, Inc.
 ./uni-confusables/gen-confusables.el:;; for the copyright and permission notice.
