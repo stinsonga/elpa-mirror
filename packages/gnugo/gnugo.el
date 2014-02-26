@@ -1017,7 +1017,9 @@ its move."
       (message "Thank you for playing GNU Go."))
     (mapc (lambda (sym)
             (setplist sym nil)          ; "...is next to fordliness." --Huxley
-            (unintern sym))
+            ;; Sigh, "2nd arg optional" obsolete as of Emacs 23.3.
+            ;; No worries, things will be Much Better w/ structs, RSN...
+            (unintern sym nil))
           (append (gnugo-get :all-yy)
                   (mapcar 'gnugo-f
                           '(anim
