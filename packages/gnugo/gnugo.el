@@ -74,7 +74,7 @@
 
 ;;; Code:
 
-(require 'cl-lib)                       ; use the source luke!
+(eval-when-compile (require 'cl))       ; use the source luke!
 (require 'time-date)                    ; for `time-subtract'
 
 ;;;---------------------------------------------------------------------------
@@ -1110,17 +1110,15 @@ To start a game try M-x gnugo."
           stones (gnugo-lsquery "%s_stones %s" w/d pos))
     (message "%s %s in group." blurb (length stones))
     (setplist (gnugo-f 'anim) nil)
-    (let* ((spec (let ((spec (split-string gnugo-animation-string "" t)))
-                   (cond ((gnugo-get :display-using-images)
-                          (let* ((yin (get-text-property (point) 'gnugo-yin))
-                                 (yang (gnugo-yang (char-after)))
-                                 (up (get (gnugo-yy yin yang t) 'display))
-                                 (dn (get (gnugo-yy yin yang) 'display)))
-                            (mapcar (lambda (n)
-                                      (if (cl-oddp n)
-                                          dn up))
-                                    (number-sequence 1 (length spec)))))
-                         (t spec))))
+    (let* ((spec (if (gnugo-get :display-using-images)
+                     (loop with yin  = (get-text-property (point) 'gnugo-yin)
+                           with yang = (gnugo-yang (char-after))
+                           with up   = (get (gnugo-yy yin yang t) 'display)
+                           with dn   = (get (gnugo-yy yin yang) 'display)
+                           for n below (length gnugo-animation-string)
+                           collect (if (zerop (logand 1 n))
+                                       dn up))
+                   (split-string gnugo-animation-string "" t)))
            (cell (list spec))
            (ovs (save-excursion
                   (mapcar (lambda (pos)
@@ -1578,11 +1576,12 @@ which placed the stone at point."
 (defun gnugo-switch-to-another ()
   "Switch to another GNU Go game buffer (if any)."
   (interactive)
-  (let ((cur (current-buffer)))
-    (switch-to-buffer (cl-find-if 'gnugo-board-buffer-p
-                                  (reverse (buffer-list))))
-    (when (eq cur (current-buffer))
-      (message "(only one)"))))
+  (loop for buf in (cdr (buffer-list))
+        if (gnugo-board-buffer-p buf)
+        return (progn
+                 (bury-buffer)
+                 (switch-to-buffer buf))
+        finally do (message "(only one)")))
 
 ;;;---------------------------------------------------------------------------
 ;;; Command properties and gnugo-command
