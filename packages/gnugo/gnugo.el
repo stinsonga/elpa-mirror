@@ -1724,13 +1724,11 @@ In this mode, keys do not self insert.
     ;; Emacs is too protective sometimes, blech.
     (set-process-query-on-exit-flag (gnugo-get :proc) nil)
     (when (or minus-l infile)
-      (mapc (lambda (x)
-              (apply (lambda (prop q)
-                       (set prop (string-to-number (gnugo-query q))))
-                     x))
-            '((board-size "query_boardsize")
-              (komi       "get_komi")
-              (handicap   "get_handicap"))))
+      (dolist (x '((board-size "query_boardsize")
+                   (komi       "get_komi")
+                   (handicap   "get_handicap")))
+        (destructuring-bind (prop q) x
+          (set prop (string-to-number (gnugo-query q))))))
     (gnugo-put :diamond (substring (process-name (gnugo-get :proc)) 5))
     (gnugo-put :gnugo-color (gnugo-other (gnugo-get :user-color)))
     (gnugo-put :highlight-last-move-spec
