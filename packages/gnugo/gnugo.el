@@ -2032,13 +2032,13 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
   (let ((keywords (or (get 'gnugo/sgf-*r4-properties* :keywords)
                       (put 'gnugo/sgf-*r4-properties* :keywords
                            (mapcar (lambda (full)
-                            (cons (car full)
-                                  (intern (format ":%s" (car full)))))
+                                     (cons (car full)
+                                           (intern (format ":%s" (car full)))))
                                    gnugo/sgf-*r4-properties*))))
         (specs (or (get 'gnugo/sgf-*r4-properties* :specs)
                    (put 'gnugo/sgf-*r4-properties* :specs
                         (mapcar (lambda (full)
-                         (cons (car full) (cdddr full)))
+                                  (cons (car full) (cdddr full)))
                                 gnugo/sgf-*r4-properties*)))))
     (cl-labels
         ((sw () (skip-chars-forward " \t\n"))
