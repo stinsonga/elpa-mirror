@@ -329,39 +329,41 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
     (process-send-string proc line)
     (process-send-string proc "\n")))
 
-(defun gnugo-synchronous-send/return (message)
-  "Return (TIME . STRING) where TIME is that returned by `current-time' and
-STRING omits the two trailing newlines.  See also `gnugo-query'."
+(defun gnugo--q (fmt &rest args)
+  "Send formatted command \"FMT ARGS...\"; wait for / return response.
+The response is a string whose first two characters indicate the
+status of the command.  See also `gnugo-query'."
   (when (gnugo-get :waitingp)
     (user-error "Sorry, still waiting for %s to play"
                 (gnugo-get :gnugo-color)))
   (let ((proc (gnugo-get :proc)))
+    (process-put proc :incomplete t)
     (process-put proc :srs "")          ; synchronous return stash
     (set-process-filter
      proc (lambda (proc string)
             (let* ((so-far (process-get proc :srs))
-                   (start  (max 0 (- (length so-far) 2))) ; backtrack a little
                    (full   (concat so-far string)))
               (process-put proc :srs full)
-              (when (string-match "\n\n" full start)
-                (process-put proc :srs (cons (current-time)
-                                             (substring full 0 -2)))))))
-    (gnugo-send-line message)
-    (let (rv)
-      ;; type change => break
-      (while (stringp (setq rv (process-get proc :srs)))
-        (accept-process-output proc 30))
-      (process-put proc :srs "")
-      rv)))
+              (unless (numberp (compare-strings
+                                full (max 0 (- (length full)
+                                               2))
+                                nil
+                                "\n\n" nil nil))
+                (process-put proc :incomplete nil)))))
+    (gnugo-send-line (if (null args)
+                         fmt
+                       (apply #'format fmt args)))
+    (while (process-get proc :incomplete)
+      (accept-process-output proc 30))
+    (prog1 (substring (process-get proc :srs) 0 -2)
+      (process-put proc :srs ""))))
 
 (defun gnugo-query (message-format &rest args)
-  "Return cleaned-up value of a call to `gnugo-synchronous-send/return'.
-The TIME portion is omitted as well as the first two characters of the STRING
-portion (corresponding to the status indicator in the Go Text Protocol).  Use
-this function when you are sure the command cannot fail.  The first arg is
-a format string applied to the rest of the args."
-  (substring (cdr (gnugo-synchronous-send/return
-                   (apply 'format message-format args)))
+  "Send GNU Go a command formatted with MESSAGE-FORMAT and ARGS.
+Return a string that omits the first two characters (corresponding
+to the status indicator in the Go Text Protocol).  Use this function
+when you are sure the command cannot fail."
+  (substring (apply 'gnugo--q message-format args)
              2))
 
 (defun gnugo-lsquery (message-format &rest args)
@@ -453,7 +455,7 @@ a format string applied to the rest of the args."
 
 (defun gnugo-propertize-board-buffer ()
   (erase-buffer)
-  (insert (substring (cdr (gnugo-synchronous-send/return "showboard")) 3))
+  (insert (substring (gnugo--q "showboard") 3))
   (let* ((grid-props (list 'invisible :nogrid
                            'font-lock-face gnugo-grid-face))
          (%gpad (gnugo-f 'gpad))
@@ -539,7 +541,7 @@ a format string applied to the rest of the args."
                        'category %gspc)))
 
 (defun gnugo-merge-showboard-results ()
-  (let ((aft (substring (cdr (gnugo-synchronous-send/return "showboard")) 3))
+  (let ((aft (substring (gnugo--q "showboard") 3))
         (adj 1)                         ; string to buffer position adjustment
 
         (sync "[0-9]* stones$")
@@ -1045,7 +1047,7 @@ To start a game try M-x gnugo."
   (let* ((buf (current-buffer))
          (pos (gnugo-position))
          (move (format "play %s %s" (gnugo-get :user-color) pos))
-         (accept (cdr (gnugo-synchronous-send/return move))))
+         (accept (gnugo--q move)))
     (unless (= ?= (aref accept 0))
       (user-error "%s" accept))
     (gnugo-push-move t pos)             ; value always nil for non-pass move
@@ -1070,8 +1072,7 @@ Signal error if done out-of-turn or if game-over.
 To start a game try M-x gnugo."
   (interactive)
   (gnugo-gate t)
-  (let ((accept (cdr (gnugo-synchronous-send/return
-                      (format "play %s PASS" (gnugo-get :user-color))))))
+  (let ((accept (gnugo--q "play %s PASS" (gnugo-get :user-color))))
     (unless (= ?= (aref accept 0))
       (user-error "%s" accept)))
   (let ((donep (gnugo-push-move t "PASS"))
@@ -1141,8 +1142,7 @@ To start a game try M-x gnugo."
 
 (defun gnugo-display-group-data (command buffer-name)
   (message "Computing %s ..." command)
-  (let ((data (cdr (gnugo-synchronous-send/return
-                    (format "%s %s" command (gnugo-position))))))
+  (let ((data (gnugo--q "%s %s" command (gnugo-position))))
     (switch-to-buffer buffer-name)
     (erase-buffer)
     (insert data))
@@ -1268,9 +1268,8 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
   (let (ans play wait samep coll)
     ;; problem: requiring GTP `loadsgf' complicates network subproc support;
     ;; todo: skip it altogether when confident about `gnugo/sgf-read-file'
-    (unless (= ?= (aref (setq ans (cdr (gnugo-synchronous-send/return
-                                        (format "loadsgf %s"
-                                                (expand-file-name filename)))))
+    (unless (= ?= (aref (setq ans (gnugo--q "loadsgf %s"
+                                            (expand-file-name filename)))
                         0))
       (user-error "%s" ans))
     (setq play (substring ans 2)
@@ -1383,7 +1382,7 @@ turn to play.  Optional second arg NOALT non-nil inhibits this."
     (when (gnugo-get :game-over)
       (gnugo--unclose-game))
     (while (not (funcall done))
-      (setq ans (cdr (gnugo-synchronous-send/return "undo")))
+      (setq ans (gnugo--q "undo"))
       (unless (= ?= (aref ans 0))
         (user-error "%s" ans))
       (aset monkey 2 (decf count))
@@ -1628,7 +1627,7 @@ NOTE: At this time, GTP command handling specification is still
       (if full
           (funcall full (cdr split))
         (message "Doing %s ..." command)
-        (let* ((ans (cdr (gnugo-synchronous-send/return command)))
+        (let* ((ans (gnugo--q command))
                (where (plist-get spec :output)))
           (if (string-match "unknown.command" ans)
               (message "%s" ans)
