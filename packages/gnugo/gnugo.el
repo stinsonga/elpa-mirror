@@ -311,8 +311,7 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
 
 (defun gnugo-sentinel (proc string)
   (let ((status (process-status proc)))
-    (when (or (eq status 'exit)
-              (eq status 'signal))
+    (when (memq status '(exit signal))
       (let ((buf (process-buffer proc)))
         (when (buffer-live-p buf)
           (with-current-buffer buf
@@ -649,13 +648,16 @@ For all other values of RSEL, do nothing and return nil."
                              acc)))
          (tell () (message "(%d moves) %s"
                            (length acc)
-                           (mapconcat 'identity (nreverse acc) " "))))
-      (cond
-       ((not rsel)        (while (next nil)) (tell))
-       ((equal '(4) rsel) (while (next t))   (tell))
-       ((eq 'car rsel)             (car (next nil)))
-       ((eq 'cadr rsel) (next nil) (car (next nil)))
-       ((eq 'count rsel) (aref (gnugo-get :monkey) 2))))))
+                           (mapconcat 'identity (nreverse acc) " ")))
+         (finish (byp) (while (next byp)) (tell)))
+      (if (equal '(4) rsel)
+          (finish t)
+        (case rsel
+          ((nil) (finish nil))
+          (car              (car (next nil)))
+          (cadr  (next nil) (car (next nil)))
+          (count (aref (gnugo-get :monkey) 2))
+          (t nil))))))
 
 (defun gnugo-boss-is-near ()
   "Do `bury-buffer' until the current one is not a GNU Board."
@@ -1904,12 +1906,11 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                        :full)
                   (note "handles this command completely"))
                 (when (setq output (plist-get spec :output))
-                  (cond ((functionp output)
-                         (note "handles the output specially"))
-                        ((eq :discard output)
-                         (note "discards the output"))
-                        ((eq :message output)
-                         (note "displays the output in the echo area"))))
+                  (if (functionp output)
+                      (note "handles the output specially")
+                    (case output
+                      (:discard (note "discards the output"))
+                      (:message (note "displays the output in the echo area")))))
                 (when (eq sel cur)
                   (setq found (match-beginning 0))))))
           (cond (found (goto-char found))
