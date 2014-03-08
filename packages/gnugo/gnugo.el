@@ -650,14 +650,13 @@ For all other values of RSEL, do nothing and return nil."
                            (length acc)
                            (mapconcat 'identity (nreverse acc) " ")))
          (finish (byp) (while (next byp)) (tell)))
-      (if (equal '(4) rsel)
-          (finish t)
-        (case rsel
-          ((nil) (finish nil))
-          (car              (car (next nil)))
-          (cadr  (next nil) (car (next nil)))
-          (count (aref (gnugo-get :monkey) 2))
-          (t nil))))))
+      (pcase rsel
+        (`(4) (finish t))
+        (`nil (finish nil))
+        (`car              (car (next nil)))
+        (`cadr  (next nil) (car (next nil)))
+        (`count (aref (gnugo-get :monkey) 2))
+        (_ nil)))))
 
 (defun gnugo-boss-is-near ()
   "Do `bury-buffer' until the current one is not a GNU Board."
