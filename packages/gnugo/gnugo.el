@@ -340,8 +340,8 @@ status of the command.  See also `gnugo-query'."
     (process-put proc :srs "")          ; synchronous return stash
     (set-process-filter
      proc (lambda (proc string)
-            (let* ((so-far (process-get proc :srs))
-                   (full   (concat so-far string)))
+            (let ((full (concat (process-get proc :srs)
+                                string)))
               (process-put proc :srs full)
               (unless (numberp (compare-strings
                                 full (max 0 (- (length full)
