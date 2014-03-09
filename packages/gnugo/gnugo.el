@@ -323,10 +323,12 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
             (when (eq proc (gnugo-get :proc))
               (gnugo-put :proc nil))))))))
 
-(defun gnugo-send-line (line)
-  (let ((proc (gnugo-get :proc)))
-    (process-send-string proc line)
-    (process-send-string proc "\n")))
+(defun gnugo--begin-exchange (proc filter line)
+  (declare (indent 2))                  ; good time, for a rime
+                                        ; nice style, for a wile...
+  (set-process-filter proc filter)
+  (process-send-string proc line)
+  (process-send-string proc "\n"))
 
 (defun gnugo--q (fmt &rest args)
   "Send formatted command \"FMT ARGS...\"; wait for / return response.
@@ -338,20 +340,20 @@ status of the command.  See also `gnugo-query'."
   (let ((proc (gnugo-get :proc)))
     (process-put proc :incomplete t)
     (process-put proc :srs "")          ; synchronous return stash
-    (set-process-filter
-     proc (lambda (proc string)
-            (let ((full (concat (process-get proc :srs)
-                                string)))
-              (process-put proc :srs full)
-              (unless (numberp (compare-strings
-                                full (max 0 (- (length full)
-                                               2))
-                                nil
-                                "\n\n" nil nil))
-                (process-put proc :incomplete nil)))))
-    (gnugo-send-line (if (null args)
-                         fmt
-                       (apply #'format fmt args)))
+    (gnugo--begin-exchange
+        proc (lambda (proc string)
+               (let ((full (concat (process-get proc :srs)
+                                   string)))
+                 (process-put proc :srs full)
+                 (unless (numberp (compare-strings
+                                   full (max 0 (- (length full)
+                                                  2))
+                                   nil
+                                   "\n\n" nil nil))
+                   (process-put proc :incomplete nil))))
+      (if (null args)
+          fmt
+        (apply #'format fmt args)))
     (while (process-get proc :incomplete)
       (accept-process-output proc 30))
     (prog1 (substring (process-get proc :srs) 0 -2)
@@ -1010,8 +1012,9 @@ its move."
 
 (defun gnugo-get-move (color)
   (gnugo-put :waitingp t)
-  (set-process-filter (gnugo-get :proc) 'gnugo-get-move-insertion-filter)
-  (gnugo-send-line (concat "genmove " color))
+  (gnugo--begin-exchange
+      (gnugo-get :proc) 'gnugo-get-move-insertion-filter
+    (concat "genmove " color))
   (accept-process-output))
 
 (defun gnugo-cleanup ()
