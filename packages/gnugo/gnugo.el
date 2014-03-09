@@ -630,8 +630,10 @@ For all other values of RSEL, do nothing and return nil."
   (interactive "P")
   (let ((size (gnugo-treeroot :SZ))
         col
-        (mem (aref (gnugo-get :monkey) 1))
+        monkey mem
         acc node mprop move)
+    (setq monkey (gnugo-get :monkey)
+          mem (aref monkey 1))
     (cl-labels
         ((as-pos (cc) (if (string= "tt" cc)
                           "PASS"
@@ -657,7 +659,7 @@ For all other values of RSEL, do nothing and return nil."
         (`nil (finish nil))
         (`car              (car (next nil)))
         (`cadr  (next nil) (car (next nil)))
-        (`count (aref (gnugo-get :monkey) 2))
+        (`count (aref monkey 2))
         (_ nil)))))
 
 (defun gnugo-boss-is-near ()
@@ -1269,7 +1271,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
   (interactive "fSGF file to load: ")
   (when (file-directory-p filename)
     (user-error "Cannot load a directory (try a filename with extension .sgf)"))
-  (let (ans play wait samep coll)
+  (let (ans play wait samep coll tree)
     ;; problem: requiring GTP `loadsgf' complicates network subproc support;
     ;; todo: skip it altogether when confident about `gnugo/sgf-read-file'
     (unless (= ?= (aref (setq ans (gnugo--q "loadsgf %s"
@@ -1283,26 +1285,26 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
     (unless samep
       (gnugo-put :gnugo-color wait)
       (gnugo-put :user-color play))
-    (gnugo-put :sgf-collection (setq coll (gnugo/sgf-read-file filename)))
-    (gnugo-put :sgf-gametree
-      (nth (let ((n (length coll)))
-             ;; This is better:
-             ;; (if (= 1 n)
-             ;;     0
-             ;;   (let* ((q (format "Which game? (1-%d)" n))
-             ;;          (choice (1- (read-number q 1))))
-             ;;     (if (and (< -1 choice) (< choice n))
-             ;;         choice
-             ;;       (message "(Selecting the first game)")
-             ;;       0)))
-             ;; but this is what we use (for now) to accomodate
-             ;; (aka faithfully mimic) GTP `loadsgf' limitations:
-             (unless (= 1 n)
-               (message "(Selecting the first game)"))
-             0)
-           coll))
-    (let* ((tree (gnugo-get :sgf-gametree))
-           (loc tree)
+    (setq coll (gnugo/sgf-read-file filename)
+          tree (nth (let ((n (length coll)))
+                      ;; This is better:
+                      ;; (if (= 1 n)
+                      ;;     0
+                      ;;   (let* ((q (format "Which game? (1-%d)" n))
+                      ;;          (choice (1- (read-number q 1))))
+                      ;;     (if (and (< -1 choice) (< choice n))
+                      ;;         choice
+                      ;;       (message "(Selecting the first game)")
+                      ;;       0)))
+                      ;; but this is what we use (for now) to accomodate
+                      ;; (aka faithfully mimic) GTP `loadsgf' limitations:
+                      (unless (= 1 n)
+                        (message "(Selecting the first game)"))
+                      0)
+                    coll))
+    (gnugo-put :sgf-collection coll)
+    (gnugo-put :sgf-gametree tree)
+    (let* ((loc tree)
            (count 0)
            mem node play game-over)
       (while (setq node (car loc))
@@ -1329,7 +1331,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
                                         '(car cadr))))
                        'two-passes))))
       (gnugo-put :monkey
-        (vector (or (car mem) (gnugo-get :sgf-gametree))
+        (vector (or (car mem) tree)
                 mem
                 count))
       (when (and game-over
@@ -1361,6 +1363,7 @@ After undoing the move(s), schedule a move by GNU Go if it is GNU Go's
 turn to play.  Optional second arg NOALT non-nil inhibits this."
   (gnugo-gate)
   (let* ((n 0)
+         (user-color (gnugo-get :user-color))
          (monkey (gnugo-get :monkey))
          (mem (aref monkey 1))
          (count (aref monkey 2))
@@ -1374,14 +1377,13 @@ turn to play.  Optional second arg NOALT non-nil inhibits this."
                            (memq (char-after) '(?. ?+))))
              (when (funcall done)
                (user-error "%s already clear" pos))
-             (let ((u (gnugo-get :user-color)))
-               (when (= (save-excursion
-                          (gnugo-goto-pos pos)
-                          (char-after))
-                        (if (string= "black" u)
-                            ?O
-                          ?X))
-                 (user-error "%s not occupied by %s" pos u)))))
+             (when (= (save-excursion
+                        (gnugo-goto-pos pos)
+                        (char-after))
+                      (if (string= "black" user-color)
+                          ?O
+                        ?X))
+               (user-error "%s not occupied by %s" pos user-color))))
           (t (user-error "Bad spec: %S" spec)))
     (when (gnugo-get :game-over)
       (gnugo--unclose-game))
@@ -1396,18 +1398,18 @@ turn to play.  Optional second arg NOALT non-nil inhibits this."
       (gnugo-merge-showboard-results)   ; all
       (gnugo-refresh)                   ; this
       (decf n)                          ; is
-      (redisplay)))                     ; eye candy
-  (let* ((ulastp (string= (gnugo-get :last-mover) (gnugo-get :user-color)))
+      (redisplay))                      ; eye candy
+    (let* ((ulastp (string= (gnugo-get :last-mover) user-color))
 
-         (ubpos (gnugo-move-history (if ulastp 'car 'cadr))))
-    (gnugo-put :last-user-bpos (if (and ubpos (not (string= "PASS" ubpos)))
-                                   ubpos
-                                 (gnugo-get :center-position)))
-    (gnugo-refresh t)
-    ;; preserve restricted-functionality semantics (todo: remove restriction)
-    (setcdr (aref (gnugo-get :monkey) 0) nil)
-    (when (and ulastp (not noalt))
-      (gnugo-get-move (gnugo-get :gnugo-color)))))
+           (ubpos (gnugo-move-history (if ulastp 'car 'cadr))))
+      (gnugo-put :last-user-bpos (if (and ubpos (not (string= "PASS" ubpos)))
+                                     ubpos
+                                   (gnugo-get :center-position)))
+      (gnugo-refresh t)
+      ;; preserve restricted-functionality semantics (todo: remove restriction)
+      (setcdr (aref monkey 0) nil)
+      (when (and ulastp (not noalt))
+        (gnugo-get-move (gnugo-get :gnugo-color))))))
 
 (defun gnugo-undo-one-move ()
   "Undo exactly one move (perhaps GNU Go's, perhaps yours).
@@ -1434,21 +1436,22 @@ If the game is still ongoing, Emacs asks if you wish to stop play (by
 making sure two \"pass\" moves are played consecutively, if necessary).
 Also, add the `:RE' SGF property to the root node of the game tree."
   (interactive)
-  (unless (or (gnugo-get :game-over)
-              (and (not (gnugo-get :waitingp))
-                   (y-or-n-p "Game still in play. Stop play now? ")))
-    (user-error "Sorry, game still in play"))
-  (unless (gnugo-get :game-over)
-    (cl-labels
-        ((pass (userp)
-               (message "Playing PASS for %s ..."
-                        (gnugo-get (if userp :user-color :gnugo-color)))
-               (sit-for 1)
-               (gnugo-push-move userp "PASS")))
-      (unless (pass t)
-        (pass nil)))
-    (gnugo-refresh)
-    (sit-for 3))
+  (let ((game-over (gnugo-get :game-over)))
+    (unless (or game-over
+                (and (not (gnugo-get :waitingp))
+                     (y-or-n-p "Game still in play. Stop play now? ")))
+      (user-error "Sorry, game still in play"))
+    (unless game-over
+      (cl-labels
+          ((pass (userp)
+                 (message "Playing PASS for %s ..."
+                          (gnugo-get (if userp :user-color :gnugo-color)))
+                 (sit-for 1)
+                 (gnugo-push-move userp "PASS")))
+        (unless (pass t)
+          (pass nil)))
+      (gnugo-refresh)
+      (sit-for 3)))
   (let ((b=  "   Black = ")
         (w=  "   White = ")
         (res (let* ((node (car (aref (gnugo-get :monkey) 0)))
@@ -1466,8 +1469,9 @@ Also, add the `:RE' SGF property to the root node of the game tree."
               result (concat (upcase (substring (gnugo-other res) 0 1))
                              "+Resign"))
       (message "Computing final score ...")
-      (let* ((live   (cdr (assq 'live (gnugo-get :game-over))))
-             (dead   (cdr (assq 'dead (gnugo-get :game-over))))
+      (let* ((g-over (gnugo-get :game-over))
+             (live   (cdr (assq 'live g-over)))
+             (dead   (cdr (assq 'dead g-over)))
              (seed   (gnugo-get :scoring-seed))
              (terr-q (format "final_status_list %%s_territory %d" seed))
              (terr   "territory")
@@ -1521,14 +1525,18 @@ Also, add the `:RE' SGF property to the root node of the game tree."
               blurb)
         (message "Computing final score ... done")))
     ;; extra info
-    (when (gnugo-get :game-end-time)
-      (push "\n" blurb)
-      (dolist (spec '(("Game start" . :game-start-time)
-                      ("       end" . :game-end-time)))
-        (push (format-time-string
-               (concat (car spec) ": %Y-%m-%d %H:%M:%S %z\n")
-               (gnugo-get (cdr spec)))
-              blurb)))
+    (let ((beg (gnugo-get :game-start-time))
+          (end (gnugo-get :game-end-time)))
+      (when end
+        (push "\n" blurb)
+        (cl-labels
+            ((yep (pretty moment)
+                  (push (format-time-string
+                         (concat pretty ": %Y-%m-%d %H:%M:%S %z\n")
+                         moment)
+                        blurb)))
+          (yep "Game start" beg)
+          (yep "       end" end))))
     (setq blurb (apply 'concat (nreverse blurb)))
     (let* ((root (car (gnugo-get :sgf-gametree)))
            (cur (assq :RE root)))
@@ -1701,6 +1709,7 @@ In this mode, keys do not self insert.
                            (car gnugo-option-history)
                            'gnugo-option-history))
         (rules "Japanese")
+        proc
         board-size user-color handicap komi minus-l infile)
     (dolist (x '((board-size      19 "--boardsize")
                  (user-color "black" "--color" "\\(black\\|white\\)")
@@ -1721,30 +1730,33 @@ In this mode, keys do not self insert.
       (setq rules "Chinese"))
     (let ((proc-args (split-string args)))
       (gnugo-put :proc-args proc-args)
-      (gnugo-put :proc (apply 'start-process "gnugo" nil name
-                              "--mode" "gtp" "--quiet"
-                              proc-args)))
+      (gnugo-put :proc (setq proc (apply 'start-process "gnugo"
+                                         nil name
+                                         "--mode" "gtp" "--quiet"
+                                         proc-args))))
+    (set-process-sentinel proc 'gnugo-sentinel)
+    (set-process-buffer proc (current-buffer))
     ;; Emacs is too protective sometimes, blech.
-    (set-process-query-on-exit-flag (gnugo-get :proc) nil)
+    (set-process-query-on-exit-flag proc nil)
     (when (or minus-l infile)
       (dolist (x '((board-size "query_boardsize")
                    (komi       "get_komi")
                    (handicap   "get_handicap")))
         (destructuring-bind (prop q) x
           (set prop (string-to-number (gnugo-query q))))))
-    (gnugo-put :diamond (substring (process-name (gnugo-get :proc)) 5))
-    (gnugo-put :gnugo-color (gnugo-other (gnugo-get :user-color)))
+    (gnugo-put :diamond (substring (process-name proc) 5))
+    (gnugo-put :gnugo-color (gnugo-other user-color))
     (gnugo-put :highlight-last-move-spec
       (gnugo-put :default-highlight-last-move-spec '("(" -1 nil)))
     (gnugo-put :lparen-ov (make-overlay 1 1))
     (gnugo-put :rparen-ov (let ((ov (make-overlay 1 1)))
                             (overlay-put ov 'display ")")
                             ov))
-    (gnugo-put :sgf-gametree (list (list '(:FF . 4) '(:GM . 1))))
-    (let ((tree (gnugo-get :sgf-gametree)))
+    (let ((tree (list (list '(:FF . 4) '(:GM . 1)))))
+      (gnugo-put :sgf-gametree tree)
       (gnugo-put :sgf-collection (list tree))
       (gnugo-put :monkey (vector tree nil 0)))
-    (let ((g-blackp (string= "black" (gnugo-get :gnugo-color))))
+    (let ((g-blackp (string= "white" user-color)))
       (mapc (lambda (x) (apply 'gnugo-note x))
             `((:SZ ,board-size)
               (:DT ,(format-time-string "%Y-%m-%d"))
@@ -1758,8 +1770,6 @@ In this mode, keys do not self insert.
                   `((:HA ,handicap)
                     (:AB ,(gnugo-lsquery "fixed_handicap %d" handicap)
                          nil t)))))))
-  (set-process-sentinel (gnugo-get :proc) 'gnugo-sentinel)
-  (set-process-buffer (gnugo-get :proc) (current-buffer))
   (gnugo-put :waiting-start (current-time))
   (gnugo-put :hmul 1)
   (gnugo-put :wmul 1)
