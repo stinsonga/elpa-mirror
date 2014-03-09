@@ -1731,11 +1731,10 @@ In this mode, keys do not self insert.
     (let ((proc-args (split-string args)))
       (gnugo-put :proc-args proc-args)
       (gnugo-put :proc (setq proc (apply 'start-process "gnugo"
-                                         nil name
+                                         (current-buffer) name
                                          "--mode" "gtp" "--quiet"
                                          proc-args))))
     (set-process-sentinel proc 'gnugo-sentinel)
-    (set-process-buffer proc (current-buffer))
     ;; Emacs is too protective sometimes, blech.
     (set-process-query-on-exit-flag proc nil)
     (when (or minus-l infile)
