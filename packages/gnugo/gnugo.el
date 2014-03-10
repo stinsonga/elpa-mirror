@@ -173,6 +173,9 @@ For ~t, the value is a snapshot, use `gnugo-refresh' to update it.")
 ;;;---------------------------------------------------------------------------
 ;;; Support functions
 
+(defsubst gnugo--compare-strings (s1 beg1 s2 beg2)
+  (compare-strings s1 beg1 nil s2 beg2 nil))
+
 (defun gnugo-put (key value)
   "Associate move/game/board-specific property KEY with VALUE.
 
@@ -343,11 +346,10 @@ status of the command.  See also `gnugo-query'."
                (let ((full (concat (process-get proc :srs)
                                    string)))
                  (process-put proc :srs full)
-                 (unless (numberp (compare-strings
+                 (unless (numberp (gnugo--compare-strings
                                    full (max 0 (- (length full)
                                                   2))
-                                   nil
-                                   "\n\n" nil nil))
+                                   "\n\n" nil))
                    (process-put proc :incomplete nil))))
       (if (null args)
           fmt
@@ -563,8 +565,9 @@ when you are sure the command cannot fail."
         (bef-start 0) (bef-idx 0)
         (aft-start 0) (aft-idx 0)
         aft-sync-backtrack mis inc cut new very-strange)
-    (while (numberp (setq mis (compare-strings bef bef-start nil
-                                               aft aft-start nil)))
+    (while (numberp (setq mis (gnugo--compare-strings
+                               bef bef-start
+                               aft aft-start)))
       (setq aft-sync-backtrack nil
             inc (if (cl-minusp mis)
                     (- (+ 1 mis))
