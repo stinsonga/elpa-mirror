@@ -1850,6 +1850,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
           ("q"        . gnugo-quit)
           ("Q"        . gnugo-leave-me-alone)
           ("U"        . gnugo-fancy-undo)
+          ("\M-u"     . gnugo-undo-one-move)
           ("u"        . gnugo-undo-two-moves)
           ("\C-?"     . gnugo-undo-two-moves)
           ("\C-l"     . gnugo-refresh)
