@@ -247,24 +247,22 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
   (interactive)
   (let ((buf (current-buffer))
         (d (gnugo-get :diamond))
-        acc)
-    (maphash (lambda (&rest args)
-               (case (car args)
-                 ((:xpms :local-xpms)
-                  (setcdr args (format "hash: %X (%d images)"
-                                       (sxhash (cadr args))
-                                       (length (cadr args)))))
-                 (:sgf-collection
-                  (setcdr args (length (cadr args))))
-                 (:monkey
-                  (let* ((value (cadr args))
-                         (loc (aref value 0)))
-                    (setcdr args (list
-                                  (length (aref value 1))
-                                  (length (cdr loc))
-                                  (car loc))))))
-               (setq acc (cons args acc)))
-             gnugo-state)
+        (acc (loop for key being the hash-keys of gnugo-state
+                   using (hash-values val)
+                   collect (cons key
+                                 (case key
+                                   ((:xpms :local-xpms)
+                                    (format "hash: %X (%d images)"
+                                            (sxhash val)
+                                            (length val)))
+                                   (:sgf-collection
+                                    (length val))
+                                   (:monkey
+                                    (let ((loc (aref val 0)))
+                                      (list (length (aref val 1))
+                                            (length (cdr loc))
+                                            (car loc))))
+                                   (t val))))))
     (switch-to-buffer (get-buffer-create
                        (format "%s*GNUGO Board Properties*"
                                (gnugo-get :diamond))))
