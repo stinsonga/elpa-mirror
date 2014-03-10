@@ -600,7 +600,7 @@ when you are sure the command cannot fail."
             (gnugo-put capprop new)
             (delete-char old-len)
             (insert (apply 'propertize new keep))
-            (setq adj (+ adj (- (length new) old-len))))
+            (incf adj (- (length new) old-len)))
         (setq new (aref aft aft-idx))
         (insert-and-inherit (char-to-string new))
         (let ((yin (get-text-property cut 'gnugo-yin))
@@ -1486,27 +1486,25 @@ Also, add the `:RE' SGF property to the root node of the game tree."
               result (gnugo-query "final_score %d" seed))
         (cond ((string= "Chinese" (gnugo-treeroot :RU))
                (dolist (group live)
-                 (let ((count (length (cdr group))))
-                   (if (string= "black" (caar group))
-                       (setq b-terr (+ b-terr count))
-                     (setq w-terr (+ w-terr count)))))
+                 (incf (if (string= "black" (caar group))
+                           b-terr
+                         w-terr)
+                       (length (cdr group))))
                (dolist (group dead)
-                 (let* ((color (caar group))
-                        (count (length (cdr group))))
-                   (if (string= "black" color)
-                       (setq w-terr (+ count w-terr))
-                     (setq b-terr (+ count b-terr)))))
+                 (incf (if (string= "black" (caar group))
+                           w-terr
+                         b-terr)
+                       (length (cdr group))))
                (push (format "%s%d %s = %3.1f\n" b= b-terr terr b-terr) blurb)
                (push (format "%s%d %s + %3.1f %s = %3.1f\n" w=
                              w-terr terr komi 'komi (+ w-terr komi))
                      blurb))
               (t
                (dolist (group dead)
-                 (let* ((color (caar group))
-                        (adjust (* 2 (length (cdr group)))))
-                   (if (string= "black" color)
-                       (setq w-terr (+ adjust w-terr))
-                     (setq b-terr (+ adjust b-terr)))))
+                 (incf (if (string= "black" (caar group))
+                           w-terr
+                         b-terr)
+                       (* 2 (length (cdr group)))))
                (push (format "%s%d %s + %s %s = %3.1f\n" b=
                              b-terr terr
                              b-capt capt
