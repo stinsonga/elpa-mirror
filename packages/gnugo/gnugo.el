@@ -1415,13 +1415,26 @@ turn to play.  Optional second arg NOALT non-nil inhibits this."
       (when (and ulastp (not noalt))
         (gnugo-get-move (gnugo-get :gnugo-color))))))
 
-(defun gnugo-undo-one-move ()
+(defun gnugo-undo-one-move (&optional switch)
   "Undo exactly one move (perhaps GNU Go's, perhaps yours).
 Do not schedule a move by GNU Go even if it is GNU Go's turn to play.
+Prefix arg SWITCH means to arrange for you to play
+the color of the next move (and GNU Go the opposite).
+This is useful after loading an SGF file whose last
+move was done by the color you prefer to play:
+ \\[gnugo-read-sgf-file] FILENAME RET
+ C-u \\[gnugo-undo-one-move]
+
 See also `gnugo-undo-two-moves'."
-  (interactive)
+  (interactive "P")
   (gnugo-gate)
-  (gnugo-magic-undo 1 t))
+  (gnugo-magic-undo 1 t)
+  (when switch
+    (let* ((wait (gnugo-get :last-mover))
+           (play (gnugo-other wait)))
+      (gnugo--who-is-who wait play (string= play (gnugo-get :user-color)))
+      (gnugo-put :user-color play)
+      (gnugo-put :gnugo-color wait))))
 
 (defun gnugo-undo-two-moves ()
   "Undo a pair of moves (GNU Go's and yours).

@@ -10,6 +10,7 @@ Hint: (highlight-phrase "[0-9][.][0-9][.][0-9]+\\|[0-9]+[.][.][0-9]+"
 
 - next | NOT YET RELEASED
   - new keybinding for ‘gnugo-undo-one-move’: M-u
+  - ‘gnugo-undo-one-move’ can optionally switch colors
   - performance improvements
 
 - 2.3.1 | 2014-02-27
