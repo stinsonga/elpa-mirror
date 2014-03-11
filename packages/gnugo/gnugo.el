@@ -1267,6 +1267,13 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
   (gnugo/sgf-write-file (gnugo-get :sgf-collection) filename)
   (set-buffer-modified-p nil))
 
+(defun gnugo--who-is-who (wait play samep)
+  (message "GNU Go %splays as %s, you as %s (%s)"
+           (if samep "" "now ")
+           wait play (if samep
+                         "as before"
+                       "NOTE: this is a switch!")))
+
 (defun gnugo-read-sgf-file (filename)
   "Load the first game tree from FILENAME, a file in SGF format."
   (interactive "fSGF file to load: ")
@@ -1341,11 +1348,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
         (gnugo-close-game nil game-over)))
     (gnugo-refresh t)
     (set-buffer-modified-p nil)
-    (message "GNU Go %splays as %s, you as %s (%s)"
-             (if samep "" "now ")
-             wait play (if samep
-                           "as before"
-                         "NOTE: this is a switch!"))))
+    (gnugo--who-is-who wait play samep)))
 
 (defun gnugo-magic-undo (spec &optional noalt)
   "Undo moves on the GNUGO Board, based on SPEC, a string or number.
