@@ -9,6 +9,8 @@ Hint: (highlight-phrase "[0-9][.][0-9][.][0-9]+\\|[0-9]+[.][.][0-9]+"
 
 
 - next | NOT YET RELEASED
+  - bugfixes
+    - don't special-case property value type ‘none’
   - new keybinding for ‘gnugo-undo-one-move’: M-u
   - ‘gnugo-undo-one-move’ can optionally switch colors
   - performance improvements
