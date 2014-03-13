@@ -1,11 +1,11 @@
 ;;; wisi.el --- Utilities for implementing an indentation/navigation engine using a generalized LALR parser
 ;;
-;; Copyright (C) 2012, 2013  Free Software Foundation, Inc.
+;; Copyright (C) 2012, 2013, 2014  Free Software Foundation, Inc.
 ;;
 ;; Author: Stephen Leake <stephen_leake@member.fsf.org>
-;; Version: 1.0
+;; Version: 1.0.1
+;; package-requires: ((cl-lib "0.4") (emacs "24.2"))
 ;; URL: http://stephe-leake.org/emacs/ada-mode/emacs-ada-mode.html
-;; Package-Requires: ((cl-lib "0"))
 ;;
 ;; This file is part of GNU Emacs.
 ;;
@@ -142,8 +142,14 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'wisi-parse)
-(eval-when-compile (require 'cl-lib))
+
+;; WORKAROUND: for some reason, this condition doesn't work in batch mode!
+;; (when (and (= emacs-major-version 24)
+;; 	   (= emacs-minor-version 2))
+  (require 'wisi-compat-24.2)
+;;)
 
 ;;;; lexer
 
@@ -320,7 +326,6 @@ wisi-forward-token, but does not look up symbol."
   "Non-nil when parse is needed - cleared when parse succeeds.")
 
 (defvar-local wisi-change-need-invalidate nil)
-(defvar-local wisi-change-jit-lock-mode nil)
 
 (defun wisi-invalidate-cache()
   "Invalidate the wisi token cache for the current buffer.
@@ -345,8 +350,7 @@ Also invalidate the Emacs syntax cache."
   (when (boundp 'jit-lock-mode)
     (when (memq 'wisi-after-change (memq 'jit-lock-after-change after-change-functions))
       (setq after-change-functions (delete 'wisi-after-change after-change-functions))
-      (add-hook 'after-change-functions 'wisi-after-change nil t)
-      (setq wisi-change-jit-lock-mode (1+ wisi-change-jit-lock-mode)))
+      (add-hook 'after-change-functions 'wisi-after-change nil t))
     )
 
   (save-excursion
@@ -468,7 +472,7 @@ If accessing cache at a marker for a token as set by `wisi-cache-tokens', POS mu
   (when (and wisi-parse-try
 	    (< wisi-cache-max pos))
     (when (> wisi-debug 0)
-      (message "wisi: parsing ..."))
+      (message "wisi: parsing %s ..." (buffer-name)))
 
     (setq wisi-parse-try nil)
     (setq wisi-parse-error-msg nil)
@@ -524,6 +528,9 @@ Point must be at cache."
 	(when region
 	  (goto-char (car region))
 	  (setq cache (wisi-get-cache (car region)))
+	  (when (not cache)
+	    ;; token is non-terminal; first terminal doesn't have cache.
+	    (setq cache (wisi-forward-cache)))
 	  (while (and cache
 		      (< (point) (cdr region)))
 	    (if (not (wisi-cache-end cache))
@@ -903,6 +910,9 @@ Return start cache."
     )
   cache)
 
+(defun wisi-goto-end-1 (cache)
+  (goto-char (1- (wisi-cache-end cache))))
+
 (defun wisi-goto-end ()
   "Move point to token at end of statement point is in or before."
   (interactive)
@@ -911,7 +921,7 @@ Return start cache."
 		   (wisi-forward-cache))))
     (when (wisi-cache-end cache)
       ;; nil when cache is statement-end
-      (goto-char (1- (wisi-cache-end cache))))
+      (wisi-goto-end-1 cache))
     ))
 
 (defun wisi-next-statement-cache (cache)
@@ -1100,9 +1110,6 @@ correct. Must leave point at indentation of current line.")
   (syntax-propertize (point-max))
 
   (wisi-invalidate-cache)
-
-  ;; FIXME: debug counter
-  (setq wisi-change-jit-lock-mode 0)
   )
 
 (provide 'wisi)
