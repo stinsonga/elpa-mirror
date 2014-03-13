@@ -2087,14 +2087,15 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                              (insert " "))
                             (t (forward-char 1))))
                     (buffer-substring-no-properties beg (point))))
-         (one (type end) (unless (eq 'none type)
-                           (forward-char 1)
-                           (let ((s (x end)))
-                             (case type
-                               ((stone point move simpletext color) s)
-                               ((number real double) (string-to-number s))
-                               ((text) s)
-                               (t (error "Unhandled type: %S" type))))))
+         (one (type end) (let ((s (progn
+                                    (forward-char 1)
+                                    (x end))))
+                           (case type
+                             ((stone point move simpletext color) s)
+                             ((number real double) (string-to-number s))
+                             ((text) s)
+                             ((none) "")
+                             (t (error "Unhandled type: %S" type)))))
          (val (spec) (cond ((symbolp spec)
                             (one spec :end))
                            ((vectorp spec)
