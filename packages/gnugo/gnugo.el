@@ -2155,6 +2155,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                          ;; hmm
                          ;;  ‘append’ => ([NODE...] [SUBTREE...])
                          ;;  ‘cons’   => (([NODE...]) . [SUBTREE...])
+                         ;; see consequent hair in -write-file
                          (append
                           ;; nodes
                           (loop while (seek ?\;)
@@ -2224,8 +2225,21 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                  (unless (zerop (current-column))
                    (newline))
                  (insert "(")
-                 (dolist (node tree)
-                   (>>node node))
+                 ;; The IR (see "hmm" above) prioritizes space
+                 ;; efficiency; no cost if no subtrees (common case).
+                 ;; The downside, however, is that subtree access
+                 ;; requires this somewhat-funky border search.
+                 (let (x subtrees)
+                   (while (setq x (pop tree))
+                     (if (symbolp (caar x))
+                         (>>node x)
+                       (setq
+                        ;; Add back the first subtree.
+                        subtrees (cons x tree)
+                        ;; Arrange to stop searching.
+                        tree nil)))
+                   (dolist (sub subtrees)
+                     (>>tree sub)))
                  (insert ")")))
       (with-temp-buffer
         (dolist (tree collection)
