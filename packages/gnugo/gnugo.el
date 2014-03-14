@@ -2219,6 +2219,8 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                        for prop in node
                        do (>>prop prop)))
          (>>tree (tree)
+                 (unless (zerop (current-column))
+                   (newline))
                  (insert "(")
                  (dolist (node tree)
                    (>>node node))
@@ -2226,6 +2228,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
       (with-temp-buffer
         (dolist (tree collection)
           (>>tree tree))
+        (newline)
         (write-file filename)))))
 
 ;;; gnugo.el ends here
