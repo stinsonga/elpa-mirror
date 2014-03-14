@@ -1112,7 +1112,7 @@ To start a game try M-x gnugo."
   (let* ((pos (gnugo-position))
          (orig-b-m-p (buffer-modified-p))
          blurb stones)
-    (unless (memq (char-after) '(?X ?O))
+    (unless (memq (following-char) '(?X ?O))
       (user-error "No stone at %s" pos))
     (setq blurb (message "Computing %s stones ..." w/d)
           stones (gnugo-lsquery "%s_stones %s" w/d pos))
@@ -1120,7 +1120,7 @@ To start a game try M-x gnugo."
     (setplist (gnugo-f 'anim) nil)
     (let* ((spec (if (gnugo-get :display-using-images)
                      (loop with yin  = (get-text-property (point) 'gnugo-yin)
-                           with yang = (gnugo-yang (char-after))
+                           with yang = (gnugo-yang (following-char))
                            with up   = (get (gnugo-yy yin yang t) 'display)
                            with dn   = (get (gnugo-yy yin yang) 'display)
                            for n below (length gnugo-animation-string)
@@ -1378,12 +1378,12 @@ turn to play.  Optional second arg NOALT non-nil inhibits this."
            (let ((pos (upcase spec)))
              (setq done `(lambda ()
                            (gnugo-goto-pos ,pos)
-                           (memq (char-after) '(?. ?+))))
+                           (memq (following-char) '(?. ?+))))
              (when (funcall done)
                (user-error "%s already clear" pos))
              (when (= (save-excursion
                         (gnugo-goto-pos pos)
-                        (char-after))
+                        (following-char))
                       (if (string= "black" user-color)
                           ?O
                         ?X))
@@ -1415,10 +1415,10 @@ turn to play.  Optional second arg NOALT non-nil inhibits this."
       (when (and ulastp (not noalt))
         (gnugo-get-move (gnugo-get :gnugo-color))))))
 
-(defun gnugo-undo-one-move (&optional switch)
+(defun gnugo-undo-one-move (&optional me-next)
   "Undo exactly one move (perhaps GNU Go's, perhaps yours).
 Do not schedule a move by GNU Go even if it is GNU Go's turn to play.
-Prefix arg SWITCH means to arrange for you to play
+Prefix arg ME-NEXT means to arrange for you to play
 the color of the next move (and GNU Go the opposite).
 This is useful after loading an SGF file whose last
 move was done by the color you prefer to play:
@@ -1429,7 +1429,7 @@ See also `gnugo-undo-two-moves'."
   (interactive "P")
   (gnugo-gate)
   (gnugo-magic-undo 1 t)
-  (when switch
+  (when me-next
     (let* ((wait (gnugo-get :last-mover))
            (play (gnugo-other wait)))
       (gnugo--who-is-who wait play (string= play (gnugo-get :user-color)))
@@ -2076,7 +2076,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                                 (t (lambda (char) (or (= ?\: char)
                                                       (= ?\] char))))))
                         c)
-                    (while (not (funcall endp (setq c (char-after))))
+                    (while (not (funcall endp (setq c (following-char))))
                       (cond ((= ?\\ c)
                              (delete-char 1)
                              (if (eolp)
@@ -2087,14 +2087,15 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                              (insert " "))
                             (t (forward-char 1))))
                     (buffer-substring-no-properties beg (point))))
-         (one (type end) (unless (eq 'none type)
-                           (forward-char 1)
-                           (let ((s (x end)))
-                             (case type
-                               ((stone point move simpletext color) s)
-                               ((number real double) (string-to-number s))
-                               ((text) s)
-                               (t (error "Unhandled type: %S" type))))))
+         (one (type end) (let ((s (progn
+                                    (forward-char 1)
+                                    (x end))))
+                           (case type
+                             ((stone point move simpletext color) s)
+                             ((number real double) (string-to-number s))
+                             ((text) s)
+                             ((none) "")
+                             (t (error "Unhandled type: %S" type)))))
          (val (spec) (cond ((symbolp spec)
                             (one spec :end))
                            ((vectorp spec)
@@ -2102,7 +2103,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                             (one (aref spec 0) :end))
                            ((eq 'or (car spec))
                             (let ((v (one (cadr spec) t)))
-                              (if (= ?\] (char-after))
+                              (if (= ?\] (following-char))
                                   v
                                 (forward-char 1)
                                 ;; todo: this assumes `spec' has the form
@@ -2116,7 +2117,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                                     (one (cdr spec) :end)))))
          (short (who) (when (eobp)
                         (error "Unexpected EOF while reading %s" who)))
-         (atvalp () (= ?\[ (char-after)))
+         (atvalp () (= ?\[ (following-char)))
          (PROP () (let (name spec ltype)
                     (sw) (short 'property)
                     (when (looking-at "[A-Z]")
@@ -2142,28 +2143,31 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                                     (forward-char -1)
                                     (nreverse ls))))
                          (forward-char 1))))))
-         (NODE () (let (prop props)
-                    (sw) (short 'node)
-                    (when (= ?\; (char-after))
-                      (forward-char 1)
-                      (while (setq prop (PROP))
-                        (push prop props))
-                      (nreverse props))))
-         (TREE () (let (nodes)
-                    (while (and (sw) (not (eobp)))
-                      (case (char-after)
-                        (?\; (push (NODE) nodes))
-                        (?\( (forward-char 1)
-                             (push (TREE) nodes))
-                        (?\) (forward-char 1))))
-                    (nreverse nodes))))
+         (seek (c) (and (sw) (not (eobp)) (= c (following-char))))
+         (seek-into (c) (when (seek c)
+                          (forward-char 1)
+                          t))
+         (NODE () (when (seek-into ?\;)
+                    (loop with prop
+                          while (setq prop (PROP))
+                          collect prop)))
+         (TREE (lev) (prog1
+                         ;; hmm
+                         ;;  ‘append’ => ([NODE...] [SUBTREE...])
+                         ;;  ‘cons’   => (([NODE...]) . [SUBTREE...])
+                         ;; see consequent hair in -write-file
+                         (append
+                          ;; nodes
+                          (loop while (seek ?\;)
+                                collect (NODE))
+                          ;; subtrees
+                          (loop while (seek-into ?\()
+                                collect (TREE (1+ lev))))
+                       (unless (zerop lev)
+                         (assert (seek-into ?\)))))))
       (with-temp-buffer
         (insert-file-contents filename)
-        (let (trees)
-          (while (and (sw) (not (eobp)) (= 40 (char-after))) ; left paren
-            (forward-char 1)
-            (push (TREE) trees))
-          (nreverse trees))))))
+        (TREE 0)))))
 
 (defun gnugo/sgf-write-file (collection filename)
   ;; take responsibility for our actions
@@ -2190,32 +2194,57 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                         ((< 60 (current-column))
                          (save-excursion
                            (goto-char p)
-                           (insert "\n"))))))
+                           (insert "\n")))))
+         (>>prop (prop)
+                 (setq p (point)
+                       name (car prop)
+                       v (cdr prop))
+                 (insert (substring (symbol-name name) 1))
+                 (cond ((not v))
+                       ((and (consp v)
+                             (setq spec (cdr (assq name specs)))
+                             (memq (car spec)
+                                   '(list elist)))
+                        (>>nl)
+                        (let ((>> (if (consp (cadr spec))
+                                      #'>>two
+                                    #'>>one)))
+                          (dolist (little-v v)
+                            (setq p (point))
+                            (funcall >> little-v)
+                            (>>nl))))
+                       ((consp v)
+                        (>>two v) (>>nl))
+                       (t
+                        (>>one v) (>>nl))))
+         (>>node (node)
+                 (loop initially (insert ";")
+                       for prop in node
+                       do (>>prop prop)))
+         (>>tree (tree)
+                 (unless (zerop (current-column))
+                   (newline))
+                 (insert "(")
+                 ;; The IR (see "hmm" above) prioritizes space
+                 ;; efficiency; no cost if no subtrees (common case).
+                 ;; The downside, however, is that subtree access
+                 ;; requires this somewhat-funky border search.
+                 (let (x subtrees)
+                   (while (setq x (pop tree))
+                     (if (symbolp (caar x))
+                         (>>node x)
+                       (setq
+                        ;; Add back the first subtree.
+                        subtrees (cons x tree)
+                        ;; Arrange to stop searching.
+                        tree nil)))
+                   (dolist (sub subtrees)
+                     (>>tree sub)))
+                 (insert ")")))
       (with-temp-buffer
         (dolist (tree collection)
-          (insert "(")
-          (dolist (node tree)
-            (insert ";")
-            (dolist (prop node)
-              (setq p (point)
-                    name (car prop)
-                    v (cdr prop))
-              (insert (substring (symbol-name name) 1))
-              (cond ((not v))
-                    ((and (consp v)
-                          (memq (car (setq spec (cdr (assq name specs))))
-                                '(list elist)))
-                     (>>nl)
-                     (let ((>> (if (consp (cadr spec))
-                                   #'>>two
-                                 #'>>one)))
-                       (dolist (little-v v)
-                         (setq p (point)) (funcall >> little-v) (>>nl))))
-                    ((consp v)
-                     (>>two v) (>>nl))
-                    (t
-                     (>>one v) (>>nl)))))
-          (insert ")\n"))
+          (>>tree tree))
+        (newline)
         (write-file filename)))))
 
 ;;; gnugo.el ends here
