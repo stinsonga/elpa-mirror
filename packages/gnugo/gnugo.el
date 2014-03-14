@@ -376,7 +376,7 @@ when you are sure the command cannot fail."
 (defun gnugo-goto-pos (pos)
   "Move point to board position POS, a letter-number string."
   (goto-char (point-min))
-  (forward-line (- (1+ (gnugo-treeroot :SZ))
+  (forward-line (- (1+ (gnugo-get :SZ))
                    (string-to-number (substring pos 1))))
   (forward-char 1)
   (forward-char (+ (if (= 32 (following-char)) 1 2)
@@ -464,7 +464,7 @@ when you are sure the command cannot fail."
          (%lpad (gnugo-f 'lpad))
          (%rpad (gnugo-f 'rpad))
          (ispc-props (list 'category (gnugo-f 'ispc) 'rear-nonsticky t))
-         (size (gnugo-treeroot :SZ))
+         (size (gnugo-get :SZ))
          (size-string (number-to-string size)))
     (goto-char (point-min))
     (put-text-property (point) (1+ (point)) 'category (gnugo-f 'tpad))
@@ -629,7 +629,7 @@ moves thus far.
 
 For all other values of RSEL, do nothing and return nil."
   (interactive "P")
-  (let ((size (gnugo-treeroot :SZ))
+  (let ((size (gnugo-get :SZ))
         col
         monkey mem
         acc node mprop move)
@@ -671,7 +671,7 @@ For all other values of RSEL, do nothing and return nil."
 
 (defun gnugo-note (property value &optional movep mogrifyp)
   (when mogrifyp
-    (let ((sz (gnugo-treeroot :SZ)))
+    (let ((sz (gnugo-get :SZ)))
       (cl-labels
           ((mog (pos) (if (string= "PASS" pos)
                           "tt"
@@ -892,7 +892,7 @@ its move."
     ;; window update
     (when (setq window (get-buffer-window (current-buffer)))
       (let* ((gridp (not (memq :nogrid buffer-invisibility-spec)))
-             (size (gnugo-treeroot :SZ))
+             (size (gnugo-get :SZ))
              (under10p (< size 10))
              (h (- (truncate (- (window-height window)
                                 (* size (gnugo-get :hmul))
@@ -1274,6 +1274,9 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
                          "as before"
                        "NOTE: this is a switch!")))
 
+(defsubst gnugo--SZ! (size)
+  (gnugo-put :SZ size))
+
 (defun gnugo-read-sgf-file (filename)
   "Load the first game tree from FILENAME, a file in SGF format."
   (interactive "fSGF file to load: ")
@@ -1312,6 +1315,8 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
                     coll))
     (gnugo-put :sgf-collection coll)
     (gnugo-put :sgf-gametree tree)
+    ;; This is deliberately undocumented for now.
+    (gnugo--SZ! (gnugo-treeroot :SZ))
     (let* ((loc tree)
            (count 0)
            mem node play game-over)
@@ -1770,6 +1775,7 @@ In this mode, keys do not self insert.
       (gnugo-put :sgf-gametree tree)
       (gnugo-put :sgf-collection (list tree))
       (gnugo-put :monkey (vector tree nil 0)))
+    (gnugo--SZ! board-size)
     (let ((g-blackp (string= "white" user-color)))
       (mapc (lambda (x) (apply 'gnugo-note x))
             `((:SZ ,board-size)
@@ -1832,7 +1838,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                     (assoc sel all))))))
       ;; set up a new board
       (gnugo-board-mode)
-      (let ((half (truncate (1+ (gnugo-treeroot :SZ)) 2)))
+      (let ((half (truncate (1+ (gnugo-get :SZ)) 2)))
         (gnugo-goto-pos (format "A%d" half))
         (forward-char (* 2 (1- half)))
         (gnugo-put :last-user-bpos
@@ -1954,6 +1960,10 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
         :post-thunk (lambda ()
                       (gnugo--unclose-game)
                       (gnugo-put :last-mover nil)
+                      ;; ugh
+                      (gnugo--SZ! (string-to-number
+                                   (gnugo-query
+                                    "query_boardsize")))
                       (gnugo-refresh t)))
 
       (deffull loadsgf
