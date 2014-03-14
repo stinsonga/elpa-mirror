@@ -2143,28 +2143,30 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                                     (forward-char -1)
                                     (nreverse ls))))
                          (forward-char 1))))))
-         (NODE () (let (prop props)
-                    (sw) (short 'node)
-                    (when (= ?\; (char-after))
-                      (forward-char 1)
-                      (while (setq prop (PROP))
-                        (push prop props))
-                      (nreverse props))))
-         (TREE () (let (nodes)
-                    (while (and (sw) (not (eobp)))
-                      (case (char-after)
-                        (?\; (push (NODE) nodes))
-                        (?\( (forward-char 1)
-                             (push (TREE) nodes))
-                        (?\) (forward-char 1))))
-                    (nreverse nodes))))
+         (seek (c) (and (sw) (not (eobp)) (= c (char-after))))
+         (seek-into (c) (when (seek c)
+                          (forward-char 1)
+                          t))
+         (NODE () (when (seek-into ?\;)
+                    (loop with prop
+                          while (setq prop (PROP))
+                          collect prop)))
+         (TREE (lev) (prog1
+                         ;; hmm
+                         ;;  ‘append’ => ([NODE...] [SUBTREE...])
+                         ;;  ‘cons’   => (([NODE...]) . [SUBTREE...])
+                         (append
+                          ;; nodes
+                          (loop while (seek ?\;)
+                                collect (NODE))
+                          ;; subtrees
+                          (loop while (seek-into ?\()
+                                collect (TREE (1+ lev))))
+                       (unless (zerop lev)
+                         (assert (seek-into ?\)))))))
       (with-temp-buffer
         (insert-file-contents filename)
-        (let (trees)
-          (while (and (sw) (not (eobp)) (= 40 (char-after))) ; left paren
-            (forward-char 1)
-            (push (TREE) trees))
-          (nreverse trees))))))
+        (TREE 0)))))
 
 (defun gnugo/sgf-write-file (collection filename)
   ;; take responsibility for our actions
