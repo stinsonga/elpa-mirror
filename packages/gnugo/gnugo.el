@@ -2224,7 +2224,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                  (insert "(")
                  (dolist (node tree)
                    (>>node node))
-                 (insert ")\n")))
+                 (insert ")")))
       (with-temp-buffer
         (dolist (tree collection)
           (>>tree tree))
