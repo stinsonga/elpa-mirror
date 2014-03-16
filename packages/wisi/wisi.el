@@ -3,7 +3,7 @@
 ;; Copyright (C) 2012, 2013, 2014  Free Software Foundation, Inc.
 ;;
 ;; Author: Stephen Leake <stephen_leake@member.fsf.org>
-;; Version: 1.0.2
+;; Version: 1.0.3
 ;; package-requires: ((cl-lib "0.4") (emacs "24.2"))
 ;; URL: http://stephe-leake.org/emacs/ada-mode/emacs-ada-mode.html
 ;;
