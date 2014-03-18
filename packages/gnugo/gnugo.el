@@ -373,6 +373,14 @@ when you are sure the command cannot fail."
 (defsubst gnugo-treeroot (prop)
   (cdr (assq prop (car (gnugo-get :sgf-gametree)))))
 
+(defun gnugo--set-root-prop (prop value &optional tree)
+  (let* ((root (car (or tree (gnugo-get :sgf-gametree))))
+         (cur (assq prop root)))
+    (if cur
+        (setcdr cur value)
+      (push (cons prop value)
+            (cdr (last root))))))
+
 (defun gnugo-goto-pos (pos)
   "Move point to board position POS, a letter-number string."
   (goto-char (point-min))
@@ -1558,11 +1566,7 @@ Also, add the `:RE' SGF property to the root node of the game tree."
           (yep "Game start" beg)
           (yep "       end" end))))
     (setq blurb (apply 'concat (nreverse blurb)))
-    (let* ((root (car (gnugo-get :sgf-gametree)))
-           (cur (assq :RE root)))
-      (if cur
-          (setcdr cur result)
-        (setcdr (last root) (list (cons :RE result)))))
+    (gnugo--set-root-prop :RE result)
     (switch-to-buffer (format "%s*GNUGO Final Score*" (gnugo-get :diamond)))
     (erase-buffer)
     (insert blurb)))
@@ -2181,13 +2185,9 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
 
 (defun gnugo/sgf-write-file (collection filename)
   ;; take responsibility for our actions
-  (dolist (tree collection)
-    (let* ((root (car tree))
-           (who (assq :AP root))
-           (fruit (cons "gnugo.el" gnugo-version)))
-      (if who
-          (setcdr who fruit)
-        (setcdr (last root) (list (cons :AP fruit))))))
+  (let ((me (cons "gnugo.el" gnugo-version)))
+    (dolist (tree collection)
+      (gnugo--set-root-prop :AP me tree)))
   ;; write it out
   (let ((aft-newline-appreciated '(:AP :GN :PB :PW :HA :KM :RU :RE))
         (specs (mapcar (lambda (full)
