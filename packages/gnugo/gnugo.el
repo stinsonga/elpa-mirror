@@ -705,7 +705,7 @@ For all other values of RSEL, do nothing and return nil."
           (setcdr loc (list fruit))
           (aset monkey 0 (setq loc (cdr loc)))
           (aset monkey 1 (cons loc mem))
-          (aset monkey 2 (1+ (aref monkey 2))))
+          (incf (aref monkey 2)))
       (setcdr (last (car loc)) fruit))))
 
 (defun gnugo-close-game (end-time resign)
@@ -977,7 +977,7 @@ its move."
                  (let (acc cut c)
                    (while (setq cut (string-match "~[bwpmtu]" cur))
                      (aset cur cut ?%)
-                     (setq cut (1+ cut) c (aref cur cut))
+                     (setq c (aref cur (incf cut)))
                      (aset cur cut ?s)
                      (push
                       `(,(intern (format "squig-%c" c))
