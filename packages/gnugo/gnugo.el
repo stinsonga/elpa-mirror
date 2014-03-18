@@ -659,6 +659,7 @@ For all other values of RSEL, do nothing and return nil."
                                  (format "%s%s" move (car mprop))
                                move)
                              acc)))
+         (nn () (next nil))
          (tell () (message "(%d moves) %s"
                            (length acc)
                            (mapconcat 'identity (nreverse acc) " ")))
@@ -666,8 +667,8 @@ For all other values of RSEL, do nothing and return nil."
       (pcase rsel
         (`(4) (finish t))
         (`nil (finish nil))
-        (`car              (car (next nil)))
-        (`cadr  (next nil) (car (next nil)))
+        (`car        (car (nn)))
+        (`cadr  (nn) (car (nn)))
         (`count (aref monkey 2))
         (_ nil)))))
 
