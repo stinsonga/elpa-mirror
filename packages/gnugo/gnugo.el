@@ -640,12 +640,11 @@ moves thus far; if `two' the last two moves as a list, oldest last.
 
 For all other values of RSEL, do nothing and return nil."
   (interactive "P")
-  (let ((size (gnugo-get :SZ))
-        col
-        monkey mem
-        acc node mprop move)
-    (setq monkey (gnugo-get :monkey)
-          mem (aref monkey 1))
+  (let* ((monkey (gnugo-get :monkey))
+         (mem (aref monkey 1))
+         (size (gnugo-get :SZ))
+         col
+         acc node mprop move)
     (cl-labels
         ((as-pos (cc) (if (string= "tt" cc)
                           "PASS"
