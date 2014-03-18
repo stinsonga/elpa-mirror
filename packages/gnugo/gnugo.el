@@ -370,11 +370,14 @@ when you are sure the command cannot fail."
 (defun gnugo-lsquery (message-format &rest args)
   (split-string (apply 'gnugo-query message-format args)))
 
-(defsubst gnugo-treeroot (prop)
-  (cdr (assq prop (car (gnugo-get :sgf-gametree)))))
+(defun gnugo--root-node (&optional tree)
+  (gnugo/sgf-root-node (or tree (gnugo-get :sgf-gametree))))
+
+(defsubst gnugo--root-prop (prop &optional tree)
+  (cdr (assq prop (gnugo--root-node tree))))
 
 (defun gnugo--set-root-prop (prop value &optional tree)
-  (let* ((root (car (or tree (gnugo-get :sgf-gametree))))
+  (let* ((root (gnugo--root-node tree))
          (cur (assq prop root)))
     (if cur
         (setcdr cur value)
@@ -749,7 +752,7 @@ For all other values of RSEL, do nothing and return nil."
                   :scoring-seed
                   :game-end-time))
     (gnugo-put prop nil))
-  (let* ((root (car (gnugo-get :sgf-gametree)))
+  (let* ((root (gnugo--root-node))
          (cur (assq :RE root)))
     (when cur
       (assert (not (eq cur (car root))) nil
@@ -1326,7 +1329,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
     (gnugo-put :sgf-collection coll)
     (gnugo-put :sgf-gametree tree)
     ;; This is deliberately undocumented for now.
-    (gnugo--SZ! (gnugo-treeroot :SZ))
+    (gnugo--SZ! (gnugo--root-prop :SZ tree))
     (let* ((loc tree)
            (count 0)
            mem node play game-over)
@@ -1342,7 +1345,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
         (setq loc (cdr loc)))
       (gnugo-put :game-over
         (setq game-over
-              (or (gnugo-treeroot :RE)
+              (or (gnugo--root-prop :RE tree)
                   (and (cdr mem)
                        (equal '("PASS" "PASS") (gnugo-move-history 'two))
                        'two-passes))))
@@ -1505,10 +1508,10 @@ Also, add the `:RE' SGF property to the root node of the game tree."
              (w-terr (length (gnugo-lsquery terr-q "white")))
              (b-capt (string-to-number (gnugo-get :black-captures)))
              (w-capt (string-to-number (gnugo-get :white-captures)))
-             (komi   (gnugo-treeroot :KM)))
+             (komi   (gnugo--root-prop :KM)))
         (setq blurb (list "The game is over.  Final score:\n")
               result (gnugo-query "final_score %d" seed))
-        (cond ((string= "Chinese" (gnugo-treeroot :RU))
+        (cond ((string= "Chinese" (gnugo--root-prop :RU))
                (dolist (group live)
                  (incf (if (string= "black" (caar group))
                            b-terr
@@ -1845,7 +1848,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
       ;; first move
       (gnugo-put :game-start-time (current-time))
       (let ((g (gnugo-get :gnugo-color))
-            (n (or (gnugo-treeroot :HA) 0))
+            (n (or (gnugo--root-prop :HA) 0))
             (u (gnugo-get :user-color)))
         (gnugo-put :last-mover g)
         (when (or (and (string= "black" u) (< 1 n))
@@ -2061,6 +2064,9 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
   ;; - changed: DT FG LB RE RU SZ
   ;; - added: AP AR AS DD IP IY LN OT PM SE SQ ST SU VW
   "List of SGF[4] properties, each of the form (PROP NAME CONTEXT SPEC...).")
+
+(defun gnugo/sgf-root-node (tree)
+  (car tree))
 
 (defun gnugo/sgf-read-file (filename)
   "Return the collection (list) of gametrees in SGF[4] file FILENAME."
