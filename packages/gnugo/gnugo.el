@@ -1692,12 +1692,12 @@ In this mode, keys do not self insert.
   (switch-to-buffer (generate-new-buffer "(Uninitialized GNUGO Board)"))
   (buffer-disable-undo)                 ; todo: undo undo undoing
   (kill-all-local-variables)
-  (setq truncate-lines t)
   (use-local-map gnugo-board-mode-map)
   (set (make-local-variable 'font-lock-defaults)
        '(gnugo-font-lock-keywords t))
-  (setq major-mode 'gnugo-board-mode)
-  (setq mode-name "GNUGO Board")
+  (setq major-mode 'gnugo-board-mode
+        mode-name "GNUGO Board"
+        truncate-lines t)
   (add-hook 'kill-buffer-hook 'gnugo-cleanup nil t)
   (set (make-local-variable 'gnugo-state)
        (make-hash-table :size (1- 42) :test 'eq))
@@ -1732,7 +1732,6 @@ In this mode, keys do not self insert.
         (args (read-string "GNU Go options: "
                            (car gnugo-option-history)
                            'gnugo-option-history))
-        (rules "Japanese")
         proc
         board-size user-color handicap komi minus-l infile)
     (dolist (x '((board-size      19 "--boardsize")
@@ -1750,8 +1749,6 @@ In this mode, keys do not self insert.
                      (if rx s (string-to-number s))))
                  default))))
     (gnugo-put :user-color user-color)
-    (when (string-match "--chinese-rules" args)
-      (setq rules "Chinese"))
     (let ((proc-args (split-string args)))
       (gnugo-put :proc-args proc-args)
       (gnugo-put :proc (setq proc (apply 'start-process "gnugo"
@@ -1784,7 +1781,9 @@ In this mode, keys do not self insert.
       (mapc (lambda (x) (apply 'gnugo-note x))
             `((:SZ ,board-size)
               (:DT ,(format-time-string "%Y-%m-%d"))
-              (:RU ,rules)
+              (:RU ,(if (string-match "--chinese-rules" args)
+                        "Chinese"
+                      "Japanese"))
               (:AP ("gnugo.el" . ,gnugo-version))
               (:KM ,komi)
               (,(if g-blackp :PW :PB) ,(user-full-name))
