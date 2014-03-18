@@ -14,6 +14,7 @@ Hint: (highlight-phrase "[0-9][.][0-9][.][0-9]+\\|[0-9]+[.][.][0-9]+"
     - handle subtrees on write
   - new keybinding for ‘gnugo-undo-one-move’: M-u
   - ‘gnugo-undo-one-move’ can optionally switch colors
+  - ‘gnugo-move-history’ returns last two moves w/ RSEL ‘two’
   - performance improvements
 
 - 2.3.1 | 2014-02-27
