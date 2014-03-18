@@ -633,7 +633,7 @@ interactively with a prefix arg (i.e., RSEL is `(4)'), display
 similarly, but suffix with the mover (either \":B\" or \":W\").
 If RSEL is the symbol `car' return the most-recent move; if
 `cadr', the next-to-most-recent move; if `count' the number of
-moves thus far.
+moves thus far; if `two' the last two moves as a list, oldest last.
 
 For all other values of RSEL, do nothing and return nil."
   (interactive "P")
@@ -670,6 +670,7 @@ For all other values of RSEL, do nothing and return nil."
         (`car        (car (nn)))
         (`cadr  (nn) (car (nn)))
         (`count (aref monkey 2))
+        (`two (nn) (nn) acc)
         (_ nil)))))
 
 (defun gnugo-boss-is-near ()
@@ -1343,14 +1344,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
         (setq game-over
               (or (cdr (assq :RE (car tree)))
                   (and (cdr mem)
-                       (equal '("tt" "tt")
-                              (let ((order (if (string= "black" wait)
-                                               '(:B :W)
-                                             '(:W :B))))
-                                (mapcar (lambda (pk)
-                                          (cdr (assq (funcall pk order)
-                                                     (car (funcall pk mem)))))
-                                        '(car cadr))))
+                       (equal '("PASS" "PASS") (gnugo-move-history 'two))
                        'two-passes))))
       (gnugo-put :monkey
         (vector (or (car mem) tree)
