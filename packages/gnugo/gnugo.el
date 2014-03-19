@@ -684,11 +684,14 @@ For all other values of RSEL, do nothing and return nil."
   (while (gnugo-board-buffer-p)
     (bury-buffer)))
 
+(defsubst gnugo--passp (string)
+  (string= "PASS" string))
+
 (defun gnugo-note (property value &optional mogrifyp)
   (when mogrifyp
     (let ((sz (gnugo-get :SZ)))
       (cl-labels
-          ((mog (pos) (if (string= "PASS" pos)
+          ((mog (pos) (if (gnugo--passp pos)
                           "tt"
                         (let* ((col (aref pos 0))
                                (one (+ ?a (- col (if (< ?H col) 1 0) ?A)))
@@ -767,9 +770,9 @@ For all other values of RSEL, do nothing and return nil."
          (start (gnugo-get :waiting-start))
          (now (current-time))
          (resignp (string= "resign" move))
-         (passp (string= "PASS" move))
+         (passp (gnugo--passp move))
          (head (gnugo-move-history 'car))
-         (onep (and head (string= "PASS" head)))
+         (onep (and head (gnugo--passp head)))
          (donep (or resignp (and onep passp))))
     (unless passp
       (gnugo-merge-showboard-results))
@@ -1419,7 +1422,7 @@ turn to play.  Optional second arg NOALT non-nil inhibits this."
     (let* ((ulastp (string= (gnugo-get :last-mover) user-color))
 
            (ubpos (gnugo-move-history (if ulastp 'car 'cadr))))
-      (gnugo-put :last-user-bpos (if (and ubpos (not (string= "PASS" ubpos)))
+      (gnugo-put :last-user-bpos (if (and ubpos (not (gnugo--passp ubpos)))
                                      ubpos
                                    (gnugo-get :center-position)))
       (gnugo-refresh t)
