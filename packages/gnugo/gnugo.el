@@ -783,8 +783,6 @@ For all other values of RSEL, do nothing and return nil."
     (when userp
       (gnugo-put :last-user-bpos (and (not passp) (not resignp) move)))
     (gnugo-note (if (gnugo--blackp color) :B :W) move (not resignp))
-    (when resignp
-      (gnugo-note :EV "resignation"))
     (when start
       (gnugo-put :last-waiting (cadr (time-subtract now start))))
     (when donep
@@ -1490,10 +1488,8 @@ Also, add the `:RE' SGF property to the root node of the game tree."
       (sit-for 3)))
   (let ((b=  "   Black = ")
         (w=  "   White = ")
-        (res (let* ((node (car (aref (gnugo-get :monkey) 0)))
-                    (event (and node (cdr (assq :EV node)))))
-               (and event (string= "resignation" event)
-                    (if (assq :B node) "black" "white"))))
+        (res (when (string= "resign" (gnugo-move-history 'car))
+               (gnugo-get :last-mover)))
         blurb result)
     (if res
         (setq blurb (list
