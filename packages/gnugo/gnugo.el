@@ -296,8 +296,11 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
   (with-current-buffer (or buffer (current-buffer))
     (and gnugo-state (not (gnugo-get :waitingp)))))
 
+(defsubst gnugo--blackp (string)
+  (string= "black" string))
+
 (defun gnugo-other (color)
-  (if (string= "black" color) "white" "black"))
+  (if (gnugo--blackp color) "white" "black"))
 
 (defun gnugo-gate (&optional in-progress-p)
   (unless (gnugo-board-buffer-p)
@@ -773,7 +776,7 @@ For all other values of RSEL, do nothing and return nil."
     (gnugo-put :last-mover color)
     (when userp
       (gnugo-put :last-user-bpos (and (not passp) (not resignp) move)))
-    (gnugo-note (if (string= "black" color) :B :W) move (not resignp))
+    (gnugo-note (if (gnugo--blackp color) :B :W) move (not resignp))
     (when resignp
       (gnugo-note :EV "resignation"))
     (when start
@@ -887,7 +890,7 @@ its move."
         (dolist (group dead)
           (unless (cdar group)
             (let (ov pall c (color (caar group)))
-              (setq c (if (string= "black" color) "x" "o"))
+              (setq c (if (gnugo--blackp color) "x" "o"))
               (dolist (pos (cdr group))
                 (gnugo-goto-pos pos)
                 (setq p (point) ov (make-overlay p (1+ p)))
@@ -1394,7 +1397,7 @@ turn to play.  Optional second arg NOALT non-nil inhibits this."
              (when (= (save-excursion
                         (gnugo-goto-pos pos)
                         (following-char))
-                      (if (string= "black" user-color)
+                      (if (gnugo--blackp user-color)
                           ?O
                         ?X))
                (user-error "%s not occupied by %s" pos user-color))))
@@ -1512,12 +1515,12 @@ Also, add the `:RE' SGF property to the root node of the game tree."
               result (gnugo-query "final_score %d" seed))
         (cond ((string= "Chinese" (gnugo--root-prop :RU))
                (dolist (group live)
-                 (incf (if (string= "black" (caar group))
+                 (incf (if (gnugo--blackp (caar group))
                            b-terr
                          w-terr)
                        (length (cdr group))))
                (dolist (group dead)
-                 (incf (if (string= "black" (caar group))
+                 (incf (if (gnugo--blackp (caar group))
                            w-terr
                          b-terr)
                        (length (cdr group))))
@@ -1527,7 +1530,7 @@ Also, add the `:RE' SGF property to the root node of the game tree."
                      blurb))
               (t
                (dolist (group dead)
-                 (incf (if (string= "black" (caar group))
+                 (incf (if (gnugo--blackp (caar group))
                            w-terr
                          b-terr)
                        (* 2 (length (cdr group)))))
@@ -1850,8 +1853,8 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
             (n (or (gnugo--root-prop :HA) 0))
             (u (gnugo-get :user-color)))
         (gnugo-put :last-mover g)
-        (when (or (and (string= "black" u) (< 1 n))
-                  (and (string= "black" g) (< n 2)))
+        (when (or (and (gnugo--blackp u) (< 1 n))
+                  (and (gnugo--blackp g) (< n 2)))
           (gnugo-put :last-mover u)
           (gnugo-refresh t)
           (gnugo-get-move g))))))
