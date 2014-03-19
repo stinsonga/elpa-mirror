@@ -681,7 +681,7 @@ For all other values of RSEL, do nothing and return nil."
   (while (gnugo-board-buffer-p)
     (bury-buffer)))
 
-(defun gnugo-note (property value &optional movep mogrifyp)
+(defun gnugo-note (property value &optional mogrifyp)
   (when mogrifyp
     (let ((sz (gnugo-get :SZ)))
       (cl-labels
@@ -698,7 +698,7 @@ For all other values of RSEL, do nothing and return nil."
   (let* ((fruit (list (cons property value)))
          (monkey (gnugo-get :monkey))
          (loc (aref monkey 0)))
-    (if movep
+    (if (memq property '(:B :W))
         (let ((mem (aref monkey 1)))
           ;; todo: do variation check/merge/branch here.
           (setcdr loc (list fruit))
@@ -773,7 +773,7 @@ For all other values of RSEL, do nothing and return nil."
     (gnugo-put :last-mover color)
     (when userp
       (gnugo-put :last-user-bpos (and (not passp) (not resignp) move)))
-    (gnugo-note (if (string= "black" color) :B :W) move t (not resignp))
+    (gnugo-note (if (string= "black" color) :B :W) move (not resignp))
     (when resignp
       (gnugo-note :EV "resignation"))
     (when start
