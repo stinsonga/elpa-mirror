@@ -1340,6 +1340,11 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
            (count 0)
            mem node play game-over)
       (while (setq node (car loc))
+        ;; A gametree must have at least one node prior to the first
+        ;; sub-gametree (if any), so we need check the CAR only once.
+        (unless (symbolp (caar node))
+          (setq loc node
+                node (car loc)))
         (when (setq play (or (assq :B node)
                              (assq :W node)))
           ;; SGF[4] allows "" to mean PASS.  For now,
