@@ -14,6 +14,7 @@ Hint: (highlight-phrase "[0-9][.][0-9][.][0-9]+\\|[0-9]+[.][.][0-9]+"
     - handle subtrees on write
     - display "resign" as "resign" in move history (amazing!)
     - avoid clobbering SGF property ‘EV’ on resignation
+    - follow main line in subtrees on read
   - new keybinding for ‘gnugo-undo-one-move’: M-u
   - ‘gnugo-undo-one-move’ can optionally arrange for you to play next
   - ‘gnugo-move-history’ returns last two moves w/ RSEL ‘two’
