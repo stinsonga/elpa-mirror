@@ -1293,6 +1293,9 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
                          "as before"
                        "NOTE: this is a switch!")))
 
+(defsubst gnugo--nodep (x)
+  (keywordp (caar x)))
+
 (defsubst gnugo--SZ! (size)
   (gnugo-put :SZ size))
 
@@ -1342,7 +1345,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
       (while (setq node (car loc))
         ;; A gametree must have at least one node prior to the first
         ;; sub-gametree (if any), so we need check the CAR only once.
-        (unless (symbolp (caar node))
+        (unless (gnugo--nodep node)
           (setq loc node
                 node (car loc)))
         (when (setq play (or (assq :B node)
@@ -2250,7 +2253,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                  ;; requires this somewhat-funky border search.
                  (let (x subtrees)
                    (while (setq x (pop tree))
-                     (if (symbolp (caar x))
+                     (if (gnugo--nodep x)
                          (>>node x)
                        (setq
                         ;; Add back the first subtree.
