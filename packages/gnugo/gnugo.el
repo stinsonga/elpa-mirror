@@ -649,7 +649,7 @@ For all other values of RSEL, do nothing and return nil."
          col
          acc node mprop move)
     (cl-labels
-        ((as-pos (cc) (if (string= "tt" cc)
+        ((as-pos (cc) (if (string= "" cc)
                           "PASS"
                         (setq col (aref cc 0))
                         (format "%c%d"
@@ -695,7 +695,7 @@ For all other values of RSEL, do nothing and return nil."
     (let ((sz (gnugo-get :SZ)))
       (cl-labels
           ((mog (pos) (if (gnugo--passp pos)
-                          "tt"
+                          ""
                         (let* ((col (aref pos 0))
                                (one (+ ?a (- col (if (< ?H col) 1 0) ?A)))
                                (two (+ ?a (- sz (string-to-number
@@ -1341,19 +1341,15 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
     (gnugo--SZ! (gnugo--root-prop :SZ tree))
     (let* ((loc tree)
            (count 0)
-           mem node play game-over)
+           mem node game-over)
       (while (setq node (car loc))
         ;; A gametree must have at least one node prior to the first
         ;; sub-gametree (if any), so we need check the CAR only once.
         (unless (gnugo--nodep node)
           (setq loc node
                 node (car loc)))
-        (when (setq play (or (assq :B node)
-                             (assq :W node)))
-          ;; SGF[4] allows "" to mean PASS.  For now,
-          ;; we normalize here instead of at the lower layer.
-          (when (string= "" (cdr play))
-            (setcdr play "tt"))
+        (when (or (assq :B node)
+                  (assq :W node))
           (incf count)
           (push loc mem))
         (setq loc (cdr loc)))
@@ -2092,7 +2088,8 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                    (put 'gnugo/sgf-*r4-properties* :specs
                         (mapcar (lambda (full)
                                   (cons (car full) (cdddr full)))
-                                gnugo/sgf-*r4-properties*)))))
+                                gnugo/sgf-*r4-properties*))))
+        SZ)
     (cl-labels
         ((sw () (skip-chars-forward " \t\n"))
          (x (end) (let ((beg (point))
@@ -2117,7 +2114,15 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                                     (forward-char 1)
                                     (x end))))
                            (case type
-                             ((stone point move simpletext color) s)
+                             ((stone point move)
+                              ;; blech, begone bu"tt"-ugly blatherings
+                              ;; (but bide brobdingnagian boards)...
+                              (if (and (string= "tt" s)
+                                       SZ
+                                       (>= 19 SZ))
+                                  ""
+                                s))
+                             ((simpletext color) s)
                              ((number real double) (string-to-number s))
                              ((text) s)
                              ((none) "")
@@ -2176,7 +2181,10 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
          (NODE () (when (seek-into ?\;)
                     (loop with prop
                           while (setq prop (PROP))
-                          collect prop)))
+                          collect (progn
+                                    (when (eq :SZ (car prop))
+                                      (setq SZ (cdr prop)))
+                                    prop))))
          (TREE (lev) (prog1
                          ;; hmm
                          ;;  ‘append’ => ([NODE...] [SUBTREE...])
