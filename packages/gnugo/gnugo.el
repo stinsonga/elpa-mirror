@@ -1356,8 +1356,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
       (gnugo-put :game-over
         (setq game-over
               (or (gnugo--root-prop :RE tree)
-                  (and (cdr mem)
-                       (equal '("PASS" "PASS") (gnugo-move-history 'two))
+                  (and (equal '("PASS" "PASS") (gnugo-move-history 'two))
                        'two-passes))))
       (gnugo-put :monkey
         (vector (or (car mem) tree)
