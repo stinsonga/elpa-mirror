@@ -658,11 +658,10 @@ For all other values of RSEL, do nothing and return nil."
          (as-pos-maybe (x) (if (string= "resign" x)
                                x
                              (as-pos x)))
-         (next (byp) (when (setq node (caar mem)
+         (next (byp) (when (setq node (car (pop mem))
                                  mprop (or (assq :B node)
                                            (assq :W node)))
-                       (setq move (as-pos-maybe (cdr mprop))
-                             mem (cdr mem))
+                       (setq move (as-pos-maybe (cdr mprop)))
                        (push (if byp
                                  (format "%s%s" move (car mprop))
                                move)
