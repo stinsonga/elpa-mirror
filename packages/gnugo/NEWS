@@ -20,6 +20,8 @@ Hint: (highlight-phrase "[0-9][.][0-9][.][0-9]+\\|[0-9]+[.][.][0-9]+"
   - ‘gnugo-undo-one-move’ can optionally arrange for you to play next
   - ‘gnugo-move-history’ returns last two moves w/ RSEL ‘two’
   - performance improvements
+  - of interest to hackers (see source, BI => backward incompatible)
+    - ‘:sgf-gametree’ internal representation inverted (BI)
 
 - 2.3.1 | 2014-02-27
   - portability fixes
