@@ -1,6 +1,6 @@
 ;;; wisi-parse.el --- Wisi parser
 
-;; Copyright (C) 2013  Free Software Foundation, Inc.
+;; Copyright (C) 2013, 2014  Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -26,8 +26,8 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'semantic/wisent)
-(eval-when-compile (require 'cl-lib))
 
 (cl-defstruct (wisi-parser-state
 	    (:copier nil))
@@ -99,9 +99,6 @@ the grammar is excessively redundant.")
 	    :label 0
 	    :active  'shift
 	    :stack   (make-vector wisent-parse-max-stack-size nil)
-	    ;; FIXME: better error message when stack overflows, so
-	    ;; user can set wisent-parse-max-stack-size in file-local
-	    ;; vars.
 	    :sp      0
 	    :pending nil)))
 	 (active-parser-count 1)
@@ -330,7 +327,16 @@ nil, 'shift, or 'accept."
 (defun wisi-execute-pending (pending)
   (while pending
     (when (> wisi-debug 1) (message "%s" (car pending)))
-    (apply (pop pending))))
+
+    (cond
+     ((and (>= emacs-major-version 24)
+	   (>= emacs-minor-version 3))
+      (apply (pop pending)))
+
+     (t
+      (let ((func-args (pop pending)))
+	(apply (car func-args) (cdr func-args))))
+     )))
 
 (defun wisi-parse-1 (token parser-state pendingp actions gotos)
   "Perform one shift or reduce on PARSER-STATE.

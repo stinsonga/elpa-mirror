@@ -4,10 +4,10 @@
 
 ;; Author: Nikolaj Schumacher
 ;; Maintainer: Dmitry Gutov <dgutov@yandex.ru>
-;; Version: 0.7
+;; Version: 0.7.2
 ;; Keywords: abbrev, convenience, matching
 ;; URL: http://company-mode.github.io/
-;; Compatibility: GNU Emacs 22.x, GNU Emacs 23.x, GNU Emacs 24.x
+;; Compatibility: GNU Emacs 23.x, GNU Emacs 24.x
 
 ;; This file is part of GNU Emacs.
 
@@ -70,6 +70,7 @@
 ;;; Code:
 
 (eval-when-compile (require 'cl))
+(require 'newcomment)
 
 ;; FIXME: Use `user-error'.
 (add-to-list 'debug-ignored-errors "^.* frontend cannot be used twice$")
@@ -254,8 +255,13 @@ If this many lines are not available, prefer to display the tooltip above."
   :type '(choice (const :tag "Scrollbar" scrollbar)
                  (const :tag "Two lines" lines)))
 
+(defcustom company-tooltip-align-annotations nil
+  "When non-nil, align annotations to the right tooltip border."
+  :type 'boolean)
+
 (defvar company-safe-backends
   '((company-abbrev . "Abbrev")
+    (company-bbdb . "BBDB")
     (company-capf . "completion-at-point-functions")
     (company-clang . "Clang")
     (company-cmake . "CMake")
@@ -290,18 +296,16 @@ If this many lines are not available, prefer to display the tooltip above."
 
 (defcustom company-backends `(,@(unless company--include-capf
                                   (list 'company-elisp))
+                              company-bbdb
                               company-nxml company-css
                               company-eclim company-semantic company-clang
                               company-xcode company-ropemacs company-cmake
                               ,@(when company--include-capf
                                   (list 'company-capf))
-                              (company-gtags company-etags company-dabbrev-code
+                              (company-dabbrev-code company-gtags company-etags
                                company-keywords)
                               company-oddmuse company-files company-dabbrev)
   "The list of active back-ends (completion engines).
-Each list elements can itself be a list of back-ends.  In that case their
-completions are merged.  Otherwise only the first matching back-end returns
-results.
 
 `company-begin-backend' can be used to start a specific back-end,
 `company-other-backend' will skip to the next matching back-end in the list.
@@ -376,7 +380,22 @@ modify it, e.g. to expand a snippet.
 
 The back-end should return nil for all commands it does not support or
 does not know about.  It should also be callable interactively and use
-`company-begin-backend' to start itself in that case."
+`company-begin-backend' to start itself in that case.
+
+Grouped back-ends:
+
+An element of `company-backends' can also itself be a list of back-ends,
+then it's considered to be a \"grouped\" back-end.
+
+When possible, commands taking a candidate as an argument are dispatched to
+the back-end it came from.  In other cases, the first non-nil value among
+all the back-ends is returned.
+
+The latter is the case for the `prefix' command.  But if the group contains
+the keyword `:with', the back-ends after it are ignored for this command.
+
+The completions from back-ends in a group are merged (but only from those
+that return the same `prefix')."
   :type `(repeat
           (choice
            :tag "Back-end"
@@ -388,6 +407,7 @@ does not know about.  It should also be callable interactively and use
                            ,@(mapcar (lambda (b)
                                        `(const :tag ,(cdr b) ,(car b)))
                                      company-safe-backends)
+                           (const :tag "With" :with)
                            (symbol :tag "User defined"))))))
 
 (put 'company-backends 'safe-local-variable 'company-safe-backends-p)
@@ -564,21 +584,25 @@ The work-around consists of adding a newline.")
   (and (symbolp backend)
        (not (fboundp backend))
        (ignore-errors (require backend nil t)))
-
-  (if (or (symbolp backend)
-          (functionp backend))
-      (condition-case err
-          (progn
-            (funcall backend 'init)
-            (put backend 'company-init t))
-        (error
-         (put backend 'company-init 'failed)
-         (unless (memq backend company--disabled-backends)
-           (message "Company back-end '%s' could not be initialized:\n%s"
-                    backend (error-message-string err)))
-         (pushnew backend company--disabled-backends)
-         nil))
-    (mapc 'company-init-backend backend)))
+  (cond
+   ((symbolp backend)
+    (condition-case err
+        (progn
+          (funcall backend 'init)
+          (put backend 'company-init t))
+      (error
+       (put backend 'company-init 'failed)
+       (unless (memq backend company--disabled-backends)
+         (message "Company back-end '%s' could not be initialized:\n%s"
+                  backend (error-message-string err)))
+       (pushnew backend company--disabled-backends)
+       nil)))
+   ;; No initialization for lambdas.
+   ((functionp backend) t)
+   (t ;; Must be a list.
+    (dolist (b backend)
+      (unless (keywordp b)
+        (company-init-backend b))))))
 
 (defvar company-default-lighter " company")
 
@@ -755,28 +779,47 @@ means that `company-mode' is always turned on except in `message-mode' buffers."
                 dir (file-name-directory (directory-file-name dir))))))))
 
 (defun company-call-backend (&rest args)
-  (if (functionp company-backend)
-      (apply company-backend args)
-    (apply 'company--multi-backend-adapter company-backend args)))
+  (condition-case err
+      (if (functionp company-backend)
+          (apply company-backend args)
+        (apply 'company--multi-backend-adapter company-backend args))
+    (error (error "Company: Back-end %s error \"%s\" with args %s"
+                    company-backend (error-message-string err) args))))
 
 (defun company--multi-backend-adapter (backends command &rest args)
   (let ((backends (loop for b in backends
                         when (not (and (symbolp b)
                                        (eq 'failed (get b 'company-init))))
                         collect b)))
+    (setq backends
+          (if (eq command 'prefix)
+              (butlast backends (length (member :with backends)))
+            (delq :with backends)))
     (case command
       (candidates
-       (loop for backend in backends
-             when (equal (funcall backend 'prefix)
-                         (car args))
-             append (apply backend 'candidates args)))
+       ;; Small perf optimization: don't tag the candidates received
+       ;; from the first backend in the group.
+       (append (apply (car backends) 'candidates args)
+               (loop for backend in (cdr backends)
+                     when (equal (funcall backend 'prefix)
+                                 (car args))
+                     append (mapcar
+                             (lambda (str)
+                               (propertize str 'company-backend backend))
+                             (apply backend 'candidates args)))))
       (sorted nil)
       (duplicates t)
-      (otherwise
+      ((prefix ignore-case no-cache require-match)
        (let (value)
          (dolist (backend backends)
            (when (setq value (apply backend command args))
-             (return value))))))))
+             (return value)))))
+      (otherwise
+       (let ((arg (car args)))
+         (when (> (length arg) 0)
+           (let ((backend (or (get-text-property 0 'company-backend arg)
+                              (car backends))))
+             (apply backend command args))))))))
 
 ;;; completion mechanism ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1037,41 +1080,43 @@ Keywords and function definition names are ignored."
                    t))))
            candidates)))
     (nconc
-     (mapcar #'car (sort occurs (lambda (e1 e2) (< (cdr e1) (cdr e2)))))
+     (mapcar #'car (sort occurs (lambda (e1 e2) (<= (cdr e1) (cdr e2)))))
      noccurs)))
 
 (defun company-idle-begin (buf win tick pos)
-  (and company-mode
-       (eq buf (current-buffer))
+  (and (eq buf (current-buffer))
        (eq win (selected-window))
        (eq tick (buffer-chars-modified-tick))
        (eq pos (point))
-       (not company-candidates)
        (not (equal (point) company-point))
-       (let ((company-idle-delay t)
-             (company-begin-commands t))
-         (company-begin)
-         (when company-candidates
-           (when (version< emacs-version "24.3.50")
-             (company-input-noop))
-           (company-post-command)))))
+       (when (company-auto-begin)
+         (when (version< emacs-version "24.3.50")
+           (company-input-noop))
+         (company-post-command))))
 
 (defun company-auto-begin ()
-  (company-assert-enabled)
   (and company-mode
        (not company-candidates)
        (let ((company-idle-delay t)
-             (company-minimum-prefix-length 0)
              (company-begin-commands t))
-         (company-begin)))
+         (condition-case-no-debug err
+             (company-begin)
+           (error (message "Company: An error occurred in auto-begin")
+                  (message "%s" (error-message-string err))
+                  (company-cancel))
+           (quit (company-cancel)))))
+  (unless company-candidates
+    (setq company-backend nil))
   ;; Return non-nil if active.
   company-candidates)
 
 (defun company-manual-begin ()
   (interactive)
+  (company-assert-enabled)
   (setq company--explicit-action t)
   (unwind-protect
-      (company-auto-begin)
+      (let ((company-minimum-prefix-length 0))
+        (company-auto-begin))
     (unless company-candidates
       (setq company--explicit-action nil))))
 
@@ -1158,7 +1203,6 @@ Keywords and function definition names are ignored."
                        (setq new-prefix (or (car-safe new-prefix) new-prefix))
                        (= (- (point) (length new-prefix))
                           (- company-point (length company-prefix))))
-              (setq new-prefix (or (car-safe new-prefix) new-prefix))
               (company-calculate-candidates new-prefix))))
     (cond
      ((eq c t)
@@ -1767,9 +1811,7 @@ To show the number next to the candidates in some back-ends, enable
   (setq company-backend backend)
   ;; Return non-nil if active.
   (or (company-manual-begin)
-      (progn
-        (setq company-backend nil)
-        (error "Cannot complete at point"))))
+      (error "Cannot complete at point")))
 
 (defun company-begin-with (candidates
                            &optional prefix-length require-match callback)
@@ -1796,6 +1838,18 @@ Example: \(company-begin-with '\(\"foo\" \"foobar\" \"foobarbaz\"\)\)"
        ((eq command 'require-match)
         ,require-match)))
    callback))
+
+(defun company-version (&optional show-version)
+  "Get the Company version as string.
+
+If SHOW-VERSION is non-nil, show the version in the echo area."
+  (interactive (list t))
+  (with-temp-buffer
+    (insert-file-contents (find-library-name "company"))
+    (require 'lisp-mnt)
+    (if show-version
+        (message "Company version: %s" (lm-version))
+      (lm-version))))
 
 ;;; pseudo-tooltip ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1854,10 +1908,28 @@ Example: \(company-begin-with '\(\"foo\" \"foobar\" \"foobarbaz\"\)\)"
   (let* ((margin (length left))
          (common (+ (or (company-call-backend 'match value)
                         (length company-common)) margin))
-         (ann-start (+ margin (length value)))
+         (ann-ralign company-tooltip-align-annotations)
+         (ann-truncate (< width
+                          (+ (length value) (length annotation)
+                             (if ann-ralign 1 0))))
+         (ann-start (+ margin
+                       (if ann-ralign
+                           (if ann-truncate
+                               (1+ (length value))
+                             (- width (length annotation)))
+                         (length value))))
+         (ann-end (min (+ ann-start (length annotation)) (+ margin width)))
          (line (concat left
-                       (company-safe-substring (concat value annotation)
-                                               0 width)
+                       (if (or ann-truncate (not ann-ralign))
+                           (company-safe-substring
+                            (concat value
+                                    (when (and annotation ann-ralign) " ")
+                                    annotation)
+                            0 width)
+                         (concat
+                          (company-safe-substring value 0
+                                                  (- width (length annotation)))
+                          annotation))
                        right)))
     (setq width (+ width margin (length right)))
 
@@ -1868,10 +1940,11 @@ Example: \(company-begin-with '\(\"foo\" \"foobar\" \"foobarbaz\"\)\)"
                          '(face company-tooltip-common
                            mouse-face company-tooltip-mouse)
                          line)
-    (add-text-properties ann-start (min (+ ann-start (length annotation)) width)
-                         '(face company-tooltip-annotation
-                           mouse-face company-tooltip-mouse)
-                         line)
+    (when (< ann-start ann-end)
+      (add-text-properties ann-start ann-end
+                           '(face company-tooltip-annotation
+                             mouse-face company-tooltip-mouse)
+                           line))
     (when selected
       (if (and company-search-string
                (string-match (regexp-quote company-search-string) value
@@ -2007,8 +2080,15 @@ Example: \(company-begin-with '\(\"foo\" \"foobar\" \"foobarbaz\"\)\)"
     (dotimes (_ len)
       (let* ((value (pop lines-copy))
              (annotation (company-call-backend 'annotation value)))
+        (when (and annotation company-tooltip-align-annotations)
+          ;; `lisp-completion-at-point' adds a space.
+          (setq annotation (comment-string-strip annotation t nil)))
         (push (cons value annotation) items)
-        (setq width (max (+ (length value) (length annotation)) width))))
+        (setq width (max (+ (length value)
+                            (if (and annotation company-tooltip-align-annotations)
+                                (1+ (length annotation))
+                              (length annotation)))
+                         width))))
 
     (setq width (min window-width
                      (if (and company-show-numbers
