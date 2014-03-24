@@ -9,9 +9,19 @@ Hint: (highlight-phrase "[0-9][.][0-9][.][0-9]+\\|[0-9]+[.][.][0-9]+"
 
 
 - next | NOT YET RELEASED
+  - bugfixes
+    - don't special-case property value type ‘none’
+    - handle subtrees on write
+    - display "resign" as "resign" in move history (amazing!)
+    - avoid clobbering SGF property ‘EV’ on resignation
+    - follow main line in subtrees on read
+  - PASS for SZ <= 19 normalized to "" on read, written as ""
   - new keybinding for ‘gnugo-undo-one-move’: M-u
-  - ‘gnugo-undo-one-move’ can optionally switch colors
+  - ‘gnugo-undo-one-move’ can optionally arrange for you to play next
+  - ‘gnugo-move-history’ returns last two moves w/ RSEL ‘two’
   - performance improvements
+  - of interest to hackers (see source, BI => backward incompatible)
+    - ‘:sgf-gametree’ internal representation inverted (BI)
 
 - 2.3.1 | 2014-02-27
   - portability fixes

@@ -201,10 +201,9 @@ you may never really understand to any degree of personal satisfaction\".
 
  :sgf-gametree -- one of the gametrees in :sgf-collection
 
- :monkey -- vector of three elements: LOC, a pointer to a node on the
-            :sgf-gametree representing the most recently-played move
-            (the next move modifies the cdr of LOC); MEM, the simple
-            reverse-chronological list of previous LOC pointers; and
+ :monkey -- vector of three elements:
+            MEM, a pointer to one of the branches in the gametree;
+            BIDX, the index of the \"current branch\"; and
             COUNT, the number of moves from the beginning of the game
 
  :gnugo-color -- either \"black\" or \"white\"
@@ -261,10 +260,10 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
                                    (:sgf-collection
                                     (length val))
                                    (:monkey
-                                    (let ((loc (aref val 0)))
-                                      (list (length (aref val 1))
-                                            (length (cdr loc))
-                                            (car loc))))
+                                    (let ((mem (aref val 0)))
+                                      (list (aref val 1)
+                                            (aref val 2)
+                                            (car mem))))
                                    (t val))))))
     (switch-to-buffer (get-buffer-create
                        (format "%s*GNUGO Board Properties*"
@@ -296,8 +295,11 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
   (with-current-buffer (or buffer (current-buffer))
     (and gnugo-state (not (gnugo-get :waitingp)))))
 
+(defsubst gnugo--blackp (string)
+  (string= "black" string))
+
 (defun gnugo-other (color)
-  (if (string= "black" color) "white" "black"))
+  (if (gnugo--blackp color) "white" "black"))
 
 (defun gnugo-gate (&optional in-progress-p)
   (unless (gnugo-board-buffer-p)
@@ -370,13 +372,24 @@ when you are sure the command cannot fail."
 (defun gnugo-lsquery (message-format &rest args)
   (split-string (apply 'gnugo-query message-format args)))
 
-(defsubst gnugo-treeroot (prop)
-  (cdr (assq prop (car (gnugo-get :sgf-gametree)))))
+(defun gnugo--root-node (&optional tree)
+  (gnugo/sgf-root-node (or tree (gnugo-get :sgf-gametree))))
+
+(defsubst gnugo--root-prop (prop &optional tree)
+  (cdr (assq prop (gnugo--root-node tree))))
+
+(defun gnugo--set-root-prop (prop value &optional tree)
+  (let* ((root (gnugo--root-node tree))
+         (cur (assq prop root)))
+    (if cur
+        (setcdr cur value)
+      (push (cons prop value)
+            (cdr (last root))))))
 
 (defun gnugo-goto-pos (pos)
   "Move point to board position POS, a letter-number string."
   (goto-char (point-min))
-  (forward-line (- (1+ (gnugo-treeroot :SZ))
+  (forward-line (- (1+ (gnugo-get :SZ))
                    (string-to-number (substring pos 1))))
   (forward-char 1)
   (forward-char (+ (if (= 32 (following-char)) 1 2)
@@ -464,7 +477,7 @@ when you are sure the command cannot fail."
          (%lpad (gnugo-f 'lpad))
          (%rpad (gnugo-f 'rpad))
          (ispc-props (list 'category (gnugo-f 'ispc) 'rear-nonsticky t))
-         (size (gnugo-treeroot :SZ))
+         (size (gnugo-get :SZ))
          (size-string (number-to-string size)))
     (goto-char (point-min))
     (put-text-property (point) (1+ (point)) 'category (gnugo-f 'tpad))
@@ -625,42 +638,45 @@ interactively with a prefix arg (i.e., RSEL is `(4)'), display
 similarly, but suffix with the mover (either \":B\" or \":W\").
 If RSEL is the symbol `car' return the most-recent move; if
 `cadr', the next-to-most-recent move; if `count' the number of
-moves thus far.
+moves thus far; if `two' the last two moves as a list, oldest last.
 
 For all other values of RSEL, do nothing and return nil."
   (interactive "P")
-  (let ((size (gnugo-treeroot :SZ))
-        col
-        monkey mem
-        acc node mprop move)
-    (setq monkey (gnugo-get :monkey)
-          mem (aref monkey 1))
+  (let* ((monkey (gnugo-get :monkey))
+         (mem (aref monkey 0))
+         (size (gnugo-get :SZ))
+         col
+         acc node mprop move)
     (cl-labels
-        ((as-pos (cc) (if (string= "tt" cc)
+        ((as-pos (cc) (if (string= "" cc)
                           "PASS"
                         (setq col (aref cc 0))
                         (format "%c%d"
                                 (+ ?A (- (if (> ?i col) col (1+ col)) ?a))
                                 (- size (- (aref cc 1) ?a)))))
-         (next (byp) (when (setq node (caar mem)
+         (as-pos-maybe (x) (if (string= "resign" x)
+                               x
+                             (as-pos x)))
+         (next (byp) (when (setq node (pop mem)
                                  mprop (or (assq :B node)
                                            (assq :W node)))
-                       (setq move (as-pos (cdr mprop))
-                             mem (cdr mem))
+                       (setq move (as-pos-maybe (cdr mprop)))
                        (push (if byp
                                  (format "%s%s" move (car mprop))
                                move)
                              acc)))
+         (nn () (next nil))
          (tell () (message "(%d moves) %s"
                            (length acc)
                            (mapconcat 'identity (nreverse acc) " ")))
-         (finish (byp) (while (next byp)) (tell)))
+         (finish (byp) (while mem (next byp)) (tell)))
       (pcase rsel
         (`(4) (finish t))
         (`nil (finish nil))
-        (`car              (car (next nil)))
-        (`cadr  (next nil) (car (next nil)))
+        (`car        (car (nn)))
+        (`cadr  (nn) (car (nn)))
         (`count (aref monkey 2))
+        (`two (nn) (nn) acc)
         (_ nil)))))
 
 (defun gnugo-boss-is-near ()
@@ -669,12 +685,15 @@ For all other values of RSEL, do nothing and return nil."
   (while (gnugo-board-buffer-p)
     (bury-buffer)))
 
-(defun gnugo-note (property value &optional movep mogrifyp)
+(defsubst gnugo--passp (string)
+  (string= "PASS" string))
+
+(defun gnugo-note (property value &optional mogrifyp)
   (when mogrifyp
-    (let ((sz (gnugo-treeroot :SZ)))
+    (let ((sz (gnugo-get :SZ)))
       (cl-labels
-          ((mog (pos) (if (string= "PASS" pos)
-                          "tt"
+          ((mog (pos) (if (gnugo--passp pos)
+                          ""
                         (let* ((col (aref pos 0))
                                (one (+ ?a (- col (if (< ?H col) 1 0) ?A)))
                                (two (+ ?a (- sz (string-to-number
@@ -685,15 +704,16 @@ For all other values of RSEL, do nothing and return nil."
                       (mog value))))))
   (let* ((fruit (list (cons property value)))
          (monkey (gnugo-get :monkey))
-         (loc (aref monkey 0)))
-    (if movep
-        (let ((mem (aref monkey 1)))
+         (mem (aref monkey 0)))
+    (if (memq property '(:B :W))
+        (let ((tree (gnugo-get :sgf-gametree))
+              (bidx (aref monkey 1)))
+          (push fruit mem)
           ;; todo: do variation check/merge/branch here.
-          (setcdr loc (list fruit))
-          (aset monkey 0 (setq loc (cdr loc)))
-          (aset monkey 1 (cons loc mem))
-          (aset monkey 2 (1+ (aref monkey 2))))
-      (setcdr (last (car loc)) fruit))))
+          (setf (aref monkey 0) mem
+                (aref tree bidx) mem)
+          (incf (aref monkey 2)))
+      (setcdr (last (car mem)) fruit))))
 
 (defun gnugo-close-game (end-time resign)
   (gnugo-put :game-end-time end-time)
@@ -739,7 +759,7 @@ For all other values of RSEL, do nothing and return nil."
                   :scoring-seed
                   :game-end-time))
     (gnugo-put prop nil))
-  (let* ((root (car (gnugo-get :sgf-gametree)))
+  (let* ((root (gnugo--root-node))
          (cur (assq :RE root)))
     (when cur
       (assert (not (eq cur (car root))) nil
@@ -752,18 +772,16 @@ For all other values of RSEL, do nothing and return nil."
          (start (gnugo-get :waiting-start))
          (now (current-time))
          (resignp (string= "resign" move))
-         (passp (string= "PASS" move))
+         (passp (gnugo--passp move))
          (head (gnugo-move-history 'car))
-         (onep (and head (string= "PASS" head)))
+         (onep (and head (gnugo--passp head)))
          (donep (or resignp (and onep passp))))
     (unless passp
       (gnugo-merge-showboard-results))
     (gnugo-put :last-mover color)
     (when userp
       (gnugo-put :last-user-bpos (and (not passp) (not resignp) move)))
-    (gnugo-note (if (string= "black" color) :B :W) move t (not resignp))
-    (when resignp
-      (gnugo-note :EV "resignation"))
+    (gnugo-note (if (gnugo--blackp color) :B :W) move (not resignp))
     (when start
       (gnugo-put :last-waiting (cadr (time-subtract now start))))
     (when donep
@@ -875,7 +893,7 @@ its move."
         (dolist (group dead)
           (unless (cdar group)
             (let (ov pall c (color (caar group)))
-              (setq c (if (string= "black" color) "x" "o"))
+              (setq c (if (gnugo--blackp color) "x" "o"))
               (dolist (pos (cdr group))
                 (gnugo-goto-pos pos)
                 (setq p (point) ov (make-overlay p (1+ p)))
@@ -892,7 +910,7 @@ its move."
     ;; window update
     (when (setq window (get-buffer-window (current-buffer)))
       (let* ((gridp (not (memq :nogrid buffer-invisibility-spec)))
-             (size (gnugo-treeroot :SZ))
+             (size (gnugo-get :SZ))
              (under10p (< size 10))
              (h (- (truncate (- (window-height window)
                                 (* size (gnugo-get :hmul))
@@ -964,7 +982,7 @@ its move."
                  (let (acc cut c)
                    (while (setq cut (string-match "~[bwpmtu]" cur))
                      (aset cur cut ?%)
-                     (setq cut (1+ cut) c (aref cur cut))
+                     (setq c (aref cur (incf cut)))
                      (aset cur cut ?s)
                      (push
                       `(,(intern (format "squig-%c" c))
@@ -1112,7 +1130,7 @@ To start a game try M-x gnugo."
   (let* ((pos (gnugo-position))
          (orig-b-m-p (buffer-modified-p))
          blurb stones)
-    (unless (memq (char-after) '(?X ?O))
+    (unless (memq (following-char) '(?X ?O))
       (user-error "No stone at %s" pos))
     (setq blurb (message "Computing %s stones ..." w/d)
           stones (gnugo-lsquery "%s_stones %s" w/d pos))
@@ -1120,7 +1138,7 @@ To start a game try M-x gnugo."
     (setplist (gnugo-f 'anim) nil)
     (let* ((spec (if (gnugo-get :display-using-images)
                      (loop with yin  = (get-text-property (point) 'gnugo-yin)
-                           with yang = (gnugo-yang (char-after))
+                           with yang = (gnugo-yang (following-char))
                            with up   = (get (gnugo-yy yin yang t) 'display)
                            with dn   = (get (gnugo-yy yin yang) 'display)
                            for n below (length gnugo-animation-string)
@@ -1274,6 +1292,12 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
                          "as before"
                        "NOTE: this is a switch!")))
 
+(defsubst gnugo--nodep (x)
+  (keywordp (caar x)))
+
+(defsubst gnugo--SZ! (size)
+  (gnugo-put :SZ size))
+
 (defun gnugo-read-sgf-file (filename)
   "Load the first game tree from FILENAME, a file in SGF format."
   (interactive "fSGF file to load: ")
@@ -1312,36 +1336,19 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
                     coll))
     (gnugo-put :sgf-collection coll)
     (gnugo-put :sgf-gametree tree)
-    (let* ((loc tree)
-           (count 0)
-           mem node play game-over)
-      (while (setq node (car loc))
-        (when (setq play (or (assq :B node)
-                             (assq :W node)))
-          ;; SGF[4] allows "" to mean PASS.  For now,
-          ;; we normalize here instead of at the lower layer.
-          (when (string= "" (cdr play))
-            (setcdr play "tt"))
-          (incf count)
-          (push loc mem))
-        (setq loc (cdr loc)))
+    ;; This is deliberately undocumented for now.
+    (gnugo--SZ! (gnugo--root-prop :SZ tree))
+    (let* ((mem (aref tree 0))
+           game-over)
+      (gnugo-put :monkey
+        (vector mem 0 (loop for node in mem
+                            count (or (assq :B node)
+                                      (assq :W node)))))
       (gnugo-put :game-over
         (setq game-over
-              (or (cdr (assq :RE (car tree)))
-                  (and (cdr mem)
-                       (equal '("tt" "tt")
-                              (let ((order (if (string= "black" wait)
-                                               '(:B :W)
-                                             '(:W :B))))
-                                (mapcar (lambda (pk)
-                                          (cdr (assq (funcall pk order)
-                                                     (car (funcall pk mem)))))
-                                        '(car cadr))))
+              (or (gnugo--root-prop :RE tree)
+                  (and (equal '("PASS" "PASS") (gnugo-move-history 'two))
                        'two-passes))))
-      (gnugo-put :monkey
-        (vector (or (car mem) tree)
-                mem
-                count))
       (when (and game-over
                  ;; (maybe) todo: user var to inhibit (can be slow)
                  t)
@@ -1369,8 +1376,6 @@ turn to play.  Optional second arg NOALT non-nil inhibits this."
   (let* ((n 0)
          (user-color (gnugo-get :user-color))
          (monkey (gnugo-get :monkey))
-         (mem (aref monkey 1))
-         (count (aref monkey 2))
          done ans)
     (cond ((and (numberp spec) (cl-plusp spec))
            (setq n spec done (lambda () (zerop n))))
@@ -1378,13 +1383,13 @@ turn to play.  Optional second arg NOALT non-nil inhibits this."
            (let ((pos (upcase spec)))
              (setq done `(lambda ()
                            (gnugo-goto-pos ,pos)
-                           (memq (char-after) '(?. ?+))))
+                           (memq (following-char) '(?. ?+))))
              (when (funcall done)
                (user-error "%s already clear" pos))
              (when (= (save-excursion
                         (gnugo-goto-pos pos)
-                        (char-after))
-                      (if (string= "black" user-color)
+                        (following-char))
+                      (if (gnugo--blackp user-color)
                           ?O
                         ?X))
                (user-error "%s not occupied by %s" pos user-color))))
@@ -1395,9 +1400,8 @@ turn to play.  Optional second arg NOALT non-nil inhibits this."
       (setq ans (gnugo--q "undo"))
       (unless (= ?= (aref ans 0))
         (user-error "%s" ans))
-      (aset monkey 2 (decf count))
-      (aset monkey 1 (setq mem (cdr mem)))
-      (aset monkey 0 (or (car mem) (gnugo-get :sgf-gametree)))
+      (decf (aref monkey 2))
+      (pop (aref monkey 0))
       (gnugo-put :last-mover (gnugo-other (gnugo-get :last-mover)))
       (gnugo-merge-showboard-results)   ; all
       (gnugo-refresh)                   ; this
@@ -1406,19 +1410,19 @@ turn to play.  Optional second arg NOALT non-nil inhibits this."
     (let* ((ulastp (string= (gnugo-get :last-mover) user-color))
 
            (ubpos (gnugo-move-history (if ulastp 'car 'cadr))))
-      (gnugo-put :last-user-bpos (if (and ubpos (not (string= "PASS" ubpos)))
+      (gnugo-put :last-user-bpos (if (and ubpos (not (gnugo--passp ubpos)))
                                      ubpos
                                    (gnugo-get :center-position)))
       (gnugo-refresh t)
       ;; preserve restricted-functionality semantics (todo: remove restriction)
-      (setcdr (aref monkey 0) nil)
+      (aset (gnugo-get :sgf-gametree) (aref monkey 1) (aref monkey 0))
       (when (and ulastp (not noalt))
         (gnugo-get-move (gnugo-get :gnugo-color))))))
 
-(defun gnugo-undo-one-move (&optional switch)
+(defun gnugo-undo-one-move (&optional me-next)
   "Undo exactly one move (perhaps GNU Go's, perhaps yours).
 Do not schedule a move by GNU Go even if it is GNU Go's turn to play.
-Prefix arg SWITCH means to arrange for you to play
+Prefix arg ME-NEXT means to arrange for you to play
 the color of the next move (and GNU Go the opposite).
 This is useful after loading an SGF file whose last
 move was done by the color you prefer to play:
@@ -1429,7 +1433,7 @@ See also `gnugo-undo-two-moves'."
   (interactive "P")
   (gnugo-gate)
   (gnugo-magic-undo 1 t)
-  (when switch
+  (when me-next
     (let* ((wait (gnugo-get :last-mover))
            (play (gnugo-other wait)))
       (gnugo--who-is-who wait play (string= play (gnugo-get :user-color)))
@@ -1471,10 +1475,8 @@ Also, add the `:RE' SGF property to the root node of the game tree."
       (sit-for 3)))
   (let ((b=  "   Black = ")
         (w=  "   White = ")
-        (res (let* ((node (car (aref (gnugo-get :monkey) 0)))
-                    (event (and node (cdr (assq :EV node)))))
-               (and event (string= "resignation" event)
-                    (if (assq :B node) "black" "white"))))
+        (res (when (string= "resign" (gnugo-move-history 'car))
+               (gnugo-get :last-mover)))
         blurb result)
     (if res
         (setq blurb (list
@@ -1497,17 +1499,17 @@ Also, add the `:RE' SGF property to the root node of the game tree."
              (w-terr (length (gnugo-lsquery terr-q "white")))
              (b-capt (string-to-number (gnugo-get :black-captures)))
              (w-capt (string-to-number (gnugo-get :white-captures)))
-             (komi   (gnugo-treeroot :KM)))
+             (komi   (gnugo--root-prop :KM)))
         (setq blurb (list "The game is over.  Final score:\n")
               result (gnugo-query "final_score %d" seed))
-        (cond ((string= "Chinese" (gnugo-treeroot :RU))
+        (cond ((string= "Chinese" (gnugo--root-prop :RU))
                (dolist (group live)
-                 (incf (if (string= "black" (caar group))
+                 (incf (if (gnugo--blackp (caar group))
                            b-terr
                          w-terr)
                        (length (cdr group))))
                (dolist (group dead)
-                 (incf (if (string= "black" (caar group))
+                 (incf (if (gnugo--blackp (caar group))
                            w-terr
                          b-terr)
                        (length (cdr group))))
@@ -1517,7 +1519,7 @@ Also, add the `:RE' SGF property to the root node of the game tree."
                      blurb))
               (t
                (dolist (group dead)
-                 (incf (if (string= "black" (caar group))
+                 (incf (if (gnugo--blackp (caar group))
                            w-terr
                          b-terr)
                        (* 2 (length (cdr group)))))
@@ -1553,11 +1555,7 @@ Also, add the `:RE' SGF property to the root node of the game tree."
           (yep "Game start" beg)
           (yep "       end" end))))
     (setq blurb (apply 'concat (nreverse blurb)))
-    (let* ((root (car (gnugo-get :sgf-gametree)))
-           (cur (assq :RE root)))
-      (if cur
-          (setcdr cur result)
-        (setcdr (last root) (list (cons :RE result)))))
+    (gnugo--set-root-prop :RE result)
     (switch-to-buffer (format "%s*GNUGO Final Score*" (gnugo-get :diamond)))
     (erase-buffer)
     (insert blurb)))
@@ -1683,12 +1681,12 @@ In this mode, keys do not self insert.
   (switch-to-buffer (generate-new-buffer "(Uninitialized GNUGO Board)"))
   (buffer-disable-undo)                 ; todo: undo undo undoing
   (kill-all-local-variables)
-  (setq truncate-lines t)
   (use-local-map gnugo-board-mode-map)
   (set (make-local-variable 'font-lock-defaults)
        '(gnugo-font-lock-keywords t))
-  (setq major-mode 'gnugo-board-mode)
-  (setq mode-name "GNUGO Board")
+  (setq major-mode 'gnugo-board-mode
+        mode-name "GNUGO Board"
+        truncate-lines t)
   (add-hook 'kill-buffer-hook 'gnugo-cleanup nil t)
   (set (make-local-variable 'gnugo-state)
        (make-hash-table :size (1- 42) :test 'eq))
@@ -1723,26 +1721,23 @@ In this mode, keys do not self insert.
         (args (read-string "GNU Go options: "
                            (car gnugo-option-history)
                            'gnugo-option-history))
-        (rules "Japanese")
         proc
         board-size user-color handicap komi minus-l infile)
-    (dolist (x '((board-size      19 "--boardsize")
-                 (user-color "black" "--color" "\\(black\\|white\\)")
-                 (handicap         0 "--handicap")
-                 (komi           0.0 "--komi")
-                 (minus-l        nil "\\([^-]\\|^\\)-l[ ]*" "[^ ]+")
-                 (infile         nil "--infile" "[ ]*[^ ]+")))
-      (destructuring-bind (var default opt &optional rx) x
-        (set var
-             (or (when (string-match opt args)
-                   (let ((start (match-end 0)) s)
-                     (string-match (or rx "[0-9.]+") args start)
-                     (setq s (match-string 0 args))
-                     (if rx s (string-to-number s))))
-                 default))))
+    (loop for (var default opt &optional rx)
+          in '((board-size      19 "--boardsize")
+               (user-color "black" "--color" "\\(black\\|white\\)")
+               (handicap         0 "--handicap")
+               (komi           0.0 "--komi")
+               (minus-l        nil "\\([^-]\\|^\\)-l[ ]*" "[^ ]+")
+               (infile         nil "--infile" "[ ]*[^ ]+"))
+          do (set var
+                  (or (when (string-match opt args)
+                        (let ((start (match-end 0)) s)
+                          (string-match (or rx "[0-9.]+") args start)
+                          (setq s (match-string 0 args))
+                          (if rx s (string-to-number s))))
+                      default)))
     (gnugo-put :user-color user-color)
-    (when (string-match "--chinese-rules" args)
-      (setq rules "Chinese"))
     (let ((proc-args (split-string args)))
       (gnugo-put :proc-args proc-args)
       (gnugo-put :proc (setq proc (apply 'start-process "gnugo"
@@ -1753,11 +1748,11 @@ In this mode, keys do not self insert.
     ;; Emacs is too protective sometimes, blech.
     (set-process-query-on-exit-flag proc nil)
     (when (or minus-l infile)
-      (dolist (x '((board-size "query_boardsize")
-                   (komi       "get_komi")
-                   (handicap   "get_handicap")))
-        (destructuring-bind (prop q) x
-          (set prop (string-to-number (gnugo-query q))))))
+      (loop for (prop q)
+            in '((board-size "query_boardsize")
+                 (komi       "get_komi")
+                 (handicap   "get_handicap"))
+            do (set prop (string-to-number (gnugo-query q)))))
     (gnugo-put :diamond (substring (process-name proc) 5))
     (gnugo-put :gnugo-color (gnugo-other user-color))
     (gnugo-put :highlight-last-move-spec
@@ -1766,24 +1761,27 @@ In this mode, keys do not self insert.
     (gnugo-put :rparen-ov (let ((ov (make-overlay 1 1)))
                             (overlay-put ov 'display ")")
                             ov))
-    (let ((tree (list (list '(:FF . 4) '(:GM . 1)))))
+    (let ((tree (vector (list (list '(:FF . 4) '(:GM . 1))))))
       (gnugo-put :sgf-gametree tree)
       (gnugo-put :sgf-collection (list tree))
-      (gnugo-put :monkey (vector tree nil 0)))
-    (let ((g-blackp (string= "white" user-color)))
-      (mapc (lambda (x) (apply 'gnugo-note x))
-            `((:SZ ,board-size)
-              (:DT ,(format-time-string "%Y-%m-%d"))
-              (:RU ,rules)
-              (:AP ("gnugo.el" . ,gnugo-version))
-              (:KM ,komi)
-              (,(if g-blackp :PW :PB) ,(user-full-name))
-              (,(if g-blackp :PB :PW) ,(concat "GNU Go "
-                                               (gnugo-query "version")))
-              ,@(when (not (zerop handicap))
-                  `((:HA ,handicap)
-                    (:AB ,(gnugo-lsquery "fixed_handicap %d" handicap)
-                         nil t)))))))
+      (gnugo-put :monkey (vector (aref tree 0) 0 0)))
+    (gnugo--SZ! board-size)
+    (loop with gb = (gnugo--blackp (gnugo-other user-color))
+          for (property value &optional mogrifyp) in
+          `((:SZ ,board-size)
+            (:DT ,(format-time-string "%Y-%m-%d"))
+            (:RU ,(if (string-match "--chinese-rules" args)
+                      "Chinese"
+                    "Japanese"))
+            (:AP ("gnugo.el" . ,gnugo-version))
+            (:KM ,komi)
+            (,(if gb :PW :PB) ,(user-full-name))
+            (,(if gb :PB :PW) ,(concat "GNU Go " (gnugo-query "version")))
+            ,@(when (not (zerop handicap))
+                `((:HA ,handicap)
+                  (:AB ,(gnugo-lsquery "fixed_handicap %d" handicap)
+                       t))))
+          do (gnugo-note property value mogrifyp)))
   (gnugo-put :waiting-start (current-time))
   (gnugo-put :hmul 1)
   (gnugo-put :wmul 1)
@@ -1832,7 +1830,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                     (assoc sel all))))))
       ;; set up a new board
       (gnugo-board-mode)
-      (let ((half (truncate (1+ (gnugo-treeroot :SZ)) 2)))
+      (let ((half (truncate (1+ (gnugo-get :SZ)) 2)))
         (gnugo-goto-pos (format "A%d" half))
         (forward-char (* 2 (1- half)))
         (gnugo-put :last-user-bpos
@@ -1841,11 +1839,11 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
       ;; first move
       (gnugo-put :game-start-time (current-time))
       (let ((g (gnugo-get :gnugo-color))
-            (n (or (gnugo-treeroot :HA) 0))
+            (n (or (gnugo--root-prop :HA) 0))
             (u (gnugo-get :user-color)))
         (gnugo-put :last-mover g)
-        (when (or (and (string= "black" u) (< 1 n))
-                  (and (string= "black" g) (< n 2)))
+        (when (or (and (gnugo--blackp u) (< 1 n))
+                  (and (gnugo--blackp g) (< n 2)))
           (gnugo-put :last-mover u)
           (gnugo-refresh t)
           (gnugo-get-move g))))))
@@ -1954,6 +1952,10 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
         :post-thunk (lambda ()
                       (gnugo--unclose-game)
                       (gnugo-put :last-mover nil)
+                      ;; ugh
+                      (gnugo--SZ! (string-to-number
+                                   (gnugo-query
+                                    "query_boardsize")))
                       (gnugo-refresh t)))
 
       (deffull loadsgf
@@ -2054,6 +2056,13 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
   ;; - added: AP AR AS DD IP IY LN OT PM SE SQ ST SU VW
   "List of SGF[4] properties, each of the form (PROP NAME CONTEXT SPEC...).")
 
+(defun gnugo/sgf-root-node (tree)
+  (car (last (aref tree
+                   ;; Any bidx is fine, but we choose the last one since
+                   ;; usually the main line (bidx 0) is the longest.
+                   ;; Ugh, heuristics for the sake of performance. :-/
+                   (1- (length tree))))))
+
 (defun gnugo/sgf-read-file (filename)
   "Return the collection (list) of gametrees in SGF[4] file FILENAME."
   (let ((keywords (or (get 'gnugo/sgf-*r4-properties* :keywords)
@@ -2066,7 +2075,8 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                    (put 'gnugo/sgf-*r4-properties* :specs
                         (mapcar (lambda (full)
                                   (cons (car full) (cdddr full)))
-                                gnugo/sgf-*r4-properties*)))))
+                                gnugo/sgf-*r4-properties*))))
+        SZ)
     (cl-labels
         ((sw () (skip-chars-forward " \t\n"))
          (x (end) (let ((beg (point))
@@ -2076,7 +2086,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                                 (t (lambda (char) (or (= ?\: char)
                                                       (= ?\] char))))))
                         c)
-                    (while (not (funcall endp (setq c (char-after))))
+                    (while (not (funcall endp (setq c (following-char))))
                       (cond ((= ?\\ c)
                              (delete-char 1)
                              (if (eolp)
@@ -2087,14 +2097,23 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                              (insert " "))
                             (t (forward-char 1))))
                     (buffer-substring-no-properties beg (point))))
-         (one (type end) (unless (eq 'none type)
-                           (forward-char 1)
-                           (let ((s (x end)))
-                             (case type
-                               ((stone point move simpletext color) s)
-                               ((number real double) (string-to-number s))
-                               ((text) s)
-                               (t (error "Unhandled type: %S" type))))))
+         (one (type end) (let ((s (progn
+                                    (forward-char 1)
+                                    (x end))))
+                           (case type
+                             ((stone point move)
+                              ;; blech, begone bu"tt"-ugly blatherings
+                              ;; (but bide brobdingnagian boards)...
+                              (if (and (string= "tt" s)
+                                       SZ
+                                       (>= 19 SZ))
+                                  ""
+                                s))
+                             ((simpletext color) s)
+                             ((number real double) (string-to-number s))
+                             ((text) s)
+                             ((none) "")
+                             (t (error "Unhandled type: %S" type)))))
          (val (spec) (cond ((symbolp spec)
                             (one spec :end))
                            ((vectorp spec)
@@ -2102,7 +2121,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                             (one (aref spec 0) :end))
                            ((eq 'or (car spec))
                             (let ((v (one (cadr spec) t)))
-                              (if (= ?\] (char-after))
+                              (if (= ?\] (following-char))
                                   v
                                 (forward-char 1)
                                 ;; todo: this assumes `spec' has the form
@@ -2116,7 +2135,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                                     (one (cdr spec) :end)))))
          (short (who) (when (eobp)
                         (error "Unexpected EOF while reading %s" who)))
-         (atvalp () (= ?\[ (char-after)))
+         (atvalp () (= ?\[ (following-char)))
          (PROP () (let (name spec ltype)
                     (sw) (short 'property)
                     (when (looking-at "[A-Z]")
@@ -2142,38 +2161,72 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                                     (forward-char -1)
                                     (nreverse ls))))
                          (forward-char 1))))))
-         (NODE () (let (prop props)
-                    (sw) (short 'node)
-                    (when (= ?\; (char-after))
-                      (forward-char 1)
-                      (while (setq prop (PROP))
-                        (push prop props))
-                      (nreverse props))))
-         (TREE () (let (nodes)
-                    (while (and (sw) (not (eobp)))
-                      (case (char-after)
-                        (?\; (push (NODE) nodes))
-                        (?\( (forward-char 1)
-                             (push (TREE) nodes))
-                        (?\) (forward-char 1))))
-                    (nreverse nodes))))
+         (morep () (and (sw) (not (eobp))))
+         (seek (c) (and (morep) (= c (following-char))))
+         (seek-into (c) (when (seek c)
+                          (forward-char 1)
+                          t))
+         (NODE () (when (seek-into ?\;)
+                    (loop with prop
+                          while (setq prop (PROP))
+                          collect (progn
+                                    (when (eq :SZ (car prop))
+                                      (setq SZ (cdr prop)))
+                                    prop))))
+         (TREE (parent)
+               (let ((ls parent)
+                     node)
+                 (seek-into ?\()
+                 (while (seek ?\;)
+                   (push (setq node (NODE))
+                         ls))
+                 (prog1
+                     (if (seek ?\()
+                         ;; multiple
+                         (loop while (seek ?\()
+                               append (TREE ls))
+                       ;; singular
+                       (list ls))
+                   (seek-into ?\))))))
       (with-temp-buffer
         (insert-file-contents filename)
-        (let (trees)
-          (while (and (sw) (not (eobp)) (= 40 (char-after))) ; left paren
-            (forward-char 1)
-            (push (TREE) trees))
-          (nreverse trees))))))
+        (loop while (morep)
+              collect (apply 'vector (TREE nil)))))))
+
+(defun gnugo/sgf-hang-from-root (tree)
+  (let ((ht (make-hash-table :test 'eq))
+        (leaves (append tree nil)))
+    (cl-labels
+        ((hang (stack)
+               (loop
+                with rh                 ; rectified history
+                with bp                 ; branch point
+                for node in stack
+                until (setq bp (gethash node ht))
+                do (puthash node
+                            (push node rh) ; good for now: ½τ
+                            ht)
+                finally return
+                (if (not bp)
+                    ;; first run: main line
+                    rh
+                  ;; subsequent runs: grafts (value discarded)
+                  (setcdr bp (nconc
+                              ;; Maintain order of ‘leaves’.
+                              (let ((was (cdr bp)))
+                                (if (gnugo--nodep (car was))
+                                    (list was)
+                                  was))
+                              (list rh)))))))
+      (setq tree (hang (pop leaves)))
+      (mapc #'hang leaves)
+      tree)))
 
 (defun gnugo/sgf-write-file (collection filename)
   ;; take responsibility for our actions
-  (dolist (tree collection)
-    (let* ((root (car tree))
-           (who (assq :AP root))
-           (fruit (cons "gnugo.el" gnugo-version)))
-      (if who
-          (setcdr who fruit)
-        (setcdr (last root) (list (cons :AP fruit))))))
+  (let ((me (cons "gnugo.el" gnugo-version)))
+    (dolist (tree collection)
+      (gnugo--set-root-prop :AP me tree)))
   ;; write it out
   (let ((aft-newline-appreciated '(:AP :GN :PB :PW :HA :KM :RU :RE))
         (specs (mapcar (lambda (full)
@@ -2190,32 +2243,47 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                         ((< 60 (current-column))
                          (save-excursion
                            (goto-char p)
-                           (insert "\n"))))))
+                           (insert "\n")))))
+         (>>prop (prop)
+                 (setq p (point)
+                       name (car prop)
+                       v (cdr prop))
+                 (insert (substring (symbol-name name) 1))
+                 (cond ((not v))
+                       ((and (consp v)
+                             (setq spec (cdr (assq name specs)))
+                             (memq (car spec)
+                                   '(list elist)))
+                        (>>nl)
+                        (let ((>> (if (consp (cadr spec))
+                                      #'>>two
+                                    #'>>one)))
+                          (dolist (little-v v)
+                            (setq p (point))
+                            (funcall >> little-v)
+                            (>>nl))))
+                       ((consp v)
+                        (>>two v) (>>nl))
+                       (t
+                        (>>one v) (>>nl))))
+         (>>node (node)
+                 (loop initially (insert ";")
+                       for prop in node
+                       do (>>prop prop)))
+         (>>tree (tree)
+                 (unless (zerop (current-column))
+                   (newline))
+                 (insert "(")
+                 (dolist (x tree)
+                   (funcall (if (gnugo--nodep x)
+                                #'>>node
+                              #'>>tree)
+                            x))
+                 (insert ")")))
       (with-temp-buffer
         (dolist (tree collection)
-          (insert "(")
-          (dolist (node tree)
-            (insert ";")
-            (dolist (prop node)
-              (setq p (point)
-                    name (car prop)
-                    v (cdr prop))
-              (insert (substring (symbol-name name) 1))
-              (cond ((not v))
-                    ((and (consp v)
-                          (memq (car (setq spec (cdr (assq name specs))))
-                                '(list elist)))
-                     (>>nl)
-                     (let ((>> (if (consp (cadr spec))
-                                   #'>>two
-                                 #'>>one)))
-                       (dolist (little-v v)
-                         (setq p (point)) (funcall >> little-v) (>>nl))))
-                    ((consp v)
-                     (>>two v) (>>nl))
-                    (t
-                     (>>one v) (>>nl)))))
-          (insert ")\n"))
+          (>>tree (gnugo/sgf-hang-from-root tree)))
+        (newline)
         (write-file filename)))))
 
 ;;; gnugo.el ends here
