@@ -1,5 +1,9 @@
 # History of user-visible changes
 
+## 2014-03-25 (0.7.3)
+
+* New user option `company-etags-ignore-case`.
+
 ## 2014-03-19 (0.7.2)
 
 * Support for Emacs 22 officially dropped.
