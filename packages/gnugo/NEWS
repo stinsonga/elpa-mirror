@@ -4,9 +4,6 @@ See the end for copying conditions.
 NB: "RCS: X..Y " means that the particular release includes
     changes in the RCS repo, revision 1.X through 1.Y (inclusive).
 
-Hint: (highlight-phrase "[0-9][.][0-9][.][0-9]+\\|[0-9]+[.][.][0-9]+"
-                        'hi-red-b)
-
 
 - next | NOT YET RELEASED
   - bugfixes

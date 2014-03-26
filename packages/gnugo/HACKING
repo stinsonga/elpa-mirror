@@ -53,6 +53,10 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 ***** short: TITLE-FRAGMENT "; nfc." [LF LF DISCUSSION...]
 *** don't bother w/ ChangeLog for "short" commit-message format
 * other conventions: see [[file:.dir-locals.el][.dir-locals.el]]
+* NEWS nostalgia
+(with-current-buffer (find-file "NEWS")
+  (highlight-phrase "[0-9][.][0-9][.][0-9]+\\|[0-9]+[.][.][0-9]+"
+                          'hi-red-b))
 * etc
 #+odd
 
