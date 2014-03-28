@@ -1364,6 +1364,8 @@ check that the position is occupied by a stone of the user's color,
 and if so, remove moves from the history until that position is clear.
 If SPEC is a positive number, remove exactly that many moves from the
 history, signaling an error if the history is exhausted before finishing.
+If SPEC Is 0 (zero), remove either one or two moves,
+so that you are to play next.
 If SPEC is not recognized, signal \"bad spec\" error.
 
 Refresh the board for each move undone.  If (in the case where SPEC is
@@ -1377,8 +1379,13 @@ turn to play.  Optional second arg NOALT non-nil inhibits this."
          (user-color (gnugo-get :user-color))
          (monkey (gnugo-get :monkey))
          done ans)
-    (cond ((and (numberp spec) (cl-plusp spec))
-           (setq n spec done (lambda () (zerop n))))
+    (cond ((numberp spec)
+           (setq n (if (zerop spec)
+                       (if (string= user-color (gnugo-get :last-mover))
+                           1
+                         2)
+                     spec)
+                 done (lambda () (zerop n))))
           ((string-match "^[a-z]" spec)
            (let ((pos (upcase spec)))
              (setq done `(lambda ()
@@ -1446,10 +1453,7 @@ However, if you are the last mover, undo only one move.
 Regardless, after undoing, it is your turn to play again."
   (interactive)
   (gnugo-gate)
-  (gnugo-magic-undo (if (string= (gnugo-get :user-color)
-                                 (gnugo-get :last-mover))
-                        1
-                      2)))
+  (gnugo-magic-undo 0))
 
 (defun gnugo-display-final-score ()
   "Display final score and other info in another buffer (when game over).
