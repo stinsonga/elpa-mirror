@@ -688,6 +688,10 @@ For all other values of RSEL, do nothing and return nil."
 (defsubst gnugo--passp (string)
   (string= "PASS" string))
 
+(defsubst gnugo--no-regrets (monkey tree)
+  (eq (aref tree (aref monkey 1))
+      (aref monkey 0)))
+
 (defun gnugo-note (property value &optional mogrifyp)
   (when mogrifyp
     (let ((sz (gnugo-get :SZ)))
@@ -702,16 +706,71 @@ For all other values of RSEL, do nothing and return nil."
         (setq value (if (consp value)
                         (mapcar #'mog value)
                       (mog value))))))
-  (let* ((fruit (list (cons property value)))
+  (let* ((pair (cons property value))
+         (fruit (list pair))
          (monkey (gnugo-get :monkey))
          (mem (aref monkey 0)))
     (if (memq property '(:B :W))
         (let ((tree (gnugo-get :sgf-gametree))
               (bidx (aref monkey 1)))
-          (push fruit mem)
-          ;; todo: do variation check/merge/branch here.
-          (setf (aref monkey 0) mem
-                (aref tree bidx) mem)
+          ;; Detect déjà-vu.  That is, when placing "A", avoid:
+          ;;
+          ;;   X---Y---A         new
+          ;;        \
+          ;;         --A---B     old
+          ;;
+          ;; (such "variations" do not actually vary!) in favor of:
+          ;;
+          ;;   X---Y---A         new
+          ;;            \
+          ;;             --B     old
+          ;;
+          ;; This presumes ‘bidx’ is 0 (main line) and that
+          ;; all growth should occur on the main line.
+          (cl-labels
+              ((continue-on (bx)
+                            (rotatef (aref tree bidx)
+                                     (aref tree bx))))
+            ;; ugh, quadratic
+            (loop
+             with count = (length tree)
+             with (bx previous)
+             for i
+             ;; Start with latest / highest likelihood for hit.
+             ;; todo: prune unfeasible candidates
+             from 0 above (- count)
+             if (setq bx (mod i count)
+                      previous
+                      ;; todo: early termination based on move number
+                      (loop for m on (aref tree bx)
+                            if (eq mem (cdr m))
+                            return
+                            (when (equal pair (assoc property (car m)))
+                              m)
+                            finally return
+                            nil))
+             ;; yes => follow
+             return
+             (progn
+               ;; (message "déjà-vu! %d follows %d" bidx bx)
+               (unless (= bidx bx)
+                 (continue-on bx))
+               (setq mem previous))
+             ;; no => construct
+             finally do
+             (progn
+               ;; (message "new %d" bidx)
+               (unless (gnugo--no-regrets monkey tree)
+                 ;; <grumble grumble> SGF sez "move" node in the root
+                 ;; position of a (sub-)gametree is "bad style".  :-/
+                 (let ((where (memq tree (gnugo-get :sgf-collection))))
+                   (setq tree (apply 'vector (append tree (list mem))))
+                   (continue-on count)
+                   (gnugo-put :sgf-gametree tree)
+                   (setcar where tree)))
+               (push fruit mem)
+               (aset tree bidx mem))))
+          (setf (aref monkey 0) mem)
           (incf (aref monkey 2)))
       (setcdr (last (car mem)) fruit))))
 
@@ -1357,7 +1416,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
     (set-buffer-modified-p nil)
     (gnugo--who-is-who wait play samep)))
 
-(defun gnugo-magic-undo (spec &optional noalt)
+(defun gnugo-magic-undo (spec &optional noalt keep)
   "Undo moves on the GNUGO Board, based on SPEC, a string or number.
 If SPEC is a string in the form of a board position (e.g., \"T19\"),
 check that the position is occupied by a stone of the user's color,
@@ -1373,11 +1432,17 @@ a number) after finishing, the color to play is not the user's color,
 schedule a move by GNU Go.
 
 After undoing the move(s), schedule a move by GNU Go if it is GNU Go's
-turn to play.  Optional second arg NOALT non-nil inhibits this."
+turn to play.  Optional second arg NOALT non-nil inhibits this.
+
+Optional third arg KEEP non-nil means do not prune the undone moves
+from the gametree, such that they become a sub-gametree (variation)
+when play resumes."
   (gnugo-gate)
   (let* ((n 0)
          (user-color (gnugo-get :user-color))
          (monkey (gnugo-get :monkey))
+         (tree (gnugo-get :sgf-gametree))
+         (remorseful (not (gnugo--no-regrets monkey tree)))
          done ans)
     (cond ((numberp spec)
            (setq n (if (zerop spec)
@@ -1421,8 +1486,8 @@ turn to play.  Optional second arg NOALT non-nil inhibits this."
                                      ubpos
                                    (gnugo-get :center-position)))
       (gnugo-refresh t)
-      ;; preserve restricted-functionality semantics (todo: remove restriction)
-      (aset (gnugo-get :sgf-gametree) (aref monkey 1) (aref monkey 0))
+      (unless (or keep remorseful)
+        (aset tree (aref monkey 1) (aref monkey 0)))
       (when (and ulastp (not noalt))
         (gnugo-get-move (gnugo-get :gnugo-color))))))
 
@@ -1454,6 +1519,18 @@ Regardless, after undoing, it is your turn to play again."
   (interactive)
   (gnugo-gate)
   (gnugo-magic-undo 0))
+
+(defun gnugo-oops (&optional position)
+  "Like `gnugo-undo-two-moves', but keep the undone moves.
+The kept moves become a sub-gametree (variation) when play resumes.
+Prefix arg means, instead, undo repeatedly up to and including
+the move which placed the stone at point, like `\\[gnugo-fancy-undo]'."
+  (interactive "P")
+  (gnugo-gate)
+  (gnugo-magic-undo (if position
+                        (gnugo-position)
+                      0)
+                    nil t))
 
 (defun gnugo-display-final-score ()
   "Display final score and other info in another buffer (when game over).
@@ -1871,6 +1948,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
           ("\M-u"     . gnugo-undo-one-move)
           ("u"        . gnugo-undo-two-moves)
           ("\C-?"     . gnugo-undo-two-moves)
+          ("o"        . gnugo-oops)
           ("\C-l"     . gnugo-refresh)
           ("\M-_"     . gnugo-boss-is-near)
           ("_"        . gnugo-boss-is-near)
