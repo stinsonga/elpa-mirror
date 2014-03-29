@@ -629,6 +629,10 @@ when you are sure the command cannot fail."
         (when (setq very-strange (get-text-property (1+ cut) 'intangible))
           (put-text-property cut (1+ cut) 'intangible very-strange))))))
 
+(defsubst gnugo--move-prop (node)
+  (or (assq :B node)
+      (assq :W node)))
+
 (defun gnugo-move-history (&optional rsel)
   "Determine and return the game's move history.
 Optional arg RSEL controls side effects and return value.
@@ -658,8 +662,7 @@ For all other values of RSEL, do nothing and return nil."
                                x
                              (as-pos x)))
          (next (byp) (when (setq node (pop mem)
-                                 mprop (or (assq :B node)
-                                           (assq :W node)))
+                                 mprop (gnugo--move-prop node))
                        (setq move (as-pos-maybe (cdr mprop)))
                        (push (if byp
                                  (format "%s%s" move (car mprop))
@@ -1401,8 +1404,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
            game-over)
       (gnugo-put :monkey
         (vector mem 0 (loop for node in mem
-                            count (or (assq :B node)
-                                      (assq :W node)))))
+                            count (gnugo--move-prop node))))
       (gnugo-put :game-over
         (setq game-over
               (or (gnugo--root-prop :RE tree)
