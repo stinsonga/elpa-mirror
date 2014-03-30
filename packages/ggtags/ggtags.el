@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013-2014  Free Software Foundation, Inc.
 
 ;; Author: Leo Liu <sdl.web@gmail.com>
-;; Version: 0.8.0
+;; Version: 0.8.1
 ;; Keywords: tools, convenience
 ;; Created: 2013-01-29
 ;; URL: https://github.com/leoliu/ggtags
@@ -34,8 +34,7 @@
 ;; `ggtags-mode'. See the README in https://github.com/leoliu/ggtags
 ;; for more details.
 ;;
-;; All commands are made available in the menu-bar entry `Ggtags' in
-;; `ggtags-mode'.
+;; All commands are available from the `Ggtags' menu in `ggtags-mode'.
 
 ;;; Code:
 
@@ -141,9 +140,15 @@ directory local variables is not enabled by default per
   :type '(repeat string)
   :group 'ggtags)
 
-(defcustom ggtags-auto-jump-to-first-match t
-  "Non-nil to automatically jump to the first match."
-  :type 'boolean
+(defcustom ggtags-auto-jump-to-match 'first
+  "Strategy on how to jump to match: nil, first or history.
+
+    nil: never automatically jump to any match;
+  first: jump to the first match;
+history: jump to the match stored in search history."
+  :type '(choice (const :tag "First match" first)
+                 (const :tag "Search History" history)
+                 (const :tag "Never" nil))
   :group 'ggtags)
 
 (defcustom ggtags-global-window-height 8 ; ggtags-global-mode
@@ -179,6 +184,12 @@ If an integer abbreviate only names longer than that number."
                  (const cscope))
   :group 'ggtags)
 
+(defcustom ggtags-global-use-color t
+  "Non-nil to use color in output if supported by Global."
+  :type 'boolean
+  :safe 'booleanp
+  :group 'ggtags)
+
 (defcustom ggtags-global-ignore-case nil
   "Non-nil if Global should ignore case in the search pattern."
   :safe 'booleanp
@@ -202,8 +213,9 @@ This affects `ggtags-find-file' and `ggtags-grep'."
   :type 'integer
   :group 'ggtags)
 
-(defcustom ggtags-suppress-navigation-keys nil
-  "If non-nil key bindings in `ggtags-navigation-map' are suppressed."
+(defcustom ggtags-enable-navigation-keys t
+  "If non-nil key bindings in `ggtags-navigation-map' are enabled."
+  :safe 'booleanp
   :type 'boolean
   :group 'ggtags)
 
@@ -244,11 +256,6 @@ properly update `ggtags-mode-map'."
   :type 'key-sequence
   :group 'ggtags)
 
-(defcustom ggtags-completing-read-function completing-read-function
-  "Ggtags specific `completing-read-function' (which see)."
-  :type 'function
-  :group 'ggtags)
-
 (defcustom ggtags-highlight-tag-delay 0.25
   "Time in seconds before highlighting tag at point."
   :set (lambda (sym value)
@@ -264,6 +271,10 @@ properly update `ggtags-mode-map'."
   :type 'function
   :group 'ggtags)
 
+;; Used by ggtags-global-mode
+(defvar ggtags-global-error "match"
+  "Stem of message to print when no matches are found.")
+
 (defconst ggtags-bug-url "https://github.com/leoliu/ggtags/issues")
 
 (defvar ggtags-global-last-buffer nil)
@@ -273,10 +284,6 @@ properly update `ggtags-mode-map'."
 (defvar ggtags-highlight-tag-overlay nil)
 
 (defvar ggtags-highlight-tag-timer nil)
-
-;; Used by ggtags-global-mode
-(defvar ggtags-global-error "match"
-  "Stem of message to print when no matches are found.")
 
 (defmacro ggtags-ensure-global-buffer (&rest body)
   (declare (indent 0))
@@ -397,8 +404,18 @@ Value is new modtime if updated."
 (defvar-local ggtags-project-root 'unset
   "Internal variable for project root directory.")
 
+(defun ggtags-clear-project-root ()
+  (kill-local-variable 'ggtags-project-root))
+
 ;;;###autoload
 (defun ggtags-find-project ()
+  ;; See https://github.com/leoliu/ggtags/issues/42
+  ;;
+  ;; It is unsafe to cache `ggtags-project-root' in non-file buffers.
+  ;; But we keep the cache for a command's duration so that multiple
+  ;; calls of `ggtags-find-project' has no performance impact.
+  (unless buffer-file-name
+    (add-hook 'pre-command-hook #'ggtags-clear-project-root nil t))
   (let ((project (gethash ggtags-project-root ggtags-projects)))
     (if (ggtags-project-p project)
         (if (ggtags-project-expired-p project)
@@ -624,7 +641,6 @@ Do nothing if GTAGS exceeds the oversize limit unless FORCE."
 (defun ggtags-read-tag (&optional type confirm prompt require-match default)
   (ggtags-ensure-project)
   (let ((default (or default (ggtags-tag-at-point)))
-        (completing-read-function ggtags-completing-read-function)
         (prompt (or prompt (capitalize (symbol-name (or type 'tag)))))
         (ggtags-completion-flag (pcase type
                                   (`(or nil definition) "T")
@@ -640,9 +656,8 @@ Do nothing if GTAGS exceeds the oversize limit unless FORCE."
                  (completing-read
                   (format (if default "%s (default %s): " "%s: ") prompt default)
                   ggtags-completion-table nil require-match nil nil default))
-                ((not default)
-                 (user-error "No tag at point"))
-                (t (substring-no-properties default))))))
+                (default (substring-no-properties default))
+                (t (ggtags-read-tag type t prompt require-match default))))))
 
 (defun ggtags-global-build-command (cmd &rest args)
   ;; CMD can be definition, reference, symbol, grep, idutils
@@ -650,7 +665,8 @@ Do nothing if GTAGS exceeds the oversize limit unless FORCE."
                           "-v"
                           (format "--result=%s" ggtags-global-output-format)
                           (and ggtags-global-ignore-case "--ignore-case")
-                          (and (ggtags-find-project)
+                          (and ggtags-global-use-color
+                               (ggtags-find-project)
                                (ggtags-project-has-color (ggtags-find-project))
                                "--color=always")
                           (and (ggtags-find-project)
@@ -670,11 +686,12 @@ Do nothing if GTAGS exceeds the oversize limit unless FORCE."
 
 ;; takes three values: nil, t and a marker
 (defvar ggtags-global-start-marker nil)
-
 (defvar ggtags-global-exit-status 0)
 (defvar ggtags-global-match-count 0)
-
 (defvar ggtags-tag-ring-index nil)
+(defvar ggtags-global-search-history nil)
+
+(defvar ggtags-auto-jump-to-match-target nil)
 
 (defun ggtags-global-save-start-marker ()
   (when (markerp ggtags-global-start-marker)
@@ -687,13 +704,16 @@ Do nothing if GTAGS exceeds the oversize limit unless FORCE."
          (split-window-preferred-function ggtags-split-window-function)
          ;; See http://debbugs.gnu.org/13594
          (display-buffer-overriding-action
-          (if (and ggtags-auto-jump-to-first-match
+          (if (and ggtags-auto-jump-to-match
                    ;; Appeared in emacs 24.4.
                    (fboundp 'display-buffer-no-window))
               (list #'display-buffer-no-window)
             display-buffer-overriding-action))
          (env ggtags-process-environment))
     (setq ggtags-global-start-marker (point-marker))
+    (setq ggtags-auto-jump-to-match-target
+          (nth 4 (assoc (ggtags-global-search-id command default-directory)
+                        ggtags-global-search-history)))
     (ggtags-navigation-mode +1)
     (setq ggtags-global-exit-status 0
           ggtags-global-match-count 0)
@@ -744,7 +764,7 @@ definition tags."
         (not buffer-file-name)
         (and (ggtags-find-project)
              (not (ggtags-project-has-refs (ggtags-find-project)))))
-    (ggtags-find-tag 'definition name))
+    (ggtags-find-tag 'definition (shell-quote-argument name)))
    (t (ggtags-find-tag
        (format "--from-here=%d:%s"
                (line-number-at-pos)
@@ -757,16 +777,16 @@ definition tags."
                                       buffer-file-name)
                      (ggtags-current-project-root)
                    (locate-dominating-file buffer-file-name "GTAGS")))))
-       name))))
+       (shell-quote-argument name)))))
 
 (defun ggtags-find-reference (name)
   (interactive (list (ggtags-read-tag 'reference current-prefix-arg)))
-  (ggtags-find-tag 'reference name))
+  (ggtags-find-tag 'reference (shell-quote-argument name)))
 
 (defun ggtags-find-other-symbol (name)
   "Find tag NAME that is a reference without a definition."
   (interactive (list (ggtags-read-tag 'symbol current-prefix-arg)))
-  (ggtags-find-tag 'symbol name))
+  (ggtags-find-tag 'symbol (shell-quote-argument name)))
 
 (defun ggtags-quote-pattern (pattern)
   (prin1-to-string (substring-no-properties pattern)))
@@ -824,7 +844,7 @@ Global and Emacs."
    (let ((args (query-replace-read-args "Query replace (regexp)" t t)))
      (list (nth 0 args) (nth 1 args) (nth 2 args))))
   (unless ggtags-navigation-mode
-    (let ((ggtags-auto-jump-to-first-match nil))
+    (let ((ggtags-auto-jump-to-match nil))
       (ggtags-grep from)))
   (let ((file-form
          '(let ((files))
@@ -843,8 +863,6 @@ Global and Emacs."
             (nreverse files))))
     (tags-query-replace from to delimited file-form)))
 
-(defvar ggtags-global-search-history nil)
-
 (defun ggtags-global-search-id (cmd directory)
   (sha1 (concat directory (make-string 1 0) cmd)))
 
@@ -861,7 +879,7 @@ Global and Emacs."
 (defun ggtags-global-rerun-search-1 (data)
   (pcase data
     (`(,cmd ,dir ,env ,line ,_text)
-     (with-current-buffer (let ((ggtags-auto-jump-to-first-match nil)
+     (with-current-buffer (let ((ggtags-auto-jump-to-match nil)
                                 ;; Switch current project to DIR.
                                 (default-directory dir)
                                 (ggtags-project-root dir)
@@ -925,7 +943,7 @@ Global and Emacs."
     (erase-buffer)
     (special-mode)
     (use-local-map ggtags-global-rerun-search-map)
-    (setq-local ggtags-navigation-mode nil)
+    (setq-local ggtags-enable-navigation-keys nil)
     (setq-local bookmark-make-record-function #'ggtags-make-bookmark-record)
     (setq truncate-lines t)
     (cl-labels ((prop (s) (propertize s 'face 'minibuffer-prompt))
@@ -1009,7 +1027,7 @@ Use \\[jump-to-register] to restore the search session."
                    (list (read-file-name "Browse file: " nil nil t)
                          (read-number "Line: " 1))
                  (list buffer-file-name (line-number-at-pos))))
-  (cl-check-type line integer)
+  (cl-check-type line (integer 1))
   (or (and file (file-exists-p file)) (error "File `%s' doesn't exist" file))
   (ggtags-check-project)
   (or (file-exists-p (expand-file-name "HTML" (ggtags-current-project-root)))
@@ -1058,7 +1076,22 @@ Use \\[jump-to-register] to restore the search session."
   (interactive)
   (ggtags-next-mark 'previous))
 
+(defvar ggtags-view-tag-history-mode-map
+  (let ((m (make-sparse-keymap)))
+    (define-key m "\M-n" 'next-error-no-select)
+    (define-key m "\M-p" 'previous-error-no-select)
+    (define-key m "q" (lambda () (interactive) (quit-window t)))
+    m))
+
+(define-derived-mode ggtags-view-tag-history-mode tabulated-list-mode "TagHist"
+  :abbrev-table nil :group 'ggtags)
+
 (defun ggtags-view-tag-history ()
+  "Pop to a buffer listing visited locations from newest to oldest.
+The buffer is a next error buffer and works with standard
+commands `next-error' and `previous-error'.
+
+\\{ggtags-view-tag-history-mode-map}"
   (interactive)
   (and (ring-empty-p find-tag-marker-ring)
        (user-error "Tag ring empty"))
@@ -1066,31 +1099,25 @@ Use \\[jump-to-register] to restore the search session."
         (inhibit-read-only t))
     (pop-to-buffer "*Tag Ring*")
     (erase-buffer)
-    (tabulated-list-mode)
+    (ggtags-view-tag-history-mode)
+    (setq next-error-function #'ggtags-view-tag-history-next-error
+          next-error-last-buffer (current-buffer))
     (setq tabulated-list-entries
           ;; Use a function so that revert can work properly.
           (lambda ()
             (let ((counter (ring-length find-tag-marker-ring))
                   (elements (or (ring-elements find-tag-marker-ring)
                                 (user-error "Tag ring empty")))
-                  (action
-                   (lambda (button) (interactive)
-                     (let ((m (button-get button 'marker)))
-                       (or (markerp m) (user-error "Marker dead"))
-                       (setq ggtags-tag-ring-index
-                             (ring-member find-tag-marker-ring m))
-                       (pop-to-buffer (marker-buffer m))
-                       (goto-char (marker-position m)))))
-                  (get-line
-                   (lambda (m)
-                     (with-current-buffer (marker-buffer m)
-                       (save-excursion
-                         (goto-char m)
-                         (buffer-substring (line-beginning-position)
-                                           (line-end-position)))))))
+                  (action (lambda (_button) (next-error 0)))
+                  (get-line (lambda (m)
+                              (with-current-buffer (marker-buffer m)
+                                (save-excursion
+                                  (goto-char m)
+                                  (buffer-substring (line-beginning-position)
+                                                    (line-end-position)))))))
               (setq tabulated-list-format
                     `[("ID" ,(max (1+ (floor (log counter 10))) 2)
-                       (lambda (x y) (< (car x) (car y))))
+                       car-less-than-car)
                       ("Buffer" ,(max (cl-loop for m in elements
                                                for b = (marker-buffer m)
                                                maximize
@@ -1125,7 +1152,22 @@ Use \\[jump-to-register] to restore the search session."
                       elements))))
     (setq tabulated-list-sort-key '("ID" . t))
     (tabulated-list-print)
-    (fit-window-to-buffer)))
+    (fit-window-to-buffer nil (floor (frame-height) 2))))
+
+(defun ggtags-view-tag-history-next-error (&optional arg reset)
+  (if (not reset)
+      (forward-button arg)
+    (goto-char (point-min))
+    (forward-button (if (button-at (point)) 0 1)))
+  (when (get-buffer-window)
+    (set-window-point (get-buffer-window) (point)))
+  (pcase (button-get (button-at (point)) 'marker)
+    ((and (pred markerp) m)
+     (if (eq (get-buffer-window) (selected-window))
+         (pop-to-buffer (marker-buffer m))
+       (switch-to-buffer (marker-buffer m)))
+     (goto-char (marker-position m)))
+    (_ (error "Dead marker"))))
 
 (defun ggtags-global-exit-message-function (_process-status exit-status msg)
   (setq ggtags-global-exit-status exit-status)
@@ -1175,7 +1217,7 @@ Use \\[jump-to-register] to restore the search session."
 (defvar ggtags-global-error-regexp-alist-alist
   (append
    `((path "^\\(?:[^\"'\n]*/\\)?[^ )\t\n]+$" 0)
-     ;; ACTIVE_ESCAPE	src/dialog.cc	172
+     ;; ACTIVE_ESCAPE   src/dialog.cc   172
      (ctags "^\\([^ \t\n]+\\)[ \t]+\\(.*?\\)[ \t]+\\([0-9]+\\)$"
             2 3 nil nil 2 (1 font-lock-function-name-face))
      ;; ACTIVE_ESCAPE     172 src/dialog.cc    #undef ACTIVE_ESCAPE
@@ -1250,6 +1292,20 @@ Use \\[jump-to-register] to restore the search session."
            (count-lines compilation-filter-start (point)))
   (when (and (> ggtags-global-output-lines 5) ggtags-navigation-mode)
     (ggtags-global--display-buffer))
+  (when (and (eq ggtags-auto-jump-to-match 'history)
+             (numberp ggtags-auto-jump-to-match-target)
+             ;; `ggtags-global-output-lines' is imprecise.
+             (> (line-number-at-pos (point-max))
+                ggtags-auto-jump-to-match-target))
+    (ggtags-forward-to-line ggtags-auto-jump-to-match-target)
+    (setq-local ggtags-auto-jump-to-match-target nil)
+    ;;
+    ;; Can't call `compile-goto-error' here becuase
+    ;; `compilation-filter' restores point and as a result commands
+    ;; dependent on point such as `ggtags-navigation-next-file' and
+    ;; `ggtags-navigation-previous-file' fail to work.
+    (setq-local compilation-auto-jump-to-first-error t)
+    (run-with-idle-timer 0 nil #'compilation-auto-jump (current-buffer) (point)))
   (make-local-variable 'ggtags-global-large-output)
   (when (> ggtags-global-output-lines ggtags-global-large-output)
     (cl-incf ggtags-global-large-output 500)
@@ -1257,24 +1313,24 @@ Use \\[jump-to-register] to restore the search session."
       (message "Output %d lines (Type `C-c C-k' to cancel)"
                ggtags-global-output-lines))))
 
-(defun ggtags-handle-single-match (buf how)
-  (if (string-prefix-p "exited abnormally" how)
-      ;; If exit abnormally display the buffer for inspection.
-      (ggtags-global--display-buffer)
-    (when (and ggtags-auto-jump-to-first-match
-               (save-excursion
-                 (goto-char (point-min))
-                 (not (ignore-errors
-                        (goto-char (compilation-next-single-property-change
-                                    (point) 'compilation-message))
-                        (end-of-line)
-                        (compilation-next-single-property-change
-                         (point) 'compilation-message)))))
-      ;; For the `compilation-auto-jump' in idle timer to run. See also:
-      ;; http://debbugs.gnu.org/13829
-      (sit-for 0)
-      (ggtags-navigation-mode -1)
-      (ggtags-navigation-mode-cleanup buf 0))))
+(defun ggtags-global-handle-exit (buf how)
+  "A function for `compilation-finish-functions' (which see)."
+  (cond
+   ((string-prefix-p "exited abnormally" how)
+    ;; If exit abnormally display the buffer for inspection.
+    (ggtags-global--display-buffer))
+   ((and ggtags-auto-jump-to-match
+         (not (pcase (compilation-next-single-property-change
+                      (point-min) 'compilation-message)
+                ((and pt (guard pt))
+                 (compilation-next-single-property-change
+                  (save-excursion (goto-char pt) (end-of-line) (point))
+                  'compilation-message)))))
+    ;; For the `compilation-auto-jump' in idle timer to run.
+    ;; See also: http://debbugs.gnu.org/13829
+    (sit-for 0)
+    (ggtags-navigation-mode -1)
+    (ggtags-navigation-mode-cleanup buf 0))))
 
 (defvar ggtags-global-mode-font-lock-keywords
   '(("^Global \\(exited abnormally\\|interrupt\\|killed\\|terminated\\)\\(?:.*with code \\([0-9]+\\)\\)?.*"
@@ -1290,8 +1346,12 @@ Use \\[jump-to-register] to restore the search session."
   (make-local-variable 'ggtags-global-output-format)
   (setq-local compilation-error-regexp-alist
               (list ggtags-global-output-format))
-  (setq-local compilation-auto-jump-to-first-error
-              ggtags-auto-jump-to-first-match)
+  (pcase ggtags-auto-jump-to-match
+    (`history (make-local-variable 'ggtags-auto-jump-to-match-target)
+              (setq-local compilation-auto-jump-to-first-error
+                          (not ggtags-auto-jump-to-match-target)))
+    (`nil (setq-local compilation-auto-jump-to-first-error nil))
+    (_ (setq-local compilation-auto-jump-to-first-error t)))
   (setq-local compilation-scroll-output nil)
   ;; See `compilation-move-to-column' for details.
   (setq-local compilation-first-column 0)
@@ -1306,8 +1366,9 @@ Use \\[jump-to-register] to restore the search session."
   (setq-local truncate-lines t)
   (jit-lock-register #'ggtags-abbreviate-files)
   (add-hook 'compilation-filter-hook 'ggtags-global-filter nil 'local)
-  (add-hook 'compilation-finish-functions 'ggtags-handle-single-match nil t)
+  (add-hook 'compilation-finish-functions 'ggtags-global-handle-exit nil t)
   (setq-local bookmark-make-record-function #'ggtags-make-bookmark-record)
+  (setq-local ggtags-enable-navigation-keys nil)
   (add-hook 'kill-buffer-hook (lambda () (ggtags-navigation-mode -1)) nil t))
 
 ;; NOTE: Need this to avoid putting menu items in
@@ -1334,7 +1395,7 @@ Use \\[jump-to-register] to restore the search session."
     map))
 
 (defvar ggtags-mode-map-alist
-  `((ggtags-navigation-mode . ,ggtags-navigation-map)))
+  `((ggtags-enable-navigation-keys . ,ggtags-navigation-map)))
 
 (defvar ggtags-navigation-mode-map
   (let ((map (make-sparse-keymap))
@@ -1351,10 +1412,10 @@ Use \\[jump-to-register] to restore the search session."
       '(menu-item "Finish navigation" ggtags-navigation-mode-done))
     (define-key menu [abort]
       '(menu-item "Abort" ggtags-navigation-mode-abort))
-    (define-key menu [last-error]
-      '(menu-item "Last error" ggtags-navigation-last-error))
-    (define-key menu [fist-error]
-      '(menu-item "Fist error" ggtags-navigation-first-error))
+    (define-key menu [last-match]
+      '(menu-item "Last match" ggtags-navigation-last-error))
+    (define-key menu [first-match]
+      '(menu-item "First match" ggtags-navigation-first-error))
     (define-key menu [previous-file]
       '(menu-item "Previous file" ggtags-navigation-previous-file))
     (define-key menu [next-file]
@@ -1407,13 +1468,13 @@ Use \\[jump-to-register] to restore the search session."
 (defun ggtags-navigation-mode-abort ()
   (interactive)
   (ggtags-navigation-mode -1)
+  (ggtags-navigation-mode-cleanup nil 0)
   ;; Run after (ggtags-navigation-mode -1) or
   ;; ggtags-global-start-marker might not have been saved.
   (when (and ggtags-global-start-marker
              (not (markerp ggtags-global-start-marker)))
     (setq ggtags-global-start-marker nil)
-    (pop-tag-mark))
-  (ggtags-navigation-mode-cleanup nil 0))
+    (pop-tag-mark)))
 
 (defun ggtags-navigation-next-file (n)
   (interactive "p")
@@ -1507,8 +1568,7 @@ Use \\[jump-to-register] to restore the search session."
       (progn
         ;; Higher priority for `ggtags-navigation-mode' to avoid being
         ;; hijacked by modes such as `view-mode'.
-        (unless ggtags-suppress-navigation-keys
-          (add-to-list 'emulation-mode-map-alists 'ggtags-mode-map-alist))
+        (add-to-list 'emulation-mode-map-alists 'ggtags-mode-map-alist)
         (add-hook 'next-error-hook 'ggtags-global-next-error-function)
         (add-hook 'minibuffer-setup-hook 'ggtags-minibuffer-setup-function))
     (setq emulation-mode-map-alists
@@ -1518,7 +1578,7 @@ Use \\[jump-to-register] to restore the search session."
 
 (defun ggtags-minibuffer-setup-function ()
   ;; Disable ggtags-navigation-mode in minibuffer.
-  (setq-local ggtags-navigation-mode nil))
+  (setq-local ggtags-enable-navigation-keys nil))
 
 (defun ggtags-kill-file-buffers (&optional interactive)
   "Kill all buffers visiting files in current project."
@@ -1833,25 +1893,23 @@ to nil disables displaying this information.")
 ;;;###autoload
 (defun ggtags-try-complete-tag (old)
   "A function suitable for `hippie-expand-try-functions-list'."
-  (with-no-warnings                     ; to avoid loading hippie-exp
-    (unless old
-      (he-init-string (if (looking-back "\\_<.*" (line-beginning-position))
-                          (match-beginning 0)
-                        (point))
-                      (point))
-      (setq he-expand-list
-            (and (not (equal he-search-string ""))
-                 (ggtags-find-project)
-                 (sort (all-completions he-search-string
-                                        ggtags-completion-table)
-                       #'string-lessp))))
-    (if (null he-expand-list)
-        (progn
-          (if old (he-reset-string))
-          nil)
-      (he-substitute-string (car he-expand-list))
-      (setq he-expand-list (cdr he-expand-list))
-      t)))
+  (eval-and-compile (require 'hippie-exp))
+  (unless old
+    (he-init-string (or (car (funcall ggtags-bounds-of-tag-function)) (point))
+                    (point))
+    (setq he-expand-list
+          (and (not (equal he-search-string ""))
+               (ggtags-find-project)
+               (sort (all-completions he-search-string
+                                      ggtags-completion-table)
+                     #'string-lessp))))
+  (if (null he-expand-list)
+      (progn
+        (if old (he-reset-string))
+        nil)
+    (he-substitute-string (car he-expand-list))
+    (setq he-expand-list (cdr he-expand-list))
+    t))
 
 (defun ggtags-reload (&optional force)
   (interactive "P")
