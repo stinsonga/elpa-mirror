@@ -75,6 +75,7 @@
 ;;; Code:
 
 (eval-when-compile (require 'cl))       ; use the source luke!
+(require 'ascii-art-to-unicode)         ; for `aa2u'
 (require 'time-date)                    ; for `time-subtract'
 
 ;;;---------------------------------------------------------------------------
@@ -633,6 +634,17 @@ when you are sure the command cannot fail."
   (or (assq :B node)
       (assq :W node)))
 
+(defun gnugo--as-pos-func (size)
+  (lexical-let ((size size))
+    ;; rv
+    (lambda (cc)
+      (if (string= "" cc)
+          "PASS"
+        (let ((col (aref cc 0)))
+          (format "%c%d"
+                  (+ ?A (- (if (> ?i col) col (1+ col)) ?a))
+                  (- size (- (aref cc 1) ?a))))))))
+
 (defun gnugo-move-history (&optional rsel)
   "Determine and return the game's move history.
 Optional arg RSEL controls side effects and return value.
@@ -681,6 +693,226 @@ For all other values of RSEL, do nothing and return nil."
         (`count (aref monkey 2))
         (`two (nn) (nn) acc)
         (_ nil)))))
+
+(defun gnugo-frolic-in-the-leaves ()
+  "Display the game tree in a *GNUGO Frolic* buffer.
+This looks something like:
+
+  1 B  --  E7    E7    E7    E7
+  2 W  --  K10   K10   K10   K10
+  3 B  --  E2    E2    E2    E2
+  4 W  --  J3    J3    J3    J3
+  5 B  --  A6    A6    A6    A6
+  6 W  --  C9    C9    C9    C9
+           │
+           ├─────┬─────┐
+           │     │     │
+  7 B  --  H7    B8    C8    C8
+                       │
+                       ├─────┐
+                       │     │
+  8 W  --  D9    D9    D9    E9
+  9 B  --              H8    H8
+ 10 W  --              PASS  PASS
+ 11 B  --              H5    PASS
+ 12 W  --              PASS
+ 13 B  --             *PASS
+
+with 0, 1, ... N (in this case N is 3) in the header line
+to indicate the branches.  Branch 0 is the \"main line\".
+Point (* in this example) indicates the current position,
+and moves not actually on the game tree (e.g., E7, branch 3)
+are dimmed.  The buffer is in View minor mode."
+  (interactive)
+  (let* ((buf (get-buffer-create (concat (gnugo-get :diamond)
+                                         "*GNUGO Frolic*")))
+         ;; todo: use defface once we finally succumb to ‘customize’
+         (dimmed-node-face (list :inherit 'default
+                                 :foreground "gray50"))
+         (tree (gnugo-get :sgf-gametree))
+         (seen (make-hash-table :test 'eq))
+         (soil (make-hash-table :test 'eq))
+         (width (length tree))
+         (lanes (number-sequence 0 (1- width)))
+         (monkey (gnugo-get :monkey))
+         (as-pos (gnugo--as-pos-func (gnugo-get :SZ)))
+         (at (car (aref monkey 0)))
+         (bidx (aref monkey 1))
+         (max-move-num (aref monkey 2))
+         (eert (make-vector width nil))
+         finish)
+    (cl-flet
+        ((on (node)
+             (gethash node seen))
+         (emph (s face)
+               (propertize s 'face face))
+         (fsi (fmt &rest args)
+              (insert (apply 'format fmt args))))
+      ;; breathe in
+      (let ((order (make-hash-table :test 'eq))
+            (monkey-on-main-line (zerop bidx))
+            fixup)
+        ;; monkey knows a lot
+        (loop with move-num = (1+ max-move-num)
+              with acc
+              for node in (aref monkey 0)
+              do (puthash node bidx seen)
+              if (gnugo--move-prop node)
+              do (progn
+                   (push node acc)
+                   (puthash node (decf move-num) order))
+              finally do (progn
+                           (unless monkey-on-main-line
+                             (setq fixup (apply 'vector acc)))
+                           (aset eert bidx acc)))
+        ;; but monkey does not know everything
+        (loop
+         for bx below width
+         do (loop
+             with (bef acc node fork cur)
+             for ls on (aref tree bx)
+             do (if (setq node (car ls)
+                          fork (on node))
+                    (cl-flet
+                        ((link (other)
+                               (push other (gethash node soil))))
+                      (let ((move-num (gethash node order)))
+                        (when (< bx fork)
+                          (assert (and (not monkey-on-main-line)
+                                       (= fork bidx)))
+                          (loop for old in ls
+                                while (< bx (on old))
+                                do (puthash old bx seen))
+                          (when (< move-num (length fixup))
+                            (link (aref fixup move-num))))
+                        ;; ugh, wasteful
+                        (when (setq bef (copy-sequence (aref eert fork)))
+                          (setcdr (nthcdr (1- move-num) bef)
+                                  acc))
+                        (aset eert bx (or bef acc))
+                        (dolist (node acc)
+                          (puthash node (incf move-num)
+                                   order))
+                        (setq max-move-num (max max-move-num
+                                                move-num))
+                        (when acc
+                          (link (car acc)))))
+                  (puthash node bx seen)
+                  (when (gnugo--move-prop node)
+                    (push node acc)))
+             until fork)))
+      ;; breathe out
+      (switch-to-buffer buf)
+      (when view-mode
+        (view-mode -1))
+      (buffer-disable-undo)
+      (erase-buffer)
+      (setq header-line-format
+            (concat (make-string 11 ?\s)
+                    (mapconcat (lambda (n)
+                                 (format "%-5s" n))
+                               lanes
+                               " ")))
+      (loop
+       for n                            ; move number
+       from 1 upto max-move-num
+       do
+       (loop
+        with (move forks br)
+        initially (fsi "%3d %s  -- "
+                       n (aref ["W" "B"] (logand 1 n)))
+        for bx below width
+        do (let* ((node (pop (aref eert bx)))
+                  (ok (when node
+                        (= bx (on node))))
+                  (s (cond ((not node) "")
+                           ((not (setq move (gnugo--move-prop node))) "-")
+                           (t (funcall as-pos (cdr move))))))
+             ;; todo: move this into "breathe in"
+             (when (and ok (setq br (gethash node soil)))
+               (setq br (delq bx (mapcar #'on br)))
+               (when (and br (car (aref eert bx)))
+                 (push bx br))
+               ;; do not point w/ a fist
+               (when br
+                 (push (cons bx (sort br '<))
+                       forks)))
+             (fsi " %-5s"
+                  (cond ((and (eq at node)
+                              (or ok (= bx bidx)))
+                         (when (= bx bidx)
+                           (setq finish (point)))
+                         (emph s (list :inherit 'default
+                                       :foreground (frame-parameter
+                                                    nil 'cursor-color))))
+                        ((not ok)
+                         (emph s dimmed-node-face))
+                        (t s))))
+        finally do
+        (when (progn (newline)
+                     (setq forks (nreverse forks)))
+          (let* ((margin (make-string 11 ?\s))
+                 (count (length forks))
+                 (heads (mapcar #'car forks))
+                 (tails (mapcar #'cdr forks)))
+            (cl-flet*
+                ((spaced (lanes func)
+                         (mapconcat func lanes "     "))
+                 ;;  live to play               ~   ~              ()
+                 ;;  play to learn             (+) (-)       . o O
+                 ;;  learn to live  --ttn        .M.   _____U
+                 (dashed (lanes func) ;;;       _____ ^^^^
+                         (mapconcat func lanes "-----"))
+                 (cnxn (lanes set)
+                       (spaced lanes (lambda (bx)
+                                       (if (memq bx set)
+                                           "|"
+                                         " "))))
+                 (pad-unless (condition)
+                             (if condition
+                                 ""
+                               "     "))
+                 (edge (set)
+                       (insert margin
+                               (cnxn lanes set)
+                               "\n")))
+              (edge heads)
+              (loop with bef
+                    for ls on forks
+                    do (let* ((one (car ls))
+                              (yes (append
+                                    ;; "aft" heads
+                                    (mapcar 'car (cdr ls))
+                                    ;; ‘bef’ tails
+                                    (apply 'append (mapcar 'cdr bef))))
+                              (ord (sort one '<))
+                              (beg (car ord))
+                              (end (car (last ord))))
+                         (cl-flet
+                             ((also (b e) (cnxn (number-sequence b e)
+                                                yes)))
+                           (insert
+                            margin
+                            (also 0 (1- beg))
+                            (pad-unless (zerop beg))
+                            (dashed (number-sequence beg end)
+                                    (lambda (bx)
+                                      (cond ((memq bx ord) "+")
+                                            ((memq bx yes) "|")
+                                            (t             "-"))))
+                            (pad-unless (>= end width))
+                            (also (1+ end) (1- width))
+                            "\n"))
+                         (push one bef)))
+              (edge (apply 'append tails))
+              ;; NB: This requires ascii-art-to-unicode.el 1.5 or later.
+              (aa2u (line-beginning-position
+                     (- (1+ (length forks))))
+                    (point))))))))
+    (when finish
+      (goto-char finish)
+      (recenter (- (count-lines (line-beginning-position) (point-max)))))
+    (view-mode 1)))
 
 (defun gnugo-boss-is-near ()
   "Do `bury-buffer' until the current one is not a GNU Board."
@@ -1955,6 +2187,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
           ("\M-_"     . gnugo-boss-is-near)
           ("_"        . gnugo-boss-is-near)
           ("h"        . gnugo-move-history)
+          ("L"        . gnugo-frolic-in-the-leaves)
           ("i"        . gnugo-toggle-image-display-command)
           ("w"        . gnugo-worm-stones)
           ("W"        . gnugo-worm-data)
