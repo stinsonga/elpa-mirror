@@ -660,19 +660,13 @@ For all other values of RSEL, do nothing and return nil."
   (interactive "P")
   (let* ((monkey (gnugo-get :monkey))
          (mem (aref monkey 0))
-         (size (gnugo-get :SZ))
+         (as-pos (gnugo--as-pos-func (gnugo-get :SZ)))
          col
          acc node mprop move)
     (cl-labels
-        ((as-pos (cc) (if (string= "" cc)
-                          "PASS"
-                        (setq col (aref cc 0))
-                        (format "%c%d"
-                                (+ ?A (- (if (> ?i col) col (1+ col)) ?a))
-                                (- size (- (aref cc 1) ?a)))))
-         (as-pos-maybe (x) (if (string= "resign" x)
+        ((as-pos-maybe (x) (if (string= "resign" x)
                                x
-                             (as-pos x)))
+                             (funcall as-pos x)))
          (next (byp) (when (setq node (pop mem)
                                  mprop (gnugo--move-prop node))
                        (setq move (as-pos-maybe (cdr mprop)))
