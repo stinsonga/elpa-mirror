@@ -663,7 +663,7 @@ For all other values of RSEL, do nothing and return nil."
          (as-pos (gnugo--as-pos-func (gnugo-get :SZ)))
          col
          acc node mprop move)
-    (cl-labels
+    (cl-flet*
         ((as-pos-maybe (x) (if (string= "resign" x)
                                x
                              (funcall as-pos x)))
@@ -924,7 +924,7 @@ are dimmed.  The buffer is in View minor mode."
 (defun gnugo-note (property value &optional mogrifyp)
   (when mogrifyp
     (let ((sz (gnugo-get :SZ)))
-      (cl-labels
+      (cl-flet
           ((mog (pos) (if (gnugo--passp pos)
                           ""
                         (let* ((col (aref pos 0))
@@ -956,7 +956,7 @@ are dimmed.  The buffer is in View minor mode."
           ;;
           ;; This presumes ‘bidx’ is 0 (main line) and that
           ;; all growth should occur on the main line.
-          (cl-labels
+          (cl-flet
               ((continue-on (bx)
                             (rotatef (aref tree bidx)
                                      (aref tree bx))))
@@ -1012,7 +1012,7 @@ are dimmed.  The buffer is in View minor mode."
     (if (or (eq t resign)
             (and (stringp resign)
                  (string-match "[BW][+][Rr]esign" resign)))
-        (cl-labels
+        (cl-flet
             ((ls (color) (mapcar
                           (lambda (x)
                             (cons (list color)
@@ -1526,7 +1526,7 @@ to enable full functionality."
       (setcdr now (cons group (cdr now)))
       ;; disabled permanently -- too wrong
       (when nil
-        (cl-labels
+        (cl-flet
             ((populate (group)
                        (let ((color (caar group)))
                          (dolist (stone (cdr group))
@@ -1772,7 +1772,7 @@ Also, add the `:RE' SGF property to the root node of the game tree."
                      (y-or-n-p "Game still in play. Stop play now? ")))
       (user-error "Sorry, game still in play"))
     (unless game-over
-      (cl-labels
+      (cl-flet
           ((pass (userp)
                  (message "Playing PASS for %s ..."
                           (gnugo-get (if userp :user-color :gnugo-color)))
@@ -1855,7 +1855,7 @@ Also, add the `:RE' SGF property to the root node of the game tree."
           (end (gnugo-get :game-end-time)))
       (when end
         (push "\n" blurb)
-        (cl-labels
+        (cl-flet
             ((yep (pretty moment)
                   (push (format-time-string
                          (concat pretty ": %Y-%m-%d %H:%M:%S %z\n")
@@ -2207,7 +2207,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
           ("\C-c\C-p" . gnugo-describe-internal-properties))))
 
 (unless (get 'help :gnugo-gtp-command-spec)
-  (cl-labels
+  (cl-flet*
       ((sget (x) (get x :gnugo-gtp-command-spec))
        (jam (cmd prop val) (put cmd :gnugo-gtp-command-spec
                                 (plist-put (sget cmd) prop val)))
@@ -2225,7 +2225,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
         (info "(gnugo)GTP command reference")
         (when sel (setq sel (intern (car sel))))
         (let (buffer-read-only pad cur spec output found)
-          (cl-labels
+          (cl-flet
               ((note (s) (insert pad "[NOTE: gnugo.el " s ".]\n")))
             (goto-char (point-min))
             (save-excursion
@@ -2507,7 +2507,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
 (defun gnugo/sgf-hang-from-root (tree)
   (let ((ht (make-hash-table :test 'eq))
         (leaves (append tree nil)))
-    (cl-labels
+    (cl-flet
         ((hang (stack)
                (loop
                 with rh                 ; rectified history
