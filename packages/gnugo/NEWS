@@ -16,6 +16,7 @@ NB: "RCS: X..Y " means that the particular release includes
   - new keybinding for ‘gnugo-undo-one-move’: M-u
   - ‘gnugo-undo-one-move’ can optionally arrange for you to play next
   - new command: ‘o’ (gnugo-oops)
+  - new command: ‘L’ (gnugo-frolic-in-the-leaves)
   - ‘gnugo-move-history’ returns last two moves w/ RSEL ‘two’
   - performance improvements
   - of interest to hackers (see source, BI => backward incompatible)
