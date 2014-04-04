@@ -953,22 +953,21 @@ are dimmed.  The buffer is in View minor mode."
           ;;   X---Y---A         new
           ;;            \
           ;;             --B     old
-          ;;
-          ;; This presumes ‘bidx’ is 0 (main line) and that
-          ;; all growth should occur on the main line.
           (cl-flet
               ((continue-on (bx)
                             (rotatef (aref tree bidx)
                                      (aref tree bx))))
-            ;; ugh, quadratic
             (loop
              with count = (length tree)
              with (bx previous)
              for i
              ;; Start with latest / highest likelihood for hit.
              ;; todo: prune unfeasible candidates
-             from 0 above (- count)
-             if (setq bx (mod i count)
+             from (if (gnugo--no-regrets monkey tree)
+                      1
+                    0)
+             below count
+             if (setq bx (mod (+ bidx i) count)
                       previous
                       ;; todo: early termination based on move number
                       (loop for m on (aref tree bx)
@@ -993,8 +992,10 @@ are dimmed.  The buffer is in View minor mode."
                  ;; <grumble grumble> SGF sez "move" node in the root
                  ;; position of a (sub-)gametree is "bad style".  :-/
                  (let ((where (memq tree (gnugo-get :sgf-collection))))
-                   (setq tree (apply 'vector (append tree (list mem))))
-                   (continue-on count)
+                   (setq tree (let ((ls (append tree nil)))
+                                ;; copy old to the right of new
+                                (push mem (nthcdr bidx ls))
+                                (apply 'vector ls)))
                    (gnugo-put :sgf-gametree tree)
                    (setcar where tree)))
                (push fruit mem)
