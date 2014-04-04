@@ -953,53 +953,48 @@ are dimmed.  The buffer is in View minor mode."
           ;;   X---Y---A         new
           ;;            \
           ;;             --B     old
-          (cl-flet
-              ((continue-on (bx)
-                            (rotatef (aref tree bidx)
-                                     (aref tree bx))))
-            (loop
-             with count = (length tree)
-             with (bx previous)
-             for i
-             ;; Start with latest / highest likelihood for hit.
-             ;; todo: prune unfeasible candidates
-             from (if (gnugo--no-regrets monkey tree)
-                      1
-                    0)
-             below count
-             if (setq bx (mod (+ bidx i) count)
-                      previous
-                      ;; todo: early termination based on move number
-                      (loop for m on (aref tree bx)
-                            if (eq mem (cdr m))
-                            return
-                            (when (equal pair (assoc property (car m)))
-                              m)
-                            finally return
-                            nil))
-             ;; yes => follow
-             return
-             (progn
-               ;; (message "déjà-vu! %d follows %d" bidx bx)
-               (unless (= bidx bx)
-                 (continue-on bx))
-               (setq mem previous))
-             ;; no => construct
-             finally do
-             (progn
-               ;; (message "new %d" bidx)
-               (unless (gnugo--no-regrets monkey tree)
-                 ;; <grumble grumble> SGF sez "move" node in the root
-                 ;; position of a (sub-)gametree is "bad style".  :-/
-                 (let ((where (memq tree (gnugo-get :sgf-collection))))
-                   (setq tree (let ((ls (append tree nil)))
-                                ;; copy old to the right of new
-                                (push mem (nthcdr bidx ls))
-                                (apply 'vector ls)))
-                   (gnugo-put :sgf-gametree tree)
-                   (setcar where tree)))
-               (push fruit mem)
-               (aset tree bidx mem))))
+          (loop
+           with count = (length tree)
+           with (bx previous)
+           for i
+           ;; Start with latest / highest likelihood for hit.
+           ;; todo: prune unfeasible candidates
+           from (if (gnugo--no-regrets monkey tree)
+                    1
+                  0)
+           below count
+           if (setq bx (mod (+ bidx i) count)
+                    previous
+                    ;; todo: early termination based on move number
+                    (loop for m on (aref tree bx)
+                          if (eq mem (cdr m))
+                          return
+                          (when (equal pair (assoc property (car m)))
+                            m)
+                          finally return
+                          nil))
+           ;; yes => follow
+           return
+           (progn
+             (unless (= bidx bx)
+               (rotatef (aref tree bidx)
+                        (aref tree bx)))
+             (setq mem previous))
+           ;; no => construct
+           finally do
+           (progn
+             (unless (gnugo--no-regrets monkey tree)
+               ;; <grumble grumble> SGF sez "move" node in the root
+               ;; position of a (sub-)gametree is "bad style".  :-/
+               (let ((where (memq tree (gnugo-get :sgf-collection))))
+                 (setq tree (let ((ls (append tree nil)))
+                              ;; copy old to the right of new
+                              (push mem (nthcdr bidx ls))
+                              (apply 'vector ls)))
+                 (gnugo-put :sgf-gametree tree)
+                 (setcar where tree)))
+             (push fruit mem)
+             (aset tree bidx mem)))
           (setf (aref monkey 0) mem)
           (incf (aref monkey 2)))
       (setcdr (last (car mem)) fruit))))
