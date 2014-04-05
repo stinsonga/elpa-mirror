@@ -245,6 +245,14 @@ As things stabilize probably more info will be added to this docstring."
 See `gnugo-put'."
   (gethash key gnugo-state))
 
+(defsubst gnugo--tree-ends (tree)
+  (aref tree 2))
+
+(defsubst gnugo--set-tree-ends (tree ends)
+  (aset tree 2 ends)
+  ;; hmm, probably unnecessary
+  tree)
+
 (defun gnugo-describe-internal-properties ()
   "Pretty-print `gnugo-state' properties in another buffer.
 Handle the big, slow-to-render, and/or uninteresting ones specially."
@@ -262,6 +270,12 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
                                     (length val)))
                            (:sgf-collection
                             (length val))
+                           (:sgf-gametree
+                            (list (hash-table-count
+                                   (aref val 0))
+                                  (hash-table-count
+                                   (aref val 1))
+                                  (gnugo--tree-ends val)))
                            (:monkey
                             (let ((mem (aref val 0)))
                               (list (aref val 1)
@@ -377,7 +391,8 @@ when you are sure the command cannot fail."
   (split-string (apply 'gnugo-query message-format args)))
 
 (defun gnugo--root-node (&optional tree)
-  (gnugo/sgf-root-node (or tree (gnugo-get :sgf-gametree))))
+  (aref (or tree (gnugo-get :sgf-gametree))
+        3))
 
 (defsubst gnugo--root-prop (prop &optional tree)
   (cdr (assq prop (gnugo--root-node tree))))
@@ -632,21 +647,6 @@ when you are sure the command cannot fail."
         ;; (this also means we cannot include `intangible' in `front-sticky')
         (when (setq very-strange (get-text-property (1+ cut) 'intangible))
           (put-text-property cut (1+ cut) 'intangible very-strange))))))
-
-(defsubst gnugo--tree-ends (tree)
-  tree)
-
-(defun gnugo--set-tree-ends-actually (tree ends) ; ugh
-  (let ((where (memq tree (gnugo-get :sgf-collection))))
-    (setq tree ends)
-    (gnugo-put :sgf-gametree tree)
-    (setcar where tree)
-    tree))
-
-(defmacro gnugo--set-tree-ends (tree-var ends) ; ugh**2
-  `(set (quote ,tree-var)
-        (gnugo--set-tree-ends-actually
-         ,tree-var ,ends)))
 
 (defsubst gnugo--move-prop (node)
   (or (assq :B node)
@@ -2382,19 +2382,22 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
   ;; - added: AP AR AS DD IP IY LN OT PM SE SQ ST SU VW
   "List of SGF[4] properties, each of the form (PROP NAME CONTEXT SPEC...).")
 
-(defun gnugo/sgf-root-node (tree)
-  (car (last (aref (gnugo--tree-ends tree)
-                   ;; Any bidx is fine, but we choose the last one since
-                   ;; usually the main line (bidx 0) is the longest.
-                   ;; Ugh, heuristics for the sake of performance. :-/
-                   (1- (length tree))))))
-
 (defun gnugo/sgf-create (file-or-data &optional data-p)
   "Return the SGF[4] collection parsed from FILE-OR-DATA.
 FILE-OR-DATA is a file name or SGF[4] data.
 Optional arg DATA-P non-nil means FILE-OR-DATA is
 a string containing SGF[4] data.
-A collection is a list of gametrees."
+A collection is a list of gametrees, each a vector of four elements:
+
+ MNUM -- `eq' hash: node to move numbers; non-\"move\" nodes
+         have a move number of the previous \"move\" node (or zero)
+
+ KIDS -- `eq' hash: node to node list (branch points only)
+
+ ENDS -- a vector of node lists, with shared tails
+         (last element of all the lists is the root node)
+
+ ROOT -- the root node"
   ;; Arg names inspired by `create-image', despite -P being frowned upon.
   (let ((keywords (or (get 'gnugo/sgf-*r4-properties* :keywords)
                       (put 'gnugo/sgf-*r4-properties* :keywords
@@ -2504,20 +2507,30 @@ A collection is a list of gametrees."
                                     (when (eq :SZ (car prop))
                                       (setq SZ (cdr prop)))
                                     prop))))
-         (TREE (parent)
+         (TREE (parent mnum kids)
                (let ((ls parent)
-                     node)
+                     prev node)
                  (seek-into ?\()
                  (while (seek ?\;)
-                   (push (setq node (NODE))
+                   (setq prev (car ls)
+                         node (NODE))
+                   (puthash node (+ (if (gnugo--move-prop node)
+                                        1
+                                      0)
+                                    (gethash prev mnum 0))
+                            mnum)
+                   (unless (listp (gethash prev kids t))
+                     (push node (gethash prev kids)))
+                   (push node
                          ls))
                  (prog1
                      (if (not (seek ?\())
                          ;; singular
                          (list ls)
                        ;; multiple
+                       (puthash node (list) kids)
                        (loop while (seek ?\()
-                             append (TREE ls)))
+                             append (TREE ls mnum kids)))
                    (seek-into ?\))))))
       (with-temp-buffer
         (if (not data-p)
@@ -2525,7 +2538,14 @@ A collection is a list of gametrees."
           (insert file-or-data)
           (goto-char (point-min)))
         (loop while (morep)
-              collect (apply 'vector (TREE nil)))))))
+              collect (let* ((mnum (make-hash-table :test 'eq))
+                             (kids (make-hash-table :test 'eq))
+                             (ends (TREE nil mnum kids))
+                             (root (car (last (car ends)))))
+                        (vector mnum
+                                kids
+                                (apply 'vector ends)
+                                root)))))))
 
 (defun gnugo/sgf-hang-from-root (tree)
   (let ((ht (make-hash-table :test 'eq))
