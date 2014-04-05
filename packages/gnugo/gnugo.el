@@ -632,6 +632,21 @@ when you are sure the command cannot fail."
         (when (setq very-strange (get-text-property (1+ cut) 'intangible))
           (put-text-property cut (1+ cut) 'intangible very-strange))))))
 
+(defsubst gnugo--tree-ends (tree)
+  tree)
+
+(defun gnugo--set-tree-ends-actually (tree ends) ; ugh
+  (let ((where (memq tree (gnugo-get :sgf-collection))))
+    (setq tree ends)
+    (gnugo-put :sgf-gametree tree)
+    (setcar where tree)
+    tree))
+
+(defmacro gnugo--set-tree-ends (tree-var ends) ; ugh**2
+  `(set (quote ,tree-var)
+        (gnugo--set-tree-ends-actually
+         ,tree-var ,ends)))
+
 (defsubst gnugo--move-prop (node)
   (or (assq :B node)
       (assq :W node)))
@@ -726,9 +741,10 @@ are dimmed.  The buffer is in View minor mode."
          (dimmed-node-face (list :inherit 'default
                                  :foreground "gray50"))
          (tree (gnugo-get :sgf-gametree))
+         (ends (gnugo--tree-ends tree))
          (seen (make-hash-table :test 'eq))
          (soil (make-hash-table :test 'eq))
-         (width (length tree))
+         (width (length ends))
          (lanes (number-sequence 0 (1- width)))
          (monkey (gnugo-get :monkey))
          (as-pos (gnugo--as-pos-func (gnugo-get :SZ)))
@@ -766,7 +782,7 @@ are dimmed.  The buffer is in View minor mode."
          for bx below width
          do (loop
              with (bef acc node fork cur)
-             for ls on (aref tree bx)
+             for ls on (aref ends bx)
              do (if (setq node (car ls)
                           fork (on node))
                     (cl-flet
@@ -920,7 +936,7 @@ are dimmed.  The buffer is in View minor mode."
   (string= "PASS" string))
 
 (defsubst gnugo--no-regrets (monkey tree)
-  (eq (aref tree (aref monkey 1))
+  (eq (aref (gnugo--tree-ends tree) (aref monkey 1))
       (aref monkey 0)))
 
 (defun gnugo-note (property value &optional mogrifyp)
@@ -942,8 +958,9 @@ are dimmed.  The buffer is in View minor mode."
          (monkey (gnugo-get :monkey))
          (mem (aref monkey 0)))
     (if (memq property '(:B :W))
-        (let ((tree (gnugo-get :sgf-gametree))
-              (bidx (aref monkey 1)))
+        (let* ((tree (gnugo-get :sgf-gametree))
+               (ends (gnugo--tree-ends tree))
+               (bidx (aref monkey 1)))
           ;; Detect déjà-vu.  That is, when placing "A", avoid:
           ;;
           ;;   X---Y---A         new
@@ -956,7 +973,7 @@ are dimmed.  The buffer is in View minor mode."
           ;;            \
           ;;             --B     old
           (loop
-           with count = (length tree)
+           with count = (length ends)
            with (bx previous)
            for i
            ;; Start with latest / highest likelihood for hit.
@@ -968,7 +985,7 @@ are dimmed.  The buffer is in View minor mode."
            if (setq bx (mod (+ bidx i) count)
                     previous
                     ;; todo: early termination based on move number
-                    (loop for m on (aref tree bx)
+                    (loop for m on (aref ends bx)
                           if (eq mem (cdr m))
                           return
                           (when (equal pair (assoc property (car m)))
@@ -979,8 +996,8 @@ are dimmed.  The buffer is in View minor mode."
            return
            (progn
              (unless (= bidx bx)
-               (rotatef (aref tree bidx)
-                        (aref tree bx)))
+               (rotatef (aref ends bidx)
+                        (aref ends bx)))
              (setq mem previous))
            ;; no => construct
            finally do
@@ -988,13 +1005,11 @@ are dimmed.  The buffer is in View minor mode."
              (unless (gnugo--no-regrets monkey tree)
                ;; <grumble grumble> SGF sez "move" node in the root
                ;; position of a (sub-)gametree is "bad style".  :-/
-               (let ((where (memq tree (gnugo-get :sgf-collection))))
-                 (setq tree (let ((ls (append tree nil)))
-                              ;; copy old to the right of new
-                              (push mem (nthcdr bidx ls))
-                              (apply 'vector ls)))
-                 (gnugo-put :sgf-gametree tree)
-                 (setcar where tree)))
+               (gnugo--set-tree-ends
+                tree (let ((ls (append ends nil)))
+                       ;; copy old to the right of new
+                       (push mem (nthcdr bidx ls))
+                       (apply 'vector ls))))
              (push fruit mem)
              (aset tree bidx mem)))
           (setf (aref monkey 0) mem)
@@ -1624,7 +1639,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
     (gnugo-put :sgf-gametree tree)
     ;; This is deliberately undocumented for now.
     (gnugo--SZ! (gnugo--root-prop :SZ tree))
-    (let* ((mem (aref tree 0))
+    (let* ((mem (aref (gnugo--tree-ends tree) 0))
            game-over)
       (gnugo-put :monkey
         (vector mem 0 (loop for node in mem
@@ -2072,7 +2087,7 @@ In this mode, keys do not self insert.
            (tree (car coll)))
       (gnugo-put :sgf-gametree tree)
       (gnugo-put :sgf-collection coll)
-      (gnugo-put :monkey (vector (aref tree 0) 0 0)))
+      (gnugo-put :monkey (vector (aref (gnugo--tree-ends tree) 0) 0 0)))
     (gnugo--SZ! board-size)
     (loop with gb = (gnugo--blackp (gnugo-other user-color))
           for (property value &optional mogrifyp) in
@@ -2367,7 +2382,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
   "List of SGF[4] properties, each of the form (PROP NAME CONTEXT SPEC...).")
 
 (defun gnugo/sgf-root-node (tree)
-  (car (last (aref tree
+  (car (last (aref (gnugo--tree-ends tree)
                    ;; Any bidx is fine, but we choose the last one since
                    ;; usually the main line (bidx 0) is the longest.
                    ;; Ugh, heuristics for the sake of performance. :-/
