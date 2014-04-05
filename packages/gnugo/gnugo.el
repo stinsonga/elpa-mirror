@@ -935,8 +935,8 @@ are dimmed.  The buffer is in View minor mode."
 (defsubst gnugo--passp (string)
   (string= "PASS" string))
 
-(defsubst gnugo--no-regrets (monkey tree)
-  (eq (aref (gnugo--tree-ends tree) (aref monkey 1))
+(defsubst gnugo--no-regrets (monkey ends)
+  (eq (aref ends (aref monkey 1))
       (aref monkey 0)))
 
 (defun gnugo-note (property value &optional mogrifyp)
@@ -978,7 +978,7 @@ are dimmed.  The buffer is in View minor mode."
            for i
            ;; Start with latest / highest likelihood for hit.
            ;; todo: prune unfeasible candidates
-           from (if (gnugo--no-regrets monkey tree)
+           from (if (gnugo--no-regrets monkey ends)
                     1
                   0)
            below count
@@ -1002,7 +1002,7 @@ are dimmed.  The buffer is in View minor mode."
            ;; no => construct
            finally do
            (progn
-             (unless (gnugo--no-regrets monkey tree)
+             (unless (gnugo--no-regrets monkey ends)
                ;; <grumble grumble> SGF sez "move" node in the root
                ;; position of a (sub-)gametree is "bad style".  :-/
                (gnugo--set-tree-ends
@@ -1683,7 +1683,8 @@ when play resumes."
          (user-color (gnugo-get :user-color))
          (monkey (gnugo-get :monkey))
          (tree (gnugo-get :sgf-gametree))
-         (remorseful (not (gnugo--no-regrets monkey tree)))
+         (remorseful (not (gnugo--no-regrets
+                           monkey (gnugo--tree-ends tree))))
          done ans)
     (cond ((numberp spec)
            (setq n (if (zerop spec)
