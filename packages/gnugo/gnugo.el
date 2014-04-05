@@ -273,8 +273,8 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
     (emacs-lisp-mode)
     (setq truncate-lines t)
     (save-excursion
-      (let ((standard-output (current-buffer)))
-        (pp (reverse acc)))
+      (pp (reverse acc)
+          (current-buffer))
       (goto-char (point-min))
       (let ((rx (format "overlay from \\([0-9]+\\).+\n%s\\s-+"
                         (if (string= "" d)
