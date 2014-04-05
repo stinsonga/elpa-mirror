@@ -33,6 +33,7 @@ Features
 #. Support all Global's output formats: ``grep``, ``ctags-x``,
    ``cscope`` etc.
 #. Support projects on remote hosts (e.g. via ``tramp``)
+#. Support eldoc
 
 Screenshot
 ~~~~~~~~~~
@@ -247,6 +248,15 @@ ggtags-browse-file-as-hypertext
 Integration with other packages
 +++++++++++++++++++++++++++++++
 
+* eldoc
+
+  ``Eldoc`` support can be enabled by, for example, setting this in
+  the desired major mode with:
+
+  ::
+
+     (setq-local eldoc-documentation-function #'ggtags-eldoc-function)
+
 * imenu
 
   Emacs major modes usually have excellent support for ``imenu`` so
@@ -260,6 +270,55 @@ Integration with other packages
 
      (setq-local hippie-expand-try-functions-list
                  (cons 'ggtags-try-complete-tag hippie-expand-try-functions-list))
+
+* company
+
+  ``company`` can use ``ggtags`` as completion source via
+  ``company-capf`` (enabled by default in emacs 24.4).
+
+* helm
+
+  If ``helm-mode`` is enabled ``ggtags`` will use it for completion.
+
+NEWS
+~~~~
+
+[2014-04-05 Sat] 0.8.2
+++++++++++++++++++++++
+
+#. Default ``ggtags-auto-jump-to-match`` to ``history``.
+#. Add eldoc support; see ``ggtags-eldoc-function``.
+#. Improved support for tramp.
+
+[2014-03-30 Sun] 0.8.1
+++++++++++++++++++++++
+
+#. Improve ``ggtags-view-tag-history`` and tag history navigation.
+#. New customsable variable ``ggtags-global-use-color``.
+#. Automatically jump to match from location stored in search history.
+   See ``ggtags-auto-jump-to-match``.
+#. Rename ``ggtags-supress-navigation-keys`` to
+   ``ggtags-enable-navigation-keys`` with a better way to suppress
+   navigation key bindings in some buffers including
+   ``*ggtags-global*`` buffer.
+
+[2014-03-24 Mon] 0.8.0
+++++++++++++++++++++++
+
+#. Record search history and re-run past searches.
+#. Bookmark or save search to register.
+#. New command ``ggtags-show-definition``.
+#. Project name on mode line.
+#. Automatically use ``.globalrc`` or ``gtags.conf`` file at project
+   root.
+#. Better completion based on tag types.
+#. Use colored output to get column number for jumping to tag.
+#. Improve detection of stale GTAGS file based on file modification
+   time.
+#. New customisable variables ``ggtags-executable-directory``,
+   ``ggtags-global-always-update``, ``ggtags-mode-sticky`` and
+   ``ggtags-supress-navigation-keys``.
+#. Other bug fixes.
 
 Bugs
 ~~~~
