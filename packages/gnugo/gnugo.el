@@ -1011,7 +1011,7 @@ are dimmed.  The buffer is in View minor mode."
                        (push mem (nthcdr bidx ls))
                        (apply 'vector ls))))
              (push fruit mem)
-             (aset tree bidx mem)))
+             (aset ends bidx mem)))
           (setf (aref monkey 0) mem)
           (incf (aref monkey 2)))
       (setcdr (last (car mem)) fruit))))
@@ -1683,8 +1683,8 @@ when play resumes."
          (user-color (gnugo-get :user-color))
          (monkey (gnugo-get :monkey))
          (tree (gnugo-get :sgf-gametree))
-         (remorseful (not (gnugo--no-regrets
-                           monkey (gnugo--tree-ends tree))))
+         (ends (gnugo--tree-ends tree))
+         (remorseful (not (gnugo--no-regrets monkey ends)))
          done ans)
     (cond ((numberp spec)
            (setq n (if (zerop spec)
@@ -1729,7 +1729,7 @@ when play resumes."
                                    (gnugo-get :center-position)))
       (gnugo-refresh t)
       (unless (or keep remorseful)
-        (aset tree (aref monkey 1) (aref monkey 0)))
+        (aset ends (aref monkey 1) (aref monkey 0)))
       (when (and ulastp (not noalt))
         (gnugo-get-move (gnugo-get :gnugo-color))))))
 
