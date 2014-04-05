@@ -14,17 +14,17 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 * debugging aids
 *** swizzling branches for frolicking fun
 (defun SWIZ (a b)
-  (let* ((tree (gnugo-get :sgf-gametree))
+  (let* ((ends (gnugo--tree-ends (gnugo-get :sgf-gametree)))
          (monkey (gnugo-get :monkey))
          (bidx (aref monkey 1)))
-    (rotatef (aref tree a)
-             (aref tree b))
+    (rotatef (aref ends a)
+             (aref ends b))
     (cond ((= a bidx) (aset monkey 1 b))
           ((= b bidx) (aset monkey 1 a)))))
 
 (defun SWIZ-RANDOM ()
   (interactive)
-  (let* ((n (length (gnugo-get :sgf-gametree)))
+  (let* ((n (length (gnugo--tree-ends (gnugo-get :sgf-gametree))))
          (one (random n))
          (two (if (= 1 n)
                   one
