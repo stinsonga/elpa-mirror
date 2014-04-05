@@ -4,6 +4,7 @@
 
 ;; Author: Thien-Thi Nguyen <ttn@gnu.org>
 ;; Version: 2.3.1
+;; Package-Requires: ((ascii-art-to-unicode "1.5"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -917,7 +918,6 @@ are dimmed.  The buffer is in View minor mode."
                             "\n"))
                          (push one bef)))
               (edge (apply 'append tails))
-              ;; NB: This requires ascii-art-to-unicode.el 1.5 or later.
               (aa2u (line-beginning-position
                      (- (1+ (length forks))))
                     (point))))))))
