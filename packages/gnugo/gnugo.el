@@ -2512,12 +2512,12 @@ A collection is a list of gametrees."
                    (push (setq node (NODE))
                          ls))
                  (prog1
-                     (if (seek ?\()
-                         ;; multiple
-                         (loop while (seek ?\()
-                               append (TREE ls))
-                       ;; singular
-                       (list ls))
+                     (if (not (seek ?\())
+                         ;; singular
+                         (list ls)
+                       ;; multiple
+                       (loop while (seek ?\()
+                             append (TREE ls)))
                    (seek-into ?\))))))
       (with-temp-buffer
         (if (not data-p)
