@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013-2014  Free Software Foundation, Inc.
 
 ;; Author: Leo Liu <sdl.web@gmail.com>
-;; Version: 0.8.1
+;; Version: 0.8.2
 ;; Keywords: tools, convenience
 ;; Created: 2013-01-29
 ;; URL: https://github.com/leoliu/ggtags
@@ -61,7 +61,18 @@
   (defmacro ignore-errors-unless-debug (&rest body)
     "Ignore all errors while executing BODY unless debug is on."
     (declare (debug t) (indent 0))
-    `(condition-case-unless-debug nil (progn ,@body) (error nil))))
+    `(condition-case-unless-debug nil (progn ,@body) (error nil)))
+
+  (defmacro with-display-buffer-no-window (&rest body)
+    (declare (debug t) (indent 0))
+    ;; See http://debbugs.gnu.org/13594
+    `(let ((display-buffer-overriding-action
+            (if (and ggtags-auto-jump-to-match
+                     ;; Appeared in emacs 24.4.
+                     (fboundp 'display-buffer-no-window))
+                (list #'display-buffer-no-window)
+              display-buffer-overriding-action)))
+       ,@body)))
 
 (eval-and-compile
   (or (fboundp 'user-error)             ;24.3
@@ -109,7 +120,8 @@ automatically switches to 'global --single-update'."
 (defcustom ggtags-include-pattern
   '("^\\s-*#\\(?:include\\|import\\)\\s-*[\"<]\\(?:[./]*\\)?\\(.*?\\)[\">]" . 1)
   "Pattern used to detect #include files.
-Value can be (REGEXP . SUB) or a function with no arguments."
+Value can be (REGEXP . SUB) or a function with no arguments.
+REGEXP should match from the beginning of line."
   :type '(choice (const :tag "Disable" nil)
                  (cons regexp integer)
                  function)
@@ -140,7 +152,7 @@ directory local variables is not enabled by default per
   :type '(repeat string)
   :group 'ggtags)
 
-(defcustom ggtags-auto-jump-to-match 'first
+(defcustom ggtags-auto-jump-to-match 'history
   "Strategy on how to jump to match: nil, first or history.
 
     nil: never automatically jump to any match;
@@ -185,7 +197,9 @@ If an integer abbreviate only names longer than that number."
   :group 'ggtags)
 
 (defcustom ggtags-global-use-color t
-  "Non-nil to use color in output if supported by Global."
+  "Non-nil to use color in output if supported by Global.
+Note: processing colored output takes noticeable time
+particularly when the output is large."
   :type 'boolean
   :safe 'booleanp
   :group 'ggtags)
@@ -225,13 +239,21 @@ This affects `ggtags-find-file' and `ggtags-grep'."
   :type 'hook
   :group 'ggtags)
 
-(defcustom ggtags-show-definition-function #'ggtags-show-definition-default
-  "Function called by `ggtags-show-definition' to show definition.
+(defcustom ggtags-get-definition-function #'ggtags-get-definition-default
+  "Function called by `ggtags-show-definition' to get definition.
 It is passed a list of definition candidates of the form:
 
  (TEXT NAME FILE LINE)
 
-where TEXT is usually the source line of the definition."
+where TEXT is usually the source line of the definition.
+
+The return value is passed to `ggtags-print-definition-function'."
+  :type 'function
+  :group 'ggtags)
+
+(defcustom ggtags-print-definition-function
+  (lambda (s) (ggtags-echo "%s" (or s "[definition not found]")))
+  "Function used by `ggtags-show-definition' to print definition."
   :type 'function
   :group 'ggtags)
 
@@ -285,6 +307,33 @@ properly update `ggtags-mode-map'."
 
 (defvar ggtags-highlight-tag-timer nil)
 
+(defmacro ggtags-with-temp-message (message &rest body)
+  (declare (debug t) (indent 1))
+  (let ((init-time (make-symbol "-init-time-"))
+        (tmp-msg (make-symbol "-tmp-msg-")))
+    `(let ((,init-time (float-time))
+           (,tmp-msg ,message))
+       (with-temp-message ,tmp-msg
+         (prog1 (progn ,@body)
+           (message "%sdone (%.2fs)" ,(or tmp-msg "")
+                    (- (float-time) ,init-time)))))))
+
+(defmacro ggtags-delay-finish-functions (&rest body)
+  "Delay running `compilation-finish-functions' until after BODY."
+  (declare (indent 0) (debug t))
+  (let ((saved (make-symbol "-saved-"))
+        (exit-args (make-symbol "-exit-args-")))
+    `(let ((,saved compilation-finish-functions)
+           ,exit-args)
+       (setq-local compilation-finish-functions nil)
+       (add-hook 'compilation-finish-functions
+                 (lambda (&rest args) (setq ,exit-args args))
+                 nil t)
+       (unwind-protect (progn ,@body)
+         (setq-local compilation-finish-functions ,saved)
+         (and ,exit-args (apply #'run-hook-with-args
+                                'compilation-finish-functions ,exit-args))))))
+
 (defmacro ggtags-ensure-global-buffer (&rest body)
   (declare (indent 0))
   `(progn
@@ -297,6 +346,13 @@ properly update `ggtags-mode-map'."
 (defun ggtags-list-of-string-p (xs)
   "Return non-nil if XS is a list of strings."
   (cl-every #'stringp xs))
+
+(defun ggtags-ensure-localname (file)
+  (and file (or (file-remote-p file 'localname) file)))
+
+(defun ggtags-echo (format-string &rest args)
+  "Print formatted text to echo area."
+  (let (message-log-max) (apply #'message format-string args)))
 
 (defun ggtags-forward-to-line (line)
   "Move to line number LINE in current buffer."
@@ -335,15 +391,13 @@ properly update `ggtags-mode-map'."
                               (:copier nil)
                               (:type vector)
                               :named)
-  root config tag-size has-refs has-path-style has-color dirty-p mtime timestamp)
+  root tag-size has-refs has-path-style has-color dirty-p mtime timestamp)
 
 (defun ggtags-make-project (root)
   (cl-check-type root string)
   (pcase (nthcdr 5 (file-attributes (expand-file-name "GTAGS" root)))
     (`(,mtime ,_ ,tag-size . ,_)
      (let* ((default-directory (file-name-as-directory root))
-            (config (cl-some (lambda (c) (and (file-exists-p c) c))
-                             '(".globalrc" "gtags.conf")))
             (rtags-size (nth 7 (file-attributes "GRTAGS")))
             (has-refs
              (when rtags-size
@@ -367,7 +421,6 @@ properly update `ggtags-mode-map'."
                     'has-color))))
        (puthash default-directory
                 (ggtags-project--make :root default-directory
-                                      :config config
                                       :tag-size tag-size
                                       :has-refs has-refs
                                       :has-path-style has-path-style
@@ -529,7 +582,8 @@ Value is new modtime if updated."
         (root (make-symbol "-ggtags-project-root-")))
     `(let* ((,root ggtags-project-root)
             (,gtagsroot (when (ggtags-find-project)
-                          (directory-file-name (ggtags-current-project-root))))
+                          (ggtags-ensure-localname
+                           (directory-file-name (ggtags-current-project-root)))))
             (process-environment
              (append (let ((process-environment process-environment))
                        (and ,gtagsroot (setenv "GTAGSROOT" ,gtagsroot))
@@ -538,13 +592,7 @@ Value is new modtime if updated."
                      (and ,gtagsroot (list (concat "GTAGSROOT=" ,gtagsroot)))
                      (and (ggtags-find-project)
                           (not (ggtags-project-has-refs (ggtags-find-project)))
-                          (list "GTAGSLABEL=ctags"))
-                     (and ggtags-use-project-gtagsconf ,gtagsroot
-                          (ggtags-project-config (ggtags-find-project))
-                          (list (concat "GTAGSCONF="
-                                        (expand-file-name (ggtags-project-config
-                                                           (ggtags-find-project))
-                                                          ,gtagsroot)))))))
+                          (list "GTAGSLABEL=ctags")))))
        (unwind-protect (save-current-buffer ,@body)
          (setq ggtags-project-root ,root)))))
 
@@ -564,28 +612,33 @@ source trees. See Info node `(global)gtags' for details."
   (interactive "DRoot directory: ")
   (let ((process-environment process-environment))
     (when (zerop (length root)) (error "No root directory provided"))
-    (setenv "GTAGSROOT" (expand-file-name
-                         (directory-file-name (file-name-as-directory root))))
+    (setenv "GTAGSROOT" (ggtags-ensure-localname
+                         (expand-file-name
+                          (directory-file-name (file-name-as-directory root)))))
     (ggtags-with-current-project
      (let ((conf (and ggtags-use-project-gtagsconf
                       (cl-loop for name in '(".globalrc" "gtags.conf")
                                for full = (expand-file-name name root)
                                thereis (and (file-exists-p full) full)))))
-       (cond (conf (setenv "GTAGSCONF" conf))
-             ((and (not (getenv "GTAGSLABEL"))
-                   (yes-or-no-p "Use `ctags' backend? "))
-              (setenv "GTAGSLABEL" "ctags"))))
-     (with-temp-message "`gtags' in progress..."
-       (let ((default-directory (file-name-as-directory root)))
-         (condition-case err
-             (apply #'ggtags-process-string
-                    "gtags" (and ggtags-use-idutils '("--idutils")))
-           (error (if (and ggtags-use-idutils
-                           (stringp (cadr err))
-                           (string-match-p "mkid not found" (cadr err)))
-                      ;; Retry without mkid
-                      (ggtags-process-string "gtags")
-                    (signal (car err) (cdr err))))))))
+       (unless (or conf (getenv "GTAGSLABEL")
+                   (not (yes-or-no-p "Use `ctags' backend? ")))
+         (setenv "GTAGSLABEL" "ctags"))
+       (ggtags-with-temp-message "`gtags' in progress..."
+         (let ((default-directory (file-name-as-directory root))
+               (args (cl-remove-if
+                      ;; Place --idutils first
+                      #'null (list (and ggtags-use-idutils "--idutils")
+                                   (and conf "--gtagsconf")
+                                   (and conf (ggtags-ensure-localname conf))))))
+           (condition-case err
+               (apply #'ggtags-process-string "gtags" args)
+             (error (if (and ggtags-use-idutils
+                             (stringp (cadr err))
+                             (string-match-p "mkid not found" (cadr err)))
+                        ;; Retry without mkid
+                        (apply #'ggtags-process-string
+                               "gtags" (cl-remove "--idutils" args))
+                      (signal (car err) (cdr err)))))))))
     (message "GTAGS generated in `%s'" root)
     root))
 
@@ -601,7 +654,7 @@ Do nothing if GTAGS exceeds the oversize limit unless FORCE."
                        (not (ggtags-project-oversize-p))
                        (ggtags-project-dirty-p (ggtags-find-project))))
     (ggtags-with-current-project
-     (with-temp-message "`global -u' in progress..."
+     (ggtags-with-temp-message "`global -u' in progress..."
        (ggtags-process-string "global" "-u")
        (setf (ggtags-project-dirty-p (ggtags-find-project)) nil)
        (setf (ggtags-project-mtime (ggtags-find-project)) (float-time))))))
@@ -702,13 +755,6 @@ Do nothing if GTAGS exceeds the oversize limit unless FORCE."
 (defun ggtags-global-start (command &optional directory)
   (let* ((default-directory (or directory (ggtags-current-project-root)))
          (split-window-preferred-function ggtags-split-window-function)
-         ;; See http://debbugs.gnu.org/13594
-         (display-buffer-overriding-action
-          (if (and ggtags-auto-jump-to-match
-                   ;; Appeared in emacs 24.4.
-                   (fboundp 'display-buffer-no-window))
-              (list #'display-buffer-no-window)
-            display-buffer-overriding-action))
          (env ggtags-process-environment))
     (setq ggtags-global-start-marker (point-marker))
     (setq ggtags-auto-jump-to-match-target
@@ -719,7 +765,8 @@ Do nothing if GTAGS exceeds the oversize limit unless FORCE."
           ggtags-global-match-count 0)
     (ggtags-update-tags)
     (ggtags-with-current-project
-     (with-current-buffer (compilation-start command 'ggtags-global-mode)
+     (with-current-buffer (with-display-buffer-no-window
+                            (compilation-start command 'ggtags-global-mode))
        (setq-local ggtags-process-environment env)
        (setq ggtags-global-last-buffer (current-buffer))))))
 
@@ -735,6 +782,20 @@ Do nothing if GTAGS exceeds the oversize limit unless FORCE."
   (ggtags-check-project)
   (ggtags-global-start (apply #'ggtags-global-build-command cmd args)))
 
+(defun ggtags-include-file ()
+  "Calculate the include file based on `ggtags-include-pattern'."
+  (pcase ggtags-include-pattern
+    (`nil nil)
+    ((pred functionp)
+     (funcall ggtags-include-pattern))
+    (`(,re . ,sub)
+     (save-excursion
+       (beginning-of-line)
+       (and (looking-at re) (match-string sub))))
+    (_ (warn "Invalid value for `ggtags-include-pattern':%s"
+             ggtags-include-pattern)
+       nil)))
+
 ;;;###autoload
 (defun ggtags-find-tag-dwim (name &optional what)
   "Find NAME by context.
@@ -745,14 +806,8 @@ the include file instead.
 When called interactively with a prefix arg, always find
 definition tags."
   (interactive
-   (let ((include (and (not current-prefix-arg)
-                       ggtags-include-pattern
-                       (save-excursion
-                         (beginning-of-line)
-                         (if (functionp ggtags-include-pattern)
-                             (funcall ggtags-include-pattern)
-                           (and (looking-at (car ggtags-include-pattern))
-                                (match-string (cdr ggtags-include-pattern))))))))
+   (let ((include (and (not current-prefix-arg) (ggtags-include-file))))
+     (ggtags-ensure-project)
      (if include (list include 'include)
        (list (ggtags-read-tag 'definition current-prefix-arg)
              (and current-prefix-arg 'definition)))))
@@ -849,7 +904,7 @@ Global and Emacs."
   (let ((file-form
          '(let ((files))
             (ggtags-ensure-global-buffer
-              (with-temp-message "Waiting for Grep to finish..."
+              (ggtags-with-temp-message "Waiting for Grep to finish..."
                 (while (get-buffer-process (current-buffer))
                   (sit-for 0.2)))
               (goto-char (point-min))
@@ -1057,15 +1112,14 @@ Use \\[jump-to-register] to restore the search session."
                        0))
                  (ring-length find-tag-marker-ring)))
   (let ((m (ring-ref find-tag-marker-ring ggtags-tag-ring-index))
-        (i (- (ring-length find-tag-marker-ring) ggtags-tag-ring-index))
-        (message-log-max nil))
-    (message "%d%s marker%s" i (pcase (mod i 10)
-                                 ;; ` required for 24.1 and 24.2
-                                 (`1 "st")
-                                 (`2 "nd")
-                                 (`3 "rd")
-                                 (_ "th"))
-             (if (marker-buffer m) "" " (dead)"))
+        (i (- (ring-length find-tag-marker-ring) ggtags-tag-ring-index)))
+    (ggtags-echo "%d%s marker%s" i (pcase (mod i 10)
+                                     ;; ` required for 24.1 and 24.2
+                                     (`1 "st")
+                                     (`2 "nd")
+                                     (`3 "rd")
+                                     (_ "th"))
+                 (if (marker-buffer m) "" " (dead)"))
     (if (not (marker-buffer m))
         (ding)
       (switch-to-buffer (marker-buffer m))
@@ -1267,12 +1321,15 @@ commands `next-error' and `previous-error'.
 
 (defvar-local ggtags-global-output-lines 0)
 
-(defun ggtags-global--display-buffer (&optional buffer)
-  (let ((buffer (or buffer (current-buffer))))
-    (unless (get-buffer-window buffer)
-      (let* ((split-window-preferred-function ggtags-split-window-function)
-             (w (display-buffer buffer '(nil (allow-no-window . t)))))
-        (and w (compilation-set-window-height w))))))
+(defun ggtags-global--display-buffer (&optional buffer desired-point)
+  (pcase (let ((buffer (or buffer (current-buffer)))
+               (split-window-preferred-function ggtags-split-window-function))
+           (and (not (get-buffer-window buffer))
+                (display-buffer buffer '(nil (allow-no-window . t)))))
+    ((and (pred windowp) w)
+     (with-selected-window w
+       (compilation-set-window-height w)
+       (and desired-point (goto-char desired-point))))))
 
 (defun ggtags-global-filter ()
   "Called from `compilation-filter-hook' (which see)."
@@ -1290,11 +1347,16 @@ commands `next-error' and `previous-error'.
     (replace-match ""))
   (cl-incf ggtags-global-output-lines
            (count-lines compilation-filter-start (point)))
-  (when (and (> ggtags-global-output-lines 5) ggtags-navigation-mode)
-    (ggtags-global--display-buffer))
+  ;; If the number of output lines is small
+  ;; `ggtags-global-handle-exit' takes care of displaying the buffer.
+  (when (and (> ggtags-global-output-lines 30) ggtags-navigation-mode)
+    (ggtags-global--display-buffer nil (or compilation-current-error (point-min))))
   (when (and (eq ggtags-auto-jump-to-match 'history)
              (numberp ggtags-auto-jump-to-match-target)
-             ;; `ggtags-global-output-lines' is imprecise.
+             (not compilation-current-error)
+             ;; `ggtags-global-output-lines' is imprecise but use it
+             ;; as first approximation.
+             (> (+ 10 ggtags-global-output-lines) ggtags-auto-jump-to-match-target)
              (> (line-number-at-pos (point-max))
                 ggtags-auto-jump-to-match-target))
     (ggtags-forward-to-line ggtags-auto-jump-to-match-target)
@@ -1304,14 +1366,19 @@ commands `next-error' and `previous-error'.
     ;; `compilation-filter' restores point and as a result commands
     ;; dependent on point such as `ggtags-navigation-next-file' and
     ;; `ggtags-navigation-previous-file' fail to work.
-    (setq-local compilation-auto-jump-to-first-error t)
-    (run-with-idle-timer 0 nil #'compilation-auto-jump (current-buffer) (point)))
+    (run-with-idle-timer 0 nil (lambda (buf pt)
+                                 (and (buffer-live-p buf)
+                                      (with-current-buffer buf
+                                        (ggtags-delay-finish-functions
+                                          (let ((compilation-auto-jump-to-first-error t))
+                                            (with-display-buffer-no-window
+                                              (compilation-auto-jump buf pt)))))))
+                         (current-buffer) (point)))
   (make-local-variable 'ggtags-global-large-output)
   (when (> ggtags-global-output-lines ggtags-global-large-output)
     (cl-incf ggtags-global-large-output 500)
-    (let ((message-log-max nil))
-      (message "Output %d lines (Type `C-c C-k' to cancel)"
-               ggtags-global-output-lines))))
+    (ggtags-echo "Output %d lines (Type `C-c C-k' to cancel)"
+                 ggtags-global-output-lines)))
 
 (defun ggtags-global-handle-exit (buf how)
   "A function for `compilation-finish-functions' (which see)."
@@ -1319,18 +1386,20 @@ commands `next-error' and `previous-error'.
    ((string-prefix-p "exited abnormally" how)
     ;; If exit abnormally display the buffer for inspection.
     (ggtags-global--display-buffer))
-   ((and ggtags-auto-jump-to-match
-         (not (pcase (compilation-next-single-property-change
-                      (point-min) 'compilation-message)
-                ((and pt (guard pt))
-                 (compilation-next-single-property-change
-                  (save-excursion (goto-char pt) (end-of-line) (point))
-                  'compilation-message)))))
-    ;; For the `compilation-auto-jump' in idle timer to run.
-    ;; See also: http://debbugs.gnu.org/13829
-    (sit-for 0)
-    (ggtags-navigation-mode -1)
-    (ggtags-navigation-mode-cleanup buf 0))))
+   (ggtags-auto-jump-to-match
+    (if (pcase (compilation-next-single-property-change
+                (point-min) 'compilation-message)
+          ((and pt (guard pt))
+           (compilation-next-single-property-change
+            (save-excursion (goto-char pt) (end-of-line) (point))
+            'compilation-message)))
+        ;; There are multiple matches so pop up the buffer.
+        (ggtags-global--display-buffer)
+      ;; For the `compilation-auto-jump' in idle timer to run.
+      ;; See also: http://debbugs.gnu.org/13829
+      (sit-for 0)
+      (ggtags-navigation-mode -1)
+      (ggtags-navigation-mode-cleanup buf 0)))))
 
 (defvar ggtags-global-mode-font-lock-keywords
   '(("^Global \\(exited abnormally\\|interrupt\\|killed\\|terminated\\)\\(?:.*with code \\([0-9]+\\)\\)?.*"
@@ -1613,6 +1682,12 @@ commands `next-error' and `previous-error'.
   "Asynchronously pipe the output of running CMDS to BUFFER.
 When finished invoke CALLBACK in BUFFER with process exit status."
   (or buffer (error "Output buffer required"))
+  (when (get-buffer-process (get-buffer buffer))
+    ;; Notice running multiple processes in the same buffer so that we
+    ;; can fix the caller. See for example `ggtags-eldoc-function'.
+    (message "Warning: detected %S already running in %S; interrupting..."
+             (get-buffer-process buffer) buffer)
+    (interrupt-process (get-buffer-process buffer)))
   (let* ((program (car cmds))
          (args (cdr cmds))
          (cutoff (and cutoff (+ cutoff (if (get-buffer buffer)
@@ -1638,10 +1713,9 @@ When finished invoke CALLBACK in BUFFER with process exit status."
     (set-process-sentinel proc sentinel)
     proc))
 
-(defun ggtags-show-definition-default (defs)
-  (let (message-log-max)
-    (message "%s%s" (or (caar defs) "[definition not found]")
-             (if (cdr defs) " [guess]" ""))))
+(defun ggtags-get-definition-default (defs)
+  (and (caar defs)
+       (concat (caar defs) (and (cdr defs) " [guess]"))))
 
 (defun ggtags-show-definition (name)
   (interactive (list (ggtags-read-tag 'definition current-prefix-arg)))
@@ -1649,7 +1723,11 @@ When finished invoke CALLBACK in BUFFER with process exit status."
   (let* ((re (cadr (assq 'grep ggtags-global-error-regexp-alist-alist)))
          (current (current-buffer))
          (buffer (get-buffer-create " *ggtags-definition*"))
-         (fn ggtags-show-definition-function)
+         ;; Need these bindings so that let-binding
+         ;; `ggtags-print-definition-function' can work see
+         ;; `ggtags-eldoc-function'.
+         (get-fn ggtags-get-definition-function)
+         (print-fn ggtags-print-definition-function)
          (show (lambda (_status)
                  (goto-char (point-min))
                  (let ((defs (cl-loop while (re-search-forward re nil t)
@@ -1660,7 +1738,7 @@ When finished invoke CALLBACK in BUFFER with process exit status."
                                                     (string-to-number (match-string 2))))))
                    (kill-buffer buffer)
                    (with-current-buffer current
-                     (funcall fn defs))))))
+                     (funcall print-fn (funcall get-fn defs)))))))
     (ggtags-with-current-project
      (ggtags-global-output
       buffer
@@ -1708,6 +1786,8 @@ When finished invoke CALLBACK in BUFFER with process exit status."
     (define-key menu [custom-ggtags]
       '(menu-item "Customize Ggtags"
                   (lambda () (interactive) (customize-group 'ggtags))))
+    (define-key menu [eldoc-mode]
+      '(menu-item "Toggle eldoc mode" eldoc-mode :button (:toggle . eldoc-mode)))
     (define-key menu [save-project]
       '(menu-item "Save project settings" ggtags-save-project-settings))
     (define-key menu [toggle-read-only]
@@ -1736,9 +1816,9 @@ When finished invoke CALLBACK in BUFFER with process exit status."
       '(menu-item "Previous mark" ggtags-prev-mark))
     (define-key menu [sep1] menu-bar-separator)
     (define-key menu [rerun-search]
-      '(menu-item "Rerun past search" ggtags-global-rerun-search))
+      '(menu-item "Re-run past search" ggtags-global-rerun-search))
     (define-key menu [save-to-register]
-      '(menu-item "Save search session" ggtags-save-to-register))
+      '(menu-item "Save search to register" ggtags-save-to-register))
     (define-key menu [previous-error]
       '(menu-item "Previous match" previous-error))
     (define-key menu [next-error]
@@ -1865,6 +1945,28 @@ to nil disables displaying this information.")
                         (or (cdr bounds) (point))
                         (current-buffer))
           (overlay-put o 'category nil))))))
+
+;;; eldoc
+
+(defvar-local ggtags-eldoc-cache nil)
+
+(declare-function eldoc-message "eldoc")
+(defun ggtags-eldoc-function ()
+  "A function suitable for `eldoc-documentation-function' (which see)."
+  (pcase (ggtags-tag-at-point)
+    (`nil nil)
+    (tag (if (equal tag (car ggtags-eldoc-cache))
+             (cadr ggtags-eldoc-cache)
+           (and ggtags-project-root (ggtags-find-project)
+                (let* ((ggtags-print-definition-function
+                        (lambda (s)
+                          (setq ggtags-eldoc-cache (list tag s))
+                          (eldoc-message s))))
+                  ;; Prevent multiple runs of ggtags-show-definition
+                  ;; for the same tag.
+                  (setq ggtags-eldoc-cache (list tag))
+                  (ggtags-show-definition tag)
+                  nil))))))
 
 ;;; imenu
 
