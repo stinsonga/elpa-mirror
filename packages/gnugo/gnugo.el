@@ -250,22 +250,24 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
   (interactive)
   (let ((buf (current-buffer))
         (d (gnugo-get :diamond))
-        (acc (loop for key being the hash-keys of gnugo-state
-                   using (hash-values val)
-                   collect (cons key
-                                 (case key
-                                   ((:xpms :local-xpms)
-                                    (format "hash: %X (%d images)"
-                                            (sxhash val)
-                                            (length val)))
-                                   (:sgf-collection
-                                    (length val))
-                                   (:monkey
-                                    (let ((mem (aref val 0)))
-                                      (list (aref val 1)
-                                            (aref val 2)
-                                            (car mem))))
-                                   (t val))))))
+        acc)
+    (loop for key being the hash-keys of gnugo-state
+          using (hash-values val)
+          do (push (cons key
+                         (case key
+                           ((:xpms :local-xpms)
+                            (format "hash: %X (%d images)"
+                                    (sxhash val)
+                                    (length val)))
+                           (:sgf-collection
+                            (length val))
+                           (:monkey
+                            (let ((mem (aref val 0)))
+                              (list (aref val 1)
+                                    (aref val 2)
+                                    (car mem))))
+                           (t val)))
+                   acc))
     (switch-to-buffer (get-buffer-create
                        (format "%s*GNUGO Board Properties*"
                                (gnugo-get :diamond))))
@@ -273,7 +275,7 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
     (emacs-lisp-mode)
     (setq truncate-lines t)
     (save-excursion
-      (pp (reverse acc)
+      (pp acc
           (current-buffer))
       (goto-char (point-min))
       (let ((rx (format "overlay from \\([0-9]+\\).+\n%s\\s-+"
