@@ -1591,7 +1591,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
     (user-error "Cannot load a directory (try a filename with extension .sgf)"))
   (let (ans play wait samep coll tree)
     ;; problem: requiring GTP `loadsgf' complicates network subproc support;
-    ;; todo: skip it altogether when confident about `gnugo/sgf-read-file'
+    ;; todo: skip it altogether when confident about `gnugo/sgf-create'
     (unless (= ?= (aref (setq ans (gnugo--q "loadsgf %s"
                                             (expand-file-name filename)))
                         0))
@@ -1603,7 +1603,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
     (unless samep
       (gnugo-put :gnugo-color wait)
       (gnugo-put :user-color play))
-    (setq coll (gnugo/sgf-read-file filename)
+    (setq coll (gnugo/sgf-create filename)
           tree (nth (let ((n (length coll)))
                       ;; This is better:
                       ;; (if (= 1 n)
@@ -2372,8 +2372,13 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                    ;; Ugh, heuristics for the sake of performance. :-/
                    (1- (length tree))))))
 
-(defun gnugo/sgf-read-file (filename)
-  "Return the collection (list) of gametrees in SGF[4] file FILENAME."
+(defun gnugo/sgf-create (file-or-data &optional data-p)
+  "Return the SGF[4] collection parsed from FILE-OR-DATA.
+FILE-OR-DATA is a file name or SGF[4] data.
+Optional arg DATA-P non-nil means FILE-OR-DATA is
+a string containing SGF[4] data.
+A collection is a list of gametrees."
+  ;; Arg names inspired by `create-image', despite -P being frowned upon.
   (let ((keywords (or (get 'gnugo/sgf-*r4-properties* :keywords)
                       (put 'gnugo/sgf-*r4-properties* :keywords
                            (mapcar (lambda (full)
@@ -2498,7 +2503,10 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                        (list ls))
                    (seek-into ?\))))))
       (with-temp-buffer
-        (insert-file-contents filename)
+        (if (not data-p)
+            (insert-file-contents file-or-data)
+          (insert file-or-data)
+          (goto-char (point-min)))
         (loop while (morep)
               collect (apply 'vector (TREE nil)))))))
 
