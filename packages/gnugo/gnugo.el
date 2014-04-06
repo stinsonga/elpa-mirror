@@ -2519,7 +2519,8 @@ A collection is a list of gametrees, each a vector of four elements:
                                       0)
                                     (gethash prev mnum 0))
                             mnum)
-                   (unless (listp (gethash prev kids t))
+                   ;; phase 2
+                   (when (listp (gethash prev kids t))
                      (push node (gethash prev kids)))
                    (push node
                          ls))
@@ -2528,6 +2529,7 @@ A collection is a list of gametrees, each a vector of four elements:
                          ;; singular
                          (list ls)
                        ;; multiple
+                       ;; phase 1
                        (puthash node (list) kids)
                        (loop while (seek ?\()
                              append (TREE ls mnum kids)))
