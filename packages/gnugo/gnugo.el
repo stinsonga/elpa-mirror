@@ -175,6 +175,9 @@ For ~t, the value is a snapshot, use `gnugo-refresh' to update it.")
 ;;;---------------------------------------------------------------------------
 ;;; Support functions
 
+(defsubst gnugo--mkht (&rest etc)
+  (apply 'make-hash-table :test 'eq etc))
+
 (defsubst gnugo--compare-strings (s1 beg1 s2 beg2)
   (compare-strings s1 beg1 nil s2 beg2 nil))
 
@@ -743,8 +746,8 @@ are dimmed.  The buffer is in View minor mode."
                                  :foreground "gray50"))
          (tree (gnugo-get :sgf-gametree))
          (ends (gnugo--tree-ends tree))
-         (seen (make-hash-table :test 'eq))
-         (soil (make-hash-table :test 'eq))
+         (seen (gnugo--mkht))
+         (soil (gnugo--mkht))
          (width (length ends))
          (lanes (number-sequence 0 (1- width)))
          (monkey (gnugo-get :monkey))
@@ -762,7 +765,7 @@ are dimmed.  The buffer is in View minor mode."
          (fsi (fmt &rest args)
               (insert (apply 'format fmt args))))
       ;; breathe in
-      (let ((order (make-hash-table :test 'eq))
+      (let ((order (gnugo--mkht))
             (monkey-on-main-line (zerop bidx))
             fixup)
         ;; monkey knows a lot
@@ -2012,7 +2015,7 @@ In this mode, keys do not self insert.
         truncate-lines t)
   (add-hook 'kill-buffer-hook 'gnugo-cleanup nil t)
   (set (make-local-variable 'gnugo-state)
-       (make-hash-table :size (1- 42) :test 'eq))
+       (gnugo--mkht :size (1- 42)))
   (add-to-invisibility-spec :nogrid)
   (mapc (lambda (prop)
           (gnugo-put prop nil))         ; todo: separate display/game aspects;
@@ -2540,8 +2543,8 @@ A collection is a list of gametrees, each a vector of four elements:
           (insert file-or-data)
           (goto-char (point-min)))
         (loop while (morep)
-              collect (let* ((mnum (make-hash-table :test 'eq))
-                             (kids (make-hash-table :test 'eq))
+              collect (let* ((mnum (gnugo--mkht))
+                             (kids (gnugo--mkht))
                              (ends (TREE nil mnum kids))
                              (root (car (last (car ends)))))
                         (vector mnum
@@ -2550,7 +2553,7 @@ A collection is a list of gametrees, each a vector of four elements:
                                 root)))))))
 
 (defun gnugo/sgf-hang-from-root (tree)
-  (let ((ht (make-hash-table :test 'eq))
+  (let ((ht (gnugo--mkht))
         (leaves (append tree nil)))
     (cl-flet
         ((hang (stack)
