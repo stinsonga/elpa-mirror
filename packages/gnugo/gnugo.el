@@ -206,10 +206,9 @@ you may never really understand to any degree of personal satisfaction\".
 
  :sgf-gametree -- one of the gametrees in :sgf-collection
 
- :monkey -- vector of three elements:
+ :monkey -- vector of two elements:
             MEM, a pointer to one of the branches in the gametree;
-            BIDX, the index of the \"current branch\"; and
-            COUNT, the number of moves from the beginning of the game
+            BIDX, the index of the \"current branch\"
 
  :gnugo-color -- either \"black\" or \"white\"
  :user-color
@@ -278,14 +277,13 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
                             (length val))
                            (:sgf-gametree
                             (list (hash-table-count
-                                   (aref val 0))
+                                   (gnugo--tree-mnum val))
                                   (hash-table-count
                                    (aref val 1))
                                   (gnugo--tree-ends val)))
                            (:monkey
                             (let ((mem (aref val 0)))
                               (list (aref val 1)
-                                    (aref val 2)
                                     (car mem))))
                            (t val)))
                    acc))
@@ -708,7 +706,8 @@ For all other values of RSEL, do nothing and return nil."
         (`nil (finish nil))
         (`car        (car (nn)))
         (`cadr  (nn) (car (nn)))
-        (`count (aref monkey 2))
+        (`count (gethash (car mem) (gnugo--tree-mnum
+                                    (gnugo-get :sgf-gametree))))
         (`two (nn) (nn) acc)
         (_ nil)))))
 
@@ -749,6 +748,7 @@ are dimmed.  The buffer is in View minor mode."
                                  :foreground "gray50"))
          (tree (gnugo-get :sgf-gametree))
          (ends (gnugo--tree-ends tree))
+         (mnum (gnugo--tree-mnum tree))
          (seen (gnugo--mkht))
          (soil (gnugo--mkht))
          (width (length ends))
@@ -757,7 +757,9 @@ are dimmed.  The buffer is in View minor mode."
          (as-pos (gnugo--as-pos-func (gnugo-get :SZ)))
          (at (car (aref monkey 0)))
          (bidx (aref monkey 1))
-         (max-move-num (aref monkey 2))
+         (max-move-num (loop for bx in lanes
+                             maximize (gethash (car (aref ends bx))
+                                               mnum)))
          (eert (make-vector width nil))
          finish)
     (cl-flet
@@ -768,18 +770,14 @@ are dimmed.  The buffer is in View minor mode."
          (fsi (fmt &rest args)
               (insert (apply 'format fmt args))))
       ;; breathe in
-      (let ((order (gnugo--mkht))
-            (monkey-on-main-line (zerop bidx))
+      (let ((monkey-on-main-line (zerop bidx))
             fixup)
         ;; monkey knows a lot
-        (loop with move-num = (1+ max-move-num)
-              with acc
+        (loop with acc
               for node in (aref monkey 0)
               do (puthash node bidx seen)
               if (gnugo--move-prop node)
-              do (progn
-                   (push node acc)
-                   (puthash node (decf move-num) order))
+              do (push node acc)
               finally do (progn
                            (unless monkey-on-main-line
                              (setq fixup (apply 'vector acc)))
@@ -795,7 +793,7 @@ are dimmed.  The buffer is in View minor mode."
                     (cl-flet
                         ((link (other)
                                (push other (gethash node soil))))
-                      (let ((move-num (gethash node order)))
+                      (let ((move-num (gethash node mnum)))
                         (when (< bx fork)
                           (assert (and (not monkey-on-main-line)
                                        (= fork bidx)))
@@ -809,11 +807,6 @@ are dimmed.  The buffer is in View minor mode."
                           (setcdr (nthcdr (1- move-num) bef)
                                   acc))
                         (aset eert bx (or bef acc))
-                        (dolist (node acc)
-                          (puthash node (incf move-num)
-                                   order))
-                        (setq max-move-num (max max-move-num
-                                                move-num))
                         (when acc
                           (link (car acc)))))
                   (puthash node bx seen)
@@ -1021,8 +1014,7 @@ are dimmed.  The buffer is in View minor mode."
              (puthash fruit (1+ (gethash tip mnum)) mnum)
              (push fruit mem)
              (aset ends bidx mem)))
-          (setf (aref monkey 0) mem)
-          (incf (aref monkey 2)))
+          (setf (aref monkey 0) mem))
       (setcdr (last tip) fruit))))
 
 (defun gnugo-close-game (end-time resign)
@@ -1646,13 +1638,10 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
                     coll))
     (gnugo-put :sgf-collection coll)
     (gnugo-put :sgf-gametree tree)
+    (gnugo-put :monkey (vector (aref (gnugo--tree-ends tree) 0) 0))
     ;; This is deliberately undocumented for now.
     (gnugo--SZ! (gnugo--root-prop :SZ tree))
-    (let* ((mem (aref (gnugo--tree-ends tree) 0))
-           game-over)
-      (gnugo-put :monkey
-        (vector mem 0 (loop for node in mem
-                            count (gnugo--move-prop node))))
+    (let (game-over)
       (gnugo-put :game-over
         (setq game-over
               (or (gnugo--root-prop :RE tree)
@@ -1723,7 +1712,6 @@ when play resumes."
       (setq ans (gnugo--q "undo"))
       (unless (= ?= (aref ans 0))
         (user-error "%s" ans))
-      (decf (aref monkey 2))
       (pop (aref monkey 0))
       (gnugo-put :last-mover (gnugo-other (gnugo-get :last-mover)))
       (gnugo-merge-showboard-results)   ; all
@@ -2097,7 +2085,7 @@ In this mode, keys do not self insert.
            (tree (car coll)))
       (gnugo-put :sgf-gametree tree)
       (gnugo-put :sgf-collection coll)
-      (gnugo-put :monkey (vector (aref (gnugo--tree-ends tree) 0) 0 0)))
+      (gnugo-put :monkey (vector (aref (gnugo--tree-ends tree) 0) 0)))
     (gnugo--SZ! board-size)
     (loop with gb = (gnugo--blackp (gnugo-other user-color))
           for (property value &optional mogrifyp) in
