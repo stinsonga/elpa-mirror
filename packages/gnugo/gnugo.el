@@ -248,6 +248,9 @@ As things stabilize probably more info will be added to this docstring."
 See `gnugo-put'."
   (gethash key gnugo-state))
 
+(defsubst gnugo--tree-mnum (tree)
+  (aref tree 0))
+
 (defsubst gnugo--tree-ends (tree)
   (aref tree 2))
 
@@ -959,10 +962,12 @@ are dimmed.  The buffer is in View minor mode."
   (let* ((pair (cons property value))
          (fruit (list pair))
          (monkey (gnugo-get :monkey))
-         (mem (aref monkey 0)))
+         (mem (aref monkey 0))
+         (tip (car mem)))
     (if (memq property '(:B :W))
         (let* ((tree (gnugo-get :sgf-gametree))
                (ends (gnugo--tree-ends tree))
+               (mnum (gnugo--tree-mnum tree))
                (bidx (aref monkey 1)))
           ;; Detect déjà-vu.  That is, when placing "A", avoid:
           ;;
@@ -1013,11 +1018,12 @@ are dimmed.  The buffer is in View minor mode."
                        ;; copy old to the right of new
                        (push mem (nthcdr bidx ls))
                        (apply 'vector ls))))
+             (puthash fruit (1+ (gethash tip mnum)) mnum)
              (push fruit mem)
              (aset ends bidx mem)))
           (setf (aref monkey 0) mem)
           (incf (aref monkey 2)))
-      (setcdr (last (car mem)) fruit))))
+      (setcdr (last tip) fruit))))
 
 (defun gnugo-close-game (end-time resign)
   (gnugo-put :game-end-time end-time)
@@ -2543,7 +2549,7 @@ A collection is a list of gametrees, each a vector of four elements:
           (insert file-or-data)
           (goto-char (point-min)))
         (loop while (morep)
-              collect (let* ((mnum (gnugo--mkht))
+              collect (let* ((mnum (gnugo--mkht :weakness 'key))
                              (kids (gnugo--mkht))
                              (ends (TREE nil mnum kids))
                              (root (car (last (car ends)))))
