@@ -961,6 +961,8 @@ are dimmed.  The buffer is in View minor mode."
         (let* ((tree (gnugo-get :sgf-gametree))
                (ends (gnugo--tree-ends tree))
                (mnum (gnugo--tree-mnum tree))
+               (count (length ends))
+               (tip-move-num (gethash tip mnum))
                (bidx (aref monkey 1)))
           ;; Detect déjà-vu.  That is, when placing "A", avoid:
           ;;
@@ -973,23 +975,28 @@ are dimmed.  The buffer is in View minor mode."
           ;;   X---Y---A         new
           ;;            \
           ;;             --B     old
+          ;;
+          ;; This linear search loses for multiple ‘old’ w/ "A",
+          ;; a very unusual (but not invalid, sigh) situation.
           (loop
-           with count = (length ends)
            with (bx previous)
            for i
            ;; Start with latest / highest likelihood for hit.
-           ;; todo: prune unfeasible candidates
+           ;; (See "to the right" comment, below.)
            from (if (gnugo--no-regrets monkey ends)
                     1
                   0)
            below count
            if (setq bx (mod (+ bidx i) count)
                     previous
-                    ;; todo: early termination based on move number
-                    (loop for m on (aref ends bx)
+                    (loop with node
+                          for m on (aref ends bx)
+                          while (< tip-move-num
+                                   (gethash (setq node (car m))
+                                            mnum))
                           if (eq mem (cdr m))
                           return
-                          (when (equal pair (assoc property (car m)))
+                          (when (equal pair (assoc property node))
                             m)
                           finally return
                           nil))
