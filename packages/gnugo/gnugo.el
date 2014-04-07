@@ -774,21 +774,23 @@ are dimmed.  The buffer is in View minor mode."
         (loop
          for bx below width
          do (loop
-             with (bef acc node fork cur)
+             with (acc node fork)
              for ls on (aref ends bx)
              do (if (setq node (car ls)
                           fork (on node))
                     (cl-flet
                         ((link (other)
-                               (push other (gethash node soil))))
-                      (let ((move-num (gethash node mnum)))
-                        ;; ugh, wasteful
-                        (when (setq bef (copy-sequence (aref eert fork)))
-                          (setcdr (nthcdr (1- move-num) bef)
-                                  acc))
+                               (pushnew other (gethash node soil))))
+                      (let* ((move-num (gethash node mnum))
+                             (bef (copy-sequence (aref eert fork)))
+                             (cur (nthcdr (1- move-num) bef))
+                             (cont (cdr cur)))
+                        (setcdr cur acc)
                         (aset eert bx (or bef acc))
                         (when acc
-                          (link (car acc)))))
+                          (when cont
+                            (link fork))
+                          (link bx))))
                   (puthash node bx seen)
                   (when (gnugo--move-prop node)
                     (push node acc)))
@@ -823,15 +825,9 @@ are dimmed.  The buffer is in View minor mode."
                   (s (cond ((not node) "")
                            ((not (setq move (gnugo--move-prop node))) "-")
                            (t (funcall as-pos (cdr move))))))
-             ;; todo: move this into "breathe in"
              (when (and ok (setq br (gethash node soil)))
-               (setq br (delq bx (mapcar #'on br)))
-               (when (and br (car (aref eert bx)))
-                 (push bx br))
-               ;; do not point w/ a fist
-               (when br
-                 (push (cons bx (sort br '<))
-                       forks)))
+               (push (cons bx (sort br '<))
+                     forks))
              (fsi " %-5s"
                   (cond ((and (eq at node)
                               (or ok (= bx bidx)))
