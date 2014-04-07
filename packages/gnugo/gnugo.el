@@ -1011,8 +1011,6 @@ are dimmed.  The buffer is in View minor mode."
            finally do
            (progn
              (unless (gnugo--no-regrets monkey ends)
-               ;; <grumble grumble> SGF sez "move" node in the root
-               ;; position of a (sub-)gametree is "bad style".  :-/
                (gnugo--set-tree-ends
                 tree (let ((ls (append ends nil)))
                        ;; copy old to the right of new
