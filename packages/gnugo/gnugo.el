@@ -770,19 +770,7 @@ are dimmed.  The buffer is in View minor mode."
          (fsi (fmt &rest args)
               (insert (apply 'format fmt args))))
       ;; breathe in
-      (let ((monkey-on-main-line (zerop bidx))
-            fixup)
-        ;; monkey knows a lot
-        (loop with acc
-              for node in (aref monkey 0)
-              do (puthash node bidx seen)
-              if (gnugo--move-prop node)
-              do (push node acc)
-              finally do (progn
-                           (unless monkey-on-main-line
-                             (setq fixup (apply 'vector acc)))
-                           (aset eert bidx acc)))
-        ;; but monkey does not know everything
+      (let ()
         (loop
          for bx below width
          do (loop
@@ -794,14 +782,6 @@ are dimmed.  The buffer is in View minor mode."
                         ((link (other)
                                (push other (gethash node soil))))
                       (let ((move-num (gethash node mnum)))
-                        (when (< bx fork)
-                          (assert (and (not monkey-on-main-line)
-                                       (= fork bidx)))
-                          (loop for old in ls
-                                while (< bx (on old))
-                                do (puthash old bx seen))
-                          (when (< move-num (length fixup))
-                            (link (aref fixup move-num))))
                         ;; ugh, wasteful
                         (when (setq bef (copy-sequence (aref eert fork)))
                           (setcdr (nthcdr (1- move-num) bef)
@@ -812,7 +792,10 @@ are dimmed.  The buffer is in View minor mode."
                   (puthash node bx seen)
                   (when (gnugo--move-prop node)
                     (push node acc)))
-             until fork)))
+             until fork
+             finally do (unless fork
+                          (assert (zerop bx))
+                          (aset eert bx acc)))))
       ;; breathe out
       (switch-to-buffer buf)
       (when view-mode
