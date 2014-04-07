@@ -747,7 +747,7 @@ are dimmed.  The buffer is in View minor mode."
          (dimmed-node-face (list :inherit 'default
                                  :foreground "gray50"))
          (tree (gnugo-get :sgf-gametree))
-         (ends (gnugo--tree-ends tree))
+         (ends (copy-sequence (gnugo--tree-ends tree)))
          (mnum (gnugo--tree-mnum tree))
          (seen (gnugo--mkht))
          (soil (gnugo--mkht))
@@ -757,10 +757,10 @@ are dimmed.  The buffer is in View minor mode."
          (as-pos (gnugo--as-pos-func (gnugo-get :SZ)))
          (at (car (aref monkey 0)))
          (bidx (aref monkey 1))
-         (max-move-num (loop for bx in lanes
-                             maximize (gethash (car (aref ends bx))
-                                               mnum)))
-         (eert (make-vector width nil))
+         (valid (map 'vector (lambda (end)
+                               (gethash (car end) mnum))
+                     ends))
+         (max-move-num (apply 'max (append valid nil)))
          finish)
     (cl-flet
         ((on (node)
@@ -770,34 +770,24 @@ are dimmed.  The buffer is in View minor mode."
          (fsi (fmt &rest args)
               (insert (apply 'format fmt args))))
       ;; breathe in
-      (let ()
-        (loop
-         for bx below width
-         do (loop
-             with (acc node fork)
-             for ls on (aref ends bx)
-             do (if (setq node (car ls)
-                          fork (on node))
-                    (cl-flet
-                        ((link (other)
-                               (pushnew other (gethash node soil))))
-                      (let* ((move-num (gethash node mnum))
-                             (bef (copy-sequence (aref eert fork)))
-                             (cur (nthcdr (1- move-num) bef))
-                             (cont (cdr cur)))
-                        (setcdr cur acc)
-                        (aset eert bx (or bef acc))
-                        (when acc
-                          (when cont
-                            (link fork))
-                          (link bx))))
-                  (puthash node bx seen)
-                  (when (gnugo--move-prop node)
-                    (push node acc)))
-             until fork
-             finally do (unless fork
-                          (assert (zerop bx))
-                          (aset eert bx acc)))))
+      (loop
+       for bx below width
+       do (loop
+           with (node fork)
+           for node in (aref ends bx)
+           do (if (setq fork (on node))
+                  (cl-flet
+                      ((tip-p (bix)
+                              ;; todo: ignore non-"move" nodes
+                              (eq node (car (aref ends bix))))
+                       (link (other)
+                             (pushnew other (gethash node soil))))
+                    (unless (tip-p bx)
+                      (unless (tip-p fork)
+                        (link fork))
+                      (link bx)))
+                (puthash node bx seen))
+           until fork))
       ;; breathe out
       (switch-to-buffer buf)
       (when view-mode
@@ -812,14 +802,18 @@ are dimmed.  The buffer is in View minor mode."
                                " ")))
       (loop
        for n                            ; move number
-       from 1 upto max-move-num
+       from max-move-num downto 1
        do
        (loop
         with (move forks br)
-        initially (fsi "%3d %s  -- "
-                       n (aref ["W" "B"] (logand 1 n)))
+        initially (progn
+                    (goto-char (point-min))
+                    (fsi "%3d %s  -- "
+                         n (aref ["W" "B"] (logand 1 n))))
         for bx below width
-        do (let* ((node (pop (aref eert bx)))
+        do (let* ((node (unless (< (aref valid bx) n)
+                          ;; todo: ignore non-"move" nodes
+                          (pop (aref ends bx))))
                   (ok (when node
                         (= bx (on node))))
                   (s (cond ((not node) "")
@@ -832,7 +826,7 @@ are dimmed.  The buffer is in View minor mode."
                   (cond ((and (eq at node)
                               (or ok (= bx bidx)))
                          (when (= bx bidx)
-                           (setq finish (point)))
+                           (setq finish (point-marker)))
                          (emph s (list :inherit 'default
                                        :foreground (frame-parameter
                                                     nil 'cursor-color))))
