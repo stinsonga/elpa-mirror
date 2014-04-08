@@ -711,6 +711,15 @@ For all other values of RSEL, do nothing and return nil."
         (`two (nn) (nn) acc)
         (_ nil)))))
 
+(define-derived-mode gnugo-frolic-mode special-mode "GNUGO Frolic"
+  "A special mode for viewing a GNUGO gametree.
+Initially View minor mode is active.
+
+\\{gnugo-frolic-mode-map}"
+  (buffer-disable-undo)
+  ;; Is this idio{ma}tic?
+  (view-mode 1))
+
 (defun gnugo-frolic-in-the-leaves ()
   "Display the game tree in a *GNUGO Frolic* buffer.
 This looks something like:
@@ -739,7 +748,7 @@ with 0, 1, ... N (in this case N is 3) in the header line
 to indicate the branches.  Branch 0 is the \"main line\".
 Point (* in this example) indicates the current position,
 and moves not actually on the game tree (e.g., E7, branch 3)
-are dimmed.  The buffer is in View minor mode."
+are dimmed.  Type \\[describe-mode] in that buffer for details."
   (interactive)
   (let* ((buf (get-buffer-create (concat (gnugo-get :diamond)
                                          "*GNUGO Frolic*")))
@@ -761,6 +770,7 @@ are dimmed.  The buffer is in View minor mode."
                                (gethash (car end) mnum))
                      ends))
          (max-move-num (apply 'max (append valid nil)))
+         (inhibit-read-only t)
          finish)
     (cl-flet
         ((on (node)
@@ -790,9 +800,7 @@ are dimmed.  The buffer is in View minor mode."
            until fork))
       ;; breathe out
       (switch-to-buffer buf)
-      (when view-mode
-        (view-mode -1))
-      (buffer-disable-undo)
+      (gnugo-frolic-mode)
       (erase-buffer)
       (setq header-line-format
             (concat (make-string 11 ?\s)
@@ -895,8 +903,8 @@ are dimmed.  The buffer is in View minor mode."
                     (point))))))))
     (when finish
       (goto-char finish)
-      (recenter (- (count-lines (line-beginning-position) (point-max)))))
-    (view-mode 1)))
+      (recenter (- (count-lines (line-beginning-position)
+                                (point-max)))))))
 
 (defun gnugo-boss-is-near ()
   "Do `bury-buffer' until the current one is not a GNU Board."
