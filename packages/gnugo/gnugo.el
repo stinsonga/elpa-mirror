@@ -172,6 +172,9 @@ For ~t, the value is a snapshot, use `gnugo-refresh' to update it.")
 (eval-when-compile
   (defvar gnugo-xpms nil))
 
+(defvar gnugo-frolic-parent-buffer nil)
+(defvar gnugo-frolic-origin nil)
+
 ;;;---------------------------------------------------------------------------
 ;;; Support functions
 
@@ -716,9 +719,24 @@ For all other values of RSEL, do nothing and return nil."
 Initially View minor mode is active.
 
 \\{gnugo-frolic-mode-map}"
-  (buffer-disable-undo)
-  ;; Is this idio{ma}tic?
-  (view-mode 1))
+  (buffer-disable-undo))
+
+(defun gnugo-frolic-quit ()
+  "Kill GNUGO Frolic buffer and switch to its parent buffer."
+  (interactive)
+  (let ((bye (current-buffer)))
+    (switch-to-buffer (when (buffer-live-p gnugo-frolic-parent-buffer)
+                        gnugo-frolic-parent-buffer))
+    (kill-buffer bye)))
+
+(defun gnugo-frolic-return-to-origin ()
+  "Move point to the board's current position."
+  (interactive)
+  (if (not gnugo-frolic-origin)
+      (message "No origin")
+    (goto-char gnugo-frolic-origin)
+    (recenter (- (count-lines (line-beginning-position)
+                              (point-max))))))
 
 (defun gnugo-frolic-in-the-leaves ()
   "Display the game tree in a *GNUGO Frolic* buffer.
@@ -752,6 +770,7 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
   (interactive)
   (let* ((buf (get-buffer-create (concat (gnugo-get :diamond)
                                          "*GNUGO Frolic*")))
+         (from (current-buffer))
          ;; todo: use defface once we finally succumb to ‘customize’
          (dimmed-node-face (list :inherit 'default
                                  :foreground "gray50"))
@@ -808,6 +827,7 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
                                  (format "%-5s" n))
                                lanes
                                " ")))
+      (set (make-local-variable 'gnugo-frolic-parent-buffer) from)
       (loop
        for n                            ; move number
        from max-move-num downto 1
@@ -902,9 +922,8 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
                      (- (1+ (length forks))))
                     (point))))))))
     (when finish
-      (goto-char finish)
-      (recenter (- (count-lines (line-beginning-position)
-                                (point-max)))))))
+      (set (make-local-variable 'gnugo-frolic-origin) finish)
+      (gnugo-frolic-return-to-origin))))
 
 (defun gnugo-boss-is-near ()
   "Do `bury-buffer' until the current one is not a GNU Board."
@@ -2157,6 +2176,12 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
 
 ;;;---------------------------------------------------------------------------
 ;;; Load-time actions
+
+(mapc (lambda (pair)
+        (define-key gnugo-frolic-mode-map (car pair) (cdr pair)))
+      '(("q"          . gnugo-frolic-quit)
+        ("C"          . gnugo-frolic-quit) ; like ‘View-kill-and-leave’
+        ("o"          . gnugo-frolic-return-to-origin)))
 
 (unless gnugo-board-mode-map
   (setq gnugo-board-mode-map (make-sparse-keymap))
