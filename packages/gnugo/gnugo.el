@@ -997,6 +997,18 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
   (interactive)
   (gnugo--swiz 1))
 
+(defun gnugo-frolic-backward-branch (&optional n)
+  "Move backward N (default 1) branches."
+  (interactive "p")
+  (gnugo--awakened
+   (move-to-column (+ 10 (* 6 (mod (- a n) width))))))
+
+(defun gnugo-frolic-forward-branch (&optional n)
+  "Move forward N (default 1) branches."
+  (interactive "p")
+  (gnugo--awakened
+   (move-to-column (+ 10 (* 6 (mod (+ a n) width))))))
+
 (defun gnugo-boss-is-near ()
   "Do `bury-buffer' until the current one is not a GNU Board."
   (interactive)
@@ -2253,6 +2265,8 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
         (define-key gnugo-frolic-mode-map (car pair) (cdr pair)))
       '(("q"          . gnugo-frolic-quit)
         ("C"          . gnugo-frolic-quit) ; like ‘View-kill-and-leave’
+        ("\C-b"       . gnugo-frolic-backward-branch)
+        ("\C-f"       . gnugo-frolic-forward-branch)
         ("j"          . gnugo-frolic-exchange-left)
         ("J"          . gnugo-frolic-rotate-left)
         ("k"          . gnugo-frolic-exchange-right)
