@@ -831,6 +831,8 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
                                lanes
                                " ")))
       (set (make-local-variable 'gnugo-frolic-parent-buffer) from)
+      (set (make-local-variable 'gnugo-state)
+           (buffer-local-value 'gnugo-state from))
       (loop
        for n                            ; move number
        from max-move-num downto 1
@@ -927,6 +929,73 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
     (when finish
       (set (make-local-variable 'gnugo-frolic-origin) finish)
       (gnugo-frolic-return-to-origin))))
+
+(defun gnugo--awake ()
+  (let* ((tree (gnugo-get :sgf-gametree))
+         (ends (gnugo--tree-ends tree))
+         (width (length ends))
+         (monkey (gnugo-get :monkey))
+         (line (count-lines (point-min) (line-beginning-position)))
+         (col (current-column)))
+    (values tree ends width
+            monkey (aref monkey 1)
+            line col (if (> 10 col)
+                         -1
+                       (/ (- col 10)
+                          6)))))
+
+(defmacro gnugo--awakened (&rest body)
+  `(multiple-value-bind (tree ends width
+                              monkey bidx
+                              line col
+                              a)
+       (gnugo--awake)
+     ,@body))
+
+(defun gnugo--swiz (direction &optional shift)
+  (gnugo--awakened
+   (when (> 0 a)
+     (setq a bidx))
+   (let* ((b (mod (+ direction a) width))
+          (flit (if shift (lambda (n)
+                            (cond ((= n a) b)
+                                  ((= n b) a)
+                                  (t n)))
+                  (lambda (n)
+                    (mod (+ direction n) width))))
+          (was (copy-sequence ends))
+          (new-bidx (funcall flit bidx)))
+     (gnugo-frolic-quit)
+     (assert (eq 'gnugo-board-mode major-mode))
+     (loop for bx below width
+           do (aset ends (funcall flit bx)
+                    (aref was bx)))
+     (unless (= new-bidx bidx)
+       (aset monkey 1 new-bidx))
+     (gnugo-frolic-in-the-leaves)
+     (goto-char (point-min))
+     (forward-line line)
+     (forward-char (+ 10 (* 6 b))))))
+
+(defun gnugo-frolic-exchange-left ()
+  "Exchange the current branch with the one to its left."
+  (interactive)
+  (gnugo--swiz -1 t))
+
+(defun gnugo-frolic-rotate-left ()
+  "Rotate all branches left."
+  (interactive)
+  (gnugo--swiz -1))
+
+(defun gnugo-frolic-exchange-right ()
+  "Exchange the current branch with the one to its right."
+  (interactive)
+  (gnugo--swiz 1 t))
+
+(defun gnugo-frolic-rotate-right ()
+  "Rotate all branches right."
+  (interactive)
+  (gnugo--swiz 1))
 
 (defun gnugo-boss-is-near ()
   "Do `bury-buffer' until the current one is not a GNU Board."
@@ -2184,6 +2253,10 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
         (define-key gnugo-frolic-mode-map (car pair) (cdr pair)))
       '(("q"          . gnugo-frolic-quit)
         ("C"          . gnugo-frolic-quit) ; like ‘View-kill-and-leave’
+        ("j"          . gnugo-frolic-exchange-left)
+        ("J"          . gnugo-frolic-rotate-left)
+        ("k"          . gnugo-frolic-exchange-right)
+        ("K"          . gnugo-frolic-rotate-right)
         ("o"          . gnugo-frolic-return-to-origin)))
 
 (unless gnugo-board-mode-map
