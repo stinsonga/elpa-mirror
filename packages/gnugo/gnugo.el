@@ -952,12 +952,17 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
        (gnugo--awake)
      ,@body))
 
-(defun gnugo--swiz (direction &optional shift)
+(defun gnugo--swiz (direction &optional blunt)
   (gnugo--awakened
    (when (> 0 a)
      (setq a bidx))
-   (let* ((b (mod (+ direction a) width))
-          (flit (if shift (lambda (n)
+   (let* ((b (cond ((numberp blunt)
+                    (unless (and (< -1 blunt)
+                                 (< blunt width))
+                      (user-error "No such branch: %s" blunt))
+                    blunt)
+                   (t (mod (+ direction a) width))))
+          (flit (if blunt (lambda (n)
                             (cond ((= n a) b)
                                   ((= n b) a)
                                   (t n)))
@@ -996,6 +1001,11 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
   "Rotate all branches right."
   (interactive)
   (gnugo--swiz 1))
+
+(defun gnugo-frolic-set-as-main-line ()
+  "Make the current branch the main line."
+  (interactive)
+  (gnugo--swiz nil 0))
 
 (defun gnugo-frolic-backward-branch (&optional n)
   "Move backward N (default 1) branches."
@@ -2271,6 +2281,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
         ("J"          . gnugo-frolic-rotate-left)
         ("k"          . gnugo-frolic-exchange-right)
         ("K"          . gnugo-frolic-rotate-right)
+        ("\C-m"       . gnugo-frolic-set-as-main-line)
         ("o"          . gnugo-frolic-return-to-origin)))
 
 (unless gnugo-board-mode-map
