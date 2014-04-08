@@ -313,7 +313,10 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
 
 (defun gnugo-board-buffer-p (&optional buffer)
   "Return non-nil if BUFFER is a GNUGO Board buffer."
-  (with-current-buffer (or buffer (current-buffer)) gnugo-state))
+  (eq 'gnugo-board-mode
+      (buffer-local-value
+       'major-mode
+       (or buffer (current-buffer)))))
 
 (defun gnugo-board-user-play-ok-p (&optional buffer)
   "Return non-nil if BUFFER is a GNUGO Board buffer ready for a user move."
