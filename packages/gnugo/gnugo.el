@@ -1007,6 +1007,38 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
   (interactive)
   (gnugo--swiz nil 0))
 
+(defun gnugo-frolic-prune-branch ()
+  "Remove the current branch from the gametree.
+This fails if there is only one branch in the tree.
+This fails if the monkey is on the current branch
+\(a restriction that will probably be lifted Real Soon Now\)."
+  (interactive)
+  (gnugo--awakened
+   ;; todo: define meaningful eviction semantics; remove restriction
+   (when (= a bidx)
+     (user-error "Cannot prune with monkey on branch"))
+   (when (= 1 width)
+     (user-error "Cannot prune last remaining branch"))
+   ;; A numeric line number is unreliable; branch points might vanish.
+   ;; Hang on to something more useful, instead.
+   (setq line (save-excursion
+                (when (re-search-backward "^ *[0-9]+ [BW]" nil t)
+                  (match-string 0))))
+   (let ((new (append ends nil)))
+     (if (zerop a)
+         (pop new)
+       (pop (nthcdr a new)))
+     (gnugo--set-tree-ends tree (apply 'vector new)))
+   (when (< a bidx)
+     (aset monkey 1 (decf bidx)))
+   (gnugo-frolic-quit)
+   (gnugo-frolic-in-the-leaves)
+   (when line
+     (goto-char (point-min))
+     (search-forward line)
+     (beginning-of-line)
+     (forward-char (+ 10 (* 6 (min a (- width 2))))))))
+
 (defun gnugo-frolic-backward-branch (&optional n)
   "Move backward N (default 1) branches."
   (interactive "p")
@@ -2282,6 +2314,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
         ("k"          . gnugo-frolic-exchange-right)
         ("K"          . gnugo-frolic-rotate-right)
         ("\C-m"       . gnugo-frolic-set-as-main-line)
+        ("\C-\M-p"    . gnugo-frolic-prune-branch)
         ("o"          . gnugo-frolic-return-to-origin)))
 
 (unless gnugo-board-mode-map
