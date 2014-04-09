@@ -1038,8 +1038,7 @@ This fails if the monkey is on the current branch
    (when line
      (goto-char (point-min))
      (search-forward line)
-     (beginning-of-line)
-     (forward-char (+ 10 (* 6 (min a (- width 2))))))))
+     (move-to-column (+ 10 (* 6 (min a (- width 2))))))))
 
 (defun gnugo-frolic-backward-branch (&optional n)
   "Move backward N (default 1) branches."
