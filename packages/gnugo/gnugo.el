@@ -954,6 +954,9 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
        (gnugo--awake)
      ,@body))
 
+(defsubst (gnugo--move-to-bcol bidx)
+  (move-to-column (+ 10 (* 6 bidx))))
+
 (defun gnugo--swiz (direction &optional blunt)
   (gnugo--awakened
    (unless a
@@ -980,7 +983,7 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
      (gnugo-frolic-in-the-leaves)
      (goto-char (point-min))
      (forward-line line)
-     (forward-char (+ 10 (* 6 b))))))
+     (gnugo--move-to-bcol b))))
 
 (defun gnugo-frolic-exchange-left ()
   "Exchange the current branch with the one to its left."
@@ -1036,19 +1039,19 @@ This fails if the monkey is on the current branch
    (when line
      (goto-char (point-min))
      (search-forward line)
-     (move-to-column (+ 10 (* 6 (min a (- width 2))))))))
+     (gnugo--move-to-bcol (min a (- width 2))))))
 
 (defun gnugo-frolic-backward-branch (&optional n)
   "Move backward N (default 1) branches."
   (interactive "p")
   (gnugo--awakened
-   (move-to-column (+ 10 (* 6 (mod (- (or a width) n) width))))))
+   (gnugo--move-to-bcol (mod (- (or a width) n) width))))
 
 (defun gnugo-frolic-forward-branch (&optional n)
   "Move forward N (default 1) branches."
   (interactive "p")
   (gnugo--awakened
-   (move-to-column (+ 10 (* 6 (mod (+ (or a -1) n) width))))))
+   (gnugo--move-to-bcol (mod (+ (or a -1) n) width))))
 
 (defun gnugo-boss-is-near ()
   "Do `bury-buffer' until the current one is not a GNU Board."
