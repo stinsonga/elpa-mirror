@@ -954,7 +954,7 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
        (gnugo--awake)
      ,@body))
 
-(defsubst (gnugo--move-to-bcol bidx)
+(defsubst gnugo--move-to-bcol (bidx)
   (move-to-column (+ 10 (* 6 bidx))))
 
 (defun gnugo--swiz (direction &optional blunt)
