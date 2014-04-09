@@ -1027,10 +1027,9 @@ This fails if the monkey is on the current branch
    (setq line (save-excursion
                 (when (re-search-backward "^ *[0-9]+ [BW]" nil t)
                   (match-string 0))))
-   (let ((new (append ends nil)))
-     (if (zerop a)
-         (pop new)
-       (pop (nthcdr a new)))
+   (let* ((new (append ends nil))
+          ;; Gratuitous ‘pop’ rv assignment avoids byte-compiler warning.
+          (bye (pop (nthcdr a new))))
      (gnugo--set-tree-ends tree (apply 'vector new)))
    (when (< a bidx)
      (aset monkey 1 (decf bidx)))
