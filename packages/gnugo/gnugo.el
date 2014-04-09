@@ -2692,7 +2692,7 @@ A collection is a list of gametrees, each a vector of four elements:
 
 (defun gnugo/sgf-hang-from-root (tree)
   (let ((ht (gnugo--mkht))
-        (leaves (append tree nil)))
+        (leaves (append (gnugo--tree-ends tree) nil)))
     (cl-flet
         ((hang (stack)
                (loop
