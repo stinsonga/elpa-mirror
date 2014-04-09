@@ -829,11 +829,34 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
       (gnugo-frolic-mode)
       (erase-buffer)
       (setq header-line-format
-            (concat (make-string 11 ?\s)
-                    (mapconcat (lambda (n)
-                                 (format "%-5s" n))
-                               lanes
-                               " ")))
+            (lexical-let ((full (concat
+                                 (make-string 11 ?\s)
+                                 (mapconcat (lambda (n)
+                                              (format "%-5s" n))
+                                            lanes
+                                            " "))))
+              `((:eval
+                 (funcall
+                  ,(lambda ()
+                     (cl-flet
+                         ((sp (w) (propertize
+                                   " " 'display
+                                   `(space :width ,w))))
+                       (concat
+                        (when (eq 'left scroll-bar-mode)
+                          (let ((w (or scroll-bar-width
+                                       (frame-parameter
+                                        nil 'scroll-bar-width)))
+                                (cw (frame-char-width)))
+                            (sp (if w
+                                    (/ w cw)
+                                  2))))
+                        (let ((fc (fringe-columns 'left t)))
+                          (unless (zerop fc)
+                            (sp fc)))
+                        (condition-case nil
+                            (substring full (window-hscroll))
+                          (error ""))))))))))
       (set (make-local-variable 'gnugo-frolic-parent-buffer) from)
       (set (make-local-variable 'gnugo-state)
            (buffer-local-value 'gnugo-state from))
