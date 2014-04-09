@@ -725,6 +725,7 @@ For all other values of RSEL, do nothing and return nil."
 Initially View minor mode is active.
 
 \\{gnugo-frolic-mode-map}"
+  (setq truncate-lines t)
   (buffer-disable-undo))
 
 (defun gnugo-frolic-quit ()
