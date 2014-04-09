@@ -939,10 +939,11 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
          (col (current-column)))
     (values tree ends width
             monkey (aref monkey 1)
-            line col (if (> 10 col)
-                         -1
-                       (/ (- col 10)
-                          6)))))
+            line col (unless (> 10 col)
+                       (let ((try (/ (- col 10)
+                                     6)))
+                         (unless (<= width try)
+                           try))))))
 
 (defmacro gnugo--awakened (&rest body)
   `(multiple-value-bind (tree ends width
@@ -954,8 +955,8 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
 
 (defun gnugo--swiz (direction &optional blunt)
   (gnugo--awakened
-   (when (> 0 a)
-     (setq a bidx))
+   (unless a
+     (user-error "No branch here"))
    (let* ((b (cond ((numberp blunt)
                     (unless (and (< -1 blunt)
                                  (< blunt width))
@@ -1014,6 +1015,8 @@ This fails if the monkey is on the current branch
 \(a restriction that will probably be lifted Real Soon Now\)."
   (interactive)
   (gnugo--awakened
+   (unless a
+     (user-error "No branch here"))
    ;; todo: define meaningful eviction semantics; remove restriction
    (when (= a bidx)
      (user-error "Cannot prune with monkey on branch"))
@@ -1043,13 +1046,13 @@ This fails if the monkey is on the current branch
   "Move backward N (default 1) branches."
   (interactive "p")
   (gnugo--awakened
-   (move-to-column (+ 10 (* 6 (mod (- a n) width))))))
+   (move-to-column (+ 10 (* 6 (mod (- (or a width) n) width))))))
 
 (defun gnugo-frolic-forward-branch (&optional n)
   "Move forward N (default 1) branches."
   (interactive "p")
   (gnugo--awakened
-   (move-to-column (+ 10 (* 6 (mod (+ a n) width))))))
+   (move-to-column (+ 10 (* 6 (mod (+ (or a -1) n) width))))))
 
 (defun gnugo-boss-is-near ()
   "Do `bury-buffer' until the current one is not a GNU Board."
