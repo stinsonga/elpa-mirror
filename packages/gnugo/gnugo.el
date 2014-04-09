@@ -773,7 +773,8 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
   (interactive)
   (let* ((buf (get-buffer-create (concat (gnugo-get :diamond)
                                          "*GNUGO Frolic*")))
-         (from (current-buffer))
+         (from (or gnugo-frolic-parent-buffer
+                   (current-buffer)))
          ;; todo: use defface once we finally succumb to ‘customize’
          (dimmed-node-face (list :inherit 'default
                                  :foreground "gray50"))
@@ -971,8 +972,6 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
                     (mod (+ direction n) width))))
           (was (copy-sequence ends))
           (new-bidx (funcall flit bidx)))
-     (gnugo-frolic-quit)
-     (assert (eq 'gnugo-board-mode major-mode))
      (loop for bx below width
            do (aset ends (funcall flit bx)
                     (aref was bx)))
@@ -1033,7 +1032,6 @@ This fails if the monkey is on the current branch
      (gnugo--set-tree-ends tree (apply 'vector new)))
    (when (< a bidx)
      (aset monkey 1 (decf bidx)))
-   (gnugo-frolic-quit)
    (gnugo-frolic-in-the-leaves)
    (when line
      (goto-char (point-min))
