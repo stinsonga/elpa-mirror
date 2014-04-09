@@ -102,6 +102,9 @@ http://www.gnu.org/software/gnugo")
 (defvar gnugo-board-mode-map nil
   "Keymap for GNUGO Board mode.")
 
+(defvar gnugo-frolic-mode-map nil
+  "Keymap for GNUGO Frolic mode.")
+
 (defvar gnugo-board-mode-hook nil
   "Hook run when entering GNUGO Board mode.")
 
@@ -2305,19 +2308,22 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
 ;;;---------------------------------------------------------------------------
 ;;; Load-time actions
 
-(mapc (lambda (pair)
-        (define-key gnugo-frolic-mode-map (car pair) (cdr pair)))
-      '(("q"          . gnugo-frolic-quit)
-        ("C"          . gnugo-frolic-quit) ; like ‘View-kill-and-leave’
-        ("\C-b"       . gnugo-frolic-backward-branch)
-        ("\C-f"       . gnugo-frolic-forward-branch)
-        ("j"          . gnugo-frolic-exchange-left)
-        ("J"          . gnugo-frolic-rotate-left)
-        ("k"          . gnugo-frolic-exchange-right)
-        ("K"          . gnugo-frolic-rotate-right)
-        ("\C-m"       . gnugo-frolic-set-as-main-line)
-        ("\C-\M-p"    . gnugo-frolic-prune-branch)
-        ("o"          . gnugo-frolic-return-to-origin)))
+(unless gnugo-frolic-mode-map
+  (setq gnugo-frolic-mode-map (make-sparse-keymap))
+  (suppress-keymap gnugo-frolic-mode-map)
+  (mapc (lambda (pair)
+          (define-key gnugo-frolic-mode-map (car pair) (cdr pair)))
+        '(("q"          . gnugo-frolic-quit)
+          ("C"          . gnugo-frolic-quit) ; like ‘View-kill-and-leave’
+          ("\C-b"       . gnugo-frolic-backward-branch)
+          ("\C-f"       . gnugo-frolic-forward-branch)
+          ("j"          . gnugo-frolic-exchange-left)
+          ("J"          . gnugo-frolic-rotate-left)
+          ("k"          . gnugo-frolic-exchange-right)
+          ("K"          . gnugo-frolic-rotate-right)
+          ("\C-m"       . gnugo-frolic-set-as-main-line)
+          ("\C-\M-p"    . gnugo-frolic-prune-branch)
+          ("o"          . gnugo-frolic-return-to-origin))))
 
 (unless gnugo-board-mode-map
   (setq gnugo-board-mode-map (make-sparse-keymap))
