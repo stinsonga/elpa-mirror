@@ -7,6 +7,7 @@ NB: "RCS: X..Y " means that the particular release includes
 
 - next | NOT YET RELEASED
   - bugfixes
+    - preserve whitespace for value type ‘text’
     - don't special-case property value type ‘none’
     - handle subtrees on write
     - display "resign" as "resign" in move history (amazing!)
