@@ -986,13 +986,13 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
         (user-error "No branch here")))
     (values tree ends width
             monkey (aref monkey 1)
-            line col a)))
+            line a)))
 
 (defmacro gnugo--awakened (how &rest body)
   (declare (indent 1))
   `(multiple-value-bind (tree ends width
                               monkey bidx
-                              line col
+                              line
                               a)
        (gnugo--awake ',how)
      ,@body))
