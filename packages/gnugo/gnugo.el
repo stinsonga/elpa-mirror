@@ -2595,7 +2595,7 @@ A collection is a list of gametrees, each a vector of four elements:
         SZ)
     (cl-labels
         ((sw () (skip-chars-forward " \t\n"))
-         (x (end)
+         (x (end preserve-whitespace)
             (let ((beg (point))
                   (endp (case end
                           (:end (lambda (char) (= ?\] char)))
@@ -2609,14 +2609,15 @@ A collection is a list of gametrees, each a vector of four elements:
                        (if (eolp)
                            (kill-line 1)
                          (forward-char 1)))
-                      ((looking-at "\\s-+")
+                      ((unless preserve-whitespace
+                         (looking-at "\\s-+"))
                        (delete-region (point) (match-end 0))
                        (insert " "))
                       (t (forward-char 1))))
               (buffer-substring-no-properties beg (point))))
          (one (type end) (let ((s (progn
                                     (forward-char 1)
-                                    (x end))))
+                                    (x end (eq 'text type)))))
                            (case type
                              ((stone point move)
                               ;; blech, begone bu"tt"-ugly blatherings
