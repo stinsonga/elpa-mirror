@@ -957,59 +957,75 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
       (set (make-local-variable 'gnugo-frolic-origin) finish)
       (gnugo-frolic-return-to-origin))))
 
-(defun gnugo--awake ()
+(defun gnugo--awake (how)
+  ;; Valid HOW elements:
+  ;;   require-valid-branch
+  ;;   (line . numeric)
+  ;;   (line . move-string)
+  ;; Invalid elements blissfully ignored.  :-D
   (let* ((tree (gnugo-get :sgf-gametree))
          (ends (gnugo--tree-ends tree))
          (width (length ends))
          (monkey (gnugo-get :monkey))
-         (line (count-lines (point-min) (line-beginning-position)))
-         (col (current-column)))
+         (line (case (cdr (assq 'line how))
+                 (numeric
+                  (count-lines (point-min) (line-beginning-position)))
+                 (move-string
+                  (save-excursion
+                    (when (re-search-backward "^ *[0-9]+ [BW]" nil t)
+                      (match-string 0))))
+                 (t nil)))
+         (col (current-column))
+         (a (unless (> 10 col)
+              (let ((try (/ (- col 10)
+                            6)))
+                (unless (<= width try)
+                  try)))))
+    (when (memq 'require-valid-branch how)
+      (unless a
+        (user-error "No branch here")))
     (values tree ends width
             monkey (aref monkey 1)
-            line col (unless (> 10 col)
-                       (let ((try (/ (- col 10)
-                                     6)))
-                         (unless (<= width try)
-                           try))))))
+            line col a)))
 
-(defmacro gnugo--awakened (&rest body)
+(defmacro gnugo--awakened (how &rest body)
+  (declare (indent 1))
   `(multiple-value-bind (tree ends width
                               monkey bidx
                               line col
                               a)
-       (gnugo--awake)
+       (gnugo--awake ',how)
      ,@body))
 
 (defsubst gnugo--move-to-bcol (bidx)
   (move-to-column (+ 10 (* 6 bidx))))
 
 (defun gnugo--swiz (direction &optional blunt)
-  (gnugo--awakened
-   (unless a
-     (user-error "No branch here"))
-   (let* ((b (cond ((numberp blunt)
-                    (unless (and (< -1 blunt)
-                                 (< blunt width))
-                      (user-error "No such branch: %s" blunt))
-                    blunt)
-                   (t (mod (+ direction a) width))))
-          (flit (if blunt (lambda (n)
-                            (cond ((= n a) b)
-                                  ((= n b) a)
-                                  (t n)))
-                  (lambda (n)
-                    (mod (+ direction n) width))))
-          (was (copy-sequence ends))
-          (new-bidx (funcall flit bidx)))
-     (loop for bx below width
-           do (aset ends (funcall flit bx)
-                    (aref was bx)))
-     (unless (= new-bidx bidx)
-       (aset monkey 1 new-bidx))
-     (gnugo-frolic-in-the-leaves)
-     (goto-char (point-min))
-     (forward-line line)
-     (gnugo--move-to-bcol b))))
+  (gnugo--awakened (require-valid-branch
+                    (line . numeric))
+    (let* ((b (cond ((numberp blunt)
+                     (unless (and (< -1 blunt)
+                                  (< blunt width))
+                       (user-error "No such branch: %s" blunt))
+                     blunt)
+                    (t (mod (+ direction a) width))))
+           (flit (if blunt (lambda (n)
+                             (cond ((= n a) b)
+                                   ((= n b) a)
+                                   (t n)))
+                   (lambda (n)
+                     (mod (+ direction n) width))))
+           (was (copy-sequence ends))
+           (new-bidx (funcall flit bidx)))
+      (loop for bx below width
+            do (aset ends (funcall flit bx)
+                     (aref was bx)))
+      (unless (= new-bidx bidx)
+        (aset monkey 1 new-bidx))
+      (gnugo-frolic-in-the-leaves)
+      (goto-char (point-min))
+      (forward-line line)
+      (gnugo--move-to-bcol b))))
 
 (defun gnugo-frolic-exchange-left ()
   "Exchange the current branch with the one to its left."
@@ -1042,42 +1058,36 @@ This fails if there is only one branch in the tree.
 This fails if the monkey is on the current branch
 \(a restriction that will probably be lifted Real Soon Now\)."
   (interactive)
-  (gnugo--awakened
-   (unless a
-     (user-error "No branch here"))
-   ;; todo: define meaningful eviction semantics; remove restriction
-   (when (= a bidx)
-     (user-error "Cannot prune with monkey on branch"))
-   (when (= 1 width)
-     (user-error "Cannot prune last remaining branch"))
-   ;; A numeric line number is unreliable; branch points might vanish.
-   ;; Hang on to something more useful, instead.
-   (setq line (save-excursion
-                (when (re-search-backward "^ *[0-9]+ [BW]" nil t)
-                  (match-string 0))))
-   (let* ((new (append ends nil))
-          ;; Gratuitous ‘pop’ rv assignment avoids byte-compiler warning.
-          (bye (pop (nthcdr a new))))
-     (gnugo--set-tree-ends tree (apply 'vector new)))
-   (when (< a bidx)
-     (aset monkey 1 (decf bidx)))
-   (gnugo-frolic-in-the-leaves)
-   (when line
-     (goto-char (point-min))
-     (search-forward line)
-     (gnugo--move-to-bcol (min a (- width 2))))))
+  (gnugo--awakened (require-valid-branch
+                    (line . move-string))
+    ;; todo: define meaningful eviction semantics; remove restriction
+    (when (= a bidx)
+      (user-error "Cannot prune with monkey on branch"))
+    (when (= 1 width)
+      (user-error "Cannot prune last remaining branch"))
+    (let* ((new (append ends nil))
+           ;; Gratuitous ‘pop’ rv assignment avoids byte-compiler warning.
+           (bye (pop (nthcdr a new))))
+      (gnugo--set-tree-ends tree (apply 'vector new)))
+    (when (< a bidx)
+      (aset monkey 1 (decf bidx)))
+    (gnugo-frolic-in-the-leaves)
+    (when line
+      (goto-char (point-min))
+      (search-forward line)
+      (gnugo--move-to-bcol (min a (- width 2))))))
 
 (defun gnugo-frolic-backward-branch (&optional n)
   "Move backward N (default 1) branches."
   (interactive "p")
-  (gnugo--awakened
-   (gnugo--move-to-bcol (mod (- (or a width) n) width))))
+  (gnugo--awakened nil
+    (gnugo--move-to-bcol (mod (- (or a width) n) width))))
 
 (defun gnugo-frolic-forward-branch (&optional n)
   "Move forward N (default 1) branches."
   (interactive "p")
-  (gnugo--awakened
-   (gnugo--move-to-bcol (mod (+ (or a -1) n) width))))
+  (gnugo--awakened nil
+    (gnugo--move-to-bcol (mod (+ (or a -1) n) width))))
 
 (defun gnugo-boss-is-near ()
   "Do `bury-buffer' until the current one is not a GNU Board."
