@@ -2774,10 +2774,23 @@ A collection is a list of gametrees, each a vector of four elements:
                                (cdddr full)))
                        gnugo/sgf-*r4-properties*))
         p name v spec)
-    ;; todo: escape special chars for `text' and `simpletext'.
     (cl-labels
-        ((>>one (v) (insert (format "[%s]" v)))
-         (>>two (v) (insert (format "[%s:%s]" (car v) (cdr v))))
+        ((esc (composed fmt arg)
+              (mapconcat (lambda (c)
+                           (case c
+                             ;; ‘?\[’ is not strictly required
+                             ;; but neither is it forbidden.
+                             ((?\[ ?\] ?\\) (format "\\%c" c))
+                             (?: (concat (if composed "\\" "") ":"))
+                             (t (string c))))
+                         (string-to-list (format fmt arg))
+                         ""))
+         (>>one (v) (insert "[" (esc nil "%s" v) "]"))
+         (>>two (v) (insert "["
+                            (esc t "%s" (car v))
+                            ":"
+                            (esc t "%s" (cdr v))
+                            "]"))
          (>>nl () (cond ((memq name aft-newline-appreciated)
                          (insert "\n"))
                         ((< 60 (current-column))

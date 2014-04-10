@@ -7,6 +7,7 @@ NB: "RCS: X..Y " means that the particular release includes
 
 - next | NOT YET RELEASED
   - bugfixes
+    - on write, use ‘\’ to escape certain chars
     - preserve whitespace for value type ‘text’
     - don't special-case property value type ‘none’
     - handle subtrees on write
