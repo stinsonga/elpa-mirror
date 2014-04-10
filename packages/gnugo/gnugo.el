@@ -721,8 +721,7 @@ For all other values of RSEL, do nothing and return nil."
         (_ nil)))))
 
 (define-derived-mode gnugo-frolic-mode special-mode "GNUGO Frolic"
-  "A special mode for viewing a GNUGO gametree.
-Initially View minor mode is active.
+  "A special mode for manipulating a GNUGO gametree.
 
 \\{gnugo-frolic-mode-map}"
   (setq truncate-lines t)
