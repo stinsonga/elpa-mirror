@@ -259,8 +259,8 @@ See `gnugo-put'."
 (defsubst gnugo--tree-ends (tree)
   (aref tree 2))
 
-(defsubst gnugo--set-tree-ends (tree ends)
-  (aset tree 2 ends)
+(defsubst gnugo--set-tree-ends (tree ls)
+  (aset tree 2 (apply 'vector ls))
   ;; hmm, probably unnecessary
   tree)
 
@@ -1068,7 +1068,7 @@ This fails if the monkey is on the current branch
     (let* ((new (append ends nil))
            ;; Gratuitous ‘pop’ rv assignment avoids byte-compiler warning.
            (bye (pop (nthcdr a new))))
-      (gnugo--set-tree-ends tree (apply 'vector new)))
+      (gnugo--set-tree-ends tree new))
     (when (< a bidx)
       (aset monkey 1 (decf bidx)))
     (gnugo-frolic-in-the-leaves)
@@ -1179,7 +1179,7 @@ This fails if the monkey is on the current branch
                 tree (let ((ls (append ends nil)))
                        ;; copy old to the right of new
                        (push mem (nthcdr bidx ls))
-                       (apply 'vector ls))))
+                       ls)))
              (puthash fruit (1+ (gethash tip mnum)) mnum)
              (push fruit mem)
              (aset ends bidx mem)))
