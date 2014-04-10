@@ -261,8 +261,7 @@ See `gnugo-put'."
 
 (defsubst gnugo--set-tree-ends (tree ls)
   (aset tree 2 (apply 'vector ls))
-  ;; hmm, probably unnecessary
-  tree)
+  (gnugo--tree-ends tree))
 
 (defun gnugo-describe-internal-properties ()
   "Pretty-print `gnugo-state' properties in another buffer.
@@ -1175,11 +1174,11 @@ This fails if the monkey is on the current branch
            finally do
            (progn
              (unless (gnugo--no-regrets monkey ends)
-               (gnugo--set-tree-ends
-                tree (let ((ls (append ends nil)))
-                       ;; copy old to the right of new
-                       (push mem (nthcdr bidx ls))
-                       ls)))
+               (setq ends (gnugo--set-tree-ends
+                           tree (let ((ls (append ends nil)))
+                                  ;; copy old to the right of new
+                                  (push mem (nthcdr bidx ls))
+                                  ls))))
              (puthash fruit (1+ (gethash tip mnum)) mnum)
              (push fruit mem)
              (aset ends bidx mem)))
