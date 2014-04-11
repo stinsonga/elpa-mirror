@@ -2209,7 +2209,7 @@ In this mode, keys do not self insert.
                            'gnugo-option-history))
         proc
         board-size user-color handicap komi minus-l infile)
-    (loop for (var default opt &optional rx)
+    (loop for (var default opt rx)
           in '((board-size      19 "--boardsize")
                (user-color "black" "--color" "\\(black\\|white\\)")
                (handicap         0 "--handicap")
@@ -2254,7 +2254,7 @@ In this mode, keys do not self insert.
       (gnugo-put :monkey (vector (aref (gnugo--tree-ends tree) 0) 0)))
     (gnugo--SZ! board-size)
     (loop with gb = (gnugo--blackp (gnugo-other user-color))
-          for (property value &optional mogrifyp) in
+          for (property value mogrifyp) in
           `((:SZ ,board-size)
             (:DT ,(format-time-string "%Y-%m-%d"))
             (:RU ,(if (string-match "--chinese-rules" args)
