@@ -283,8 +283,6 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
                            (:sgf-gametree
                             (list (hash-table-count
                                    (gnugo--tree-mnum val))
-                                  (hash-table-count
-                                   (aref val 3))
                                   (gnugo--tree-ends val)))
                            (:monkey
                             (let ((mem (aref val 0)))
@@ -2577,9 +2575,7 @@ A collection is a list of gametrees, each a vector of four elements:
  MNUM -- `eq' hash: node to move numbers; non-\"move\" nodes
          have a move number of the previous \"move\" node (or zero)
 
- ROOT -- the root node
-
- KIDS -- `eq' hash: node to node list (branch points only)"
+ ROOT -- the root node"
   ;; Arg names inspired by `create-image', despite -P being frowned upon.
   (let ((keywords (or (get 'gnugo/sgf-*r4-properties* :keywords)
                       (put 'gnugo/sgf-*r4-properties* :keywords
@@ -2691,7 +2687,7 @@ A collection is a list of gametrees, each a vector of four elements:
                                     (when (eq :SZ (car prop))
                                       (setq SZ (cdr prop)))
                                     prop))))
-         (TREE (parent mnum kids)
+         (TREE (parent mnum)
                (let ((ls parent)
                      prev node)
                  (seek-into ?\()
@@ -2703,9 +2699,6 @@ A collection is a list of gametrees, each a vector of four elements:
                                       0)
                                     (gethash prev mnum 0))
                             mnum)
-                   ;; phase 2
-                   (when (listp (gethash prev kids t))
-                     (push node (gethash prev kids)))
                    (push node
                          ls))
                  (prog1
@@ -2713,10 +2706,8 @@ A collection is a list of gametrees, each a vector of four elements:
                          ;; singular
                          (list ls)
                        ;; multiple
-                       ;; phase 1
-                       (puthash node (list) kids)
                        (loop while (seek ?\()
-                             append (TREE ls mnum kids)))
+                             append (TREE ls mnum)))
                    (seek-into ?\))))))
       (with-temp-buffer
         (if (not data-p)
@@ -2725,13 +2716,11 @@ A collection is a list of gametrees, each a vector of four elements:
           (goto-char (point-min)))
         (loop while (morep)
               collect (let* ((mnum (gnugo--mkht :weakness 'key))
-                             (kids (gnugo--mkht))
-                             (ends (TREE nil mnum kids))
+                             (ends (TREE nil mnum))
                              (root (car (last (car ends)))))
                         (vector (apply 'vector ends)
                                 mnum
-                                root
-                                kids)))))))
+                                root)))))))
 
 (defun gnugo/sgf-write-file (collection filename)
   (let ((aft-newline-appreciated '(:AP :GN :PB :PW :HA :KM :RU :RE))
