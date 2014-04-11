@@ -2733,35 +2733,6 @@ A collection is a list of gametrees, each a vector of four elements:
                                 (apply 'vector ends)
                                 root)))))))
 
-(defun gnugo/sgf-hang-from-root (tree)
-  (let ((ht (gnugo--mkht))
-        (leaves (append (gnugo--tree-ends tree) nil)))
-    (cl-flet
-        ((hang (stack)
-               (loop
-                with rh                 ; rectified history
-                with bp                 ; branch point
-                for node in stack
-                until (setq bp (gethash node ht))
-                do (puthash node
-                            (push node rh) ; good for now: ½τ
-                            ht)
-                finally return
-                (if (not bp)
-                    ;; first run: main line
-                    rh
-                  ;; subsequent runs: grafts (value discarded)
-                  (setcdr bp (nconc
-                              ;; Maintain order of ‘leaves’.
-                              (let ((was (cdr bp)))
-                                (if (gnugo--nodep (car was))
-                                    (list was)
-                                  was))
-                              (list rh)))))))
-      (setq tree (hang (pop leaves)))
-      (mapc #'hang leaves)
-      tree)))
-
 (defun gnugo/sgf-write-file (collection filename)
   (let ((aft-newline-appreciated '(:AP :GN :PB :PW :HA :KM :RU :RE))
         (me (cons "gnugo.el" gnugo-version))
@@ -2834,7 +2805,33 @@ A collection is a list of gametrees, each a vector of four elements:
           ;; take responsibility for our actions
           (gnugo--set-root-prop :AP me tree)
           ;; write it out
-          (>>tree (gnugo/sgf-hang-from-root tree)))
+          (let ((ht (gnugo--mkht))
+                (leaves (append (gnugo--tree-ends tree) nil)))
+            (cl-flet
+                ((hang (stack)
+                       (loop
+                        with rh         ; rectified history
+                        with bp         ; branch point
+                        for node in stack
+                        until (setq bp (gethash node ht))
+                        do (puthash node
+                                    (push node rh) ; good for now: ½τ
+                                    ht)
+                        finally return
+                        (if (not bp)
+                            ;; first run: main line
+                            rh
+                          ;; subsequent runs: grafts (value discarded)
+                          (setcdr bp (nconc
+                                      ;; Maintain order of ‘leaves’.
+                                      (let ((was (cdr bp)))
+                                        (if (gnugo--nodep (car was))
+                                            (list was)
+                                          was))
+                                      (list rh)))))))
+              (setq tree (hang (pop leaves)))
+              (mapc #'hang leaves)
+              (>>tree tree))))
         (newline)
         (write-file filename)))))
 
