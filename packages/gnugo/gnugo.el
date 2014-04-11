@@ -689,7 +689,6 @@ For all other values of RSEL, do nothing and return nil."
   (let* ((monkey (gnugo-get :monkey))
          (mem (aref monkey 0))
          (as-pos (gnugo--as-pos-func (gnugo-get :SZ)))
-         col
          acc node mprop move)
     (cl-flet*
         ((as-pos-maybe (x) (if (string= "resign" x)
@@ -806,7 +805,7 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
       (loop
        for bx below width
        do (loop
-           with (node fork)
+           with fork
            for node in (aref ends bx)
            do (if (setq fork (on node))
                   (cl-flet
@@ -894,7 +893,6 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
         (when (progn (newline)
                      (setq forks (nreverse forks)))
           (let* ((margin (make-string 11 ?\s))
-                 (count (length forks))
                  (heads (mapcar #'car forks))
                  (tails (mapcar #'cdr forks)))
             (cl-flet*
