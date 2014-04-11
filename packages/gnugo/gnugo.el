@@ -2763,12 +2763,8 @@ A collection is a list of gametrees, each a vector of four elements:
       tree)))
 
 (defun gnugo/sgf-write-file (collection filename)
-  ;; take responsibility for our actions
-  (let ((me (cons "gnugo.el" gnugo-version)))
-    (dolist (tree collection)
-      (gnugo--set-root-prop :AP me tree)))
-  ;; write it out
   (let ((aft-newline-appreciated '(:AP :GN :PB :PW :HA :KM :RU :RE))
+        (me (cons "gnugo.el" gnugo-version))
         (specs (mapcar (lambda (full)
                          (cons (intern (format ":%s" (car full)))
                                (cdddr full)))
@@ -2835,6 +2831,9 @@ A collection is a list of gametrees, each a vector of four elements:
                  (insert ")")))
       (with-temp-buffer
         (dolist (tree collection)
+          ;; take responsibility for our actions
+          (gnugo--set-root-prop :AP me tree)
+          ;; write it out
           (>>tree (gnugo/sgf-hang-from-root tree)))
         (newline)
         (write-file filename)))))
