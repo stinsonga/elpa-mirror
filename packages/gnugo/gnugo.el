@@ -254,13 +254,13 @@ See `gnugo-put'."
   (gethash key gnugo-state))
 
 (defsubst gnugo--tree-mnum (tree)
-  (aref tree 0))
+  (aref tree 1))
 
 (defsubst gnugo--tree-ends (tree)
-  (aref tree 2))
+  (aref tree 0))
 
 (defsubst gnugo--set-tree-ends (tree ls)
-  (aset tree 2 (apply 'vector ls))
+  (aset tree 0 (apply 'vector ls))
   (gnugo--tree-ends tree))
 
 (defun gnugo-describe-internal-properties ()
@@ -284,7 +284,7 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
                             (list (hash-table-count
                                    (gnugo--tree-mnum val))
                                   (hash-table-count
-                                   (aref val 1))
+                                   (aref val 3))
                                   (gnugo--tree-ends val)))
                            (:monkey
                             (let ((mem (aref val 0)))
@@ -404,7 +404,7 @@ when you are sure the command cannot fail."
 
 (defun gnugo--root-node (&optional tree)
   (aref (or tree (gnugo-get :sgf-gametree))
-        3))
+        2))
 
 (defsubst gnugo--root-prop (prop &optional tree)
   (cdr (assq prop (gnugo--root-node tree))))
@@ -2571,15 +2571,15 @@ Optional arg DATA-P non-nil means FILE-OR-DATA is
 a string containing SGF[4] data.
 A collection is a list of gametrees, each a vector of four elements:
 
- MNUM -- `eq' hash: node to move numbers; non-\"move\" nodes
-         have a move number of the previous \"move\" node (or zero)
-
- KIDS -- `eq' hash: node to node list (branch points only)
-
  ENDS -- a vector of node lists, with shared tails
          (last element of all the lists is the root node)
 
- ROOT -- the root node"
+ MNUM -- `eq' hash: node to move numbers; non-\"move\" nodes
+         have a move number of the previous \"move\" node (or zero)
+
+ ROOT -- the root node
+
+ KIDS -- `eq' hash: node to node list (branch points only)"
   ;; Arg names inspired by `create-image', despite -P being frowned upon.
   (let ((keywords (or (get 'gnugo/sgf-*r4-properties* :keywords)
                       (put 'gnugo/sgf-*r4-properties* :keywords
@@ -2728,10 +2728,10 @@ A collection is a list of gametrees, each a vector of four elements:
                              (kids (gnugo--mkht))
                              (ends (TREE nil mnum kids))
                              (root (car (last (car ends)))))
-                        (vector mnum
-                                kids
-                                (apply 'vector ends)
-                                root)))))))
+                        (vector (apply 'vector ends)
+                                mnum
+                                root
+                                kids)))))))
 
 (defun gnugo/sgf-write-file (collection filename)
   (let ((aft-newline-appreciated '(:AP :GN :PB :PW :HA :KM :RU :RE))
