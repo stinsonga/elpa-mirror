@@ -236,7 +236,7 @@ ggtags-visit-project-root
 
    Open the project root directory in ``dired``.
 
-ggtags-delete-tag-files
+ggtags-delete-tags
 
    Delete the GTAGS, GRTAGS, GPATH and ID files of current project.
 
@@ -282,6 +282,11 @@ Integration with other packages
 
 NEWS
 ~~~~
+
+[2014-04-12 Sat] 0.8.3
+++++++++++++++++++++++
+
+#. Tweak mode-line ligter in ``ggtags-navigation-mode``.
 
 [2014-04-05 Sat] 0.8.2
 ++++++++++++++++++++++
