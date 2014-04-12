@@ -15,6 +15,7 @@ NB: "RCS: X..Y " means that the particular release includes
     - avoid clobbering SGF property ‘EV’ on resignation
     - follow main line in subtrees on read
   - PASS for SZ <= 19 normalized to "" on read, written as ""
+  - ‘=’ also displays move number of the stone (if any) at that position
   - new keybinding for ‘gnugo-undo-one-move’: M-u
   - ‘gnugo-undo-one-move’ can optionally arrange for you to play next
   - new command: ‘o’ (gnugo-oops)

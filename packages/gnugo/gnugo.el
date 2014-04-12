@@ -2100,9 +2100,30 @@ which placed the stone at point."
   (save-excursion (gnugo-refresh)))
 
 (defun gnugo-describe-position ()
-  "Display the board position under cursor in the echo area."
+  "Display the board position under cursor in the echo area.
+If there a stone at that position, also display its move number."
   (interactive)
-  (message "%s" (gnugo-position)))
+  (let ((pos (gnugo-position))          ; do first (can throw)
+        (color (case (following-char)
+                 (?X :B)
+                 (?O :W))))
+    (message
+     "%s%s" pos
+     (or (when color
+           (loop
+            with monkey = (gnugo-get :monkey)
+            with tree   = (gnugo-get :sgf-gametree)
+            with mnum   = (gnugo--tree-mnum tree)
+            with as-cc  = (gnugo--as-cc-func)
+            with fruit  = (cons color (funcall as-cc pos))
+            for node in (aref monkey 0)
+            if (member fruit node)
+            return
+            (format " (move %d)"
+                    (gethash node mnum))
+            finally return
+            nil))
+         ""))))
 
 (defun gnugo-switch-to-another ()
   "Switch to another GNU Go game buffer (if any)."
