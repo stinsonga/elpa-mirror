@@ -11,37 +11,6 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 *** [[file:gnugo.el::defun.gnugo-toggle-dead-group][gnugo-toggle-dead-group]] only half-complete
 *** no error-handling in SGF parsing
 *** performance -- ‘compare-strings’ approach too clever/slow :-/
-* debugging aids
-*** swizzling branches for frolicking fun
-(defun SWIZ (a b)
-  (let* ((ends (gnugo--tree-ends (gnugo-get :sgf-gametree)))
-         (monkey (gnugo-get :monkey))
-         (bidx (aref monkey 1)))
-    (rotatef (aref ends a)
-             (aref ends b))
-    (cond ((= a bidx) (aset monkey 1 b))
-          ((= b bidx) (aset monkey 1 a)))))
-
-(defun SWIZ-RANDOM ()
-  (interactive)
-  (let* ((n (length (gnugo--tree-ends (gnugo-get :sgf-gametree))))
-         (one (random n))
-         (two (if (= 1 n)
-                  one
-                (loop with try
-                      while (= one (setq try (random n)))
-                      finally return try))))
-    (SWIZ one two)
-    (message "%d <-> %d" one two)))
-
-(defun UNSWIZ ()
-  (interactive)
-  (let* ((monkey (gnugo-get :monkey))
-         (cur (aref monkey 1)))
-    (if (zerop cur)
-        (message "(nothing to do)")
-      (SWIZ 0 cur)
-      (message "0 <-> %d" cur))))
 * ideas / wishlist
 *** set ‘lexical-binding’ (if possible!)
     Hmm, lots of symbol trickery going on; initial attempts FAIL.
@@ -54,11 +23,7 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 *** extend GNUGO Board mode to manage another subprocess for analysis only
 *** command ‘C’ to add a comment to the SGF tree
 *** command ‘C-u =’ to label a position
-*** SGF tree display, traversal (belongs in sgf.el)
-*** review game history in another buffer
-*** branch subgame tree at arbitrary point
-*** subgame branch matriculation (maturity: child leaves the family)
-*** dribble the SGF tree
+*** SGF tree traversal
 *** "undo undo undoing"; integrate Emacs undo, GTP undo, subgame branching
 *** make buffer name format configurable (but enforce uniqueness)
 *** more tilde escapes for [[file:gnugo.el::defvar.gnugo-mode-line][gnugo-mode-line]]
