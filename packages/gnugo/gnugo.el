@@ -1072,17 +1072,22 @@ This fails if the monkey is on the current branch
       (search-forward line)
       (gnugo--move-to-bcol (min a (- width 2))))))
 
+(defun gnugo--sideways (backwards n)
+  (gnugo--awakened nil
+    (gnugo--move-to-bcol (mod (if backwards
+                                  (- (or a width) n)
+                                (+ (or a -1) n))
+                              width))))
+
 (defun gnugo-frolic-backward-branch (&optional n)
   "Move backward N (default 1) branches."
   (interactive "p")
-  (gnugo--awakened nil
-    (gnugo--move-to-bcol (mod (- (or a width) n) width))))
+  (gnugo--sideways t n))
 
 (defun gnugo-frolic-forward-branch (&optional n)
   "Move forward N (default 1) branches."
   (interactive "p")
-  (gnugo--awakened nil
-    (gnugo--move-to-bcol (mod (+ (or a -1) n) width))))
+  (gnugo--sideways nil n))
 
 (defun gnugo-boss-is-near ()
   "Do `bury-buffer' until the current one is not a GNU Board."
