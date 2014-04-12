@@ -799,8 +799,10 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
              (gethash node seen))
          (emph (s face)
                (propertize s 'face face))
-         (fsi (fmt &rest args)
-              (insert (apply 'format fmt args))))
+         (fsi (properties fmt &rest args)
+              (insert (apply 'propertize
+                             (apply 'format fmt args)
+                             properties))))
       ;; breathe in
       (loop
        for bx below width
@@ -857,14 +859,17 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
       (set (make-local-variable 'gnugo-state)
            (buffer-local-value 'gnugo-state from))
       (loop
+       with props
        for n                            ; move number
        from max-move-num downto 1
+       do (setq props (list 'n n))
        do
        (loop
         with (move forks br)
         initially (progn
                     (goto-char (point-min))
-                    (fsi "%3d %s  -- "
+                    (fsi props
+                         "%3d %s  -- "
                          n (aref ["W" "B"] (logand 1 n))))
         for bx below width
         do (let* ((node (unless (< (aref valid bx) n)
@@ -878,7 +883,8 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
              (when (and ok (setq br (gethash node soil)))
                (push (cons bx (sort br '<))
                      forks))
-             (fsi " %-5s"
+             (fsi (list* 'bx bx props)
+                  " %-5s"
                   (cond ((and (eq at node)
                               (or ok (= bx bidx)))
                          (when (= bx bidx)
@@ -890,7 +896,7 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
                          (emph s dimmed-node-face))
                         (t s))))
         finally do
-        (when (progn (newline)
+        (when (progn (fsi props "\n")
                      (setq forks (nreverse forks)))
           (let* ((margin (make-string 11 ?\s))
                  (heads (mapcar #'car forks))
@@ -1101,6 +1107,38 @@ This fails if the monkey is on the current branch
   "Move forward N (default 1) branches."
   (interactive "p")
   (gnugo--sideways nil n))
+
+(defun gnugo--vertical (n direction)
+  (when (> 0 n)
+    (setq n (- n)
+          direction (- direction)))
+  (gnugo--awakened ((line . numeric)
+                    (omit tree ends monkey bidx))
+    (let ((stop (if (> 0 direction)
+                    0
+                  (max 0 (1- (count-lines (point-min)
+                                          (point-max))))))
+          (col (unless a
+                 (current-column))))
+      (loop while (not (= line stop))
+            do (loop do (progn
+                          (forward-line direction)
+                          (incf line direction))
+                     until (get-text-property (point) 'n))
+            until (zerop (decf n)))
+      (if a
+          (gnugo--move-to-bcol a)
+        (move-to-column col)))))
+
+(defun gnugo-frolic-previous-move (&optional n)
+  "Move to the Nth (default 1) previous move."
+  (interactive "p")
+  (gnugo--vertical n -1))
+
+(defun gnugo-frolic-next-move (&optional n)
+  "Move to the Nth (default 1) next move."
+  (interactive "p")
+  (gnugo--vertical n 1))
 
 (defun gnugo-boss-is-near ()
   "Do `bury-buffer' until the current one is not a GNU Board."
@@ -2389,6 +2427,8 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
           ("C"          . gnugo-frolic-quit) ; like ‘View-kill-and-leave’
           ("\C-b"       . gnugo-frolic-backward-branch)
           ("\C-f"       . gnugo-frolic-forward-branch)
+          ("\C-p"       . gnugo-frolic-previous-move)
+          ("\C-n"       . gnugo-frolic-next-move)
           ("j"          . gnugo-frolic-exchange-left)
           ("J"          . gnugo-frolic-rotate-left)
           ("k"          . gnugo-frolic-exchange-right)
