@@ -1073,9 +1073,9 @@ This fails if the monkey is on the current branch
       (user-error "Cannot prune with monkey on branch"))
     (when (= 1 width)
       (user-error "Cannot prune last remaining branch"))
-    (let* ((new (append ends nil))
-           ;; Gratuitous ‘pop’ rv assignment avoids byte-compiler warning.
-           (bye (pop (nthcdr a new))))
+    (let ((new (append ends nil)))
+      ;; Explicit ignorance avoids byte-compiler warning.
+      (ignore (pop (nthcdr a new)))
       (gnugo--set-tree-ends tree new))
     (when (< a bidx)
       (aset monkey 1 (decf bidx)))
@@ -2465,6 +2465,8 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                 (t (message "(no such command: %s)" sel)))))
 
       (deffull final_score
+        ;; Explicit ignorance avoids byte-compiler warning.
+        (ignore sel)
         (gnugo-display-final-score))
 
       (defgtp '(boardsize
