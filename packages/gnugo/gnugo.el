@@ -1113,7 +1113,7 @@ This fails if the monkey is on the current branch
     (setq n (- n)
           direction (- direction)))
   (gnugo--awakened ((line . numeric)
-                    (omit tree ends monkey bidx))
+                    (omit tree ends width monkey bidx))
     (let ((stop (if (> 0 direction)
                     0
                   (max 0 (1- (count-lines (point-min)
