@@ -1996,6 +1996,53 @@ the move which placed the stone at point, like `\\[gnugo-fancy-undo]'."
                       0)
                     nil t))
 
+(defun gnugo-okay (&optional full)
+  "Redo a pair of undone moves.
+Prefix arg means to redo all the undone moves."
+  (interactive "P")
+  (gnugo-gate)
+  (let* ((tree (gnugo-get :sgf-gametree))
+         (ends (gnugo--tree-ends tree))
+         (monkey (gnugo-get :monkey)))
+    (if (gnugo--no-regrets monkey ends)
+        (message "Oop ack!")
+      (let* ((as-pos (gnugo--as-pos-func))
+             (mnum (gnugo--tree-mnum tree))
+             (mem (aref monkey 0))
+             (bidx (aref monkey 1))
+             (end (aref ends bidx))
+             (ucolor (gnugo-get :user-color))
+             (gcolor (gnugo-other ucolor))
+             (uprop (if (gnugo--blackp ucolor)
+                        :B :W)))
+        (cl-flet ((mvno (node) (gethash node mnum)))
+          (loop
+           with ok = (if full
+                         (mvno (car end))
+                       (+ 2 (mvno (car mem))))
+           with (node move todo)
+           for ls on end
+           do (progn
+                (setq node (car ls)
+                      move (gnugo--move-prop node))
+                (when (and move (>= ok (mvno node)))
+                  (let ((userp (eq uprop (car move))))
+                    (push (list (if userp ucolor gcolor)
+                                userp
+                                (funcall as-pos (cdr move)))
+                          todo))))
+           until (eq mem (cdr ls))
+           finally do
+           (loop
+            for (color userp pos) in todo
+            do (let* ((move (format "play %s %s" color pos))
+                      (accept (gnugo--q move)))
+                 (unless (= ?= (aref accept 0))
+                   (user-error "%s" accept))
+                 (gnugo-push-move userp pos)
+                 (gnugo-refresh)
+                 (redisplay)))))))))
+
 (defun gnugo-display-final-score ()
   "Display final score and other info in another buffer (when game over).
 If the game is still ongoing, Emacs asks if you wish to stop play (by
@@ -2454,6 +2501,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
           ("u"        . gnugo-undo-two-moves)
           ("\C-?"     . gnugo-undo-two-moves)
           ("o"        . gnugo-oops)
+          ("O"        . gnugo-okay)
           ("\C-l"     . gnugo-refresh)
           ("\M-_"     . gnugo-boss-is-near)
           ("_"        . gnugo-boss-is-near)
