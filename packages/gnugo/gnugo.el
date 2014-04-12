@@ -975,20 +975,32 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
               (let ((try (/ (- col 10)
                             6)))
                 (unless (<= width try)
-                  try)))))
+                  try))))
+         (rv (list a)))
     (when (memq 'require-valid-branch how)
       (unless a
         (user-error "No branch here")))
-    (values tree ends width
-            monkey (aref monkey 1)
-            line a)))
+    (loop with omit = (cdr (assq 'omit how))
+          for (name . value) in `((line   . ,line)
+                                  (bidx   . ,(aref monkey 1))
+                                  (monkey . ,monkey)
+                                  (width  . ,width)
+                                  (ends   . ,ends)
+                                  (tree   . ,tree))
+          do (unless (memq name omit)
+               (push value rv)))
+    rv))
 
 (defmacro gnugo--awakened (how &rest body)
   (declare (indent 1))
-  `(multiple-value-bind (tree ends width
-                              monkey bidx
-                              line
-                              a)
+  `(destructuring-bind ,(loop with omit = (cdr (assq 'omit how))
+                              with ls   = (list 'a)
+                              for name in '(line bidx monkey
+                                                 width ends
+                                                 tree)
+                              do (unless (memq name omit)
+                                   (push name ls))
+                              finally return ls)
        (gnugo--awake ',how)
      ,@body))
 
@@ -997,6 +1009,7 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
 
 (defun gnugo--swiz (direction &optional blunt)
   (gnugo--awakened (require-valid-branch
+                    (omit tree)
                     (line . numeric))
     (let* ((b (cond ((numberp blunt)
                      (unless (and (< -1 blunt)
@@ -1073,7 +1086,7 @@ This fails if the monkey is on the current branch
       (gnugo--move-to-bcol (min a (- width 2))))))
 
 (defun gnugo--sideways (backwards n)
-  (gnugo--awakened nil
+  (gnugo--awakened ((omit tree ends monkey bidx line))
     (gnugo--move-to-bcol (mod (if backwards
                                   (- (or a width) n)
                                 (+ (or a -1) n))
