@@ -1115,17 +1115,22 @@ This fails if the monkey is on the current branch
   (eq (aref ends (aref monkey 1))
       (aref monkey 0)))
 
+(defun gnugo--as-cc-func ()
+  (lexical-let ((size (gnugo-get :SZ)))
+    (lambda (pos)
+      (let* ((col (aref pos 0))
+             (one (+ ?a (- col (if (< ?H col) 1 0) ?A)))
+             (two (+ ?a (- size (string-to-number
+                                 (substring pos 1))))))
+        (format "%c%c" one two)))))
+
 (defun gnugo-note (property value &optional mogrifyp)
   (when mogrifyp
-    (let ((sz (gnugo-get :SZ)))
+    (let ((as-cc (gnugo--as-cc-func)))
       (cl-flet
           ((mog (pos) (if (gnugo--passp pos)
                           ""
-                        (let* ((col (aref pos 0))
-                               (one (+ ?a (- col (if (< ?H col) 1 0) ?A)))
-                               (two (+ ?a (- sz (string-to-number
-                                                 (substring pos 1))))))
-                          (format "%c%c" one two)))))
+                        (funcall as-cc pos))))
         (setq value (if (consp value)
                         (mapcar #'mog value)
                       (mog value))))))
