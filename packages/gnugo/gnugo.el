@@ -662,8 +662,8 @@ when you are sure the command cannot fail."
   (or (assq :B node)
       (assq :W node)))
 
-(defun gnugo--as-pos-func (size)
-  (lexical-let ((size size))
+(defun gnugo--as-pos-func ()
+  (lexical-let ((size (gnugo-get :SZ)))
     ;; rv
     (lambda (cc)
       (if (string= "" cc)
@@ -688,7 +688,7 @@ For all other values of RSEL, do nothing and return nil."
   (interactive "P")
   (let* ((monkey (gnugo-get :monkey))
          (mem (aref monkey 0))
-         (as-pos (gnugo--as-pos-func (gnugo-get :SZ)))
+         (as-pos (gnugo--as-pos-func))
          acc node mprop move)
     (cl-flet*
         ((as-pos-maybe (x) (if (string= "resign" x)
@@ -785,7 +785,7 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
          (width (length ends))
          (lanes (number-sequence 0 (1- width)))
          (monkey (gnugo-get :monkey))
-         (as-pos (gnugo--as-pos-func (gnugo-get :SZ)))
+         (as-pos (gnugo--as-pos-func))
          (at (car (aref monkey 0)))
          (bidx (aref monkey 1))
          (valid (map 'vector (lambda (end)
