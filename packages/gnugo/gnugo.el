@@ -1174,6 +1174,10 @@ This fails if the monkey is on the current branch
                                  (substring pos 1))))))
         (format "%c%c" one two)))))
 
+(defsubst gnugo--decorate (node alist)
+  ;; NB: ALIST should not have :B or :W keys.
+  (setcdr (last node) alist))
+
 (defun gnugo-note (property value &optional mogrifyp)
   (when mogrifyp
     (let ((as-cc (gnugo--as-cc-func)))
@@ -1252,7 +1256,7 @@ This fails if the monkey is on the current branch
              (push fruit mem)
              (aset ends bidx mem)))
           (setf (aref monkey 0) mem))
-      (setcdr (last tip) fruit))))
+      (gnugo--decorate tip fruit))))
 
 (defun gnugo-close-game (end-time resign)
   (gnugo-put :game-end-time end-time)
