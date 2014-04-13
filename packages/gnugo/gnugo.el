@@ -337,7 +337,7 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
   (when (gnugo-get :waitingp)
     (user-error "Not your turn yet -- please wait for \"\(%s to play\)\""
                 (gnugo-get :user-color)))
-  (when (and (gnugo-get :game-over) in-progress-p)
+  (when (and in-progress-p (gnugo-get :game-over))
     (user-error "Sorry, game over")))
 
 (defun gnugo-sentinel (proc string)
