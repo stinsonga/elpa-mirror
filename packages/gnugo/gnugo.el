@@ -2389,22 +2389,30 @@ In this mode, keys do not self insert.
       (gnugo-put :sgf-collection coll)
       (gnugo-put :monkey (vector (aref (gnugo--tree-ends tree) 0) 0)))
     (gnugo--SZ! board-size)
-    (loop with gb = (gnugo--blackp (gnugo-other user-color))
-          for (property value mogrifyp) in
-          `((:SZ ,board-size)
-            (:DT ,(format-time-string "%Y-%m-%d"))
-            (:RU ,(if (string-match "--chinese-rules" args)
-                      "Chinese"
-                    "Japanese"))
-            (:AP ("gnugo.el" . ,gnugo-version))
-            (:KM ,komi)
-            (,(if gb :PW :PB) ,(user-full-name))
-            (,(if gb :PB :PW) ,(concat "GNU Go " (gnugo-query "version")))
-            ,@(when (not (zerop handicap))
-                `((:HA ,handicap)
-                  (:AB ,(gnugo-lsquery "fixed_handicap %d" handicap)
-                       t))))
-          do (gnugo-note property value mogrifyp)))
+    (let ((root (gnugo--root-node)))
+      (cl-flet
+          ((r! (&rest plist)
+               (gnugo--decorate
+                root (loop              ; hmm, available elsewhere?
+                      while plist
+                      collect (let* ((k (pop plist))
+                                     (v (pop plist)))
+                                (cons k v))))))
+        (r! :SZ board-size
+            :DT (format-time-string "%Y-%m-%d")
+            :RU (if (string-match "--chinese-rules" args)
+                    "Chinese"
+                  "Japanese")
+            :AP (cons "gnugo.el" gnugo-version)
+            :KM komi)
+        (let ((gb (gnugo--blackp (gnugo-other user-color))))
+          (r! (if gb :PW :PB) (user-full-name)
+              (if gb :PB :PW) (concat "GNU Go " (gnugo-query "version"))))
+        (unless (zerop handicap)
+          (r! :HA handicap
+              :AB (mapcar (gnugo--as-cc-func)
+                          (gnugo-lsquery "fixed_handicap %d"
+                                         handicap)))))))
   (gnugo-put :waiting-start (current-time))
   (gnugo-put :hmul 1)
   (gnugo-put :wmul 1)
