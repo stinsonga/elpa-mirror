@@ -23,11 +23,7 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 *** extend GNUGO Board mode to manage another subprocess for analysis only
 *** command ‘C’ to add a comment to the SGF tree
 *** command ‘C-u =’ to label a position
-*** SGF tree display, traversal (belongs in sgf.el)
-*** review game history in another buffer
-*** branch subgame tree at arbitrary point
-*** subgame branch matriculation (maturity: child leaves the family)
-*** dribble the SGF tree
+*** SGF tree traversal
 *** "undo undo undoing"; integrate Emacs undo, GTP undo, subgame branching
 *** make buffer name format configurable (but enforce uniqueness)
 *** more tilde escapes for [[file:gnugo.el::defvar.gnugo-mode-line][gnugo-mode-line]]
@@ -53,6 +49,10 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 ***** short: TITLE-FRAGMENT "; nfc." [LF LF DISCUSSION...]
 *** don't bother w/ ChangeLog for "short" commit-message format
 * other conventions: see [[file:.dir-locals.el][.dir-locals.el]]
+* NEWS nostalgia
+(with-current-buffer (find-file "NEWS")
+  (highlight-phrase "[0-9][.][0-9][.][0-9]+\\|[0-9]+[.][.][0-9]+"
+                          'hi-red-b))
 * etc
 #+odd
 

@@ -24,6 +24,7 @@
  ("company"		:subtree "https://github.com/company-mode/company-mode.git")
  ("diff-hl"		:subtree "https://github.com/dgutov/diff-hl.git")
  ("dismal"		:external nil)
+ ("easy-kill"		:subtree "https://github.com/leoliu/easy-kill")
  ("eldoc-eval"		:subtree "https://github.com/thierryvolpiatto/eldoc-eval.git")
  ("enwc"		:subtree "bzr::bzr://bzr.savannah.nongnu.org/enwc/trunk")
  ("f90-interface-browser" :subtree "https://github.com/wence-/f90-iface")
