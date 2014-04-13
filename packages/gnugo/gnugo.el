@@ -263,6 +263,10 @@ See `gnugo-put'."
   (aset tree 0 (apply 'vector ls))
   (gnugo--tree-ends tree))
 
+(defun gnugo--root-node (&optional tree)
+  (aref (or tree (gnugo-get :sgf-gametree))
+        2))
+
 (defun gnugo-describe-internal-properties ()
   "Pretty-print `gnugo-state' properties in another buffer.
 Handle the big, slow-to-render, and/or uninteresting ones specially."
@@ -283,6 +287,7 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
                            (:sgf-gametree
                             (list (hash-table-count
                                    (gnugo--tree-mnum val))
+                                  (gnugo--root-node val)
                                   (gnugo--tree-ends val)))
                            (:monkey
                             (let ((mem (aref val 0)))
@@ -402,10 +407,6 @@ when you are sure the command cannot fail."
 
 (defsubst gnugo--count-query (fmt &rest args)
   (length (apply 'gnugo-lsquery fmt args)))
-
-(defun gnugo--root-node (&optional tree)
-  (aref (or tree (gnugo-get :sgf-gametree))
-        2))
 
 (defsubst gnugo--root-prop (prop &optional tree)
   (cdr (assq prop (gnugo--root-node tree))))
