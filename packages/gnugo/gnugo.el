@@ -1178,86 +1178,6 @@ This fails if the monkey is on the current branch
   ;; NB: ALIST should not have :B or :W keys.
   (setcdr (last node) alist))
 
-(defun gnugo-note (property value &optional mogrifyp)
-  (when mogrifyp
-    (let ((as-cc (gnugo--as-cc-func)))
-      (cl-flet
-          ((mog (pos) (if (gnugo--passp pos)
-                          ""
-                        (funcall as-cc pos))))
-        (setq value (if (consp value)
-                        (mapcar #'mog value)
-                      (mog value))))))
-  (let* ((pair (cons property value))
-         (fruit (list pair))
-         (monkey (gnugo-get :monkey))
-         (mem (aref monkey 0))
-         (tip (car mem)))
-    (if (memq property '(:B :W))
-        (let* ((tree (gnugo-get :sgf-gametree))
-               (ends (gnugo--tree-ends tree))
-               (mnum (gnugo--tree-mnum tree))
-               (count (length ends))
-               (tip-move-num (gethash tip mnum))
-               (bidx (aref monkey 1)))
-          ;; Detect déjà-vu.  That is, when placing "A", avoid:
-          ;;
-          ;;   X---Y---A         new
-          ;;        \
-          ;;         --A---B     old
-          ;;
-          ;; (such "variations" do not actually vary!) in favor of:
-          ;;
-          ;;   X---Y---A         new
-          ;;            \
-          ;;             --B     old
-          ;;
-          ;; This linear search loses for multiple ‘old’ w/ "A",
-          ;; a very unusual (but not invalid, sigh) situation.
-          (loop
-           with (bx previous)
-           for i
-           ;; Start with latest / highest likelihood for hit.
-           ;; (See "to the right" comment, below.)
-           from (if (gnugo--no-regrets monkey ends)
-                    1
-                  0)
-           below count
-           if (setq bx (mod (+ bidx i) count)
-                    previous
-                    (loop with node
-                          for m on (aref ends bx)
-                          while (< tip-move-num
-                                   (gethash (setq node (car m))
-                                            mnum))
-                          if (eq mem (cdr m))
-                          return
-                          (when (equal pair (assoc property node))
-                            m)
-                          finally return
-                          nil))
-           ;; yes => follow
-           return
-           (progn
-             (unless (= bidx bx)
-               (rotatef (aref ends bidx)
-                        (aref ends bx)))
-             (setq mem previous))
-           ;; no => construct
-           finally do
-           (progn
-             (unless (gnugo--no-regrets monkey ends)
-               (setq ends (gnugo--set-tree-ends
-                           tree (let ((ls (append ends nil)))
-                                  ;; copy old to the right of new
-                                  (push mem (nthcdr bidx ls))
-                                  ls))))
-             (puthash fruit (1+ (gethash tip mnum)) mnum)
-             (push fruit mem)
-             (aset ends bidx mem)))
-          (setf (aref monkey 0) mem))
-      (gnugo--decorate tip fruit))))
-
 (defun gnugo-close-game (end-time resign)
   (gnugo-put :game-end-time end-time)
   (let ((now (or end-time (current-time))))
@@ -1324,7 +1244,79 @@ This fails if the monkey is on the current branch
     (gnugo-put :last-mover color)
     (when userp
       (gnugo-put :last-user-bpos (and (not passp) (not resignp) move)))
-    (gnugo-note (if (gnugo--blackp color) :B :W) move (not resignp))
+    ;; update :sgf-gametree and :monkey
+    (let* ((property (if (gnugo--blackp color)
+                         :B :W))
+           (pair (cons property (cond (resignp move)
+                                      (passp "")
+                                      (t (funcall (gnugo--as-cc-func)
+                                                  move)))))
+           (fruit (list pair))
+           (monkey (gnugo-get :monkey))
+           (mem (aref monkey 0))
+           (tip (car mem))
+           (tree (gnugo-get :sgf-gametree))
+           (ends (gnugo--tree-ends tree))
+           (mnum (gnugo--tree-mnum tree))
+           (count (length ends))
+           (tip-move-num (gethash tip mnum))
+           (bidx (aref monkey 1)))
+      ;; Detect déjà-vu.  That is, when placing "A", avoid:
+      ;;
+      ;;   X---Y---A         new
+      ;;        \
+      ;;         --A---B     old
+      ;;
+      ;; (such "variations" do not actually vary!) in favor of:
+      ;;
+      ;;   X---Y---A         new
+      ;;            \
+      ;;             --B     old
+      ;;
+      ;; This linear search loses for multiple ‘old’ w/ "A",
+      ;; a very unusual (but not invalid, sigh) situation.
+      (loop
+       with (bx previous)
+       for i
+       ;; Start with latest / highest likelihood for hit.
+       ;; (See "to the right" comment, below.)
+       from (if (gnugo--no-regrets monkey ends)
+                1
+              0)
+       below count
+       if (setq bx (mod (+ bidx i) count)
+                previous
+                (loop with node
+                      for m on (aref ends bx)
+                      while (< tip-move-num
+                               (gethash (setq node (car m))
+                                        mnum))
+                      if (eq mem (cdr m))
+                      return
+                      (when (equal pair (assq property node))
+                        m)
+                      finally return
+                      nil))
+       ;; yes => follow
+       return
+       (progn
+         (unless (= bidx bx)
+           (rotatef (aref ends bidx)
+                    (aref ends bx)))
+         (setq mem previous))
+       ;; no => construct
+       finally do
+       (progn
+         (unless (gnugo--no-regrets monkey ends)
+           (setq ends (gnugo--set-tree-ends
+                       tree (let ((ls (append ends nil)))
+                              ;; copy old to the right of new
+                              (push mem (nthcdr bidx ls))
+                              ls))))
+         (puthash fruit (1+ (gethash tip mnum)) mnum)
+         (push fruit mem)
+         (aset ends bidx mem)))
+      (setf (aref monkey 0) mem))
     (when start
       (gnugo-put :last-waiting (cadr (time-subtract now start))))
     (when donep
