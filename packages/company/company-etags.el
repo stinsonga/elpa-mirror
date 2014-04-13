@@ -40,6 +40,10 @@ buffer automatically."
   :type '(choice (const :tag "off" nil)
                  (const :tag "on" t)))
 
+(defcustom company-etags-ignore-case nil
+  "Non-nil to ignore case in completion candidates."
+  :type 'boolean)
+
 (defvar company-etags-modes '(prog-mode c-mode objc-mode c++-mode java-mode
                               jde-mode pascal-mode perl-mode python-mode))
 
@@ -61,7 +65,7 @@ buffer automatically."
 
 (defun company-etags--candidates (prefix)
   (let ((tags-table-list (company-etags-buffer-table))
-        (completion-ignore-case nil))
+        (completion-ignore-case company-etags-ignore-case))
     (and (or tags-file-name tags-table-list)
          (fboundp 'tags-completion-table)
          (save-excursion
@@ -83,7 +87,8 @@ buffer automatically."
                 (when (fboundp 'find-tag-noselect)
                   (save-excursion
                     (let ((buffer (find-tag-noselect arg)))
-                      (cons buffer (with-current-buffer buffer (point))))))))))
+                      (cons buffer (with-current-buffer buffer (point))))))))
+    (ignore-case company-etags-ignore-case)))
 
 (provide 'company-etags)
 ;;; company-etags.el ends here
