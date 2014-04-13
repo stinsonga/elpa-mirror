@@ -415,6 +415,14 @@ when you are sure the command cannot fail."
       (push (cons prop value)
             (cdr (last root))))))
 
+(defun gnugo--play-stone (color pos-or-PASS)
+  (let ((accept (gnugo--q (format "play %s %s" color pos-or-PASS))))
+    (unless (= ?= (aref accept 0))
+      (user-error "%s" accept))))
+
+(defsubst gnugo--user-play-stone (pos-or-PASS)
+  (gnugo--play-stone (gnugo-get :user-color) pos-or-PASS))
+
 (defun gnugo-goto-pos (pos)
   "Move point to board position POS, a letter-number string."
   (goto-char (point-min))
@@ -1597,11 +1605,8 @@ To start a game try M-x gnugo."
   (interactive)
   (gnugo-gate t)
   (let* ((buf (current-buffer))
-         (pos (gnugo-position))
-         (move (format "play %s %s" (gnugo-get :user-color) pos))
-         (accept (gnugo--q move)))
-    (unless (= ?= (aref accept 0))
-      (user-error "%s" accept))
+         (pos (gnugo-position)))
+    (gnugo--user-play-stone pos)
     (gnugo-push-move t pos)             ; value always nil for non-pass move
     (let (gnugo-inhibit-refresh)
       (run-hooks 'gnugo-post-move-hook)
@@ -1624,9 +1629,7 @@ Signal error if done out-of-turn or if game-over.
 To start a game try M-x gnugo."
   (interactive)
   (gnugo-gate t)
-  (let ((accept (gnugo--q "play %s PASS" (gnugo-get :user-color))))
-    (unless (= ?= (aref accept 0))
-      (user-error "%s" accept)))
+  (gnugo--user-play-stone "PASS")
   (let ((donep (gnugo-push-move t "PASS"))
         (buf (current-buffer)))
     (let (gnugo-inhibit-refresh)
@@ -1769,7 +1772,7 @@ to enable full functionality."
             ((populate (group)
                        (let ((color (caar group)))
                          (dolist (stone (cdr group))
-                           (gnugo-query "play %s %s" color stone)))))
+                           (gnugo--play-stone color stone)))))
           (if (eq now live)
               (populate group)
             ;; drastic (and wrong -- clobbers capture info, etc)
@@ -2035,10 +2038,8 @@ Prefix arg means to redo all the undone moves."
            finally do
            (loop
             for (color userp pos) in todo
-            do (let* ((move (format "play %s %s" color pos))
-                      (accept (gnugo--q move)))
-                 (unless (= ?= (aref accept 0))
-                   (user-error "%s" accept))
+            do (progn
+                 (gnugo--play-stone color pos)
                  (gnugo-push-move userp pos)
                  (gnugo-refresh)
                  (redisplay)))))))))
