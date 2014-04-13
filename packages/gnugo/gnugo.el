@@ -400,6 +400,9 @@ when you are sure the command cannot fail."
 (defun gnugo-lsquery (message-format &rest args)
   (split-string (apply 'gnugo-query message-format args)))
 
+(defsubst gnugo--count-query (fmt &rest args)
+  (length (apply 'gnugo-lsquery fmt args)))
+
 (defun gnugo--root-node (&optional tree)
   (aref (or tree (gnugo-get :sgf-gametree))
         2))
@@ -1794,8 +1797,8 @@ captured by each player, and the estimate of who has the advantage (and
 by how many stones)."
   (interactive)
   (message "Est.score ...")
-  (let ((black (length (gnugo-lsquery "list_stones black")))
-        (white (length (gnugo-lsquery "list_stones white")))
+  (let ((black (gnugo--count-query "list_stones black"))
+        (white (gnugo--count-query "list_stones white"))
         (black-captures (gnugo-query "captures black"))
         (white-captures (gnugo-query "captures white"))
         (est (gnugo-query "estimate_score")))
@@ -2088,8 +2091,8 @@ Also, add the `:RE' SGF property to the root node of the game tree."
              (terr-q (format "final_status_list %%s_territory %d" seed))
              (terr   "territory")
              (capt   "captures")
-             (b-terr (length (gnugo-lsquery terr-q "black")))
-             (w-terr (length (gnugo-lsquery terr-q "white")))
+             (b-terr (gnugo--count-query terr-q "black"))
+             (w-terr (gnugo--count-query terr-q "white"))
              (b-capt (string-to-number (gnugo-get :black-captures)))
              (w-capt (string-to-number (gnugo-get :white-captures)))
              (komi   (gnugo--root-prop :KM)))
