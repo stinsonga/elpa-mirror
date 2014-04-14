@@ -1555,9 +1555,11 @@ its move."
     (let* ((so-far (gnugo-get :get-move-string))
            (full   (gnugo-put :get-move-string (concat so-far string))))
       (when (string-match "^= \\(.+\\)\n\n" full)
-        (let ((pos-or-pass (match-string 1 full)))
+        (let ((pos-or-pass (match-string 1 full))
+              (color (gnugo-get :waiting)))
           (gnugo-put :get-move-string nil)
           (gnugo-put :waiting nil)
+          (gnugo--play-stone color pos-or-pass)
           (gnugo-push-move nil pos-or-pass)
           (let ((buf (current-buffer)))
             (let (gnugo-inhibit-refresh)
@@ -1570,7 +1572,9 @@ its move."
   (gnugo-put :waiting color)
   (gnugo--begin-exchange
       (gnugo-get :proc) 'gnugo-get-move-insertion-filter
-    (concat "genmove " color))
+    ;; We used to use ‘genmove’ here, but that forced asymmetry in
+    ;; downstream handling, an impediment to GNU Go vs GNU Go fun.
+    (concat "reg_genmove " color))
   (accept-process-output))
 
 (defun gnugo-cleanup ()
