@@ -5,9 +5,7 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 * next
 * fix bugs
 *** {next,previous}-line weirdness in the presence of images
-*** ‘-l FILENAME’ lossage
-***** silently clobbers other options (PEBKAC, strictly speaking)
-***** game tree incomplete (doing ‘C-x C-s’ immediately writes empty tree)
+*** ‘-l FILENAME’ silently clobbers other options (PEBKAC, strictly speaking)
 *** no error-handling in SGF parsing
 *** performance -- ‘compare-strings’ approach too clever/slow :-/
 * ideas / wishlist
