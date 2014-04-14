@@ -757,7 +757,7 @@ This looks something like:
            │
            ├─────┬─────┐
            │     │     │
-  7 B  --  H7    B8    C8    C8
+  7 B  --  H7   !B8    C8    C8
                        │
                        ├─────┐
                        │     │
@@ -771,6 +771,7 @@ This looks something like:
 with 0, 1, ... N (in this case N is 3) in the header line
 to indicate the branches.  Branch 0 is the \"main line\".
 Point (* in this example) indicates the current position,
+\"!\" indicates comment properties (e.g., B8, branch 1),
 and moves not actually on the game tree (e.g., E7, branch 3)
 are dimmed.  Type \\[describe-mode] in that buffer for details."
   (interactive)
@@ -879,16 +880,23 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
         do (let* ((node (unless (< (aref valid bx) n)
                           ;; todo: ignore non-"move" nodes
                           (pop (aref ends bx))))
+                  (zow (list* 'bx bx props))
                   (ok (when node
                         (= bx (on node))))
+                  (comment (when ok
+                             (cdr (assq :C node))))
                   (s (cond ((not node) "")
                            ((not (setq move (gnugo--move-prop node))) "-")
                            (t (funcall as-pos (cdr move))))))
+             (when comment
+               (push comment zow)
+               (push 'help-echo zow))
              (when (and ok (setq br (gethash node soil)))
                (push (cons bx (sort br '<))
                      forks))
-             (fsi (list* 'bx bx props)
-                  " %-5s"
+             (fsi zow
+                  "%c%-5s"
+                  (if comment ?! ?\s)
                   (cond ((and (eq at node)
                               (or ok (= bx bidx)))
                          (when (= bx bidx)
