@@ -8,7 +8,6 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 *** ‘-l FILENAME’ lossage
 ***** silently clobbers other options (PEBKAC, strictly speaking)
 ***** game tree incomplete (doing ‘C-x C-s’ immediately writes empty tree)
-*** [[file:gnugo.el::defun.gnugo-toggle-dead-group][gnugo-toggle-dead-group]] only half-complete
 *** no error-handling in SGF parsing
 *** performance -- ‘compare-strings’ approach too clever/slow :-/
 * ideas / wishlist
