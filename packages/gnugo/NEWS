@@ -20,6 +20,7 @@ NB: "RCS: X..Y " means that the particular release includes
   - ‘=’ also displays move number of the stone (if any) at that position
   - new keybinding for ‘gnugo-undo-one-move’: M-u
   - ‘gnugo-undo-one-move’ can optionally arrange for you to play next
+  - new command: ‘C’ (gnugo-comment)
   - new command: ‘o’ (gnugo-oops)
   - new command: ‘O’ (gnugo-okay)
   - new command: ‘L’ (gnugo-frolic-in-the-leaves)

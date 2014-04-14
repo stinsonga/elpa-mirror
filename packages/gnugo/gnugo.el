@@ -2162,6 +2162,25 @@ If there a stone at that position, also display its move number."
                  (switch-to-buffer buf))
         finally do (message "(only one)")))
 
+(defun gnugo-comment (node comment)
+  "Add to NODE a COMMENT (string) property.
+Called interactively, NODE is the one corresponding to the
+stone at point, and any previous comment is inserted as the
+initial-input (see `read-string').
+
+If COMMENT is nil or the empty string, remove the property entirely."
+  (interactive
+   (let* ((pos (gnugo-position))
+          (node (or (gnugo--node-with-played-stone pos)
+                    (user-error "No stone at %s" pos))))
+     (list node
+           (read-string (format "Comment for %s: "
+                                (gnugo-describe-position))
+                        (cdr (assq :C node))))))
+  (setq node (delq (assq :C node) node))
+  (unless (zerop (length comment))
+    (gnugo--decorate node `((:C . ,comment)))))
+
 ;;;---------------------------------------------------------------------------
 ;;; Command properties and gnugo-command
 
@@ -2473,6 +2492,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
           ("l"        . gnugo-read-sgf-file)
           ("F"        . gnugo-display-final-score)
           ("A"        . gnugo-switch-to-another)
+          ("C"        . gnugo-comment)
           ;; mouse
           ([(down-mouse-1)] . gnugo-mouse-move)
           ([(down-mouse-2)] . gnugo-mouse-move) ; mitigate accidents
