@@ -2011,6 +2011,10 @@ Also, add the `:RE' SGF property to the root node of the game tree."
                  (message "Playing PASS for %s ..."
                           (gnugo-get (if userp :user-color :gnugo-color)))
                  (sit-for 1)
+                 (gnugo--play-stone (gnugo-get (if userp
+                                                   :user-color
+                                                 :gnugo-color))
+                                    "PASS")
                  (gnugo-push-move userp "PASS")))
         (unless (pass t)
           (pass nil)))

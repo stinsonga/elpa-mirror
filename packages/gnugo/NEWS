@@ -14,6 +14,7 @@ NB: "RCS: X..Y " means that the particular release includes
     - display "resign" as "resign" in move history (amazing!)
     - avoid clobbering SGF property ‘EV’ on resignation
     - follow main line in subtrees on read
+    - for ‘F’ forced PASS moves, keep subproc informed as well
   - dropped command: ‘t’ (gnugo-toggle-dead-group)
   - PASS for SZ <= 19 normalized to "" on read, written as ""
   - ‘=’ also displays move number of the stone (if any) at that position
