@@ -1985,12 +1985,14 @@ Prefix arg means to redo all the undone moves."
                  (gnugo-refresh)
                  (redisplay)))))))))
 
-(defun gnugo-display-final-score ()
+(defun gnugo-display-final-score (&optional comment)
   "Display final score and other info in another buffer (when game over).
 If the game is still ongoing, Emacs asks if you wish to stop play (by
 making sure two \"pass\" moves are played consecutively, if necessary).
-Also, add the `:RE' SGF property to the root node of the game tree."
-  (interactive)
+Also, add the `:RE' SGF property to the root node of the game tree.
+Prefix arg COMMENT means to also attach the text (slightly compacted)
+to the last move, as a comment."
+  (interactive "P")
   (let ((game-over (gnugo-get :game-over)))
     (unless (or game-over
                 (and (not (gnugo-get :waiting))
@@ -2090,6 +2092,20 @@ Also, add the `:RE' SGF property to the root node of the game tree."
           (yep "       end" end))))
     (setq blurb (apply 'concat (nreverse blurb)))
     (gnugo--set-root-prop :RE result)
+    (when comment
+      (let ((node (car (aref (gnugo-get :monkey) 0))))
+        (gnugo--decorate
+         (delq (assq :C node) node)
+         (with-temp-buffer
+           (insert blurb)
+           (cl-flet ((rep (old new)
+                          (goto-char (point-min))
+                          (while (search-forward old nil t)
+                            (replace-match new))))
+             (rep "territory" "T")
+             (rep "captures"  "C")
+             (rep "komi"      "K"))
+           `((:C . ,(buffer-string)))))))
     (switch-to-buffer (format "%s*GNUGO Final Score*" (gnugo-get :diamond)))
     (erase-buffer)
     (insert blurb)))
