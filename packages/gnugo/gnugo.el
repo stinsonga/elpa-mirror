@@ -326,7 +326,7 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
 (defun gnugo-board-user-play-ok-p (&optional buffer)
   "Return non-nil if BUFFER is a GNUGO Board buffer ready for a user move."
   (with-current-buffer (or buffer (current-buffer))
-    (and gnugo-state (not (gnugo-get :waitingp)))))
+    (and gnugo-state (not (gnugo-get :waiting)))))
 
 (defsubst gnugo--blackp (string)
   (string= "black" string))
@@ -339,7 +339,7 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
     (user-error "Wrong buffer -- try M-x gnugo"))
   (unless (gnugo-get :proc)
     (user-error "No \"gnugo\" process!"))
-  (when (gnugo-get :waitingp)
+  (when (gnugo-get :waiting)
     (user-error "Not your turn yet -- please wait for \"\(%s to play\)\""
                 (gnugo-get :user-color)))
   (when (and in-progress-p (gnugo-get :game-over))
@@ -370,10 +370,10 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
   "Send formatted command \"FMT ARGS...\"; wait for / return response.
 The response is a string whose first two characters indicate the
 status of the command.  See also `gnugo-query'."
-  (when (gnugo-get :waitingp)
-    (user-error "Sorry, still waiting for %s to play"
-                (gnugo-get :gnugo-color)))
-  (let ((proc (gnugo-get :proc)))
+  (let ((slow (gnugo-get :waiting))
+        (proc (gnugo-get :proc)))
+    (when slow
+      (user-error "Sorry, still waiting for %s to play" slow))
     (process-put proc :incomplete t)
     (process-put proc :srs "")          ; synchronous return stash
     (gnugo--begin-exchange
@@ -1371,7 +1371,7 @@ be slow.  (This should normally be unnecessary; specify it only if the display
 seems corrupted.)  NOCACHE is silently ignored when GNU Go is thinking about
 its move."
   (interactive "P")
-  (when (and nocache (not (gnugo-get :waitingp)))
+  (when (and nocache (not (gnugo-get :waiting)))
     (gnugo-propertize-board-buffer))
   (let* ((last-mover (gnugo-get :last-mover))
          (other (gnugo-other last-mover))
@@ -1557,7 +1557,7 @@ its move."
       (when (string-match "^= \\(.+\\)\n\n" full)
         (let ((pos-or-pass (match-string 1 full)))
           (gnugo-put :get-move-string nil)
-          (gnugo-put :waitingp nil)
+          (gnugo-put :waiting nil)
           (gnugo-push-move nil pos-or-pass)
           (let ((buf (current-buffer)))
             (let (gnugo-inhibit-refresh)
@@ -1567,7 +1567,7 @@ its move."
                   (gnugo-refresh))))))))))
 
 (defun gnugo-get-move (color)
-  (gnugo-put :waitingp t)
+  (gnugo-put :waiting color)
   (gnugo--begin-exchange
       (gnugo-get :proc) 'gnugo-get-move-insertion-filter
     (concat "genmove " color))
@@ -1998,7 +1998,7 @@ Also, add the `:RE' SGF property to the root node of the game tree."
   (interactive)
   (let ((game-over (gnugo-get :game-over)))
     (unless (or game-over
-                (and (not (gnugo-get :waitingp))
+                (and (not (gnugo-get :waiting))
                      (y-or-n-p "Game still in play. Stop play now? ")))
       (user-error "Sorry, game still in play"))
     (unless game-over
@@ -2254,7 +2254,7 @@ In this mode, keys do not self insert.
   (mapc (lambda (prop)
           (gnugo-put prop nil))         ; todo: separate display/game aspects;
         '(:game-over                    ;       move latter to func `gnugo'
-          :waitingp
+          :waiting
           :last-waiting
           :black-captures
           :white-captures
