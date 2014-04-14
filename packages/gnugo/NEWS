@@ -18,6 +18,7 @@ NB: "RCS: X..Y " means that the particular release includes
   - dropped command: ‘t’ (gnugo-toggle-dead-group)
   - PASS for SZ <= 19 normalized to "" on read, written as ""
   - ‘=’ also displays move number of the stone (if any) at that position
+  - ‘C-u F’ adds the (abbreviated) blurb as a comment to the last node
   - new keybinding for ‘gnugo-undo-one-move’: M-u
   - ‘gnugo-undo-one-move’ can optionally arrange for you to play next
   - new command: ‘C’ (gnugo-comment)
