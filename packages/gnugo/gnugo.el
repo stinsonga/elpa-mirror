@@ -2126,30 +2126,30 @@ which placed the stone at point."
   (gnugo-toggle-image-display)
   (save-excursion (gnugo-refresh)))
 
+(defun gnugo--node-with-played-stone (pos)
+  (let ((color (case (following-char)
+                 (?X :B)
+                 (?O :W))))
+    (when color
+      (loop with fruit = (cons color (funcall (gnugo--as-cc-func) pos))
+            for node in (aref (gnugo-get :monkey) 0)
+            if (equal fruit (car node))
+            return node
+            finally return nil))))
+
 (defun gnugo-describe-position ()
   "Display the board position under cursor in the echo area.
 If there a stone at that position, also display its move number."
   (interactive)
-  (let ((pos (gnugo-position))          ; do first (can throw)
-        (color (case (following-char)
-                 (?X :B)
-                 (?O :W))))
+  (let* ((pos (gnugo-position))         ; do first (can throw)
+         (node (gnugo--node-with-played-stone pos)))
     (message
      "%s%s" pos
-     (or (when color
-           (loop
-            with monkey = (gnugo-get :monkey)
-            with tree   = (gnugo-get :sgf-gametree)
-            with mnum   = (gnugo--tree-mnum tree)
-            with as-cc  = (gnugo--as-cc-func)
-            with fruit  = (cons color (funcall as-cc pos))
-            for node in (aref monkey 0)
-            if (member fruit node)
-            return
-            (format " (move %d)"
-                    (gethash node mnum))
-            finally return
-            nil))
+     (or (when node
+           (let* ((tree (gnugo-get :sgf-gametree))
+                  (mnum (gnugo--tree-mnum tree))
+                  (move-num (gethash node mnum)))
+             (format " (move %d)" move-num)))
          ""))))
 
 (defun gnugo-switch-to-another ()
