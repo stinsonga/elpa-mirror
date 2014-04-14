@@ -419,14 +419,6 @@ when you are sure the command cannot fail."
       (push (cons prop value)
             (cdr (last root))))))
 
-(defun gnugo--play-stone (color pos-or-PASS)
-  (let ((accept (gnugo--q (format "play %s %s" color pos-or-PASS))))
-    (unless (= ?= (aref accept 0))
-      (user-error "%s" accept))))
-
-(defsubst gnugo--user-play-stone (pos-or-PASS)
-  (gnugo--play-stone (gnugo-get :user-color) pos-or-PASS))
-
 (defun gnugo-goto-pos (pos)
   "Move point to board position POS, a letter-number string."
   (goto-char (point-min))
@@ -1239,6 +1231,10 @@ This fails if the monkey is on the current branch
          (head (gnugo-move-history 'car))
          (onep (and head (gnugo--passp head)))
          (donep (or resignp (and onep passp))))
+    (unless resignp
+      (let ((accept (gnugo--q (format "play %s %s" color move))))
+        (unless (= ?= (aref accept 0))
+          (user-error "%s" accept))))
     (unless passp
       (gnugo-merge-showboard-results))
     (gnugo-put :last-mover color)
@@ -1559,8 +1555,8 @@ its move."
               (color (gnugo-get :waiting)))
           (gnugo-put :get-move-string nil)
           (gnugo-put :waiting nil)
-          (gnugo--play-stone color pos-or-pass)
-          (gnugo-push-move nil pos-or-pass)
+          (gnugo-push-move (string= color (gnugo-get :user-color))
+                           pos-or-pass)
           (let ((buf (current-buffer)))
             (let (gnugo-inhibit-refresh)
               (run-hooks 'gnugo-post-move-hook)
@@ -1610,7 +1606,6 @@ To start a game try M-x gnugo."
   (gnugo-gate t)
   (let* ((buf (current-buffer))
          (pos (gnugo-position)))
-    (gnugo--user-play-stone pos)
     (gnugo-push-move t pos)             ; value always nil for non-pass move
     (let (gnugo-inhibit-refresh)
       (run-hooks 'gnugo-post-move-hook)
@@ -1633,7 +1628,6 @@ Signal error if done out-of-turn or if game-over.
 To start a game try M-x gnugo."
   (interactive)
   (gnugo-gate t)
-  (gnugo--user-play-stone "PASS")
   (let ((donep (gnugo-push-move t "PASS"))
         (buf (current-buffer)))
     (let (gnugo-inhibit-refresh)
@@ -1965,7 +1959,6 @@ Prefix arg means to redo all the undone moves."
              (bidx (aref monkey 1))
              (end (aref ends bidx))
              (ucolor (gnugo-get :user-color))
-             (gcolor (gnugo-other ucolor))
              (uprop (if (gnugo--blackp ucolor)
                         :B :W)))
         (cl-flet ((mvno (node) (gethash node mnum)))
@@ -1980,16 +1973,14 @@ Prefix arg means to redo all the undone moves."
                       move (gnugo--move-prop node))
                 (when (and move (>= ok (mvno node)))
                   (let ((userp (eq uprop (car move))))
-                    (push (list (if userp ucolor gcolor)
-                                userp
+                    (push (list userp
                                 (funcall as-pos (cdr move)))
                           todo))))
            until (eq mem (cdr ls))
            finally do
            (loop
-            for (color userp pos) in todo
+            for (userp pos) in todo
             do (progn
-                 (gnugo--play-stone color pos)
                  (gnugo-push-move userp pos)
                  (gnugo-refresh)
                  (redisplay)))))))))
@@ -2011,10 +2002,6 @@ Also, add the `:RE' SGF property to the root node of the game tree."
                  (message "Playing PASS for %s ..."
                           (gnugo-get (if userp :user-color :gnugo-color)))
                  (sit-for 1)
-                 (gnugo--play-stone (gnugo-get (if userp
-                                                   :user-color
-                                                 :gnugo-color))
-                                    "PASS")
                  (gnugo-push-move userp "PASS")))
         (unless (pass t)
           (pass nil)))
