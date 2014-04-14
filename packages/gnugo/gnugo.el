@@ -1733,60 +1733,6 @@ Signal error if done out-of-turn or if game-over."
   (gnugo-gate)
   (gnugo-display-group-data "dragon_data" "*gnugo dragon data*"))
 
-(defun gnugo-toggle-dead-group ()
-  "In a GNUGO Board buffer, during game-over, toggle a group as dead.
-The group is selected from current position (point).  Signal error if
-not in game-over or if there is no group at that position.
-
-In the context of GNU Go, a group is called a \"dragon\" and may be
-composed of more than one \"worm\" (set of directly-connected stones).
-It is unclear to the gnugo.el author whether or not GNU Go supports
- - considering worms as groups in their own right; and
- - toggling group aliveness via GTP.
-Due to these uncertainties, this command is only half complete; the
-changes you may see in Emacs are not propagated to the gnugo subprocess.
-Thus, GTP commands like `final_score' may give unexpected results.
-
-If you are able to expose via GTP `change_dragon_status' in utils.c,
-you may consider modifying the `gnugo-toggle-dead-group' source code
-to enable full functionality."
-  (interactive)
-  (let ((game-over (or (gnugo-get :game-over)
-                       (user-error "Sorry, game still in play")))
-        (group (or (get-text-property (point) 'group)
-                   (user-error "No stone at that position")))
-        (now (current-time)))
-    (gnugo-put :scoring-seed (logior (ash (logand (car now) 255) 16)
-                                     (cadr now)))
-    (let ((live (assq 'live game-over))
-          (dead (assq 'dead game-over))
-          bef now)
-      (if (memq group live)
-          (setq bef live now dead)
-        (setq bef dead now live))
-      (setcdr bef (delq group (cdr bef)))
-      (setcdr now (cons group (cdr now)))
-      ;; disabled permanently -- too wrong
-      (when nil
-        (cl-flet
-            ((populate (group)
-                       (let ((color (caar group)))
-                         (dolist (stone (cdr group))
-                           (gnugo--play-stone color stone)))))
-          (if (eq now live)
-              (populate group)
-            ;; drastic (and wrong -- clobbers capture info, etc)
-            (gnugo-query "clear_board")
-            (mapc #'populate (cdr live)))))
-      ;; here is the desired interface (to be enabled Some Day)
-      (when nil
-        (gnugo-query "change_dragon_status %s %s"
-                     (cadr group) (if (eq now live)
-                                      'alive
-                                    'dead)))))
-  (save-excursion
-    (gnugo-refresh)))
-
 (defun gnugo-estimate-score ()
   "Display estimated score of a game of GNU Go.
 Output includes number of stones on the board and number of stones
@@ -2521,7 +2467,6 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
           ("W"        . gnugo-worm-data)
           ("d"        . gnugo-dragon-stones)
           ("D"        . gnugo-dragon-data)
-          ("t"        . gnugo-toggle-dead-group)
           ("g"        . gnugo-toggle-grid)
           ("!"        . gnugo-estimate-score)
           (":"        . gnugo-command)
