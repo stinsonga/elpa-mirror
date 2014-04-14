@@ -20,7 +20,6 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 *** using assist minor mode, gnugo-v-gnugo (ibid)
 *** make gnugo (the external program) support query (read-only) thread
 *** extend GNUGO Board mode to manage another subprocess for analysis only
-*** command ‘C’ to add a comment to the SGF tree
 *** command ‘C-u =’ to label a position
 *** SGF tree traversal
 *** "undo undo undoing"; integrate Emacs undo, GTP undo, subgame branching
