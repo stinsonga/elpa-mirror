@@ -1667,19 +1667,22 @@ cursor to the suggested position.  Prefix arg inhibits warp."
                       'nowarp
                     t)))
 
+(defun gnugo--user-play (pos-or-pass)
+  (gnugo-gate t)
+  (let ((donep (gnugo-push-move t pos-or-pass))
+        (buf (current-buffer)))
+    (gnugo--finish-move buf)
+    (unless donep
+      (with-current-buffer buf
+        (gnugo-get-move (gnugo-get :gnugo-color))))))
+
 (defun gnugo-move ()
   "Make a move on the GNUGO Board buffer.
 The position is computed from current point.
 Signal error if done out-of-turn or if game-over.
 To start a game try M-x gnugo."
   (interactive)
-  (gnugo-gate t)
-  (let* ((buf (current-buffer))
-         (pos (gnugo-position)))
-    (gnugo-push-move t pos)             ; value always nil for non-pass move
-    (gnugo--finish-move buf)
-    (with-current-buffer buf
-      (gnugo-get-move (gnugo-get :gnugo-color)))))
+  (gnugo--user-play (gnugo-position)))
 
 (defun gnugo-mouse-move (e)
   "Do `gnugo-move' at mouse location."
@@ -1693,13 +1696,7 @@ To start a game try M-x gnugo."
 Signal error if done out-of-turn or if game-over.
 To start a game try M-x gnugo."
   (interactive)
-  (gnugo-gate t)
-  (let ((donep (gnugo-push-move t "PASS"))
-        (buf (current-buffer)))
-    (gnugo--finish-move buf)
-    (unless donep
-      (with-current-buffer buf
-        (gnugo-get-move (gnugo-get :gnugo-color))))))
+  (gnugo--user-play "PASS"))
 
 (defun gnugo-mouse-pass (e)
   "Do `gnugo-pass' at mouse location."
