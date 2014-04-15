@@ -39,7 +39,9 @@
 ;; `RET'; to pass, `P' (note: uppercase); to quit, `q'; to undo one of your
 ;; moves (as well as a possibly intervening move by GNU Go), `u'.  To undo
 ;; back through an arbitrary stone that you played, place the cursor on a
-;; stone and type `U' (note: uppercase).  Other keybindings are described in
+;; stone and type `U' (note: uppercase).
+;;
+;; There are a great many other commands.  Other keybindings are described in
 ;; the `gnugo-board-mode' documentation, which you may view with the command
 ;; `describe-mode' (normally `C-h m') in that buffer.  The buffer name shows
 ;; the last move and who is currently to play.  Capture counts and other info
