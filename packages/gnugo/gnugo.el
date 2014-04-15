@@ -334,9 +334,13 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
     (user-error "Wrong buffer -- try M-x gnugo"))
   (unless (gnugo-get :proc)
     (user-error "No \"gnugo\" process!"))
-  (when (gnugo-get :waiting)
-    (user-error "Not your turn yet -- please wait for \"\(%s to play\)\""
-                (gnugo-get :user-color)))
+  (let ((slow (gnugo-get :waiting)))
+    (when slow
+      (user-error "%s -- please wait for \"\(%s to play\)\""
+                  (if (cdr slow)
+                      "Still thinking"
+                    "Not your turn yet")
+                  (gnugo-get :user-color))))
   (when (and in-progress-p (gnugo-get :game-over))
     (user-error "Sorry, game over")))
 
@@ -368,7 +372,10 @@ status of the command.  See also `gnugo-query'."
   (let ((slow (gnugo-get :waiting))
         (proc (gnugo-get :proc)))
     (when slow
-      (user-error "Sorry, still waiting for %s to play" slow))
+      (user-error "Sorry, still waiting for %s to %s"
+                  (car slow) (if (cdr slow)
+                                 "receive a suggestion"
+                               "play")))
     (process-put proc :incomplete t)
     (process-put proc :srs "")          ; synchronous return stash
     (gnugo--begin-exchange
@@ -1554,21 +1561,38 @@ its move."
 ;;;---------------------------------------------------------------------------
 ;;; Game play actions
 
+(defun gnugo--rename-buffer-portion (old new)
+  (let ((name (buffer-name)))
+    (when (string-match old name)
+      (rename-buffer (replace-match new t t name)))))
+
 (defun gnugo-get-move-insertion-filter (proc string)
   (with-current-buffer (process-buffer proc)
     (let* ((so-far (gnugo-get :get-move-string))
            (full   (gnugo-put :get-move-string (concat so-far string))))
       (when (string-match "^= \\(.+\\)\n\n" full)
-        (let ((pos-or-pass (match-string 1 full))
-              (color (gnugo-get :waiting)))
+        (destructuring-bind (pos-or-pass color . suggestion)
+            (cons (match-string 1 full)
+                  (gnugo-get :waiting))
           (gnugo-put :get-move-string nil)
           (gnugo-put :waiting nil)
-          (gnugo-push-move (string= color (gnugo-get :user-color))
-                           pos-or-pass)
-          (gnugo--finish-move (current-buffer)))))))
+          (if suggestion
+              (progn
+                (gnugo--rename-buffer-portion "waiting for suggestion"
+                                              "to play")
+                (unless (or (gnugo--passp full)
+                            (eq 'nowarp suggestion))
+                  (gnugo-goto-pos pos-or-pass))
+                (message "%sSuggestion: %s"
+                         (gnugo-get :diamond)
+                         pos-or-pass))
+            (gnugo-push-move (string= (gnugo-get :user-color)
+                                      color)
+                             pos-or-pass)
+            (gnugo--finish-move (current-buffer))))))))
 
-(defun gnugo-get-move (color)
-  (gnugo-put :waiting color)
+(defun gnugo-get-move (color &optional suggestion)
+  (gnugo-put :waiting (cons color suggestion))
   (gnugo--begin-exchange
       (gnugo-get :proc) 'gnugo-get-move-insertion-filter
     ;; We used to use ‘genmove’ here, but that forced asymmetry in
@@ -1599,6 +1623,19 @@ its move."
 (defun gnugo-position ()
   (or (get-text-property (point) 'gnugo-position)
       (user-error "Not a proper position point")))
+
+(defun gnugo-request-suggestion (&optional nowarp)
+  "Request a move suggestion from GNU Go.
+After some time (during which you can do other stuff),
+Emacs displays the suggestion in the echo area and warps the
+cursor to the suggested position.  Prefix arg inhibits warp."
+  (interactive "P")
+  (gnugo-gate t)
+  (gnugo--rename-buffer-portion "to play" "waiting for suggestion")
+  (gnugo-get-move (gnugo-get :user-color)
+                  (if nowarp
+                      'nowarp
+                    t)))
 
 (defun gnugo-move ()
   "Make a move on the GNUGO Board buffer.
@@ -2470,6 +2507,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
   (mapc (lambda (pair)
           (define-key gnugo-board-mode-map (car pair) (cdr pair)))
         '(("?"        . describe-mode)
+          ("S"        . gnugo-request-suggestion)
           ("\C-m"     . gnugo-move)
           (" "        . gnugo-move)
           ("P"        . gnugo-pass)

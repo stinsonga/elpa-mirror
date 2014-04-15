@@ -21,6 +21,7 @@ NB: "RCS: X..Y " means that the particular release includes
   - ‘C-u F’ adds the (abbreviated) blurb as a comment to the last node
   - new keybinding for ‘gnugo-undo-one-move’: M-u
   - ‘gnugo-undo-one-move’ can optionally arrange for you to play next
+  - new command: ‘S’ (gnugo-request-suggestion)
   - new command: ‘C’ (gnugo-comment)
   - new command: ‘o’ (gnugo-oops)
   - new command: ‘O’ (gnugo-okay)
