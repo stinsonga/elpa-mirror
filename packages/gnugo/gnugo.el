@@ -66,6 +66,7 @@
 ;;                    `gnugo-X-face' `gnugo-O-face' `gnugo-grid-face'
 ;;                    `gnugo-xpms'
 ;;   normal hooks:    `gnugo-board-mode-hook'
+;;                    `gnugo-frolic-mode-hook'
 ;;                    `gnugo-post-move-hook'
 ;;   and the keymap:  `gnugo-board-mode-map'
 ;;
