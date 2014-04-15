@@ -1232,8 +1232,14 @@ This fails if the monkey is on the current branch
               root)
       (delq cur root))))
 
-(defun gnugo-push-move (userp move)
-  (let* ((color (gnugo-get (if userp :user-color :gnugo-color)))
+(defun gnugo-push-move (who move)
+  (let* ((simple (booleanp who))
+         (ucolor (gnugo-get :user-color))
+         (color (if simple
+                    (if who
+                        ucolor
+                      (gnugo-get :gnugo-color))
+                  who))
          (start (gnugo-get :waiting-start))
          (now (current-time))
          (resignp (string= "resign" move))
@@ -1248,7 +1254,9 @@ This fails if the monkey is on the current branch
     (unless passp
       (gnugo-merge-showboard-results))
     (gnugo-put :last-mover color)
-    (when userp
+    (when (if simple
+              who
+            (string= ucolor color))
       (gnugo-put :last-user-bpos (and (not passp) (not resignp) move)))
     ;; update :sgf-gametree and :monkey
     (let* ((property (if (gnugo--blackp color)
@@ -1586,9 +1594,7 @@ its move."
                 (message "%sSuggestion: %s"
                          (gnugo-get :diamond)
                          pos-or-pass))
-            (gnugo-push-move (string= (gnugo-get :user-color)
-                                      color)
-                             pos-or-pass)
+            (gnugo-push-move color pos-or-pass)
             (gnugo--finish-move (current-buffer))))))))
 
 (defun gnugo-get-move (color &optional suggestion)
