@@ -1688,7 +1688,7 @@ To start a game try M-x gnugo."
   "Do `gnugo-move' at mouse location."
   (interactive "@e")
   (mouse-set-point e)
-  (when (looking-at "[.+]")
+  (when (memq (following-char) '(?. ?+))
     (gnugo-move)))
 
 (defun gnugo-pass ()
