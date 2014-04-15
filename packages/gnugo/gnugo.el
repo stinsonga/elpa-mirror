@@ -1546,6 +1546,11 @@ its move."
     (when (setq last (gnugo-get :last-user-bpos))
       (gnugo-goto-pos last))))
 
+(defun gnugo--finish-move (buf)
+  (run-hooks 'gnugo-post-move-hook)
+  (with-current-buffer buf
+    (gnugo-refresh)))
+
 ;;;---------------------------------------------------------------------------
 ;;; Game play actions
 
@@ -1560,10 +1565,7 @@ its move."
           (gnugo-put :waiting nil)
           (gnugo-push-move (string= color (gnugo-get :user-color))
                            pos-or-pass)
-          (let ((buf (current-buffer)))
-            (run-hooks 'gnugo-post-move-hook)
-            (with-current-buffer buf
-              (gnugo-refresh))))))))
+          (gnugo--finish-move (current-buffer)))))))
 
 (defun gnugo-get-move (color)
   (gnugo-put :waiting color)
@@ -1608,9 +1610,8 @@ To start a game try M-x gnugo."
   (let* ((buf (current-buffer))
          (pos (gnugo-position)))
     (gnugo-push-move t pos)             ; value always nil for non-pass move
-    (run-hooks 'gnugo-post-move-hook)
+    (gnugo--finish-move buf)
     (with-current-buffer buf
-      (gnugo-refresh)
       (gnugo-get-move (gnugo-get :gnugo-color)))))
 
 (defun gnugo-mouse-move (e)
@@ -1628,9 +1629,7 @@ To start a game try M-x gnugo."
   (gnugo-gate t)
   (let ((donep (gnugo-push-move t "PASS"))
         (buf (current-buffer)))
-    (run-hooks 'gnugo-post-move-hook)
-    (with-current-buffer buf
-      (gnugo-refresh))
+    (gnugo--finish-move buf)
     (unless donep
       (with-current-buffer buf
         (gnugo-get-move (gnugo-get :gnugo-color))))))
