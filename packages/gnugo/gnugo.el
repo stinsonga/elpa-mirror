@@ -108,13 +108,8 @@ http://www.gnu.org/software/gnugo")
 (defvar gnugo-board-mode-hook nil
   "Hook run when entering GNUGO Board mode.")
 
-(defvar gnugo-inhibit-refresh nil
-  "Used in `gnugo-post-move-hook'.")
-
 (defvar gnugo-post-move-hook nil
   "Normal hook run after a move and before the board is refreshed.
-Hook functions can prevent the call to `gnugo-refresh' by evaluating:
-  (setq gnugo-inhibit-refresh t)
 Initially, when `run-hooks' is called, the current buffer is the GNUGO
 Board buffer of the game.  Hook functions that switch buffers must take
 care not to call (directly or indirectly through some other function)
@@ -1566,11 +1561,9 @@ its move."
           (gnugo-push-move (string= color (gnugo-get :user-color))
                            pos-or-pass)
           (let ((buf (current-buffer)))
-            (let (gnugo-inhibit-refresh)
-              (run-hooks 'gnugo-post-move-hook)
-              (unless gnugo-inhibit-refresh
-                (with-current-buffer buf
-                  (gnugo-refresh))))))))))
+            (run-hooks 'gnugo-post-move-hook)
+            (with-current-buffer buf
+              (gnugo-refresh))))))))
 
 (defun gnugo-get-move (color)
   (gnugo-put :waiting color)
@@ -1615,12 +1608,9 @@ To start a game try M-x gnugo."
   (let* ((buf (current-buffer))
          (pos (gnugo-position)))
     (gnugo-push-move t pos)             ; value always nil for non-pass move
-    (let (gnugo-inhibit-refresh)
-      (run-hooks 'gnugo-post-move-hook)
-      (unless gnugo-inhibit-refresh
-        (with-current-buffer buf
-          (gnugo-refresh))))
+    (run-hooks 'gnugo-post-move-hook)
     (with-current-buffer buf
+      (gnugo-refresh)
       (gnugo-get-move (gnugo-get :gnugo-color)))))
 
 (defun gnugo-mouse-move (e)
@@ -1638,11 +1628,9 @@ To start a game try M-x gnugo."
   (gnugo-gate t)
   (let ((donep (gnugo-push-move t "PASS"))
         (buf (current-buffer)))
-    (let (gnugo-inhibit-refresh)
-      (run-hooks 'gnugo-post-move-hook)
-      (unless gnugo-inhibit-refresh
-        (with-current-buffer buf
-          (gnugo-refresh))))
+    (run-hooks 'gnugo-post-move-hook)
+    (with-current-buffer buf
+      (gnugo-refresh))
     (unless donep
       (with-current-buffer buf
         (gnugo-get-move (gnugo-get :gnugo-color))))))
