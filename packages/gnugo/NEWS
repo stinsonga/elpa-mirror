@@ -26,6 +26,7 @@ NB: "RCS: X..Y " means that the particular release includes
   - new command: ‘o’ (gnugo-oops)
   - new command: ‘O’ (gnugo-okay)
   - new command: ‘L’ (gnugo-frolic-in-the-leaves)
+  - new command: ‘C-c C-a’ (gnugo-toggle-abdication)
   - new major mode: GNUGO Frolic (gnugo-frolic-mode)
   - ‘gnugo-move-history’ returns last two moves w/ RSEL ‘two’
   - performance improvements

@@ -1555,7 +1555,10 @@ its move."
                    ;; this dynamicism is nice but excessive in its wantonness
                    ;;- `(" [" (:eval ,form) "]")
                    ;; this dynamicism is ok because the user triggers it
-                   (list (format " [%s]" (eval form))))))
+                   (list (format " [%s]" (eval form))
+                         '(:eval (if (gnugo-get :abd)
+                                     " Abd"
+                                   ""))))))
       (force-mode-line-update))
     ;; last user move
     (when (setq last (gnugo-get :last-user-bpos))
@@ -1597,8 +1600,19 @@ its move."
                 (message "%sSuggestion: %s"
                          (gnugo-get :diamond)
                          pos-or-pass))
-            (gnugo-push-move color pos-or-pass)
-            (gnugo--finish-move (current-buffer))))))))
+            (let* ((donep (gnugo-push-move color pos-or-pass))
+                   (buf (current-buffer)))
+              (gnugo--finish-move buf)
+              (when (gnugo-get :abd)
+                (gnugo-put :abd
+                  (unless donep
+                    (run-at-time
+                     2 ;;; sec (frettoloso? dubioso!)
+                     nil (lambda (buf color)
+                           (with-current-buffer buf
+                             (gnugo-get-move color)))
+                     buf
+                     (gnugo-other color))))))))))))
 
 (defun gnugo-get-move (color &optional suggestion)
   (gnugo-put :waiting (cons color suggestion))
@@ -2238,6 +2252,42 @@ If COMMENT is nil or the empty string, remove the property entirely."
   (unless (zerop (length comment))
     (gnugo--decorate node `((:C . ,comment)))))
 
+(defun gnugo-toggle-abdication ()
+  "Toggle abdication, i.e., letting GNU Go play for you.
+When enabled, the mode line includes \"Abd\".
+Enabling signals error if the game is over.
+Disabling signals error if the color \"to play\" is the user color.
+This is to ensure that the user is the next to play after disabling."
+  (interactive)
+  (let ((last-mover (gnugo-get :last-mover))
+        (abd (gnugo-get :abd))
+        (warning ""))
+    (if abd
+        ;; disable
+        (destructuring-bind (gcolor ucolor &optional color . suggestion)
+            (list* (gnugo-get :gnugo-color)
+                   (gnugo-get :user-color)
+                   (gnugo-get :waiting))
+          (assert (not suggestion))
+          (when (string= last-mover gcolor)
+            (user-error "Sorry, too soon -- please wait for \"(%s to play\)\""
+                        gcolor))
+          (when (timerp abd)
+            (cancel-timer abd))
+          (gnugo-put :abd nil)
+          (unless color
+            (gnugo-get-move gcolor)))
+      ;; enable
+      (when (gnugo-get :game-over)
+        (user-error "Sorry, game over"))
+      (gnugo-put :abd t)
+      (gnugo-get-move (gnugo-other last-mover)))
+    (message "Abdication %sabled%s"
+             (if (gnugo-get :abd)
+                 "en"
+               "dis")
+             warning)))
+
 ;;;---------------------------------------------------------------------------
 ;;; Command properties and gnugo-command
 
@@ -2551,6 +2601,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
           ("F"        . gnugo-display-final-score)
           ("A"        . gnugo-switch-to-another)
           ("C"        . gnugo-comment)
+          ("\C-c\C-a" . gnugo-toggle-abdication)
           ;; mouse
           ([(down-mouse-1)] . gnugo-mouse-move)
           ([(down-mouse-2)] . gnugo-mouse-move) ; mitigate accidents
