@@ -329,6 +329,10 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
 (defun gnugo-other (color)
   (if (gnugo--blackp color) "white" "black"))
 
+(defun gnugo--ERR-wait (color why)
+  (user-error "%s -- please wait for \"(%s to play)\""
+              why color))
+
 (defun gnugo-gate (&optional in-progress-p)
   (unless (gnugo-board-buffer-p)
     (user-error "Wrong buffer -- try M-x gnugo"))
@@ -336,11 +340,10 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
     (user-error "No \"gnugo\" process!"))
   (let ((slow (gnugo-get :waiting)))
     (when slow
-      (user-error "%s -- please wait for \"\(%s to play\)\""
-                  (if (cdr slow)
-                      "Still thinking"
-                    "Not your turn yet")
-                  (gnugo-get :user-color))))
+      (gnugo--ERR-wait (gnugo-get :user-color)
+                       (if (cdr slow)
+                           "Still thinking"
+                         "Not your turn yet"))))
   (when (and in-progress-p (gnugo-get :game-over))
     (user-error "Sorry, game over")))
 
@@ -2270,8 +2273,7 @@ This is to ensure that the user is the next to play after disabling."
                    (gnugo-get :waiting))
           (assert (not suggestion))
           (when (string= last-mover gcolor)
-            (user-error "Sorry, too soon -- please wait for \"(%s to play\)\""
-                        gcolor))
+            (gnugo--ERR-wait gcolor "Sorry, too soon"))
           (when (timerp abd)
             (cancel-timer abd))
           (gnugo-put :abd nil)
