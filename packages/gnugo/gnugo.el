@@ -329,6 +329,10 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
 (defun gnugo-other (color)
   (if (gnugo--blackp color) "white" "black"))
 
+(defsubst gnugo--gate-game-over (enable)
+  (when (and enable (gnugo-get :game-over))
+    (user-error "Sorry, game over")))
+
 (defun gnugo--ERR-wait (color why)
   (user-error "%s -- please wait for \"(%s to play)\""
               why color))
@@ -344,8 +348,7 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
                        (if (cdr slow)
                            "Still thinking"
                          "Not your turn yet"))))
-  (when (and in-progress-p (gnugo-get :game-over))
-    (user-error "Sorry, game over")))
+  (gnugo--gate-game-over in-progress-p))
 
 (defun gnugo-sentinel (proc string)
   (let ((status (process-status proc)))
@@ -2280,8 +2283,7 @@ This is to ensure that the user is the next to play after disabling."
           (unless color
             (gnugo-get-move gcolor)))
       ;; enable
-      (when (gnugo-get :game-over)
-        (user-error "Sorry, game over"))
+      (gnugo--gate-game-over t)
       (gnugo-put :abd t)
       (gnugo-get-move (gnugo-other last-mover)))
     (message "Abdication %sabled%s"
