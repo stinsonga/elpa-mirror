@@ -1569,10 +1569,14 @@ its move."
 ;;;---------------------------------------------------------------------------
 ;;; Game play actions
 
-(defun gnugo--rename-buffer-portion (old new)
-  (let ((name (buffer-name)))
-    (when (string-match old name)
-      (rename-buffer (replace-match new t t name)))))
+(defun gnugo--rename-buffer-portion (&optional back)
+  (let ((old "to play")
+        (new "waiting for suggestion"))
+    (when back
+      (rotatef old new))
+    (let ((name (buffer-name)))
+      (when (string-match old name)
+        (rename-buffer (replace-match new t t name))))))
 
 (defun gnugo-get-move-insertion-filter (proc string)
   (with-current-buffer (process-buffer proc)
@@ -1586,8 +1590,7 @@ its move."
           (gnugo-put :waiting nil)
           (if suggestion
               (progn
-                (gnugo--rename-buffer-portion "waiting for suggestion"
-                                              "to play")
+                (gnugo--rename-buffer-portion t)
                 (unless (or (gnugo--passp full)
                             (eq 'nowarp suggestion))
                   (gnugo-goto-pos pos-or-pass))
@@ -1637,7 +1640,7 @@ Emacs displays the suggestion in the echo area and warps the
 cursor to the suggested position.  Prefix arg inhibits warp."
   (interactive "P")
   (gnugo-gate t)
-  (gnugo--rename-buffer-portion "to play" "waiting for suggestion")
+  (gnugo--rename-buffer-portion)
   (gnugo-get-move (gnugo-get :user-color)
                   (if nowarp
                       'nowarp
