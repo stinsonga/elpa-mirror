@@ -1833,6 +1833,17 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
 (defsubst gnugo--SZ! (size)
   (gnugo-put :SZ size))
 
+(defun gnugo--plant-and-climb (collection &optional sel)
+  (gnugo-put :sgf-collection collection)
+  (let ((tree (nth (or sel 0) collection)))
+    (gnugo-put :sgf-gametree tree)
+    (gnugo-put :monkey (vector
+                        ;; mem
+                        (aref (gnugo--tree-ends tree) 0)
+                        ;; bidx
+                        0))
+    tree))
+
 (defun gnugo-read-sgf-file (filename)
   "Load the first game tree from FILENAME, a file in SGF format."
   (interactive "fSGF file to load: ")
@@ -1853,25 +1864,22 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
       (gnugo-put :gnugo-color wait)
       (gnugo-put :user-color play))
     (setq coll (gnugo/sgf-create filename)
-          tree (nth (let ((n (length coll)))
-                      ;; This is better:
-                      ;; (if (= 1 n)
-                      ;;     0
-                      ;;   (let* ((q (format "Which game? (1-%d)" n))
-                      ;;          (choice (1- (read-number q 1))))
-                      ;;     (if (and (< -1 choice) (< choice n))
-                      ;;         choice
-                      ;;       (message "(Selecting the first game)")
-                      ;;       0)))
-                      ;; but this is what we use (for now) to accomodate
-                      ;; (aka faithfully mimic) GTP `loadsgf' limitations:
-                      (unless (= 1 n)
-                        (message "(Selecting the first game)"))
-                      0)
-                    coll))
-    (gnugo-put :sgf-collection coll)
-    (gnugo-put :sgf-gametree tree)
-    (gnugo-put :monkey (vector (aref (gnugo--tree-ends tree) 0) 0))
+          tree (gnugo--plant-and-climb
+                coll (let ((n (length coll)))
+                       ;; This is better:
+                       ;; (if (= 1 n)
+                       ;;     0
+                       ;;   (let* ((q (format "Which game? (1-%d)" n))
+                       ;;          (choice (1- (read-number q 1))))
+                       ;;     (if (and (< -1 choice) (< choice n))
+                       ;;         choice
+                       ;;       (message "(Selecting the first game)")
+                       ;;       0)))
+                       ;; but this is what we use (for now) to accomodate
+                       ;; (aka faithfully mimic) GTP `loadsgf' limitations:
+                       (unless (= 1 n)
+                         (message "(Selecting the first game)"))
+                       0)))
     ;; This is deliberately undocumented for now.
     (gnugo--SZ! (gnugo--root-prop :SZ tree))
     (let (game-over)
@@ -2449,11 +2457,8 @@ In this mode, keys do not self insert.
     (gnugo-put :rparen-ov (let ((ov (make-overlay 1 1)))
                             (overlay-put ov 'display ")")
                             ov))
-    (let* ((coll (gnugo/sgf-create "(;FF[4]GM[1])" t))
-           (tree (car coll)))
-      (gnugo-put :sgf-gametree tree)
-      (gnugo-put :sgf-collection coll)
-      (gnugo-put :monkey (vector (aref (gnugo--tree-ends tree) 0) 0)))
+    (gnugo--plant-and-climb
+     (gnugo/sgf-create "(;FF[4]GM[1])" t))
     (gnugo--SZ! board-size)
     (let ((root (gnugo--root-node)))
       (cl-flet
