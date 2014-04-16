@@ -35,6 +35,7 @@ NB: "RCS: X..Y " means that the particular release includes
     - ‘gnugo/sgf-read-file’ renamed to ‘gnugo/sgf-create’ and enhanced
     - ‘:sgf-gametree’ internal representation inverted (BI)
     - ‘gnugo-magic-undo’ handles SPEC ‘0’
+    - dropped ‘(gnugo-move-history 'count)’ (BI)
 
 - 2.3.1 | 2014-02-27
   - portability fixes
