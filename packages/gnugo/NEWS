@@ -37,6 +37,7 @@ NB: "RCS: X..Y " means that the particular release includes
     - ‘gnugo-magic-undo’ handles SPEC ‘0’
     - dropped ‘(gnugo-move-history 'count)’ (BI)
     - new func: ‘gnugo-current-player’
+    - new hook: ‘gnugo-start-game-hook’
 
 - 2.3.1 | 2014-02-27
   - portability fixes

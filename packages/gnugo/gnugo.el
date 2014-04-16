@@ -69,6 +69,7 @@
 ;;                    `gnugo-xpms'
 ;;   normal hooks:    `gnugo-board-mode-hook'
 ;;                    `gnugo-frolic-mode-hook'
+;;                    `gnugo-start-game-hook'
 ;;                    `gnugo-post-move-hook'
 ;;   and the keymap:  `gnugo-board-mode-map'
 ;;
@@ -110,6 +111,11 @@ http://www.gnu.org/software/gnugo")
 
 (defvar gnugo-board-mode-hook nil
   "Hook run when entering GNUGO Board mode.")
+
+(defvar gnugo-start-game-hook nil
+  "Normal hook run immediately before the first move of the game.
+To find out who is to move first, use `gnugo-current-player'.
+See also `gnugo-board-mode'.")
 
 (defvar gnugo-post-move-hook nil
   "Normal hook run after a move and before the board is refreshed.
@@ -2555,6 +2561,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                   (and (gnugo--blackp g) (< n 2)))
               u
             g))
+        (run-hooks 'gnugo-start-game-hook)
         (when (string= g (gnugo-current-player))
           (gnugo-refresh t)
           (gnugo-get-move g))))))
