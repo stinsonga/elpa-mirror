@@ -2551,6 +2551,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
   (mapc (lambda (pair)
           (define-key gnugo-frolic-mode-map (car pair) (cdr pair)))
         '(("q"          . gnugo-frolic-quit)
+          ("Q"          . gnugo-frolic-quit)
           ("C"          . gnugo-frolic-quit) ; like ‘View-kill-and-leave’
           ("\C-b"       . gnugo-frolic-backward-branch)
           ("\C-f"       . gnugo-frolic-forward-branch)
