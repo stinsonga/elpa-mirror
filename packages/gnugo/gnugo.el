@@ -332,6 +332,10 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
 (defun gnugo-other (color)
   (if (gnugo--blackp color) "white" "black"))
 
+(defun gnugo-current-player ()
+  "Return the current player, either \"black\" or \"white\"."
+  (gnugo-other (gnugo-get :last-mover)))
+
 (defsubst gnugo--gate-game-over (enable)
   (when (and enable (gnugo-get :game-over))
     (user-error "Sorry, game over")))
@@ -1545,7 +1549,7 @@ its move."
                         ,(case c
                            (?b '(or (gnugo-get :black-captures) 0))
                            (?w '(or (gnugo-get :white-captures) 0))
-                           (?p '(gnugo-other (gnugo-get :last-mover)))
+                           (?p '(gnugo-current-player))
                            (?t '(let ((ws (gnugo-get :waiting-start)))
                                   (if ws
                                       (cadr (time-since ws))
@@ -1957,7 +1961,7 @@ when play resumes."
       (unless (= ?= (aref ans 0))
         (user-error "%s" ans))
       (pop (aref monkey 0))
-      (gnugo-put :last-mover (gnugo-other (gnugo-get :last-mover)))
+      (gnugo-put :last-mover (gnugo-current-player))
       (gnugo-merge-showboard-results)   ; all
       (gnugo-refresh)                   ; this
       (decf n)                          ; is
@@ -2546,10 +2550,12 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
       (let ((g (gnugo-get :gnugo-color))
             (n (or (gnugo--root-prop :HA) 0))
             (u (gnugo-get :user-color)))
-        (gnugo-put :last-mover g)
-        (when (or (and (gnugo--blackp u) (< 1 n))
+        (gnugo-put :last-mover
+          (if (or (and (gnugo--blackp u) (< 1 n))
                   (and (gnugo--blackp g) (< n 2)))
-          (gnugo-put :last-mover u)
+              u
+            g))
+        (when (string= g (gnugo-current-player))
           (gnugo-refresh t)
           (gnugo-get-move g))))))
 
