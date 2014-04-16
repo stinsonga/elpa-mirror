@@ -38,6 +38,7 @@ NB: "RCS: X..Y " means that the particular release includes
     - dropped ‘(gnugo-move-history 'count)’ (BI)
     - new func: ‘gnugo-current-player’
     - new hook: ‘gnugo-start-game-hook’
+    - ‘gnugo-board-mode-hook’ now unsuitable for prop munging (BI)
 
 - 2.3.1 | 2014-02-27
   - portability fixes

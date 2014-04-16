@@ -2390,7 +2390,6 @@ Entering this mode runs the normal hook `gnugo-board-mode-hook'.
 In this mode, keys do not self insert.
 
 \\{gnugo-board-mode-map}"
-  (switch-to-buffer (generate-new-buffer "(Uninitialized GNUGO Board)"))
   (buffer-disable-undo)                 ; todo: undo undo undoing
   (kill-all-local-variables)
   (use-local-map gnugo-board-mode-map)
@@ -2403,106 +2402,7 @@ In this mode, keys do not self insert.
   (set (make-local-variable 'gnugo-state)
        (gnugo--mkht :size (1- 42)))
   (add-to-invisibility-spec :nogrid)
-  (gnugo--forget :game-over             ; todo: separate display/game aspects;
-                 :waiting               ;       move latter to func `gnugo'
-                 :last-waiting
-                 :black-captures
-                 :white-captures
-                 :mode-line
-                 :mode-line-form
-                 :display-using-images
-                 :xpms
-                 :local-xpms
-                 :all-yy)
-  (let ((name (if (string-match "[ ]" gnugo-program)
-                  (let ((p (substring gnugo-program 0 (match-beginning 0)))
-                        (o (substring gnugo-program (match-end 0)))
-                        (h (or (car gnugo-option-history) "")))
-                    (when (string-match "--mode" o)
-                      (user-error "Found \"--mode\" in `gnugo-program'"))
-                    (when (and o (cl-plusp (length o))
-                               h (cl-plusp (length o))
-                               (or (< (length h) (length o))
-                                   (not (string= (substring h 0 (length o))
-                                                 o))))
-                      (push (concat o " " h) gnugo-option-history))
-                    p)
-                gnugo-program))
-        (args (read-string "GNU Go options: "
-                           (car gnugo-option-history)
-                           'gnugo-option-history))
-        proc
-        board-size user-color handicap komi minus-l infile)
-    (loop for (var default opt rx)
-          in '((board-size      19 "--boardsize")
-               (user-color "black" "--color" "\\(black\\|white\\)")
-               (handicap         0 "--handicap")
-               (komi           0.0 "--komi")
-               (minus-l        nil "\\([^-]\\|^\\)-l[ ]*" "[^ ]+")
-               (infile         nil "--infile" "[ ]*[^ ]+"))
-          do (set var
-                  (or (when (string-match opt args)
-                        (let ((start (match-end 0)) s)
-                          (string-match (or rx "[0-9.]+") args start)
-                          (setq s (match-string 0 args))
-                          (if rx s (string-to-number s))))
-                      default)))
-    (gnugo-put :user-color user-color)
-    (let ((proc-args (split-string args)))
-      (gnugo-put :proc-args proc-args)
-      (gnugo-put :proc (setq proc (apply 'start-process "gnugo"
-                                         (current-buffer) name
-                                         "--mode" "gtp" "--quiet"
-                                         proc-args))))
-    (set-process-sentinel proc 'gnugo-sentinel)
-    ;; Emacs is too protective sometimes, blech.
-    (set-process-query-on-exit-flag proc nil)
-    (when (or minus-l infile)
-      (loop for (prop q)
-            in '((board-size "query_boardsize")
-                 (komi       "get_komi")
-                 (handicap   "get_handicap"))
-            do (set prop (string-to-number (gnugo-query q)))))
-    (gnugo-put :diamond (substring (process-name proc) 5))
-    (gnugo-put :gnugo-color (gnugo-other user-color))
-    (gnugo-put :highlight-last-move-spec
-      (gnugo-put :default-highlight-last-move-spec '("(" -1 nil)))
-    (gnugo-put :lparen-ov (make-overlay 1 1))
-    (gnugo-put :rparen-ov (let ((ov (make-overlay 1 1)))
-                            (overlay-put ov 'display ")")
-                            ov))
-    (gnugo--plant-and-climb
-     (gnugo/sgf-create "(;FF[4]GM[1])" t))
-    (gnugo--SZ! board-size)
-    (let ((root (gnugo--root-node)))
-      (cl-flet
-          ((r! (&rest plist)
-               (gnugo--decorate
-                root (loop              ; hmm, available elsewhere?
-                      while plist
-                      collect (let* ((k (pop plist))
-                                     (v (pop plist)))
-                                (cons k v))))))
-        (r! :SZ board-size
-            :DT (format-time-string "%Y-%m-%d")
-            :RU (if (string-match "--chinese-rules" args)
-                    "Chinese"
-                  "Japanese")
-            :AP (cons "gnugo.el" gnugo-version)
-            :KM komi)
-        (let ((gb (gnugo--blackp (gnugo-other user-color))))
-          (r! (if gb :PW :PB) (user-full-name)
-              (if gb :PB :PW) (concat "GNU Go " (gnugo-query "version"))))
-        (unless (zerop handicap)
-          (r! :HA handicap
-              :AB (mapcar (gnugo--as-cc-func)
-                          (gnugo-lsquery "fixed_handicap %d"
-                                         handicap)))))))
-  (gnugo-put :waiting-start (current-time))
-  (gnugo-put :hmul 1)
-  (gnugo-put :wmul 1)
-  (run-hooks 'gnugo-board-mode-hook)
-  (gnugo-refresh t))
+  (run-hooks 'gnugo-board-mode-hook))
 
 ;;;---------------------------------------------------------------------------
 ;;; Entry point
@@ -2545,7 +2445,96 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                       (car all)
                     (assoc sel all))))))
       ;; set up a new board
+      (switch-to-buffer (generate-new-buffer "(Uninitialized GNUGO Board)"))
       (gnugo-board-mode)
+      (let ((name (if (string-match "[ ]" gnugo-program)
+                      (let ((p (substring gnugo-program 0 (match-beginning 0)))
+                            (o (substring gnugo-program (match-end 0)))
+                            (h (or (car gnugo-option-history) "")))
+                        (when (string-match "--mode" o)
+                          (user-error "Found \"--mode\" in `gnugo-program'"))
+                        (when (and o (cl-plusp (length o))
+                                   h (cl-plusp (length o))
+                                   (or (< (length h) (length o))
+                                       (not (string= (substring h 0 (length o))
+                                                     o))))
+                          (push (concat o " " h) gnugo-option-history))
+                        p)
+                    gnugo-program))
+            (args (read-string "GNU Go options: "
+                               (car gnugo-option-history)
+                               'gnugo-option-history))
+            proc
+            board-size user-color handicap komi minus-l infile)
+        (loop for (var default opt rx)
+              in '((board-size      19 "--boardsize")
+                   (user-color "black" "--color" "\\(black\\|white\\)")
+                   (handicap         0 "--handicap")
+                   (komi           0.0 "--komi")
+                   (minus-l        nil "\\([^-]\\|^\\)-l[ ]*" "[^ ]+")
+                   (infile         nil "--infile" "[ ]*[^ ]+"))
+              do (set var
+                      (or (when (string-match opt args)
+                            (let ((start (match-end 0)) s)
+                              (string-match (or rx "[0-9.]+") args start)
+                              (setq s (match-string 0 args))
+                              (if rx s (string-to-number s))))
+                          default)))
+        (gnugo-put :user-color user-color)
+        (let ((proc-args (split-string args)))
+          (gnugo-put :proc-args proc-args)
+          (gnugo-put :proc (setq proc (apply 'start-process "gnugo"
+                                             (current-buffer) name
+                                             "--mode" "gtp" "--quiet"
+                                             proc-args))))
+        (set-process-sentinel proc 'gnugo-sentinel)
+        ;; Emacs is too protective sometimes, blech.
+        (set-process-query-on-exit-flag proc nil)
+        (when (or minus-l infile)
+          (loop for (prop q)
+                in '((board-size "query_boardsize")
+                     (komi       "get_komi")
+                     (handicap   "get_handicap"))
+                do (set prop (string-to-number (gnugo-query q)))))
+        (gnugo-put :diamond (substring (process-name proc) 5))
+        (gnugo-put :gnugo-color (gnugo-other user-color))
+        (gnugo-put :highlight-last-move-spec
+          (gnugo-put :default-highlight-last-move-spec '("(" -1 nil)))
+        (gnugo-put :lparen-ov (make-overlay 1 1))
+        (gnugo-put :rparen-ov (let ((ov (make-overlay 1 1)))
+                                (overlay-put ov 'display ")")
+                                ov))
+        (gnugo--plant-and-climb
+         (gnugo/sgf-create "(;FF[4]GM[1])" t))
+        (gnugo--SZ! board-size)
+        (let ((root (gnugo--root-node)))
+          (cl-flet
+              ((r! (&rest plist)
+                   (gnugo--decorate
+                    root (loop          ; hmm, available elsewhere?
+                          while plist
+                          collect (let* ((k (pop plist))
+                                         (v (pop plist)))
+                                    (cons k v))))))
+            (r! :SZ board-size
+                :DT (format-time-string "%Y-%m-%d")
+                :RU (if (string-match "--chinese-rules" args)
+                        "Chinese"
+                      "Japanese")
+                :AP (cons "gnugo.el" gnugo-version)
+                :KM komi)
+            (let ((gb (gnugo--blackp (gnugo-other user-color))))
+              (r! (if gb :PW :PB) (user-full-name)
+                  (if gb :PB :PW) (concat "GNU Go " (gnugo-query "version"))))
+            (unless (zerop handicap)
+              (r! :HA handicap
+                  :AB (mapcar (gnugo--as-cc-func)
+                              (gnugo-lsquery "fixed_handicap %d"
+                                             handicap)))))))
+      (gnugo-put :waiting-start (current-time))
+      (gnugo-put :hmul 1)
+      (gnugo-put :wmul 1)
+      (gnugo-refresh t)
       (let ((half (truncate (1+ (gnugo-get :SZ)) 2)))
         (gnugo-goto-pos (format "A%d" half))
         (forward-char (* 2 (1- half)))
