@@ -695,10 +695,10 @@ If nil, display the history in the echo area as \"(N moves)\"
 followed by the space-separated list of moves.  When called
 interactively with a prefix arg (i.e., RSEL is `(4)'), display
 similarly, but suffix with the mover (either \":B\" or \":W\").
-If RSEL is the symbol `car' return the most-recent move; if
-`cadr', the next-to-most-recent move; if `count' the number of
-moves thus far; if `two' the last two moves as a list, oldest last.
-
+RSEL may also be a symbol that selects what to return:
+ car  -- the most-recent move
+ cadr -- the next-to-most-recent move
+ two  -- the last two moves as a list, oldest last
 For all other values of RSEL, do nothing and return nil."
   (interactive "P")
   (let* ((monkey (gnugo-get :monkey))
@@ -726,8 +726,6 @@ For all other values of RSEL, do nothing and return nil."
         (`nil (finish nil))
         (`car        (car (nn)))
         (`cadr  (nn) (car (nn)))
-        (`count (gethash (car mem) (gnugo--tree-mnum
-                                    (gnugo-get :sgf-gametree))))
         (`two (nn) (nn) acc)
         (_ nil)))))
 
@@ -1553,7 +1551,12 @@ its move."
                                       (cadr (time-since ws))
                                     "-")))
                            (?u '(or (gnugo-get :last-waiting) "-"))
-                           (?m '(gnugo-move-history 'count))))
+                           (?m '(let ((tree (gnugo-get :sgf-gametree))
+                                      (monkey (gnugo-get :monkey)))
+                                  (gethash (car (aref monkey 0))
+                                           (gnugo--tree-mnum tree)
+                                           ;; should be unnecessary
+                                           "?")))))
                       acc))
                    `(let ,(delete-dups (copy-sequence acc))
                       (format ,cur ,@(reverse (mapcar 'car acc))))))
