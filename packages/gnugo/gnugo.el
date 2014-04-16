@@ -2157,12 +2157,15 @@ to the last move, as a comment."
       (let ((node (car (aref (gnugo-get :monkey) 0))))
         (gnugo--decorate
          (delq (assq :C node) node)
-         (with-temp-buffer
+         (with-temp-buffer              ; lame
            (insert blurb)
+           (when (search-backward "\n\nGame start:" nil t)
+             (delete-region (point) (point-max)))
            (cl-flet ((rep (old new)
                           (goto-char (point-min))
                           (while (search-forward old nil t)
                             (replace-match new))))
+             (rep "The game is over.  " "")
              (rep "territory" "T")
              (rep "captures"  "C")
              (rep "komi"      "K"))
