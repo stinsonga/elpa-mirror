@@ -257,6 +257,10 @@ As things stabilize probably more info will be added to this docstring."
 See `gnugo-put'."
   (gethash key gnugo-state))
 
+(defun gnugo--forget (&rest keys)
+  (dolist (key keys)
+    (remhash key gnugo-state)))
+
 (defsubst gnugo--tree-mnum (tree)
   (aref tree 1))
 
@@ -375,7 +379,7 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
                                     'face 'font-lock-warning-face)
                         ")]"))
             (when (eq proc (gnugo-get :proc))
-              (gnugo-put :proc nil))))))))
+              (gnugo--forget :proc))))))))
 
 (defun gnugo--begin-exchange (proc filter line)
   (declare (indent 2))                  ; good time, for a rime
@@ -477,7 +481,7 @@ when you are sure the command cannot fail."
   (let ((fresh (or (gnugo-get :local-xpms) gnugo-xpms)))
     (unless (eq fresh (gnugo-get :xpms))
       (gnugo-put :xpms fresh)
-      (gnugo-put :all-yy nil)))
+      (gnugo--forget :all-yy)))
   (let* ((new (not (gnugo-get :display-using-images)))
          (act (if new 'display 'do-not-display)))
     (mapc (lambda (yy)
@@ -1237,10 +1241,9 @@ This fails if the monkey is on the current branch
           (dead ,@dead))))))
 
 (defun gnugo--unclose-game ()
-  (dolist (prop '(:game-over            ; all those in -close-game
-                  :scoring-seed
-                  :game-end-time))
-    (gnugo-put prop nil))
+  (gnugo--forget :game-over             ; all those in -close-game
+                 :scoring-seed
+                 :game-end-time)
   (let* ((root (gnugo--root-node))
          (cur (assq :RE root)))
     (when cur
@@ -1611,8 +1614,8 @@ its move."
         (destructuring-bind (pos-or-pass color . suggestion)
             (cons (match-string 1 full)
                   (gnugo-get :waiting))
-          (gnugo-put :get-move-string nil)
-          (gnugo-put :waiting nil)
+          (gnugo--forget :get-move-string
+                         :waiting)
           (if suggestion
               (progn
                 (gnugo--rename-buffer-portion t)
@@ -2303,7 +2306,7 @@ This is to ensure that the user is the next to play after disabling."
             (gnugo--ERR-wait gcolor "Sorry, too soon"))
           (when (timerp abd)
             (cancel-timer abd))
-          (gnugo-put :abd nil)
+          (gnugo--forget :abd)
           (unless color
             (gnugo-get-move gcolor)))
       ;; enable
@@ -2400,19 +2403,17 @@ In this mode, keys do not self insert.
   (set (make-local-variable 'gnugo-state)
        (gnugo--mkht :size (1- 42)))
   (add-to-invisibility-spec :nogrid)
-  (mapc (lambda (prop)
-          (gnugo-put prop nil))         ; todo: separate display/game aspects;
-        '(:game-over                    ;       move latter to func `gnugo'
-          :waiting
-          :last-waiting
-          :black-captures
-          :white-captures
-          :mode-line
-          :mode-line-form
-          :display-using-images
-          :xpms
-          :local-xpms
-          :all-yy))
+  (gnugo--forget :game-over             ; todo: separate display/game aspects;
+                 :waiting               ;       move latter to func `gnugo'
+                 :last-waiting
+                 :black-captures
+                 :white-captures
+                 :mode-line
+                 :mode-line-form
+                 :display-using-images
+                 :xpms
+                 :local-xpms
+                 :all-yy)
   (let ((name (if (string-match "[ ]" gnugo-program)
                   (let ((p (substring gnugo-program 0 (match-beginning 0)))
                         (o (substring gnugo-program (match-end 0)))
@@ -2696,7 +2697,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
         :output :discard
         :post-thunk (lambda ()
                       (gnugo--unclose-game)
-                      (gnugo-put :last-mover nil)
+                      (gnugo--forget :last-mover)
                       ;; ugh
                       (gnugo--SZ! (string-to-number
                                    (gnugo-query
