@@ -2295,17 +2295,13 @@ This is to ensure that the user is the next to play after disabling."
         (warning ""))
     (if abd
         ;; disable
-        (destructuring-bind (gcolor ucolor &optional color . suggestion)
-            (list* (gnugo-get :gnugo-color)
-                   (gnugo-get :user-color)
-                   (gnugo-get :waiting))
-          (assert (not suggestion))
+        (let ((gcolor (gnugo-get :gnugo-color)))
           (when (string= last-mover gcolor)
             (gnugo--ERR-wait gcolor "Sorry, too soon"))
           (when (timerp abd)
             (cancel-timer abd))
           (gnugo--forget :abd)
-          (unless color
+          (unless (gnugo-get :waiting)
             (gnugo-get-move gcolor)))
       ;; enable
       (gnugo--gate-game-over t)
