@@ -2378,26 +2378,21 @@ NOTE: At this time, GTP command handling specification is still
 ;;;---------------------------------------------------------------------------
 ;;; Major mode for interacting with a GNUGO subprocess
 
-(put 'gnugo-board-mode 'mode-class 'special)
-(defun gnugo-board-mode ()
+(define-derived-mode gnugo-board-mode special-mode "GNUGO Board"
   "Major mode for playing GNU Go.
 Entering this mode runs the normal hook `gnugo-board-mode-hook'.
 In this mode, keys do not self insert.
 
 \\{gnugo-board-mode-map}"
   (buffer-disable-undo)                 ; todo: undo undo undoing
-  (kill-all-local-variables)
-  (use-local-map gnugo-board-mode-map)
+  (setq buffer-read-only nil)           ; todo: make everything else DTRT
   (set (make-local-variable 'font-lock-defaults)
        '(gnugo-font-lock-keywords t))
-  (setq major-mode 'gnugo-board-mode
-        mode-name "GNUGO Board"
-        truncate-lines t)
+  (setq truncate-lines t)
   (add-hook 'kill-buffer-hook 'gnugo-cleanup nil t)
   (set (make-local-variable 'gnugo-state)
        (gnugo--mkht :size (1- 42)))
-  (add-to-invisibility-spec :nogrid)
-  (run-hooks 'gnugo-board-mode-hook))
+  (add-to-invisibility-spec :nogrid))
 
 ;;;---------------------------------------------------------------------------
 ;;; Entry point
