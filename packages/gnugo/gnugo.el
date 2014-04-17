@@ -494,10 +494,9 @@ when you are sure the command cannot fail."
                                    (setplist yy `(not-yet ,(cdr ent)))
                                    yy))
                                (gnugo-get :xpms))
-                  (let ((imul (image-size (get (gnugo-yy 5 (gnugo-yang ?+))
-                                               'not-yet))))
-                    (gnugo-put :w-imul (car imul))
-                    (gnugo-put :h-imul (cdr imul)))))))
+                  (gnugo-put :imul
+                    (image-size (get (gnugo-yy 5 (gnugo-yang ?+))
+                                     'not-yet)))))))
     (setplist (gnugo-f 'ispc) (and new '(display (space :width 0))))
     (gnugo-put :highlight-last-move-spec
       (if new
@@ -512,8 +511,9 @@ when you are sure the command cannot fail."
     (dolist (group (cdr (assq 'dead (gnugo-get :game-over))))
       (mapc 'delete-overlay (cdar group))
       (setcdr (car group) nil))
-    (gnugo-put :wmul (if new (gnugo-get :w-imul) 1))
-    (gnugo-put :hmul (if new (gnugo-get :h-imul) 1))
+    (gnugo-put :mul (if new
+                        (gnugo-get :imul)
+                      '(1 . 1)))
     (gnugo-put :display-using-images new)))
 
 (defun gnugo-toggle-grid ()
@@ -1480,15 +1480,16 @@ its move."
       (let* ((gridp (not (memq :nogrid buffer-invisibility-spec)))
              (size (gnugo-get :SZ))
              (under10p (< size 10))
+             (mul (gnugo-get :mul))
              (h (- (truncate (- (window-height window)
-                                (* size (gnugo-get :hmul))
+                                (* size (cdr mul))
                                 (if gridp 2 0))
                              2)
                    (if gridp 0 1)))
              (edges (window-edges window))
              (right-w-edge (nth 2 edges))
              (avail-width (- right-w-edge (nth 0 edges)))
-             (wmul (gnugo-get :wmul))
+             (wmul (car mul))
              (imagesp (symbol-plist (gnugo-f 'ispc)))
              (w (/ (- avail-width
                       (* size wmul)
@@ -2531,8 +2532,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                               (gnugo-lsquery "fixed_handicap %d"
                                              handicap)))))))
       (gnugo-put :waiting-start (current-time))
-      (gnugo-put :hmul 1)
-      (gnugo-put :wmul 1)
+      (gnugo-put :mul '(1 . 1))
       (gnugo-refresh t)
       (let ((half (truncate (1+ (gnugo-get :SZ)) 2)))
         (gnugo-goto-pos (format "A%d" half))
