@@ -2386,9 +2386,8 @@ In this mode, keys do not self insert.
 \\{gnugo-board-mode-map}"
   (buffer-disable-undo)                 ; todo: undo undo undoing
   (setq buffer-read-only nil)           ; todo: make everything else DTRT
-  (set (make-local-variable 'font-lock-defaults)
-       '(gnugo-font-lock-keywords t))
-  (setq truncate-lines t)
+  (setq font-lock-defaults '(gnugo-font-lock-keywords t)
+        truncate-lines t)
   (add-hook 'kill-buffer-hook 'gnugo-cleanup nil t)
   (set (make-local-variable 'gnugo-state)
        (gnugo--mkht :size (1- 42)))
