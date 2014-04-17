@@ -29,6 +29,7 @@ NB: "RCS: X..Y " means that the particular release includes
   - new command: ‘C-c C-a’ (gnugo-toggle-abdication)
   - new major mode: GNUGO Frolic (gnugo-frolic-mode)
   - ‘gnugo-move-history’ returns last two moves w/ RSEL ‘two’
+  - GNUGO Board mode now derived from Special mode
   - performance improvements
   - of interest to hackers (see source, BI => backward incompatible)
     - dropped var: ‘gnugo-inhibit-refresh’ (BI)
