@@ -2523,9 +2523,9 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                       "Japanese")
                 :AP (cons "gnugo.el" gnugo-version)
                 :KM komi)
-            (let ((gb (gnugo--blackp (gnugo-other user-color))))
-              (r! (if gb :PW :PB) (user-full-name)
-                  (if gb :PB :PW) (concat "GNU Go " (gnugo-query "version"))))
+            (let ((ub (gnugo--blackp user-color)))
+              (r! (if ub :PW :PB) (concat "GNU Go " (gnugo-query "version"))
+                  (if ub :PB :PW) (user-full-name)))
             (unless (zerop handicap)
               (r! :HA handicap
                   :AB (mapcar (gnugo--as-cc-func)
