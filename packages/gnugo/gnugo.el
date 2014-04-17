@@ -635,7 +635,9 @@ when you are sure the command cannot fail."
         (bef (buffer-substring-no-properties (point-min) (point-max)))
         (bef-start 0) (bef-idx 0)
         (aft-start 0) (aft-idx 0)
-        aft-sync-backtrack mis inc cut new very-strange)
+        aft-sync-backtrack mis inc cut new very-strange
+
+        (inhibit-read-only t))
     (while (numberp (setq mis (gnugo--compare-strings
                                bef bef-start
                                aft aft-start)))
@@ -1405,13 +1407,14 @@ be slow.  (This should normally be unnecessary; specify it only if the display
 seems corrupted.)  NOCACHE is silently ignored when GNU Go is thinking about
 its move."
   (interactive "P")
-  (when (and nocache (not (gnugo-get :waiting)))
-    (gnugo-propertize-board-buffer))
   (let* ((last-mover (gnugo-get :last-mover))
          (other (gnugo-other last-mover))
          (move (gnugo-move-history 'car))
          (game-over (gnugo-get :game-over))
+         (inhibit-read-only t)
          window last)
+    (when (and nocache (not (gnugo-get :waiting)))
+      (gnugo-propertize-board-buffer))
     ;; last move
     (when move
       (destructuring-bind (l-ov . r-ov) (gnugo-get :paren-ov)
@@ -2385,7 +2388,6 @@ In this mode, keys do not self insert.
 
 \\{gnugo-board-mode-map}"
   (buffer-disable-undo)                 ; todo: undo undo undoing
-  (setq buffer-read-only nil)           ; todo: make everything else DTRT
   (setq font-lock-defaults '(gnugo-font-lock-keywords t)
         truncate-lines t)
   (add-hook 'kill-buffer-hook 'gnugo-cleanup nil t)
