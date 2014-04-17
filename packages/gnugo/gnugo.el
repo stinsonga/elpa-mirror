@@ -243,8 +243,8 @@ you may never really understand to any degree of personal satisfaction\".
             46 = 9 places * (4 moku + 1 empty) + 1 hoshi; see functions
             `gnugo-toggle-image-display', `gnugo-yy' and `gnugo-yang'
 
- :lparen-ov -- overlays shuffled about to indicate the last move; only
- :rparen-ov    one is used when displaying using images
+ :paren-ov -- a pair (left and right) of overlays shuffled about to indicate
+              the last move; only one is used when displaying using images
 
  :last-user-bpos -- board position; keep the hapless human happy
 
@@ -1414,8 +1414,7 @@ its move."
          window last)
     ;; last move
     (when move
-      (let ((l-ov (gnugo-get :lparen-ov))
-            (r-ov (gnugo-get :rparen-ov)))
+      (destructuring-bind (l-ov . r-ov) (gnugo-get :paren-ov)
         (if (member move '("PASS" "resign"))
             (mapc 'delete-overlay (list l-ov r-ov))
           (gnugo-goto-pos move)
@@ -2500,10 +2499,10 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
         (gnugo-put :gnugo-color (gnugo-other user-color))
         (gnugo-put :highlight-last-move-spec
           (gnugo-put :default-highlight-last-move-spec '("(" -1 nil)))
-        (gnugo-put :lparen-ov (make-overlay 1 1))
-        (gnugo-put :rparen-ov (let ((ov (make-overlay 1 1)))
-                                (overlay-put ov 'display ")")
-                                ov))
+        (gnugo-put :paren-ov (cons (make-overlay 1 1)
+                                   (let ((ov (make-overlay 1 1)))
+                                     (overlay-put ov 'display ")")
+                                     ov)))
         (gnugo--plant-and-climb
          (gnugo/sgf-create "(;FF[4]GM[1])" t))
         (gnugo--SZ! board-size)
