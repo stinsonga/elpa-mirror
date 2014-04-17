@@ -94,14 +94,12 @@ This follows a MAJOR.MINOR.PATCH scheme.")
 ;;; Variables for the uninquisitive programmer
 
 (defvar gnugo-program "gnugo"
-  "Command to start an external program that speaks GTP, such as \"gnugo\".
-The value may also be in the form \"PROGRAM OPTIONS...\" in which case the
-the command `gnugo' will prefix OPTIONS in its default offering when it
-queries you for additional options.  It is an error for \"--mode\" to appear
-in OPTIONS.
-
-For more information on GTP and GNU Go, feel free to visit:
-http://www.gnu.org/software/gnugo")
+  "Name of the GNU Go program (executable file).
+\\[gnugo] validates this using `executable-find'.
+This program must accept command line args:
+ --mode gtp --quiet
+For more information on GTP and GNU Go, please visit:
+<http://www.gnu.org/software/gnugo>")
 
 (defvar gnugo-board-mode-map nil
   "Keymap for GNUGO Board mode.")
@@ -2431,24 +2429,13 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                   (if (string= "" sel)
                       (car all)
                     (assoc sel all))))))
+      ;; sanity check
+      (unless (executable-find gnugo-program)
+        (user-error "Invalid `gnugo-program': %S" gnugo-program))
       ;; set up a new board
       (switch-to-buffer (generate-new-buffer "(Uninitialized GNUGO Board)"))
       (gnugo-board-mode)
-      (let ((name (if (string-match "[ ]" gnugo-program)
-                      (let ((p (substring gnugo-program 0 (match-beginning 0)))
-                            (o (substring gnugo-program (match-end 0)))
-                            (h (or (car gnugo-option-history) "")))
-                        (when (string-match "--mode" o)
-                          (user-error "Found \"--mode\" in `gnugo-program'"))
-                        (when (and o (cl-plusp (length o))
-                                   h (cl-plusp (length o))
-                                   (or (< (length h) (length o))
-                                       (not (string= (substring h 0 (length o))
-                                                     o))))
-                          (push (concat o " " h) gnugo-option-history))
-                        p)
-                    gnugo-program))
-            (args (read-string "GNU Go options: "
+      (let ((args (read-string "GNU Go options: "
                                (car gnugo-option-history)
                                'gnugo-option-history))
             proc
@@ -2471,7 +2458,8 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
         (let ((proc-args (split-string args)))
           (gnugo-put :proc-args proc-args)
           (gnugo-put :proc (setq proc (apply 'start-process "gnugo"
-                                             (current-buffer) name
+                                             (current-buffer)
+                                             gnugo-program
                                              "--mode" "gtp" "--quiet"
                                              proc-args))))
         (set-process-sentinel proc 'gnugo-sentinel)
