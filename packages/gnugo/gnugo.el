@@ -1865,7 +1865,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
   (interactive "fSGF file to load: ")
   (when (file-directory-p filename)
     (user-error "Cannot load a directory (try a filename with extension .sgf)"))
-  (let (ans play wait samep coll tree)
+  (let (ans play wait samep coll tree game-over)
     ;; problem: requiring GTP `loadsgf' complicates network subproc support;
     ;; todo: skip it altogether when confident about `gnugo/sgf-create'
     (unless (= ?= (aref (setq ans (gnugo--q "loadsgf %s"
@@ -1898,16 +1898,11 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
                        0)))
     ;; This is deliberately undocumented for now.
     (gnugo--SZ! (gnugo--root-prop :SZ tree))
-    (let (game-over)
-      (gnugo-put :game-over
-        (setq game-over
-              (or (gnugo--root-prop :RE tree)
-                  (and (equal '("PASS" "PASS") (gnugo-move-history 'two))
-                       'two-passes))))
-      (when (and game-over
-                 ;; (maybe) todo: user var to inhibit (can be slow)
-                 t)
-        (gnugo-close-game nil game-over)))
+    (when (setq game-over (or (gnugo--root-prop :RE tree)
+                              (when (equal '("PASS" "PASS")
+                                           (gnugo-move-history 'two))
+                                'two-passes)))
+      (gnugo-close-game nil game-over))
     (gnugo-refresh t)
     (set-buffer-modified-p nil)
     (gnugo--who-is-who wait play samep)))
