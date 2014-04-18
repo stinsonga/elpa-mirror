@@ -2435,11 +2435,15 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
       ;; set up a new board
       (switch-to-buffer (generate-new-buffer "(Uninitialized GNUGO Board)"))
       (gnugo-board-mode)
-      (let ((args (read-string "GNU Go options: "
-                               (car gnugo-option-history)
-                               'gnugo-option-history))
-            proc
-            board-size user-color handicap komi minus-l infile)
+      (let* ((args (read-string "GNU Go options: "
+                                (car gnugo-option-history)
+                                'gnugo-option-history))
+             (proc (apply 'start-process "gnugo"
+                          (current-buffer)
+                          gnugo-program
+                          "--mode" "gtp" "--quiet"
+                          (split-string args)))
+             board-size user-color handicap komi minus-l infile)
         (loop for (var default opt rx)
               in '((board-size      19 "--boardsize")
                    (user-color "black" "--color" "\\(black\\|white\\)")
@@ -2455,13 +2459,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                               (if rx s (string-to-number s))))
                           default)))
         (gnugo-put :user-color user-color)
-        (let ((proc-args (split-string args)))
-          (gnugo-put :proc-args proc-args)
-          (gnugo-put :proc (setq proc (apply 'start-process "gnugo"
-                                             (current-buffer)
-                                             gnugo-program
-                                             "--mode" "gtp" "--quiet"
-                                             proc-args))))
+        (gnugo-put :proc proc)
         (set-process-sentinel proc 'gnugo-sentinel)
         ;; Emacs is too protective sometimes, blech.
         (set-process-query-on-exit-flag proc nil)
