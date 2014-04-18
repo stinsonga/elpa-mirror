@@ -2477,10 +2477,10 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                                    (let ((ov (make-overlay 1 1)))
                                      (overlay-put ov 'display ")")
                                      ov)))
-        (gnugo--plant-and-climb
-         (gnugo/sgf-create "(;FF[4]GM[1])" t))
         (gnugo--SZ! board-size)
-        (let ((root (gnugo--root-node)))
+        (let ((root (gnugo--root-node
+                     (gnugo--plant-and-climb
+                      (gnugo/sgf-create "(;FF[4]GM[1])" t)))))
           (cl-flet
               ((r! (&rest plist)
                    (gnugo--decorate
