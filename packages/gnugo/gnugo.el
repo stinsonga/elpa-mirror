@@ -2387,6 +2387,13 @@ In this mode, keys do not self insert.
   (add-hook 'kill-buffer-hook 'gnugo-cleanup nil t)
   (set (make-local-variable 'gnugo-state)
        (gnugo--mkht :size (1- 42)))
+  (gnugo-put :highlight-last-move-spec
+    (gnugo-put :default-highlight-last-move-spec '("(" -1 nil)))
+  (gnugo-put :paren-ov (cons (make-overlay 1 1)
+                             (let ((ov (make-overlay 1 1)))
+                               (overlay-put ov 'display ")")
+                               ov)))
+  (gnugo-put :mul '(1 . 1))
   (add-to-invisibility-spec :nogrid))
 
 ;;;---------------------------------------------------------------------------
@@ -2471,12 +2478,6 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                 do (set prop (string-to-number (gnugo-query q)))))
         (gnugo-put :diamond (substring (process-name proc) 5))
         (gnugo-put :gnugo-color (gnugo-other user-color))
-        (gnugo-put :highlight-last-move-spec
-          (gnugo-put :default-highlight-last-move-spec '("(" -1 nil)))
-        (gnugo-put :paren-ov (cons (make-overlay 1 1)
-                                   (let ((ov (make-overlay 1 1)))
-                                     (overlay-put ov 'display ")")
-                                     ov)))
         (gnugo--SZ! board-size)
         (let ((root (gnugo--root-node
                      (gnugo--plant-and-climb
@@ -2505,7 +2506,6 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                               (gnugo-lsquery "fixed_handicap %d"
                                              handicap)))))))
       (gnugo-put :waiting-start (current-time))
-      (gnugo-put :mul '(1 . 1))
       (gnugo-refresh t)
       (let ((half (truncate (1+ (gnugo-get :SZ)) 2)))
         (gnugo-goto-pos (format "A%d" half))
