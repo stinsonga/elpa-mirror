@@ -1850,8 +1850,12 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
 (defsubst gnugo--nodep (x)
   (keywordp (caar x)))
 
-(defsubst gnugo--SZ! (size)
-  (gnugo-put :SZ size))
+(defun gnugo--SZ! (size)
+  (gnugo-put :SZ size)
+  (gnugo-put :center-position
+    (funcall (gnugo--as-pos-func)
+             (let ((c (+ -1 ?a (truncate (1+ size) 2))))
+               (string c c)))))
 
 (defun gnugo--plant-and-climb (collection &optional sel)
   (gnugo-put :sgf-collection collection)
@@ -2510,11 +2514,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                                              handicap)))))))
       (gnugo-put :waiting-start (current-time))
       (gnugo-refresh t)
-      (let ((half (truncate (1+ (gnugo-get :SZ)) 2)))
-        (gnugo-goto-pos (format "A%d" half))
-        (forward-char (* 2 (1- half)))
-        (gnugo-put :center-position
-          (get-text-property (point) 'gnugo-position)))
+      (gnugo-goto-pos (gnugo-get :center-position))
       ;; first move
       (gnugo-put :game-start-time (current-time))
       (let ((g (gnugo-get :gnugo-color))
