@@ -14,20 +14,33 @@ NB: "RCS: X..Y " means that the particular release includes
     - display "resign" as "resign" in move history (amazing!)
     - avoid clobbering SGF property ‘EV’ on resignation
     - follow main line in subtrees on read
+    - for ‘F’ forced PASS moves, keep subproc informed as well
+  - dropped support for ‘gnugo-program’ of form "PROGRAM OPTIONS..."
+  - dropped command: ‘t’ (gnugo-toggle-dead-group)
   - PASS for SZ <= 19 normalized to "" on read, written as ""
   - ‘=’ also displays move number of the stone (if any) at that position
+  - ‘C-u F’ adds the (abbreviated) blurb as a comment to the last node
   - new keybinding for ‘gnugo-undo-one-move’: M-u
   - ‘gnugo-undo-one-move’ can optionally arrange for you to play next
+  - new command: ‘S’ (gnugo-request-suggestion)
+  - new command: ‘C’ (gnugo-comment)
   - new command: ‘o’ (gnugo-oops)
   - new command: ‘O’ (gnugo-okay)
   - new command: ‘L’ (gnugo-frolic-in-the-leaves)
+  - new command: ‘C-c C-a’ (gnugo-toggle-abdication)
   - new major mode: GNUGO Frolic (gnugo-frolic-mode)
   - ‘gnugo-move-history’ returns last two moves w/ RSEL ‘two’
+  - GNUGO Board mode now derived from Special mode
   - performance improvements
   - of interest to hackers (see source, BI => backward incompatible)
+    - dropped var: ‘gnugo-inhibit-refresh’ (BI)
     - ‘gnugo/sgf-read-file’ renamed to ‘gnugo/sgf-create’ and enhanced
     - ‘:sgf-gametree’ internal representation inverted (BI)
     - ‘gnugo-magic-undo’ handles SPEC ‘0’
+    - dropped ‘(gnugo-move-history 'count)’ (BI)
+    - new func: ‘gnugo-current-player’
+    - new hook: ‘gnugo-start-game-hook’
+    - ‘gnugo-board-mode-hook’ now unsuitable for prop munging (BI)
 
 - 2.3.1 | 2014-02-27
   - portability fixes
