@@ -5,10 +5,7 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 * next
 * fix bugs
 *** {next,previous}-line weirdness in the presence of images
-*** ‘-l FILENAME’ lossage
-***** silently clobbers other options (PEBKAC, strictly speaking)
-***** game tree incomplete (doing ‘C-x C-s’ immediately writes empty tree)
-*** [[file:gnugo.el::defun.gnugo-toggle-dead-group][gnugo-toggle-dead-group]] only half-complete
+*** ‘-l FILENAME’ silently clobbers other options (PEBKAC, strictly speaking)
 *** no error-handling in SGF parsing
 *** performance -- ‘compare-strings’ approach too clever/slow :-/
 * ideas / wishlist
@@ -21,7 +18,6 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 *** using assist minor mode, gnugo-v-gnugo (ibid)
 *** make gnugo (the external program) support query (read-only) thread
 *** extend GNUGO Board mode to manage another subprocess for analysis only
-*** command ‘C’ to add a comment to the SGF tree
 *** command ‘C-u =’ to label a position
 *** SGF tree traversal
 *** "undo undo undoing"; integrate Emacs undo, GTP undo, subgame branching

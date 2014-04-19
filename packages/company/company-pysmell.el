@@ -1,6 +1,6 @@
 ;;; company-pysmell.el --- company-mode completion back-end for pysmell.el
 
-;; Copyright (C) 2009-2011, 2013  Free Software Foundation, Inc.
+;; Copyright (C) 2009-2011, 2013-2014  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 
@@ -27,8 +27,8 @@
 
 ;;; Code:
 
-(eval-when-compile (require 'cl))
 (if t (require 'pysmell))               ;Don't load during compilation.
+(require 'cl-lib)
 
 (defvar company-pysmell--available-p 'unknown)
 (make-variable-buffer-local 'company-pysmell--available-p)
@@ -36,7 +36,7 @@
 (defun company-pysmell--available-p ()
   (if (eq company-pysmell--available-p 'unknown)
       (setq company-pysmell--available-p
-            (company-locate-dominating-file buffer-file-name "PYSMELLTAGS"))
+            (locate-dominating-file buffer-file-name "PYSMELLTAGS"))
     company-pysmell--available-p))
 
 (defun company-pysmell--grab-symbol ()
@@ -56,7 +56,7 @@
   "`company-mode' completion back-end for pysmell.
 This requires pysmell.el and pymacs.el."
   (interactive (list 'interactive))
-  (case command
+  (cl-case command
     (interactive (company-begin-backend 'company-pysmell))
     (prefix (and (derived-mode-p 'python-mode)
                  buffer-file-name
