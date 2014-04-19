@@ -2513,9 +2513,8 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
       (let ((half (truncate (1+ (gnugo-get :SZ)) 2)))
         (gnugo-goto-pos (format "A%d" half))
         (forward-char (* 2 (1- half)))
-        (gnugo-put :last-user-bpos
-          (gnugo-put :center-position
-            (get-text-property (point) 'gnugo-position))))
+        (gnugo-put :center-position
+          (get-text-property (point) 'gnugo-position)))
       ;; first move
       (gnugo-put :game-start-time (current-time))
       (let ((g (gnugo-get :gnugo-color))
