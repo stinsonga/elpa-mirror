@@ -15,6 +15,7 @@ NB: "RCS: X..Y " means that the particular release includes
     - avoid clobbering SGF property ‘EV’ on resignation
     - follow main line in subtrees on read
     - for ‘F’ forced PASS moves, keep subproc informed as well
+    - proper support for ‘-l FILENAME’ / ‘--infile FILENAME’
   - dropped support for ‘gnugo-program’ of form "PROGRAM OPTIONS..."
   - dropped command: ‘t’ (gnugo-toggle-dead-group)
   - PASS for SZ <= 19 normalized to "" on read, written as ""
