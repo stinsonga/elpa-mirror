@@ -2409,21 +2409,20 @@ In this mode, keys do not self insert.
 ;;;###autoload
 (defun gnugo (&optional new-game)
   "Run gnugo in a buffer, or resume a game in progress.
-Prefix arg means skip the game-in-progress check and start a new
-game straight away.
+If there is already a game in progress you may resume it instead
+of starting a new one.  Prefix arg means skip the game-in-progress
+check and start a new game straight away.
+
+Before starting, Emacs queries you for additional command-line
+options (Emacs supplies \"--mode gtp --quiet\" automatically).
+
+Note that specifying \"--infile FILENAME\" (or, \"-l FILENAME\")
+silently clobbers certain other options, such as \"--color\".
+For details, see info node `(gnugo) Invoking GNU Go'.
+
 \\<gnugo-board-mode-map>
 To play, use \\[gnugo-move] to place a stone or \\[gnugo-pass] to pass.
-
-You are queried for additional command-line options (Emacs supplies
-\"--mode gtp --quiet\" automatically).  Here is a list of options
-that gnugo.el understands and handles specially:
-
-    --boardsize num   Set the board size to use (5--19)
-    --color <color>   Choose your color ('black' or 'white')
-    --handicap <num>  Set the number of handicap stones (0--9)
-
-If there is already a game in progress you may resume it instead of
-starting a new one.  See `gnugo-board-mode' documentation for more info."
+See `gnugo-board-mode' for a full list of commands."
   (interactive "P")
   (let* ((all (let (acc)
                 (dolist (buf (buffer-list))
@@ -2449,46 +2448,56 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
       ;; set up a new board
       (switch-to-buffer (generate-new-buffer "(Uninitialized GNUGO Board)"))
       (gnugo-board-mode)
-      (let* ((args (read-string "GNU Go options: "
+      (let* ((filename nil)
+             (user-color "black")
+             (args (loop
+                    with ls = (split-string
+                               ;; todo: grok ‘gnugo --help’; completion
+                               (read-string
+                                "GNU Go options: "
                                 (car gnugo-option-history)
                                 'gnugo-option-history))
+                    with ok
+                    while ls do
+                    (let ((arg (pop ls)))
+                      (cl-flet
+                          ((ex (opt fn)
+                               (if filename
+                                   (warn "%s %s ignored" opt fn)
+                                 (setq filename fn))))
+                        (cond
+                         ((string= "--color" arg)
+                          (push arg ok)
+                          (push
+                           ;; Unfortunately, GTP does not provide
+                           ;; a way to query the user color, so
+                           ;; we must resort to this weirdness.
+                           (setq user-color
+                                 (pop ls))
+                           ok))
+                         ((string= "--infile" arg)
+                          (ex "--infile" (pop ls)))
+                         ((string-match "^-l" arg)
+                          (ex "-l" (if (< 2 (length arg))
+                                       (substring arg 2)
+                                     (pop ls))))
+                         (t (push arg ok)))))
+                    finally return (nreverse ok)))
              (proc (apply 'start-process "gnugo"
                           (current-buffer)
                           gnugo-program
                           "--mode" "gtp" "--quiet"
-                          (split-string args)))
-             board-size user-color handicap komi minus-l infile)
-        (loop for (var default opt rx)
-              in '((board-size      19 "--boardsize")
-                   (user-color "black" "--color" "\\(black\\|white\\)")
-                   (handicap         0 "--handicap")
-                   (komi           0.0 "--komi")
-                   (minus-l        nil "\\([^-]\\|^\\)-l[ ]*" "[^ ]+")
-                   (infile         nil "--infile" "[ ]*[^ ]+"))
-              do (set var
-                      (or (when (string-match opt args)
-                            (let ((start (match-end 0)) s)
-                              (string-match (or rx "[0-9.]+") args start)
-                              (setq s (match-string 0 args))
-                              (if rx s (string-to-number s))))
-                          default)))
+                          args))
+             root board-size handicap komi)
         (gnugo-put :user-color user-color)
         (gnugo-put :proc proc)
         (set-process-sentinel proc 'gnugo-sentinel)
         ;; Emacs is too protective sometimes, blech.
         (set-process-query-on-exit-flag proc nil)
-        (when (or minus-l infile)
-          (loop for (prop q)
-                in '((board-size "query_boardsize")
-                     (komi       "get_komi")
-                     (handicap   "get_handicap"))
-                do (set prop (gnugo--nquery q))))
         (gnugo-put :diamond (substring (process-name proc) 5))
         (gnugo-put :gnugo-color (gnugo-other user-color))
-        (gnugo--SZ! board-size)
-        (let ((root (gnugo--root-node
-                     (gnugo--plant-and-climb
-                      (gnugo/sgf-create "(;FF[4]GM[1])" t)))))
+        (if filename
+            (gnugo-read-sgf-file (expand-file-name filename))
           (cl-flet
               ((r! (&rest plist)
                    (gnugo--decorate
@@ -2497,9 +2506,16 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                           collect (let* ((k (pop plist))
                                          (v (pop plist)))
                                     (cons k v))))))
+            (gnugo--SZ!
+             (setq root (gnugo--root-node
+                         (gnugo--plant-and-climb
+                          (gnugo/sgf-create "(;FF[4]GM[1])" t)))
+                   komi       (gnugo--nquery "get_komi")
+                   handicap   (gnugo--nquery "get_handicap")
+                   board-size (gnugo--nquery "query_boardsize")))
             (r! :SZ board-size
                 :DT (format-time-string "%Y-%m-%d")
-                :RU (if (string-match "--chinese-rules" args)
+                :RU (if (member "--chinese-rules" args)
                         "Chinese"
                       "Japanese")
                 :AP (cons "gnugo.el" gnugo-version)
