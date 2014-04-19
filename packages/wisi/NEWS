@@ -7,6 +7,11 @@ Please send wisi bug reports to bug-gnu-emacs@gnu.org, with
 'wisi' in the subject. If possible, use M-x report-emacs-bug.
 
 
+* wisi 1.0.4
+19 Apr 2014
+
+** add support for GNAT Ada bracket hex character notation
+
 * wisi 1.0.3
 16 Mar 2014
 

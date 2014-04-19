@@ -1,9 +1,9 @@
 ;;; wisi.el --- Utilities for implementing an indentation/navigation engine using a generalized LALR parser
 ;;
-;; Copyright (C) 2012, 2013, 2014  Free Software Foundation, Inc.
+;; Copyright (C) 2012 - 2014  Free Software Foundation, Inc.
 ;;
 ;; Author: Stephen Leake <stephen_leake@member.fsf.org>
-;; Version: 1.0.3
+;; Version: 1.0.4
 ;; package-requires: ((cl-lib "0.4") (emacs "24.2"))
 ;; URL: http://stephe-leake.org/emacs/ada-mode/emacs-ada-mode.html
 ;;
@@ -157,8 +157,11 @@
 (defvar-local wisi-keyword-table nil)
 (defvar-local wisi-punctuation-table nil)
 (defvar-local wisi-punctuation-table-max-length 0)
-(defvar-local wisi-string-double-term nil) ;; string delimited by double quotes
-(defvar-local wisi-string-quote-escape-doubled nil)
+(defvar-local wisi-string-double-term nil);; string delimited by double quotes
+(defvar-local wisi-string-quote-escape-doubled nil
+  "Non-nil if a string delimiter is escaped by doubling it (as in Ada).")
+(defvar-local wisi-string-quote-escape nil
+  "Cons '(delim . character) where 'character' escapes quotes in strings delimited by 'delim'.")
 (defvar-local wisi-string-single-term nil) ;; string delimited by single quotes
 (defvar-local wisi-symbol-term nil)
 
@@ -219,9 +222,12 @@ If at end of buffer, returns `wisent-eoi-term'."
       (let ((delim (char-after (point)))
 	    (forward-sexp-function nil))
 	(forward-sexp)
-	;; point is now after the end quote; check for a doubled quote
-	(while (and wisi-string-quote-escape-doubled
-		    (eq (char-after (point)) delim))
+	;; point is now after the end quote; check for an escaped quote
+	(while (or
+		(and wisi-string-quote-escape-doubled
+		     (eq (char-after (point)) delim))
+		(and (eq delim (car wisi-string-quote-escape))
+		     (eq (char-before (1- (point))) (cdr wisi-string-quote-escape))))
 	  (forward-sexp))
 	(setq token-text (buffer-substring-no-properties start (point)))
 	(setq token-id (if (= delim ?\") wisi-string-double-term wisi-string-single-term))))
@@ -376,9 +382,8 @@ Also invalidate the Emacs syntax cache."
 (defun wisi-after-change (begin end length)
   "For `after-change-functions'."
   ;; begin . end is range of text being inserted (may be empty)
-  ;; (syntax-ppss-flush-cache begin) is in before-change-functions
 
-  (syntax-ppss-flush-cache begin) ;; IMPROVEME: could check for whitespace
+  ;; (syntax-ppss-flush-cache begin) is in before-change-functions
 
   (cond
    (wisi-parse-failed
@@ -393,7 +398,7 @@ Also invalidate the Emacs syntax cache."
     )
 
    ((>= wisi-cache-max begin)
-    ;; The parse had succeeded paste the start of the inserted
+    ;; The parse had succeeded past the start of the inserted
     ;; text.
     (save-excursion
       (let ((need-invalidate t)
@@ -412,7 +417,9 @@ Also invalidate the Emacs syntax cache."
 	  ;; FIXME: insert newline in comment to create non-comment!?
 	  ;; or paste a chunk of code
 	  ;; => check that all of change region is comment or string
-	  (setq need-invalidate nil))
+	  (setq need-invalidate nil)
+	  ;; no caches to remove
+	  )
 
 	 ((progn
 	    (skip-syntax-forward " " end);; does not skip newlines
@@ -423,7 +430,8 @@ Also invalidate the Emacs syntax cache."
 	 )
 
 	(if need-invalidate
-	    ;; The inserted or deleted text could alter the parse
+	    ;; The inserted or deleted text could alter the parse;
+	    ;; wisi-invalidate-cache removes all 'wisi-cache.
 	    (wisi-invalidate-cache)
 
 	  ;; else move cache-max by the net change length. We don't
@@ -469,41 +477,42 @@ If accessing cache at a marker for a token as set by `wisi-cache-tokens', POS mu
 
 (defun wisi-validate-cache (pos)
   "Ensure cached data is valid at least up to POS in current buffer."
-  (when (and wisi-parse-try
-	    (< wisi-cache-max pos))
-    (when (> wisi-debug 0)
-      (message "wisi: parsing %s ..." (buffer-name)))
+  (let ((msg (format "wisi: parsing %s:%d ..." (buffer-name) (line-number-at-pos))))
+    (when (and wisi-parse-try
+	       (< wisi-cache-max pos))
+      (when (> wisi-debug 0)
+	(message msg))
 
-    (setq wisi-parse-try nil)
-    (setq wisi-parse-error-msg nil)
-    (save-excursion
-      (goto-char wisi-cache-max)
-      (if (> wisi-debug 1)
-	  ;; let debugger stop in wisi-parse
-	  (progn
-	    (wisi-parse wisi-parse-table 'wisi-forward-token)
-	    (setq wisi-cache-max (point))
-	    (setq wisi-parse-failed nil))
-	;; else capture errors from bad syntax, so higher level functions can try to continue
-	(condition-case err
+      (setq wisi-parse-try nil)
+      (setq wisi-parse-error-msg nil)
+      (save-excursion
+	(goto-char wisi-cache-max)
+	(if (> wisi-debug 1)
+	    ;; let debugger stop in wisi-parse
 	    (progn
 	      (wisi-parse wisi-parse-table 'wisi-forward-token)
 	      (setq wisi-cache-max (point))
 	      (setq wisi-parse-failed nil))
-	  (wisi-parse-error
-	   (setq wisi-parse-failed t)
-	   (setq wisi-parse-error-msg (cdr err)))
-	  )))
-    (if wisi-parse-error-msg
-	;; error
+	  ;; else capture errors from bad syntax, so higher level functions can try to continue
+	  (condition-case err
+	      (progn
+		(wisi-parse wisi-parse-table 'wisi-forward-token)
+		(setq wisi-cache-max (point))
+		(setq wisi-parse-failed nil))
+	    (wisi-parse-error
+	     (setq wisi-parse-failed t)
+	     (setq wisi-parse-error-msg (cdr err)))
+	    )))
+      (if wisi-parse-error-msg
+	  ;; error
+	  (when (> wisi-debug 0)
+	    (message "%s error" msg)
+	    (wisi-goto-error)
+	    (error wisi-parse-error-msg))
+	;; no msg; success
 	(when (> wisi-debug 0)
-	  (message "wisi: parsing ... error")
-	  (wisi-goto-error)
-	  (error wisi-parse-error-msg))
-      ;; no msg; success
-      (when (> wisi-debug 0)
-	(message "wisi: parsing ... done")))
-    ))
+	  (message "%s done" msg)))
+      )))
 
 (defun wisi-get-containing-cache (cache)
   "Return cache from (wisi-cache-containing CACHE)."
@@ -641,6 +650,20 @@ If CONTAINING-TOKEN is empty, the next token number is used."
   ;; wisi-tokens is is bound in action created by wisi-semantic-action
   (let* ((containing-region (cddr (nth (1- containing-token) wisi-tokens)))
 	 (contained-region (cddr (nth (1- contained-token) wisi-tokens))))
+
+    (unless containing-region ;;
+      (signal 'wisi-parse-error
+	      (wisi-error-msg
+	       "wisi-containing-action: containing-region '%s' is empty. grammar error; bad action"
+	       (nth 1 (nth (1- containing-token) wisi-tokens)))))
+
+    (unless (or (not contained-region) ;; contained-token is empty
+		(wisi-get-cache (car containing-region)))
+      (signal 'wisi-parse-error
+	      (wisi-error-msg
+	       "wisi-containing-action: containing-token '%s' has no cache. grammar error; missing action"
+	       (nth 1 (nth (1- containing-token) wisi-tokens)))))
+
     (while (not containing-region)
       ;; containing-token is empty; use next
       (setq containing-region (cddr (nth containing-token wisi-tokens))))
