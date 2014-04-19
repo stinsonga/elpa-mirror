@@ -425,6 +425,9 @@ when you are sure the command cannot fail."
   (substring (apply 'gnugo--q message-format args)
              2))
 
+(defun gnugo--nquery (cmd)
+  (string-to-number (gnugo-query cmd)))
+
 (defun gnugo-lsquery (message-format &rest args)
   (split-string (apply 'gnugo-query message-format args)))
 
@@ -2475,7 +2478,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                 in '((board-size "query_boardsize")
                      (komi       "get_komi")
                      (handicap   "get_handicap"))
-                do (set prop (string-to-number (gnugo-query q)))))
+                do (set prop (gnugo--nquery q))))
         (gnugo-put :diamond (substring (process-name proc) 5))
         (gnugo-put :gnugo-color (gnugo-other user-color))
         (gnugo--SZ! board-size)
@@ -2660,9 +2663,7 @@ starting a new one.  See `gnugo-board-mode' documentation for more info."
                       (gnugo--unclose-game)
                       (gnugo--forget :last-mover)
                       ;; ugh
-                      (gnugo--SZ! (string-to-number
-                                   (gnugo-query
-                                    "query_boardsize")))
+                      (gnugo--SZ! (gnugo--nquery "query_boardsize"))
                       (gnugo-refresh t)))
 
       (deffull loadsgf
