@@ -26,7 +26,7 @@
 ;;; Code:
 
 (require 'company)
-(eval-when-compile (require 'cl))
+(require 'cl-lib)
 
 (defgroup company-gtags nil
   "Completion back-end for GNU Global."
@@ -49,7 +49,7 @@
 (defun company-gtags--tags-available-p ()
   (if (eq company-gtags--tags-available-p 'unknown)
       (setq company-gtags--tags-available-p
-            (company-locate-dominating-file buffer-file-name "GTAGS"))
+            (locate-dominating-file buffer-file-name "GTAGS"))
     company-gtags--tags-available-p))
 
 (defun company-gtags-fetch-tags (prefix)
@@ -75,7 +75,7 @@
 (defun company-gtags (command &optional arg &rest ignored)
   "`company-mode' completion back-end for GNU Global."
   (interactive (list 'interactive))
-  (case command
+  (cl-case command
     (interactive (company-begin-backend 'company-gtags))
     (prefix (and company-gtags-executable
                  (memq major-mode company-gtags-modes)

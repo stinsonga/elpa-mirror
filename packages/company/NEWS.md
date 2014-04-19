@@ -1,5 +1,19 @@
 # History of user-visible changes
 
+## 2014-04-19 (0.8.0)
+
+* `company-capf` is included in `company-backends` in any supported Emacs
+  version (>= 24.1). `company-elisp` goes before it if Emacs version is < 24.4.
+* New user option `company-clang-insert-arguments`, by default t.
+* Default value of `company-idle-delay` lowered to `0.5`.
+* New user option `company-tooltip-minimum-width`, by default 0.
+* New function `company-grab-symbol-cons`.
+* `company-clang` fetches completion candidates asynchronously.
+* Added support for asynchronous back-ends (experimental).
+* Support for back-end command `crop` dropped (it was never documented).
+* Support for Emacs 23 dropped.
+* New user option `company-abort-manual-when-too-short`.
+
 ## 2014-03-25 (0.7.3)
 
 * New user option `company-etags-ignore-case`.
