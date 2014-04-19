@@ -8,8 +8,6 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 *** no error-handling in SGF parsing
 *** performance -- ‘compare-strings’ approach too clever/slow :-/
 * ideas / wishlist
-*** set ‘lexical-binding’ (if possible!)
-    Hmm, lots of symbol trickery going on; initial attempts FAIL.
 *** add a few screenshots to package
 *** revamp image support
 *** talk GTP over the network
