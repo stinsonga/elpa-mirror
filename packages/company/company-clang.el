@@ -1,6 +1,6 @@
-;;; company-clang.el --- company-mode completion back-end for Clang
+;;; company-clang.el --- company-mode completion back-end for Clang  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2009, 2011, 2013  Free Software Foundation, Inc.
+;; Copyright (C) 2009, 2011, 2013-2014  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 
@@ -27,7 +27,7 @@
 
 (require 'company)
 (require 'company-template)
-(eval-when-compile (require 'cl))
+(require 'cl-lib)
 
 (defgroup company-clang nil
   "Completion back-end for Clang."
@@ -59,6 +59,9 @@ or automatically through a custom `company-clang-prefix-guesser'."
 
 (defvar company-clang-modes '(c-mode c++-mode objc-mode)
   "Major modes which clang may complete.")
+
+(defcustom company-clang-insert-arguments t
+  "When non-nil, insert function arguments as a template after completion.")
 
 ;; prefix ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -107,7 +110,7 @@ or automatically through a custom `company-clang-prefix-guesser'."
 (defconst company-clang--completion-pattern
   "^COMPLETION: \\_<\\(%s[a-zA-Z0-9_:]*\\)\\(?: : \\(.*\\)$\\)?$")
 
-(defconst company-clang--error-buffer-name "*clang error*")
+(defconst company-clang--error-buffer-name "*clang-error*")
 
 (defun company-clang--lang-option ()
      (if (eq major-mode 'objc-mode)
@@ -115,7 +118,7 @@ or automatically through a custom `company-clang-prefix-guesser'."
              "objective-c" "objective-c++")
        (substring (symbol-name major-mode) 0 -5)))
 
-(defun company-clang--parse-output (prefix objc)
+(defun company-clang--parse-output (prefix _objc)
   (goto-char (point-min))
   (let ((pattern (format company-clang--completion-pattern
                          (regexp-quote prefix)))
@@ -175,20 +178,30 @@ or automatically through a custom `company-clang-prefix-guesser'."
         (setq buffer-read-only t)
         (goto-char (point-min))))))
 
-(defun company-clang--call-process (prefix &rest args)
+(defun company-clang--start-process (prefix callback &rest args)
   (let ((objc (derived-mode-p 'objc-mode))
-        (buf (get-buffer-create "*clang-output*"))
-        res)
+        (buf (get-buffer-create "*clang-output*")))
     (with-current-buffer buf (erase-buffer))
-    (setq res (if (company-clang--auto-save-p)
-                  (apply 'call-process company-clang-executable nil buf nil args)
-                (apply 'call-process-region (point-min) (point-max)
-                       company-clang-executable nil buf nil args)))
-    (with-current-buffer buf
-      (unless (eq 0 res)
-        (company-clang--handle-error res args))
-      ;; Still try to get any useful input.
-      (company-clang--parse-output prefix objc))))
+    (if (get-buffer-process buf)
+        (funcall callback nil)
+      (let ((process (apply #'start-process "company-clang" buf
+                            company-clang-executable args)))
+        (set-process-sentinel
+         process
+         (lambda (proc status)
+           (unless (string-match-p "hangup" status)
+             (funcall
+              callback
+              (let ((res (process-exit-status proc)))
+                (with-current-buffer buf
+                  (unless (eq 0 res)
+                    (company-clang--handle-error res args))
+                  ;; Still try to get any useful input.
+                  (company-clang--parse-output prefix objc)))))))
+        (unless (company-clang--auto-save-p)
+          (send-region process (point-min) (point-max))
+          (send-string process "\n")
+          (process-send-eof process))))))
 
 (defsubst company-clang--build-location (pos)
   (save-excursion
@@ -214,27 +227,22 @@ or automatically through a custom `company-clang-prefix-guesser'."
           (list (company-clang--build-location pos))
           (list (if (company-clang--auto-save-p) buffer-file-name "-"))))
 
-(defun company-clang--candidates (prefix)
+(defun company-clang--candidates (prefix callback)
   (and (company-clang--auto-save-p)
        (buffer-modified-p)
        (basic-save-buffer))
   (when (null company-clang--prefix)
     (company-clang-set-prefix (or (funcall company-clang-prefix-guesser)
                                   'none)))
-  (apply 'company-clang--call-process
+  (apply 'company-clang--start-process
          prefix
+         callback
          (company-clang--build-complete-args (- (point) (length prefix)))))
 
 (defun company-clang--prefix ()
-  (let ((symbol (company-grab-symbol)))
-    (if symbol
-        (if (and company-clang-begin-after-member-access
-                 (save-excursion
-                   (forward-char (- (length symbol)))
-                   (looking-back "\\.\\|->\\|::" (- (point) 2))))
-            (cons symbol t)
-          symbol)
-      'stop)))
+  (if company-clang-begin-after-member-access
+      (company-grab-symbol-cons "\\.\\|->\\|::" 2)
+    (company-grab-symbol)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -272,7 +280,7 @@ or automatically through a custom `company-clang-prefix-guesser'."
           (if (< (point) end)
               (insert " ")
             (throw 'stop t))
-          (incf cnt))))
+          (cl-incf cnt))))
     (company-template-move-to-first templ)))
 
 (defun company-clang (command &optional arg &rest ignored)
@@ -288,7 +296,7 @@ With Clang versions before 2.9, we have to save the buffer before
 performing completion.  With Clang 2.9 and later, buffer contents are
 passed via standard input."
   (interactive (list 'interactive))
-  (case command
+  (cl-case command
     (interactive (company-begin-backend 'company-clang))
     (init (when (memq major-mode company-clang-modes)
             (unless company-clang-executable
@@ -300,12 +308,13 @@ passed via standard input."
                  buffer-file-name
                  company-clang-executable
                  (not (company-in-string-or-comment))
-                 (company-clang--prefix)))
-    (candidates (company-clang--candidates arg))
+                 (or (company-clang--prefix) 'stop)))
+    (candidates (cons :async
+                      (lambda (cb) (company-clang--candidates arg cb))))
     (meta       (company-clang--meta arg))
     (annotation (company-clang--annotation arg))
     (post-completion (let ((anno (company-clang--annotation arg)))
-                       (when anno
+                       (when (and company-clang-insert-arguments anno)
                          (insert anno)
                          (if (string-match ":" anno)
                              (company-clang-objc-templatify anno)
