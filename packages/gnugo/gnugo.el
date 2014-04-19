@@ -1,4 +1,4 @@
-;;; gnugo.el --- play GNU Go in a buffer
+;;; gnugo.el --- play GNU Go in a buffer         -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2014  Free Software Foundation, Inc.
 
