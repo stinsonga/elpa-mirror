@@ -344,6 +344,9 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
   "Return the current player, either \"black\" or \"white\"."
   (gnugo-other (gnugo-get :last-mover)))
 
+(defsubst gnugo--prop<-color (color)
+  (if (gnugo--blackp color) :B :W))
+
 (defsubst gnugo--gate-game-over (enable)
   (when (and enable (gnugo-get :game-over))
     (user-error "Sorry, game over")))
@@ -1282,8 +1285,7 @@ This fails if the monkey is on the current branch
             (string= ucolor color))
       (gnugo-put :last-user-bpos (and (not passp) (not resignp) move)))
     ;; update :sgf-gametree and :monkey
-    (let* ((property (if (gnugo--blackp color)
-                         :B :W))
+    (let* ((property (gnugo--prop<-color color))
            (pair (cons property (cond (resignp move)
                                       (passp "")
                                       (t (funcall (gnugo--as-cc-func)
@@ -2047,8 +2049,7 @@ Prefix arg means to redo all the undone moves."
              (bidx (aref monkey 1))
              (end (aref ends bidx))
              (ucolor (gnugo-get :user-color))
-             (uprop (if (gnugo--blackp ucolor)
-                        :B :W)))
+             (uprop (gnugo--prop<-color ucolor)))
         (cl-flet ((mvno (node) (gethash node mnum)))
           (loop
            with ok = (if full
