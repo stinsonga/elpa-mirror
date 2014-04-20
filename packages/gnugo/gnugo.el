@@ -708,7 +708,7 @@ when you are sure the command cannot fail."
                   (+ ?A (- (if (> ?i col) col (1+ col)) ?a))
                   (- size (- (aref cc 1) ?a))))))))
 
-(defun gnugo-move-history (&optional rsel)
+(defun gnugo-move-history (&optional rsel color)
   "Determine and return the game's move history.
 Optional arg RSEL controls side effects and return value.
 If nil, display the history in the echo area as \"(N moves)\"
@@ -719,6 +719,7 @@ RSEL may also be a symbol that selects what to return:
  car  -- the most-recent move
  cadr -- the next-to-most-recent move
  two  -- the last two moves as a list, oldest last
+ bpos -- the last stone on the board placed by COLOR
 For all other values of RSEL, do nothing and return nil."
   (interactive "P")
   (let* ((monkey (gnugo-get :monkey))
@@ -729,9 +730,11 @@ For all other values of RSEL, do nothing and return nil."
         ((as-pos-maybe (x) (if (string= "resign" x)
                                x
                              (funcall as-pos x)))
-         (next (byp) (when (setq node (pop mem)
-                                 mprop (gnugo--move-prop node))
-                       (setq move (as-pos-maybe (cdr mprop)))
+         (remem () (setq node (pop mem)
+                         mprop (gnugo--move-prop node)))
+         (pretty () (setq move (as-pos-maybe (cdr mprop))))
+         (next (byp) (when (remem)
+                       (pretty)
                        (push (if byp
                                  (format "%s%s" move (car mprop))
                                move)
@@ -747,6 +750,13 @@ For all other values of RSEL, do nothing and return nil."
         (`car        (car (nn)))
         (`cadr  (nn) (car (nn)))
         (`two (nn) (nn) acc)
+        (`bpos (loop with prop = (gnugo--prop<-color color)
+                     when (and (remem)
+                               (eq prop (car mprop))
+                               (pretty)
+                               (not (string= "resign" move))
+                               (not (gnugo--passp move)))
+                     return move))
         (_ nil)))))
 
 (define-derived-mode gnugo-frolic-mode special-mode "GNUGO Frolic"
@@ -1913,6 +1923,8 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
                                            (gnugo-move-history 'two))
                                 'two-passes)))
       (gnugo-close-game nil game-over))
+    (gnugo-put :last-user-bpos
+      (gnugo-move-history 'bpos (gnugo-get :user-color)))
     (gnugo-refresh t)
     (set-buffer-modified-p nil)
     (gnugo--who-is-who wait play samep)))
@@ -2531,7 +2543,8 @@ See `gnugo-board-mode' for a full list of commands."
                                              handicap)))))))
       (gnugo-put :waiting-start (current-time))
       (gnugo-refresh t)
-      (gnugo-goto-pos (gnugo-get :center-position))
+      (gnugo-goto-pos (or (gnugo-get :last-user-bpos)
+                          (gnugo-get :center-position)))
       ;; first move
       (gnugo-put :game-start-time (current-time))
       (let ((g (gnugo-get :gnugo-color))
