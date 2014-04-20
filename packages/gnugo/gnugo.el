@@ -2550,11 +2550,12 @@ See `gnugo-board-mode' for a full list of commands."
       (let ((g (gnugo-get :gnugo-color))
             (n (or (gnugo--root-prop :HA) 0))
             (u (gnugo-get :user-color)))
-        (gnugo-put :last-mover
-          (if (or (and (gnugo--blackp u) (< 1 n))
-                  (and (gnugo--blackp g) (< n 2)))
-              u
-            g))
+        (unless (gnugo-get :last-mover)
+          (gnugo-put :last-mover
+            (if (or (and (gnugo--blackp u) (< 1 n))
+                    (and (gnugo--blackp g) (< n 2)))
+                u
+              g)))
         (run-hooks 'gnugo-start-game-hook)
         (when (string= g (gnugo-current-player))
           (gnugo-refresh t)
