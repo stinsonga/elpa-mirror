@@ -2557,7 +2557,8 @@ See `gnugo-board-mode' for a full list of commands."
                 u
               g)))
         (run-hooks 'gnugo-start-game-hook)
-        (when (string= g (gnugo-current-player))
+        (when (and (not (gnugo-get :game-over))
+                   (string= g (gnugo-current-player)))
           (gnugo-refresh t)
           (gnugo-get-move g))))))
 
