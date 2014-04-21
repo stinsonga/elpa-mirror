@@ -2642,6 +2642,19 @@ See `gnugo-board-mode' for a full list of commands."
       ((sget (x) (get x :gnugo-gtp-command-spec))
        (jam (cmd prop val) (put cmd :gnugo-gtp-command-spec
                                 (plist-put (sget cmd) prop val)))
+       (validpos (s &optional go)
+                 (let ((pos (upcase s)))
+                   (loop with size = (gnugo-get :SZ)
+                         for c across (funcall (gnugo--as-cc-func)
+                                               pos)
+                         do (let ((norm (- c ?a)))
+                              (unless (and (< -1 norm)
+                                           (> size norm))
+                                (user-error "Invalid position: %s"
+                                            pos))))
+                   (when go
+                     (gnugo-goto-pos pos))
+                   pos))
        (defgtp (x &rest props) (dolist (cmd (if (symbolp x) (list x) x))
                                  (let ((ls props))
                                    (while ls
@@ -2708,7 +2721,7 @@ See `gnugo-board-mode' for a full list of commands."
          (let (n)
            (cond ((not sel) 1)
                  ((cl-plusp (setq n (string-to-number (car sel)))) n)
-                 (t (car sel)))))))))
+                 (t (validpos (car sel) t)))))))))
 
 (provide 'gnugo)
 
