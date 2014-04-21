@@ -37,7 +37,7 @@ NB: "RCS: X..Y " means that the particular release includes
     - dropped var: ‘gnugo-inhibit-refresh’ (BI)
     - ‘gnugo/sgf-read-file’ renamed to ‘gnugo/sgf-create’ and enhanced
     - ‘:sgf-gametree’ internal representation inverted (BI)
-    - ‘gnugo-magic-undo’ handles SPEC ‘0’
+    - ‘gnugo-magic-undo’ internalized
     - new func: ‘gnugo-current-player’
     - new hook: ‘gnugo-start-game-hook’
     - ‘gnugo-board-mode-hook’ now unsuitable for prop munging (BI)
