@@ -2572,6 +2572,7 @@ See `gnugo-board-mode' for a full list of commands."
           (define-key gnugo-frolic-mode-map (car pair) (cdr pair)))
         '(("q"          . gnugo-frolic-quit)
           ("Q"          . gnugo-frolic-quit)
+          ("\C-q"       . gnugo-frolic-quit)
           ("C"          . gnugo-frolic-quit) ; like ‘View-kill-and-leave’
           ("\C-b"       . gnugo-frolic-backward-branch)
           ("\C-f"       . gnugo-frolic-forward-branch)
@@ -2609,6 +2610,7 @@ See `gnugo-board-mode' for a full list of commands."
           ("_"        . gnugo-boss-is-near)
           ("h"        . gnugo-move-history)
           ("L"        . gnugo-frolic-in-the-leaves)
+          ("\C-c\C-l" . gnugo-frolic-in-the-leaves)
           ("i"        . gnugo-toggle-image-display-command)
           ("w"        . gnugo-worm-stones)
           ("W"        . gnugo-worm-data)
