@@ -1942,44 +1942,36 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
 
 (defun gnugo--climb-towards-root (spec &optional noalt keep)
   (gnugo-gate)
-  (let* ((n 0)
-         (user-color (gnugo-get :user-color))
+  (let* ((user-color (gnugo-get :user-color))
          (monkey (gnugo-get :monkey))
          (tree (gnugo-get :sgf-gametree))
          (ends (gnugo--tree-ends tree))
          (remorseful (not (gnugo--no-regrets monkey ends)))
-         done)
-    (cond ((numberp spec)
-           (setq n (if (zerop spec)
-                       (if (string= user-color (gnugo-get :last-mover))
-                           1
-                         2)
-                     spec)
-                 done (lambda () (zerop n))))
-          ((string-match "^[a-z]" spec)
-           (let ((pos (upcase spec)))
-             (setq done `(lambda ()
-                           (gnugo-goto-pos ,pos)
-                           (memq (following-char) '(?. ?+))))
-             (when (funcall done)
-               (user-error "%s already clear" pos))
-             (when (= (save-excursion
-                        (gnugo-goto-pos pos)
-                        (following-char))
-                      (if (gnugo--blackp user-color)
-                          ?O
-                        ?X))
-               (user-error "%s not occupied by %s" pos user-color))))
-          (t (user-error "Bad spec: %S" spec)))
+         (stop (if (numberp spec)
+                   (nthcdr (if (zerop spec)
+                               (if (string= (gnugo-get :last-mover)
+                                            user-color)
+                                   1
+                                 2)
+                             spec)
+                           (aref monkey 0))
+                 (let* ((pos spec)
+                        (hmm (or (gnugo--mem-with-played-stone pos)
+                                 (user-error "%s already clear" pos))))
+                   ;; todo: relax ‘gnugo--user-play’ then lift restriction
+                   (unless (eq (gnugo--prop<-color user-color)
+                               (car (gnugo--move-prop (car hmm))))
+                     (user-error "%s not occupied by %s"
+                                 pos user-color))
+                   (cdr hmm)))))
     (when (gnugo-get :game-over)
       (gnugo--unclose-game))
-    (while (not (funcall done))
+    (while (not (eq stop (aref monkey 0)))
       (gnugo--q/ue "undo")
       (pop (aref monkey 0))
       (gnugo-put :last-mover (gnugo-current-player))
       (gnugo-merge-showboard-results)   ; all
       (gnugo-refresh)                   ; this
-      (decf n)                          ; is
       (redisplay))                      ; eye candy
     (let* ((ulastp (string= (gnugo-get :last-mover) user-color))
 
