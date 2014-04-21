@@ -1929,11 +1929,13 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
     (set-buffer-modified-p nil)
     (gnugo--who-is-who wait play samep)))
 
-(defun gnugo--mem-with-played-stone (pos)
+(defun gnugo--mem-with-played-stone (pos &optional noerror)
   (let ((color (case (following-char)
                  (?X :B)
                  (?O :W))))
-    (when color
+    (if (not color)
+        (unless noerror
+          (user-error "No stone at %s" pos))
       (loop with fruit = (cons color (funcall (gnugo--as-cc-func) pos))
             for mem on (aref (gnugo-get :monkey) 0)
             when (equal fruit (caar mem))
@@ -1956,8 +1958,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
                              spec)
                            (aref monkey 0))
                  (let* ((pos spec)
-                        (hmm (or (gnugo--mem-with-played-stone pos)
-                                 (user-error "%s already clear" pos))))
+                        (hmm (gnugo--mem-with-played-stone pos)))
                    ;; todo: relax ‘gnugo--user-play’ then lift restriction
                    (unless (eq (gnugo--prop<-color user-color)
                                (car (gnugo--move-prop (car hmm))))
@@ -2226,15 +2227,15 @@ which placed the stone at point."
   (gnugo-toggle-image-display)
   (save-excursion (gnugo-refresh)))
 
-(defsubst gnugo--node-with-played-stone (pos)
-  (car (gnugo--mem-with-played-stone pos)))
+(defsubst gnugo--node-with-played-stone (pos &optional noerror)
+  (car (gnugo--mem-with-played-stone pos noerror)))
 
 (defun gnugo-describe-position ()
   "Display the board position under cursor in the echo area.
 If there a stone at that position, also display its move number."
   (interactive)
   (let* ((pos (gnugo-position))         ; do first (can throw)
-         (node (gnugo--node-with-played-stone pos)))
+         (node (gnugo--node-with-played-stone pos t)))
     (message
      "%s%s" pos
      (or (when node
@@ -2263,8 +2264,7 @@ initial-input (see `read-string').
 If COMMENT is nil or the empty string, remove the property entirely."
   (interactive
    (let* ((pos (gnugo-position))
-          (node (or (gnugo--node-with-played-stone pos)
-                    (user-error "No stone at %s" pos))))
+          (node (gnugo--node-with-played-stone pos)))
      (list node
            (read-string (format "Comment for %s: "
                                 (gnugo-describe-position))
