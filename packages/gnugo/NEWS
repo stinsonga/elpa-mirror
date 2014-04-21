@@ -31,6 +31,7 @@ NB: "RCS: X..Y " means that the particular release includes
   - new command: ‘C-c C-a’ (gnugo-toggle-abdication)
   - new major mode: GNUGO Frolic (gnugo-frolic-mode)
   - GNUGO Board mode now derived from Special mode
+  - position arg validated for direct GTP commands ‘undo’, ‘gg-undo’
   - performance improvements
   - of interest to hackers (see source, BI => backward incompatible)
     - dropped var: ‘gnugo-inhibit-refresh’ (BI)
