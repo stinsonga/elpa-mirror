@@ -1957,7 +1957,9 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
                                  2)
                              spec)
                            (aref monkey 0))
-                 (let* ((pos spec)
+                 (let* ((pos (if (stringp spec)
+                                 spec
+                               (gnugo-position)))
                         (hmm (gnugo--mem-with-played-stone pos)))
                    ;; todo: relax ‘gnugo--user-play’ then lift restriction
                    (unless (eq (gnugo--prop<-color user-color)
@@ -2022,8 +2024,7 @@ Prefix arg means, instead, undo repeatedly up to and including
 the move which placed the stone at point, like `\\[gnugo-fancy-undo]'."
   (interactive "P")
   (gnugo-gate)
-  (gnugo--climb-towards-root (if position
-                                 (gnugo-position)
+  (gnugo--climb-towards-root (unless position
                                0)
                              nil t))
 
@@ -2218,8 +2219,7 @@ which placed the stone at point."
   (interactive "P")
   (gnugo--climb-towards-root
    (cond ((numberp count) count)
-         ((consp count) (car count))
-         (t (gnugo-position)))))
+         ((consp count) (car count)))))
 
 (defun gnugo-toggle-image-display-command () ; ugh
   "Toggle use of images to display the board, then refresh."
