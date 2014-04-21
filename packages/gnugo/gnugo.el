@@ -1929,6 +1929,17 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
     (set-buffer-modified-p nil)
     (gnugo--who-is-who wait play samep)))
 
+(defun gnugo--mem-with-played-stone (pos)
+  (let ((color (case (following-char)
+                 (?X :B)
+                 (?O :W))))
+    (when color
+      (loop with fruit = (cons color (funcall (gnugo--as-cc-func) pos))
+            for mem on (aref (gnugo-get :monkey) 0)
+            when (equal fruit (caar mem))
+            return mem
+            finally return nil))))
+
 (defun gnugo-magic-undo (spec &optional noalt keep)
   "Undo moves on the GNUGO Board, based on SPEC, a string or number.
 If SPEC is a string in the form of a board position (e.g., \"T19\"),
@@ -2244,16 +2255,8 @@ which placed the stone at point."
   (gnugo-toggle-image-display)
   (save-excursion (gnugo-refresh)))
 
-(defun gnugo--node-with-played-stone (pos)
-  (let ((color (case (following-char)
-                 (?X :B)
-                 (?O :W))))
-    (when color
-      (loop with fruit = (cons color (funcall (gnugo--as-cc-func) pos))
-            for node in (aref (gnugo-get :monkey) 0)
-            if (equal fruit (car node))
-            return node
-            finally return nil))))
+(defsubst gnugo--node-with-played-stone (pos)
+  (car (gnugo--mem-with-played-stone pos)))
 
 (defun gnugo-describe-position ()
   "Display the board position under cursor in the echo area.
