@@ -420,6 +420,12 @@ status of the command.  See also `gnugo-query'."
     (prog1 (substring (process-get proc :srs) 0 -2)
       (process-put proc :srs ""))))
 
+(defun gnugo--q/ue (fmt &rest args)
+  (let ((ans (apply 'gnugo--q fmt args)))
+    (unless (= ?= (aref ans 0))
+      (user-error "%s" ans))
+    (substring ans 2)))
+
 (defun gnugo-query (message-format &rest args)
   "Send GNU Go a command formatted with MESSAGE-FORMAT and ARGS.
 Return a string that omits the first two characters (corresponding
@@ -1284,9 +1290,7 @@ This fails if the monkey is on the current branch
          (onep (and head (gnugo--passp head)))
          (donep (or resignp (and onep passp))))
     (unless resignp
-      (let ((accept (gnugo--q (format "play %s %s" color move))))
-        (unless (= ?= (aref accept 0))
-          (user-error "%s" accept))))
+      (gnugo--q/ue "play %s %s" color move))
     (unless passp
       (gnugo-merge-showboard-results))
     (gnugo-put :last-mover color)
@@ -1885,14 +1889,10 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
   (interactive "fSGF file to load: ")
   (when (file-directory-p filename)
     (user-error "Cannot load a directory (try a filename with extension .sgf)"))
-  (let (ans play wait samep coll tree game-over)
+  (let (play wait samep coll tree game-over)
     ;; problem: requiring GTP `loadsgf' complicates network subproc support;
     ;; todo: skip it altogether when confident about `gnugo/sgf-create'
-    (unless (= ?= (aref (setq ans (gnugo--q "loadsgf %s"
-                                            (expand-file-name filename)))
-                        0))
-      (user-error "%s" ans))
-    (setq play (substring ans 2)
+    (setq play (gnugo--q/ue "loadsgf %s" (expand-file-name filename))
           wait (gnugo-other play)
           samep (string= (gnugo-get :user-color) play))
     (gnugo-put :last-mover wait)
@@ -1957,7 +1957,7 @@ when play resumes."
          (tree (gnugo-get :sgf-gametree))
          (ends (gnugo--tree-ends tree))
          (remorseful (not (gnugo--no-regrets monkey ends)))
-         done ans)
+         done)
     (cond ((numberp spec)
            (setq n (if (zerop spec)
                        (if (string= user-color (gnugo-get :last-mover))
@@ -1983,9 +1983,7 @@ when play resumes."
     (when (gnugo-get :game-over)
       (gnugo--unclose-game))
     (while (not (funcall done))
-      (setq ans (gnugo--q "undo"))
-      (unless (= ?= (aref ans 0))
-        (user-error "%s" ans))
+      (gnugo--q/ue "undo")
       (pop (aref monkey 0))
       (gnugo-put :last-mover (gnugo-current-player))
       (gnugo-merge-showboard-results)   ; all
