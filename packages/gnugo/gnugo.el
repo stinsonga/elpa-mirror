@@ -1940,27 +1940,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
             return mem
             finally return nil))))
 
-(defun gnugo-magic-undo (spec &optional noalt keep)
-  "Undo moves on the GNUGO Board, based on SPEC, a string or number.
-If SPEC is a string in the form of a board position (e.g., \"T19\"),
-check that the position is occupied by a stone of the user's color,
-and if so, remove moves from the history until that position is clear.
-If SPEC is a positive number, remove exactly that many moves from the
-history, signaling an error if the history is exhausted before finishing.
-If SPEC Is 0 (zero), remove either one or two moves,
-so that you are to play next.
-If SPEC is not recognized, signal \"bad spec\" error.
-
-Refresh the board for each move undone.  If (in the case where SPEC is
-a number) after finishing, the color to play is not the user's color,
-schedule a move by GNU Go.
-
-After undoing the move(s), schedule a move by GNU Go if it is GNU Go's
-turn to play.  Optional second arg NOALT non-nil inhibits this.
-
-Optional third arg KEEP non-nil means do not prune the undone moves
-from the gametree, such that they become a sub-gametree (variation)
-when play resumes."
+(defun gnugo--climb-towards-root (spec &optional noalt keep)
   (gnugo-gate)
   (let* ((n 0)
          (user-color (gnugo-get :user-color))
@@ -2032,7 +2012,7 @@ See also `gnugo-undo-two-moves'."
       (gnugo--who-is-who wait play (string= play (gnugo-get :user-color)))
       (gnugo-put :user-color play)
       (gnugo-put :gnugo-color wait)))
-  (gnugo-magic-undo 1 t))
+  (gnugo--climb-towards-root 1 t))
 
 (defun gnugo-undo-two-moves ()
   "Undo a pair of moves (GNU Go's and yours).
@@ -2040,7 +2020,7 @@ However, if you are the last mover, undo only one move.
 Regardless, after undoing, it is your turn to play again."
   (interactive)
   (gnugo-gate)
-  (gnugo-magic-undo 0))
+  (gnugo--climb-towards-root 0))
 
 (defun gnugo-oops (&optional position)
   "Like `gnugo-undo-two-moves', but keep the undone moves.
@@ -2049,10 +2029,10 @@ Prefix arg means, instead, undo repeatedly up to and including
 the move which placed the stone at point, like `\\[gnugo-fancy-undo]'."
   (interactive "P")
   (gnugo-gate)
-  (gnugo-magic-undo (if position
-                        (gnugo-position)
-                      0)
-                    nil t))
+  (gnugo--climb-towards-root (if position
+                                 (gnugo-position)
+                               0)
+                             nil t))
 
 (defun gnugo-okay (&optional full)
   "Redo a pair of undone moves.
@@ -2243,8 +2223,7 @@ Prefix arg COUNT means to undo that many moves.
 Otherwise, undo repeatedly up to and including the move
 which placed the stone at point."
   (interactive "P")
-  (gnugo-magic-undo
-   ;; TODO: Move this into `gnugo-magic-undo' proper.
+  (gnugo--climb-towards-root
    (cond ((numberp count) count)
          ((consp count) (car count))
          (t (gnugo-position)))))
@@ -2717,7 +2696,7 @@ See `gnugo-board-mode' for a full list of commands."
         (gnugo-read-sgf-file (car sel)))
 
       (deffull (undo gg-undo)
-        (gnugo-magic-undo
+        (gnugo--climb-towards-root
          (let (n)
            (cond ((not sel) 1)
                  ((cl-plusp (setq n (string-to-number (car sel)))) n)
