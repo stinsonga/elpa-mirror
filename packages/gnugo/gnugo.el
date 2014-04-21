@@ -2017,13 +2017,13 @@ move was done by the color you prefer to play:
 See also `gnugo-undo-two-moves'."
   (interactive "P")
   (gnugo-gate)
-  (gnugo-magic-undo 1 t)
   (when me-next
-    (let* ((wait (gnugo-get :last-mover))
-           (play (gnugo-other wait)))
+    (let* ((play (gnugo-get :last-mover))
+           (wait (gnugo-other play)))
       (gnugo--who-is-who wait play (string= play (gnugo-get :user-color)))
       (gnugo-put :user-color play)
-      (gnugo-put :gnugo-color wait))))
+      (gnugo-put :gnugo-color wait)))
+  (gnugo-magic-undo 1 t))
 
 (defun gnugo-undo-two-moves ()
   "Undo a pair of moves (GNU Go's and yours).
