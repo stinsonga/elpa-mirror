@@ -1632,9 +1632,9 @@ its move."
     (let* ((so-far (gnugo-get :get-move-string))
            (full   (gnugo-put :get-move-string (concat so-far string))))
       (when (string-match "^= \\(.+\\)\n\n" full)
-        (destructuring-bind (pos-or-pass color . suggestion)
-            (cons (match-string 1 full)
-                  (gnugo-get :waiting))
+        (setq full (match-string 1 full)) ; POS or "PASS"
+        (destructuring-bind (color . suggestion)
+            (gnugo-get :waiting)
           (gnugo--forget :get-move-string
                          :waiting)
           (if suggestion
@@ -1642,11 +1642,11 @@ its move."
                 (gnugo--rename-buffer-portion t)
                 (unless (or (gnugo--passp full)
                             (eq 'nowarp suggestion))
-                  (gnugo-goto-pos pos-or-pass))
+                  (gnugo-goto-pos full))
                 (message "%sSuggestion: %s"
                          (gnugo-get :diamond)
-                         pos-or-pass))
-            (let* ((donep (gnugo-push-move color pos-or-pass))
+                         full))
+            (let* ((donep (gnugo-push-move color full))
                    (buf (current-buffer)))
               (gnugo--finish-move buf)
               (when (gnugo-get :abd)
