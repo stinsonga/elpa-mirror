@@ -22,6 +22,7 @@ NB: "RCS: X..Y " means that the particular release includes
   - ‘=’ also displays move number of the stone (if any) at that position
   - ‘C-u F’ adds the (abbreviated) blurb as a comment to the last node
   - new keybinding for ‘gnugo-undo-one-move’: M-u
+  - you can play a move for GNU Go, e.g., after ‘M-u’
   - ‘gnugo-undo-one-move’ can optionally arrange for you to play next
   - new command: ‘S’ (gnugo-request-suggestion)
   - new command: ‘C’ (gnugo-comment)
