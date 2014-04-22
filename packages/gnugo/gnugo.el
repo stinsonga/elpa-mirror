@@ -2304,7 +2304,7 @@ transformed into a move suggestion (see `gnugo-request-suggestion')."
           (unless (or userp waiting)
             (gnugo-get-move gcolor)))
       ;; enable
-      (gnugo--gate-game-over t)
+      (gnugo-gate t)
       (gnugo-put :abd t)
       (gnugo-get-move (gnugo-other last-mover)))
     (message "Abdication %sabled%s"
