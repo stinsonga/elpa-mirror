@@ -1643,9 +1643,9 @@ its move."
                 (unless (or (gnugo--passp full)
                             (eq 'nowarp suggestion))
                   (gnugo-goto-pos full))
-                (message "%sSuggestion: %s"
+                (message "%sSuggestion for %s: %s"
                          (gnugo-get :diamond)
-                         full))
+                         color full))
             (let* ((donep (gnugo-push-move color full))
                    (buf (current-buffer)))
               (gnugo--finish-move buf)
@@ -1701,7 +1701,7 @@ cursor to the suggested position.  Prefix arg inhibits warp."
   (interactive "P")
   (gnugo-gate t)
   (gnugo--rename-buffer-portion)
-  (gnugo-get-move (gnugo-get :user-color)
+  (gnugo-get-move (gnugo-current-player)
                   (if nowarp
                       'nowarp
                     t)))
