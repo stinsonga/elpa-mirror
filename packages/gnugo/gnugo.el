@@ -1707,12 +1707,17 @@ cursor to the suggested position.  Prefix arg inhibits warp."
 
 (defun gnugo--user-play (pos-or-pass)
   (gnugo-gate t)
-  (let ((donep (gnugo-push-move t pos-or-pass))
-        (buf (current-buffer)))
+  ;; The "user" in this func's name used to signify both
+  ;; who does the action and for whom the action is done.
+  ;; Now, it signifies only the former.
+  (let* ((gcolor (gnugo-get :gnugo-color))
+         (userp (string= gcolor (gnugo-get :last-mover)))
+         (donep (gnugo-push-move userp pos-or-pass))
+         (buf (current-buffer)))
     (gnugo--finish-move buf)
-    (unless donep
+    (when (and userp (not donep))
       (with-current-buffer buf
-        (gnugo-get-move (gnugo-get :gnugo-color))))))
+        (gnugo-get-move gcolor)))))
 
 (defun gnugo-move ()
   "Make a move on the GNUGO Board buffer.
