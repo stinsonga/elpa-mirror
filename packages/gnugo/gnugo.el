@@ -360,12 +360,13 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
     (user-error "Wrong buffer -- try M-x gnugo"))
   (unless (gnugo-get :proc)
     (user-error "No \"gnugo\" process!"))
-  (let ((slow (gnugo-get :waiting)))
-    (when slow
-      (gnugo--ERR-wait (gnugo-get :user-color)
-                       (if (cdr slow)
-                           "Still thinking"
-                         "Not your turn yet"))))
+  (destructuring-bind (&optional color . suggestion)
+      (gnugo-get :waiting)
+    (when color
+      (gnugo--ERR-wait
+       color (if suggestion
+                 "Still thinking"
+               "Not your turn yet"))))
   (gnugo--gate-game-over in-progress-p))
 
 (defun gnugo-sentinel (proc string)
