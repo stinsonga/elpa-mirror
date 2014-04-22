@@ -1425,9 +1425,7 @@ be slow.  (This should normally be unnecessary; specify it only if the display
 seems corrupted.)  NOCACHE is silently ignored when GNU Go is thinking about
 its move."
   (interactive "P")
-  (let* ((last-mover (gnugo-get :last-mover))
-         (other (gnugo-other last-mover))
-         (move (gnugo-move-history 'car))
+  (let* ((move (gnugo-move-history 'car))
          (game-over (gnugo-get :game-over))
          (inhibit-read-only t)
          window last)
@@ -1462,7 +1460,7 @@ its move."
                                          ""))
                              (format "%s(%s to play)"
                                      (if move (concat move " ") "")
-                                     other))))
+                                     (gnugo-current-player)))))
     ;; pall of death
     (when game-over
       (let ((live (cdr (assq 'live game-over)))
