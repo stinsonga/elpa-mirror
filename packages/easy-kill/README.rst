@@ -2,6 +2,11 @@
  Kill & Mark Things Easily in Emacs
 ====================================
  
+.. image:: https://travis-ci.org/leoliu/easy-kill.svg?branch=master
+   :target: https://travis-ci.org/leoliu/easy-kill
+   :align: right
+   :alt: Travis CI build status
+
 Provide commands ``easy-kill`` and ``easy-mark`` to let users kill or
 mark things easily.
 
@@ -34,9 +39,12 @@ The following keys modify the selection:
 #. ``@``: append selection to previous kill and exit. For example,
    ``M-w d @`` will append current function to last kill.
 #. ``C-w``: kill selection and exit
-#. ``+``, ``-`` and ``0..9``: expand/shrink selection
+#. ``+``, ``-`` and ``1..9``: expand/shrink selection
+#. ``0`` shrink the selection to the intitial size i.e. before any
+   expansion
 #. ``C-SPC``: turn selection into an active region
 #. ``C-g``: abort
+#. ``?``: help
 
 For example, ``M-w w`` saves current word, repeat ``w`` to expand the
 kill to include the next word. ``5`` to include the next 5 words etc.
@@ -48,7 +56,8 @@ for ``list`` or ``sexp``, list-wise.
 
 ``list-wise`` expanding/shrinking work well in lispy modes (elisp,
 Common Lisp, Scheme, Clojure etc.), smie-based modes (Prolog, SML,
-Modula2, Shell, Ruby, Octave, CSS, SQL etc.), Nxml mode and Js2 mode.
+Modula2, Shell, Ruby, Octave, CSS, SQL etc.), Org mode, Nxml mode and
+Js2 mode.
 
 To copy the enclosing list in lispy modes, I used to do a lot of
 ``C-M-u C-M-SPC M-w``. Now the key sequence is replaced by ``M-w l``
@@ -85,6 +94,16 @@ convention, or by defining new functions named like
 
 NEWS
 ~~~~
+
+0.9.3
++++++
+
+#. Key ``?`` in ``easy-kill`` or ``easy-mark`` prints help info.
+#. ``M-w l`` can select the enclosing string.
+#. ``easy-mark`` learns exchanging point & mark.
+#. Key ``0`` now sets the selection to its initial size before any
+   expansion.
+#. ``M-w l``, ``M-w s`` and list-wise ``+/-`` now work in Org mode.
 
 0.9.2
 +++++
