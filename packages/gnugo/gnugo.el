@@ -2283,21 +2283,25 @@ If COMMENT is nil or the empty string, remove the property entirely."
   "Toggle abdication, i.e., letting GNU Go play for you.
 When enabled, the mode line includes \"Abd\".
 Enabling signals error if the game is over.
-Disabling signals error if the color \"to play\" is the user color.
-This is to ensure that the user is the next to play after disabling."
+When disabling, if GNU Go has already started thinking of
+a move to play for you, the thinking is not cancelled but instead
+transformed into a move suggestion (see `gnugo-request-suggestion')."
   (interactive)
   (let ((last-mover (gnugo-get :last-mover))
         (abd (gnugo-get :abd))
-        (warning ""))
+        xform)
     (if abd
         ;; disable
-        (let ((gcolor (gnugo-get :gnugo-color)))
-          (when (string= last-mover gcolor)
-            (gnugo--ERR-wait gcolor "Sorry, too soon"))
+        (let* ((gcolor (gnugo-get :gnugo-color))
+               (waiting (gnugo-get :waiting))
+               (userp (string= last-mover gcolor)))
+          (when (and userp waiting)
+            (gnugo--rename-buffer-portion)
+            (setcdr waiting (setq xform 'nowarp)))
           (when (timerp abd)
             (cancel-timer abd))
           (gnugo--forget :abd)
-          (unless (gnugo-get :waiting)
+          (unless (or userp waiting)
             (gnugo-get-move gcolor)))
       ;; enable
       (gnugo--gate-game-over t)
@@ -2307,7 +2311,12 @@ This is to ensure that the user is the next to play after disabling."
              (if (gnugo-get :abd)
                  "en"
                "dis")
-             warning)))
+             (if xform
+                 (format " (suggestion for %s forthcoming)"
+                         (gnugo-get :user-color))
+               ""))
+    (when xform
+      (sleep-for 2))))
 
 ;;;---------------------------------------------------------------------------
 ;;; Command properties and gnugo-command
