@@ -715,6 +715,9 @@ when you are sure the command cannot fail."
                   (+ ?A (- (if (> ?i col) col (1+ col)) ?a))
                   (- size (- (aref cc 1) ?a))))))))
 
+(defsubst gnugo--passp (string)
+  (string= "PASS" string))
+
 (defun gnugo-move-history (&optional rsel color)
   "Determine and return the game's move history.
 Optional arg RSEL controls side effects and return value.
@@ -1203,9 +1206,6 @@ This fails if the monkey is on the current branch
   (interactive)
   (while (gnugo-board-buffer-p)
     (bury-buffer)))
-
-(defsubst gnugo--passp (string)
-  (string= "PASS" string))
 
 (defsubst gnugo--no-regrets (monkey ends)
   (eq (aref ends (aref monkey 1))
