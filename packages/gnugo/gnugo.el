@@ -1226,9 +1226,15 @@ This fails if the monkey is on the current branch
                                  (substring pos 1))))))
         (format "%c%c" one two)))))
 
-(defsubst gnugo--decorate (node alist)
-  ;; NB: ALIST should not have :B or :W keys.
-  (setcdr (last node) alist))
+(defun gnugo--decorate (node &rest plist)
+  (loop with tp = (last node)
+        while plist
+        do (setf
+            fruit (list (cons           ; DWR: LtR OoE assumed.
+                         (pop plist)
+                         (pop plist)))
+            (cdr tp) fruit
+            tp       fruit)))
 
 (defun gnugo-close-game (end-time resign)
   (gnugo-put :game-end-time end-time)
@@ -2190,6 +2196,7 @@ to the last move, as a comment."
       (let ((node (car (aref (gnugo-get :monkey) 0))))
         (gnugo--decorate
          (delq (assq :C node) node)
+         :C
          (with-temp-buffer              ; lame
            (insert blurb)
            (when (search-backward "\n\nGame start:" nil t)
@@ -2202,7 +2209,7 @@ to the last move, as a comment."
              (rep "territory" "T")
              (rep "captures"  "C")
              (rep "komi"      "K"))
-           `((:C . ,(buffer-string)))))))
+           (buffer-string)))))
     (switch-to-buffer (format "%s*GNUGO Final Score*" (gnugo-get :diamond)))
     (erase-buffer)
     (insert blurb)))
@@ -2281,7 +2288,7 @@ If COMMENT is nil or the empty string, remove the property entirely."
                         (cdr (assq :C node))))))
   (setq node (delq (assq :C node) node))
   (unless (zerop (length comment))
-    (gnugo--decorate node `((:C . ,comment)))))
+    (gnugo--decorate node :C comment)))
 
 (defun gnugo-toggle-abdication ()
   "Toggle abdication, i.e., letting GNU Go play for you.
@@ -2503,13 +2510,7 @@ See `gnugo-board-mode' for a full list of commands."
         (if filename
             (gnugo-read-sgf-file (expand-file-name filename))
           (cl-flet
-              ((r! (&rest plist)
-                   (gnugo--decorate
-                    root (loop          ; hmm, available elsewhere?
-                          while plist
-                          collect (let* ((k (pop plist))
-                                         (v (pop plist)))
-                                    (cons k v))))))
+              ((r! (&rest plist) (apply 'gnugo--decorate root plist)))
             (gnugo--SZ!
              (setq root (gnugo--root-node
                          (gnugo--plant-and-climb
