@@ -1979,8 +1979,8 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
                    (cdr hmm)))))
     (when (gnugo-get :game-over)
       (gnugo--unclose-game))
-    (while (not (eq stop (aref monkey 0)))
-      (gnugo--q/ue "undo")
+    (while (and (not (eq stop (aref monkey 0)))
+                (gnugo--no-worries (gnugo--q "undo")))
       (pop (aref monkey 0))
       (gnugo-put :last-mover (gnugo-current-player))
       (gnugo-merge-showboard-results)   ; all
