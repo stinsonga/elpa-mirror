@@ -421,9 +421,12 @@ status of the command.  See also `gnugo-query'."
     (prog1 (substring (process-get proc :srs) 0 -2)
       (process-put proc :srs ""))))
 
+(defsubst gnugo--no-worries (string)
+  (= ?= (aref string 0)))
+
 (defun gnugo--q/ue (fmt &rest args)
   (let ((ans (apply 'gnugo--q fmt args)))
-    (unless (= ?= (aref ans 0))
+    (unless (gnugo--no-worries ans)
       (user-error "%s" ans))
     (substring ans 2)))
 
