@@ -715,6 +715,9 @@ when you are sure the command cannot fail."
                   (+ ?A (- (if (> ?i col) col (1+ col)) ?a))
                   (- size (- (aref cc 1) ?a))))))))
 
+(defsubst gnugo--resignp (string)
+  (string= "resign" string))
+
 (defsubst gnugo--passp (string)
   (string= "PASS" string))
 
@@ -737,7 +740,7 @@ For all other values of RSEL, do nothing and return nil."
          (as-pos (gnugo--as-pos-func))
          acc node mprop move)
     (cl-flet*
-        ((as-pos-maybe (x) (if (string= "resign" x)
+        ((as-pos-maybe (x) (if (gnugo--resignp x)
                                x
                              (funcall as-pos x)))
          (remem () (setq node (pop mem)
@@ -1285,7 +1288,7 @@ This fails if the monkey is on the current branch
                   who))
          (start (gnugo-get :waiting-start))
          (now (current-time))
-         (resignp (string= "resign" move))
+         (resignp (gnugo--resignp move))
          (passp (gnugo--passp move))
          (head (gnugo-move-history 'car))
          (onep (and head (gnugo--passp head)))
@@ -1455,7 +1458,7 @@ its move."
     (rename-buffer (concat (gnugo-get :diamond)
                            (if game-over
                                (format "%s(game over)"
-                                       (if (string= move "resign")
+                                       (if (gnugo--resignp move)
                                            (concat move "ation ")
                                          ""))
                              (format "%s(%s to play)"
@@ -2099,7 +2102,7 @@ to the last move, as a comment."
       (sit-for 3)))
   (let ((b=  "   Black = ")
         (w=  "   White = ")
-        (res (when (string= "resign" (gnugo-move-history 'car))
+        (res (when (gnugo--resignp (gnugo-move-history 'car))
                (gnugo-get :last-mover)))
         blurb result)
     (if res
