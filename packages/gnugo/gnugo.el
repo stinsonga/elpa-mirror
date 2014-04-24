@@ -2517,6 +2517,16 @@ See `gnugo-board-mode' for a full list of commands."
                    komi       (gnugo--nquery "get_komi")
                    handicap   (gnugo--nquery "get_handicap")
                    board-size (gnugo--nquery "query_boardsize")))
+            ;; Work around a GNU Go 3.8 (and possibly earlier/later)
+            ;; bug whereby GTP command ‘get_handicap’ fails to return
+            ;; the N set by ‘--handicap N’ on the command line.
+            (let ((actually (member "--handicap" args)))
+              ;; Checking ‘(zerop handicap)’ first is not strictly
+              ;; necessary; it represents a hope that some day GNU Go
+              ;; will DTRT (or provide rationale for this weird behavior)
+              ;; and become worthy of our trust.
+              (when (and (zerop handicap) actually)
+                (setq handicap (string-to-number (cadr actually)))))
             (r! :SZ board-size
                 :DT (format-time-string "%Y-%m-%d")
                 :RU (if (member "--chinese-rules" args)
