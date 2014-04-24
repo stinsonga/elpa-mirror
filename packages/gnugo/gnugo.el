@@ -742,9 +742,8 @@ For all other values of RSEL, do nothing and return nil."
                              (funcall as-pos x)))
          (remem () (setq node (pop mem)
                          mprop (gnugo--move-prop node)))
-         (pretty () (setq move (as-pos-maybe (cdr mprop))))
          (next (byp) (when (remem)
-                       (pretty)
+                       (setq move (as-pos-maybe (cdr mprop)))
                        (push (if byp
                                  (format "%s%s" move (car mprop))
                                move)
@@ -761,12 +760,13 @@ For all other values of RSEL, do nothing and return nil."
         (`cadr  (nn) (car (nn)))
         (`two (nn) (nn) acc)
         (`bpos (loop with prop = (gnugo--prop<-color color)
+                     while mem
                      when (and (remem)
                                (eq prop (car mprop))
-                               (pretty)
-                               (not (string= "resign" move))
-                               (not (gnugo--passp move)))
-                     return move))
+                               (setq move (cdr mprop))
+                               ;; i.e., "normal CC" position
+                               (= 2 (length move)))
+                     return (funcall as-pos move)))
         (_ nil)))))
 
 (define-derived-mode gnugo-frolic-mode special-mode "GNUGO Frolic"
