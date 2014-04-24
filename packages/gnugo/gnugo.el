@@ -1228,6 +1228,7 @@ This fails if the monkey is on the current branch
 
 (defun gnugo--decorate (node &rest plist)
   (loop with tp = (last node)
+        with fruit
         while plist
         do (setf
             fruit (list (cons           ; DWR: LtR OoE assumed.
