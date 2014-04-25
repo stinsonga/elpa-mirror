@@ -1638,6 +1638,11 @@ its move."
       (when (string-match old name)
         (rename-buffer (replace-match new t t name))))))
 
+(defun gnugo--display-suggestion (color suggestion)
+  (message "%sSuggestion for %s: %s"
+           (gnugo-get :diamond)
+           color suggestion))
+
 (defun gnugo-get-move-insertion-filter (proc string)
   (with-current-buffer (process-buffer proc)
     (let* ((so-far (gnugo-get :get-move-string))
@@ -1654,9 +1659,7 @@ its move."
                 (unless (or (gnugo--passp full)
                             (eq 'nowarp suggestion))
                   (gnugo-goto-pos full))
-                (message "%sSuggestion for %s: %s"
-                         (gnugo-get :diamond)
-                         color full))
+                (gnugo--display-suggestion color full))
             (let* ((donep (gnugo-push-move color full))
                    (buf (current-buffer)))
               (gnugo--finish-move buf)
@@ -2319,15 +2322,9 @@ transformed into a move suggestion (see `gnugo-request-suggestion')."
       (gnugo-gate t)
       (gnugo-put :abd t)
       (gnugo-get-move (gnugo-other last-mover)))
-    (message "Abdication %sabled%s"
-             (if (gnugo-get :abd)
-                 "en"
-               "dis")
-             (if xform
-                 (format " (suggestion for %s forthcoming)"
-                         (gnugo-get :user-color))
-               ""))
+    (force-mode-line-update)            ; hmm
     (when xform
+      (gnugo--display-suggestion (gnugo-get :user-color) "forthcoming")
       (sleep-for 2))))
 
 ;;;---------------------------------------------------------------------------
