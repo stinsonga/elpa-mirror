@@ -2303,29 +2303,34 @@ a move to play for you, the thinking is not cancelled but instead
 transformed into a move suggestion (see `gnugo-request-suggestion')."
   (interactive)
   (let ((last-mover (gnugo-get :last-mover))
-        (abd (gnugo-get :abd))
-        xform)
+        (abd (gnugo-get :abd)))
     (if abd
         ;; disable
         (let* ((gcolor (gnugo-get :gnugo-color))
                (waiting (gnugo-get :waiting))
                (userp (string= last-mover gcolor)))
-          (when (and userp waiting)
-            (gnugo--rename-buffer-portion)
-            (setcdr waiting (setq xform 'nowarp)))
           (when (timerp abd)
             (cancel-timer abd))
           (gnugo--forget :abd)
+          (when (and userp waiting)
+            (let ((u (gnugo-get :user-color)))
+              (gnugo--rename-buffer-portion)
+              (setcdr waiting
+                      ;; heuristic: Warp only if it appears
+                      ;; that the user is "following along".
+                      (or (ignore-errors
+                            (string= (gnugo-position)
+                                     (gnugo-move-history 'bpos u)))
+                          'nowarp))
+              (gnugo--display-suggestion u "forthcoming")
+              (sleep-for 2)))
           (unless (or userp waiting)
             (gnugo-get-move gcolor)))
       ;; enable
       (gnugo-gate t)
       (gnugo-put :abd t)
       (gnugo-get-move (gnugo-other last-mover)))
-    (force-mode-line-update)            ; hmm
-    (when xform
-      (gnugo--display-suggestion (gnugo-get :user-color) "forthcoming")
-      (sleep-for 2))))
+    (force-mode-line-update)))
 
 ;;;---------------------------------------------------------------------------
 ;;; Command properties and gnugo-command
