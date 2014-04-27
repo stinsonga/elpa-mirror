@@ -355,14 +355,6 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
 (defsubst gnugo--prop<-color (color)
   (if (gnugo--blackp color) :B :W))
 
-(defsubst gnugo--gate-game-over (enable)
-  (when (and enable (gnugo-get :game-over))
-    (user-error "Sorry, game over")))
-
-(defun gnugo--ERR-wait (color why)
-  (user-error "%s -- please wait for \"(%s to play)\""
-              why color))
-
 (defun gnugo-gate (&optional in-progress-p)
   (unless (gnugo-board-buffer-p)
     (user-error "Wrong buffer -- try M-x gnugo"))
@@ -371,13 +363,15 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
   (destructuring-bind (&optional color . suggestion)
       (gnugo-get :waiting)
     (when color
-      (apply 'gnugo--ERR-wait
+      (apply 'user-error
+             "%s -- please wait for \"(%s to play)\""
              (if suggestion
-                 (list color
-                       "Still thinking")
-               (list (gnugo-other color)
-                     "Not your turn yet")))))
-  (gnugo--gate-game-over in-progress-p))
+                 (list "Still thinking"
+                       color)
+               (list "Not your turn yet"
+                     (gnugo-other color))))))
+  (when (and in-progress-p (gnugo-get :game-over))
+    (user-error "Sorry, game over")))
 
 (defun gnugo-sentinel (proc string)
   (let ((status (process-status proc)))
