@@ -1622,10 +1622,11 @@ its move."
     (when (setq last (gnugo-get :last-user-bpos))
       (gnugo-goto-pos last))))
 
-(defun gnugo--finish-move (buf)
-  (run-hooks 'gnugo-post-move-hook)
-  (with-current-buffer buf
-    (gnugo-refresh)))
+(defun gnugo--finish-move ()
+  (let ((buf (current-buffer)))
+    (run-hooks 'gnugo-post-move-hook)
+    (set-buffer buf))
+  (gnugo-refresh))
 
 ;;;---------------------------------------------------------------------------
 ;;; Game play actions
@@ -1661,9 +1662,8 @@ its move."
                             (eq 'nowarp suggestion))
                   (gnugo-goto-pos full))
                 (gnugo--display-suggestion color full))
-            (let* ((donep (gnugo-push-move color full))
-                   (buf (current-buffer)))
-              (gnugo--finish-move buf)
+            (let ((donep (gnugo-push-move color full)))
+              (gnugo--finish-move)
               (when (gnugo-get :abd)
                 (gnugo-put :abd
                   (unless donep
@@ -1672,7 +1672,7 @@ its move."
                      nil (lambda (buf color)
                            (with-current-buffer buf
                              (gnugo-get-move color)))
-                     buf
+                     (current-buffer)
                      (gnugo-other color))))))))))))
 
 (defun gnugo-get-move (color &optional suggestion)
@@ -1728,12 +1728,10 @@ cursor to the suggested position.  Prefix arg inhibits warp."
   ;; Now, it signifies only the former.
   (let* ((gcolor (gnugo-get :gnugo-color))
          (userp (string= gcolor (gnugo-get :last-mover)))
-         (donep (gnugo-push-move userp pos-or-pass))
-         (buf (current-buffer)))
-    (gnugo--finish-move buf)
+         (donep (gnugo-push-move userp pos-or-pass)))
+    (gnugo--finish-move)
     (when (and userp (not donep))
-      (with-current-buffer buf
-        (gnugo-get-move gcolor)))))
+      (gnugo-get-move gcolor))))
 
 (defun gnugo-move ()
   "Make a move on the GNUGO Board buffer.
