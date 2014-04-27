@@ -371,10 +371,12 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
   (destructuring-bind (&optional color . suggestion)
       (gnugo-get :waiting)
     (when color
-      (gnugo--ERR-wait
-       color (if suggestion
-                 "Still thinking"
-               "Not your turn yet"))))
+      (apply 'gnugo--ERR-wait
+             (if suggestion
+                 (list color
+                       "Still thinking")
+               (list (gnugo-other color)
+                     "Not your turn yet")))))
   (gnugo--gate-game-over in-progress-p))
 
 (defun gnugo-sentinel (proc string)
