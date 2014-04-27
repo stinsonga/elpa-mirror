@@ -2304,13 +2304,12 @@ a move to play for you, the thinking is not cancelled but instead
 transformed into a move suggestion (see `gnugo-request-suggestion')."
   (interactive)
   (let ((u (gnugo-get :user-color))
-        (last-mover (gnugo-get :last-mover))
         (abd (gnugo-get :abd)))
     (if abd
         ;; disable
         (let* ((gcolor (gnugo-get :gnugo-color))
                (waiting (gnugo-get :waiting))
-               (userp (string= last-mover gcolor)))
+               (userp (string= gcolor (gnugo-get :last-mover))))
           (when (timerp abd)
             (cancel-timer abd))
           (gnugo--forget :abd)
@@ -2330,7 +2329,7 @@ transformed into a move suggestion (see `gnugo-request-suggestion')."
       ;; enable
       (gnugo-gate t)
       (gnugo-put :abd t)
-      (gnugo-get-move (gnugo-other last-mover)))
+      (gnugo-get-move u))
     (gnugo--instant-karma u (not abd))))
 
 ;;;---------------------------------------------------------------------------
