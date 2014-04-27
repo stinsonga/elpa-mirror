@@ -180,6 +180,8 @@ For ~t, the value is a snapshot, use `gnugo-refresh' to update it.")
 (defvar gnugo-frolic-parent-buffer nil)
 (defvar gnugo-frolic-origin nil)
 
+(defvar gnugo-btw nil)
+
 ;;;---------------------------------------------------------------------------
 ;;; Support functions
 
@@ -258,6 +260,12 @@ See `gnugo-put'."
 (defun gnugo--forget (&rest keys)
   (dolist (key keys)
     (remhash key gnugo-state)))
+
+(defun gnugo--instant-karma (color add/del)
+  (assert (string= color (gnugo-get :user-color)))
+  (setq gnugo-btw (when add/del
+                    " Abd"))
+  (force-mode-line-update))
 
 (defsubst gnugo--tree-mnum (tree)
   (aref tree 1))
@@ -1612,10 +1620,7 @@ its move."
                    ;; this dynamicism is nice but excessive in its wantonness
                    ;;- `(" [" (:eval ,form) "]")
                    ;; this dynamicism is ok because the user triggers it
-                   (list (format " [%s]" (eval form))
-                         '(:eval (if (gnugo-get :abd)
-                                     " Abd"
-                                   ""))))))
+                   (format " [%s]" (eval form)))))
       (force-mode-line-update))
     ;; last user move
     (when (setq last (gnugo-get :last-user-bpos))
@@ -2302,7 +2307,8 @@ When disabling, if GNU Go has already started thinking of
 a move to play for you, the thinking is not cancelled but instead
 transformed into a move suggestion (see `gnugo-request-suggestion')."
   (interactive)
-  (let ((last-mover (gnugo-get :last-mover))
+  (let ((u (gnugo-get :user-color))
+        (last-mover (gnugo-get :last-mover))
         (abd (gnugo-get :abd)))
     (if abd
         ;; disable
@@ -2313,24 +2319,23 @@ transformed into a move suggestion (see `gnugo-request-suggestion')."
             (cancel-timer abd))
           (gnugo--forget :abd)
           (when (and userp waiting)
-            (let ((u (gnugo-get :user-color)))
-              (gnugo--rename-buffer-portion)
-              (setcdr waiting
-                      ;; heuristic: Warp only if it appears
-                      ;; that the user is "following along".
-                      (or (ignore-errors
-                            (string= (gnugo-position)
-                                     (gnugo-move-history 'bpos u)))
-                          'nowarp))
-              (gnugo--display-suggestion u "forthcoming")
-              (sleep-for 2)))
+            (gnugo--rename-buffer-portion)
+            (setcdr waiting
+                    ;; heuristic: Warp only if it appears
+                    ;; that the user is "following along".
+                    (or (ignore-errors
+                          (string= (gnugo-position)
+                                   (gnugo-move-history 'bpos u)))
+                        'nowarp))
+            (gnugo--display-suggestion u "forthcoming")
+            (sleep-for 2))
           (unless (or userp waiting)
             (gnugo-get-move gcolor)))
       ;; enable
       (gnugo-gate t)
       (gnugo-put :abd t)
       (gnugo-get-move (gnugo-other last-mover)))
-    (force-mode-line-update)))
+    (gnugo--instant-karma u (not abd))))
 
 ;;;---------------------------------------------------------------------------
 ;;; Command properties and gnugo-command
@@ -2408,6 +2413,8 @@ In this mode, keys do not self insert.
   (add-hook 'kill-buffer-hook 'gnugo-cleanup nil t)
   (set (make-local-variable 'gnugo-state)
        (gnugo--mkht :size (1- 42)))
+  (set (make-local-variable 'gnugo-btw) nil)
+  (add-to-list 'minor-mode-alist '(gnugo-btw gnugo-btw))
   (gnugo-put :highlight-last-move-spec
     (gnugo-put :default-highlight-last-move-spec '("(" -1 nil)))
   (gnugo-put :paren-ov (cons (make-overlay 1 1)
