@@ -29,7 +29,8 @@ NB: "RCS: X..Y " means that the particular release includes
   - new command: ‘o’ (gnugo-oops)
   - new command: ‘O’ (gnugo-okay)
   - new command: ‘L’ (gnugo-frolic-in-the-leaves)
-  - new command: ‘C-c C-a’ (gnugo-toggle-abdication)
+  - new command: ‘C-c C-a’ (gnugo-assist-mode)
+  - new command: ‘C-c C-z’ (gnugo-zombie-mode)
   - new major mode: GNUGO Frolic (gnugo-frolic-mode)
   - GNUGO Board mode now derived from Special mode
   - position arg validated for direct GTP commands ‘undo’, ‘gg-undo’
