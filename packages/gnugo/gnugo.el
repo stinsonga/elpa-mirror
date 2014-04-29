@@ -261,12 +261,6 @@ See `gnugo-put'."
   (dolist (key keys)
     (remhash key gnugo-state)))
 
-(defun gnugo--instant-karma (color add/del)
-  (assert (string= color (gnugo-get :user-color)))
-  (setq gnugo-btw (when add/del
-                    " Abd"))
-  (force-mode-line-update))
-
 (defsubst gnugo--tree-mnum (tree)
   (aref tree 1))
 
@@ -1622,11 +1616,31 @@ its move."
     (when (setq last (gnugo-get :last-user-bpos))
       (gnugo-goto-pos last))))
 
-(defun gnugo--finish-move ()
+(defun gnugo--turn-the-wheel (&optional now)
+  (unless (gnugo-get :waiting)
+    (let ((color (gnugo-current-player))
+          (wheel (gnugo-get :wheel)))
+      (setcar wheel
+              (when (and (not (gnugo-get :game-over))
+                         (member color (cdr wheel)))
+                (run-at-time
+                 (if now
+                     nil
+                   2) ;;; sec (frettoloso? dubioso!)
+                 nil
+                 (lambda (buf color wheel)
+                   (setcar wheel nil)
+                   (with-current-buffer buf
+                     (gnugo-get-move color)))
+                 (current-buffer)
+                 color wheel))))))
+
+(defun gnugo--finish-move (&optional now)
   (let ((buf (current-buffer)))
     (run-hooks 'gnugo-post-move-hook)
     (set-buffer buf))
-  (gnugo-refresh))
+  (gnugo-refresh)
+  (gnugo--turn-the-wheel now))
 
 ;;;---------------------------------------------------------------------------
 ;;; Game play actions
@@ -1662,18 +1676,8 @@ its move."
                             (eq 'nowarp suggestion))
                   (gnugo-goto-pos full))
                 (gnugo--display-suggestion color full))
-            (let ((donep (gnugo-push-move color full)))
-              (gnugo--finish-move)
-              (when (gnugo-get :abd)
-                (gnugo-put :abd
-                  (unless donep
-                    (run-at-time
-                     2 ;;; sec (frettoloso? dubioso!)
-                     nil (lambda (buf color)
-                           (with-current-buffer buf
-                             (gnugo-get-move color)))
-                     (current-buffer)
-                     (gnugo-other color))))))))))))
+            (gnugo-push-move color full)
+            (gnugo--finish-move)))))))
 
 (defun gnugo-get-move (color &optional suggestion)
   (gnugo-put :waiting (cons color suggestion))
@@ -1721,17 +1725,24 @@ cursor to the suggested position.  Prefix arg inhibits warp."
                       'nowarp
                     t)))
 
+(defun gnugo--karma (color)
+  (member color (cdr (gnugo-get :wheel))))
+
+(defsubst gnugo--:karma (role)
+  (gnugo--karma (gnugo-get role)))
+
 (defun gnugo--user-play (pos-or-pass)
   (gnugo-gate t)
   ;; The "user" in this func's name used to signify both
   ;; who does the action and for whom the action is done.
   ;; Now, it signifies only the former.
-  (let* ((gcolor (gnugo-get :gnugo-color))
-         (userp (string= gcolor (gnugo-get :last-mover)))
-         (donep (gnugo-push-move userp pos-or-pass)))
-    (gnugo--finish-move)
-    (when (and userp (not donep))
-      (gnugo-get-move gcolor))))
+  (let ((color (gnugo-current-player)))
+    ;; Don't get confused by mixed signals.
+    (when (gnugo--karma color)
+      (user-error "Sorry, you cannot play for %s at this time"
+                  color))
+    (gnugo-push-move color pos-or-pass))
+  (gnugo--finish-move t))
 
 (defun gnugo-move ()
   "Make a move on the GNUGO Board buffer.
@@ -1875,7 +1886,30 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
   (gnugo/sgf-write-file (gnugo-get :sgf-collection) filename)
   (set-buffer-modified-p nil))
 
+(defun gnugo--dance-dance (karma)
+  (destructuring-bind (dance btw)
+      (aref [(moshpit " Zombie")
+             (classic nil)
+             (reverse " Zombie Assist") ; "Assist Zombie"?  no thanks!  :-D
+             (stilted " Assist")]
+            (cl-flet
+                ((try (n prop)
+                      (if (member (gnugo-get prop)
+                                  karma)
+                          n
+                        0)))
+              (+ (try 2 :user-color)
+                 (try 1 :gnugo-color))))
+    (gnugo-put :dance dance)            ; pure cruft (for now)
+    (setq gnugo-btw btw)))
+
 (defun gnugo--who-is-who (wait play samep)
+  (unless samep
+    (let ((wheel (gnugo-get :wheel)))
+      (when wheel
+        (gnugo--dance-dance
+         (setcdr wheel (mapcar 'gnugo-other
+                               (cdr wheel)))))))
   (message "GNU Go %splays as %s, you as %s (%s)"
            (if samep "" "now ")
            wait play (if samep
@@ -2005,7 +2039,12 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
       (unless (or keep remorseful)
         (aset ends (aref monkey 1) (aref monkey 0)))
       (when (and ulastp (not noalt))
-        (gnugo-get-move (gnugo-get :gnugo-color))))))
+        (let ((wheel (gnugo-get :wheel)))
+          ;; ugh, backward compat
+          ;; todo: add auto-Zombie (see also "relax" above)
+          (letf (((cdr wheel) (remove (gnugo-get :gnugo-color)
+                                      (cdr wheel))))
+            (gnugo--turn-the-wheel t)))))))
 
 (defun gnugo-undo-one-move (&optional me-next)
   "Undo exactly one move (perhaps GNU Go's, perhaps yours).
@@ -2293,42 +2332,67 @@ If COMMENT is nil or the empty string, remove the property entirely."
   (unless (zerop (length comment))
     (gnugo--decorate node :C comment)))
 
-(defun gnugo-toggle-abdication ()
-  "Toggle abdication, i.e., letting GNU Go play for you.
-When enabled, the mode line includes \"Abd\".
-Enabling signals error if the game is over.
-When disabling, if GNU Go has already started thinking of
-a move to play for you, the thinking is not cancelled but instead
-transformed into a move suggestion (see `gnugo-request-suggestion')."
-  (interactive)
-  (let ((u (gnugo-get :user-color))
-        (abd (gnugo-get :abd)))
-    (if abd
+(defun gnugo--struggle (prop updn)
+  (unless (eq                           ; drudgery avoidance
+           (when (gnugo--:karma prop)   ; normalize
+             t)
+           updn)
+    (let ((color (gnugo-get prop)))
+      (if updn
+          ;; enable
+          (gnugo-gate)
         ;; disable
-        (let* ((gcolor (gnugo-get :gnugo-color))
-               (waiting (gnugo-get :waiting))
-               (userp (string= gcolor (gnugo-get :last-mover))))
-          (when (timerp abd)
-            (cancel-timer abd))
-          (gnugo--forget :abd)
-          (when (and userp waiting)
+        (let ((waiting (gnugo-get :waiting)))
+          (when (and waiting (string= color (car waiting)))
             (gnugo--rename-buffer-portion)
             (setcdr waiting
                     ;; heuristic: Warp only if it appears
                     ;; that the user is "following along".
                     (or (ignore-errors
                           (string= (gnugo-position)
-                                   (gnugo-move-history 'bpos u)))
+                                   (gnugo-move-history 'bpos color)))
                         'nowarp))
-            (gnugo--display-suggestion u "forthcoming")
-            (sleep-for 2))
-          (unless (or userp waiting)
-            (gnugo-get-move gcolor)))
-      ;; enable
-      (gnugo-gate t)
-      (gnugo-put :abd t)
-      (gnugo-get-move u))
-    (gnugo--instant-karma u (not abd))))
+            (gnugo--display-suggestion color "forthcoming")
+            (sit-for 2))))
+      (let* ((wheel (gnugo-get :wheel))
+             (timer (car wheel))
+             (karma (cdr wheel)))
+        (when (timerp timer)
+          (cancel-timer timer))
+        (setcar wheel nil)
+        (setcdr wheel (setq karma
+                            ;; walk to the west, fly to the east,
+                            ;; talk and then rest, cry and then feast.
+                            ;;   99 beers down thirsty throats sloshed?
+                            ;;   500 years under pink mountains squashed?
+                            ;; balk with the best, child now re-creased!
+                            (if updn
+                                (push color karma)
+                              (delete color karma))))
+        (gnugo--dance-dance karma))
+      (gnugo--turn-the-wheel t))))
+
+(define-minor-mode gnugo-assist-mode
+  "If enabled (\"Assist\" in mode line), GNU Go plays for you.
+When disabling, if GNU Go has already started thinking of
+a move to play for you, the thinking is not cancelled but instead
+transformed into a move suggestion (see `gnugo-request-suggestion')."
+  :variable
+  ((gnugo--:karma :user-color)
+   .
+   (lambda (bool)
+     (gnugo--struggle :user-color bool))))
+
+(define-minor-mode gnugo-zombie-mode
+  "If enabled (\"Zombie\" in mode line), GNU Go lets you play for it.
+When disabling, if GNU Go has already started thinking of
+a move to play, the thinking is not cancelled but instead
+transformed into a move suggestion (see `gnugo-request-suggestion')."
+  :variable
+  ((not (gnugo--:karma :gnugo-color))
+   .
+   (lambda (bool)
+     (gnugo--struggle :gnugo-color (not bool)))))
 
 ;;;---------------------------------------------------------------------------
 ;;; Command properties and gnugo-command
@@ -2561,11 +2625,11 @@ See `gnugo-board-mode' for a full list of commands."
                     (and (gnugo--blackp g) (< n 2)))
                 u
               g)))
+        (let ((karma (list g)))
+          (gnugo-put :wheel (cons nil karma))
+          (gnugo--dance-dance karma))
         (run-hooks 'gnugo-start-game-hook)
-        (when (and (not (gnugo-get :game-over))
-                   (string= g (gnugo-current-player)))
-          (gnugo-refresh t)
-          (gnugo-get-move g))))))
+        (gnugo--turn-the-wheel)))))
 
 ;;;---------------------------------------------------------------------------
 ;;; Load-time actions
@@ -2633,7 +2697,8 @@ See `gnugo-board-mode' for a full list of commands."
           ("F"        . gnugo-display-final-score)
           ("A"        . gnugo-switch-to-another)
           ("C"        . gnugo-comment)
-          ("\C-c\C-a" . gnugo-toggle-abdication)
+          ("\C-c\C-a" . gnugo-assist-mode)
+          ("\C-c\C-z" . gnugo-zombie-mode)
           ;; mouse
           ([(down-mouse-1)] . gnugo-mouse-move)
           ([(down-mouse-2)] . gnugo-mouse-move) ; mitigate accidents
