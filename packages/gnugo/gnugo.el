@@ -1028,6 +1028,7 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
   ;;   require-valid-branch
   ;;   (line . numeric)
   ;;   (line . move-string)
+  ;;   (omit . [VAR...])
   ;; Invalid elements blissfully ignored.  :-D
   (let* ((tree (gnugo-get :sgf-gametree))
          (ends (gnugo--tree-ends tree))
