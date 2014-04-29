@@ -4,7 +4,7 @@
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords: convenience
-;; Version: 1.2
+;; Version: 1.3
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -25,6 +25,10 @@
 ;; more efficient.
 
 ;;; News:
+
+;; v1.3:
+;; - New custom variable `nlinum-format'.
+;; - Change in calling convention of `nlinum-format-function'.
 
 ;; v1.2:
 ;; - New global mode `global-nlinum-mode'.
@@ -77,6 +81,8 @@ Linum mode is a buffer-local minor mode."
                   (lambda (buf)
                     (with-current-buffer buf
                       (with-silent-modifications
+                        ;; FIXME: only remove `fontified' on those parts of the
+                        ;; buffer that had an nlinum overlay!
                         (remove-text-properties
                          (point-min) (point-max) '(fontified)))))
                   (current-buffer)))
@@ -149,14 +155,24 @@ Linum mode is a buffer-local minor mode."
     (setq nlinum--line-number-cache (cons (point) pos))
     pos))
 
+(defcustom nlinum-format "%d"
+  "Format of the line numbers.
+Used by the default `nlinum-format-function'."
+  :type 'string
+  :group 'linum)
+
 (defvar nlinum-format-function
-  (lambda (line)
-    (let* ((fmt (format "%%%dd" nlinum--width))
-           (str (propertize (format fmt line) 'face 'linum)))
+  (lambda (line width)
+    (let ((str (format nlinum-format line)))
+      (when (< (length str) width)
+        ;; Left pad to try and right-align the line-numbers.
+        (setq str (concat (make-string (- width (length str)) ?\ ) str)))
+      (put-text-property 0 width 'face 'linum str)
       str))
   "Function to build the string representing the line number.
-Takes one argument (the line number) and returns a string whose width
-should be at least equal to `nlinum--width'.")
+Takes 2 arguments LINE and WIDTH, both of them numbers, and should return
+a string.  WIDTH is the ideal width of the result.  If the result is larger,
+it may cause the margin to be resized and line numbers to be recomputed.")
 
 (defun nlinum--region (start limit)
   (save-excursion
@@ -170,7 +186,8 @@ should be at least equal to `nlinum--width'.")
         (while
             (and (not (eobp)) (< (point) limit)
                  (let* ((ol (make-overlay (point) (1+ (point))))
-                        (str (funcall nlinum-format-function line))
+                        (str (funcall nlinum-format-function
+                                      line nlinum--width))
                         (width (string-width str)))
                    (when (< nlinum--width width)
                      (setq nlinum--width width)
