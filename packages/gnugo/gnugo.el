@@ -1732,6 +1732,13 @@ cursor to the suggested position.  Prefix arg inhibits warp."
 (defsubst gnugo--:karma (role)
   (gnugo--karma (gnugo-get role)))
 
+(defun gnugo--assist-state (&optional gate)
+  (let ((bool (when (gnugo--:karma :user-color)
+                t)))
+    (if (and bool gate)
+        (user-error "Sorry, Assist mode enabled")
+      bool)))
+
 (defun gnugo--user-play (pos-or-pass)
   (gnugo-gate t)
   ;; The "user" in this func's name used to signify both
@@ -1996,8 +2003,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
 
 (defun gnugo--climb-towards-root (spec &optional noalt keep)
   (gnugo-gate)
-  (when (gnugo--:karma :user-color)
-    (user-error "Sorry, Assist mode enabled"))
+  (gnugo--assist-state t)
   (let* ((user-color (gnugo-get :user-color))
          (monkey (gnugo-get :monkey))
          (tree (gnugo-get :sgf-gametree))
@@ -2378,7 +2384,7 @@ When disabling, if GNU Go has already started thinking of
 a move to play for you, the thinking is not cancelled but instead
 transformed into a move suggestion (see `gnugo-request-suggestion')."
   :variable
-  ((gnugo--:karma :user-color)
+  ((gnugo--assist-state)
    .
    (lambda (bool)
      (gnugo--struggle :user-color bool))))
