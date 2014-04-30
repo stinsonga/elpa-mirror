@@ -1996,6 +1996,8 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
 
 (defun gnugo--climb-towards-root (spec &optional noalt keep)
   (gnugo-gate)
+  (when (gnugo--:karma :user-color)
+    (user-error "Sorry, Assist mode enabled"))
   (let* ((user-color (gnugo-get :user-color))
          (monkey (gnugo-get :monkey))
          (tree (gnugo-get :sgf-gametree))
