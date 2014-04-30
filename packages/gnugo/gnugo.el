@@ -2073,7 +2073,6 @@ See also `gnugo-undo-two-moves'."
 However, if you are the last mover, undo only one move.
 Regardless, after undoing, it is your turn to play again."
   (interactive)
-  (gnugo-gate)
   (gnugo--climb-towards-root 0))
 
 (defun gnugo-oops (&optional position)
@@ -2082,7 +2081,6 @@ The kept moves become a sub-gametree (variation) when play resumes.
 Prefix arg means, instead, undo repeatedly up to and including
 the move which placed the stone at point, like `\\[gnugo-fancy-undo]'."
   (interactive "P")
-  (gnugo-gate)
   (gnugo--climb-towards-root (unless position
                                0)
                              nil t))
