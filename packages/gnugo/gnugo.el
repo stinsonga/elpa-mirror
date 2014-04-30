@@ -1726,15 +1726,15 @@ cursor to the suggested position.  Prefix arg inhibits warp."
                       'nowarp
                     t)))
 
-(defun gnugo--karma (color)
-  (member color (cdr (gnugo-get :wheel))))
+(defun gnugo--karma (color)             ; => BOOL
+  (when (member color (cdr (gnugo-get :wheel)))
+    t))
 
 (defsubst gnugo--:karma (role)
   (gnugo--karma (gnugo-get role)))
 
 (defun gnugo--assist-state (&optional gate)
-  (let ((bool (when (gnugo--:karma :user-color)
-                t)))
+  (let ((bool (gnugo--:karma :user-color)))
     (if (and bool gate)
         (user-error "Sorry, Assist mode enabled")
       bool)))
@@ -2339,10 +2339,7 @@ If COMMENT is nil or the empty string, remove the property entirely."
     (gnugo--decorate node :C comment)))
 
 (defun gnugo--struggle (prop updn)
-  (unless (eq                           ; drudgery avoidance
-           (when (gnugo--:karma prop)   ; normalize
-             t)
-           updn)
+  (unless (eq updn (gnugo--:karma prop)) ; drudgery avoidance
     (let ((color (gnugo-get prop)))
       (if updn
           ;; enable
