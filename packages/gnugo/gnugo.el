@@ -2060,10 +2060,11 @@ See also `gnugo-undo-two-moves'."
   (gnugo-gate)
   (when me-next
     (let* ((play (gnugo-get :last-mover))
-           (wait (gnugo-other play)))
-      (gnugo--who-is-who wait play (string= play (gnugo-get :user-color)))
+           (wait (gnugo-other play))
+           (samep (string= play (gnugo-get :user-color))))
       (gnugo-put :user-color play)
-      (gnugo-put :gnugo-color wait)))
+      (gnugo-put :gnugo-color wait)
+      (gnugo--who-is-who wait play samep)))
   (gnugo--climb-towards-root 1 t))
 
 (defun gnugo-undo-two-moves ()
