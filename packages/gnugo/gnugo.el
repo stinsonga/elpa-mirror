@@ -1783,6 +1783,7 @@ To start a game try M-x gnugo."
 
 (defun gnugo-animate-group (w/d)
   ;; W/D is a symbol, either ‘worm’ or ‘dragon’.
+  (gnugo-gate)
   (let* ((pos (gnugo-position))
          (orig-b-m-p (buffer-modified-p))
          blurb stones)
@@ -1822,6 +1823,7 @@ To start a game try M-x gnugo."
       t)))
 
 (defun gnugo-display-group-data (command buffer-name)
+  (gnugo-gate)
   (message "Computing %s ..." command)
   (let ((data (gnugo--q "%s %s" command (gnugo-position))))
     (switch-to-buffer buffer-name)
@@ -1834,14 +1836,12 @@ To start a game try M-x gnugo."
 Signal error if done out-of-turn or if game-over.
 See variable `gnugo-animation-string' for customization."
   (interactive)
-  (gnugo-gate)
   (gnugo-animate-group 'worm))
 
 (defun gnugo-worm-data ()
   "Display in another buffer data from \"worm\" at current position.
 Signal error if done out-of-turn or if game-over."
   (interactive)
-  (gnugo-gate)
   (gnugo-display-group-data "worm_data" "*gnugo worm data*"))
 
 (defun gnugo-dragon-stones ()
@@ -1849,14 +1849,12 @@ Signal error if done out-of-turn or if game-over."
 Signal error if done out-of-turn or if game-over.
 See variable `gnugo-animation-string' for customization."
   (interactive)
-  (gnugo-gate)
   (gnugo-animate-group 'dragon))
 
 (defun gnugo-dragon-data ()
   "Display in another buffer data from \"dragon\" at current position.
 Signal error if done out-of-turn or if game-over."
   (interactive)
-  (gnugo-gate)
   (gnugo-display-group-data "dragon_data" "*gnugo dragon data*"))
 
 (defun gnugo-estimate-score ()
