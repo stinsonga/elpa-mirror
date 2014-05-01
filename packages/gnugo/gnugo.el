@@ -162,6 +162,19 @@ For ~t, the value is a snapshot, use `gnugo-refresh' to update it.")
 (defvar gnugo-grid-face 'default
   "Name of face to use for the grid (A B C ... 1 2 3 ...).")
 
+(defvar gnugo-undo-reaction 'play!
+  "What to do if undo (or oops) leaves GNU Go to play.
+After `gnugo-undo-one-move', `gnugo-undo-two-moves' or `gnugo-oops',
+when GNU Go is to play, this can be a symbol:
+ play     -- make GNU Go play (unless in Zombie mode)
+ play!    -- make GNU Go play unconditionally (traditional behavior)
+ zombie   -- enable Zombie mode (`gnugo-zombie-mode')
+ one-shot -- like `zombie' but valid only for the next move
+Any other value, or (as a special case) for `gnugo-undo-one-move',
+any value other than `zombie', is taken as `one-shot'.  Note that
+making GNU Go play will probably result in the recently-liberated
+board position becoming re-occupied.")
+
 ;;;---------------------------------------------------------------------------
 ;;; Variables for the inquisitive programmer
 
@@ -1747,8 +1760,10 @@ cursor to the suggested position.  Prefix arg inhibits warp."
   (let ((color (gnugo-current-player)))
     ;; Don't get confused by mixed signals.
     (when (gnugo--karma color)
-      (user-error "Sorry, you cannot play for %s at this time"
-                  color))
+      (if (equal color (gnugo-get :one-shot))
+          (gnugo--forget :one-shot)
+        (user-error "Sorry, you cannot play for %s at this time"
+                    color)))
     (gnugo-push-move color pos-or-pass))
   (gnugo--finish-move t))
 
@@ -2001,7 +2016,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
             return mem
             finally return nil))))
 
-(defun gnugo--climb-towards-root (spec &optional noalt keep)
+(defun gnugo--climb-towards-root (spec &optional reaction keep)
   (gnugo-gate)
   (gnugo--assist-state t)
   (let* ((user-color (gnugo-get :user-color))
@@ -2017,16 +2032,10 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
                                  2)
                              spec)
                            (aref monkey 0))
-                 (let* ((pos (if (stringp spec)
-                                 spec
-                               (gnugo-position)))
-                        (hmm (gnugo--mem-with-played-stone pos)))
-                   ;; todo: relax ‘gnugo--user-play’ then lift restriction
-                   (unless (eq (gnugo--prop<-color user-color)
-                               (car (gnugo--move-prop (car hmm))))
-                     (user-error "%s not occupied by %s"
-                                 pos user-color))
-                   (cdr hmm)))))
+                 (cdr (gnugo--mem-with-played-stone
+                       (if (stringp spec)
+                           spec
+                         (gnugo-position)))))))
     (when (gnugo-get :game-over)
       (gnugo--unclose-game))
     (while (and (not (eq stop (aref monkey 0)))
@@ -2037,7 +2046,6 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
       (gnugo-refresh)                   ; this
       (redisplay))                      ; eye candy
     (let* ((ulastp (string= (gnugo-get :last-mover) user-color))
-
            (ubpos (gnugo-move-history (if ulastp 'car 'cadr))))
       (gnugo-put :last-user-bpos (if (and ubpos (not (gnugo--passp ubpos)))
                                      ubpos
@@ -2045,13 +2053,16 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
       (gnugo-refresh t)
       (unless (or keep remorseful)
         (aset ends (aref monkey 1) (aref monkey 0)))
-      (when (and ulastp (not noalt))
-        (let ((wheel (gnugo-get :wheel)))
-          ;; ugh, backward compat
-          ;; todo: add auto-Zombie (see also "relax" above)
-          (letf (((cdr wheel) (remove (gnugo-get :gnugo-color)
-                                      (cdr wheel))))
-            (gnugo--turn-the-wheel t)))))))
+      (when ulastp
+        (let ((g (gnugo-get :gnugo-color)))
+          (cl-flet ((turn () (gnugo--turn-the-wheel t)))
+            (case (or reaction gnugo-undo-reaction)
+              (play (turn))
+              (play! (let ((wheel (gnugo-get :wheel)))
+                       (letf (((cdr wheel) (cons g (cdr wheel))))
+                         (turn))))
+              (zombie (gnugo-zombie-mode 1))
+              (t (gnugo-put :one-shot g)))))))))
 
 (defun gnugo-undo-one-move (&optional me-next)
   "Undo exactly one move (perhaps GNU Go's, perhaps yours).
@@ -2073,7 +2084,9 @@ See also `gnugo-undo-two-moves'."
       (gnugo-put :user-color play)
       (gnugo-put :gnugo-color wait)
       (gnugo--who-is-who wait play samep)))
-  (gnugo--climb-towards-root 1 t))
+  (gnugo--climb-towards-root 1 (case gnugo-undo-reaction
+                                 (zombie gnugo-undo-reaction)
+                                 (t 'one-shot))))
 
 (defun gnugo-undo-two-moves ()
   "Undo a pair of moves (GNU Go's and yours).
