@@ -194,7 +194,11 @@ LOCATION is an integer encoding edge, corner, or center:
 For instance, 4 means \"left edge\", 9 means \"bottom right\".
 
 There is only one location for hoshi: center.  The other five
-types each have all possible locations.  So (+ 1 (* 9 5)) => 46.")
+types each have all possible locations.  So (+ 1 (* 9 5)) => 46.
+
+The value can also be a function (satisfying `functionp') that
+takes one arg, the size of the board, and returns the appropriate
+list of forms.")
 
 ;;;---------------------------------------------------------------------------
 ;;; Variables for the inquisitive programmer
@@ -518,9 +522,12 @@ when you are sure the command cannot fail."
 (defun gnugo-toggle-image-display ()
   (unless (display-images-p)
     (user-error "Display does not support images, sorry"))
-  (let ((fresh (or (gnugo-get :local-xpms)
-                   gnugo-xpms
-                   (user-error "Sorry, `gnugo-xpms' unset"))))
+  (let ((fresh (or (gnguo-get :local-xpms)
+                   (if (functionp gnugo-xpms)
+                       (funcall gnugo-xpms (gnugo-get :SZ))
+                     gnugo-xpms))))
+    (unless fresh
+      (user-error "Sorry, `gnugo-xpms' unset"))
     (unless (eq fresh (gnugo-get :xpms))
       (gnugo-put :xpms fresh)
       (gnugo--forget :all-yy)))

@@ -18,7 +18,9 @@ NB: "RCS: X..Y " means that the particular release includes
     - proper support for ‘-l FILENAME’ / ‘--infile FILENAME’
   - dropped support for ‘gnugo-program’ of form "PROGRAM OPTIONS..."
   - dropped command: ‘t’ (gnugo-toggle-dead-group)
-  - ‘gnugo-xpms’ now a normal var, and not a feature
+  - changes to ‘gnugo-xpms’
+    - now a normal var, and not a feature
+    - value can be a function to compute XPMs
   - PASS for SZ <= 19 normalized to "" on read, written as ""
   - ‘=’ also displays move number of the stone (if any) at that position
   - ‘C-u F’ adds the (abbreviated) blurb as a comment to the last node
