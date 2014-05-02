@@ -66,6 +66,7 @@
 ;;                    `gnugo-animation-string'
 ;;                    `gnugo-mode-line'
 ;;                    `gnugo-X-face' `gnugo-O-face' `gnugo-grid-face'
+;;                    `gnugo-undo-reaction'
 ;;                    `gnugo-xpms'
 ;;   normal hooks:    `gnugo-board-mode-hook'
 ;;                    `gnugo-frolic-mode-hook'
