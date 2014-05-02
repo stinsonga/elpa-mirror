@@ -1897,6 +1897,12 @@ by how many stones)."
     (message "Est.score ... B %s %s | W %s %s | %s"
              black black-captures white white-captures est)))
 
+(defun gnugo--ok-file (filename)
+  (setq default-directory
+        (file-name-directory
+         (expand-file-name filename)))
+  (set-buffer-modified-p nil))
+
 (defun gnugo-write-sgf-file (filename)
   "Save the game history to FILENAME (even if unfinished).
 If FILENAME already exists, Emacs confirms that you wish to overwrite it."
@@ -1905,7 +1911,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
              (not (y-or-n-p "File exists. Continue? ")))
     (user-error "Not writing %s" filename))
   (gnugo/sgf-write-file (gnugo-get :sgf-collection) filename)
-  (set-buffer-modified-p nil))
+  (gnugo--ok-file filename))
 
 (defun gnugo--dance-dance (karma)
   (destructuring-bind (dance btw)
@@ -2000,7 +2006,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
     (gnugo-put :last-user-bpos
       (gnugo-move-history 'bpos (gnugo-get :user-color)))
     (gnugo-refresh t)
-    (set-buffer-modified-p nil)
+    (gnugo--ok-file filename)
     (gnugo--who-is-who wait play samep)))
 
 (defun gnugo--mem-with-played-stone (pos &optional noerror)

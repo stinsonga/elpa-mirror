@@ -36,6 +36,7 @@ NB: "RCS: X..Y " means that the particular release includes
   - GNUGO Board mode now derived from Special mode
   - position arg validated for direct GTP commands ‘undo’, ‘gg-undo’
   - undo commands no longer signal error on overkill
+  - SGF I/O commands change ‘default-directory’
   - performance improvements
   - of interest to hackers (see source, BI => backward incompatible)
     - dropped var: ‘gnugo-inhibit-refresh’ (BI)
