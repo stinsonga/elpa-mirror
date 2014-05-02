@@ -498,7 +498,7 @@ when you are sure the command cannot fail."
                              (t yang)))))
 
 (defun gnugo-toggle-image-display ()
-  (unless (and (fboundp 'display-images-p) (display-images-p))
+  (unless (display-images-p)
     (user-error "Display does not support images, sorry"))
   (require 'gnugo-xpms)
   (unless (and (boundp 'gnugo-xpms) gnugo-xpms)
