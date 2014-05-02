@@ -2331,11 +2331,16 @@ which placed the stone at point."
    (cond ((numberp count) count)
          ((consp count) (car count)))))
 
-(defun gnugo-toggle-image-display-command () ; ugh
-  "Toggle use of images to display the board, then refresh."
-  (interactive)
-  (gnugo-toggle-image-display)
-  (save-excursion (gnugo-refresh)))
+(define-minor-mode gnugo-image-display-mode
+  "If enabled, display the board using images.
+See function `display-images-p' and variable `gnugo-xpms'."
+  :variable
+  ((gnugo-get :display-using-images)
+   .
+   (lambda (bool)
+     (unless (eq bool (gnugo-get :display-using-images))
+       (gnugo-toggle-image-display)
+       (save-excursion (gnugo-refresh))))))
 
 (defsubst gnugo--node-with-played-stone (pos &optional noerror)
   (car (gnugo--mem-with-played-stone pos noerror)))
@@ -2728,7 +2733,7 @@ See `gnugo-board-mode' for a full list of commands."
           ("h"        . gnugo-move-history)
           ("L"        . gnugo-frolic-in-the-leaves)
           ("\C-c\C-l" . gnugo-frolic-in-the-leaves)
-          ("i"        . gnugo-toggle-image-display-command)
+          ("i"        . gnugo-image-display-mode)
           ("w"        . gnugo-worm-stones)
           ("W"        . gnugo-worm-data)
           ("d"        . gnugo-dragon-stones)
