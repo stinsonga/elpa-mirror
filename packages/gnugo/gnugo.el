@@ -321,7 +321,7 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
           using (hash-values val)
           do (push (cons key
                          (case key
-                           ((:xpms :local-xpms)
+                           ((:xpms)
                             (format "hash: %X (%d images)"
                                     (sxhash val)
                                     (length val)))
@@ -522,10 +522,9 @@ when you are sure the command cannot fail."
 (defun gnugo-toggle-image-display ()
   (unless (display-images-p)
     (user-error "Display does not support images, sorry"))
-  (let ((fresh (or (gnguo-get :local-xpms)
-                   (if (functionp gnugo-xpms)
-                       (funcall gnugo-xpms (gnugo-get :SZ))
-                     gnugo-xpms))))
+  (let ((fresh (if (functionp gnugo-xpms)
+                   (funcall gnugo-xpms (gnugo-get :SZ))
+                 gnugo-xpms)))
     (unless fresh
       (user-error "Sorry, `gnugo-xpms' unset"))
     (unless (eq fresh (gnugo-get :xpms))
