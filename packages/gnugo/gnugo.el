@@ -74,9 +74,11 @@
 ;;                    `gnugo-post-move-hook'
 ;;   and the keymap:  `gnugo-board-mode-map'
 ;;
-;; The variable `gnugo-xpms' is a special case.  To set it you need to load
-;; gnugo-xpms.el (http://www.emacswiki.org) or some other library w/ congruent
-;; interface.
+;;
+;; Meta-Meta-Playing (aka Hacking)
+;; -------------------------------
+;;
+;; <http://git.sv.gnu.org/cgit/emacs/elpa.git/tree/packages/gnugo/HACKING>
 
 ;;; Code:
 
