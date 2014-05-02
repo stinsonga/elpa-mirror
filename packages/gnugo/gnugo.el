@@ -176,6 +176,26 @@ any value other than `zombie', is taken as `one-shot'.  Note that
 making GNU Go play will probably result in the recently-liberated
 board position becoming re-occupied.")
 
+(defvar gnugo-xpms nil
+  "List of 46 ((TYPE . LOCATION) . XPM-IMAGE) forms.
+XPM-IMAGE is an image as returned by `create-image' with
+inline data (i.e., property :data with string value).
+
+TYPE is a symbol, one of:
+ hoshi -- unoccupied position with dot
+ empty -- unoccupied position sans dot
+ bpmoku, bmoku -- black stone with and sans highlight point
+ wpmoku, wmoku -- white stone with and sans highlight point
+
+LOCATION is an integer encoding edge, corner, or center:
+ 1 2 3
+ 4 5 6
+ 7 8 9
+For instance, 4 means \"left edge\", 9 means \"bottom right\".
+
+There is only one location for hoshi: center.  The other five
+types each have all possible locations.  So (+ 1 (* 9 5)) => 46.")
+
 ;;;---------------------------------------------------------------------------
 ;;; Variables for the inquisitive programmer
 
@@ -187,9 +207,6 @@ board position becoming re-occupied.")
 (defvar gnugo-option-history nil)
 
 (defvar gnugo-state nil)                ; hint: C-c C-p
-
-(eval-when-compile
-  (defvar gnugo-xpms nil))
 
 (defvar gnugo-frolic-parent-buffer nil)
 (defvar gnugo-frolic-origin nil)
@@ -501,10 +518,9 @@ when you are sure the command cannot fail."
 (defun gnugo-toggle-image-display ()
   (unless (display-images-p)
     (user-error "Display does not support images, sorry"))
-  (require 'gnugo-xpms)
-  (unless (and (boundp 'gnugo-xpms) gnugo-xpms)
-    (user-error "Could not load `gnugo-xpms', sorry"))
-  (let ((fresh (or (gnugo-get :local-xpms) gnugo-xpms)))
+  (let ((fresh (or (gnugo-get :local-xpms)
+                   gnugo-xpms
+                   (user-error "Sorry, `gnugo-xpms' unset"))))
     (unless (eq fresh (gnugo-get :xpms))
       (gnugo-put :xpms fresh)
       (gnugo--forget :all-yy)))

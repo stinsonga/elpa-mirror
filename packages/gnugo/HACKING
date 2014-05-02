@@ -10,7 +10,7 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 * ideas / wishlist
 *** wrap GTP ‘loadsgf’ completely
 *** revamp image support
-***** zonk ‘require’
+***** DONE zonk ‘require’
 ***** define simple API
 *** talk GTP over the network
     (?) pending [[wrap GTP ‘loadsgf’ completely]]
