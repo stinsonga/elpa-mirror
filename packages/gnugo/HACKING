@@ -14,8 +14,6 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 ***** define simple API
 *** talk GTP over the network
     (?) pending [[wrap GTP ‘loadsgf’ completely]]
-*** "assist minor mode" (see gnugo-extra.el for work in progress)
-*** using assist minor mode, gnugo-v-gnugo (ibid)
 *** make gnugo (the external program) support query (read-only) thread
 *** extend GNUGO Board mode to manage another subprocess for analysis only
 *** command ‘C-u =’ to label a position
