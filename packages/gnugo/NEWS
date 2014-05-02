@@ -22,6 +22,7 @@ NB: "RCS: X..Y " means that the particular release includes
     - now a normal var, and not a feature
     - value can be a function to compute XPMs
   - ‘gnugo-image-display-mode’ replaces ‘gnugo-toggle-image-display-command’
+  - ‘gnugo-grid-mode’ replaces ‘gnugo-toggle-grid’
   - PASS for SZ <= 19 normalized to "" on read, written as ""
   - ‘=’ also displays move number of the stone (if any) at that position
   - ‘C-u F’ adds the (abbreviated) blurb as a comment to the last node
