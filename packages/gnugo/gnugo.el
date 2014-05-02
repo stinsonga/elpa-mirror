@@ -567,14 +567,17 @@ when you are sure the command cannot fail."
                       '(1 . 1)))
     (gnugo-put :display-using-images new)))
 
-(defun gnugo-toggle-grid ()
-  "Turn the grid around the board on or off."
-  (interactive)
-  (funcall (if (memq :nogrid buffer-invisibility-spec)
-               'remove-from-invisibility-spec
-             'add-to-invisibility-spec)
+(define-minor-mode gnugo-grid-mode
+  "If enabled, display grid around the board."
+  :variable
+  ((not (memq :nogrid buffer-invisibility-spec))
+   .
+   (lambda (bool)
+     (funcall (if bool
+                  'remove-from-invisibility-spec
+                'add-to-invisibility-spec)
            :nogrid)
-  (save-excursion (gnugo-refresh)))
+     (save-excursion (gnugo-refresh)))))
 
 (defun gnugo-propertize-board-buffer ()
   (erase-buffer)
@@ -2738,7 +2741,7 @@ See `gnugo-board-mode' for a full list of commands."
           ("W"        . gnugo-worm-data)
           ("d"        . gnugo-dragon-stones)
           ("D"        . gnugo-dragon-data)
-          ("g"        . gnugo-toggle-grid)
+          ("g"        . gnugo-grid-mode)
           ("!"        . gnugo-estimate-score)
           (":"        . gnugo-command)
           (";"        . gnugo-command)
