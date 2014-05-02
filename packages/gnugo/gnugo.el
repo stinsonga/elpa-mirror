@@ -72,7 +72,8 @@
 ;;                    `gnugo-frolic-mode-hook'
 ;;                    `gnugo-start-game-hook'
 ;;                    `gnugo-post-move-hook'
-;;   and the keymap:  `gnugo-board-mode-map'
+;;   and the keymaps: `gnugo-board-mode-map'
+;;                    `gnugo-frolic-mode-map'
 ;;
 ;;
 ;; Meta-Meta-Playing (aka Hacking)
