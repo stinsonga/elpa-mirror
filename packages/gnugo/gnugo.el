@@ -516,9 +516,9 @@ when you are sure the command cannot fail."
 
 (defun gnugo-yy (yin yang &optional momentaryp)
   (gnugo-f (format "%d-%s"
-                   yin (cond ((and (consp yang) momentaryp) (cdr yang))
-                             ((consp yang) (car yang))
-                             (t yang)))))
+                   yin (cond ((symbolp yang) yang)
+                             (momentaryp (cdr yang))
+                             (t (car yang))))))
 
 (defun gnugo-toggle-image-display ()
   (unless (display-images-p)
