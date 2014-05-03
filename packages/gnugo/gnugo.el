@@ -1248,6 +1248,17 @@ This fails if the monkey is on the current branch
   (interactive "p")
   (gnugo--vertical n 1))
 
+(defun gnugo-frolic-tip-move ()
+  "Move to the tip of the current branch."
+  (interactive)
+  (gnugo--awakened ((omit line bidx monkey width)
+                    require-valid-branch)
+    (goto-char (point-max))
+    (let ((mnum (gnugo--tree-mnum tree))
+          (node (car (aref ends a))))
+      (re-search-backward (format "^%3d" (gethash node mnum)))
+      (gnugo--move-to-bcol a))))
+
 (defun gnugo-boss-is-near ()
   "Do `bury-buffer' until the current one is not a GNU Board."
   (interactive)
@@ -2703,6 +2714,7 @@ See `gnugo-board-mode' for a full list of commands."
           ("\C-f"       . gnugo-frolic-forward-branch)
           ("\C-p"       . gnugo-frolic-previous-move)
           ("\C-n"       . gnugo-frolic-next-move)
+          ("t"          . gnugo-frolic-tip-move)
           ("j"          . gnugo-frolic-exchange-left)
           ("J"          . gnugo-frolic-rotate-left)
           ("k"          . gnugo-frolic-exchange-right)
