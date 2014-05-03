@@ -275,7 +275,7 @@ you may never really understand to any degree of personal satisfaction\".
                           `gnugo-toggle-image-display' and `gnugo-refresh',
                           as well as gnugo-xpms.el (available elsewhere)
 
- :all-yy -- list of 46 keywords used as the `category' text property
+ :all-yy -- list of 46 symbols used as the `category' text property
             (so that their plists, typically w/ property `display' or
             `do-not-display') are consulted by the Emacs display engine;
             46 = 9 places * (4 moku + 1 empty) + 1 hoshi; see functions
@@ -505,8 +505,11 @@ when you are sure the command cannot fail."
                                (1- letter)))
                            ?A)))))
 
-(defun gnugo-f (frag)
-  (intern (format ":gnugo-%s%s-props" (gnugo-get :diamond) frag)))
+(defun gnugo-f (id)
+  (intern (if (symbolp id)
+              (symbol-name id)
+            id)
+          (gnugo-get :obarray)))
 
 (defun gnugo-yang (c)
   (cdr (assq c '((?+ . hoshi)
@@ -1744,20 +1747,6 @@ its move."
   (when (gnugo-board-buffer-p)
     (unless (zerop (buffer-size))
       (message "Thank you for playing GNU Go."))
-    (mapc (lambda (sym)
-            (setplist sym nil)          ; "...is next to fordliness." --Huxley
-            ;; Sigh, "2nd arg optional" obsolete as of Emacs 23.3.
-            ;; No worries, things will be Much Better w/ structs, RSN...
-            (unintern sym nil))
-          (append (gnugo-get :all-yy)
-                  (mapcar 'gnugo-f
-                          '(anim
-                            tpad
-                            gpad
-                            gspc
-                            lpad
-                            rpad
-                            ispc))))
     (setq gnugo-state nil)))
 
 (defun gnugo-position ()
@@ -2544,6 +2533,7 @@ In this mode, keys do not self insert.
                                (overlay-put ov 'display ")")
                                ov)))
   (gnugo-put :mul '(1 . 1))
+  (gnugo-put :obarray (make-vector 31 nil))
   (add-to-invisibility-spec :nogrid))
 
 ;;;---------------------------------------------------------------------------
