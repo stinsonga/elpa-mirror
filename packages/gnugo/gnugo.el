@@ -2827,8 +2827,9 @@ See `gnugo-board-mode' for a full list of commands."
                       (:discard (note "discards the output"))
                       (:message (note "displays the output in the echo area")))))
                 (when (eq sel cur)
-                  (setq found (match-beginning 0))))))
-          (cond (found (goto-char found))
+                  (setq found (make-marker))
+                  (set-marker found (match-beginning 0))))))
+          (cond (found (goto-char found) (set-marker found nil))
                 ((not sel))
                 (t (message "(no such command: %s)" sel)))))
 
