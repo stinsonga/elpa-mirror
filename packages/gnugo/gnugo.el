@@ -319,31 +319,29 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
   (interactive)
   (let ((buf (current-buffer))
         (d (gnugo-get :diamond))
-        acc)
-    (loop for key being the hash-keys of gnugo-state
-          using (hash-values val)
-          do (push (cons key
-                         (case key
-                           ((:xpms)
-                            (format "hash: %X (%d images)"
-                                    (sxhash val)
-                                    (length val)))
-                           (:sgf-collection
-                            (length val))
-                           (:sgf-gametree
-                            (list (hash-table-count
-                                   (gnugo--tree-mnum val))
-                                  (gnugo--root-node val)
-                                  (gnugo--tree-ends val)))
-                           (:monkey
-                            (let ((mem (aref val 0)))
-                              (list (aref val 1)
-                                    (car mem))))
-                           (t val)))
-                   acc))
+        (acc (loop for key being the hash-keys of gnugo-state
+                   using (hash-values val)
+                   collect (cons key
+                                 (case key
+                                   ((:xpms)
+                                    (format "hash: %X (%d images)"
+                                            (sxhash val)
+                                            (length val)))
+                                   (:sgf-collection
+                                    (length val))
+                                   (:sgf-gametree
+                                    (list (hash-table-count
+                                           (gnugo--tree-mnum val))
+                                          (gnugo--root-node val)
+                                          (gnugo--tree-ends val)))
+                                   (:monkey
+                                    (let ((mem (aref val 0)))
+                                      (list (aref val 1)
+                                            (car mem))))
+                                   (t val))))))
     (switch-to-buffer (get-buffer-create
                        (format "%s*GNUGO Board Properties*"
-                               (gnugo-get :diamond))))
+                               d)))
     (erase-buffer)
     (emacs-lisp-mode)
     (setq truncate-lines t)
