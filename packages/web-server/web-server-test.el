@@ -28,14 +28,14 @@
 (defun ws-test-curl-to-string (url &optional get-params post-params curl-flags)
   "Curl URL with optional parameters."
   (async-shell-command
-   (format "curl -m 4 %s %s %s localhost:%s/%s"
+   (format "curl -s -m 4 %s %s %s localhost:%s/%s"
            (or curl-flags "")
            (if get-params
-               (mapconcat (lambda (p) (format "-d '%s=%s'" (car p) (cdr p)))
+               (mapconcat (lambda (p) (format "-d \"%s=%s\"" (car p) (cdr p)))
                           get-params " ")
              "")
            (if post-params
-               (mapconcat (lambda (p) (format "-s -F '%s=%s'" (car p) (cdr p)))
+               (mapconcat (lambda (p) (format "-F \"%s=%s\"" (car p) (cdr p)))
                           post-params " ")
              "")
            ws-test-port url))
@@ -195,15 +195,26 @@ org=-+one%0A-+two%0A-+three%0A-+four%0A%0A&beg=646&end=667&path=%2Fcomplex.org")
                      "you said \"foo\"\n"))))
 
 (ert-deftest ws/in-directory-p ()
-  (should-not (ws-in-directory-p "/tmp/" "foo/bar/../../../"))
-  (should     (ws-in-directory-p "/tmp/" "foo/bar/../../../tmp/baz"))
-  (should     (ws-in-directory-p "/tmp/" "./"))
-  (should-not (ws-in-directory-p "/tmp/" "/~/pics"))
-  (should-not (ws-in-directory-p "/tmp/" "~/pics"))
-  (should-not (ws-in-directory-p "/tmp/" "/pics"))
-  (should-not (ws-in-directory-p "/tmp/" "../pics"))
-  (should     (ws-in-directory-p "/tmp/" "pics"))
-  (should-not (ws-in-directory-p "/tmp/" "..")))
+  (mapc (lambda (pair)
+          (let ((should-or-not (car pair))
+                (dir (cdr pair)))
+            (message "dir: %S" dir)
+            (should
+             (funcall (if should-or-not #'identity #'not)
+                      (ws-in-directory-p temporary-file-directory dir)))))
+        `((nil . "foo/bar/../../../")
+          (t   . ,(concat
+                   "foo/bar/../../../"
+                   (file-name-nondirectory
+                    (directory-file-name temporary-file-directory))
+                   "/baz"))
+          (t   . "./")
+          (nil . "/~/pics")
+          (nil . "~/pics")
+          (nil . "/pics")
+          (nil . "../pics")
+          (t   . "pics")
+          (nil . ".."))))
 
 (ert-deftest ws/parse-basic-authorization ()
   "Test that a number of headers parse successfully."
