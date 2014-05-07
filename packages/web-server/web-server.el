@@ -4,8 +4,8 @@
 
 ;; Author: Eric Schulte <schulte.eric@gmail.com>
 ;; Maintainer: Eric Schulte <schulte.eric@gmail.com>
-;; Version: 0.1.0
-;; Package-Requires: ((emacs "24.3"))
+;; Version: 0.1.1
+;; Package-Requires: ((emacs "24.4"))
 ;; Keywords: http, server, network
 ;; URL: https://github.com/eschulte/emacs-web-server
 
@@ -98,7 +98,7 @@ port 8080.
   (ws-start
    (lambda (request)
      (with-slots (process headers) request
-       (process-send-string proc
+       (process-send-string process
         \"HTTP/1.1 200 OK\\r\\nContent-Type: text/plain\\r\\n\\r\\nhello world\")))
    8080)
 
@@ -126,6 +126,7 @@ function.
            :server t
            :nowait t
            :family 'ipv4
+           :coding 'no-conversion
            :plist (append (list :server server)
                           (when log (list :log-buffer log)))
            :log (when log
@@ -658,7 +659,9 @@ used to limit the files sent."
 
 (defun ws-in-directory-p (parent path)
   "Check if PATH is under the PARENT directory.
-If so return PATH, if not return nil."
+If so return PATH, if not return nil.  Note: the PARENT directory
+must be full expanded as with `expand-file-name' and should not
+contain e.g., \"~\" for a user home directory."
   (if (zerop (length path))
       parent
     (let ((expanded (expand-file-name path parent)))

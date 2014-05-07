@@ -4,7 +4,15 @@
 #+Options: ^:{}
 
 * Notes
-* Tasks [18/21]
+* Tasks [19/22]
+** DONE pass all tests on Windows [2/2]
+Currently two failing tests.
+
+- [X] ws/simple-post returns "you said nil" instead of "you said foo"
+
+- [X] ws/in-directory-p is failing because it assumes "/tmp" which
+  doesn't work on windows
+
 ** DONE Content and Transfer encodings
 - Content and Transfer encoding values
   http://www.iana.org/assignments/http-parameters/http-parameters.xhtml
