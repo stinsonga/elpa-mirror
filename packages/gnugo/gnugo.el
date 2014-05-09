@@ -80,6 +80,12 @@
 ;; -------------------------------
 ;;
 ;; <http://git.sv.gnu.org/cgit/emacs/elpa.git/tree/packages/gnugo/HACKING>
+;;
+;;
+;; Tip Jar
+;; -------
+;;
+;; <http://www.gnuvola.org/software/gnugo/>
 
 ;;; Code:
 
