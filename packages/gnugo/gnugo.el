@@ -2329,8 +2329,9 @@ Otherwise, undo repeatedly up to and including the move
 which placed the stone at point."
   (interactive "P")
   (gnugo--climb-towards-root
-   (cond ((numberp count) count)
-         ((consp count) (car count)))))
+   (if (numberp count)
+       count
+     (car-safe count))))
 
 (define-minor-mode gnugo-image-display-mode
   "If enabled, display the board using images.
