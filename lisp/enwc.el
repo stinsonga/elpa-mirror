@@ -634,7 +634,6 @@ NETWORKS must be in the format returned by
 		    '("MODE" 15)
 		    '("CHNL" 2))))
 
-    ;;TODO: Setup faces.
     (dolist (nw networks)
       (let ((id (cdr (assoc "id" nw)))
 	    entry)
