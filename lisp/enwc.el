@@ -237,21 +237,25 @@ whether or not ENWC is in wired mode.")
 (defvar enwc-edit-id nil
   "This is the network id of the network being edited.")
 
-(defvar enwc-scan-requested nil)
+(defvar enwc-scan-requested nil
+  "Indicates that a scan has been requested.
+This is used so as to avoid multiple updates of the scan data.")
 
-(defvar enwc-scan-interactive nil)
+(defvar enwc-scan-interactive nil
+  "Indicates that a scan was interactively requested.
+This is only used internally.")
 
 (make-local-variable 'enwc-edit-id)
 ;; The Fonts
 
-(defface enwc-header-face
-  '((((class color) (background light))
-     (:foreground "Blue"))
-    (((class color) (background dark))
-     (:foreground "Blue"))
-    (t (:background "Blue")))
-  "The face for the headers."
-  :group 'enwc)
+;; (defface enwc-header-face
+;;   '((((class color) (background light))
+;;      (:foreground "Blue"))
+;;     (((class color) (background dark))
+;;      (:foreground "Blue"))
+;;     (t (:background "Blue")))
+;;   "The face for the headers."
+;;   :group 'enwc)
 
 (defface enwc-connected-face
   '((((class color) (background dark))
@@ -501,7 +505,8 @@ the scan results."
     (setq enwc-essid-width (1+ enwc-essid-width))
     (setq enwc-scan-done t)
     (if enwc-scan-interactive
-	  (enwc-display-wireless-networks enwc-last-scan))))
+        (enwc-display-wireless-networks enwc-last-scan))
+    (setq enwc-scan-interactive nil)))
 
 (defun enwc-scan-internal-wired ()
   "The scanning routine for a wired connection.
@@ -551,6 +556,12 @@ ENT is the entry, and WIDTH is the column width."
   (insert ent)
   (insert-char 32 (- width (length ent))))
 
+(defmacro enwc-maybe-pretty-entry (entry)
+  `(if (eq cur-id (cdr (assoc "id" nw)))
+       (propertize ,entry
+                   'font-lock-face 'enwc-connected-face)
+     ,entry))
+
 (defun enwc-display-wireless-networks (networks)
   "Displays the networks in the list NETWORKS in the current buffer.
 NETWORKS must be in the format returned by
@@ -579,14 +590,15 @@ NETWORKS must be in the format returned by
 	    entry)
 	(setq entry (list nil
 			  (vector
-			   (number-to-string (cdr (assoc "id" nw)))
-                           (concat (number-to-string (cdr (assoc "quality" nw)))
-				   "%")
-                           (cdr (assoc "essid" nw))
-			   (cdr (assoc "encryption" nw))
-			   (cdr (assoc "bssid" nw))
-			   (cdr (assoc "mode" nw))
-			   (cdr (assoc "channel" nw)))))
+			   (enwc-maybe-pretty-entry (number-to-string (cdr (assoc "id" nw))))
+                           (enwc-maybe-pretty-entry
+                            (concat (number-to-string (cdr (assoc "quality" nw)))
+                                    "%"))
+                           (enwc-maybe-pretty-entry (cdr (assoc "essid" nw)))
+			   (enwc-maybe-pretty-entry (cdr (assoc "encryption" nw)))
+			   (enwc-maybe-pretty-entry (cdr (assoc "bssid" nw)))
+			   (enwc-maybe-pretty-entry (cdr (assoc "mode" nw)))
+			   (enwc-maybe-pretty-entry (cdr (assoc "channel" nw))))))
 	(setq entries (cons entry entries))))
 
     (setq tabulated-list-entries (nreverse entries))
@@ -605,17 +617,19 @@ functions, and checks whether or not ENWC is using wired."
       (enwc-display-wired-networks networks)
     (enwc-display-wireless-networks networks)))
 
-(defun enwc-scan ()
+(defun enwc-scan (&optional nodisp)
   "The frontend of the scanning routine.  Sets up and moves to
-the ENWC buffer if necessary, and scans and displays the networks."
-  (interactive)
-  (setq enwc-scan-interactive t)
+the ENWC buffer if necessary, and scans and displays the networks.
+If NODISP is non-nil, then do not display the results in the ENWC
+buffer."
+  (interactive "p")
+  (if (not nodisp)
+      (setq enwc-scan-interactive t))
   (if (get-buffer "*ENWC*")
       (with-current-buffer "*ENWC*"
 	(if enwc-using-wired
 	    (progn
 	      (enwc-scan-internal)
-	      ;;(enwc-display-networks enwc-last-scan)
 	      (goto-char 0)
 	      (forward-line))
 	  (enwc-scan-internal)))))
@@ -959,9 +973,7 @@ and redisplays the settings from the network profile
 (define-derived-mode enwc-mode tabulated-list-mode "enwc"
   "Mode for working with network connections.
 \\{enwc-mode-map}"
-  ;;(setq buffer-read-only t)
-  (add-hook 'tabulated-list-revert-hook 'enwc-scan nil t)
-  )
+  (add-hook 'tabulated-list-revert-hook 'enwc-scan nil t))
 
 (defun enwc-setup-buffer ()
   "Sets up the ENWC buffer.
@@ -969,12 +981,7 @@ This first checks to see that it exists,
 and if it doesn't, then create it."
   (if (not (get-buffer "*ENWC*"))
       (with-current-buffer (get-buffer-create "*ENWC*")
-	;;(use-local-map enwc-mode-map)
-	;;(setq major-mode 'enwc-mode
-	;;      mode-name "enwc")
-	(enwc-mode)
-	;;(setq buffer-read-only t)
-	))
+	(enwc-mode)))
   (switch-to-buffer "*ENWC*"))
 
 (provide 'enwc)
