@@ -70,6 +70,14 @@ and the first active backend found will be used."
   :group 'enwc
   :type 'list)
 
+(defcustom enwc-display-mode-line 't
+  "Whether or not to use ENWC's modeline display.
+When set to non-nil, this will cause the current
+network signal strength to be displayed on the
+Emacs mode line."
+  :group 'enwc
+  :type 'boolean)
+
 ;;; The function variables for the abstract layer.
 
 (defvar enwc-scan-func nil
@@ -426,6 +434,15 @@ This is initiated during setup, and runs once every second."
 					  "*"
 					(number-to-string str))
 				      "%] "))))
+
+(defun enwc-toggle-display-mode-line ()
+  "Toggles the mode line display."
+  (interactive)
+  (let ((new (not enwc-display-mode-line)))
+    (if new
+        (setq global-mode-string (append global-mode-string '(enwc-display-string)))
+      (setq global-mode-string (delq 'enwc-display-string global-mode-string)))
+    (setq enwc-display-mode-line new)))
 
 ;;;;;;;;;;;;;;;;;;
 ;; Scan internal
