@@ -89,8 +89,7 @@
 						"-get-nw-info"))
 	  enwc-save-nw-settings-func (intern (concat "enwc-"
 						     sym-name
-						     "-save-nw-settings"))
-	  )
+						     "-save-nw-settings")))
     (funcall (intern (concat "enwc-" sym-name "-setup")))))
 
 (defun enwc-setup ()
@@ -100,7 +99,12 @@ on D-Bus."
   (if enwc-display-mode-line
       (setq global-mode-string (append global-mode-string
                                        '(enwc-display-string))))
-  (run-at-time t 1 'enwc-update-mode-line)
+  (setq enwc-display-mode-line-timer 
+        (run-at-time t 1 'enwc-update-mode-line))
+
+  (if (and enwc-auto-scan (> enwc-auto-scan-interval 0))
+      (setq enwc-scan-timer
+            (run-at-time t enwc-auto-scan-interval 'enwc-scan t)))
 
   (let ((cur-back nil)
 	(back-list enwc-backends))

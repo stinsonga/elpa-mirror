@@ -78,6 +78,18 @@ Emacs mode line."
   :group 'enwc
   :type 'boolean)
 
+(defcustom enwc-auto-scan 't
+  "Whether or not to have ENWC automatically scan.
+If non-nil, then ENWC will automatically scan for
+networks every `enwc-auto-scan-interval' seconds."
+  :group 'enwc
+  :type 'boolean)
+
+(defcustom enwc-auto-scan-interval 20
+  "The interval between automatic scans."
+  :group 'enwc
+  :type 'integer)
+
 ;;; The function variables for the abstract layer.
 
 (defvar enwc-scan-func nil
@@ -244,6 +256,12 @@ This is used so as to avoid multiple updates of the scan data.")
 (defvar enwc-scan-interactive nil
   "Indicates that a scan was interactively requested.
 This is only used internally.")
+
+(defvar enwc-display-mode-line-timer nil
+  "The timer that updates the mode line display.")
+
+(defvar enwc-scan-timer nil
+  "The timer for automatic scanning.")
 
 (make-local-variable 'enwc-edit-id)
 ;; The Fonts
@@ -448,6 +466,17 @@ This is initiated during setup, and runs once every second."
       (setq global-mode-string (delq 'enwc-display-string global-mode-string)))
     (setq enwc-display-mode-line new)))
 
+(defun enwc-toggle-auto-scan ()
+  "Toggles automatic scanning.
+This will use the current value of `enwc-auto-scan-interval'."
+  (interactive)
+  (let ((new (not enwc-auto-scan)))
+    (if new
+        (setq enwc-scan-timer
+              (run-at-time t enwc-auto-scan-interval 'enwc-scan t))
+      (cancel-timer enwc-scan-timer))
+    (setq enwc-auto-scan new)))
+
 ;;;;;;;;;;;;;;;;;;
 ;; Scan internal
 ;;;;;;;;;;;;;;;;;;
@@ -456,7 +485,8 @@ This is initiated during setup, and runs once every second."
   "The initial scan routine.
 This initiates a scan using D-Bus, then exits,
 waiting for the callback."
-  (message "Scanning...")
+  (if enwc-scan-interactive
+      (message "Scanning..."))
   (setq enwc-scan-requested t)
   (setq enwc-scan-done nil)
   (enwc-do-scan))
@@ -470,7 +500,8 @@ the scan results."
     (setq enwc-scan-requested nil)
     (let ((cur-id 0)
 	  (nw-prop-list nil))
-      (message "Scanning... Done")
+      (if enwc-scan-interactive
+          (message "Scanning... Done"))
       (setq enwc-access-points (enwc-get-nw)
 	    enwc-essid-width 5)
       (setq nw-prop-list
