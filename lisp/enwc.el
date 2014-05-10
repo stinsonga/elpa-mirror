@@ -456,15 +456,34 @@ This is initiated during setup, and runs once every second."
 					  "*"
 					(number-to-string str))
 				      "%] "))))
+(defun enwc-enable-display-mode-line ()
+  "Enables the mode line display."
+  (interactive)
+  (or global-mode-string (setq global-mode-string '("")))
+  (setq enwc-display-mode-line t)
+  (unless (member 'enwc-display-string
+                  global-mode-string)
+    (setq global-mode-string (append global-mode-string '(enwc-display-string))))
+  (if (not enwc-display-mode-line-timer)
+      (setq enwc-display-mode-line-timer
+            (run-at-time t 1 'enwc-update-mode-line))))
+
+(defun enwc-disable-display-mode-line ()
+  "Disables the mode line display."
+  (interactive)
+  (or global-mode-string (setq global-mode-string '("")))
+  (setq enwc-display-mode-line nil)
+  (setq global-mode-string (remove 'enwc-display-string global-mode-string))
+  (if enwc-display-mode-line-timer
+      (cancel-timer enwc-display-mode-line-timer))
+  (setq enwc-display-mode-line-timer nil))
 
 (defun enwc-toggle-display-mode-line ()
   "Toggles the mode line display."
   (interactive)
-  (let ((new (not enwc-display-mode-line)))
-    (if new
-        (setq global-mode-string (append global-mode-string '(enwc-display-string)))
-      (setq global-mode-string (delq 'enwc-display-string global-mode-string)))
-    (setq enwc-display-mode-line new)))
+  (if (not enwc-display-mode-line)
+      (enwc-enable-display-mode-line)
+    (enwc-disable-display-mode-line)))
 
 (defun enwc-toggle-auto-scan ()
   "Toggles automatic scanning.
@@ -967,8 +986,7 @@ and redisplays the settings from the network profile
 			(cons (cons (car x)
 				    (widget-field-value-get (widget-at)))
 			      nil)))))
-    (print settings)
-
+    ;;(print settings)
     (enwc-save-nw-settings enwc-using-wired enwc-edit-id settings)))
 
 (defun enwc-edit-entry-at-point ()

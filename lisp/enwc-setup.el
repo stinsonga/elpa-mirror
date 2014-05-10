@@ -97,10 +97,16 @@
 This setups ENWC and confirms that one of the backends can be found
 on D-Bus."
   (if enwc-display-mode-line
-      (setq global-mode-string (append global-mode-string
-                                       '(enwc-display-string))))
-  (setq enwc-display-mode-line-timer 
-        (run-at-time t 1 'enwc-update-mode-line))
+      (enwc-enable-display-mode-line)
+      ;; (progn
+      ;;   (unless (member 'enwc-display-string
+      ;;                   global-mode-string)
+      ;;     (setq global-mode-string (append global-mode-string
+      ;;                                      '(enwc-display-string))))
+      ;;   (setq enwc-display-mode-line-timer 
+      ;;         (run-at-time t 1 'enwc-update-mode-line)))
+    )
+  
 
   (if (and enwc-auto-scan (> enwc-auto-scan-interval 0))
       (setq enwc-scan-timer
