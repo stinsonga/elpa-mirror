@@ -3,6 +3,7 @@
 ;; Copyright (C) 2014  Free Software Foundation, Inc.
 
 ;; Author: Thien-Thi Nguyen <ttn@gnu.org>
+;; Maintainer: Thien-Thi Nguyen <ttn@gnu.org>
 ;; Version: 2.3.1
 ;; Package-Requires: ((ascii-art-to-unicode "1.5"))
 
