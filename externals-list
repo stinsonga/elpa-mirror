@@ -32,6 +32,7 @@
  ("ioccur"		:subtree "https://github.com/thierryvolpiatto/ioccur.git")
  ("js2-mode"		:subtree "https://github.com/mooz/js2-mode.git")
  ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
+ ("rudel"		:external "bzr::bzr://rudel.bzr.sourceforge.net/bzrroot/rudel/trunk")
  ("temp-buffer-browse"  :subtree "https://github.com/leoliu/temp-buffer-browse")
  ;;FIXME:("vlf"		:subtree ??)
  ("w3"			:external nil)
