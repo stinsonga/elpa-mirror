@@ -4,6 +4,9 @@ ChangeLog
 core
 packages/*/*-autoloads.el
 packages/*/*-pkg.el
-packages/dismal
-packages/w3
+
+# External packages with their own .git tree.
 packages/auctex
+packages/dismal
+packages/rudel
+packages/w3
