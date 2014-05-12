@@ -363,7 +363,7 @@ Also, when nil, evaluation is interrupted when the user hits a key.")
 (make-variable-buffer-local 'lmc-pc)
 (defvar lmc-acc nil "LMC accumulator.")
 (make-variable-buffer-local 'lmc-acc)
-(defvar lmc-output nil "Past LMC output,")
+(defvar lmc-output nil "Past LMC output.")
 (make-variable-buffer-local 'lmc-output)
 
 (defvar lmc--stopped nil "State where we stopped.")
