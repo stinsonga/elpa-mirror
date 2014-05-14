@@ -90,6 +90,22 @@ networks every `enwc-auto-scan-interval' seconds."
   :group 'enwc
   :type 'integer)
 
+(defcustom enwc-mode-line-format "[%s%%]"
+  "The format for displaying the mode line.
+
+%s = The current signal strength.  If wired, then this is set to
+100.
+
+%e = The essid of the current network.  If wired, then this set to
+'Wired'
+
+%b = The bssid of the current network.  If using a wired connection,
+then this is set to 'Wired'.
+
+%% = A Normal '%'"
+  :group 'enwc
+  :type 'string)
+
 ;;; The function variables for the abstract layer.
 
 (defvar enwc-scan-func nil
@@ -264,16 +280,7 @@ This is only used internally.")
   "The timer for automatic scanning.")
 
 (make-local-variable 'enwc-edit-id)
-;; The Fonts
-
-;; (defface enwc-header-face
-;;   '((((class color) (background light))
-;;      (:foreground "Blue"))
-;;     (((class color) (background dark))
-;;      (:foreground "Blue"))
-;;     (t (:background "Blue")))
-;;   "The face for the headers."
-;;   :group 'enwc)
+;; The Faces
 
 (defface enwc-connected-face
   '((((class color) (background dark))
@@ -288,7 +295,9 @@ This is only used internally.")
 ;; Small helper function.
 
 (defun enwc-detail-to-ident (detail)
-  "Converts detail DETAIL to a constant identifier."
+  "Converts network detail DETAIL to a constant identifier.
+This function is used to synchronize the different backends
+to display consistent results."
   (case (intern detail)
     ((essid Ssid) "essid")
     ((bssid HwAddress) "bssid")
@@ -434,29 +443,51 @@ WIRED indicates whether or not this is a wired connection."
       (enwc-get-wired-nw-prop id prop)
     (enwc-get-wireless-nw-prop id prop)))
 
+(defun enwc-format-mode-line-string ()
+  "Formats the mode line string.
+This is derived from `enwc-mode-line-format'.
+See the documentation for it for more details."
+  (if (enwc-check-connecting-p)
+      "[*]"
+    (let* ((f enwc-mode-line-format)
+           (p 0)
+           (l (length f))
+           (cur-id (enwc-get-current-nw-id))
+           c fin-str)
+      (while (< p l)
+        (setq c (elt f p))
+        (setq p (1+ p))
+        (setq fin-str
+              (concat
+               fin-str
+               (if (not (eq c ?%))
+                   (char-to-string c)
+                 (setq p (1+ p))
+                 (cond
+                  ((eq (elt f (1- p)) ?s)
+                   (if (enwc-is-wired-p)
+                       "100"
+                     (number-to-string
+                      (cdr (assoc "quality" (nth cur-id enwc-last-scan))))))
+                  ((eq (elt f (1- p)) ?e)
+                   (if (enwc-is-wired-p)
+                       "Wired"
+                     (cdr (assoc "essid" (nth cur-id enwc-last-scan)))))
+                  ((eq (elt f (1- p)) ?b)
+                   (if (enwc-is-wired-p)
+                       "wired"
+                     (cdr (assoc "bssid" (nth cur-id enwc-last-scan)))))
+                  ((eq (elt f (1- p)) ?%) "%"))))))
+      fin-str)))
+
 (defun enwc-update-mode-line ()
-  "Updates the mode line with the current network strength.
-If no network is connected, then prints 0%.
-If wired is active, then prints 100%.
-If ENWC is in the process of connecting, then prints *%.
+  "Updates the mode line display.
+This uses the format specified by `enwc-mode-line-format'.
 This is initiated during setup, and runs once every second."
  (let ((cur-id (enwc-get-current-nw-id))
-	(conn (enwc-check-connecting-p))
-	str)
-    (setq str
-	  (if (enwc-is-wired-p)
-	      100
-	    (if (and
-		 (enwc-is-valid-nw-id cur-id)
-		 enwc-last-scan)
-		(cdr (assoc "quality" (nth cur-id enwc-last-scan)))
-	      0)))
-    (setq enwc-display-string (concat " ["
-				      (if conn
-					  "*"
-					(number-to-string str))
-				      "%] "))
-    (force-mode-line-update)))
+       (conn (enwc-check-connecting-p)))
+   (setq enwc-display-string (enwc-format-mode-line-string))
+   (force-mode-line-update)))
 
 (defun enwc-enable-display-mode-line ()
   "Enables the mode line display."
@@ -618,44 +649,45 @@ ENT is the entry, and WIDTH is the column width."
   "Displays the networks in the list NETWORKS in the current buffer.
 NETWORKS must be in the format returned by
 `enwc-scan-internal-wireless'."
-  (if (not (eq major-mode 'enwc-mode))
-	   (enwc-setup-buffer))
+  (if (not (get-buffer "*ENWC*"))
+      (enwc-setup-buffer t))
   (if (not (listp networks))
       (error "NETWORKS must be a list of association lists."))
-  (let ((cur-id (enwc-get-current-nw-id))
-	entries)
-    (let ((header enwc-wireless-headers)
-	  (pos 0))
+  (with-current-buffer (get-buffer "*ENWC*")
+    (let ((cur-id (enwc-get-current-nw-id))
+          entries)
+      (let ((header enwc-wireless-headers)
+            (pos 0))
 
-      (setq tabulated-list-format
-	    (vector '("ID" 2)
-		    '("STR" 4)
-		    `("ESSID" ,enwc-essid-width)
-		    '("ENCRYPT" 9)
-		    '("BSSID" 17)
-		    '("MODE" 15)
-		    '("CHNL" 2))))
+        (setq tabulated-list-format
+              (vector '("ID" 2)
+                      '("STR" 4)
+                      `("ESSID" ,enwc-essid-width)
+                      '("ENCRYPT" 9)
+                      '("BSSID" 17)
+                      '("MODE" 15)
+                      '("CHNL" 2))))
 
-    (dolist (nw networks)
-      (let ((id (cdr (assoc "id" nw)))
-	    entry)
-	(setq entry (list nil
-			  (vector
-			   (enwc-maybe-pretty-entry (number-to-string (cdr (assoc "id" nw))))
-                           (enwc-maybe-pretty-entry
-                            (concat (number-to-string (cdr (assoc "quality" nw)))
-                                    "%"))
-                           (enwc-maybe-pretty-entry (cdr (assoc "essid" nw)))
-			   (enwc-maybe-pretty-entry (cdr (assoc "encryption" nw)))
-			   (enwc-maybe-pretty-entry (cdr (assoc "bssid" nw)))
-			   (enwc-maybe-pretty-entry (cdr (assoc "mode" nw)))
-			   (enwc-maybe-pretty-entry (cdr (assoc "channel" nw))))))
-	(setq entries (cons entry entries))))
+      (dolist (nw networks)
+        (let ((id (cdr (assoc "id" nw)))
+              entry)
+          (setq entry (list nil
+                            (vector
+                             (enwc-maybe-pretty-entry (number-to-string (cdr (assoc "id" nw))))
+                             (enwc-maybe-pretty-entry
+                              (concat (number-to-string (cdr (assoc "quality" nw)))
+                                      "%"))
+                             (enwc-maybe-pretty-entry (cdr (assoc "essid" nw)))
+                             (enwc-maybe-pretty-entry (cdr (assoc "encryption" nw)))
+                             (enwc-maybe-pretty-entry (cdr (assoc "bssid" nw)))
+                             (enwc-maybe-pretty-entry (cdr (assoc "mode" nw)))
+                             (enwc-maybe-pretty-entry (cdr (assoc "channel" nw))))))
+          (setq entries (cons entry entries))))
 
-    (setq tabulated-list-entries (nreverse entries))
-    (tabulated-list-init-header)
+      (setq tabulated-list-entries (nreverse entries))
+      (tabulated-list-init-header)
 
-    (tabulated-list-print)))
+      (tabulated-list-print))))
 
 (defun enwc-display-networks (networks)
   "Displays the network in NETWORKS.  This is an entry to the display
@@ -1025,14 +1057,18 @@ and redisplays the settings from the network profile
 \\{enwc-mode-map}"
   (add-hook 'tabulated-list-revert-hook 'enwc-scan nil t))
 
-(defun enwc-setup-buffer ()
+(defun enwc-setup-buffer (&optional nomove)
   "Sets up the ENWC buffer.
 This first checks to see that it exists,
-and if it doesn't, then create it."
+and if it doesn't, then create it.
+
+If NOMOVE is non-nil, then do not move to the
+newly created buffer."
   (if (not (get-buffer "*ENWC*"))
       (with-current-buffer (get-buffer-create "*ENWC*")
 	(enwc-mode)))
-  (switch-to-buffer "*ENWC*"))
+  (if (not nomove)
+      (switch-to-buffer "*ENWC*")))
 
 (provide 'enwc)
 
