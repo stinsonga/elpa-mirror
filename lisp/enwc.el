@@ -455,7 +455,9 @@ This is initiated during setup, and runs once every second."
 				      (if conn
 					  "*"
 					(number-to-string str))
-				      "%] "))))
+				      "%] "))
+    (force-mode-line-update)))
+
 (defun enwc-enable-display-mode-line ()
   "Enables the mode line display."
   (interactive)
