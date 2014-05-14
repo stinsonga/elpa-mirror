@@ -1,6 +1,6 @@
 ;;; enwc-nm.el - The NetworkManager backend to ENWC
 
-;; Copyright (C) 2012,2013,2014 Free Software Foundation
+;; Copyright (C) 2012,2013,2014 Free Software Foundation, Inc.
 
 ;; Author: Ian Dunn
 ;; Keywords: enwc, network, wicd, manager, nm
@@ -257,7 +257,6 @@ This returns a list of D-Bus paths to the access points."
 		    enwc-nm-dbus-service
 		    enwc-nm-wireless-dev
 		    enwc-nm-dbus-wireless-interface
-
 		    "GetAccessPoints"))
 
 ;; Accesspoint

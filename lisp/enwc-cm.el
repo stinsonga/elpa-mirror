@@ -1,6 +1,6 @@
 ;; enwc-cm.el
 
-;; Copyright (C) 2012,2013 Free Software Foundation
+;; Copyright (C) 2012,2013,2014 Free Software Foundation, Inc.
 
 ;; Author: Ian Dunn
 ;; Keywords: enwc, network, wicd, manager, nm
@@ -31,7 +31,6 @@
 ;; check-connecting
 ;; get-current-nw-id
 
-
 (require 'enwc)
 
 (defgroup enwc-cm nil
@@ -43,7 +42,6 @@
   "ConnMan D-Bus service."
   :group 'enwc-cm
   :type 'string)
-
 
 ;; DEMAND TO SEE LIFE'S MANAGER!!
 

@@ -1,6 +1,6 @@
 ;; enwc-setup.el - Setup routines for ENWC
 
-;; Copyright (C) 2012,2013,2014 Free Software Foundation
+;; Copyright (C) 2012,2013,2014 Free Software Foundation, Inc.
 
 ;; Author: Ian Dunn
 ;; Keywords: enwc, network, wicd, manager, nm
@@ -97,16 +97,7 @@
 This setups ENWC and confirms that one of the backends can be found
 on D-Bus."
   (if enwc-display-mode-line
-      (enwc-enable-display-mode-line)
-      ;; (progn
-      ;;   (unless (member 'enwc-display-string
-      ;;                   global-mode-string)
-      ;;     (setq global-mode-string (append global-mode-string
-      ;;                                      '(enwc-display-string))))
-      ;;   (setq enwc-display-mode-line-timer 
-      ;;         (run-at-time t 1 'enwc-update-mode-line)))
-    )
-  
+      (enwc-enable-display-mode-line))
 
   (if (and enwc-auto-scan (> enwc-auto-scan-interval 0))
       (setq enwc-scan-timer

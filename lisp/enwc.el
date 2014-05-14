@@ -1,6 +1,6 @@
 ;;; enwc.el --- The Emacs Network Client
 
-;; Copyright (C) 2012,2013,2014 Free Software Foundation
+;; Copyright (C) 2012,2013,2014 Free Software Foundation, Inc.
 
 ;; Author: Ian Dunn
 ;; Keywords: enwc, network, wicd, manager, nm
@@ -447,47 +447,49 @@ WIRED indicates whether or not this is a wired connection."
   "Formats the mode line string.
 This is derived from `enwc-mode-line-format'.
 See the documentation for it for more details."
-  (if (enwc-check-connecting-p)
-      "[*]"
-    (let* ((f enwc-mode-line-format)
-           (p 0)
-           (l (length f))
-           (cur-id (enwc-get-current-nw-id))
-           c fin-str)
-      (while (< p l)
-        (setq c (elt f p))
-        (setq p (1+ p))
-        (setq fin-str
-              (concat
-               fin-str
-               (if (not (eq c ?%))
-                   (char-to-string c)
-                 (setq p (1+ p))
+  (let* ((f enwc-mode-line-format)
+         (p 0)
+         (l (length f))
+         (cur-id (enwc-get-current-nw-id))
+         c fin-str)
+    (while (< p l)
+      (setq c (elt f p))
+      (setq p (1+ p))
+      (setq fin-str
+            (concat
+             fin-str
+             (if (not (eq c ?%))
+                 (char-to-string c)
+               (setq p (1+ p))
+               (cond
+                ((eq (elt f (1- p)) ?s)
                  (cond
-                  ((eq (elt f (1- p)) ?s)
-                   (if (enwc-is-wired-p)
-                       "100"
-                     (number-to-string
-                      (cdr (assoc "quality" (nth cur-id enwc-last-scan))))))
-                  ((eq (elt f (1- p)) ?e)
-                   (if (enwc-is-wired-p)
-                       "Wired"
-                     (cdr (assoc "essid" (nth cur-id enwc-last-scan)))))
-                  ((eq (elt f (1- p)) ?b)
-                   (if (enwc-is-wired-p)
-                       "wired"
-                     (cdr (assoc "bssid" (nth cur-id enwc-last-scan)))))
-                  ((eq (elt f (1- p)) ?%) "%"))))))
-      fin-str)))
+                  ((enwc-is-wired-p) "100")
+                  ((not (enwc-is-valid-nw-id cur-id)) "0")
+                  ((enwc-check-connecting-p) "*")
+                  (t (number-to-string
+                      (cdr (assoc "quality" (nth cur-id enwc-last-scan)))))))
+                ((eq (elt f (1- p)) ?e)
+                 (cond
+                  ((enwc-is-wired-p) "Wired")
+                  ((or (not (enwc-is-valid-nw-id cur-id))
+                       (enwc-check-connecting-p)) "None")
+                  (t (cdr (assoc "essid" (nth cur-id enwc-last-scan))))))
+                ((eq (elt f (1- p)) ?b)
+                 (cond
+                  ((enwc-is-wired-p) "wired")
+                  ((or (not (enwc-is-valid-nw-id cur-id))
+                       (enwc-check-connecting-p)) "none")
+                  (t (cdr (assoc "bssid" (nth cur-id enwc-last-scan))))))
+                ((eq (elt f (1- p)) ?%) "%"))))))
+    fin-str))
 
 (defun enwc-update-mode-line ()
   "Updates the mode line display.
 This uses the format specified by `enwc-mode-line-format'.
 This is initiated during setup, and runs once every second."
- (let ((cur-id (enwc-get-current-nw-id))
-       (conn (enwc-check-connecting-p)))
-   (setq enwc-display-string (enwc-format-mode-line-string))
-   (force-mode-line-update)))
+  (setq enwc-display-string (enwc-format-mode-line-string))
+  (force-mode-line-update))
 
 (defun enwc-enable-display-mode-line ()
   "Enables the mode line display."
@@ -536,7 +538,10 @@ This will use the current value of `enwc-auto-scan-interval'."
 (defun enwc-scan-internal-wireless ()
   "The initial scan routine.
 This initiates a scan using D-Bus, then exits,
-waiting for the callback."
+waiting for the callback.
+
+All back-ends must call enwc-process-scan in some way
+upon completion of a scan."
   (if enwc-scan-interactive
       (message "Scanning..."))
   (setq enwc-scan-requested t)
@@ -690,8 +695,9 @@ NETWORKS must be in the format returned by
       (tabulated-list-print))))
 
 (defun enwc-display-networks (networks)
-  "Displays the network in NETWORKS.  This is an entry to the display
-functions, and checks whether or not ENWC is using wired."
+  "Displays the network in NETWORKS.
+This is an entry to the display functions,
+and checks whether or not ENWC is using wired."
   (if (not (eq major-mode 'enwc-mode))
       (enwc-setup-buffer))
   (if (not (listp networks))
