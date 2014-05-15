@@ -465,7 +465,8 @@ See the documentation for it for more details."
                 ((eq (elt f (1- p)) ?s)
                  (cond
                   ((enwc-is-wired-p) "100")
-                  ((not (enwc-is-valid-nw-id cur-id)) "0")
+                  ((or (not (enwc-is-valid-nw-id cur-id))
+                       (not enwc-last-scan))"0")
                   ((enwc-check-connecting-p) "*")
                   (t (number-to-string
                       (cdr (assoc "quality" (nth cur-id enwc-last-scan)))))))
@@ -473,13 +474,15 @@ See the documentation for it for more details."
                  (cond
                   ((enwc-is-wired-p) "Wired")
                   ((or (not (enwc-is-valid-nw-id cur-id))
-                       (enwc-check-connecting-p)) "None")
+                       (enwc-check-connecting-p)
+                       (not enwc-last-scan)) "None")
                   (t (cdr (assoc "essid" (nth cur-id enwc-last-scan))))))
                 ((eq (elt f (1- p)) ?b)
                  (cond
                   ((enwc-is-wired-p) "wired")
                   ((or (not (enwc-is-valid-nw-id cur-id))
-                       (enwc-check-connecting-p)) "none")
+                       (enwc-check-connecting-p)
+                       (not enwc-last-scan)) "none")
                   (t (cdr (assoc "bssid" (nth cur-id enwc-last-scan))))))
                 ((eq (elt f (1- p)) ?%) "%"))))))
     fin-str))
