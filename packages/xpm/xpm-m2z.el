@@ -38,9 +38,9 @@
 Both CX and CY must be non-integer, preferably
 precisely half-way between integers, e.g., 13/2 => 6.5.
 The ellipse is represented as a list of unique XPM coords,
-with the \"span\", i.e., (- HI LO -1) of the extreme X and Y
-components is equal to twice the rounded (to integer) value
-of RX and RY, respectively.  For example:
+with the \"span\", i.e., (- HI LO -1), of the extreme X and Y
+components equal to twice the rounded (to integer) value of
+RX and RY, respectively.  For example:
 
  (xpm-m2z-ellipse 1.5 3.5 5.8 4.2)
  => list of length 20
