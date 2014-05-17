@@ -1,0 +1,34 @@
+HACKING xpm.el (et al)                                     -*- org -*-
+
+This file is both a guide for newcomers and a todo list for oldstayers.
+
+* ideas / wishlist
+*** add xpm-mode for interactive use
+***** hide/show header lines
+***** palette
+******* hide/show
+******* display each PX in associated color (loses for ‘s’-only)
+******* display as table (conserve vertical space)
+******* add state "current px", commands to set it
+***** hide/show sides
+*** composition facilities
+***** multilevel congruence
+******* dimensions only
+******* palette not None
+******* palette subset
+******* full palette
+***** destructive (2-op) vs non-destructive (3-op)
+***** customizable pixel-compose fn
+*** misc functionality
+***** validate palette-data correspondance
+***** import from rectangle
+******* as-is (dangerous)
+******* w/ char-to-px quantization
+* etc
+#+odd
+
+
+Copyright (C) 2014  Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted provided the copyright notice and this notice are preserved.
