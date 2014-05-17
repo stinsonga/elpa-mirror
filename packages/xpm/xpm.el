@@ -330,13 +330,14 @@ see variable `xpm-raster-inhibit-continuity-optimization'."
                 nin (make-bool-vector len nil)
                 ext (make-bool-vector len t)))
         (loop
-         with (in-map-ok
+         with (ls
+               in-map-ok
                in-map)
-         for y below h
-         for unsorted across v
-         when unsorted
+         for y from (1- y-min) to y-max
+         when (setq ls (and (< -1 y)
+                            (> h y)
+                            (sort (aref v y) '>)))
          do (loop
-             with ls = (sort unsorted '>)
              with acc = (list (car ls))
              for maybe in (cdr ls)
              do (let* ((was (car acc))
