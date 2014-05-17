@@ -325,9 +325,10 @@ see variable `xpm-raster-inhibit-continuity-optimization'."
                        when (aref bv i)
                        return yes
                        finally return no)))
-        (setq int (make-bool-vector (span x-min x-max) nil)
-              nin (make-bool-vector (span x-min x-max) nil)
-              ext (make-bool-vector (span x-min x-max) t))
+        (let ((len (span x-min x-max)))
+          (setq int (make-bool-vector len nil)
+                nin (make-bool-vector len nil)
+                ext (make-bool-vector len t)))
         (loop
          with (in-map-ok
                in-map)
