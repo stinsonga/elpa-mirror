@@ -1,0 +1,5 @@
+.elpaignore
+chess-eco.pos
+chess-test.el
+chess.texi
+Makefile
