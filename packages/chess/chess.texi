@@ -1,0 +1,1576 @@
+\input texinfo  @c -*-texinfo-*-
+
+@c Documentation for Chess.el.
+@c Copyright (C) 2001, 2002 John Wiegley.
+
+@c This file is free software; you can redistribute it and/or modify it
+@c under the terms of the GNU General Public License as published by the
+@c Free Software Foundation; either version 2 of the License, or (at
+@c your option) any later version.
+
+@c This file is distributed in the hope that it will be useful, but
+@c WITHOUT ANY WARRANTY; without even the implied warraonty of
+@c MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+@c General Public License for more details.
+
+@c You should have received a copy of the GNU General Public License
+@c along with Eshell; see the file COPYING.  If not, write to the Free
+@c Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+
+@c %**start of header
+@setfilename chess.info
+@settitle Emacs Chess: chess.el
+@c %**end of header
+
+@dircategory Emacs
+@direntry
+* Chess: (chess).     Chess.el is an Emacs chess client.
+@end direntry
+@setchapternewpage on
+
+@ifinfo
+Copyright @copyright{} 2001, 2002 John Wiegley.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation.
+@end ifinfo
+
+@synindex vr fn
+@c The titlepage section does not appear in the Info file.
+@titlepage
+@sp 4
+@c The title is printed in a large font.
+@center @titlefont{User's Guide}
+@sp 1
+@center @titlefont{to}
+@sp 1
+@center @titlefont{Emacs Chess: chess.el}
+@ignore
+@sp 2
+@center release 2.0
+@c -release-
+@end ignore
+@sp 3
+@center John Wiegley
+@c -date-
+
+@c  The following two commands start the copyright page for the printed
+@c  manual.  This will not appear in the Info file.
+@page
+@vskip 0pt plus 1filll
+Copyright @copyright{} 2001, 2002 John Wiegley.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation.
+@end titlepage
+
+@contents
+
+@c ================================================================
+@c                   The real text starts here
+@c ================================================================
+
+@ifinfo
+@node Top, The chess.el library, (dir), (dir)
+@top Emacs Chess: chess.el
+
+Chess.el is an Emacs chess client and library, designed to be used for
+writing chess-related programs, or for playing games of chess against
+various chess engines, including Internet servers.  The library can be
+used for analyzing variations, browsing historical games, or a
+multitude of other purposes.
+
+The purpose of this manual is to help you understand how Chess.el is
+structured for use as a library, and also how to use it as a client.
+@end ifinfo
+
+@menu
+* The chess.el library::        
+* Modules::                     
+* Chessboard displays::         
+* Engines::                     
+* Internet Chess Servers::      
+* Concept Index::               
+* Function and Variable Index::  
+* Key Index::                   
+@end menu
+
+@node The chess.el library, Modules, Top, Top
+@chapter The chess.el library
+@cindex library
+
+@menu
+* Positions::                   
+* Plies::                       
+* Variations::                  
+* Games::                       
+* Collections::                 
+@end menu
+
+@node Positions, Plies, The chess.el library, The chess.el library
+@section Positions
+
+A chess @dfn{position} is a given layout of pieces on a chess board,
+also reflecting which side is next to move, and what privileges are
+currently available to each side (castling short or long, en passant
+capture, etc).
+
+A position may be represented in ASCII using FEN (or EPD) notation, or
+graphically by displaying a chess board.  It is rather inconvenient to
+render them verbally.
+
+The position can be represented on a remote terminal using X windows, or
+by transmitting the FEN string via a network connection, or clipboard,
+to another chess board rendering tool.  It may of course also be
+represented physically, by setting up the pieces to match the FEN
+notation.
+
+Chess puzzles are most often provided as a set of positions.
+
+@menu
+* Creating positions::          
+* Position coordinates::        
+* Position details::            
+* Annotations::                 
+* FEN notation::                
+* EPD notation::                
+@end menu
+
+@node Creating positions, Position coordinates, Positions, Positions
+@subsection Creating positions
+
+@c lispfun chess-pos-create
+
+@defun chess-pos-create &optional blank
+Create a new chess position, set at the starting position.
+If @var{blank} is non-nil, all of the squares will be empty.
+The current side-to-move is always white.
+@end defun
+
+@c lispfun chess-pos-copy
+
+@defun chess-pos-copy position
+Copy the given chess @var{position}.
+If there are annotations or @var{epd} opcodes set, these lists are copied as
+well, so that the two positions do not share the same lists.
+@end defun
+
+@defvar chess-starting-position
+Starting position of a chess game.
+@end defvar
+
+@c lispfun chess-fischer-random-position
+
+@defun chess-fischer-random-position 
+Generate a Fischer Random style position.
+@end defun
+
+@node Position coordinates, Position details, Creating positions, Positions
+@subsection Position coordinates
+
+First of all, a coordinate system of octal indices is
+used, where ?\044 signifies rank 4 file 4 (i.e., "e4").  Rank is
+numbered 0 to 7, top to bottom, and file is 0 to 7, left to right.
+
+@c lispfun chess-index-rank
+
+@defun chess-index-rank index
+Return the rank component of the given @var{index}.
+@end defun
+
+@c lispfun chess-index-file
+
+@defun chess-index-file index
+Return the file component of the given @var{index}.
+@end defun
+
+@c lispfun chess-rf-to-index
+
+@defun chess-rf-to-index rank file
+Convert @var{rank} and @var{file} coordinates into an octal index.
+@end defun
+
+For those who wish to use ASCII coordinates, such as "e4", there
+are two conversion functions:
+
+@c lispfun chess-coord-to-index
+
+@defun chess-coord-to-index coord
+Convert a @var{coord} string into an index value.
+@end defun
+
+@c lispfun chess-index-to-coord
+
+@defun chess-index-to-coord index
+Convert the chess position @var{index} into a coord string.
+@end defun
+
+There is also one helper function for iterative changes of an index:
+
+@c lispfun chess-incr-index
+
+@defun chess-incr-index index rank-move file-move
+Create a new @var{index} from an old one, by adding @var{rank-move} and @var{file-move}.
+@end defun
+
+@node Position details, Annotations, Position coordinates, Positions
+@subsection Position details
+
+With an octal index value, you can look up what's on a particular
+square, or set that square's value:
+
+@c lispfun chess-pos-piece
+
+@defun chess-pos-piece position index
+Return the piece on @var{position} at @var{index}.
+@end defun
+
+@c lispfun chess-pos-piece-p
+
+@defun chess-pos-piece-p position index piece-or-color
+Return non-nil if at @var{position}/@var{index} there is the given @var{piece-or-color}.
+If @var{piece-or-color} is t for white or nil for black, any piece of that
+color will do.
+@end defun
+
+@c lispfun chess-pos-set-piece
+
+@defun chess-pos-set-piece position index piece
+Set the piece on @var{position} at @var{index} to @var{piece}.
+@var{piece} must be one of K Q N B R or P.  Use lowercase to set black
+pieces.
+@end defun
+
+@c lispfun chess-pos-search
+
+@defun chess-pos-search position piece-or-color
+Look on @var{position} anywhere for @var{piece-or-color}, returning all coordinates.
+If @var{piece-or-color} is t for white or nil for black, any piece of that
+color will do.
+@end defun
+
+@c lispfun chess-search-position
+
+@defun chess-search-position position target piece &optional check-only no-castling
+Look on @var{position} from @var{target} for a @var{piece} that can move there.
+This routine looks along legal paths of movement for @var{piece}.  It
+differs from `chess-pos-search', which is a more basic function that
+doesn't take piece movement into account.
+
+If @var{piece} is t or nil, legal piece movements for any piece of that
+color will be considered (t for white, nil for black).  Otherwise, the
+case of the @var{piece} determines color.
+
+The return value is a list of candidates, which means a list of
+indices which indicate where a piece may have moved from.
+
+If @var{check-only} is non-nil and @var{piece} is either t or nil, only consider
+pieces which can give check (not the opponents king).
+If @var{no-castling} is non-nil, do not consider castling moves.
+@end defun
+
+@c lispfun chess-pos-can-castle
+
+@defun chess-pos-can-castle position side
+Return whether the king on @var{position} can castle on @var{side}.
+@var{side} must be either ?K for the kingside, or ?Q for the queenside (use
+lowercase to query if black can castle).
+@end defun
+
+@c lispfun chess-pos-set-can-castle
+
+@defun chess-pos-set-can-castle position side value
+Set whether the king can castle on the given @var{position} on @var{side}.
+
+See `chess-pos-can-castle'.
+
+It is only necessary to call this function if setting up a position
+manually.  Note that all newly created positions have full castling
+priveleges set, unless the position is created blank, in which case
+castling priveleges are unset.  See `chess-pos-copy'.
+@end defun
+
+@c lispfun chess-pos-en-passant
+
+@defun chess-pos-en-passant position
+Return the index of any pawn on @var{position} that can be captured en passant.
+Returns nil if en passant is unavailable.
+@end defun
+
+@c lispfun chess-pos-set-en-passant
+
+@defun chess-pos-set-en-passant position index
+Set the index of any pawn on @var{position} that can be captured en passant.
+@end defun
+
+@c lispfun chess-pos-status
+
+@defun chess-pos-status position
+Return whether the side to move in the @var{position} is in a special state.
+nil is returned if not, otherwise one of the symbols: `check',
+`checkmate', `stalemate'.
+@end defun
+
+@c lispfun chess-pos-set-status
+
+@defun chess-pos-set-status position value
+Set whether the side to move in @var{position} is in a special state.
+@var{value} should either be nil, to indicate that the @var{position} is normal,
+or one of the symbols: `check', `checkmate', `stalemate'.
+@end defun
+
+@c lispfun chess-pos-side-to-move
+
+@defun chess-pos-side-to-move position
+Return the color whose move it is in @var{position}.
+@end defun
+
+@c lispfun chess-pos-set-side-to-move
+
+@defun chess-pos-set-side-to-move position color
+Set the color whose move it is in @var{position}.
+@end defun
+
+@c lispfun chess-pos-passed-pawns
+
+@defun chess-pos-passed-pawns position color &optional pawn-indices
+If @var{color} has Passed Pawns in @var{position}, return a list of their indices.
+Optionally, if @var{indices} is non-nil those indices are considered as candidates.
+
+A Pawn whose advance to the eighth rank is not blocked by an
+opposing Pawn in the same file and who does not have to pass one
+on an adjoining file is called a passed Pawn.
+@end defun
+
+@defvar chess-pos-always-white
+When set, it is assumed that white is always on move.
+This is really only useful when setting up training positions.
+This variable automatically becomes buffer-local when changed.
+@end defvar
+
+@c lispfun chess-pos-move
+
+@defun chess-pos-move position &rest changes
+Move a piece on the @var{position} directly, using the indices in @var{changes}.
+This function does not check any rules, it only makes sure you are not
+trying to move a blank square.
+@end defun
+
+@node Annotations, FEN notation, Position details, Positions
+@subsection Annotations
+
+@c lispfun chess-pos-annotations
+
+@defun chess-pos-annotations position
+Return the list of annotations for this position.
+@end defun
+
+@c lispfun chess-pos-add-annotation
+
+@defun chess-pos-add-annotation position annotation
+Add an annotation for this position.
+@end defun
+
+@node FEN notation, EPD notation, Annotations, Positions
+@subsection FEN notation
+
+FEN notation encodes a chess position using a simple string.  The
+format is:
+
+   POSITION SIDE CASTLING EN-PASSANT
+
+The POSITION gives all eight ranks, by specifying a letter for each
+piece on the position, and a number for any intervening spaces.
+Trailing spaces need not be counted.  Uppercase letters signify
+white, and lowercase black.  For example, if your position only had
+a black king on d8, your POSITION string would be:
+
+  3k////////
+
+For the three spaces (a, b and c file), the black king, and then
+all the remaining ranks (which are all empty, so their spaces can
+be ignored).
+
+The SIDE is w or b, to indicate whose move it is.
+
+CASTLING can contain K, Q, k or q, to signify whether the white or
+black king can still castle on the king or queen side.  EN-PASSANT
+signifies the target sqaure of an en passant capture, such as "e3" or "a6".
+
+The starting chess position always looks like this:
+
+  rnbqkbnr/pppppppp/////PPPPPPPP/RNBQKBNR/ w KQkq -
+
+And in "full" mode (where all spaces are accounted for):
+
+  rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -
+
+@c lispfun chess-fen-to-pos
+
+@defun chess-fen-to-pos fen
+Convert a @var{fen-}like notation string to a chess position.
+@end defun
+
+@c lispfun chess-pos-to-fen
+
+@defun chess-pos-to-fen position &optional full
+Convert a chess @var{position} to @var{fen-}like notation.
+If @var{full} is non-nil, represent trailing spaces as well.
+@end defun
+
+@node EPD notation,  , FEN notation, Positions
+@subsection EPD notation
+
+EPD is "Extended Position Description"; it is a standard for describing chess
+positions along with an extended set of structured attribute values using the
+ASCII character set.  It is intended for data and command interchange among
+chessplaying programs.  It is also intended for the representation of portable
+opening library repositories.
+
+A single EPD uses one text line of variable length composed of four data field
+followed by zero or more operations.  The four fields of the EPD specification
+are the same as the first four fields of the FEN specification.
+
+A text file composed exclusively of EPD data records should have a file name
+with the suffix ".epd".
+
+@c lispfun chess-epd-to-pos
+
+@defun chess-epd-to-pos &optional string
+Convert extended position description to a chess position.
+If @var{string} is not specified, look for an @var{epd} string in the current buffer,
+and advance point after the correctly parsed position.
+@end defun
+
+@c lispfun chess-pos-to-epd
+
+@defun chess-pos-to-epd position
+Convert a chess @var{position} to a string representation in extended
+position description format.
+@end defun
+
+@c lispfun chess-epd-read-file
+
+@defun chess-epd-read-file file
+Return a list of positions contained in @var{file}.
+@end defun
+
+@menu
+* Operations::                  
+* Opcode "acd" analysis count depth::  
+* Opcode "acn" analysis count nodes::  
+* Opcode "acs" analysis count seconds::  
+* Opcode "am" avoid move(s)::   
+* Opcode "bm" best move(s)::    
+@end menu
+
+@node Operations, Opcode "acd" analysis count depth, EPD notation, EPD notation
+@subsubsection Operations
+
+An EPD operation is composed of an opcode followed by zero or more operands and
+is concluded by a semicolon.
+
+Multiple operations are separated by a single space character.  If there is at
+least one operation present in an EPD line, it is separated from the last
+(fourth) data field by a single space character.
+
+Some opcodes that allow for more than one operand may have special ordering
+requirements for the operands.  For example, the "pv" (predicted variation)
+opcode requires its operands (moves) to appear in the order in which they would
+be played.  All other opcodes that allow for more than one operand should have
+operands appearing in ASCII order.  An example of the latter set is the "bm"
+(best move[s]) opcode; its operands are moves that are all immediately playable
+from the current position.
+
+@node Opcode "acd" analysis count depth, Opcode "acn" analysis count nodes, Operations, EPD notation
+@subsubsection Opcode "acd" analysis count depth
+
+The opcode "acd" takes a single non-negative integer operand.  It is used to
+represent the ply depth examined in an analysis.
+
+@node Opcode "acn" analysis count nodes, Opcode "acs" analysis count seconds, Opcode "acd" analysis count depth, EPD notation
+@subsubsection Opcode "acn" analysis count nodes
+
+The opcode "acn" takes a single non-negative integer operand.  It is used to
+represent the number of nodes examined in an analysis.  Note that the value may
+be quite large for some extended searches and so use of (at least) a long (four
+byte) representation is suggested.
+
+@node Opcode "acs" analysis count seconds, Opcode "am" avoid move(s), Opcode "acn" analysis count nodes, EPD notation
+@subsubsection Opcode "acs" analysis count seconds
+
+The opcode "acs" takes a single non-negative integer operand.  It is used to
+represent the number of seconds used for an analysis.  Note that the value may
+be quite large for some extended searches and so use of (at least) a long (four
+byte) representation is suggested.
+
+@node Opcode "am" avoid move(s), Opcode "bm" best move(s), Opcode "acs" analysis count seconds, EPD notation
+@subsubsection Opcode "am" avoid move(s)
+
+The opcode "am" indicates a set of zero or more moves, all immediately playable
+from the current position, that are to be avoided in the opinion of the EPD
+writer.  Each operand is a SAN move; they appear in ASCII order.
+
+@node Opcode "bm" best move(s),  , Opcode "am" avoid move(s), EPD notation
+@subsubsection Opcode "bm" best move(s)
+
+The opcode "bm" indicates a set of zero or more moves, all immediately playable
+from the current position, that are judged to the best available by the EPD
+writer.  Each operand is a SAN move; they appear in ASCII order.
+
+@node Plies, Variations, Positions, The chess.el library
+@section Plies
+
+A @dfn{ply} is the differential between two positions.  Or, it is the
+coordinate transformations applied to one position in order to arrive at
+the following position.  It is also informally called "a move".
+
+A ply may be represented in ASCII by printing the FEN string of the base
+position, and then printing the positional transformation in algebraic
+notation.  Since the starting position is usually known, the FEN string
+is optional.  A ply may be represented graphically by moving the chess
+piece(s) involved.  It may be rendered verbally by voicing which piece
+is to move, where it will move to, and what will happen a result of the
+move (piece capture, check, etc).
+
+Plies may be sent over network connections, postal mail, e-mail, etc.,
+so long as the current position is maintained at both sides.
+Transmitting the base position's FEN string along with the ply offers a
+form of confirmation during the course of a game.
+
+@menu
+* Creating plies::              
+* Ply details::                 
+* The "next" position::         
+* Algebraic notation::          
+@end menu
+
+@node Creating plies, Ply details, Plies, Plies
+@subsection Creating plies
+
+@c lispfun chess-ply-create
+
+@defun chess-ply-create position &optional valid-p &rest changes
+Create a ply from the given @var{position} by applying the supplied @var{changes}.
+This function will guarantee the resulting ply is legal, and will also
+annotate the ply with :check or other modifiers as necessary.  It will
+also extend castling, and will prompt for a promotion piece.
+
+Note: Do not pass in the rook move if @var{changes} represents a castling
+maneuver.
+@end defun
+
+@c lispfun chess-legal-plies
+
+@defun chess-legal-plies position &rest keywords
+Return a list of all legal plies in @var{position}.
+@var{keywords} allowed are:
+
+  :any   return t if any piece can move at all
+  :color <t or nil>
+  :piece <piece character>
+  :file <number 0 to 7> [can only be used if :piece is present]
+  :index <coordinate index>
+  :target <specific target index>
+  :candidates <list of inddices>
+
+These will constrain the plies generated to those matching the above
+criteria.
+
+@var{note}: All of the returned plies will reference the same copy of the
+position object passed in.
+@end defun
+
+@node Ply details, The "next" position, Creating plies, Plies
+@subsection Ply details
+
+@c lispfun chess-ply-pos
+
+@defun chess-ply-pos ply
+Returns the base position associated with @var{ply}.
+@end defun
+
+@c lispfun chess-ply-set-pos
+
+@defun chess-ply-set-pos ply position
+Set the base position of @var{ply}.
+@end defun
+
+@c lispfun chess-ply-changes
+
+@c lispfun chess-ply-set-changes
+
+@c lispfun chess-ply-source
+
+@defun chess-ply-source ply
+Returns the source square index value of @var{ply}.
+@end defun
+
+@c lispfun chess-ply-target
+
+@defun chess-ply-target ply
+Returns the target square index value of @var{ply}.
+@end defun
+
+@node The "next" position, Algebraic notation, Ply details, Plies
+@subsection The "next" position
+
+@c lispfun chess-ply-next-pos
+
+@c lispfun chess-ply-final-p
+
+@defun chess-ply-final-p ply
+Return non-nil if this is the last ply of a game/variation.
+@end defun
+
+@node Algebraic notation,  , The "next" position, Plies
+@subsection Algebraic notation
+
+A thing to deal with in chess is algebraic move notation, such as
+Nxf3+.  (I leave description of this notation to better manuals
+than this).  This notation is a shorthand way of representing where
+a piece is moving from and to, by specifying the piece is involved,
+where it's going, and whether or not a capture or check is
+involved.
+
+You can convert from algebraic notation to a ply (one pair in most
+cases, but two for a castle) using the following function (NOTE:
+POSITION determines which side is on move (by calling
+`chess-pos-side-to-move')):
+
+@c lispfun chess-algebraic-to-ply
+
+@defun chess-algebraic-to-ply position move &optional trust
+Convert the algebraic notation @var{move} for @var{position} to a ply.
+@end defun
+
+The function also checks if a move is legal, and will raise an
+error if not.
+
+To convert from a ply to algebraic notation, use:
+
+@c lispfun chess-ply-to-algebraic
+
+@defun chess-ply-to-algebraic ply &optional long
+Convert the given @var{ply} to algebraic notation.
+If @var{long} is non-nil, render the move into long notation.
+@end defun
+
+Lastly, there is a regexp for quickly checking if a string is in
+algebraic notation or not, or searching out algebraic strings in a
+buffer:
+
+@defvar chess-algebraic-regexp
+A regular expression that matches all possible algebraic moves.
+This regexp handles both long and short form.
+@end defvar
+
+@node Variations, Games, Plies, The chess.el library
+@section Variations
+
+A @dfn{variation} is a sequence of plies that occur after some starting
+position.  If the starting position represents the initial setup of a
+chess board, and if the final ply results in completion of the game, it
+is called the "main variation".  Otherwise, variations typically
+represented interesting tangents during a game---but not actually
+played---as envisioned by the player, an annotator, or someone studying
+the game.
+
+Variations may be represented in ASCII by stating the FEN string for
+starting position, followed by the list of plies that follow that
+position.  They are difficult to represent graphically, except for
+showing each position in turn with a slight pause between---or by
+allowing the user to navigate each of the subsequent positions in turn.
+They may be represented verbally by announcing each of the plies in
+turn, as mentioned above.
+
+@menu
+* Creating variations::         
+* Variation positions::         
+* Varation plies::              
+* Making a move in a variation::  
+@end menu
+
+@node Creating variations, Variation positions, Variations, Variations
+@subsection Creating variations
+
+@c lispfun chess-var-create
+
+@defun chess-var-create &optional position
+Create a new chess variation object.
+Optionally use the given starting @var{position}.
+@end defun
+
+@node Variation positions, Varation plies, Creating variations, Variations
+@subsection Variation positions
+
+@c lispfun chess-var-pos
+
+@defun chess-var-pos var &optional index
+Return the position related to @var{var}'s @var{index} ply.
+@end defun
+
+@c lispfun chess-var-index
+
+@defun chess-var-index var
+Return the @var{var}'s current position index.
+@end defun
+
+@c lispfun chess-var-seq
+
+@defun chess-var-seq var
+Return the current @var{var} sequence.
+@end defun
+
+@c lispfun chess-var-side-to-move
+
+@defun chess-var-side-to-move var &optional index
+Return the color whose move it is in @var{var} at @var{index} (or at the last position
+of the variation if @var{index} is nil).
+@end defun
+
+@node Varation plies, Making a move in a variation, Variation positions, Variations
+@subsection Varation plies
+
+@c lispfun chess-var-ply
+
+@defun chess-var-ply var &optional index
+Return @var{var}'s @var{index}th ply.
+@end defun
+
+@c lispfun chess-var-plies
+
+@defun chess-var-plies var
+Return the plies of @var{var}.
+@end defun
+
+@c lispfun chess-var-to-algebraic
+
+@defun chess-var-to-algebraic var &optional long
+Reveal the plies of @var{var} by converting them to algebraic
+notation.
+@end defun
+
+@node Making a move in a variation,  , Varation plies, Variations
+@subsection Making a move in a variation
+
+@c lispfun chess-var-move
+
+@defun chess-var-move var ply
+Make a move in the current @var{var} by applying the changes of @var{ply}.
+This creates a new position and adds it to the main variation.
+The 'changes' of the last ply reflect whether the var is currently in
+progress (nil), if it is drawn, resigned, mate, etc.
+@end defun
+
+@c lispfun chess-var-add-ply
+
+@defun chess-var-add-ply var ply
+Return the position related to @var{var}'s @var{index} position.
+@end defun
+
+@node Games, Collections, Variations, The chess.el library
+@section Games
+
+A @dfn{game} includes its main variation, incidental information about
+the game (who played it, where, when, who won, etc), and any
+sub-variations of interest to those studying the game afterwards.
+
+Where TAGS is an alist that associates arbitrary English tag names to
+their values.
+
+A game may be represented in ASCII using standard PGN notation.
+Representing them graphically or verbally is similar to what is done
+for variations.
+
+@c lispfun chess-game-add-hook
+
+@defun chess-game-add-hook game function &optional data prepend
+Add to @var{game} an event hook @var{function}.
+@end defun
+
+@c lispfun chess-game-add-ply
+
+@defun chess-game-add-ply game ply
+Return the position related to @var{game}'s @var{index} position.
+@end defun
+
+@c lispfun chess-game-hooks
+
+@defun chess-game-hooks game
+Return the tags alist associated with @var{game}.
+@end defun
+
+@c lispfun chess-game-plies
+
+@defun chess-game-plies game
+Return the main variation of @var{game} as a list of plies.
+@end defun
+
+@c lispfun chess-game-remove-hook
+
+@defun chess-game-remove-hook game function &optional data
+Remove from @var{game} all event hooks that match @var{function}.
+If @var{data} is specified, only remove those hooks whose associated data
+matches.
+@end defun
+
+@c lispfun chess-game-run-hooks
+
+@defun chess-game-run-hooks game &rest args
+Run the event hooks of @var{game} and pass @var{args}.
+@end defun
+
+@c lispfun chess-game-set-hooks
+
+@defun chess-game-set-hooks game hooks
+Return the tags alist associated with @var{game}.
+@end defun
+
+@c lispfun chess-game-set-plies
+
+@defun chess-game-set-plies game plies
+Set the list of plies which represents the main variation of @var{game}.
+@end defun
+
+@menu
+* Creating games::              
+* Game tags::                   
+* Game positions::              
+* Game plies::                  
+* Making a move::               
+* PGN notation::                
+@end menu
+
+@node Creating games, Game tags, Games, Games
+@subsection Creating games
+
+@c lispfun chess-game-create
+
+@defun chess-game-create &optional position tags
+Create a new chess game object.
+Optionally use the given starting @var{position} (see also
+`chess-game-set-start-position').
+@var{tags} is the starting set of game tags (which can always be changed
+later using the various tag-related methods).
+@end defun
+
+@node Game tags, Game positions, Creating games, Games
+@subsection Game tags
+
+@c lispfun chess-game-tags
+
+@defun chess-game-tags game
+Return the tags alist associated with @var{game}.
+@end defun
+
+@c lispfun chess-game-set-tags
+
+@defun chess-game-set-tags game tags
+Set the tags alist associated with @var{game}.
+After the @var{tags} alist was set the 'set-tags event is triggered.
+@end defun
+
+@c lispfun chess-game-tag
+
+@defun chess-game-tag game tag
+Return the value for @var{tag} in @var{game}.
+@end defun
+
+@c lispfun chess-game-set-tag
+
+@defun chess-game-set-tag game tag value
+Set a @var{tag} for @var{game} to @var{value}.
+@end defun
+
+@c lispfun chess-game-del-tag
+
+@defun chess-game-del-tag game tag
+Delete a @var{tag} from @var{game}.
+@end defun
+
+@node Game positions, Game plies, Game tags, Games
+@subsection Game positions
+
+@c lispfun chess-game-pos
+
+@defun chess-game-pos game &optional index
+Return the current position of @var{game} or a position of a given @var{index}.
+@end defun
+
+@c lispfun chess-game-index
+
+@defun chess-game-index game
+Return the @var{game}'s current position index.
+@end defun
+
+@c lispfun chess-game-seq
+
+@defun chess-game-seq game
+Return the current @var{game} sequence.
+@end defun
+
+@c lispfun chess-game-side-to-move
+
+@defun chess-game-side-to-move game &optional index
+Return the color whose move it is in @var{game} at @var{index} (or at the last position
+if @var{index} is nil).
+@end defun
+
+@node Game plies, Making a move, Game positions, Games
+@subsection Game plies
+
+@c lispfun chess-game-ply
+
+@defun chess-game-ply game &optional index
+Return a ply of @var{game}.
+If @var{index} is non-nil, the last played ply is returned.
+@end defun
+
+@node Making a move, PGN notation, Game plies, Games
+@subsection Making a move
+
+@c lispfun chess-game-move
+
+@defun chess-game-move game ply
+Make a move in the current @var{game} using @var{ply}.
+This creates a new position and adds it to the main variation.
+The 'changes' of the last ply reflect whether the game is currently in
+progress (nil), if it is drawn, resigned, mate, etc.
+@end defun
+
+@node PGN notation,  , Making a move, Games
+@subsection PGN notation
+
+@c lispfun chess-pgn-to-game
+
+@defun chess-pgn-to-game &optional string
+Convert @var{pgn} notation at point into a chess game.
+Optionally use the supplied @var{string} instead of the current buffer.
+@end defun
+
+@c lispfun chess-game-to-pgn
+
+@defun chess-game-to-pgn game &optional indented to-string
+Convert a chess @var{game} to @var{pgn} notation.
+If @var{indented} is non-nil, indent the move texts.
+If @var{to-string} is non-nil, return a string instead of inserting the resulting
+@var{pgn} text.
+@end defun
+
+@c lispfun chess-pgn-insert-plies
+
+@defun chess-pgn-insert-plies game index plies &optional for-black indented no-annotations
+@var{nyi}: Still have to implement @var{indented} argument.
+@end defun
+
+@menu
+* PGN mode::                    
+@end menu
+
+@node PGN mode,  , PGN notation, PGN notation
+@subsubsection PGN mode
+
+@c lispfun chess-pgn-visualize
+
+@defun chess-pgn-visualize 
+Visualize the move for the @var{pgn} game under point.
+This does not require that the buffer be in @var{pgn} mode.
+@end defun
+
+@node Collections,  , Games, The chess.el library
+@section Collections
+
+A @dfn{collection} is a set of games archived for later perusal.  A set
+of games conceptually represents a large tree of branching variations,
+and can be used for studying current theory, examining Master
+preferences, etc.
+
+Chess.el itself does not attempt to provide library services, nor does it
+ever represent library collections in memory.  Instead, it interacts
+with a chess database engine for the purpose of storing and retrieving
+games from the library, or performing library-wide analyses and
+searches.
+
+@menu
+* Opening Databases::           
+* Querying Databases::          
+* Modifying Databases::         
+* Finalising Databases::        
+* Database Modules::            
+@end menu
+
+@node Opening Databases, Querying Databases, Collections, Collections
+@subsection Opening Databases
+
+@defvar chess-database-modules
+List of database modules to try when `chess-database-open' is called.
+@end defvar
+
+@c lispfun chess-database-open
+
+@defun chess-database-open file &optional module
+Returns the opened database object, or nil.
+@end defun
+
+@node Querying Databases, Modifying Databases, Opening Databases, Collections
+@subsection Querying Databases
+
+@c lispfun chess-database-filename
+
+@defun chess-database-filename database
+Return the filename of an already opened @var{database}.
+@end defun
+
+@c lispfun chess-database-count
+
+@c lispfun chess-database-read
+
+@defun chess-database-read database index
+Return from @var{database} the chess game object at @var{index}.
+@end defun
+
+@c lispfun chess-database-query
+
+@defun chess-database-query database &rest terms
+Run a query on @var{database}.
+@var{terms} is partly dependent on the chess-database module in use.
+chess-scid:
+ tree-search @var{game}: Perform a tree search on the last position of @var{game}.
+@end defun
+
+@node Modifying Databases, Finalising Databases, Querying Databases, Collections
+@subsection Modifying Databases
+
+@c lispfun chess-database-read-only-p
+
+@defun chess-database-read-only-p database
+Return non-nil if @var{database} is read only.
+@end defun
+
+@c lispfun chess-database-write
+
+@c lispfun chess-database-replace
+
+@node Finalising Databases, Database Modules, Modifying Databases, Collections
+@subsection Finalising Databases
+
+@c lispfun chess-database-save
+
+@c lispfun chess-database-close
+
+@node Database Modules,  , Finalising Databases, Collections
+@subsection Database Modules
+
+Currently, there are two subclasses of the above defined
+database base-class:
+
+@menu
+* chess-file::                  
+* chess-scid::                  
+@end menu
+
+@node chess-file, chess-scid, Database Modules, Database Modules
+@subsubsection chess-file
+
+This module does not use an external chess database program
+to store and retrieve games.  It uses the PGN of EPD format parsing
+routines provided in `chess-pgn.el' and `chess-epd.el' to implement Collections
+for ordinary PGN and EPD files.
+
+EPD file collections are represented as a collection of games originating
+at the given position.  One might argue that conceptually, they represent
+a collection of positions, but it is more convenient to merge all
+collections into one uniform concept.
+
+@node chess-scid,  , chess-file, Database Modules
+@subsubsection chess-scid
+
+This modules implement basic reading and writing functionality
+for SCID (Shane's Chess Information Database) files.
+
+@node Modules, Chessboard displays, The chess.el library, Top
+@chapter Modules
+
+Positions, plies and variations are typically accessed in reference to
+a game object, which has a main variation containing the plies and
+positions that represent the number of moves made within that game up
+to the final position.
+
+Another thing that the game object does is to manage events that occur
+within that game.  If a move is made from the final position, for
+example, it will cause a new ply to be created, adding it to the end
+of the main variation.  Then, a `move' event is triggered within the
+game and passed to any chess modules which are currently associated
+with that game.  The concept of modules allows far more complex
+aspects of chess playing to be dealt with, while allowing the library
+itself to still operate solely in terms of the game object.
+
+For example, although the plies of a game object contain all the
+information the computer needs to follow the game, a user needs much
+more.  He wants to see the pieces move.  To support this, a display
+module (see next chapter) can be created, and linked to the game.  The
+first effect of this association will be to create a chess board
+display and show the game's final position on it.  Now whenever plies
+are added to the game, the chess board will be updated to show the
+effect of that move on the board.  The display module realizes that a
+move has been made by receiving the `move' event which is passed to
+all modules associated with the game object.
+
+There may be any number of modules associated with a chess game, and
+they may do anything you like.  Basically, for a module called
+chess-sample, a function must exist called `chess-sample-handler'.
+This takes two or more arguments: a game object, the event symbol, and
+whatever other arguments were passed along with the event symbol.
+
+When an event is triggered on a game object (and this may happen as a
+byproduct of manipulating the game, or events may be manually
+generated), every associated module, in order, is called with that
+event and whatever arguments were passed along with the event.  The
+game object is passed also, so that the module knows which game this
+event has occurred in reference to.
+
+Once called, the module can do whatever it likes.  Some events expect
+certain values to be returned, to indicate success or failure in
+processing the event.  There are many different events, each depicting
+something specific that might happen in the context of playing or
+manipulating a chess game.  Some events relate only to the chess game
+itself, some are triggered by the various chess engines that might be
+associated with that game.  Modules may even trigger events in
+response to event.  The game itself remains unaware of events, except
+for the fact that it will pass them along to every module associated
+with that game.
+
+This is how displays get updated, for example, because once a 'move'
+event is triggered, each display knows that it must now look at the
+new final position and update its display.  It may even trigger new
+events special to displays, to cause a refresh to happen after update
+calculations have been performed, for example.  All such details are
+left to the module, and the game does not interfere with such
+intra-module messaging.
+
+Looked at as an object-oriented design, these are typical polymorphic
+events.  Certain generic situations frequently occur, such as moves,
+which trigger events so that everyone concerned with the game can be
+updated as to the move that occurred.  This way, no one need to
+actively query the game to find out if something new has happened.
+The game will notify every listening module by sending an event.
+
+The core library, which consists of code to manipulate games, does not
+define any modules.  The rest of the chess.el library is strictly a
+set of module implementations, of various types.  Display modules
+react to moves, and may modify the game based on user input; engine
+modules react to moves by notifying the engine of the move; network
+client modules react to moves by sending the move text over the
+network.  Engine and network modules may also trigger new events when
+the engine or network player has decided on their move, and this move
+is then applied to the game object.
+
+At the moment, no negotiation is done to determine which module may
+modify the game object.  All modules have equal privilege.  This means
+it is the programmer's duty not to associate conflicting modules with
+a single game object.  If two artificial intelligence engines were
+linked, for example, they would quickly start stepping on each other's
+toes.  But it perfectly fine to have one artificial intelligence
+engine, and another passive engine whose only purpose is to relay the
+moves to a networked observer on another computer.  The possibilities
+are endless.
+
+Modules are very easy to write, although engines and displays are
+rather different from each other in their principles.  There is a base
+engine, and a base display, which receive the same events as any other
+module.  But then there are derived engines and derived displays which
+trigger a whole family of events specific to those module types.  If
+you suspect a bug in your module, put a breakpoint in your handler
+function, and wait for the offending event to come through.  Then you
+can watch what your module does in response to that event.  If it
+leaves the game object alone, it should be easy to locate the problem,
+since it will always be within the module itself.  But if your module
+also modifies the game object in response to certain events, you may
+induce a feedback loop that is much more difficult to sort out.  Test
+often and keep in mind that *many* events might end up coming through
+as a result of the game changes your module makes!
+
+That, in essence, is how the module system works.  From the game
+object's perspective, it is a very simple mechanism, much like a
+function ring or a hook.  The hook is called at certain points, so
+that any listener can react to changes in the game.  But from each
+module's perspective, it is a rich way to allow inter-operation
+between both passive and reactive modules, all of them acting together
+to enrich the context of play involving the central game object.
+
+The only other rule to be mentioned is that each module instance
+should be associated with only one game object at a time, although a
+game object may have unlimited modules of any type linked to it.
+Otherwise, trying to update a chess board based on input from two
+different games would get impossible to sort out.  Better to create a
+new board for every game---the way ordinary humans would do it in the
+real world.
+
+@node Chessboard displays, Engines, Modules, Top
+@chapter Chessboard displays
+
+The previous chapter described all the objects found in
+chess---positions, plies, variations, games and collections.  However,
+these objects can only be manipulated programmitically using the
+functions given so far.  In order to present them in a meaningful
+fashion to a human reader, it is necessary to create and use a display
+object.
+
+@menu
+* Generic display manipulation functions::  
+* Plain ASCII diagram displays::  
+* ICS1 style ASCII displays::   
+* Graphical displays::          
+@end menu
+
+@node Generic display manipulation functions, Plain ASCII diagram displays, Chessboard displays, Chessboard displays
+@section Generic display manipulation functions
+
+@c lispfun chess-display-create
+
+@defun chess-display-create game style perspective
+Create a chess display, for displaying chess objects.
+Where @var{game} is the chess game object to use, @var{style} should be the display
+type to use (a symbol) and @var{perspective} determines the viewpoint
+of the board, if non-nil, the board is viewed from White's perspective.
+@end defun
+
+@c lispfun chess-display-destroy
+
+@c lispfun chess-display-active-p
+
+@defun chess-display-active-p 
+Return non-nil if the displayed chessboard reflects an active game.
+Basically, it means we are playing, not editing or reviewing.
+@end defun
+
+@c lispfun chess-display-clear-board
+
+@defun chess-display-clear-board 
+Setup the current board for editing.
+@end defun
+
+@c lispfun chess-display-game
+
+@c lispfun chess-display-highlight
+
+@defun chess-display-highlight display &rest args
+Highlight the square at @var{index} on the current position.
+The given highlighting @var{mode} is used, or the default if the style you
+are displaying with doesn't support that mode.  `selected' is a mode
+that is supported by most displays, and is the default mode.
+@end defun
+
+@c lispfun chess-display-index
+
+@c lispfun chess-display-invert
+
+@defun chess-display-invert 
+Invert the perspective of the current chess board.
+@end defun
+
+@c lispfun chess-display-move
+
+@defun chess-display-move display ply &optional prev-pos pos
+Move a piece on @var{display}, by applying the given @var{ply}.
+The position of @var{ply} must match the currently displayed position.
+If only @var{start} is given, it must be in algebraic move notation.
+@end defun
+
+@c lispfun chess-display-move-backward
+
+@c lispfun chess-display-move-first
+
+@c lispfun chess-display-move-forward
+
+@c lispfun chess-display-move-last
+
+@c lispfun chess-display-perspective
+
+@defun chess-display-perspective display
+Return the current perspective of @var{display}.
+@end defun
+
+@c lispfun chess-display-ply
+
+@c lispfun chess-display-position
+
+@defun chess-display-position display
+Return the position currently viewed on @var{display}.
+@end defun
+
+@c lispfun chess-display-quit
+
+@defun chess-display-quit 
+Quit the game associated with the current display.
+@end defun
+
+@c lispfun chess-display-set-game
+
+@defun chess-display-set-game display game &optional index
+Set the given @var{display} to display the @var{game} object, optionally at @var{index}.
+This is the function to call to cause a display to view a game.  It
+will also update all of the listening engines and other displays to
+also view the same game.
+@end defun
+
+@c lispfun chess-display-set-index
+
+@c lispfun chess-display-set-perspective
+
+@defun chess-display-set-perspective display perspective
+Set @var{perspective} of @var{display}.
+@end defun
+
+@c lispfun chess-display-set-ply
+
+@c lispfun chess-display-set-position
+
+@defun chess-display-set-position display &optional position my-color
+Set the game associated with @var{display} to use @var{position} and @var{my-color}.
+@end defun
+
+@c lispfun chess-display-set-variation
+
+@defun chess-display-set-variation display variation &optional index
+Set @var{display} @var{variation}.
+If @var{index} is not specified, this will cause the first ply in the variation
+to be displayed, with the user able to scroll back and forth through the
+moves in the variation.  Any moves made on the board will extend/change the
+variation that was passed in.
+@end defun
+
+@c lispfun chess-display-update
+
+@defun chess-display-update display &optional popup
+Update the chessboard @var{display}.  @var{popup} too, if that arg is non-nil.
+@end defun
+
+@c lispfun chess-display-variation
+
+@node Plain ASCII diagram displays, ICS1 style ASCII displays, Generic display manipulation functions, Chessboard displays
+@section Plain ASCII diagram displays
+
+The simplest display style available is chess-plain, a very customisable
+ASCII board diagram display.
+
+@defvar chess-plain-separate-frame
+If non-nil, display the chessboard in its own frame.
+@end defvar
+
+@defvar chess-plain-draw-border
+Non-nil if a border should be drawn (using `chess-plain-border-chars').
+@end defvar
+
+@defvar chess-plain-border-chars
+A list of Characters used to draw borders.
+@end defvar
+
+@defvar chess-plain-black-square-char
+Character used to indicate empty black squares.
+@end defvar
+
+@defvar chess-plain-white-square-char
+Character used to indicate black white squares.
+@end defvar
+
+@defvar chess-plain-piece-chars
+Alist of pieces and their corresponding characters.
+@end defvar
+
+@defvar chess-plain-upcase-indicates
+Defines what a upcase char should indicate.
+The default is 'color, meaning a upcase char is a white piece, a
+lowercase char a black piece.  Possible values: 'color (default),
+'square-color.  If set to 'square-color, a uppercase character
+indicates a piece on a black square. (Note that you also need to
+modify `chess-plain-piece-chars' to avoid real confusion.)
+@end defvar
+
+@defvar chess-plain-spacing
+Number of spaces between files.
+@end defvar
+
+@node ICS1 style ASCII displays, Graphical displays, Plain ASCII diagram displays, Chessboard displays
+@section ICS1 style ASCII displays
+
+@defvar chess-ics1-separate-frame
+If non-nil, display the chessboard in its own frame.
+@end defvar
+
+@node Graphical displays,  , ICS1 style ASCII displays, Chessboard displays
+@section Graphical displays
+
+@node Engines, Internet Chess Servers, Chessboard displays, Top
+@chapter Engines
+
+Engines are the representation of an opponent in Chess.  THe main type
+of engine interfaces with an external chess program.  However, there
+can be other uses for engine objects, such as providing networked engined
+for playing with opponent over different types of transports.
+
+@menu
+* Common functions::            
+* Crafty::                      
+* Gnu Chess::                   
+* Phalanx::                     
+* Sjeng::                       
+@end menu
+
+@node Common functions, Crafty, Engines, Engines
+@section Common functions
+
+@c lispfun chess-engine-create
+
+@defun chess-engine-create module game &optional response-handler &rest handler-ctor-args
+Create a new chess engine @var{module} (a symbol) associated with @var{game}.
+Optionally supply a new @var{response-handler}.
+@end defun
+
+@c lispfun chess-engine-set-option
+
+@defun chess-engine-set-option engine option value
+Set @var{engine} @var{option} to @var{value} by invoking its handler with the 'set-option
+event.
+@end defun
+
+@c lispfun chess-engine-destroy
+
+@c lispfun chess-engine-set-position
+
+@c lispfun chess-engine-position
+
+@defun chess-engine-position engine
+Return the current position of the game associated with @var{engine}.
+@end defun
+
+@c lispfun chess-engine-set-game
+
+@c lispfun chess-engine-game
+
+@c lispfun chess-engine-index
+
+@c lispfun chess-engine-move
+
+@c lispfun chess-engine-command
+
+@defun chess-engine-command engine event &rest args
+Call the handler of @var{engine} with @var{event} (a symbol) and @var{args}.
+@end defun
+
+@c lispfun chess-engine-send
+
+@defun chess-engine-send engine string
+Send the given @var{string} to @var{engine}.
+If `chess-engine-process' is a valid process object, use `process-send-string'
+to submit the data.  Otherwise, the 'send event is triggered and the engine
+event handler can take care of the data.
+@end defun
+
+@node Crafty, Gnu Chess, Common functions, Engines
+@section Crafty
+
+@node Gnu Chess, Phalanx, Crafty, Engines
+@section Gnu Chess
+
+@node Phalanx, Sjeng, Gnu Chess, Engines
+@section Phalanx
+
+@node Sjeng,  , Phalanx, Engines
+@section Sjeng
+
+@node Internet Chess Servers, Concept Index, Engines, Top
+@chapter Internet Chess Servers
+
+Based on the services provided above, there is also a speical mode
+for communication with Internet Chess Servers.
+
+ON an Internet Chess Server you can seek to play against other
+human or computer players, observe other games being player or examined,
+play tournaments, chat with fellow chess players, participate in a team game,
+or do various other interesting chess related things.
+
+A default set of well known servers is defined in the following variable:
+
+@defvar chess-ics-server-list
+A list of servers to connect to.
+The format of each entry is:
+
+  (SERVER PORT [HANDLE] [PASSWORD-OR-FILENAME] [HELPER] [HELPER ARGS...])
+@end defvar
+
+@menu
+* Connecting to a server::      
+* Seeking an opponent for a new game::  
+* The sought game display::     
+@end menu
+
+@node Connecting to a server, Seeking an opponent for a new game, Internet Chess Servers, Internet Chess Servers
+@section Connecting to a server
+
+To open a new connection to an Internet Chess Server, use:
+
+@c lispfun chess-ics
+
+@defun chess-ics server port &optional handle password-or-filename helper &rest helper-args
+Connect to an Internet Chess Server.
+@end defun
+
+@node Seeking an opponent for a new game, The sought game display, Connecting to a server, Internet Chess Servers
+@section Seeking an opponent for a new game
+
+After you connected to a server, one of the first things you will
+want to do is find an oponent for a new game.  You can use the
+ICS command "seek" to announce your availability for a chess game
+to interested people.
+
+@node The sought game display,  , Seeking an opponent for a new game, Internet Chess Servers
+@section The sought game display
+
+There is a special mode for displaying games sought by other users
+on an Internet Chess Server.  Provided you didn't turn off seek ads
+manually (for instance by setting the seek variable to 0 (off) on the
+ICS server by issueing "set seek 0"), the first seek advertisment
+automatically pops up a new window which is in `chess-ics-sought-mode'.
+
+@c lispfun chess-ics-sought-mode
+
+@defun chess-ics-sought-mode 
+A mode for displaying @var{ics} game seek advertisments.
+
+This mode runs the hook `chess-ics-sought-mode-hook', as the final step
+during initialization.
+
+key             binding
+---             -------
+
+@var{ret}		chess-ics-sought-accept
+@var{spc}		chess-ics-sought-toggle-sort-direction
+?		describe-mode
+s		chess-ics-sought-toggle-sort-state
+<mouse-2>	chess-ics-sought-accept
+
+
+@end defun
+
+In this buffer, use mouse-2 or @kbd{RET} on a line to accept that
+particular game and play it.
+
+@node Concept Index, Function and Variable Index, Internet Chess Servers, Top
+@unnumbered Concept Index
+
+@printindex cp
+
+@node Function and Variable Index, Key Index, Concept Index, Top
+@unnumbered Function and Variable Index
+
+@printindex fn
+
+@node Key Index,  , Function and Variable Index, Top
+@unnumbered Key Index
+
+@printindex ky
+@bye
