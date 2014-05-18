@@ -1455,7 +1455,9 @@ This fails if the monkey is on the current branch
   (let* ((fg-yy (gnugo-yy yin yang))
          (fg-disp (or (get fg-yy 'display)
                       (get fg-yy 'do-not-display)))
-         (fg-data (plist-get (cdr fg-disp) :data))
+         (fg-props (cdr fg-disp))
+         (fg-data (plist-get fg-props :data))
+         (c-symbs (plist-get fg-props :color-symbols))
          (bg-yy (gnugo-yy yin (gnugo-yang ?.)))
          (bg-disp (or (get bg-yy 'display)
                       (get bg-yy 'do-not-display)))
@@ -1483,7 +1485,10 @@ This fails if the monkey is on the current branch
         (aset new sx (aref bg-data sb)))
       (incf sx)
       (incf sb))
-    (create-image new 'xpm t :ascent 'center)))
+    (apply 'create-image new 'xpm t
+           :ascent 'center (when c-symbs
+                             (list :color-symbols
+                                   c-symbs)))))
 
 (defun gnugo-refresh (&optional nocache)
   "Update GNUGO Board buffer display.
