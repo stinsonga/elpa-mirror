@@ -24,6 +24,9 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 ***** import from rectangle
 ******* as-is (dangerous)
 ******* w/ char-to-px quantization
+*** perf
+***** ??? use ‘binary’ coding system
+***** make ‘xpm-raster’ do [vh]-line expansion
 * etc
 #+odd
 
