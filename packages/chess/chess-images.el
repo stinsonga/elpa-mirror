@@ -1,7 +1,19 @@
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; chess-images.el --- Chessboard display style using graphical images
+
+;; Copyright (C) 2014 Free Software Foundation, Inc.
+
+;; This is free software; you can redistribute it and/or modify it under
+;; the terms of the GNU General Public License as published by the Free
+;; Software Foundation; either version 3, or (at your option) any later
+;; version.
 ;;
-;; Chessboard display style using graphical images
+;; This is distributed in the hope that it will be useful, but WITHOUT
+;; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+;; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+;; for more details.
 ;;
+;; You should have received a copy of the GNU General Public License
+;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -16,6 +28,8 @@
 ;; displayed immediately, allowing you to easily browse among
 ;; different piece sets if you have them (such as the ZIICS set, see
 ;; the xboard man page).
+
+;;; Code:
 
 (require 'chess-display)
 
