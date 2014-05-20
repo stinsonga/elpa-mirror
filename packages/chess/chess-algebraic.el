@@ -1,7 +1,22 @@
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; chess-algebraic.el --- Convert a ply to/from standard chess algebraic notation
+
+;; Copyright (C) 2014 Free Software Foundation, Inc.
+
+;; This is free software; you can redistribute it and/or modify it under
+;; the terms of the GNU General Public License as published by the Free
+;; Software Foundation; either version 3, or (at your option) any later
+;; version.
 ;;
-;; Convert a ply to/from standard chess algebraic notation
+;; This is distributed in the hope that it will be useful, but WITHOUT
+;; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+;; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+;; for more details.
 ;;
+;; You should have received a copy of the GNU General Public License
+;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
 ;; A thing to deal with in chess is algebraic move notation, such as
 ;; Nxf3+.  (I leave description of this notation to better manuals
 ;; than this).  This notation is a shorthand way of representing where
@@ -30,7 +45,8 @@
 ;; buffer:
 ;;
 ;;    chess-algebraic-regexp
-;;
+
+;;; Code:
 
 (eval-when-compile (require 'cl))
 
