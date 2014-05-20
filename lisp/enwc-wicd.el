@@ -107,6 +107,16 @@ and appends the value to `enwc-wicd-prop-values'."
   (setq enwc-wicd-prop-values (cons (cons prop (car args)) enwc-wicd-prop-values))
   (setq enwc-wicd-prop-num (1+ enwc-wicd-prop-num)))
 
+(defun enwc-wicd-prop-to-prop (prop)
+  "Converts a Wicd network property to an ENWC network property."
+  (cond
+   ((equal prop "essid") "essid")
+   ((equal prop "bssid") "bssid")
+   ((equal prop "quality") "strength")
+   ((equal prop "encryption") "encrypt")
+   ((equal prop "mode") "mode")
+   ((equal prop "channel") "channel")))
+
 (defun enwc-wicd-get-wireless-network-property (id prop)
   "Wicd get wireless network property function.
 This calls the D-Bus method on Wicd to get the property PROP
@@ -126,12 +136,14 @@ from wireless network with id ID."
 	(act-det-list (reverse det-list)))
     (while act-det-list
       (let* ((cur-det (pop act-det-list))
-            (cur-prop (assoc cur-det prop-list)))
+             (cur-prop (assoc cur-det prop-list))
+             (act-det (enwc-wicd-prop-to-prop cur-det)))
         (setq ret
-              (if cur-prop
-                  (cons cur-prop ret)
-                (cons (cons cur-det nil) nil)))
-	))
+              (cons (cons act-det
+                          (if cur-prop
+                              (cdr cur-prop)
+                            nil))
+                    ret))))
     ret))
 
 (defun enwc-wicd-get-wireless-nw-props (id)
@@ -148,6 +160,14 @@ For a list of properties, see `enwc-wicd-details-list'."
   (with-timeout (enwc-wicd-prop-timeout)
       (while (< enwc-wicd-prop-num 6)
 	(read-event nil nil 0.001)))
+
+  (if (assoc "encryption" enwc-wicd-prop-values)
+      (let ((enc-type (enwc-wicd-get-encryption-type id)))
+        (setcdr (assoc "encryption" enwc-wicd-prop-values)
+                (or enc-type "Unsecured")))
+    (setq enwc-wicd-prop-values
+          (cons (cons "encryption" "Unsecured")
+                enwc-wicd-prop-values)))
 
   (enwc-wicd-build-prop-list enwc-wicd-prop-values enwc-wicd-details-list))
 
@@ -166,11 +186,12 @@ network with id ID."
 
 (defun enwc-wicd-get-current-nw-id (wired)
   "Wicd get current network id function.
-This calls the D-Bus method on Wicd to get the current
-wireless network id."
+The current network id is updated upon connect,
+so this jut returns the tracked network id."
   (if wired
       -1
-    enwc-wicd-current-nw-id))
+    (enwc-wicd-dbus-wireless-call-method "GetCurrentNetworkID")))
+    ;;enwc-wicd-current-nw-id))
 
 (defun enwc-wicd-check-connecting ()
   "The Wicd check connecting function."
@@ -327,8 +348,7 @@ the network with id ID."
 					    (enwc-wicd-get-sec-types wired))))))
 	  (enwc-wicd-set-nw-prop wired id (car x)
 				 (cdr (assoc (car x) settings)))))
-    (enwc-wicd-save-nw-profile wired id))
-  )
+    (enwc-wicd-save-nw-profile wired id)))
 
 (defun enwc-wicd-wireless-prop-changed (state info)
   (if state

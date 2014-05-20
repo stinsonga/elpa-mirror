@@ -42,9 +42,6 @@
 	  enwc-get-wireless-nw-props-func (intern (concat "enwc-"
 							  sym-name
 							  "-get-wireless-nw-props"))
-	  enwc-details-list (symbol-value (intern (concat "enwc-"
-							  sym-name
-							  "-details-list")))
 	  enwc-get-encryption-type-func (intern (concat "enwc-"
 							sym-name
 							"-get-encryption-type"))

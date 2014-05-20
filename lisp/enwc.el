@@ -25,7 +25,8 @@
 ;; connect
 ;; disconnect
 ;; scan
-;; get-prop
+;; get-network-prop
+;; get-profile-prop
 ;; save-profile
 ;; get-networks
 ;; check-connecting
@@ -206,7 +207,8 @@ the DNS Server Addresses for a given network.")
 This is redefined during setup to be the function to save
 the network settings of a given network.")
 
-(defvar enwc-details-list nil
+(defvar enwc-details-list
+  '("essid" "bssid" "strength" "mode" "encrypt" "channel")
   "The network details list.
 
 This is redefined during setup to be the details list
@@ -232,7 +234,7 @@ These correspond to the details in `enwc-details-list'.")
 
 (defvar enwc-id-width 3
   "The width of the id column.")
-(defvar enwc-str-width 5
+(defvar enwc-strength-width 5
   "The width of the strength column.")
 (defvar enwc-essid-width 5
   "The initial width of the essid column.
@@ -243,7 +245,7 @@ This is reset in wicd-scan-internal.")
   "The width of the bssid column.")
 (defvar enwc-mode-width 16
   "The width of the mode column.")
-(defvar enwc-chnl-width 3
+(defvar enwc-channel-width 3
   "The width of the channel column.")
 
 (defvar enwc-last-scan nil
@@ -290,21 +292,6 @@ This is only used internally.")
     (t (:background "Green")))
   "The face for the connected network."
   :group 'enwc)
-
-
-;; Small helper function.
-
-(defun enwc-detail-to-ident (detail)
-  "Converts network detail DETAIL to a constant identifier.
-This function is used to synchronize the different backends
-to display consistent results."
-  (case (intern detail)
-    ((essid Ssid) "essid")
-    ((bssid HwAddress) "bssid")
-    ((quality Strength) "quality")
-    ((encryption Flags) "encryption")
-    ((mode Mode) "mode")
-    ((channel Frequency) "channel")))
 
 ;;;;;;;;;;;;;;;;;;;;
 ;; ENWC functions
@@ -451,10 +438,12 @@ See the documentation for it for more details."
          (p 0)
          (l (length f))
          (cur-id (enwc-get-current-nw-id))
+         (wiredp (enwc-is-wired-p))
+         (connectingp (enwc-check-connecting-p))
          c fin-str)
     (while (< p l)
-      (setq c (elt f p))
-      (setq p (1+ p))
+      (setq c (elt f p)
+            p (1+ p))
       (setq fin-str
             (concat
              fin-str
@@ -464,24 +453,24 @@ See the documentation for it for more details."
                (cond
                 ((eq (elt f (1- p)) ?s)
                  (cond
-                  ((enwc-is-wired-p) "100")
+                  (wiredp "100")
                   ((or (not (enwc-is-valid-nw-id cur-id))
                        (not enwc-last-scan))"0")
-                  ((enwc-check-connecting-p) "*")
+                  (connectingp "*")
                   (t (number-to-string
-                      (cdr (assoc "quality" (nth cur-id enwc-last-scan)))))))
+                      (cdr (assoc "strength" (nth cur-id enwc-last-scan)))))))
                 ((eq (elt f (1- p)) ?e)
                  (cond
-                  ((enwc-is-wired-p) "Wired")
+                  (wiredp "Wired")
                   ((or (not (enwc-is-valid-nw-id cur-id))
-                       (enwc-check-connecting-p)
+                       connectingp
                        (not enwc-last-scan)) "None")
                   (t (cdr (assoc "essid" (nth cur-id enwc-last-scan))))))
                 ((eq (elt f (1- p)) ?b)
                  (cond
-                  ((enwc-is-wired-p) "wired")
+                  (wiredp "wired")
                   ((or (not (enwc-is-valid-nw-id cur-id))
-                       (enwc-check-connecting-p)
+                       connectingp
                        (not enwc-last-scan)) "none")
                   (t (cdr (assoc "bssid" (nth cur-id enwc-last-scan))))))
                 ((eq (elt f (1- p)) ?%) "%"))))))
@@ -504,7 +493,8 @@ This is initiated during setup, and runs once every second."
     (setq global-mode-string (append global-mode-string '(enwc-display-string))))
   (if (not enwc-display-mode-line-timer)
       (setq enwc-display-mode-line-timer
-            (run-at-time t 1 'enwc-update-mode-line))))
+            (run-at-time t 1 'enwc-update-mode-line)))
+  (message "ENWC mode line enabled"))
 
 (defun enwc-disable-display-mode-line ()
   "Disables the mode line display."
@@ -514,7 +504,8 @@ This is initiated during setup, and runs once every second."
   (setq global-mode-string (remove 'enwc-display-string global-mode-string))
   (if enwc-display-mode-line-timer
       (cancel-timer enwc-display-mode-line-timer))
-  (setq enwc-display-mode-line-timer nil))
+  (setq enwc-display-mode-line-timer nil)
+  (message "ENWC mode line disabled"))
 
 (defun enwc-toggle-display-mode-line ()
   "Toggles the mode line display."
@@ -529,9 +520,11 @@ This will use the current value of `enwc-auto-scan-interval'."
   (interactive)
   (let ((new (not enwc-auto-scan)))
     (if new
-        (setq enwc-scan-timer
-              (run-at-time t enwc-auto-scan-interval 'enwc-scan t))
-      (cancel-timer enwc-scan-timer))
+        (progn (setq enwc-scan-timer
+                     (run-at-time t enwc-auto-scan-interval 'enwc-scan t))
+               (message "Auto-scan enabled"))
+      (cancel-timer enwc-scan-timer)
+      (message "Auto scan disabled"))
     (setq enwc-auto-scan new)))
 
 ;;;;;;;;;;;;;;;;;;
@@ -562,8 +555,10 @@ the scan results."
 	  (nw-prop-list nil))
       (if enwc-scan-interactive
           (message "Scanning... Done"))
-      (setq enwc-access-points (enwc-get-nw)
-	    enwc-essid-width 5)
+      (setq enwc-access-points (enwc-get-nw))
+      (dolist (det enwc-details-list)
+        (set (intern (concat "enwc-" det "-width"))
+             1))
       (setq nw-prop-list
 	    (mapcar 'enwc-get-wireless-nw-props
 		    (number-sequence 0 (1- (length enwc-access-points)))))
@@ -573,20 +568,18 @@ the scan results."
 			    (prop-list (pop nw-prop-list)))
 			(setq cur-id (1+ cur-id))
 			(dolist (det enwc-details-list)
-			  (let ((cur-item (cdr (assoc det prop-list)))
-				(ident (enwc-detail-to-ident det))
-				pos-len)
-			    (if (string= ident "essid")
-				(progn
-				  (setq pos-len (length cur-item))
-				  (setq enwc-essid-width
-					(max enwc-essid-width
-					     pos-len))))
-			    (if (string= ident "encryption")
-				(setq cur-item
-				      (if cur-item
-					  (enwc-get-encryption-type x)
-					"Unsecured")))
+			  (let* ((cur-item (cdr (assoc det prop-list)))
+                                 (ident det)
+                                 (width-name (concat "enwc-"
+                                                     ident
+                                                     "-width"))
+                                 (cur-width (eval (intern width-name)))
+                                 (pos-len (if (and cur-item
+                                                   (not (equal ident "strength")))
+                                              (length cur-item)
+                                            0)))
+                            (set (intern width-name)
+                                  (max cur-width pos-len))
 			    (setq ret-itm (append ret-itm
 						  (cons (cons ident
 							      cur-item)
@@ -595,8 +588,8 @@ the scan results."
 		    (number-sequence 0 (1- (length enwc-access-points))))))
     (setq enwc-essid-width (1+ enwc-essid-width))
     (setq enwc-scan-done t)
-    (if enwc-scan-interactive
-        (enwc-display-wireless-networks enwc-last-scan))
+    ;;(if enwc-scan-interactive
+    (enwc-display-wireless-networks enwc-last-scan);;)
     (setq enwc-scan-interactive nil)))
 
 (defun enwc-scan-internal-wired ()
@@ -668,13 +661,13 @@ NETWORKS must be in the format returned by
             (pos 0))
 
         (setq tabulated-list-format
-              (vector '("ID" 2)
+              (vector `("ID" ,enwc-id-width)
                       '("STR" 4)
                       `("ESSID" ,enwc-essid-width)
-                      '("ENCRYPT" 9)
-                      '("BSSID" 17)
-                      '("MODE" 15)
-                      '("CHNL" 2))))
+                      `("ENCRYPT" ,enwc-encrypt-width)
+                      `("BSSID" ,enwc-bssid-width)
+                      `("MODE" ,enwc-mode-width)
+                      `("CHNL" ,enwc-channel-width))))
 
       (dolist (nw networks)
         (let ((id (cdr (assoc "id" nw)))
@@ -683,10 +676,10 @@ NETWORKS must be in the format returned by
                             (vector
                              (enwc-maybe-pretty-entry (number-to-string (cdr (assoc "id" nw))))
                              (enwc-maybe-pretty-entry
-                              (concat (number-to-string (cdr (assoc "quality" nw)))
+                              (concat (number-to-string (cdr (assoc "strength" nw)))
                                       "%"))
                              (enwc-maybe-pretty-entry (cdr (assoc "essid" nw)))
-                             (enwc-maybe-pretty-entry (cdr (assoc "encryption" nw)))
+                             (enwc-maybe-pretty-entry (cdr (assoc "encrypt" nw)))
                              (enwc-maybe-pretty-entry (cdr (assoc "bssid" nw)))
                              (enwc-maybe-pretty-entry (cdr (assoc "mode" nw)))
                              (enwc-maybe-pretty-entry (cdr (assoc "channel" nw))))))

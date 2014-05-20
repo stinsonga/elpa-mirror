@@ -299,7 +299,18 @@ PROP from that access point.  It also sets the channel from the
 			((= ret 2) "Infrastructure"))))
     ret))
 
+(defun enwc-nm-prop-to-prop (prop)
+  "Converts a NetworkManager property to an ENWC network property."
+  (cond
+   ((equal prop "Ssid") "essid")
+   ((equal prop "HwAddres") "bssid")
+   ((equal prop "Strength") "strength")
+   ((equal prop "Flags") "encrypt")
+   ((equal prop "Mode") "mode")
+   ((equal prop "Channel") "channel")))
+
 (defun enwc-nm-get-wireless-nw-props (id)
+  "Gets the network properties for the network with id ID."
   (let ((ap (nth id enwc-access-points))
 	tmp-val
 	ret)
@@ -310,14 +321,25 @@ PROP from that access point.  It also sets the channel from the
     (setq tmp-val (cdr (assoc "Mode" ret)))
     (setcdr (assoc "Frequency" ret)
 	    (number-to-string (1+ (/ (- (cdr (assoc "Frequency" ret))
-					2412) 5))))
+					2412)
+                                     5))))
     (setcdr (assoc "Ssid" ret)
 	    (dbus-byte-array-to-string (cdr (assoc "Ssid" ret))))
     (setcdr (assoc "Mode" ret)
 	    (cond ((= tmp-val 0) "Unkown")
 		  ((= tmp-val 1) "Ad-Hoc")
 		  ((= tmp-val 2) "Infrastructure")))
-    ret))
+    (let ((enc-type (enwc-nm-get-encryption-type id)))
+      (setcdr (assoc "Flags" ret)
+              (if enc-type
+                  enc-type
+                "Unsecured")))
+    (mapcar
+     (lambda (x)
+       (cons (enwc-nm-prop-to-prop (car x))
+             (cdr x)))
+     ret)))
+    ;;ret))
 
 (defun enwc-nm-get-conn-by-nid (nid)
   "Gets a connection object with the network id NID."
@@ -901,8 +923,7 @@ and SETTINGS is the list of settings."
 			enwc-nm-dbus-path
 			enwc-nm-dbus-interface
 			"StateChanged"
-			'enwc-nm-prop-changed)
-  )
+			'enwc-nm-prop-changed))
 
 
 (provide 'enwc-nm)
