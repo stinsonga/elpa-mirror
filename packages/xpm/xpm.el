@@ -4,7 +4,7 @@
 
 ;; Author: Thien-Thi Nguyen <ttn@gnu.org>
 ;; Maintainer: Thien-Thi Nguyen <ttn@gnu.org>
-;; Version: 1.0.0
+;; Version: 1.0.1
 ;; Keywords: multimedia, xpm
 
 ;; This program is free software; you can redistribute it and/or modify
