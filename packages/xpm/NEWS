@@ -2,6 +2,9 @@ NEWS for xpm.el (et al)
 See the end for copying conditions.
 
 
+- 1.0.1 | NOT YET RELEASED
+  - byte-compilation bugfix
+
 - 1.0.0 | 2014-05-18
   - initial release
 

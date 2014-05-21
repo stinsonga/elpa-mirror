@@ -31,6 +31,7 @@
 
 (require 'artist)
 (require 'cl-lib)
+(eval-when-compile (require 'cl))
 
 ;;;###autoload
 (defun xpm-m2z-ellipse (cx cy rx ry)
