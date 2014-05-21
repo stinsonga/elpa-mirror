@@ -5,7 +5,7 @@
 ;; Author: Thien-Thi Nguyen <ttn@gnu.org>
 ;; Maintainer: Thien-Thi Nguyen <ttn@gnu.org>
 ;; Version: 2.3.1
-;; Package-Requires: ((ascii-art-to-unicode "1.5"))
+;; Package-Requires: ((ascii-art-to-unicode "1.5") (xpm "1.0.0"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -68,7 +68,7 @@
 ;;                    `gnugo-mode-line'
 ;;                    `gnugo-X-face' `gnugo-O-face' `gnugo-grid-face'
 ;;                    `gnugo-undo-reaction'
-;;                    `gnugo-xpms'
+;;                    `gnugo-xpms' (see also gnugo-imgen.el)
 ;;   normal hooks:    `gnugo-board-mode-hook'
 ;;                    `gnugo-frolic-mode-hook'
 ;;                    `gnugo-start-game-hook'
