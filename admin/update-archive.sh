@@ -117,6 +117,7 @@ latest="emacs-packages-latest.tgz"
              then rm "$f"
              else
                  mv "$f" "$dst"
+                 # FIXME: Add a tag to remember the precise code used.
                  announce_new "$f"
              fi ;;
      esac

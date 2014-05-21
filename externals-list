@@ -27,6 +27,7 @@
  ("easy-kill"		:subtree "https://github.com/leoliu/easy-kill")
  ("eldoc-eval"		:subtree "https://github.com/thierryvolpiatto/eldoc-eval.git")
  ("enwc"		:subtree "bzr::bzr://bzr.savannah.nongnu.org/enwc/trunk")
+ ("ergoemacs-mode"	:external "https://github.com/ergoemacs/ergoemacs-mode.git")
  ("f90-interface-browser" :subtree "https://github.com/wence-/f90-iface")
  ("ggtags"		:subtree "https://github.com/leoliu/ggtags")
  ("ioccur"		:subtree "https://github.com/thierryvolpiatto/ioccur.git")
