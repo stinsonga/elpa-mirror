@@ -215,6 +215,7 @@ the `frame-char-height' (to leave space for the grid)."
         (mapc 'kill-buffer foreground)
         (nreverse rv)))))
 
+;;;###autoload
 (defun gnugo-imgen-create-xpms (board-size)
   "Return a list of XPM images suitable for BOARD-SIZE.
 The size and style of the images are determined by
