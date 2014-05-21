@@ -38,6 +38,8 @@ NB: "RCS: X..Y " means that the particular release includes
   - new command: ‘C-c C-z’ (gnugo-zombie-mode)
   - new var: gnugo-undo-reaction
   - new major mode: GNUGO Frolic (gnugo-frolic-mode)
+    - separate feature/file: ‘gnugo-frolic’
+    - ‘gnugo-frolic-in-the-leaves’ autoloaded
   - new support for dynamic XPM generation
     - separate feature/file: ‘gnugo-imgen’
     - func ‘gnugo-imgen-create-xpms’ suitable for ‘gnugo-xpms’ (see above)
