@@ -67,6 +67,9 @@
 ;;; Code:
 
 (require 'cl-lib)
+(eval-when-compile (require 'cl))
+
+(autoload 'image-toggle-display "image-mode" t) ; hmm is this TRT?
 
 (defvar xpm-raster-inhibit-continuity-optimization nil
   "Non-nil disables a heuristic in `xpm-raster' filling.
