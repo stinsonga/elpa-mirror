@@ -3,13 +3,38 @@
 makelog=""
 buildir="$(pwd)"
 
+announce=no
+a_email="" #info-gnu-emacs@gnu.org
+
 export LANG=C
-case "$1" in
-    "--batch")
-        makelog="$(pwd)/make.log"
-        exec >"$makelog" 2>&1
-        ;;
-esac
+while [ $# -gt 0 ]; do
+    case "$1" in
+        "--announce") announce=yes; a_email="$2"; shift ;;
+        "--batch")
+            makelog="$(pwd)/make.log"
+            exec >"$makelog" 2>&1
+            ;;
+    esac
+    shift
+done
+
+send_mail () {
+    to="$1"; shift
+    title="$*"
+    mx_gnu_org="$(host -t mx gnu.org | sed 's/.*[ 	]//')"
+    (sleep 5; echo "HELO elpa.gnu.org"
+     sleep 1; echo "MAIL FROM: <elpa@elpa.gnu.org>"
+     sleep 1; echo "RCPT TO: <$to>"
+     sleep 1; echo "DATA"
+     sleep 1; cat <<ENDDOC
+From: ELPA update <do.not.reply@elpa.gnu.org>
+To: $to
+Subject: $title
+
+ENDDOC
+         cat -; echo
+         echo "."; sleep 1) | telnet "$mx_gnu_org" smtp
+}
 
 # Send an email to warn about a problem.
 signal_error () {
@@ -17,23 +42,23 @@ signal_error () {
     if [ "" = "$makelog" ]; then
         echo "Error: $title"
     else
-        mx_gnu_org="$(host -t mx gnu.org | sed 's/.*[ 	]//')"
-        (sleep 5; echo "HELO elpa.gnu.org"
-         sleep 1; echo "MAIL FROM: <elpa@elpa.gnu.org>"
-         sleep 1; echo "RCPT TO: <emacs-elpa-diffs@gnu.org>"
-         sleep 1; echo "DATA"
-         sleep 1; cat <<ENDDOC
-From: ELPA update <elpa@elpa.gnu.org>
-To: emacs-elpa-diffs@gnu.org
-Subject: $title
-
-ENDDOC
-         cat "$makelog"
-         echo "."; sleep 1) | telnet "$mx_gnu_org" smtp
+        send_mail "emacs-elpa-diffs@gnu.org" "$title" <"$makelog"
     fi
     exit 1
 }
 
+announce_new () {
+    if [ "yes" != "$announce" ]; then return; fi
+    file="$1"
+    version="$(echo "$file" | sed -e 's|^.*/||' -e 's/^\(.*\)-\([^-]*\)\.[^-.]*$/\2/')"
+    pkg="$(echo "$file" | sed -e 's|^.*/||' -e 's/^\(.*\)-\([^-]*\)\.[^-.]*$/\1/')"
+    send_mail "$a_email" "[GNU ELPA] $pkg version $version" <<ENDDOC
+Version $version of GNU ELPA package $pkg has just been released.
+You can now find it in M-x package-list RET.
+
+More at http://elpa.gnu.org/packages/$pkg.html
+ENDDOC
+}
 
 cd ../elpa
 
@@ -91,9 +116,8 @@ latest="emacs-packages-latest.tgz"
          * ) if [ -r "$dst" ]
              then rm "$f"
              else
-                 # FIXME: Announce the new package/version on
-                 # gnu.emacs.sources!
                  mv "$f" "$dst"
+                 announce_new "$f"
              fi ;;
      esac
  done
