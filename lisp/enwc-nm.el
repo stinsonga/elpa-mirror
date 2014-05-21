@@ -238,7 +238,10 @@ ID is the identifier used by Network Manager."
   (let ((uuid (enwc-nm-get-uuid-by-id id)))
     (enwc-nm-get-conn-by-uuid uuid)))
 
-;; Wireless
+;;;;;;;;;
+;; Scan
+;;;;;;;;;
+
 (defun enwc-nm-scan ()
   "The NetworkManager scan function."
   (dbus-call-method :system
@@ -249,8 +252,16 @@ ID is the identifier used by Network Manager."
 		    :timeout 25000
 		    '(:array :signature "{sv}")))
 
-;; Wireless
-(defun enwc-nm-get-networks ()
+;;;;;;;;;;;;;;;;;
+;; Get networks
+;;;;;;;;;;;;;;;;;
+
+(defun enwc-nm-get-networks (&optional wired)
+  (if wired
+      (enwc-nm-get-wired-profiles)
+    (enwc-nm-get-wireless-networks)))
+
+(defun enwc-nm-get-wireless-networks ()
   "The NetworkManager get networks function.
 This returns a list of D-Bus paths to the access points."
   (dbus-call-method :system
@@ -258,6 +269,18 @@ This returns a list of D-Bus paths to the access points."
 		    enwc-nm-wireless-dev
 		    enwc-nm-dbus-wireless-interface
 		    "GetAccessPoints"))
+
+(defun enwc-nm-get-wired-profiles ()
+  (let ((profs-list (enwc-nm-list-connections)))
+    (mapcar (lambda (x)
+	      (let ((props (enwc-nm-get-settings x)))
+		(if (string= (caar props) "connection")
+		    (car (cadr (car (cadr (car props))))))))
+	    profs-list)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Get network properties
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Accesspoint
 (defun enwc-nm-get-wireless-network-property (id prop)
@@ -361,9 +384,14 @@ If both are 0, then it returns WEP, otherwise WPA."
       "WPA")))
 
 ;; Default
-(defun enwc-nm-connect (id)
+(defun enwc-nm-connect (id &optional wired)
   "The NetworkManager connect function.
 This gets the connection path from ID, and connects to it."
+  (if wired
+      (enwc-nm-wired-connect id)
+    (enwc-nm-wireless-connect id)))
+
+(defun enwc-nm-wireless-connect (id)
   (let ((ssid (enwc-nm-get-wireless-network-property id "Ssid")))
     (dbus-call-method :system
 		      enwc-nm-dbus-service
@@ -417,13 +445,7 @@ This simply checks for the active access point."
 		    "Disconnect"))
 
 ;; Settings, Connections
-(defun enwc-nm-get-wired-profiles ()
-  (let ((profs-list (enwc-nm-list-connections)))
-    (mapcar (lambda (x)
-	      (let ((props (enwc-nm-get-settings x)))
-		(if (string= (caar props) "connection")
-		    (car (cadr (car (cadr (car props))))))))
-	    profs-list)))
+
 
 (defun enwc-nm-wired-connect (id)
   (let ((nid (nth id enwc-access-points)))
@@ -552,7 +574,7 @@ PREFIX is an integer <= 32."
     (setq pf (1- pf)))
   netmask))
 
-(defun enwc-nm-get-nw-info (wired id)
+(defun enwc-nm-get-profile-info (id &optional wired)
   (let ((conn (enwc-nm-get-conn-by-nid id)))
     (if conn
 	(setq enwc-nm-edit-info
@@ -578,11 +600,14 @@ PREFIX is an integer <= 32."
 		dns-list (mapcar 'enwc-nm-convert-addr
 				 dns-list))
 	  (setq nw-info (list (cons (cons "addr"
-					  ip-addr) nil)
+					  ip-addr)
+                                    nil)
 			      (cons (cons "netmask"
-					  netmask) nil)
+					  netmask)
+                                    nil)
 			      (cons (cons "gateway"
-					  gateway) nil)
+					  gateway)
+                                    nil)
 			      (cons (cons "dns1"
 					  (nth 0
 					       dns-list))
@@ -592,8 +617,8 @@ PREFIX is an integer <= 32."
 					       dns-list))
 				    nil)
 			      (cons (cons "enctype"
-					  "None") nil)
-			      )))
+					  "None")
+                                    nil))))
       nil)))
 
 (defun enwc-nm-get-ip-addr (wired id)

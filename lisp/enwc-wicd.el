@@ -88,13 +88,34 @@ the wicd wired interface."
 	 :timeout 25000
 	 args))
 
+;;;;;;;;;
+;; Scan
+;;;;;;;;;
+
 (defun enwc-wicd-scan ()
   "Wicd scan function."
   (enwc-wicd-dbus-wireless-call-method "Scan"))
 
-(defun enwc-wicd-get-networks ()
+;;;;;;;;;;;;;;;;;
+;; Get networks
+;;;;;;;;;;;;;;;;;
+
+(defun enwc-wicd-get-networks (&optional wired)
+  (if wired
+      (enwc-wicd-get-wired-profiles)
+    (enwc-wicd-get-wireless-networks)))
+
+(defun enwc-wicd-get-wireless-networks ()
   "Wicd get networks function.  Just returns a number sequence."
   (number-sequence 0 (1- (enwc-wicd-dbus-wireless-call-method "GetNumberOfNetworks"))))
+
+(defun enwc-wicd-get-wired-profiles ()
+  "Gets the list of wired network profiles."
+  (enwc-wicd-dbus-wired-call-method "GetWiredProfileList"))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Get network properties
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defvar enwc-wicd-prop-values nil)
 (defvar enwc-wicd-prop-num 0)
@@ -178,11 +199,55 @@ property from wireless network with id ID."
   (enwc-wicd-dbus-wireless-call-method "GetWirelessProperty"
 				       id "encryption_method"))
 
-(defun enwc-wicd-connect (id)
+(defun enwc-wicd-get-wired-nw-prop (id det)
+  "Gets property DET from the wired network with id ID."
+  (enwc-wicd-dbus-wired-call-method "GetWiredProperty" id det))
+
+;;;;;;;;;;;;;;;;;;;;;
+;; Connect Functions
+;;;;;;;;;;;;;;;;;;;;;
+
+(defun enwc-wicd-connect (id &optional wired)
   "Wicd connect function.
-This calls the D-Bus method on Wicd to connect to wireless
-network with id ID."
+This calls the D-Bus method on Wicd to connect to a
+wired or wireless network with id ID."
+  (if wired
+      (enwc-wicd-wired-connect id)
+    (enwc-wicd-dbus-wireless-call-method "ConnectWireless" id)))
+
+(defun enwc-wicd-wireless-connect (id)
+  "Wicd connect function.
+This calls the D-Bus method on Wicd to connect to a
+wireless network with id ID."
   (enwc-wicd-dbus-wireless-call-method "ConnectWireless" id))
+
+(defun enwc-wicd-wired-connect (id)
+  "Connects to the wired network with profile id ID."
+  (let* ((profs (enwc-wicd-get-wired-profiles))
+	 (prf (nth id profs)))
+    (enwc-wicd-dbus-wired-call-method "ReadWiredNetworkProfile" prf)
+    (enwc-wicd-dbus-wired-call-method "ConnectWired")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Disconnect functions.
+;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun enwc-wicd-disconnect (&optional wired)
+  (if wired
+      (enwc-wicd-wired-disconnect)
+    (enwc-wicd-wireless-disconnect)))
+
+(defun enwc-wicd-wireless-disconnect ()
+  "Wicd disconnect function."
+  (enwc-wicd-dbus-wireless-call-method "DisconnectWireless"))
+
+(defun enwc-wicd-wired-disconnect ()
+  "Disconnects from the wired connection."
+  (enwc-wicd-dbus-wired-call-method "DisconnectWired"))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Get current network id
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun enwc-wicd-get-current-nw-id (wired)
   "Wicd get current network id function.
@@ -193,36 +258,21 @@ so this jut returns the tracked network id."
     (enwc-wicd-dbus-wireless-call-method "GetCurrentNetworkID")))
     ;;enwc-wicd-current-nw-id))
 
+;;;;;;;;;;;;;;;;;;;;
+;; Check Connecting
+;;;;;;;;;;;;;;;;;;;;
+
 (defun enwc-wicd-check-connecting ()
   "The Wicd check connecting function."
   (enwc-wicd-dbus-wireless-call-method "CheckIfWirelessConnecting"))
 
-(defun enwc-wicd-disconnect ()
-  "Wicd disconnect function."
-  (enwc-wicd-dbus-wireless-call-method "DisconnectWireless"))
-
-(defun enwc-wicd-get-wired-profiles ()
-  "Gets the list of wired network profiles."
-  (enwc-wicd-dbus-wired-call-method "GetWiredProfileList"))
-
-(defun enwc-wicd-wired-connect (id)
-  "Connects to the wired network with profile id ID."
-  (let* ((profs (enwc-get-wired-profiles))
-	 (prf (nth id profs)))
-    (enwc-wicd-dbus-wired-call-method "ReadWiredNetworkProfile" prf)
-    (enwc-wicd-dbus-wired-call-method "ConnectWired")))
-
-(defun enwc-wicd-wired-disconnect ()
-  "Disconnects from the wired connection."
-  (enwc-wicd-dbus-wired-call-method "DisconnectWired"))
+;;;;;;;;;;;;;
+;; Is Wired
+;;;;;;;;;;;;;
 
 (defun enwc-wicd-is-wired ()
   "Checks to see if wired is connected."
   (not (not (enwc-wicd-dbus-wired-call-method "GetWiredIP"))))
-
-(defun enwc-wicd-get-wired-nw-prop (id det)
-  "Gets property DET from the wired network with id ID."
-  (enwc-wicd-dbus-wired-call-method "GetWiredProperty" id det))
 
 ;; Each entry in sec-types should be:
 ;; ("IDENT" (("Name" . "NAME") ("reqs" . (("key1" . "Entry1") ("key2" . "Entry2") ... ))))
@@ -233,6 +283,10 @@ so this jut returns the tracked network id."
 ;;              required by the security type, i.e. user, passphrase, etc.
 ;;  "keyXX" => String that the backend uses for this security entry.
 ;;  "EntryXX" => String that ENWC displays for this security entry.
+
+;;;;;;;;;;;;;;;;;;;;;
+;; Get Profile Info
+;;;;;;;;;;;;;;;;;;;;;
 
 (defun enwc-wicd-get-sec-types (wired)
   "Gets the list of security types.
@@ -277,7 +331,7 @@ functions, allowing for a single function that checks for wired."
       (enwc-wicd-get-wired-nw-prop id ent)
     (enwc-wicd-dbus-wireless-call-method "GetWirelessProperty" id ent)))
 
-(defun enwc-wicd-get-nw-info (wired id)
+(defun enwc-wicd-get-profile-info (id &optional wired)
   (let ((dns-list (enwc-wicd-get-dns wired id)))
     (list (cons (cons "addr" (enwc-wicd-get-ip-addr wired id)) nil)
 	  (cons (cons "netmask" (enwc-wicd-get-netmask wired id)) nil)
@@ -307,6 +361,10 @@ WIRED is set to indicate whether this is a wired network."
 	(or (enwc-wicd-get-profile-ent wired id "dns2") "")
 	(or (enwc-wicd-get-profile-ent wired id "dns3") "")))
 
+;;;;;;;;;;;;;;;;;;;;;;;;
+;; Save Network Settings
+;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defun enwc-wicd-set-nw-prop (wired id prop val)
   "Sets the network property PROP of the network with id ID
 to VAL.
@@ -324,7 +382,7 @@ WIRED indicates whether this is a wired network."
       (enwc-wicd-dbus-wired-call-method "SaveWiredNetworkProfile" id)
     (enwc-wicd-dbus-wireless-call-method "SaveWirelessNetworkProfile" id)))
 
-(defun enwc-wicd-save-nw-settings (wired id settings)
+(defun enwc-wicd-save-nw-settings (id settings &optional wired)
   "Saves the settings indicated by the association list SETTINGS for
 the network with id ID."
   (let ((enctype (cdr (assoc "enctype" settings))))

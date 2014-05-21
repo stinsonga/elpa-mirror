@@ -118,22 +118,28 @@ This variable is set during setup.")
 This is redefined during setup to be the function to get the network
  list.")
 
-(defvar enwc-get-wireless-nw-prop-func nil
-  "A function variable to be used in `enwc-get-wireless-nw-prop'.
-This is redefined during setup to be the function to get
-a wireless network property.")
+;; (defvar enwc-get-wireless-nw-prop-func nil
+;;   "A function variable to be used in `enwc-get-wireless-nw-prop'.
+;; This is redefined during setup to be the function to get
+;; a wireless network property.")
 
 (defvar enwc-get-wireless-nw-props-func nil)
 
-(defvar enwc-get-encryption-type-func nil
-  "A function variable to be used in `enwc-get-encryption-type'.
-This is redefined during setup to be the function to get the encryption
-type for the selected backend.")
+;; (defvar enwc-get-encryption-type-func nil
+;;   "A function variable to be used in `enwc-get-encryption-type'.
+;; This is redefined during setup to be the function to get the encryption
+;; type for the selected backend.")
 
-(defvar enwc-wireless-connect-func nil
-  "The function variable for the wireless connect function.
-This is redefined during setup to be the function to connect
-for the selected backend.")
+;; (defvar enwc-wireless-connect-func nil
+;;   "The function variable for the wireless connect function.
+;; This is redefined during setup to be the function to connect
+;; for the selected backend.")
+
+(defvar enwc-connect-func nil
+  "The function variable for the connect function.")
+
+(defvar enwc-disconnect-func nil
+  "The function variable for the disconnect function.")
 
 (defvar enwc-get-current-nw-id-func nil
   "The function variable to be used in `enwc-get-current-nw-id'.
@@ -150,57 +156,59 @@ check whether or not ENWC is connecting.")
 This is redefined during setup to be the function to
 disconnect from the wireless network.")
 
-(defvar enwc-get-wired-profiles-func nil
-  "The function variable to be used in `enwc-get-wired-profiles'.
-This is redefined during setup to be the function to
-get the list of wired network profiles.")
+;; (defvar enwc-get-wired-profiles-func nil
+;;   "The function variable to be used in `enwc-get-wired-profiles'.
+;; This is redefined during setup to be the function to
+;; get the list of wired network profiles.")
 
-(defvar enwc-wired-connect-func nil
-  "The function variable for the wired connect function.
-This is redefined during setup to be the function
-to connect to a wired network.")
+;; (defvar enwc-wired-connect-func nil
+;;   "The function variable for the wired connect function.
+;; This is redefined during setup to be the function
+;; to connect to a wired network.")
 
-(defvar enwc-wired-disconnect-func nil
-  "The function variable for the wired disconnect function.
-This is redefined during setup to be the function
-to disconnect from a wired network.")
+;; (defvar enwc-wired-disconnect-func nil
+;;   "The function variable for the wired disconnect function.
+;; This is redefined during setup to be the function
+;; to disconnect from a wired network.")
 
 (defvar enwc-is-wired-func nil
   "The function variable to be used in `enwc-is-wired'.
 This is redefined during setup to be the function to
 check whether or not a wired connection is active.")
 
-(defvar enwc-get-wired-nw-prop-func nil
-  "The function variable to be used in `enwc-get-wired-nw-prop'.
-This is redefined during setup to be the function to get
-a network property from a wired network.")
+;; (defvar enwc-get-wired-nw-prop-func nil
+;;   "The function variable to be used in `enwc-get-wired-nw-prop'.
+;; This is redefined during setup to be the function to get
+;; a network property from a wired network.")
 
 (defvar enwc-get-sec-types-func nil
   "The function variable to be used in `enwc-get-sec-types'.
 This is redefined during setup to be the function to get
 the security types for a given network.")
 
-(defvar enwc-get-ip-addr-func nil
-  "The function variable to be used in `enwc-get-ip-addr'.
-This is redefined during setup to be the function to get
-the IP Address of a given network.")
+;; (defvar enwc-get-ip-addr-func nil
+;;   "The function variable to be used in `enwc-get-ip-addr'.
+;; This is redefined during setup to be the function to get
+;; the IP Address of a given network.")
 
-(defvar enwc-get-netmask-func nil
-  "The function variable to be used in `enwc-get-netmask'.
-This is redefined during setup to be the function to get
-the Netmask of a given network.")
+;; (defvar enwc-get-netmask-func nil
+;;   "The function variable to be used in `enwc-get-netmask'.
+;; This is redefined during setup to be the function to get
+;; the Netmask of a given network.")
 
-(defvar enwc-get-gateway-func nil
-  "The function variable to be used in `enwc-get-gateway'.
-This is redefined during setup to be the function to get
-the Gateway of a given network.")
+;; (defvar enwc-get-gateway-func nil
+;;   "The function variable to be used in `enwc-get-gateway'.
+;; This is redefined during setup to be the function to get
+;; the Gateway of a given network.")
 
-(defvar enwc-get-dns-func nil
-  "The function variable to be used in `enwc-get-dns'.
-This is redefined during setup to be the function to get
-the DNS Server Addresses for a given network.")
+;; (defvar enwc-get-dns-func nil
+;;   "The function variable to be used in `enwc-get-dns'.
+;; This is redefined during setup to be the function to get
+;; the DNS Server Addresses for a given network.")
 
-(defvar enwc-get-nw-info-func nil)
+(defvar enwc-get-profile-info-func nil)
+
+;;(defvar enwc-get-profile-info-func nil)
 
 (defvar enwc-save-nw-settings-func nil
   "The function variable to be used in `enwc-save-nw-settings'.
@@ -317,40 +325,46 @@ in progress.  Returns `non-NIL' if there is one,
 `NIL' otherwise."
   (funcall enwc-check-connecting-func))
 
-(defun enwc-get-wireless-nw-prop (id prop)
-  "Gets property PROP from wireless network with id
-ID and returns it."
-  (funcall enwc-get-wireless-nw-prop-func id prop))
+;; (defun enwc-get-wireless-nw-prop (id prop)
+;;   "Gets property PROP from wireless network with id
+;; ID and returns it."
+;;   (funcall enwc-get-wireless-nw-prop-func id prop))
 
 (defun enwc-get-wireless-nw-props (id)
   (funcall enwc-get-wireless-nw-props-func id))
 
-(defun enwc-get-encryption-type (id)
-  "Gets the encryption type used by the wireless
-network with id ID."
-  (funcall enwc-get-encryption-type-func id))
+;; (defun enwc-get-encryption-type (id)
+;;   "Gets the encryption type used by the wireless
+;; network with id ID."
+;;   (funcall enwc-get-encryption-type-func id))
 
-(defun enwc-get-wired-profiles ()
-  "Gets the list of wired profiles."
-  (funcall enwc-get-wired-profiles-func))
+;; (defun enwc-get-wired-profiles ()
+;;   "Gets the list of wired profiles."
+;;   (funcall enwc-get-wired-profiles-func))
 
 ;;TODO: Add hooks to run after connecting.
-(defun enwc-wireless-connect (id)
-  "Begins a connection to wireless network with
-id ID."
-  (funcall enwc-wireless-connect-func id))
+;; (defun enwc-wireless-connect (id)
+;;   "Begins a connection to wireless network with
+;; id ID."
+;;   (funcall enwc-wireless-connect-func id))
 
-(defun enwc-wireless-disconnect ()
-  "Disconnects the wireless."
-  (funcall enwc-wireless-disconnect-func))
+(defun enwc-connect (id)
+  (funcall enwc-connect-func id enwc-using-wired))
 
-(defun enwc-wired-connect (id)
-  "Connects to the wired profile with id ID."
-  (funcall enwc-wired-connect-func id))
+(defun enwc-disconnect ()
+  (funcall enwc-disconnect-func enwc-using-wired))
 
-(defun enwc-wired-disconnect ()
-  "Disconnects from the current network."
-  (funcall enwc-wired-disconnect-func))
+;; (defun enwc-wireless-disconnect ()
+;;   "Disconnects the wireless."
+;;   (funcall enwc-wireless-disconnect-func))
+
+;; (defun enwc-wired-connect (id)
+;;   "Connects to the wired profile with id ID."
+;;   (funcall enwc-wired-connect-func id))
+
+;; (defun enwc-wired-disconnect ()
+;;   "Disconnects from the current network."
+;;   (funcall enwc-wired-disconnect-func))
 
 (defun enwc-is-wired-p ()
   "Checks whether or not ENWC is connected to
@@ -365,54 +379,54 @@ WIRED is set to indicate whether or not this is
 a wired network."
   (funcall enwc-get-sec-types-func wired))
 
-(defun enwc-get-network-ent (wired id ent)
-  "Gets network entry ENT from the network with network id ID.
-WIRED is set to indicate whether or not this is
-a wired network."
-  (if wired
-      nil
-    (enwc-get-wireless-nw-prop id ent)))
+;; (defun enwc-get-network-ent (wired id ent)
+;;   "Gets network entry ENT from the network with network id ID.
+;; WIRED is set to indicate whether or not this is
+;; a wired network."
+;;   (if wired
+;;       nil
+;;     (enwc-get-wireless-nw-prop id ent)))
 
-(defun enwc-get-wired-nw-prop (id prop)
-  "Gets network property PROP from
- the wired network with network id ID."
-  (funcall enwc-get-wired-nw-prop-func id prop))
+;; (defun enwc-get-wired-nw-prop (id prop)
+;;   "Gets network property PROP from
+;;  the wired network with network id ID."
+;;   (funcall enwc-get-wired-nw-prop-func id prop))
 
-(defun enwc-get-ip-addr (wired id)
-  "Gets the IP Address from the network with network id ID.
-WIRED is set to indicate whether or not this is
-a wired network."
-  (funcall enwc-get-ip-addr-func wired id))
+;; (defun enwc-get-ip-addr (wired id)
+;;   "Gets the IP Address from the network with network id ID.
+;; WIRED is set to indicate whether or not this is
+;; a wired network."
+;;   (funcall enwc-get-ip-addr-func wired id))
 
-(defun enwc-get-netmask (wired id)
-  "Gets the Netmask from the network with network id ID.
-WIRED is set to indicate whether or not this is
-a wired network."
-  (funcall enwc-get-netmask-func wired id))
+;; (defun enwc-get-netmask (wired id)
+;;   "Gets the Netmask from the network with network id ID.
+;; WIRED is set to indicate whether or not this is
+;; a wired network."
+;;   (funcall enwc-get-netmask-func wired id))
 
-(defun enwc-get-gateway (wired id)
-  "Gets the Gateway from the network with network id ID.
-WIRED is set to indicate whether or not this is
-a wired network."
-  (funcall enwc-get-gateway-func wired id))
+;; (defun enwc-get-gateway (wired id)
+;;   "Gets the Gateway from the network with network id ID.
+;; WIRED is set to indicate whether or not this is
+;; a wired network."
+;;   (funcall enwc-get-gateway-func wired id))
 
-(defun enwc-get-dns (wired id)
-  "Gets the DNS Servers from the network with network id ID.
-WIRED is set to indicate whether or not this is
-a wired network."
-  (funcall enwc-get-dns-func wired id))
+;; (defun enwc-get-dns (wired id)
+;;   "Gets the DNS Servers from the network with network id ID.
+;; WIRED is set to indicate whether or not this is
+;; a wired network."
+;;   (funcall enwc-get-dns-func wired id))
 
-(defun enwc-get-nw-info (wired id)
-  (funcall enwc-get-nw-info-func wired id))
+(defun enwc-get-profile-info (id)
+  (funcall enwc-get-profile-info-func id enwc-using-wired))
 
-(defun enwc-save-nw-settings (wired id settings)
+(defun enwc-save-nw-settings (id settings)
   "Saves network settings SETTINGS to the network profile with
 network id ID.
 SETTINGS is an association list with entries for the IP Address,
 Netmask, Gateway, DNS Servers, and Security.
 WIRED is set to indicate whether or not this is
 a wired network."
-  (funcall enwc-save-nw-settings-func wired id settings))
+  (funcall enwc-save-nw-settings-func id settings enwc-using-wired))
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; Actual Functions
@@ -426,9 +440,10 @@ a wired network."
   "Small function to get network property PROP from the network
 with network id ID.
 WIRED indicates whether or not this is a wired connection."
-  (if wired
-      (enwc-get-wired-nw-prop id prop)
-    (enwc-get-wireless-nw-prop id prop)))
+  ;; (if wired
+  ;;     (enwc-get-wired-nw-prop id prop)
+  ;;   (enwc-get-wireless-nw-prop id prop))
+  )
 
 (defun enwc-format-mode-line-string ()
   "Formats the mode line string.
@@ -588,15 +603,14 @@ the scan results."
 		    (number-sequence 0 (1- (length enwc-access-points))))))
     (setq enwc-essid-width (1+ enwc-essid-width))
     (setq enwc-scan-done t)
-    ;;(if enwc-scan-interactive
-    (enwc-display-wireless-networks enwc-last-scan);;)
+    (enwc-display-wireless-networks enwc-last-scan)
     (setq enwc-scan-interactive nil)))
 
 (defun enwc-scan-internal-wired ()
   "The scanning routine for a wired connection.
 This gets the list of wired network profiles."
   (message "Updating Profiles...")
-  (let ((profs (enwc-get-wired-profiles))
+  (let ((profs (enwc-get-nw))
 	cur-prof fin-profs)
     (while profs
       (setq cur-prof (pop profs))
@@ -758,14 +772,20 @@ Otherwise, it actually returns it."
 This is an entry point for the internal connection functions,
 and checks whether or not ENWC is using wired."
   (let (cur-net)
+    (enwc-connect id)
     (if enwc-using-wired
-	(progn
-	  (enwc-wired-connect id)
-	  (setq cur-net (nth id (enwc-get-wired-profiles))))
-      (enwc-wireless-connect id)
+        (setq cur-net (nth id (enwc-get-nw)))
       (if enwc-last-scan
-	  (setq cur-net (cdr (assoc "essid" (nth id enwc-last-scan)))))
-    cur-net)))
+          (setq cur-net (cdr (assoc "essid" (nth id enwc-last-scan))))))
+    cur-net))
+    ;; (if enwc-using-wired
+    ;;     (progn
+    ;;       (enwc-wired-connect id)
+    ;;       (setq cur-net (nth id (enwc-get-wired-profiles))))
+    ;;   (enwc-wireless-connect id)
+    ;;   (if enwc-last-scan
+    ;;       (setq cur-net (cdr (assoc "essid" (nth id enwc-last-scan)))))
+    ;; cur-net)
 
 (defun enwc-connect-to-network (net-id)
   "Connects the the network with network id NET-ID.
@@ -798,14 +818,16 @@ Moves to the enwc buffer if necessary."
   (let ((id (- (line-number-at-pos) 1)))
     (enwc-connect-to-network id)))
 
-(defun enwc-disconnect ()
+(defun enwc-disconnect-network ()
   "Disconnects from the network, if any."
   (interactive)
-  (if (not (eq major-mode 'enwc-mode))
-      (enwc-setup-buffer))
-  (if enwc-using-wired
-      (enwc-wired-disconnect)
-    (enwc-wireless-disconnect)))
+  (message "Disconnecting")
+  (enwc-disconnect))
+  ;; (if (not (eq major-mode 'enwc-mode))
+  ;;     (enwc-setup-buffer))
+  ;; (if enwc-using-wired
+  ;;     (enwc-wired-disconnect)
+  ;;   (enwc-wireless-disconnect))
 
 (defun enwc-toggle-wired ()
   "Toggle the display and mode between wireless and wired.
@@ -885,10 +907,11 @@ WIDGET is always the menu drop-down of security types."
 							 ": %v")
 					 :secret ?*
 					 :keymap 'enwc-edit-field-map
-					 :value (or (enwc-get-nw-prop enwc-using-wired
-								      enwc-edit-id
-								      (car x))
-						    ""))))
+					 ;; :value (or (enwc-get-nw-prop enwc-using-wired
+					 ;;        		      enwc-edit-id
+					 ;;        		      (car x))
+					 ;;            "")
+                                         )))
 		    type-wid-list))
       (widget-setup)
       reqs)))
@@ -901,7 +924,7 @@ and redisplays the settings from the network profile
       (kill-buffer "*ENWC Edit*"))
   (with-current-buffer (get-buffer-create "*ENWC Edit*")
     (let ((sec-types (enwc-get-sec-types enwc-using-wired))
-	  (nw-info (enwc-get-nw-info enwc-using-wired enwc-edit-id))
+	  (nw-info (enwc-get-profile-info enwc-edit-id))
 	  ip-addr netmask gateway dns-1 dns-2
 	  addr-wid net-wid gate-wid
 	  dns-1-wid dns-2-wid dns-list
@@ -1022,7 +1045,7 @@ and redisplays the settings from the network profile
 				    (widget-field-value-get (widget-at)))
 			      nil)))))
     ;;(print settings)
-    (enwc-save-nw-settings enwc-using-wired enwc-edit-id settings)))
+    (enwc-save-nw-settings enwc-edit-id settings)))
 
 (defun enwc-edit-entry-at-point ()
   "Edit the current network entry."
@@ -1035,7 +1058,7 @@ and redisplays the settings from the network profile
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "R") 'enwc-scan)
     (define-key map (kbd "C") 'enwc-connect-to-network-essid)
-    (define-key map (kbd "D") 'enwc-disconnect)
+    (define-key map (kbd "D") 'enwc-disconnect-network)
     (define-key map (kbd "W") 'enwc-toggle-wired)
     (define-key map (kbd "E") 'enwc-edit-entry-at-point)
     (define-key map (kbd "RET") 'enwc-connect-to-network-at-point)
