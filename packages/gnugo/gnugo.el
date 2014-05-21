@@ -6,6 +6,7 @@
 ;; Maintainer: Thien-Thi Nguyen <ttn@gnu.org>
 ;; Version: 2.3.1
 ;; Package-Requires: ((ascii-art-to-unicode "1.5") (xpm "1.0.0"))
+;; Keywords: games, processes
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
