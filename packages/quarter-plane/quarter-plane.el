@@ -24,7 +24,7 @@
 ;; This package provides Quarter Plane mode, a minor mode which
 ;; provides Picture mode style editing (treating the screen as a
 ;; semi-infinite quarter-plane).  Unlike Picture mode, it is a minor
-;; modes (see the Emacs manual for the documentation of Picture mode).
+;; mode (see the Emacs manual for the documentation of Picture mode).
 ;; Type M-x quarter-plane-mode to enable Quarter Plane mode in the
 ;; current buffer, and M-x global-quarter-plane-mode to enable it
 ;; globally.
