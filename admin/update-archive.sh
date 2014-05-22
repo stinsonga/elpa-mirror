@@ -50,8 +50,9 @@ signal_error () {
 announce_new () {
     if [ "yes" != "$announce" ]; then return; fi
     pv="$1"
-    eval $(echo "$pv" | sed -e 's/^\(.*\)-\([^-]*\)$/pkg="\1" ver="\2"/')
-    test "$pkg" && test "$ver" || signal_error "bad PKG-VER: $pv"
+    pkg="$(echo "$pv" | sed -e 's/^\(.*\)-\([^-]*\)\.[^-.]*$/\1/')"
+    ver="$(echo "$pv" | sed -e 's/^\(.*\)-\([^-]*\)\.[^-.]*$/\2/')"
+    if [ -z "$pkg" ] || [ -z "$ver" ]; then signal_error "bad PKG-VER: $pv"; fi
     send_mail "$a_email" "[GNU ELPA] $pkg version $ver" <<ENDDOC
 Version $ver of GNU ELPA package $pkg has just been released.
 You can now find it in M-x package-list RET.
