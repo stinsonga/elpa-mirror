@@ -49,11 +49,11 @@ signal_error () {
 
 announce_new () {
     if [ "yes" != "$announce" ]; then return; fi
-    file="$1"
-    version="$(echo "$file" | sed -e 's|^.*/||' -e 's/^\(.*\)-\([^-]*\)\.[^-.]*$/\2/')"
-    pkg="$(echo "$file" | sed -e 's|^.*/||' -e 's/^\(.*\)-\([^-]*\)\.[^-.]*$/\1/')"
-    send_mail "$a_email" "[GNU ELPA] $pkg version $version" <<ENDDOC
-Version $version of GNU ELPA package $pkg has just been released.
+    pv="$1"
+    eval $(echo "$pv" | sed -e 's/^\(.*\)-\([^-]*\)$/pkg="\1" ver="\2"/')
+    test "$pkg" && test "$ver" || signal_error "bad PKG-VER: $pv"
+    send_mail "$a_email" "[GNU ELPA] $pkg version $ver" <<ENDDOC
+Version $ver of GNU ELPA package $pkg has just been released.
 You can now find it in M-x package-list RET.
 
 More at http://elpa.gnu.org/packages/$pkg.html
@@ -105,7 +105,9 @@ latest="emacs-packages-latest.tgz"
  cp -a staging staging-old
  # Move new files into place but don't throw out old package versions.
  for f in build/archive/packages/*; do
-     dst="staging/packages/$(basename "$f")"
+     # PKG-VER
+     pv=$(basename "$f")
+     dst="staging/packages/$pv"
      # Actually, let's never overwrite an existing version.  So changes can
      # be installed without causing a new package to be built until the
      # version field is changed.  Some files need to be excluded from the
@@ -118,7 +120,7 @@ latest="emacs-packages-latest.tgz"
              else
                  mv "$f" "$dst"
                  # FIXME: Add a tag to remember the precise code used.
-                 announce_new "$f"
+                 announce_new "$pv"
              fi ;;
      esac
  done
