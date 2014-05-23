@@ -92,7 +92,6 @@
 ;;; Code:
 
 (eval-when-compile (require 'cl))       ; use the source luke!
-(require 'ascii-art-to-unicode)         ; for `aa2u'
 (require 'time-date)                    ; for `time-subtract'
 
 ;;;---------------------------------------------------------------------------
