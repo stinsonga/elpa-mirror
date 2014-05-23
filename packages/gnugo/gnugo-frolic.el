@@ -20,6 +20,9 @@
 
 ;;; Code:
 
+(require 'gnugo)
+(require 'ascii-art-to-unicode)         ; for `aa2u'
+
 (defvar gnugo-frolic-mode-map nil
   "Keymap for GNUGO Frolic mode.")
 
