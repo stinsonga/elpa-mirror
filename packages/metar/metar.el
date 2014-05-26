@@ -388,7 +388,7 @@ If no record was found for STATION, nil is returned."
 	     (cons 'humidity humidity)
 	     (cons 'pressure pressure))
        (when (metar-phenomena codes)
-	 (list 'phenomena (metar-phenomena codes)))))))
+	 (list (cons 'phenomena (metar-phenomena codes))))))))
 
 (defun metar-magnus-formula-humidity-from-dewpoint (temperature dewpoint)
   "Calculate relative humidity (in %) from TEMPERATURE and DEWPOINT (in
@@ -450,7 +450,8 @@ Otherwise, determine the best station via latitude/longitude."
 		   (cadr (assoc 'temperature info))
 		   (cadr (assoc 'humidity info))
 		   (if (assoc 'phenomena info)
-		       (concat ", " (cdr (assoc 'phenomena info)))
+		       (concat "\n" "Phenomena: "
+			       (cdr (assoc 'phenomena info)))
 		     ""))
 	(message "No weather information found, sorry.")))))
   
