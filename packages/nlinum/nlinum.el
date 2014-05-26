@@ -54,12 +54,15 @@ Linum mode is a buffer-local minor mode."
   :lighter nil ;; (" NLinum" nlinum--desc)
   (jit-lock-unregister #'nlinum--region)
   (remove-hook 'window-configuration-change-hook #'nlinum--setup-window t)
-  (remove-hook 'after-change-functions #'nlinum--after-change)
+  (remove-hook 'after-change-functions #'nlinum--after-change t)
   (kill-local-variable 'nlinum--line-number-cache)
   (remove-overlays (point-min) (point-max) 'nlinum t)
   ;; (kill-local-variable 'nlinum--ol-counter)
   (kill-local-variable 'nlinum--width)
   (when nlinum-mode
+    ;; FIXME: Another approach would be to make the mode permanent-local,
+    ;; which might indeed be preferable.
+    (add-hook 'change-major-mode-hook (lambda () (nlinum-mode -1)))
     (add-hook 'window-configuration-change-hook #'nlinum--setup-window nil t)
     (add-hook 'after-change-functions #'nlinum--after-change nil t)
     (jit-lock-register #'nlinum--region t))
@@ -135,6 +138,14 @@ Linum mode is a buffer-local minor mode."
 
 (defvar nlinum--line-number-cache nil)
 (make-variable-buffer-local 'nlinum--line-number-cache)
+
+;; We could try and avoid flushing the cache at every change, e.g. with:
+;;   (defun nlinum--before-change (start _end)
+;;     (if (and nlinum--line-number-cache
+;;              (< start (car nlinum--line-number-cache)))
+;;         (save-excursion (goto-char start) (nlinum--line-number-at-pos))))
+;; But it's far from clear that it's worth the trouble.  The current simplistic
+;; approach seems to be good enough in practice.
 
 (defun nlinum--after-change (&rest _args)
   (setq nlinum--line-number-cache nil))
