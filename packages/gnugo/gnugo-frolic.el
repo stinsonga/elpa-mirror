@@ -124,8 +124,8 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
          (at (car (aref monkey 0)))
          (bidx (aref monkey 1))
          (valid (cl-map 'vector (lambda (end)
-                               (gethash (car end) mnum))
-                     ends))
+                                  (gethash (car end) mnum))
+                        ends))
          (max-move-num (apply 'max (append valid nil)))
          (inhibit-read-only t)
          finish)
@@ -265,33 +265,34 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
                                (cnxn lanes set)
                                "\n")))
               (edge heads)
-              (cl-loop with bef
-                    for ls on forks
-                    do (let* ((one (car ls))
-                              (yes (append
-                                    ;; "aft" heads
-                                    (mapcar 'car (cdr ls))
-                                    ;; ‘bef’ tails
-                                    (apply 'append (mapcar 'cdr bef))))
-                              (ord (sort one '<))
-                              (beg (car ord))
-                              (end (car (last ord))))
-                         (cl-flet
-                             ((also (b e) (cnxn (number-sequence b e)
-                                                yes)))
-                           (insert
-                            margin
-                            (also 0 (1- beg))
-                            (pad-unless (zerop beg))
-                            (dashed (number-sequence beg end)
-                                    (lambda (bx)
-                                      (cond ((memq bx ord) "+")
-                                            ((memq bx yes) "|")
-                                            (t             "-"))))
-                            (pad-unless (>= end width))
-                            (also (1+ end) (1- width))
-                            "\n"))
-                         (push one bef)))
+              (cl-loop
+               with bef
+               for ls on forks
+               do (let* ((one (car ls))
+                         (yes (append
+                               ;; "aft" heads
+                               (mapcar 'car (cdr ls))
+                               ;; ‘bef’ tails
+                               (apply 'append (mapcar 'cdr bef))))
+                         (ord (sort one '<))
+                         (beg (car ord))
+                         (end (car (last ord))))
+                    (cl-flet
+                        ((also (b e) (cnxn (number-sequence b e)
+                                           yes)))
+                      (insert
+                       margin
+                       (also 0 (1- beg))
+                       (pad-unless (zerop beg))
+                       (dashed (number-sequence beg end)
+                               (lambda (bx)
+                                 (cond ((memq bx ord) "+")
+                                       ((memq bx yes) "|")
+                                       (t             "-"))))
+                       (pad-unless (>= end width))
+                       (also (1+ end) (1- width))
+                       "\n"))
+                    (push one bef)))
               (edge (apply 'append tails))
               (aa2u (line-beginning-position
                      (- (1+ (length forks))))
@@ -329,28 +330,30 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
     (when (memq 'require-valid-branch how)
       (unless a
         (user-error "No branch here")))
-    (cl-loop with omit = (cdr (assq 'omit how))
-          for (name . value) in `((line   . ,line)
-                                  (bidx   . ,(aref monkey 1))
-                                  (monkey . ,monkey)
-                                  (width  . ,width)
-                                  (ends   . ,ends)
-                                  (tree   . ,tree))
-          do (unless (memq name omit)
-               (push value rv)))
+    (cl-loop
+     with omit = (cdr (assq 'omit how))
+     for (name . value) in `((line   . ,line)
+                             (bidx   . ,(aref monkey 1))
+                             (monkey . ,monkey)
+                             (width  . ,width)
+                             (ends   . ,ends)
+                             (tree   . ,tree))
+     do (unless (memq name omit)
+          (push value rv)))
     rv))
 
 (defmacro gnugo--awakened (how &rest body)
   (declare (indent 1))
   `(cl-destructuring-bind
-       ,(cl-loop with omit = (cdr (assq 'omit how))
-                 with ls   = (list 'a)
-                 for name in '(line bidx monkey
-                               width ends
-                               tree)
-                 do (unless (memq name omit)
-                      (push name ls))
-                 finally return ls)
+       ,(cl-loop
+         with omit = (cdr (assq 'omit how))
+         with ls   = (list 'a)
+         for name in '(line bidx monkey
+                            width ends
+                            tree)
+         do (unless (memq name omit)
+              (push name ls))
+         finally return ls)
        (gnugo--awake ',how)
      ,@body))
 
@@ -375,9 +378,10 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
                      (mod (+ direction n) width))))
            (was (copy-sequence ends))
            (new-bidx (funcall flit bidx)))
-      (cl-loop for bx below width
-            do (aset ends (funcall flit bx)
-                     (aref was bx)))
+      (cl-loop
+       for bx below width
+       do (aset ends (funcall flit bx)
+                (aref was bx)))
       (unless (= new-bidx bidx)
         (aset monkey 1 new-bidx))
       (gnugo-frolic-in-the-leaves)
@@ -464,12 +468,14 @@ This fails if the monkey is on the current branch
                                           (point-max))))))
           (col (unless a
                  (current-column))))
-      (cl-loop while (not (= line stop))
-            do (cl-loop do (progn
-                          (forward-line direction)
-                          (cl-incf line direction))
-                     until (get-text-property (point) 'n))
-            until (zerop (cl-decf n)))
+      (cl-loop
+       while (not (= line stop))
+       do (cl-loop
+           do (progn
+                (forward-line direction)
+                (cl-incf line direction))
+           until (get-text-property (point) 'n))
+       until (zerop (cl-decf n)))
       (if a
           (gnugo--move-to-bcol a)
         (move-to-column col)))))

@@ -113,6 +113,15 @@ For more information on GTP and GNU Go, please visit:
 <http://www.gnu.org/software/gnugo>")
 
 (defvar gnugo-board-mode-map
+  ;; Re <http://lists.gnu.org/archive/html/emacs-devel/2014-04/msg00123.html>,
+  ;; ideally we could ‘defvar’ here w/o value and also ‘defvar’ below
+  ;; in "load-time actions" w/ value and docstring, to avoid this ugly
+  ;; (from the forward references) block early in the file.  Unfortunately,
+  ;; byte-compiling such a split formulation results in the initial ‘defvar’
+  ;; being replaced by:
+  ;;   (defvar VAR (make-sparse-keymap))
+  ;; and the second ‘defvar’ is ignored on load.  At least, this is the case
+  ;; for Emacs built from repo (trunk) 2014-05-27.  --ttn
   (let ((map (make-sparse-keymap)))
     (suppress-keymap map)
     (mapc (lambda (pair)
@@ -370,26 +379,27 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
   (interactive)
   (let ((buf (current-buffer))
         (d (gnugo-get :diamond))
-        (acc (cl-loop for key being the hash-keys of gnugo-state
-                   using (hash-values val)
-                   collect (cons key
-                                 (cl-case key
-                                   ((:xpms)
-                                    (format "hash: %X (%d images)"
-                                            (sxhash val)
-                                            (length val)))
-                                   (:sgf-collection
-                                    (length val))
-                                   (:sgf-gametree
-                                    (list (hash-table-count
-                                           (gnugo--tree-mnum val))
-                                          (gnugo--root-node val)
-                                          (gnugo--tree-ends val)))
-                                   (:monkey
-                                    (let ((mem (aref val 0)))
-                                      (list (aref val 1)
-                                            (car mem))))
-                                   (t val))))))
+        (acc (cl-loop
+              for key being the hash-keys of gnugo-state
+              using (hash-values val)
+              collect (cons key
+                            (cl-case key
+                              ((:xpms)
+                               (format "hash: %X (%d images)"
+                                       (sxhash val)
+                                       (length val)))
+                              (:sgf-collection
+                               (length val))
+                              (:sgf-gametree
+                               (list (hash-table-count
+                                      (gnugo--tree-mnum val))
+                                     (gnugo--root-node val)
+                                     (gnugo--tree-ends val)))
+                              (:monkey
+                               (let ((mem (aref val 0)))
+                                 (list (aref val 1)
+                                       (car mem))))
+                              (t val))))))
     (switch-to-buffer (get-buffer-create
                        (format "%s*GNUGO Board Properties*"
                                d)))
@@ -628,7 +638,7 @@ when you are sure the command cannot fail."
      (funcall (if bool
                   'remove-from-invisibility-spec
                 'add-to-invisibility-spec)
-           :nogrid)
+              :nogrid)
      (save-excursion (gnugo-refresh)))))
 
 (defun gnugo-propertize-board-buffer ()
@@ -857,14 +867,15 @@ For all other values of RSEL, do nothing and return nil."
         (`car        (car (nn)))
         (`cadr  (nn) (car (nn)))
         (`two (nn) (nn) acc)
-        (`bpos (cl-loop with prop = (gnugo--prop<-color color)
-                     while mem
-                     when (and (remem)
-                               (eq prop (car mprop))
-                               (setq move (cdr mprop))
-                               ;; i.e., "normal CC" position
-                               (= 2 (length move)))
-                     return (funcall as-pos move)))
+        (`bpos (cl-loop
+                with prop = (gnugo--prop<-color color)
+                while mem
+                when (and (remem)
+                          (eq prop (car mprop))
+                          (setq move (cdr mprop))
+                          ;; i.e., "normal CC" position
+                          (= 2 (length move)))
+                return (funcall as-pos move)))
         (_ nil)))))
 
 (defun gnugo-boss-is-near ()
@@ -887,15 +898,16 @@ For all other values of RSEL, do nothing and return nil."
         (format "%c%c" one two)))))
 
 (defun gnugo--decorate (node &rest plist)
-  (cl-loop with tp = (last node)
-        with fruit
-        while plist
-        do (setf
-            fruit (list (cons           ; DWR: LtR OoE assumed.
-                         (pop plist)
-                         (pop plist)))
-            (cdr tp) fruit
-            tp       fruit)))
+  (cl-loop
+   with tp = (last node)
+   with fruit
+   while plist
+   do (setf
+       fruit (list (cons                ; DWR: LtR OoE assumed.
+                    (pop plist)
+                    (pop plist)))
+       (cdr tp) fruit
+       tp       fruit)))
 
 (defun gnugo-close-game (end-time resign)
   (gnugo-put :game-end-time end-time)
@@ -944,8 +956,8 @@ For all other values of RSEL, do nothing and return nil."
          (cur (assq :RE root)))
     (when cur
       (cl-assert (not (eq cur (car root))) nil
-              ":RE at head of root node: %S"
-              root)
+                 ":RE at head of root node: %S"
+                 root)
       (delq cur root))))
 
 (defun gnugo-push-move (who move)
@@ -1013,23 +1025,22 @@ For all other values of RSEL, do nothing and return nil."
        below count
        if (setq bx (mod (+ bidx i) count)
                 previous
-                (cl-loop with node
-                      for m on (aref ends bx)
-                      while (< tip-move-num
-                               (gethash (setq node (car m))
-                                        mnum))
-                      if (eq mem (cdr m))
-                      return
-                      (when (equal pair (assq property node))
-                        m)
-                      finally return
-                      nil))
+                (cl-loop
+                 with node
+                 for m on (aref ends bx)
+                 while (< tip-move-num
+                          (gethash (setq node (car m))
+                                   mnum))
+                 if (eq mem (cdr m))
+                 return (when (equal pair (assq property node))
+                          m)
+                 finally return nil))
        ;; yes => follow
        return
        (progn
          (unless (= bidx bx)
            (cl-rotatef (aref ends bidx)
-                    (aref ends bx)))
+                       (aref ends bx)))
          (setq mem previous))
        ;; no => construct
        finally do
@@ -1455,13 +1466,14 @@ To start a game try M-x gnugo."
     (message "%s %s in group." blurb (length stones))
     (setplist (gnugo-f 'anim) nil)
     (let* ((spec (if (gnugo-get :display-using-images)
-                     (cl-loop with yin  = (get-text-property (point) 'gnugo-yin)
-                           with yang = (gnugo-yang (following-char))
-                           with up   = (get (gnugo-yy yin yang t) 'display)
-                           with dn   = (get (gnugo-yy yin yang) 'display)
-                           for n below (length gnugo-animation-string)
-                           collect (if (zerop (logand 1 n))
-                                       dn up))
+                     (cl-loop
+                      with yin  = (get-text-property (point) 'gnugo-yin)
+                      with yang = (gnugo-yang (following-char))
+                      with up   = (get (gnugo-yy yin yang t) 'display)
+                      with dn   = (get (gnugo-yy yin yang) 'display)
+                      for n below (length gnugo-animation-string)
+                      collect (if (zerop (logand 1 n))
+                                  dn up))
                    (split-string gnugo-animation-string "" t)))
            (cell (list spec))
            (ovs (save-excursion
@@ -1655,11 +1667,12 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
     (if (not color)
         (unless noerror
           (user-error "No stone at %s" pos))
-      (cl-loop with fruit = (cons color (funcall (gnugo--as-cc-func) pos))
-            for mem on (aref (gnugo-get :monkey) 0)
-            when (equal fruit (caar mem))
-            return mem
-            finally return nil))))
+      (cl-loop
+       with fruit = (cons color (funcall (gnugo--as-cc-func) pos))
+       for mem on (aref (gnugo-get :monkey) 0)
+       when (equal fruit (caar mem))
+       return mem
+       finally return nil))))
 
 (defun gnugo--climb-towards-root (spec &optional reaction keep)
   (gnugo-gate)
@@ -1847,14 +1860,14 @@ to the last move, as a comment."
         (cond ((string= "Chinese" (gnugo--root-prop :RU))
                (dolist (group live)
                  (cl-incf (if (gnugo--blackp (caar group))
-                           b-terr
-                         w-terr)
-                       (length (cdr group))))
+                              b-terr
+                            w-terr)
+                          (length (cdr group))))
                (dolist (group dead)
                  (cl-incf (if (gnugo--blackp (caar group))
-                           w-terr
-                         b-terr)
-                       (length (cdr group))))
+                              w-terr
+                            b-terr)
+                          (length (cdr group))))
                (push (format "%s%d %s = %3.1f\n" b= b-terr terr b-terr) blurb)
                (push (format "%s%d %s + %3.1f %s = %3.1f\n" w=
                              w-terr terr komi 'komi (+ w-terr komi))
@@ -1862,9 +1875,9 @@ to the last move, as a comment."
               (t
                (dolist (group dead)
                  (cl-incf (if (gnugo--blackp (caar group))
-                           w-terr
-                         b-terr)
-                       (* 2 (length (cdr group)))))
+                              w-terr
+                            b-terr)
+                          (* 2 (length (cdr group)))))
                (push (format "%s%d %s + %s %s = %3.1f\n" b=
                              b-terr terr
                              b-capt capt
@@ -1977,12 +1990,13 @@ If there a stone at that position, also display its move number."
 (defun gnugo-switch-to-another ()
   "Switch to another GNU Go game buffer (if any)."
   (interactive)
-  (cl-loop for buf in (cdr (buffer-list))
-        if (gnugo-board-buffer-p buf)
-        return (progn
-                 (bury-buffer)
-                 (switch-to-buffer buf))
-        finally do (message "(only one)")))
+  (cl-loop
+   for buf in (cdr (buffer-list))
+   if (gnugo-board-buffer-p buf)
+   return (progn
+            (bury-buffer)
+            (switch-to-buffer buf))
+   finally do (message "(only one)")))
 
 (defun gnugo-comment (node comment)
   "Add to NODE a COMMENT (string) property.
@@ -2307,14 +2321,15 @@ See `gnugo-board-mode' for a full list of commands."
                                 (plist-put (sget cmd) prop val)))
        (validpos (s &optional go)
                  (let ((pos (upcase s)))
-                   (cl-loop with size = (gnugo-get :SZ)
-                         for c across (funcall (gnugo--as-cc-func)
-                                               pos)
-                         do (let ((norm (- c ?a)))
-                              (unless (and (< -1 norm)
-                                           (> size norm))
-                                (user-error "Invalid position: %s"
-                                            pos))))
+                   (cl-loop
+                    with size = (gnugo-get :SZ)
+                    for c across (funcall (gnugo--as-cc-func)
+                                          pos)
+                    do (let ((norm (- c ?a)))
+                         (unless (and (< -1 norm)
+                                      (> size norm))
+                           (user-error "Invalid position: %s"
+                                       pos))))
                    (when go
                      (gnugo-goto-pos pos))
                    pos))
@@ -2391,10 +2406,10 @@ See `gnugo-board-mode' for a full list of commands."
 
 
 ;;;---------------------------------------------------------------------------
-;; The remainder of this file defines a simplified SGF-handling library.
-;; When/if it should start to attain generality, it should be split off into
-;; a separate file (probably named sgf.el) w/ funcs and vars renamed sans the
-;; "gnugo/" prefix.
+;;; The remainder of this file defines a simplified SGF-handling library.
+;;; When/if it should start to attain generality, it should be split off into
+;;; a separate file (probably named sgf.el) w/ funcs and vars renamed sans the
+;;; "gnugo/" prefix.
 
 (defconst gnugo/sgf-*r4-properties*
   '((AB "Add Black"       setup list stone)
@@ -2594,12 +2609,13 @@ A collection is a list of gametrees, each a vector of four elements:
                           (forward-char 1)
                           t))
          (NODE () (when (seek-into ?\;)
-                    (cl-loop with prop
-                          while (setq prop (PROP))
-                          collect (progn
-                                    (when (eq :SZ (car prop))
-                                      (setq SZ (cdr prop)))
-                                    prop))))
+                    (cl-loop
+                     with prop
+                     while (setq prop (PROP))
+                     collect (progn
+                               (when (eq :SZ (car prop))
+                                 (setq SZ (cdr prop)))
+                               prop))))
          (TREE (parent mnum)
                (let ((ls parent)
                      prev node)
@@ -2619,21 +2635,23 @@ A collection is a list of gametrees, each a vector of four elements:
                          ;; singular
                          (list ls)
                        ;; multiple
-                       (cl-loop while (seek ?\()
-                             append (TREE ls mnum)))
+                       (cl-loop
+                        while (seek ?\()
+                        append (TREE ls mnum)))
                    (seek-into ?\))))))
       (with-temp-buffer
         (if (not data-p)
             (insert-file-contents file-or-data)
           (insert file-or-data)
           (goto-char (point-min)))
-        (cl-loop while (morep)
-              collect (let* ((mnum (gnugo--mkht :weakness 'key))
-                             (ends (TREE nil mnum))
-                             (root (car (last (car ends)))))
-                        (vector (apply 'vector ends)
-                                mnum
-                                root)))))))
+        (cl-loop
+         while (morep)
+         collect (let* ((mnum (gnugo--mkht :weakness 'key))
+                        (ends (TREE nil mnum))
+                        (root (car (last (car ends)))))
+                   (vector (apply 'vector ends)
+                           mnum
+                           root)))))))
 
 (defun gnugo/sgf-write-file (collection filename)
   (let ((aft-newline-appreciated '(:AP :GN :PB :PW :HA :KM :RU :RE))
@@ -2689,9 +2707,10 @@ A collection is a list of gametrees, each a vector of four elements:
                        (t
                         (>>one v) (>>nl))))
          (>>node (node)
-                 (cl-loop initially (insert ";")
-                       for prop in node
-                       do (>>prop prop)))
+                 (cl-loop
+                  initially (insert ";")
+                  for prop in node
+                  do (>>prop prop)))
          (>>tree (tree)
                  (unless (zerop (current-column))
                    (newline))
