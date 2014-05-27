@@ -5,7 +5,7 @@
 ;; Author: Thien-Thi Nguyen <ttn@gnu.org>
 ;; Maintainer: Thien-Thi Nguyen <ttn@gnu.org>
 ;; Version: 2.3.1
-;; Package-Requires: ((ascii-art-to-unicode "1.5") (xpm "1.0.0"))
+;; Package-Requires: ((ascii-art-to-unicode "1.5") (xpm "1.0.0") (cl-lib "0.5"))
 ;; Keywords: games, processes
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -91,7 +91,7 @@
 
 ;;; Code:
 
-(eval-when-compile (require 'cl))       ; use the source luke!
+(require 'cl-lib)                       ; use the source luke!
 (require 'time-date)                    ; for `time-subtract'
 
 ;;;---------------------------------------------------------------------------
@@ -112,7 +112,57 @@ This program must accept command line args:
 For more information on GTP and GNU Go, please visit:
 <http://www.gnu.org/software/gnugo>")
 
-(defvar gnugo-board-mode-map nil
+(defvar gnugo-board-mode-map
+  (let ((map (make-sparse-keymap)))
+    (suppress-keymap map)
+    (mapc (lambda (pair)
+            (define-key map (car pair) (cdr pair)))
+          '(("?"        . describe-mode)
+            ("S"        . gnugo-request-suggestion)
+            ("\C-m"     . gnugo-move)
+            (" "        . gnugo-move)
+            ("P"        . gnugo-pass)
+            ("R"        . gnugo-resign)
+            ("q"        . gnugo-quit)
+            ("Q"        . gnugo-leave-me-alone)
+            ("U"        . gnugo-fancy-undo)
+            ("\M-u"     . gnugo-undo-one-move)
+            ("u"        . gnugo-undo-two-moves)
+            ("\C-?"     . gnugo-undo-two-moves)
+            ("o"        . gnugo-oops)
+            ("O"        . gnugo-okay)
+            ("\C-l"     . gnugo-refresh)
+            ("\M-_"     . gnugo-boss-is-near)
+            ("_"        . gnugo-boss-is-near)
+            ("h"        . gnugo-move-history)
+            ("L"        . gnugo-frolic-in-the-leaves)
+            ("\C-c\C-l" . gnugo-frolic-in-the-leaves)
+            ("i"        . gnugo-image-display-mode)
+            ("w"        . gnugo-worm-stones)
+            ("W"        . gnugo-worm-data)
+            ("d"        . gnugo-dragon-stones)
+            ("D"        . gnugo-dragon-data)
+            ("g"        . gnugo-grid-mode)
+            ("!"        . gnugo-estimate-score)
+            (":"        . gnugo-command)
+            (";"        . gnugo-command)
+            ("="        . gnugo-describe-position)
+            ("s"        . gnugo-write-sgf-file)
+            ("\C-x\C-s" . gnugo-write-sgf-file)
+            ("\C-x\C-w" . gnugo-write-sgf-file)
+            ("l"        . gnugo-read-sgf-file)
+            ("F"        . gnugo-display-final-score)
+            ("A"        . gnugo-switch-to-another)
+            ("C"        . gnugo-comment)
+            ("\C-c\C-a" . gnugo-assist-mode)
+            ("\C-c\C-z" . gnugo-zombie-mode)
+            ;; mouse
+            ([(down-mouse-1)] . gnugo-mouse-move)
+            ([(down-mouse-2)] . gnugo-mouse-move) ; mitigate accidents
+            ([(down-mouse-3)] . gnugo-mouse-pass)
+            ;; delving into the curiosities
+            ("\C-c\C-p" . gnugo-describe-internal-properties)))
+    map)
   "Keymap for GNUGO Board mode.")
 
 (defvar gnugo-board-mode-hook nil
@@ -320,10 +370,10 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
   (interactive)
   (let ((buf (current-buffer))
         (d (gnugo-get :diamond))
-        (acc (loop for key being the hash-keys of gnugo-state
+        (acc (cl-loop for key being the hash-keys of gnugo-state
                    using (hash-values val)
                    collect (cons key
-                                 (case key
+                                 (cl-case key
                                    ((:xpms)
                                     (format "hash: %X (%d images)"
                                             (sxhash val)
@@ -391,7 +441,7 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
     (user-error "Wrong buffer -- try M-x gnugo"))
   (unless (gnugo-get :proc)
     (user-error "No \"gnugo\" process!"))
-  (destructuring-bind (&optional color . suggestion)
+  (cl-destructuring-bind (&optional color . suggestion)
       (gnugo-get :waiting)
     (when color
       (apply 'user-error
@@ -618,7 +668,7 @@ when you are sure the command cannot fail."
           ;; This has something to do w/ the bletcherous `before-string'.
           (overlay-put ov 'invisible :nogrid)
           (overlay-put ov 'category %lpad))
-        (do ((p edge (+ 2 p)) (ival 'even (if (eq 'even ival) 'odd 'even)))
+        (cl-do ((p edge (+ 2 p)) (ival 'even (if (eq 'even ival) 'odd 'even)))
             ((< other-edge p))
           (let* ((position (format "%c%s" (aref "ABCDEFGHJKLMNOPQRST"
                                                 (truncate (- p edge) 2))
@@ -729,7 +779,7 @@ when you are sure the command cannot fail."
             (gnugo-put capprop new)
             (delete-char old-len)
             (insert (apply 'propertize new keep))
-            (incf adj (- (length new) old-len)))
+            (cl-incf adj (- (length new) old-len)))
         (setq new (aref aft aft-idx))
         (insert-and-inherit (char-to-string new))
         (let ((yin (get-text-property cut 'gnugo-yin))
@@ -750,7 +800,7 @@ when you are sure the command cannot fail."
       (assq :W node)))
 
 (defun gnugo--as-pos-func ()
-  (lexical-let ((size (gnugo-get :SZ)))
+  (let ((size (gnugo-get :SZ)))
     ;; rv
     (lambda (cc)
       (if (string= "" cc)
@@ -807,7 +857,7 @@ For all other values of RSEL, do nothing and return nil."
         (`car        (car (nn)))
         (`cadr  (nn) (car (nn)))
         (`two (nn) (nn) acc)
-        (`bpos (loop with prop = (gnugo--prop<-color color)
+        (`bpos (cl-loop with prop = (gnugo--prop<-color color)
                      while mem
                      when (and (remem)
                                (eq prop (car mprop))
@@ -828,7 +878,7 @@ For all other values of RSEL, do nothing and return nil."
       (aref monkey 0)))
 
 (defun gnugo--as-cc-func ()
-  (lexical-let ((size (gnugo-get :SZ)))
+  (let ((size (gnugo-get :SZ)))
     (lambda (pos)
       (let* ((col (aref pos 0))
              (one (+ ?a (- col (if (< ?H col) 1 0) ?A)))
@@ -837,7 +887,7 @@ For all other values of RSEL, do nothing and return nil."
         (format "%c%c" one two)))))
 
 (defun gnugo--decorate (node &rest plist)
-  (loop with tp = (last node)
+  (cl-loop with tp = (last node)
         with fruit
         while plist
         do (setf
@@ -893,7 +943,7 @@ For all other values of RSEL, do nothing and return nil."
   (let* ((root (gnugo--root-node))
          (cur (assq :RE root)))
     (when cur
-      (assert (not (eq cur (car root))) nil
+      (cl-assert (not (eq cur (car root))) nil
               ":RE at head of root node: %S"
               root)
       (delq cur root))))
@@ -952,7 +1002,7 @@ For all other values of RSEL, do nothing and return nil."
       ;;
       ;; This linear search loses for multiple ‘old’ w/ "A",
       ;; a very unusual (but not invalid, sigh) situation.
-      (loop
+      (cl-loop
        with (bx previous)
        for i
        ;; Start with latest / highest likelihood for hit.
@@ -963,7 +1013,7 @@ For all other values of RSEL, do nothing and return nil."
        below count
        if (setq bx (mod (+ bidx i) count)
                 previous
-                (loop with node
+                (cl-loop with node
                       for m on (aref ends bx)
                       while (< tip-move-num
                                (gethash (setq node (car m))
@@ -978,7 +1028,7 @@ For all other values of RSEL, do nothing and return nil."
        return
        (progn
          (unless (= bidx bx)
-           (rotatef (aref ends bidx)
+           (cl-rotatef (aref ends bidx)
                     (aref ends bx)))
          (setq mem previous))
        ;; no => construct
@@ -1033,8 +1083,8 @@ For all other values of RSEL, do nothing and return nil."
       (when (and (not (= color-key (aref new sx)))
                  (cl-plusp (random 4)))
         (aset new sx (aref bg-data sb)))
-      (incf sx)
-      (incf sb))
+      (cl-incf sx)
+      (cl-incf sb))
     (apply 'create-image new 'xpm t
            :ascent 'center (when c-symbs
                              (list :color-symbols
@@ -1061,7 +1111,7 @@ its move."
       (gnugo-propertize-board-buffer))
     ;; last move
     (when move
-      (destructuring-bind (l-ov . r-ov) (gnugo-get :paren-ov)
+      (cl-destructuring-bind (l-ov . r-ov) (gnugo-get :paren-ov)
         (if (member move '("PASS" "resign"))
             (mapc 'delete-overlay (list l-ov r-ov))
           (gnugo-goto-pos move)
@@ -1198,11 +1248,11 @@ its move."
                  (let (acc cut c)
                    (while (setq cut (string-match "~[bwpmtu]" cur))
                      (aset cur cut ?%)
-                     (setq c (aref cur (incf cut)))
+                     (setq c (aref cur (cl-incf cut)))
                      (aset cur cut ?s)
                      (push
                       `(,(intern (format "squig-%c" c))
-                        ,(case c
+                        ,(cl-case c
                            (?b '(or (gnugo-get :black-captures) 0))
                            (?w '(or (gnugo-get :white-captures) 0))
                            (?p '(gnugo-current-player))
@@ -1266,7 +1316,7 @@ its move."
   (let ((old "to play")
         (new "waiting for suggestion"))
     (when back
-      (rotatef old new))
+      (cl-rotatef old new))
     (let ((name (buffer-name)))
       (when (string-match old name)
         (rename-buffer (replace-match new t t name))))))
@@ -1282,7 +1332,7 @@ its move."
            (full   (gnugo-put :get-move-string (concat so-far string))))
       (when (string-match "^= \\(.+\\)\n\n" full)
         (setq full (match-string 1 full)) ; POS or "PASS"
-        (destructuring-bind (color . suggestion)
+        (cl-destructuring-bind (color . suggestion)
             (gnugo-get :waiting)
           (gnugo--forget :get-move-string
                          :waiting)
@@ -1405,7 +1455,7 @@ To start a game try M-x gnugo."
     (message "%s %s in group." blurb (length stones))
     (setplist (gnugo-f 'anim) nil)
     (let* ((spec (if (gnugo-get :display-using-images)
-                     (loop with yin  = (get-text-property (point) 'gnugo-yin)
+                     (cl-loop with yin  = (get-text-property (point) 'gnugo-yin)
                            with yang = (gnugo-yang (following-char))
                            with up   = (get (gnugo-yy yin yang t) 'display)
                            with dn   = (get (gnugo-yy yin yang) 'display)
@@ -1503,7 +1553,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
   (gnugo--ok-file filename))
 
 (defun gnugo--dance-dance (karma)
-  (destructuring-bind (dance btw)
+  (cl-destructuring-bind (dance btw)
       (aref [(moshpit " Zombie")
              (classic nil)
              (reverse " Zombie Assist") ; "Assist Zombie"?  no thanks!  :-D
@@ -1599,13 +1649,13 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
     (gnugo--who-is-who wait play samep)))
 
 (defun gnugo--mem-with-played-stone (pos &optional noerror)
-  (let ((color (case (following-char)
+  (let ((color (cl-case (following-char)
                  (?X :B)
                  (?O :W))))
     (if (not color)
         (unless noerror
           (user-error "No stone at %s" pos))
-      (loop with fruit = (cons color (funcall (gnugo--as-cc-func) pos))
+      (cl-loop with fruit = (cons color (funcall (gnugo--as-cc-func) pos))
             for mem on (aref (gnugo-get :monkey) 0)
             when (equal fruit (caar mem))
             return mem
@@ -1651,10 +1701,10 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
       (when ulastp
         (let ((g (gnugo-get :gnugo-color)))
           (cl-flet ((turn () (gnugo--turn-the-wheel t)))
-            (case (or reaction gnugo-undo-reaction)
+            (cl-case (or reaction gnugo-undo-reaction)
               (play (turn))
               (play! (let ((wheel (gnugo-get :wheel)))
-                       (letf (((cdr wheel) (cons g (cdr wheel))))
+                       (cl-letf (((cdr wheel) (cons g (cdr wheel))))
                          (turn))))
               (zombie (gnugo-zombie-mode 1))
               (t (gnugo-put :one-shot g)))))))))
@@ -1679,7 +1729,7 @@ See also `gnugo-undo-two-moves'."
       (gnugo-put :user-color play)
       (gnugo-put :gnugo-color wait)
       (gnugo--who-is-who wait play samep)))
-  (gnugo--climb-towards-root 1 (case gnugo-undo-reaction
+  (gnugo--climb-towards-root 1 (cl-case gnugo-undo-reaction
                                  (zombie gnugo-undo-reaction)
                                  (t 'one-shot))))
 
@@ -1718,7 +1768,7 @@ Prefix arg means to redo all the undone moves."
              (ucolor (gnugo-get :user-color))
              (uprop (gnugo--prop<-color ucolor)))
         (cl-flet ((mvno (node) (gethash node mnum)))
-          (loop
+          (cl-loop
            with ok = (if full
                          (mvno (car end))
                        (+ 2 (mvno (car mem))))
@@ -1734,7 +1784,7 @@ Prefix arg means to redo all the undone moves."
                           todo))))
            until (eq mem (cdr ls))
            finally do
-           (loop
+           (cl-loop
             for (userp pos) in todo
             do (progn
                  (gnugo-push-move userp pos)
@@ -1796,12 +1846,12 @@ to the last move, as a comment."
               result (gnugo-query "final_score %d" seed))
         (cond ((string= "Chinese" (gnugo--root-prop :RU))
                (dolist (group live)
-                 (incf (if (gnugo--blackp (caar group))
+                 (cl-incf (if (gnugo--blackp (caar group))
                            b-terr
                          w-terr)
                        (length (cdr group))))
                (dolist (group dead)
-                 (incf (if (gnugo--blackp (caar group))
+                 (cl-incf (if (gnugo--blackp (caar group))
                            w-terr
                          b-terr)
                        (length (cdr group))))
@@ -1811,7 +1861,7 @@ to the last move, as a comment."
                      blurb))
               (t
                (dolist (group dead)
-                 (incf (if (gnugo--blackp (caar group))
+                 (cl-incf (if (gnugo--blackp (caar group))
                            w-terr
                          b-terr)
                        (* 2 (length (cdr group)))))
@@ -1927,7 +1977,7 @@ If there a stone at that position, also display its move number."
 (defun gnugo-switch-to-another ()
   "Switch to another GNU Go game buffer (if any)."
   (interactive)
-  (loop for buf in (cdr (buffer-list))
+  (cl-loop for buf in (cdr (buffer-list))
         if (gnugo-board-buffer-p buf)
         return (progn
                  (bury-buffer)
@@ -2078,9 +2128,7 @@ NOTE: At this time, GTP command handling specification is still
 (define-derived-mode gnugo-board-mode special-mode "GNUGO Board"
   "Major mode for playing GNU Go.
 Entering this mode runs the normal hook `gnugo-board-mode-hook'.
-In this mode, keys do not self insert.
-
-\\{gnugo-board-mode-map}"
+In this mode, keys do not self insert."
   (buffer-disable-undo)                 ; todo: undo undo undoing
   (setq font-lock-defaults '(gnugo-font-lock-keywords t)
         truncate-lines t)
@@ -2146,7 +2194,7 @@ See `gnugo-board-mode' for a full list of commands."
       (gnugo-board-mode)
       (let* ((filename nil)
              (user-color "black")
-             (args (loop
+             (args (cl-loop
                     with ls = (split-string
                                ;; todo: grok ‘gnugo --help’; completion
                                (read-string
@@ -2252,57 +2300,6 @@ See `gnugo-board-mode' for a full list of commands."
 ;;;---------------------------------------------------------------------------
 ;;; Load-time actions
 
-(unless gnugo-board-mode-map
-  (setq gnugo-board-mode-map (make-sparse-keymap))
-  (suppress-keymap gnugo-board-mode-map)
-  (mapc (lambda (pair)
-          (define-key gnugo-board-mode-map (car pair) (cdr pair)))
-        '(("?"        . describe-mode)
-          ("S"        . gnugo-request-suggestion)
-          ("\C-m"     . gnugo-move)
-          (" "        . gnugo-move)
-          ("P"        . gnugo-pass)
-          ("R"        . gnugo-resign)
-          ("q"        . gnugo-quit)
-          ("Q"        . gnugo-leave-me-alone)
-          ("U"        . gnugo-fancy-undo)
-          ("\M-u"     . gnugo-undo-one-move)
-          ("u"        . gnugo-undo-two-moves)
-          ("\C-?"     . gnugo-undo-two-moves)
-          ("o"        . gnugo-oops)
-          ("O"        . gnugo-okay)
-          ("\C-l"     . gnugo-refresh)
-          ("\M-_"     . gnugo-boss-is-near)
-          ("_"        . gnugo-boss-is-near)
-          ("h"        . gnugo-move-history)
-          ("L"        . gnugo-frolic-in-the-leaves)
-          ("\C-c\C-l" . gnugo-frolic-in-the-leaves)
-          ("i"        . gnugo-image-display-mode)
-          ("w"        . gnugo-worm-stones)
-          ("W"        . gnugo-worm-data)
-          ("d"        . gnugo-dragon-stones)
-          ("D"        . gnugo-dragon-data)
-          ("g"        . gnugo-grid-mode)
-          ("!"        . gnugo-estimate-score)
-          (":"        . gnugo-command)
-          (";"        . gnugo-command)
-          ("="        . gnugo-describe-position)
-          ("s"        . gnugo-write-sgf-file)
-          ("\C-x\C-s" . gnugo-write-sgf-file)
-          ("\C-x\C-w" . gnugo-write-sgf-file)
-          ("l"        . gnugo-read-sgf-file)
-          ("F"        . gnugo-display-final-score)
-          ("A"        . gnugo-switch-to-another)
-          ("C"        . gnugo-comment)
-          ("\C-c\C-a" . gnugo-assist-mode)
-          ("\C-c\C-z" . gnugo-zombie-mode)
-          ;; mouse
-          ([(down-mouse-1)] . gnugo-mouse-move)
-          ([(down-mouse-2)] . gnugo-mouse-move) ; mitigate accidents
-          ([(down-mouse-3)] . gnugo-mouse-pass)
-          ;; delving into the curiosities
-          ("\C-c\C-p" . gnugo-describe-internal-properties))))
-
 (unless (get 'help :gnugo-gtp-command-spec)
   (cl-flet*
       ((sget (x) (get x :gnugo-gtp-command-spec))
@@ -2310,7 +2307,7 @@ See `gnugo-board-mode' for a full list of commands."
                                 (plist-put (sget cmd) prop val)))
        (validpos (s &optional go)
                  (let ((pos (upcase s)))
-                   (loop with size = (gnugo-get :SZ)
+                   (cl-loop with size = (gnugo-get :SZ)
                          for c across (funcall (gnugo--as-cc-func)
                                                pos)
                          do (let ((norm (- c ?a)))
@@ -2354,7 +2351,7 @@ See `gnugo-board-mode' for a full list of commands."
                 (when (setq output (plist-get spec :output))
                   (if (functionp output)
                       (note "handles the output specially")
-                    (case output
+                    (cl-case output
                       (:discard (note "discards the output"))
                       (:message (note "displays the output in the echo area")))))
                 (when (eq sel cur)
@@ -2394,10 +2391,10 @@ See `gnugo-board-mode' for a full list of commands."
 
 
 ;;;---------------------------------------------------------------------------
-;;; The remainder of this file defines a simplified SGF-handling library.
-;;; When/if it should start to attain generality, it should be split off into
-;;; a separate file (probably named sgf.el) w/ funcs and vars renamed sans the
-;;; "gnugo/" prefix.
+;; The remainder of this file defines a simplified SGF-handling library.
+;; When/if it should start to attain generality, it should be split off into
+;; a separate file (probably named sgf.el) w/ funcs and vars renamed sans the
+;; "gnugo/" prefix.
 
 (defconst gnugo/sgf-*r4-properties*
   '((AB "Add Black"       setup list stone)
@@ -2502,14 +2499,14 @@ A collection is a list of gametrees, each a vector of four elements:
         (specs (or (get 'gnugo/sgf-*r4-properties* :specs)
                    (put 'gnugo/sgf-*r4-properties* :specs
                         (mapcar (lambda (full)
-                                  (cons (car full) (cdddr full)))
+                                  (cons (car full) (cl-cdddr full)))
                                 gnugo/sgf-*r4-properties*))))
         SZ)
     (cl-labels
         ((sw () (skip-chars-forward " \t\n"))
          (x (end preserve-whitespace)
             (let ((beg (point))
-                  (endp (case end
+                  (endp (cl-case end
                           (:end (lambda (char) (= ?\] char)))
                           (:mid (lambda (char) (= ?\: char)))
                           (t (lambda (char) (or (= ?\: char)
@@ -2530,7 +2527,7 @@ A collection is a list of gametrees, each a vector of four elements:
          (one (type end) (let ((s (progn
                                     (forward-char 1)
                                     (x end (eq 'text type)))))
-                           (case type
+                           (cl-case type
                              ((stone point move)
                               ;; blech, begone bu"tt"-ugly blatherings
                               ;; (but bide brobdingnagian boards)...
@@ -2560,7 +2557,7 @@ A collection is a list of gametrees, each a vector of four elements:
                                 ;; probably this assumption is consistent
                                 ;; w/ the SGF authors' desire to make the
                                 ;; parsing easy, but you never know...
-                                (cons v (one (cdaddr spec) :end)))))
+                                (cons v (one (cl-cdaddr spec) :end)))))
                            (t (cons (one (car spec) :mid)
                                     (one (cdr spec) :end)))))
          (short (who) (when (eobp)
@@ -2597,7 +2594,7 @@ A collection is a list of gametrees, each a vector of four elements:
                           (forward-char 1)
                           t))
          (NODE () (when (seek-into ?\;)
-                    (loop with prop
+                    (cl-loop with prop
                           while (setq prop (PROP))
                           collect (progn
                                     (when (eq :SZ (car prop))
@@ -2622,7 +2619,7 @@ A collection is a list of gametrees, each a vector of four elements:
                          ;; singular
                          (list ls)
                        ;; multiple
-                       (loop while (seek ?\()
+                       (cl-loop while (seek ?\()
                              append (TREE ls mnum)))
                    (seek-into ?\))))))
       (with-temp-buffer
@@ -2630,7 +2627,7 @@ A collection is a list of gametrees, each a vector of four elements:
             (insert-file-contents file-or-data)
           (insert file-or-data)
           (goto-char (point-min)))
-        (loop while (morep)
+        (cl-loop while (morep)
               collect (let* ((mnum (gnugo--mkht :weakness 'key))
                              (ends (TREE nil mnum))
                              (root (car (last (car ends)))))
@@ -2643,13 +2640,13 @@ A collection is a list of gametrees, each a vector of four elements:
         (me (cons "gnugo.el" gnugo-version))
         (specs (mapcar (lambda (full)
                          (cons (intern (format ":%s" (car full)))
-                               (cdddr full)))
+                               (cl-cdddr full)))
                        gnugo/sgf-*r4-properties*))
         p name v spec)
     (cl-labels
         ((esc (composed fmt arg)
               (mapconcat (lambda (c)
-                           (case c
+                           (cl-case c
                              ;; ‘?\[’ is not strictly required
                              ;; but neither is it forbidden.
                              ((?\[ ?\] ?\\) (format "\\%c" c))
@@ -2692,7 +2689,7 @@ A collection is a list of gametrees, each a vector of four elements:
                        (t
                         (>>one v) (>>nl))))
          (>>node (node)
-                 (loop initially (insert ";")
+                 (cl-loop initially (insert ";")
                        for prop in node
                        do (>>prop prop)))
          (>>tree (tree)
@@ -2714,7 +2711,7 @@ A collection is a list of gametrees, each a vector of four elements:
                 (leaves (append (gnugo--tree-ends tree) nil)))
             (cl-flet
                 ((hang (stack)
-                       (loop
+                       (cl-loop
                         with rh         ; rectified history
                         with bp         ; branch point
                         for node in stack
