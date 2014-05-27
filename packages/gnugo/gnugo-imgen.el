@@ -136,44 +136,46 @@ the `frame-char-height' (to leave space for the grid)."
                       (dolist (coord ls)
                         (apply 'xpm-put-points px coord))))
       ;; background
-      (cl-loop for place from 1 to 9
-            for parts
-            in (cl-flet*
-                   ((vline (x y1 y2)  (list (list x (cons y1 y2))))
-                    (v-expand (y1 y2) (append (vline half-m1 y1 y2)
-                                              (vline half-p1 y1 y2)))
-                    (hline (y x1 x2)  (list (list (cons x1 x2) y)))
-                    (h-expand (x1 x2) (append (hline half-m1 x1 x2)
-                                              (hline half-p1 x1 x2))))
-                 (nine-from-four (v-expand 0       half-p1)
-                                 (h-expand half-m1   sq-m1)
-                                 (h-expand 0       half-p1)
-                                 (v-expand half-m1   sq-m1)))
-            do (aset background place
-                     (with-current-buffer (workbuf place)
-                       (dolist (part parts)
-                         (mput-points ?. part))
-                       (current-buffer))))
+      (cl-loop
+       for place from 1 to 9
+       for parts
+       in (cl-flet*
+              ((vline (x y1 y2)  (list (list x (cons y1 y2))))
+               (v-expand (y1 y2) (append (vline half-m1 y1 y2)
+                                         (vline half-p1 y1 y2)))
+               (hline (y x1 x2)  (list (list (cons x1 x2) y)))
+               (h-expand (x1 x2) (append (hline half-m1 x1 x2)
+                                         (hline half-p1 x1 x2))))
+            (nine-from-four (v-expand 0       half-p1)
+                            (h-expand half-m1   sq-m1)
+                            (h-expand 0       half-p1)
+                            (v-expand half-m1   sq-m1)))
+       do (aset background place
+                (with-current-buffer (workbuf place)
+                  (dolist (part parts)
+                    (mput-points ?. part))
+                  (current-buffer))))
       ;; foreground
       (cl-flet
           ((circ (radius)
                  (xpm-m2z-circle half half radius)))
-        (cl-loop with stone = (circ (truncate half))
-              with minim = (circ (/ square 9))
-              for n below 4
-              do (aset foreground n
-                       (with-current-buffer (workbuf n)
-                         (cl-flet
-                             ((rast (form b w)
-                                    (xpm-raster form ?X
-                                                (if (> 2 n)
-                                                    b
-                                                  w))))
-                           (if (cl-evenp n)
-                               (rast stone ?- ?+)
-                             (replace-from (aref foreground (1- n)))
-                             (rast minim ?+ ?-))
-                           (current-buffer))))))
+        (cl-loop
+         with stone = (circ (truncate half))
+         with minim = (circ (/ square 9))
+         for n below 4
+         do (aset foreground n
+                  (with-current-buffer (workbuf n)
+                    (cl-flet
+                        ((rast (form b w)
+                               (xpm-raster form ?X
+                                           (if (> 2 n)
+                                               b
+                                             w))))
+                      (if (cl-evenp n)
+                          (rast stone ?- ?+)
+                        (replace-from (aref foreground (1- n)))
+                        (rast minim ?+ ?-))
+                      (current-buffer))))))
       ;; do it
       (cl-flet
           ((ok (place type finish)
@@ -206,12 +208,13 @@ the `frame-char-height' (to leave space for the grid)."
          do (cl-flet
                 ((decorate (px)
                            (mput-points px decor)))
-              (cl-loop for n below 4
-                    for type in '(bmoku bpmoku wmoku wpmoku)
-                    do (with-current-buffer (aref foreground n)
-                         (decorate ?.)
-                         (ok place type 'xpm-as-xpm)
-                         (decorate 32)))))
+              (cl-loop
+               for n below 4
+               for type in '(bmoku bpmoku wmoku wpmoku)
+               do (with-current-buffer (aref foreground n)
+                    (decorate ?.)
+                    (ok place type 'xpm-as-xpm)
+                    (decorate 32)))))
         (mapc 'kill-buffer foreground)
         (nreverse rv)))))
 
