@@ -36,10 +36,14 @@
 
 ;;; Code:
 
+(require 'calc)
+(require 'calc-units)
 (require 'cl-lib)
 (require 'rx)
 (require 'solar)
 (require 'url)
+
+(defvar metar-units '((speed . kph) (pressure . bar)))
 
 (defvar metar-stations-info-url "http://weather.noaa.gov/data/nsd_bbsss.txt"
   "URL to use for retrieving station meta information.")
@@ -217,8 +221,6 @@ record.")
 REturn a cons where `car' is the time of the measurement (as an emacs-lsip
 time value) and `cdr' is a string containing the actual METAR code.
 If no record was found for STATION, nil is returned."
-  (unless (string-match "^[A-Z][A-Z0-9][A-Z0-9][A-Z0-9]$" station)
-    (signal 'error "Invalid station code"))
   (with-temp-buffer
     (url-insert-file-contents (metar-url station))
     (when (re-search-forward (format metar-record-regexp station) nil t)
@@ -331,9 +333,9 @@ If no record was found for STATION, nil is returned."
 	       (when (and (match-string 4 info) (match-string 5 info))
 		 (list :from (metar-degrees (string-to-number (match-string 4 info)))
 		       :to (metar-degrees (string-to-number (match-string 5 info)))))))
-     (list :speed (metar-knots (string-to-number (match-string 2 info))))
+     (list :speed (metar-convert-unit (concat (match-string 2 info) "knot") (cdr (assq 'speed metar-units))))
      (when (match-string 3 info)
-       (list :gusts (metar-knots (string-to-number (match-string 3 info))))))))
+       (list :gust (metar-convert-unit (concat (match-string 3 info) "knot") (cdr (assq 'speed metar-units))))))))
 
 (defconst metar-visibility-regexp
   (rx symbol-start (group (1+ digit)) (optional (group "SM")) symbol-end))
@@ -367,8 +369,12 @@ If no record was found for STATION, nil is returned."
 
 (defun metar-pressure (info)
   (when (string-match metar-pressure-regexp info)
-    (cons (string-to-number (match-string 2 info))
-	  (if (string= (match-string 1 info) "Q") 'hPa 'inHg))))
+    (metar-convert-unit (cond
+			 ((string= (match-string 1 info) "Q")
+			  (concat "(" (match-string 2 info) " / 1000) bar"))
+			 ((string= (match-string 1 info) "A")
+			  (concat "(" (match-string 2 info) " / 100) inHg")))
+			(cdr (assq 'pressure metar-units)))))
 
 (defun metar-decode (record)
   "Return a lisp structure describing the weather information in RECORD."
@@ -503,6 +509,22 @@ Otherwise, determine the best station via latitude/longitude."
 		   "unknown"))
       (when (> count 0)
 	(/ (float temp-sum) count)))))
+
+(defun metar-convert-unit (value new-unit)
+  "Convert VALUE to NEW-UNIT.
+VALUE is a string with the value followed by the unit, like \"5 knot\"
+and NEW-UNIT should be a unit name like \"kph\" or similar."
+  (cl-check-type value string)
+  (cl-check-type new-unit (or string symbol))
+  (cl-multiple-value-bind (value unit)
+      (split-string
+       (math-format-value
+	(math-convert-units (math-simplify (math-read-expr value))
+			    (math-read-expr (cl-etypecase new-unit
+					      (string new-unit)
+					      (symbol (symbol-name new-unit))))))
+       " ")
+    (cons (string-to-number value) (intern unit))))
 
 (provide 'metar)
 ;;; metar.el ends here
