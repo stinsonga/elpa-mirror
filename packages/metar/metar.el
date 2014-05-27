@@ -120,8 +120,8 @@ LATITUDE2/LONGITUDE2."
 					      latitude2 longitude2)
   "Caluclate the distance (in kilometers) between two points on the
 surface of the earth given as LATITUDE1, LONGITUDE1, LATITUDE2 and LONGITUDE2."
-  (macrolet ((distance (d1 d2)
-	       `(expt (sin (/ (degrees-to-radians (- ,d2 ,d1)) 2)) 2)))
+  (cl-macrolet ((distance (d1 d2)
+	          `(expt (sin (/ (degrees-to-radians (- ,d2 ,d1)) 2)) 2)))
     (let ((a (+ (distance latitude1 latitude2)
 		(* (cos (degrees-to-radians latitude1)) (cos (degrees-to-radians latitude2))
 		   (distance longitude1 longitude2)))))
@@ -456,11 +456,10 @@ Otherwise, determine the best station via latitude/longitude."
 	(message "No weather information found, sorry.")))))
   
 (defun metar-station-countries ()
-  (let (countries (stations (metar-stations)))
-    (while stations
-      (let ((country (cdr (assq 'country (car stations)))))
-	(add-to-list 'countries country))
-      (setq stations (cdr stations)))
+  (let (countries)
+    (dolist (station (metar-stations))
+      (let ((country (cdr (assq 'country station))))
+	(cl-pushnew country countries :test #'equal)))
     countries))
 
 (defun metar-stations-in-country (country)
