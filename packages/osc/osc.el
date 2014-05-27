@@ -182,7 +182,7 @@ the generic handler for SERVER."
 		       path
 		       (mapcar
 			(lambda (type)
-			  (case type
+			  (cl-case type
 			    (?f (osc-read-float32))
 			    (?i (osc-read-int32))
 			    (?s (osc-read-string))))
@@ -220,7 +220,7 @@ This is mostly for testing the implementation robustness."
 	 (osc-test-ok nil)
 	 (server (osc-make-server
 		  "localhost" t
-		  (lambda (path v)
+		  (lambda (_path v)
 		    (setq osc-test-done t
 			  osc-test-ok (list v (funcall osc-test-func
 						       osc-test-value v))))))
