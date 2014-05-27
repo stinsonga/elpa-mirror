@@ -1561,6 +1561,9 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
   (when (and (file-exists-p filename)
              (not (y-or-n-p "File exists. Continue? ")))
     (user-error "Not writing %s" filename))
+  (when (buffer-modified-p)
+    ;; take responsibility for our actions
+    (gnugo--set-root-prop :AP (cons "gnugo.el" gnugo-version)))
   (gnugo/sgf-write-file (gnugo-get :sgf-collection) filename)
   (gnugo--ok-file filename))
 
@@ -2280,7 +2283,6 @@ See `gnugo-board-mode' for a full list of commands."
                 :RU (if (member "--chinese-rules" args)
                         "Chinese"
                       "Japanese")
-                :AP (cons "gnugo.el" gnugo-version)
                 :KM komi)
             (let ((ub (gnugo--blackp user-color)))
               (r! (if ub :PW :PB) (concat "GNU Go " (gnugo-query "version"))
@@ -2655,7 +2657,6 @@ A collection is a list of gametrees, each a vector of four elements:
 
 (defun gnugo/sgf-write-file (collection filename)
   (let ((aft-newline-appreciated '(:AP :GN :PB :PW :HA :KM :RU :RE))
-        (me (cons "gnugo.el" gnugo-version))
         (specs (mapcar (lambda (full)
                          (cons (intern (format ":%s" (car full)))
                                (cl-cdddr full)))
@@ -2723,8 +2724,6 @@ A collection is a list of gametrees, each a vector of four elements:
                  (insert ")")))
       (with-temp-buffer
         (dolist (tree collection)
-          ;; take responsibility for our actions
-          (gnugo--set-root-prop :AP me tree)
           ;; write it out
           (let ((ht (gnugo--mkht))
                 (leaves (append (gnugo--tree-ends tree) nil)))
