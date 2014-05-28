@@ -5,7 +5,7 @@
 ;; Author: Thien-Thi Nguyen <ttn@gnu.org>
 ;; Maintainer: Thien-Thi Nguyen <ttn@gnu.org>
 ;; Version: 2.3.1
-;; Package-Requires: ((ascii-art-to-unicode "1.5") (xpm "1.0.0") (cl-lib "0.5"))
+;; Package-Requires: ((ascii-art-to-unicode "1.5") (xpm "1.0.1") (cl-lib "0.5"))
 ;; Keywords: games, processes
 
 ;; This program is free software; you can redistribute it and/or modify
