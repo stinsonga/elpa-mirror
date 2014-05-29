@@ -43,9 +43,37 @@
 (require 'solar)
 (require 'url)
 
-(defvar metar-units '((length . m)
-		      (pressure . bar)
-		      (speed . kph)))
+(defcustom metar-units '((length . m)
+			 (pressure . hPa)
+			 (speed . kph)
+			 (temperature . degC))
+  "Default measurement units to use when reporting weather information."
+  :type '(list (cons :format "%v"
+		     (const :tag "Length: " length)
+		     (choice (const :tag "Meter" m)
+			     (const :tag "Inch" in)
+			     (const :tag "Foot" ft)
+			     (const :tag "Yard" yd)
+			     (const :tag "Mile" mi)))
+	       (cons :format "%v"
+		     (const :tag "Pressure:" pressure)
+		     (choice (const :tag "Pascal" Pa)
+			     (const :tag "Hecto pascal" hPa)
+			     (const :tag "Bar" bar)
+			     (const :tag "Inch of mercury" inHg)
+			     (const :tag "Standard atmosphere" atm)
+			     (const :tag "Meter of mercury" mHg)
+			     (const :tag "Punds per square inch" psi)))
+	       (cons :format "%v"
+		     (const :tag "Speed:" speed)
+		     (choice (const :tag "Kilometers per hour" kph)
+			     (const :tag "Miles per hour" mph)
+			     (const :tag "Knot" knot)))
+	       (cons :format "%v"
+		     (const :tag "Temperature:" temperature)
+		     (choice (const :tag "Degree Celsius" degC)
+			     (const :tag "Degree Kelvin" degK)
+			     (const :tag "Degree Fahrenheit" degF)))))
 
 (defvar metar-stations-info-url "http://weather.noaa.gov/data/nsd_bbsss.txt"
   "URL to use for retrieving station meta information.")
@@ -193,13 +221,34 @@ If no match if found, nil is returned."
       (when station-code
 	(cons station-code (round best-distance))))))
 
-(defun metar-temp-to-number (string)
-  "Convert a METAR temperature to a number."
-  (if (= (aref string 0) ?M)
-      (- (string-to-number (substring string 1)))
-    (string-to-number string)))
+(defun metar-convert-unit (value new-unit)
+  "Convert VALUE to NEW-UNIT.
+VALUE is a string with the value followed by the unit, like \"5 knot\"
+and NEW-UNIT should be a unit name like \"kph\" or similar."
+  (cl-check-type value string)
+  (cl-check-type new-unit (or string symbol))
+  (cl-multiple-value-bind (value unit)
+      (split-string
+       (math-format-value
+	(math-convert-units (math-simplify (math-read-expr value))
+			    (math-read-expr
+			     (cl-etypecase new-unit
+					   (string new-unit)
+					   (symbol (symbol-name new-unit))))))
+       " ")
+    (cons (string-to-number value) (intern unit))))
 
-(defvar metar-url "http://weather.noaa.gov/pub/data/observations/metar/stations/%s.TXT"
+(defun metar-convert-temperature (string)
+  "Convert a METAR temperature."
+  (metar-convert-unit
+   (concat (if (= (aref string 0) ?M)
+	       (concat "-" (substring string 1))
+	     string)
+	   "degC")
+   (cdr (assq 'temperature metar-units))))
+
+(defvar metar-url
+  "http://weather.noaa.gov/pub/data/observations/metar/stations/%s.TXT"
   "URL used to fetch station specific information.
 %s is replaced with the 4 letter station code.")
 
@@ -354,18 +403,19 @@ If no record was found for STATION, nil is returned."
 
 (defun metar-temperature (info)
   (when (string-match metar-temperature-and-dewpoint-regexp info)
-    (cons (metar-temp-to-number (match-string 1 info)) 'celsius)))
+    (metar-convert-temperature (match-string 1 info))))
 
 (defun metar-dewpoint (info)
   (when (string-match metar-temperature-and-dewpoint-regexp info)
-    (cons (metar-temp-to-number (match-string 3 info)) 'celsius)))
+    (metar-convert-temperature (match-string 3 info))))
 
 (defun metar-humidity (info)
   (when (string-match metar-temperature-and-dewpoint-regexp info)
     (cons (round
 	   (metar-magnus-formula-humidity-from-dewpoint
-	    (metar-temp-to-number (match-string 1 info))
-	    (metar-temp-to-number (match-string 3 info)))) 'percent)))
+	    (save-match-data (car (metar-convert-temperature (match-string 1 info))))
+	    (car (metar-convert-temperature (match-string 3 info)))))
+	  'percent)))
 
 (defconst metar-pressure-regexp
   (rx symbol-start (group (char ?Q ?A)) (group (1+ digit)) symbol-end)
@@ -453,7 +503,7 @@ Otherwise, determine the best station via latitude/longitude."
 				     nil t))))
     (let ((info (metar-decode (metar-get-record station))))
       (if info
-	  (message "%d minutes ago at %s: %d°C, %d%% relative humidity%s"
+	  (message "%d minutes ago at %s: %dÂ°C, %d%% relative humidity%s"
 		   (/ (truncate (float-time (time-since (cdr (assoc 'timestamp info))))) 60)
 		   (or (metar-stations-get (cdr (assoc 'station info)) 'name)
 		       (cdr (assoc 'station info)))
@@ -507,28 +557,12 @@ Otherwise, determine the best station via latitude/longitude."
 	(message "Average temperature in %s is %s"
 		 country
 		 (if (> count 0)
-		     (format "%.1f°C (%d stations)"
+		     (format "%.1fÂ°C (%d stations)"
 			     (/ (float temp-sum) count)
 			     count)
 		   "unknown"))
       (when (> count 0)
 	(/ (float temp-sum) count)))))
-
-(defun metar-convert-unit (value new-unit)
-  "Convert VALUE to NEW-UNIT.
-VALUE is a string with the value followed by the unit, like \"5 knot\"
-and NEW-UNIT should be a unit name like \"kph\" or similar."
-  (cl-check-type value string)
-  (cl-check-type new-unit (or string symbol))
-  (cl-multiple-value-bind (value unit)
-      (split-string
-       (math-format-value
-	(math-convert-units (math-simplify (math-read-expr value))
-			    (math-read-expr (cl-etypecase new-unit
-					      (string new-unit)
-					      (symbol (symbol-name new-unit))))))
-       " ")
-    (cons (string-to-number value) (intern unit))))
 
 (provide 'metar)
 ;;; metar.el ends here
