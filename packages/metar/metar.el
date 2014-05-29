@@ -43,7 +43,9 @@
 (require 'solar)
 (require 'url)
 
-(defvar metar-units '((speed . kph) (pressure . bar)))
+(defvar metar-units '((length . m)
+		      (pressure . bar)
+		      (speed . kph)))
 
 (defvar metar-stations-info-url "http://weather.noaa.gov/data/nsd_bbsss.txt"
   "URL to use for retrieving station meta information.")
@@ -247,7 +249,9 @@ If no record was found for STATION, nil is returned."
     (while (string-match metar-could-regexp info from)
       (setq from (match-end 0)
 	    clouds (push (append (list (match-string 1 info)
-				       (string-to-number (match-string 2 info)))
+				       (metar-convert-unit
+					(concat (match-string 2 info) " ft")
+					(cdr (assq 'length metar-units))))
 				 (when (match-string 3 info)
 				   (list (match-string 3 info))))
 			 clouds)))
@@ -369,12 +373,12 @@ If no record was found for STATION, nil is returned."
 
 (defun metar-pressure (info)
   (when (string-match metar-pressure-regexp info)
-    (metar-convert-unit (cond
-			 ((string= (match-string 1 info) "Q")
-			  (concat "(" (match-string 2 info) " / 1000) bar"))
-			 ((string= (match-string 1 info) "A")
-			  (concat "(" (match-string 2 info) " / 100) inHg")))
-			(cdr (assq 'pressure metar-units)))))
+    (metar-convert-unit
+     (concat (match-string 2 info)
+	     (cond
+	      ((string= (match-string 1 info) "Q") "hPa")
+	      ((string= (match-string 1 info) "A") "cinHg")))
+     (cdr (assq 'pressure metar-units)))))
 
 (defun metar-decode (record)
   "Return a lisp structure describing the weather information in RECORD."
