@@ -4,8 +4,9 @@
 
 ;; Author: Thien-Thi Nguyen <ttn@gnu.org>
 ;; Maintainer: Thien-Thi Nguyen <ttn@gnu.org>
-;; Version: 1.0.1
+;; Version: 1.0.2
 ;; Keywords: multimedia, xpm
+;; URL: http://www.gnuvola.org/software/xpm/
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -59,11 +60,6 @@
 ;;
 ;; Some things are autoloaded.  Which ones?  Use the source, Luke!
 ;; (Alternatively, just ask on help-gnu-emacs (at gnu dot org).)
-;;
-;;
-;; See Also
-;; - HACKING: <http://git.sv.gnu.org/cgit/emacs/elpa.git/tree/packages/xpm/HACKING>
-;; - Tip Jar: <http://www.gnuvola.org/software/xpm/>
 
 ;;; Code:
 
