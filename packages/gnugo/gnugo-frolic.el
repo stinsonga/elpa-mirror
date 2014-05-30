@@ -20,16 +20,39 @@
 
 ;;; Code:
 
-(defvar gnugo-frolic-mode-map nil
+(require 'cl-lib)
+(require 'gnugo)
+(require 'ascii-art-to-unicode)         ; for `aa2u'
+
+(defvar gnugo-frolic-mode-map
+  (let ((map (make-sparse-keymap)))
+    (suppress-keymap map)
+    (mapc (lambda (pair)
+            (define-key map (car pair) (cdr pair)))
+          '(("q"          . gnugo-frolic-quit)
+            ("Q"          . gnugo-frolic-quit)
+            ("\C-q"       . gnugo-frolic-quit)
+            ("C"          . gnugo-frolic-quit) ; like ‘View-kill-and-leave’
+            ("\C-b"       . gnugo-frolic-backward-branch)
+            ("\C-f"       . gnugo-frolic-forward-branch)
+            ("\C-p"       . gnugo-frolic-previous-move)
+            ("\C-n"       . gnugo-frolic-next-move)
+            ("t"          . gnugo-frolic-tip-move)
+            ("j"          . gnugo-frolic-exchange-left)
+            ("J"          . gnugo-frolic-rotate-left)
+            ("k"          . gnugo-frolic-exchange-right)
+            ("K"          . gnugo-frolic-rotate-right)
+            ("\C-m"       . gnugo-frolic-set-as-main-line)
+            ("\C-\M-p"    . gnugo-frolic-prune-branch)
+            ("o"          . gnugo-frolic-return-to-origin)))
+    map)
   "Keymap for GNUGO Frolic mode.")
 
 (defvar gnugo-frolic-parent-buffer nil)
 (defvar gnugo-frolic-origin nil)
 
 (define-derived-mode gnugo-frolic-mode special-mode "GNUGO Frolic"
-  "A special mode for manipulating a GNUGO gametree.
-
-\\{gnugo-frolic-mode-map}"
+  "A special mode for manipulating a GNUGO gametree."
   (setq truncate-lines t)
   (buffer-disable-undo))
 
@@ -100,9 +123,9 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
          (as-pos (gnugo--as-pos-func))
          (at (car (aref monkey 0)))
          (bidx (aref monkey 1))
-         (valid (map 'vector (lambda (end)
-                               (gethash (car end) mnum))
-                     ends))
+         (valid (cl-map 'vector (lambda (end)
+                                  (gethash (car end) mnum))
+                        ends))
          (max-move-num (apply 'max (append valid nil)))
          (inhibit-read-only t)
          finish)
@@ -116,9 +139,9 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
                              (apply 'format fmt args)
                              properties))))
       ;; breathe in
-      (loop
+      (cl-loop
        for bx below width
-       do (loop
+       do (cl-loop
            with fork
            for node in (aref ends bx)
            do (if (setq fork (on node))
@@ -127,7 +150,7 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
                               ;; todo: ignore non-"move" nodes
                               (eq node (car (aref ends bix))))
                        (link (other)
-                             (pushnew other (gethash node soil))))
+                             (cl-pushnew other (gethash node soil))))
                     (unless (tip-p bx)
                       (unless (tip-p fork)
                         (link fork))
@@ -139,12 +162,12 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
       (gnugo-frolic-mode)
       (erase-buffer)
       (setq header-line-format
-            (lexical-let ((full (concat
-                                 (make-string 11 ?\s)
-                                 (mapconcat (lambda (n)
-                                              (format "%-5s" n))
-                                            lanes
-                                            " "))))
+            (let ((full (concat
+                         (make-string 11 ?\s)
+                         (mapconcat (lambda (n)
+                                      (format "%-5s" n))
+                                    lanes
+                                    " "))))
               `((:eval
                  (funcall
                   ,(lambda ()
@@ -170,13 +193,13 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
       (set (make-local-variable 'gnugo-frolic-parent-buffer) from)
       (set (make-local-variable 'gnugo-state)
            (buffer-local-value 'gnugo-state from))
-      (loop
+      (cl-loop
        with props
        for n                            ; move number
        from max-move-num downto 1
        do (setq props (list 'n n))
        do
-       (loop
+       (cl-loop
         with (move forks br)
         initially (progn
                     (goto-char (point-min))
@@ -187,7 +210,7 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
         do (let* ((node (unless (< (aref valid bx) n)
                           ;; todo: ignore non-"move" nodes
                           (pop (aref ends bx))))
-                  (zow (list* 'bx bx props))
+                  (zow `(bx ,bx ,@props))
                   (ok (when node
                         (= bx (on node))))
                   (comment (when ok
@@ -242,33 +265,34 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
                                (cnxn lanes set)
                                "\n")))
               (edge heads)
-              (loop with bef
-                    for ls on forks
-                    do (let* ((one (car ls))
-                              (yes (append
-                                    ;; "aft" heads
-                                    (mapcar 'car (cdr ls))
-                                    ;; ‘bef’ tails
-                                    (apply 'append (mapcar 'cdr bef))))
-                              (ord (sort one '<))
-                              (beg (car ord))
-                              (end (car (last ord))))
-                         (cl-flet
-                             ((also (b e) (cnxn (number-sequence b e)
-                                                yes)))
-                           (insert
-                            margin
-                            (also 0 (1- beg))
-                            (pad-unless (zerop beg))
-                            (dashed (number-sequence beg end)
-                                    (lambda (bx)
-                                      (cond ((memq bx ord) "+")
-                                            ((memq bx yes) "|")
-                                            (t             "-"))))
-                            (pad-unless (>= end width))
-                            (also (1+ end) (1- width))
-                            "\n"))
-                         (push one bef)))
+              (cl-loop
+               with bef
+               for ls on forks
+               do (let* ((one (car ls))
+                         (yes (append
+                               ;; "aft" heads
+                               (mapcar 'car (cdr ls))
+                               ;; ‘bef’ tails
+                               (apply 'append (mapcar 'cdr bef))))
+                         (ord (sort one '<))
+                         (beg (car ord))
+                         (end (car (last ord))))
+                    (cl-flet
+                        ((also (b e) (cnxn (number-sequence b e)
+                                           yes)))
+                      (insert
+                       margin
+                       (also 0 (1- beg))
+                       (pad-unless (zerop beg))
+                       (dashed (number-sequence beg end)
+                               (lambda (bx)
+                                 (cond ((memq bx ord) "+")
+                                       ((memq bx yes) "|")
+                                       (t             "-"))))
+                       (pad-unless (>= end width))
+                       (also (1+ end) (1- width))
+                       "\n"))
+                    (push one bef)))
               (edge (apply 'append tails))
               (aa2u (line-beginning-position
                      (- (1+ (length forks))))
@@ -288,7 +312,7 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
          (ends (gnugo--tree-ends tree))
          (width (length ends))
          (monkey (gnugo-get :monkey))
-         (line (case (cdr (assq 'line how))
+         (line (cl-case (cdr (assq 'line how))
                  (numeric
                   (count-lines (point-min) (line-beginning-position)))
                  (move-string
@@ -306,27 +330,30 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
     (when (memq 'require-valid-branch how)
       (unless a
         (user-error "No branch here")))
-    (loop with omit = (cdr (assq 'omit how))
-          for (name . value) in `((line   . ,line)
-                                  (bidx   . ,(aref monkey 1))
-                                  (monkey . ,monkey)
-                                  (width  . ,width)
-                                  (ends   . ,ends)
-                                  (tree   . ,tree))
-          do (unless (memq name omit)
-               (push value rv)))
+    (cl-loop
+     with omit = (cdr (assq 'omit how))
+     for (name . value) in `((line   . ,line)
+                             (bidx   . ,(aref monkey 1))
+                             (monkey . ,monkey)
+                             (width  . ,width)
+                             (ends   . ,ends)
+                             (tree   . ,tree))
+     do (unless (memq name omit)
+          (push value rv)))
     rv))
 
 (defmacro gnugo--awakened (how &rest body)
   (declare (indent 1))
-  `(destructuring-bind ,(loop with omit = (cdr (assq 'omit how))
-                              with ls   = (list 'a)
-                              for name in '(line bidx monkey
-                                                 width ends
-                                                 tree)
-                              do (unless (memq name omit)
-                                   (push name ls))
-                              finally return ls)
+  `(cl-destructuring-bind
+       ,(cl-loop
+         with omit = (cdr (assq 'omit how))
+         with ls   = (list 'a)
+         for name in '(line bidx monkey
+                            width ends
+                            tree)
+         do (unless (memq name omit)
+              (push name ls))
+         finally return ls)
        (gnugo--awake ',how)
      ,@body))
 
@@ -351,9 +378,10 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
                      (mod (+ direction n) width))))
            (was (copy-sequence ends))
            (new-bidx (funcall flit bidx)))
-      (loop for bx below width
-            do (aset ends (funcall flit bx)
-                     (aref was bx)))
+      (cl-loop
+       for bx below width
+       do (aset ends (funcall flit bx)
+                (aref was bx)))
       (unless (= new-bidx bidx)
         (aset monkey 1 new-bidx))
       (gnugo-frolic-in-the-leaves)
@@ -404,7 +432,7 @@ This fails if the monkey is on the current branch
       (ignore (pop (nthcdr a new)))
       (gnugo--set-tree-ends tree new))
     (when (< a bidx)
-      (aset monkey 1 (decf bidx)))
+      (aset monkey 1 (cl-decf bidx)))
     (gnugo-frolic-in-the-leaves)
     (when line
       (goto-char (point-min))
@@ -440,12 +468,14 @@ This fails if the monkey is on the current branch
                                           (point-max))))))
           (col (unless a
                  (current-column))))
-      (loop while (not (= line stop))
-            do (loop do (progn
-                          (forward-line direction)
-                          (incf line direction))
-                     until (get-text-property (point) 'n))
-            until (zerop (decf n)))
+      (cl-loop
+       while (not (= line stop))
+       do (cl-loop
+           do (progn
+                (forward-line direction)
+                (cl-incf line direction))
+           until (get-text-property (point) 'n))
+       until (zerop (cl-decf n)))
       (if a
           (gnugo--move-to-bcol a)
         (move-to-column col)))))
@@ -470,31 +500,6 @@ This fails if the monkey is on the current branch
           (node (car (aref ends a))))
       (re-search-backward (format "^%3d" (gethash node mnum)))
       (gnugo--move-to-bcol a))))
-
-;;;---------------------------------------------------------------------------
-;;; load-time actions
-
-(unless gnugo-frolic-mode-map
-  (setq gnugo-frolic-mode-map (make-sparse-keymap))
-  (suppress-keymap gnugo-frolic-mode-map)
-  (mapc (lambda (pair)
-          (define-key gnugo-frolic-mode-map (car pair) (cdr pair)))
-        '(("q"          . gnugo-frolic-quit)
-          ("Q"          . gnugo-frolic-quit)
-          ("\C-q"       . gnugo-frolic-quit)
-          ("C"          . gnugo-frolic-quit) ; like ‘View-kill-and-leave’
-          ("\C-b"       . gnugo-frolic-backward-branch)
-          ("\C-f"       . gnugo-frolic-forward-branch)
-          ("\C-p"       . gnugo-frolic-previous-move)
-          ("\C-n"       . gnugo-frolic-next-move)
-          ("t"          . gnugo-frolic-tip-move)
-          ("j"          . gnugo-frolic-exchange-left)
-          ("J"          . gnugo-frolic-rotate-left)
-          ("k"          . gnugo-frolic-exchange-right)
-          ("K"          . gnugo-frolic-rotate-right)
-          ("\C-m"       . gnugo-frolic-set-as-main-line)
-          ("\C-\M-p"    . gnugo-frolic-prune-branch)
-          ("o"          . gnugo-frolic-return-to-origin))))
 
 ;;;---------------------------------------------------------------------------
 ;;; that's it
