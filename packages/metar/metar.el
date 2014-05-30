@@ -72,7 +72,8 @@
 	       (cons :format "%v"
 		     (const :tag "Temperature:" temperature)
 		     (choice (const :tag "Degree Celsius" degC)
-			     (const :tag "Degree Kelvin" degK)
+			     ;; calc-units doesn't convert degC to degK
+			     ;(const :tag "Degree Kelvin" degK)
 			     (const :tag "Degree Fahrenheit" degF)))))
 
 (defvar metar-stations-info-url "http://weather.noaa.gov/data/nsd_bbsss.txt"
@@ -238,14 +239,16 @@ and NEW-UNIT should be a unit name like \"kph\" or similar."
        " ")
     (cons (string-to-number value) (intern unit))))
 
-(defun metar-convert-temperature (string)
-  "Convert a METAR temperature."
+(defun metar-convert-temperature (string &optional unit)
+  "Convert a METAR temperature.
+If optional argument UNIT is provided, convert to that unit, otherwise,
+consult `metar-units'."
   (metar-convert-unit
    (concat (if (= (aref string 0) ?M)
 	       (concat "-" (substring string 1))
 	     string)
 	   "degC")
-   (cdr (assq 'temperature metar-units))))
+   (or unit (cdr (assq 'temperature metar-units)))))
 
 (defvar metar-url
   "http://weather.noaa.gov/pub/data/observations/metar/stations/%s.TXT"
@@ -413,8 +416,9 @@ If no record was found for STATION, nil is returned."
   (when (string-match metar-temperature-and-dewpoint-regexp info)
     (cons (round
 	   (metar-magnus-formula-humidity-from-dewpoint
-	    (save-match-data (car (metar-convert-temperature (match-string 1 info))))
-	    (car (metar-convert-temperature (match-string 3 info)))))
+	    (save-match-data (car (metar-convert-temperature
+				   (match-string 1 info) 'degC)))
+	    (car (metar-convert-temperature (match-string 3 info) 'degC))))
 	  'percent)))
 
 (defconst metar-pressure-regexp
@@ -503,11 +507,16 @@ Otherwise, determine the best station via latitude/longitude."
 				     nil t))))
     (let ((info (metar-decode (metar-get-record station))))
       (if info
-	  (message "%d minutes ago at %s: %d°C, %d%% relative humidity%s"
-		   (/ (truncate (float-time (time-since (cdr (assoc 'timestamp info))))) 60)
+	  (message "%d minutes ago at %s: %d°%c, %d%% relative humidity%s"
+		   (/ (truncate (float-time (time-since
+					     (cdr (assoc 'timestamp info)))))
+		      60)
 		   (or (metar-stations-get (cdr (assoc 'station info)) 'name)
 		       (cdr (assoc 'station info)))
 		   (cadr (assoc 'temperature info))
+		   (cond
+		    ((eq (cdr (assq 'temperature metar-units)) 'degC) ?C)
+		    ((eq (cdr (assq 'temperature metar-units)) 'degF) ?F))
 		   (cadr (assoc 'humidity info))
 		   (if (assoc 'phenomena info)
 		       (concat "\n" "Phenomena: "
