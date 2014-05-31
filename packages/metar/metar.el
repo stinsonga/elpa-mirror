@@ -30,24 +30,32 @@
 ;; With `C-u M-x metar RET', country and station name need to be entered.
 ;; `C-u C-u M-x metar RET' will prompt for the METAR station code (4 letters).
 ;;
+;; Customize `metar-units' to change length, speed, temperature or pressure
+;; units to your liking.
+;;
 ;; For programmatic access to decoded weather reports, use:
 ;;
 ;;   (metar-decode (metar-get-record "CODE"))
 
 ;;; Code:
 
-(require 'calc)
 (require 'calc-units)
 (require 'cl-lib)
+(require 'format-spec)
 (require 'rx)
 (require 'solar)
 (require 'url)
+
+(defgroup metar ()
+  "METAR weather reports."
+  :group 'net-utils)
 
 (defcustom metar-units '((length . m)
 			 (pressure . hPa)
 			 (speed . kph)
 			 (temperature . degC))
   "Default measurement units to use when reporting weather information."
+  :group 'metar
   :type '(list (cons :format "%v"
 		     (const :tag "Length: " length)
 		     (choice (const :tag "Meter" m)
@@ -72,16 +80,50 @@
 	       (cons :format "%v"
 		     (const :tag "Temperature:" temperature)
 		     (choice (const :tag "Degree Celsius" degC)
-			     ;; calc-units doesn't convert degC to degK
-			     ;(const :tag "Degree Kelvin" degK)
+			     (const :tag "Degree Kelvin" degK)
 			     (const :tag "Degree Fahrenheit" degF)))))
 
-(defvar metar-stations-info-url "http://weather.noaa.gov/data/nsd_bbsss.txt"
-  "URL to use for retrieving station meta information.")
+(defcustom metar-stations-info-url "http://weather.noaa.gov/data/nsd_bbsss.txt"
+  "URL to use for retrieving station meta information."
+  :group 'metar
+  :type 'string)
 
 (defvar metar-stations nil
   "Variable containing (cached) METAR station information.
 Use the function `metar-stations' to get the actual station list.")
+
+(defun metar-station-convert-latitude (string)
+  (when (string-match (rx string-start
+			  (group (1+ digit))
+			  ?-
+			  (group (1+ digit))
+			  (optional ?- (group (1+ digit)))
+			  (group (char ?N ?S))
+			  string-end) string)
+    (funcall (if (string= (match-string 4 string) "N") #'+ #'-)
+	     (+ (string-to-number (match-string 1 string))
+		(/ (string-to-number (match-string 2 string))
+		   60.0)
+		(if (match-string 3 string)
+		    (/ (string-to-number (match-string 3 string)) 3600.0)
+		  0)))))
+
+(defun metar-station-convert-longitude (string)
+  (when (string-match (rx string-start
+			  (group (1+ digit))
+			  ?-
+			  (group (1+ digit))
+			  (optional ?- (group (1+ digit)))
+			  (group (char ?E ?W))
+			  string-end) string)
+    (funcall (if (string= (match-string 4 string) "E") #'+ #'-)
+	     (+ (string-to-number (match-string 1 string))
+		(/ (string-to-number (match-string 2 string))
+		   60.0)
+		(if (match-string 3 string)
+		    (/ (string-to-number (match-string 3 string))
+		       3600.0)
+		  0)))))
 
 (defun metar-stations ()
   "Retrieve a list of METAR stations.
@@ -105,17 +147,9 @@ If this variable is nil, the information is retrieved from the Internet."
 			    (cons 'name (nth 3 item))
 			    (cons 'country (nth 5 item))
 			    (cons 'latitude
-				  (when (string-match "^\\([0-9]+\\)-\\([0-9]+\\)\\(-[0-9]+\\)?\\([NS]\\)" (nth 7 item))
-				      (funcall (if (string= (match-string 4 (nth 7 item)) "N") #'+ #'-)
-					       (+ (string-to-number (match-string 1 (nth 7 item)))
-						  (/ (string-to-number (match-string 2 (nth 7 item)))
-						     60.0)))))
+				  (metar-station-convert-latitude (nth 7 item)))
 			    (cons 'longitude
-				  (when (string-match "^\\([0-9]+\\)-\\([0-9]+\\)\\(-[0-9]+\\)?\\([WE]\\)" (nth 8 item))
-				    (funcall (if (string= (match-string 4 (nth 8 item)) "E") #'+ #'-)
-					     (+ (string-to-number (match-string 1 (nth 8 item)))
-						(/ (string-to-number (match-string 2 (nth 8 item)))
-						   60.0)))))
+				  (metar-station-convert-longitude (nth 8 item)))
 			    (cons 'altitude (string-to-number (nth 12 item))))))
 		   metar-stations)))
 	  (setq data (cdr data)))
@@ -136,14 +170,15 @@ KEY can be one of the symbols `code', `name', `country', `latitude',
       (setq stations (cdr stations)))
     result))
 
-(defun metar-latitude-longitude-bearing (latitude1 longitude1 latitude2 longitude2)
+(defun metar-latitude-longitude-bearing (latitude1 longitude1
+					 latitude2 longitude2)
   "Calculate bearing from start point LATITUDE1/LONGITUDE1 to end point
 LATITUDE2/LONGITUDE2."
   (% (+ 360
 	(truncate
 	 (radians-to-degrees
 	  (atan (* (sin (degrees-to-radians (- longitude2 longitude1)))
-		   (cos (degrees-to-radians latitude2))) 
+		   (cos (degrees-to-radians latitude2)))
 		(- (* (cos (degrees-to-radians latitude1))
 		      (sin (degrees-to-radians latitude2)))
 		   (* (sin (degrees-to-radians latitude1))
@@ -152,13 +187,14 @@ LATITUDE2/LONGITUDE2."
      360))
 
 (defun metar-latitude-longitude-distance-haversine (latitude1 longitude1
-					      latitude2 longitude2)
+						    latitude2 longitude2)
   "Caluclate the distance (in kilometers) between two points on the
 surface of the earth given as LATITUDE1, LONGITUDE1, LATITUDE2 and LONGITUDE2."
   (cl-macrolet ((distance (d1 d2)
-	          `(expt (sin (/ (degrees-to-radians (- ,d2 ,d1)) 2)) 2)))
+			  `(expt (sin (/ (degrees-to-radians (- ,d2 ,d1)) 2)) 2)))
     (let ((a (+ (distance latitude1 latitude2)
-		(* (cos (degrees-to-radians latitude1)) (cos (degrees-to-radians latitude2))
+		(* (cos (degrees-to-radians latitude1))
+		   (cos (degrees-to-radians latitude2))
 		   (distance longitude1 longitude2)))))
       (* 6371 (* 2 (atan (sqrt a) (sqrt (- 1 a))))))))
 
@@ -240,27 +276,42 @@ and NEW-UNIT should be a unit name like \"kph\" or similar."
     (cons (string-to-number value) (intern unit))))
 
 (defun metar-convert-temperature (string &optional unit)
-  "Convert a METAR temperature.
-If optional argument UNIT is provided, convert to that unit, otherwise,
-consult `metar-units'."
-  (metar-convert-unit
-   (concat (if (= (aref string 0) ?M)
-	       (concat "-" (substring string 1))
-	     string)
-	   "degC")
-   (or unit (cdr (assq 'temperature metar-units)))))
+  (let* ((value (concat (if (= (aref string 0) ?M)
+			    (concat "-" (substring string 1))
+			  string)
+			"degC"))
+	 (expr (math-read-expr value))
+	 (old-unit (math-single-units-in-expr-p expr))
+	 (new-unit (or unit (cdr (assq 'temperature metar-units)))))
+    (if old-unit
+	(cl-multiple-value-bind (value unit)
+	    (split-string
+	     (math-format-value
+	      (math-simplify-units
+	       (math-convert-temperature
+		expr
+		(list 'var
+		      (car old-unit)
+		      (intern (concat "var-" (symbol-name (car old-unit)))))
+		(math-read-expr (cl-etypecase new-unit
+				  (string new-unit)
+				  (symbol (symbol-name new-unit))))))) " ")
+	  (cons (string-to-number value) (intern unit))))))
 
-(defvar metar-url
+(defcustom metar-url
   "http://weather.noaa.gov/pub/data/observations/metar/stations/%s.TXT"
   "URL used to fetch station specific information.
-%s is replaced with the 4 letter station code.")
+%s is replaced with the 4 letter station code."
+  :group 'metar
+  :type 'string)
 
 (defun metar-url (station)
-  (format metar-url (upcase (cl-etypecase station
-			      (string station)
-			      (symbol (symbol-name station))))))
+  (format metar-url
+	  (upcase (cl-etypecase station
+		    (string station)
+		    (symbol (symbol-name station))))))
 
-(defvar metar-record-regexp
+(defconst metar-record-regexp
   (rx (group (1+ digit)) ?/ (group (1+ digit)) ?/ (group (1+ digit))
       space
       (group (1+ digit)) ?: (group (1+ digit))
@@ -272,7 +323,7 @@ record.")
 
 (defun metar-get-record (station)
   "Retrieve a METAR/SPECI record for STATION from the Internet.
-REturn a cons where `car' is the time of the measurement (as an emacs-lsip
+Return a cons where `car' is the time of the measurement (as an emacs-lsip
 time value) and `cdr' is a string containing the actual METAR code.
 If no record was found for STATION, nil is returned."
   (with-temp-buffer
@@ -293,7 +344,8 @@ If no record was found for STATION, nil is returned."
       (group (or "FEW" "SCT" "BKN" "OVC"))
       (group (= 3 digit))
       (optional (group (or "TCU" "CB")))
-      symbol-end))
+      symbol-end)
+  "Regular expression to match cloud information in METAR records.")
 
 (defun metar-clouds (info)
   (let ((clouds ())
@@ -345,7 +397,8 @@ If no record was found for STATION, nil is returned."
   (eval `(rx symbol-start
 	     (group (optional (char ?+ ?-)))
 	     (group (1+ (or ,@(mapcar #'car metar-phenomena))))
-	     symbol-end)))
+	     symbol-end))
+  "Regular expression to match weather phenomena in METAR records.")
 
 (defun metar-phenomena (info)
   (when (string-match metar-phenomena-regexp info)
@@ -372,9 +425,6 @@ If no record was found for STATION, nil is returned."
 		symbol-end))
   "Regular expression to match wind information in METAR records.")
 
-(defsubst metar-knots (value)
-  (cons value 'knots))
-
 (defsubst metar-degrees (value)
   (cons value 'degrees))
 
@@ -385,16 +435,21 @@ If no record was found for STATION, nil is returned."
 	 (when (and (match-string 4 info) (match-string 5 info))
 	   (list :from (string-to-number (match-string 4 info))
 		 :to (string-to-number (match-string 5 info))))
-       (append (list :direction (metar-degrees (string-to-number (match-string 1 info))))
-	       (when (and (match-string 4 info) (match-string 5 info))
-		 (list :from (metar-degrees (string-to-number (match-string 4 info)))
-		       :to (metar-degrees (string-to-number (match-string 5 info)))))))
-     (list :speed (metar-convert-unit (concat (match-string 2 info) "knot") (cdr (assq 'speed metar-units))))
+       (append
+	(list :direction (metar-degrees
+			  (string-to-number (match-string 1 info))))
+	(when (and (match-string 4 info) (match-string 5 info))
+	  (list :from (metar-degrees (string-to-number (match-string 4 info)))
+		:to (metar-degrees (string-to-number (match-string 5 info)))))))
+     (list :speed (metar-convert-unit (concat (match-string 2 info) "knot")
+				      (cdr (assq 'speed metar-units))))
      (when (match-string 3 info)
-       (list :gust (metar-convert-unit (concat (match-string 3 info) "knot") (cdr (assq 'speed metar-units))))))))
+       (list :gust (metar-convert-unit (concat (match-string 3 info) "knot")
+				       (cdr (assq 'speed metar-units))))))))
 
 (defconst metar-visibility-regexp
-  (rx symbol-start (group (1+ digit)) (optional (group "SM")) symbol-end))
+  (rx symbol-start (group (1+ digit)) (optional (group "SM")) symbol-end)
+  "Regular expression to match information about visibility in METAR records.")
 
 (defconst metar-temperature-and-dewpoint-regexp
   (rx symbol-start
@@ -402,7 +457,8 @@ If no record was found for STATION, nil is returned."
       (char ?/)
       (group (group (optional (char ?M))) (1+ digit))
       symbol-end)
-  "Regular expression to match temperature and dewpoint information in METAR records.")
+  "Regular expression to match temperature and dewpoint information in METAR
+records.")
 
 (defun metar-temperature (info)
   (when (string-match metar-temperature-and-dewpoint-regexp info)
@@ -470,7 +526,8 @@ degrees celsius)."
 ;;;###autoload
 (defun metar (&optional arg)
   "Display recent weather information.
-If a prefix argument is given, prompt for the exact station code.
+If a prefix argument is given, prompt for country and station name.
+If two prefix arguments are given, prompt for exact station code.
 Otherwise, determine the best station via latitude/longitude."
   (interactive "p")
   (unless arg (setq arg 1))
@@ -572,6 +629,29 @@ Otherwise, determine the best station via latitude/longitude."
 		   "unknown"))
       (when (> count 0)
 	(/ (float temp-sum) count)))))
+
+(defun metar-format (format report)
+  (format-spec
+   format
+   (list (cons ?d
+	       (let ((dewpoint (cdr (assq 'dewpoint report))))
+		 (format "%.1f°%c"
+			 (car dewpoint)
+			 (cond ((eq (cdr dewpoint) 'degC) ?C)
+			       ((eq (cdr dewpoint) 'degF) ?F)))))
+	 (cons ?h
+	       (let ((humidity (cdr (assq 'humidity report))))
+		 (format "%d%%" (car humidity))))
+	 (cons ?p
+	       (let ((pressure (cdr (assq 'pressure report))))
+		 (format "%.1f %S" (car pressure) (cdr pressure))))
+	 (cons ?s (cdr (assq 'station report)))
+	 (cons ?t
+	       (let ((temperature (cdr (assq 'temperature report))))
+		 (format "%.1f°%c"
+			 (car temperature)
+			 (cond ((eq (cdr temperature) 'degC) ?C)
+			       ((eq (cdr temperature) 'degF) ?F))))))))
 
 (provide 'metar)
 ;;; metar.el ends here
