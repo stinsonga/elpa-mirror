@@ -1,7 +1,7 @@
 #!/usr/bin/python
 ### forward-diffs.py --- forward emacs-diffs mails to maintainers
 
-## Copyright (C) 2012-2013 Free Software Foundation, Inc.
+## Copyright (C) 2012-2014 Free Software Foundation, Inc.
 
 ## Author: Glenn Morris <rgm@gnu.org>
 ## Maintainer: emacs-devel@gnu.org
@@ -295,9 +295,15 @@ for line in text.splitlines():
     # Summary of changes:
     #  packages/vlf/vlf.el |    2 +-
     #  1 files changed, 1 insertions(+), 1 deletions(-)
+    #
+    # or things that look like (Git):
+    #
+    # ---
+    #  packages/vlf/vlf.el |    2 +-
+    #  1 files changed, 1 insertions(+), 1 deletions(-)
 
     #BZR: if re.match( 'modified:$', line ):
-    if re.match( 'Summary of changes:$', line ):
+    if re.match( '---|Summary of changes:$', line ):
         start = True
         continue
 
