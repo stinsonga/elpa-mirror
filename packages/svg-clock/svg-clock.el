@@ -1,6 +1,6 @@
 ;;; svg-clock.el --- Analog clock using Scalable Vector Graphics
 
-;; Copyright (C) 2011  Free Software Foundation, Inc.
+;; Copyright (C) 2011, 2014  Free Software Foundation, Inc.
 
 ;; Author:      Ulf Jasper <ulf.jasper@web.de>
 ;; Created:     22. Sep. 2011
@@ -186,8 +186,8 @@ TIME must have the form (SECOND MINUTE HOUR ...), as returned by `decode-time'."
       (svg-clock-replace "%SIZE%" (format "%d" svg-clock--actual-size))
       (svg-clock-replace "%SCALE%"
                          (format "%f" (/ svg-clock--actual-size 100.0)))
-      (image-mode)
-      (image-toggle-display-image))))
+      (when (derived-mode-p 'image-mode)
+        (image-toggle-display-image)))))
 
 (defun svg-clock-update ()
   "Update the clock."
@@ -245,6 +245,7 @@ Optionally PERFORM-UPDATE immediately."
     (setq svg-clock-timer
           (run-with-timer 0 1 'svg-clock-update))
     (svg-clock-mode)
+    (image-mode)
     (message "Clock started")))
 
 (defvar svg-clock-mode-map
