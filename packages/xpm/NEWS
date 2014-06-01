@@ -2,6 +2,9 @@ NEWS for xpm.el (et al)
 See the end for copying conditions.
 
 
+- 1.0.2 | 2014-05-30
+  - new homepage: http://www.gnuvola.org/software/xpm/
+
 - 1.0.1 | 2014-05-21
   - byte-compilation bugfix
 
