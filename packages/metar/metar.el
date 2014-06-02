@@ -92,37 +92,18 @@
   "Variable containing (cached) METAR station information.
 Use the function `metar-stations' to get the actual station list.")
 
-(defun metar-station-convert-latitude (string)
+(defun metar-station-convert-dms-to-deg (string)
+  "Convert degrees, minutes and optional seconds, to degrees."
   (when (string-match (rx string-start
-			  (group (1+ digit))
-			  ?-
-			  (group (1+ digit))
+			  (group (1+ digit)) ?- (group (1+ digit))
 			  (optional ?- (group (1+ digit)))
-			  (group (char ?N ?S))
+			  (group (char ?N ?E ?S ?W))
 			  string-end) string)
-    (funcall (if (string= (match-string 4 string) "N") #'+ #'-)
+    (funcall (if (memq (aref (match-string 4 string) 0) '(?N ?E)) #'+ #'-)
 	     (+ (string-to-number (match-string 1 string))
-		(/ (string-to-number (match-string 2 string))
-		   60.0)
+		(/ (string-to-number (match-string 2 string)) 60.0)
 		(if (match-string 3 string)
 		    (/ (string-to-number (match-string 3 string)) 3600.0)
-		  0)))))
-
-(defun metar-station-convert-longitude (string)
-  (when (string-match (rx string-start
-			  (group (1+ digit))
-			  ?-
-			  (group (1+ digit))
-			  (optional ?- (group (1+ digit)))
-			  (group (char ?E ?W))
-			  string-end) string)
-    (funcall (if (string= (match-string 4 string) "E") #'+ #'-)
-	     (+ (string-to-number (match-string 1 string))
-		(/ (string-to-number (match-string 2 string))
-		   60.0)
-		(if (match-string 3 string)
-		    (/ (string-to-number (match-string 3 string))
-		       3600.0)
 		  0)))))
 
 (defun metar-stations ()
@@ -147,9 +128,9 @@ If this variable is nil, the information is retrieved from the Internet."
 			    (cons 'name (nth 3 item))
 			    (cons 'country (nth 5 item))
 			    (cons 'latitude
-				  (metar-station-convert-latitude (nth 7 item)))
+				  (metar-station-convert-dms-to-deg (nth 7 item)))
 			    (cons 'longitude
-				  (metar-station-convert-longitude (nth 8 item)))
+				  (metar-station-convert-dms-to-deg (nth 8 item)))
 			    (cons 'altitude (string-to-number (nth 12 item))))))
 		   metar-stations)))
 	  (setq data (cdr data)))
