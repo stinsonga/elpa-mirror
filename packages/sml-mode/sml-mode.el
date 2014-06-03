@@ -1,6 +1,6 @@
 ;;; sml-mode.el --- Major mode for editing (Standard) ML  -*- lexical-binding: t; coding: utf-8 -*-
 
-;; Copyright (C) 1989,1999,2000,2004,2007,2010-2013  Free Software Foundation, Inc.
+;; Copyright (C) 1989,1999,2000,2004,2007,2010-2014  Free Software Foundation, Inc.
 
 ;; Maintainer: (Stefan Monnier) <monnier@iro.umontreal.ca>
 ;; Version: 6.4
@@ -446,6 +446,8 @@ Regexp match data 0 points to the chars."
               (decls "nonfix" decls)
               (decls "abstype" decls)
               (decls "datatype" decls)
+              (decls "include" decls)
+              (decls "sharing" decls)
               (decls "exception" decls)
               (decls "fun" decls)
               (decls "val" decls))
@@ -466,7 +468,7 @@ Regexp match data 0 points to the chars."
      '((assoc "->") (assoc "*"))
      '((assoc "val" "fun" "type" "datatype" "abstype" "open" "infix" "infixr"
               "nonfix" "functor" "signature" "structure" "exception"
-              ;; "local"
+              "include" "sharing" "local"
               )
        (assoc "and"))
      '((assoc "orelse") (assoc "andalso") (nonassoc ":"))
@@ -515,7 +517,7 @@ Regexp match data 0 points to the chars."
       ((member token '("|" "d|" ";" ",")) (smie-rule-separator kind))
       ;; Treat purely syntactic block-constructs as being part of their parent,
       ;; when the opening statement is hanging.
-      ((member token '("let" "(" "[" "{"))
+      ((member token '("let" "(" "[" "{")) ; "struct"? "sig"?
        (if (smie-rule-hanging-p) (smie-rule-parent)))
       ;; Treat if ... else if ... as a single long syntactic construct.
       ;; Similarly, treat fn a => fn b => ... as a single construct.
@@ -531,7 +533,7 @@ Regexp match data 0 points to the chars."
       ((equal token "d=")
        (cond
         ((smie-rule-parent-p "datatype") (if (smie-rule-bolp) 2))
-        ((smie-rule-parent-p "structure" "signature") 0)))
+        ((smie-rule-parent-p "structure" "signature" "functor") 0)))
       ;; Indent an expression starting with "local" as if it were starting
       ;; with "fun".
       ((equal token "local") (smie-indent-keyword "fun"))
@@ -563,31 +565,9 @@ Assumes point is right before the = sign."
   ;; One known problem case is code like:
   ;; "functor foo (structure s : S) where type t = s.t ="
   ;; where the "type t = s.t" is mistaken for a type definition.
-  (let ((re (concat "\\(" sml-=-starter-re "\\)\\|=")))
-    (save-excursion
-      (and (re-search-backward re nil t)
-           (or (match-beginning 1)
-               ;; If we first hit a "=", then that = is probably definitional
-               ;; and  we're an equality, but not necessarily.  One known
-               ;; problem case is code like:
-               ;; "functor foo (structure s : S) where type t = s.t ="
-               ;; where the first = is more like an equality (tho it doesn't
-               ;; matter much) and the second is definitional.
-               ;;
-               ;; FIXME: The test below could be used to recognize that the
-               ;; second = is not a mere equality, but that's not enough to
-               ;; parse the construct properly: we'd need something
-               ;; like a third kind of = token for structure definitions, in
-               ;; order for the parser to be able to skip the "type t = s.t"
-               ;; as a sub-expression.
-               ;;
-               ;; (and (not (looking-at "=>"))
-               ;;      (not (eq ?< (char-before))) ;Not a <=
-               ;;      (re-search-backward re nil t)
-               ;;      (match-beginning 1)
-               ;;      (equal "type" (buffer-substring (- (match-end 1) 4)
-               ;;                                      (match-end 1))))
-               )))))
+  (save-excursion
+    (let ((res (smie-backward-sexp "=")))
+      (member (nth 2 res) `(":" ,@sml-=-starter-syms)))))
 
 (defun sml-smie-non-nested-of-p ()
   ;; FIXME: Maybe datatype-|-p makes this nested-of business unnecessary.

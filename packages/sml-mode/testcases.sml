@@ -1,4 +1,4 @@
-(* Copyright 1999,2004,2007,2010-2012 Stefan Monnier <monnier@gnu.org> *)
+(* Copyright 1999,2004,2007,2010-2012,2014 Stefan Monnier <monnier@gnu.org> *)
 
 (* sml-mode here treats the second `=' as an equal op because it
  * thinks it's seeing something like "... type t = (s.t = ...)".  FIXME!  *)
@@ -54,6 +54,35 @@ val bar =
              else
                  c
           ;4)
+
+structure Attrs : sig
+            type t
+            datatype node
+              = Attributes of string list
+            include WRAPPED
+            sharing type node' = node
+            sharing type obj = t
+          end
+
+functor DoWrap1(type node) : S = struct
+type t = node Wrap.t
+open Wrap
+type node' = node
+type obj = t
+end
+
+functor DoWrap(type node) : sig
+          type t = node Wrap.t
+          include WRAPPED
+          sharing type node' = node
+          sharing type obj = t
+        end =
+struct
+type t = node Wrap.t
+open Wrap
+type node' = node
+type obj = t
+end
 
 val ber = 1;
 val sdfg = 1
