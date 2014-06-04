@@ -487,6 +487,30 @@ Regexp match data 0 points to the chars."
 
 (defvar sml-indent-separator-outdent 2)
 
+(defun sml--rightalign-and-p ()
+  (when sml-rightalign-and
+    ;; Only right-align the "and" if the intervening code is more deeply
+    ;; indented, to avoid things like:
+    ;; datatype foo
+    ;;   = Foo of int
+    ;;      and bar = Bar of string
+    (save-excursion
+      (let ((max (line-end-position 0))
+            (data (smie-backward-sexp "and"))
+            (startcol (save-excursion
+                        (forward-comment (- (point)))
+                        (current-column)))
+            (mincol (current-column)))
+        (save-excursion
+          (search-forward "=" max t)
+          (forward-line 1)
+          (if (< (point) max) (setq max (point))))
+        (while (and (<= (point) max) (not (eobp)))
+          (skip-chars-forward " \t")
+          (setq mincol (current-column))
+          (forward-line 1))
+        (>= mincol startcol)))))
+
 (defun sml-smie-rules (kind token)
   ;; I much preferred the pcase version of the code, especially while
   ;; edebugging the code.  But that will have to wait until we get rid of
@@ -528,7 +552,7 @@ Regexp match data 0 points to the chars."
       ((equal token "and")
        ;; FIXME: maybe "and" (c|sh)ould be handled as an smie-separator.
        (cond
-        ((smie-rule-parent-p "datatype") (if sml-rightalign-and 5 0))
+        ((smie-rule-parent-p "datatype") (if (sml--rightalign-and-p) 5 0))
         ((smie-rule-parent-p "fun" "val") 0)))
       ((equal token "d=")
        (cond

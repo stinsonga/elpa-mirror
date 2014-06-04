@@ -142,6 +142,7 @@ val x =
 datatype foobar
   = FooB of int
   | FooA of bool * int
+and baz = QUX of foo
 datatype foo = FOO | BAR of baz
      and baz = BAZ | QUUX of foo
 
