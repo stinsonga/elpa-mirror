@@ -613,11 +613,11 @@ when you are sure the command cannot fail."
     (setplist (gnugo-f 'ispc) (and new '(display (space :width 0))))
     (gnugo-put :highlight-last-move-spec
       (if new
-          '((lambda (p)
-              (get (gnugo-yy (get-text-property p 'gnugo-yin)
-                             (get-text-property p 'gnugo-yang)
-                             t)
-                   'display))
+          `(,(lambda (p)
+               (get (gnugo-yy (get-text-property p 'gnugo-yin)
+                              (get-text-property p 'gnugo-yang)
+                              t)
+                    'display))
             0 delete-overlay)
         (gnugo-get :default-highlight-last-move-spec)))
     ;; a kludge to be reworked another time perhaps by another gnugo.el lover
