@@ -67,23 +67,25 @@ if RX or RY is less than 1, the value is nil."
          (placed (origin scale n)
                  (truncate (+ origin (* scale n))))
          (orient (coords quadrant)
-                 (loop with (sx . sy) = quadrant
-                       for (x . y) in coords
-                       collect (cons (placed cx sx x)
-                                     (placed cy sy y)))))
+                 (cl-loop
+                  with (sx . sy) = quadrant
+                  for (x . y) in coords
+                  collect (cons (placed cx sx x)
+                                (placed cy sy y)))))
       (delete-dups
-       (loop with coords = (mapcar
-                            #'normal
-                            (artist-ellipse-generate-quadrant
-                             ;; Specify row first; artist.el is like that.
-                             ;; (That's why ‘normal’ does what it does...)
-                             ry rx))
-             for quadrant               ; these are in order: I-IV
-             in '(( 1 .  1)             ; todo: "manually" remove single
-                  (-1 .  1)             ;       (border point) overlaps;
-                  (-1 . -1)             ;       avoid ‘delete-dups’
-                  ( 1 . -1))
-             append (orient coords quadrant))))))
+       (cl-loop
+        with coords = (mapcar
+                       #'normal
+                       (artist-ellipse-generate-quadrant
+                        ;; Specify row first; artist.el is like that.
+                        ;; (That's why ‘normal’ does what it does...)
+                        ry rx))
+        for quadrant                    ; these are in order: I-IV
+        in '(( 1 .  1)                  ; todo: "manually" remove single
+             (-1 .  1)                  ;       (border point) overlaps;
+             (-1 . -1)                  ;       avoid ‘delete-dups’
+             ( 1 . -1))
+        append (orient coords quadrant))))))
 
 ;;;###autoload
 (defun xpm-m2z-circle (cx cy radius)
