@@ -51,8 +51,8 @@
 ;; are "congruent" if their width, height and cpp are identical.
 ;;
 ;; This package was originally conceived for non-interactive use,
-;; so its design is spartan at the core.  However, we plan on
-;; adding a XPM mode in a future release; see HACKING link below.
+;; so its design is spartan at the core.  However, we plan to add
+;; a XPM mode in a future release; monitor the homepage for updates.
 ;;
 ;; For now, the features (w/ correspondingly-named files) are:
 ;; - xpm          -- edit XPM images
