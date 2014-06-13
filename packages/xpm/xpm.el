@@ -92,8 +92,8 @@ shape to `xpm-raster', then you can ignore this variable.")
 When called as a command, display in the echo area a
 summary of image dimensions, cpp and palette.
 Set buffer-local variable `xpm--gg' and return its value.
-Normally, preparation includes making certain parts of
-the buffer intangible.  Optional arg SIMPLE inhibits that."
+Normally, preparation includes making certain parts of the
+buffer intangible.  Optional arg SIMPLE non-nil inhibits that."
   (interactive)
   (unless (or
            ;; easy
@@ -188,14 +188,15 @@ a character or string of length CPP, and COLOR is a string.
 If COLOR includes a space, it is included directly,
 otherwise it is automatically prefixed with \"c \".
 
-For example, to produce fragment:
+For example, to produce palette fragment:
 
  \"X  c blue\",
  \"Y  s border c green\",
 
 you can specify PALETTE as:
 
- ((?X . \"blue\") (?Y . \"s border c green\"))
+ ((?X . \"blue\")
+  (?Y . \"s border c green\"))
 
 This example presumes CPP is 1."
   (let ((buf (generate-new-buffer name)))
@@ -230,8 +231,8 @@ This example presumes CPP is 1."
 
 If both X and Y are vectors of length N, then place N points
 using the pairwise vector elements.  If one of X or Y is a vector
-of length N, then pair its elements with the other integer component
-and place N points.
+of length N and the other component is an integer, then pair the
+vector elements with the integer component and place N points.
 
 If one of X or Y is a pair (LOW . HIGH), take it to be equivalent
 to specfiying a vector [LOW ... HIGH].  For example, (3 . 8) is
