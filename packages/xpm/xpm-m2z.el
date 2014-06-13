@@ -52,8 +52,8 @@ RX and RY, respectively.  For example:
  X   -3    6    10
  Y    0    7     8
 
-The span is always an even number.  As a special case,
-if RX or RY is less than 1, the value is nil."
+The span is always an even number.  As a special case, if the
+absolute value of RX or RY is less than 1, the value is nil."
   (cl-assert (and (not (integerp cx))
                   (not (integerp cy)))
              nil "Integer component in center coordinate: (%S,%S)"
