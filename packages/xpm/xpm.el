@@ -232,7 +232,7 @@ of length N, then pair its elements with the other integer component
 and place N points.
 
 If one of X or Y is a pair (LOW . HIGH), take it to be equivalent
-t specfiying a vector [LOW ... HIGH].  For example, (3 . 8) is
+to specfiying a vector [LOW ... HIGH].  For example, (3 . 8) is
 equivalent to [3 4 5 6 7 8].  If one component is a pair, the
 other must be an integer -- the case where both X and Y are pairs
 is not supported.
