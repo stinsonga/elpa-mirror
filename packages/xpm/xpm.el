@@ -120,13 +120,14 @@ the buffer intangible.  Optional arg SIMPLE inhibits that."
         (ignore rest)                   ; for now
         (forward-line 1)
         (setq pinfo (point-marker))
-        (loop repeat nc
-              do (let ((p (1+ (point))))
-                   (puthash (buffer-substring-no-properties
-                             p (+ p cpp))
-                            ;; Don't bother w/ CVALUE for now.
-                            t ht)
-                   (forward-line 1)))
+        (cl-loop
+         repeat nc
+         do (let ((p (1+ (point))))
+              (puthash (buffer-substring-no-properties
+                        p (+ p cpp))
+                       ;; Don't bother w/ CVALUE for now.
+                       t ht)
+              (forward-line 1)))
         (setq pinfo (cons pinfo ht))
         (skip-chars-forward "^\"")
         (forward-char 1)
@@ -146,9 +147,10 @@ the buffer intangible.  Optional arg SIMPLE inhibits that."
                               (- p span) p (list* 'intangible t
                                                   more)))))
               (suppress 1)
-              (loop repeat h
-                    do (progn (forward-char (+ 4 (* w cpp)))
-                              (suppress 4)))
+              (cl-loop
+               repeat h
+               do (progn (forward-char (+ 4 (* w cpp)))
+                         (suppress 4)))
               (suppress 2 'display "\n")
               (push 'intangible-sides (xpm--flags gg)))
             (set-buffer-modified-p mod)))
@@ -203,17 +205,19 @@ This example presumes CPP is 1."
         (yep "/* XPM */")
         (yep "static char * %s[] = {" name)
         (yep "\"%d %d %d %d\"," width height (length palette) cpp)
-        (loop for (px . color) in palette
-              do (yep "\"%s  %s\","
-                      (if (characterp px)
-                          (string px)
-                        px)
-                      (if (string-match " " color)
-                          color
-                        (concat "c " color))))
-        (loop with s = (format "%S,\n" (make-string (* cpp width) 32))
-              repeat height
-              do (insert s))
+        (cl-loop
+         for (px . color) in palette
+         do (yep "\"%s  %s\","
+                 (if (characterp px)
+                     (string px)
+                   px)
+                 (if (string-match " " color)
+                     color
+                   (concat "c " color))))
+        (cl-loop
+         with s = (format "%S,\n" (make-string (* cpp width) 32))
+         repeat height
+         do (insert s))
         (delete-char -2)
         (yep "};")
         (xpm-grok t)))
@@ -251,7 +255,9 @@ Silently ignore out-of-range coordinates."
               (pos col row)
               (if (= 1 cpp)
                   (insert-char px len)
-                (loop repeat len do (insert px)))
+                (cl-loop
+                 repeat len
+                 do (insert px)))
               (delete-char (* cpp len)))
          (zow (col row)
               (unless (out col row)
@@ -269,15 +275,19 @@ Silently ignore out-of-range coordinates."
                                     (when (stringp px)
                                       (setq px (aref px 0)))
                                     (jam beg y len)))))
-        (`(integer . cons)    (loop for two from (car y) to (cdr y)
-                                    do (zow x two)))
-        (`(vector . integer)  (loop for one across x
-                                    do (zow one y)))
-        (`(integer . vector)  (loop for two across y
-                                    do (zow x two)))
-        (`(vector . vector)   (loop for one across x
-                                    for two across y
-                                    do (zow one two)))
+        (`(integer . cons)    (cl-loop
+                               for two from (car y) to (cdr y)
+                               do (zow x two)))
+        (`(vector . integer)  (cl-loop
+                               for one across x
+                               do (zow one y)))
+        (`(integer . vector)  (cl-loop
+                               for two across y
+                               do (zow x two)))
+        (`(vector . vector)   (cl-loop
+                               for one across x
+                               for two across y
+                               do (zow one two)))
         (`(integer . integer) (zow x y))
         (_ (error "Bad coordinates: X %S, Y %S"
                   x y))))))
@@ -304,32 +314,36 @@ see variable `xpm-raster-inhibit-continuity-optimization'."
            ;; state, on a line-by-line basis.
            int nin
            ext)
-      (loop for (x . y) in form
-            do (setq x-min (min x-min x)
-                     x-max (max x-max x)
-                     y-min (min y-min y)
-                     y-max (max y-max y))
-            unless (or (> 0 y)
-                       (<= h y))
-            do (push x (aref v y)))
+      (cl-loop
+       for (x . y) in form
+       do (setq x-min (min x-min x)
+                x-max (max x-max x)
+                y-min (min y-min y)
+                y-max (max y-max y))
+       unless (or (> 0 y)
+                  (<= h y))
+       do (push x (aref v y)))
       (cl-flet
           ((span (lo hi)
                  (- hi lo -1))
            (norm (n)
                  (- n x-min))
            (rset (bv start len value)
-                 (loop for i from start repeat len
-                       do (aset bv i value)))
+                 (cl-loop
+                  for i from start repeat len
+                  do (aset bv i value)))
            (scan (bv start len yes no)
-                 (loop for i from start repeat len
-                       when (aref bv i)
-                       return yes
-                       finally return no)))
+                 (cl-loop
+                  for i from start repeat len
+                  when (aref bv i)
+                  return yes
+                  finally return no)))
         (let ((len (span x-min x-max)))
           (setq int (make-bool-vector len nil)
                 nin (make-bool-vector len nil)
                 ext (make-bool-vector len t)))
-        (loop
+        (cl-loop
+
          with (ls
                in-map-ok
                in-map)
@@ -337,7 +351,8 @@ see variable `xpm-raster-inhibit-continuity-optimization'."
          when (setq ls (and (< -1 y)
                             (> h y)
                             (sort (aref v y) '>)))
-         do (loop
+         do (cl-loop
+
              with acc = (list (car ls))
              for maybe in (cdr ls)
              do (let* ((was (car acc))
@@ -362,7 +377,8 @@ see variable `xpm-raster-inhibit-continuity-optimization'."
                                     (cl-evenp was)))
                    (setq in-map (make-bool-vector now nil)))))
              finally do
-             (loop
+             (cl-loop
+
               with (x rangep beg nx end len nb in)
               for gap from 0
               while acc
