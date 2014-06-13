@@ -34,7 +34,6 @@
 
 (require 'artist)
 (require 'cl-lib)
-(eval-when-compile (require 'cl))
 
 ;;;###autoload
 (defun xpm-m2z-ellipse (cx cy rx ry)
@@ -55,8 +54,10 @@ RX and RY, respectively.  For example:
 
 The span is always an even number.  As a special case,
 if RX or RY is less than 1, the value is nil."
-  (assert (not (integerp cx)))
-  (assert (not (integerp cy)))
+  (cl-assert (and (not (integerp cx))
+                  (not (integerp cy)))
+             nil "Integer component in center coordinate: (%S,%S)"
+             cx cy)
   (unless (or (> 1 (abs rx))
               (> 1 (abs ry)))
     (cl-flet*
