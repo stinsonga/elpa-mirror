@@ -64,7 +64,6 @@
 ;;; Code:
 
 (require 'cl-lib)
-(eval-when-compile (require 'cl))
 
 (autoload 'image-toggle-display "image-mode" t) ; hmm is this TRT?
 
@@ -144,8 +143,9 @@ the buffer intangible.  Optional arg SIMPLE inhibits that."
                 ((suppress (span &rest more)
                            (let ((p (point)))
                              (add-text-properties
-                              (- p span) p (list* 'intangible t
-                                                  more)))))
+                              (- p span) p (cl-list*
+                                            'intangible t
+                                            more)))))
               (suppress 1)
               (cl-loop
                repeat h
@@ -415,7 +415,7 @@ see variable `xpm-raster-inhibit-continuity-optimization'."
                        (rset nin nb len t)
                        (xpm-put-points fill (cons beg end) y))))
               finally do (when fill
-                           (rotatef int nin)
+                           (cl-rotatef int nin)
                            (fillarray nin nil)))))))))
 
 (defun xpm-as-xpm (&rest props)
