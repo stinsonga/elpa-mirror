@@ -343,7 +343,6 @@ see variable `xpm-raster-inhibit-continuity-optimization'."
                 nin (make-bool-vector len nil)
                 ext (make-bool-vector len t)))
         (cl-loop
-
          with (ls
                in-map-ok
                in-map)
@@ -352,7 +351,6 @@ see variable `xpm-raster-inhibit-continuity-optimization'."
                             (> h y)
                             (sort (aref v y) '>)))
          do (cl-loop
-
              with acc = (list (car ls))
              for maybe in (cdr ls)
              do (let* ((was (car acc))
@@ -378,7 +376,6 @@ see variable `xpm-raster-inhibit-continuity-optimization'."
                    (setq in-map (make-bool-vector now nil)))))
              finally do
              (cl-loop
-
               with (x rangep beg nx end len nb in)
               for gap from 0
               while acc
