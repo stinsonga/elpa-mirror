@@ -54,20 +54,16 @@
                           (lambda (θ) (cos (* τ θ)))))
          (n-mag-fns (length mag-fns)))
     (cl-flet
-        ((random-mag-fn () (aref mag-fns (random n-mag-fns))))
+        ((random-mag-fn () (aref mag-fns (random n-mag-fns)))
+         (form (fn &rest args) (apply fn half half (random 42) args)))
       (let* ((x-mag-fn (random-mag-fn))
              (y-mag-fn (random-mag-fn))
              (form (if again
                        (get 'flower 'form)
                      (delete-dups
                       (if (zerop (random 5))
-                          (let ((one (xpm-m2z-circle
-                                      half half
-                                      (random 42)))
-                                (two (xpm-m2z-ellipse
-                                      half half
-                                      (random 42)
-                                      (random 42))))
+                          (let ((one (form 'xpm-m2z-circle))
+                                (two (form 'xpm-m2z-ellipse (random 42))))
                             (append one two))
                         (cl-loop
                          for θ below τ by 0.003
