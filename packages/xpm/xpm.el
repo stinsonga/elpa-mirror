@@ -176,6 +176,8 @@ the buffer intangible.  Optional arg SIMPLE inhibits that."
 ;;;###autoload
 (defun xpm-generate-buffer (name width height cpp palette)
   "Return a new buffer in XPM image format.
+In this buffer, undo is disabled (see `buffer-enable-undo').
+
 NAME is the buffer and XPM name.  For best interoperation
 with other programs, NAME should be a valid C identifier.
 WIDTH, HEIGHT and CPP are integers that specify the image
