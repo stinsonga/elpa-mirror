@@ -115,7 +115,7 @@ the buffer intangible.  Optional arg SIMPLE inhibits that."
       (goto-char (point-min))
       (search-forward "{")
       (skip-chars-forward "^\"")
-      (destructuring-bind (w h nc cpp &rest rest)
+      (cl-destructuring-bind (w h nc cpp &rest rest)
           (read (format "(%s)" (read (current-buffer))))
         (ignore rest)                   ; for now
         (forward-line 1)
@@ -391,7 +391,7 @@ see variable `xpm-raster-inhibit-continuity-optimization'."
                                          x))
                            t))
                    (if rangep
-                       (destructuring-bind (b . e) x
+                       (cl-destructuring-bind (b . e) x
                          (rset ext (norm b) (span b e) nil))
                      (aset ext (norm x) nil))
                    (when acc
