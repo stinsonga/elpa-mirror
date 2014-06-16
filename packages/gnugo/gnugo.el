@@ -1907,7 +1907,7 @@ to the last move, as a comment."
         (cl-flet
             ((yep (pretty moment)
                   (push (format-time-string
-                         (concat pretty ": %Y-%m-%d %H:%M:%S %z\n")
+                         (concat pretty ": %F %T %z\n")
                          moment)
                         blurb)))
           (yep "Game start" beg)
@@ -2279,7 +2279,7 @@ See `gnugo-board-mode' for a full list of commands."
               (when (and (zerop handicap) actually)
                 (setq handicap (string-to-number (cadr actually)))))
             (r! :SZ board-size
-                :DT (format-time-string "%Y-%m-%d")
+                :DT (format-time-string "%F")
                 :RU (if (member "--chinese-rules" args)
                         "Chinese"
                       "Japanese")
