@@ -3,7 +3,7 @@
 ;; Copyright (C) 1989,1999,2000,2004,2007,2010-2014  Free Software Foundation, Inc.
 
 ;; Maintainer: (Stefan Monnier) <monnier@iro.umontreal.ca>
-;; Version: 6.4
+;; Version: 6.5
 ;; Keywords: SML
 ;; Author:	Lars Bo Nielsen
 ;;		Olin Shivers
