@@ -830,6 +830,12 @@ FCR-FN specifies a function to use when a fold-call-raise decision is required."
 
     (cons players rounds)))
 
+
+;;;###autoload
+(define-key menu-bar-games-menu
+  [poker] '(menu-item "Texas hold'em poker" poker
+		      :help "Play texas hold'em poker"))
+
 ;;; Tests:
 
 (ert-deftest poker-combinations ()
