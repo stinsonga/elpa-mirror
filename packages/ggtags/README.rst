@@ -32,8 +32,9 @@ Features
 #. Support `exuberant ctags <http://ctags.sourceforge.net/>`_ backend.
 #. Support all Global's output formats: ``grep``, ``ctags-x``,
    ``cscope`` etc.
-#. Support projects on remote hosts (e.g. via ``tramp``)
-#. Support eldoc
+#. Support projects on remote hosts (e.g. via ``tramp``).
+#. Support eldoc.
+#. Search ``GTAGSLIBPATH`` for references and symbols.
 
 Screenshot
 ~~~~~~~~~~
@@ -117,14 +118,23 @@ ggtags-find-tag-dwim
 
    To force finding a definition tag, call it with a prefix (``C-u``).
 
+ggtags-find-tag-mouse
+
+   Like ``ggtags-find-tag-dwim`` but suitable for binding to mouse
+   events.
+
+ggtags-find-definition
+
+   Find definition tags. With ``C-u`` ask for the tag name with
+   completion.
+
 ggtags-find-reference
 
-   Find references to a tag. With ``C-u`` ask for the tag name with
-   completion.
+   Find reference tags. With ``C-u`` ask for the tag name with completion.
 
 ggtags-find-other-symbol
 
-   Find a tag that has no definition. With ``C-u`` ask for the tag
+   Find tags that have no definitions. With ``C-u`` ask for the tag
    name with completion.
 
 ggtags-find-tag-regexp
@@ -182,7 +192,7 @@ turned on to facilitate locating the right match.
 
    Move to the last match.
 
-``C-M-s``
+``C-M-s`` or ``M-s s``
 
    Use ``isearch`` to find the match.
 
@@ -218,9 +228,9 @@ ggtags-view-tag-history
    location. ``M-n`` and ``M-p`` move to and display the next/previous
    entry.
 
-ggtags-global-rerun-search
+ggtags-view-search-history
 
-   Re-run a search from search history as kept in
+   View or re-run past searches as kept in
    ``ggtags-global-search-history``.
 
 ggtags-kill-file-buffers
@@ -278,10 +288,25 @@ Integration with other packages
 
 * helm
 
-  If ``helm-mode`` is enabled ``ggtags`` will use it for completion.
+  If ``helm-mode`` is enabled ``ggtags`` will use it for completion if
+  ``ggtags-completing-read-function`` is nil.
 
 NEWS
 ~~~~
+
+[2014-06-22 Sun] 0.8.5
+++++++++++++++++++++++
+
+#. New command ``ggtags-find-tag-mouse`` for mouse support.
+#. New command ``ggtags-find-definition``.
+#. Variable ``ggtags-completing-read-function`` restored.
+#. ``ggtags-navigation-isearch-forward`` can also be invoked using
+   ``M-s s``.
+#. Command ``ggtags-global-rerun-search`` renamed to
+   ``ggtags-view-search-history``.
+#. The output buffer from ``ggtags-view-search-history`` looks
+   cleaner.
+#. Search history items can be re-arranged with ``C-k`` and ``C-y``.
 
 [2014-05-06 Tue] 0.8.4
 ++++++++++++++++++++++
