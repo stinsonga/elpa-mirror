@@ -3,7 +3,7 @@
 ;; Copyright (C) 2007, 2014  Free Software Foundation, Inc.
 
 ;; Author: Mario Lang <mlang@delysid.org>
-;; Version: 0
+;; Version: 0.1
 ;; Package-Requires: ((cl-lib "0.5"))
 ;; Keywords: comm
 
@@ -545,7 +545,7 @@ Otherwise, determine the best station via latitude/longitude."
 				     nil t))))
     (let ((info (metar-decode (metar-get-record station))))
       (if info
-	  (message "%d minutes ago at %s: %d°%c, %d%% relative humidity%s"
+	  (message "%d minutes ago at %s: %d°%c, %s%d%% humidity, %.1f %S."
 		   (/ (truncate (float-time (time-since
 					     (cdr (assoc 'timestamp info)))))
 		      60)
@@ -555,11 +555,11 @@ Otherwise, determine the best station via latitude/longitude."
 		   (cond
 		    ((eq (cdr (assq 'temperature metar-units)) 'degC) ?C)
 		    ((eq (cdr (assq 'temperature metar-units)) 'degF) ?F))
-		   (cadr (assoc 'humidity info))
 		   (if (assoc 'phenomena info)
-		       (concat "\n" "Phenomena: "
-			       (cdr (assoc 'phenomena info)))
-		     ""))
+		       (concat (cdr (assoc 'phenomena info)) ", ")
+		     "")
+		   (cadr (assoc 'humidity info))
+		   (cadr (assoc 'pressure info)) (cddr (assoc 'pressure info)))
 	(message "No weather information found, sorry.")))))
   
 (defun metar-station-countries ()
@@ -619,7 +619,8 @@ Otherwise, determine the best station via latitude/longitude."
 		 (format "%.1f°%c"
 			 (car dewpoint)
 			 (cond ((eq (cdr dewpoint) 'degC) ?C)
-			       ((eq (cdr dewpoint) 'degF) ?F)))))
+			       ((eq (cdr dewpoint) 'degF) ?F)
+			       ((eq (cdr dewpoint) 'degK) ?K)))))
 	 (cons ?h
 	       (let ((humidity (cdr (assq 'humidity report))))
 		 (format "%d%%" (car humidity))))
