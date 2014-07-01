@@ -61,7 +61,9 @@ or automatically through a custom `company-clang-prefix-guesser'."
   "Major modes which clang may complete.")
 
 (defcustom company-clang-insert-arguments t
-  "When non-nil, insert function arguments as a template after completion.")
+  "When non-nil, insert function arguments as a template after completion."
+  :type 'boolean
+  :package-version '(company . "0.8.0"))
 
 ;; prefix ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -145,9 +147,9 @@ or automatically through a custom `company-clang-prefix-guesser'."
   (let ((meta (company-clang--meta candidate)))
     (cond
      ((null meta) nil)
-     ((string-match ":" meta)
-      (substring meta (match-beginning 0)))
-     ((string-match "\\((.*)\\'\\)" meta)
+     ((string-match "[^:]:[^:]" meta)
+      (substring meta (1+ (match-beginning 0))))
+     ((string-match "\\((.*)[ a-z]*\\'\\)" meta)
       (match-string 1 meta)))))
 
 (defun company-clang--strip-formatting (text)
@@ -217,14 +219,14 @@ or automatically through a custom `company-clang-prefix-guesser'."
                   t))))))
 
 (defsubst company-clang--build-complete-args (pos)
-  (append '("-cc1" "-fsyntax-only" "-code-completion-macros")
+  (append '("-fsyntax-only" "-Xclang" "-code-completion-macros")
           (unless (company-clang--auto-save-p)
             (list "-x" (company-clang--lang-option)))
           company-clang-arguments
           (when (stringp company-clang--prefix)
             (list "-include" (expand-file-name company-clang--prefix)))
-          '("-code-completion-at")
-          (list (company-clang--build-location pos))
+          (list "-Xclang" (format "-code-completion-at=%s"
+                                  (company-clang--build-location pos)))
           (list (if (company-clang--auto-save-p) buffer-file-name "-"))))
 
 (defun company-clang--candidates (prefix callback)
@@ -316,9 +318,9 @@ passed via standard input."
     (post-completion (let ((anno (company-clang--annotation arg)))
                        (when (and company-clang-insert-arguments anno)
                          (insert anno)
-                         (if (string-match ":" anno)
+                         (if (string-match "\\`:[^:]" anno)
                              (company-clang-objc-templatify anno)
-                          (company-template-c-like-templatify anno)))))))
+                           (company-template-c-like-templatify anno)))))))
 
 (provide 'company-clang)
 ;;; company-clang.el ends here
