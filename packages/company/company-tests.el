@@ -99,6 +99,22 @@
                    (candidates '("c" "d")))))))
     (should (equal (company-call-backend 'candidates "z") '("a" "b" "c" "d")))))
 
+(ert-deftest company-multi-backend-filters-backends-by-prefix ()
+  (let ((company-backend
+         (list (lambda (command &optional arg &rest ignore)
+                 (cl-case command
+                   (prefix (cons "z" t))
+                   (candidates '("a" "b"))))
+               (lambda (command &optional arg &rest ignore)
+                 (cl-case command
+                   (prefix "t")
+                   (candidates '("c" "d"))))
+               (lambda (command &optional arg &rest ignore)
+                 (cl-case command
+                   (prefix "z")
+                   (candidates '("e" "f")))))))
+    (should (equal (company-call-backend 'candidates "z") '("a" "b" "e" "f")))))
+
 (ert-deftest company-multi-backend-remembers-candidate-backend ()
   (let ((company-backend
          (list (lambda (command &optional arg)
@@ -183,6 +199,7 @@
     (insert "ab")
     (company-mode)
     (let (company-frontends
+          (company-minimum-prefix-length 2)
           (company-require-match 'company-explicit-action-p)
           (company-backends
            (list (lambda (command &optional arg)
@@ -191,9 +208,33 @@
                      (candidates '("abc" "abd")))))))
       (company-idle-begin (current-buffer) (selected-window)
                           (buffer-chars-modified-tick) (point))
+      (should (eq 2 company-candidates-length))
       (let ((last-command-event ?e))
         (company-call 'self-insert-command 1))
       (should (eq nil company-candidates-length))
+      (should (eq 4 (point))))))
+
+(ert-deftest company-dont-require-match-if-old-prefix-ended-and-was-a-match ()
+  (with-temp-buffer
+    (insert "ab")
+    (company-mode)
+    (let (company-frontends
+          (company-require-match 'company-explicit-action-p)
+          (company-backends
+           (list (lambda (command &optional arg)
+                   (cl-case command
+                     (prefix (company-grab-word))
+                     (candidates '("abc" "ab" "abd"))
+                     (sorted t))))))
+      (let (this-command)
+        (company-complete))
+      (let ((last-command-event ?e))
+        (company-call 'self-insert-command 1))
+      (should (eq 3 company-candidates-length))
+      (should (eq 3 (point)))
+      (let ((last-command-event ? ))
+        (company-call 'self-insert-command 1))
+      (should (null company-candidates-length))
       (should (eq 4 (point))))))
 
 (ert-deftest company-should-complete-whitelist ()
@@ -265,6 +306,7 @@
     (let (company-frontends
           (company-auto-complete 'company-explicit-action-p)
           (company-auto-complete-chars '(? ))
+          (company-minimum-prefix-length 2)
           (company-backends
            (list (lambda (command &optional arg)
                    (cl-case command
@@ -375,6 +417,24 @@
         (should (eq (overlay-get ov 'company-column) col))
         (should (string= (overlay-get ov 'company-after)
                          "  123 \nc 45  c\nddd\n")))))))
+
+(ert-deftest company-pseudo-tooltip-edit-updates-width ()
+  :tags '(interactive)
+  (with-temp-buffer
+    (set-window-buffer nil (current-buffer))
+    (let ((company-candidates-length 5)
+          (company-candidates '("123" "45" "67" "89" "1011"))
+          (company-backend 'ignore)
+          (company-tooltip-limit 4)
+          (company-tooltip-offset-display 'scrollbar))
+      (company-pseudo-tooltip-show (company--row)
+                                   (company--column)
+                                   0)
+      (should (eq (overlay-get company-pseudo-tooltip-overlay 'company-width)
+                  6))
+      (company-pseudo-tooltip-edit 4)
+      (should (eq (overlay-get company-pseudo-tooltip-overlay 'company-width)
+                  7)))))
 
 (ert-deftest company-preview-show-with-annotations ()
   :tags '(interactive)
@@ -548,6 +608,7 @@
   (with-temp-buffer
     (company-mode)
     (let (company-frontends
+          company-transformers
           (company-backends (list 'company-async-backend)))
       (company-manual-begin)
       (should (equal "foo" company-prefix))
@@ -557,6 +618,7 @@
   (with-temp-buffer
     (company-mode)
     (let (company-frontends
+          company-transformers
           (company-backends (list 'company-async-backend)))
       (company-idle-begin (current-buffer) (selected-window)
                           (buffer-chars-modified-tick) (point))
@@ -575,7 +637,6 @@
       (should (null company-candidates))
       (insert "a")
       (sleep-for 0.1)
-      (should (null company-prefix))
       (should (null company-candidates)))))
 
 (ert-deftest company-idle-begin-async-allows-immediate-callbacks ()

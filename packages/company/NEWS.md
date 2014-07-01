@@ -1,5 +1,21 @@
 # History of user-visible changes
 
+## 2014-07-01 (0.8.1)
+
+* `company-require-match` is not in effect when the new input doesn't continue
+  the previous prefix, and that prefix was a match.
+* The meaning of `company-begin-commands` value t has slightly changed.
+* New transformer, `company-sort-by-backend-importance`.
+* When grouped back-ends are used, the back-end of the current candidate is
+  indicated in the mode-line, enclosed in angle brackets.
+* New user option `company-gtags-insert-arguments`, t by default.
+* `company-css` knows about CSS3.
+* `company-gtags` supports `meta` and `annotation`.
+* User option `company-dabbrev-code-other-buffers` can have a new value: `code`.
+* New user option `company-tooltip-flip-when-above`.
+* `company-clang` uses the standard header search paths by default.
+* `C-h` is bound to `company-show-doc-buffer` (like `f1`).
+
 ## 2014-04-19 (0.8.0)
 
 * `company-capf` is included in `company-backends` in any supported Emacs
