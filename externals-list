@@ -20,7 +20,7 @@
 (("ack"			:subtree "https://github.com/leoliu/ack-el")
  ("auctex"		:external "git://git.sv.gnu.org/auctex.git")
  ;;FIXME:("cedet"	:external "??")
- ("chess"		:external "moved from https://github.com/jwiegley/emacs-chess.git")
+ ("chess"		:external nil) ;; Was https://github.com/jwiegley/emacs-chess.git
  ("coffee-mode"		:subtree "https://github.com/defunkt/coffee-mode")
  ("company"		:subtree "https://github.com/company-mode/company-mode.git")
  ("diff-hl"		:subtree "https://github.com/dgutov/diff-hl.git")
@@ -34,7 +34,7 @@
  ("ioccur"		:subtree "https://github.com/thierryvolpiatto/ioccur.git")
  ("js2-mode"		:subtree "https://github.com/mooz/js2-mode.git")
  ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
- ("rudel"		:external "bzr::bzr://rudel.bzr.sourceforge.net/bzrroot/rudel/trunk")
+ ("rudel"		:external nil) ;; Was bzr::bzr://rudel.bzr.sourceforge.net/bzrroot/rudel/trunk
  ("temp-buffer-browse"  :subtree "https://github.com/leoliu/temp-buffer-browse")
  ;;FIXME:("vlf"		:subtree ??)
  ("w3"			:external nil)
