@@ -4,7 +4,7 @@
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords: convenience
-;; Version: 1.4
+;; Version: 1.5
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -72,12 +72,14 @@ Linum mode is a buffer-local minor mode."
   (aref (font-info (face-font face)) 2))
 
 (defun nlinum--setup-window ()
-  (let ((width (ceiling
-                ;; We'd really want to check the widths rather than the
-                ;; heights, but it's a start.
-                (/ (* nlinum--width 1.0
-                      (nlinum--face-height 'linum))
-                   (frame-char-height)))))
+  (let ((width (if (display-graphic-p)
+                   (ceiling
+                    ;; We'd really want to check the widths rather than the
+                    ;; heights, but it's a start.
+                    (/ (* nlinum--width 1.0
+                          (nlinum--face-height 'linum))
+                       (frame-char-height)))
+                 nlinum--width)))
     (set-window-margins nil (if nlinum-mode width)
                         (cdr (window-margins)))))
 
