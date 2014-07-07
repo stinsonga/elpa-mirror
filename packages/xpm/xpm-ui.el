@@ -26,15 +26,17 @@
 
 ;; todo: var ‘xpm-current-px’ (or maybe ‘xpm-quill’)
 
-(defun xpm-set-pen-func (parent normal none)
-  (lexical-let ((parent parent))
-    (lambda (color)
-      ;; see "hang" below
-      (let* ((was (current-buffer))
-             (px (get-text-property 0 'px color))
-             (again (assoc px normal)))
-        (switch-to-buffer parent)
-        (message "%S | %S %s | %S" was px color again)))))
+(eval-when-compile (require 'cl-lib))
+(require 'xpm)
+
+(defun xpm-set-pen-func (parent normal _none)
+  (lambda (color)
+    ;; see "hang" below
+    (let* ((was (current-buffer))
+           (px (get-text-property 0 'px color))
+           (again (assoc px normal)))
+      (switch-to-buffer parent)
+      (message "%S | %S %s | %S" was px color again))))
 
 (defun xpm-list-palette-display ()
   "Display palette in another buffer."
@@ -44,14 +46,14 @@
           (name (format "*%s Palette*" (buffer-name)))
           normal none)
       ;; normalize and extract "None" if necessary
-      (loop for (px . alist) in (xpm--palette-alist cpp pinfo)
-            ;; todo: handle case where there is no ‘c’
-            do (let ((color (cdr (assq 'c alist))))
-                 (if (member color '("none" "None"))
-                     (setq none px)
-                   (push (cons px color)
-                         normal)))
-            finally do (setq normal (nreverse normal)))
+      (cl-loop for (px . alist) in (xpm--palette-alist cpp pinfo)
+               ;; todo: handle case where there is no ‘c’
+               do (let ((color (cdr (assq 'c alist))))
+                    (if (member color '("none" "None"))
+                        (setq none px)
+                      (push (cons px color)
+                            normal)))
+               finally do (setq normal (nreverse normal)))
       (list-colors-display (mapcar 'cdr normal) name
                            (xpm-set-pen-func (current-buffer)
                                              normal

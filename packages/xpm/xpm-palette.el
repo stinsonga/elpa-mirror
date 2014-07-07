@@ -22,11 +22,12 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'xpm)
 
 (defun xpm--palette-alist (cpp pinfo)
   (cl-flet ((sub (beg len) (buffer-substring-no-properties
                             beg (+ beg len))))
-    (loop
+    (cl-loop
      with bye = (point)
      with (beg . ht) = pinfo
      initially do (goto-char beg)
@@ -37,9 +38,9 @@
      collect
      (cons px (if (consp (setq color (gethash px ht)))
                   color
-                (goto-char (incf p cpp))
+                (goto-char (cl-incf p cpp))
                 (puthash                ; optimism
-                 px (loop
+                 px (cl-loop
                      with ls = (split-string
                                 (sub p (skip-chars-forward "^\"")))
                      while ls
@@ -69,7 +70,7 @@
                    (delete-and-extract-region
                     p (progn (forward-sexp 1)
                              (point))))))
-      (insert (format " %d" (incf count n))))))
+      (insert (format " %d" (cl-incf count n))))))
 
 (defun xpm-drop-px (px &optional noerror)
   "Drop PX from palette.

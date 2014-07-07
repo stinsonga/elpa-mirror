@@ -29,14 +29,14 @@
   (xpm--w/gg (w h origin flags) xpm--gg
     (save-excursion
       (goto-char origin)
-      (loop with skip = (if (memq 'intangible-sides flags)
-                            1
-                          4)
-            repeat h
-            collect (let ((p (point)))
-                      (forward-char w)
-                      (prog1 (buffer-substring-no-properties p (point))
-                        (forward-char skip)))))))
+      (cl-loop with skip = (if (memq 'intangible-sides flags)
+                               1
+                             4)
+               repeat h
+               collect (let ((p (point)))
+                         (forward-char w)
+                         (prog1 (buffer-substring-no-properties p (point))
+                           (forward-char skip)))))))
 
 (defun xpm--clone (src)
   (insert-buffer-substring src)
@@ -72,28 +72,28 @@ This copies all pixels from TWO that are not PX."
       (let ((lines (with-current-buffer two
                      (xpm--lines))))
         ;; fluency from congruency...
-        (assert (= cpp (length px)))
-        (assert (= h (length lines)))
-        (assert (or (zerop h)           ; GIGO :-/
+        (cl-assert (= cpp (length px)))
+        (cl-assert (= h (length lines)))
+        (cl-assert (or (zerop h)           ; GIGO :-/
                     (= (* cpp w) (length (car lines)))))
         ;; do it
         (goto-char origin)
-        (loop with skip = (if (memq 'intangible-sides flags)
-                              1
-                            4)
-              for line in lines
-              do (loop
-                  ;; this is slow and stupid
-                  ;; todo: use ‘compare-strings’
-                  for x below w
-                  do (let* ((i (* x cpp))
-                            (el (substring line i (+ i cpp))))
-                       (if (string= px el)
-                           (forward-char cpp)
-                         (insert el)
-                         (delete-char cpp))))
-              do (when (< (point) (point-max))
-                   (forward-char skip)))
+        (cl-loop with skip = (if (memq 'intangible-sides flags)
+                                 1
+                               4)
+                 for line in lines
+                 do (cl-loop
+                     ;; this is slow and stupid
+                     ;; todo: use ‘compare-strings’
+                     for x below w
+                     do (let* ((i (* x cpp))
+                               (el (substring line i (+ i cpp))))
+                          (if (string= px el)
+                              (forward-char cpp)
+                            (insert el)
+                            (delete-char cpp))))
+                 do (when (< (point) (point-max))
+                      (forward-char skip)))
         (current-buffer)))))
 
 (defun xpm-fill (px)
@@ -101,9 +101,9 @@ This copies all pixels from TWO that are not PX."
   (interactive "sPX: ")
   (xpm--w/gg (w h) (xpm--gate)
     (save-excursion
-      (loop with x = (cons 0 (1- w))
-            for y below h
-            do (xpm-put-points px x y)))))
+      (cl-loop with x = (cons 0 (1- w))
+               for y below h
+               do (xpm-put-points px x y)))))
 
 (provide 'xpm-compose)
 
@@ -125,11 +125,11 @@ This copies all pixels from TWO that are not PX."
         (xpm-fill ?-)
         (cl-flet
             ((vec () (let ((v (make-vector 42 nil)))
-                       (loop for i below 42
-                             do (aset v i (random 10)))
+                       (cl-loop for i below 42
+                                do (aset v i (random 10)))
                        v)))
           (xpm-put-points ?\s (vec) (vec))))
-      (assert (and (bufferp one)
+      (cl-assert (and (bufferp one)
                    (bufferp two))))
     ;; mogrify
     (let* ((debug-ignored-errors nil)
