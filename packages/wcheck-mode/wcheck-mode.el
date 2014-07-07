@@ -47,20 +47,19 @@
 ;; A general interface for text checkers
 ;;
 ;; Wcheck mode is a general-purpose text-checker interface for Emacs
-;; text editor. Wcheck mode a minor mode which provides an on-the-fly
-;; text checker. It checks the visible text area, as you type, and
-;; possibly highlights some parts of it. What is checked and how are all
+;; text editor.  Wcheck mode a minor mode which provides an on-the-fly
+;; text checker.  It checks the visible text area, as you type, and
+;; possibly highlights some parts of it.  What is checked and how are all
 ;; configurable.
 ;;
 ;; Wcheck mode can use external programs or Emacs Lisp functions for
-;; checking text. For example, Wcheck mode can be used with
+;; checking text.  For example, Wcheck mode can be used with
 ;; spell-checker programs such as Ispell, Enchant and Hunspell, but
 ;; actually any tool that can receive text from standard input stream
-;; and send text to standard output can be used. Wcheck mode sends parts
+;; and send text to standard output can be used.  Wcheck mode sends parts
 ;; of buffer's content to an external program or an Emacs Lisp function
 ;; and, based on their output, decides if some parts of text should be
 ;; marked in the buffer.
-
 
 ;;; Code:
 
@@ -1232,10 +1231,9 @@ requested it."
     (remove-hook (car hook) (cdr hook))))
 
 
-(defun wcheck--hook-window-scroll (window window-start)
+(defun wcheck--hook-window-scroll (window _window-start)
   "`wcheck-mode' hook for window scroll.
-Request update for the buffer when its window have been
-scrolled."
+Request update for the buffer when its window have been scrolled."
   (with-current-buffer (window-buffer window)
     (when wcheck-mode
       (wcheck--buffer-data-set (current-buffer) :read-req t))))
@@ -1267,7 +1265,7 @@ changed."
                 'currentframe))
 
 
-(defun wcheck--hook-after-change (beg end len)
+(defun wcheck--hook-after-change (_beg _end _len)
   "`wcheck-mode' hook for buffer content change.
 Request update for the buffer when its content has been edited."
   ;; The buffer that has changed is the current buffer when this hook
@@ -1857,7 +1855,7 @@ or nil."
     nil))
 
 
-(defun wcheck-parser-lines (&rest ignored)
+(defun wcheck-parser-lines (&rest _ignored)
   "Parser for newline-separated output.
 Return current buffer's lines as a list of strings."
   (delete-dups (split-string (buffer-substring-no-properties
@@ -1865,7 +1863,7 @@ Return current buffer's lines as a list of strings."
                              "\n+" t)))
 
 
-(defun wcheck-parser-whitespace (&rest ignored)
+(defun wcheck-parser-whitespace (&rest _ignored)
   "Parser for whitespace-separated output.
 Split current buffer's content to whitespace-separated tokens and
 return them as a list of strings."
@@ -1874,7 +1872,7 @@ return them as a list of strings."
                              "[ \f\t\n\r\v]+" t)))
 
 
-(defun wcheck-parser-ispell-suggestions (&rest ignored)
+(defun wcheck-parser-ispell-suggestions (&rest _ignored)
   "Parser for Ispell-compatible programs' spelling suggestions."
   (let ((search-spaces-regexp nil))
     (when (re-search-forward "^& [^ ]+ \\([0-9]+\\) [0-9]+: \\(.+\\)$" nil t)
@@ -1899,17 +1897,17 @@ return them as a list of strings."
     (delete-dups faces)))
 
 
-(defun wcheck--major-mode-face-settings (language major-mode)
-  "Return read/skip face settings for MAJOR-MODE."
+(defun wcheck--major-mode-face-settings (language mode)
+  "Return read/skip face settings for MODE."
   (let ((data (wcheck-query-language-data language 'read-or-skip-faces))
         conf)
     (catch 'answer
       (while data
         (setq conf (pop data))
         (when (or (eq nil (car conf))
-                  (eq major-mode (car conf))
+                  (eq mode (car conf))
                   (and (listp (car conf))
-                       (memq major-mode (car conf))))
+                       (memq mode (car conf))))
           (throw 'answer conf))))))
 
 
@@ -1922,14 +1920,14 @@ Both arguments are lists."
         (throw 'found t)))))
 
 
-(defun wcheck--generate-face-predicate (language major-mode)
-  "Generates a face predicate expression for scanning buffer.
+(defun wcheck--generate-face-predicate (language mode)
+  "Generate a face predicate expression for scanning buffer.
 Return a predicate expression that is used to decide whether
 `wcheck-mode' should read or paint text at the current point
-position with LANGUAGE and MAJOR-MODE. Evaluating the predicate
+position with LANGUAGE and MODE. Evaluating the predicate
 expression will return a boolean."
   (let* ((face-settings (wcheck--major-mode-face-settings
-                         language major-mode))
+                         language mode))
          (mode (nth 1 face-settings))
          (faces (nthcdr 2 face-settings)))
     (cond ((not font-lock-mode)
@@ -2127,7 +2125,7 @@ range BEG to END. Otherwise remove all overlays."
   (remove-overlays beg end 'wcheck-mode t))
 
 
-(defun wcheck--remove-changed-overlay (overlay after beg end &optional len)
+(defun wcheck--remove-changed-overlay (overlay after _beg _end &optional _len)
   "Hook for removing overlay which is being edited."
   (unless after
     (delete-overlay overlay)))
