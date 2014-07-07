@@ -38,6 +38,7 @@
  ("temp-buffer-browse"  :subtree "https://github.com/leoliu/temp-buffer-browse")
  ;;FIXME:("vlf"		:subtree ??)
  ("w3"			:external nil)
+ ("wcheck-mode"		:subtree "https://github.com/tlikonen/wcheck-mode.git")
  ("web-server"		:subtree "https://github.com/eschulte/emacs-web-server.git")
  ("websocket"		:subtree "https://github.com/ahyatt/emacs-websocket.git")
  ("yasnippet"		:subtree "https://github.com/capitaomorte/yasnippet.git")
