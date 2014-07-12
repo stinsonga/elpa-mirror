@@ -3,7 +3,7 @@
 ;; Copyright (C) 2012 - 2014  Free Software Foundation, Inc.
 ;;
 ;; Author: Stephen Leake <stephen_leake@member.fsf.org>
-;; Version: 1.0.4
+;; Version: 1.0.5
 ;; package-requires: ((cl-lib "0.4") (emacs "24.2"))
 ;; URL: http://stephe-leake.org/emacs/ada-mode/emacs-ada-mode.html
 ;;
@@ -333,12 +333,16 @@ wisi-forward-token, but does not look up symbol."
 
 (defvar-local wisi-change-need-invalidate nil)
 
+(defvar wisi-end-caches nil
+  "List of buffer positions of caches in current statement that need wisi-cache-end set.")
+
 (defun wisi-invalidate-cache()
   "Invalidate the wisi token cache for the current buffer.
 Also invalidate the Emacs syntax cache."
   (interactive)
   (setq wisi-cache-max 0)
   (setq wisi-parse-try t)
+  (setq wisi-end-caches nil)
   (syntax-ppss-flush-cache (point-min))
   (with-silent-modifications
     (remove-text-properties (point-min) (point-max) '(wisi-cache))))
@@ -527,31 +531,29 @@ Point must be at cache."
 
 ;;;; parse actions
 
-(defun wisi-set-end (tokens end-mark)
-  "Set END-MARK on all unset caches in TOKENS."
-  (let ((tokens-t tokens))
-    (while tokens-t
-      (let* ((token (pop tokens-t))
-	     (region (cddr token))
-	     cache)
-	(when region
-	  (goto-char (car region))
-	  (setq cache (wisi-get-cache (car region)))
-	  (when (not cache)
-	    ;; token is non-terminal; first terminal doesn't have cache.
-	    (setq cache (wisi-forward-cache)))
-	  (while (and cache
-		      (< (point) (cdr region)))
-	    (if (not (wisi-cache-end cache))
-		(setf (wisi-cache-end cache) end-mark)
-	      (goto-char (wisi-cache-end cache))
-	      )
-	    (setq cache (wisi-forward-cache))
-	    ))
-	))
-    ))
+(defun wisi-set-end (start-mark end-mark)
+  "Set END-MARK on all caches in `wisi-end-caches' in range START-MARK END-MARK,
+delete from `wisi-end-caches'."
+  (let ((i 0)
+	pos cache)
+    (while (< i (length wisi-end-caches))
+      (setq pos (nth i wisi-end-caches))
+      (setq cache (wisi-get-cache pos))
 
-(defvar wisi-tokens nil);; keep byte-compiler happy; `wisi-tokens' is bound in action created by wisi-semantic-action
+      (if (and (>= pos start-mark)
+	       (<  pos end-mark))
+	  (progn
+	    (setf (wisi-cache-end cache) end-mark)
+	    (setq wisi-end-caches (delq pos wisi-end-caches)))
+
+	;; else not in range
+	(setq i (1+ i)))
+      )))
+
+(defvar wisi-tokens nil)
+;; keep byte-compiler happy; `wisi-tokens' is bound in action created
+;; by wisi-semantic-action
+
 (defun wisi-statement-action (&rest pairs)
   "Cache information in text properties of tokens.
 Intended as a grammar non-terminal action.
@@ -618,22 +620,27 @@ that token. Use in a grammar action as:
 		     (1+ (car region))
 		     'wisi-cache
 		     (wisi-cache-create
-		      :nonterm $nterm;; $nterm defined in wisi-semantic-action
-		      :token   token
-		      :last  (- (cdr region) (car region))
-		      :class   (or override-start class)
-		      :containing   first-keyword-mark)
-		     )))
+		      :nonterm    $nterm;; $nterm defined in wisi-semantic-action
+		      :token      token
+		      :last       (- (cdr region) (car region))
+		      :class      (or override-start class)
+		      :containing first-keyword-mark)
+		     ))
+		  (if wisi-end-caches
+		      (push (car region) wisi-end-caches)
+		    (setq wisi-end-caches (list (car region)))
+		    ))
 
 		(when first-item
 		  (setq first-item nil)
 		  (when (or override-start
+			    ;; FIXME: why block-middle here?
 			    (memq class '(block-middle block-start statement-start)))
 		    (setq override-start nil)
 		    (setq first-keyword-mark mark)))
 
 		(when (eq class 'statement-end)
-		  (wisi-set-end wisi-tokens (copy-marker (1+ (car region)))))
+		  (wisi-set-end (1- first-keyword-mark) (copy-marker (1+ (car region)))))
 		)
 
 	    ;; region is nil when a production is empty; if the first

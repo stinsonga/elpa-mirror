@@ -7,6 +7,13 @@ Please send wisi bug reports to bug-gnu-emacs@gnu.org, with
 'wisi' in the subject. If possible, use M-x report-emacs-bug.
 
 
+* wisi 1.0.5
+12 Jul 2014
+
+** wisi-parse-max-parallel-current - new variable for debugging slow parsing issues
+
+** wisi-set-end - new algorithm giving significant speedup
+
 * wisi 1.0.4
 19 Apr 2014
 
