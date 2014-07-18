@@ -55,6 +55,8 @@
 ./auctex/style/virtex.el
 ./auctex/tex-fold.el:    ("(C)" ("copyright"))
 ./auctex/tex-info.el:   '("copyright" nil)
+./ergoemacs-mode/ergoemacs-advices.el:                         emacs-copyright
+./ergoemacs-mode/ergoemacs-themes.el:                 ,(lambda () emacs-copyright)
 ./gnugo/gnugo.el:    (CP "Copyright"       game  simpletext)
 ./muse/htmlize-hack.el
 ./rudel/rudel-loaddefs.el
