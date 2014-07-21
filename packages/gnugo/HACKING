@@ -3,10 +3,20 @@ HACKING gnugo                                           -*- org -*-
 This file is both a guide for newcomers and a todo list for oldstayers.
 
 * next
+*** newbie support
+***** "don't panic" button :-D
+***** on gnugo.el load, check [[file:gnugo.el::defvar.gnugo-program][gnugo-program]], set "ready" state
+***** rat concessions :-/
+***** (?) ootb ‘gnugo-image-display-mode’ in ‘gnugo-start-game-hook’
 * fix bugs
+*** empty tree from many back/forw
+***** intermittent, grr
+***** manifests as ‘()’ (empty list) in .sgf (on write)
 *** {next,previous}-line weirdness in the presence of images
 *** no error-handling in SGF parsing
-*** performance -- ‘compare-strings’ approach too clever/slow :-/
+* performance
+*** ‘compare-strings’ approach too clever/slow :-/
+*** cache frolic fruits
 * ideas / wishlist
 *** wrap GTP ‘loadsgf’ completely
 *** revamp image support
@@ -16,14 +26,16 @@ This file is both a guide for newcomers and a todo list for oldstayers.
     (?) pending [[wrap GTP ‘loadsgf’ completely]]
 *** make gnugo (the external program) support query (read-only) thread
 *** extend GNUGO Board mode to manage another subprocess for analysis only
-*** command ‘C-u =’ to label a position
+*** command to label a position
 *** SGF tree traversal
 ***** DONE monkey mind
 ***** TODO monkey body
-*** "undo undo undoing"; integrate Emacs undo, GTP undo, subgame branching
+*** "undo undo undoing"
+***** integrate Emacs undo, GTP undo, subgame branching
+***** (?) use [[file:../undo-tree/][../undo-tree/]]
 *** make buffer name format configurable (but enforce uniqueness)
 *** more tilde escapes for [[file:gnugo.el::defvar.gnugo-mode-line][gnugo-mode-line]]
-*** make veneration configurable
+*** make veneration configurable (see also [[SVG display]])
 *** animation finery
 ***** make more configurable
 ***** lift same-color-stones-only restriction
