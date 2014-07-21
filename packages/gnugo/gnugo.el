@@ -414,7 +414,7 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
                         (if (string= "" d)
                             ".+\n"
                           ""))))
-        (while (re-search-forward rx (point-max) t)
+        (while (re-search-forward rx nil t)
           (let ((pos (get-text-property (string-to-number (match-string 1))
                                         'gnugo-position buf)))
             (delete-region (+ 2 (match-beginning 0)) (point))
@@ -2354,7 +2354,7 @@ See `gnugo-board-mode' for a full list of commands."
             (goto-char (point-min))
             (save-excursion
               (while (re-search-forward "^ *[*] \\([a-zA-Z_]+\\)\\(:.*\\)*\n"
-                                        (point-max) t)
+                                        nil t)
                 (unless pad
                   (setq pad (make-string (- (match-beginning 1)
                                             (match-beginning 0))
