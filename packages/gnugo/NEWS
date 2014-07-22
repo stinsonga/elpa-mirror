@@ -5,7 +5,7 @@ NB: "RCS: X..Y " means that the particular release includes
     changes in the RCS repo, revision 1.X through 1.Y (inclusive).
 
 
-- next | NOT YET RELEASED
+- 3.0.0 | 2014-07-22
   - bugfixes
     - on write, use ‘\’ to escape certain chars
     - preserve whitespace for value type ‘text’
