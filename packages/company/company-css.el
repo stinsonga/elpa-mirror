@@ -345,7 +345,11 @@
                 (push child results))
             (push value results)))
         (setq results (sort results 'string<))
-        (puthash attribute results company-css-property-cache)
+        (puthash attribute
+                 (if (fboundp 'delete-consecutive-dups)
+                     (delete-consecutive-dups results)
+                   (delete-dups results))
+                 company-css-property-cache)
         results)))
 
 ;;; bracket detection
@@ -402,7 +406,7 @@ Returns \"\" if no property found, but feasible at this position."
 
 ;;; values
 (defconst company-css-property-value-regexp
-  "\\_<\\([[:alpha:]-]+\\):\\(?:[^};]*[[:space:]]+\\)?\\([^};]*\\_>\\|\\)\\="
+  "\\_<\\([[:alpha:]-]+\\):\\(?:[^{};]*[[:space:]]+\\)?\\([^{};]*\\_>\\|\\)\\="
   "A regular expression matching CSS tags.")
 
 ;;;###autoload

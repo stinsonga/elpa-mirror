@@ -1,5 +1,11 @@
 # History of user-visible changes
 
+## 2014-07-26 (0.8.2)
+
+* New user option `company-occurrence-weight-function`, allowing to tweak the
+  behavior of the transformer `company-sort-by-occurrence`.
+* Setting `company-idle-delay` to `t` is deprecated. Use the value 0 instead.
+
 ## 2014-07-01 (0.8.1)
 
 * `company-require-match` is not in effect when the new input doesn't continue
