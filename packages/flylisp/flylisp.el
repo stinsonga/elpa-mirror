@@ -4,6 +4,7 @@
 
 ;; Author: Barry O'Reilly <gundaetiapo@gmail.com>
 ;; Version: 0.2
+;; Package-Requires: ((emacs "24.1") (cl-lib "0.4"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
