@@ -22,7 +22,8 @@
 ;;; Commentary:
 
 ;; Colors mismatched open parentheses with fl-mismatched-face, red by
-;; default.
+;; default. Works reliably after Emacs 24.3, in which bug 16247 is
+;; fixed.
 ;;
 ;; Also colors open and close parentheses which are inconsistent with
 ;; the indentation of lines between them with fl-inconsistent-face,
@@ -54,10 +55,6 @@
 ;; Also planned is to color mismatched close parens.
 
 ;;; Code:
-
-;; TODO: There are display problems with mismatched parens, due to the
-;; region not expanding enough, in turn due to an apparent syntax-ppss
-;; bug. See Emacs bug 16247.
 
 ;; TODO: Algorithm doesn't account for close paren which is too soon.
 ;;
