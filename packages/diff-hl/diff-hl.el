@@ -5,7 +5,7 @@
 ;; Author:   Dmitry Gutov <dgutov@yandex.ru>
 ;; URL:      https://github.com/dgutov/diff-hl
 ;; Keywords: vc, diff
-;; Version:  1.5.3
+;; Version:  1.6.0
 ;; Package-Requires: ((cl-lib "0.2"))
 
 ;; This file is part of GNU Emacs.
@@ -51,6 +51,7 @@
 
 ;;; Code:
 
+(require 'fringe)
 (require 'diff-mode)
 (require 'vc)
 (require 'vc-dir)
@@ -424,17 +425,20 @@ in the source file, or the last line of the hunk above it."
         (diff-hl-maybe-define-bitmaps)
         (add-hook 'after-save-hook 'diff-hl-update nil t)
         (add-hook 'after-change-functions 'diff-hl-edit nil t)
-        (if vc-mode
-            (diff-hl-update)
-          (add-hook 'find-file-hook 'diff-hl-update t t))
+        (add-hook (if vc-mode
+                      'diff-hl-mode-on-hook
+                    'find-file-hook)
+                  'diff-hl-update t t)
         (add-hook 'vc-checkin-hook 'diff-hl-update nil t)
         (add-hook 'after-revert-hook 'diff-hl-update nil t)
+        (add-hook 'magit-revert-buffer-hook 'diff-hl-update nil t)
         (add-hook 'text-scale-mode-hook 'diff-hl-define-bitmaps nil t))
     (remove-hook 'after-save-hook 'diff-hl-update t)
     (remove-hook 'after-change-functions 'diff-hl-edit t)
     (remove-hook 'find-file-hook 'diff-hl-update t)
     (remove-hook 'vc-checkin-hook 'diff-hl-update t)
     (remove-hook 'after-revert-hook 'diff-hl-update t)
+    (remove-hook 'magit-revert-buffer-hook 'diff-hl-update t)
     (remove-hook 'text-scale-mode-hook 'diff-hl-define-bitmaps t)
     (diff-hl-remove-overlays)))
 
