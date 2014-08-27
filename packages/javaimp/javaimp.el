@@ -1,3 +1,5 @@
+;; -*- lexical-binding: t; -*-
+
 ;;; javaimp.el --- Add and reorder Java import statements in Maven projects
 
 ;; Copyright (C) 2014  Free Software Foundation, Inc.
@@ -98,16 +100,16 @@ class name.  The order of classes which were not matched is defined by
 
 (defcustom javaimp-import-default-order 50
   "Defines the order of classes which were not matched by
-`javaimp-import-group-alist'.")
+`javaimp-import-group-alist'")
 
 (defcustom javaimp-jdk-home nil
-  "Path to the JDK.")
+  "Path to the JDK")
 
 (defcustom javaimp-mvn-program "mvn"
-  "Path to the `mvn' program.")
+  "Path to the `mvn' program")
 
 (defcustom javaimp-cygpath-program "cygpath"
-  "Path to the `cygpath' program.")
+  "Path to the `cygpath' program")
 
 (defcustom javaimp-jar-program "jar"
   "Path to the `jar' program")
@@ -120,10 +122,10 @@ class name.  The order of classes which were not matched is defined by
 ;;; Variables and constants
 
 (defvar javaimp-maven-root-modules nil
-  "Loaded root Maven modules.")
+  "Loaded root Maven modules")
 
 (defvar javaimp-jar-classes-cache nil
-  "Jar classes cache.")
+  "Jar classes cache")
 
 (defconst javaimp-debug-buf-name "*javaimp-debug*")
 
@@ -195,12 +197,12 @@ class name.  The order of classes which were not matched is defined by
 
 ;;;###autoload
 (defun javaimp-maven-visit-root (path)
-  (interactive "DVisit maven root project: ")
   "Loads all modules starting from root module identified by
 PATH.  PATH should point to a directory."
+  (interactive "DVisit maven root project: ")
   (let ((root-pom (expand-file-name
 		   (concat (file-name-as-directory path) "pom.xml")))
-	modules root-module)
+	modules existing-module)
     (unless (file-readable-p root-pom)
       (error "Cannot read root pom: %s" root-pom))
     (setq modules (javaimp-maven-load-module-tree root-pom))
@@ -219,7 +221,7 @@ with POM"
   (javaimp-call-mvn
    pom "help:effective-pom"
    (lambda ()
-     (let (xml-tree xml-start-pos xml-end-pos project-extractor)
+     (let (xml-start-pos xml-end-pos project-extractor)
        (goto-char (point-min))
        (search-forward "<?xml")
        (setq xml-start-pos (match-beginning 0))
@@ -245,14 +247,14 @@ with POM"
       (let* ((artifact-id (car (cddr (assq 'artifactId (cddr proj)))))
 	     (pom-file-path (cdr (assoc artifact-id artifact-pomfile-alist)))
 	     (source-dir (car (cddr (assq 'sourceDirectory 
-					   (cddr (assq 'build (cddr proj)))))))
+					  (cddr (assq 'build (cddr proj)))))))
 	     (test-source-dir (car (cddr (assq 'testSourceDirectory 
-						(cddr (assq 'build (cddr proj))))))))
+					       (cddr (assq 'build (cddr proj))))))))
 	(push (javaimp-make-mod 
 	       artifact-id pom-file-path
 	       (file-name-as-directory
 		(if (eq system-type 'cygwin) 
-		    (car (process-lines javaimp-cygpath-program "-u" 
+		    (car (process-lines javaimp-cygpath-program "-u"
 					source-dir))
 		  source-dir))
 	       (file-name-as-directory
@@ -305,7 +307,7 @@ be in platform's default format."
 
 (defun javaimp-call-mvn (pom-file target handler)
   "Runs Maven target TARGET on POM-FILE, then calls HANDLER in
-the temporary buffer and returns its result."
+the temporary buffer and returns its result"
   (message "Calling \"mvn %s\" on pom: %s" target pom-file)
   (with-temp-buffer
     (let* ((pom-file (if (eq system-type 'cygwin) 
@@ -330,7 +332,7 @@ the temporary buffer and returns its result."
 ;;; Reading and caching dependencies
 
 (defun javaimp-maven-fetch-module-deps (module)
-  "Returns list of dependency jars for MODULE."
+  "Returns list of dependency jars for MODULE"
   (javaimp-call-mvn
    (javaimp-get-mod-pom-file module) "dependency:build-classpath"
    (lambda ()
@@ -346,7 +348,7 @@ the temporary buffer and returns its result."
        (split-string deps-line (concat "[" path-separator "\n" "]+") t)))))
 
 (defun javaimp-get-dep-jars-cached (module)
-  "Returns a list of dependency jar file paths for a MODULE."
+  "Returns a list of dependency jar file paths for a MODULE"
   (let ((current-pom-file-mod-ts
 	 (nth 5 (file-attributes (javaimp-get-mod-pom-file module)))))
     (unless (and (javaimp-get-mod-pom-mod-ts module)
@@ -359,7 +361,7 @@ the temporary buffer and returns its result."
 
 (defun javaimp-get-jdk-jars ()
   "Returns list of jars from the jre/lib subdirectory of the JDK
-directory."
+directory"
   (when javaimp-jdk-home
     (directory-files (concat (file-name-as-directory javaimp-jdk-home)
 			     (file-name-as-directory "jre/lib"))
@@ -402,7 +404,7 @@ directory."
       (setq result (append (javaimp-get-jar-classes-cached jar) result)))))
 
 (defun javaimp-determine-module (file)
-  "Returns a module in which the source file FILE resides."
+  "Returns a module in which the source file FILE resides"
   (let ((root-modules javaimp-maven-root-modules)
 	result)
     (while (and root-modules (not result))
@@ -412,7 +414,7 @@ directory."
 
 (defun javaimp-determine-module-from-root (file root-module)
   "Searches a hierarchy of modules starting at ROOT-MODULE for
-source file FILE."
+source file FILE"
   (let ((modules (cdr root-module))
 	result)
     (while (and modules (not result))
@@ -478,18 +480,19 @@ initial package prefix."
 	(push (concat prefix (file-name-sans-extension (car file))) result)))
     result))
 
-(defun javaimp-add-to-import-group (class group-sym)
-  "Subroutine of `javaimp-organize-imports'."
-  (let* ((order (or (assoc-default class javaimp-import-group-alist
+(defun javaimp-add-to-import-groups (new-class groups)
+  "Subroutine of `javaimp-organize-imports'"
+  (let* ((order (or (assoc-default new-class javaimp-import-group-alist
 				   'string-match)
 		    javaimp-import-default-order))
-	 (group (assoc order (symbol-value group-sym))))
+	 (group (assoc order groups)))
     (if group
-	;; check if this class is already added
-	(unless (member class (cdr group))
-	  (setcdr group (cons class (cdr group))))
-      (set group-sym (cons (cons order (list class))
-			   (symbol-value group-sym))))))
+	(progn
+	  ;; add only if this class is not already there
+	  (unless (member new-class (cdr group))
+	    (setcdr group (cons new-class (cdr group))))
+	  groups)
+      (cons (cons order (list new-class)) groups))))
 
 (defun javaimp-insert-import-groups (groups static-p)
   "Inserts all imports in GROUPS.  Non-nil STATIC-P means that
@@ -519,10 +522,13 @@ argument is a list of additional classes to import."
       (while (re-search-forward
 	      "^\\s-*import\\s-+\\(static\\s-+\\)?\\([._[:word:]]+\\)"
 	      nil t)
-	(javaimp-add-to-import-group (match-string 2)
-				     (if (null (match-string 1))
-					 'import-groups
-				       'static-import-groups))
+	(if (null (match-string 1))
+	    (setq import-groups
+		  (javaimp-add-to-import-groups (match-string 2)
+						import-groups))
+	  (setq static-import-groups
+		(javaimp-add-to-import-groups (match-string 2)
+					      static-import-groups)))
 	(beginning-of-line)
 	(unless old-imports-start (setq old-imports-start (point)))
 	(kill-line)
@@ -531,7 +537,7 @@ argument is a list of additional classes to import."
 	  (delete-region old-imports-start (point))))
       ;; new imports
       (dolist (class new-classes)
-	(javaimp-add-to-import-group class 'import-groups))
+	(setq import-groups (javaimp-add-to-import-groups class import-groups)))
       ;; insert all
       (if (or import-groups static-import-groups)
 	  (progn
@@ -556,18 +562,19 @@ argument is a list of additional classes to import."
 
 ;;;###autoload
 (defun javaimp-invalidate-jar-classes-cache ()
+  "Resets jar classes cache (debugging only)"
   (interactive)
-  "(for debug) Resets jar classes cache"
   (setq javaimp-jar-classes-cache nil))
 
 ;;;###autoload
 (defun javaimp-forget-all-visited-modules ()
+  "Resets `javaimp-maven-root-modules' (debugging only)"
   (interactive)
-  "(for debug) Resets `javaimp-maven-root-modules'"
   (setq javaimp-maven-root-modules nil))
 
 ;;;###autoload
 (defun javaimp-reset ()
+  "Resets all data (debugging only)"
   (interactive)
   (javaimp-forget-all-visited-modules)
   (javaimp-invalidate-jar-classes-cache))
