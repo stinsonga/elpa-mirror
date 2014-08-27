@@ -51,7 +51,9 @@ See also `company-dabbrev-time-limit'."
   :type 'regexp)
 
 (defcustom company-dabbrev-ignore-case 'keep-prefix
-  "The value of `ignore-case' returned by `company-dabbrev'.")
+  "Non-nil to ignore case when collecting completion candidates.
+When it's `keep-prefix', the text before point will remain unchanged after
+candidate is inserted, even some of its characters have different case.")
 
 (defcustom company-dabbrev-downcase 'case-replace
   "Whether to downcase the returned candidates.
@@ -63,9 +65,11 @@ Any other value means downcase.
 If you set this value to nil, you may also want to set
 `company-dabbrev-ignore-case' to any value other than `keep-prefix'.")
 
-(defcustom company-dabbrev-minimum-length (1+ company-minimum-prefix-length)
-  "The minimum length for the string to be included."
-  :type 'integer)
+(defcustom company-dabbrev-minimum-length 4
+  "The minimum length for the completion candidate to be included.
+This variable affects both `company-dabbrev' and `company-dabbrev-code'."
+  :type 'integer
+  :package-version '(company . "0.8.3"))
 
 (defmacro company-dabrev--time-limit-while (test start limit &rest body)
   (declare (indent 3) (debug t))
@@ -95,7 +99,7 @@ If you set this value to nil, you may also want to set
           start limit
         (setq match (match-string-no-properties 0))
         (if (and ignore-comments (company-in-string-or-comment))
-            (re-search-backward "\\s<\\|\\s!\\|\\s\"\\|\\s|" nil t)
+            (goto-char (nth 8 (syntax-ppss)))
           (when (>= (length match) company-dabbrev-minimum-length)
             (push match symbols))))
       (goto-char (or pos (point-min)))
@@ -135,14 +139,15 @@ If you set this value to nil, you may also want to set
     (interactive (company-begin-backend 'company-dabbrev))
     (prefix (company-grab-word))
     (candidates
-     (let ((words (company-dabbrev--search (company-dabbrev--make-regexp arg)
-                                           company-dabbrev-time-limit
-                                           (pcase company-dabbrev-other-buffers
-                                             (`t (list major-mode))
-                                             (`all `all))))
-           (downcase-p (if (eq company-dabbrev-downcase 'case-replace)
-                           case-replace
-                         company-dabbrev-downcase)))
+     (let* ((case-fold-search company-dabbrev-ignore-case)
+            (words (company-dabbrev--search (company-dabbrev--make-regexp arg)
+                                            company-dabbrev-time-limit
+                                            (pcase company-dabbrev-other-buffers
+                                              (`t (list major-mode))
+                                              (`all `all))))
+            (downcase-p (if (eq company-dabbrev-downcase 'case-replace)
+                            case-replace
+                          company-dabbrev-downcase)))
        (if downcase-p
            (mapcar 'downcase words)
          words)))
