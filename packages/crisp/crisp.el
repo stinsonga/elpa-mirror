@@ -3,7 +3,9 @@
 ;; Copyright (C) 1997-1999, 2001-2014 Free Software Foundation, Inc.
 
 ;; Author: Gary D. Foster <Gary.Foster@Corp.Sun.COM>
+;; Maintainer: Luke Lee <luke.yx.lee@gmail.com>
 ;; Keywords: emulations brief crisp
+;; Version: 1.3.4
 
 ;; This file is part of GNU Emacs.
 
@@ -222,7 +224,7 @@ does not load the scroll-all package."
   :type 'hook
   :group 'crisp)
 
-(defconst crisp-version "1.34"
+(defconst crisp-version "1.3.4"
   "The version of the CRiSP emulator.")
 
 (defconst crisp-mode-help-address "gfoster@suzieq.ml.org"
