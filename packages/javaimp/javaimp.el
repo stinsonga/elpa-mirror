@@ -1,6 +1,4 @@
-;; -*- lexical-binding: t; -*-
-
-;;; javaimp.el --- Add and reorder Java import statements in Maven projects
+;;; javaimp.el --- Add and reorder Java import statements in Maven projects  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2014  Free Software Foundation, Inc.
 
