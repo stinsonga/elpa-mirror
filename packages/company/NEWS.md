@@ -1,5 +1,12 @@
 # History of user-visible changes
 
+## 2014-08-13 (0.8.4)
+
+* `company-ropemacs` is only used when `ropemacs-mode` is on.
+* `company-gtags` is enabled in all `prog-mode` derivatives by default.
+* `company-end-of-buffer-workaround` is not used anymore.
+* `company-begin-commands` includes several `cc-mode` commands.
+
 ## 2014-08-27 (0.8.3)
 
 * On Emacs 24.4 or newer, tooltip positioning takes line-spacing into account.
