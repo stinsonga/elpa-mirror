@@ -5,7 +5,7 @@
 ;; Author: Nikolaj Schumacher
 ;; Maintainer: Dmitry Gutov <dgutov@yandex.ru>
 ;; URL: http://company-mode.github.io/
-;; Version: 0.8.4
+;; Version: 0.8.5
 ;; Keywords: abbrev, convenience, matching
 ;; Package-Requires: ((emacs "24.1") (cl-lib "0.5"))
 
@@ -978,7 +978,7 @@ Controlled by `company-auto-complete'.")
   (if (eq (company-call-backend 'ignore-case) 'keep-prefix)
       (insert (company-strip-prefix candidate))
     (delete-region (- (point) (length company-prefix)) (point))
-    (insert candidate)))
+    (insert-before-markers candidate)))
 
 (defmacro company-with-candidate-inserted (candidate &rest body)
   "Evaluate BODY with CANDIDATE temporarily inserted.
@@ -2388,7 +2388,7 @@ Returns a negative number if the tooltip should be displayed above point."
              (end (save-excursion
                     (move-to-window-line (+ row (abs height)))
                     (point)))
-             (ov (make-overlay (if nl beg (1- beg)) end))
+             (ov (make-overlay (if nl beg (1- beg)) end nil t))
              (args (list (mapcar 'company-plainify
                                  (company-buffer-lines beg end))
                          column nl above)))
@@ -2446,11 +2446,15 @@ Returns a negative number if the tooltip should be displayed above point."
       (overlay-put ov 'window (selected-window)))))
 
 (defun company-pseudo-tooltip-guard ()
-  (list
+  (cons
    (save-excursion (beginning-of-visual-line))
-   (let ((ov company-pseudo-tooltip-overlay))
+   (let ((ov company-pseudo-tooltip-overlay)
+         (overhang (save-excursion (end-of-visual-line)
+                                   (- (line-end-position) (point)))))
      (when (>= (overlay-get ov 'company-height) 0)
-       (buffer-substring-no-properties (point) (overlay-start ov))))))
+       (cons
+        (buffer-substring-no-properties (point) (overlay-start ov))
+        (when (>= overhang 0) overhang))))))
 
 (defun company-pseudo-tooltip-frontend (command)
   "`company-mode' front-end similar to a tooltip but based on overlays."
