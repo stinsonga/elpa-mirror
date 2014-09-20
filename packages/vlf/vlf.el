@@ -39,8 +39,7 @@
 
 ;;; Code:
 
-(defgroup vlf nil "View Large Files in Emacs."
-  :prefix "vlf-" :group 'files)
+(require 'vlf-base)
 
 (defcustom vlf-before-batch-functions nil
   "Hook that runs before multiple batch operations.
@@ -53,8 +52,6 @@ values are: `write', `ediff', `occur', `search', `goto-line'."
 One argument is supplied that specifies current action.  Possible
 values are: `write', `ediff', `occur', `search', `goto-line'."
   :group 'vlf :type 'hook)
-
-(require 'vlf-base)
 
 (autoload 'vlf-write "vlf-write" "Write current chunk to file." t)
 (autoload 'vlf-re-search-forward "vlf-search"
@@ -172,6 +169,9 @@ When prefix argument is negative
  append next APPEND number of batches to the existing buffer."
   (interactive "p")
   (vlf-verify-size)
+  (vlf-tune-load (if (derived-mode-p 'hexl-mode)
+                     '(:hexl :dehexlify :insert :encode)
+                   '(:insert :encode)))
   (let* ((end (min (+ vlf-end-pos (* vlf-batch-size (abs append)))
                    vlf-file-size))
          (start (if (< append 0)
@@ -188,6 +188,9 @@ When prefix argument is negative
   (interactive "p")
   (if (zerop vlf-start-pos)
       (error "Already at BOF"))
+  (vlf-tune-load (if (derived-mode-p 'hexl-mode)
+                     '(:hexl :dehexlify :insert :encode)
+                   '(:insert :encode)))
   (let* ((start (max 0 (- vlf-start-pos (* vlf-batch-size (abs prepend)))))
          (end (if (< prepend 0)
                   vlf-end-pos
@@ -253,19 +256,30 @@ with the prefix argument DECREASE it is halved."
 
 (defun vlf-set-batch-size (size)
   "Set batch to SIZE bytes and update chunk."
-  (interactive (list (read-number "Size in bytes: " vlf-batch-size)))
+  (interactive
+   (list (read-number "Size in bytes: "
+                      (vlf-tune-optimal-load
+                       (if (derived-mode-p 'hexl-mode)
+                           '(:hexl :dehexlify :insert :encode)
+                         '(:insert :encode))))))
   (setq vlf-batch-size size)
   (vlf-move-to-batch vlf-start-pos))
 
 (defun vlf-beginning-of-file ()
   "Jump to beginning of file content."
   (interactive)
+  (vlf-tune-load (if (derived-mode-p 'hexl-mode)
+                     '(:hexl :dehexlify :insert :encode)
+                   '(:insert :encode)))
   (vlf-move-to-batch 0))
 
 (defun vlf-end-of-file ()
   "Jump to end of file content."
   (interactive)
   (vlf-verify-size)
+  (vlf-tune-load (if (derived-mode-p 'hexl-mode)
+                     '(:hexl :dehexlify :insert :encode)
+                   '(:insert :encode)))
   (vlf-move-to-batch vlf-file-size))
 
 (defun vlf-revert (&optional _auto noconfirm)
@@ -281,6 +295,9 @@ Ask for confirmation if NOCONFIRM is nil."
 (defun vlf-jump-to-chunk (n)
   "Go to to chunk N."
   (interactive "nGoto to chunk: ")
+  (vlf-tune-load (if (derived-mode-p 'hexl-mode)
+                     '(:hexl :dehexlify :insert :encode)
+                   '(:insert :encode)))
   (vlf-move-to-batch (* (1- n) vlf-batch-size)))
 
 (defun vlf-no-modifications ()
