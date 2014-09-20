@@ -27,8 +27,8 @@
 
 ;;; Code:
 
-(defcustom vlf-batch-size 1024
-  "Defines how large each batch of file data is (in bytes)."
+(defcustom vlf-batch-size 1000000
+  "Defines how large each batch of file data initially is (in bytes)."
   :group 'vlf :type 'integer)
 (put 'vlf-batch-size 'permanent-local t)
 
@@ -108,8 +108,7 @@ bytes added to the end."
                           0)))
              (setq vlf-start-pos place
                    vlf-end-pos place)
-             (if (not minimal)
-                 (vlf-update-buffer-name))
+             (or minimal (vlf-update-buffer-name))
              (cons (- start place) (- place end)))))
         ((or (/= start vlf-start-pos)
              (/= end vlf-end-pos))
@@ -126,85 +125,113 @@ bytes added to the end."
   (let* ((modified (buffer-modified-p))
          (start (max 0 start))
          (end (min end vlf-file-size))
+         (hexl (derived-mode-p 'hexl-mode))
+         restore-hexl hexl-undo-list
          (edit-end (if modified
-                       (+ vlf-start-pos
-                          (length (encode-coding-region
-                                   (point-min) (point-max)
-                                   buffer-file-coding-system t)))
-                     vlf-end-pos)))
-    (cond
-     ((or (< edit-end start) (< end vlf-start-pos)
-          (not (verify-visited-file-modtime (current-buffer))))
-      (when (or (not modified)
-                (y-or-n-p "Chunk modified, are you sure? ")) ;full chunk renewal
-        (set-buffer-modified-p nil)
-        (vlf-move-to-chunk-2 start end)))
-     ((and (= start vlf-start-pos) (= end edit-end))
-      (or modified (vlf-move-to-chunk-2 start end)))
-     ((or (and (<= start vlf-start-pos) (<= edit-end end))
-          (not modified)
-          (y-or-n-p "Chunk modified, are you sure? "))
-      (run-hooks 'vlf-before-chunk-update)
-      (let ((shift-start 0)
-            (shift-end 0))
-        (let ((pos (+ (position-bytes (point)) vlf-start-pos))
-              (inhibit-read-only t))
-          (cond ((= end vlf-start-pos)
-                 (or (eq buffer-undo-list t)
-                     (setq buffer-undo-list nil))
-                 (vlf-with-undo-disabled (erase-buffer))
-                 (setq modified nil))
-                ((< end edit-end)
-                 (setq end (car (vlf-delete-region
-                                 (point-min) vlf-start-pos edit-end
-                                 end (min (or (byte-to-position
-                                               (- end vlf-start-pos))
-                                              (point-min))
-                                          (point-max))
-                                 nil))))
-                ((< edit-end end)
-                 (vlf-with-undo-disabled
-                  (setq shift-end (cdr (vlf-insert-file-contents
-                                        vlf-end-pos end nil t
-                                        (point-max)))))))
-          (setq vlf-end-pos (+ end shift-end))
-          (cond ((= start edit-end)
-                 (or (eq buffer-undo-list t)
-                     (setq buffer-undo-list nil))
-                 (vlf-with-undo-disabled
-                  (delete-region (point-min) (point)))
-                 (setq modified nil))
-                ((< vlf-start-pos start)
-                 (let ((del-info (vlf-delete-region
-                                  (point-min) vlf-start-pos
-                                  vlf-end-pos start
-                                  (min (or (byte-to-position
-                                            (- start vlf-start-pos))
-                                           (point))
-                                       (point-max)) t)))
-                   (setq start (car del-info))
-                   (vlf-shift-undo-list (- (point-min)
-                                           (cdr del-info)))))
-                ((< start vlf-start-pos)
-                 (let ((edit-end-pos (point-max)))
-                   (vlf-with-undo-disabled
-                    (setq shift-start (car (vlf-insert-file-contents
-                                            start vlf-start-pos t nil
-                                            edit-end-pos)))
-                    (goto-char (point-min))
-                    (insert (delete-and-extract-region
-                             edit-end-pos (point-max))))
-                   (vlf-shift-undo-list (- (point-max)
-                                           edit-end-pos)))))
-          (setq start (- start shift-start))
-          (goto-char (or (byte-to-position (- pos start))
-                         (byte-to-position (- pos vlf-start-pos))
-                         (point-max)))
-          (setq vlf-start-pos start))
-        (set-buffer-modified-p modified)
-        (set-visited-file-modtime)
-        (run-hooks 'vlf-after-chunk-update)
-        (cons shift-start shift-end))))))
+                       (progn
+                         (when hexl
+                           (setq restore-hexl t
+                                 hexl-undo-list buffer-undo-list
+                                 buffer-undo-list t)
+                           (hexl-mode-exit))
+                         (+ vlf-start-pos
+                            (length (encode-coding-region
+                                     (point-min) (point-max)
+                                     buffer-file-coding-system t))))
+                     vlf-end-pos))
+         (shifts
+          (cond
+           ((or (< edit-end start) (< end vlf-start-pos)
+                (not (verify-visited-file-modtime (current-buffer))))
+            (when (or (not modified)
+                      (y-or-n-p "Chunk modified, are you sure? ")) ;full chunk renewal
+              (set-buffer-modified-p nil)
+              (if (consp hexl-undo-list)
+                  (setq hexl-undo-list nil))
+              (vlf-move-to-chunk-2 start end)))
+           ((and (= start vlf-start-pos) (= end edit-end))
+            (unless modified
+              (if (consp hexl-undo-list)
+                  (setq hexl-undo-list nil))
+              (vlf-move-to-chunk-2 start end)))
+           ((or (and (<= start vlf-start-pos) (<= edit-end end))
+                (not modified)
+                (y-or-n-p "Chunk modified, are you sure? "))
+            (run-hooks 'vlf-before-chunk-update)
+            (when (and hexl (not restore-hexl))
+              (if (consp buffer-undo-list)
+                  (setq buffer-undo-list nil))
+              (hexl-mode-exit))
+            (let ((shift-start 0)
+                  (shift-end 0))
+              (let ((pos (+ (position-bytes (point)) vlf-start-pos))
+                    (inhibit-read-only t))
+                (cond ((= end vlf-start-pos)
+                       (or (eq buffer-undo-list t)
+                           (setq buffer-undo-list nil))
+                       (vlf-with-undo-disabled (erase-buffer))
+                       (setq modified nil))
+                      ((< end edit-end)
+                       (setq end (car (vlf-delete-region
+                                       (point-min) vlf-start-pos
+                                       edit-end end
+                                       (min (or (byte-to-position
+                                                 (- end vlf-start-pos))
+                                                (point-min))
+                                            (point-max))
+                                       nil))))
+                      ((< edit-end end)
+                       (vlf-with-undo-disabled
+                        (setq shift-end (cdr (vlf-insert-file-contents
+                                              vlf-end-pos end nil t
+                                              (point-max)))))))
+                (setq vlf-end-pos (+ end shift-end))
+                (cond ((= start edit-end)
+                       (or (eq buffer-undo-list t)
+                           (setq buffer-undo-list nil))
+                       (vlf-with-undo-disabled
+                        (delete-region (point-min) (point)))
+                       (setq modified nil))
+                      ((< vlf-start-pos start)
+                       (let ((del-info (vlf-delete-region
+                                        (point-min) vlf-start-pos
+                                        vlf-end-pos start
+                                        (min (or
+                                              (byte-to-position
+                                               (- start vlf-start-pos))
+                                              (point))
+                                             (point-max)) t)))
+                         (setq start (car del-info))
+                         (vlf-shift-undo-list (- (point-min)
+                                                 (cdr del-info)))))
+                      ((< start vlf-start-pos)
+                       (let ((edit-end-pos (point-max)))
+                         (vlf-with-undo-disabled
+                          (setq shift-start (car
+                                             (vlf-insert-file-contents
+                                              start vlf-start-pos t nil
+                                              edit-end-pos)))
+                          (goto-char (point-min))
+                          (insert (delete-and-extract-region
+                                   edit-end-pos (point-max))))
+                         (vlf-shift-undo-list (- (point-max)
+                                                 edit-end-pos)))))
+                (setq start (- start shift-start))
+                (goto-char (or (byte-to-position (- pos start))
+                               (byte-to-position (- pos vlf-start-pos))
+                               (point-max)))
+                (setq vlf-start-pos start))
+              (set-buffer-modified-p modified)
+              (set-visited-file-modtime)
+              (when hexl
+                (hexl-mode)
+                (setq restore-hexl nil))
+              (run-hooks 'vlf-after-chunk-update)
+              (cons shift-start shift-end))))))
+    (when restore-hexl
+      (hexl-mode)
+      (setq buffer-undo-list hexl-undo-list))
+    shifts))
 
 (defun vlf-move-to-chunk-2 (start end)
   "Unconditionally move to chunk enclosed by START END bytes.
@@ -218,11 +245,14 @@ bytes added to the end."
     (let ((inhibit-read-only t)
           (pos (position-bytes (point))))
       (vlf-with-undo-disabled
-       (erase-buffer)
-       (setq shifts (vlf-insert-file-contents vlf-start-pos
-                                              vlf-end-pos t t)
-             vlf-start-pos (- vlf-start-pos (car shifts))
-             vlf-end-pos (+ vlf-end-pos (cdr shifts)))
+       (let ((hexl (derived-mode-p 'hexl-mode)))
+         (if hexl (hexl-mode-exit t))
+         (erase-buffer)
+         (setq shifts (vlf-insert-file-contents vlf-start-pos
+                                                vlf-end-pos t t)
+               vlf-start-pos (- vlf-start-pos (car shifts))
+               vlf-end-pos (+ vlf-end-pos (cdr shifts)))
+         (if hexl (hexl-mode)))
        (goto-char (or (byte-to-position (+ pos (car shifts)))
                       (point-max)))))
     (set-buffer-modified-p nil)
