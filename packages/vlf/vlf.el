@@ -145,17 +145,22 @@ values are: `write', `ediff', `occur', `search', `goto-line'."
   (setq vlf-mode t))
 
 ;;;###autoload
-(defun vlf (file)
-  "View Large FILE in batches.
+(defun vlf (file &optional minimal)
+  "View Large FILE in batches.  When MINIMAL load just a few bytes.
 You can customize number of bytes displayed by customizing
 `vlf-batch-size'.
 Return newly created buffer."
-  (interactive "fFile to open: ")
+  (interactive (list (read-file-name "File to open: ") nil))
   (let ((vlf-buffer (generate-new-buffer "*vlf*")))
     (set-buffer vlf-buffer)
     (set-visited-file-name file)
     (set-buffer-modified-p nil)
+    (if (or minimal (file-remote-p file))
+        (set (make-local-variable 'vlf-batch-size) 1024))
     (vlf-mode 1)
+    (when minimal                 ;restore batch size to default value
+      (kill-local-variable 'vlf-batch-size)
+      (make-local-variable 'vlf-batch-size))
     (switch-to-buffer vlf-buffer)
     vlf-buffer))
 
@@ -206,24 +211,8 @@ When prefix argument is negative
              (goto-char (point-max)))
     ad-do-it))
 
-;; hexl mode integration
-(defun vlf-hexl-before (&optional operation)
-  "Temporarily disable `hexl-mode' for OPERATION."
-  (when (derived-mode-p 'hexl-mode)
-    (hexl-mode-exit)
-    (set (make-local-variable 'vlf-restore-hexl-mode) operation)))
-
-(defun vlf-hexl-after (&optional operation)
-  "Re-enable `hexl-mode' if active before OPERATION."
-  (when (and (boundp 'vlf-restore-hexl-mode)
-             (eq vlf-restore-hexl-mode operation))
-    (hexl-mode)
-    (kill-local-variable 'vlf-restore-hexl-mode)))
-
-(add-hook 'vlf-before-batch-functions 'vlf-hexl-before)
-(add-hook 'vlf-after-batch-functions 'vlf-hexl-after)
-(add-hook 'vlf-before-chunk-update 'vlf-hexl-before)
-(add-hook 'vlf-after-chunk-update 'vlf-hexl-after)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; hexl mode integration
 
 (eval-after-load "hexl"
   '(progn
@@ -279,8 +268,8 @@ with the prefix argument DECREASE it is halved."
   (vlf-verify-size)
   (vlf-move-to-batch vlf-file-size))
 
-(defun vlf-revert (&optional _ignore-auto noconfirm)
-  "Revert current chunk.  Ignore _IGNORE-AUTO.
+(defun vlf-revert (&optional _auto noconfirm)
+  "Revert current chunk.  Ignore _AUTO.
 Ask for confirmation if NOCONFIRM is nil."
   (interactive)
   (when (or noconfirm
