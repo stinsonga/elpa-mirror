@@ -49,8 +49,11 @@
 
 (eval-when-compile
   ;; can't just 'require'; `wisent-with-context' doesn't work.
-  ;; also can't load .elc; must load .el
-  (load (locate-library "semantic/wisent/comp.el")))
+  ;; also can't load .elc; must load .el or .el.gz
+  (let ((file (locate-library "semantic/wisent/comp.el")))
+    (if file
+	(load file)
+      (error "source library semantic/wisent/comp.el not installed; install emacs lisp sources"))))
 
 (eval-and-compile
   (require 'semantic/wisent/comp))
