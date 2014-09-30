@@ -221,7 +221,7 @@ with POM"
    (lambda ()
      (let (xml-start-pos xml-end-pos project-extractor)
        (goto-char (point-min))
-       (search-forward "<?xml")
+       (re-search-forward "<\\?xml\\|<project")
        (setq xml-start-pos (match-beginning 0))
        ;; build module tree
        (setq project-extractor
