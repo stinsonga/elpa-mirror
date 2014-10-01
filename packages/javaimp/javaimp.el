@@ -12,7 +12,7 @@
 ;; Allows to manage Java import statements in Maven projects.
 ;;
 ;;   Quick start: customize `javaimp-import-group-alist', `javaimp-jdk-home'
-;; and call `javaimp-maven-visit-root-pom', then in a Java buffer visiting a
+;; and call `javaimp-maven-visit-root', then in a Java buffer visiting a
 ;; file under that module or one of its submodules call
 ;; `javaimp-organize-imports' or `javaimp-add-import'.  `javaimp-add-import'
 ;; will provide you a helpful completion, and the default value (the one
@@ -23,7 +23,7 @@
 ;; through compilation errors.
 ;;
 ;; If Maven failed, you can see its output in the buffer named by
-;; `javaimp-debug-buffer-name' (default is "*javaimp-debug*").
+;; `javaimp-debug-buf-name' (default is "*javaimp-debug*").
 ;;
 ;; Contents of jar files and Maven project structures (pom.xml) are cached,
 ;; so usually only first command should take a considerable amount of time
@@ -52,7 +52,7 @@
 ;;  
 ;; Details on commands.
 ;;
-;;   `javaimp-maven-visit-root-pom' is the first command you should issue to
+;;   `javaimp-maven-visit-root' is the first command you should issue to
 ;; use this module.  It reads the pom structure recursively and records
 ;; which files belong to which module.  Maven help:effective-pom command is
 ;; used to do that.
