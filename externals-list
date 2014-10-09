@@ -31,6 +31,7 @@
  ("ergoemacs-mode"	:external "https://github.com/ergoemacs/ergoemacs-mode.git")
  ("f90-interface-browser" :subtree "https://github.com/wence-/f90-iface")
  ("ggtags"		:subtree "https://github.com/leoliu/ggtags")
+ ("gnorb"               :subtree "file:///home/eric/.emacs.d/gnorb")
  ("ioccur"		:subtree "https://github.com/thierryvolpiatto/ioccur.git")
  ("js2-mode"		:subtree "https://github.com/mooz/js2-mode.git")
  ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
