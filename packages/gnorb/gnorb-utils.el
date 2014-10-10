@@ -1,6 +1,6 @@
 ;;; gnorb-utils.el --- Common utilities for all gnorb stuff.
 
-;; Copyright (C) 2014  Eric Abrahamsen
+;; Copyright (C) 2014  Free Software Foundation, Inc.
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Keywords:
@@ -24,11 +24,10 @@
 
 ;;; Code:
 
-(require 'cl)
 (require 'mailcap)
 (require 'gnus)
 ;(require 'message)
-(require 'bbdb)
+;; (require 'bbdb) ;Avoid compilation failure if BBDB is not available.
 (require 'org)
 (require 'org-bbdb)
 (require 'org-gnus)

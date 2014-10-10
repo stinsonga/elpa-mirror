@@ -1,8 +1,9 @@
 ;;; gnorb.el --- Glue code between Gnus, Org, and BBDB
 
-;; Copyright (C) 2014  Eric Abrahamsen
+;; Copyright (C) 2014  Free Software Foundation, Inc.
 
 ;; Version: 1
+;; Package-Requires: ((cl-lib "0.5"))
 
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
 
@@ -30,6 +31,7 @@
 
 ;;; Code:
 
+(if t (require 'bbdb))      ;`if'-trick avoids loading bbdb during compilation!
 (require 'gnorb-utils)
 (require 'nngnorb)
 (require 'gnorb-gnus)
