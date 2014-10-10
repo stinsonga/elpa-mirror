@@ -1,6 +1,6 @@
 ;;; gnorb-org.el --- The Org-centric functions of gnorb
 
-;; Copyright (C) 2014  Eric Abrahamsen
+;; Copyright (C) 2014  Free Software Foundation, Inc.
 
 ;; Author: Eric Abrahamsen  <eric@ericabrahamsen.net>
 ;; Keywords: 
@@ -25,6 +25,7 @@
 ;;; Code:
 
 (require 'gnorb-utils)
+(require 'cl-lib)
 
 (defgroup gnorb-org nil
   "The Org bits of Gnorb."
@@ -177,7 +178,7 @@ might have been in the outgoing message's headers and call
 		   strings)
 		  ((numberp gnorb-org-mail-scan-scope)
 		   (delq nil
-			 (subseq
+			 (cl-subseq
 			  strings 0 (1+ gnorb-org-mail-scan-scope))))
 		  ;; We could provide more options here. 'tree vs
 		  ;; 'subtree, for instance.
@@ -215,7 +216,7 @@ See the docstring of `gnorb-org-handle-mail' for details."
 	  (when assoc-msg-ids
 	    (car
 	     (sort
-	      (remove-if
+	      (cl-remove-if
 	       (lambda (m)
 		 (let ((from (car (gnus-registry-get-id-key m 'sender))))
 		   (or (null from)
@@ -239,6 +240,8 @@ See the docstring of `gnorb-org-handle-mail' for details."
      ;; the latest message.
      (latest-msg-id
       `(:gnus ,(list (gnorb-msg-id-to-link latest-msg-id)))))))
+
+(defvar message-beginning-of-line)
 
 (defun gnorb-org-setup-message
     (&optional messages mails from cc bcc attachments text ids)
@@ -339,6 +342,8 @@ current heading, or the heading indicated by optional argument ID."
 	       (expand-file-name f attach-dir))
 	     (org-attach-file-list attach-dir))))
       files)))
+
+(defvar message-mode-hook)
 
 ;;;###autoload
 (defun gnorb-org-handle-mail (&optional arg text file)
@@ -477,6 +482,8 @@ respective (usual) file extensions. Ugly way to do it, but what
 the hey..."
   :group 'gnorb-org)
 
+(defvar org-export-show-temporary-export-buffer)
+
 ;;;###autoload
 (defun gnorb-org-email-subtree (&optional arg)
   "Call on a subtree to export it either to a text string or a file,
@@ -501,7 +508,8 @@ default set of parameters."
 	   "Export backend: "
 	   (mapcar (lambda (b)
 		     (symbol-name (org-export-backend-name b)))
-		   org-export--registered-backends) nil t))
+		   org-export--registered-backends)
+           nil t))
 	 (backend-symbol (intern backend-string))
 	 (f-or-t (org-completing-read "Export as file or text? "
 				      '("file" "text") nil t))
@@ -606,7 +614,7 @@ search."
 	     (setq tag-clause (cdr (org-make-tags-matcher str)))
 	     (unless (equal str "")
 	       (setq recs
-		     (remove-if-not
+		     (cl-remove-if-not
 		      (lambda (r)
 			(let ((rec-tags (bbdb-record-xfield
 					 r gnorb-bbdb-org-tag-field)))

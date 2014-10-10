@@ -1,6 +1,6 @@
 ;;; gnorb-gnus.el --- The gnus-centric fuctions of gnorb
 
-;; Copyright (C) 2014  Eric Abrahamsen
+;; Copyright (C) 2014  Free Software Foundation, Inc.
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Keywords: 
@@ -247,7 +247,9 @@ save them into `gnorb-tmp-dir'."
 (defun gnorb-gnus-capture-abort-cleanup ()
   (when (and org-note-abort
 	     (org-capture-get :gnus-attachments))
-    (condition-case error
+    ;; FIXME: Yuck: setting `abort-note' will fail as soon as org-capture.el is
+    ;; compiled with lexical-binding!
+    (condition-case nil
 	(progn (org-attach-delete-all)
 	       (setq abort-note 'clean)
 	       ;; remove any gnorb-mail-header values here
@@ -432,6 +434,8 @@ work."
        (if header-ids
 	   "Message will trigger TODO state-changes after sending"
 	 "A TODO will be made from this message after it's sent")))))
+
+(defvar org-capture-link-is-already-stored)
 
 (defun gnorb-gnus-outgoing-make-todo-1 ()
   (unless gnorb-gnus-new-todo-capture-key

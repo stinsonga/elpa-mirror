@@ -1,6 +1,6 @@
 ;;; gnorb-registry.el --- Registry implementation for Gnorb
 
-;; This file is in the public domain.
+;; Copyright (C) 2014  Free Software Foundation, Inc.
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net.>
 
@@ -49,6 +49,7 @@
 ;;; Code:
 
 (require 'gnus-registry)
+(require 'cl-lib)
 
 (defgroup gnorb-registry nil
   "Gnorb's use of the Gnus registry."
@@ -98,13 +99,15 @@ to the message's registry entry, under the 'gnorb-ids key."
 (defun gnorb-registry-capture-abort-cleanup ()
   (when (and (org-capture-get :gnorb-id)
 	     org-note-abort)
-    (condition-case error
+    (condition-case nil
 	(let* ((msg-id (format "<%s>" (plist-get org-store-link-plist :message-id)))
 	       (existing-org-ids (gnus-registry-get-id-key msg-id 'gnorb-ids))
 	       (org-id (org-capture-get :gnorb-id)))
 	  (when (member org-id existing-org-ids)
 	    (gnus-registry-set-id-key msg-id 'gnorb-ids
 				      (remove org-id existing-org-ids)))
+          ;; FIXME: Yuck!  This will fail as soon as org-capture.el is compiled
+          ;; with lexical-binding.
 	  (setq abort-note 'clean))
       (error
        (setq abort-note 'dirty)))))
@@ -167,8 +170,8 @@ your Org files."
 		       'gnus))
 	  (dolist (l (plist-get links :gnus))
 	    (gnorb-registry-make-entry
-	     (second (split-string l "#")) nil nil
-	     id (first (split-string l "#"))))
+	     (cl-second (split-string l "#")) nil nil
+	     id (cl-first (split-string l "#"))))
 	  (dolist (p props)
 	    (setq id )
 	    (gnorb-registry-make-entry p nil nil id nil)
@@ -177,7 +180,7 @@ your Org files."
 	    ;; it.
 	    (unless (gnus-registry-get-id-key p 'group)
 	      (gnorb-msg-id-to-group p))
-	    (incf count)))))
+	    (cl-incf count)))))
      gnorb-org-find-candidates-match
      'agenda 'archive 'comment)
     (message "Collecting all relevant Org headings, this could take a while... done")
