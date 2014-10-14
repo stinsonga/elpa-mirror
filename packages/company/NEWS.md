@@ -1,5 +1,14 @@
 # History of user-visible changes
 
+## 2014-10-15 (0.8.6)
+
+* `company-clang` and `company-template-c-like-templatify` support templated
+  functions and arguments.
+* `company-dabbrev` ignores "uninteresting" buffers by default. Depends on the
+  new user option, `company-dabbrev-ignore-buffers`.
+* `company-files` checks directory's last modification time.
+* `company-files` supports relative paths and Windows drive letters.
+
 ## 2014-08-13 (0.8.4)
 
 * `company-ropemacs` is only used when `ropemacs-mode` is on.
