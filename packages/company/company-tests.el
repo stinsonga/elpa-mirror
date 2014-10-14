@@ -557,8 +557,29 @@
       (should (eq 'company-tooltip-selection
                   (get-text-property (1- ww) 'face
                                      (car res))))
+      )))
 
-)))
+(ert-deftest company-create-lines-clears-out-non-printables ()
+  :tags '(interactive)
+  (let (company-show-numbers
+        (company-candidates (list
+                             (decode-coding-string "avalis\351e" 'utf-8)
+                             "avatar"))
+        (company-candidates-length 2)
+        (company-backend 'ignore))
+    (should (equal '(" avalis‗e    "
+                     " avatar      ")
+                   (company--create-lines 0 999)))))
+
+(ert-deftest company-create-lines-handles-multiple-width ()
+  :tags '(interactive)
+  (let (company-show-numbers
+        (company-candidates '("蛙蛙蛙蛙" "蛙abc"))
+        (company-candidates-length 2)
+        (company-backend 'ignore))
+    (should (equal '(" ﻿蛙﻿蛙﻿蛙﻿蛙 "
+                     " ﻿蛙abc    ")
+                   (company--create-lines 0 999)))))
 
 (ert-deftest company-column-with-composition ()
   :tags '(interactive)
@@ -898,6 +919,19 @@ foo2"))
       (company-template-c-like-templatify text)
       (should (equal "foo(arg0, arg1)" (buffer-string)))
       (should (looking-at "arg0")))))
+
+(ert-deftest company-template-c-like-templatify-generics ()
+  (with-temp-buffer
+    (let ((text "foo<TKey, TValue>(int i, Dict<TKey, TValue>, long l)"))
+      (insert text)
+      (company-template-c-like-templatify text)
+      (should (equal "foo<arg0, arg1>(arg2, arg3, arg4)" (buffer-string)))
+      (should (looking-at "arg0"))
+      (should (equal "TKey" (overlay-get (company-template-field-at) 'display)))
+      (search-forward "arg3")
+      (forward-char -1)
+      (should (equal "Dict<TKey, TValue>"
+                     (overlay-get (company-template-field-at) 'display))))))
 
 ;;; Clang
 

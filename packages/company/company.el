@@ -5,7 +5,7 @@
 ;; Author: Nikolaj Schumacher
 ;; Maintainer: Dmitry Gutov <dgutov@yandex.ru>
 ;; URL: http://company-mode.github.io/
-;; Version: 0.8.5
+;; Version: 0.8.6
 ;; Keywords: abbrev, convenience, matching
 ;; Package-Requires: ((emacs "24.1") (cl-lib "0.5"))
 
@@ -551,6 +551,7 @@ happens.  The value of nil means no idle completion."
 
 (defcustom company-begin-commands '(self-insert-command
                                     org-self-insert-command
+                                    orgtbl-self-insert-command
                                     c-scope-operator
                                     c-electric-colon
                                     c-electric-lt-gt
@@ -627,7 +628,7 @@ asynchronous call into synchronous.")
     (define-key keymap "\C-s" 'company-search-candidates)
     (define-key keymap "\C-\M-s" 'company-filter-candidates)
     (dotimes (i 10)
-      (define-key keymap (kbd (format "M-%d" i)) 'company-complete-number))
+      (define-key keymap (read-kbd-macro (format "M-%d" i)) 'company-complete-number))
      keymap)
   "Keymap that is enabled during an active completion.")
 
@@ -848,7 +849,7 @@ means that `company-mode' is always turned on except in `message-mode' buffers."
         res))))
 
 (defun company-call-backend-raw (&rest args)
-  (condition-case err
+  (condition-case-unless-debug err
       (if (functionp company-backend)
           (apply company-backend args)
         (apply #'company--multi-backend-adapter company-backend args))
@@ -978,7 +979,7 @@ Controlled by `company-auto-complete'.")
   (if (eq (company-call-backend 'ignore-case) 'keep-prefix)
       (insert (company-strip-prefix candidate))
     (delete-region (- (point) (length company-prefix)) (point))
-    (insert-before-markers candidate)))
+    (insert candidate)))
 
 (defmacro company-with-candidate-inserted (candidate &rest body)
   "Evaluate BODY with CANDIDATE temporarily inserted.
@@ -1028,7 +1029,7 @@ can retrieve meta-data for them."
 
 (defun company-call-frontends (command)
   (dolist (frontend company-frontends)
-    (condition-case err
+    (condition-case-unless-debug err
         (funcall frontend command)
       (error (error "Company: Front-end %s error \"%s\" on command %s"
                     frontend (error-message-string err) command)))))
@@ -1279,7 +1280,8 @@ from the rest of the back-ends in the group, if any, will be left at the end."
        (eq pos (point))
        (when (company-auto-begin)
          (company-input-noop)
-         (company-post-command))))
+         (let ((this-command 'company-idle-begin))
+           (company-post-command)))))
 
 (defun company-auto-begin ()
   (and company-mode
@@ -1504,7 +1506,7 @@ from the rest of the back-ends in the group, if any, will be left at the end."
 
 (defun company-pre-command ()
   (unless (company-keep this-command)
-    (condition-case err
+    (condition-case-unless-debug err
         (when company-candidates
           (company-call-frontends 'pre-command)
           (unless (company--should-continue)
@@ -1518,8 +1520,15 @@ from the rest of the back-ends in the group, if any, will be left at the end."
   (company-uninstall-map))
 
 (defun company-post-command ()
+  (when (null this-command)
+    ;; Happens when the user presses `C-g' while inside
+    ;; `flyspell-post-command-hook', for example.
+    ;; Or any other `post-command-hook' function that can call `sit-for',
+    ;; or any quittable timer function.
+    (company-abort)
+    (setq this-command 'company-abort))
   (unless (company-keep this-command)
-    (condition-case err
+    (condition-case-unless-debug err
         (progn
           (unless (equal (point) company-point)
             (let (company-idle-delay) ; Against misbehavior while debugging.
@@ -1575,14 +1584,12 @@ from the rest of the back-ends in the group, if any, will be left at the end."
 (defun company-search-printing-char ()
   (interactive)
   (company-search-assert-enabled)
-  (setq company-search-string
-        (concat (or company-search-string "") (string last-command-event))
-        company-search-lighter (concat " Search: \"" company-search-string
-                                       "\""))
-  (let ((pos (company-search company-search-string
-                             (nthcdr company-selection company-candidates))))
+  (let* ((ss (concat company-search-string (string last-command-event)))
+         (pos (company-search ss (nthcdr company-selection company-candidates))))
     (if (null pos)
         (ding)
+      (setq company-search-string ss
+            company-search-lighter (concat " Search: \"" ss "\""))
       (company-set-selection (+ company-selection pos) t))))
 
 (defun company-search-repeat-forward ()
@@ -1609,13 +1616,9 @@ from the rest of the back-ends in the group, if any, will be left at the end."
       (company-set-selection (- company-selection pos 1) t))))
 
 (defun company-create-match-predicate ()
-  (setq company-candidates-predicate
-        `(lambda (candidate)
-           ,(if company-candidates-predicate
-                `(and (string-match ,company-search-string candidate)
-                      (funcall ,company-candidates-predicate
-                               candidate))
-              `(string-match ,company-search-string candidate))))
+  (let ((ss company-search-string))
+    (setq company-candidates-predicate
+          (when ss (lambda (candidate) (string-match ss candidate)))))
   (company-update-candidates
    (company-apply-predicate company-candidates company-candidates-predicate))
   ;; Invalidate cache.
@@ -2088,8 +2091,11 @@ If SHOW-VERSION is non-nil, show the version in the echo area."
 (defun company-fill-propertize (value annotation width selected left right)
   (let* ((margin (length left))
          (common (or (company-call-backend 'match value)
-                     (length company-common)))
+                     (if company-common
+                         (string-width company-common)
+                       0)))
          (ann-ralign company-tooltip-align-annotations)
+         (value (company--clean-string value))
          (ann-truncate (< width
                           (+ (length value) (length annotation)
                              (if ann-ralign 1 0))))
@@ -2147,6 +2153,25 @@ If SHOW-VERSION is non-nil, show the version in the echo area."
                                mouse-face company-tooltip-selection)
                              line)))
     line))
+
+(defun company--clean-string (str)
+  (replace-regexp-in-string
+   "\\([^[:graph:] ]\\)\\|\\(\ufeff\\)\\|[[:multibyte:]]"
+   (lambda (match)
+     (cond
+      ((match-beginning 1)
+       ;; FIXME: Better char for 'non-printable'?
+       ;; We shouldn't get any of these, but sometimes we might.
+       "\u2017")
+      ((match-beginning 2)
+       ;; Zero-width non-breakable space.
+       "")
+      ((> (string-width match) 1)
+       (concat
+        (make-string (1- (string-width match)) ?\ufeff)
+        match))
+      (t match)))
+   str))
 
 ;;; replace
 
@@ -2275,7 +2300,7 @@ If SHOW-VERSION is non-nil, show the version in the echo area."
           ;; `lisp-completion-at-point' adds a space.
           (setq annotation (comment-string-strip annotation t nil)))
         (push (cons value annotation) items)
-        (setq width (max (+ (length value)
+        (setq width (max (+ (string-width value)
                             (if (and annotation company-tooltip-align-annotations)
                                 (1+ (length annotation))
                               (length annotation)))
@@ -2388,7 +2413,7 @@ Returns a negative number if the tooltip should be displayed above point."
              (end (save-excursion
                     (move-to-window-line (+ row (abs height)))
                     (point)))
-             (ov (make-overlay (if nl beg (1- beg)) end nil t))
+             (ov (make-overlay (if nl beg (1- beg)) end nil t t))
              (args (list (mapcar 'company-plainify
                                  (company-buffer-lines beg end))
                          column nl above)))
