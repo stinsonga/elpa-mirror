@@ -80,4 +80,4 @@
 ;; no-byte-compile: t
 ;; End:
 
-;; uni-confusables.el ends here
+;;; uni-confusables.el ends here

@@ -111,7 +111,7 @@
 ;;\sno-byte-compile: t
 ;;\sEnd:
 
-;; uni-confusables.el ends here"))))
+;;; uni-confusables.el ends here"))))
 
 (provide 'gen-confusables)
 ;;; gen-confusables.el ends here
