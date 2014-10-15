@@ -51,7 +51,7 @@ and `c-electric-colon', for automatic completion right after \">\" and
   "Additional arguments to pass to clang when completing.
 Prefix files (-include ...) can be selected with `company-clang-set-prefix'
 or automatically through a custom `company-clang-prefix-guesser'."
-  :type '(repeat (string :tag "Argument" nil)))
+  :type '(repeat (string :tag "Argument")))
 
 (defcustom company-clang-prefix-guesser 'company-clang-guess-prefix
   "A function to determine the prefix file for the current buffer."
@@ -110,7 +110,7 @@ or automatically through a custom `company-clang-prefix-guesser'."
 ;; TODO: Handle Pattern (syntactic hints would be neat).
 ;; Do we ever see OVERLOAD (or OVERRIDE)?
 (defconst company-clang--completion-pattern
-  "^COMPLETION: \\_<\\(%s[a-zA-Z0-9_:]*\\)\\(?: : \\(.*\\)$\\)?$")
+  "^COMPLETION: \\_<\\(%s[a-zA-Z0-9_:<>]*\\)\\(?: : \\(.*\\)$\\)?$")
 
 (defconst company-clang--error-buffer-name "*clang-error*")
 
@@ -320,7 +320,8 @@ passed via standard input."
                          (insert anno)
                          (if (string-match "\\`:[^:]" anno)
                              (company-clang-objc-templatify anno)
-                           (company-template-c-like-templatify anno)))))))
+                           (company-template-c-like-templatify
+                            (concat arg anno))))))))
 
 (provide 'company-clang)
 ;;; company-clang.el ends here
