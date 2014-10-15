@@ -1,6 +1,6 @@
 ;;; num3-mode.el --- highlight groups of digits in long numbers  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2012 Free Software Foundation, Inc.
+;; Copyright (C) 2012, 2014 Free Software Foundation, Inc.
 
 ;; Author: Felix Lee <felix8a@gmail.com>, Michal Nazarewicz <mina86@mina86.com>
 ;; Maintainer: Michal Nazarewicz <mina86@mina86.com>
@@ -91,8 +91,8 @@ where) decimal point (would be) is."
       (unless (assoc 'num3--matcher font-lock-keywords)
         (font-lock-add-keywords nil '(num3--matcher) 'append))
     (font-lock-remove-keywords nil '(num3--matcher)))
-  (when font-lock-mode
-    (font-lock-fontify-buffer)))
+  (if (fboundp 'font-lock-flush) (font-lock-flush)
+    (when font-lock-mode (font-lock-fontify-buffer))))
 
 ;;;###autoload
 (define-globalized-minor-mode global-num3-mode num3-mode num3-mode)
