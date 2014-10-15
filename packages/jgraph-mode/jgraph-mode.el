@@ -1,9 +1,10 @@
-;;; jgraph-mode.el --- Major mode for Jgraph files
+;;; jgraph-mode.el --- Major mode for Jgraph files  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2006, 2011-2012  Free Software Foundation, Inc
+;; Copyright (C) 2006, 2011-2012, 2014  Free Software Foundation, Inc
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Version: 1.0
+;; Package-Requires: ((cl-lib "0.5"))
 ;; Keywords: tex, wp
 
 ;; This file is part of GNU Emacs.
@@ -27,6 +28,8 @@
 ;; You can find more info at http://web.eecs.utk.edu/~plank/plank/jgraph/jgraph.html
 
 ;;; Code:
+
+(eval-when-compile (require 'cl-lib))
 
 (defgroup jgraph-mode ()
   "Major mode for Jgraph files."
@@ -81,8 +84,8 @@
         (setq section (intern section))
         (while (re-search-forward "^\\.TP\n\\(?:\\.B \\|\\\\fB\\)\\([^ :\t\n\\]+\\)\\([ {\\fI]*token\\)?" end 'move)
           (let ((cmd (match-string-no-properties 1)))
-            (if (match-end 2) (add-to-list 'tok-cmds cmd))
-            (add-to-list 'commands cmd)))
+            (if (match-end 2) (cl-pushnew cmd tok-cmds :test #'equal))
+            (cl-pushnew cmd commands :test #'equal)))
         (setq commands (nreverse commands))
         (let ((sec (assoc section sections)))
           (if sec (nconc sec commands)
