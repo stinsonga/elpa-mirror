@@ -87,9 +87,17 @@
   :version "23.1"
   :group 'windows)
 
+(defun scroll-restore--set (symbol value)
+  (set-default symbol value)
+  (when (and (boundp 'scroll-restore-mode) scroll-restore-mode)
+    (scroll-restore-mode -1)
+    (scroll-restore-mode 1)))
+
 (defcustom scroll-restore-commands
+  ;; FIXME: How 'bout using the `scroll-command' property?
   '(handle-select-window handle-switch-frame
     scroll-up scroll-down
+    scroll-up-command scroll-down-command
     scroll-bar-toolkit-scroll mwheel-scroll
     scroll-other-window scroll-other-window-down
     scroll-bar-scroll-up scroll-bar-scroll-down scroll-bar-drag)
@@ -103,16 +111,14 @@ Scroll Restore mode will try to restore the original position of
                (put cmd 'scroll-restore nil)))
            (set-default symbol value)
            (dolist (cmd scroll-restore-commands)
-             (put cmd 'scroll-restore t)))
-  :group 'scroll-restore)
+             (put cmd 'scroll-restore t))))
 
 ;; Recenter.
 (defcustom scroll-restore-recenter nil
   "Non-nil means scrolling back recenters the original position.
 Setting this to a non-nil value can be useful to detect the original
 position more easily and coherently when scrolling back."
-  :type 'boolean
-  :group 'scroll-restore)
+  :type 'boolean)
 
 ;; Jump back.
 (defcustom scroll-restore-jump-back nil
@@ -128,11 +134,7 @@ activating this option.
 Alternatively you may consider binding the command
 `scroll-restore-jump-back' to a key of your choice."
   :type 'boolean
-  :set #'(lambda (symbol value)
-           (set-default symbol value)
-           (when (and (boundp 'scroll-restore-mode) scroll-restore-mode)
-             (scroll-restore-restart)))
-  :group 'scroll-restore)
+  :set #'scroll-restore--set)
 
 ;;; Cursor handling.
 (defvar scroll-restore-buffer nil
@@ -159,11 +161,7 @@ cursor and `scroll-restore-cursor-color' to change its color."
           (const :tag "Cursor type" type)
           (const :tag "Cursor color" color)
           (const :tag "Type and color" t))
-  :set #'(lambda (symbol value)
-           (set-default symbol value)
-           (when (and (boundp 'scroll-restore-mode) scroll-restore-mode)
-             (scroll-restore-restart)))
-  :group 'scroll-restore)
+  :set #'scroll-restore--set)
 
 (defcustom scroll-restore-cursor-type 'box
   "Type of cursor when original position is off-screen.
@@ -185,11 +183,7 @@ the value of scroll-restore-cursor-type."
           (const :tag "Hollow box" hollow)
           (const :tag "Vertical bar" bar)
           (const :tag "Horizontal bar" hbar))
-  :set #'(lambda (symbol value)
-           (set-default symbol value)
-           (when (and (boundp 'scroll-restore-mode) scroll-restore-mode)
-             (scroll-restore-restart)))
-  :group 'scroll-restore)
+  :set #'scroll-restore--set)
 
 (defcustom scroll-restore-cursor-color "DarkCyan"
   "Background color of cursor when original position is off-screen.
@@ -209,13 +203,12 @@ To guard against unexpected results Scroll Restore mode does not
 reset the color of the cursor whenever its value does not equal
 the value of scroll-restore-cursor-color."
   :type 'color
-  :set #'(lambda (symbol value)
-           (set-default symbol value)
-           (when (and (boundp 'scroll-restore-mode) scroll-restore-mode)
-             (scroll-restore-restart)))
-  :group 'scroll-restore)
+  :set #'scroll-restore--set)
 
 ;;; Region handling.
+
+;; FIXME: We should try to use pre-redisplay-function instead.
+
 (defvar scroll-restore-region-overlay
   (let ((overlay (make-overlay (point-min) (point-min))))
     (overlay-put overlay 'face 'scroll-restore-region)
@@ -241,17 +234,12 @@ If you mark the region via `mouse-drag-region', setting this
 option has no effect since Scroll Restore mode cannot track mouse
 drags."
   :type 'boolean
-  :set #'(lambda (symbol value)
-           (set-default symbol value)
-           (when (and (boundp 'scroll-restore-mode) scroll-restore-mode)
-             (scroll-restore-restart)))
-  :group 'scroll-restore)
+  :set #'scroll-restore--set)
 
 (defface scroll-restore-region
   '((t :inherit region))
   "Face for Scroll Restore region when `scroll-restore-handle-region' is 
-non-nil."
-  :group 'scroll-restore)
+non-nil.")
 
 ;; Note: We can't use `point-before-scroll' for our purposes because
 ;; that variable is buffer-local.  We need a variable that recorded
@@ -444,6 +432,7 @@ This command does not push the mark."
         (goto-char (nth 2 entry))
       (error "No jump-back position available"))))
 
+;;;###autoload
 (define-minor-mode scroll-restore-mode
   "Toggle Scroll Restore mode.
 With arg, turn Scroll Restore mode on if arg is positive, off
@@ -484,11 +473,6 @@ can
     (scroll-restore-remove 'all)
     (remove-hook 'pre-command-hook 'scroll-restore-pre-command)
     (remove-hook 'post-command-hook 'scroll-restore-post-command)))
-
-(defun scroll-restore-restart ()
-  "Restart Scroll Restore mode."
-  (scroll-restore-mode -1)
-  (scroll-restore-mode 1))
 
 (provide 'scroll-restore)
 ;;; scroll-restore.el ends here
