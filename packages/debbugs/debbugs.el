@@ -372,12 +372,12 @@ Example:
 		 (setq val user-mail-address))
 	       (when (string-match "<\\(.+\\)>" val)
 		 (setq val (match-string 1 val)))
-	       (add-to-list 'user val))
+	       (pushnew val user :test #'equal))
 	   (error "Wrong %s: %s" key val)))
 	((:tag)
 	 ;; Value shall be one word.
 	 (if (string-match "\\`\\S-+\\'" val)
-	     (add-to-list 'tags val)
+	     (pushnew val tags :test #'equal)
 	   (error "Wrong %s: %s" key val)))
 	(t (error "Unknown key: %s" kw))))
 
@@ -593,7 +593,9 @@ Examples:
 		   (setcar elt user-mail-address))
 		 (when (string-match "<\\(.+\\)>" (car elt))
 		   (setcar elt (match-string 1 (car elt))))
-		 (add-to-list 'val (pop elt) 'append))
+                 (let ((x (pop elt)))
+                   (unless (member x val)
+                     (setq val (append val (list x))))))
 	       (setq vec
 		     (vconcat vec (list key (mapconcat 'identity val " "))))))
 
@@ -608,7 +610,9 @@ Examples:
 	       (while  (and (stringp (car elt))
 			    (string-match
 			     "\\`\\(done\\|forwarded\\|open\\)\\'" (car elt)))
-		 (add-to-list 'val (pop elt) 'append))
+		 (let ((x (pop elt)))
+                   (unless (member x val)
+                     (setq val (append val (list x))))))
 	       (setq vec
 		     (vconcat vec (list key (mapconcat 'identity val " "))))))
 
@@ -621,7 +625,9 @@ Examples:
 		 (setq vec (vconcat vec (list key "")))
 	       ;; Just a string.
 	       (while (stringp (car elt))
-		 (add-to-list 'val (pop elt) 'append))
+		 (let ((x (pop elt)))
+                   (unless (member x val)
+                     (setq val (append val (list x))))))
 	       (setq vec
 		     (vconcat vec (list key (mapconcat 'identity val " "))))))
 
@@ -634,7 +640,9 @@ Examples:
 		 (setq vec (vconcat vec (list key "")))
 	       ;; Just a number.
 	       (while (numberp (car elt))
-		 (add-to-list 'val (pop elt) 'append))
+                 (let ((x (pop elt)))
+                   (unless (member x val)
+                     (setq val (append val (list x))))))
 	       (setq vec
 		     (vconcat
 		      vec (list key (mapconcat 'number-to-string val " "))))))

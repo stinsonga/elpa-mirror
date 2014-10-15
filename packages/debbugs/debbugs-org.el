@@ -148,11 +148,10 @@ returned."
   (interactive)
 
   (unwind-protect
-      (let ((date-format "\\([[:digit:]]\\{4\\}\\)-\\([[:digit:]]\\{1,2\\}\\)-\\([[:digit:]]\\{1,2\\}\\)")
-	    key val1 val2 phrase severities packages archivedp)
+      ;; Check for the phrase.
+      (let ((phrase (read-string debbugs-gnu-phrase-prompt))
+            key val1 severities packages)
 
-	;; Check for the phrase.
-	(setq phrase (read-string debbugs-gnu-phrase-prompt))
 	(add-to-list 'debbugs-gnu-current-query (cons 'phrase phrase))
 
 	;; The other queries.
@@ -320,10 +319,10 @@ returned."
 
 	;; Handle tags.
 	(when (string-match "^\\([0-9.]+\\); \\(.+\\)$" subject)
-	  (add-to-list 'tags (match-string 1 subject))
+	  (let ((x (match-string 1 subject))) (pushnew x tags :test #'equal))
 	  (setq subject (match-string 2 subject)))
 	(when archived
-	  (add-to-list 'tags "ARCHIVE"))
+          (pushnew "ARCHIVE" tags :test #'equal))
 	(setq tags
 	      (mapcar
 	       ;; Replace all invalid TAG characters by "_".
