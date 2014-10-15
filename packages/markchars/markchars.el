@@ -191,7 +191,8 @@ The default is to mark nonascii chars with a magenta underline."
           (add-to-list props 'markchars))
         (font-lock-add-keywords nil markchars-used-keywords))
     (font-lock-remove-keywords nil markchars-used-keywords))
-  (font-lock-fontify-buffer))
+  (if (fboundp 'font-lock-flush)
+      (font-lock-flush) (font-lock-fontify-buffer)))
 
 ;;;###autoload
 (define-globalized-minor-mode markchars-global-mode markchars-mode
