@@ -1,6 +1,6 @@
 ;;; f90-interface-browser.el --- Parse and browse f90 interfaces
 
-;; Copyright (C) 2011, 2012, 2013  Free Software Foundation, Inc
+;; Copyright (C) 2011, 2012, 2013, 2014  Free Software Foundation, Inc
 
 ;; Author: Lawrence Mitchell <wence@gmx.li>
 ;; Created: 2011-07-06
@@ -564,7 +564,8 @@ default is the type of the variable."
                            (format "%s :: foo" (f90-format-parsed-slot-type x)))
                          arglist "\n")))
     (f90-mode)
-    (font-lock-fontify-buffer)
+    (if (fboundp 'font-lock-ensure)
+        (font-lock-ensure) (font-lock-fontify-buffer))
     (goto-char (point-min))
     (mapconcat 'identity
                (loop while (not (eobp))
@@ -915,7 +916,7 @@ needs a reference count interface, so insert one."
       ;; Show types of the same type together
       (setq types (sort types (lambda (x y)
                                 (string< (cadar x) (cadar y)))))
-      (loop for (type name) in types
+      (loop for (type _name) in types
             do
             (insert (format "%s :: %s\n"
                             (f90-format-parsed-slot-type type)
