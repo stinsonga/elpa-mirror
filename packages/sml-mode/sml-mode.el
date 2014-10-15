@@ -441,6 +441,7 @@ Regexp match data 0 points to the chars."
               (decls "type" decls)
               (decls "open" decls)
               (decls "and" decls)
+              (decls "withtype" decls)
               (decls "infix" decls)
               (decls "infixr" decls)
               (decls "nonfix" decls)
@@ -468,8 +469,8 @@ Regexp match data 0 points to the chars."
      '((assoc "->") (assoc "*"))
      '((assoc "val" "fun" "type" "datatype" "abstype" "open" "infix" "infixr"
               "nonfix" "functor" "signature" "structure" "exception"
-              "include" "sharing" "local"
-              )
+              "include" "sharing" "local")
+       (assoc "withtype")
        (assoc "and"))
      '((assoc "orelse") (assoc "andalso") (nonassoc ":"))
      '((assoc ";")) '((assoc ",")) '((assoc "d|")))
@@ -512,69 +513,63 @@ Regexp match data 0 points to the chars."
         (>= mincol startcol)))))
 
 (defun sml-smie-rules (kind token)
-  ;; I much preferred the pcase version of the code, especially while
-  ;; edebugging the code.  But that will have to wait until we get rid of
-  ;; support for Emacs-23.
-  (case kind
-    (:elem (case token
-             (basic sml-indent-level)
-             (args  sml-indent-args)))
-    (:list-intro (member token '("fn")))
-    (:close-all t)
-    (:after
+  (pcase (cons kind token)
+    (`(:elem . basic) sml-indent-level)
+    (`(:elem . args)  sml-indent-args)
+    (`(:list-intro . "fn") t)
+    (`(:close-all . ,_) t)
+    (`(:after . "struct") 0)
+    (`(:after . "=>") (if (smie-rule-hanging-p) 0 2))
+    (`(:after . "in") (if (smie-rule-parent-p "local") 0))
+    (`(:after . "of") 3)
+    (`(:after . ,(or `"(" `"{" `"[")) (if (not (smie-rule-hanging-p)) 2))
+    (`(:after . "else") (if (smie-rule-hanging-p) 0)) ;; (:next "if" 0)
+    (`(:after . ,(or `"|" `"d|" `";" `",")) (smie-rule-separator kind))
+    (`(:after . "d=")
+     (if (and (smie-rule-parent-p "val") (smie-rule-next-p "fn")) -3))
+    (`(:before . "=>") (if (smie-rule-parent-p "fn") 3))
+    (`(:before . "of") 1)
+    ;; In case the language is extended to allow a | directly after of.
+    (`(:before . ,(and `"|" (guard (smie-rule-prev-p "of")))) 1)
+    (`(:before . ,(or `"|" `"d|" `";" `",")) (smie-rule-separator kind))
+    ;; Treat purely syntactic block-constructs as being part of their parent,
+    ;; when the opening statement is hanging.
+    (`(:before . ,(or `"let" `"(" `"[" `"{")) ; "struct"? "sig"?
+     (if (smie-rule-hanging-p) (smie-rule-parent)))
+    ;; Treat if ... else if ... as a single long syntactic construct.
+    ;; Similarly, treat fn a => fn b => ... as a single construct.
+    (`(:before . ,(or `"if" `"fn"))
+     (and (not (smie-rule-bolp))
+          (smie-rule-prev-p (if (equal token "if") "else" "=>"))
+          (smie-rule-parent)))
+    (`(:before . "and")
+     ;; FIXME: maybe "and" (c|sh)ould be handled as an smie-separator.
      (cond
-      ((equal token "struct") 0)
-      ((equal token "=>") (if (smie-rule-hanging-p) 0 2))
-      ((equal token "in") (if (smie-rule-parent-p "local") 0))
-      ((equal token "of") 3)
-      ((member token '("(" "{" "[")) (if (not (smie-rule-hanging-p)) 2))
-      ((equal token "else") (if (smie-rule-hanging-p) 0)) ;; (:next "if" 0)
-      ((member token '("|" "d|" ";" ",")) (smie-rule-separator kind))
-      ((equal token "d=")
-       (if (and (smie-rule-parent-p "val") (smie-rule-next-p "fn")) -3))))
-    (:before
+      ((smie-rule-parent-p "datatype" "withtype")
+       (if (sml--rightalign-and-p) 5 0))
+      ((smie-rule-parent-p "fun" "val") 0)))
+    (`(:before . "withtype") 0)
+    (`(:before . "d=")
      (cond
-      ((equal token "=>") (if (smie-rule-parent-p "fn") 3))
-      ((equal token "of") 1)
-      ;; In case the language is extended to allow a | directly after of.
-      ((and (equal token "|") (smie-rule-prev-p "of")) 1)
-      ((member token '("|" "d|" ";" ",")) (smie-rule-separator kind))
-      ;; Treat purely syntactic block-constructs as being part of their parent,
-      ;; when the opening statement is hanging.
-      ((member token '("let" "(" "[" "{")) ; "struct"? "sig"?
-       (if (smie-rule-hanging-p) (smie-rule-parent)))
-      ;; Treat if ... else if ... as a single long syntactic construct.
-      ;; Similarly, treat fn a => fn b => ... as a single construct.
-      ((member token '("if" "fn"))
-       (and (not (smie-rule-bolp))
-            (smie-rule-prev-p (if (equal token "if") "else" "=>"))
-            (smie-rule-parent)))
-      ((equal token "and")
-       ;; FIXME: maybe "and" (c|sh)ould be handled as an smie-separator.
-       (cond
-        ((smie-rule-parent-p "datatype") (if (sml--rightalign-and-p) 5 0))
-        ((smie-rule-parent-p "fun" "val") 0)))
-      ((equal token "d=")
-       (cond
-        ((smie-rule-parent-p "datatype") (if (smie-rule-bolp) 2))
-        ((smie-rule-parent-p "structure" "signature" "functor") 0)))
-      ;; Indent an expression starting with "local" as if it were starting
-      ;; with "fun".
-      ((equal token "local") (smie-indent-keyword "fun"))
-      ;; FIXME: type/val/fun/... are separators but "local" is not, even though
-      ;; it appears in the same list.  Try to fix up the problem by hand.
-      ;; ((or (equal token "local")
-      ;;      (equal (cdr (assoc token smie-grammar))
-      ;;             (cdr (assoc "fun" smie-grammar))))
-      ;;  (let ((parent (save-excursion (smie-backward-sexp))))
-      ;;    (when (or (and (equal (nth 2 parent) "local")
-      ;;                   (null (car parent)))
-      ;;              (progn
-      ;;                (setq parent (save-excursion (smie-backward-sexp "fun")))
-      ;;                (eq (car parent) (nth 1 (assoc "fun" smie-grammar)))))
-      ;;      (goto-char (nth 1 parent))
-      ;;      (cons 'column (smie-indent-virtual)))))
-      ))))
+      ((smie-rule-parent-p "datatype") (if (smie-rule-bolp) 2))
+      ((smie-rule-parent-p "structure" "signature" "functor") 0)))
+    ;; Indent an expression starting with "local" as if it were starting
+    ;; with "fun".
+    (`(:before . "local") (smie-indent-keyword "fun"))
+    ;; FIXME: type/val/fun/... are separators but "local" is not, even though
+    ;; it appears in the same list.  Try to fix up the problem by hand.
+    ;; ((or (equal token "local")
+    ;;      (equal (cdr (assoc token smie-grammar))
+    ;;             (cdr (assoc "fun" smie-grammar))))
+    ;;  (let ((parent (save-excursion (smie-backward-sexp))))
+    ;;    (when (or (and (equal (nth 2 parent) "local")
+    ;;                   (null (car parent)))
+    ;;              (progn
+    ;;                (setq parent (save-excursion (smie-backward-sexp "fun")))
+    ;;                (eq (car parent) (nth 1 (assoc "fun" smie-grammar)))))
+    ;;      (goto-char (nth 1 parent))
+    ;;      (cons 'column (smie-indent-virtual)))))
+    ))
 
 (defun sml-smie-definitional-equal-p ()
   "Figure out which kind of \"=\" this is.
@@ -598,9 +593,16 @@ Assumes point is right before the = sign."
   "Figure out which kind of \"of\" this is.
 Assumes point is right before the \"of\" symbol."
   (save-excursion
-    (and (re-search-backward (concat "\\(" sml-non-nested-of-starter-re
-                                     "\\)\\|\\_<case\\_>") nil t)
-         (match-beginning 1))))
+    ;; (let ((case-fold-search nil))
+    ;;   (and (re-search-backward (concat "\\(" sml-non-nested-of-starter-re
+    ;;                                    "\\)\\|\\_<case\\_>")
+    ;;                            nil t)
+    ;;        (match-beginning 1)))
+    (and (stringp (sml-smie-backward-token-1))
+         (let ((tok (sml-smie-backward-token-1)))
+           (if (equal tok "=")
+               (equal "d=" (sml-smie-forward-token))
+             (member tok '("|" "exception")))))))
 
 (defun sml-smie-datatype-|-p ()
   "Figure out which kind of \"|\" this is.
