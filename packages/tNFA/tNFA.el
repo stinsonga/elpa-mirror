@@ -1,6 +1,6 @@
 ;;; tNFA.el --- Tagged non-deterministic finite-state automata
 
-;; Copyright (C) 2008-2010, 2012   Free Software Foundation, Inc
+;; Copyright (C) 2008-2010, 2012, 2014   Free Software Foundation, Inc
 
 ;; Author: Toby Cubitt <toby-predictive@dr-qubit.org>
 ;; Version: 0.1.1
@@ -333,8 +333,7 @@
 (defun* tNFA--DFA-state-create (state-list state-pool &key (test 'eq))
   ;; create DFA state and add it to the state pool
   (let ((DFA-state (tNFA--DFA-state--create
-		    state-list state-pool :test test))
-	tmp-list)
+		    state-list state-pool :test test)))
     (puthash state-list DFA-state (tNFA--DFA-state-pool DFA-state))
 
     (dolist (state state-list)
@@ -342,16 +341,15 @@
       (cond
        ;; literal state: add literal transition
        ((eq (tNFA--state-type state) 'literal)
-	(setq tmp-list (tNFA--DFA-state-transitions DFA-state))
-	(add-to-list 'tmp-list (cons (tNFA--state-label state) t))
-	(setf (tNFA--DFA-state-transitions DFA-state) tmp-list))
+	(pushnew (cons (tNFA--state-label state) t)
+                 (tNFA--DFA-state-transitions DFA-state)
+                 :test #'equal))
 
        ;; character alternative: add transitions for all alternatives
        ((eq (tNFA--state-type state) 'char-alt)
 	(dolist (c (tNFA--state-label state))
-	  (setq tmp-list (tNFA--DFA-state-transitions DFA-state))
-	  (add-to-list 'tmp-list (cons c t))
-	  (setf (tNFA--DFA-state-transitions DFA-state) tmp-list)))
+	  (pushnew (cons c t) (tNFA--DFA-state-transitions DFA-state)
+                   :test #'equal)))
 
        ;; wildcard or negated character alternative: add wildcard
        ;; transistion
