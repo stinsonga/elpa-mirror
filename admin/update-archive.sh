@@ -21,19 +21,13 @@ done
 send_mail () {
     to="$1"; shift
     title="$*"
-    mx_gnu_org="$(host -t mx gnu.org | sed 's/.*[ 	]//')"
-    (sleep 5; echo "HELO elpa.gnu.org"
-     sleep 1; echo "MAIL FROM: <elpa@elpa.gnu.org>"
-     sleep 1; echo "RCPT TO: <$to>"
-     sleep 1; echo "DATA"
-     sleep 1; cat <<ENDDOC
+    (cat <<ENDDOC
 From: ELPA update <do.not.reply@elpa.gnu.org>
 To: $to
 Subject: $title
 
 ENDDOC
-         cat -; echo
-         echo "."; sleep 1) | telnet "$mx_gnu_org" smtp
+     cat -) | /usr/sbin/sendmail "$to"
 }
 
 # Send an email to warn about a problem.
@@ -102,8 +96,7 @@ latest="emacs-packages-latest.tgz"
 (cd ../
  mkdir -p staging/packages
  # Not sure why we have `staging-old', but let's keep it for now.
- rm -rf staging-old
- cp -a staging staging-old
+ rsync -av --inplace --delete staging/. staging-old/.
  # Move new files into place but don't throw out old package versions.
  for f in build/archive/packages/*; do
      # PKG-VER
