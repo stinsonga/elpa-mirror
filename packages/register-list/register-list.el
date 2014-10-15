@@ -396,7 +396,7 @@ The list is displayed in a buffer named `*Register List*' in
   (register-list-mode)
   (goto-char (point-min))
   (line-move 2 t)
-  (if (called-interactively-p)
+  (if (called-interactively-p 'interactive)
       (message "[d]elete  [e/E]dit key/value  RET:jump/copy  [FNRSW]:select type  ?:help")
     (message "Register type: %s" register-list-current-type)))
 
