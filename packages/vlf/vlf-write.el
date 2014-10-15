@@ -29,6 +29,8 @@
 
 (require 'vlf-base)
 
+(defvar tramp-verbose)
+
 (defun vlf-write ()
   "Write current chunk to file.  Always return true to disable save.
 If changing size of chunk, shift remaining file content."

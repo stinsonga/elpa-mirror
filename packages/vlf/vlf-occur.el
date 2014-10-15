@@ -215,6 +215,8 @@ Prematurely ending indexing will still show what's found so far."
          (setq vlf-batch-size batch-size)))))
   (run-hook-with-args 'vlf-after-batch-functions 'occur))
 
+(defvar tramp-verbose)
+
 (defun vlf-build-occur (regexp vlf-buffer)
   "Build occur style index for REGEXP over VLF-BUFFER."
   (let* ((tramp-verbose (if (boundp 'tramp-verbose)
