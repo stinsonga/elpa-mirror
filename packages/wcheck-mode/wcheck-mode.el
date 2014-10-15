@@ -213,7 +213,9 @@
 
 
 ;;;###autoload
-(defcustom wcheck-language-data nil
+(defcustom wcheck-language-data
+  ;; FIXME: Auto-fill by looking at installed spell-checkers and dictionaries!
+  nil
   "Language configuration for `wcheck-mode'.
 
 The variable is an association list (alist) and its elements are
@@ -1951,25 +1953,22 @@ expression will return a boolean."
               (syntax-table-p (and (boundp value) (eval value)))))
         ((and (eq key 'face)
               (facep value)))
-        ((and (or (eq key 'regexp-start)
-                  (eq key 'regexp-body)
-                  (eq key 'regexp-end)
-                  (eq key 'regexp-discard))
+        ((and (memq key '(regexp-start regexp-body regexp-end regexp-discard))
               (stringp value)))
-        ((and (or (eq key 'program)
-                  (eq key 'action-program))
+        ((and (memq key '(program action-program))
               (or (stringp value)
-                  (functionp value))))
+                  (functionp value)
+                  (and value (symbolp value)
+                       (error "Invalid %s value: %S" key value)))))
         ((and (eq key 'args)
               (wcheck--list-of-strings-p value)))
         ((and (eq key 'action-args)
               (wcheck--list-of-strings-p value)))
-        ((and (or (eq key 'parser)
-                  (eq key 'action-parser))
-              (functionp value)))
-        ((or (eq key 'connection)
-             (eq key 'case-fold)
-             (eq key 'action-autoselect)))
+        ((and (memq key '(parser action-parser))
+              (or (functionp value)
+                  (and value
+                       (error "%s not a function: %S" key value)))))
+        ((memq key '(connection case-fold action-autoselect)))
         ((and (eq key 'read-or-skip-faces)
               (wcheck--list-of-lists-p value)))))
 
@@ -2017,11 +2016,11 @@ a (valid) value for the KEY then query the value from
 
 
 (defun wcheck--program-executable-p (program)
-  "Return t if PROGRAM is executable regular file."
-  (and (stringp program)
-       (file-regular-p program)
-       (file-executable-p program)
-       t))
+  "Return non-nil if PROGRAM is executable regular file."
+  (when (stringp program)
+    (let ((f (executable-find program)))
+      (and (file-regular-p f)
+           (file-executable-p f)))))
 
 
 (defun wcheck--program-configured-p (language)
