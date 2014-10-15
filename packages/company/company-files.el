@@ -1,6 +1,6 @@
-;;; company-files.el --- company-mode completion back-end for file names
+;;; company-files.el --- company-mode completion back-end for file paths
 
-;; Copyright (C) 2009-2011, 2013  Free Software Foundation, Inc.
+;; Copyright (C) 2009-2011, 2014  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 
@@ -28,24 +28,26 @@
 (require 'company)
 (require 'cl-lib)
 
-(defun company-files-directory-files (dir prefix)
+(defun company-files--directory-files (dir prefix)
   (ignore-errors
     (if (equal prefix "")
         (directory-files dir nil "\\`[^.]\\|\\`.[^.]")
       (file-name-all-completions prefix dir))))
 
-(defvar company-files-regexps
-  (let ((begin (if (eq system-type 'windows-nt)
-                   "[a-z][A-Z]\\"
-                 "~?/")))
+(defvar company-files--regexps
+  (let* ((root (if (eq system-type 'windows-nt)
+                   "[a-zA-Z]:/"
+                 "/"))
+         (begin (concat "\\(?:\\.\\{1,2\\}/\\|~/\\|" root "\\)")))
     (list (concat "\"\\(" begin "[^\"\n]*\\)")
           (concat "\'\\(" begin "[^\'\n]*\\)")
           (concat "\\(?:[ \t]\\|^\\)\\(" begin "[^ \t\n]*\\)"))))
 
-(defun company-files-grab-existing-name ()
-  ;; Grab file names with spaces, only when they include quotes.
+(defun company-files--grab-existing-name ()
+  ;; Grab the file name.
+  ;; When surrounded with quotes, it can include spaces.
   (let (file dir)
-    (and (cl-dolist (regexp company-files-regexps)
+    (and (cl-dolist (regexp company-files--regexps)
            (when (setq file (company-grab-line regexp 1))
              (cl-return file)))
          (setq dir (file-name-directory file))
@@ -54,36 +56,45 @@
          (file-name-all-completions (file-name-nondirectory file) dir)
          file)))
 
-(defvar company-files-completion-cache nil)
+(defvar company-files--completion-cache nil)
 
-(defun company-files-complete (prefix)
+(defun company-files--complete (prefix)
   (let* ((dir (file-name-directory prefix))
+         (key (list (file-name-nondirectory prefix)
+                    (expand-file-name dir)
+                    (nth 5 (file-attributes dir))))
          (file (file-name-nondirectory prefix))
          candidates directories)
-    (unless (equal dir (car company-files-completion-cache))
-      (dolist (file (company-files-directory-files dir file))
+    (unless (company-file--keys-match-p key (car company-files--completion-cache))
+      (dolist (file (company-files--directory-files dir file))
         (setq file (concat dir file))
         (push file candidates)
         (when (file-directory-p file)
           (push file directories)))
       (dolist (directory (reverse directories))
         ;; Add one level of children.
-        (dolist (child (company-files-directory-files directory ""))
+        (dolist (child (company-files--directory-files directory ""))
           (push (concat directory
                         (unless (eq (aref directory (1- (length directory))) ?/) "/")
                         child) candidates)))
-      (setq company-files-completion-cache (cons dir (nreverse candidates))))
+      (setq company-files--completion-cache (cons key (nreverse candidates))))
     (all-completions prefix
-                     (cdr company-files-completion-cache))))
+                     (cdr company-files--completion-cache))))
+
+(defun company-file--keys-match-p (new old)
+  (and (equal (cdr old) (cdr new))
+       (string-prefix-p (car old) (car new))))
 
 ;;;###autoload
 (defun company-files (command &optional arg &rest ignored)
-  "`company-mode' completion back-end existing file names."
+  "`company-mode' completion back-end existing file names.
+Completions works for proper absolute and relative files paths.
+File paths with spaces are only supported inside strings."
   (interactive (list 'interactive))
   (cl-case command
     (interactive (company-begin-backend 'company-files))
-    (prefix (company-files-grab-existing-name))
-    (candidates (company-files-complete arg))
+    (prefix (company-files--grab-existing-name))
+    (candidates (company-files--complete arg))
     (location (cons (dired-noselect
                      (file-name-directory (directory-file-name arg))) 1))
     (sorted t)
