@@ -1,6 +1,6 @@
 ;;; inferior-shen-mode --- an inferior-shen mode
 
-;; Copyright (C) 2011-2013 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2014 Free Software Foundation, Inc.
 
 ;; Authors: Michael Ilseman, Eric Schulte <schulte.eric@gmail.com>
 ;; Version: 0.1
@@ -27,7 +27,6 @@
 ;; This file defines an inferior Shen mode.
 
 ;;; Code:
-(eval-when-compile (require 'cl))
 (require 'comint)
 (require 'shen-mode)
 
@@ -256,9 +255,9 @@ containing the shen source code about to be evaluated.")
 (defun shen-remember-functions (start end)
   "Add functions defined between START and END to `shen-functions'."
   (interactive "r")
-  (flet ((clean (text)
-                (when text
-                  (set-text-properties 0 (length text) nil text) text)))
+  (let ((clean (lambda (text)
+                 (when text
+                   (set-text-properties 0 (length text) nil text) text))))
     (save-excursion
       (goto-char start)
       (let ((re (concat
@@ -267,8 +266,8 @@ containing the shen source code about to be evaluated.")
                  "[\n\r]?[ \t]*\\({\\(.+\\)}\\)?"))) ; type
         (while (re-search-forward re end t)
           (let ((name (intern (match-string 1)))
-                (doc (clean (match-string 3)))
-                (type (clean (match-string 5))))
+                (doc (funcall clean (match-string 3)))
+                (type (funcall clean (match-string 5))))
             (add-to-list 'shen-functions (list name type doc))))))))
 
 (add-hook 'shen-pre-eval-hook #'shen-remember-functions)
