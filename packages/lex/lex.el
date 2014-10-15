@@ -1,6 +1,6 @@
-;;; lex.el --- Lexical analyser construction
+;;; lex.el --- Lexical analyser construction  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2008,2013  Free Software Foundation, Inc.
+;; Copyright (C) 2008,2013,2014  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords:
@@ -964,7 +964,7 @@ Returns a new NFA."
           (optimize-char-table (cdr lexer) 'eq)
           ;; Eliminate the table if possible.
           (map-char-table
-           (lambda (range v)
+           (lambda (range _v)
              (setq char
                    (if (and (characterp range) (null char))
                        range t)))
@@ -1063,21 +1063,21 @@ Returns a new NFA."
 
 ;;; Matching engine
 
-(defun lex--match-bobp (arg pos &optional string)
+(defun lex--match-bobp (_arg pos &optional string)
   (= pos (if string 0 (point-min))))
 
-(defun lex--match-eobp (arg pos &optional string)
+(defun lex--match-eobp (_arg pos &optional string)
   (= pos (if string (length string) (point-max))))
 
-(defun lex--match-bolp (arg pos &optional string)
+(defun lex--match-bolp (_arg pos &optional string)
   (if string (or (= pos 0) (eq ?\n (aref string (1- pos))))
     (memq (char-before pos) '(nil ?\n))))
 
-(defun lex--match-eolp (arg pos &optional string)
+(defun lex--match-eolp (_arg pos &optional string)
   (if string (or (= pos (length string)) (eq ?\n (aref string pos)))
     (memq (char-after pos) '(nil ?\n))))
 
-(defun lex--match-bowp (arg pos &optional string)
+(defun lex--match-bowp (_arg pos &optional string)
   (and (not (if string (and (> pos 0)
                             (eq ?w (char-syntax (aref string (1- pos)))))
               (and (> pos (point-min)) (eq 2 (car (syntax-after (1- pos)))))))
@@ -1085,7 +1085,7 @@ Returns a new NFA."
                        (eq ?w (char-syntax (aref string pos))))
          (eq 2 (car (syntax-after pos))))))
 
-(defun lex--match-eowp (arg pos &optional string)
+(defun lex--match-eowp (_arg pos &optional string)
   (and (if string (and (> pos 0)
                        (eq ?w (char-syntax (aref string (1- pos)))))
          (and (> pos (point-min)) (eq 2 (car (syntax-after (1- pos))))))
@@ -1093,7 +1093,7 @@ Returns a new NFA."
                             (eq ?w (char-syntax (aref string pos))))
               (eq 2 (car (syntax-after pos)))))))
 
-(defun lex--match-bosp (arg pos &optional string)
+(defun lex--match-bosp (_arg pos &optional string)
   (and (not (if string
                 (and (> pos 0)
                      (memq (char-syntax (aref string (1- pos))) '(?w ?_)))
@@ -1103,7 +1103,7 @@ Returns a new NFA."
                        (memq (char-syntax (aref string pos)) '(?w ?_)))
          (memq (car (syntax-after pos)) '(2 3)))))
 
-(defun lex--match-eosp (arg pos &optional string)
+(defun lex--match-eosp (_arg pos &optional string)
   (and (if string (and (> pos 0)
                        (memq (char-syntax (aref string (1- pos))) '(?w ?_)))
          (and (> pos (point-min)) (memq (car (syntax-after (1- pos))) '(2 3))))
@@ -1111,7 +1111,7 @@ Returns a new NFA."
                             (memq (char-syntax (aref string pos)) '(?w ?_)))
               (memq (car (syntax-after pos)) '(2 3))))))
 
-(defun lex--match-not-word-boundary (arg pos &optional string)
+(defun lex--match-not-word-boundary (_arg pos &optional string)
   (eq (if string (and (> pos 0)
                       (eq ?w (char-syntax (aref string (1- pos)))))
         (and (> pos (point-min)) (eq 2 (car (syntax-after (1- pos))))))
@@ -1119,12 +1119,12 @@ Returns a new NFA."
                       (eq ?w (char-syntax (aref string pos))))
         (eq 2 (car (syntax-after pos))))))
 
-(defun lex--match-upper (arg pos &optional string)
+(defun lex--match-upper (_arg pos &optional string)
   (when (< pos (if string (length string) (point-max)))
     (let ((char (if string (aref string pos) (char-after pos))))
       (not (eq (downcase char) char)))))
 
-(defun lex--match-lower (arg pos &optional string)
+(defun lex--match-lower (_arg pos &optional string)
   (when (< pos (if string (length string) (point-max)))
     (let ((char (if string (aref string pos) (char-after pos))))
       (not (eq (upcase char) char)))))
