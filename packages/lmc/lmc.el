@@ -1,4 +1,4 @@
-;;; lmc.el --- Little Man Computer in Elisp
+;;; lmc.el --- Little Man Computer in Elisp  -*- lexical-binding:t -*-
 
 ;; Copyright (C) 2011, 2013, 2014  Free Software Foundation, Inc.
 
@@ -208,8 +208,7 @@ Also, when nil, evaluation is interrupted when the user hits a key.")
   (let ((word (car word))
         (label (nth 1 word))
         (code (nth 2 word)))
-    (let ((basepos (point))
-          (base (current-column)))
+    (let () ;; ((basepos (point)) (base (current-column)))
       (if (and label (symbolp label))
           (insert (symbol-name label)))
       ;; (when (>= (current-column) (+ base tab-width))
@@ -350,7 +349,7 @@ Also, when nil, evaluation is interrupted when the user hits a key.")
      (2 (lmc-font-lock-label)))
     (".$" (0 (lmc-font-lock-opcode)))))
 
-(defun lmc-after-change (beg end len)
+(defun lmc-after-change (beg end _len)
   (unless inhibit-read-only
     (save-excursion
       ;; Replace any TAB or NL inserted, which could interfere with parsing.
@@ -420,7 +419,7 @@ Also, when nil, evaluation is interrupted when the user hits a key.")
 (defun lmc-tool-bar-to-string (&optional map)
   (let ((res ""))
     (map-keymap
-     (lambda (k v)
+     (lambda (_k v)
        (when (eq (car v) 'menu-item)
          (let* ((label (nth 1 v))
                 (cmd (nth 2 v))
