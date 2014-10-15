@@ -71,6 +71,24 @@ type node' = node
 type obj = t
 end
 
+datatype exp_node
+  = Let of varpat_t list * rhs_t * exp_t
+  | Do of simpleexp_t * exp_t
+  | FunExp of fundef_t list * exp_t
+  | ContExp of BomId.t * varpat_t list option * exp_t * exp_t
+  | If of simpleexp_t * exp_t * exp_t
+  | Case of simpleexp_t * caserule_t list
+  | Typecase of TyParam.t * tycaserule_t list
+  | Apply of LongValueId.t * simpleexp_t list option * simpleexp_t list option
+  | Throw of BomId.t * tyargs_t option * simpleexp_t list option
+  | Return of simpleexp_t list option
+and rhs_node
+    = Composite of exp_t
+    | Simple of simpleexp_t
+
+withtype type_t = type_node Wrap.t
+     and tyargs_t = tyargs_node Wrap.t
+
 functor DoWrap(type node) : sig
           type t = node Wrap.t
           include WRAPPED
