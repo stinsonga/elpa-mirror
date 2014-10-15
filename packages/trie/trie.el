@@ -1,6 +1,6 @@
 ;;; trie.el --- Trie data structure
 
-;; Copyright (C) 2008-2010, 2012  Free Software Foundation, Inc
+;; Copyright (C) 2008-2010, 2012, 2014  Free Software Foundation, Inc
 
 ;; Author: Toby Cubitt <toby-predictive@dr-qubit.org>
 ;; Version: 0.2.6
@@ -1871,29 +1871,41 @@ elements that matched the corresponding groups, in order."
 ;; 	      "]")))
    ))
 
-
-(when (fboundp 'ad-define-subr-args)
-  (ad-define-subr-args 'edebug-prin1 '(object &optional printcharfun)))
-
-(defadvice edebug-prin1
-  (around trie activate compile preactivate)
+(defun trie--edebug-prin1 (orig object &optional printcharfun)
   (let ((pretty (trie--edebug-pretty-print object)))
     (if pretty
 	(progn
 	  (prin1 pretty printcharfun)
-	  (setq ad-return-value pretty))
-    ad-do-it)))
+          pretty)
+      (funcall orig object printcharfun))))
 
+(defun trie--edebug-prin1-to-string (orig object &optional noescape)
+  (or (trie--edebug-pretty-print object)
+      (funcall orig object noescape)))
 
-(when (fboundp 'ad-define-subr-args)
-  (ad-define-subr-args 'edebug-prin1-to-string '(object &optional noescape)))
+(if (fboundp 'advice-add)
+    (progn
+      (advice-add 'edebug-prin1 :around #'trie--edebug-prin1)
+      (advice-add 'edebug-prin1-to-string
+                  :around #'trie--edebug-prin1-to-string))
 
-(defadvice edebug-prin1-to-string
-  (around trie activate compile preactivate)
-  (let ((pretty (trie--edebug-pretty-print object)))
-    (if pretty
-	(setq ad-return-value pretty)
-      ad-do-it)))
+  (when (fboundp 'ad-define-subr-args)
+    (ad-define-subr-args 'edebug-prin1 '(object &optional printcharfun)))
+
+  (defadvice edebug-prin1
+      (around trie activate compile preactivate)
+    (setq ad-return-value
+          (trie--edebug-prin1 (lambda (object printcharfun) ad-do-it)
+                              object printcharfun)))
+
+  (when (fboundp 'ad-define-subr-args)
+    (ad-define-subr-args 'edebug-prin1-to-string '(object &optional noescape)))
+
+  (defadvice edebug-prin1-to-string
+      (around trie activate compile preactivate)
+    (setq ad-return-value
+          (trie--edebug-prin1-to-string (lambda (object noescape) ad-do-it)
+                                        object noescape))))
 
 
 
