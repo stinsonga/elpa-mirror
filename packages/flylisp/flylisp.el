@@ -1,6 +1,6 @@
 ;;; flylisp.el --- Color unbalanced parentheses and parentheses inconsistent with indentation -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2013  Free Software Foundation, Inc.
+;; Copyright (C) 2013-2014  Free Software Foundation, Inc.
 
 ;; Author: Barry O'Reilly <gundaetiapo@gmail.com>
 ;; Version: 0.2
@@ -471,6 +471,8 @@ next in the list. This is used to scan-lists efficiently."
                                 font-lock-face nil
                                 rear-nonsticky nil))
       (forward-char 1))))
+
+(defvar jit-lock-start)
 
 (defsubst flylisp-extend-region-after-change (start _end _old-len)
   ;; It seems redisplay works its way from before start to after end,
