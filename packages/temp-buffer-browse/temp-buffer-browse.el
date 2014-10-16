@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013-2014  Free Software Foundation, Inc.
 
 ;; Author: Leo Liu <sdl.web@gmail.com>
-;; Version: 1.2
+;; Version: 1.3
 ;; Keywords: convenience
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -26,6 +26,9 @@
 ;; respectively.
 
 ;;; Code:
+
+;; fringe not preloaded for tty emacs
+(eval-when-compile (require 'fringe))
 
 (eval-and-compile
   (cond
@@ -56,9 +59,8 @@
 
 (defcustom temp-buffer-browse-fringe-bitmap 'centered-vertical-bar
   "Fringe bitmap to use in the temp buffer window."
-  :type '(restricted-sexp :match-alternatives
-                          ((lambda (s)
-                             (and (symbolp s) (fringe-bitmap-p s)))))
+  :type `(restricted-sexp :match-alternatives
+                          (,(lambda (s) (and (symbolp s) (fringe-bitmap-p s)))))
   :group 'help)
 
 (defvar temp-buffer-browse--window nil)
