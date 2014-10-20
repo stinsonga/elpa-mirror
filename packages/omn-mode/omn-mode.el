@@ -57,7 +57,6 @@ See `imenu-generic-expression' for details")
     "AnnotationProperty:"
     "DisjointClasses:"
     "Prefix:"
-    "Alias:"
     "owl:Thing"))
 
 (defvar omn-mode-property-keywords
@@ -140,7 +139,11 @@ See `imenu-generic-expression' for details")
          "\\<and\\>"
          "\\<or\\>"
          "\\<exactly\\>"
+         "\\<max\\>"
+         "\\<min\\>"
          "Transitive"
+         "Functional"
+         "InverseFunctional"
          )
        "\\|")
      . font-lock-type-face)
