@@ -84,6 +84,7 @@
 ;; calling `cygpath'.  See
 ;; https://cygwin.com/ml/cygwin/2013-03/msg00228.html.
 
+
 ;;; Code:
 
 
@@ -131,23 +132,31 @@ class name.  The order of classes which were not matched is defined by
 ;;; Dealing with XML
 
 (defun javaimp-xml-child-list (xml-tree child-name)
-  "Returns list of children of XML-TREE filtered by CHILD-NAME."
+  "Returns list of children of XML-TREE filtered by CHILD-NAME"
   (let (result)
     (dolist (child (cddr xml-tree) result)
       (when (and (listp child)
 		 (eq (car child) child-name))
 	(push child result)))))
 
+(defun javaimp-xml-child (name el)
+  "Returns a child of EL named by symbol NAME"
+  (assq name (cddr el)))
+
+(defun javaimp-xml-first-child (el)
+  "Returns a first child of EL"
+  (car (cddr el)))
+
 
-;; A module is represented as a list of the form `(ARTIFACT-ID POM-FILE
-;; SOURCE-DIR TEST-SOURCE-DIR POM-FILE-MOD-TS JARS-LIST)'.
+;; A module is represented as a list of the form `(ARTIFACT POM-FILE
+;; SOURCE-DIR TEST-SOURCE-DIR POM-FILE-MOD-TS PARENT)'.
 
-(defsubst javaimp-make-mod (artifact-id pom-file source-dir test-source-dir
-					pom-file-mod-ts jars-list)
-  (list artifact-id pom-file source-dir test-source-dir
-	pom-file-mod-ts jars-list))
+(defsubst javaimp-make-mod (artifact pom-file source-dir test-source-dir
+					pom-file-mod-ts jars-list parent)
+  (list artifact pom-file source-dir test-source-dir
+	pom-file-mod-ts jars-list parent))
 
-(defsubst javaimp-get-mod-artifact-id (module)
+(defsubst javaimp-get-mod-artifact (module)
   (nth 0 module))
 
 (defsubst javaimp-get-mod-pom-file (module)
@@ -168,6 +177,36 @@ class name.  The order of classes which were not matched is defined by
   (nth 5 module))
 (defsubst javaimp-set-mod-pom-deps (module value)
   (setcar (nthcdr 5 module) value))
+
+(defsubst javaimp-get-mod-parent (module)
+  (nth 6 module))
+(defsubst javaimp-set-mod-parent (module value)
+  (setcar (nthcdr 6 module) value))
+
+
+;; An artifact is represented as a list: (GROUP-ID ARTIFACT-ID VERSION).
+
+(defun javaimp-make-artifact (group-id artifact-id version)
+  (list group-id artifact-id version))
+
+(defun javaimp-artifact-group-id (artifact)
+  (car artifact))
+
+(defun javaimp-artifact-artifact-id (artifact)
+  (cadr artifact))
+
+(defun javaimp-artifact-version (artifact)
+  (caddr artifact))
+
+(defun javaimp-artifact-to-string (artifact)
+  (format "%s:%s:%s"
+	  (javaimp-artifact-artifact-id artifact)
+	  (javaimp-artifact-group-id artifact)
+	  (javaimp-artifact-version (artifact))))
+
+(defun javaimp-parse-artifact (artifact)
+  (apply #'javaimp-make-artifact (split-string artifact ":")))
+
 
 
 ;; A jar is represented as follows: `(JAR-PATH JAR-MOD-TS . CLASSES-LIST).
@@ -212,6 +251,14 @@ PATH.  PATH should point to a directory."
       (push (cons root-pom modules) javaimp-maven-root-modules))
     (message "Loaded modules for %s" path)))
 
+(defun javaimp-get-projects (xml-tree)
+  (cond ((assq 'projects xml-tree)
+	 (javaimp-xml-child-list (assq 'projects xml-tree) 'project))
+	((assq 'project xml-tree)
+	 (list (assq 'project xml-tree)))
+	(t
+	 (error "Cannot find projects in mvn output"))))
+	
 (defun javaimp-maven-load-module-tree (pom)
   "Returns an alist of all Maven modules in a hierarchy starting
 with POM"
@@ -219,37 +266,55 @@ with POM"
   (javaimp-call-mvn
    pom "help:effective-pom"
    (lambda ()
-     (let (xml-start-pos xml-end-pos project-extractor)
+     (let (xml-start-pos xml-end-pos start-tag)
+       ;; find where we should start parsing XML
        (goto-char (point-min))
-       (re-search-forward "<\\?xml\\|<project")
+       (re-search-forward "<\\?xml\\|<projects?>")
        (setq xml-start-pos (match-beginning 0))
-       ;; build module tree
-       (setq project-extractor
-	     (cond ((search-forward "</projects>" nil t)
-	      ;; returns all <project> nodes below <projects>
-	      (lambda (xml-tree)
-		(javaimp-xml-child-list (assq 'projects xml-tree) 'project)))
-	     ((search-forward "</project>" nil t)
-	      ;; returns a list with a single <project> as the sole element
-	      (lambda (xml-tree)
-		(list (assq 'project xml-tree))))
-	     (t (error "Cannot find projects in mvn output"))))
+       ;; determine the start tag
+       (goto-char (point-min))
+       (re-search-forward "<\\(projects?\\)>")
+       ;; find closing tag which is also the end of the region to parse
+       (search-forward (concat "</" (match-string 1) ">"))
        (setq xml-end-pos (match-end 0))
-       (javaimp-maven-build-module-tree 
-	(funcall project-extractor (xml-parse-region xml-start-pos xml-end-pos))
-	(javaimp-build-artifact-pomfile-alist (list pom)))))))
+       ;; parse
+       (let ((artifact-pomfile-alist
+	      (javaimp-build-artifact-pomfile-alist (list pom)))
+	     (children (javaimp-get-projects
+			(xml-parse-region xml-start-pos xml-end-pos))))
+	 (javaimp-maven-build-children children artifact-pomfile-alist))))))
 
-(defun javaimp-maven-build-module-tree (projects artifact-pomfile-alist)
+(defun javaimp-make-artifact-from-xml (node)
+  (javaimp-make-artifact
+   (javaimp-xml-first-child (javaimp-xml-child 'groupId node))
+   (javaimp-xml-first-child (javaimp-xml-child 'artifactId node))
+   (javaimp-xml-first-child (javaimp-xml-child 'version node))))
+
+(defun javaimp-get-pom-file-path-lax (artifact artifact-pomfile-alist)
+  (assoc-default
+   artifact artifact-pomfile-alist
+   (lambda (tested target)
+     (or (equal target tested)
+	 (equal (javaimp-artifact-artifact-id target)
+		(javaimp-artifact-artifact-id tested))))))
+
+(defun javaimp-maven-build-children (projects artifact-pomfile-alist)
   (let (result)
     (dolist (proj projects result)
-      (let* ((artifact-id (car (cddr (assq 'artifactId (cddr proj)))))
-	     (pom-file-path (cdr (assoc artifact-id artifact-pomfile-alist)))
-	     (source-dir (car (cddr (assq 'sourceDirectory 
-					  (cddr (assq 'build (cddr proj)))))))
-	     (test-source-dir (car (cddr (assq 'testSourceDirectory 
-					       (cddr (assq 'build (cddr proj))))))))
+      (let* ((artifact (javaimp-make-artifact-from-xml proj))
+	     (pom-file-path (javaimp-get-pom-file-path-lax
+			     artifact artifact-pomfile-alist))
+	     (build (javaimp-xml-child 'build proj))
+	     (source-dir (javaimp-xml-first-child
+			  (javaimp-xml-child 'sourceDirectory build))) 
+	     (test-source-dir (javaimp-xml-first-child
+			       (javaimp-xml-child 'testSourceDirectory
+						  build)))
+	     (parent (javaimp-make-artifact-from-xml
+		      (javaimp-xml-child 'parent proj))))
 	(push (javaimp-make-mod 
-	       artifact-id pom-file-path
+	       artifact
+	       pom-file-path
 	       (file-name-as-directory
 		(if (eq system-type 'cygwin) 
 		    (car (process-lines javaimp-cygpath-program "-u"
@@ -260,13 +325,13 @@ with POM"
 		    (car (process-lines javaimp-cygpath-program "-u" 
 					test-source-dir))
 		  test-source-dir))
-	       nil nil)
+	       nil nil parent)
 	      result)))))
 
 (defun javaimp-build-artifact-pomfile-alist (pom-file-list)
   "Recursively builds an alist where each element is of the
-form (\"ARTIFACT-ID\" . \"POM-FILE-PATH\"). This is needed
-because there is no pom file path in the output of `mvn
+form (\"ARTIFACT\" . \"POM-FILE-PATH\"). This is needed because
+there is no pom file path in the output of `mvn
 help:effective-pom'.  Each pom file path in POM-FILE-LIST should
 be in platform's default format."
   (when pom-file-list
@@ -281,7 +346,7 @@ be in platform's default format."
 		      (assq 'project xml-tree)))
       (cons
        ;; this pom
-       (cons (car (cddr (assq 'artifactId (cddr project)))) pom-file)
+       (cons (javaimp-make-artifact-from-xml project) pom-file)
        (append
 	;; submodules
 	(javaimp-build-artifact-pomfile-alist
@@ -345,17 +410,31 @@ the temporary buffer and returns its result"
 					     deps-line))))
        (split-string deps-line (concat "[" path-separator "\n" "]+") t)))))
 
-(defun javaimp-get-dep-jars-cached (module)
-  "Returns a list of dependency jar file paths for a MODULE"
-  (let ((current-pom-file-mod-ts
-	 (nth 5 (file-attributes (javaimp-get-mod-pom-file module)))))
-    (unless (and (javaimp-get-mod-pom-mod-ts module)
-		 (equal (float-time (javaimp-get-mod-pom-mod-ts module))
-			(float-time current-pom-file-mod-ts)))
-      ;; cache entry does not exist or is invalid - refresh it
-      (javaimp-set-mod-pom-deps module (javaimp-maven-fetch-module-deps module))
-      (javaimp-set-mod-pom-mod-ts module current-pom-file-mod-ts))
-    (javaimp-get-mod-pom-deps module)))
+(defun javaimp-get-file-ts (file)
+  (nth 5 (file-attributes file)))
+
+(defun javaimp-any-pom-updated (modules)
+  (if (null modules)
+      nil
+    (let ((curr-ts (javaimp-get-file-ts
+		    (javaimp-get-mod-pom-file (car modules))))
+	  (last-ts (javaimp-get-mod-pom-mod-ts (car modules))))
+      (or (null last-ts)		; reading for the first time?
+	  (not (equal (float-time curr-ts) (float-time last-ts)))
+	  (javaimp-any-pom-updated (cdr modules))))))
+
+(defun javaimp-get-dep-jars-cached (module parent)
+  "Returns a list of dependency jar file paths for a MODULE.
+Both MODULE and PARENT poms are checked for updates because
+PARENT pom may have some versions which are inherited by the
+MODULE."
+  (when (javaimp-any-pom-updated (remq nil (list module parent)))
+    ;; (re-)fetch dependencies and update ts
+    (javaimp-set-mod-pom-deps
+     module (javaimp-maven-fetch-module-deps module))
+    (javaimp-set-mod-pom-mod-ts
+     module (javaimp-get-file-ts (javaimp-get-mod-pom-file module))))
+  (javaimp-get-mod-pom-deps module)))
 
 (defun javaimp-get-jdk-jars ()
   "Returns list of jars from the jre/lib subdirectory of the JDK
@@ -364,7 +443,6 @@ directory"
     (directory-files (concat (file-name-as-directory javaimp-jdk-home)
 			     (file-name-as-directory "jre/lib"))
 		     t "\\.jar$")))
-
 
 (defun javaimp-get-jar-classes-cached (jar)
   (let ((current-jar-mod-ts
@@ -401,27 +479,34 @@ directory"
 	(push jar javaimp-jar-classes-cache))
       (setq result (append (javaimp-get-jar-classes-cached jar) result)))))
 
-(defun javaimp-determine-module (file)
-  "Returns a module in which the source file FILE resides"
-  (let ((root-modules javaimp-maven-root-modules)
-	result)
-    (while (and root-modules (not result))
-      (setq result (javaimp-determine-module-from-root file (car root-modules)))
-      (setq root-modules (cdr root-modules)))
-    result))
+(defun javaimp-get-module-from-root (roots predicate)
+  (if (null roots)
+      nil
+    (let ((result (javaimp-get-module (cdr (car roots)) predicate)))
+      (or result
+	  (javaimp-get-module-from-root (cdr roots) predicate)))))
 
-(defun javaimp-determine-module-from-root (file root-module)
-  "Searches a hierarchy of modules starting at ROOT-MODULE for
-source file FILE"
-  (let ((modules (cdr root-module))
-	result)
-    (while (and modules (not result))
-      (if (or (string-prefix-p (javaimp-get-mod-source-dir (car modules)) file)
-	      (string-prefix-p (javaimp-get-mod-test-source-dir (car modules)) file))
-	  (setq result (car modules)))
-      (setq modules (cdr modules)))
-    result))
+(defun javaimp-get-module (modules predicate)
+  (cond ((null modules)
+	 nil)
+	((funcall predicate (car modules))
+	 (car modules))
+	(t
+	 (javaimp-get-module (cdr modules) predicate))))
+  
+(defun javaimp-get-module-by-file (file)
+  (javaimp-get-module-from-root
+   javaimp-maven-root-modules
+   (lambda (mod)
+     (or (string-prefix-p (javaimp-get-mod-source-dir mod) file)
+	 (string-prefix-p (javaimp-get-mod-test-source-dir mod) file)))))
 
+(defun javaimp-get-module-by-artifact (artifact)
+  (javaimp-get-module-from-root
+   javaimp-maven-root-modules
+   (lambda (mod)
+     (equal (javaimp-get-mod-artifact mod) artifact))))
+     
 
 ;;; Adding and organizing imports
 
@@ -435,13 +520,15 @@ module."
    (let* ((file (expand-file-name
 		 (or buffer-file-name
 		     (error "Buffer is not visiting a file!"))))
-	  (module (or (javaimp-determine-module file)
-		      (error "Cannot determine module for file: %s" file))))
+	  (module (or (javaimp-get-module-by-file file)
+		      (error "Cannot determine module for file: %s" file)))
+	  (parent (javaimp-get-module-by-artifact
+		   (javaimp-get-mod-parent module))))
      (list (completing-read
 	    "Import: "
 	    (append
 	     (javaimp-collect-jar-classes
-	      (append (javaimp-get-dep-jars-cached module)
+	      (append (javaimp-get-dep-jars-cached module parent)
 	      	      (javaimp-get-jdk-jars)))
 	     (and javaimp-include-current-project-classes
 		  (javaimp-get-module-classes module)))
