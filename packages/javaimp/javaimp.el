@@ -149,12 +149,12 @@ class name.  The order of classes which were not matched is defined by
 
 
 ;; A module is represented as a list of the form `(ARTIFACT POM-FILE
-;; SOURCE-DIR TEST-SOURCE-DIR POM-FILE-MOD-TS PARENT)'.
+;; SOURCE-DIR TEST-SOURCE-DIR POM-FILE-MOD-TS PARENT PARENT-TS)'.
 
 (defsubst javaimp-make-mod (artifact pom-file source-dir test-source-dir
-					pom-file-mod-ts jars-list parent)
+				     pom-file-mod-ts jars-list parent parent-ts)
   (list artifact pom-file source-dir test-source-dir
-	pom-file-mod-ts jars-list parent))
+	pom-file-mod-ts jars-list parent parent-ts))
 
 (defsubst javaimp-get-mod-artifact (module)
   (nth 0 module))
@@ -182,6 +182,11 @@ class name.  The order of classes which were not matched is defined by
   (nth 6 module))
 (defsubst javaimp-set-mod-parent (module value)
   (setcar (nthcdr 6 module) value))
+
+(defsubst javaimp-get-mod-parent-ts (module)
+  (nth 7 module))
+(defsubst javaimp-set-mod-parent-ts (module value)
+  (setcar (nthcdr 7 module) value))
 
 
 ;; An artifact is represented as a list: (GROUP-ID ARTIFACT-ID VERSION).
@@ -325,7 +330,7 @@ with POM"
 		    (car (process-lines javaimp-cygpath-program "-u" 
 					test-source-dir))
 		  test-source-dir))
-	       nil nil parent)
+	       nil nil parent nil)
 	      result)))))
 
 (defun javaimp-build-artifact-pomfile-alist (pom-file-list)
@@ -413,28 +418,39 @@ the temporary buffer and returns its result"
 (defun javaimp-get-file-ts (file)
   (nth 5 (file-attributes file)))
 
-(defun javaimp-any-pom-updated (modules)
-  (if (null modules)
+(defun javaimp-any-file-ts-updated (files)
+  (if (null files)
       nil
-    (let ((curr-ts (javaimp-get-file-ts
-		    (javaimp-get-mod-pom-file (car modules))))
-	  (last-ts (javaimp-get-mod-pom-mod-ts (car modules))))
+    (let ((curr-ts (javaimp-get-file-ts (car (car files))))
+	  (last-ts (cdr (car files))))
       (or (null last-ts)		; reading for the first time?
 	  (not (equal (float-time curr-ts) (float-time last-ts)))
-	  (javaimp-any-pom-updated (cdr modules))))))
-
+	  (javaimp-any-file-ts-updated (cdr files))))))
+      
 (defun javaimp-get-dep-jars-cached (module parent)
   "Returns a list of dependency jar file paths for a MODULE.
 Both MODULE and PARENT poms are checked for updates because
 PARENT pom may have some versions which are inherited by the
 MODULE."
-  (when (javaimp-any-pom-updated (remq nil (list module parent)))
-    ;; (re-)fetch dependencies and update ts
+  (when (javaimp-any-file-ts-updated
+	 (remq nil (list (cons (javaimp-get-mod-pom-file module)
+			       (javaimp-get-mod-pom-mod-ts module))
+			 (when parent
+			   (cons
+			    (javaimp-get-mod-pom-file parent)
+			   ;; here we check the saved parent ts because it
+			   ;; matters what version we had when we were
+			   ;; reloading this pom the last time
+			    (javaimp-get-mod-parent-ts module))))))
+    ;; (re-)fetch dependencies
     (javaimp-set-mod-pom-deps
      module (javaimp-maven-fetch-module-deps module))
+    ;; update timestamps
     (javaimp-set-mod-pom-mod-ts
-     module (javaimp-get-file-ts (javaimp-get-mod-pom-file module))))
-  (javaimp-get-mod-pom-deps module)))
+     module (javaimp-get-file-ts (javaimp-get-mod-pom-file module)))
+    (javaimp-set-mod-parent-ts
+     module (javaimp-get-file-ts (javaimp-get-mod-pom-file parent))))
+  (javaimp-get-mod-pom-deps module))
 
 (defun javaimp-get-jdk-jars ()
   "Returns list of jars from the jre/lib subdirectory of the JDK
