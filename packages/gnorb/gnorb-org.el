@@ -24,6 +24,9 @@
 
 ;;; Code:
 
+(eval-when-compile
+  (require 'cl))
+
 (require 'gnorb-utils)
 (require 'cl-lib)
 
@@ -134,18 +137,18 @@ future!"
       link)))
 
 (defun gnorb-org-restore-after-send ()
-  "After an email is sent, clean up the gnus summary buffer, put
-us back where we came from, and go through all the org ids that
-might have been in the outgoing message's headers and call
-`gnorb-trigger-todo-action' on each one."
+  "After an email is sent, go through all the org ids that might
+have been in the outgoing message's headers and call
+`gnorb-trigger-todo-action' on each one, then put us back where
+we came from."
   (delete-other-windows)
   (dolist (id gnorb-message-org-ids)
     (org-id-goto id)
-    (org-reveal)
     (gnorb-trigger-todo-action nil id))
   ;; this is a little unnecessary, but it may save grief
   (setq gnorb-gnus-message-info nil)
-  (setq gnorb-message-org-ids nil))
+  (setq gnorb-message-org-ids nil)
+  (gnorb-restore-layout))
 
 (defun gnorb-org-extract-links (&optional arg region)
   "See if there are viable links in the subtree under point."
@@ -228,18 +231,21 @@ See the docstring of `gnorb-org-handle-mail' for details."
 	      (lambda (r l)
 		(time-less-p
 		 (car (gnus-registry-get-id-key l 'creation-time))
-		 (car (gnus-registry-get-id-key r 'creation-time)))))))))
+		 (car (gnus-registry-get-id-key r 'creation-time))))))))
+	 (msg-id-link
+	  (when latest-msg-id
+	    (gnorb-msg-id-to-link latest-msg-id))))
     (cond
      ;; If there are no tracked messages, or the user has specifically
      ;; requested we ignore them with the prefix arg, just return the
      ;; found links in the subtree.
      ((or arg
-	  (null latest-msg-id))
+	  (null msg-id-link))
       all-links)
      ;; Otherwise ignore the other links in the subtree, and return
      ;; the latest message.
-     (latest-msg-id
-      `(:gnus ,(list (gnorb-msg-id-to-link latest-msg-id)))))))
+     (msg-id-link
+      `(:gnus ,(list msg-id-link))))))
 
 (defvar message-beginning-of-line)
 
@@ -256,26 +262,18 @@ headings."
   (require 'gnorb-gnus)
   (if (not messages)
       ;; Either compose new message...
-      (compose-mail (mapconcat 'identity mails ", "))
+      (compose-mail)
     ;; ...or follow link and start reply.
     (condition-case err
-	(let ((ret-val (org-gnus-open (org-link-unescape (car messages)))))
-	  ;; We failed to open the link (probably), ret-val would be
-	  ;; t otherwise
-	  (when (stringp ret-val)
-	    (error ret-val))
-	  (call-interactively
-	   'gnus-summary-wide-reply-with-original)
-	  ;; Add MAILS to message To header.
-	  (when mails
-	    (message-goto-to)
-	    (insert ", ")
-	    (insert (mapconcat 'identity mails ", "))))
-      (error (when (and (window-configuration-p gnorb-window-conf)
-			gnorb-return-marker)
-	       (set-window-configuration gnorb-window-conf)
-	       (goto-char gnorb-return-marker))
+	(gnorb-reply-to-gnus-link (car messages))
+      (error (gnorb-restore-layout)
 	     (signal (car err) (cdr err)))))
+  ;; Add MAILS to message To header.
+  (when mails
+    (message-goto-to)
+    (when messages
+      (insert ", "))
+    (insert (mapconcat 'identity mails ", ")))
   ;; Return us after message is sent.
   (add-to-list 'message-exit-actions
 	       'gnorb-org-restore-after-send t)
@@ -324,7 +322,7 @@ headings."
   (if (or mails messages)
       (if (not messages)
 	  (message-goto-subject)
-       (message-goto-body))
+	(message-goto-body))
     (message-goto-to))
   (run-hooks 'gnorb-org-after-message-setup-hook))
 
@@ -659,6 +657,7 @@ This won't work unless you've added a \"nngnorb\" server to
 your gnus select methods."
   ;; this should also work on the active region, if there is one.
   (interactive)
+  (require 'gnorb-gnus)
   (setq gnorb-window-conf (current-window-configuration))
   (move-marker gnorb-return-marker (point))
   (when (eq major-mode 'org-agenda-mode)
@@ -674,13 +673,13 @@ your gnus select methods."
   (let (id)
     (save-excursion
       (org-back-to-heading)
-      (setq id (concat "id+" (org-id-get-create))))
-    (gnorb-gnus-search-messages
-     id
-     `(when (and (window-configuration-p gnorb-window-conf)
-		 gnorb-return-marker)
-	(set-window-configuration gnorb-window-conf)
-	(goto-char gnorb-return-marker)))))
+      (setq id (concat "id+" (org-id-get-create)))
+      (gnorb-gnus-search-messages
+       id
+       `(when (and (window-configuration-p gnorb-window-conf)
+		   gnorb-return-marker)
+	  (set-window-configuration gnorb-window-conf)
+	  (goto-char gnorb-return-marker))))))
 
 (provide 'gnorb-org)
 ;;; gnorb-org.el ends here

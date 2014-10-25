@@ -24,13 +24,8 @@
 
 ;;; Code:
 
-(require 'mailcap)
-(require 'gnus)
-;(require 'message)
-;; (require 'bbdb) ;Avoid compilation failure if BBDB is not available.
-(require 'org)
-(require 'org-bbdb)
-(require 'org-gnus)
+(eval-when-compile
+  (require 'cl))
 
 (mailcap-parse-mimetypes)
 
@@ -102,6 +97,7 @@ with `gnorb-window-conf'.")
 	     (mapconcat
 	      'identity ign-headers-list "|")))))
 
+;;;###autoload
 (defun gnorb-restore-layout ()
   "Restore window layout and value of point after a Gnorb command.
 
@@ -111,9 +107,106 @@ to what it was. Bind it to a global key, or to local keys in Org
 and Gnus and BBDB maps."
   (interactive)
   (when (window-configuration-p gnorb-window-conf)
+    (select-frame-set-input-focus
+     (window-configuration-frame gnorb-window-conf))
     (set-window-configuration gnorb-window-conf)
     (when (buffer-live-p (marker-buffer gnorb-return-marker))
       (goto-char gnorb-return-marker))))
+
+(defun gnorb-bracket-message-id (id)
+  "Ensure message-id ID is bound by angle brackets."
+  ;; Always use a message-id with angle brackets around it.
+  ;; `gnus-summary-goto-article' can handle either, but
+  ;; `gnus-request-head' will fail without brackets IF you're
+  ;; requesting from an nntp group. Mysterious.
+  (unless (string-match "\\`<" id)
+    (setq id (concat "<" id)))
+  (unless (string-match ">\\'" id)
+    (setq id (concat id ">")))
+  id)
+
+(defun gnorb-unbracket-message-id (id)
+  "Ensure message-id ID is NOT bound by angle brackets."
+  ;; This shit is annoying, but Org wants an id with no brackets, and
+  ;; Gnus is safest with an id that has brackets. So here we are.
+  (replace-regexp-in-string "\\(\\`<\\|>\\'\\)" "" id))
+
+(defun gnorb-reply-to-gnus-link (link)
+  "Start a reply to the linked message."
+  (let* ((link (org-link-unescape link))
+	 (group (car (org-split-string link "#")))
+	 (id (gnorb-bracket-message-id
+	      (second (org-split-string link "#"))))
+	 (backend
+	  (car (gnus-find-method-for-group group))))
+    (gnorb-follow-gnus-link group id)
+    (call-interactively
+     (if (eq backend 'nntp)
+	 'gnus-summary-followup-with-original
+       'gnus-summary-wide-reply-with-original))))
+
+(defun gnorb-follow-gnus-link (group id)
+  "Be a little clever about following gnus links.
+
+The goal here is reuse frames and windows as much as possible, so
+we're not opening multiple windows on the *Group* buffer, for
+instance, and messing up people's layouts. There also seems to be
+an issue when opening a link to a message whose *Summary* buffer
+is already visible: somehow, after following the link, point ends
+up on the message _after_ the one we want, and things go haywire.
+
+So we try to be a little clever. The logical progression here is
+this:
+
+1. If the link's target group is already open in a *Summary*
+buffer, just switch to that buffer (if it's visible in any frame
+then raise it and switch focus, otherwise pull it into the
+current window) and go to the message with
+`gnus-summary-goto-article'.
+
+2. If the Gnus *Group* buffer is visible in any window or frame,
+raise that frame/window and give it focus before following the
+link.
+
+3. Otherwise just follow the link as usual, in the current
+window."
+  (let* ((sum-buffer (gnus-summary-buffer-name group))
+	 (target-buffer
+	  (cond
+	   ((gnus-buffer-exists-p sum-buffer)
+	    sum-buffer)
+	   ((gnus-buffer-exists-p gnus-group-buffer)
+	    gnus-group-buffer)
+	   (t nil)))
+	 (target-window (when target-buffer
+			  (get-buffer-window target-buffer t))))
+    (if target-window
+	;; Our target buffer is displayed somewhere: just go there.
+	(progn
+	  (select-frame-set-input-focus
+	   (window-frame target-window))
+	  (switch-to-buffer target-buffer))
+      ;; Our target buffer exists, but isn't displayed: pull it up.
+      (if target-buffer
+	  (switch-to-buffer target-buffer)))
+    (message "Following link...")
+    (if (gnus-buffer-exists-p sum-buffer)
+	(gnus-summary-goto-article id nil t)
+      (gnorb-open-gnus-link group id))))
+
+(defun gnorb-open-gnus-link (group id)
+  "Gnorb version of `org-gnus-follow-link'."
+  ;; We've probably already bracketed the id, but just in case this is
+  ;; called from elsewhere...
+  (let* ((id (gnorb-bracket-message-id id))
+	 (art-no (cdr (gnus-request-head id group)))
+	 (arts (gnus-group-unread group))
+	 success)
+    (gnus-activate-group group)
+    (setq success (gnus-group-read-group arts t group))
+    (if success
+	(gnus-summary-goto-article (or art-no id) nil t)
+      (signal 'error "Group could not be opened."))))
 
 (defun gnorb-trigger-todo-action (arg &optional id)
   "Do the actual restore action. Two main things here. First: if
@@ -138,16 +231,20 @@ agenda. Then let the user choose an action from the value of
 	   (save-excursion
 	     (org-id-goto id)
 	     (move-marker root-marker (point-at-bol)))))
-    ;; Query about attaching email attachments.
-    (org-with-point-at root-marker
-      (map-y-or-n-p
-       (lambda (a)
-	 (format "Attach %s to heading? "
-		 (file-name-nondirectory a)))
-       (lambda (a) (org-attach-attach a nil 'mv))
-       gnorb-gnus-capture-attachments
-       '("file" "files" "attach")))
-    (setq gnorb-gnus-capture-attachments nil)
+    (unless agenda-p
+      (org-reveal))
+    ;; Query about attaching email attachments. No matter what
+    ;; happens, clear `gnorb-gnus-capture-attachments'.
+    (unwind-protect
+	(org-with-point-at root-marker
+	  (map-y-or-n-p
+	   (lambda (a)
+	     (format "Attach %s to heading? "
+		     (file-name-nondirectory a)))
+	   (lambda (a) (org-attach-attach a nil 'mv))
+	   gnorb-gnus-capture-attachments
+	   '("file" "files" "attach")))
+      (setq gnorb-gnus-capture-attachments nil))
     (cl-labels
 	((make-entry
 	  (id)
@@ -239,7 +336,9 @@ and 'gnus."
 message."
   (let ((server-group (gnorb-msg-id-to-group msg-id)))
     (when server-group
-      (org-link-escape (concat server-group "#" msg-id)))))
+      (org-link-escape
+       (concat server-group "#"
+	       (gnorb-unbracket-message-id msg-id))))))
 
 (defun gnorb-msg-id-to-group (msg-id)
   "Given a message id, try to find the group it's in.
@@ -248,6 +347,7 @@ So far we're checking the registry, then the groups in
 `gnorb-gnus-sent-groups'. Use search engines? Other clever
 methods?"
   (let (candidates server-group)
+    (setq msg-id (gnorb-bracket-message-id msg-id))
     (catch 'found
       (when gnorb-tracking-enabled
 	;; Make a big list of all the groups where this message might
@@ -283,25 +383,64 @@ child headings."
 	(lambda (hl)
 	  (org-element-property :ID hl))))))
 
+;; Common functions for extracting references and relevant headings
+;; from the message under point. For use in gnorb-gnus.el functions.
+
+(defun gnorb-find-tracked-headings (headers &optional include-zombies)
+  "Check HEADERS for message references and return relevant heading IDs.
+
+HEADERs is a message's data header, as produced by
+\(gnus-interactive \"H\"\), or, equivalently:
+
+\(gnus-data-header \(gnus-data-find \(gnus-summary-article-number\)\)\)"
+  (let ((references (mail-header-references headers))
+	(msg-id (mail-header-message-id headers)))
+    (when gnorb-tracking-enabled
+      (gnorb-find-visit-candidates
+       (concat msg-id " " references) include-zombies))))
+
+(defun gnorb-choose-trigger-heading (&optional id)
+  "Given an Org heading ID, ask the user if they want to trigger it.
+
+If not, prompt for another target heading. Either way, return the
+target heading id."
+  (let ((id (if (stringp id)
+		id
+	      (car-safe id)))
+	refile-result)
+    (if (and id
+	     (y-or-n-p (message
+			"Attach part to %s"
+			(gnorb-pretty-outline id))))
+	id
+      (setq refile-result
+	    (org-refile-get-location "Attach part to" nil t))
+      (save-window-excursion
+	(find-file (nth 1 refile-result))
+	(goto-char (nth 3 refile-result))
+	(org-id-get-create)))))
+
 ;; Loading the registry
 
 (defvar gnorb-tracking-enabled nil
   "Internal flag indicating whether Gnorb is successfully plugged
   into the registry or not.")
 
+;;;###autoload
 (defun gnorb-tracking-initialize ()
   "Start using the Gnus registry to track correspondences between
 Gnus messages and Org headings. This requires that the Gnus
 registry be in use, and should be called after the call to
 `gnus-registry-initialize'."
   (require 'gnorb-registry)
+  (with-eval-after-load 'gnus-registry
+    (add-to-list 'gnus-registry-extra-entries-precious 'gnorb-ids)
+    (add-to-list 'gnus-registry-track-extra 'gnorb-ids))
   (add-hook
    'gnus-started-hook
    (lambda ()
      (unless (gnus-registry-install-p)
        (user-error "Gnorb tracking requires that the Gnus registry be installed."))
-     (add-to-list 'gnus-registry-extra-entries-precious 'gnorb-ids)
-     (add-to-list 'gnus-registry-track-extra 'gnorb-ids)
      (add-hook 'org-capture-mode-hook 'gnorb-registry-capture)
      (add-hook 'org-capture-prepare-finalize-hook 'gnorb-registry-capture-abort-cleanup)
      (setq gnorb-tracking-enabled t))))

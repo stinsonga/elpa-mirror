@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2014  Free Software Foundation, Inc.
 
-;; Version: 1
+;; Version: 1.0.1
 ;; Package-Requires: ((cl-lib "0.5"))
 
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
@@ -31,13 +31,14 @@
 
 ;;; Code:
 
-(if t (require 'bbdb))      ;`if'-trick avoids loading bbdb during compilation!
-(require 'gnorb-utils)
-(require 'nngnorb)
-(require 'gnorb-gnus)
-(require 'gnorb-bbdb)
-(require 'gnorb-org)
-(require 'gnorb-registry)
+(with-eval-after-load 'gnus
+ (require 'nngnorb)
+ (require 'gnorb-gnus)
+ (require 'gnorb-registry))
+(with-eval-after-load 'bbdb
+  (require 'gnorb-bbdb))
+(with-eval-after-load 'org
+ (require 'gnorb-org))
 
 (provide 'gnorb)
 ;;; gnorb.el ends here
