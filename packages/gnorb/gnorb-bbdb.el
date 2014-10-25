@@ -24,6 +24,10 @@
 
 ;;; Code:
 
+(eval-when-compile
+  (require 'cl))
+
+(require 'bbdb)
 (require 'gnorb-utils)
 (require 'cl-lib)
 
@@ -150,6 +154,61 @@ An example value might look like:"
   :group 'gnorb-bbdb)
 
 (defvar message-mode-hook)
+
+(when (fboundp 'bbdb-record-xfield-string)
+  (fset (intern (format "bbdb-read-xfield-%s"
+			gnorb-bbdb-org-tag-field))
+	(lambda (&optional init)
+	  (gnorb-bbdb-read-org-tags init)))
+
+  (fset (intern (format "bbdb-display-%s-multi-line"
+			gnorb-bbdb-org-tag-field))
+	(lambda (record)
+	  (gnorb-bbdb-display-org-tags record))))
+
+(defun gnorb-bbdb-read-org-tags (&optional init)
+  "Read Org mode tags, with `completing-read-multiple'."
+  (if (string< "24.3" (substring emacs-version 0 4))
+      (let ((crm-separator
+	     (concat "[ \t\n]*"
+		     (cadr (assq gnorb-bbdb-org-tag-field
+				 bbdb-separator-alist))
+		     "[ \t\n]*"))
+	    (crm-local-completion-map bbdb-crm-local-completion-map)
+	    (table (cl-mapcar #'car
+			   (org-global-tags-completion-table
+			    (org-agenda-files))))
+	    (init (if (consp init)
+		      (bbdb-join init
+				 (nth 2 (assq gnorb-bbdb-org-tag-field
+					      bbdb-separator-alist)))
+		    init)))
+	(completing-read-multiple
+	 "Tags: " table
+	 nil nil init))
+    (bbdb-split gnorb-bbdb-org-tag-field
+		(bbdb-read-string "Tags: " init))))
+
+(defun gnorb-bbdb-display-org-tags (record)
+  "Display the Org tags associated with the record.
+
+Org tags are stored in the `gnorb-bbdb-org-tags-field'."
+  (let ((full-field (assq gnorb-bbdb-org-tag-field
+			  (bbdb-record-xfields record)))
+	(val (bbdb-record-xfield
+	      record
+	      gnorb-bbdb-org-tag-field)))
+    (when val
+      ;; We already know that `fmt' and `indent' are dynamically
+      ;; bound, shut up about it.
+      (with-no-warnings
+       (bbdb-display-text (format fmt gnorb-bbdb-org-tag-field)
+			  `(xfields ,full-field field-label)
+			  'bbdb-field-name)
+       (if (consp val)
+	   (bbdb-display-list val gnorb-bbdb-org-tag-field "\n")
+	 (insert
+	  (bbdb-indent-string (concat val "\n") indent)))))))
 
 ;;;###autoload
 (defun gnorb-bbdb-mail (records &optional subject n verbose)
@@ -338,13 +397,13 @@ both, use \"C-u\" before the \"*\"."
 	  (delete-dups
 	   (cl-mapcan (lambda (r)
 		     (bbdb-record-xfield-split r gnorb-bbdb-org-tag-field))
-		   records))
+		   records)))
 	  "|")))
     (if tag-string
 	;; C-u = all headings, not just todos
 	(org-tags-view (not (equal current-prefix-arg '(4)))
                        tag-string)
-      (error "No org-tags field present"))))
+      (error "No org-tags field present")))
 
 ;;;###autoload
 (defun gnorb-bbdb-mail-search (records)
@@ -400,39 +459,43 @@ layout type."
     (define-key map [mouse-1] 'gnorb-bbdb-mouse-open-link)
     (define-key map (kbd "<RET>") 'gnorb-bbdb-RET-open-link)
     (when val
-      ;; indent and fmt are dynamically bound
       (when (eq format 'multi)
-	(bbdb-display-text (format fmt gnorb-bbdb-messages-field)
-			   `(xfields ,full-field field-label)
-			   'bbdb-field-name))
+	(with-no-warnings ; For `fmt'
+	  (bbdb-display-text (format fmt gnorb-bbdb-messages-field)
+			     `(xfields ,full-field field-label)
+			     'bbdb-field-name)))
       (insert (cond ((and (stringp val)
 			  (eq format 'multi))
-		     (bbdb-indent-string (concat val "\n") indent))
+		     (with-no-warnings ; For `indent'
+		       (bbdb-indent-string (concat val "\n") indent)))
 		    ((listp val)
+		     ;; Why aren't I using `bbdb-display-list' with a
+		     ;; preformatted list of messages?
 		     (concat
-		      (bbdb-indent-string
-		       (mapconcat
-			(lambda (m)
-			  (prog1
-			      (org-propertize
-			       (concat
-				(format-time-string
-				 (replace-regexp-in-string
-				  "%:subject" (gnorb-bbdb-link-subject m)
-				  (replace-regexp-in-string
-				   "%:count" (number-to-string count)
-				   (if (eq format 'multi)
-				       gnorb-bbdb-message-link-format-multi
-				     gnorb-bbdb-message-link-format-one)))
-				 (gnorb-bbdb-link-date m)))
-			       'face 'gnorb-bbdb-link
-			       'mouse-face 'highlight
-			       'gnorb-bbdb-link-count count
-			       'keymap map)
-			    (cl-incf count)))
-			val (if (eq format 'multi)
-				"\n" ", "))
-		       indent)
+		      (with-no-warnings ; For `indent' again
+			(bbdb-indent-string
+			 (mapconcat
+			  (lambda (m)
+			    (prog1
+				(org-propertize
+				 (concat
+				  (format-time-string
+				   (replace-regexp-in-string
+				    "%:subject" (gnorb-bbdb-link-subject m)
+				    (replace-regexp-in-string
+				     "%:count" (number-to-string count)
+				     (if (eq format 'multi)
+					 gnorb-bbdb-message-link-format-multi
+				       gnorb-bbdb-message-link-format-one)))
+				   (gnorb-bbdb-link-date m)))
+				 'face 'gnorb-bbdb-link
+				 'mouse-face 'highlight
+				 'gnorb-bbdb-link-count count
+				 'keymap map)
+			      (incf count)))
+			  val (if (eq format 'multi)
+				  "\n" ", "))
+			 indent))
 		      (if (eq format 'multi) "\n" "")))
 		    (t
 		     ""))))))

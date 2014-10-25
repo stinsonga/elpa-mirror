@@ -112,11 +112,14 @@ to the message's registry entry, under the 'gnorb-ids key."
       (error
        (setq abort-note 'dirty)))))
 
-(defun gnorb-find-visit-candidates (ids)
+(defun gnorb-find-visit-candidates (ids &optional include-zombies)
   "For all message-ids in IDS (which should be a list of
 Message-ID strings, with angle brackets, or a single string of
 Message-IDs), produce a list of Org ids for headings that are
-relevant to that message."
+relevant to that message.
+
+If optional argument INCLUDE_ZOMBIES is non-nil, return ID values
+even for headings that appear to no longer exist."
   (let (ret-val sub-val)
     (when (stringp ids)
       (setq ids (gnus-extract-references ids)))
@@ -128,7 +131,38 @@ relevant to that message."
 	      (setq sub-val
 		    (gnus-registry-get-id-key id 'gnorb-ids))
 	    (setq ret-val (append sub-val ret-val))))))
+    ;; This lets us be reasonably confident that the
+    ;; headings still exist.
+    (unless include-zombies
+      (cl-remove-if-not
+       (lambda (org-id)
+	 (org-id-find-id-file org-id))
+       ret-val))
     (delete-dups ret-val)))
+
+(defun gnorb-delete-association (msg-id org-id)
+  "Disassociate a message and a headline.
+
+This removes an Org heading's ORG-ID from the 'gnorb-ids key of
+the MSG-ID."
+  (let ((org-ids (gnus-registry-get-id-key msg-id 'gnorb-ids)))
+    (when (member org-id org-ids)
+      (gnus-registry-set-id-key msg-id 'gnorb-ids
+				(remove org-id org-ids)))))
+
+(defun gnorb-delete-all-assocations (org-id)
+  "Delete all message associations for an Org heading.
+
+The heading is identified by ORG-ID. This is suitable for use
+after an Org heading is deleted, for instance."
+  (let ((assoc-msgs (gnorb-registry-org-id-search org-id)))
+    (mapcar
+     (lambda (msg-id)
+       (let ((org-ids
+	      (gnus-registry-get-id-key msg-id 'gnorb-ids)))
+	 (gnus-registry-set-id-key
+	  msg-id 'gnorb-ids (remove org-id org-ids))))
+     assoc-msgs)))
 
 (defun gnorb-registry-org-id-search (id)
   "Find all messages that have the org ID in their 'gnorb-ids

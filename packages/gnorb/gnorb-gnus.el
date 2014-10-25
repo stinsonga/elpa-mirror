@@ -24,6 +24,10 @@
 
 ;;; Code:
 
+(eval-when-compile
+  (require 'cl))
+
+(require 'gnus)
 (require 'gnorb-utils)
 
 (declare-function org-gnus-article-link "org-gnus"
@@ -157,27 +161,15 @@ each message."
   "Attach HANDLE to an existing org heading."
   (let* ((filename (gnorb-gnus-save-part handle))
 	 (org-refile-targets gnorb-gnus-trigger-refile-targets)
-	 (ref-msg-ids
-	  (concat (gnus-fetch-original-field "references") " "
-		  (gnus-fetch-original-field "in-reply-to")))
-	 (rel-heading
-	  (when gnorb-tracking-enabled
-	    (car (gnorb-find-visit-candidates
-		  ref-msg-ids))))
-	 (org-heading
-	  (if (and rel-heading
-		   (y-or-n-p (message
-			      "Attach part to %s"
-			      (gnorb-pretty-outline rel-heading))))
-	      rel-heading
-	    (org-refile-get-location "Attach part to" nil t))))
+	 (headers (gnus-data-header
+		   (gnus-data-find
+		    (gnus-summary-article-number))))
+	 (tracked-headings (gnorb-find-tracked-headings headers))
+	 (target-heading
+	  (gnorb-choose-trigger-heading tracked-headings)))
     (require 'org-attach)
     (save-window-excursion
-      (if (stringp org-heading)
-	  (org-id-goto org-heading)
-	(progn
-	  (find-file (nth 1 org-heading))
-	  (goto-char (nth 3 org-heading))))
+      (org-id-goto target-heading)
       (org-attach-attach filename nil 'mv))))
 
 (defun gnorb-gnus-save-part (handle)
@@ -316,15 +308,21 @@ information about the outgoing message into
 
 ;;;###autoload
 (defun gnorb-gnus-outgoing-do-todo (&optional arg)
-  "Call this function to use the message currently being composed
-as an email todo action. If it's a new message, or a reply to a
-message that isn't referenced by any TODOs, a new TODO will be
-created. If it references an existing TODO, you'll be prompted to
-trigger a state-change or a note on that TODO.
+  "Use this command to use the message currently being composed
+as an email todo action.
 
-Otherwise, you can call it with a prefix arg to associate the
-sending/sent message with an existing Org subtree, and trigger an
-action on that subtree.
+If it's a new message, or a reply to a message that isn't
+referenced by any TODOs, a new TODO will be created.
+
+If it references an existing TODO, you'll be prompted to trigger
+a state-change or a note on that TODO after the message is sent.
+
+You can call it with a prefix arg to force choosing an Org
+subtree to associate with.
+
+If you've already called this command, but realize you made a
+mistake, you can call this command with a double prefix to reset
+the association.
 
 If a new todo is made, it needs a capture template: set
 `gnorb-gnus-new-todo-capture-key' to the string key for the
@@ -340,9 +338,9 @@ work."
   (interactive "P")
   (let ((org-refile-targets gnorb-gnus-trigger-refile-targets)
 	(compose-marker (make-marker))
-	header-ids ref-ids rel-headings gnorb-window-conf
-	reply-id reply-group in-reply-to)
-    (when arg
+	header-ids ref-ids rel-headings
+	gnorb-window-conf in-reply-to)
+    (when (equal arg '(4))
       (setq rel-headings
 	    (org-refile-get-location "Trigger action on" nil t))
       (setq rel-headings
@@ -353,87 +351,90 @@ work."
     (if (not (eq major-mode 'message-mode))
 	;; The message is already sent, so we're relying on whatever was
 	;; stored into `gnorb-gnus-message-info'.
-	(if arg
-	    (progn
-	      (push (car rel-headings) gnorb-message-org-ids)
-	      (gnorb-org-restore-after-send))
-	  (setq ref-ids (plist-get gnorb-gnus-message-info :refs))
-	  (if ref-ids
-	      ;; the message might be relevant to some TODO
-	      ;; heading(s). But if there had been org-id
-	      ;; headers, they would already have been
-	      ;; handled when the message was sent.
+	(if (equal arg '(16))
+	    (user-error "A double prefix is only useful with an
+	    unsent message.")
+	  (if arg
 	      (progn
-		(setq rel-headings (gnorb-find-visit-candidates ref-ids))
-		(if (not rel-headings)
-		    (gnorb-gnus-outgoing-make-todo-1)
-		  (dolist (h rel-headings)
-		    (push h gnorb-message-org-ids))
-		  (gnorb-org-restore-after-send)))
-	    ;; not relevant, just make a new TODO
-	    (gnorb-gnus-outgoing-make-todo-1)))
+		(push (car rel-headings) gnorb-message-org-ids)
+		(gnorb-org-restore-after-send))
+	    (setq ref-ids (plist-get gnorb-gnus-message-info :refs))
+	    (if ref-ids
+		;; the message might be relevant to some TODO
+		;; heading(s). But if there had been org-id
+		;; headers, they would already have been
+		;; handled when the message was sent.
+		(progn
+		  (setq rel-headings (gnorb-find-visit-candidates ref-ids))
+		  (if (not rel-headings)
+		      (gnorb-gnus-outgoing-make-todo-1)
+		    (dolist (h rel-headings)
+		      (push h gnorb-message-org-ids))
+		    (gnorb-org-restore-after-send)))
+	      ;; not relevant, just make a new TODO
+	      (gnorb-gnus-outgoing-make-todo-1))))
       ;; We are still in the message composition buffer, so let's see
       ;; what we've got.
 
-      ;; What we want is a link to the original message we're replying
-      ;; to, if this is actually a reply.
-      (when message-reply-headers
-	(setq reply-id (aref message-reply-headers 4)))
-      ;; Save-excursion won't work, because point will move if we
-      ;; insert headings.
-      (move-marker compose-marker (point))
-      (save-restriction
-	(widen)
-	(message-narrow-to-headers-or-head)
-	(setq header-ids (mail-fetch-field gnorb-mail-header nil nil t))
-	;; With a prefix arg we do not check references, because the
-	;; whole point is to add new references. We still want to know
-	;; what org id headers are present, though, so we don't add
-	;; duplicates.
-	(setq ref-ids (unless arg (mail-fetch-field "References" t)))
-	(setq in-reply-to (unless arg (mail-fetch-field "In-Reply-to" t)))
-	(when in-reply-to
-	  (setq ref-ids (concat ref-ids " " in-reply-to)))
-	(setq reply-group (when (mail-fetch-field "X-Draft-From" t)
-			    (car-safe (read (mail-fetch-field "X-Draft-From" t)))))
-	;; when it's a reply, store a link to the reply just in case.
-	;; This is pretty embarrassing -- we follow a link just to
-	;; create a link. But I'm not going to recreate all of
-	;; `org-store-link' by hand.
-	(when (and reply-group reply-id)
-	  (save-window-excursion
-	    (org-gnus-follow-link reply-group reply-id)
-	    (call-interactively 'org-store-link)))
-	(when ref-ids
-	  ;; if the References header points to any message ids that are
-	  ;; tracked by TODO headings...
-	  (setq rel-headings (gnorb-find-visit-candidates ref-ids)))
-	(when rel-headings
-	  (goto-char (point-min))
-	  (dolist (h (delete-dups rel-headings))
-	    ;; then get the org-ids of those headings, and insert
-	    ;; them into this message as headers. If the id was
-	    ;; already present in a header, don't add it again.
-	    (unless (member h header-ids)
-	      (goto-char (point-at-bol))
-	      (open-line 1)
-	      (message-insert-header
-	       (intern gnorb-mail-header)
-	       h)
-	      ;; tell the rest of the function that this is a relevant
-	      ;; message
-	      (push h header-ids)))))
-      (goto-char compose-marker)
-      (add-to-list
-       'message-exit-actions
-       (if header-ids
-	   'gnorb-org-restore-after-send
-	 'gnorb-gnus-outgoing-make-todo-1)
-       t)
-      (message
-       (if header-ids
-	   "Message will trigger TODO state-changes after sending"
-	 "A TODO will be made from this message after it's sent")))))
+      (if (equal arg '(16))
+	  ;; Double prefix arg means delete the association we already
+	  ;; made.
+	  (save-excursion
+	    (save-restriction
+	      (widen)
+	      (setq message-exit-actions
+		    (remove 'gnorb-org-restore-after-send
+			    (remove 'gnorb-gnus-outgoing-make-todo-1
+				    message-exit-actions)))
+	      (message-narrow-to-headers-or-head)
+	      (message-remove-header
+	       gnorb-mail-header)
+	      (message "Message associations have been reset")))
+	;; Save-excursion won't work, because point will move if we
+	;; insert headings.
+	(move-marker compose-marker (point))
+	(save-restriction
+	  (widen)
+	  (message-narrow-to-headers-or-head)
+	  (setq header-ids (mail-fetch-field gnorb-mail-header nil nil t))
+	  ;; With a prefix arg we do not check references, because the
+	  ;; whole point is to add new references. We still want to know
+	  ;; what org id headers are present, though, so we don't add
+	  ;; duplicates.
+	  (setq ref-ids (unless arg (mail-fetch-field "References" t)))
+	  (setq in-reply-to (unless arg (mail-fetch-field "In-Reply-to" t)))
+	  (when in-reply-to
+	    (setq ref-ids (concat ref-ids " " in-reply-to)))
+	  (when ref-ids
+	    ;; if the References header points to any message ids that are
+	    ;; tracked by TODO headings...
+	    (setq rel-headings (gnorb-find-visit-candidates ref-ids)))
+	  (when rel-headings
+	    (goto-char (point-min))
+	    (dolist (h (delete-dups rel-headings))
+	      ;; then get the org-ids of those headings, and insert
+	      ;; them into this message as headers. If the id was
+	      ;; already present in a header, don't add it again.
+	      (unless (member h header-ids)
+		(goto-char (point-at-bol))
+		(open-line 1)
+		(message-insert-header
+		 (intern gnorb-mail-header)
+		 h)
+		;; tell the rest of the function that this is a relevant
+		;; message
+		(push h header-ids)))))
+	(goto-char compose-marker)
+	(add-to-list
+	 'message-exit-actions
+	 (if header-ids
+	     'gnorb-org-restore-after-send
+	   'gnorb-gnus-outgoing-make-todo-1)
+	 t)
+	(message
+	 (if header-ids
+	     "Message will trigger TODO state-changes after sending"
+	   "A TODO will be made from this message after it's sent"))))))
 
 (defvar org-capture-link-is-already-stored)
 
@@ -485,7 +486,7 @@ work."
 ;;; call this function on it.
 
 ;;;###autoload
-(defun gnorb-gnus-incoming-do-todo (arg headers &optional id)
+(defun gnorb-gnus-incoming-do-todo (arg &optional id)
   "Call this function from a received gnus message to store a
 link to the message, prompt for a related Org heading, visit the
 heading, and either add a note or trigger a TODO state change.
@@ -500,7 +501,7 @@ there match the value of the `gnorb-org-msg-id-key' property for
 any headings. In order for this to work, you will have to have
 loaded org-id, and have the variable `org-id-track-globally' set
 to t (it is, by default)."
-  (interactive (gnus-interactive "P\nH"))
+  (interactive "P")
   (when (not (memq major-mode '(gnus-summary-mode gnus-article-mode)))
     (user-error "Only works in gnus summary or article mode"))
   ;; We should only store a link if it's not already at the head of
@@ -509,7 +510,10 @@ to t (it is, by default)."
   (setq gnorb-window-conf (current-window-configuration))
   (move-marker gnorb-return-marker (point))
   (setq gnorb-gnus-message-info nil)
-  (let* ((msg-id (mail-header-id headers))
+  (let* ((headers (gnus-data-header
+		   (gnus-data-find
+		    (gnus-summary-article-number))))
+	 (msg-id (mail-header-id headers))
 	 (from (mail-header-from headers))
 	 (subject (mail-header-subject headers))
 	 (date (mail-header-date headers))
@@ -517,33 +521,43 @@ to t (it is, by default)."
 	 (group gnus-newsgroup-name)
 	 (link (call-interactively 'org-store-link))
 	 (org-refile-targets gnorb-gnus-trigger-refile-targets)
-	 (ref-msg-ids (mail-header-references headers))
-	 (offer-heading
-	  (when (and (not id) ref-msg-ids gnorb-tracking-enabled)
-	    (if org-id-track-globally
-		;; for now we're basically ignoring the fact that
-		;; multiple candidates could exist; just do the first
-		;; one.
-		(car (gnorb-find-visit-candidates
-		      ref-msg-ids))
-	      (message "Gnorb can't check for relevant headings unless `org-id-track-globally' is t")
-	      (sit-for 1))))
+	 (ref-msg-ids (concat (mail-header-references headers) " "
+			      msg-id))
+	 (related-headings
+	  (when (and (null id) ref-msg-ids)
+	    ;; Specifically ask for zombies, so the user has chance to
+	    ;; flush them out.
+	    (gnorb-find-tracked-headings headers t)))
 	 targ)
     (setq gnorb-gnus-message-info
-	    `(:subject ,subject :msg-id ,msg-id
-		       :to ,to :from ,from
-		       :link ,link :date ,date :refs ,ref-msg-ids
-		       :group ,group))
+	  `(:subject ,subject :msg-id ,msg-id
+		     :to ,to :from ,from
+		     :link ,link :date ,date :refs ,ref-msg-ids
+		     :group ,group))
     (gnorb-gnus-collect-all-attachments nil t)
     ;; Delete other windows, users can restore with
     ;; `gnorb-restore-layout'.
     (delete-other-windows)
     (if id
 	(gnorb-trigger-todo-action arg id)
-      (if (and offer-heading
-	       (y-or-n-p (format "Trigger action on %s"
-				 (gnorb-pretty-outline offer-heading))))
-	  (gnorb-trigger-todo-action arg offer-heading)
+      ;; Flush out zombies (dead associations).
+      (setq related-headings
+	    (cl-remove-if
+	     (lambda (h)
+	       (when (null (org-id-find-id-file h))
+		 (when (y-or-n-p
+			(format
+			 "ID %s no longer exists, disassociate message?"
+			 h))
+		   (gnorb-delete-association msg-id h))))
+	     related-headings))
+      (if (catch 'target
+	    (dolist (h related-headings nil)
+	      (when (yes-or-no-p
+		     (format "Trigger action on %s"
+			     (gnorb-pretty-outline h)))
+		(throw 'target (setq targ h)))))
+	  (gnorb-trigger-todo-action arg targ)
 	(setq targ (org-refile-get-location
 		    "Trigger heading" nil t))
 	(find-file (nth 1 targ))
@@ -564,15 +578,17 @@ will all be displayed in an ephemeral group on the \"nngnorb\"
 server. There must be an active \"nngnorb\" server for this to
 work."
   (interactive)
+  (require 'nnir)
   (let ((nnir-address
 	 (or (gnus-method-to-server '(nngnorb))
 	     (user-error
 	      "Please add a \"nngnorb\" backend to your gnus installation."))))
     (when (version= "5.13" gnus-version-number)
-      (setq nnir-current-query nil
-	    nnir-current-server nil
-	    nnir-current-group-marked nil
-	    nnir-artlist nil))
+      (with-no-warnings		  ; All these variables are available.
+	(setq nnir-current-query nil
+	      nnir-current-server nil
+	      nnir-current-group-marked nil
+	      nnir-artlist nil)))
     (gnus-group-read-ephemeral-group
      ;; in 24.4, the group name is mostly decorative. in 24.3, the
      ;; query itself is read from there. It should look like (concat
@@ -584,8 +600,7 @@ work."
 	 (list 'nnir nnir-address)
        (list 'nnir "nnir"))
      nil
-     ret ;; it's possible you can't just put an arbitrary form in
-	 ;; here, which sucks.
+     ret
      nil nil
      ;; the following seems to simply be ignored under gnus 5.13
      (list (cons 'nnir-specs (list (cons 'nnir-query-spec `((query . ,str)))
@@ -607,17 +622,18 @@ is relevant to any existing TODO headings. If so, flash a message
 to that effect. This function is added to the
 `gnus-article-prepare-hook'. It will only do anything if the
 option `gnorb-gnus-hint-relevant-article' is non-nil."
-  (when (and gnorb-tracking-enabled
-	     gnorb-gnus-hint-relevant-article
+  (when (and gnorb-gnus-hint-relevant-article
 	     (not (memq (car (gnus-find-method-for-group
 			      gnus-newsgroup-name))
 			'(nnvirtual nnir))))
-    (let* ((ref-ids (concat
-		     (gnus-fetch-original-field "references") " "
-		     (gnus-fetch-original-field "in-reply-to")))
-	   (msg-id (gnus-fetch-original-field "message-id"))
+    (let* ((headers
+	    (gnus-data-header
+	     (gnus-data-find
+	      (gnus-summary-article-number))))
 	   (assoc-heading
-	    (gnus-registry-get-id-key msg-id 'gnorb-ids))
+	    (gnus-registry-get-id-key
+	     (gnus-fetch-original-field "message-id") 'gnorb-ids))
+	   (tracked-headings (gnorb-find-tracked-headings headers))
 	   (key
 	    (where-is-internal 'gnorb-gnus-incoming-do-todo
 			       nil t))
@@ -625,30 +641,24 @@ option `gnorb-gnus-hint-relevant-article' is non-nil."
       (cond (assoc-heading
 	     (message "Message is associated with %s"
 		      (gnorb-pretty-outline (car assoc-heading) t)))
-	    (ref-ids
-	     (when (setq rel-headings
-			 (gnorb-find-visit-candidates ref-ids))
-	       (message "Possible relevant todo %s, trigger with %s"
-			(gnorb-pretty-outline (car rel-headings) t)
-			(if key
-			    (key-description key)
-			  "M-x gnorb-gnus-incoming-do-todo"))))))))
+	    (tracked-headings
+	     (message "Possible relevant todo %s, trigger with %s"
+		      (gnorb-pretty-outline (car tracked-headings) t)
+		      (if key
+			  (key-description key)
+			"M-x gnorb-gnus-incoming-do-todo")))
+	    (t nil)))))
 
 (add-hook 'gnus-article-prepare-hook 'gnorb-gnus-hint-relevant-message)
 
 (defun gnorb-gnus-insert-format-letter-maybe (header)
-  (if (and gnorb-tracking-enabled
-		 (not (memq (car (gnus-find-method-for-group
-				  gnus-newsgroup-name))
-			    '(nnvirtual nnir))))
-	    (let ((ref-ids (mail-header-references header))
-		  (msg-id (mail-header-message-id header)))
-	      (if (or (gnus-registry-get-id-key msg-id 'gnorb-ids)
-		      (and ref-ids
-			   (gnorb-find-visit-candidates ref-ids)))
-		  gnorb-gnus-summary-mark
-		" "))
-	  " "))
+  (if (not (memq (car (gnus-find-method-for-group
+		       gnus-newsgroup-name))
+		 '(nnvirtual nnir)))
+      (if (gnorb-find-tracked-headings header)
+	  gnorb-gnus-summary-mark
+	" ")
+    " "))
 
 (fset (intern (concat "gnus-user-format-function-"
 		      gnorb-gnus-summary-mark-format-letter))
@@ -658,18 +668,17 @@ option `gnorb-gnus-hint-relevant-article' is non-nil."
 ;;;###autoload
 (defun gnorb-gnus-view ()
   "Display the first relevant TODO heading for the message under point"
-  ;; this is pretty barebones, need to make sure we have a valid
-  ;; article buffer to access, and think about what to do for
-  ;; window-configuration!
-
-  ;; boy is this broken now.
   (interactive)
-  (let ((refs (gnus-fetch-original-field "references"))
-	rel-headings)
-    (when refs
-      (setq rel-headings (gnorb-find-visit-candidates refs))
+  (let ((headers (gnus-data-header
+		   (gnus-data-find
+		    (gnus-summary-article-number))))
+	(tracked-headings
+	 (gnorb-find-tracked-headings headers)))
+    (when tracked-headings
+      (setq gnorb-window-conf (current-window-configuration))
+      (move-marker gnorb-return-marker (point))
       (delete-other-windows)
-      (org-id-goto (car rel-headings)))))
+      (org-id-goto (car tracked-headings)))))
 
 (provide 'gnorb-gnus)
 ;;; gnorb-gnus.el ends here
