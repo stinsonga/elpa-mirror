@@ -59,7 +59,8 @@
   :type 'string)
 
 (defvar enwc-wicd-details-list
-  '("essid" "bssid" "quality" "encryption" "mode" "channel")
+  ;;'("essid" "bssid" "quality" "encryption" "mode" "channel")
+  '("essid" "bssid" "quality" "encryption" "channel")
   "The list of the desired details to be obtained from each network.")
 
 (defvar enwc-wicd-current-ap "")
@@ -70,35 +71,35 @@
   "Calls D-Bus method METHOD with arguments ARGS within
 the wicd wireless interface."
   (apply 'dbus-call-method :system
-	 enwc-wicd-dbus-service
-	 enwc-wicd-dbus-wireless-path
-	 enwc-wicd-dbus-wireless-interface
-	 method
-	 :timeout 25000
-	 args))
+         enwc-wicd-dbus-service
+         enwc-wicd-dbus-wireless-path
+         enwc-wicd-dbus-wireless-interface
+         method
+         :timeout 25000
+         args))
 
 (defun enwc-wicd-dbus-wired-call-method (method &rest args)
   "Calls D-Bus method METHOD with arguments ARGS within
 the wicd wired interface."
   (apply 'dbus-call-method :system
-	 enwc-wicd-dbus-service
-	 enwc-wicd-dbus-wired-path
-	 enwc-wicd-dbus-wired-interface
-	 method
-	 :timeout 25000
-	 args))
+         enwc-wicd-dbus-service
+         enwc-wicd-dbus-wired-path
+         enwc-wicd-dbus-wired-interface
+         method
+         :timeout 25000
+         args))
 
-;;;;;;;;;
-;; Scan
-;;;;;;;;;
+;;;;;;;;;;
+;; Scan ;;
+;;;;;;;;;;
 
 (defun enwc-wicd-scan ()
   "Wicd scan function."
   (enwc-wicd-dbus-wireless-call-method "Scan"))
 
-;;;;;;;;;;;;;;;;;
-;; Get networks
-;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;
+;; Get networks ;;
+;;;;;;;;;;;;;;;;;;
 
 (defun enwc-wicd-get-networks (&optional wired)
   (if wired
@@ -106,16 +107,17 @@ the wicd wired interface."
     (enwc-wicd-get-wireless-networks)))
 
 (defun enwc-wicd-get-wireless-networks ()
-  "Wicd get networks function.  Just returns a number sequence."
+  "Wicd get networks function.
+Just returns a number sequence."
   (number-sequence 0 (1- (enwc-wicd-dbus-wireless-call-method "GetNumberOfNetworks"))))
 
 (defun enwc-wicd-get-wired-profiles ()
   "Gets the list of wired network profiles."
   (enwc-wicd-dbus-wired-call-method "GetWiredProfileList"))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Get network properties
-;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Get network properties ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defvar enwc-wicd-prop-values nil)
 (defvar enwc-wicd-prop-num 0)
@@ -125,47 +127,42 @@ the wicd wired interface."
   "The handler for `enwc-wicd-get-wireless-network-property'.
 This receives the value of network property PROP,
 and appends the value to `enwc-wicd-prop-values'."
-  (setq enwc-wicd-prop-values (cons (cons prop (car args)) enwc-wicd-prop-values))
+  ;;(setq enwc-wicd-prop-values (cons (cons prop (car args)) enwc-wicd-prop-values))
+  (push `(,prop . ,(car args)) enwc-wicd-prop-values)
   (setq enwc-wicd-prop-num (1+ enwc-wicd-prop-num)))
 
 (defun enwc-wicd-prop-to-prop (prop)
-  "Converts a Wicd network property to an ENWC network property."
+  "Convert a Wicd network property to an ENWC network property."
   (cond
-   ((equal prop "essid") "essid")
-   ((equal prop "bssid") "bssid")
-   ((equal prop "quality") "strength")
-   ((equal prop "encryption") "encrypt")
-   ((equal prop "mode") "mode")
-   ((equal prop "channel") "channel")))
+   ((equal prop "essid") 'essid)
+   ((equal prop "bssid") 'bssid)
+   ((equal prop "quality") 'strength)
+   ((equal prop "encryption") 'encrypt)
+   ((equal prop "mode") 'mode)
+   ((equal prop "channel") 'channel)))
 
 (defun enwc-wicd-get-wireless-network-property (id prop)
   "Wicd get wireless network property function.
 This calls the D-Bus method on Wicd to get the property PROP
 from wireless network with id ID."
   (dbus-call-method-asynchronously :system
-				   enwc-wicd-dbus-service
-				   enwc-wicd-dbus-wireless-path
-				   enwc-wicd-dbus-wireless-interface
-				   "GetWirelessProperty"
-				   `(lambda (x) (enwc-wicd-nw-prop-handler ,prop x))
+                                   enwc-wicd-dbus-service
+                                   enwc-wicd-dbus-wireless-path
+                                   enwc-wicd-dbus-wireless-interface
+                                   "GetWirelessProperty"
+                                   `(lambda (x) (enwc-wicd-nw-prop-handler ,prop x))
                                    :timeout 1000
-				   :int32 id
-				   :string prop))
+                                   :int32 id
+                                   :string prop))
 
 (defun enwc-wicd-build-prop-list (prop-list det-list)
-  (let (ret
-	(act-det-list (reverse det-list)))
-    (while act-det-list
-      (let* ((cur-det (pop act-det-list))
-             (cur-prop (assoc cur-det prop-list))
-             (act-det (enwc-wicd-prop-to-prop cur-det)))
-        (setq ret
-              (cons (cons act-det
-                          (if cur-prop
-                              (cdr cur-prop)
-                            nil))
-                    ret))))
-    ret))
+  (mapcar
+   (lambda (det)
+     (let* ((cur-prop (assoc det prop-list))
+            (act-det (enwc-wicd-prop-to-prop det))
+            (act-prop (when cur-prop (cdr cur-prop))))
+       `(,act-det . ,act-prop)))
+   det-list))
 
 (defun enwc-wicd-get-wireless-nw-props (id)
   "Get the network properties of a network.
@@ -174,13 +171,12 @@ for the network with id ID.
 For a list of properties, see `enwc-wicd-details-list'."
   (setq enwc-wicd-prop-values nil)
   (setq enwc-wicd-prop-num 0)
-  (mapc (lambda (x)
-	    (enwc-wicd-get-wireless-network-property id x))
-	  enwc-wicd-details-list)
-  ;; Wait for less than a second.
+  (dolist (x enwc-wicd-details-list)
+    (enwc-wicd-get-wireless-network-property id x))
+
   (with-timeout (enwc-wicd-prop-timeout)
-      (while (< enwc-wicd-prop-num 6)
-	(read-event nil nil 0.001)))
+    (while (< enwc-wicd-prop-num (length enwc-wicd-details-list))
+      (read-event nil nil 0.001)))
 
   (if (assoc "encryption" enwc-wicd-prop-values)
       (let ((enc-type (enwc-wicd-get-encryption-type id)))
@@ -192,20 +188,22 @@ For a list of properties, see `enwc-wicd-details-list'."
 
   (enwc-wicd-build-prop-list enwc-wicd-prop-values enwc-wicd-details-list))
 
+(defalias 'enwc-wicd-get-wireless-network-props 'enwc-wicd-get-wireless-nw-props)
+
 (defun enwc-wicd-get-encryption-type (id)
   "Wicd get encryption type function.
 This calls the D-Bus method on Wicd to get the encryption_method
 property from wireless network with id ID."
   (enwc-wicd-dbus-wireless-call-method "GetWirelessProperty"
-				       id "encryption_method"))
+                                       id "encryption_method"))
 
 (defun enwc-wicd-get-wired-nw-prop (id det)
   "Gets property DET from the wired network with id ID."
   (enwc-wicd-dbus-wired-call-method "GetWiredProperty" id det))
 
-;;;;;;;;;;;;;;;;;;;;;
-;; Connect Functions
-;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;
+;; Connect Functions ;;
+;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun enwc-wicd-connect (id &optional wired)
   "Wicd connect function.
@@ -224,13 +222,13 @@ wireless network with id ID."
 (defun enwc-wicd-wired-connect (id)
   "Connects to the wired network with profile id ID."
   (let* ((profs (enwc-wicd-get-wired-profiles))
-	 (prf (nth id profs)))
+         (prf (nth id profs)))
     (enwc-wicd-dbus-wired-call-method "ReadWiredNetworkProfile" prf)
     (enwc-wicd-dbus-wired-call-method "ConnectWired")))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Disconnect functions.
-;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Disconnect functions ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun enwc-wicd-disconnect (&optional wired)
   (if wired
@@ -245,22 +243,28 @@ wireless network with id ID."
   "Disconnects from the wired connection."
   (enwc-wicd-dbus-wired-call-method "DisconnectWired"))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Get current network id
-;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Get current network id ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun enwc-wicd-get-current-nw-id (wired)
+(defun enwc-wicd-get-current-nw-id (wired-p)
   "Wicd get current network id function.
 The current network id is updated upon connect,
 so this jut returns the tracked network id."
-  (if wired
-      -1
-    (enwc-wicd-dbus-wireless-call-method "GetCurrentNetworkID")))
-    ;;enwc-wicd-current-nw-id))
+  (let ((ap (enwc-wicd-dbus-wireless-call-method "GetCurrentNetworkID")))
+    (cond
+     (wired-p 'wired)
+     ((< ap 0) nil)
+     (t ap)))
+  ;; (if wired
+  ;;     -1
+  ;;   (enwc-wicd-dbus-wireless-call-method "GetCurrentNetworkID"))
+  )
+;;enwc-wicd-current-nw-id))
 
-;;;;;;;;;;;;;;;;;;;;
-;; Check Connecting
-;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;
+;; Check Connecting ;;
+;;;;;;;;;;;;;;;;;;;;;;
 
 (defun enwc-wicd-check-connecting ()
   "The Wicd check connecting function."
@@ -295,32 +299,32 @@ The returned list will be in the format:
  (name . ((\"Name\" . \"DISPLAY-NAME\")
           (\"reqs\" . ((\"Display\" . \"id\") ...))))"
   (let (sec-types
-	ret-list)
+        ret-list)
     (with-temp-buffer
       (insert-file-contents (concat "/etc/wicd/encryption/templates/active"
-				    (if wired
-					"_wired")))
+                                    (if wired
+                                        "_wired")))
       (setq sec-types (split-string (buffer-string) "\n")))
     (setq ret-list
-	  (mapcar (lambda (x)
-		    (if (not (eq (length x) 0))
-			(let (name reqs)
-			  (with-temp-buffer
-			    (insert-file-contents (concat "/etc/wicd/encryption/templates/"
-							  x))
-			    (re-search-forward "name[ \t]*=[ \t]*\\([^\n]*\\)[\n]")
-			    (setq name (match-string 1))
-			    (re-search-forward "require[ \t]*\\([^\n]*\\)[\n]")
-			    (let ((str-reqs (split-string (match-string 1) " ")))
-			      (while str-reqs
-				(setq reqs
-				      (append reqs
-					      (cons (cons (pop str-reqs)
-							  (pop str-reqs))
-						    nil)))))
-			    (cons x (cons (cons "Name" name) (cons (cons "reqs" (cons reqs nil)) nil)))
-			    ))))
-		  sec-types))))
+          (mapcar (lambda (x)
+                    (if (not (eq (length x) 0))
+                        (let (name reqs)
+                          (with-temp-buffer
+                            (insert-file-contents (concat "/etc/wicd/encryption/templates/"
+                                                          x))
+                            (re-search-forward "name[ \t]*=[ \t]*\\([^\n]*\\)[\n]")
+                            (setq name (match-string 1))
+                            (re-search-forward "require[ \t]*\\([^\n]*\\)[\n]")
+                            (let ((str-reqs (split-string (match-string 1) " ")))
+                              (while str-reqs
+                                (setq reqs
+                                      (append reqs
+                                              (cons (cons (pop str-reqs)
+                                                          (pop str-reqs))
+                                                    nil)))))
+                            (cons x (cons (cons "Name" name) (cons (cons "reqs" (cons reqs nil)) nil)))
+                            ))))
+                  sec-types))))
 
 (defun enwc-wicd-get-profile-ent (wired id ent)
   "Gets profile entry ENT from the network with id ID.
@@ -334,10 +338,22 @@ functions, allowing for a single function that checks for wired."
 (defun enwc-wicd-get-profile-info (id &optional wired)
   (let ((dns-list (enwc-wicd-get-dns wired id)))
     (list (cons (cons "addr" (enwc-wicd-get-ip-addr wired id)) nil)
-	  (cons (cons "netmask" (enwc-wicd-get-netmask wired id)) nil)
-	  (cons (cons "gateway" (enwc-wicd-get-gateway wired id)) nil)
-	  (cons (cons "dns1" (nth 0 dns-list)) nil)
-	  (cons (cons "dns2" (nth 1 dns-list)) nil))))
+          (cons (cons "netmask" (enwc-wicd-get-netmask wired id)) nil)
+          (cons (cons "gateway" (enwc-wicd-get-gateway wired id)) nil)
+          (cons (cons "dns1" (nth 0 dns-list)) nil)
+          (cons (cons "dns2" (nth 1 dns-list)) nil))))
+
+(defun enwc-wicd-get-profile-sec-info (id sec-type &optional wired)
+  "Get the security info for profile with id ID and security type SEC-TYPE."
+  (let ((sec-reqs (cadr (assoc "reqs"
+                               (cdr (assoc sec-type
+                                           (enwc-wicd-get-sec-types wired))))))
+        ret-list)
+    (setq ret-list
+          (mapcar (lambda (x)
+                    (if (not (eq (length (cdr x)) 0))
+                        (cons (cdr x) (enwc-wicd-get-profile-ent wired id (car x)))))
+                  sec-reqs))))
 
 (defun enwc-wicd-get-ip-addr (wired id)
   "Gets the IP Address from the network with id ID.
@@ -350,20 +366,20 @@ WIRED is set to indicate whether this is a wired network."
   (or (enwc-wicd-get-profile-ent wired id "netmask") ""))
 
 (defun enwc-wicd-get-gateway (wired id)
-    "Gets the Gateway from the network with id ID.
+  "Gets the Gateway from the network with id ID.
 WIRED is set to indicate whether this is a wired network."
   (or (enwc-wicd-get-profile-ent wired id "gateway") ""))
 
 (defun enwc-wicd-get-dns (wired id)
-    "Gets the list of DNS servers from the network with id ID.
+  "Gets the list of DNS servers from the network with id ID.
 WIRED is set to indicate whether this is a wired network."
   (list (or (enwc-wicd-get-profile-ent wired id "dns1") "")
-	(or (enwc-wicd-get-profile-ent wired id "dns2") "")
-	(or (enwc-wicd-get-profile-ent wired id "dns3") "")))
+        (or (enwc-wicd-get-profile-ent wired id "dns2") "")
+        (or (enwc-wicd-get-profile-ent wired id "dns3") "")))
 
-;;;;;;;;;;;;;;;;;;;;;;;;
-;; Save Network Settings
-;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Save Network Settings ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun enwc-wicd-set-nw-prop (wired id prop val)
   "Sets the network property PROP of the network with id ID
@@ -371,9 +387,9 @@ to VAL.
 WIRED indicates whether this is a wired network."
   (if wired
       (enwc-wicd-dbus-wired-call-method "SetWiredProperty"
-					id prop val)
+                                        id prop val)
     (enwc-wicd-dbus-wireless-call-method "SetWirelessProperty"
-					 id prop val)))
+                                         id prop val)))
 
 (defun enwc-wicd-save-nw-profile (wired id)
   "Save the network profile with for the network with id ID.
@@ -388,53 +404,52 @@ the network with id ID."
   (let ((enctype (cdr (assoc "enctype" settings))))
 
     (enwc-wicd-set-nw-prop wired id "ip"
-			   (cdr (assoc "addr" settings)))
+                           (cdr (assoc "addr" settings)))
     (enwc-wicd-set-nw-prop wired id "netmask"
-			   (cdr (assoc "netmask" settings)))
+                           (cdr (assoc "netmask" settings)))
     (enwc-wicd-set-nw-prop wired id "gateway"
-			   (cdr (assoc "gateway" settings)))
+                           (cdr (assoc "gateway" settings)))
 
     (enwc-wicd-set-nw-prop wired id "dns1"
-			   (cdr (assoc "dns1" settings)))
+                           (cdr (assoc "dns1" settings)))
     (enwc-wicd-set-nw-prop wired id "dns2"
-			   (cdr (assoc "dns2" settings)))
+                           (cdr (assoc "dns2" settings)))
 
     (enwc-wicd-set-nw-prop wired id "enctype" enctype)
     (if (not (string= enctype "None"))
-	(dolist (x (cadr (assoc "reqs"
-				(cdr (assoc enctype
-					    (enwc-wicd-get-sec-types wired))))))
-	  (enwc-wicd-set-nw-prop wired id (car x)
-				 (cdr (assoc (car x) settings)))))
+        (dolist (x (cadr (assoc "reqs"
+                                (cdr (assoc enctype
+                                            (enwc-wicd-get-sec-types wired))))))
+          (enwc-wicd-set-nw-prop wired id (car x)
+                                 (cdr (assoc (car x) settings)))))
     (enwc-wicd-save-nw-profile wired id)))
 
 (defun enwc-wicd-wireless-prop-changed (state info)
-  (if state
-      (if (eq state 0)
-	  (setq enwc-wicd-current-ap ""
-		enwc-wicd-current-nw-id -1)
-	(setq enwc-wicd-current-ap (car (cadr info))
-	      enwc-wicd-current-nw-id (or (and info
-					       (nthcdr 3 info)
-					       (caar (nthcdr 3 info))
-					       (string-to-number (caar (nthcdr 3 info))))
-					  -1)))))
+  (when state
+    (if (eq state 0)
+        (setq enwc-wicd-current-ap ""
+              enwc-wicd-current-nw-id nil)
+      (setq enwc-wicd-current-ap (car (cadr info))
+            enwc-wicd-current-nw-id (and info
+                                         (nthcdr 3 info)
+                                         (caar (nthcdr 3 info))
+                                         (string-to-number (caar (nthcdr 3 info))))))))
 
 (defun enwc-wicd-setup ()
   ;; Thanks to Michael Albinus for pointing out this signal.
   (dbus-register-signal :system
-			enwc-wicd-dbus-service
-			enwc-wicd-dbus-wireless-path
-			enwc-wicd-dbus-wireless-interface
-			"SendEndScanSignal"
-			'enwc-process-scan)
+                        enwc-wicd-dbus-service
+                        enwc-wicd-dbus-wireless-path
+                        enwc-wicd-dbus-wireless-interface
+                        "SendEndScanSignal"
+                        'enwc-process-scan)
 
   (dbus-register-signal :system
-			enwc-wicd-dbus-service
-			"/org/wicd/daemon"
-			enwc-wicd-dbus-service
-			"StatusChanged"
-			'enwc-wicd-wireless-prop-changed))
+                        enwc-wicd-dbus-service
+                        "/org/wicd/daemon"
+                        enwc-wicd-dbus-service
+                        "StatusChanged"
+                        'enwc-wicd-wireless-prop-changed))
 
 (provide 'enwc-wicd)
 

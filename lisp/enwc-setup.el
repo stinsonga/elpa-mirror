@@ -27,94 +27,45 @@
 (require 'enwc-wicd)
 (require 'enwc-nm)
 
+(defun enwc--intern-sym (sym-name suffix)
+  (intern (concat "enwc-" sym-name suffix)))
+
 (defun enwc-setup-backend (cur-back)
   "Sets up ENWC to use the correct function for the backend CUR-BACK."
-  (let ((sym-name (symbol-name cur-back)))
-    (setq enwc-scan-func (intern (concat "enwc-"
-                                         sym-name
-                                         "-scan"))
-          enwc-get-nw-func (intern (concat "enwc-"
-                                           sym-name
-                                           "-get-networks"))
-          ;; enwc-get-wireless-nw-prop-func (intern (concat "enwc-"
-          ;;                                                sym-name
-          ;;                                                "-get-wireless-network-property"))
-          enwc-get-wireless-nw-props-func (intern (concat "enwc-"
-                                                          sym-name
-                                                          "-get-wireless-nw-props"))
-          enwc-connect-func (intern (concat "enwc-"
-                                            sym-name
-                                            "-connect"))
-          enwc-disconnect-func (intern (concat "enwc-"
-                                               sym-name
-                                               "-disconnect"))
-          ;; enwc-get-encryption-type-func (intern (concat "enwc-"
-          ;;                                            sym-name
-          ;;                                            "-get-encryption-type"))
-          ;; enwc-wireless-connect-func (intern (concat "enwc-"
-          ;;                                            sym-name
-          ;;                                            "-connect"))
-          enwc-get-current-nw-id-func (intern (concat "enwc-"
-                                                      sym-name
-                                                      "-get-current-nw-id"))
-          enwc-check-connecting-func (intern (concat "enwc-"
-                                                     sym-name
-                                                     "-check-connecting"))
-          ;; enwc-get-wired-profiles-func (intern (concat "enwc-"
-          ;;                                              sym-name
-          ;;                                              "-get-wired-profiles"))
-          enwc-is-wired-func (intern (concat "enwc-"
-                                             sym-name
-                                             "-is-wired"))
-          ;; enwc-wired-connect-func (intern (concat "enwc-"
-          ;;                                         sym-name
-          ;;                                         "-wired-connect"))
-          ;; enwc-wired-disconnect-func (intern (concat "enwc-"
-          ;;                                            sym-name
-          ;;                                            "-wired-disconnect"))
-          enwc-get-sec-types-func (intern (concat "enwc-"
-                                                  sym-name
-                                                  "-get-sec-types"))
-          ;; enwc-get-ip-addr-func (intern (concat "enwc-"
-          ;;                                       sym-name
-          ;;                                       "-get-ip-addr"))
-          ;; enwc-get-netmask-func (intern (concat "enwc-"
-          ;;                                       sym-name
-          ;;                                       "-get-netmask"))
-          ;; enwc-get-gateway-func (intern (concat "enwc-"
-          ;;                                       sym-name
-          ;;                                       "-get-gateway"))
-          ;; enwc-get-dns-func (intern (concat "enwc-"
-          ;;                                   sym-name
-          ;;                                   "-get-dns"))
-          enwc-get-profile-info-func (intern (concat "enwc-"
-                                                     sym-name
-                                                     "-get-profile-info"))
-          enwc-save-nw-settings-func (intern (concat "enwc-"
-                                                     sym-name
-                                                     "-save-nw-settings")))
-    (funcall (intern (concat "enwc-" sym-name "-setup")))))
+  (let* ((sym-name (symbol-name cur-back))
+         (eis (apply-partially 'enwc--intern-sym sym-name)))
+    (setq enwc-scan-func (funcall eis "-scan")
+          enwc-get-networks-func (funcall eis "-get-networks")
+          enwc-get-wireless-nw-props-func (funcall eis "-get-wireless-nw-props")
+          enwc-connect-func (funcall eis "-connect")
+          enwc-disconnect-func (funcall eis "-disconnect")
+          enwc-get-current-nw-id-func (funcall eis "-get-current-nw-id")
+          enwc-check-connecting-func (funcall eis "-check-connecting")
+          enwc-is-wired-func (funcall eis "-is-wired")
+          enwc-get-profile-info-func (funcall eis "-get-profile-info")
+          enwc-save-nw-settings-func (funcall eis "-save-nw-settings"))
+    (funcall (funcall eis "-setup"))))
 
 (defun enwc-setup ()
   "Sets up ENWC.
 This setups ENWC and confirms that one of the backends can be found
 on D-Bus."
-  (if enwc-display-mode-line
-      (enwc-enable-display-mode-line))
+  (when enwc-display-mode-line
+    (enwc-enable-display-mode-line))
 
-  (if (and enwc-auto-scan (> enwc-auto-scan-interval 0))
-      (setq enwc-scan-timer
-            (run-at-time t enwc-auto-scan-interval 'enwc-scan t)))
+  (when (and enwc-auto-scan (> enwc-auto-scan-interval 0))
+    (setq enwc-scan-timer
+          (run-at-time t enwc-auto-scan-interval 'enwc-scan t)))
 
   (let ((cur-back nil)
         (back-list enwc-backends))
     (while (and back-list (not cur-back))
       (setq cur-back (pop back-list))
-      (if (not (dbus-ping :system
-                          (symbol-value (intern (concat "enwc-"
-                                                        (symbol-name cur-back)
-                                                        "-dbus-service")))))
-          (setq cur-back nil)))
+      (unless (dbus-ping :system
+                         (symbol-value (intern (concat "enwc-"
+                                                       (symbol-name cur-back)
+                                                       "-dbus-service"))))
+        (setq cur-back nil)))
     (if cur-back
         (enwc-setup-backend cur-back)
       (error "No usable backend found."))))
