@@ -59,7 +59,6 @@
   :type 'string)
 
 (defvar enwc-wicd-details-list
-  ;;'("essid" "bssid" "quality" "encryption" "mode" "channel")
   '("essid" "bssid" "quality" "encryption" "channel")
   "The list of the desired details to be obtained from each network.")
 
@@ -255,12 +254,7 @@ so this jut returns the tracked network id."
     (cond
      (wired-p 'wired)
      ((< ap 0) nil)
-     (t ap)))
-  ;; (if wired
-  ;;     -1
-  ;;   (enwc-wicd-dbus-wireless-call-method "GetCurrentNetworkID"))
-  )
-;;enwc-wicd-current-nw-id))
+     (t ap))))
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Check Connecting ;;
@@ -292,40 +286,6 @@ so this jut returns the tracked network id."
 ;; Get Profile Info
 ;;;;;;;;;;;;;;;;;;;;;
 
-(defun enwc-wicd-get-sec-types (wired)
-  "Gets the list of security types.
-WIRED indicates whether this is a wired connection.
-The returned list will be in the format:
- (name . ((\"Name\" . \"DISPLAY-NAME\")
-          (\"reqs\" . ((\"Display\" . \"id\") ...))))"
-  (let (sec-types
-        ret-list)
-    (with-temp-buffer
-      (insert-file-contents (concat "/etc/wicd/encryption/templates/active"
-                                    (if wired
-                                        "_wired")))
-      (setq sec-types (split-string (buffer-string) "\n")))
-    (setq ret-list
-          (mapcar (lambda (x)
-                    (if (not (eq (length x) 0))
-                        (let (name reqs)
-                          (with-temp-buffer
-                            (insert-file-contents (concat "/etc/wicd/encryption/templates/"
-                                                          x))
-                            (re-search-forward "name[ \t]*=[ \t]*\\([^\n]*\\)[\n]")
-                            (setq name (match-string 1))
-                            (re-search-forward "require[ \t]*\\([^\n]*\\)[\n]")
-                            (let ((str-reqs (split-string (match-string 1) " ")))
-                              (while str-reqs
-                                (setq reqs
-                                      (append reqs
-                                              (cons (cons (pop str-reqs)
-                                                          (pop str-reqs))
-                                                    nil)))))
-                            (cons x (cons (cons "Name" name) (cons (cons "reqs" (cons reqs nil)) nil)))
-                            ))))
-                  sec-types))))
-
 (defun enwc-wicd-get-profile-ent (wired id ent)
   "Gets profile entry ENT from the network with id ID.
 WIRED is set to indicate whether this is a wired network.
@@ -336,24 +296,24 @@ functions, allowing for a single function that checks for wired."
     (enwc-wicd-dbus-wireless-call-method "GetWirelessProperty" id ent)))
 
 (defun enwc-wicd-get-profile-info (id &optional wired)
-  (let ((dns-list (enwc-wicd-get-dns wired id)))
-    (list (cons (cons "addr" (enwc-wicd-get-ip-addr wired id)) nil)
-          (cons (cons "netmask" (enwc-wicd-get-netmask wired id)) nil)
-          (cons (cons "gateway" (enwc-wicd-get-gateway wired id)) nil)
-          (cons (cons "dns1" (nth 0 dns-list)) nil)
-          (cons (cons "dns2" (nth 1 dns-list)) nil))))
+  "Get the profile for profile ID."
+  (let ((dns-list (enwc-wicd-get-dns wired id))
+        (sec-info (enwc-wicd-get-profile-sec-info)))
+    `((addr . ,(enwc-wicd-get-ip-addr wired id))
+      (netmask . ,(enwc-wicd-get-netmask wired id))
+      (gateway . ,(enwc-wicd-get-gateway wired id))
+      (dns1 . ,(nth 0 dns-list))
+      (dns2 . ,(nth 1 dns-list))
+      ,@sec-info)))
 
 (defun enwc-wicd-get-profile-sec-info (id sec-type &optional wired)
   "Get the security info for profile with id ID and security type SEC-TYPE."
-  (let ((sec-reqs (cadr (assoc "reqs"
-                               (cdr (assoc sec-type
-                                           (enwc-wicd-get-sec-types wired))))))
-        ret-list)
-    (setq ret-list
-          (mapcar (lambda (x)
-                    (if (not (eq (length (cdr x)) 0))
-                        (cons (cdr x) (enwc-wicd-get-profile-ent wired id (car x)))))
-                  sec-reqs))))
+  (mapcar
+   (lambda (ent)
+     (cons
+      (car ent)
+      (enwc-wicd-get-profile-ent wired id (symbol-name (car ent)))))
+   enwc-supplicant-alist))
 
 (defun enwc-wicd-get-ip-addr (wired id)
   "Gets the IP Address from the network with id ID.
