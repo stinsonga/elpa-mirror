@@ -237,32 +237,30 @@ This is only used internally.")
   "The face for the connected network."
   :group 'enwc)
 
-;; Necessary for the macros used later.
-(eval-when-compile
-  (defun enwc--break-by-words (str)
-    "Break up string STR into a list of words."
-    (cl-check-type str string)
-    (split-string str "-\\|_"))
+(defun enwc--break-by-words (str)
+  "Break up string STR into a list of words."
+  (cl-check-type str string)
+  (split-string str "-\\|_\\| "))
 
-  (defun enwc--sym-to-str (sym &optional seps)
-    "Create a string from symbol SYM.
+(defun enwc--sym-to-str (sym &optional seps)
+  "Create a string from symbol SYM.
 SEPS is a string specifying the separator to use to combine the words,
 or \" \" if not specified."
-    (cl-check-type sym symbol)
-    (unless seps
-      (setq seps " "))
-    (cl-check-type seps string)
-    (combine-and-quote-strings (enwc--break-by-words (symbol-name sym)) seps))
+  (cl-check-type sym symbol)
+  (unless seps
+    (setq seps " "))
+  (cl-check-type seps string)
+  (combine-and-quote-strings (enwc--break-by-words (symbol-name sym)) seps))
 
-  (defun ewnc--str-to-sym (str &optional seps)
-    "Create a symbol from the string STR.
+(defun enwc--str-to-sym (str &optional seps)
+  "Create a symbol from the string STR.
 This will break STR into words, and then put it back together separating
 each word by SEPS, which defaults to \"-\"."
-    (cl-check-type str string)
-    (unless seps
-      (setq seps "-"))
-    (cl-check-type seps string)
-    (intern (combine-and-quote-strings (enwc--break-by-words str) seps))))
+  (cl-check-type str string)
+  (unless seps
+    (setq seps "-"))
+  (cl-check-type seps string)
+  (intern (combine-and-quote-strings (enwc--break-by-words str) seps)))
 
 ;;;;;;;;;;;;;;;;;;;;
 ;; ENWC functions ;;
@@ -733,6 +731,7 @@ This is mostly useful to view the text of the hidden entries."
   :value-to-internal 'enwc-profile-props-to-widget
   :value-to-external 'enwc-widget-to-profile-props
   :match #'(lambda nil t)
+  :indent 1
   :args '((string :tag "Address")
           (string :tag "Netmask")
           (string :tag "Gateway")
@@ -769,6 +768,7 @@ This is mostly useful to view the text of the hidden entries."
          (quote (checklist :tag ,(capitalize (enwc--sym-to-str key))
                            :format "%{%t%}: %v"
                            :sample-face bold
+                           :indent ,(+ 4 (length (enwc--sym-to-str key)))
                            :args ,(mapcar
                                    (lambda (arg)
                                      `(item :tag ,arg :value ,(downcase arg)))
@@ -777,12 +777,13 @@ This is mostly useful to view the text of the hidden entries."
 (defmacro enwc--make-supplicant-choice (key &rest args)
   `(cons (quote ,key)
          (quote (menu-choice :tag ,(capitalize (enwc--sym-to-str key))
-                             :format "%{%t%}: %v"
-                             :sample-face bold
-                             ,@(mapcar
-                                (lambda (arg)
-                                  `(item :tag ,(downcase arg) :value ,arg))
-                                args)))))
+                                     :format "%[%t%]: %v"
+                                     :sample-face bold
+                                     :args
+                                     ,(mapcar
+                                       (lambda (arg)
+                                         `(item :tag ,(downcase arg) :value ,arg))
+                                       args)))))
 
 (defmacro enwc--make-supplicant-secret (key)
   `(cons (quote ,key)
@@ -810,7 +811,8 @@ This is mostly useful to view the text of the hidden entries."
          (quote (list :tag ,(capitalize (enwc--sym-to-str key))
                       :format "%{%t%}: %v"
                       :sample-face bold
-                      ,@(mapcar 'cdr args)))))
+                      :indent ,(length (enwc--sym-to-str key))
+                      :args ,(mapcar (lambda (x) (cdr (eval x))) args)))))
 
 (defconst enwc-supplicant-alist
   (list
@@ -835,12 +837,12 @@ This is mostly useful to view the text of the hidden entries."
    (enwc--make-supplicant-secret private-key-passwd)
    (enwc--make-supplicant-file pac-file)
    (enwc--make-supplicant-list phase1
-                               (enwc--make-supplicant-choice peapver "0" "1")
-                               (enwc--make-supplicant-choice peaplabel "0" "1")
-                               (enwc--make-supplicant-choice fast-provisioning "0" "1" "2" "3"))
+                               (enwc--make-supplicant-choice peapver "" "0" "1")
+                               (enwc--make-supplicant-choice peaplabel "" "0" "1")
+                               (enwc--make-supplicant-choice fast-provisioning "" "0" "1" "2" "3"))
    (enwc--make-supplicant-list phase2
-                               (enwc--make-supplicant-choice auth "MD5" "MSCHAPV2" "OTP" "GTC" "TLS")
-                               (enwc--make-supplicant-choice autheap "MD5" "MSCHAPV2" "OTP" "GTC" "TLS")
+                               (enwc--make-supplicant-choice auth "" "MD5" "MSCHAPV2" "OTP" "GTC" "TLS")
+                               (enwc--make-supplicant-choice autheap "" "MD5" "MSCHAPV2" "OTP" "GTC" "TLS")
                                (enwc--make-supplicant-file ca-cert)
                                (enwc--make-supplicant-file client-cert)
                                (enwc--make-supplicant-file private-key)
@@ -891,12 +893,12 @@ For more information, see the documentation for wpa_supplicant.")
                   (key-mgmt . ("wpa-eap"))
                   (pairwise . ("tkip"))
                   (group . ("tkip"))
-                  (eap . "peap")
+                  (eap . "PEAP")
                   (identity . req)
                   (password . req)
                   (ca-cert . opt)
                   (phase1 . ((peaplabel . "0")))
-                  (phase2 . ((auth . "mschapv2"))))))
+                  (phase2 . ((auth . "MSCHAPV2"))))))
   "The alist of templates for security.
 This should be an alist of the form (KEY . ((SUPPLICANT-KEY . INITIAL-INPUT) ...))
 Each SUPPLICANT-KEY should be a key from `enwc-supplicant-alist', and INITIAL-INPUT
@@ -918,6 +920,14 @@ for security information."
     (unless wid
       (error "Unknown supplicant type %s" (car ent)))
     ;; Set the initial value for the widget.
+    (when (eq (cadr wid) 'list)
+      (let (act-init)
+        (dolist (arg (widget-get (cdr wid) :args))
+          (push (alist-get (enwc--str-to-sym (downcase (widget-get arg :tag))) init "")
+                act-init))
+        (setq init (nreverse act-init))
+        (print (car ent))
+        (pp init)))
     (cons (cadr wid)
           (append (pcase init
                   (`req `(:required t :value ,(alist-get (car ent) sec-info "")))
@@ -931,6 +941,7 @@ for security information."
 If specified, SEC-INFO is passed to the templates to initialize them."
   `(menu-choice
     :tag "Security"
+    :indent 2
     ,@(mapcar
        (lambda (tm)
          `(list
