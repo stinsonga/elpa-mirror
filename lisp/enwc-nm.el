@@ -227,12 +227,11 @@ ID is a string that NetworkManager uses to identify this network."
       (setq cur-conn (pop conns))
       (let ((settings (enwc-nm-get-settings cur-conn))
             conn-set)
-        (if (not (assoc "connection" settings))
-            nil
+        (when (assoc "connection" settings)
           (setq conn-set (assoc "connection" settings))
           (setq cur-id (car (cadr (assoc "id" (cadr conn-set)))))
-          (if (string= cur-id id)
-              (setq uuid (car (cadr (assoc "uuid" (cadr conn-set)))))))))))
+          (when (string= cur-id id)
+            (setq uuid (car (cadr (assoc "uuid" (cadr conn-set)))))))))))
 
 (defun enwc-nm-get-conn-by-uuid (uuid)
   (enwc-nm-dbus-settings-call-method "GetConnectionByUuid"
@@ -243,9 +242,8 @@ ID is a string that NetworkManager uses to identify this network."
 (defun enwc-nm-get-conn-by-ssid (ssid)
   "Gets the connection path for the access point with ssid SSID."
   (let ((uuid (enwc-nm-get-uuid-by-ssid ssid)))
-    (if uuid
-        (enwc-nm-get-conn-by-uuid uuid)
-      nil)))
+    (when uuid
+      (enwc-nm-get-conn-by-uuid uuid))))
 
 ;; Not used.
 (defun enwc-nm-get-conn-by-id (id)
@@ -335,15 +333,7 @@ This gets the connection path from NW, and connects to it."
                      enwc-nm-dbus-wireless-interface)))
     (enwc-nm-dbus-call-method "RequestScan"
                               dev interface
-                              '(:array :signature "{sv}"))
-    ;; (dbus-call-method :system
-    ;;                   enwc-nm-dbus-service
-    ;;                   dev
-    ;;                   interface
-    ;;                   "RequestScan"
-    ;;                   :timeout 25000
-    ;;                   '(:array :signature "{sv}"))
-    ))
+                              '(:array :signature "{sv}"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Get network properties
@@ -360,16 +350,6 @@ PROP from that access point.  It also sets the channel from the
                      nw
                      enwc-nm-dbus-accesspoint-interface
                      prop))
-
-(defun enwc-nm-prop-to-prop (prop)
-  "Converts a NetworkManager property to an ENWC network property."
-  (pcase prop
-    ("Ssid" 'essid)
-    ("HwAddres" 'bssid)
-    ("Strength" 'strength)
-    ("Flags" 'encrypt)
-    ("Mode" 'mode)
-    ("Channel" 'channel)))
 
 (defun enwc-nm--freq-to-channel (freq)
   "Convert a frequency FREQ into a channel."
@@ -389,14 +369,6 @@ PROP from that access point.  It also sets the channel from the
       (channel  . ,(number-to-string (enwc-nm--freq-to-channel
                                       (cdr (assoc "Frequency" props))))))))
 
-(defun enwc-nm-get-conn-by-nid (nid)
-  "Gets a connection object with the network id NID."
-  (let* ((ssid (enwc-nm-get-wireless-network-property nid
-                                                      "Ssid"))
-         (uuid (enwc-nm-get-uuid-by-ssid ssid)))
-    (when uuid
-      (enwc-nm-get-conn-by-uuid uuid))))
-
 (defun enwc-nm-get-encryption-type (nw)
   "The NetworkManager get encryption type function.
 This gets the WPA flags and RSN flags from access point in NW.
@@ -413,10 +385,8 @@ If both are 0, then it returns WEP, otherwise WPA."
 
 (defun enwc-nm-string-idx (obj ls)
   "Determine the index of string OBJ in LIST."
-  (unless (stringp obj)
-    (signal 'wrong-type-argument `(stringp ,obj)))
-  (unless (listp ls)
-    (signal 'wrong-type-argument `(listp ,ls)))
+  (cl-check-type obj string)
+  (cl-check-type ls list)
   (let ((tmp-list ls)
         (cur-pos -1)
         cur-obj)
@@ -447,9 +417,9 @@ This simply checks for the active access point."
 STATE is the new state."
   (setq enwc-nm-connecting-p (eq state 40)))
 
-;;;;;;;;;;;;;;;;;;;;;
-;; Check Connecting
-;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;
+;; Check Connecting ;;
+;;;;;;;;;;;;;;;;;;;;;;
 
 (defun enwc-nm-check-connecting ()
   "The NetworkManager check connecting function."
@@ -466,20 +436,9 @@ STATE is the new state."
 (defun enwc-nm-is-wired ()
   enwc-nm-wired-p)
 
-;; Each entry in sec-types should be:
-;; ("IDENT" (("Name" . "NAME") ("reqs" . (("key1" . "Entry1") ("key2" . "Entry2") ... ))))
-;; Where:
-;;  "IDENT" => String that identifies this to the backend.
-;;  "NAME" => String that ENWC displays
-;;  "reqs" => Constant string, but the association list holds entries
-;;              required by the security type, i.e. user, passphrase, etc.
-;;  "keyXX" => String that the backend uses for this security entry.
-;;  "EntryXX" => String that ENWC displays for this security entry.
-
 (defun enwc-nm-get-sec-types (&optional wired)
   "Get security types."
-  (if wired
-      nil
+  (unless wired
     enwc-nm-sec-types))
 
 (defun enwc-nm-gen-uuid ()
@@ -513,6 +472,7 @@ STATE is the new state."
     (apply 'logior byte-string)))
 
 ;; These next two come from libnm-util/nm-utils.c in NM's source.
+;; TODO: These should be used.
 
 (defun enwc-nm-netmask-to-prefix (netmask)
   "Converts a netmask to a prefix.
@@ -538,272 +498,138 @@ NETMASK is an ip address in network byte order."
 (defun enwc-nm-prefix-to-netmask (prefix)
   "Converts a prefix to a netmask.
 PREFIX is an integer <= 32."
-  (if (not (integerp prefix))
-      (signal 'wrong-type-argument `(integerp ,prefix)))
+  (cl-check-type prefix integer)
   (let ((pf prefix)
         (netmask 0)
         (msk #x80000000))
     (while (> pf 0)
-      (setq netmask (logior netmask msk))
-      (setq msk (lsh msk -1))
-      (setq pf (1- pf)))
+      (setq netmask (logior netmask msk)
+            msk     (lsh msk -1)
+            pf      (1- pf)))
     netmask))
 
+(defun enwc-nm-get-dbus-dict-entry (entry dict)
+  "Get an entry ENTRY from D-Bus dictionary DICT.
+
+ENTRY is in the form LVL1/LVL2/.../LVLN, where each LVLi is a string
+representing another layer in the dictionary."
+  (let ((ent-strs (split-string entry "/"))
+        (cur-ent dict)
+        cur-str)
+    (while ent-strs
+      (setq cur-str (pop ent-strs))
+      (setq cur-ent (assoc cur-str cur-ent))
+      (when cur-ent
+        (setq cur-ent (cadr cur-ent))))))
+
+(defun enwc-nm-set-dbus-dict-entry (entry dict value)
+  "Set an entry."
+  (let ((ent-strs (split-string entry "/"))
+        (cur-ent dict)
+        cur-str)
+    (while ent-strs
+      (setq cur-str (pop ent-strs))
+      (setq cur-ent (assoc cur-str cur-ent))
+      (when (and cur-ent ent-strs)
+        (setq cur-ent (cadr cur-ent))))
+    (when cur-ent
+      (setcdr cur-ent `(,value)))))
+
 (defun enwc-nm-get-profile-info (id &optional wired)
-  (let ((conn (enwc-nm-get-conn-by-nid id)))
-    (when conn
-      (setq enwc-nm-edit-info
-            (enwc-nm-get-settings conn))))
+  (let ((settings (enwc-nm-get-settings id)))
+    (when settings
+      (let* ((adr-info (caar (enwc-nm-get-dbus-dict-entry "ipv4/addresses" settings)))
+             (ip-addr (enwc-nm-convert-addr (nth 0 adr-info)))
+             (netmask (enwc-nm-convert-addr (nth 3 adr-info)))
+             (gateway (enwc-nm-convert-addr (nth 2 adr-info)))
+             (dns-list (mapcar 'enwc-nm-convert-addr
+                               (car (enwc-nm-get-dbus-dict-entry "ipv4/dns"
+                                                                 settings))))
+             (sec-info (enwc-nm-get-sec-info settings)))
+        `((addr . ,ip-addr)
+          (netmask . ,netmask)
+          (gateway . ,gateway)
+          (dns1    . ,(nth 0 dns-list))
+          (dns2    . ,(nth 1 dns-list))
+          ,@sec-info)))))
 
-  (let (ip-addr netmask gateway dns-list nw-info)
-    (when enwc-nm-edit-info
-      (setq ip-addr (nth 0 (caar (cadr (assoc "addresses" (cadr (assoc "ipv4" enwc-nm-edit-info))))))
-            netmask (nth 3 (caar (cadr (assoc "addresses" (cadr (assoc "ipv4" enwc-nm-edit-info))))))
-            gateway (nth 2 (caar (cadr (assoc "address"   (cadr (assoc "ipv4" enwc-nm-edit-info))))))
-            dns-list (car (cadr (assoc "dns" (cadr (assoc "ipv4" enwc-nm-edit-info))))))
-      (setq ip-addr (enwc-nm-convert-addr ip-addr)
-            netmask (enwc-nm-convert-addr netmask)
-            gateway (enwc-nm-convert-addr gateway)
-            dns-list (mapcar 'enwc-nm-convert-addr
-                             dns-list))
-      `(("addr" . ,ip-addr)
-        ("netmask" . ,netmask)
-        ("gateway" . ,gateway)
-        ("dns1"    . ,(nth 0 dns-list))
-        ("dns2"    . ,(nth 1 dns-list)))
-      nil)))
+(defun enwc-nm-convert-dict-list (dict-ent settings)
+  "Convert a D-Bus dictionary entry DICT-ENT from SETTINGS to an alist."
+  (mapcar
+   (lambda (ent)
+     (cons
+      (intern (car ent))
+      (cl-caadr ent)))
+   (cadr (assoc dict-ent settings))))
 
-(defun enwc-nm-get-ip-addr (wired id)
-  "Gets the IP Address of a connection profile."
-  (let ((props (enwc-nm-get-settings (enwc-nm-get-conn-by-nid id)))
-        ipaddr ret-addr)
-    (if (not props)
-        (setq ret-addr "")
-      (setq ipaddr (nth 0 (caar (cadr (assoc "addresses"
-                                             (cadr (assoc "ipv4"
-                                                          props)))))))
-      (setq ret-addr (enwc-nm-convert-addr ipaddr)))))
+(defun enwc-nm-get-sec-info (settings)
+  "Get security information from SETTINGS."
+  (append
+   (enwc-nm-convert-dict-list "802-11-wireless-security" settings)
+   (enwc-nm-convert-dict-list "802-1x" settings)))
 
-(defun enwc-nm-get-netmask (wired id)
-  "Gets the Netmask of a connection profile."
-  (let ((props (enwc-nm-get-settings (enwc-nm-get-conn-by-nid id)))
-        ipaddr hex-addr ret-addr)
-    (if (not props)
-        (setq ret-addr "")
-      (setq ipaddr (nth 3 (caar (cadr (assoc "addresses"
-                                             (cadr (assoc "ipv4"
-                                                          props)))))))
-      (setq hex-addr (enwc-nm-prefix-to-netmask ipaddr))
-      (setq ret-addr (format "%i.%i.%i.%i"
-                             (logand hex-addr 255)
-                             (logand (lsh hex-addr -8) 255)
-                             (logand (lsh hex-addr -16) 255)
-                             (logand (lsh hex-addr -24) 255))))))
+(defun enwc-nm-pair-to-dbus-dict-ent (pair)
+  "Convert PAIR into a D-Bus dictionary entry."
+  (let ((str (car pair))
+        (var (cdr pair)))
+    `(:dict-entry (:string ,str :variant ,var))))
 
-(defun enwc-nm-get-gateway (wired id)
-  "Gets the Gateway of a connection profile."
-  (let ((props (enwc-nm-get-settings (enwc-nm-get-conn-by-nid id)))
-        ipaddr ret-addr)
-    (if (not props)
-        (setq ret-addr "")
-      (setq ipaddr (nth 2 (caar (cadr (assoc "addresses"
-                                             (cadr (assoc "ipv4"
-                                                          props)))))))
-      (setq ret-addr (enwc-nm-convert-addr ipaddr)))))
+(defun enwc-nm-alist-to-dbus-dict (alist)
+  "Convert ALIST into a D-Bus dictionary."
+  (let (dict)
+    (append
+     '(:array)
+     (dolist (pr alist dict)
+       (setq dict (apply 'list dict (enwc-nm-pair-to-dbus-dict-ent pr)))))))
 
-(defun enwc-nm-get-dns (wired id)
-  "Gets the DNS settings of a connection profile."
-  (let ((props (enwc-nm-get-settings (enwc-nm-get-conn-by-nid id)))
-        dns-list)
-    (setq dns-list (car (cadr (assoc "dns" (cadr (assoc "ipv4"
-                                                        props))))))
-    (mapcar 'enwc-nm-convert-addr
-            dns-list)))
+(defun enwc-nm-process-profile-info (settings prof-info)
+  (dolist (ent prof-info settings)
+    ;; Find the corresponding entry in settings, and set it to the new value.
+    ;; Check 802-11-wireless-security, then 802-1x, then ipv4.
+    (let ((ent-list '("802-11-wireless-security"
+                      "802-1x"
+                      "ipv4"))
+          cur-ent)
+      (while ent-list
+        (setq cur-ent (pop ent-list))
+        (when
+            (enwc-nm-set-dbus-dict-entry (concat ent-list "/"
+                                                 (symbol-name (car ent)))
+                                         settings
+                                         (cdr ent))
+          (setq ent-list nil))))))
 
-(defun enwc-nm-process-enctype (settings nw-settings)
-  "Process the encryption type.
-Sets up the encryption type passed in through SETTINGS."
-  (let* ((ret-list nw-settings)
-         (req-list (nthcdr 6 settings))
-         (enctype (cdr (assoc "enctype" settings)))
-         key-mgmt
-         new-list name-list
-         key-name)
-
-    ;; There is a possibility that any of these don't exist in
-    ;; nw-settings.
-
-    (setq new-list `("802-11-wireless-security" (("pairwise" (("wep40" "wep104")))
-                                                 ("group" (("wep40" "wep104")))
-                                                 ("auth-alg" (nil))
-                                                 ("key-mgmt" (nil)))))
-
-    (if (not (assoc "802-11-wireless-security" ret-list))
-        (setq ret-list (append ret-list (list new-list))))
-
-    (if (or (string= enctype "eap-leap")
-            (string= enctype "eap-peap")
-            (string= enctype "eap-tls")
-            (string= enctype "eap-ttls"))
-        (progn
-          (setq key-name "802-1x")
-          (setq key-mgmt "ieee8021x")
-          (setq req-list (push (cons "eap" (substring enctype 4)) req-list)))
-      (setq key-name "802-11-wireless-security")
-      (setq key-mgmt
-            (cond ((string= enctype "wep") "none")
-                  ((string= enctype "wpa-psk") "wpa-psk")
-                  ((string= enctype "leap") "iee8021x"))))
-    (setcdr (assoc "key-mgmt" (cadr (assoc "802-11-wireless-security" ret-list)))
-            (list (list key-mgmt)))
-
-    (when (string= enctype "leap")
-      (setcdr (assoc "auth-alg" (cadr (assoc "802-11-wireless-security" ret-list)))
-              (list (list "leap"))))
-
-    (setq name-list (cons key-name
-                          (list (mapcar (lambda (x)
-                                          (cons (car x)
-                                                (cons (cons (cdr x) nil)
-                                                      nil)))
-                                        req-list))))
-
-    (if (not (assoc key-name ret-list))
-        (setq ret-list (append ret-list (list name-list)))
-      (setcdr (assoc key-name ret-list) (list name-list)))
-
-
-    (when (or (string= enctype "eap-leap")
-              (string= enctype "eap-peap")
-              (string= enctype "eap-tls")
-              (string= enctype "eap-ttls"))
-      (setcdr (assoc "eap" (cadr (assoc "802-1x" ret-list)))
-              (cons (cons (cons (substring enctype 4) nil) nil) nil)))
-
-    ret-list))
+(defun enwc-nm-alist-to-dbus-str-str-var-map-map (alist)
+  (let (ret)
+    (dolist (ent alist ret)
+      (push `(:string (car ent) ,(enwc-nm-alist-to-dbus-dict (cadr ent))) ret)
+      (push :dict-entry ret))))
 
 (defun enwc-nm-finalize-settings (settings)
   "Sets up all of the D-BUS types of a settings list.
 SETTINGS is the list of settings list to setup.
 This will place all of the necessary markers in the list,
 such as :array, :dict-entry, etc."
-  (cons :array
-        (let (first-one)
-          (dolist (x settings)
-            (setq first-one (cons :dict-entry first-one))
-            (setq first-one
-                  (cons
-                   (cons :string
-                         (cons (car x)
-                               (cons
-                                (cons :array
-                                      (let (this-one)
-                                        (dolist (y (cadr x))
-                                          (setq this-one
-                                                (cons :dict-entry this-one))
-                                          (setq this-one
-                                                (cons
-                                                 (list
-                                                  :string (car y)
-                                                  :variant
-                                                  (if (string= (car y) "ssid")
-                                                      (cons (dbus-string-to-byte-array
-                                                             (dbus-byte-array-to-string (car (cadr y))))
-                                                            nil)
-                                                    (cadr y)))
-                                                 this-one)))
-                                        (nreverse this-one)))
-                                nil)))
-                   first-one)))
-          (nreverse first-one))))
-
-(defun enwc-nm-create-settings (wired ssid)
-  (let ((uuid (enwc-nm-gen-uuid))
-        (id (concat ssid " settings"))
-        type
-        ret-list
-        conn-list
-        ipv4-list ipv6-list
-        mod-list
-        new-ssid
-        80211-list)
-
-    (if (not wired)
-        (setq new-ssid (dbus-string-to-byte-array ssid))
-      (progn
-        (setq 80211-list `("802-11-wireless" (("security" (nil))
-                                              ("ssid" (,new-ssid))
-                                              ("mode" ("infrastructure")))))
-
-        (setq ret-list (append ret-list (list 80211-list))
-              type "802-11-wireless"))
-      (setq type "802-3-ethernet"))
-    (setq conn-list `("connection" (("id" (,id))
-                                    ("uuid" (,uuid))
-                                    ("autoconnect" (nil))
-                                    ("type" (,type)))))
-
-    (setq ipv4-list '("ipv4" (("addresses" (nil))
-                              ("dns" (nil))
-                              ("method" ("auto"))
-                              ("routes" (nil)))))
-
-    (setq ipv6-list '("ipv4" (("addresses" (nil))
-                              ("dns" (nil))
-                              ("method" ("auto"))
-                              ("routes" (nil)))))
-
-    (setq ret-list (append ret-list (list conn-list)))
-    (setq ret-list (append ret-list (list ipv4-list)))
-    (setq ret-list (append ret-list (list ipv6-list)))))
+  `(:array ,@(enwc-nm-alist-to-dbus-str-str-var-map-map settings)))
 
 (defun enwc-nm-setup-settings (wired id settings)
   "Sets up NetworkManager settings.
 Gets the current network properties of network ID
 and uses the information in the association list SETTINGS
 to put it in the form that NetworkManager will recognize."
-  (let (ssid uuid conn props)
+  (let ((ssid (enwc-nm-get-wireless-network-property id "Ssid"))
+        (type (if wired "802-3-ethernet" "802-11-wireless"))
+        (conn-settings (enwc-nm-get-settings id)))
+    (push `("connection"
+            (("id" (,(concat ssid " settings")))
+             ("uuid" (,(enwc-nm-gen-uuid)))
+             ("autoconnect" (nil))
+             ("type" (,type))))
+          conn-settings)
+    (setq conn-settings (enwc-nm-process-profile-info conn-settings settings))
+    (enwc-nm-finalize-settings conn-settings)))
 
-    (if (not enwc-nm-edit-info)
-        (progn
-          (setq ssid
-                (enwc-nm-get-wireless-network-property (nth id
-                                                            enwc-access-points)
-                                                       "Ssid"))
-          (setq props (enwc-nm-create-settings wired ssid)))
-      (setq props enwc-nm-edit-info))
-
-    (setcdr (assoc "type" (cadr (assoc "connection" props)))
-            (list (list (cond (wired "802-3-ethernet")
-                              ((not wired) "802-11-wireless")))))
-
-    (if (= (length (cdr (assoc "addr" settings))) 0)
-        (setcdr (assoc "addresses" (cadr (assoc "ipv4" props)))
-                (cons (cons nil nil) nil))
-
-      (setcdr (assoc "addresses" (cadr (assoc "ipv4" props)))
-              (list (list (list (list (enwc-nm-addr-back
-                                       (cdr (assoc "addr" settings)))
-                                      (enwc-nm-netmask-to-prefix (enwc-nm-addr-back
-                                                                  (cdr (assoc "netmask"
-                                                                              settings))))
-                                      (enwc-nm-addr-back
-                                       (cdr (assoc "gateway" settings)))))))))
-
-    (if (= (length (cdr (assoc "dns1" settings))) 0)
-        (setcdr (assoc "dns" (cadr (assoc "ipv4" props)))
-                (cons (cons nil nil) nil))
-      (setcdr (assoc "dns" (cadr (assoc "ipv4" props)))
-              (list (list (list (enwc-nm-addr-back
-                                 (cdr (assoc "dns1" settings)))
-                                (enwc-nm-addr-back
-                                 (cdr (assoc "dns2" settings))))))))
-
-    (setq props (enwc-nm-process-enctype settings props))
-
-    (enwc-nm-finalize-settings props)))
-
-(defun enwc-nm-save-nw-settings (wired id settings)
+(defun enwc-nm-save-nw-settings (id settings wired)
   "Saves network settings.
 ID is the network id of the profile to save,
 WIRED denotes whether or not this is a wired profile,
@@ -811,7 +637,7 @@ and SETTINGS is the list of settings."
   (let ((mod-sets (enwc-nm-setup-settings wired id settings)))
     (dbus-call-method :system
                       enwc-nm-dbus-service
-                      (enwc-nm-get-conn-by-nid id)
+                      id
                       enwc-nm-dbus-connections-interface
                       (if (not enwc-nm-edit-info)
                           "AddConnection"
