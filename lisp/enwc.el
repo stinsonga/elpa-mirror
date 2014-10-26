@@ -319,13 +319,6 @@ This checks for an active wired connection."
 ID is specific to the backend."
   (funcall enwc-get-profile-info-func id enwc-using-wired))
 
-(defun enwc-get-profile-sec-info (id sec-type)
-  "Get the security info for the network ID.
-SEC-TYPE is the type of security for which to obtain the data.
-
-ID is specific to the backend."
-  (funcall enwc-get-profile-sec-info-func id sec-type enwc-using-wired))
-
 (defun enwc-save-nw-settings (id settings)
   "Saves network settings SETTINGS to the network profile with network id ID.
 SETTINGS is an association list with entries for the IP Address, Netmask,
