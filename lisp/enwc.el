@@ -262,6 +262,23 @@ each word by SEPS, which defaults to \"-\"."
   (cl-check-type seps string)
   (intern (combine-and-quote-strings (enwc--break-by-words str) seps)))
 
+(defun enwc--int-to-byte-list (n)
+  "Convert 32-bit integer N into a byte list."
+  (let (ret)
+    (dotimes (x 4 ret)
+      (push (logand n 255) ret)
+      (setq n (lsh n -8)))))
+
+(defun enwc--byte-list-to-int (bl)
+  "Convert byte list BL into a 32-bit integer."
+  (let ((ret 0))
+    (dolist (x bl ret)
+      (setq ret (logior (lsh ret 8) x)))))
+
+(defun enwc--htonl (n)
+  "Convert 32-bit integer N from hardware to network byte order."
+  (enwc--byte-list-to-int (nreverse (enwc--int-to-byte-list n))))
+
 ;;;;;;;;;;;;;;;;;;;;
 ;; ENWC functions ;;
 ;;;;;;;;;;;;;;;;;;;;

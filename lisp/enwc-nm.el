@@ -94,42 +94,6 @@
   '("Ssid" "HwAddress" "Strength" "Flags" "Mode" "Frequency")
   "The list of the desired details to be obtained from each network.")
 
-(defvar enwc-nm-sec-types
-  '(("eap-leap" . (("Name" . "eap-leap")
-                   ("reqs" . ((("identity" . "Username")
-                               ("password" . "Password"))))))
-    ("eap-peap" . (("Name" . "eap-peap")
-                   ("reqs" . ((("anonymous-identity" . "Anonymous Identity")
-                               ("ca-cert" . "CA Certificate")
-                               ("phase2-auth" . "Inner Authentication")
-                               ("phase1-peapver" . "PEAP Version")
-                               ("identity" . "Username")
-                               ("password" . "Password"))))))
-    ("eap-tls" . (("Name" . "eap-tls")
-                  ("reqs" . ((("identity" . "Identity")
-                              ("client-cert" . "User Certificate")
-                              ("ca-cert" . "CA Certificate")
-                              ("private-key" . "Private Key")
-                              ("private-key-password" . "Private Key Password"))))))
-    ("eap-ttls" . (("Name" . "eap-ttls")
-                   ("reqs" . ((("anonymous-identity" . "Anonymous Identity")
-                               ("ca-cert" . "CA Certificate")
-                               ("phase2-auth" . "Inner Authentication")
-                               ("identity" . "Username")
-                               ("password" . "Password"))))))
-    ("wpa-psk" . (("Name" . "wpa2")
-                  ("reqs" . ((("psk" . "PSK"))))))
-    ("wep" . (("Name" . "wep")
-              ("reqs" . ((("wep-key0" . "WEP Key")
-                          ("wep-key-type" . "WEP Key Type"))))))
-    ("leap" . (("Name" . "leap")
-               ("reqs" . ((("leap-username" . "Username")
-                           ("leap-password" . "Password"))))))
-    )
-  "The security types for NetworkManager.
-This is still in the process of being worked on."
-  )
-
 (defvar enwc-nm-wired-dev nil
   "The wired device object path.")
 
@@ -160,25 +124,28 @@ This is still in the process of being worked on."
          args))
 
 (defun enwc-nm-dbus-default-call-method (method &rest args)
-  (enwc-nm-dbus-call-method method nil nil args))
+  (apply 'enwc-nm-dbus-call-method method nil nil args))
 
 (defun enwc-nm-dbus-settings-call-method (method &rest args)
-  (enwc-nm-dbus-call-method method
-                            enwc-nm-dbus-settings-path
-                            enwc-nm-dbus-settings-interface
-                            args))
+  (apply 'enwc-nm-dbus-call-method
+         method
+         enwc-nm-dbus-settings-path
+         enwc-nm-dbus-settings-interface
+         args))
 
 (defun enwc-nm-dbus-wireless-call-method (method &rest args)
-  (enwc-nm-dbus-call-method method
-                            enwc-nm-wireless-dev
-                            enwc-nm-dbus-wireless-interface
-                            args))
+  (apply 'enwc-nm-dbus-call-method
+         method
+         enwc-nm-wireless-dev
+         enwc-nm-dbus-wireless-interface
+         args))
 
 (defun enwc-nm-dbus-wired-call-method (method &rest args)
-  (enwc-nm-dbus-call-method method
-                            enwc-nm-wired-dev
-                            enwc-nm-dbus-wired-interface
-                            args))
+  (apply 'enwc-nm-dbus-call-method
+         method
+         enwc-nm-wired-dev
+         enwc-nm-dbus-wired-interface
+         args))
 
 (defun enwc-nm-get-settings (conn)
   "Gets the connection settings.
@@ -198,9 +165,9 @@ CONN is an object path to the connection."
 (defun enwc-nm-get-device-by-name (name)
   (enwc-nm-dbus-default-call-method "GetDeviceByIpIface" :string name))
 
-;;;;;;;;;;;;;;;;;
-;; Get networks
-;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;
+;; Get networks ;;
+;;;;;;;;;;;;;;;;;;
 
 (defun enwc-nm-get-networks (&optional wired)
   (if wired
@@ -281,8 +248,8 @@ This gets the connection path from NW, and connects to it."
                               dev interface
                               '(:array :signature "{sv}"))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Get network properties
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Get network properties ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun enwc-nm-get-wireless-network-property (nw prop)
@@ -383,6 +350,7 @@ STATE is the new state."
   enwc-nm-wired-p)
 
 (defun enwc-nm-gen-uuid ()
+  "Generate a UUID."
   (random t)
   (let ((hex-nums
          (mapcar (lambda (x)
@@ -396,6 +364,7 @@ STATE is the new state."
   `(string-to-number (substring ,str ,st ,ed) 16))
 
 (defun enwc-nm-convert-addr (addr)
+  "Convert an address ADDR from an integer in network byte order to a string."
   (if addr
       (let* ((hex-addr (format "%08x" addr))
              (subs (mapcar
@@ -406,17 +375,18 @@ STATE is the new state."
     ""))
 
 (defun enwc-nm-addr-back (addr)
+  "Convert an IP address ADDR in dots notation to an integer."
   (let* ((bytes (split-string addr "\\."))
          (byte-string (mapcar
-                       (lambda (n) (lsh (string-to-number (nth (- 3 n) bytes)) n))
+                       (lambda (n) (lsh (string-to-number (nth n bytes))
+                                        (* 8 n)))
                        (number-sequence 0 3))))
     (apply 'logior byte-string)))
 
 ;; These next two come from libnm-util/nm-utils.c in NM's source.
-;; TODO: These should be used.
 
 (defun enwc-nm-netmask-to-prefix (netmask)
-  "Converts a netmask to a prefix.
+  "Converts a netmask to a CIDR prefix.
 NETMASK is an ip address in network byte order."
   (if netmask
       (let* ((mask netmask)
@@ -437,17 +407,11 @@ NETMASK is an ip address in network byte order."
     0))
 
 (defun enwc-nm-prefix-to-netmask (prefix)
-  "Converts a prefix to a netmask.
+  "Converts a CIDR prefix to a netmask.
 PREFIX is an integer <= 32."
   (cl-check-type prefix integer)
-  (let ((pf prefix)
-        (netmask 0)
-        (msk #x80000000))
-    (while (> pf 0)
-      (setq netmask (logior netmask msk)
-            msk     (lsh msk -1)
-            pf      (1- pf)))
-    netmask))
+  (setq prefix (min prefix 32))
+  (enwc--htonl (lsh (1- (expt 2 prefix)) (- 32 prefix))))
 
 (defun enwc-nm-get-dbus-dict-entry (entry dict)
   "Get an entry ENTRY from D-Bus dictionary DICT.
@@ -461,7 +425,8 @@ representing another layer in the dictionary."
       (setq cur-str (pop ent-strs))
       (setq cur-ent (assoc cur-str cur-ent))
       (when cur-ent
-        (setq cur-ent (cadr cur-ent))))))
+        (setq cur-ent (cadr cur-ent))))
+    cur-ent))
 
 (defun enwc-nm-set-dbus-dict-entry (entry dict value)
   "Set an entry."
@@ -481,7 +446,7 @@ representing another layer in the dictionary."
     (when settings
       (let* ((adr-info (caar (enwc-nm-get-dbus-dict-entry "ipv4/addresses" settings)))
              (ip-addr (enwc-nm-convert-addr (nth 0 adr-info)))
-             (netmask (enwc-nm-convert-addr (nth 3 adr-info)))
+             (netmask (enwc-nm-convert-addr (enwc-nm-prefix-to-netmask (nth 1 adr-info))))
              (gateway (enwc-nm-convert-addr (nth 2 adr-info)))
              (dns-list (mapcar 'enwc-nm-convert-addr
                                (car (enwc-nm-get-dbus-dict-entry "ipv4/dns"
