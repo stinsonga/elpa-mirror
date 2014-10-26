@@ -198,60 +198,6 @@ CONN is an object path to the connection."
 (defun enwc-nm-get-device-by-name (name)
   (enwc-nm-dbus-default-call-method "GetDeviceByIpIface" :string name))
 
-;; Settings, Connections
-(defun enwc-nm-get-uuid-by-ssid (ssid)
-  "Gets the uuid of the network with ssid SSID."
-  (let ((conns (enwc-nm-list-connections))
-        cur-conn cur-ssid uuid)
-    (while (and conns (not uuid))
-      (setq cur-conn (pop conns))
-      (let ((settings (enwc-nm-get-settings cur-conn)))
-        (when (assoc "802-11-wireless" settings)
-          (setq cur-ssid
-                (dbus-byte-array-to-string (car (cadr (assoc "ssid"
-                                                             (cadr (assoc "802-11-wireless"
-                                                                          settings)))))))
-          (when (string= cur-ssid ssid)
-            (setq uuid
-                  (car (cadr (assoc "uuid"
-                                    (cadr (assoc "connection"
-                                                 settings))))))))))
-    uuid))
-
-(defun enwc-nm-get-uuid-by-id (id)
-  "Gets a network connection's uuid by the network's id.
-ID is a string that NetworkManager uses to identify this network."
-  (let ((conns (enwc-nm-list-connections))
-        cur-conn cur-id uuid)
-    (while (and conns (not uuid))
-      (setq cur-conn (pop conns))
-      (let ((settings (enwc-nm-get-settings cur-conn))
-            conn-set)
-        (when (assoc "connection" settings)
-          (setq conn-set (assoc "connection" settings))
-          (setq cur-id (car (cadr (assoc "id" (cadr conn-set)))))
-          (when (string= cur-id id)
-            (setq uuid (car (cadr (assoc "uuid" (cadr conn-set)))))))))))
-
-(defun enwc-nm-get-conn-by-uuid (uuid)
-  (enwc-nm-dbus-settings-call-method "GetConnectionByUuid"
-                                     uuid))
-
-;; Settings
-;; Not used.
-(defun enwc-nm-get-conn-by-ssid (ssid)
-  "Gets the connection path for the access point with ssid SSID."
-  (let ((uuid (enwc-nm-get-uuid-by-ssid ssid)))
-    (when uuid
-      (enwc-nm-get-conn-by-uuid uuid))))
-
-;; Not used.
-(defun enwc-nm-get-conn-by-id (id)
-  "Gets a connection object with the id ID.
-ID is the identifier used by Network Manager."
-  (let ((uuid (enwc-nm-get-uuid-by-id id)))
-    (enwc-nm-get-conn-by-uuid uuid)))
-
 ;;;;;;;;;;;;;;;;;
 ;; Get networks
 ;;;;;;;;;;;;;;;;;
@@ -435,11 +381,6 @@ STATE is the new state."
 ;; Default
 (defun enwc-nm-is-wired ()
   enwc-nm-wired-p)
-
-(defun enwc-nm-get-sec-types (&optional wired)
-  "Get security types."
-  (unless wired
-    enwc-nm-sec-types))
 
 (defun enwc-nm-gen-uuid ()
   (random t)
