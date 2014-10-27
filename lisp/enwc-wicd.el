@@ -361,19 +361,19 @@ WIRED indicates whether this is a wired network."
 (defun enwc-wicd-save-nw-settings (id settings &optional wired)
   "Saves the settings indicated by the association list SETTINGS for
 the network with id ID."
-  (let ((enctype (cdr (assoc "enctype" settings))))
+  (let ((enctype (alist-get 'enctype settings "")))
 
     (enwc-wicd-set-nw-prop wired id "ip"
-                           (cdr (assoc "addr" settings)))
+                           (alist-get 'addr settings ""))
     (enwc-wicd-set-nw-prop wired id "netmask"
-                           (cdr (assoc "netmask" settings)))
+                           (alist-get 'netmask settings ""))
     (enwc-wicd-set-nw-prop wired id "gateway"
-                           (cdr (assoc "gateway" settings)))
+                           (alist-get 'gateway settings ""))
 
     (enwc-wicd-set-nw-prop wired id "dns1"
-                           (cdr (assoc "dns1" settings)))
+                           (alist-get 'dns1 settings ""))
     (enwc-wicd-set-nw-prop wired id "dns2"
-                           (cdr (assoc "dns2" settings)))
+                           (alist-get 'dns2 settings ""))
 
     (enwc-wicd-set-nw-prop wired id "enctype" enctype)
     (if (not (string= enctype "None"))
