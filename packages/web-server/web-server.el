@@ -1,4 +1,4 @@
-;;; web-server.el --- Emacs Web Server
+;;; web-server.el --- Emacs Web Server  -*- lexical-binding:t -*-
 
 ;; Copyright (C) 2013-2014 Free Software Foundation, Inc.
 
@@ -47,7 +47,6 @@
 (require 'mm-encode)              ; to look-up mime types for files
 (require 'url-util)               ; to decode url-encoded params
 (require 'eieio)
-(eval-when-compile (require 'cl))
 (require 'cl-lib)
 
 (defclass ws-server ()
@@ -137,7 +136,7 @@ function.
                         (goto-char (point-max))
                         (insert (format "%s\t%s\t%s\t%s"
                                         (format-time-string ws-log-time-format)
-                                        (first c) (second c) message))))))
+                                        (cl-first c) (cl-second c) message))))))
            network-args))
     (push server ws-servers)
     server))
@@ -162,7 +161,7 @@ function.
 
 (defun ws-parse-query-string (string)
   "Thin wrapper around `url-parse-query-string'."
-  (mapcar (lambda (pair) (cons (first pair) (second pair)))
+  (mapcar (lambda (pair) (cons (cl-first pair) (cl-second pair)))
           (url-parse-query-string string nil 'allow-newlines)))
 
 (defun ws-parse (proc string)
@@ -184,7 +183,7 @@ function.
             (credentials (match-string 2 string)))
         (list (cons :AUTHORIZATION
                     (cons protocol
-                          (case protocol
+                          (cl-case protocol
                             (:BASIC
                              (let ((cred (base64-decode-string credentials)))
                                (if (string-match ":" cred)
@@ -256,7 +255,7 @@ Return non-nil only when parsing is complete."
         (while (setq next-index (string-match delimiter pending index))
           (let ((tmp (+ next-index (length delimiter))))
             (if (= index next-index) ; double \r\n ends current run of headers
-                (case context
+                (cl-case context
                   ;; Parse URL data.
                   ;; http://www.w3.org/TR/html4/interact/forms.html#h-17.13.4
                   (application/x-www-form-urlencoded
@@ -330,7 +329,7 @@ Return non-nil only when parsing is complete."
         (goto-char (point-max))
         (insert (format "%s\t%s\t%s\tWS-ERROR: %s"
                         (format-time-string ws-log-time-format)
-                        (first c) (second c)
+                        (cl-first c) (cl-second c)
                         (apply #'format msg args)))))
     (apply #'ws-send-500 proc msg args)))
 
@@ -441,13 +440,13 @@ See RFC6455."
                     (let ((place 0))
                       (apply #'+
                        (mapcar (lambda (bit)
-                                 (prog1 (if bit (expt 2 place) 0) (incf place)))
+                                 (prog1 (if bit (expt 2 place) 0) (cl-incf place)))
                                (reverse bits)))))
                   (bits (length)
                     (apply #'append
                            (mapcar (lambda (int) (int-to-bits int 8))
                                    (cl-subseq
-                                    pending index (incf index length))))))
+                                    pending index (cl-incf index length))))))
         (let (fin rsvs opcode mask pl mask-key)
           ;; Parse fin bit, rsvs bits and opcode
           (let ((byte (bits 1)))
@@ -455,7 +454,7 @@ See RFC6455."
                   rsvs (cl-subseq byte 1 4)
                   opcode
                   (let ((it (bits-to-int (cl-subseq byte 4))))
-                    (case it
+                    (cl-case it
                       (0 :CONTINUATION)
                       (1 :TEXT)
                       (2 :BINARY)
@@ -483,7 +482,8 @@ See RFC6455."
            ((= pl 126) (setq pl (bits-to-int (bits 2))))
            ((= pl 127) (setq pl (bits-to-int (bits 8)))))
           ;; unmask data
-          (when mask (setq mask-key (cl-subseq pending index (incf index 4))))
+          (when mask
+            (setq mask-key (cl-subseq pending index (cl-incf index 4))))
           (setq data (concat data
                              (ws-web-socket-mask
                               mask-key (cl-subseq pending index (+ index pl)))))
@@ -506,7 +506,7 @@ See RFC6455."
   "Frame STRING for web socket communication."
   (let* ((fin 1) ;; set to 0 if not final frame
          (len (length string))
-         (opcode (ecase (or opcode :TEXT) (:TEXT 1) (:BINARY 2))))
+         (opcode (cl-ecase (or opcode :TEXT) (:TEXT 1) (:BINARY 2))))
     ;; Does not do any masking which is only required of client communication
     (concat
      (cond
@@ -572,7 +572,7 @@ compressed using the command specified in `ws-gzip-cmd'."
       (set-process-plist proc
         (append
          (list :content-encoding
-               (ecase (intern content)
+               (cl-ecase (intern content)
                  ((compress x-compress) (ws-encoding-cmd-to-fn ws-compress-cmd))
                  ((deflate x-deflate)   (ws-encoding-cmd-to-fn ws-deflate-cmd))
                  ((gzip x-gzip)         (ws-encoding-cmd-to-fn ws-gzip-cmd))
@@ -586,7 +586,7 @@ compressed using the command specified in `ws-gzip-cmd'."
         (append
          (when (string= transfer "chunked") (list :ender "0\r\n\r\n"))
          (list :transfer-encoding
-               (ecase (intern transfer)
+               (cl-ecase (intern transfer)
                  (chunked  #'ws-chunk)
                  ((compress x-compress) (ws-encoding-cmd-to-fn ws-compress-cmd))
                  ((deflate x-deflate)   (ws-encoding-cmd-to-fn ws-deflate-cmd))
@@ -681,33 +681,28 @@ challenge.  Optional arguments UNAUTH and INVALID should be
 functions which are called on the request when no authentication
 information, or invalid authentication information are provided
 respectively."
-  (lexical-let ((handler handler)
-                (credentials credentials)
-                (realm realm)
-                (unauth unauth)
-                (invalid invalid))
-    (lambda (request)
-      (with-slots (process headers) request
-        (let ((auth (cddr (assoc :AUTHORIZATION headers))))
-          (cond
-           ;; no authentication information provided
-           ((not auth)
-            (if unauth
-                (funcall unauth request)
-              (ws-response-header process 401
-                (cons "WWW-Authenticate"
-                      (format "Basic realm=%S" (or realm "restricted")))
-                '("Content-type" . "text/plain"))
-              (process-send-string process "authentication required")))
-           ;; valid authentication information
-           ((string= (cdr auth) (cdr (assoc (car auth) credentials)))
-            (funcall handler request))
-           ;; invalid authentication information
-           (t
-            (if invalid
-                (funcall invalid request)
-              (ws-response-header process 403 '("Content-type" . "text/plain"))
-              (process-send-string process "invalid credentials")))))))))
+  (lambda (request)
+    (with-slots (process headers) request
+      (let ((auth (cddr (assoc :AUTHORIZATION headers))))
+        (cond
+         ;; no authentication information provided
+         ((not auth)
+          (if unauth
+              (funcall unauth request)
+            (ws-response-header process 401
+                                (cons "WWW-Authenticate"
+                                      (format "Basic realm=%S" (or realm "restricted")))
+                                '("Content-type" . "text/plain"))
+            (process-send-string process "authentication required")))
+         ;; valid authentication information
+         ((string= (cdr auth) (cdr (assoc (car auth) credentials)))
+          (funcall handler request))
+         ;; invalid authentication information
+         (t
+          (if invalid
+              (funcall invalid request)
+            (ws-response-header process 403 '("Content-type" . "text/plain"))
+            (process-send-string process "invalid credentials"))))))))
 
 (defun ws-web-socket-handshake (key)
   "Perform the handshake defined in RFC6455."
