@@ -90,10 +90,6 @@
   :group 'enwc-nm
   :type 'string)
 
-(defvar enwc-nm-details-list
-  '("Ssid" "HwAddress" "Strength" "Flags" "Mode" "Frequency")
-  "The list of the desired details to be obtained from each network.")
-
 (defvar enwc-nm-wired-dev nil
   "The wired device object path.")
 
@@ -150,12 +146,8 @@
 (defun enwc-nm-get-settings (conn)
   "Gets the connection settings.
 CONN is an object path to the connection."
-  (dbus-call-method :system
-                    enwc-nm-dbus-service
-                    conn
-                    enwc-nm-dbus-connections-interface
-                    "GetSettings"
-                    :timeout 25000))
+  (enwc-nm-dbus-call-method "GetSettings" conn
+                            enwc-nm-dbus-connections-interface))
 
 (defun enwc-nm-list-connections ()
   "List the connections."
@@ -184,8 +176,9 @@ This returns a list of D-Bus paths to the access points."
     (mapcar
      (lambda (x)
        (let ((props (enwc-nm-get-settings x)))
-         (when (string= (caar props) "connection")
-           (car (cadr (car (cadr (car props))))))))
+         (when (string= (enwc-nm-get-dbus-dict-entry "connection/type" props)
+                        "802-3-ethernet")
+           (enwc-nm-get-dbus-dict-entry "connection/id" props))))
      profs-list)))
 
 ;;;;;;;;;;;;;
@@ -296,20 +289,6 @@ If both are 0, then it returns WEP, otherwise WPA."
 ;; Get Current network id
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun enwc-nm-string-idx (obj ls)
-  "Determine the index of string OBJ in LIST."
-  (cl-check-type obj string)
-  (cl-check-type ls list)
-  (let ((tmp-list ls)
-        (cur-pos -1)
-        cur-obj)
-    (while (and (not cur-obj) tmp-list)
-      (setq cur-obj (pop tmp-list))
-      (setq cur-pos (1+ cur-pos))
-      (unless (string= obj cur-obj)
-        (setq cur-obj nil)))
-    cur-pos))
-
 (defun enwc-nm-wireless-prop-changed (props)
   "Called when network properties are changed.
 PROPS is a list of updated properties."
@@ -327,7 +306,9 @@ This simply checks for the active access point."
 
 (defun enwc-nm-prop-changed (state)
   "Called when NetworkManager's state is changed.
-STATE is the new state."
+STATE is the new state
+
+If STATE is 40, then NetworkManager is connecting to a new AP."
   (setq enwc-nm-connecting-p (eq state 40)))
 
 ;;;;;;;;;;;;;;;;;;;;;;
@@ -352,12 +333,11 @@ STATE is the new state."
 (defun enwc-nm-gen-uuid ()
   "Generate a UUID."
   (random t)
-  (let ((hex-nums
+  (apply 'format
+         "%04x%04x-%04x-%04x-%04x-%04x%04x%04x"
          (mapcar (lambda (x)
                    (random 65535))
-                 (number-sequence 0 7)))
-        fin-str)
-    (setq fin-str (apply 'format "%04x%04x-%04x-%04x-%04x-%04x%04x%04x" hex-nums))))
+                 (number-sequence 0 7))))
 
 (defmacro enwc-nm--hex-substring (str st ed)
   "Get a standard integer from hex string STR starting at ST and ending st ED"
@@ -365,7 +345,7 @@ STATE is the new state."
 
 (defun enwc-nm-convert-addr (addr)
   "Convert an address ADDR from an integer in network byte order to a string."
-  (if addr
+  (if (and addr (integerp addr))
       (let* ((hex-addr (format "%08x" addr))
              (subs (mapcar
                     (lambda (n)
@@ -376,6 +356,7 @@ STATE is the new state."
 
 (defun enwc-nm-addr-back (addr)
   "Convert an IP address ADDR in dots notation to an integer."
+  (cl-check-type addr string)
   (let* ((bytes (split-string addr "\\."))
          (byte-string (mapcar
                        (lambda (n) (lsh (string-to-number (nth n bytes))
@@ -388,36 +369,30 @@ STATE is the new state."
 (defun enwc-nm-netmask-to-prefix (netmask)
   "Converts a netmask to a CIDR prefix.
 NETMASK is an ip address in network byte order."
-  (if netmask
-      (let* ((mask netmask)
-             (cur-pos 3)
-             (cur-mark (logand (lsh mask (* -8 cur-pos)) 255))
-             (pf 0))
-        (while (and (eq cur-mark 255) (>= cur-pos 0))
-          (setq pf (+ pf 8))
-          (setq cur-pos (1- cur-pos))
-          (setq cur-mark (logand (lsh mask (* -8 cur-pos)) 255)))
-
-        (if (>= cur-pos 0)
-            (let ((v (logand (lsh mask (* -8 cur-pos)) 255)))
-              (while (not (eq v 0))
-                (setq pf (1+ pf))
-                (setq v (lsh v 1)))))
-        pf)
+  (if (and netmask (integerp netmask))
+      (progn
+        (setq netmask (enwc--htonl netmask))
+        (while (cl-evenp netmask)
+          (setq netmask (lsh netmask -1)))
+        (floor (log (1+ netmask) 2)))
     0))
 
 (defun enwc-nm-prefix-to-netmask (prefix)
   "Converts a CIDR prefix to a netmask.
 PREFIX is an integer <= 32."
-  (cl-check-type prefix integer)
-  (setq prefix (min prefix 32))
-  (enwc--htonl (lsh (1- (expt 2 prefix)) (- 32 prefix))))
+  (if (and prefix (integerp prefix))
+      (progn
+        (setq prefix (min prefix 32))
+        (enwc--htonl (lsh (1- (expt 2 prefix)) (- 32 prefix))))
+    0))
 
 (defun enwc-nm-get-dbus-dict-entry (entry dict)
   "Get an entry ENTRY from D-Bus dictionary DICT.
 
 ENTRY is in the form LVL1/LVL2/.../LVLN, where each LVLi is a string
 representing another layer in the dictionary."
+  (cl-check-type entry string)
+  (cl-check-type dict list)
   (let ((ent-strs (split-string entry "/"))
         (cur-ent dict)
         cur-str)
@@ -429,7 +404,9 @@ representing another layer in the dictionary."
     cur-ent))
 
 (defun enwc-nm-set-dbus-dict-entry (entry dict value)
-  "Set an entry."
+  "Set entry ENTRY in D-Bus dictionary DICT to VALUE."
+  (cl-check-type entry string)
+  (cl-check-type dict list)
   (let ((ent-strs (split-string entry "/"))
         (cur-ent dict)
         cur-str)
