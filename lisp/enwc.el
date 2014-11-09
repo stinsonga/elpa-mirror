@@ -239,30 +239,31 @@ This is only used internally.")
   "The face for the connected network."
   :group 'enwc)
 
-(defun enwc--break-by-words (str)
-  "Break up string STR into a list of words."
-  (cl-check-type str string)
-  (split-string str "-\\|_\\| "))
+(eval-when-compile
+  (defun enwc--break-by-words (str)
+    "Break up string STR into a list of words."
+    (cl-check-type str string)
+    (split-string str "-\\|_\\| "))
 
-(defun enwc--sym-to-str (sym &optional seps)
-  "Create a string from symbol SYM.
+  (defun enwc--sym-to-str (sym &optional seps)
+    "Create a string from symbol SYM.
 SEPS is a string specifying the separator to use to combine the words,
 or \" \" if not specified."
-  (cl-check-type sym symbol)
-  (unless seps
-    (setq seps " "))
-  (cl-check-type seps string)
-  (combine-and-quote-strings (enwc--break-by-words (symbol-name sym)) seps))
+    (cl-check-type sym symbol)
+    (unless seps
+      (setq seps " "))
+    (cl-check-type seps string)
+    (combine-and-quote-strings (enwc--break-by-words (symbol-name sym)) seps))
 
-(defun enwc--str-to-sym (str &optional seps)
-  "Create a symbol from the string STR.
+  (defun enwc--str-to-sym (str &optional seps)
+    "Create a symbol from the string STR.
 This will break STR into words, and then put it back together separating
 each word by SEPS, which defaults to \"-\"."
-  (cl-check-type str string)
-  (unless seps
-    (setq seps "-"))
-  (cl-check-type seps string)
-  (intern (combine-and-quote-strings (enwc--break-by-words str) seps)))
+    (cl-check-type str string)
+    (unless seps
+      (setq seps "-"))
+    (cl-check-type seps string)
+    (intern (combine-and-quote-strings (enwc--break-by-words str) seps))))
 
 (defun enwc--int-to-byte-list (n)
   "Convert 32-bit integer N into a byte list."
@@ -274,7 +275,7 @@ each word by SEPS, which defaults to \"-\"."
 
 (defun enwc--byte-list-to-int (bl)
   "Convert byte list BL into a 32-bit integer."
-  (cl-check-type n list)
+  (cl-check-type bl list)
   (let ((ret 0))
     (dolist (x bl ret)
       (setq ret (logior (lsh ret 8) x)))))
@@ -631,7 +632,7 @@ Otherwise, it actually returns it."
         need-break cur-net)
     (while (and nets (not cur-net))
       (setq cur-net (pop nets))
-      (unless (string-equal (alist-get 'essid (cdr-safe cur-ent))
+      (unless (string-equal (alist-get 'essid (cdr-safe cur-net))
                             essid)
         (setq cur-net nil)))
     (if cur-net
