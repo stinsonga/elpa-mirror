@@ -35,15 +35,13 @@
 
 (defgroup enwc-cm nil
   "*ConnMan variables for ENWC"
-  :prefix "ewnc-cm-"
+  :prefix "enwc-cm-"
   :group 'enwc)
 
 (defcustom enwc-cm-dbus-service "net.connman"
   "ConnMan D-Bus service."
   :group 'enwc-cm
   :type 'string)
-
-;; DEMAND TO SEE LIFE'S MANAGER!!
 
 (defcustom enwc-cm-dbus-manager-interface "net.connman.Manager"
   "ConnMan D-Bus Manager interface."
@@ -118,7 +116,8 @@
 
 ;; scan
 (defun enwc-cm-scan (wired)
-  (let ((path (if wired (enwc-cm-get-wired-tech-path)
+  (let ((path (if wired
+                  (enwc-cm-get-wired-tech-path)
                 (enwc-cm-get-wifi-tech-path))))
     (dbus-call-method-asynchronously :system
                                      path
@@ -135,15 +134,15 @@
 ;;                  "Scan"))
 
 ;; get-network-props
+;; Might combine this with enwc-nm-get-dbus-dict-entry
 (defun enwc-cm-dict-assoc (dict prop)
   (let ((path-list (split-string prop "/"))
         (cur-list dict))
     (while (and path-list cur-list)
       (let ((cur-path (pop path-list)))
         (setq cur-list
-              (if (assoc cur-path cur-list)
-                  (caadr (assoc cur-path cur-list))
-                nil))))
+              (when (assoc cur-path cur-list)
+                (caadr (assoc cur-path cur-list))))))
     (if (and cur-list (consp cur-list)) (car cur-list) cur-list)))
 
 (defun enwc-cm-get-nw-prop (id prop)
@@ -152,10 +151,10 @@
 
 (defun enwc-cm-get-network-props (id wired)
   (let ((network (enwc-cm-get-network id))
-         props)
+        props)
     ;; network should be a pair, (path . props)
-    (if (not network)
-        (error "Invalid Network Id %d" id))
+    (unless network
+      (error "Invalid Network Id %d" id))
     (setq props (cadr network))
     (mapcar
      (lambda (det)
@@ -171,16 +170,16 @@
         props
         ipv4-settings
         dns-settings)
-    (if (not network)
-        (error "Invalid Network Id %d" id))
+    (unless network
+      (error "Invalid Network Id %d" id))
     (setq props (cadr network))
-    (setq ipv4-settings (enwc-cm-dict-assoc "IPv4.Configuration" props)
-          dns-settings  (enwc-cm-dict-assoc "Domains.Configuration" props))
-    `(("addr"    . ,(cadr (assoc "Address" ipv4-settings)))
-      ("netmask" . ,(cadr (assoc "Netmask" ipv4-settings)))
-      ("gateway" . ,(cadr (assoc "Gateway" ipv4-settings)))
-      ("dns1"    . ,(nth 0 dns-settings))
-      ("dns2"    . ,(nth 1 dns-settings)))))
+    (setq ipv4-settings (enwc-cm-dict-assoc "IPv4/Configuration" props)
+          dns-settings  (enwc-cm-dict-assoc "Domains/Configuration" props))
+    `((addr    . ,(cadr (assoc "Address" ipv4-settings)))
+      (netmask . ,(cadr (assoc "Netmask" ipv4-settings)))
+      (gateway . ,(cadr (assoc "Gateway" ipv4-settings)))
+      (dns1    . ,(nth 0 dns-settings))
+      (dns2    . ,(nth 1 dns-settings)))))
 
 ;; get-current-nw-id
 (defun enwc-cm-is-disconnected-p (service)
@@ -208,10 +207,10 @@
     (enwc-cm--find-connected-service services 0)))
 
 ;; save-profile
-(defun enwc-cm-set-nw-prop (wired id prop val)
+(defun enwc-cm-set-nw-prop (nw prop val &optional wired)
   (dbus-call-method :system
                     enwc-cm-dbus-service
-                    (car (enwc-cm-get-network id))
+                    (car nw)
                     enwc-cm-dbus-service-interface
                     "SetProperty"
                     :string prop
@@ -222,25 +221,25 @@
         props
         ipv4-settings
         dns-settings)
-    (if (not network)
-        (error "Invalid Network Id %d" id))
+    (unless network
+      (error "Invalid Network Id %d" id))
     (setq props (cadr network))
     (setq ipv4-settings
           `((("Method" ("manual"))
-             ("Address" (,(cdr (assoc "addr" settings))))
-             ("Netmask" (,(cdr (assoc "netmask" settings))))
-             ("Gateway" (,(cdr (assoc "gateway" settings)))))))
+             ("Address" (,(alist-get 'addr settings "")))
+             ("Netmask" (,(alist-get 'netmask settings "")))
+             ("Gateway" (,(alist-get 'gateway settings ""))))))
     (setq dns-settings
-          `((,(cdr (assoc "dns1" settings)))
-            (,(cdr (assoc "dns2" settings)))))
-    (enwc-cm-set-nw-prop wired prof "IPv4.Configuration" ipv4-settings)
-    (enwc-cm-set-nw-prop wired prof "Domains.Configuration" dns-settings)))
+          `((,(alist-get 'dns1 settings ""))
+            (,(alist-get 'dns2 settings ""))))
+    (enwc-cm-set-nw-prop prof "IPv4.Configuration" ipv4-settings wired)
+    (enwc-cm-set-nw-prop prof "Domains.Configuration" dns-settings wired)))
 
 ;; check-connecting-p
 (defun enwc-cm--find-connecting-service (services)
-  (if services
-      (or (enwc-cm-is-connecting-p (car services))
-          (enwc-cm--find-connecting-service (cdr services)))))
+  (when services
+    (or (enwc-cm-is-connecting-p (car services))
+        (enwc-cm--find-connecting-service (cdr services)))))
 
 (defun enwc-cm-check-connecting-p ()
   (let ((services (enwc-cm-get-services)))
@@ -307,7 +306,6 @@ METHOD is assumed to be the camel-case D-Bus method."
 
 ;; Run during setup.
 (defun enwc-cm-setup ()
-
 
   ;; Setup the agent.
   (dbus-register-service :session enwc-cm-dbus-agent-service)
