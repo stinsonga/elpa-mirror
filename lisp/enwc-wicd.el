@@ -111,7 +111,7 @@ Just returns a number sequence."
   (number-sequence 0 (1- (enwc-wicd-dbus-wireless-call-method "GetNumberOfNetworks"))))
 
 (defun enwc-wicd-get-wired-profiles ()
-  "Gets the list of wired network profiles."
+  "Get the list of wired network profiles."
   (enwc-wicd-dbus-wired-call-method "GetWiredProfileList"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -196,7 +196,7 @@ property from wireless network with id ID."
                                        id "encryption_method"))
 
 (defun enwc-wicd-get-wired-nw-prop (id det)
-  "Gets property DET from the wired network with id ID."
+  "Get property DET from the wired network with id ID."
   (enwc-wicd-dbus-wired-call-method "GetWiredProperty" id det))
 
 ;;;;;;;;;;;;;;;;;;;;;;;
@@ -276,7 +276,7 @@ so this jut returns the tracked network id."
 ;;;;;;;;;;;;;;;;;;;;;
 
 (defun enwc-wicd-get-profile-ent (wired id ent)
-  "Gets profile entry ENT from the network with id ID.
+  "Get profile entry ENT from the network with id ID.
 WIRED is set to indicate whether this is a wired network.
 This function is a wrapper around the *-get-(wired|wireless)-nw-prop
 functions, allowing for a single function that checks for wired."
@@ -307,22 +307,22 @@ WIRED is set to indicate whether this is a wired network."
    enwc-supplicant-alist))
 
 (defun enwc-wicd-get-ip-addr (wired id)
-  "Gets the IP Address from the network with id ID.
+  "Get the IP Address from the network with id ID.
 Wired is set to indicate whether this is a wired network."
   (or (enwc-wicd-get-profile-ent wired id "ip") ""))
 
 (defun enwc-wicd-get-netmask (wired id)
-  "Gets the Netmask from the network with id ID.
+  "Get the Netmask from the network with id ID.
 WIRED is set to indicate whether this is a wired network."
   (or (enwc-wicd-get-profile-ent wired id "netmask") ""))
 
 (defun enwc-wicd-get-gateway (wired id)
-  "Gets the Gateway from the network with id ID.
+  "Get the Gateway from the network with id ID.
 WIRED is set to indicate whether this is a wired network."
   (or (enwc-wicd-get-profile-ent wired id "gateway") ""))
 
 (defun enwc-wicd-get-dns (wired id)
-  "Gets the list of DNS servers from the network with id ID.
+  "Get the list of DNS servers from the network with id ID.
 WIRED is set to indicate whether this is a wired network."
   (list (or (enwc-wicd-get-profile-ent wired id "dns1") "")
         (or (enwc-wicd-get-profile-ent wired id "dns2") "")
@@ -333,7 +333,7 @@ WIRED is set to indicate whether this is a wired network."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun enwc-wicd-set-nw-prop (wired id prop val)
-  "Sets the network property PROP of the network with id ID
+  "Set the network property PROP of the network with id ID
 to VAL.
 WIRED indicates whether this is a wired network."
   (if wired
@@ -360,7 +360,7 @@ for each entry in PHASE."
    phase " "))
 
 (defun enwc-wicd-save-nw-settings (id settings &optional wired)
-  "Saves the settings indicated for network ID.
+  "Save the settings indicated for network ID.
 The association list SETTINGS contains the settings for the network.
 WIRED indicates whether or not ID is a wired connection."
   (dolist (setting settings)
