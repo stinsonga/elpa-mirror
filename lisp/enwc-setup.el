@@ -27,24 +27,32 @@
 (require 'enwc-wicd)
 (require 'enwc-nm)
 
+(defvar enwc-backend-symbol-list
+  '("scan"
+    "get-networks"
+    "get-wireless-nw-props"
+    "connect"
+    "disconnect"
+    "get-current-nw-id"
+    "check-connecting"
+    "is-wired"
+    "get-profile-info"
+    "save-nw-settings"))
+
 (defun enwc--intern-sym (sym-name suffix)
   (intern (concat "enwc-" sym-name suffix)))
+
+(defun enwc--setq-backend (backend func)
+  "Set a backend function."
+  (set (intern (concat "enwc-" func "-func"))
+       (intern (concat "enwc-" backend "-" func))))
 
 (defun enwc-setup-backend (cur-back)
   "Sets up ENWC to use the correct function for the backend CUR-BACK."
   (let* ((sym-name (symbol-name cur-back))
-         (eis (apply-partially 'enwc--intern-sym sym-name)))
-    (setq enwc-scan-func (funcall eis "-scan")
-          enwc-get-networks-func (funcall eis "-get-networks")
-          enwc-get-wireless-nw-props-func (funcall eis "-get-wireless-nw-props")
-          enwc-connect-func (funcall eis "-connect")
-          enwc-disconnect-func (funcall eis "-disconnect")
-          enwc-get-current-nw-id-func (funcall eis "-get-current-nw-id")
-          enwc-check-connecting-func (funcall eis "-check-connecting")
-          enwc-is-wired-func (funcall eis "-is-wired")
-          enwc-get-profile-info-func (funcall eis "-get-profile-info")
-          enwc-save-nw-settings-func (funcall eis "-save-nw-settings"))
-    (funcall (funcall eis "-setup"))))
+         (esb (apply-partially 'enwc--setq-backend sym-name)))
+    (cl-mapc esb enwc-backend-symbol-list)
+    (funcall (enwc--intern-sym sym-name "-setup"))))
 
 (defun enwc-setup ()
   "Sets up ENWC.
@@ -57,8 +65,8 @@ on D-Bus."
     (setq enwc-scan-timer
           (run-at-time t enwc-auto-scan-interval 'enwc-scan t)))
 
-  (let ((cur-back nil)
-        (back-list enwc-backends))
+  (let ((back-list enwc-backends)
+        cur-back)
     (while (and back-list (not cur-back))
       (setq cur-back (pop back-list))
       (unless (dbus-ping :system
