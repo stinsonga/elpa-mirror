@@ -51,7 +51,7 @@
 
 (defgroup enwc nil
   "*The Emacs Network Client"
-  :prefix "ewnc-"
+  :prefix "enwc-"
   :group 'applications)
 
 (defcustom enwc-wireless-device "wlan0"
@@ -110,11 +110,6 @@ connection.
   :group 'enwc
   :type 'string)
 
-(defcustom enwc-sec-types
-  '("wpa" "wep" "wpa-leap" "wpa-peap" "leap" "peap")
-  "The security types used for ENWC.
-Each of these have associations within the back-ends.")
-
 ;;; The function variables for the abstract layer.
 
 (defvar enwc-scan-func nil
@@ -150,8 +145,6 @@ This is redefined during setup to be the function to
 check whether or not a wired connection is active.")
 
 (defvar enwc-get-profile-info-func nil)
-
-(defvar enwc-get-profile-sec-info-func nil)
 
 (defvar enwc-save-nw-settings-func nil
   "The function variable to be used in `enwc-save-nw-settings'.
@@ -192,7 +185,16 @@ WIDTH is used during display to keep track of the width of each one.
 CONV is the conversion function used during display.")
 
 (defvar enwc-last-scan nil
-  "The most recent scan results.")
+  "The most recent scan results.
+
+This will be an association list of the form:
+
+((ID . ((strength . STRENGTH) (essid . ESSID) ...)) ...)
+
+Each ID is a backend-specific network ID.
+
+Each key in the children association lists corresponds to an entry in
+`enwc-details-alist'.")
 
 (defvar enwc-access-points nil
   "The most recent access point list.")
@@ -264,6 +266,7 @@ each word by SEPS, which defaults to \"-\"."
 
 (defun enwc--int-to-byte-list (n)
   "Convert 32-bit integer N into a byte list."
+  (cl-check-type n integer)
   (let (ret)
     (dotimes (x 4 ret)
       (push (logand n 255) ret)
@@ -271,12 +274,14 @@ each word by SEPS, which defaults to \"-\"."
 
 (defun enwc--byte-list-to-int (bl)
   "Convert byte list BL into a 32-bit integer."
+  (cl-check-type n list)
   (let ((ret 0))
     (dolist (x bl ret)
       (setq ret (logior (lsh ret 8) x)))))
 
 (defun enwc--htonl (n)
   "Convert 32-bit integer N from hardware to network byte order."
+  (cl-check-type n integer)
   (enwc--byte-list-to-int (nreverse (enwc--int-to-byte-list n))))
 
 ;;;;;;;;;;;;;;;;;;;;
@@ -509,12 +514,11 @@ This modifies the width entry in `enwc-details-alist' that corresponds to
 DETAIL.
 
 If VAL is not specified, then use the width of the display name for DETAIL."
-  (unless val
-    (setq val (1+ (length (cdr (assq 'display (cdr (assq detail enwc-details-alist))))))))
-  (setq val
-        (max val (cdr (assq 'width (cdr (assq detail enwc-details-alist))))))
-  (setcdr (assq 'width (cdr (assq detail enwc-details-alist)))
-          val))
+  (let ((det (alist-get detail enwc-details-alist)))
+    (unless val
+      (setq val (1+ (length (alist-get 'display det)))))
+    (setq val (max val (alist-get 'width det)))
+    (setcdr (assq 'width det) val)))
 
 (defun enwc-reset-widths ()
   "Reset the column widths for display."
@@ -560,11 +564,19 @@ NETWORKS must be in the form returned from
       (insert pr)
       (insert "\n"))))
 
-(defmacro enwc-maybe-pretty-entry (entry)
-  `(if (eq cur-id (cdr (assq 'id nw)))
-       (propertize ,entry
-                   'font-lock-face 'enwc-connected-face)
-     ,entry))
+(defmacro enwc--propertize-entry (network-entry)
+  "Propertize network entry NETWORK-ENTRY."
+  `(mapcar
+    (lambda (det)
+      (let* ((conv     (alist-get 'conv (cdr det)))
+             (ent      (alist-get (car det) (cdr ,network-entry)))
+             (conv-ent (funcall conv ent)))
+        (if (equal cur-id (car nw))
+            (propertize conv-ent
+                        'font-lock-face
+                        'enwc-connected-face)
+          conv-ent)))
+    enwc-details-alist))
 
 (defun enwc-display-wireless-networks (networks)
   "Displays the networks in the list NETWORKS in the current buffer.
@@ -572,11 +584,9 @@ NETWORKS must be in the format returned by
 `enwc-scan-internal-wireless'."
   (unless (get-buffer "*ENWC*")
     (enwc-setup-buffer t))
-  (unless (listp networks)
-    (signal 'wrong-type-argument `(listp ,networks)))
+  (cl-check-type networks list)
   (with-current-buffer (get-buffer "*ENWC*")
-    (let ((cur-id (enwc-get-current-nw-id))
-          entries)
+    (let ((cur-id (enwc-get-current-nw-id)))
       (setq tabulated-list-format
             (apply 'vector
                    (mapcar
@@ -589,17 +599,7 @@ NETWORKS must be in the format returned by
             (mapcar
              (lambda (nw)
                `(,(car nw)
-                 ,(apply 'vector
-                         (mapcar
-                          (lambda (det)
-                            (let ((conv (alist-get 'conv (cdr det)))
-                                  (ent  (alist-get (car det) (cdr nw))))
-                              (if (equal cur-id (car nw))
-                                  (propertize (funcall conv ent)
-                                              'font-lock-face
-                                              'enwc-connected-face)
-                                (funcall conv ent))))
-                          enwc-details-alist))))
+                 ,(apply 'vector (enwc--propertize-entry nw))))
              networks)))
     (tabulated-list-init-header)
 
@@ -611,8 +611,7 @@ This is an entry to the display functions,
 and checks whether or not ENWC is using wired."
   (unless (eq major-mode 'enwc-mode)
     (enwc-setup-buffer))
-  (unless (listp networks)
-    (signal 'wrong-type-argument `(listp ,networks)))
+  (cl-check-type networks list)
   (if enwc-using-wired
       (enwc-display-wired-networks networks)
     (enwc-display-wireless-networks networks)))
@@ -630,18 +629,15 @@ Otherwise, it actually returns it."
     (enwc-scan-internal))
   (let ((nets (or networks enwc-last-scan))
         need-break cur-net)
-    (unless nets
-      (setq nets enwc-last-scan))
-    (while (and nets (not need-break))
-      (let (cur-essid)
-        (setq cur-net (pop nets))
-        (setq cur-essid (cdr (assq 'essid cur-net)))
-        (when (string= cur-essid essid)
-          (setq need-break t))))
-    (if need-break
+    (while (and nets (not cur-net))
+      (setq cur-net (pop nets))
+      (unless (string-equal (alist-get 'essid (cdr-safe cur-ent))
+                            essid)
+        (setq cur-net nil)))
+    (if cur-net
         (if (called-interactively-p 'any)
-            (message (number-to-string (cdr (assq 'id cur-net))))
-          (cdr (assq 'id cur-net)))
+            (message "Network %d has essid %s" (number-to-string (car cur-net)) essid)
+          (car cur-net))
       (when (called-interactively-p 'any)
         (message "Network not found.")))))
 
@@ -872,44 +868,44 @@ For more information, see the documentation for wpa_supplicant.")
   `((wep . ((key-mgmt . ("none"))
             (wep-key0 . req)
             (wep-tx-keyidx . "0")))
-    (wpa2 . ((proto . ("wpa" "rsn"))
-             (key-mgmt . "wpa-psk")
-             (pairwise . ("ccmp" "tkip"))
-             (group . ("ccmp" "tkip"))
+    (wpa2 . ((proto . ("WPA" "RSN"))
+             (key-mgmt . "WPA-PSK")
+             (pairwise . ("CCMP" "TKIP"))
+             (group . ("CCMP" "TKIP"))
              (psk . req)))
-    (leap . ((eap . "leap")
-             (key-mgmt . ("ieee8021x"))
-             (auth-alg . "leap")
+    (leap . ((eap . "LEAP")
+             (key-mgmt . ("IEEE8021X"))
+             (auth-alg . "LEAP")
              (identity . req)
              (password . req)))
-    (eap-fast . ((proto . ("rsn" "wpa"))
-                 (pairwise . ("ccmp" "tkip"))
-                 (group . ("ccmp" "tkip"))
-                 (key-mgmt . ("wpa-eap"))
-                 (eap . "fast")
+    (eap-fast . ((proto . ("RSN" "WPA"))
+                 (pairwise . ("CCMP" "TKIP"))
+                 (group . ("CCMP" "TKIP"))
+                 (key-mgmt . ("WPA-EAP"))
+                 (eap . "FAST")
                  (identity . req)
                  (password . req)
                  (phase1 . ((fast-provisioning . "1")))
                  (pac-file . opt)))
-    (eap-tls . ((key-mgmt . ("wpa-eap"))
-                (pairwise . ("tkip"))
-                (group . ("tkip"))
-                (eap . "tls")
+    (eap-tls . ((key-mgmt . ("WPA-EAP"))
+                (pairwise . ("TKIP"))
+                (group . ("TKIP"))
+                (eap . "TLS")
                 (identity . req)
                 (ca-cert . opt)
                 (client-cert . opt)
                 (private-key . req)
                 (private-key-passwd . req)))
-    (peap . ((proto . ("rsn"))
-             (key-mgmt . ("wpa-eap"))
-             (pairwise . ("ccmp"))
-             (eap . "peap")
+    (peap . ((proto . ("RSN"))
+             (key-mgmt . ("WPA-EAP"))
+             (pairwise . ("CCMP"))
+             (eap . "PEAP")
              (identity . req)
              (password . req)))
-    (peap-tkip . ((proto . ("wpa"))
-                  (key-mgmt . ("wpa-eap"))
-                  (pairwise . ("tkip"))
-                  (group . ("tkip"))
+    (peap-tkip . ((proto . ("WPA"))
+                  (key-mgmt . ("WPA-EAP"))
+                  (pairwise . ("TKIP"))
+                  (group . ("TKIP"))
                   (eap . "PEAP")
                   (identity . req)
                   (password . req)
@@ -976,7 +972,7 @@ If specified, SEC-INFO is passed to the templates to initialize them."
   (widget-create (enwc-create-template-menu sec-info)))
 
 (defun enwc-sec-widget-data (widget)
-  "Get the data from a securirty widget WIDGET."
+  "Get the data from a security widget WIDGET."
   (let* ((type (widget-get (widget-get widget :choice) :tag))
          (values (widget-value widget))
          (template (assq (intern type) enwc-supplicant-template-alist)))
@@ -985,10 +981,19 @@ If specified, SEC-INFO is passed to the templates to initialize them."
     (setq template (cdr template))
     (cons
      `(sec-type ,(intern type))
-     (mapcar
-      (lambda (val)
-        (cons (car val) (pop values)))
-      template))))
+     (cl-mapcar
+      (lambda (val v)
+        (let ((vl v))
+          (when (or (eq (car val) 'phase1)
+                    (eq (car val) 'phase2))
+            (let ((subs
+                   (mapcar
+                    (lambda (arg)
+                      (enwc--str-to-sym (downcase (widget-get arg :tag))))
+                    (widget-get (alist-get (car val) enwc-supplicant-alist) :args))))
+              (setq vl (cl-mapcar 'cons subs v))))
+          (cons (car val) vl)))
+      template values))))
 
 (defvar enwc-network-edit-widget nil
   "The network information widget used in the edit buffer.")
