@@ -354,3 +354,37 @@ Settings/0:
   </interface>
 </node>
 "
+
+GetSettings: (a{sa{sv}})
+(("connection"
+  (("id"
+    ("Wired connection 1"))
+   ("uuid"
+    ("68ef4936-b67f-4973-bd31-84ce745f3150"))
+   ("timestamp"
+    (1414346232))
+   ("type"
+    ("802-3-ethernet"))))
+ ("ipv4"
+  (("addresses"
+    (nil))
+   ("dns"
+    (nil))
+   ("method"
+    ("auto"))
+   ("routes"
+    (nil))))
+ ("802-3-ethernet"
+  (("s390-options"
+    (nil))
+   ("mac-address"
+    ((92 249 221 62 23 118)))))
+ ("ipv6"
+  (("addresses"
+    (nil))
+   ("dns"
+    (nil))
+   ("method"
+    ("auto"))
+   ("routes"
+    (nil)))))
