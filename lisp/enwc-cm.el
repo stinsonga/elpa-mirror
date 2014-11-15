@@ -1,35 +1,34 @@
-;; enwc-cm.el
+;; enwc-cm.el --- The ConnMan back-end to ENWC.
 
 ;; Copyright (C) 2012,2013,2014 Free Software Foundation, Inc.
 
-;; Author: Ian Dunn
-;; Keywords: enwc, network, wicd, manager, nm
+;; Author: Ian Dunn <dunni@gnu.org>
+;; Keywords: network, wicd, manager, nm
+;; Version: 2.0
+;; Homepage: https://savannah.nongnu.org/p/enwc
 
-;; This file is part of ENWC
+;; This file is part of GNU Emacs
 
-;; ENWC is free software; you can redistribute it and/or modify it
+;; GNU Emacs is free software; you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation; either version 3, or (at your option)
 ;; any later version.
 
-;; ENWC is distributed in the hope that it will be useful, but WITHOUT
+;; GNU Emacs is distributed in the hope that it will be useful, but WITHOUT
 ;; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ;; or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
 ;; License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with ENWC; see the file COPYING.  If not, write to the Free
+;; along with GNU Emacs; see the file COPYING.  If not, write to the Free
 ;; Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 ;; 02110-1301, USA.
 
-;; connect
-;; disconnect
-;; scan
-;; get-prop
-;; save-profile
-;; get-networks
-;; check-connecting
-;; get-current-nw-id
+;;; Commentary:
+
+;; ConnMan support is still experimental.
+
+;;; Code:
 
 (require 'enwc)
 
@@ -363,3 +362,7 @@ METHOD is assumed to be the camel-case D-Bus method."
 ;;                          new-ipv4-config)
 ;;     (enwc-cm-set-nw-prop wired id "Nameservers.Configuration"
 ;;                          new-dns-config)))
+
+(provide 'enwc-cm)
+
+;;; enwc-cm.el ends here
