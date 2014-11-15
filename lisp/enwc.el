@@ -1,44 +1,43 @@
 ;;; enwc.el --- The Emacs Network Client
 
-;; Copyright (C) 2012,2013,2014 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2014 Free Software Foundation, Inc.
 
-;; Author: Ian Dunn
-;; Keywords: enwc, network, wicd, manager, nm
+;; Author: Ian Dunn <dunni@gnu.org>
+;; Keywords: network, wicd, manager, nm
+;; Version: 2.0
+;; Homepage: https://savannah.nongnu.org/p/enwc
 
-;; This file is part of ENWC
+;; This file is part of GNU Emacs.
 
-;; ENWC is free software; you can redistribute it and/or modify it
+;; GNU Emacs is free software; you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation; either version 3, or (at your option)
 ;; any later version.
 
-;; ENWC is distributed in the hope that it will be useful, but WITHOUT
+;; GNU Emacs is distributed in the hope that it will be useful, but WITHOUT
 ;; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ;; or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
 ;; License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with ENWC; see the file COPYING.  If not, write to the Free
+;; along with GNU Emacs; see the file COPYING.  If not, write to the Free
 ;; Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 ;; 02110-1301, USA.
 
-;; connect
-;; disconnect
-;; scan
-;; get-network-prop
-;; get-profile-prop
-;; save-profile
-;; get-networks
-;; check-connecting
-;; get-current-nw-id
-
 ;;; Commentary:
-;; In order to use this, add
+;;
+;; ENWC is the Emacs Network Client.  It is designed to provide a front-end to
+;; various network managers, such as NetworkManager and Wicd.
+;;
+;; Currently, only NetworkManager and Wicd are supported, although experimental
+;; support exists for Connman.
+;;
+;; In order to use this package, add
 ;;
 ;; (require 'enwc-setup)
 ;; (enwc-setup)
 ;;
-;; to your .emacs file.
+;; to your .emacs file (or other init file).
 
 (require 'dbus)
 (require 'wid-edit)
@@ -112,41 +111,41 @@ connection.
 
 ;;; The function variables for the abstract layer.
 
-(defvar enwc-scan-func nil
+(defvar enwc-scan-function nil
   "The function variable for the scan function.
 This variable is set during setup.")
 
-(defvar enwc-get-networks-func nil
+(defvar enwc-get-networks-function nil
   "A function variable to be used in `enwc-get-networks'.
 This is redefined during setup to be the function to get the network
  list.")
 
-(defvar enwc-get-wireless-nw-props-func nil)
+(defvar enwc-get-wireless-nw-props-function nil)
 
-(defvar enwc-connect-func nil
+(defvar enwc-connect-function nil
   "The function variable for the connect function.")
 
-(defvar enwc-disconnect-func nil
+(defvar enwc-disconnect-function nil
   "The function variable for the disconnect function.")
 
-(defvar enwc-get-current-nw-id-func nil
+(defvar enwc-get-current-nw-id-function nil
   "The function variable to be used in `enwc-get-current-nw-id'.
 This is redefined during setup to be the function to get
 the current network id.")
 
-(defvar enwc-check-connecting-func nil
+(defvar enwc-check-connecting-function nil
   "The function variable to be used in `enwc-check-connecting'.
 This is redefined during setup to be the function to
 check whether or not ENWC is connecting.")
 
-(defvar enwc-is-wired-func nil
+(defvar enwc-is-wired-function nil
   "The function variable to be used in `enwc-is-wired'.
 This is redefined during setup to be the function to
 check whether or not a wired connection is active.")
 
-(defvar enwc-get-profile-info-func nil)
+(defvar enwc-get-profile-info-function nil)
 
-(defvar enwc-save-nw-settings-func nil
+(defvar enwc-save-nw-settings-function nil
   "The function variable to be used in `enwc-save-nw-settings'.
 This is redefined during setup to be the function to save
 the network settings of a given network.")
@@ -205,9 +204,6 @@ Each key in the children association lists corresponds to an entry in
 This is `non-nil' if ENWC is using wired connections.
 Note that this is NOT the same as `enwc-is-wired'.  This checks
 whether or not ENWC is in wired mode.")
-
-(defvar enwc-scan-done nil
-  "Whether or not a scan is finished.")
 
 (defvar enwc-edit-id nil
   "This is the network id of the network being edited.")
@@ -292,33 +288,33 @@ each word by SEPS, which defaults to \"-\"."
 (defun enwc-get-networks ()
   "Gets the identifiers for the access points
 from a previous scan."
-  (funcall enwc-get-networks-func))
+  (funcall enwc-get-networks-function enwc-using-wired))
 
-(defun enwc-do-scan ()
+(defun enwc-replace-scan ()
   "Runs a backend scan."
-  (funcall enwc-scan-func))
+  (funcall enwc-scan-function))
 
 (defun enwc-connect (id)
   "Connect to network with id ID.
 
 ID is specific to the backend."
-  (funcall enwc-connect-func id enwc-using-wired))
+  (funcall enwc-connect-function id enwc-using-wired))
 
 (defun enwc-disconnect ()
   "Disconnect from the current network."
-  (funcall enwc-disconnect-func enwc-using-wired))
+  (funcall enwc-disconnect-function enwc-using-wired))
 
 (defun enwc-get-current-nw-id ()
   "Gets the id of the current network id,
 or nil if there isn't one.
 
 The returned id is specific to the backend."
-  (funcall enwc-get-current-nw-id-func enwc-using-wired))
+  (funcall enwc-get-current-nw-id-function enwc-using-wired))
 
 (defun enwc-check-connecting-p ()
   "Check to see if there is a connection in progress.
 Returns `non-nil' if there is one, nil otherwise."
-  (funcall enwc-check-connecting-func))
+  (funcall enwc-check-connecting-function))
 
 (defun enwc-get-wireless-nw-props (id)
   "Get the network properties of the wireless network with id ID.
@@ -326,19 +322,19 @@ This will return an associative list with the keys
 corresponding to `enwc-details-alist'.
 
 ID is specific to the backend."
-  (funcall enwc-get-wireless-nw-props-func id))
+  (funcall enwc-get-wireless-nw-props-function id))
 
 (defun enwc-is-wired-p ()
   "Checks whether or not ENWC is connected to a wired network.
 Note that this is NOT the same as `enwc-using-wired'.
 This checks for an active wired connection."
-  (funcall enwc-is-wired-func))
+  (funcall enwc-is-wired-function))
 
 (defun enwc-get-profile-info (id)
   "Get the profile information for network ID.
 
 ID is specific to the backend."
-  (funcall enwc-get-profile-info-func id enwc-using-wired))
+  (funcall enwc-get-profile-info-function id enwc-using-wired))
 
 (defun enwc-save-nw-settings (id settings)
   "Saves network settings SETTINGS to the network profile with network id ID.
@@ -347,7 +343,7 @@ Gateway, DNS Servers, and Security.  WIRED is set to indicate whether or not
 this is a wired network.
 
 ID is specific to the backend."
-  (funcall enwc-save-nw-settings-func id settings enwc-using-wired))
+  (funcall enwc-save-nw-settings-function id settings enwc-using-wired))
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Actual Functions ;;
@@ -458,24 +454,19 @@ This will use the current value of `enwc-auto-scan-interval'."
 ;;;;;;;;;;;;;;;;;;;
 
 (defun enwc-scan (&optional nodisp)
-  "The frontend of the scanning routine.  Sets up and moves to
-the ENWC buffer if necessary, and scans and displays the networks.
-If NODISP is non-nil, then do not display the results in the ENWC
+  "The frontend of the scanning routine.
+Sets up and moves to the ENWC buffer if necessary, and scans and displays the
+ networks.  If NODISP is non-nil, then do not display the results in the ENWC
 buffer."
-  (interactive "p")
+  (interactive)
   (unless nodisp
     (setq enwc-scan-interactive t))
   (when (get-buffer "*ENWC*")
     (with-current-buffer "*ENWC*"
-      (if enwc-using-wired
-          (progn
-            (enwc-scan-internal)
-            (goto-char 0)
-            (forward-line))
-        (enwc-scan-internal)))))
+      (enwc-scan-internal))))
 
 (defun enwc-scan-internal-wireless ()
-  "The initial scan routine.
+  "The initial scan routine for wireless networks.
 This initiates a scan using D-Bus, then exits,
 waiting for the callback.
 
@@ -484,22 +475,17 @@ upon completion of a scan."
   (when enwc-scan-interactive
     (message "Scanning..."))
   (setq enwc-scan-requested t)
-  (setq enwc-scan-done nil)
-  (enwc-do-scan))
+  (enwc-replace-scan))
 
 (defun enwc-scan-internal-wired ()
   "The scanning routine for a wired connection.
 This gets the list of wired network profiles."
   (message "Updating Profiles...")
-  (let ((profs (enwc-get-networks))
-        fin-profs)
-    (dolist (cur-prof profs)
-      (when cur-prof
-        (push cur-prof fin-profs)))
+  (let ((profs (enwc-get-networks)))
     (message "Updating Profiles... Done")
-    (setq enwc-access-points fin-profs
-          enwc-last-scan     fin-profs)
-    fin-profs))
+    (setq enwc-access-points profs
+          enwc-last-scan     profs)
+    (enwc-display-wired-networks profs)))
 
 (defun enwc-scan-internal ()
   "The entry point for the internal scan routines.
@@ -526,6 +512,15 @@ If VAL is not specified, then use the width of the display name for DETAIL."
   (dolist (det enwc-details-alist)
     (enwc-update-width (car det))))
 
+(defun enwc-refresh-widths (&optional networks)
+  "Refresh the column widths for display."
+  (unless networks
+    (setq networks enwc-last-scan))
+  (enwc-reset-widths)
+  (dolist (nw networks)
+    (dolist (props (cdr nw))
+      (enwc-update-width (car props) (length (prin1-to-string (cdr props)))))))
+
 (defun enwc-process-scan (&rest args)
   "The scanning callback.
 After a scan has been performed, this processes and displays
@@ -535,15 +530,10 @@ the scan results."
           enwc-access-points  (enwc-get-networks))
     (when enwc-scan-interactive
       (message "Scanning... Done"))
-    (enwc-reset-widths)
     (setq enwc-last-scan (mapcar
                           (lambda (ap)
                             `(,ap . ,(enwc-get-wireless-nw-props ap)))
                           enwc-access-points))
-    (dolist (nw enwc-last-scan)
-      (dolist (props (cdr nw))
-        (enwc-update-width (car props) (length (prin1-to-string (cdr props))))))
-    (setq enwc-scan-done t)
     (enwc-display-wireless-networks enwc-last-scan)
     (setq enwc-scan-interactive nil)))
 
@@ -558,12 +548,11 @@ NETWORKS must be in the form returned from
   (unless (listp networks)
     (error "NETWORKS must be a list of networks."))
   (let ((inhibit-read-only t))
-    (erase-buffer)
-    (insert (propertize "Profile" 'face 'enwc-header-face))
-    (insert "\n")
-    (dolist (pr networks)
-      (insert pr)
-      (insert "\n"))))
+    (setq tabulated-list-format (vector '("Profile" . 1)))
+    ;;TODO: actually get names of profiles, if possible.
+    (setq tabulated-list-entries (mapcar (lambda (prop) (cons prop prop)) networks))
+    (tabulated-list-init-header)
+    (tabulated-list-print)))
 
 (defmacro enwc--propertize-entry (network-entry)
   "Propertize network entry NETWORK-ENTRY."
@@ -586,6 +575,8 @@ NETWORKS must be in the format returned by
   (unless (get-buffer "*ENWC*")
     (enwc-setup-buffer t))
   (cl-check-type networks list)
+  ;; Update the display widths.
+  (enwc-refresh-widths)
   (with-current-buffer (get-buffer "*ENWC*")
     (let ((cur-id (enwc-get-current-nw-id)))
       (setq tabulated-list-format
@@ -652,12 +643,12 @@ This is an entry point for the internal connection functions,
 and checks whether or not ENWC is using wired."
   (enwc-connect id)
   (if enwc-using-wired
-      (nth id (enwc-get-networks))
+      id
     (when enwc-last-scan
       (enwc-value-from-scan 'essid id))))
 
 (defun enwc-connect-to-network (net-id)
-  "Connects the the network with network id NET-ID.
+  "Connect the the network with network id NET-ID.
 Confirms that NET-ID is a valid network id.
 This calls `enwc-connect-network' as a subroutine."
   (interactive "sNetwork ID: ")
@@ -665,10 +656,10 @@ This calls `enwc-connect-network' as a subroutine."
     (unless (enwc-is-valid-nw-id-p net-id)
       (error "Invalid network id."))
     (setq cur-net (enwc-connect-network net-id))
-    (message (concat "Connecting to " cur-net))))
+    (message "Connecting to %s" cur-net)))
 
 (defun enwc-connect-to-network-essid (essid)
-  "Connects to the network with essid ESSID."
+  "Connect to the network with essid ESSID."
   (interactive "sNetwork ESSID: ")
   (let ((net-id (enwc-find-network essid)))
     (if net-id
@@ -676,7 +667,7 @@ This calls `enwc-connect-network' as a subroutine."
       (message "Network not found."))))
 
 (defun enwc-connect-to-network-at-point ()
-  "Connects to the network at the current line number.
+  "Connect to the network at the current line number.
 Moves to the enwc buffer if necessary."
   (interactive)
   (unless (eq major-mode 'enwc-mode)
@@ -685,7 +676,7 @@ Moves to the enwc buffer if necessary."
   (enwc-connect-to-network (tabulated-list-get-id)))
 
 (defun enwc-disconnect-network ()
-  "Disconnects from the network, if any."
+  "Disconnect from the network, if any."
   (interactive)
   (message "Disconnecting")
   (enwc-disconnect))
