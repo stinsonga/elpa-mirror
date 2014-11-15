@@ -410,7 +410,7 @@ WIRED indicates whether or not ID is a wired connection."
                                          (caar (nthcdr 3 info))
                                          (string-to-number (caar (nthcdr 3 info))))))))
 
-(defun enwc-wicd-setup ()
+(defun enwc-wicd-load ()
   "Setup the Wicd backend."
   ;; Thanks to Michael Albinus for pointing out this signal.
   (setq enwc-wicd-end-scan-signal
@@ -438,4 +438,4 @@ Unregister all of the D-Bus signals set up during load."
 
 (provide 'enwc-wicd)
 
-;;; End of File
+;;; enwc-wicd.el ends here.

@@ -524,7 +524,7 @@ to put it in the form that NetworkManager will recognize."
     (setq conn-settings (enwc-nm-process-profile-info conn-settings settings))
     (enwc-nm-finalize-settings conn-settings)))
 
-(defun enwc-nm-setup ()
+(defun enwc-nm-load ()
   "Setup the NetworkManager back-end."
   (setq enwc-nm-wired-dev (enwc-nm-get-device-by-name enwc-wired-device)
         enwc-nm-wireless-dev (enwc-nm-get-device-by-name enwc-wireless-device))
@@ -606,4 +606,4 @@ Unregister all of the D-Bus signals set up during load."
 
 (provide 'enwc-nm)
 
-;;; End of File.
+;;; enwc-nm.el ends here
