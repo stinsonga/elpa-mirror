@@ -1,27 +1,28 @@
 ;;; enwc-nm.el - The NetworkManager backend to ENWC
 
-;; Copyright (C) 2012,2013,2014 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2014 Free Software Foundation, Inc.
 
-;; Author: Ian Dunn
-;; Keywords: enwc, network, wicd, manager, nm
+;; Author: Ian Dunn <dunni@gnu.org>
+;; Keywords: network, wicd, manager, nm
+;; Version: 2.0
+;; Homepage: https://savannah.nongnu.org/p/enwc
 
-;; This file is part of ENWC
+;; This file is part of GNU Emacs.
 
-;; ENWC is free software; you can redistribute it and/or modify it
+;; GNU Emacs is free software; you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation; either version 3, or (at your option)
 ;; any later version.
 
-;; ENWC is distributed in the hope that it will be useful, but WITHOUT
+;; GNU Emacs is distributed in the hope that it will be useful, but WITHOUT
 ;; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ;; or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
 ;; License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with ENWC; see the file COPYING.  If not, write to the Free
+;; along with GNU Emacs; see the file COPYING.  If not, write to the Free
 ;; Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 ;; 02110-1301, USA.
-
 
 ;;; Commentary:
 ;;
@@ -108,6 +109,23 @@
 (defvar enwc-nm-edit-info nil
   "The information for the network connection being edited.")
 
+;; D-Bus Signals:
+
+(defvar enwc-nm-access-point-added-signal nil
+  "D-Bus signal object for the \"AccessPointAdded\" signal.")
+
+(defvar enwc-nm-access-point-removed-signal nil
+  "D-Bus signal object for the \"AccessPointRemoved\" signal.")
+
+(defvar enwc-nm-properties-changed-signal nil
+  "D-Bus signal object for the \"PropertiesChanged\" signal.")
+
+(defvar enwc-nm-wired-state-changed-signal nil
+  "D-Bus signal object for the \"StateChanged\" signal for the wired device.")
+
+(defvar enwc-nm-state-changed-signal nil
+  "D-Bus signal object for the \"StateChanged\" signal for the default path.")
+
 (defun enwc-nm-dbus-call-method (method &optional path interface &rest args)
   (unless path (setq path enwc-nm-dbus-path))
   (unless interface (setq interface enwc-nm-dbus-interface))
@@ -144,8 +162,7 @@
          args))
 
 (defun enwc-nm-get-settings (conn)
-  "Gets the connection settings.
-CONN is an object path to the connection."
+  "Get the connection settings from CONN."
   (enwc-nm-dbus-call-method "GetSettings" conn
                             enwc-nm-dbus-connections-interface))
 
@@ -243,7 +260,7 @@ This gets the connection path from NW, and connects to it."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Get network properties ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun enwc-nm-get-wireless-network-property (nw prop)
   "The NetworkManager get wireless network property function.
@@ -262,7 +279,7 @@ PROP from that access point.  It also sets the channel from the
   (1+ (/ (- freq 2412) 5)))
 
 (defun enwc-nm-get-wireless-nw-props (nw)
-  "Gets the network properties for the network NW."
+  "Get the network properties for the network NW."
   (let ((props (dbus-get-all-properties :system
                                         enwc-nm-dbus-service
                                         nw
@@ -285,9 +302,9 @@ If both are 0, then it returns WEP, otherwise WPA."
         "WEP"
       "WPA")))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Get Current network id
-;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Get Current network id ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun enwc-nm-wireless-prop-changed (props)
   "Called when network properties are changed.
@@ -319,14 +336,9 @@ If STATE is 40, then NetworkManager is connecting to a new AP."
   "The NetworkManager check connecting function."
   enwc-nm-connecting-p)
 
-;; Settings, Connections
-
-;; Device
-
 (defun enwc-nm-dev-prop-changed (new-state old-state reason)
   (setq enwc-nm-wired-p (eq new-state 100)))
 
-;; Default
 (defun enwc-nm-is-wired ()
   enwc-nm-wired-p)
 
@@ -367,7 +379,7 @@ If STATE is 40, then NetworkManager is connecting to a new AP."
 ;; These next two come from libnm-util/nm-utils.c in NM's source.
 
 (defun enwc-nm-netmask-to-prefix (netmask)
-  "Converts a netmask to a CIDR prefix.
+  "Convert a netmask to a CIDR prefix.
 NETMASK is an ip address in network byte order."
   (if (and netmask (integerp netmask))
       (progn
@@ -378,7 +390,7 @@ NETMASK is an ip address in network byte order."
     0))
 
 (defun enwc-nm-prefix-to-netmask (prefix)
-  "Converts a CIDR prefix to a netmask.
+  "Convert a CIDR prefix to a netmask.
 PREFIX is an integer <= 32."
   (if (and prefix (integerp prefix))
       (progn
@@ -489,14 +501,14 @@ representing another layer in the dictionary."
       (push :dict-entry ret))))
 
 (defun enwc-nm-finalize-settings (settings)
-  "Sets up all of the D-BUS types of a settings list.
+  "Set up all of the D-BUS types of a settings list.
 SETTINGS is the list of settings list to setup.
 This will place all of the necessary markers in the list,
 such as :array, :dict-entry, etc."
   `(:array ,@(enwc-nm-alist-to-dbus-str-str-var-map-map settings)))
 
 (defun enwc-nm-setup-settings (wired id settings)
-  "Sets up NetworkManager settings.
+  "Set up NetworkManager settings.
 Gets the current network properties of network ID
 and uses the information in the association list SETTINGS
 to put it in the form that NetworkManager will recognize."
@@ -512,39 +524,26 @@ to put it in the form that NetworkManager will recognize."
     (setq conn-settings (enwc-nm-process-profile-info conn-settings settings))
     (enwc-nm-finalize-settings conn-settings)))
 
-(defun enwc-nm-save-nw-settings (id settings wired)
-  "Saves network settings.
-ID is the network id of the profile to save,
-WIRED denotes whether or not this is a wired profile,
-and SETTINGS is the list of settings."
-  (let ((mod-sets (enwc-nm-setup-settings wired id settings)))
-    (dbus-call-method :system
-                      enwc-nm-dbus-service
-                      id
-                      enwc-nm-dbus-connections-interface
-                      (if (not enwc-nm-edit-info)
-                          "AddConnection"
-                        "Update")
-                      :timeout 25000
-                      :array mod-sets)))
-
 (defun enwc-nm-setup ()
+  "Setup the NetworkManager back-end."
   (setq enwc-nm-wired-dev (enwc-nm-get-device-by-name enwc-wired-device)
         enwc-nm-wireless-dev (enwc-nm-get-device-by-name enwc-wireless-device))
 
-  (dbus-register-signal :system
-                        enwc-nm-dbus-service
-                        enwc-nm-wireless-dev
-                        enwc-nm-dbus-wireless-interface
-                        "AccessPointAdded"
-                        'enwc-process-scan)
+  (setq enwc-nm-access-point-added-signal
+        (dbus-register-signal :system
+                              enwc-nm-dbus-service
+                              enwc-nm-wireless-dev
+                              enwc-nm-dbus-wireless-interface
+                              "AccessPointAdded"
+                              'enwc-process-scan))
 
-  (dbus-register-signal :system
-                        enwc-nm-dbus-service
-                        enwc-nm-wireless-dev
-                        enwc-nm-dbus-wireless-interface
-                        "AccessPointRemoved"
-                        'enwc-process-scan)
+  (setq enwc-nm-access-point-removed-signal
+        (dbus-register-signal :system
+                              enwc-nm-dbus-service
+                              enwc-nm-wireless-dev
+                              enwc-nm-dbus-wireless-interface
+                              "AccessPointRemoved"
+                              'enwc-process-scan))
 
   (setq enwc-nm-active-ap
         (let ((cur-net (dbus-get-property :system
@@ -556,12 +555,13 @@ and SETTINGS is the list of settings."
               "/"
             cur-net)))
 
-  (dbus-register-signal :system
-                        enwc-nm-dbus-service
-                        enwc-nm-wireless-dev
-                        enwc-nm-dbus-wireless-interface
-                        "PropertiesChanged"
-                        'enwc-nm-wireless-prop-changed)
+  (setq enwc-nm-properties-changed-signal
+        (dbus-register-signal :system
+                              enwc-nm-dbus-service
+                              enwc-nm-wireless-dev
+                              enwc-nm-dbus-wireless-interface
+                              "PropertiesChanged"
+                              'enwc-nm-wireless-prop-changed))
 
   (setq enwc-nm-connecting-p
         (let ((state (dbus-get-property :system
@@ -571,12 +571,13 @@ and SETTINGS is the list of settings."
                                         "State")))
           (eq state 40)))
 
-  (dbus-register-signal :system
-                        enwc-nm-dbus-service
-                        enwc-nm-wired-dev
-                        enwc-nm-dbus-device-interface
-                        "StateChanged"
-                        'enwc-nm-dev-prop-changed)
+  (setq enwc-nm-wired-state-changed-signal
+        (dbus-register-signal :system
+                              enwc-nm-dbus-service
+                              enwc-nm-wired-dev
+                              enwc-nm-dbus-device-interface
+                              "StateChanged"
+                              'enwc-nm-dev-prop-changed))
 
   (setq enwc-nm-wired-p
         (let ((state (dbus-get-property :system
@@ -585,13 +586,23 @@ and SETTINGS is the list of settings."
                                         enwc-nm-dbus-device-interface
                                         "State")))
           (eq state 100)))
-  (dbus-register-signal :system
-                        enwc-nm-dbus-service
-                        enwc-nm-dbus-path
-                        enwc-nm-dbus-interface
-                        "StateChanged"
-                        'enwc-nm-prop-changed))
+  (setq enwc-nm-state-changed-signal
+        (dbus-register-signal :system
+                              enwc-nm-dbus-service
+                              enwc-nm-dbus-path
+                              enwc-nm-dbus-interface
+                              "StateChanged"
+                              'enwc-nm-prop-changed)))
 
+(defun enwc-nm-unload ()
+  "Unload the NetworkManager back-end.
+
+Unregister all of the D-Bus signals set up during load."
+  (dbus-unregister-object enwc-nm-access-point-added-signal)
+  (dbus-unregister-object enwc-nm-access-point-removed-signal)
+  (dbus-unregister-object enwc-nm-properties-changed-signal)
+  (dbus-unregister-object enwc-nm-wired-state-changed-signal)
+  (dbus-unregister-object enwc-nm-state-changed-signal))
 
 (provide 'enwc-nm)
 
