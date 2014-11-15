@@ -232,7 +232,7 @@ wireless network with id ID."
   (enwc-wicd-dbus-wireless-call-method "ConnectWireless" id))
 
 (defun enwc-wicd-wired-connect (id)
-  "Connects to the wired network with profile id ID."
+  "Connect to the wired network with profile id ID."
   (let* ((profs (enwc-wicd-get-wired-profiles))
          (prf (nth id profs)))
     (enwc-wicd-dbus-wired-call-method "ReadWiredNetworkProfile" prf)
@@ -252,7 +252,7 @@ wireless network with id ID."
   (enwc-wicd-dbus-wireless-call-method "DisconnectWireless"))
 
 (defun enwc-wicd-wired-disconnect ()
-  "Disconnects from the wired connection."
+  "Disconnect from the wired connection."
   (enwc-wicd-dbus-wired-call-method "DisconnectWired"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -274,7 +274,7 @@ so this jut returns the tracked network id."
 ;;;;;;;;;;;;;;;;;;;;;;
 
 (defun enwc-wicd-check-connecting ()
-  "The Wicd check connecting function."
+  "Return non-nil if currently connecting to a network."
   (enwc-wicd-dbus-wireless-call-method "CheckIfWirelessConnecting"))
 
 ;;;;;;;;;;;;;
@@ -282,14 +282,14 @@ so this jut returns the tracked network id."
 ;;;;;;;;;;;;;
 
 (defun enwc-wicd-is-wired ()
-  "Checks to see if wired is connected."
+  "Return non-nil if connected to a wired network."
   (not (not (enwc-wicd-dbus-wired-call-method "GetWiredIP"))))
 
-;;;;;;;;;;;;;;;;;;;;;
-;; Get Profile Info
-;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;
+;; Get Profile Info ;;
+;;;;;;;;;;;;;;;;;;;;;;
 
-(defun enwc-wicd-get-profile-ent (wired id ent)
+(defun enwc-wicd-get-profile-ent (id ent wired)
   "Get profile entry ENT from the network with id ID.
 WIRED is set to indicate whether this is a wired network.
 This function is a wrapper around the *-get-(wired|wireless)-nw-prop
@@ -301,11 +301,11 @@ functions, allowing for a single function that checks for wired."
 (defun enwc-wicd-get-profile-info (id &optional wired)
   "Get the profile for profile ID.
 WIRED is set to indicate whether this is a wired network."
-  (let ((dns-list (enwc-wicd-get-dns wired id))
+  (let ((dns-list (enwc-wicd-get-dns id wired))
         (sec-info (enwc-wicd-get-profile-sec-info id wired)))
-    `((addr . ,(enwc-wicd-get-ip-addr wired id))
-      (netmask . ,(enwc-wicd-get-netmask wired id))
-      (gateway . ,(enwc-wicd-get-gateway wired id))
+    `((addr . ,(enwc-wicd-get-ip-addr id wired))
+      (netmask . ,(enwc-wicd-get-netmask id wired))
+      (gateway . ,(enwc-wicd-get-gateway id wired))
       (dns1 . ,(nth 0 dns-list))
       (dns2 . ,(nth 1 dns-list))
       ,@sec-info)))
@@ -313,34 +313,36 @@ WIRED is set to indicate whether this is a wired network."
 (defun enwc-wicd-get-profile-sec-info (id &optional wired)
   "Get the security info for profile with id ID.
 WIRED is set to indicate whether this is a wired network."
-  (mapcar
-   (lambda (ent)
-     (cons
-      (car ent)
-      (enwc-wicd-get-profile-ent wired id (symbol-name (car ent)))))
-   enwc-supplicant-alist))
+  (remq nil
+   (mapcar
+    (lambda (ent)
+      (let ((info (enwc-wicd-get-profile-ent wired id (symbol-name (car ent)))))
+        (if info
+            (cons (car ent) info)
+          nil)))
+    enwc-supplicant-alist)))
 
-(defun enwc-wicd-get-ip-addr (wired id)
+(defun enwc-wicd-get-ip-addr (id wired)
   "Get the IP Address from the network with id ID.
 Wired is set to indicate whether this is a wired network."
-  (or (enwc-wicd-get-profile-ent wired id "ip") ""))
+  (or (enwc-wicd-get-profile-ent id "ip" wired) ""))
 
-(defun enwc-wicd-get-netmask (wired id)
+(defun enwc-wicd-get-netmask (id wired)
   "Get the Netmask from the network with id ID.
 WIRED is set to indicate whether this is a wired network."
-  (or (enwc-wicd-get-profile-ent wired id "netmask") ""))
+  (or (enwc-wicd-get-profile-ent id "netmask" wired) ""))
 
-(defun enwc-wicd-get-gateway (wired id)
+(defun enwc-wicd-get-gateway (id wired)
   "Get the Gateway from the network with id ID.
 WIRED is set to indicate whether this is a wired network."
-  (or (enwc-wicd-get-profile-ent wired id "gateway") ""))
+  (or (enwc-wicd-get-profile-ent id "gateway" wired) ""))
 
-(defun enwc-wicd-get-dns (wired id)
+(defun enwc-wicd-get-dns (id wired)
   "Get the list of DNS servers from the network with id ID.
 WIRED is set to indicate whether this is a wired network."
-  (list (or (enwc-wicd-get-profile-ent wired id "dns1") "")
-        (or (enwc-wicd-get-profile-ent wired id "dns2") "")
-        (or (enwc-wicd-get-profile-ent wired id "dns3") "")))
+  (list (or (enwc-wicd-get-profile-ent id "dns1" wired) "")
+        (or (enwc-wicd-get-profile-ent id "dns2" wired) "")
+        (or (enwc-wicd-get-profile-ent id "dns3" wired) "")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Save Network Settings ;;
@@ -374,21 +376,22 @@ for each entry in PHASE."
    phase " "))
 
 (defun enwc-wicd-save-nw-settings (id settings &optional wired)
-  "Save the settings indicated for network ID.
+  "Set the settings for network ID to SETTINGS and save the profile.
 The association list SETTINGS contains the settings for the network.
 WIRED indicates whether or not ID is a wired connection."
   (dolist (setting settings)
     (let (key ent)
       ;; There are four special cases in here:
-      ;; The first is the IP Address, and the second is the encryption type.
-      ;; The final two are the phases.
+      ;;  1. IP Address, which has a different key.
+      ;;  2. Encryption type, which has a different key and value.
+      ;;  3,4. Phases, both of which need to have their results concatenated.
       (pcase (car setting)
         ('addr (setq key "ip"
                      ent (cdr setting)))
-        ('enctype (setq key "enctype"
-                        ent (if (cdr setting)
-                                (symbol-name (cdr setting))
-                              "None")))
+        ('sec-type (setq key "enctype"
+                         ent (if (cdr setting)
+                                 (symbol-name (cdr setting))
+                               "None")))
         ('phase1 (setq key "phase1"
                        ent (enwc-wicd--phase-to-string (cdr setting))))
         ('phase2 (setq key "phase2"
@@ -400,6 +403,7 @@ WIRED indicates whether or not ID is a wired connection."
   (enwc-wicd-save-nw-profile wired id))
 
 (defun enwc-wicd-wireless-prop-changed (state info)
+  "Callback for when the network status changes."
   (when state
     (if (eq state 0)
         (setq enwc-wicd-current-ap ""
@@ -411,7 +415,7 @@ WIRED indicates whether or not ID is a wired connection."
                                          (string-to-number (caar (nthcdr 3 info))))))))
 
 (defun enwc-wicd-load ()
-  "Setup the Wicd backend."
+  "Load the Wicd backend."
   ;; Thanks to Michael Albinus for pointing out this signal.
   (setq enwc-wicd-end-scan-signal
         (dbus-register-signal :system

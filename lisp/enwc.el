@@ -39,14 +39,18 @@
 ;;
 ;; to your .emacs file (or other init file).
 
+;;; TODO:
+;;
+;; - Add hooks for scan completion, and possibly upon network connection.
+
+;;; Code:
+
 (require 'dbus)
 (require 'wid-edit)
 (require 'tabulated-list)
 (require 'cl-lib)
 (require 'cl-macs)
 (require 'format-spec)
-
-;;; Code:
 
 (defgroup enwc nil
   "*The Emacs Network Client"
@@ -71,10 +75,8 @@ and the first active backend found will be used."
   :type 'list)
 
 (defcustom enwc-display-mode-line 't
-  "Whether or not to use ENWC's modeline display.
-When set to non-nil, this will cause the current
-network signal strength to be displayed on the
-Emacs mode line."
+  "Non-nil means display network information in the mode line.
+The specific information can be set using `enwc-mode-line-format'."
   :group 'enwc
   :type 'boolean)
 
@@ -165,9 +167,8 @@ Each key in the children association lists corresponds to an entry in
   "The most recent access point list.")
 
 (defvar enwc-using-wired nil
-  "Whether or not wired mode is active.
+  "Non-nil means ENWC is using wired connections.
 
-This is `non-nil' if ENWC is using wired connections.
 Note that this is NOT the same as `enwc-is-wired'.  This checks
 whether or not ENWC is in wired mode.")
 
@@ -175,11 +176,11 @@ whether or not ENWC is in wired mode.")
   "This is the network id of the network being edited.")
 
 (defvar enwc-scan-requested nil
-  "Indicates that a scan has been requested.
+  "This is non-nil when a scan has been requested.
 This is used so as to avoid multiple updates of the scan data.")
 
 (defvar enwc-scan-interactive nil
-  "Indicates that a scan was interactively requested.
+  "This is non-nil that a scan was interactively requested.
 This is only used internally.")
 
 (defvar enwc-display-mode-line-timer nil
@@ -261,7 +262,7 @@ If the symbol BACKEND is not specified, then it defaults to
 ;;;;;;;;;;;;;;;;;;;;
 
 (defun enwc-get-networks ()
-  "Gets the identifiers for the access points
+  "Get the identifiers for the access points
 from a previous scan."
   (enwc-call-backend-function "get-networks" nil enwc-using-wired))
 
@@ -281,7 +282,7 @@ ID is specific to the backend."
   (enwc-call-backend-function "disconnect" nil enwc-using-wired))
 
 (defun enwc-get-current-nw-id ()
-  "Gets the id of the current network id,
+  "Get the id of the current network id,
 or nil if there isn't one.
 
 The returned id is specific to the backend."
@@ -301,7 +302,7 @@ ID is specific to the backend."
   (enwc-call-backend-function "get-wireless-nw-props" nil id))
 
 (defun enwc-is-wired-p ()
-  "Checks whether or not ENWC is connected to a wired network.
+  "Check whether or not ENWC is connected to a wired network.
 Note that this is NOT the same as `enwc-using-wired'.
 This checks for an active wired connection."
   (enwc-call-backend-function "is-wired"))
@@ -313,20 +314,22 @@ ID is specific to the backend."
   (enwc-call-backend-function "get-profile-info" nil id enwc-using-wired))
 
 (defun enwc-save-nw-settings (id settings)
-  "Saves network settings SETTINGS to the network profile with network id ID.
+  "Save network settings SETTINGS to the network profile with network id ID.
 SETTINGS is an association list with entries for the IP Address, Netmask,
 Gateway, DNS Servers, and Security.  WIRED is set to indicate whether or not
 this is a wired network.
 
 ID is specific to the backend."
-  (enwc-call-backend-function "save-nw-settings" nil id settings enwc-using-wired))
+  (enwc-call-backend-function "save-nw-settings" nil
+                              id settings
+                              enwc-using-wired))
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Actual Functions ;;
 ;;;;;;;;;;;;;;;;;;;;;;
 
 (defun enwc-is-valid-nw-id-p (id)
-  "Confirms that ID is a valid network id."
+  "Confirm that ID is a valid network id."
   (and id (not (eq id 'wired))))
 
 (defun enwc-value-from-scan (detail &optional id)
@@ -341,6 +344,8 @@ If DETAIL is not found in `enwc-last-scan', then return nil."
     (alist-get detail (alist-get id enwc-last-scan))))
 
 (defun enwc-make-format-spec ()
+  "Create a format specification for the mode line string."
+  ;; Variables here are cached to avoid latencies when communicating with D-Bus.
   (let* ((cur-id (enwc-get-current-nw-id))
          (wiredp (enwc-is-wired-p))
          (no-last (not enwc-last-scan))
@@ -370,20 +375,20 @@ If DETAIL is not found in `enwc-last-scan', then return nil."
                       ?% "%")))
 
 (defun enwc-format-mode-line-string ()
-  "Formats the mode line string.
+  "Format the mode line string.
 This is derived from `enwc-mode-line-format'.
 See the documentation for it for more details."
   (format-spec enwc-mode-line-format (enwc-make-format-spec)))
 
 (defun enwc-update-mode-line ()
-  "Updates the mode line display.
+  "Update the mode line display.
 This uses the format specified by `enwc-mode-line-format'.
 This is initiated during setup, and runs once every second."
   (setq enwc-display-string (enwc-format-mode-line-string))
   (force-mode-line-update))
 
 (defun enwc-enable-display-mode-line ()
-  "Enables the mode line display."
+  "Enable the mode line display."
   (interactive)
   (or global-mode-string (setq global-mode-string '("")))
   (setq enwc-display-mode-line t)
@@ -395,7 +400,7 @@ This is initiated during setup, and runs once every second."
   (message "ENWC mode line enabled"))
 
 (defun enwc-disable-display-mode-line ()
-  "Disables the mode line display."
+  "Disable the mode line display."
   (interactive)
   (or global-mode-string (setq global-mode-string '("")))
   (setq enwc-display-mode-line nil)
@@ -412,18 +417,27 @@ This is initiated during setup, and runs once every second."
       (enwc-enable-display-mode-line)
     (enwc-disable-display-mode-line)))
 
+(defun enwc-enable-auto-scan ()
+  "Enable auto scanning."
+  (unless enwc-scan-timer
+    (setq enwc-scan-timer
+          (run-at-time t enwc-auto-scan-interval 'enwc-scan t)))
+  (setq enwc-auto-scan t)
+  (message "Auto-scan enabled"))
+
+(defun enwc-disable-auto-scan ()
+  "Disable auto scanning."
+  (when enwc-scan-timer (cancel-timer enwc-scan-timer))
+  (setq enwc-auto-scan nil)
+  (message "Auto scan disabled"))
+
 (defun enwc-toggle-auto-scan ()
   "Toggles automatic scanning.
 This will use the current value of `enwc-auto-scan-interval'."
   (interactive)
-  (let ((new (not enwc-auto-scan)))
-    (if new
-        (progn (setq enwc-scan-timer
-                     (run-at-time t enwc-auto-scan-interval 'enwc-scan t))
-               (message "Auto-scan enabled"))
-      (cancel-timer enwc-scan-timer)
-      (message "Auto scan disabled"))
-    (setq enwc-auto-scan new)))
+  (if enwc-auto-scan
+      (enwc-disable-auto-scan)
+    (enwc-enable-auto-scan)))
 
 ;;;;;;;;;;;;;;;;;;;
 ;; Scan internal ;;
@@ -431,8 +445,8 @@ This will use the current value of `enwc-auto-scan-interval'."
 
 (defun enwc-scan (&optional nodisp)
   "The frontend of the scanning routine.
-Sets up and moves to the ENWC buffer if necessary, and scans and displays the
- networks.  If NODISP is non-nil, then do not display the results in the ENWC
+Set up and move to the ENWC buffer if necessary, and scan and display the
+ networks.  If NODISP is `non-nil', then do not display the results in the ENWC
 buffer."
   (interactive)
   (unless nodisp
@@ -443,11 +457,10 @@ buffer."
 
 (defun enwc-scan-internal-wireless ()
   "The initial scan routine for wireless networks.
-This initiates a scan using D-Bus, then exits,
-waiting for the callback.
+This initiates a scan using D-Bus, then exits, waiting for the callback.
 
-All back-ends must call enwc-process-scan in some way
-upon completion of a scan."
+All back-ends must call `enwc-process-scan' in some way upon completion of a
+ scan."
   (when enwc-scan-interactive
     (message "Scanning..."))
   (enwc-request-scan))
@@ -464,11 +477,32 @@ This gets the list of wired network profiles."
 
 (defun enwc-scan-internal ()
   "The entry point for the internal scan routines.
-This checks whether or not wired is being used,
- and runs the appropriate function."
+This checks whether or not wired is being used, and runs the appropriate
+ function."
   (if enwc-using-wired
       (enwc-scan-internal-wired)
     (enwc-scan-internal-wireless)))
+
+(defun enwc-process-scan (&rest args)
+  "The scanning callback.
+After a scan has been performed, this processes and displays the scan results.
+
+ARGS is only for compatibility with the calling function."
+  (unless (or enwc-using-wired (not enwc-scan-requested))
+    (setq enwc-scan-requested nil
+          enwc-access-points  (enwc-get-networks))
+    (when enwc-scan-interactive
+      (message "Scanning... Done"))
+    (setq enwc-last-scan (mapcar
+                          (lambda (ap)
+                            `(,ap . ,(enwc-get-wireless-nw-props ap)))
+                          enwc-access-points))
+    (enwc-display-wireless-networks enwc-last-scan)
+    (setq enwc-scan-interactive nil)))
+
+;;;;;;;;;;;;;;;;;;;;;;
+;; Display Networks ;;
+;;;;;;;;;;;;;;;;;;;;;;
 
 (defun enwc-update-width (detail &optional val)
   "Update the width for column DETAIL to VAL.
@@ -496,28 +530,8 @@ If VAL is not specified, then use the width of the display name for DETAIL."
     (dolist (props (cdr nw))
       (enwc-update-width (car props) (length (prin1-to-string (cdr props)))))))
 
-(defun enwc-process-scan (&rest args)
-  "The scanning callback.
-After a scan has been performed, this processes and displays
-the scan results."
-  (unless (or enwc-using-wired (not enwc-scan-requested))
-    (setq enwc-scan-requested nil
-          enwc-access-points  (enwc-get-networks))
-    (when enwc-scan-interactive
-      (message "Scanning... Done"))
-    (setq enwc-last-scan (mapcar
-                          (lambda (ap)
-                            `(,ap . ,(enwc-get-wireless-nw-props ap)))
-                          enwc-access-points))
-    (enwc-display-wireless-networks enwc-last-scan)
-    (setq enwc-scan-interactive nil)))
-
-;;;;;;;;;;;;;;;;;;;;;;
-;; Display Networks ;;
-;;;;;;;;;;;;;;;;;;;;;;
-
 (defun enwc-display-wired-networks (networks)
-  "Displays the wired networks specified in the list NETWORKS.
+  "Display the wired networks specified in the list NETWORKS.
 NETWORKS must be in the form returned from
 `enwc-scan-internal-wired'."
   (unless (listp networks)
@@ -544,9 +558,7 @@ NETWORKS must be in the form returned from
     enwc-details-alist))
 
 (defun enwc-display-wireless-networks (networks)
-  "Displays the networks in the list NETWORKS in the current buffer.
-NETWORKS must be in the format returned by
-`enwc-scan-internal-wireless'."
+  "Display the networks in the list NETWORKS in the current buffer."
   (unless (get-buffer "*ENWC*")
     (enwc-setup-buffer t))
   (cl-check-type networks list)
@@ -574,8 +586,8 @@ NETWORKS must be in the format returned by
 
 (defun enwc-display-networks (networks)
   "Displays the network in NETWORKS.
-This is an entry to the display functions,
-and checks whether or not ENWC is using wired."
+This is an entry to the display functions, and checks whether or not ENWC is
+ using wired."
   (unless (eq major-mode 'enwc-mode)
     (enwc-setup-buffer))
   (cl-check-type networks list)
@@ -658,7 +670,8 @@ Moves to the enwc buffer if necessary."
 
 (defun enwc-toggle-wired ()
   "Toggle the display and mode between wireless and wired.
-This function also sets the variable `enwc-using-wired'."
+This has the side-effect of setting the variable `enwc-using-wired', and calling
+a scan."
   (interactive)
   (unless (eq major-mode 'enwc-mode)
     (enwc-setup-buffer))
@@ -677,6 +690,10 @@ In order to use this, one must have already run
   (interactive)
   (enwc-setup-buffer)
   (enwc-scan))
+
+;;;;;;;;;;;;;;;;;;;;;;;;
+;; Profile Properties ;;
+;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Settings for access point AP
 ;;
@@ -728,6 +745,9 @@ This is mostly useful to view the text of the hidden entries."
    (alist-get 'dns2 props "")))
 
 (defun enwc-widget-to-profile-props (widget vals)
+  "Convert widget values to a profile properties alist.
+WIDGET is unused.
+VALS is the list of widget values."
   (let ((addr (nth 0 vals))
         (netmask (nth 1 vals))
         (gateway (nth 2 vals))
@@ -752,7 +772,7 @@ This is mostly useful to view the text of the hidden entries."
                              :indent ,(+ 4 (length (enwc--sym-to-str key)))
                              :args ,(mapcar
                                      (lambda (arg)
-                                       `(item :tag ,arg :value ,(downcase arg)))
+                                       `(item :tag (upcase ,arg) :value ,(downcase arg)))
                                      args)))))
 
   (defmacro enwc--make-supplicant-choice (key &rest args)
@@ -763,7 +783,7 @@ This is mostly useful to view the text of the hidden entries."
                                :args
                                ,(mapcar
                                  (lambda (arg)
-                                   `(item :tag ,(downcase arg) :value ,arg))
+                                   `(item :tag ,(upcase arg) :value (downcase ,arg)))
                                  args)))))
 
   (defmacro enwc--make-supplicant-secret (key)
@@ -836,50 +856,50 @@ For more information, see the documentation for wpa_supplicant.")
   `((wep . ((key-mgmt . ("none"))
             (wep-key0 . req)
             (wep-tx-keyidx . "0")))
-    (wpa2 . ((proto . ("WPA" "RSN"))
-             (key-mgmt . "WPA-PSK")
-             (pairwise . ("CCMP" "TKIP"))
-             (group . ("CCMP" "TKIP"))
+    (wpa2 . ((proto . ("wpa" "rsn"))
+             (key-mgmt . ("wpa-psk"))
+             (pairwise . ("ccmp" "tkip"))
+             (group . ("ccmp" "tkip"))
              (psk . req)))
-    (leap . ((eap . "LEAP")
-             (key-mgmt . ("IEEE8021X"))
-             (auth-alg . "LEAP")
+    (leap . ((eap . "leap")
+             (key-mgmt . ("ieee8021x"))
+             (auth-alg . "leap")
              (identity . req)
              (password . req)))
-    (eap-fast . ((proto . ("RSN" "WPA"))
-                 (pairwise . ("CCMP" "TKIP"))
-                 (group . ("CCMP" "TKIP"))
-                 (key-mgmt . ("WPA-EAP"))
-                 (eap . "FAST")
+    (eap-fast . ((proto . ("rsn" "wpa"))
+                 (pairwise . ("ccmp" "tkip"))
+                 (group . ("ccmp" "tkip"))
+                 (key-mgmt . ("wpa-eap"))
+                 (eap . "fast")
                  (identity . req)
                  (password . req)
                  (phase1 . ((fast-provisioning . "1")))
                  (pac-file . opt)))
-    (eap-tls . ((key-mgmt . ("WPA-EAP"))
-                (pairwise . ("TKIP"))
-                (group . ("TKIP"))
-                (eap . "TLS")
+    (eap-tls . ((key-mgmt . ("wpa-eap"))
+                (pairwise . ("tkip"))
+                (group . ("tkip"))
+                (eap . "tls")
                 (identity . req)
                 (ca-cert . opt)
                 (client-cert . opt)
                 (private-key . req)
                 (private-key-passwd . req)))
-    (peap . ((proto . ("RSN"))
-             (key-mgmt . ("WPA-EAP"))
-             (pairwise . ("CCMP"))
-             (eap . "PEAP")
+    (peap . ((proto . ("rsn"))
+             (key-mgmt . ("wpa-eap"))
+             (pairwise . ("ccmp"))
+             (eap . "peap")
              (identity . req)
              (password . req)))
-    (peap-tkip . ((proto . ("WPA"))
-                  (key-mgmt . ("WPA-EAP"))
-                  (pairwise . ("TKIP"))
-                  (group . ("TKIP"))
-                  (eap . "PEAP")
+    (peap-tkip . ((proto . ("wpa"))
+                  (key-mgmt . ("wpa-eap"))
+                  (pairwise . ("tkip"))
+                  (group . ("tkip"))
+                  (eap . "peap")
                   (identity . req)
                   (password . req)
                   (ca-cert . opt)
                   (phase1 . ((peaplabel . "0")))
-                  (phase2 . ((auth . "MSCHAPV2"))))))
+                  (phase2 . ((auth . "mschapv2"))))))
   "The alist of templates for security.
 This should be an alist of the form (KEY . ((SUPPLICANT-KEY . INITIAL-INPUT) ...))
 Each SUPPLICANT-KEY should be a key from `enwc-supplicant-alist', and INITIAL-INPUT
@@ -906,9 +926,7 @@ for security information."
         (dolist (arg (widget-get (cdr wid) :args))
           (push (alist-get (enwc--str-to-sym (downcase (widget-get arg :tag))) init "")
                 act-init))
-        (setq init (nreverse act-init))
-        (print (car ent))
-        (pp init)))
+        (setq init (nreverse act-init))))
     (cons (cadr wid)
           (append (pcase init
                   (`req `(:required t :value ,(alist-get (car ent) sec-info "")))
@@ -945,10 +963,10 @@ If specified, SEC-INFO is passed to the templates to initialize them."
          (values (widget-value widget))
          (template (assq (intern type) enwc-supplicant-template-alist)))
     (unless template
-      (error "Unrecognized security template."))
+      (error "Unrecognized security template \"%s\"." type))
     (setq template (cdr template))
     (cons
-     `(sec-type ,(intern type))
+     `(sec-type . ,(intern type))
      (cl-mapcar
       (lambda (val v)
         (let ((vl v))
@@ -960,6 +978,7 @@ If specified, SEC-INFO is passed to the templates to initialize them."
                       (enwc--str-to-sym (downcase (widget-get arg :tag))))
                     (widget-get (alist-get (car val) enwc-supplicant-alist) :args))))
               (setq vl (cl-mapcar 'cons subs v))))
+          (print vl)
           (cons (car val) vl)))
       template values))))
 
