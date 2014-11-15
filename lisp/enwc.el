@@ -111,44 +111,10 @@ connection.
 
 ;;; The function variables for the abstract layer.
 
-(defvar enwc-scan-function nil
-  "The function variable for the scan function.
-This variable is set during setup.")
+(defvar enwc-current-backend nil
+  "The backend that ENWC is currently using.
 
-(defvar enwc-get-networks-function nil
-  "A function variable to be used in `enwc-get-networks'.
-This is redefined during setup to be the function to get the network
- list.")
-
-(defvar enwc-get-wireless-nw-props-function nil)
-
-(defvar enwc-connect-function nil
-  "The function variable for the connect function.")
-
-(defvar enwc-disconnect-function nil
-  "The function variable for the disconnect function.")
-
-(defvar enwc-get-current-nw-id-function nil
-  "The function variable to be used in `enwc-get-current-nw-id'.
-This is redefined during setup to be the function to get
-the current network id.")
-
-(defvar enwc-check-connecting-function nil
-  "The function variable to be used in `enwc-check-connecting'.
-This is redefined during setup to be the function to
-check whether or not ENWC is connecting.")
-
-(defvar enwc-is-wired-function nil
-  "The function variable to be used in `enwc-is-wired'.
-This is redefined during setup to be the function to
-check whether or not a wired connection is active.")
-
-(defvar enwc-get-profile-info-function nil)
-
-(defvar enwc-save-nw-settings-function nil
-  "The function variable to be used in `enwc-save-nw-settings'.
-This is redefined during setup to be the function to save
-the network settings of a given network.")
+Do not set this directly.  Instead, use `enwc-load-backend'.")
 
 (defvar enwc-display-string " [0%] "
   "The mode line display string.
@@ -281,6 +247,15 @@ each word by SEPS, which defaults to \"-\"."
   (cl-check-type n integer)
   (enwc--byte-list-to-int (nreverse (enwc--int-to-byte-list n))))
 
+(defun enwc-call-backend-function (function &optional backend &rest args)
+  "Call FUNCTION on backend BACKEND.
+FUNCTION is an ENWC function suffix string.
+If the symbol BACKEND is not specified, then it defaults to
+`enwc-current-backend'."
+  (unless backend
+    (setq backend enwc-current-backend))
+  (apply (intern (format "enwc-%s-%s" backend function)) args))
+
 ;;;;;;;;;;;;;;;;;;;;
 ;; ENWC functions ;;
 ;;;;;;;;;;;;;;;;;;;;
@@ -288,33 +263,34 @@ each word by SEPS, which defaults to \"-\"."
 (defun enwc-get-networks ()
   "Gets the identifiers for the access points
 from a previous scan."
-  (funcall enwc-get-networks-function enwc-using-wired))
+  (enwc-call-backend-function "get-networks" nil enwc-using-wired))
 
-(defun enwc-replace-scan ()
-  "Runs a backend scan."
-  (funcall enwc-scan-function))
+(defun enwc-request-scan ()
+  "Request a backend scan."
+  (setq enwc-scan-requested t)
+  (enwc-call-backend-function "scan"))
 
 (defun enwc-connect (id)
   "Connect to network with id ID.
 
 ID is specific to the backend."
-  (funcall enwc-connect-function id enwc-using-wired))
+  (enwc-call-backend-function "connect" nil id enwc-using-wired))
 
 (defun enwc-disconnect ()
   "Disconnect from the current network."
-  (funcall enwc-disconnect-function enwc-using-wired))
+  (enwc-call-backend-function "disconnect" nil enwc-using-wired))
 
 (defun enwc-get-current-nw-id ()
   "Gets the id of the current network id,
 or nil if there isn't one.
 
 The returned id is specific to the backend."
-  (funcall enwc-get-current-nw-id-function enwc-using-wired))
+  (enwc-call-backend-function "get-current-nw-id" nil enwc-using-wired))
 
 (defun enwc-check-connecting-p ()
   "Check to see if there is a connection in progress.
 Returns `non-nil' if there is one, nil otherwise."
-  (funcall enwc-check-connecting-function))
+  (enwc-call-backend-function "check-connecting"))
 
 (defun enwc-get-wireless-nw-props (id)
   "Get the network properties of the wireless network with id ID.
@@ -322,19 +298,19 @@ This will return an associative list with the keys
 corresponding to `enwc-details-alist'.
 
 ID is specific to the backend."
-  (funcall enwc-get-wireless-nw-props-function id))
+  (enwc-call-backend-function "get-wireless-nw-props" nil id))
 
 (defun enwc-is-wired-p ()
   "Checks whether or not ENWC is connected to a wired network.
 Note that this is NOT the same as `enwc-using-wired'.
 This checks for an active wired connection."
-  (funcall enwc-is-wired-function))
+  (enwc-call-backend-function "is-wired"))
 
 (defun enwc-get-profile-info (id)
   "Get the profile information for network ID.
 
 ID is specific to the backend."
-  (funcall enwc-get-profile-info-function id enwc-using-wired))
+  (enwc-call-backend-function "get-profile-info" nil id enwc-using-wired))
 
 (defun enwc-save-nw-settings (id settings)
   "Saves network settings SETTINGS to the network profile with network id ID.
@@ -343,7 +319,7 @@ Gateway, DNS Servers, and Security.  WIRED is set to indicate whether or not
 this is a wired network.
 
 ID is specific to the backend."
-  (funcall enwc-save-nw-settings-function id settings enwc-using-wired))
+  (enwc-call-backend-function "save-nw-settings" nil id settings enwc-using-wired))
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Actual Functions ;;
@@ -474,8 +450,7 @@ All back-ends must call enwc-process-scan in some way
 upon completion of a scan."
   (when enwc-scan-interactive
     (message "Scanning..."))
-  (setq enwc-scan-requested t)
-  (enwc-replace-scan))
+  (enwc-request-scan))
 
 (defun enwc-scan-internal-wired ()
   "The scanning routine for a wired connection.
@@ -768,56 +743,57 @@ This is mostly useful to view the text of the hidden entries."
 ;; Security ;;
 ;;;;;;;;;;;;;;
 
-(defmacro enwc--make-supplicant-multi (key &rest args)
-  `(cons (quote ,key)
-         (quote (checklist :tag ,(capitalize (enwc--sym-to-str key))
-                           :format "%{%t%}: %v"
-                           :sample-face bold
-                           :indent ,(+ 4 (length (enwc--sym-to-str key)))
-                           :args ,(mapcar
-                                   (lambda (arg)
-                                     `(item :tag ,arg :value ,(downcase arg)))
-                                   args)))))
+(eval-when-compile
+  (defmacro enwc--make-supplicant-multi (key &rest args)
+    `(cons (quote ,key)
+           (quote (checklist :tag ,(capitalize (enwc--sym-to-str key))
+                             :format "%{%t%}: %v"
+                             :sample-face bold
+                             :indent ,(+ 4 (length (enwc--sym-to-str key)))
+                             :args ,(mapcar
+                                     (lambda (arg)
+                                       `(item :tag ,arg :value ,(downcase arg)))
+                                     args)))))
 
-(defmacro enwc--make-supplicant-choice (key &rest args)
-  `(cons (quote ,key)
-         (quote (menu-choice :tag ,(capitalize (enwc--sym-to-str key))
-                                     :format "%[%t%]: %v"
-                                     :sample-face bold
-                                     :args
-                                     ,(mapcar
-                                       (lambda (arg)
-                                         `(item :tag ,(downcase arg) :value ,arg))
-                                       args)))))
+  (defmacro enwc--make-supplicant-choice (key &rest args)
+    `(cons (quote ,key)
+           (quote (menu-choice :tag ,(capitalize (enwc--sym-to-str key))
+                               :format "%[%t%]: %v"
+                               :sample-face bold
+                               :args
+                               ,(mapcar
+                                 (lambda (arg)
+                                   `(item :tag ,(downcase arg) :value ,arg))
+                                 args)))))
 
-(defmacro enwc--make-supplicant-secret (key)
-  `(cons (quote ,key)
-         (quote (editable-field :tag ,(capitalize (enwc--sym-to-str key))
-                                :format "%{%t%}: %v"
-                                :sample-face bold
-                                :keymap enwc-edit-field-map
-                                :secret ?*))))
+  (defmacro enwc--make-supplicant-secret (key)
+    `(cons (quote ,key)
+           (quote (editable-field :tag ,(capitalize (enwc--sym-to-str key))
+                                  :format "%{%t%}: %v"
+                                  :sample-face bold
+                                  :keymap enwc-edit-field-map
+                                  :secret ?*))))
 
-(defmacro enwc--make-supplicant-entry (key)
-  `(cons (quote ,key)
-         (quote (editable-field :tag ,(capitalize (enwc--sym-to-str key))
-                                :sample-face bold
-                                :format "%{%t%}: %v"))))
+  (defmacro enwc--make-supplicant-entry (key)
+    `(cons (quote ,key)
+           (quote (editable-field :tag ,(capitalize (enwc--sym-to-str key))
+                                  :sample-face bold
+                                  :format "%{%t%}: %v"))))
 
-(defmacro enwc--make-supplicant-file (key)
-  `(cons (quote ,key)
-         (quote (file :tag ,(capitalize (enwc--sym-to-str key))
-                      :format "%{%t%}: %v"
-                      :sample-face bold
-                      :must-match t))))
+  (defmacro enwc--make-supplicant-file (key)
+    `(cons (quote ,key)
+           (quote (file :tag ,(capitalize (enwc--sym-to-str key))
+                        :format "%{%t%}: %v"
+                        :sample-face bold
+                        :must-match t))))
 
-(defmacro enwc--make-supplicant-list (key &rest args)
-  `(cons (quote ,key)
-         (quote (list :tag ,(capitalize (enwc--sym-to-str key))
-                      :format "%{%t%}: %v"
-                      :sample-face bold
-                      :indent ,(length (enwc--sym-to-str key))
-                      :args ,(mapcar (lambda (x) (cdr (eval x))) args)))))
+  (defmacro enwc--make-supplicant-list (key &rest args)
+    `(cons (quote ,key)
+           (quote (list :tag ,(capitalize (enwc--sym-to-str key))
+                        :format "%{%t%}: %v"
+                        :sample-face bold
+                        :indent ,(length (enwc--sym-to-str key))
+                        :args ,(mapcar (lambda (x) (cdr (eval x))) args))))))
 
 (defconst enwc-supplicant-alist
   (list
