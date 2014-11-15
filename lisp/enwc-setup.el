@@ -1,27 +1,32 @@
 ;; enwc-setup.el - Setup routines for ENWC
 
-;; Copyright (C) 2012,2013,2014 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2014 Free Software Foundation, Inc.
 
-;; Author: Ian Dunn
-;; Keywords: enwc, network, wicd, manager, nm
+;; Author: Ian Dunn <dunni@gnu.org>
+;; Keywords: network, wicd, manager, nm
+;; Version: 2.0
+;; Homepage: https://savannah.nongnu.org/p/enwc
 
-;; This file is part of ENWC
+;; This file is part of GNU Emacs.
 
-;; ENWC is free software; you can redistribute it and/or modify it
+;; GNU Emacs is free software; you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation; either version 3, or (at your option)
 ;; any later version.
 
-;; ENWC is distributed in the hope that it will be useful, but WITHOUT
+;; GNU Emacs is distributed in the hope that it will be useful, but WITHOUT
 ;; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ;; or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
 ;; License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with ENWC; see the file COPYING.  If not, write to the Free
+;; along with GNU Emacs; see the file COPYING.  If not, write to the Free
 ;; Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 ;; 02110-1301, USA.
 
+;;; Commentary:
+
+;;; Code:
 
 (require 'enwc)
 (require 'enwc-wicd)
@@ -48,14 +53,14 @@
        (intern (concat "enwc-" backend "-" func))))
 
 (defun enwc-setup-backend (cur-back)
-  "Sets up ENWC to use the correct function for the backend CUR-BACK."
+  "Set up ENWC to use the correct function for the backend CUR-BACK."
   (let* ((sym-name (symbol-name cur-back))
          (esb (apply-partially 'enwc--setq-backend sym-name)))
     (cl-mapc esb enwc-backend-symbol-list)
     (funcall (enwc--intern-sym sym-name "-setup"))))
 
 (defun enwc-setup ()
-  "Sets up ENWC.
+  "Set up ENWC.
 This setups ENWC and confirms that one of the backends can be found
 on D-Bus."
   (when enwc-display-mode-line
@@ -80,4 +85,4 @@ on D-Bus."
 
 (provide 'enwc-setup)
 
-;;; End of File.
+;;; enwc-setup.el ends here
