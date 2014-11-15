@@ -1,30 +1,34 @@
 ;;; enwc-wicd.el --- The Wicd backend to ENWC
 
-;; Copyright (C) 2012,2013,2014 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2014 Free Software Foundation, Inc.
 
-;; Author: Ian Dunn
-;; Keywords: enwc, network, wicd, manager, nm
+;; Author: Ian Dunn <dunni@gnu.org>
+;; Keywords: network, wicd, manager, nm
+;; Version: 2.0
+;; Homepage: https://savannah.nongnu.org/p/enwc
 
-;; This file is part of ENWC
+;; This file is part of GNU Emacs
 
-;; ENWC is free software; you can redistribute it and/or modify it
+;; GNU Emacs is free software; you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation; either version 3, or (at your option)
 ;; any later version.
 
-;; ENWC is distributed in the hope that it will be useful, but WITHOUT
+;; GNU Emacs is distributed in the hope that it will be useful, but WITHOUT
 ;; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 ;; or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
 ;; License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with ENWC; see the file COPYING.  If not, write to the Free
+;; along with GNU Emacs; see the file COPYING.  If not, write to the Free
 ;; Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 ;; 02110-1301, USA.
 
-
 ;;; Commentary:
-;; TODO
+
+;; Wicd is one of the default supported back-ends for ENWC.
+
+;;; Code:
 
 (require 'enwc)
 
@@ -62,9 +66,19 @@
   '("essid" "bssid" "quality" "encryption" "channel")
   "The list of the desired details to be obtained from each network.")
 
-(defvar enwc-wicd-current-ap "")
+(defvar enwc-wicd-current-ap ""
+  "Current access point.
+UNUSED")
 
-(defvar enwc-wicd-current-nw-id -1)
+(defvar enwc-wicd-current-nw-id -1
+  "Id of the current network.
+UNUSED")
+
+(defvar enwc-wicd-end-scan-signal nil
+  "D-Bus signal object for the \"SendEndScanSignal\" signal.")
+
+(defvar enwc-wicd-status-changed-signal nil
+  "D-Bus signal objects for the \"StatusChanged\" signal.")
 
 (defun enwc-wicd-dbus-wireless-call-method (method &rest args)
   "Calls D-Bus method METHOD with arguments ARGS within
@@ -399,19 +413,28 @@ WIRED indicates whether or not ID is a wired connection."
 (defun enwc-wicd-setup ()
   "Setup the Wicd backend."
   ;; Thanks to Michael Albinus for pointing out this signal.
-  (dbus-register-signal :system
-                        enwc-wicd-dbus-service
-                        enwc-wicd-dbus-wireless-path
-                        enwc-wicd-dbus-wireless-interface
-                        "SendEndScanSignal"
-                        'enwc-process-scan)
+  (setq enwc-wicd-end-scan-signal
+        (dbus-register-signal :system
+                              enwc-wicd-dbus-service
+                              enwc-wicd-dbus-wireless-path
+                              enwc-wicd-dbus-wireless-interface
+                              "SendEndScanSignal"
+                              'enwc-process-scan))
 
-  (dbus-register-signal :system
-                        enwc-wicd-dbus-service
-                        "/org/wicd/daemon"
-                        enwc-wicd-dbus-service
-                        "StatusChanged"
-                        'enwc-wicd-wireless-prop-changed))
+  (setq enwc-wicd-status-changed-signal
+        (dbus-register-signal :system
+                              enwc-wicd-dbus-service
+                              "/org/wicd/daemon"
+                              enwc-wicd-dbus-service
+                              "StatusChanged"
+                              'enwc-wicd-wireless-prop-changed)))
+
+(defun enwc-wicd-unload ()
+  "Unload the Wicd back-end.
+
+Unregister all of the D-Bus signals set up during load."
+  (dbus-unregister-object enwc-wicd-end-scan-signal)
+  (dbus-unregister-object enwc-wicd-status-changed-signal))
 
 (provide 'enwc-wicd)
 
