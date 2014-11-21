@@ -95,6 +95,12 @@ point at which that max was spawned.")
 (defvar-local wisi-cache-max 0
   "Maximimum position in buffer where wisi-cache text properties are valid.")
 
+(defun wisi-token-text (token)
+  "Return buffer text from token range."
+  (let ((region (cdr token)))
+    (and region
+       (buffer-substring-no-properties (car region) (cdr region)))))
+
 (defun wisi-parse (automaton lexer)
   "Parse current buffer from bob using the automaton specified in AUTOMATON.
 
@@ -188,7 +194,7 @@ point at which that max was spawned.")
 		     (signal 'wisi-parse-error
 			     (wisi-error-msg "syntax error in grammar state %d; unexpected %s, expecting one of %s"
 					     state
-					     (nth 1 token)
+					     (wisi-token-text token)
 					     (mapcar 'car (aref actions state))))
 		     ))
 		  (t
@@ -205,7 +211,7 @@ point at which that max was spawned.")
 					 (wisi-error-msg
 					  "syntax error in grammar state %d; unexpected %s, expecting one of %s"
 					  state
-					  (nth 1 token)
+					  (wisi-token-text token)
 					  (mapcar 'car (aref actions state)))))
 			   )))
 		     (signal 'wisi-parse-error msg)))
@@ -213,11 +219,11 @@ point at which that max was spawned.")
 
 		(1
 		 (setf (wisi-parser-state-active parser-state) nil); Don't save error for later.
-		 (wisi-execute-pending (wisi-parser-state-pending
-					(aref parser-states (wisi-active-parser parser-states))))
-		 (setf (wisi-parser-state-pending
-			(aref parser-states (wisi-active-parser parser-states)))
-		       nil))
+		 (let ((parser-state (aref parser-states (wisi-active-parser parser-states))))
+		   (wisi-execute-pending (wisi-parser-state-label parser-state)
+					 (wisi-parser-state-pending parser-state))
+		   (setf (wisi-parser-state-pending parser-state) nil)
+		   ))
 		(t
 		 ;; We were in a parallel parse, and this parser
 		 ;; failed; mark it inactive, don't save error for
@@ -340,7 +346,7 @@ nil, 'shift, or 'accept."
 	      (dotimes (stack-i (wisi-parser-state-sp (aref parser-states parser-i)))
 		(setq
 		 compare
-		 (and compare
+		 (and compare ;; bypass expensive 'arefs' after first stack item compare fail
 		      (equal (aref (wisi-parser-state-stack (aref parser-states parser-i)) stack-i)
 			     (aref (wisi-parser-state-stack (aref parser-states (+ parser-i parser-j 1))) stack-i)))))
 	      (when compare
@@ -349,19 +355,18 @@ nil, 'shift, or 'accept."
 		(when (> wisi-debug 1)
 		  (message "terminate identical parser %d (%d active)"
 			   (+ parser-i parser-j 1) active-parser-count))
+		(setf (wisi-parser-state-active (aref parser-states (+ parser-i parser-j 1))) nil)
 		(when (= active-parser-count 1)
 		  ;; the actions for the two parsers are not
 		  ;; identical, but either is good enough for
-		  ;; indentation and navigation, so we just do one.
-		  (when (> wisi-debug 1) (message "executing actions for %d" (+ parser-i parser-j 1)))
-		  (wisi-execute-pending (wisi-parser-state-pending (aref parser-states (+ parser-i parser-j 1))))
-		  (setf (wisi-parser-state-pending (aref parser-states (+ parser-i parser-j 1))) nil)
-
-		  ;; clear pending of other parser so it can be reused
-		  (setf (wisi-parser-state-pending (aref parser-states parser-i)) nil))
-
-		(setf (wisi-parser-state-active (aref parser-states (+ parser-i parser-j 1))) nil))
-	      )))
+		  ;; indentation and navigation, so we just do the
+		  ;; actions for the one that is not terminating.
+		  (let ((parser-state (aref parser-states parser-i)))
+		    (wisi-execute-pending (wisi-parser-state-label parser-state)
+					  (wisi-parser-state-pending parser-state))
+		    (setf (wisi-parser-state-pending parser-state) nil)
+		    ))
+		))))
 	)))
   active-parser-count)
 
@@ -370,8 +375,8 @@ nil, 'shift, or 'accept."
   (let ((result (if tokens 0 (point))))
     (mapc
      (lambda (token)
-       (when (cl-cdddr token)
-	 (setq result (max (cl-cdddr token) result))))
+       (when (cddr token)
+	 (setq result (max (cddr token) result))))
      tokens)
     result)
   )
@@ -381,15 +386,23 @@ nil, 'shift, or 'accept."
   ;; We don't execute actions if all tokens are before wisi-cache-max,
   ;; because later actions can update existing caches, and if the
   ;; parse fails that won't happen. It also saves time.
-  (if (>= (wisi-parse-max-pos tokens) wisi-cache-max)
+  ;;
+  ;; Also skip if no tokens; nothing to do. This can happen when all
+  ;; tokens in a grammar statement are optional.
+  (if (< 0 (length tokens))
+      (if (>= (wisi-parse-max-pos tokens) wisi-cache-max)
 
-      (funcall func tokens)
+	  (funcall func tokens)
+
+	(when (> wisi-debug 1)
+	  (message "... action skipped; before wisi-cache-max %d" wisi-cache-max)))
 
     (when (> wisi-debug 1)
-      (message "... action skipped"))
+      (message "... action skipped; no tokens"))
     ))
 
-(defun wisi-execute-pending (pending)
+(defun wisi-execute-pending (parser-label pending)
+  (when (> wisi-debug 1) (message "%d: pending actions:" parser-label))
   (while pending
     (when (> wisi-debug 1) (message "%s" (car pending)))
 
@@ -475,18 +488,18 @@ Return nil."
   "Return a pair (START . END), the buffer region for a nonterminal.
 STACK is the parser stack.  I and J are the indices in STACK of
 the first and last tokens of the nonterminal."
-  (let ((start (cl-caddr (aref stack i)))
-        (end   (cl-cdddr (aref stack j))))
+  (let ((start (cadr (aref stack i)))
+        (end   (cddr (aref stack j))))
     (while (and (or (not start) (not end))
 		(/= i j))
       (cond
        ((not start)
 	;; item i is an empty production
-	(setq start (cl-caddr (aref stack (setq i (+ i 2))))))
+	(setq start (cadr (aref stack (setq i (+ i 2))))))
 
        ((not end)
 	;; item j is an empty production
-	(setq end (cl-cdddr (aref stack (setq j (- j 2))))))
+	(setq end (cddr (aref stack (setq j (- j 2))))))
 
        (t (setq i j))))
     (and start end (cons start end))))
@@ -501,17 +514,19 @@ the first and last tokens of the nonterminal."
 			   (wisi-nonterm-bounds stack (- sp (* 2 (1- token-count)) 1) (1- sp))))
 	 (post-reduce-state (aref stack (- sp (* 2 token-count))))
 	 (new-state (cdr (assoc nonterm (aref gotos post-reduce-state))))
-	 tokens)
+	 (tokens (make-vector token-count nil)))
+
     (when (not new-state)
       (error "no goto for %s %d" nonterm post-reduce-state))
-    (if (= 1 token-count)
-	(setq tokens (list (aref stack (1- sp))))
-      (dotimes (i token-count)
-	(push (aref stack (- sp (* 2 i) 1)) tokens)))
+
+    (dotimes (i token-count)
+      (aset tokens (- token-count i 1) (aref stack (- sp (* 2 i) 1))))
+
     (setq sp (+ 2 (- sp (* 2 token-count))))
-    (aset stack (1- sp) (cons nonterm (cons nil nonterm-region)))
+    (aset stack (1- sp) (cons nonterm nonterm-region))
     (aset stack sp new-state)
     (setf (wisi-parser-state-sp parser-state) sp)
+
     (if pendingp
 	(if (wisi-parser-state-pending parser-state)
 	    (setf (wisi-parser-state-pending parser-state)
