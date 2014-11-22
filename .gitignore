@@ -10,6 +10,7 @@ packages/*/*-pkg.el
 packages/auctex
 packages/chess
 packages/dismal
+packages/ergoemacs-mode
+packages/pabbrev
 packages/rudel
 packages/w3
-packages/ergoemacs-mode
