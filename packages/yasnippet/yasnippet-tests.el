@@ -1,6 +1,6 @@
-;;; yasnippet-tests.el --- some yasnippet tests
+;;; yasnippet-tests.el --- some yasnippet tests  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2012, 2013  Free Software Foundation, Inc.
+;; Copyright (C) 2012, 2013, 2014  Free Software Foundation, Inc.
 
 ;; Author: João Távora <joaot@siscog.pt>
 ;; Keywords: emulations, convenience
@@ -27,6 +27,7 @@
 (require 'yasnippet)
 (require 'ert)
 (require 'ert-x)
+(require 'cl)
 
 
 ;;; Snippet mechanics
@@ -646,6 +647,3 @@ TODO: be meaner"
 
 (provide 'yasnippet-tests)
 ;;; yasnippet-tests.el ends here
-;; Local Variables:
-;; lexical-binding: t
-;; End:
