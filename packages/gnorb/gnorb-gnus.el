@@ -24,9 +24,6 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'cl))
-
 (require 'gnus)
 (require 'gnorb-utils)
 
@@ -669,11 +666,11 @@ option `gnorb-gnus-hint-relevant-article' is non-nil."
 (defun gnorb-gnus-view ()
   "Display the first relevant TODO heading for the message under point"
   (interactive)
-  (let ((headers (gnus-data-header
+  (let* ((headers (gnus-data-header
 		   (gnus-data-find
 		    (gnus-summary-article-number))))
-	(tracked-headings
-	 (gnorb-find-tracked-headings headers)))
+         (tracked-headings
+          (gnorb-find-tracked-headings headers)))
     (when tracked-headings
       (setq gnorb-window-conf (current-window-configuration))
       (move-marker gnorb-return-marker (point))

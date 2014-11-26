@@ -24,9 +24,6 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'cl))
-
 (require 'gnorb-utils)
 (require 'cl-lib)
 
@@ -525,7 +522,7 @@ default set of parameters."
 	    (apply 'org-export-to-file
 		   `(,backend-symbol
 		     ,(org-export-output-file-name
-		       (second (assoc backend-symbol gnorb-org-export-extensions))
+		       (cl-second (assoc backend-symbol gnorb-org-export-extensions))
 		       t gnorb-tmp-dir)
 		     ,@opts
 		     ,gnorb-org-email-subtree-file-parameters))))
