@@ -22,7 +22,6 @@
 ./auctex/style/amsbook.el
 ./auctex/style/amsbsy.el
 ./auctex/style/amsmath.el:;; FIXME: What about the copyright for <= 2001?
-./auctex/style/amsopn.el
 ./auctex/style/amstext.el
 ./auctex/style/article.el
 ./auctex/style/beamer.el
@@ -31,6 +30,7 @@
 ./auctex/style/danish.el
 ./auctex/style/dk.el
 ./auctex/style/dutch.el
+./auctex/style/english.el
 ./auctex/style/foils.el
 ./auctex/style/german.el
 ./auctex/style/graphics.el
@@ -44,6 +44,7 @@
 ./auctex/style/jsbook.el
 ./auctex/style/jurabib.el:;; you assign the copyright to the FSF.
 ./auctex/style/latexinfo.el:     '("copyright" nil)
+./auctex/style/mflogo.el
 ./auctex/style/ngerman.el
 ./auctex/style/plfonts.el
 ./auctex/style/plhb.el
