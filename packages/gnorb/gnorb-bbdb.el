@@ -24,10 +24,7 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'cl))
-
-(require 'bbdb)
+(require 'bbdb nil t)
 (require 'gnorb-utils)
 (require 'cl-lib)
 
@@ -397,13 +394,13 @@ both, use \"C-u\" before the \"*\"."
 	  (delete-dups
 	   (cl-mapcan (lambda (r)
 		     (bbdb-record-xfield-split r gnorb-bbdb-org-tag-field))
-		   records)))
+		   records))
 	  "|")))
     (if tag-string
 	;; C-u = all headings, not just todos
 	(org-tags-view (not (equal current-prefix-arg '(4)))
                        tag-string)
-      (error "No org-tags field present")))
+      (error "No org-tags field present"))))
 
 ;;;###autoload
 (defun gnorb-bbdb-mail-search (records)

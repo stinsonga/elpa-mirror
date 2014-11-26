@@ -24,9 +24,7 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'cl))
-
+(require 'mailcap)
 (mailcap-parse-mimetypes)
 
 (defgroup gnorb nil
@@ -364,8 +362,7 @@ methods?"
 		     (ignore-errors
 		       (gnus-request-head msg-id server-group)))
 		(throw 'found server-group))))
-      (when (featurep 'notmuch)
-	nil))))
+      nil)))
 
 (defun gnorb-collect-ids (&optional id)
   "Collect all Org IDs for a subtree.
