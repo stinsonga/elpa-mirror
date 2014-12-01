@@ -31,7 +31,6 @@
 ./auctex/style/dk.el
 ./auctex/style/dutch.el
 ./auctex/style/english.el
-./auctex/style/foils.el
 ./auctex/style/german.el
 ./auctex/style/graphics.el
 ./auctex/style/j-article.el
@@ -56,6 +55,7 @@
 ./auctex/style/scrreprt.el
 ./auctex/style/slovak.el
 ./auctex/style/swedish.el
+./auctex/style/textcomp.el:    '("textcopyright"            0)     ; Type: Symbol -- Slot: 169
 ./auctex/style/virtex.el
 ./auctex/tex-fold.el:    ("(C)" ("copyright"))
 ./auctex/tex-info.el:   '("copyright" nil)
