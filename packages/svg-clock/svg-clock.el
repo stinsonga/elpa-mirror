@@ -1,11 +1,13 @@
-;;; svg-clock.el --- Analog clock using Scalable Vector Graphics
+;;; svg-clock.el --- Analog clock using Scalable Vector Graphics -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2011, 2014  Free Software Foundation, Inc.
 
+;; Maintainer:  Ulf Jasper <ulf.jasper@web.de>
 ;; Author:      Ulf Jasper <ulf.jasper@web.de>
 ;; Created:     22. Sep. 2011
 ;; Keywords:    demo, svg, clock
 ;; Version:     0.5
+;; Package-Requires: ((svg "0.1") (emacs "25.0"))
 
 ;; This file is part of GNU Emacs.
 
@@ -25,249 +27,265 @@
 ;;; Commentary:
 
 ;; svg-clock provides a scalable analog clock.  Rendering is done by
-;; means of svg (Scalable Vector Graphics).  Works only with Emacsen
-;; which were built with svg support -- (image-type-available-p 'svg)
-;; must return t.  Call `svg-clock' to start/stop the clock.
-;; Set `svg-clock-size' to change its size.
+;; means of svg (Scalable Vector Graphics).  In order to use svg-clock
+;; you need to build Emacs with svg support.  (To check whether your
+;; Emacs supports svg, do "M-: (image-type-available-p 'svg) RET"
+;; which must return t).
 
-;; Installation
-;; ------------
+;; Call `svg-clock' to start a clock.  This will open a new buffer
+;; "*clock*" displaying a clock which fills the buffer's window.  Use
+;; `svg-clock-insert' to insert a clock programmatically in any
+;; buffer, possibly specifying the clock's size, colours and offset to
+;; the current-time.  Arbitrary many clocks can be displayed
+;; independently.  Clock instances ared updated automatically.  Their
+;; resources (timers etc.) are cleaned up automatically when the
+;; clocks are removed.
 
-;; Add the following lines to your Emacs startup file (`~/.emacs').
-;; (add-to-list 'load-path "/path/to/svg-clock.el")
-;; (autoload 'svg-clock "svg-clock" "Start/stop svg-clock" t)
+;;; News:
 
-;; ======================================================================
+;;  Version FIXME
+;;    New function `svg-clock-insert'.  Removed customization
+;;    options.
+
+;;  Version 0.5
+;;    Fixes (image-mode issue etc.).
+
+;;  Version 0.3
+;;    Fixes (disable buffer undo).
+
+;;  Version 0.2
+;;    Automatic fitting of clock to window size.
+
+;;  Version 0.1
+;;    Initial version.
 
 ;;; Code:
 (defconst svg-clock-version "0.5" "Version number of `svg-clock'.")
 
-(require 'image-mode)
+(require 'dom)
+(require 'svg)
+(require 'cl-macs)
 
-(defgroup svg-clock nil
-  "svg-clock"
-  :group 'applications)
+(cl-defstruct svg-clock-handle
+  marker  ;; points to the clock's buffer and position
+  overlay ;; holds the clock's image
+  timer)  ;; takes care of updating the clock
 
-(defcustom svg-clock-size t
-  "Size (width and height) of the clock.
-Either an integer which gives the clock size in pixels, or t
-which makes the clock fit to its window automatically."
-  :type '(choice (integer :tag "Fixed Size" :value 250)
-                 (const :tag "Fit to window" t))
-  :group 'svg-clock)
+(defun svg-clock--create-def-elements (foreground background)
+  "Return a list of SVG elements using the colors FOREGROUND and BACKGROUND.
+The elements are supposed to be added to an SVG object as 'defs'.
+The SVG may then 'use': 'clock-face, 'second-hand, 'minute-hand
+and 'hour-hand.  The clock-face has a size of 1x1."
+  (list (svg-clock-symbol 'tickshort
+                          (svg-clock-line .5 .02 .5 .04
+                                          `(stroke . ,foreground)
+                                          '(stroke-width . .01)))
+        (svg-clock-symbol 'ticklong
+                          (svg-clock-line .5 .02 .5 .09
+                                          `(stroke . ,foreground)
+                                          '(stroke-width . .02)))
+        (svg-clock-symbol 'hour-hand
+                          (svg-clock-line .5 .22 .5 .54
+                                          `(stroke . ,foreground)
+                                          '(stroke-width . .04)))
+        (svg-clock-symbol 'minute-hand
+                          (svg-clock-line .5 .12 .5 .55
+                                          `(stroke . ,foreground)
+                                          '(stroke-width . .03)))
+        (svg-clock-symbol 'second-hand
+                          (svg-clock-line .5 .1 .5 .56
+                                          `(stroke . ,foreground)
+                                          '(stroke-width . 0.005)))
+        (svg-clock-symbol 'hand-cap
+                          (svg-clock-circle .5 .5 .03
+                                            `(stroke . "none")
+                                            `(fill . ,foreground)))
+        (svg-clock-symbol 'background
+                          (svg-clock-circle .5 .5 .49
+                                            `(stroke . "none")
+                                            `(fill . ,background)))
+        (apply 'svg-clock-group 'clock-face
+               (nconc (list (svg-clock-use 'background)
+                            (svg-clock-use 'hand-cap))
+                      (mapcar (lambda (angle)
+                                (svg-clock-use (if (= 0 (% angle 30))
+                                                   'ticklong
+                                                 'tickshort)
+                                               (svg-clock-transform
+                                                'rotate angle .5 .5)))
+                              (number-sequence 0 354 6))))))
 
-(defvar svg-clock-timer nil)
-
-(defconst svg-clock-template
-  "<?xml version=\"1.0\"?>
-<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"
-\"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">
-<svg xmlns=\"http://www.w3.org/2000/svg\"
-     width=\"%SIZE%\" height=\"%SIZE%\" >
-    <defs>
-        <symbol id=\"tick\">
-            <line x1=\"50\" y1=\"2\" x2=\"50\" y2=\"4\"
-                  style=\"stroke:%FG%;stroke-width:1\"/>
-        </symbol>
-        <symbol id=\"ticklong\">
-            <line x1=\"50\" y1=\"2\" x2=\"50\" y2=\"9\"
-                  style=\"stroke:%FG%;stroke-width:2\"/>
-        </symbol>
-        <symbol id=\"hand-hour\">
-            <line x1=\"50\" y1=\"22\" x2=\"50\" y2=\"54\"
-                  style=\"stroke:%FG%;stroke-width:3\"/>
-        </symbol>
-        <symbol id=\"hand-minute\">
-            <line x1=\"50\" y1=\"12\" x2=\"50\" y2=\"55\"
-                  style=\"stroke:%FG%;stroke-width:3\"/>
-        </symbol>
-        <symbol id=\"hand-second\">
-            <line x1=\"50\" y1=\"10\" x2=\"50\" y2=\"59\"
-                  style=\"stroke:%FG%;stroke-width:0.5\"/>
-        </symbol>
-        <g id=\"minute-ticks-a\">
-           <use xlink:href=\"#tick\"
-                transform=\"rotate(6, 50, 50)\" />
-           <use xlink:href=\"#tick\"
-                transform=\"rotate(12, 50, 50)\" />
-           <use xlink:href=\"#tick\"
-                transform=\"rotate(18, 50, 50)\" />
-           <use xlink:href=\"#tick\"
-                transform=\"rotate(24, 50, 50)\" />
-        </g>
-        <g id=\"minute-ticks-b\">
-            <use xlink:href=\"#minute-ticks-a\"
-                 transform=\"rotate(0, 50, 50)\" />
-            <use xlink:href=\"#minute-ticks-a\"
-                 transform=\"rotate(30, 50, 50)\" />
-            <use xlink:href=\"#minute-ticks-a\"
-                 transform=\"rotate(60, 50, 50)\" />
-            <use xlink:href=\"#minute-ticks-a\"
-                 transform=\"rotate(90, 50, 50)\" />
-            <use xlink:href=\"#minute-ticks-a\"
-                 transform=\"rotate(120, 50, 50)\" />
-            <use xlink:href=\"#minute-ticks-a\"
-                 transform=\"rotate(150, 50, 50)\" />
-        </g>
-
-        <g id=\"5-minute-ticks\">
-           <use xlink:href=\"#ticklong\" />
-           <use xlink:href=\"#ticklong\" transform=\"rotate(30, 50, 50)\" />
-           <use xlink:href=\"#ticklong\" transform=\"rotate(60, 50, 50)\" />
-        </g>
-
-        <g id=\"clock\">
-          <use xlink:href=\"#5-minute-ticks\"
-               transform=\"rotate(0, 50, 50)\" />
-          <use xlink:href=\"#5-minute-ticks\"
-               transform=\"rotate(90, 50, 50)\" />
-          <use xlink:href=\"#5-minute-ticks\"
-               transform=\"rotate(180, 50, 50)\" />
-          <use xlink:href=\"#5-minute-ticks\"
-               transform=\"rotate(270, 50, 50)\" />
-
-          <use xlink:href=\"#minute-ticks-b\"
-               transform=\"rotate(0, 50, 50)\" />
-          <use xlink:href=\"#minute-ticks-b\"
-               transform=\"rotate(180, 50, 50)\" />
-
-          <use xlink:href=\"#hand-second\"
-               transform=\"rotate(%SECOND%, 50, 50)\">
-          </use>
-          <use xlink:href=\"#hand-minute\"
-               transform=\"rotate(%MINUTE%, 50, 50)\">
-          </use>
-          <use xlink:href=\"#hand-hour\"
-               transform=\"rotate(%HOUR%, 50, 50)\">
-          </use>
-
-          <circle cx=\"50\" cy=\"50\" r=\"3\" fill=\"%FG%\"/>
-        </g>
-    </defs>
-    <use xlink:href=\"#clock\"
-         transform=\"scale(%SCALE%, %SCALE%)\"/>
-</svg>"
-  "The template for drawing the `svg-clock'.")
-
-(defvar svg-clock--actual-size 100
-  "Actual size of the svg clock.")
-
-(defun svg-clock-color-to-hex (colour)
-  "Return hex representation of COLOUR."
-  (let ((values (color-values colour)))
-    (format "#%02x%02x%02x" (nth 0 values) (nth 1 values) (nth 2 values))))
-
-(defun svg-clock-replace (from to)
-  "Replace all occurrences of FROM with TO."
-  (goto-char (point-min))
-  (while (re-search-forward from nil t)
-    (replace-match to)))
-
-(defun svg-clock-do-update (time)
-  "Make the clock display TIME.
-TIME must have the form (SECOND MINUTE HOUR ...), as returned by `decode-time'."
-  (with-current-buffer (get-buffer-create "*clock*")
-    (let* ((inhibit-read-only t)
-           (seconds (nth 0 time))
-           (minutes (nth 1 time))
-           (hours (nth 2 time))
-           (bg-colour (svg-clock-color-to-hex (face-background 'default)))
-           (fg-colour (svg-clock-color-to-hex (face-foreground 'default))))
-      (erase-buffer)
-      (insert svg-clock-template)
-
-      (svg-clock-replace "%BG%" bg-colour)
-      (svg-clock-replace "%FG%" fg-colour)
-      (svg-clock-replace "%HOUR%"
-                         (format "%f" (+ (* hours 30) (/ minutes 2.0))))
-      (svg-clock-replace "%MINUTE%"
-                         (format "%f" (+ (* minutes 6) (/ seconds 10.0))))
-      (svg-clock-replace "%SECOND%" (format "%f" (* seconds 6)))
-      (svg-clock-replace "%SIZE%" (format "%d" svg-clock--actual-size))
-      (svg-clock-replace "%SCALE%"
-                         (format "%f" (/ svg-clock--actual-size 100.0)))
-      (when (derived-mode-p 'image-mode)
-        (image-toggle-display-image)))))
-
-(defun svg-clock-update ()
-  "Update the clock."
-  (if (integerp svg-clock-size)
-      (setq svg-clock--actual-size svg-clock-size)
-    (svg-clock-fit-window))
-  (svg-clock-do-update (decode-time (current-time))))
-
-(defun svg-clock-set-size (size &optional perform-update)
-  "Set the SIZE of the clock and optionally PERFORM-UPDATE."
-  (setq svg-clock--actual-size size)
-  (if perform-update
-      (svg-clock-update)))
-
-(defun svg-clock-grow ()
-  "Enlarge the size of the svg clock by 10 pixesl.
-If `svg-clock-size' is t this command has no effect."
+(defun svg-clock--create-svg (time size foreground background)
+  "Return an SVG element displaying an analog clock.
+The clock shows the given TIME, it has a diameter of SIZE, and
+its colors are FOREGROUND and BACKGROUND."
   (interactive)
-  (svg-clock-set-size (+ 10 svg-clock--actual-size) t))
+  (let* ((defs (svg-clock--create-def-elements foreground background))
+         (svg (svg-create size size))
+         (seconds (nth 0 time))
+         (minutes (nth 1 time))
+         (hours (nth 2 time))
+         (clock (svg-clock-group
+                 'clock
+                 (svg-clock-use 'clock-face)
+                 (svg-clock-use 'second-hand
+                                (svg-clock-transform
+                                 'rotate
+                                 (* seconds 6) .5 .5))
+                 (svg-clock-use 'minute-hand
+                                (svg-clock-transform
+                                 'rotate
+                                 (+ (* minutes 6) (/ seconds 10.0)) .5 .5))
+                 (svg-clock-use 'hour-hand
+                                (svg-clock-transform
+                                 'rotate
+                                 (+ (* hours 30) (/ minutes 2.0))  .5 .5)))))
+    (dolist (def defs) (svg-def svg def))
+    (svg-def svg clock)
+    (dom-append-child svg
+                      (svg-clock-use 'clock
+                                     (svg-clock-transform 'scale size size)))
+    svg))
 
-(defun svg-clock-shrink ()
-  "Reduce the size of the svg clock by 10 pixesl.
-If `svg-clock-size' is t this command has no effect."
-  (interactive)
-  (svg-clock-set-size (max 10 (- svg-clock--actual-size 10)) t))
-
-(defun svg-clock-fit-window (&optional perform-update)
-  "Make the svg clock fill the whole window it is displayed in.
-Optionally PERFORM-UPDATE immediately."
-  (interactive)
-  (let  ((clock-win (get-buffer-window "*clock*")))
-    (if clock-win
-        (let* ((coords (window-inside-pixel-edges clock-win))
-               (width (- (nth 2 coords) (nth 0 coords)))
+(defun svg-clock--window-size ()
+  "Return maximal size for displaying the svg clock."
+  (save-excursion
+    (let  ((clock-win (get-buffer-window "*clock*")))
+      (if clock-win
+          (let* ((coords (window-inside-pixel-edges clock-win))
+                 (width (- (nth 2 coords) (nth 0 coords)))
                (height (- (nth 3 coords) (nth 1 coords))))
-          (svg-clock-set-size (min width height) perform-update)))))
+            (min width height))
+        ;; fallback
+        100))))
 
-(defun svg-clock-stop ()
-  "Stop the svg clock and hide it."
-  (interactive)
-  (if (not svg-clock-timer)
-      (message "svg-clock is not running.")
-    (cancel-timer svg-clock-timer)
-    (setq svg-clock-timer nil)
-    (replace-buffer-in-windows "*clock*")
-    (message "Clock stopped")))
+(defun svg-clock--do-create (size foreground background &optional offset)
+  "Create an SVG element.
+See `svg-clock-insert' for meaning of arguments SIZE, FOREGROUND, BACKGROUND
+and OFFSET."
+  (let* ((time (decode-time (if offset
+                                (time-add (current-time)
+                                          (seconds-to-time offset))
+                              (current-time))))
+         (size (or size (svg-clock--window-size)))
+         (svg (svg-clock--create-svg time size foreground background )))
+    svg))
 
-(defun svg-clock-start ()
-  "Start the svg clock."
-  (if svg-clock-timer
-      (message "svg-clock is running already")
-    (switch-to-buffer (get-buffer-create "*clock*"))
-    (unless (integerp svg-clock-size)
-      (svg-clock-fit-window))
-    (setq svg-clock-timer
-          (run-with-timer 0 1 'svg-clock-update))
-    (svg-clock-mode)
-    (image-mode)
-    (message "Clock started")))
+(defun svg-clock--update (clock-handle &optional size foreground background offset)
+  "Update the clock referenced as CLOCK-HANDLE.
+See `svg-clock-insert' for meaning of optional arguments SIZE, FOREGROUND,
+BACKGROUND and OFFSET."
+  (when clock-handle
+    (let* ((marker (svg-clock-handle-marker clock-handle))
+           (buf (marker-buffer marker))
+           (win (get-buffer-window buf))
+           (ovl (svg-clock-handle-overlay clock-handle)))
+      (condition-case nil
+          (if (and (buffer-live-p buf)
+                   (not (eq (overlay-start ovl)
+                            (overlay-end ovl))))
+              (when (pos-visible-in-window-p marker win t)
+                (with-current-buffer buf
+                  (let* ((svg (svg-clock--do-create size
+                                                    foreground background offset))
+                         (img (create-image
+                               (with-temp-buffer
+                                 (svg-print svg)
+                                 (buffer-string))
+                               'svg t
+                               :ascent 'center)))
+                    (overlay-put ovl 'display img))))
+            ;; clock or its buffer is gone
+            (signal 'error nil))
+        (error
+         (message "Cancelling clock timer")
+         (cancel-timer (svg-clock-handle-timer clock-handle))
+         (delete-overlay ovl))))))
+
+;;;###autoload
+(defun svg-clock-insert (&optional size foreground background offset)
+  "Insert a self-updating image displaying an analog clock at point.
+Optional argument SIZE the size of the clock in pixels.
+Optional argument FOREGROUND the foreground color.
+Optional argument BACKGROUND the background color.
+Optional argument OFFSET the offset in seconds between current and displayed
+time."
+  (let* ((fg (or foreground (face-foreground 'default)))
+         (bg (or background (face-background 'default)))
+         (marker (point-marker))
+         (ch (make-svg-clock-handle :marker marker))
+         timer
+         ovl)
+    (insert "*")
+    (setq ovl (make-overlay (marker-position marker)
+                            (1+ (marker-position marker))
+                            nil t))
+    (setf (svg-clock-handle-overlay ch) ovl)
+    (setq timer (run-at-time 0 1
+                             (lambda ()
+                               (svg-clock--update ch size fg bg offset))))
+    (setf (svg-clock-handle-timer ch) timer)))
 
 (defvar svg-clock-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map [?+] 'svg-clock-grow)
     (define-key map [?-] 'svg-clock-shrink)
-    (define-key map [?q] 'svg-clock-stop)
-    (define-key map [?f] 'svg-clock-fit-window)
     map))
-
-(define-derived-mode svg-clock-mode fundamental-mode "svg clock"
-  "Major mode for the svg-clock buffer.
-\\{svg-clock-mode-map}"
-  (buffer-disable-undo))
 
 ;;;###autoload
 (defun svg-clock ()
   "Start/stop the svg clock."
   (interactive)
-  (if svg-clock-timer
-      (svg-clock-stop)
-    (svg-clock-start)))
+  (switch-to-buffer (get-buffer-create "*clock*"))
+  (let ((inhibit-read-only t))
+    (buffer-disable-undo)
+    (erase-buffer)
+    (svg-clock-insert)
+    (view-mode)))
+
+;; Move to svg.el?
+(defun svg-clock-symbol (id value)
+  "Create an SVG symbol element with given ID and VALUE."
+  (dom-node 'symbol `((id . ,id)) value))
+
+(defun svg-clock-circle (x y radius &rest attributes)
+  "Create an SVG circle element at position X Y with given RADIUS.
+Optional argument ATTRIBUTES contain conses with SVG attributes."
+   (dom-node 'circle
+	     `((cx . ,x)
+	       (cy . ,y)
+	       (r . ,radius)
+	       ,@attributes)))
+
+(defun svg-clock-line (x1 y1 x2 y2 &rest attributes)
+  "Create an SVG line element starting at (X1, Y1), ending at (X2, Y2).
+Optional argument ATTRIBUTES contain conses with SVG attributes."
+  (dom-node 'line `((x1 . ,x1)
+                    (y1 . ,y1)
+                    (x2 . ,x2)
+                    (y2 . ,y2)
+                    ,@attributes)))
+
+(defun svg-clock-group (id &rest children)
+  "Create an SVG group element with given ID and CHILDREN."
+  (apply 'dom-node 'g `((id . ,id)) children))
+
+(defun svg-clock-use (id &rest attributes)
+  "Create an SVG use element with given ID.
+Optional argument ATTRIBUTES contain conses with SVG attributes."
+  (dom-node 'use `((xlink:href . ,(format "#%s" id)) ,@attributes)))
+
+(defun svg-clock-transform (action &rest args)
+  "Create an SVG transform attribute element for given ACTION.
+Argument ARGS contain the action's arguments."
+  (cons 'transform
+        (format "%s(%s)" action (mapconcat 'number-to-string args ", "))))
+
+(defun svg-clock-color-to-hex (color)
+  "Return hex representation of COLOR."
+  (let ((values (color-values color)))
+    (format "#%02x%02x%02x" (nth 0 values) (nth 1 values) (nth 2 values))))
+
 
 (provide 'svg-clock)
 
