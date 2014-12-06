@@ -971,8 +971,8 @@ interest to you."
 	(add-to-list 'debbugs-gnu-local-tags id)
 	(put-text-property
 	 (+ (point) (- 5 (length (number-to-string id)))) (+ (point) 5)
-	 'face 'debbugs-gnu-tagged)
-	(debbugs-gnu--update-tag-face id))))
+	 'face 'debbugs-gnu-tagged))
+      (debbugs-gnu--update-tag-face id)))
   (debbugs-gnu-dump-persistency-file))
 
 (defun debbugs-gnu--update-tag-face (id)
