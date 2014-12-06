@@ -956,7 +956,9 @@ Subject fields."
     (forward-line 1)))
 
 (defun debbugs-gnu-toggle-tag ()
-  "Toggle tag of the report in the current line."
+  "Toggle the local tag of the report in the current line.
+If a report is tagged locally, it is presumed to be of little
+interest to you."
   (interactive)
   (save-excursion
     (beginning-of-line)
@@ -969,8 +971,21 @@ Subject fields."
 	(add-to-list 'debbugs-gnu-local-tags id)
 	(put-text-property
 	 (+ (point) (- 5 (length (number-to-string id)))) (+ (point) 5)
-	 'face 'debbugs-gnu-tagged))))
+	 'face 'debbugs-gnu-tagged)
+	(debbugs-gnu--update-tag-face id))))
   (debbugs-gnu-dump-persistency-file))
+
+(defun debbugs-gnu--update-tag-face (id)
+  (dolist (entry tabulated-list-entries)
+    (when (equal (cdr (assq 'id (car entry))) id)
+      (aset (cadr entry) 0
+	    (propertize
+	     (format "%5d" id)
+	     'face
+	     ;; Mark tagged bugs.
+	     (if (memq id debbugs-gnu-local-tags)
+		 'debbugs-gnu-tagged
+	       'default))))))
 
 (defun debbugs-gnu-toggle-suppress ()
   "Suppress bugs marked in `debbugs-gnu-suppress-bugs'."
