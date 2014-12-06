@@ -728,13 +728,14 @@ Used instead of `tabulated-list-print-entry'."
 	       (memq (cdr (assq 'id list-id)) debbugs-gnu-current-limit))
 	   ;; Filter suppressed bugs.
 	   (or (not (widget-get debbugs-gnu-current-widget :suppress))
-	       (not (catch :suppress
-		      (dolist (check debbugs-gnu-default-suppress-bugs)
-			(when
-			    (string-match
-			     (cdr check)
-			     (or (cdr (assq (car check) list-id)) ""))
-			  (throw :suppress t))))))
+	       (and (not (memq (cdr (assq 'id list-id)) debbugs-gnu-local-tags))
+		    (not (catch :suppress
+			   (dolist (check debbugs-gnu-default-suppress-bugs)
+			     (when
+				 (string-match
+				  (cdr check)
+				  (or (cdr (assq (car check) list-id)) ""))
+			       (throw :suppress t)))))))
 	   ;; Filter search list.
 	   (not (catch :suppress
 		  (dolist (check
