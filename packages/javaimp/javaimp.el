@@ -278,7 +278,7 @@ with POM"
        (setq xml-start-pos (match-beginning 0))
        ;; determine the start tag
        (goto-char (point-min))
-       (re-search-forward "<\\(projects?\\)>")
+       (re-search-forward "<\\(projects?\\)")
        ;; find closing tag which is also the end of the region to parse
        (search-forward (concat "</" (match-string 1) ">"))
        (setq xml-end-pos (match-end 0))
@@ -448,8 +448,9 @@ MODULE."
     ;; update timestamps
     (javaimp-set-mod-pom-mod-ts
      module (javaimp-get-file-ts (javaimp-get-mod-pom-file module)))
-    (javaimp-set-mod-parent-ts
-     module (javaimp-get-file-ts (javaimp-get-mod-pom-file parent))))
+    (when parent
+      (javaimp-set-mod-parent-ts
+       module (javaimp-get-file-ts (javaimp-get-mod-pom-file parent)))))
   (javaimp-get-mod-pom-deps module))
 
 (defun javaimp-get-jdk-jars ()
@@ -548,7 +549,7 @@ module."
 	      	      (javaimp-get-jdk-jars)))
 	     (and javaimp-include-current-project-classes
 		  (javaimp-get-module-classes module)))
-	    nil t nil nil (word-at-point)))))
+	    nil t nil nil (symbol-name (symbol-at-point))))))
   (javaimp-organize-imports classname))
 
 (defun javaimp-get-module-classes (module)
