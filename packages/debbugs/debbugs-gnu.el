@@ -929,7 +929,7 @@ The following commands are available:
   "Only display the bugs matching STRING.
 If STATUS-ONLY (the prefix), ignore matches in the From and
 Subject fields."
-  (interactive "sNarrow to: \np")
+  (interactive "sNarrow to: \nP")
   (let ((id (debbugs-gnu-current-id t))
 	(inhibit-read-only t)
 	status)
