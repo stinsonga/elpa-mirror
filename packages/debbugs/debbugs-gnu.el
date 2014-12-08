@@ -934,20 +934,22 @@ Subject fields."
 	(inhibit-read-only t)
 	status)
     (setq debbugs-gnu-current-limit nil)
-    (goto-char (point-min))
-    (while (not (eobp))
-      (setq status (debbugs-gnu-current-status))
-      (if (and (not (member string (assq 'keywords status)))
-	       (not (member string (assq 'severity status)))
-	       (or status-only
-		   (not (string-match string (cdr (assq 'originator status)))))
-	       (or status-only
-		   (not (string-match string (cdr (assq 'subject status))))))
-	  (delete-region (point) (progn (forward-line 1) (point)))
-	(push (cdr (assq 'id status)) debbugs-gnu-current-limit)
-	(forward-line 1)))
-    (when id
-      (debbugs-gnu-goto id))))
+    (if (equal string "")
+	(debbugs-gnu-toggle-suppress)
+      (goto-char (point-min))
+      (while (not (eobp))
+	(setq status (debbugs-gnu-current-status))
+	(if (and (not (member string (assq 'keywords status)))
+		 (not (member string (assq 'severity status)))
+		 (or status-only
+		     (not (string-match string (cdr (assq 'originator status)))))
+		 (or status-only
+		     (not (string-match string (cdr (assq 'subject status))))))
+	    (delete-region (point) (progn (forward-line 1) (point)))
+	  (push (cdr (assq 'id status)) debbugs-gnu-current-limit)
+	  (forward-line 1)))
+      (when id
+	(debbugs-gnu-goto id)))))
 
 (defun debbugs-gnu-goto (id)
   "Go to the line displaying bug ID."
