@@ -140,6 +140,7 @@
 (require 'widget)
 (require 'wid-edit)
 (require 'tabulated-list)
+(require 'add-log)
 (eval-when-compile (require 'cl))
 
 (autoload 'gnus-read-ephemeral-emacs-bug-group "gnus-group")
@@ -1047,6 +1048,7 @@ interest to you."
 (defvar debbugs-gnu-summary-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "C" 'debbugs-gnu-send-control-message)
+    (define-key map [(meta m)] 'debbugs-gnu-apply-patch)
     map))
 
 (defvar gnus-posting-styles)
@@ -1275,6 +1277,182 @@ The following commands are available:
     (unless (natnump elt) (signal 'wrong-type-argument (list 'natnump elt))))
   (add-to-list 'debbugs-gnu-current-query (cons 'bugs bugs))
   (debbugs-gnu nil))
+
+(defvar debbugs-gnu-trunk-directory "~/src/emacs/trunk/"
+  "The directory where the main source tree lives.")
+
+(defvar debbugs-gnu-branch-directory "~/src/emacs/emacs-24/"
+  "The directory where the previous source tree lives.")
+
+(defun debbugs-gnu-apply-patch (&optional branch)
+  "Apply the patch from the current message.
+If given a prefix, patch in the branch directory instead."
+  (interactive "P")
+  (add-hook 'emacs-lisp-mode-hook 'debbugs-gnu-lisp-mode)
+  (add-hook 'diff-mode-hook 'debbugs-gnu-diff-mode)
+  (add-hook 'change-log-mode-hook 'debbugs-gnu-change-mode)
+  (let ((rej "/tmp/debbugs-gnu.rej")
+	(output-buffer (get-buffer-create "*debbugs patch*"))
+	(dir (if branch
+		 debbugs-gnu-branch-directory
+	       debbugs-gnu-trunk-directory))
+	(patch-buffers nil))
+    (when (file-exists-p rej)
+      (delete-file rej))
+    (with-current-buffer output-buffer
+      (erase-buffer))
+    (gnus-summary-select-article nil t)
+    ;; The patches are either in MIME attachements or the main article
+    ;; buffer.  Determine which.
+    (gnus-with-article-buffer
+      (dolist (handle (mapcar 'cdr (gnus-article-mime-handles)))
+	(when (string-match "diff\\|patch" (mm-handle-media-type handle))
+	  (push (mm-handle-buffer handle) patch-buffers))))
+    (unless patch-buffers
+      (gnus-summary-show-article 'raw)
+      (article-decode-charset)
+      (push (current-buffer) patch-buffers))
+    (dolist (buffer patch-buffers)
+      (with-current-buffer buffer
+	(call-process-region (point-min) (point-max)
+			     "patch" nil output-buffer nil
+			     "-r" rej "--no-backup-if-mismatch"
+			     "-l" "-f"
+			     "-d" (expand-file-name dir)
+			     "-p1")))
+    (set-buffer output-buffer)
+    (when (file-exists-p rej)
+      (goto-char (point-max))
+      (insert-file-contents-literally rej))
+    (goto-char (point-max))
+    (save-some-buffers t)
+    (mapcar 'kill-process compilation-in-progress)
+    (compile (format "cd %s; make -k" (expand-file-name "lisp" dir)))
+    (vc-dir dir)
+    (vc-dir-hide-up-to-date)
+    (goto-char (point-min))
+    (sit-for 1)
+    (vc-diff)
+    ;; All these commands are asynchronous, so just wait a bit.  This
+    ;; should be done properly a different way.
+    (sit-for 2)
+    ;; We've now done everything, so arrange the windows we need to see.
+    (delete-other-windows)
+    (switch-to-buffer output-buffer)
+    (split-window)
+    (split-window)
+    (other-window 1)
+    (switch-to-buffer "*compilation*")
+    (goto-char (point-max))
+    (other-window 1)
+    (switch-to-buffer "*vc-diff*")
+    (goto-char (point-min))))
+
+(defun debbugs-gnu-find-contributor (string)
+  "Search through ChangeLogs to find contributors."
+  (interactive "sContributor match: ")
+  (let ((found 0)
+	(match (concat "^[0-9].*" string)))
+    (dolist (file (directory-files-recursively
+		   debbugs-gnu-trunk-directory "ChangeLog\\(.[0-9]+\\)?$"))
+      (with-temp-buffer
+	(when (file-exists-p file)
+	  (insert-file-contents file))
+	(goto-char (point-min))
+	(while (and (re-search-forward match nil t)
+		    (not (looking-at ".*tiny change")))
+	  (cl-incf found))))
+    (message "%s is a contributor %d times" string found)
+    found))
+
+(defun debbugs-gnu-insert-changelog ()
+  "Add a ChangeLog from a recently applied patch from a third party."
+  (interactive)
+  (let (from subject)
+    (gnus-with-article-buffer
+      (widen)
+      (goto-char (point-min))
+      (setq from (mail-extract-address-components (gnus-fetch-field "from"))
+	    subject (gnus-fetch-field "subject")))
+    (let ((add-log-full-name (car from))
+	  (add-log-mailing-address (cadr from)))
+      (add-change-log-entry-other-window)
+      (let ((point (point)))
+	(when (string-match "\\(bug#[0-9]+\\)" subject)
+	  (insert " (" (match-string 1 subject) ")."))
+	(when (zerop (debbugs-gnu-find-contributor
+		      (let ((bits (split-string (car from))))
+			(cond
+			 ((>= (length bits) 2)
+			  (format "%s.*%s" (car bits) (car (last bits))))
+			 ((= (length bits) 1)
+			  (car bits))
+			 ;; Fall back on the email address.
+			 (t
+			  (cadr from))))))
+	  (goto-char (point-min))
+	  (end-of-line)
+	  (insert "  (tiny change"))
+	(goto-char point)))))
+
+(defvar debbugs-gnu-lisp-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [(meta m)] 'debbugs-gnu-insert-changelog)
+    map))
+
+(define-minor-mode debbugs-gnu-lisp-mode
+  "Minor mode for providing a debbugs interface in Lisp buffers.
+\\{debbugs-gnu-lisp-mode-map}"
+  :lighter " Debbugs" :keymap debbugs-gnu-lisp-mode-map)
+
+(defvar debbugs-gnu-diff-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [(meta m)] 'debbugs-gnu-diff-select)
+    map))
+
+(define-minor-mode debbugs-gnu-diff-mode
+  "Minor mode for providing a debbugs interface in diff buffers.
+\\{debbugs-gnu-diff-mode-map}"
+  :lighter " Debbugs" :keymap debbugs-gnu-diff-mode-map)
+
+(defun debbugs-gnu-diff-select ()
+  "Select the diff under point."
+  (interactive)
+  (delete-other-windows)
+  (diff-goto-source))
+
+(defvar debbugs-gnu-change-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [(meta m)] 'debbugs-gnu-change-checkin)
+    map))
+
+(define-minor-mode debbugs-gnu-change-mode
+  "Minor mode for providing a debbugs interface in ChangeLog buffers.
+\\{debbugs-gnu-change-mode-map}"
+  :lighter " Debbugs" :keymap debbugs-gnu-change-mode-map)
+
+(defun debbugs-gnu-change-checkin ()
+  "Prepare checking in the current changes."
+  (interactive)
+  (save-some-buffers t)
+   (when (get-buffer "*vc-dir*")
+     (kill-buffer (get-buffer "*vc-dir*")))
+   (vc-dir debbugs-gnu-trunk-directory)
+   (goto-char (point-min))
+   (while (not (search-forward "edited" nil t))
+     (sit-for 0.01))
+   (beginning-of-line)
+   (while (search-forward "edited" nil t)
+     (vc-dir-mark)
+     (beginning-of-line))
+   (vc-diff nil)
+   (vc-next-action nil)
+   (log-edit-insert-changelog t)
+   (delete-other-windows)
+   (split-window)
+   (other-window 1)
+   (switch-to-buffer "*vc-diff*")
+   (other-window 1))
 
 (provide 'debbugs-gnu)
 
