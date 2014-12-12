@@ -252,7 +252,8 @@ each word by SEPS, which defaults to \"-\"."
   "Call FUNCTION on backend BACKEND.
 FUNCTION is an ENWC function suffix string.
 If the symbol BACKEND is not specified, then it defaults to
-`enwc-current-backend'."
+`enwc-current-backend'.
+ARGS are passed in to the function."
   (unless backend
     (setq backend enwc-current-backend))
   (apply (intern (format "enwc-%s-%s" backend function)) args))
@@ -419,6 +420,7 @@ This is initiated during setup, and runs once every second."
 
 (defun enwc-enable-auto-scan ()
   "Enable auto scanning."
+  (interactive)
   (unless enwc-scan-timer
     (setq enwc-scan-timer
           (run-at-time t enwc-auto-scan-interval 'enwc-scan t)))
@@ -427,6 +429,7 @@ This is initiated during setup, and runs once every second."
 
 (defun enwc-disable-auto-scan ()
   "Disable auto scanning."
+  (interactive)
   (when enwc-scan-timer (cancel-timer enwc-scan-timer))
   (setq enwc-auto-scan nil)
   (message "Auto scan disabled"))
@@ -571,7 +574,8 @@ NETWORKS must be in the form returned from
                    (mapcar
                     (lambda (det)
                       `(,(alist-get 'display (cdr det))
-                        ,(alist-get 'width   (cdr det))))
+                        ,(alist-get 'width   (cdr det))
+                        t))
                     enwc-details-alist)))
 
       (setq tabulated-list-entries
@@ -772,7 +776,7 @@ VALS is the list of widget values."
                              :indent ,(+ 4 (length (enwc--sym-to-str key)))
                              :args ,(mapcar
                                      (lambda (arg)
-                                       `(item :tag (upcase ,arg) :value ,(downcase arg)))
+                                       `(item :tag ,(upcase arg) :value ,(downcase arg)))
                                      args)))))
 
   (defmacro enwc--make-supplicant-choice (key &rest args)
@@ -1029,6 +1033,7 @@ and redisplays the settings from the network profile
   "Edit the current network entry."
   (interactive)
   (setq enwc-edit-id (tabulated-list-get-id))
+  ;;TODO: This is really annoying.
   (select-window (split-window))
   (enwc-setup-edit-buffer))
 

@@ -37,13 +37,15 @@
   (interactive)
   (unless backend
     (setq backend
-          (completing-read "Backend: " enwc-backends nil t)))
+          (intern (completing-read "Backend: " enwc-backends nil t))))
   (when (and enwc-current-backend
              (not (eq enwc-current-backend backend)))
     (enwc-unload-backend))
   (let ((service (symbol-value (intern (concat "enwc-"
                                                (symbol-name backend)
                                                "-dbus-service")))))
+    ;;TODO: Might need a better way of doing this.
+    ;; NM doesn't seem to want to ping.
     (unless (dbus-ping :system service)
       (error "Backend %s is not usable." backend))
 
