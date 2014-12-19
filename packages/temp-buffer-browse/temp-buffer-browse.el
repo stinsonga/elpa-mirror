@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013-2014  Free Software Foundation, Inc.
 
 ;; Author: Leo Liu <sdl.web@gmail.com>
-;; Version: 1.3
+;; Version: 1.4
 ;; Keywords: convenience
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -66,7 +66,8 @@
 (defvar temp-buffer-browse--window nil)
 
 ;; See http://debbugs.gnu.org/15497
-(unless (fringe-bitmap-p 'centered-vertical-bar)
+(when (and (fboundp 'define-fringe-bitmap) ;only defined in GUI.
+           (not (fringe-bitmap-p 'centered-vertical-bar)))
   (define-fringe-bitmap 'centered-vertical-bar [24] nil nil '(top t)))
 
 (defvar temp-buffer-browse-map
