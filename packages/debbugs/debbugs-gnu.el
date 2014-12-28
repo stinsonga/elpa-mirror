@@ -1326,6 +1326,7 @@ If given a prefix, patch in the branch directory instead."
       (insert-file-contents-literally rej))
     (goto-char (point-max))
     (save-some-buffers t)
+    (require 'compile)
     (mapcar 'kill-process compilation-in-progress)
     (compile (format "cd %s; make -k" (expand-file-name "lisp" dir)))
     (vc-dir dir)
