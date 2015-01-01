@@ -34,6 +34,8 @@
   "If non nil, specifies that ediff is done over VLF buffers.")
 (make-variable-buffer-local 'vlf-ediff-session)
 
+(defvar tramp-verbose)
+
 (defun vlf-ediff-buffers (buffer-A buffer-B)
   "Run batch by batch ediff over VLF buffers BUFFER-A and BUFFER-B.
 Batch size is determined by the size in BUFFER-A.
@@ -141,11 +143,11 @@ beginning of difference list."
 
 (defun vlf-next-chunk ()
   "Move to next chunk."
-  (vlf-move-to-chunk vlf-end-pos (+ vlf-end-pos vlf-batch-size) t))
+  (vlf-move-to-chunk vlf-end-pos (+ vlf-end-pos vlf-batch-size)))
 
 (defun vlf-prev-chunk ()
   "Move to previous chunk."
-  (vlf-move-to-chunk (- vlf-start-pos vlf-batch-size) vlf-start-pos t))
+  (vlf-move-to-chunk (- vlf-start-pos vlf-batch-size) vlf-start-pos))
 
 (defun vlf-ediff-next (buffer-A buffer-B ediff-buffer
                                 &optional next-func)
@@ -169,7 +171,7 @@ logical chunks in case there is no difference at the current ones."
           min-file-size (min min-file-size vlf-file-size)
           is-hexl (or is-hexl (derived-mode-p 'hexl-mode)))
     (let ((tramp-verbose (if (boundp 'tramp-verbose)
-                             (min tramp-verbose 2)))
+                             (min tramp-verbose 1)))
           (end-B (= vlf-start-pos vlf-end-pos))
           (chunk-B (cons vlf-start-pos vlf-end-pos))
           (font-lock-B font-lock-mode)
@@ -203,10 +205,7 @@ logical chunks in case there is no difference at the current ones."
                                           (- vlf-file-size
                                              vlf-start-pos))))
             (progress-reporter-done reporter)
-            (if (or (not end-A) (not end-B))
-                (progn (vlf-update-buffer-name)
-                       (set-buffer buffer-A)
-                       (vlf-update-buffer-name))
+            (when (and end-A end-B)
               (if forward-p
                   (let ((max-file-size vlf-file-size))
                     (vlf-move-to-chunk (- max-file-size vlf-batch-size)
@@ -217,9 +216,9 @@ logical chunks in case there is no difference at the current ones."
                     (vlf-move-to-chunk (- max-file-size
                                           vlf-batch-size)
                                        max-file-size))
-                (vlf-beginning-of-file)
+                (vlf-move-to-batch 0)
                 (set-buffer buffer-A)
-                (vlf-beginning-of-file))
+                (vlf-move-to-batch 0))
               (set-buffer ediff-buffer)
               (ediff-update-diffs)
               (or is-hexl
