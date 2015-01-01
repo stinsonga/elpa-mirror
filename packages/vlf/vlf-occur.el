@@ -44,6 +44,9 @@
 (defvar vlf-occur-lines 0 "Number of lines scanned by `vlf-occur'.")
 (make-variable-buffer-local 'vlf-occur-lines)
 
+(defvar tramp-verbose)
+(defvar hexl-bits)
+
 (defvar vlf-occur-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "n" 'vlf-occur-next-match)
@@ -107,7 +110,8 @@ EVENT may hold details of the invocation."
     (set-buffer (window-buffer (posn-window (event-end event))))
     (goto-char (posn-point (event-end event))))
   (let* ((pos (point))
-         (pos-relative (- pos (line-beginning-position) 1))
+         (pos-relative (- pos (previous-single-char-property-change
+                               pos 'vlf-match)))
          (chunk-start (get-text-property pos 'chunk-start)))
     (if chunk-start
         (let ((chunk-end (get-text-property pos 'chunk-end))
@@ -123,8 +127,11 @@ EVENT may hold details of the invocation."
               (match-pos (+ (get-text-property pos 'line-pos)
                             pos-relative)))
           (cond (current-prefix-arg
-                 (setq vlf-buffer (vlf file t))
-                 (or not-hexl (vlf-tune-hexlify))
+                 (let ((original-occur-buffer vlf-occur-vlf-buffer))
+                   (setq vlf-buffer (vlf file t))
+                   (if (buffer-live-p original-occur-buffer)
+                       (vlf-tune-copy-profile original-occur-buffer)))
+                 (or not-hexl (hexl-mode))
                  (switch-to-buffer occur-buffer))
                 ((not (buffer-live-p vlf-buffer))
                  (unless (catch 'found
@@ -137,7 +144,7 @@ EVENT may hold details of the invocation."
                                   (setq vlf-buffer buf)
                                   (throw 'found t))))
                    (setq vlf-buffer (vlf file t))
-                   (or not-hexl (vlf-tune-hexlify)))
+                   (or not-hexl (hexl-mode)))
                  (switch-to-buffer occur-buffer)
                  (setq vlf-occur-vlf-buffer vlf-buffer)))
           (pop-to-buffer vlf-buffer)
@@ -149,43 +156,27 @@ EVENT may hold details of the invocation."
 Prematurely ending indexing will still show what's found so far."
   (let ((vlf-buffer (current-buffer))
         (file buffer-file-name)
+        (file-size vlf-file-size)
         (batch-size vlf-batch-size)
-        (is-hexl (derived-mode-p 'hexl-mode))
-        (insert-bps vlf-tune-insert-bps)
-        (encode-bps vlf-tune-encode-bps)
-        (hexl-bps vlf-tune-hexl-bps)
-        (dehexlify-bps vlf-tune-dehexlify-bps))
+        (is-hexl (derived-mode-p 'hexl-mode)))
     (with-temp-buffer
       (setq buffer-file-name file
             buffer-file-truename file
-            buffer-undo-list t)
+            buffer-undo-list t
+            vlf-file-size file-size)
       (set-buffer-modified-p nil)
       (set (make-local-variable 'vlf-batch-size) batch-size)
       (when vlf-tune-enabled
-        (setq vlf-tune-insert-bps insert-bps
-              vlf-tune-encode-bps encode-bps)
-        (if is-hexl
-            (progn (setq vlf-tune-hexl-bps hexl-bps
-                         vlf-tune-dehexlify-bps dehexlify-bps)
-                   (vlf-tune-batch '(:hexl :dehexlify :insert :encode)))
-          (vlf-tune-batch '(:insert :encode))))
+        (vlf-tune-copy-profile vlf-buffer)
+        (vlf-tune-batch (if is-hexl
+                            '(:hexl :raw)
+                          '(:insert :encode)) t))
       (vlf-mode 1)
-      (if is-hexl (vlf-tune-hexlify))
+      (if is-hexl (hexl-mode))
       (goto-char (point-min))
-      (vlf-with-undo-disabled
-       (vlf-build-occur regexp vlf-buffer))
-      (when vlf-tune-enabled
-        (setq insert-bps vlf-tune-insert-bps
-              encode-bps vlf-tune-encode-bps)
-        (if is-hexl
-            (setq insert-bps vlf-tune-insert-bps
-                  encode-bps vlf-tune-encode-bps))))
-    (when vlf-tune-enabled              ;merge back tune measurements
-      (setq vlf-tune-insert-bps insert-bps
-            vlf-tune-encode-bps encode-bps)
-      (if is-hexl
-          (setq vlf-tune-insert-bps insert-bps
-                vlf-tune-encode-bps encode-bps)))))
+      (vlf-build-occur regexp vlf-buffer)
+      (if vlf-tune-enabled
+          (vlf-tune-copy-profile (current-buffer) vlf-buffer)))))
 
 (defun vlf-occur (regexp)
   "Make whole file occur style index for REGEXP.
@@ -195,49 +186,45 @@ Prematurely ending indexing will still show what's found so far."
                                       (car regexp-history)))))
   (run-hook-with-args 'vlf-before-batch-functions 'occur)
   (if (or (buffer-modified-p)
+          (consp buffer-undo-list)
           (< vlf-batch-size vlf-start-pos))
       (vlf-occur-other-buffer regexp)
     (let ((start-pos vlf-start-pos)
           (end-pos vlf-end-pos)
           (pos (point))
-          (batch-size vlf-batch-size)
-          (is-hexl (derived-mode-p 'hexl-mode)))
+          (batch-size vlf-batch-size))
       (vlf-tune-batch (if (derived-mode-p 'hexl-mode)
-                          '(:hexl :dehexlify :insert :encode)
-                        '(:insert :encode)))
-      (vlf-with-undo-disabled
-       (vlf-move-to-batch 0)
-       (goto-char (point-min))
-       (unwind-protect (vlf-build-occur regexp (current-buffer))
-         (vlf-move-to-chunk start-pos end-pos)
-         (if is-hexl (vlf-tune-hexlify))
-         (goto-char pos)
-         (setq vlf-batch-size batch-size)))))
+                          '(:hexl :raw)
+                        '(:insert :encode)) t)
+      (vlf-move-to-batch 0)
+      (goto-char (point-min))
+      (unwind-protect (vlf-build-occur regexp (current-buffer))
+        (vlf-move-to-chunk start-pos end-pos)
+        (goto-char pos)
+        (setq vlf-batch-size batch-size))))
   (run-hook-with-args 'vlf-after-batch-functions 'occur))
-
-(defvar tramp-verbose)
 
 (defun vlf-build-occur (regexp vlf-buffer)
   "Build occur style index for REGEXP over VLF-BUFFER."
   (let* ((tramp-verbose (if (boundp 'tramp-verbose)
-                            (min tramp-verbose 2)))
+                            (min tramp-verbose 1)))
          (case-fold-search t)
          (line 1)
          (last-match-line 0)
-         (last-line-pos (point-min))
          (total-matches 0)
-         (match-end-pos (+ vlf-start-pos (position-bytes (point))))
+         (first-line-offset 0)
+         (first-line-incomplete nil)
+         (match-start-point (point-min))
+         (match-end-point match-start-point)
+         (last-match-insert-point nil)
          (occur-buffer (generate-new-buffer
                         (concat "*VLF-occur " (file-name-nondirectory
                                                buffer-file-name)
                                 "*")))
-         (line-regexp (concat "\\(?5:[\n\C-m]\\)\\|\\(?10:"
-                              regexp "\\)"))
-         (batch-step (min 1024 (/ vlf-batch-size 8)))
          (is-hexl (derived-mode-p 'hexl-mode))
          (end-of-file nil)
          (time (float-time))
-         (tune-types (if is-hexl '(:hexl :dehexlify :insert :encode)
+         (tune-types (if is-hexl '(:hexl :raw)
                        '(:insert :encode)))
          (reporter (make-progress-reporter
                     (concat "Building index for " regexp "...")
@@ -247,69 +234,117 @@ Prematurely ending indexing will still show what's found so far."
     (unwind-protect
         (progn
           (while (not end-of-file)
-            (if (re-search-forward line-regexp nil t)
+            (if (re-search-forward regexp nil t)
                 (progn
-                  (setq match-end-pos (+ vlf-start-pos
-                                         (position-bytes
-                                          (match-end 0))))
-                  (if (match-string 5)
-                      (setq line (1+ line) ; line detected
-                            last-line-pos (point))
-                    (let* ((chunk-start vlf-start-pos)
-                           (chunk-end vlf-end-pos)
-                           (line-pos (line-beginning-position))
-                           (line-text (buffer-substring
-                                       line-pos (line-end-position))))
-                      (with-current-buffer occur-buffer
-                        (unless (= line last-match-line) ;new match line
-                          (insert "\n:") ; insert line number
-                          (let* ((overlay-pos (1- (point)))
-                                 (overlay (make-overlay
-                                           overlay-pos
-                                           (1+ overlay-pos))))
-                            (overlay-put overlay 'before-string
-                                         (propertize
-                                          (number-to-string line)
-                                          'face 'shadow)))
-                          (insert (propertize line-text ; insert line
-                                              'chunk-start chunk-start
-                                              'chunk-end chunk-end
-                                              'mouse-face '(highlight)
-                                              'line-pos line-pos
-                                              'help-echo
-                                              (format "Move to line %d"
-                                                      line))))
-                        (setq last-match-line line
-                              total-matches (1+ total-matches))
-                        (let ((line-start (1+
-                                           (line-beginning-position)))
-                              (match-pos (match-beginning 10)))
-                          (add-text-properties ; mark match
-                           (+ line-start match-pos (- last-line-pos))
-                           (+ line-start (match-end 10)
-                              (- last-line-pos))
-                           (list 'face 'match
+                  (setq line (+ line -1
+                                (count-lines match-start-point
+                                             (1+ (match-beginning 0))))
+                        match-start-point (match-beginning 0)
+                        match-end-point (match-end 0))
+                  (let* ((chunk-start vlf-start-pos)
+                         (chunk-end vlf-end-pos)
+                         (line-pos (save-excursion
+                                     (goto-char match-start-point)
+                                     (line-beginning-position)))
+                         (line-text (buffer-substring
+                                     line-pos (line-end-position))))
+                    (if (/= line-pos (point-min))
+                        (setq first-line-offset 0
+                              first-line-incomplete nil))
+                    (with-current-buffer occur-buffer
+                      (unless (= line last-match-line) ;new match line
+                        (insert "\n:") ; insert line number
+                        (let* ((column-point (1- (point)))
+                               (overlay-pos column-point)
+                               (overlay (make-overlay
+                                         overlay-pos
+                                         (1+ overlay-pos))))
+                          (overlay-put overlay 'before-string
+                                       (propertize
+                                        (number-to-string line)
+                                        'face 'shadow))
+                          (overlay-put overlay 'vlf-match t)
+                          (setq last-match-insert-point column-point
+                                first-line-offset 0)))
+                      (when (or first-line-incomplete
+                                (/= line last-match-line))
+                        (insert (propertize
+                                 (if first-line-incomplete
+                                     (substring line-text
+                                                first-line-incomplete)
+                                   line-text)
+                                 'chunk-start chunk-start
+                                 'chunk-end chunk-end
+                                 'mouse-face '(highlight)
+                                 'line-pos line-pos
                                  'help-echo
-                                 (format "Move to match %d"
-                                         total-matches))))))))
+                                 (format "Move to line %d"
+                                         line)))
+                        (setq first-line-incomplete nil))
+                      (setq last-match-line line
+                            total-matches (1+ total-matches))
+                      (let ((line-start (+ last-match-insert-point
+                                           first-line-offset 1
+                                           (- line-pos))))
+                        (add-text-properties ; mark match
+                         (+ line-start match-start-point)
+                         (+ line-start match-end-point)
+                         (list 'face 'match
+                               'help-echo (format "Move to match %d"
+                                                  total-matches)))))))
               (setq end-of-file (= vlf-end-pos vlf-file-size))
               (unless end-of-file
-                (vlf-tune-batch tune-types)
-                (let ((batch-move (- vlf-end-pos batch-step)))
-                  (vlf-move-to-batch (if (or is-hexl
-                                             (< match-end-pos
-                                                batch-move))
-                                         batch-move
-                                       match-end-pos) t))
-                (goto-char (if (or is-hexl
-                                   (<= match-end-pos vlf-start-pos))
-                               (point-min)
-                             (or (byte-to-position (- match-end-pos
-                                                      vlf-start-pos))
-                                 (point-min))))
-                (setq last-match-line 0
-                      last-line-pos (line-beginning-position))
-                (progress-reporter-update reporter vlf-end-pos))))
+                (let ((start
+                       (if is-hexl
+                           (progn
+                             (goto-char (point-max))
+                             (forward-line -10)
+                             (setq line
+                                   (+ line
+                                      (if (< match-end-point (point))
+                                          (count-lines match-start-point
+                                                       (point))
+                                        (goto-char match-end-point)
+                                        (1- (count-lines match-start-point
+                                                         match-end-point)))))
+                             (- vlf-end-pos (* (- 10 (forward-line 10))
+                                               hexl-bits)))
+                         (let* ((pmax (point-max))
+                                (batch-step (min 1024 (/ vlf-batch-size
+                                                         10)))
+                                (batch-point
+                                 (max match-end-point
+                                      (or
+                                       (byte-to-position
+                                        (- vlf-batch-size batch-step))
+                                       (progn
+                                         (goto-char pmax)
+                                         (let ((last (line-beginning-position)))
+                                           (if (= last (point-min))
+                                               (1- (point))
+                                             last)))))))
+                           (goto-char batch-point)
+                           (setq first-line-offset
+                                 (- batch-point (line-beginning-position))
+                                 line
+                                 (+ line
+                                    (count-lines match-start-point
+                                                 batch-point)
+                                    (if (< 0 first-line-offset) -1 0)))
+                           ;; last match is on the last line?
+                           (goto-char match-end-point)
+                           (forward-line)
+                           (setq first-line-incomplete
+                                 (if (= (point) pmax)
+                                     (- pmax match-end-point)))
+                           (vlf-byte-position batch-point)))))
+                  (vlf-tune-batch tune-types)
+                  (setq vlf-end-pos start) ;not to adjust start
+                  (vlf-move-to-chunk start (+ start vlf-batch-size)))
+                (setq match-start-point (point-min)
+                      match-end-point match-start-point)
+                (goto-char match-end-point)
+                (progress-reporter-update reporter vlf-start-pos))))
           (progress-reporter-done reporter))
       (set-buffer-modified-p nil)
       (if (zerop total-matches)
@@ -319,6 +354,7 @@ Prematurely ending indexing will still show what's found so far."
         (let ((file buffer-file-name)
               (dir default-directory))
           (with-current-buffer occur-buffer
+            (insert "\n")
             (goto-char (point-min))
             (insert (propertize
                      (format "%d matches from %d lines for \"%s\" \
@@ -363,17 +399,20 @@ in file: %s" total-matches line regexp file)
            vlf-occur-save-buffer)
     (save-excursion
       (goto-char (point-min))
-      (while (zerop (forward-line))
-        (let* ((pos (1+ (point)))
-               (line (get-char-property (1- pos) 'before-string)))
-          (if line
-              (prin1 (list (string-to-number line)
-                           (get-text-property pos 'chunk-start)
-                           (get-text-property pos 'chunk-end)
-                           (get-text-property pos 'line-pos)
-                           (buffer-substring-no-properties
-                            pos (line-end-position)))
-                     vlf-occur-save-buffer)))))
+      (let ((pmax (point-max)))
+        (while (/= pmax (goto-char (next-single-char-property-change
+                                    (1+ (point)) 'vlf-match)))
+          (let* ((pos (1+ (point)))
+                 (line (get-char-property (1- pos) 'before-string)))
+            (if line
+                (prin1 (list (string-to-number line)
+                             (get-text-property pos 'chunk-start)
+                             (get-text-property pos 'chunk-end)
+                             (get-text-property pos 'line-pos)
+                             (buffer-substring-no-properties
+                              pos (1- (next-single-char-property-change
+                                       pos 'vlf-match))))
+                       vlf-occur-save-buffer))))))
     (with-current-buffer vlf-occur-save-buffer
       (save-buffer))
     (kill-buffer vlf-occur-save-buffer))
@@ -409,6 +448,7 @@ in file: %s" total-matches line regexp file)
                (pos (point)))
           (overlay-put overlay 'before-string
                        (propertize line 'face 'shadow))
+          (overlay-put overlay 'vlf-match t)
           (insert (propertize (nth 4 form) 'chunk-start (nth 1 form)
                               'chunk-end (nth 2 form)
                               'mouse-face '(highlight)
