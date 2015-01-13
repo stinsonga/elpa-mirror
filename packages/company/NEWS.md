@@ -1,5 +1,22 @@
 # History of user-visible changes
 
+## Next
+
+* Pressing `M-n` or `M-p` doesn't quit the search mode.
+* New command `company-complete-common-or-cycle`. No default binding.
+* `company-search-toggle-filtering` replaced `company-search-kill-others`.
+* Quitting the search mode resets the filtering.
+* Pressing `backspace` in the search mode deletes the character at the end of
+  the search string.
+* `company-semantic` displays function arguments as annotations.
+* New user option, `company-bbdb-modes`.
+* `company-show-numbers` and `company-complete-number` now use visual numbering
+  of the candidates, taking into account only the ones currently displayed.
+* `company-complete-number` can be bound to keypad numbers directly, with or
+  without modifiers.
+* `company-cmake` expands `<LANG>` and `<CONFIG>` placeholders inside variable
+  names.
+
 ## 2014-10-15 (0.8.6)
 
 * `company-clang` and `company-template-c-like-templatify` support templated
@@ -14,7 +31,7 @@
 * `company-ropemacs` is only used when `ropemacs-mode` is on.
 * `company-gtags` is enabled in all `prog-mode` derivatives by default.
 * `company-end-of-buffer-workaround` is not used anymore.
-* `company-begin-commands` includes several `cc-mode` commands.
+* `company-begin-commands` includes some of `cc-mode` commands.
 
 ## 2014-08-27 (0.8.3)
 
