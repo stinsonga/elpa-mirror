@@ -1,6 +1,7 @@
 *.elc
 *.orig
 *~
+\#*\#
 ChangeLog
 core
 packages/*/*-autoloads.el
