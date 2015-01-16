@@ -274,8 +274,8 @@ Integration with other packages
 
 * eldoc
 
-  ``Eldoc`` support can be enabled by, for example, setting this in
-  the desired major mode with:
+  ``Eldoc`` support is set up by default on emacs 24.4+. For older
+  versions set, for example, in the desired major mode:
 
   ::
 
@@ -307,6 +307,12 @@ Integration with other packages
 
 NEWS
 ~~~~
+
+[2015-01-16 Fri] 0.8.9
+++++++++++++++++++++++
+
+#. ``ggtags-visit-project-root`` can visit past projects.
+#. ``eldoc`` support enabled for emacs 24.4+.
 
 [2014-12-03 Wed] 0.8.8
 ++++++++++++++++++++++

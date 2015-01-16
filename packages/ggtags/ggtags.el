@@ -1,9 +1,9 @@
 ;;; ggtags.el --- emacs frontend to GNU Global source code tagging system  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2013-2014  Free Software Foundation, Inc.
+;; Copyright (C) 2013-2015  Free Software Foundation, Inc.
 
 ;; Author: Leo Liu <sdl.web@gmail.com>
-;; Version: 0.8.8
+;; Version: 0.8.9
 ;; Keywords: tools, convenience
 ;; Created: 2013-01-29
 ;; URL: https://github.com/leoliu/ggtags
@@ -36,10 +36,10 @@
 ;;
 ;; All commands are available from the `Ggtags' menu in `ggtags-mode'.
 
-;;; NEWS 0.8.8 (2014-12-03):
+;;; NEWS 0.8.9 (2015-01-16):
 
-;; - Command `ggtags-update-tags' now runs in the background for large
-;;   projects (per `ggtags-oversize-limit') without blocking emacs.
+;; - `ggtags-visit-project-root' can visit past projects.
+;; - `eldoc' support enabled for emacs 24.4+.
 ;;
 ;; See full NEWS on https://github.com/leoliu/ggtags#news
 
@@ -64,6 +64,9 @@
       (declare (debug defvar) (doc-string 3))
       (list 'progn (list 'defvar var val docstring)
             (list 'make-variable-buffer-local (list 'quote var)))))
+
+  (or (fboundp 'add-function) (defmacro add-function (&rest _))) ;24.4
+  (or (fboundp 'remove-function) (defmacro remove-function (&rest _)))
 
   (defmacro ignore-errors-unless-debug (&rest body)
     "Ignore all errors while executing BODY unless debug is on."
@@ -546,12 +549,10 @@ Value is new modtime if updated."
 
 (defun ggtags-ensure-project ()
   (or (ggtags-find-project)
-      (when (or (yes-or-no-p "File GTAGS not found; run gtags? ")
-                (user-error "Aborted"))
-        (call-interactively #'ggtags-create-tags)
-        ;; Need checking because `ggtags-create-tags' can create tags
-        ;; in any directory.
-        (ggtags-check-project))))
+      (progn (call-interactively #'ggtags-create-tags)
+             ;; Need checking because `ggtags-create-tags' can create
+             ;; tags in any directory.
+             (ggtags-check-project))))
 
 (defvar delete-trailing-lines)          ;new in 24.3
 
@@ -608,10 +609,15 @@ Value is new modtime if updated."
       (message "Project read-only-mode is %s" (if val "on" "off")))
     val))
 
-(defun ggtags-visit-project-root ()
-  (interactive)
-  (ggtags-ensure-project)
-  (dired (ggtags-current-project-root)))
+(defun ggtags-visit-project-root (&optional project)
+  "Visit the root directory of (current) PROJECT in dired.
+When called with a prefix \\[universal-argument], choose from past projects."
+  (interactive (list (and current-prefix-arg
+                          (completing-read "Project: " ggtags-projects))))
+  (dired (cl-typecase project
+           (string project)
+           (ggtags-project (ggtags-project-root project))
+           (t (ggtags-ensure-project) (ggtags-current-project-root)))))
 
 (defmacro ggtags-with-current-project (&rest body)
   "Eval BODY in current project's `process-environment'."
@@ -719,7 +725,7 @@ source trees. See Info node `(global)gtags' for details."
   "Update GNU Global tag database.
 Do nothing if GTAGS exceeds the oversize limit unless FORCE.
 
-When called interactively on large (per `ggtags-oversize-limit'
+When called interactively on large (per `ggtags-oversize-limit')
 projects, the update process runs in the background without
 blocking emacs."
   (interactive (progn
@@ -2165,6 +2171,12 @@ to nil disables displaying this information.")
         ;; Append to serve as a fallback method.
         (add-hook 'completion-at-point-functions
                   #'ggtags-completion-at-point t t)
+        ;; Work around http://debbugs.gnu.org/19324
+        (or eldoc-documentation-function
+            (setq-local eldoc-documentation-function #'ignore))
+        (add-function :after-until (local 'eldoc-documentation-function)
+                      #'ggtags-eldoc-function '((name . ggtags-eldoc-function)
+                                                (depth . -100)))
         (unless (memq 'ggtags-mode-line-project-name
                       mode-line-buffer-identification)
           (setq mode-line-buffer-identification
@@ -2172,6 +2184,7 @@ to nil disables displaying this information.")
                         '(ggtags-mode-line-project-name)))))
     (remove-hook 'after-save-hook 'ggtags-after-save-function t)
     (remove-hook 'completion-at-point-functions #'ggtags-completion-at-point t)
+    (remove-function (local 'eldoc-documentation-function) 'ggtags-eldoc-function)
     (setq mode-line-buffer-identification
           (delq 'ggtags-mode-line-project-name mode-line-buffer-identification))
     (and (overlayp ggtags-highlight-tag-overlay)
