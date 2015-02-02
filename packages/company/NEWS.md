@@ -1,5 +1,12 @@
 # History of user-visible changes
 
+## 2015-02-02 (0.8.10)
+
+* New variable `company-lighter-base`.
+* Better tracking of the current selection.
+* Pressing `M-0`...`M-9` works in the search mode.
+* Pressing `<up>` or `<down>` doesn't quit the search mode.
+
 ## 2015-01-23 (0.8.9)
 
 * New commands `company-next-page` and `company-previous-page`, remapping
