@@ -22,8 +22,10 @@
 (require 'ert)
 (require 'ert-x)
 (require 'js2-mode)
+(require 'cl-lib)
 
 (defmacro js2-deftest (name buffer-contents &rest body)
+  (declare (indent defun))
   `(ert-deftest ,(intern (format "js2-%s" name)) ()
      (with-temp-buffer
        (save-excursion
@@ -33,48 +35,45 @@
              ,@body)
          (fundamental-mode)))))
 
-(put 'js2-deftest 'lisp-indent-function 'defun)
-
 (defun js2-test-string-to-ast (s)
+  (insert s)
+  (js2-mode)
+  (should (null js2-mode-buffer-dirty-p))
+  js2-mode-ast)
+
+(cl-defun js2-test-parse-string (code-string &key syntax-error errors-count
+                                             reference)
   (ert-with-test-buffer (:name 'origin)
-    (insert s)
-    (js2-mode)
-    (should (null js2-mode-buffer-dirty-p))
-    js2-mode-ast))
+    (let ((ast (js2-test-string-to-ast code-string)))
+      (if syntax-error
+          (let ((errors (js2-ast-root-errors ast)))
+            (should (= (or errors-count 1) (length errors)))
+            (cl-destructuring-bind (_ pos len) (car (last errors))
+              (should (string= syntax-error (substring code-string
+                                                       (1- pos) (+ pos len -1))))))
+        (should (= 0 (length (js2-ast-root-errors ast))))
+        (ert-with-test-buffer (:name 'copy)
+          (js2-print-tree ast)
+          (skip-chars-backward " \t\n")
+          (should (string= (or reference code-string)
+                           (buffer-substring-no-properties
+                            (point-min) (point)))))))))
 
-(defun* js2-test-parse-string (code-string &key syntax-error errors-count
-                                                reference)
-  (let ((ast (js2-test-string-to-ast code-string)))
-    (if syntax-error
-        (let ((errors (js2-ast-root-errors ast)))
-          (should (= (or errors-count 1) (length errors)))
-          (destructuring-bind (_ pos len) (first errors)
-            (should (string= syntax-error (substring code-string
-                                                     (1- pos) (+ pos len -1))))))
-      (should (= 0 (length (js2-ast-root-errors ast))))
-      (ert-with-test-buffer (:name 'copy)
-        (js2-print-tree ast)
-        (skip-chars-backward " \t\n")
-        (should (string= (or reference code-string)
-                         (buffer-substring-no-properties
-                          (point-min) (point))))))))
-
-(defmacro* js2-deftest-parse (name code-string &key bind syntax-error errors-count
-                                                    reference)
+(cl-defmacro js2-deftest-parse (name code-string &key bind syntax-error errors-count
+                                     reference)
   "Parse CODE-STRING.  If SYNTAX-ERROR is nil, print syntax tree
 with `js2-print-tree' and assert the result to be equal to
 REFERENCE, if present, or the original string.  If SYNTAX-ERROR
 is passed, expect syntax error highlighting substring equal to
 SYNTAX-ERROR value.  BIND defines bindings to apply them around
 the test."
+  (declare (indent defun))
   `(ert-deftest ,(intern (format "js2-%s" name)) ()
      (let ,(append bind '((js2-basic-offset 2)))
        (js2-test-parse-string ,code-string
                               :syntax-error ,syntax-error
                               :errors-count ,errors-count
                               :reference ,reference))))
-
-(put 'js2-deftest-parse 'lisp-indent-function 'defun)
 
 ;;; Basics
 
@@ -179,6 +178,36 @@ the test."
 (js2-deftest-parse destruct-in-catch-clause
   "try {\n} catch ({a, b}) {\n  a + b;\n}")
 
+;;; Object literals
+
+(js2-deftest-parse object-literal-shorthand
+  "var x = {a: 1, b, c: 1, d};")
+
+(js2-deftest-parse object-literal-shorthard-with-number
+  "var a = {1};" :syntax-error "}" :errors-count 2)
+
+(js2-deftest-parse object-literal-method
+  "var x = {f(y) {  return y;\n}};")
+
+(js2-deftest-parse object-literal-getter-method
+  "var x = {get f() {  return 42;\n}};")
+
+(js2-deftest-parse object-literal-setter-method
+  "var x = {set f(y) {  x = y;\n}};")
+
+(js2-deftest-parse object-literal-computed-keys
+  "var x = {[Symbol.iterator]: function() {}};")
+
+;;; Function definition
+
+(js2-deftest function-redeclaring-var "var gen = 3; function gen() {};"
+  (js2-mode)
+  (should (= (length (js2-ast-root-warnings js2-mode-ast)) 1)))
+
+(js2-deftest function-expression-var-same-name "var gen = function gen() {};"
+  (js2-mode)
+  (should (null (js2-ast-root-warnings js2-mode-ast))))
+
 ;;; Function parameters
 
 (js2-deftest-parse function-with-default-parameters
@@ -226,10 +255,13 @@ the test."
   "([{a}, b]) => {  a + b;\n};")
 
 (js2-deftest-parse parenless-arrow-function-prohibits-rest
-  "...b => {b + 1;};" :syntax-error "=>" :errors-count 1)
+  "...b => {b + 1;};" :syntax-error "=>")
 
 (js2-deftest-parse parenless-arrow-function-prohibits-destructuring
-  "[a, b] => {a + b;};" :syntax-error "=>" :errors-count 4)
+  "[a, b] => {a + b;};" :syntax-error "]" :errors-count 4)
+
+(js2-deftest-parse arrow-function-recovers-from-error
+  "[(,foo) => 1];" :syntax-error "," :errors-count 6)
 
 ;;; Automatic semicolon insertion
 
@@ -315,6 +347,332 @@ the test."
 (js2-deftest-parse octal-number-broken "0o812;"
   :syntax-error "0o8" :errors-count 2)
 
+;;; Modules
+
+(js2-deftest parse-export-bindings "{one, two as dos}"
+  (js2-init-scanner)
+  (should (js2-match-token js2-LC))
+  (let ((imports (js2-parse-export-bindings)))
+    (should (not (equal nil imports)))
+    (should (= 2 (length imports)))
+    (let ((first (nth 0 imports))
+          (second (nth 1 imports)))
+      (should (equal "one" (js2-name-node-name (js2-export-binding-node-extern-name first))))
+      (should (equal "two" (js2-name-node-name (js2-export-binding-node-extern-name second))))
+      (let ((first-name (js2-export-binding-node-local-name first))
+            (second-name (js2-export-binding-node-local-name second)))
+        (should (equal first (js2-node-parent first-name)))
+        (should (equal 3 (js2-node-len first-name)))
+        (should (equal "one" (js2-name-node-name first-name)))
+        (should (equal second (js2-node-parent second-name)))
+        (should (equal 3 (js2-node-len second-name)))
+        (should (equal "dos" (js2-name-node-name second-name)))))))
+
+(js2-deftest parse-export-binding-as-default "one as default"
+  (js2-init-scanner)
+  (let ((binding (js2-maybe-parse-export-binding)))
+    (should binding)
+    (should (js2-export-binding-node-p binding))
+    (let ((name (js2-export-binding-node-local-name binding)))
+      (should name)
+      (should (equal "default" (js2-name-node-name name))))))
+
+(js2-deftest parse-namepsace-import "* as lib;"
+  (js2-init-scanner)
+  (should (js2-match-token js2-MUL))
+  (let ((namespace-import (js2-parse-namespace-import)))
+    (should (not (equal nil namespace-import)))
+    (should (js2-namespace-import-node-p namespace-import))
+    (should (= 1 (js2-node-pos namespace-import)))
+    (should (equal 8 (js2-node-len namespace-import)))
+    (let ((name-node (js2-namespace-import-node-name namespace-import)))
+      (should (equal "lib" (js2-name-node-name name-node)))
+      (should (= 5 (js2-node-pos name-node))))))
+
+(js2-deftest parse-from-clause "from 'foo/bar';"
+  (js2-init-scanner)
+  (let ((from (js2-parse-from-clause)))
+    (should (not (equal nil from)))
+    (should (= 1 (js2-node-pos from)))
+    (should (= 14 (js2-node-len from)))
+    (should (equal "foo/bar" (js2-from-clause-node-module-id from)))))
+
+(js2-deftest parse-import-module-id-only "import 'src/lib'"
+  (js2-init-scanner)
+  (should (js2-match-token js2-IMPORT))
+  (let ((import (js2-parse-import)))
+    (should (not (equal nil import)))
+    (should (= 1 (js2-node-pos import)))
+    (should (= 16 (js2-node-len import)))
+    (should (equal nil (js2-import-node-import import)))
+    (should (equal nil (js2-import-node-from import)))))
+
+(js2-deftest parse-imported-default-binding "import theDefault from 'src/lib'"
+  (js2-push-scope (make-js2-scope :pos 0))
+  (js2-init-scanner)
+  (should (js2-match-token js2-IMPORT))
+  (let ((import-node (js2-parse-import)))
+    (should (not (equal nil import-node)))
+    (should (equal "src/lib" (js2-import-node-module-id import-node)))
+    (let ((import (js2-import-node-import import-node)))
+      (should (not (equal nil import)))
+      (should (equal nil (js2-import-clause-node-namespace-import import)))
+      (should (equal nil (js2-import-clause-node-named-imports import)))
+      (let ((default (js2-import-clause-node-default-binding import)))
+        (should (not (equal nil default)))
+        (should (js2-export-binding-node-p default))
+        (should (equal "theDefault" (js2-name-node-name (js2-export-binding-node-extern-name default)))))))
+  (should (js2-scope-get-symbol js2-current-scope "theDefault")))
+
+(js2-deftest parse-import-namespace-binding "import * as lib from 'src/lib'"
+  (js2-push-scope (make-js2-scope :pos 0))
+  (js2-init-scanner)
+  (should (js2-match-token js2-IMPORT))
+  (let ((import-node (js2-parse-import)))
+    (should (not (equal nil import-node)))
+    (should (equal "src/lib" (js2-import-node-module-id import-node)))
+    (let ((import (js2-import-node-import import-node)))
+      (should (not (equal nil import)))
+      (should (equal nil (js2-import-clause-node-default-binding import)))
+      (should (equal nil (js2-import-clause-node-named-imports import)))
+      (let ((ns-import (js2-import-clause-node-namespace-import import)))
+        (should (not (equal nil ns-import)))
+        (should (js2-namespace-import-node-p ns-import))
+        (should (equal "lib" (js2-name-node-name (js2-namespace-import-node-name ns-import)))))))
+  (should (js2-scope-get-symbol js2-current-scope "lib")))
+
+(js2-deftest parse-import-named-imports "import {foo as bar, baz} from 'src/lib'"
+  (js2-push-scope (make-js2-scope :pos 0))
+  (js2-init-scanner)
+  (should (js2-match-token js2-IMPORT))
+  (let ((import-node (js2-parse-import)))
+    (should (not (equal nil import-node)))
+    (should (equal "src/lib" (js2-import-node-module-id import-node)))
+    (let ((import (js2-import-node-import import-node)))
+      (should (not (equal nil import)))
+      (should (equal nil (js2-import-clause-node-default-binding import)))
+      (should (equal nil (js2-import-clause-node-namespace-import import)))
+      (let ((named-imports (js2-import-clause-node-named-imports import)))
+        (should (not (equal nil named-imports)))
+        (should (listp named-imports))
+        (should (= 2 (length named-imports)))
+        (let ((first (nth 0 named-imports))
+              (second (nth 1 named-imports)))
+          (should (equal "bar" (js2-name-node-name (js2-export-binding-node-local-name first))))
+          (should (equal "baz" (js2-name-node-name (js2-export-binding-node-local-name second))))))))
+  (should (js2-scope-get-symbol js2-current-scope "bar"))
+  (should (js2-scope-get-symbol js2-current-scope "baz")))
+
+(js2-deftest parse-import-default-and-namespace "import stuff, * as lib from 'src/lib'"
+  (js2-push-scope (make-js2-scope :pos 0))
+  (js2-init-scanner)
+  (should (js2-match-token js2-IMPORT))
+  (let ((import-node (js2-parse-import)))
+    (should (not (equal nil import-node)))
+    (should (equal "src/lib" (js2-import-node-module-id import-node)))
+    (let ((import (js2-import-node-import import-node)))
+      (should (not (equal nil import)))
+      (should (equal nil (js2-import-clause-node-named-imports import)))
+      (let ((default (js2-import-clause-node-default-binding import))
+            (ns-import (js2-import-clause-node-namespace-import import)))
+        (should (not (equal nil default)))
+        (should (equal "stuff" (js2-name-node-name (js2-export-binding-node-local-name default))))
+        (should (not (equal nil ns-import)))
+        (should (js2-namespace-import-node-p ns-import))
+        (should (equal "lib" (js2-name-node-name (js2-namespace-import-node-name ns-import)))))))
+  (should (js2-scope-get-symbol js2-current-scope "stuff"))
+  (should (js2-scope-get-symbol js2-current-scope "lib")))
+
+(js2-deftest parse-import-default-and-named-imports
+  "import robert as bob, {cookies, pi as PIE} from 'src/lib'"
+  (js2-push-scope (make-js2-scope :pos 0))
+  (js2-init-scanner)
+  (should (js2-match-token js2-IMPORT))
+  (let ((import-node (js2-parse-import)))
+    (should (not (equal nil import-node)))
+    (should (equal "src/lib" (js2-import-node-module-id import-node)))
+    (let ((import (js2-import-node-import import-node)))
+      (should (not (equal nil import)))
+      (should (not (equal nil (js2-import-clause-node-named-imports import))))
+      (let ((default (js2-import-clause-node-default-binding import))
+            (named-imports (js2-import-clause-node-named-imports import)))
+        (should (not (equal nil default)))
+        (should (equal "bob" (js2-name-node-name (js2-export-binding-node-local-name default))))
+        (should (not (equal nil named-imports)))
+        (should (= 2 (length named-imports))))))
+  (should (js2-scope-get-symbol js2-current-scope "bob"))
+  (should (js2-scope-get-symbol js2-current-scope "cookies"))
+  (should (js2-scope-get-symbol js2-current-scope "PIE")))
+
+(js2-deftest parse-this-module-in-from-clause "import {url} from this module;"
+  (js2-push-scope (make-js2-scope :pos 0))
+  (js2-init-scanner)
+  (should (js2-match-token js2-IMPORT))
+  (let ((import-node (js2-parse-import)))
+    (should import-node)
+    (let ((from-clause (js2-import-node-from import-node)))
+      (should from-clause)
+      (should (equal "this" (js2-from-clause-node-module-id from-clause)))
+      (should (js2-from-clause-node-metadata-p from-clause)))))
+
+(js2-deftest-parse import-only-for-side-effects "import 'src/lib';")
+(js2-deftest-parse import-default-only "import theDefault from 'src/lib';")
+(js2-deftest-parse import-named-only "import {one, two} from 'src/lib';")
+(js2-deftest-parse import-default-and-named "import theDefault, {one, two} from 'src/lib';")
+(js2-deftest-parse import-renaming-default "import * as lib from 'src/mylib';")
+(js2-deftest-parse import-renaming-named "import {one as uno, two as dos} from 'src/lib';")
+(js2-deftest-parse import-default-and-namespace "import robert as bob, * as lib from 'src/lib';")
+(js2-deftest-parse import-from-this-module "import {url} from this module;")
+
+;; Module Exports
+
+(js2-deftest export-rexport "export * from 'other/lib'"
+  (js2-init-scanner)
+  (should (js2-match-token js2-EXPORT))
+  (let ((export-node (js2-parse-export)))
+    (should export-node)
+    (should (js2-export-node-from-clause export-node))))
+
+(js2-deftest export-export-named-list "export {foo, bar as bang};"
+  (js2-init-scanner)
+  (should (js2-match-token js2-EXPORT))
+  (let ((export-node (js2-parse-export)))
+    (should export-node)
+    (let ((exports (js2-export-node-exports-list export-node)))
+      (should exports)
+      (should (= 2 (length exports))))))
+
+(js2-deftest re-export-named-list "export {foo, bar as bang} from 'other/lib'"
+  (js2-init-scanner)
+  (should (js2-match-token js2-EXPORT))
+  (let ((export-node (js2-parse-export)))
+    (should export-node)
+    (should (js2-export-node-from-clause export-node))
+    (let ((exports (js2-export-node-exports-list export-node)))
+      (should exports)
+      (should (= 2 (length exports))))))
+
+(js2-deftest export-variable-statement "export var foo = 'bar', baz = 'bang';"
+  (js2-init-scanner)
+  (js2-push-scope (make-js2-scope :pos 0))
+  (should (js2-match-token js2-EXPORT))
+  (let ((export-node (js2-parse-export)))
+    (should export-node)
+    (should (js2-export-node-declaration export-node))))
+
+(js2-deftest export-const-declaration "export const PI = Math.PI;"
+  (js2-init-scanner)
+  (js2-push-scope (make-js2-scope :pos 0))
+  (should (js2-match-token js2-EXPORT))
+  (let ((export-node (js2-parse-export)))
+    (should export-node)
+    (should (js2-export-node-declaration export-node))))
+
+(js2-deftest export-let-declaration "export let foo = [1];"
+  (js2-init-scanner)
+  (js2-push-scope (make-js2-scope :pos 0))
+  (should (js2-match-token js2-EXPORT))
+  (let ((export-node (js2-parse-export)))
+    (should export-node)
+    (should (js2-var-decl-node-p (js2-export-node-declaration export-node)))))
+
+(js2-deftest export-class-declaration "export class Foo {};"
+  (js2-init-scanner)
+  (js2-push-scope (make-js2-scope :pos 0))
+  (should (js2-match-token js2-EXPORT))
+  (let ((export-node (js2-parse-export)))
+    (should export-node)
+    (should (js2-class-node-p (js2-export-node-declaration export-node)))))
+
+(js2-deftest export-function-declaration "export default function doStuff() {};"
+  (js2-init-scanner)
+  (js2-push-scope (make-js2-scope :pos 0))
+  (should (js2-match-token js2-EXPORT))
+  (let ((export-node (js2-parse-export)))
+    (should export-node)
+    (should (js2-export-node-default export-node))))
+
+(js2-deftest export-generator-declaration "export default function* one() {};"
+  (js2-init-scanner)
+  (js2-push-scope (make-js2-scope :pos 0))
+  (should (js2-match-token js2-EXPORT))
+  (let ((export-node (js2-parse-export)))
+    (should export-node)
+    (should (js2-export-node-default export-node))))
+
+(js2-deftest export-assignment-expression "export default a = b;"
+  (js2-init-scanner)
+  (js2-push-scope (make-js2-scope :pos 0))
+  (should (js2-match-token js2-EXPORT))
+  (let ((export-node (js2-parse-export)))
+    (should export-node)
+    (should (js2-export-node-default export-node))))
+
+(js2-deftest-parse parse-export-rexport "export * from 'other/lib';")
+(js2-deftest-parse parse-export-export-named-list "export {foo, bar as bang};")
+(js2-deftest-parse parse-re-export-named-list "export {foo, bar as bang} from 'other/lib';")
+(js2-deftest-parse parse-export-const-declaration "export const PI = Math.PI;")
+(js2-deftest-parse parse-export-let-declaration "export let foo = [1];")
+(js2-deftest-parse parse-export-function-declaration "export default function doStuff() {};")
+(js2-deftest-parse parse-export-generator-declaration "export default function* one() {};")
+(js2-deftest-parse parse-export-assignment-expression "export default a = b;")
+
+;;; Strings
+
+(js2-deftest-parse string-literal
+  "var x = 'y';")
+
+(js2-deftest-parse object-get-string-literal
+  "var x = {y: 5};\nvar z = x[\"y\"];")
+
+(js2-deftest-parse template-no-substritutions
+  "var x = `abc
+            def`, y = `\\u0000`;")
+
+(js2-deftest-parse template-with-substitutions
+  "var y = `${a + b} ${d + e + f}`;")
+
+(js2-deftest-parse tagged-template
+  "foo.args`${++x, \"o\"}k`;")
+
+;;; Classes
+
+(js2-deftest-parse parse-harmony-class-statement
+  "class Foo {\n  get bar() {  return 42;\n}\n  set bar(x) {  y = x;\n}\n}")
+
+(js2-deftest-parse parse-harmony-class-statement-without-name-is-not-ok
+  "class {\n  get bar() {  return 42;\n}\n}"
+  :syntax-error "{")
+
+(js2-deftest-parse parse-harmony-class-expression
+  "var Foo1 = class Foo {\n  bar() {  return 42;\n}\n};")
+
+(js2-deftest-parse parse-harmony-anonymous-class-expression
+  "var Foo = class {\n  set bar(x) {  bar = x;\n}\n};")
+
+(js2-deftest-parse parse-harmony-class-with-extends
+  "class Foo extends Bar {\n}")
+
+(js2-deftest-parse parse-harmony-anonymous-class-with-extends
+  "foo.Foo = class extends Bar {\n  set bar(x) {  bar = x;\n}\n};")
+
+(js2-deftest-parse parse-harmony-class-with-complex-extends
+  "class Foo extends foo[BAR][2].Baz {\n}")
+
+(js2-deftest-parse parse-harmony-class-missing-extended-class-is-not-ok
+  "class Foo extends {\n}"
+  :syntax-error "extends")
+
+(js2-deftest-parse parse-harmony-class-static-method
+  "class Foo extends Bar {\n  static bar() {  return 42;\n}\n}")
+
+(js2-deftest-parse parse-unterminated-class-is-not-okay
+  "class Foo {\n  get bar() {  return 42;\n}"
+  :syntax-error "}")
+
+(js2-deftest-parse parse-super-keyword
+  "class Foo {\n  constructor() {  super(42);\n}\n  foo() {  super.foo();\n}\n}")
+
 ;;; Scopes
 
 (js2-deftest ast-symbol-table-includes-fn-node "function foo() {}"
@@ -384,6 +742,19 @@ the test."
     (should (eq js2-NUMBER (js2-next-token)))
     (should (eq 1 (js2-token-number
                    (js2-current-token))))))
+
+(js2-deftest get-token-template-literal "`abc ${i} z ${j} def`"
+  (js2-init-scanner)
+  (should (eq js2-TEMPLATE_HEAD (js2-next-token)))
+  (should (equal "abc " (js2-current-token-string)))
+  (should (eq js2-NAME (js2-next-token)))
+  (should (eq js2-RC (js2-next-token)))
+  (should (eq js2-TEMPLATE_HEAD (js2-next-token 'TEMPLATE_TAIL)))
+  (should (equal " z " (js2-current-token-string)))
+  (should (eq js2-NAME (js2-next-token)))
+  (should (eq js2-RC (js2-next-token)))
+  (should (eq js2-NO_SUBS_TEMPLATE (js2-next-token 'TEMPLATE_TAIL)))
+  (should (equal " def" (js2-current-token-string))))
 
 ;;; Error handling
 
