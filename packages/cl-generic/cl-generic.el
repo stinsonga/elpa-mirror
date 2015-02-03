@@ -89,14 +89,15 @@
       (while (not (listp args))
         (push args qualifiers)
         (setq args (pop body)))
-      (when (eq (car-safe (car args)) 'subclass)
-        ;; There's no exact equivalent to `subclass', but :static
-        ;; provides a superset which should work just as well in practice.
-        (push :static qualifiers)
-        (setcar args (cadr (car args))))
+      (let ((arg1 (car args)))
+        (when (eq (car-safe (car (cdr-safe arg1))) 'subclass)
+          ;; There's no exact equivalent to `subclass', but :static
+          ;; provides a superset which should work just as well in practice.
+          (push :static qualifiers)
+          (setf (cadr arg1) (cadr (cadr arg1)))))
       (let ((docstring (if (and (stringp (car body)) (cdr body)) (pop body))))
         `(defmethod ,name ,@qualifiers ,args
-           ,docstring
+           ,@(if docstring (list docstring))
            ;; We could just alias `cl-call-next-method' to `call-next-method',
            ;; and that would work, but then files compiled with this cl-generic
            ;; wouldn't work in Emacs-25 any more.
