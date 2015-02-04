@@ -5,7 +5,7 @@
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
 ;; Maintainer: Oleh Krehel <ohwoeowho@gmail.com>
 ;; URL: https://github.com/abo-abo/hydra
-;; Version: 0.5.0
+;; Version: 0.6.1
 ;; Keywords: bindings
 ;; Package-Requires: ((cl-lib "0.5"))
 
@@ -61,8 +61,15 @@
 ;;       ("l" text-scale-decrease "out"))
 
 ;;; Code:
+;;* Requires
 (require 'cl-lib)
 
+(defalias 'hydra-set-transient-map
+  (if (fboundp 'set-transient-map)
+      'set-transient-map
+    'set-temporary-overlay-map))
+
+;;* Customize
 (defgroup hydra nil
   "Make bindings that stick around."
   :group 'bindings
@@ -82,14 +89,140 @@
     '((t (:foreground "#758BC6" :bold t)))
   "Blue Hydra heads will vanquish the Hydra.")
 
-(defalias 'hydra-set-transient-map
-  (if (fboundp 'set-transient-map)
-      'set-transient-map
-    'set-temporary-overlay-map))
+;;* Universal Argument
+(defvar hydra-base-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [?\C-u] 'hydra--universal-argument)
+    (define-key map [?-] 'hydra--negative-argument)
+    (define-key map [?0] 'hydra--digit-argument)
+    (define-key map [?1] 'hydra--digit-argument)
+    (define-key map [?2] 'hydra--digit-argument)
+    (define-key map [?3] 'hydra--digit-argument)
+    (define-key map [?4] 'hydra--digit-argument)
+    (define-key map [?5] 'hydra--digit-argument)
+    (define-key map [?6] 'hydra--digit-argument)
+    (define-key map [?7] 'hydra--digit-argument)
+    (define-key map [?8] 'hydra--digit-argument)
+    (define-key map [?9] 'hydra--digit-argument)
+    (define-key map [kp-0] 'hydra--digit-argument)
+    (define-key map [kp-1] 'hydra--digit-argument)
+    (define-key map [kp-2] 'hydra--digit-argument)
+    (define-key map [kp-3] 'hydra--digit-argument)
+    (define-key map [kp-4] 'hydra--digit-argument)
+    (define-key map [kp-5] 'hydra--digit-argument)
+    (define-key map [kp-6] 'hydra--digit-argument)
+    (define-key map [kp-7] 'hydra--digit-argument)
+    (define-key map [kp-8] 'hydra--digit-argument)
+    (define-key map [kp-9] 'hydra--digit-argument)
+    (define-key map [kp-subtract] 'hydra--negative-argument)
+    map)
+  "Keymap that all Hydras inherit. See `universal-argument-map'.")
 
+(defvar hydra-curr-map
+  (make-sparse-keymap)
+  "Keymap of the current Hydra called.")
+
+(defun hydra--universal-argument (arg)
+  "Forward to (`universal-argument' ARG)."
+  (interactive "P")
+  (setq prefix-arg (if (consp arg)
+                       (list (* 4 (car arg)))
+                     (if (eq arg '-)
+                         (list -4)
+                       '(4))))
+  (hydra-set-transient-map hydra-curr-map))
+
+(defun hydra--digit-argument (arg)
+  "Forward to (`digit-argument' ARG)."
+  (interactive "P")
+  (let ((universal-argument-map hydra-curr-map))
+    (digit-argument arg)))
+
+(defun hydra--negative-argument (arg)
+  "Forward to (`negative-argument' ARG)."
+  (interactive "P")
+  (let ((universal-argument-map hydra-curr-map))
+    (negative-argument arg)))
+
+;;* Misc internals
 (defvar hydra-last nil
   "The result of the last `hydra-set-transient-map' call.")
 
+(defun hydra--callablep (x)
+  "Test if X is callable."
+  (or (functionp x)
+      (and (consp x)
+           (memq (car x) '(function quote)))))
+
+(defun hydra--color (h body-color)
+  "Return the color of a Hydra head H with BODY-COLOR."
+  (if (null (cadr h))
+      'blue
+    (let ((plist (if (stringp (cl-caddr h))
+                     (cl-cdddr h)
+                   (cddr h))))
+      (or (plist-get plist :color) body-color))))
+
+(defun hydra--face (h body-color)
+  "Return the face for a Hydra head H with BODY-COLOR."
+  (cl-case (hydra--color h body-color)
+    (blue 'hydra-face-blue)
+    (red 'hydra-face-red)
+    (t (error "Unknown color for %S" h))))
+
+(defun hydra--hint (docstring heads body-color)
+  "Generate a hint from DOCSTRING and HEADS and BODY-COLOR.
+It's intended for the echo area, when a Hydra is active."
+  (format "%s: %s."
+          docstring
+          (mapconcat
+           (lambda (h)
+             (format
+              (if (stringp (cl-caddr h))
+                  (concat "[%s]: " (cl-caddr h))
+                "%s")
+              (propertize
+               (car h) 'face
+               (hydra--face h body-color))))
+           heads ", ")))
+
+(defun hydra-disable ()
+  "Disable the current Hydra."
+  (cond
+    ;; Emacs 25
+    ((functionp hydra-last)
+     (funcall hydra-last))
+
+    ;; Emacs 24.4.1
+    ((boundp 'overriding-terminal-local-map)
+     (setq overriding-terminal-local-map nil))
+
+    ;; older
+    (t
+     (while (and (consp (car emulation-mode-map-alists))
+                 (consp (caar emulation-mode-map-alists))
+                 (equal (cl-cdaar emulation-mode-map-alists) ',keymap))
+       (setq emulation-mode-map-alists
+             (cdr emulation-mode-map-alists))))))
+
+(defun hydra--doc (body-key body-name heads)
+  "Generate a part of Hydra docstring.
+BODY-KEY is the body key binding.
+BODY-NAME is the symbol that identifies the Hydra.
+HEADS is a list of heads."
+  (format
+   "Create a hydra with %s body and the heads:\n\n%s\n\n%s"
+   (if body-key
+       (format "a \"%s\"" body-key)
+     "no")
+   (mapconcat
+    (lambda (x)
+      (format "\"%s\":    `%S'" (car x) (cadr x)))
+    heads ",\n")
+   (format "The body can be accessed via `%S'." body-name)))
+
+;;* Macros
+;;** hydra-create
 ;;;###autoload
 (defmacro hydra-create (body heads &optional method)
   "Create a hydra with a BODY prefix and HEADS with METHOD.
@@ -119,70 +252,7 @@ When `(keymapp METHOD)`, it becomes:
      "hydra"
      ,@(eval heads)))
 
-(defun hydra--callablep (x)
-  "Test if X is callable."
-  (or (functionp x)
-      (and (consp x)
-           (memq (car x) '(function quote)))))
-
-(defun hydra--color (h body-color)
-  "Return the color of a Hydra head H with BODY-COLOR."
-  (if (null (cadr h))
-      'blue
-    (let ((plist (if (stringp (cl-caddr h))
-                     (cl-cdddr h)
-                   (cddr h))))
-      (or (plist-get plist :color) body-color))))
-
-(defun hydra--face (h body-color)
-  "Return the face for a Hydra head H with BODY-COLOR."
-  (cl-case (hydra--color h body-color)
-    (blue 'hydra-face-blue)
-    (red 'hydra-face-red)
-    (t (error "Unknown color for %S" h))))
-
-(defun hydra--hint (docstring heads)
-  "Generate a hint from DOCSTRING and HEADS.
-It's intended for the echo area, when a Hydra is active."
-  (format "%s: %s."
-          docstring
-          (mapconcat
-           (lambda (h)
-             (format
-              (if (stringp (cl-caddr h))
-                  (concat "[%s]: " (cl-caddr h))
-                "%s")
-              (propertize
-               (car h) 'face
-               (hydra--face h body-color))))
-           heads ", ")))
-
-(defun hydra-disable ()
-  "Disable the current Hydra."
-  (if (functionp hydra-last)
-      (funcall hydra-last)
-    (while (and (consp (car emulation-mode-map-alists))
-                (consp (caar emulation-mode-map-alists))
-                (equal (cl-cdaar emulation-mode-map-alists) ',keymap))
-      (setq emulation-mode-map-alists
-            (cdr emulation-mode-map-alists)))))
-
-(defun hydra--doc (body-key body-name heads)
-  "Generate a part of Hydra docstring.
-BODY-KEY is the body key binding.
-BODY-NAME is the symbol that identifies the Hydra.
-HEADS is a list of heads."
-  (format
-   "Create a hydra with %s body and the heads:\n\n%s\n\n%s"
-   (if body-key
-       (format "a \"%s\"" body-key)
-     "no")
-   (mapconcat
-    (lambda (x)
-      (format "\"%s\":    `%S'" (car x) (cadr x)))
-    heads ",\n")
-   (format "The body can be accessed via `%S'." body-name)))
-
+;;** defhydra
 ;;;###autoload
 (defmacro defhydra (name body &optional docstring &rest heads)
   "Create a hydra named NAME with a prefix BODY.
@@ -212,11 +282,14 @@ in turn can be either red or blue."
     (setq docstring "hydra"))
   (when (keywordp (car body))
     (setq body (cons nil (cons nil body))))
-  (let* ((keymap (make-sparse-keymap))
+  (let* ((keymap (copy-keymap hydra-base-map))
          (names (mapcar
                  (lambda (x)
                    (define-key keymap (kbd (car x))
-                     (intern (format "%S/%s" name (cadr x)))))
+                     (intern (format "%S/%s" name
+                                     (if (symbolp (cadr x))
+                                         (cadr x)
+                                       (concat "lambda-" (car x)))))))
                  heads))
          (body-name (intern (format "%S/body" name)))
          (body-key (unless (hydra--callablep body)
@@ -228,7 +301,7 @@ in turn can be either red or blue."
          (method (if (hydra--callablep body)
                      body
                    (car body)))
-         (hint (hydra--hint docstring heads))
+         (hint (hydra--hint docstring heads body-color))
          (doc (hydra--doc body-key body-name heads)))
     `(progn
        ,@(cl-mapcar
@@ -240,11 +313,11 @@ in turn can be either red or blue."
                      `((hydra-disable)
                        ,@(unless (null (cadr head))
                                  `((call-interactively #',(cadr head)))))
-                     `((call-interactively #',(cadr head))
-                       (when hydra-is-helpful
+                     `((when hydra-is-helpful
                          (message ,hint))
                        (setq hydra-last
-                             (hydra-set-transient-map ',keymap t))))))
+                             (hydra-set-transient-map (setq hydra-curr-map ',keymap) t))
+                       (call-interactively #',(cadr head))))))
           heads names)
        ,@(unless (or (null body-key)
                      (null method)
@@ -272,4 +345,9 @@ in turn can be either red or blue."
                (hydra-set-transient-map ',keymap t))))))
 
 (provide 'hydra)
+
+;;; Local Variables:
+;;; outline-regexp: ";;\\*+"
+;;; End:
+
 ;;; hydra.el ends here
