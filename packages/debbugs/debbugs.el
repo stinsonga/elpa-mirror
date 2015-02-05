@@ -1,6 +1,6 @@
 ;;; debbugs.el --- SOAP library to access debbugs servers
 
-;; Copyright (C) 2011-2014 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2015 Free Software Foundation, Inc.
 
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, hypermedia
@@ -309,10 +309,13 @@ Example:
 	     (setcdr y (mapcar
 			(lambda (z) (if (numberp z) (number-to-string z) z))
 			(cdr y))))
-	   ;; "mergedwith" is a string, containing blank separated bug numbers.
-	   (setq y (assoc 'mergedwith (cdr (assoc 'value x))))
-	   (when (stringp (cdr y))
-	     (setcdr y (mapcar 'string-to-number (split-string (cdr y) " " t))))
+	   ;; "mergedwith", "blocks" and "blockedby are strings,
+	   ;; containing blank separated bug numbers.
+	   (dolist (attribute '(mergedwith blocks blockedby))
+	     (setq y (assoc attribute (cdr (assoc 'value x))))
+	     (when (stringp (cdr y))
+	       (setcdr y (mapcar
+			  'string-to-number (split-string (cdr y) " " t)))))
 	   ;; "package" is a string, containing comma separated
 	   ;; package names.  "keywords" and "tags" are strings,
 	   ;; containing blank separated package names.
