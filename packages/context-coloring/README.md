@@ -16,7 +16,7 @@ the overall structure of a program. It can help to curb nasty bugs like name
 shadowing. A rainbow can indicate excessive complexity. State change within a
 closure is easily monitored.
 
-By default, Context Coloring still highlights comments and strings
+By default, context-coloring still highlights comments and strings
 syntactically. It is still easy to differentiate code from non-code, and strings
 cannot be confused for variables.
 
@@ -25,7 +25,7 @@ highlighting. Highlighting keywords can help one to detect spelling errors, but
 a [linter][] could also spot those errors, and if integrated with [flycheck][],
 an extra spot opens up in your editing toolbelt.
 
-Give context coloring a try; you may find that it *changes the way you write
+Give context-coloring a try; you may find that it *changes the way you write
 code*.
 
 ## Features
@@ -41,13 +41,8 @@ Requires Emacs 24+.
 JavaScript language support requires either [js2-mode][], or
 [Node.js 0.10+][node] and the [scopifier][] executable.
 
-```bash
-npm install -g scopifier
-```
-
 ### ELPA
 
-- `M-x package-refresh-contents RET`
 - `M-x package-install RET context-coloring RET`
 
 ### Git
@@ -71,20 +66,34 @@ make compile
 ```lisp
 (add-to-list 'load-path "~/.emacs.d/context-coloring")
 (require 'context-coloring)
+```
+
+### scopifier (for non-js2-mode users)
+
+```bash
+npm install -g scopifier
+```
+
+## Usage
+
+Add the following to your `~/.emacs` file:
+
+```lisp
+;; non-js2-mode users:
+(add-hook 'js-mode-hook 'context-coloring-mode)
+
+;; js2-mode users:
+(add-to-list 'auto-mode-alist '("\\.js\\'" . js2-mode))
 (add-hook 'js2-mode-hook 'context-coloring-mode)
 ```
 
 ## Customizing
 
-Built-in themes are accessible via `context-coloring-load-theme`.  Available
-themes are: `monokai`, `solarized`, `tango` and `zenburn`.
+Color schemes for custom themes are automatically applied when those themes are
+active. Built-in theme support is available for: `leuven`, `monokai`,
+`solarized`, `tango` and `zenburn`.
 
-```lisp
-(require 'context-coloring)
-(context-coloring-load-theme 'zenburn)
-```
-
-You can define your own themes, too:
+You can define your own theme colors too:
 
 ```lisp
 (context-coloring-define-theme
@@ -157,8 +166,8 @@ print scopifier ARGF.read
 ```
 
 When a `--version` argument is passed, a scopifier should print its version
-number and exit. For installable scopifiers, this allows context-coloring to
-check for updates as needed.
+number and exit. This allows context-coloring to determine if an update is
+required.
 
 [linter]: http://jshint.com/about/
 [flycheck]: http://www.flycheck.org/

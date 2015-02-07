@@ -5,7 +5,7 @@
 ;; Author: Jackson Ray Hamilton <jackson@jacksonrayhamilton.com>
 ;; URL: https://github.com/jacksonrayhamilton/context-coloring
 ;; Keywords: context coloring syntax highlighting
-;; Version: 4.0.0
+;; Version: 4.1.0
 ;; Package-Requires: ((emacs "24") (js2-mode "20150126"))
 
 ;; This file is part of GNU Emacs.
@@ -142,6 +142,11 @@ used.")
   (setq context-coloring-face-count 8))
 
 (context-coloring-set-colors-default)
+
+;; Color theme authors can have up to 26 levels: 1 (0th) for globals, 24
+;; (1st-24th) for in-betweens, and 1 (25th) for infinity.
+(dotimes (number 18)
+  (context-coloring-defface-default (+ number context-coloring-face-count)))
 
 
 ;;; Face functions
@@ -474,24 +479,60 @@ would be redundant."
 (defvar context-coloring-theme-hash-table (make-hash-table :test 'eq)
   "Mapping of theme names to theme properties.")
 
+(defun context-coloring-apply-theme (theme)
+  "Applies THEME's properties to its respective custom theme,
+which must already exist and which *should* already be enabled."
+  (let ((properties (gethash theme context-coloring-theme-hash-table)))
+    (when (null properties)
+      (error (format "No such theme `%s'" theme)))
+    (let ((colors (plist-get properties :colors)))
+      (setq context-coloring-face-count (length colors)) ; Side-effect?
+      (let ((level -1))
+        ;; AFAIK, no way to know if a theme already has a face set, so just
+        ;; override blindly for now.
+        (apply
+         'custom-theme-set-faces
+         theme
+         (mapcar
+          (lambda (color)
+            (setq level (+ level 1))
+            `(,(context-coloring-face-symbol level) ((t (:foreground ,color)))))
+          colors))))))
+
 (defun context-coloring-define-theme (theme &rest properties)
   "Define a theme named THEME for coloring scope levels.
 PROPERTIES is a property list specifiying the following details:
 
 `:colors': List of colors that this theme uses."
-  (puthash
-   theme
-   (lambda ()
-     (apply 'context-coloring-set-colors (plist-get properties :colors)))
-   context-coloring-theme-hash-table))
+  (let ((aliases (plist-get properties :aliases)))
+    (dolist (name (append `(,theme) aliases))
+      (puthash name properties context-coloring-theme-hash-table)
+      ;; Compensate for already-enabled themes by applying their colors now.
+      (when (custom-theme-enabled-p name)
+        (context-coloring-apply-theme name)))))
 
-(defun context-coloring-load-theme (theme)
-  "Apply THEME's colors and other properties for context
-coloring."
-  (let ((function (gethash theme context-coloring-theme-hash-table)))
-    (when (null function)
-      (error (format "No such theme `%s'" theme)))
-    (funcall function)))
+(defun context-coloring-load-theme (&optional rest)
+  (declare (obsolete
+            "themes are now loaded alongside custom themes automatically."
+            "4.1.0")))
+
+(defadvice enable-theme (after context-coloring-enable-theme (theme) activate)
+  "Add colors to themes just-in-time."
+  (when (and (not (eq theme 'user))  ; Called internally.
+             (custom-theme-p theme)) ; Guard against non-existent themes.
+    (context-coloring-apply-theme theme)))
+
+(context-coloring-define-theme
+ 'leuven
+ :colors '("#333333"
+           "#0000FF"
+           "#6434A3"
+           "#BA36A5"
+           "#D0372D"
+           "#036A07"
+           "#006699"
+           "#006FE0"
+           "#808080"))
 
 (context-coloring-define-theme
  'monokai
@@ -507,6 +548,10 @@ coloring."
 
 (context-coloring-define-theme
  'solarized
+ :aliases '(solarized-light
+            solarized-dark
+            sanityinc-solarized-light
+            sanityinc-solarized-dark)
  :colors '("#839496"
            "#268bd2"
            "#2aa198"
