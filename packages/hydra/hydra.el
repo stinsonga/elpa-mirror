@@ -5,7 +5,7 @@
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
 ;; Maintainer: Oleh Krehel <ohwoeowho@gmail.com>
 ;; URL: https://github.com/abo-abo/hydra
-;; Version: 0.6.1
+;; Version: 0.8.0
 ;; Keywords: bindings
 ;; Package-Requires: ((cl-lib "0.5"))
 
@@ -89,6 +89,10 @@
     '((t (:foreground "#758BC6" :bold t)))
   "Blue Hydra heads will vanquish the Hydra.")
 
+(defface hydra-face-amaranth
+    '((t (:foreground "#E52B50" :bold t)))
+  "Amaranth Hydra can exit only through a blue head.")
+
 ;;* Universal Argument
 (defvar hydra-base-map
   (let ((map (make-sparse-keymap)))
@@ -116,7 +120,7 @@
     (define-key map [kp-9] 'hydra--digit-argument)
     (define-key map [kp-subtract] 'hydra--negative-argument)
     map)
-  "Keymap that all Hydras inherit. See `universal-argument-map'.")
+  "Keymap that all Hydras inherit.  See `universal-argument-map'.")
 
 (defvar hydra-curr-map
   (make-sparse-keymap)
@@ -130,7 +134,7 @@
                      (if (eq arg '-)
                          (list -4)
                        '(4))))
-  (hydra-set-transient-map hydra-curr-map))
+  (hydra-set-transient-map hydra-curr-map t))
 
 (defun hydra--digit-argument (arg)
   "Forward to (`digit-argument' ARG)."
@@ -168,6 +172,7 @@
   (cl-case (hydra--color h body-color)
     (blue 'hydra-face-blue)
     (red 'hydra-face-red)
+    (amaranth 'hydra-face-amaranth)
     (t (error "Unknown color for %S" h))))
 
 (defun hydra--hint (docstring heads body-color)
@@ -298,26 +303,57 @@ in turn can be either red or blue."
                          'red
                        (or (plist-get (cddr body) :color)
                            'red)))
+         (body-pre (plist-get (cddr body) :pre))
+         (body-post (plist-get (cddr body) :post))
          (method (if (hydra--callablep body)
                      body
                    (car body)))
          (hint (hydra--hint docstring heads body-color))
          (doc (hydra--doc body-key body-name heads)))
+    (when (and (or body-pre body-post)
+               (version< emacs-version "24.4"))
+      (error "At least Emacs 24.4 is needed for :pre and :post"))
+    (when (eq body-color 'amaranth)
+      (if (cl-some `(lambda (h)
+                      (eq (hydra--color h ',body-color) 'blue))
+                   heads)
+          (define-key keymap [t]
+            `(lambda ()
+               (interactive)
+               (message "An amaranth Hydra can only exit through a blue head")
+               (hydra-set-transient-map hydra-curr-map t)
+               (when hydra-is-helpful
+                 (sit-for 0.8)
+                 (message ,hint))))
+        (error "An amaranth Hydra must have at least one blue head in order to exit")))
     `(progn
        ,@(cl-mapcar
           (lambda (head name)
             `(defun ,name ()
                ,(format "%s\n\nCall the head: `%S'." doc (cadr head))
                (interactive)
+               ,@(if body-pre (list body-pre))
                ,@(if (eq (hydra--color head body-color) 'blue)
                      `((hydra-disable)
                        ,@(unless (null (cadr head))
-                                 `((call-interactively #',(cadr head)))))
-                     `((when hydra-is-helpful
-                         (message ,hint))
-                       (setq hydra-last
-                             (hydra-set-transient-map (setq hydra-curr-map ',keymap) t))
-                       (call-interactively #',(cadr head))))))
+                                 `((call-interactively #',(cadr head))))
+                       ,@(if body-post (list body-post)))
+                     `((catch 'hydra-disable
+                         (hydra-disable)
+                         (condition-case err
+                             (prog1 t
+                               (call-interactively #',(cadr head)))
+                           ((debug error)
+                            (message "%S" err)
+                            (sit-for 0.8)
+                            nil))
+                         (when hydra-is-helpful
+                           (message ,hint))
+                         (setq hydra-last
+                               (hydra-set-transient-map
+                                (setq hydra-curr-map ',keymap)
+                                t
+                                ,@(if body-post `((lambda () ,body-post))))))))))
           heads names)
        ,@(unless (or (null body-key)
                      (null method)
@@ -339,10 +375,14 @@ in turn can be either red or blue."
        (defun ,body-name ()
          ,doc
          (interactive)
+         ,@(if body-pre (list body-pre))
          (when hydra-is-helpful
            (message ,hint))
          (setq hydra-last
-               (hydra-set-transient-map ',keymap t))))))
+               (hydra-set-transient-map
+                ',keymap
+                t
+                ,@(if body-post `((lambda () ,body-post)))))))))
 
 (provide 'hydra)
 
