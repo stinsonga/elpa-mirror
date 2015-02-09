@@ -3,7 +3,7 @@
 
 ;; Copyright (C) 2005-2015  Free Software Foundation, Inc
 
-;; Version: 0.10.8
+;; Version: 0.10.9
 ;; Author: Toby Cubitt <toby-predictive@dr-qubit.org>
 ;; Maintainer: Toby Cubitt <toby-predictive@dr-qubit.org>
 ;; Keywords: extensions
@@ -383,6 +383,7 @@ Comparison is done with `eq'."
 ;;;=========================================================
 ;;;          auto-overlay definition functions
 
+;;;###autoload
 (defun auto-overlay-load-definition (set-id definition &optional pos)
   "Load DEFINITION into the set of auto-overlay definitions SET-ID
 in the current buffer. If SET-ID does not exist, it is created.
@@ -477,6 +478,7 @@ symbol that can be used to uniquely identify REGEXP (see
 
 
 
+;;;###autoload
 (defun auto-overlay-load-regexp (set-id definition-id regexp &optional pos)
   "Load REGEXP into the auto-overlay definition identified by
 DEFINITION-ID in the regexp list named SET-ID in the current
@@ -653,6 +655,7 @@ Returns the deleted regexp."
 
 
 
+;;;###autoload
 (defun auto-overlay-share-regexp-set (set-id from-buffer &optional to-buffer)
   "Make TO-BUFFER share the regexp set identified by SET-ID with FROM-BUFFER.
 Any changes to that regexp set in either buffer will be reflected in the
@@ -857,6 +860,7 @@ The overlays can be loaded again later using
 
 
 
+;;;###autoload
 (defun auto-overlay-load-overlays (set-id &optional buffer
 					  file no-regexp-check)
   "Load overlays for BUFFER from FILE.

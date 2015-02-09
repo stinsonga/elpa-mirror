@@ -29,6 +29,7 @@
 (provide 'auto-overlay-common)
 
 
+;;;###autoload
 (defun auto-overlays-at-point (&optional point prop-test inactive)
   "Return overlays overlapping POINT
 (or the point, if POINT is null). If PROP-TEST is supplied, it
@@ -76,13 +77,13 @@ PROP-TEST."
 		 (= (overlay-start o) point))
 	(push o overlay-list)))
 
-    overlay-list)
-)
+    overlay-list))
 
 
 
-;; FIXME: get rid of INACTIVE argument
+;;;###autoload
 (defun auto-overlays-in (start end &optional prop-test within inactive)
+;; FIXME: get rid of INACTIVE argument?
   "Return auto overlays overlapping region between START and END.
 
 If PROP-TEST is supplied, it should be a list which specifies a
@@ -163,11 +164,11 @@ PROP-TEST."
       ;; add overlay to result list if its properties matched
       (when result (push o overlay-list)))
     ;; return result list
-    overlay-list)
-)
+    overlay-list))
 
 
 
+;;;###autoload
 (defun auto-overlay-highest-priority-at-point (&optional point proptest)
   "Return highest priority overlay at POINT (defaults to the point).
 
@@ -197,11 +198,11 @@ See `auto-overlays-at' for ane explanation of the PROPTEST argument."
 	(setq overlay o1)))
 
     ;; return the overlay
-    overlay)
-)
+    overlay))
 
 
 
+;;;###autoload
 (defun auto-overlay-local-binding (symbol &optional point only-overlay)
   "Return \"overlay local \" binding of SYMBOL at POINT,
 or the current local binding if there is no overlay binding. If
