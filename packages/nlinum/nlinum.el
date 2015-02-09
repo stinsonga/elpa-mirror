@@ -1,10 +1,10 @@
 ;;; nlinum.el --- Show line numbers in the margin  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2012, 2014  Free Software Foundation, Inc.
+;; Copyright (C) 2012, 2014, 2015  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords: convenience
-;; Version: 1.5
+;; Version: 1.6
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -54,6 +54,7 @@ Linum mode is a buffer-local minor mode."
   :lighter nil ;; (" NLinum" nlinum--desc)
   (jit-lock-unregister #'nlinum--region)
   (remove-hook 'window-configuration-change-hook #'nlinum--setup-window t)
+  (remove-hook 'text-scale-mode-hook #'nlinum--setup-window t)
   (remove-hook 'after-change-functions #'nlinum--after-change t)
   (kill-local-variable 'nlinum--line-number-cache)
   (remove-overlays (point-min) (point-max) 'nlinum t)
@@ -63,6 +64,7 @@ Linum mode is a buffer-local minor mode."
     ;; FIXME: Another approach would be to make the mode permanent-local,
     ;; which might indeed be preferable.
     (add-hook 'change-major-mode-hook (lambda () (nlinum-mode -1)))
+    (add-hook 'text-scale-mode-hook #'nlinum--setup-window nil t)
     (add-hook 'window-configuration-change-hook #'nlinum--setup-window nil t)
     (add-hook 'after-change-functions #'nlinum--after-change nil t)
     (jit-lock-register #'nlinum--region t))
@@ -71,14 +73,24 @@ Linum mode is a buffer-local minor mode."
 (defun nlinum--face-height (face)
   (aref (font-info (face-font face)) 2))
 
+(defun nlinum--face-width (face)        ;New info only in Emacs>=25.
+  (let ((fi (font-info (face-font face))))
+    (when (> (length fi) 11)
+      (let ((width (aref fi 11)))
+        (if (<= width 0)
+            (aref fi 10)
+          width)))))
+
 (defun nlinum--setup-window ()
   (let ((width (if (display-graphic-p)
                    (ceiling
-                    ;; We'd really want to check the widths rather than the
-                    ;; heights, but it's a start.
-                    (/ (* nlinum--width 1.0
-                          (nlinum--face-height 'linum))
-                       (frame-char-height)))
+                    (let ((width (nlinum--face-width 'linum)))
+                      (if width
+                          (/ (* nlinum--width 1.0 width)
+                             (frame-char-width))
+                        (/ (* nlinum--width 1.0
+                              (nlinum--face-height 'linum))
+                           (frame-char-height)))))
                  nlinum--width)))
     (set-window-margins nil (if nlinum-mode width)
                         (cdr (window-margins)))))
