@@ -7,9 +7,9 @@ START-INFO-DIR-ENTRY
 * auto-overlays: (auto-overlay-manual).  Automatic regexp-delimited overlays
 END-INFO-DIR-ENTRY
 
-   This manual describes the Emacs Auto-Overlays package, version 0.10.8
+   This manual describes the Emacs Auto-Overlays package, version 0.10.9
 
-   Copyright (C) 2007-2015 Toby Cubitt
+   Copyright (C) 2007-2015 Free Software Foundation, Inc
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -24,9 +24,9 @@ File: auto-overlay-manual.info,  Node: Top,  Next: Overview,  Up: (dir)
 Emacs Auto-Overlays Manual
 **************************
 
-This manual describes the Emacs Auto-Overlays package, version 0.10.8
+This manual describes the Emacs Auto-Overlays package, version 0.10.9
 
-   Copyright (C) 2007-2015 Toby Cubitt
+   Copyright (C) 2007-2015 Free Software Foundation, Inc
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -2217,32 +2217,32 @@ permit their use in free software.
 
 
 Tag Table:
-Node: Top797
-Node: Overview2853
-Node: Auto-Overlay Functions7845
-Node: Defining Regexps9299
-Node: Starting and Stopping Auto-Overlays14158
-Node: Searching for Overlays19821
-Node: Worked Example23819
-Node: Extending the Auto-Overlays Package44652
-Ref: Extending the Auto-Overlays Package-Footnote-145715
-Node: Auto-Overlays in Depth45924
-Ref: Auto-Overlays in Depth-Footnote-148719
-Ref: Auto-Overlays in Depth-Footnote-248900
-Ref: Auto-Overlays in Depth-Footnote-349054
-Node: Integrating New Overlay Classes49084
-Node: Functions for Writing New Overlay Classes51803
-Node: Standard Parse and Suicide Functions52737
-Node: Functions for Modifying Overlays54210
-Node: Functions for Querying Overlays57952
-Node: Auto-Overlay Hooks59784
-Node: Auto-Overlay Modification Pseudo-Hooks60839
-Ref: Auto-Overlay Modification Pseudo-Hooks-Footnote-162932
-Node: To-Do62992
-Node: Function Index64149
-Node: Variable Index68729
-Node: Concept Index69524
-Node: Copying this Manual86262
-Node: GNU Free Documentation License86464
+Node: Top815
+Node: Overview2889
+Node: Auto-Overlay Functions7881
+Node: Defining Regexps9335
+Node: Starting and Stopping Auto-Overlays14194
+Node: Searching for Overlays19857
+Node: Worked Example23855
+Node: Extending the Auto-Overlays Package44688
+Ref: Extending the Auto-Overlays Package-Footnote-145751
+Node: Auto-Overlays in Depth45960
+Ref: Auto-Overlays in Depth-Footnote-148755
+Ref: Auto-Overlays in Depth-Footnote-248936
+Ref: Auto-Overlays in Depth-Footnote-349090
+Node: Integrating New Overlay Classes49120
+Node: Functions for Writing New Overlay Classes51839
+Node: Standard Parse and Suicide Functions52773
+Node: Functions for Modifying Overlays54246
+Node: Functions for Querying Overlays57988
+Node: Auto-Overlay Hooks59820
+Node: Auto-Overlay Modification Pseudo-Hooks60875
+Ref: Auto-Overlay Modification Pseudo-Hooks-Footnote-162968
+Node: To-Do63028
+Node: Function Index64185
+Node: Variable Index68765
+Node: Concept Index69560
+Node: Copying this Manual86298
+Node: GNU Free Documentation License86500
 
 End Tag Table
