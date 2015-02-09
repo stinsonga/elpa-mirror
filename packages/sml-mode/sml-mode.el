@@ -1,9 +1,9 @@
 ;;; sml-mode.el --- Major mode for editing (Standard) ML  -*- lexical-binding: t; coding: utf-8 -*-
 
-;; Copyright (C) 1989,1999,2000,2004,2007,2010-2014  Free Software Foundation, Inc.
+;; Copyright (C) 1989,1999,2000,2004,2007,2010-2015  Free Software Foundation, Inc.
 
 ;; Maintainer: (Stefan Monnier) <monnier@iro.umontreal.ca>
-;; Version: 6.5
+;; Version: 6.6
 ;; Keywords: SML
 ;; Author:	Lars Bo Nielsen
 ;;		Olin Shivers
@@ -266,6 +266,9 @@ notion of \"the end of an outline\".")
 This may sound like a neat trick, but be extra careful: it changes the
 alignment and can thus lead to nasty surprises w.r.t layout."
   :type 'boolean)
+(if (fboundp 'prettify-symbols-mode)
+    (make-obsolete-variable 'sml-font-lock-symbols
+                            'prettify-symbols-mode "24.4"))
 
 (defconst sml-font-lock-symbols-alist
   '(("fn" . ?λ)
@@ -297,8 +300,8 @@ Regexp match data 0 points to the chars."
   ;; Check that the chars should really be composed into a symbol.
   (let* ((start (match-beginning 0))
 	 (end (match-end 0))
-	 (syntaxes (if (eq (char-syntax (char-after start)) ?w)
-		       '(?w) '(?. ?\\))))
+	 (syntaxes (if (memq (char-syntax (char-after start)) '(?w ?_))
+		       '(?w ?_) '(?. ?\\))))
     (if (or (memq (char-syntax (or (char-before start) ?\ )) syntaxes)
 	    (memq (char-syntax (or (char-after end) ?\ )) syntaxes)
 	    (memq (get-text-property start 'face)
@@ -551,6 +554,7 @@ Regexp match data 0 points to the chars."
     (`(:before . "withtype") 0)
     (`(:before . "d=")
      (cond
+      ((smie-rule-parent-p "fun") 2)
       ((smie-rule-parent-p "datatype") (if (smie-rule-bolp) 2))
       ((smie-rule-parent-p "structure" "signature" "functor") 0)))
     ;; Indent an expression starting with "local" as if it were starting
@@ -586,7 +590,7 @@ Assumes point is right before the = sign."
   ;; where the "type t = s.t" is mistaken for a type definition.
   (save-excursion
     (let ((res (smie-backward-sexp "=")))
-      (member (nth 2 res) `(":" ,@sml-=-starter-syms)))))
+      (member (nth 2 res) `(":" ":>" ,@sml-=-starter-syms)))))
 
 (defun sml-smie-non-nested-of-p ()
   ;; FIXME: Maybe datatype-|-p makes this nested-of business unnecessary.
@@ -775,6 +779,9 @@ Assumes point is right before the | symbol."
     ;; Maybe we should insert the command into the buffer and then call
     ;; comint-send-input?
     (sml-prog-proc-comint-input-filter-function nil)
+    (save-excursion (goto-char (process-mark proc))
+                    (unless (bolp) (insert "\n"))
+                    (set-marker (process-mark proc) (point)))
     (comint-send-string proc (concat str (sml-prog-proc--prop command-eol)))))
 
 (defun sml-prog-proc-load-file (file &optional and-go)
@@ -984,8 +991,24 @@ The format specifier \"%s\" will be converted into the directory name
 specified when running the command \\[sml-cd].")
 
 (defvar sml-error-regexp-alist
-  `( ;; Poly/ML messages
-    ("^\\(Error\\|Warning:\\) in '\\(.+\\)', line \\([0-9]+\\)" 2 3)
+  `(;; Poly/ML messages
+    ;;
+    ;; Warning- in 'polyml.ML', line 135.
+    ;; Matches are not exhaustive.
+    ;; Found near
+    ;;   fun
+    ;;      convert _ (... ...) = ML_Pretty.Break (false, ...) |
+    ;;         convert _ ... = ML_Pretty.Break (...) |
+    ;;         convert ... = let ... in ... end |
+    ;;         convert ... = …
+    ;;
+    ;; Error- in 'HTTP.sml', line 370.
+    ;; Value or constructor (read_line) has not been declared
+    ;; Found near
+    ;;   case read_line bin of
+    ;;      NONE => () |
+    ;;      SOME s => (if s = "" then print "DONE\n" else (... ...; ...))
+    ("^\\(?:> \\)?\\(?:Error\\|W\\(arning\\)\\)[-:] in '\\(.+\\)', line \\([0-9]+\\)" 2 3 nil (1))
     ;; Moscow ML
     ("^File \"\\([^\"]+\\)\", line \\([0-9]+\\)\\(-\\([0-9]+\\)\\)?, characters \\([0-9]+\\)-\\([0-9]+\\):" 1 2 5)
     ;; SML/NJ:  the file-pattern is anchored to avoid
@@ -1235,6 +1258,8 @@ This mode runs `sml-mode-hook' just before exiting.
 See also (info \"(sml-mode)Top\").
 \\{sml-mode-map}"
   (set (make-local-variable 'font-lock-defaults) sml-font-lock-defaults)
+  (set (make-local-variable 'prettify-symbols-alist)
+       sml-font-lock-symbols-alist)
   (set (make-local-variable 'outline-regexp) sml-outline-regexp)
   (set (make-local-variable 'imenu-create-index-function)
        'sml-imenu-create-index)
