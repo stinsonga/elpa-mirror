@@ -5,7 +5,7 @@
 ;; Author: Jackson Ray Hamilton <jackson@jacksonrayhamilton.com>
 ;; URL: https://github.com/jacksonrayhamilton/context-coloring
 ;; Keywords: context coloring syntax highlighting
-;; Version: 4.1.0
+;; Version: 5.0.0
 ;; Package-Requires: ((emacs "24") (js2-mode "20150126"))
 
 ;; This file is part of GNU Emacs.
@@ -56,13 +56,6 @@
 (require 'js2-mode)
 
 
-;;; Constants
-
-(defconst context-coloring-path
-  (file-name-directory (or load-file-name buffer-file-name))
-  "This file's directory.")
-
-
 ;;; Customizable options
 
 (defcustom context-coloring-delay 0.25
@@ -81,8 +74,8 @@ Supported modes: `js-mode', `js3-mode'"
 (defcustom context-coloring-js-block-scopes nil
   "If non-nil, also color block scopes in the scope hierarchy in JavaScript.
 
-The block-scope-inducing `let' and `const' are introduced in ES6.
-If you are writing ES6 code, enable this; otherwise, don't.
+The block-scoped `let' and `const' are introduced in ES6.  If you
+are writing ES6 code, enable this; otherwise, don't.
 
 Supported modes: `js2-mode'"
   :group 'context-coloring)
@@ -115,23 +108,28 @@ used.")
 ;;; Faces
 
 (defun context-coloring-defface (level tty light dark)
+  "Dynamically define a face for LEVEL with colors for TTY, LIGHT
+and DARK backgrounds."
   (let ((face (intern (format "context-coloring-level-%s-face" level)))
         (doc (format "Context coloring face, level %s." level)))
-    (eval (macroexpand `(defface ,face
-                          '((((type tty)) (:foreground ,tty))
-                            (((background light)) (:foreground ,light))
-                            (((background dark)) (:foreground ,dark)))
-                          ,doc
-                          :group 'context-coloring)))))
+    (eval
+     (macroexpand
+      `(defface ,face
+         '((((type tty)) (:foreground ,tty))
+           (((background light)) (:foreground ,light))
+           (((background dark)) (:foreground ,dark)))
+         ,doc
+         :group 'context-coloring)))))
 
 (defvar context-coloring-face-count nil
-  "Number of faces available for context coloring.")
+  "Number of faces available for coloring.")
 
 (defun context-coloring-defface-default (level)
-  (context-coloring-defface level "white" "#3f3f3f" "#cdcdcd"))
+  "Define a face for LEVEL with the default neutral colors."
+  (context-coloring-defface level nil "#3f3f3f" "#cdcdcd"))
 
 (defun context-coloring-set-colors-default ()
-  (context-coloring-defface 0 "white"   "#000000" "#ffffff")
+  (context-coloring-defface 0 nil       "#000000" "#ffffff")
   (context-coloring-defface 1 "yellow"  "#007f80" "#ffff80")
   (context-coloring-defface 2 "green"   "#001580" "#cdfacd")
   (context-coloring-defface 3 "cyan"    "#550080" "#d8d8ff")
@@ -292,7 +290,8 @@ element."
 
 (defun context-coloring-parse-array (input)
   "Specialized JSON parser for a flat array of numbers."
-  (vconcat (mapcar 'string-to-number (split-string (substring input 1 -1) ","))))
+  (vconcat
+   (mapcar 'string-to-number (split-string (substring input 1 -1) ","))))
 
 (defun context-coloring-kill-scopifier ()
   "Kills the currently-running scopifier process for this
@@ -339,8 +338,11 @@ Invokes CALLBACK when complete."
            (if callback (funcall callback)))))))
 
   ;; Give the process its input so it can begin.
-  (process-send-region context-coloring-scopifier-process (point-min) (point-max))
-  (process-send-eof context-coloring-scopifier-process))
+  (process-send-region
+   context-coloring-scopifier-process
+   (point-min) (point-max))
+  (process-send-eof
+   context-coloring-scopifier-process))
 
 
 ;;; Dispatch
@@ -479,51 +481,243 @@ would be redundant."
 (defvar context-coloring-theme-hash-table (make-hash-table :test 'eq)
   "Mapping of theme names to theme properties.")
 
+(defun context-coloring-theme-p (theme)
+  "Return t if THEME is defined, nil otherwise."
+  (and (gethash theme context-coloring-theme-hash-table)))
+
+(defconst context-coloring-level-face-regexp
+  "context-coloring-level-\\([[:digit:]]+\\)-face"
+  "Regular expression for extracting a level from a face.")
+
+(defvar context-coloring-originally-set-theme-hash-table
+  (make-hash-table :test 'eq)
+  "Cache of custom themes who originally set their own
+  `context-coloring-level-N-face' faces.")
+
+(defun context-coloring-theme-originally-set-p (theme)
+  "Return t if there is a `context-coloring-level-N-face'
+originally set for THEME, nil otherwise."
+  (let (originally-set)
+    (cond
+     ;; `setq' might return a non-nil value for the sake of this `cond'.
+     ((setq
+       originally-set
+       (gethash
+        theme
+        context-coloring-originally-set-theme-hash-table))
+      (eq originally-set 'yes))
+     (t
+      (let* ((settings (get theme 'theme-settings))
+             (tail settings)
+             found)
+        (while (and tail (not found))
+          (and (eq (nth 0 (car tail)) 'theme-face)
+               (string-match
+                context-coloring-level-face-regexp
+                (symbol-name (nth 1 (car tail))))
+               (setq found t))
+          (setq tail (cdr tail)))
+        found)))))
+
+(defun context-coloring-cache-originally-set (theme originally-set)
+  "Remember if THEME had colors originally set for it; if
+ORIGINALLY-SET is non-nil, it did, otherwise it didn't."
+  ;; Caching whether a theme was originally set is kind of dirty, but we have to
+  ;; do it to remember the past state of the theme.  There are probably some
+  ;; edge cases where caching will be an issue, but they are probably rare.
+  (puthash
+   theme
+   (if originally-set 'yes 'no)
+   context-coloring-originally-set-theme-hash-table))
+
+(defun context-coloring-warn-theme-originally-set (theme)
+  "Warns the user that the colors for a theme are already
+originally set."
+  (warn "Context coloring colors for theme `%s' are already defined" theme))
+
+(defun context-coloring-theme-highest-level (theme)
+  "Return the highest level N of a face like
+`context-coloring-level-N-face' set for THEME, or -1 if there is
+none."
+  (let* ((settings (get theme 'theme-settings))
+         (tail settings)
+         face-string
+         number
+         (found -1))
+    (while tail
+      (and (eq (nth 0 (car tail)) 'theme-face)
+           (setq face-string (symbol-name (nth 1 (car tail))))
+           (string-match
+            context-coloring-level-face-regexp
+            face-string)
+           (setq number (string-to-number
+                         (substring face-string
+                                    (match-beginning 1)
+                                    (match-end 1))))
+           (> number found)
+           (setq found number))
+      (setq tail (cdr tail)))
+    found))
+
 (defun context-coloring-apply-theme (theme)
   "Applies THEME's properties to its respective custom theme,
 which must already exist and which *should* already be enabled."
-  (let ((properties (gethash theme context-coloring-theme-hash-table)))
-    (when (null properties)
-      (error (format "No such theme `%s'" theme)))
-    (let ((colors (plist-get properties :colors)))
-      (setq context-coloring-face-count (length colors)) ; Side-effect?
-      (let ((level -1))
-        ;; AFAIK, no way to know if a theme already has a face set, so just
-        ;; override blindly for now.
-        (apply
-         'custom-theme-set-faces
-         theme
-         (mapcar
-          (lambda (color)
-            (setq level (+ level 1))
-            `(,(context-coloring-face-symbol level) ((t (:foreground ,color)))))
-          colors))))))
+  (let* ((properties (gethash theme context-coloring-theme-hash-table))
+         (colors (plist-get properties :colors))
+         (level -1))
+    (setq context-coloring-face-count (length colors))
+    (apply
+     'custom-theme-set-faces
+     theme
+     (mapcar
+      (lambda (color)
+        (setq level (+ level 1))
+        `(,(context-coloring-face-symbol level) ((t (:foreground ,color)))))
+      colors))))
 
 (defun context-coloring-define-theme (theme &rest properties)
-  "Define a theme named THEME for coloring scope levels.
+  "Define a context theme named THEME for coloring scope levels.
+
 PROPERTIES is a property list specifiying the following details:
 
-`:colors': List of colors that this theme uses."
-  (let ((aliases (plist-get properties :aliases)))
+`:aliases': List of symbols of other custom themes that these
+colors are applicable to.
+
+`:colors': List of colors that this context theme uses.
+
+`:override': If non-nil, this context theme is intentionally
+overriding colors set by a custom theme.  Don't set this non-nil
+unless there is a custom theme you want to use which sets
+`context-coloring-level-N-face' faces that you want to replace.
+
+`:recede': If non-nil, this context theme should not apply its
+colors if a custom theme already sets
+`context-coloring-level-N-face' faces.  This option is
+optimistic; set this non-nil if you would rather confer the duty
+of picking colors to a custom theme author (if / when he ever
+gets around to it).
+
+By default, context themes will always override custom themes,
+even if those custom themes set `context-coloring-level-N-face'
+faces.  If a context theme does override a custom theme, a
+warning will be raised, at which point you may want to enable the
+`:override' option, or just delete your context theme and opt to
+use your custom theme's author's colors instead.
+
+Context themes only work for the custom theme with the highest
+precedence, i.e. the car of `custom-enabled-themes'."
+  (let ((aliases (plist-get properties :aliases))
+        (override (plist-get properties :override))
+        (recede (plist-get properties :recede)))
     (dolist (name (append `(,theme) aliases))
       (puthash name properties context-coloring-theme-hash-table)
-      ;; Compensate for already-enabled themes by applying their colors now.
-      (when (custom-theme-enabled-p name)
-        (context-coloring-apply-theme name)))))
+      (when (custom-theme-p name)
+        (let ((originally-set (context-coloring-theme-originally-set-p name)))
+          (context-coloring-cache-originally-set name originally-set)
+          ;; In the particular case when you innocently define colors that a
+          ;; custom theme originally set, warn.  Arguably this only has to be
+          ;; done at enable time, but it is probably more useful to do it at
+          ;; definition time for prompter feedback.
+          (when (and originally-set
+                     (not recede)
+                     (not override))
+            (context-coloring-warn-theme-originally-set name))
+          ;; Set (or overwrite) colors.
+          (when (not (and originally-set
+                          recede))
+            (context-coloring-apply-theme name)))))))
 
-(defun context-coloring-load-theme (&optional rest)
-  (declare (obsolete
-            "themes are now loaded alongside custom themes automatically."
-            "4.1.0")))
+(defun context-coloring-enable-theme (theme)
+  "Applies THEME if its colors are not already set, else just
+sets `context-coloring-face-count' to the correct value for
+THEME."
+  (let* ((properties (gethash theme context-coloring-theme-hash-table))
+         (recede (plist-get properties :recede))
+         (override (plist-get properties :override)))
+    (cond
+     (recede
+      (let ((highest-level (context-coloring-theme-highest-level theme)))
+        (cond
+         ;; This can be true whether originally set by a custom theme or by a
+         ;; context theme.
+         ((> highest-level -1)
+          (setq context-coloring-face-count (+ highest-level 1)))
+         ;; It is possible that the corresponding custom theme did not exist at
+         ;; the time of defining this context theme, and in that case the above
+         ;; condition proves the custom theme did not originally set any faces,
+         ;; so we have license to apply the context theme for the first time
+         ;; here.
+         (t
+          (context-coloring-apply-theme theme)))))
+     (t
+      (let ((originally-set (context-coloring-theme-originally-set-p theme)))
+        ;; Cache now in case the context theme was defined after the custom
+        ;; theme.
+        (context-coloring-cache-originally-set theme originally-set)
+        (when (and originally-set
+                   (not override))
+          (context-coloring-warn-theme-originally-set theme))
+        (context-coloring-apply-theme theme))))))
 
 (defadvice enable-theme (after context-coloring-enable-theme (theme) activate)
-  "Add colors to themes just-in-time."
-  (when (and (not (eq theme 'user))  ; Called internally.
-             (custom-theme-p theme)) ; Guard against non-existent themes.
-    (context-coloring-apply-theme theme)))
+  "Enable colors for context themes just-in-time.  We can't set
+faces for custom themes that might not exist yet."
+  (when (and (not (eq theme 'user)) ; Called internally by `enable-theme'.
+             (custom-theme-p theme) ; Guard against non-existent themes.
+             (context-coloring-theme-p theme))
+    (context-coloring-enable-theme theme)))
+
+(defadvice disable-theme (after context-coloring-disable-theme (theme) activate)
+  "Colors are disabled normally, but
+`context-coloring-face-count' isn't.  Update it here."
+  (when (custom-theme-p theme) ; Guard against non-existent themes.
+    (let ((enabled-theme (car custom-enabled-themes)))
+      (if (context-coloring-theme-p enabled-theme)
+          (context-coloring-enable-theme enabled-theme)
+        (context-coloring-set-colors-default)))))
+
+(context-coloring-define-theme
+ 'ample
+ :recede t
+ :colors '("#bdbdb3"
+           "#baba36"
+           "#6aaf50"
+           "#5180b3"
+           "#ab75c3"
+           "#cd7542"
+           "#dF9522"
+           "#454545"))
+
+(context-coloring-define-theme
+ 'anti-zenburn
+ :recede t
+ :colors '("#232333"
+           "#6c1f1c"
+           "#401440"
+           "#0f2050"
+           "#205070"
+           "#336c6c"
+           "#23733c"
+           "#6b400c"
+           "#603a60"
+           "#2f4070"
+           "#235c5c"))
+
+(context-coloring-define-theme
+ 'grandshell
+ :recede t
+ :colors '("#bebebe"
+           "#5af2ee"
+           "#b2baf6"
+           "#f09fff"
+           "#efc334"
+           "#f6df92"
+           "#acfb5a"
+           "#888888"))
 
 (context-coloring-define-theme
  'leuven
+ :recede t
  :colors '("#333333"
            "#0000FF"
            "#6434A3"
@@ -536,6 +730,7 @@ PROPERTIES is a property list specifiying the following details:
 
 (context-coloring-define-theme
  'monokai
+ :recede t
  :colors '("#F8F8F2"
            "#66D9EF"
            "#A1EFE4"
@@ -548,6 +743,7 @@ PROPERTIES is a property list specifiying the following details:
 
 (context-coloring-define-theme
  'solarized
+ :recede t
  :aliases '(solarized-light
             solarized-dark
             sanityinc-solarized-light
@@ -571,7 +767,20 @@ PROPERTIES is a property list specifiying the following details:
            "#9EA0E5"))
 
 (context-coloring-define-theme
+ 'spacegray
+ :recede t
+ :colors '("#ffffff"
+           "#89AAEB"
+           "#C189EB"
+           "#bf616a"
+           "#DCA432"
+           "#ebcb8b"
+           "#B4EB89"
+           "#89EBCA"))
+
+(context-coloring-define-theme
  'tango
+ :recede t
  :colors '("#2e3436"
            "#346604"
            "#204a87"
@@ -588,6 +797,7 @@ PROPERTIES is a property list specifiying the following details:
 
 (context-coloring-define-theme
  'zenburn
+ :recede t
  :colors '("#DCDCCC"
            "#93E0E3"
            "#BFEBBF"
@@ -612,12 +822,14 @@ PROPERTIES is a property list specifiying the following details:
         (context-coloring-kill-scopifier)
         (when context-coloring-colorize-idle-timer
           (cancel-timer context-coloring-colorize-idle-timer))
-        (remove-hook 'js2-post-parse-callbacks 'context-coloring-colorize t)
-        (remove-hook 'after-change-functions 'context-coloring-change-function t)
+        (remove-hook
+         'js2-post-parse-callbacks 'context-coloring-colorize t)
+        (remove-hook
+         'after-change-functions 'context-coloring-change-function t)
         (font-lock-mode)
         (jit-lock-mode t))
 
-    ;; Remember this buffer. This value should not be dynamically-bound.
+    ;; Remember this buffer.  This value should not be dynamically-bound.
     (setq context-coloring-buffer (current-buffer))
 
     ;; Font lock is incompatible with this mode; the converse is also true.
@@ -632,16 +844,13 @@ PROPERTIES is a property list specifiying the following details:
       ;; Only recolor on reparse.
       (add-hook 'js2-post-parse-callbacks 'context-coloring-colorize nil t))
      (t
-      ;; Only recolor on change.
-      (add-hook 'after-change-functions 'context-coloring-change-function nil t)))
-
-    (when (not (equal major-mode 'js2-mode))
-      ;; Only recolor idly.
+      ;; Only recolor on change, idly.
+      (add-hook 'after-change-functions 'context-coloring-change-function nil t)
       (setq context-coloring-colorize-idle-timer
             (run-with-idle-timer
              context-coloring-delay
              t
-             'context-coloring-maybe-colorize)))))
+             'context-coloring-maybe-colorize))))))
 
 (provide 'context-coloring)
 

@@ -4,12 +4,12 @@ auto-overlay-manual/auto-overlay-manual.texinfo.
 
 INFO-DIR-SECTION Emacs
 START-INFO-DIR-ENTRY
-* auto-overlays (auto-overlay-manual).  Automatic regexp-delimited overlays
+* auto-overlays: (auto-overlay-manual).  Automatic regexp-delimited overlays
 END-INFO-DIR-ENTRY
 
-   This manual describes the Emacs Auto-Overlays package, version 0.10
+   This manual describes the Emacs Auto-Overlays package, version 0.10.8
 
-   Copyright (C) 2007, 2008 Toby Cubitt
+   Copyright (C) 2007-2015 Toby Cubitt
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -24,9 +24,9 @@ File: auto-overlay-manual.info,  Node: Top,  Next: Overview,  Up: (dir)
 Emacs Auto-Overlays Manual
 **************************
 
-This manual describes the Emacs Auto-Overlays package, version 0.10
+This manual describes the Emacs Auto-Overlays package, version 0.10.8
 
-   Copyright (C) 2007, 2008 Toby Cubitt
+   Copyright (C) 2007-2015 Toby Cubitt
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -115,7 +115,7 @@ the overlay (*note Defining Regexps::). Any additional regexps, beyond
 the minimum requirements, act as alternatives; if more than one of the
 regexps matches overlapping regions of text, the one that appears
 earlier in the list will take precedence. The predefined regexp classes
-are: `word', `line', `self', `nested' and `flat', but the auto-overlay
+are: `word', `line', `self', `nested' and `flat', but the auto-overlays
 package can easily be extended with new classes.
 
 `word'
@@ -334,15 +334,12 @@ regexp set does _not_ delete its regexp definitions.
    Since scanning the whole buffer for regexp matches can take some
 time, especially for large buffers, auto-overlay data can be saved to an
 auxiliary file so that the overlays can be restored more quickly if the
-same regexp set is subsequently re-activated. Of course, if the text in
-the buffer is modified whilst the regexp set is disabled, or the regexp
-definitions differ from those that were active when the overlay data was
-saved, the saved data will be out of date. Auto-overlays automatically
-checks if the text has been modified and, if it has, ignores the saved
-data and re-scans the buffer. However, no check is made to ensure the
-regexp definitions used in the buffer and saved data are consistent
-(*note To-Do::); the saved data will be used even if the definitions
-have changed.
+same regexp set is subsequently re-activated. Of course, if either the
+text in the buffer or the overlay definitions are modified whilst the
+regexp set is disabled, then the saved data will be out of date.
+Auto-overlays automatically checks whether the text or overlay
+definitions have been modified since the data was saved. If so, it
+ignores the saved data and re-scans the buffer.
 
    The usual time to save and restore overlay data is when a regexp set
 is deactivated or activated. The auxilliary file name is then
@@ -352,11 +349,11 @@ auto-overlays can also be saved and restored manually.
 `(auto-overlay-start SET-ID @optional BUFFER SAVE-FILE NO-REGEXP-CHECK)'
      Activate the auto-overlay regexp set identified by the symbol
      SET-ID in BUFFER, or the current buffer if the latter is `nil'. If
-     there is an file called `auto-overlay-'BUFFER-NAME`-'SET-ID in the
+     there is a file called `auto-overlay-'BUFFER-NAME`-'SET-ID
      containing up-to-date overlay data, it will be used to restore the
      auto-overlays (BUFFER-NAME is the name of the file visited by the
-     buffer, or the buffer name itself if there is none). Otherwise, the
-     entire buffer will be scanned for regexp matches.
+     buffer, or the buffer name itself if there is none). Otherwise,
+     the entire buffer will be scanned for regexp matches.
 
      The string SAVE-FILE specifies the where to look for the file of
      saved overlay data. If it is nil, it defaults to the current
@@ -389,7 +386,8 @@ auto-overlays can also be saved and restored manually.
      none). If SAVE-FILE is a string, it overrides the default save
      location, overriding either the directory if it only specifies a
      path (relative paths are relative to the current directory), or
-     the file name if it only specifies a file name, or both.
+     the file name if it only specifies a filename, or both if it
+     specifies a full path.
 
 `(auto-overlay-save-overlays SET-ID @optional BUFFER FILE)'
      Save auto-overlay data for the regexp set identified by the symbol
@@ -397,9 +395,10 @@ auto-overlays can also be saved and restored manually.
      file called FILE. If FILE is nil, the overlay data are saved to a
      file called `auto-overlay-'BUFFER-NAME`-'SET-ID in the current
      directory (BUFFER-NAME is the name of the file visited by the
-     buffer, or the buffer name itself if there is none). Note that
-     this is the only name that will be recognized by
-     `auto-overlay-start'.
+     buffer, or the buffer name itself if it's not visiting a file). If
+     `file' is a directory name (either an absolute path or relative to
+     the current directory), the overlay data are saved to the default
+     file name under that directory.
 
 `(auto-overlay-load-overlays SET-ID @optional BUFFER FILE NO-REGEXP-CHECK)'
      Load auto-overlay data for the regexp set identified by the symbol
@@ -408,10 +407,13 @@ auto-overlays can also be saved and restored manually.
      the overlay data from a file called
      `auto-overlay-'BUFFER-NAME`-'SET-ID in the current directory
      (BUFFER-NAME is the name of the file visited by the buffer, or the
-     buffer name itself if there is none). If NO-REGEXP-CHECK is
-     no-nil, the saved overlays will be loaded even if different regexp
-     definitions were active when the overlays were saved. Returns `t'
-     if the overlays were successfully loaded, `nil' otherwise.
+     buffer name itself if it's not visiting a file). If `file' is a
+     directory name (either an absolute path or relative to the current
+     directory), it attempts to load the overlay data from the default
+     file name under that directory. If NO-REGEXP-CHECK is no-nil, the
+     saved overlays will be loaded even if different regexp definitions
+     were active when the overlays were saved. Returns `t' if the
+     overlays were successfully loaded, `nil' otherwise.
 
 
 File: auto-overlay-manual.info,  Node: Searching for Overlays,  Prev: Starting and Stopping Auto-Overlays,  Up: Auto-Overlay Functions
@@ -465,7 +467,7 @@ functions.
      will be returned, not overlays that extend outside that region.
 
 `(auto-overlay-highest-priority-at-point @optional POINT PROP-TEST)'
-     Return the highest priority overlay at POINT (or the point, of
+     Return the highest priority overlay at POINT (or the point, if
      POINT is null). The PROP-TEST argument has the same behaviour as
      in `auto-overlays-at-point', above. An overlay's priority is
      determined by the value of its `priority' property (*note Overlay
@@ -493,11 +495,11 @@ File: auto-overlay-manual.info,  Node: Worked Example,  Next: Extending the Auto
 ****************
 
 The interaction of all the different regexp definitions, overlay
-properties and auto-overlay classes provided by the auto-overlay package
-can be a little daunting. This section will go through an example of how
-the auto-overlay regexps could be defined to create overlays for a
-subset of LaTeX, which is complex enough to demonstrate most of the
-features.
+properties and auto-overlay classes provided by the auto-overlays
+package can be a little daunting. This section will go through an
+example of how the auto-overlay regexps could be defined to create
+overlays for a subset of LaTeX, which is complex enough to demonstrate
+most of the features.
 
    LaTeX is a markup language, so a LaTeX document combines markup
 commands with normal text. Commands start with `\', and end at the
@@ -955,7 +957,7 @@ The new, complicated-looking regexps will only match `{' and `}'
 characters if they are _not_ preceded by a `\' character (*note Regular
 Expressions: (elisp)Regular Expressions.). Note that the character
 alternative `[^\]\|^' can match any character that isn't a `\' _or_ the
-start of a line. This is required because macthes to auto-overlay
+start of a line. This is required because matches to auto-overlay
 regexps are not allowed to span more than one line. If `{' or `}'
 appear at the beginning of a line, there will be no character in front
 (the newline character doesn't count, since it isn't on the same line),
@@ -1040,7 +1042,7 @@ File: auto-overlay-manual.info,  Node: Extending the Auto-Overlays Package,  Nex
 4 Extending the Auto-Overlays Package
 *************************************
 
-The auto-overlay package can easily be extended by adding new overlay
+The auto-overlays package can easily be extended by adding new overlay
 classes(1). The next sections document the functions and interfaces
 provided by the auto-overlays package for this purpose.
 
@@ -1073,7 +1075,7 @@ File: auto-overlay-manual.info,  Node: Auto-Overlays in Depth,  Next: Integratin
 ==========================
 
 In order to write new classes, a deeper understanding is required of how
-the auto-overlay package works. In fact, two kinds of overlays are
+the auto-overlays package works. In fact, two kinds of overlays are
 automatically created, updated and destroyed when auto-overlays are
 active: the auto-overlays themselves, and "match" overlays, used to
 mark text that matches an auto-overlay regexp.
@@ -1103,7 +1105,7 @@ the match overlay's `parent' property(2).
 are scanned for new regexp matches. If one is found, a new match overlay
 is created covering the matching text, and then passed as an argument to
 the appropriate "parse" function(3) for its class. This deals with
-creating or updating the auto-overlays as appropriate. If the text
+creating or updating the auto-overlays, as appropriate. If the text
 within a match overlay is modified, the match overlay checks whether
 the text it covers still matches the regexp. If it no longer matches,
 the match overlay is passed as an argument to the appropriate "suicide"
@@ -1260,8 +1262,8 @@ tasks require interaction with the core of the auto-overlays package.
      update all appropriate properties (such as `parent', `start' and
      `end' properties, and any properties specified in regexp
      definitions), and update other auto-overlays in the region covered
-     by OVERLAY if required because the `exclusive' or `priority'
-     properties of OVERLAY have changed.
+     by OVERLAY as necessary (usually because the `exclusive' or
+     `priority' properties of OVERLAY have changed).
 
      If START or END are match overlays, match the corresponding edge
      of OVERLAY. The edge is moved to the location defined by the match
@@ -1278,7 +1280,7 @@ tasks require interaction with the core of the auto-overlays package.
      If START or END are numbers or markers, move the corresponding
      edge of OVERLAY to that location and set it as unmatched. The
      `start' or `end' property of OVERLAY and the `parent' property of
-     any corresponding match overlay are set to `nil'). If START or END
+     any corresponding match overlay are set to `nil'. If START or END
      are non-nil but neither of the above, leave the corresponding edge
      of OVERLAY where it is, but set it unmatched (as described above).
      If START or END are null, don't change the corresponding edge.
@@ -1498,17 +1500,17 @@ Appendix A Function Index
                                                                (line 52)
 * auto-overlay-load-definition:          Defining Regexps.     (line 46)
 * auto-overlay-load-overlays:            Starting and Stopping Auto-Overlays.
-                                                               (line 85)
+                                                               (line 84)
 * auto-overlay-load-regexp:              Defining Regexps.     (line 57)
 * auto-overlay-local-binding:            Searching for Overlays.
                                                                (line 64)
 * auto-overlay-save-overlays:            Starting and Stopping Auto-Overlays.
-                                                               (line 75)
+                                                               (line 73)
 * auto-overlay-share-regexp-set:         Defining Regexps.     (line 79)
 * auto-overlay-start:                    Starting and Stopping Auto-Overlays.
-                                                               (line 33)
+                                                               (line 30)
 * auto-overlay-stop:                     Starting and Stopping Auto-Overlays.
-                                                               (line 57)
+                                                               (line 54)
 * auto-overlay-unload-definition:        Defining Regexps.     (line 70)
 * auto-overlay-unload-regexp:            Defining Regexps.     (line 74)
 * auto-overlay-unload-set:               Defining Regexps.     (line 67)
@@ -2215,32 +2217,32 @@ permit their use in free software.
 
 
 Tag Table:
-Node: Top795
-Node: Overview2850
-Node: Auto-Overlay Functions7841
-Node: Defining Regexps9295
-Node: Starting and Stopping Auto-Overlays14154
-Node: Searching for Overlays19680
-Node: Worked Example23678
-Node: Extending the Auto-Overlays Package44510
-Ref: Extending the Auto-Overlays Package-Footnote-145572
-Node: Auto-Overlays in Depth45781
-Ref: Auto-Overlays in Depth-Footnote-148574
-Ref: Auto-Overlays in Depth-Footnote-248755
-Ref: Auto-Overlays in Depth-Footnote-348909
-Node: Integrating New Overlay Classes48939
-Node: Functions for Writing New Overlay Classes51658
-Node: Standard Parse and Suicide Functions52592
-Node: Functions for Modifying Overlays54065
-Node: Functions for Querying Overlays57797
-Node: Auto-Overlay Hooks59629
-Node: Auto-Overlay Modification Pseudo-Hooks60684
-Ref: Auto-Overlay Modification Pseudo-Hooks-Footnote-162777
-Node: To-Do62837
-Node: Function Index63994
-Node: Variable Index68574
-Node: Concept Index69369
-Node: Copying this Manual86107
-Node: GNU Free Documentation License86309
+Node: Top797
+Node: Overview2853
+Node: Auto-Overlay Functions7845
+Node: Defining Regexps9299
+Node: Starting and Stopping Auto-Overlays14158
+Node: Searching for Overlays19821
+Node: Worked Example23819
+Node: Extending the Auto-Overlays Package44652
+Ref: Extending the Auto-Overlays Package-Footnote-145715
+Node: Auto-Overlays in Depth45924
+Ref: Auto-Overlays in Depth-Footnote-148719
+Ref: Auto-Overlays in Depth-Footnote-248900
+Ref: Auto-Overlays in Depth-Footnote-349054
+Node: Integrating New Overlay Classes49084
+Node: Functions for Writing New Overlay Classes51803
+Node: Standard Parse and Suicide Functions52737
+Node: Functions for Modifying Overlays54210
+Node: Functions for Querying Overlays57952
+Node: Auto-Overlay Hooks59784
+Node: Auto-Overlay Modification Pseudo-Hooks60839
+Ref: Auto-Overlay Modification Pseudo-Hooks-Footnote-162932
+Node: To-Do62992
+Node: Function Index64149
+Node: Variable Index68729
+Node: Concept Index69524
+Node: Copying this Manual86262
+Node: GNU Free Documentation License86464
 
 End Tag Table
