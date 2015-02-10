@@ -5,7 +5,7 @@
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
 ;; Maintainer: Oleh Krehel <ohwoeowho@gmail.com>
 ;; URL: https://github.com/abo-abo/hydra
-;; Version: 0.8.0
+;; Version: 0.9.0
 ;; Keywords: bindings
 ;; Package-Requires: ((cl-lib "0.5"))
 
@@ -37,28 +37,42 @@
 ;; command.  This makes the Hydra very seamless, it's like a minor
 ;; mode that disables itself automagically.
 ;;
-;; Here's how to use the examples bundled with Hydra:
-;;
-;;    (require 'hydra-examples)
-;;    (hydra-create "C-M-y" hydra-example-move-window-splitter)
-;;    (hydra-create "M-g" hydra-example-goto-error)
-;;
-;; You can expand the examples in-place, it still looks elegant:
-;;
-;;     (hydra-create "<f2>"
-;;       '(("g" text-scale-increase "zoom in")
-;;         ("l" text-scale-decrease "zoom out")))
-;;
-;; The third element of each list is the optional doc string that will
-;; be displayed in the echo area when `hydra-is-helpful' is t.
-;;
-;; It's better to take the examples simply as templates and use
-;; `defhydra' instead of `hydra-create', since it's more flexible.
+;; Here's an example Hydra, bound in the global map (you can use any
+;; keymap in place of `global-map'):
 ;;
 ;;     (defhydra hydra-zoom (global-map "<f2>")
 ;;       "zoom"
 ;;       ("g" text-scale-increase "in")
 ;;       ("l" text-scale-decrease "out"))
+;;
+;; It allows to start a command chain either like this:
+;; "<f2> gg4ll5g", or "<f2> lgllg".
+;;
+;; Here's another approach, when you just want a "callable keymap":
+;;
+;;     (defhydra hydra-toggle (:color blue)
+;;       "toggle"
+;;       ("a" abbrev-mode "abbrev")
+;;       ("d" toggle-debug-on-error "debug")
+;;       ("f" auto-fill-mode "fill")
+;;       ("t" toggle-truncate-lines "truncate")
+;;       ("w" whitespace-mode "whitespace")
+;;       ("q" nil "cancel"))
+;;
+;; This binds nothing so far, but if you follow up with:
+;;
+;;     (global-set-key (kbd "C-c C-v") 'hydra-toggle/body)
+;;
+;; you will have bound "C-c C-v a", "C-c C-v d" etc.
+;;
+;; Knowing that `defhydra' defines e.g. `hydra-toggle/body' command,
+;; you can nest Hydras if you wish, with `hydra-toggle/body' possibly
+;; becoming a blue head of another Hydra.
+;;
+;; Initially, Hydra shipped with a simplified `hydra-create' macro, to
+;; which you could hook up the examples from hydra-examples.el.  It's
+;; better to take the examples simply as templates and use `defhydra'
+;; instead of `hydra-create', since it's more flexible.
 
 ;;; Code:
 ;;* Requires
@@ -79,6 +93,11 @@
   "When t, display a hint with possible bindings in the echo area."
   :type 'boolean
   :group 'hydra)
+
+(defcustom hydra-keyboard-quit ""
+  "This binding will quit an amaranth Hydra.
+It's the only other way to quit it besides though a blue head.
+It's possible to set this to nil.")
 
 (defface hydra-face-red
     '((t (:foreground "#7F0055" :bold t)))
@@ -158,14 +177,31 @@
       (and (consp x)
            (memq (car x) '(function quote)))))
 
+(defun hydra--make-callable (x)
+  "Generate a callable symbol from X.
+If X is a function symbol or a lambda, return it.  Otherwise, it
+should be a single statement. Wrap it in an interactive lambda."
+  (if (or (symbolp x) (functionp x))
+      x
+    `(lambda ()
+       (interactive)
+       ,x)))
+
+(defun hydra--head-property (h prop &optional default)
+  "Return for Hydra head H the value of property PROP.
+Return DEFAULT if PROP is not in H."
+  (let ((plist (if (stringp (cl-caddr h))
+                   (cl-cdddr h)
+                 (cddr h))))
+    (if (memq prop h)
+        (plist-get plist prop)
+      default)))
+
 (defun hydra--color (h body-color)
   "Return the color of a Hydra head H with BODY-COLOR."
   (if (null (cadr h))
       'blue
-    (let ((plist (if (stringp (cl-caddr h))
-                     (cl-cdddr h)
-                   (cddr h))))
-      (or (plist-get plist :color) body-color))))
+    (or (hydra--head-property h :color) body-color)))
 
 (defun hydra--face (h body-color)
   "Return the face for a Hydra head H with BODY-COLOR."
@@ -226,6 +262,39 @@ HEADS is a list of heads."
     heads ",\n")
    (format "The body can be accessed via `%S'." body-name)))
 
+(defun hydra--make-defun (name cmd color
+                          doc hint keymap
+                          body-color body-pre body-post &optional other-post)
+  "Make a defun wrapper, using NAME, CMD, COLOR, DOC, HINT, and KEYMAP.
+BODY-COLOR, BODY-PRE, BODY-POST, and OTHER-POST are used as well."
+  `(defun ,name ()
+     ,doc
+     (interactive)
+     ,@(when body-pre (list body-pre))
+     (hydra-disable)
+     (catch 'hydra-disable
+       ,@(delq nil
+               (if (eq color 'blue)
+                   `(,(when cmd `(call-interactively #',cmd))
+                      ,body-post)
+                 `(,(when cmd
+                          `(condition-case err
+                               (prog1 t
+                                 (call-interactively #',cmd))
+                             ((debug error)
+                              (message "%S" err)
+                              (sit-for 0.8)
+                              nil)))
+                    (when hydra-is-helpful
+                      (message ,hint))
+                    (setq hydra-last
+                          (hydra-set-transient-map
+                           (setq hydra-curr-map ',keymap)
+                           t
+                           ,@(if (and (not (eq body-color 'amaranth)) body-post)
+                                 `((lambda () ,body-post)))))
+                    ,other-post))))))
+
 ;;* Macros
 ;;** hydra-create
 ;;;###autoload
@@ -244,7 +313,8 @@ It defaults to `global-set-key'.
 When `(keymapp METHOD)`, it becomes:
 
     (lambda (key command) (define-key METHOD key command))"
-  (declare (indent 1))
+  (declare (indent 1)
+           (obsolete defhydra "0.8.0"))
   `(defhydra ,(intern
                (concat
                 "hydra-" (replace-regexp-in-string " " "_" body)))
@@ -260,28 +330,41 @@ When `(keymapp METHOD)`, it becomes:
 ;;** defhydra
 ;;;###autoload
 (defmacro defhydra (name body &optional docstring &rest heads)
-  "Create a hydra named NAME with a prefix BODY.
+  "Create a Hydra - a family of functions with prefix NAME.
 
 NAME should be a symbol, it will be the prefix of all functions
 defined here.
 
-BODY should be either:
+BODY has the format:
 
-    (BODY-MAP &optional BODY-KEY &rest PLIST)
-or:
-
-    (lambda (KEY CMD) ...)
-
-BODY-MAP should be a keymap; `global-map' is acceptable here.
-BODY-KEY should be a string processable by `kbd'.
+    (BODY-MAP BODY-KEY &rest PLIST)
 
 DOCSTRING will be displayed in the echo area to identify the
-hydra.
+Hydra.
 
-HEADS is a list of (KEY CMD &optional HINT &rest PLIST).
+Functions are created on basis of HEADS, each of which has the
+format:
 
-PLIST in both cases recognizes only the :color key so far, which
-in turn can be either red or blue."
+    (KEY CMD &optional HINT &rest PLIST)
+
+BODY-MAP is a keymap; `global-map' is used quite often.  Each
+function generated from HEADS will be bound in BODY-MAP to
+BODY-KEY + KEY, and will set the transient map so that all
+following heads can be called though KEY only.
+
+The heads inherit their PLIST from the body and are allowed to
+override each key.  The keys recognized are :color and :bind.
+:color can be:
+
+- red (default): this head will continue the Hydra state.
+- blue: this head will stop the Hydra state.
+- amaranth (applies to body only): similar to red, but no binding
+except a blue head can stop the Hydra state.
+
+:bind can be:
+- nil: this head will not be bound in BODY-MAP.
+- a lambda taking KEY and CMD used to bind a head"
+  (declare (indent 2))
   (unless (stringp docstring)
     (setq heads (cons docstring heads))
     (setq docstring "hydra"))
@@ -305,14 +388,17 @@ in turn can be either red or blue."
                            'red)))
          (body-pre (plist-get (cddr body) :pre))
          (body-post (plist-get (cddr body) :post))
-         (method (if (hydra--callablep body)
-                     body
-                   (car body)))
+         (method (or (plist-get body :bind)
+                     (car body)))
          (hint (hydra--hint docstring heads body-color))
          (doc (hydra--doc body-key body-name heads)))
     (when (and (or body-pre body-post)
                (version< emacs-version "24.4"))
       (error "At least Emacs 24.4 is needed for :pre and :post"))
+    (when (and body-pre (symbolp body-pre))
+      (setq body-pre `(funcall #',body-pre)))
+    (when (and body-post (symbolp body-post))
+      (setq body-post `(funcall #',body-post)))
     (when (eq body-color 'amaranth)
       (if (cl-some `(lambda (h)
                       (eq (hydra--color h ',body-color) 'blue))
@@ -325,35 +411,21 @@ in turn can be either red or blue."
                (when hydra-is-helpful
                  (sit-for 0.8)
                  (message ,hint))))
-        (error "An amaranth Hydra must have at least one blue head in order to exit")))
+        (error "An amaranth Hydra must have at least one blue head in order to exit"))
+      (when hydra-keyboard-quit
+        (define-key keymap hydra-keyboard-quit
+          `(lambda ()
+             (interactive)
+             (hydra-disable)
+             ,body-post))))
     `(progn
        ,@(cl-mapcar
           (lambda (head name)
-            `(defun ,name ()
-               ,(format "%s\n\nCall the head: `%S'." doc (cadr head))
-               (interactive)
-               ,@(if body-pre (list body-pre))
-               ,@(if (eq (hydra--color head body-color) 'blue)
-                     `((hydra-disable)
-                       ,@(unless (null (cadr head))
-                                 `((call-interactively #',(cadr head))))
-                       ,@(if body-post (list body-post)))
-                     `((catch 'hydra-disable
-                         (hydra-disable)
-                         (condition-case err
-                             (prog1 t
-                               (call-interactively #',(cadr head)))
-                           ((debug error)
-                            (message "%S" err)
-                            (sit-for 0.8)
-                            nil))
-                         (when hydra-is-helpful
-                           (message ,hint))
-                         (setq hydra-last
-                               (hydra-set-transient-map
-                                (setq hydra-curr-map ',keymap)
-                                t
-                                ,@(if body-post `((lambda () ,body-post))))))))))
+            (hydra--make-defun
+             name (hydra--make-callable (cadr head)) (hydra--color head body-color)
+             (format "%s\n\nCall the head: `%S'." doc (cadr head))
+             hint keymap
+             body-color body-pre body-post))
           heads names)
        ,@(unless (or (null body-key)
                      (null method)
@@ -363,26 +435,33 @@ in turn can be either red or blue."
        ,@(delq nil
                (cl-mapcar
                 (lambda (head name)
-                  (unless (or (null body-key) (null method))
-                    (list
-                     (if (hydra--callablep method)
-                         'funcall
-                       'define-key)
-                     method
-                     (vconcat (kbd body-key) (kbd (car head)))
-                     (list 'function name))))
+                  (when (or body-key method)
+                    (let ((bind (hydra--head-property head :bind 'default))
+                          (final-key (if body-key
+                                         (vconcat (kbd body-key) (kbd (car head)))
+                                       (kbd (car head)))))
+                      (cond ((null bind) nil)
+
+                            ((eq bind 'default)
+                             (list
+                              (if (hydra--callablep method)
+                                  'funcall
+                                'define-key)
+                              method
+                              final-key
+                              (list 'function name)))
+
+                            ((hydra--callablep bind)
+                             `(funcall (function ,bind)
+                                       ,final-key
+                                       (function ,name)))
+
+                            (t
+                             (error "Invalid :bind property %S" head))))))
                 heads names))
-       (defun ,body-name ()
-         ,doc
-         (interactive)
-         ,@(if body-pre (list body-pre))
-         (when hydra-is-helpful
-           (message ,hint))
-         (setq hydra-last
-               (hydra-set-transient-map
-                ',keymap
-                t
-                ,@(if body-post `((lambda () ,body-post)))))))))
+       ,(hydra--make-defun body-name nil nil doc hint keymap
+                           body-color body-pre body-post
+                           '(setq prefix-arg current-prefix-arg)))))
 
 (provide 'hydra)
 
