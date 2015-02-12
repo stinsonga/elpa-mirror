@@ -532,8 +532,9 @@ Regexp match data 0 points to the chars."
      (if (and (smie-rule-parent-p "val") (smie-rule-next-p "fn")) -3))
     (`(:before . "=>") (if (smie-rule-parent-p "fn") 3))
     (`(:before . "of") 1)
-    ;; In case the language is extended to allow a | directly after of.
-    (`(:before . ,(and `"|" (guard (smie-rule-prev-p "of")))) 1)
+    ;; FIXME: pcase in Emacs<24.4 bumps into a bug if we do this:
+    ;;(`(:before . ,(and `"|" (guard (smie-rule-prev-p "of")))) 1)
+    (`(:before . "|") (if (smie-rule-prev-p "of") 1 (smie-rule-separator kind)))
     (`(:before . ,(or `"|" `"d|" `";" `",")) (smie-rule-separator kind))
     ;; Treat purely syntactic block-constructs as being part of their parent,
     ;; when the opening statement is hanging.
