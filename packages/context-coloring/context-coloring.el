@@ -5,7 +5,7 @@
 ;; Author: Jackson Ray Hamilton <jackson@jacksonrayhamilton.com>
 ;; URL: https://github.com/jacksonrayhamilton/context-coloring
 ;; Keywords: context coloring syntax highlighting
-;; Version: 5.0.0
+;; Version: 6.0.0
 ;; Package-Requires: ((emacs "24") (js2-mode "20150126"))
 
 ;; This file is part of GNU Emacs.
@@ -34,8 +34,8 @@
 
 ;; Lexical scope information at-a-glance can assist a programmer in
 ;; understanding the overall structure of a program.  It can help to curb nasty
-;; bugs like name shadowing.  A rainbow can indicate excessive complexity. State
-;; change within a closure is easily monitored.
+;; bugs like name shadowing.  A rainbow can indicate excessive complexity.
+;; State change within a closure is easily monitored.
 
 ;; By default, Context Coloring still highlights comments and strings
 ;; syntactically.  It is still easy to differentiate code from non-code, and
@@ -56,135 +56,88 @@
 (require 'js2-mode)
 
 
-;;; Customizable options
-
-(defcustom context-coloring-delay 0.25
-  "Delay between a buffer update and colorization.
-
-Increase this if your machine is high-performing.  Decrease it if
-it ain't.
-
-Supported modes: `js-mode', `js3-mode'"
-  :group 'context-coloring)
-
-(defcustom context-coloring-comments-and-strings t
-  "If non-nil, also color comments and strings using `font-lock'."
-  :group 'context-coloring)
-
-(defcustom context-coloring-js-block-scopes nil
-  "If non-nil, also color block scopes in the scope hierarchy in JavaScript.
-
-The block-scoped `let' and `const' are introduced in ES6.  If you
-are writing ES6 code, enable this; otherwise, don't.
-
-Supported modes: `js2-mode'"
-  :group 'context-coloring)
-
-(defcustom context-coloring-benchmark-colorization nil
-  "If non-nil, track how long colorization takes and print
-messages with the colorization duration."
-  :group 'context-coloring)
-
-
 ;;; Local variables
 
 (defvar-local context-coloring-buffer nil
   "Reference to this buffer (for timers).")
 
-(defvar-local context-coloring-scopifier-process nil
-  "Reference to the single scopifier process that can be
-  running.")
-
-(defvar-local context-coloring-colorize-idle-timer nil
-  "Reference to the currently-running idle timer.")
-
-(defvar-local context-coloring-changed nil
-  "Indication that the buffer has changed recently, which would
-imply that it should be colorized again by
-`context-coloring-colorize-idle-timer' if that timer is being
-used.")
-
 
 ;;; Faces
 
 (defun context-coloring-defface (level tty light dark)
-  "Dynamically define a face for LEVEL with colors for TTY, LIGHT
-and DARK backgrounds."
+  "Define a face for LEVEL with colors for TTY, LIGHT and DARK
+backgrounds."
   (let ((face (intern (format "context-coloring-level-%s-face" level)))
         (doc (format "Context coloring face, level %s." level)))
-    (eval
-     (macroexpand
-      `(defface ,face
-         '((((type tty)) (:foreground ,tty))
-           (((background light)) (:foreground ,light))
-           (((background dark)) (:foreground ,dark)))
-         ,doc
-         :group 'context-coloring)))))
+    (custom-declare-face
+     face
+     `((((type tty)) (:foreground ,tty))
+       (((background light)) (:foreground ,light))
+       (((background dark)) (:foreground ,dark)))
+     doc
+     :group 'context-coloring)))
 
-(defvar context-coloring-face-count nil
-  "Number of faces available for coloring.")
-
-(defun context-coloring-defface-default (level)
+(defun context-coloring-defface-neutral (level)
   "Define a face for LEVEL with the default neutral colors."
   (context-coloring-defface level nil "#3f3f3f" "#cdcdcd"))
 
-(defun context-coloring-set-colors-default ()
-  (context-coloring-defface 0 nil       "#000000" "#ffffff")
-  (context-coloring-defface 1 "yellow"  "#007f80" "#ffff80")
-  (context-coloring-defface 2 "green"   "#001580" "#cdfacd")
-  (context-coloring-defface 3 "cyan"    "#550080" "#d8d8ff")
-  (context-coloring-defface 4 "blue"    "#802b00" "#e7c7ff")
-  (context-coloring-defface 5 "magenta" "#6a8000" "#ffcdcd")
-  (context-coloring-defface 6 "red"     "#008000" "#ffe390")
-  (context-coloring-defface-default 7)
-  (setq context-coloring-face-count 8))
+(context-coloring-defface 0 nil       "#000000" "#ffffff")
+(context-coloring-defface 1 "yellow"  "#007f80" "#ffff80")
+(context-coloring-defface 2 "green"   "#001580" "#cdfacd")
+(context-coloring-defface 3 "cyan"    "#550080" "#d8d8ff")
+(context-coloring-defface 4 "blue"    "#802b00" "#e7c7ff")
+(context-coloring-defface 5 "magenta" "#6a8000" "#ffcdcd")
+(context-coloring-defface 6 "red"     "#008000" "#ffe390")
+(context-coloring-defface-neutral 7)
 
-(context-coloring-set-colors-default)
+(defvar context-coloring-maximum-face nil
+  "Index of the highest face available for coloring.")
 
-;; Color theme authors can have up to 26 levels: 1 (0th) for globals, 24
-;; (1st-24th) for in-betweens, and 1 (25th) for infinity.
+(defvar context-coloring-original-maximum-face nil
+  "Fallback value for `context-coloring-maximum-face' when all
+  themes have been disabled.")
+
+(setq context-coloring-maximum-face 7)
+
+(setq context-coloring-original-maximum-face
+      context-coloring-maximum-face)
+
+;; Theme authors can have up to 26 levels: 1 (0th) for globals, 24 (1st-24th)
+;; for nested levels, and 1 (25th) for infinity.
 (dotimes (number 18)
-  (context-coloring-defface-default (+ number context-coloring-face-count)))
+  (context-coloring-defface-neutral (+ number context-coloring-maximum-face 1)))
 
 
 ;;; Face functions
 
-(defsubst context-coloring-face-symbol (level)
-  "Returns a symbol for a face with LEVEL."
-  ;; `concat' is faster than `format' here.
-  (intern-soft (concat "context-coloring-level-"
-                       (number-to-string level)
-                       "-face")))
-
-(defun context-coloring-set-colors (&rest colors)
-  "Set context coloring's levels' coloring to COLORS, where the
-Nth element of COLORS is level N's color."
-  (setq context-coloring-face-count (length colors))
-  (let ((level 0))
-    (dolist (color colors)
-      ;; Ensure there are available faces to contain new colors.
-      (when (not (context-coloring-face-symbol level))
-        (context-coloring-defface-default level))
-      (set-face-foreground (context-coloring-face-symbol level) color)
-      (setq level (+ level 1)))))
-
 (defsubst context-coloring-level-face (level)
-  "Returns the face name for LEVEL."
-  (context-coloring-face-symbol (min level context-coloring-face-count)))
+  "Return the symbol for a face with LEVEL."
+  ;; `concat' is faster than `format' here.
+  (intern-soft
+   (concat "context-coloring-level-" (number-to-string level) "-face")))
+
+(defsubst context-coloring-bounded-level-face (level)
+  "Return the symbol for a face with LEVEL, bounded by
+`context-coloring-maximum-face'."
+  (context-coloring-level-face (min level context-coloring-maximum-face)))
 
 
 ;;; Colorization utilities
 
 (defsubst context-coloring-colorize-region (start end level)
-  "Colorizes characters from the 1-indexed START (inclusive) to
-END (exclusive) with the face corresponding to LEVEL."
+  "Color characters from the 1-indexed START point (inclusive) to
+the END point (exclusive) with the face corresponding to LEVEL."
   (add-text-properties
    start
    end
-   `(face ,(context-coloring-level-face level))))
+   `(face ,(context-coloring-bounded-level-face level))))
+
+(defcustom context-coloring-comments-and-strings t
+  "If non-nil, also color comments and strings using `font-lock'."
+  :group 'context-coloring)
 
 (defsubst context-coloring-maybe-colorize-comments-and-strings ()
-  "Colorizes the current buffer's comments and strings if
+  "Color the current buffer's comments and strings if
 `context-coloring-comments-and-strings' is non-nil."
   (when context-coloring-comments-and-strings
     (save-excursion
@@ -194,11 +147,20 @@ END (exclusive) with the face corresponding to LEVEL."
 ;;; js2-mode colorization
 
 (defvar-local context-coloring-js2-scope-level-hash-table nil
-  "Associates `js2-scope' structures and with their scope
+  "Associate `js2-scope' structures and with their scope
   levels.")
 
+(defcustom context-coloring-js-block-scopes nil
+  "If non-nil, also color block scopes in the scope hierarchy in JavaScript.
+
+The block-scoped `let' and `const' are introduced in ES6.  Enable
+this for ES6 code; disable it elsewhere.
+
+Supported modes: `js2-mode'"
+  :group 'context-coloring)
+
 (defsubst context-coloring-js2-scope-level (scope)
-  "Gets the level of SCOPE."
+  "Return the level of SCOPE."
   (cond ((gethash scope context-coloring-js2-scope-level-hash-table))
         (t
          (let ((level 0)
@@ -218,7 +180,7 @@ END (exclusive) with the face corresponding to LEVEL."
            (puthash scope level context-coloring-js2-scope-level-hash-table)))))
 
 (defsubst context-coloring-js2-local-name-node-p (node)
-  "Determines if NODE is a js2-name-node representing a local
+  "Determine if NODE is a `js2-name-node' representing a local
 variable."
   (and (js2-name-node-p node)
        (let ((parent (js2-node-parent node)))
@@ -230,7 +192,7 @@ variable."
                        (eq node (js2-prop-get-node-right parent))))))))
 
 (defsubst context-coloring-js2-colorize-node (node level)
-  "Colors NODE with the color for LEVEL."
+  "Color NODE with the color for LEVEL."
   (let ((start (js2-node-abs-pos node)))
     (context-coloring-colorize-region
      start
@@ -238,8 +200,8 @@ variable."
      level)))
 
 (defun context-coloring-js2-colorize ()
-  "Colorizes the current buffer using the abstract syntax tree
-generated by js2-mode."
+  "Color the current buffer using the abstract syntax tree
+generated by `js2-mode'."
   ;; Reset the hash table; the old one could be obsolete.
   (setq context-coloring-js2-scope-level-hash-table (make-hash-table :test 'eq))
   (with-silent-modifications
@@ -273,8 +235,8 @@ generated by js2-mode."
 ;;; Shell command scopification / colorization
 
 (defun context-coloring-apply-tokens (tokens)
-  "Processes a vector of TOKENS to apply context-based coloring
-to the current buffer.  Tokens are 3 integers: start, end, level.
+  "Process a vector of TOKENS to apply context-based coloring to
+the current buffer.  Tokens are 3 integers: start, end, level.
 The vector is flat, with a new token occurring after every 3rd
 element."
   (with-silent-modifications
@@ -288,24 +250,26 @@ element."
         (setq i (+ i 3))))
     (context-coloring-maybe-colorize-comments-and-strings)))
 
-(defun context-coloring-parse-array (input)
-  "Specialized JSON parser for a flat array of numbers."
+(defun context-coloring-parse-array (array)
+  "Parse ARRAY as a flat JSON array of numbers."
   (vconcat
-   (mapcar 'string-to-number (split-string (substring input 1 -1) ","))))
+   (mapcar 'string-to-number (split-string (substring array 1 -1) ","))))
+
+(defvar-local context-coloring-scopifier-process nil
+  "The single scopifier process that can be running.")
 
 (defun context-coloring-kill-scopifier ()
-  "Kills the currently-running scopifier process for this
-buffer."
+  "Kill the currently-running scopifier process."
   (when (not (null context-coloring-scopifier-process))
     (delete-process context-coloring-scopifier-process)
     (setq context-coloring-scopifier-process nil)))
 
 (defun context-coloring-scopify-shell-command (command &optional callback)
-  "Invokes a scopifier with the current buffer's contents,
-reading the scopifier's response asynchronously and applying a
-parsed list of tokens to `context-coloring-apply-tokens'.
+  "Invoke a scopifier via COMMAND with the current buffer's contents,
+read the scopifier's response asynchronously and apply a parsed
+list of tokens to `context-coloring-apply-tokens'.
 
-Invokes CALLBACK when complete."
+Invoke CALLBACK when complete."
 
   ;; Prior running tokenization is implicitly obsolete if this function is
   ;; called.
@@ -335,7 +299,7 @@ Invokes CALLBACK when complete."
            (with-current-buffer buffer
              (context-coloring-apply-tokens tokens))
            (setq context-coloring-scopifier-process nil)
-           (if callback (funcall callback)))))))
+           (when callback (funcall callback)))))))
 
   ;; Give the process its input so it can begin.
   (process-send-region
@@ -348,11 +312,11 @@ Invokes CALLBACK when complete."
 ;;; Dispatch
 
 (defvar context-coloring-dispatch-hash-table (make-hash-table :test 'eq)
-  "Mapping of dispatch strategy names to their corresponding
-  property lists, which contain details about the strategies.")
+  "Map dispatch strategy names to their corresponding property
+  lists, which contain details about the strategies.")
 
 (defvar context-coloring-mode-hash-table (make-hash-table :test 'eq)
-  "Mapping of major mode names to dispatch property lists.")
+  "Map major mode names to dispatch property lists.")
 
 (defun context-coloring-select-dispatch (mode dispatch)
   "Use DISPATCH for MODE."
@@ -390,7 +354,13 @@ buffer a returns a flat vector of start, end and level data.
 
 `:command' - Shell command to execute with the current buffer
 sent via stdin, and with a flat JSON array of start, end and
-level data returned via stdout."
+level data returned via stdout.
+
+`:setup' - Arbitrary code to set up this dispatch when
+`context-coloring-mode' is enabled.
+
+`:teardown' - Arbitrary code to tear down this dispatch when
+`context-coloring-mode' is disabled."
   (let ((modes (plist-get properties :modes))
         (colorizer (plist-get properties :colorizer))
         (scopifier (plist-get properties :scopifier))
@@ -415,17 +385,23 @@ level data returned via stdout."
 (context-coloring-define-dispatch
  'javascript-js2
  :modes '(js2-mode)
- :colorizer 'context-coloring-js2-colorize)
+ :colorizer 'context-coloring-js2-colorize
+ :setup
+ (lambda ()
+   (add-hook 'js2-post-parse-callbacks 'context-coloring-colorize nil t))
+ :teardown
+ (lambda ()
+   (remove-hook 'js2-post-parse-callbacks 'context-coloring-colorize t)))
 
 (defun context-coloring-dispatch (&optional callback)
-  "Determines the optimal track for scopification / colorization
-of the current buffer, then executes it.
+  "Determine the optimal track for scopification / coloring of
+the current buffer, then execute it.
 
-Invokes CALLBACK when complete.  It is invoked synchronously for
+Invoke CALLBACK when complete.  It is invoked synchronously for
 elisp tracks, and asynchronously for shell command tracks."
   (let ((dispatch (gethash major-mode context-coloring-mode-hash-table)))
-    (if (null dispatch)
-        (message "%s" "Context coloring is not available for this major mode"))
+    (when (null dispatch)
+      (message "%s" "Context coloring is not available for this major mode"))
     (let (colorizer
           scopifier
           command
@@ -433,43 +409,44 @@ elisp tracks, and asynchronously for shell command tracks."
       (cond
        ((setq colorizer (plist-get dispatch :colorizer))
         (funcall colorizer)
-        (if callback (funcall callback)))
+        (when callback (funcall callback)))
        ((setq scopifier (plist-get dispatch :scopifier))
         (context-coloring-apply-tokens (funcall scopifier))
-        (if callback (funcall callback)))
+        (when callback (funcall callback)))
        ((setq command (plist-get dispatch :command))
         (setq executable (plist-get dispatch :executable))
         (if (and executable
                  (null (executable-find executable)))
-            (message "Executable \"%s\" not found" executable)
+            (progn
+              (message "Executable \"%s\" not found" executable))
           (context-coloring-scopify-shell-command command callback)))))))
 
 
 ;;; Colorization
 
 (defun context-coloring-colorize (&optional callback)
-  "Colors the current buffer by function context.
+  "Color the current buffer by function context.
 
-Invokes CALLBACK when complete; see `context-coloring-dispatch'."
+Invoke CALLBACK when complete; see `context-coloring-dispatch'."
   (interactive)
-  (let ((start-time (float-time)))
-    (context-coloring-dispatch
-     (lambda ()
-       (when context-coloring-benchmark-colorization
-         (message "Colorization took %.3f seconds" (- (float-time) start-time)))
-       (if callback (funcall callback))))))
+  (context-coloring-dispatch
+   (lambda ()
+     (when callback (funcall callback)))))
+
+(defvar-local context-coloring-changed nil
+  "Indication that the buffer has changed recently, which implies
+that it should be colored again by
+`context-coloring-colorize-idle-timer' if that timer is being
+used.")
 
 (defun context-coloring-change-function (_start _end _length)
-  "Registers a change so that a buffer can be colorized soon."
+  "Register a change so that a buffer can be colorized soon."
   ;; Tokenization is obsolete if there was a change.
   (context-coloring-kill-scopifier)
   (setq context-coloring-changed t))
 
 (defun context-coloring-maybe-colorize ()
-  "Colorize unders certain conditions.  This will run as an idle
-timer, so firstly the buffer must not be some other buffer.
-Additionally, the buffer must have changed, otherwise colorizing
-would be redundant."
+  "Colorize the current buffer if it has changed."
   (when (and (eq context-coloring-buffer (window-buffer (selected-window)))
              context-coloring-changed)
     (setq context-coloring-changed nil)
@@ -479,7 +456,7 @@ would be redundant."
 ;;; Themes
 
 (defvar context-coloring-theme-hash-table (make-hash-table :test 'eq)
-  "Mapping of theme names to theme properties.")
+  "Map theme names to theme properties.")
 
 (defun context-coloring-theme-p (theme)
   "Return t if THEME is defined, nil otherwise."
@@ -487,11 +464,11 @@ would be redundant."
 
 (defconst context-coloring-level-face-regexp
   "context-coloring-level-\\([[:digit:]]+\\)-face"
-  "Regular expression for extracting a level from a face.")
+  "Extract a level from a face.")
 
 (defvar context-coloring-originally-set-theme-hash-table
   (make-hash-table :test 'eq)
-  "Cache of custom themes who originally set their own
+  "Cache custom themes who originally set their own
   `context-coloring-level-N-face' faces.")
 
 (defun context-coloring-theme-originally-set-p (theme)
@@ -520,7 +497,7 @@ originally set for THEME, nil otherwise."
         found)))))
 
 (defun context-coloring-cache-originally-set (theme originally-set)
-  "Remember if THEME had colors originally set for it; if
+  "Remember if THEME had colors originally set for it.  If
 ORIGINALLY-SET is non-nil, it did, otherwise it didn't."
   ;; Caching whether a theme was originally set is kind of dirty, but we have to
   ;; do it to remember the past state of the theme.  There are probably some
@@ -531,14 +508,14 @@ ORIGINALLY-SET is non-nil, it did, otherwise it didn't."
    context-coloring-originally-set-theme-hash-table))
 
 (defun context-coloring-warn-theme-originally-set (theme)
-  "Warns the user that the colors for a theme are already
-originally set."
+  "Warn the user that the colors for THEME are already originally
+set."
   (warn "Context coloring colors for theme `%s' are already defined" theme))
 
 (defun context-coloring-theme-highest-level (theme)
   "Return the highest level N of a face like
-`context-coloring-level-N-face' set for THEME, or -1 if there is
-none."
+`context-coloring-level-N-face' set for THEME, or `-1' if there
+is none."
   (let* ((settings (get theme 'theme-settings))
          (tail settings)
          face-string
@@ -560,19 +537,19 @@ none."
     found))
 
 (defun context-coloring-apply-theme (theme)
-  "Applies THEME's properties to its respective custom theme,
+  "Apply THEME's properties to its respective custom theme,
 which must already exist and which *should* already be enabled."
   (let* ((properties (gethash theme context-coloring-theme-hash-table))
          (colors (plist-get properties :colors))
          (level -1))
-    (setq context-coloring-face-count (length colors))
+    (setq context-coloring-maximum-face (- (length colors) 1))
     (apply
      'custom-theme-set-faces
      theme
      (mapcar
       (lambda (color)
         (setq level (+ level 1))
-        `(,(context-coloring-face-symbol level) ((t (:foreground ,color)))))
+        `(,(context-coloring-level-face level) ((t (:foreground ,color)))))
       colors))))
 
 (defun context-coloring-define-theme (theme &rest properties)
@@ -628,9 +605,8 @@ precedence, i.e. the car of `custom-enabled-themes'."
             (context-coloring-apply-theme name)))))))
 
 (defun context-coloring-enable-theme (theme)
-  "Applies THEME if its colors are not already set, else just
-sets `context-coloring-face-count' to the correct value for
-THEME."
+  "Apply THEME if its colors are not already set, else just set
+`context-coloring-maximum-face' to the correct value for THEME."
   (let* ((properties (gethash theme context-coloring-theme-hash-table))
          (recede (plist-get properties :recede))
          (override (plist-get properties :override)))
@@ -641,7 +617,7 @@ THEME."
          ;; This can be true whether originally set by a custom theme or by a
          ;; context theme.
          ((> highest-level -1)
-          (setq context-coloring-face-count (+ highest-level 1)))
+          (setq context-coloring-maximum-face highest-level))
          ;; It is possible that the corresponding custom theme did not exist at
          ;; the time of defining this context theme, and in that case the above
          ;; condition proves the custom theme did not originally set any faces,
@@ -660,21 +636,27 @@ THEME."
         (context-coloring-apply-theme theme))))))
 
 (defadvice enable-theme (after context-coloring-enable-theme (theme) activate)
-  "Enable colors for context themes just-in-time.  We can't set
-faces for custom themes that might not exist yet."
+  "Enable colors for context themes just-in-time."
   (when (and (not (eq theme 'user)) ; Called internally by `enable-theme'.
              (custom-theme-p theme) ; Guard against non-existent themes.
              (context-coloring-theme-p theme))
+    (when (= (length custom-enabled-themes) 0)
+      ;; Cache because we can't reliably figure it out in reverse.
+      (setq context-coloring-original-maximum-face
+            context-coloring-maximum-face))
     (context-coloring-enable-theme theme)))
 
 (defadvice disable-theme (after context-coloring-disable-theme (theme) activate)
-  "Colors are disabled normally, but
-`context-coloring-face-count' isn't.  Update it here."
+  "Update `context-coloring-maximum-face'."
   (when (custom-theme-p theme) ; Guard against non-existent themes.
     (let ((enabled-theme (car custom-enabled-themes)))
       (if (context-coloring-theme-p enabled-theme)
-          (context-coloring-enable-theme enabled-theme)
-        (context-coloring-set-colors-default)))))
+          (progn
+            (context-coloring-enable-theme enabled-theme))
+        ;; Assume we are back to no theme; act as if nothing ever happened.
+        ;; This is still prone to intervention, but rather extraordinarily.
+        (setq context-coloring-maximum-face
+              context-coloring-original-maximum-face)))))
 
 (context-coloring-define-theme
  'ample
@@ -696,7 +678,7 @@ faces for custom themes that might not exist yet."
            "#401440"
            "#0f2050"
            "#205070"
-           "#336c6c"
+           "#437c7c"
            "#23733c"
            "#6b400c"
            "#603a60"
@@ -803,7 +785,7 @@ faces for custom themes that might not exist yet."
            "#BFEBBF"
            "#F0DFAF"
            "#DFAF8F"
-           "#CC9393"
+           "#BC8383"
            "#DC8CC3"
            "#94BFF3"
            "#9FC59F"
@@ -812,6 +794,18 @@ faces for custom themes that might not exist yet."
 
 
 ;;; Minor mode
+
+(defvar-local context-coloring-colorize-idle-timer nil
+  "The currently-running idle timer.")
+
+(defcustom context-coloring-delay 0.25
+  "Delay between a buffer update and colorization.
+
+Increase this if your machine is high-performing.  Decrease it if
+it ain't.
+
+Supported modes: `js-mode', `js3-mode'"
+  :group 'context-coloring)
 
 ;;;###autoload
 (define-minor-mode context-coloring-mode
@@ -822,10 +816,15 @@ faces for custom themes that might not exist yet."
         (context-coloring-kill-scopifier)
         (when context-coloring-colorize-idle-timer
           (cancel-timer context-coloring-colorize-idle-timer))
-        (remove-hook
-         'js2-post-parse-callbacks 'context-coloring-colorize t)
-        (remove-hook
-         'after-change-functions 'context-coloring-change-function t)
+        (let ((dispatch (gethash major-mode context-coloring-mode-hash-table)))
+          (when dispatch
+            (let ((command (plist-get dispatch :command))
+                  (teardown (plist-get dispatch :teardown)))
+              (when command
+                (remove-hook
+                 'after-change-functions 'context-coloring-change-function t))
+              (when teardown
+                (funcall teardown)))))
         (font-lock-mode)
         (jit-lock-mode t))
 
@@ -836,26 +835,25 @@ faces for custom themes that might not exist yet."
     (font-lock-mode 0)
     (jit-lock-mode nil)
 
-    ;; Colorize once initially.
-    (context-coloring-colorize)
+    (let ((dispatch (gethash major-mode context-coloring-mode-hash-table)))
+      (when dispatch
+        (let ((command (plist-get dispatch :command))
+              (setup (plist-get dispatch :setup)))
+          (when command
+            ;; Shell commands recolor on change, idly.
+            (add-hook
+             'after-change-functions 'context-coloring-change-function nil t)
+            (setq context-coloring-colorize-idle-timer
+                  (run-with-idle-timer
+                   context-coloring-delay
+                   t
+                   'context-coloring-maybe-colorize)))
+          (when setup
+            (funcall setup)))))
 
-    (cond
-     ((equal major-mode 'js2-mode)
-      ;; Only recolor on reparse.
-      (add-hook 'js2-post-parse-callbacks 'context-coloring-colorize nil t))
-     (t
-      ;; Only recolor on change, idly.
-      (add-hook 'after-change-functions 'context-coloring-change-function nil t)
-      (setq context-coloring-colorize-idle-timer
-            (run-with-idle-timer
-             context-coloring-delay
-             t
-             'context-coloring-maybe-colorize))))))
+    ;; Colorize once initially.
+    (context-coloring-colorize)))
 
 (provide 'context-coloring)
-
-;; Local Variables:
-;; eval: (when (fboundp 'rainbow-mode) (rainbow-mode 1))
-;; End:
 
 ;;; context-coloring.el ends here
