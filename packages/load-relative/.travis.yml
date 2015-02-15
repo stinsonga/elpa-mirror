@@ -1,0 +1,8 @@
+language: emacs-lisp
+
+env:
+  - EMACS=emacs24
+
+# run the tests
+script:
+  - /bin/bash ./autogen.sh && cd test && make check-elget
