@@ -40,6 +40,7 @@
  ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
  ("rudel"		:external nil) ;; Was bzr::bzr://rudel.bzr.sourceforge.net/bzrroot/rudel/trunk
  ("temp-buffer-browse"  :subtree "https://github.com/leoliu/temp-buffer-browse")
+ ("test-simple"         :subtree "https://github.com/rocky/test-simple")
  ;;FIXME:("vlf"		:subtree ??)
  ("w3"			:external nil)
  ("wcheck-mode"		:subtree "https://github.com/tlikonen/wcheck-mode.git")
