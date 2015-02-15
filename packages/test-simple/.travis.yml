@@ -1,8 +1,0 @@
-language: emacs
-
-install:
-  # Install emacs.
-  - "sudo apt-get install emacs23-nox"
-
-# run the tests
-script: /bin/sh ./autogen.sh && make check
