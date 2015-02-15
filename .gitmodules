@@ -1,0 +1,12 @@
+[submodule "packages/test-simple"]
+	path = packages/test-simple
+	url = https://github.com/rocky/emacs-test-simple.git
+[submodule "packages/load-relative"]
+	path = packages/load-relative
+	url = https://github.com/rocky/emacs-load-relative.git
+[submodule "packages/loc-changes"]
+	path = packages/loc-changes
+	url = https://github.com/rocky/emacs-loc-changes.git
+[submodule "packages/realgud"]
+	path = packages/realgud
+	url = https://github.com/rocky/emacs-dbgr.git
