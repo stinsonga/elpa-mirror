@@ -4,7 +4,7 @@
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; vcomment: Emacs-25's version is 1.0 so this has to stay below.
-;; Version: 0.1
+;; Version: 0.2
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -101,15 +101,17 @@
            ;; We could just alias `cl-call-next-method' to `call-next-method',
            ;; and that would work, but then files compiled with this cl-generic
            ;; wouldn't work in Emacs-25 any more.
-           ;; Also we use `labels' rather than one of cl-lib's macros, so as to
-           ;; be compatible with older emacsen (and ELPA's cl-lib emulation
-           ;; doesn't provide cl-flet and provides an incomplete cl-labels).
+           ;; Also we fallback on `labels' if `cl-flet' is not available
+           ;; (ELPA's cl-lib emulation doesn't provide cl-flet).
+           ;; We don't always use `labels' because that generates warnings
+           ;; in newer Emacsen where `cl-flet' is available.
            ,@(if qualifiers
                  ;; Must be :before or :after, so can't call next-method.
                  body
-               `((labels ((cl-call-next-method (&rest args)
-                                               (apply #'call-next-method args))
-                          (cl-next-method-p () (next-method-p)))
+               `((,(if (fboundp 'cl-flet) 'cl-flet 'labels)
+                      ((cl-call-next-method (&rest args)
+                                            (apply #'call-next-method args))
+                       (cl-next-method-p () (next-method-p)))
                    ,@body))))))))
 
 (provide 'cl-generic)
