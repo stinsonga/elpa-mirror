@@ -1,9 +1,9 @@
 ;;; jgraph-mode.el --- Major mode for Jgraph files  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2006, 2011-2012, 2014  Free Software Foundation, Inc
+;; Copyright (C) 2006, 2011-2012, 2014, 2015  Free Software Foundation, Inc
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
-;; Version: 1.0
+;; Version: 1.1
 ;; Package-Requires: ((cl-lib "0.5"))
 ;; Keywords: tex, wp
 
@@ -138,7 +138,8 @@
     (,(concat "\\_<"
               (regexp-opt (cons "include"
                                 (apply 'append (mapcar 'cdr jgraph-commands))))
-              "\\_>") . font-lock-keyword-face)
+              "\\_>")
+     . font-lock-keyword-face)
     )
   "Keyword highlighting specification for `jgraph-mode'.")
 
@@ -172,6 +173,20 @@
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.jgr\\'" . jgraph-mode))
 
+(defun jgraph--syntax-end-of-string (limit)
+  (when (eq t (nth 3 (syntax-ppss)))
+    (when (re-search-forward "\\(?:\\=\\|[^\\]\\)\\(\n\\)" limit t)
+      (put-text-property (match-beginning 1) (match-end 1)
+                         'syntax-table (string-to-syntax "|")))))
+
+(defun jgraph--syntax-propertize (start end)
+  (goto-char start)
+  (jgraph--syntax-end-of-string end)
+  (funcall
+   (syntax-propertize-rules
+    ("\\s-:\\(\\s-\\)" (1 (prog1 "|" (jgraph--syntax-end-of-string end)))))
+   start end))
+
 ;;;###autoload
 (define-derived-mode jgraph-mode prog-mode "Jgraph"
   "A major mode for editing Jgraph files."
@@ -182,9 +197,7 @@
   (set (make-local-variable 'font-lock-defaults)
        '(jgraph-font-lock-keywords))
   (set (make-local-variable 'syntax-propertize-function)
-       (syntax-propertize-rules
-        ;; FIXME: naive(broken) multiline pattern.
-        ("\\s-\\(:\\)\\s-\\(?:.*\\\\\n\\)*.*\\(\n\\)" (1 "|") (2 "|"))))
+       #'jgraph--syntax-propertize)
   (set (make-local-variable 'indent-line-function) 'jgraph-indent-line)
   ;; (set (make-local-variable 'imenu-generic-expression)
   ;;      jgraph-imenu-generic-expression)
@@ -195,7 +208,6 @@
 
 (defcustom jgraph-indent-offset 4
   "Basic indentation step size in `jgraph-mode'."
-  :group 'jgraph-mode
   :type 'integer)
 
 (defun jgraph-indent-line ()
