@@ -1,7 +1,7 @@
 ;;; load-relative.el --- relative file load (within a multi-file Emacs package)
 
 ;; Author: Rocky Bernstein <rocky@gnu.org>
-;; Version: 1.1
+;; Version: 1.2
 ;; Keywords: internal
 ;; URL: http://github.com/rocky/emacs-load-relative
 ;; Compatibility: GNU Emacs 23.x
@@ -30,9 +30,9 @@
 ;; https://github.com/rocky/emacs-load-relative/wiki/NYC-Lisp-talk for
 ;; the the rationale behind this.
 ;;
-;; The functions we add are relative versions of `load', and `require'
-;; and versions which take list arguments. We also add a `__FILE__'
-;; function and a `provide-me' macro.
+;; The functions we add are relative versions of `load', `require' and
+;; `find-file-no-select' and versions which take list arguments. We also add a
+;; `__FILE__' function and a `provide-me' macro.
 
 ;; The latest version of this code is at:
 ;;     http://github.com/rocky/emacs-load-relative/
@@ -74,13 +74,34 @@
 ;;
 ;;     (require-relative-list '("dbgr-init" "dbgr-fringe"))
 ;;
-;; Finally, macro `provide-me' saves you the trouble of adding a
+;; The macro `provide-me' saves you the trouble of adding a
 ;; symbol after `provide' using the file basename (without directory
 ;; or file extension) as the name of the thing you want to
 ;; provide.
 ;;
 ;; Using this constrains the `provide' name to be the same as
 ;; the filename, but I consider that a good thing.
+;;
+;; The function `find-file-noselect-relative' provides a way of accessing
+;; resources which are located relative to the currently running Emacs lisp
+;; file. This is probably most useful when running Emacs as a scripting engine
+;; for batch processing or with tests cases. For example, this form will find
+;; the README file for this package.
+;;
+;;     (find-file-noselect-relative "README.md")
+;;
+;; `find-file-noselect-relative' also takes wildcards, as does it's
+;; non-relative namesake.
+;;
+;; The macro `with-relative-file' runs in a buffer with the contents of the
+;; given relative file.
+;;
+;;    (with-relative-file "README.md"
+;;      (buffer-substring))
+;;
+;; This is easier if you care about the contents of the file, rather than
+;; a buffer.
+
 
 ;;; Code:
 
@@ -178,6 +199,32 @@ finding __FILE__ don't work."
     (autoload function-or-list (relative-expand-file-name file symbol)
       docstring interactive type))
   )
+
+;;;###autoload
+(defun find-file-noselect-relative (filename &optional nowarn rawfile wildcards)
+  "Read relative FILENAME into a buffer and return the buffer.
+If a buffer exists visiting FILENAME, return that one, but
+verify that the file has not changed since visited or saved.
+The buffer is not selected, just returned to the caller.
+Optional second arg NOWARN non-nil means suppress any warning messages.
+Optional third arg RAWFILE non-nil means the file is read literally.
+Optional fourth arg WILDCARDS non-nil means do wildcard processing
+and visit all the matching files.  When wildcards are actually
+used and expanded, return a list of buffers that are visiting
+the various files."
+  (find-file-noselect (relative-expand-file-name filename)
+                      nowarn rawfile wildcards))
+
+;;;###autoload
+(defmacro with-relative-file (file &rest body)
+  "Read the relative FILE into a temporary buffer and evaluate BODY
+in this buffer."
+  (declare (indent 1) (debug t))
+  `(with-temp-buffer
+     (insert-file-contents
+      (relative-expand-file-name
+       ,file))
+     ,@body))
 
 ;;;###autoload
 (defun load-relative (file-or-list &optional symbol)
