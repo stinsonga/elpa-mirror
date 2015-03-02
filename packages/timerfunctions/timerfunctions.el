@@ -2,10 +2,10 @@
 
 ;; Copyright (C) 2000-2002, 2015  Free Software Foundation, Inc.
 
-;; Time-stamp: <2011-10-04 21:58:10 deego>
+;; Time-stamp: <2015-03-02 12:23:21 deego>
 ;; Emacs Lisp Archive entry
 ;; Filename: timerfunctions.el
-;; Author: Deepak Goel <deego@gnufans.org>
+;; Author: Dave Goel <deego3@gmail.com>
 ;; Version: 1.4.2
 ;; Created: 2000/11/20
 ;; Author's homepage: http://gnufans.net/~deego
@@ -79,8 +79,9 @@ functions.  It is also used by vel.el, idledo.el etc.
 
 ;;;###autoload
 (defun tf-time-difference (timeplus timesub)
-  "Gives the time in seconds elaspsed from TIMESUB to TIMEPLUS.
-Almost like \(- TIMEPLUS TIMESUB \)."
+  "Return the time in seconds elaspsed from TIMESUB to TIMEPLUS.
+
+Conceptually:  \(- TIMEPLUS TIMESUB \)."
   (+ (* (expt 2 16) (- (car timeplus) (car timesub)))
      (- (cadr timeplus) (cadr timesub)))
 )
@@ -90,16 +91,19 @@ Almost like \(- TIMEPLUS TIMESUB \)."
 (defun tf-run-with-idle-timer  (secs repeat redosecs redorepeat includeruntime function &rest args)
   "Similar to `run-with-idle-timer', except that provides more options.
 
+Args are SECS, REPEAT, REDOSECS, REDOREPEAT, INCLUDERUNTIME,
+FUNCTION and &rest ARGS.
+
+Similar to `run-with-idle-timer', but provides more options.
 Suppose you want Emacs to run an action every REDOSECS for as
-long as Emacs remains idle.  Think you can do it with Emacs's
-`run-with-idle-timer'? Think again.. :)   That function will
-perform the action exactly once every time Emacs goes idle.
-This function *will* allow you to keep performing an action as
-long as Emacs remains idle.
+long as Emacs remains idle.  Emacs' `run-with-idle-timer' will
+perform the action exactly once every time Emacs goes idle.  This
+funciton, on the other hand, will allow
+you to keep performing an action as long as Emacs remains idle.
 
 SECS is the number of seconds to wait once Emacs has first gone
 idle. It can really be any expression whose at runtime yields a
-number..  Note that the way `run-with-idle-timer' is defined, SECS will
+number.  Note that the way `run-with-idle-timer' is defined, SECS will
 unfortunately be evalled immediately after you call this function, but
 redosecs will be *every* time Emacs *remains* idle..yay..
 
@@ -114,7 +118,7 @@ additional seconds to wait after the action has been invoked (not
 finished).
 
 If REPEAT is nonnil, the entire cycle is repeated every time Emacs
-next goes idle.. (as in the default `run-with-idle-timer')."
+next goes idle.. (as in the default `run-with-idle-timer'."
   (apply 'run-with-idle-timer
 	 (eval secs) repeat 'tf-run-while-idle
 	 redosecs redorepeat includeruntime
@@ -122,17 +126,18 @@ next goes idle.. (as in the default `run-with-idle-timer')."
   )
 
 
-(defun tf-run-while-idle (redosecs redorepeat includeruntime
-function &rest args)
-  "Run FUNCTION with ARGS and optionally repeats if Emacs idle.
+(defun tf-run-while-idle (redosecs redorepeat includeruntime function &rest args)
+  "A simplified version of `tf-run-with-idle-timer'.
+
+Runs FUNCTION with ARGS and optionally repeats if emacs remains idle.
 Probably is of no use unless used in programs.
  If REDOREPEAT is non-nil, the function is repeated periodically every
-REDOSECS as long as Emacs remains idle.  By default, Emacs waits
+REDOSECS as long as emacs remains idle. By default, emacs waits
 REDOSECS *after* the function is done executing to repeat.  If you want
 the execution-time to count towards REDOSECS, make INCLUDERUNTIME
 non-nil.
 SECS and REDOSECS can be any expressions that eval at runtime to
-numbers..  In particular, they can simply be numbers.."
+numbers. In particular, of course, they can simply be numbers."
   (if (not includeruntime)
       (progn
 	(apply function args)
@@ -155,6 +160,7 @@ numbers..  In particular, they can simply be numbers.."
 ;;;====================================================
 ;;;TESTS FOLLOW
 (defun tf-test-display-time-internal ()
+  "A test function."
   (interactive)
   (let ((thisbuffer (buffer-name)))
     (switch-to-buffer-other-window "*scratch*")
@@ -166,9 +172,11 @@ numbers..  In particular, they can simply be numbers.."
 
 
 (defun tf-test-idle-timer ()
-  "Run this and watch..Play around with the options.. If you run it,
-you may have to exit your Emacs session to restore normal Emacs!
-unless you are an expert, that is.."
+  "A test function.
+
+Run this and watch Play around with the options.  If you run it,
+you may have to exit your Emacs session to restore normal Emacs,
+unless you clean things up carefully!"
 
   (interactive)
   (tf-run-with-idle-timer
@@ -207,6 +215,7 @@ unless you are an expert, that is.."
 
 (defun tf-test-timeout-complex ()
   "Should return a value of 20000 for a."
+
   (interactive)
   (let ((inhi t) (goodcount 0) (badcount 0) (ctr 0) (a 1) (b 2)
 	(mytag nil)
@@ -218,7 +227,7 @@ unless you are an expert, that is.."
      'inhi 'mytag 'myvar
      (0.1 nil)
      (loop for i from 0 to 10000 do
-	   (message "first loop. i=%S" ctr i)
+	   (message "first loop. ctr=%S, i=%S, " ctr i)
 	   (incf a))
      (message "initial loop ends here.")
      ;; no throw here because loop prohibited.
@@ -246,56 +255,76 @@ unless you are an expert, that is.."
 
 
 (defvar tf-internal-var-recenter 1)
-(defun tf-internal-recenter-toggle-my ()
+
+(defun tf-test-internal-recenter-toggle ()
+  "A test function."
   (interactive)
-  (recenter tmpp)
+  (recenter 1)
   (setq tf-internal-var-recenter (- 0 tf-internal-var-recenter)))
 
-(defun tf-example-timer-recenter ()
-  "Change the screen display every 3 seconds, thus ensuring that you
+(defun tf-test-example-timer-recenter ()
+  "An example timer.
+Changes the screen display every 3 seconds, thus ensuring that you
 don't time out of ssh sessions."
-  tf-run-with-idle-timer 3 t 3 t nil 'tf-internal-recenter-toggle-my)
+  (interactive)
+  (tf-run-with-idle-timer 3 t 3 t nil 'tf-test-internal-recenter-toggle))
 
 
 
 
-(defun tf-wait-until-idle (&optional secs)
-  "DOES NOT WORK YET. Wait until idle.
+(defun tf-todo-wait-until-idle (&optional secs)
+  "This function is not functional yet.
+
+Waits until idle.  Arguments are SECS.
 Will help run processes in background.  This function will NOT create
 a timer.  Will simply use `sit-for'."
   (if (null secs)
       (setq secs 1))
   (while (not (sit-for secs))
     (sit-for 1))
-  (message "tf-wait-until-idle DONE WAITING!"))
+  (message "tf-todo-wait-until-idle DONE WAITING!")
+)
 
 
 ;;;Tue Jan 23 17:38:44 2001
 ;; FIXME: Use `with-demoted-errors' instead.
 (defmacro tf-ignore-errors (&rest body)
-  "Like `ignore-errors', but tells the error.."
-  `(condition-case err (progn ,@body)
-     (error (message "IGNORED ERROR: %S"
-                     (error-message-string err)))))
+ "Ignore errors in BODY, but loudly."
+ (let ((err (gensym)))
+   (list 'condition-case err (cons 'progn body)
+	 (list 'error
+	       (list 'message
+		     (list 'concat
+			   "IGNORED ERROR: "
+			   (list 'error-message-string err)))))
+   ))
+
+
 
 
 (defvar tf-with-timeout-repeat-sec 0.01
-  "If the initial timeout fails because of inhibitedness, we shall
-check every this many seconds to see if we are uninhibited.  This
-variable is customizable.")
+  "Interval between checks for inhibitedness.
+
+If the initial timeout fails because of inhibitedness, we shall
+check every `tf-with-timeout-repeat-sec' seconds to see if we are
+uninhibited, yet.  This variable is customizable.")
 
 
 (defun tf-with-timeout-handler-internal (tag timedoutvar inhibitp)
+  "Internal function.
+Arguments are TAG, TIMEDOUTVAR, and INHIBITP."
   (set timedoutvar t)
   ;;(tf-with-timeout-check tag timedoutvar inhibitp)
   ;; which is equivalent to:
   (unless (eval inhibitp)
-    (tf-ignore-errors (throw tag 'timeout))))
+    (tf-ignore-errors (throw tag 'timeout)))
+  )
 
 (defun tf-with-timeout-check (inhibitp tag timedoutvar)
-  ;; check whether timeout has actually reached.
-  ;; we need this step because this function might be called by the
-  ;; user as well.
+  "Internal function.
+Check whether timeout has actually reached.
+We need this step because this function might be called by the
+user as well.  Arguments are INHIBITP, TAG and TIMEDOUTVAR."
   (when (eval timedoutvar)
     (unless (eval inhibitp)
       (tf-ignore-errors (throw tag 'timeout)))))
@@ -305,6 +334,7 @@ variable is customizable.")
 (defvar tf-tag-tmpvar nil)
 
 (defmacro tf-catch (tag &rest body)
+  "Catch a TAG in BODY."
   `(let
        ;; unquote the tag here..
        ((,(cadr tag) 'tf-catch))
@@ -312,21 +342,28 @@ variable is customizable.")
        ,@body)))
 
 (defmacro tf-throw (tag value)
+  "Throw a TAG with value VALUE."
   `(when (eql (eval ,tag) 'tf-catch)
      (throw ,tag value)))
 
 
 ;;;###autoload
 (defmacro tf-with-timeout (inhibitp timertag timedoutvar tlist &rest body)
-  "Like `with-timeout' but provide ability to inhibit timeout during
-parts of the body.  Note that most of the time, you may not need this
-functionality at all unless you want to be very 'clean' about
-things---you could get by with the regular `with-timeout' and not using
-sit-for's in the body.  Or with the regular `with-timeout' and using
-`unwind-protect'.
+  "Like `with-timeout' but with support for unbreakable code.
+
+Provides ability to inhibit timeout during parts of the body.
+Note that most of the time, you may not need this functionality
+at all unless you want to be very 'clean' about things---you
+could get by with the regular with-timeout and not using
+sit-for's in the body.  Or with the regular with-timeout and
+using unwind-protect.
 
 
-TO DECIDE: IN VIEW OF THE UNWIND-PROTECT, DO WE NEED THIS FUNCTION AT ALL??
+A judicious use of `unwind-protect' may seem to alleviate the
+need for this function. This function, however, provides
+additional flexibility in that the inhibitedness can be altered
+at run-time depending on various conditions.
+
 
 Run BODY, but if it doesn't finish in SECONDS seconds, give up.
 If we give up, we run the TIMEOUT-FORMS which are contained in TLIST
@@ -350,7 +387,7 @@ part of the loop does not contain any sit-for's or read's then you
 don't have to worry about this in the first place..)
 
 
-again, Do not forget my-var to some value before attempting to use this
+Again, Do not forget to bind my-var to some value before attempting to use this
 tf-with-timeout :)
 
 Here's an example:
@@ -393,8 +430,10 @@ sense to increase the value of tf-with-timeout-repeat-sec, so that
 your cpu cycles are not wasted every 0.01 sec.  See the doc of that
 variable for more.
 
-Timertag should be a quoted symbol, also we WILL set that symbol to t
-during the execution of these forms."
+TIMERTAG should be a quoted symbol, also we WILL set that symbol to t
+during the execution of these forms.
+
+TIMEDOUTVAR is the variable that times out."
   (let ((seconds (car tlist))
 	(timeout-forms (cdr tlist)))
     `(let (
