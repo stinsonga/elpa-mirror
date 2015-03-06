@@ -160,6 +160,80 @@
 ;; This example will bind "C-x `" in `global-map', but it will not
 ;; bind "C-x j" and "C-x k".
 ;; You can still "C-x `jjk" though.
+;;** Example 7: toggle with Ruby-style docstring
+(when (bound-and-true-p hydra-examples-verbatim)
+  (defhydra hydra-toggle (:color pink)
+    "
+_a_ abbrev-mode:       %`abbrev-mode
+_d_ debug-on-error:    %`debug-on-error
+_f_ auto-fill-mode:    %`auto-fill-function
+_g_ golden-ratio-mode: %`golden-ratio-mode
+_t_ truncate-lines:    %`truncate-lines
+_w_ whitespace-mode:   %`whitespace-mode
+
+"
+    ("a" abbrev-mode nil)
+    ("d" toggle-debug-on-error nil)
+    ("f" auto-fill-mode nil)
+    ("g" golden-ratio-mode nil)
+    ("t" toggle-truncate-lines nil)
+    ("w" whitespace-mode nil)
+    ("q" nil "quit"))
+  (global-set-key (kbd "C-c C-v") 'hydra-toggle/body))
+
+;; Here, using e.g. "_a_" translates to "a" with proper face.
+;; More interestingly:
+;;
+;;     "foobar %`abbrev-mode" means roughly (format "foobar %S" abbrev-mode)
+;;
+;; This means that you actually see the state of the mode that you're changing.
+;;** Example 8: the whole menu for `Buffer-menu-mode'
+(defhydra hydra-buffer-menu (:color pink)
+  "
+  Mark               Unmark             Actions            Search
+-------------------------------------------------------------------------                        (__)
+_m_: mark          _u_: unmark        _x_: execute       _R_: re-isearch                         (oo)
+_s_: save          _U_: unmark up     _b_: bury          _I_: isearch                      /------\\/
+_d_: delete                           _g_: refresh       _O_: multi-occur                 / |    ||
+_D_: delete up                        _T_: files only: % -28`Buffer-menu-files-only      *  /\\---/\\
+_~_: modified                                                                               ~~   ~~
+"
+  ("m" Buffer-menu-mark nil)
+  ("u" Buffer-menu-unmark nil)
+  ("U" Buffer-menu-backup-unmark nil)
+  ("d" Buffer-menu-delete nil)
+  ("D" Buffer-menu-delete-backwards nil)
+  ("s" Buffer-menu-save nil)
+  ("~" Buffer-menu-not-modified nil)
+  ("x" Buffer-menu-execute nil)
+  ("b" Buffer-menu-bury nil)
+  ("g" revert-buffer nil)
+  ("T" Buffer-menu-toggle-files-only nil)
+  ("O" Buffer-menu-multi-occur nil :color blue)
+  ("I" Buffer-menu-isearch-buffers nil :color blue)
+  ("R" Buffer-menu-isearch-buffers-regexp nil :color blue)
+  ("c" nil "cancel")
+  ("v" Buffer-menu-select "select" :color blue)
+  ("o" Buffer-menu-other-window "other-window" :color blue)
+  ("q" quit-window "quit" :color blue))
+;; Recommended binding:
+;; (define-key Buffer-menu-mode-map "." 'hydra-buffer-menu/body)
+;;** Example 9: s-expressions in the docstring
+;; You can inline s-expresssions into the docstring like this:
+(when (bound-and-true-p hydra-examples-verbatim)
+  (eval-after-load 'dired
+    (defhydra hydra-marked-items (dired-mode-map "")
+      "
+Number of marked items: %(length (dired-get-marked-files))
+"
+      ("m" dired-mark "mark"))))
+
+;; This results in the following dynamic docstring:
+;;
+;;     (format "Number of marked items: %S\n"
+;;             (length (dired-get-marked-files)))
+;;
+;; You can use `format'-style width specs, e.g. % 10(length nil).
 
 ;;* Windmove helpers
 (require 'windmove)
@@ -195,54 +269,6 @@
         (windmove-find-other-window 'up))
       (shrink-window arg)
     (enlarge-window arg)))
-
-;;* Obsoletes
-(defvar hydra-example-text-scale
-  '(("g" text-scale-increase "zoom in")
-    ("l" text-scale-decrease "zoom out"))
-  "A two-headed hydra for text scale manipulation.")
-(make-obsolete-variable
- 'hydra-example-text-scale
- "Don't use `hydra-example-text-scale', just write your own
-`defhydra' using hydra-examples.el as a template"
- "0.9.0")
-
-(defvar hydra-example-move-window-splitter
-  '(("h" hydra-move-splitter-left)
-    ("j" hydra-move-splitter-down)
-    ("k" hydra-move-splitter-up)
-    ("l" hydra-move-splitter-right))
-  "A four-headed hydra for the window splitter manipulation.
-Works best if you have not more than 4 windows.")
-(make-obsolete-variable
- 'hydra-example-move-window-splitter
- "Don't use `hydra-example-move-window-splitter', just write your own
-`defhydra' using hydra-examples.el as a template"
- "0.9.0")
-
-(defvar hydra-example-goto-error
-  '(("h" first-error "first")
-    ("j" next-error "next")
-    ("k" previous-error "prev"))
-  "A three-headed hydra for jumping between \"errors\".
-Useful for e.g. `occur', `rgrep' and the like.")
-(make-obsolete-variable
- 'hydra-example-goto-error
- "Don't use `hydra-example-goto-error', just write your own
-`defhydra' using hydra-examples.el as a template"
- "0.9.0")
-
-(defvar hydra-example-windmove
-  '(("h" windmove-left)
-    ("j" windmove-down)
-    ("k" windmove-up)
-    ("l" windmove-right))
-  "A four-headed hydra for `windmove'.")
-(make-obsolete-variable
- 'hydra-example-windmove
- "Don't use `hydra-example-windmove', just write your own
-`defhydra' using hydra-examples.el as a template"
- "0.9.0")
 
 (provide 'hydra-examples)
 ;;; hydra-examples.el ends here
