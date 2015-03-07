@@ -1,10 +1,11 @@
 ;;; sotlisp.el --- Write lisp at the speed of thought.  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2014 Free Software Foundation, Inc.
+;; Copyright (C) 2014, 2015 Free Software Foundation, Inc.
 
 ;; Author: Artur Malabarba  <bruce.connor.am@gmail.com>
 ;; Keywords: convenience, lisp
 ;; Package-Requires: ((emacs "24.1"))
+;; Version: 0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -462,8 +463,7 @@ removes hooks and abbrevs."
                        (looking-at-p "#'")))
       (thing-at-point 'symbol)
     (let ((fcap (function-called-at-point)))
-      (if fcap
-          (symbol-name fcap)
+      (if fcap (symbol-name fcap)
         (thing-at-point 'symbol)))))
 
 (defun sotlisp-find-or-define-function (&optional prefix)
@@ -531,4 +531,3 @@ With a prefix argument, defines a `defvar' instead of a `defcustom'."
 
 (provide 'sotlisp)
 ;;; sotlisp.el ends here
-
