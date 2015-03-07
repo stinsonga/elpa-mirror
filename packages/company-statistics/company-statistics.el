@@ -4,11 +4,11 @@
 
 ;; Author: Ingo Lohmar <i.lohmar@gmail.com>
 ;; URL: https://github.com/company-mode/company-statistics
-;; Version: 0.1
+;; Version: 0.1.1
 ;; Keywords: abbrev, convenience, matching
 ;; Package-Requires: ((emacs "24.3") (company "0.8.5"))
 
-;; This file is not part of GNU Emacs.
+;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -153,7 +153,8 @@ number)."
     (write-file company-statistics-file)))
 
 (defun company-statistics--maybe-save ()
-  (when company-statistics-auto-save
+  (when (and (company-statistics--initialized-p)
+             company-statistics-auto-save)
     (company-statistics--save)))
 
 (defun company-statistics--load ()

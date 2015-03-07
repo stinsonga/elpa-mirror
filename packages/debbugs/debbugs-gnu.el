@@ -1,6 +1,6 @@
 ;;; debbugs-gnu.el --- interface for the GNU bug tracker
 
-;; Copyright (C) 2011-2014 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2015 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;;         Michael Albinus <michael.albinus@gmx.org>
@@ -92,6 +92,8 @@
 ;;   RET: Show corresponding messages in Gnus
 ;;   "C": Send a control message
 ;;   "t": Mark the bug locally as tagged
+;;   "b": Show bugs this bug is blocked by
+;;   "B": Show bugs this bug is blocking
 ;;   "d": Show bug attributes
 
 ;; Furthermore, you could apply the global actions
@@ -791,6 +793,8 @@ Used instead of `tabulated-list-print-entry'."
     (define-key map "x" 'debbugs-gnu-toggle-suppress)
     (define-key map "/" 'debbugs-gnu-narrow-to-status)
     (define-key map "w" 'debbugs-gnu-widen)
+    (define-key map "b" 'debbugs-gnu-show-blocked-by-reports)
+    (define-key map "B" 'debbugs-gnu-show-blocking-reports)
     (define-key map "C" 'debbugs-gnu-send-control-message)
     map))
 
@@ -925,6 +929,24 @@ The following commands are available:
     (tabulated-list-print)
     (when id
       (debbugs-gnu-goto id))))
+
+(defun debbugs-gnu-show-blocked-by-reports ()
+  "Display all bug reports this report is blocked by."
+  (interactive)
+  (let ((id (debbugs-gnu-current-id))
+	(status (debbugs-gnu-current-status)))
+    (if (null (cdr (assq 'blockedby status)))
+	(message "Bug %d is not blocked by any other bug" id)
+      (apply 'debbugs-gnu-bugs (cdr (assq 'blockedby status))))))
+
+(defun debbugs-gnu-show-blocking-reports ()
+  "Display all bug reports this report is blocking."
+  (interactive)
+  (let ((id (debbugs-gnu-current-id))
+	(status (debbugs-gnu-current-status)))
+    (if (null (cdr (assq 'blocks status)))
+	(message "Bug %d is not blocking any other bug" id)
+      (apply 'debbugs-gnu-bugs (cdr (assq 'blocks status))))))
 
 (defun debbugs-gnu-narrow-to-status (string &optional status-only)
   "Only display the bugs matching STRING.
@@ -1104,8 +1126,9 @@ removed instead."
 	  "Control message: "
 	  '("serious" "important" "normal" "minor" "wishlist"
 	    "done" "donenotabug" "donewontfix" "doneunreproducible"
-	    "unarchive" "reopen" "close"
+	    "unarchive" "unmerge" "reopen" "close"
 	    "merge" "forcemerge"
+	    "block" "unblock"
 	    "owner" "noowner"
 	    "invalid"
 	    "reassign"
@@ -1134,18 +1157,31 @@ removed instead."
 	       (format "%s.%s"
 		       (match-string 1 emacs-version)
 		       (match-string 2 emacs-version)))
-	      (t emacs-version))))))
+	      (t emacs-version)))))
+	 (status (debbugs-gnu-current-status)))
     (with-temp-buffer
       (insert "To: control@debbugs.gnu.org\n"
 	      "From: " (message-make-from) "\n"
 	      (format "Subject: control message for bug #%d\n" id)
 	      "\n"
 	      (cond
-	       ((member message '("unarchive" "reopen" "noowner"))
+	       ((member message '("unarchive" "unmerge" "reopen" "noowner"))
 		(format "%s %d\n" message id))
 	       ((member message '("merge" "forcemerge"))
 		(format "%s %d %s\n" message id
 			(read-string "Merge with bug #: ")))
+	       ((member message '("block" "unblock"))
+		(format
+		 "%s %d by %s\n" message id
+		 (mapconcat
+		  'identity
+		  (completing-read-multiple
+		   (format "%s with bug(s) #: " (capitalize message))
+		   (if (equal message "unblock")
+		       (mapcar 'number-to-string
+			       (cdr (assq 'blockedby status))))
+		   nil (and (equal message "unblock") status))
+		  " ")))
 	       ((equal message "owner")
 		(format "owner %d !\n" id))
 	       ((equal message "reassign")
