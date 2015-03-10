@@ -617,8 +617,7 @@ argument is a list of additional classes to import."
   (interactive)
   (barf-if-buffer-read-only)
   (save-excursion
-    (let ((kill-whole-line t)
-	  import-groups static-import-groups old-imports-start)
+    (let (import-groups static-import-groups old-imports-start)
       ;; existing imports
       (goto-char (point-min))
       (while (re-search-forward
@@ -633,9 +632,9 @@ argument is a list of additional classes to import."
 					      static-import-groups)))
 	(beginning-of-line)
 	(unless old-imports-start (setq old-imports-start (point)))
-	(kill-line)
-	;; delete whatever happened to be between import statements
-	(when (not (equal (point) old-imports-start))
+	(delete-region (point) (save-excursion (forward-line 1) (point)))
+	;; delete whatever was between import statements
+	(when (/= (point) old-imports-start)
 	  (delete-region old-imports-start (point))))
       ;; new imports
       (dolist (class new-classes)
@@ -645,15 +644,17 @@ argument is a list of additional classes to import."
 	  (progn
 	    ;; prepare the position
 	    (cond (old-imports-start
-		   ;; here we do not mangle with empty lines at all
+		   ;; when there were any imports, do not touch blank lines
+		   ;; before imports
 		   (goto-char old-imports-start))
 		  ((re-search-forward "^\\s-*package\\s-" nil t)
-		   ;; try to preserve all empty lines (if any) before the
-		   ;; following text
-		   (when (equal (forward-line) 1) (insert ?\n)) ;; last line?
+		   ;; when there is a package statement, insert one or two
+		   ;; blank lines after it
+		   (when (= (forward-line) 1) (insert ?\n)) ;; last line?
 		   (insert ?\n))
 		  (t
-		   ;; start from the bob; add one line after the insert pos
+		   ;; otherwise, start at the bob, insert one empty line
+		   ;; after point
 		   (goto-char (point-min))
 		   (insert ?\n)
 		   (backward-char)))
