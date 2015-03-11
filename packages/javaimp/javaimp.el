@@ -632,7 +632,7 @@ argument is a list of additional classes to import."
 					      static-import-groups)))
 	(beginning-of-line)
 	(unless old-imports-start (setq old-imports-start (point)))
-	(delete-region (point) (save-excursion (forward-line 1) (point)))
+	(delete-region (point) (line-beginning-position 2))
 	;; delete whatever was between import statements
 	(when (/= (point) old-imports-start)
 	  (delete-region old-imports-start (point))))
