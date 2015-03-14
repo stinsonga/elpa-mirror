@@ -89,6 +89,20 @@ Add the following to your `~/.emacs` file:
 
 ## Customizing
 
+### Options
+
+- `context-coloring-syntactic-comments` (default: `t`): If non-nil, also color
+  comments using `font-lock`.
+- `context-coloring-syntactic-strings` (default: `t`): If non-nil, also color
+  strings using `font-lock`.
+- `context-coloring-delay` (default: `0.25`; supported modes: `js-mode`,
+  `js3-mode`): Delay between a buffer update and colorization.
+- `context-coloring-js-block-scopes` (default: `nil`; supported modes:
+  `js2-mode`): If non-nil, also color block scopes in the scope hierarchy in
+  JavaScript.
+
+### Color Schemes
+
 Color schemes for custom themes are automatically applied when those themes are
 active. Built-in theme support is available for: `ample`, `anti-zenburn`,
 `grandshell`, `leuven`, `monokai`, `solarized`, `spacegray`, `tango` and
@@ -124,13 +138,13 @@ more info on dispatch strategies.)
 A "scopifier" is a CLI program that reads a buffer's contents from stdin and
 writes a JSON array of numbers to stdout. Every three numbers in the array
 represent a range of color. For instance, if I fed the following string of
-JavaScript code to a scopifier,
+JavaScript code to a scopifier:
 
 ```js
 var a = function () {};
 ```
 
-then the scopifier would produce the following array:
+Then the scopifier would produce the following array:
 
 ```js
 [1,24,0,9,23,1]
@@ -175,7 +189,7 @@ required.
 
 [linter]: http://jshint.com/about/
 [flycheck]: http://www.flycheck.org/
-[point]: http://www.gnu.org/software/emacs/manual/html_node/elisp/Point.html
 [js2-mode]: https://github.com/mooz/js2-mode
 [node]: http://nodejs.org/download/
 [scopifier]: https://github.com/jacksonrayhamilton/scopifier
+[point]: http://www.gnu.org/software/emacs/manual/html_node/elisp/Point.html

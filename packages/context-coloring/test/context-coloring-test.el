@@ -28,7 +28,9 @@
 
 ;;; Code:
 
+(require 'context-coloring)
 (require 'ert-async)
+(require 'js2-mode)
 
 
 ;;; Test running utilities
@@ -50,7 +52,8 @@
 (defun context-coloring-test-cleanup ()
   "Cleanup after all tests."
   (setq context-coloring-comments-and-strings t)
-  (setq context-coloring-after-colorize-hook nil)
+  (setq context-coloring-syntactic-comments nil)
+  (setq context-coloring-syntactic-strings nil)
   (setq context-coloring-js-block-scopes nil))
 
 (defmacro context-coloring-test-with-fixture (fixture &rest body)
@@ -68,16 +71,15 @@ buffer."
   "Create a temporary buffer, and evaluate CALLBACK there.  A
 teardown callback is passed to CALLBACK for it to invoke when it
 is done."
-  (let ((temp-buffer (make-symbol "temp-buffer")))
-    (let ((previous-buffer (current-buffer))
-          (temp-buffer (generate-new-buffer " *temp*")))
-      (set-buffer temp-buffer)
-      (funcall
-       callback
-       (lambda ()
-         (and (buffer-name temp-buffer)
-              (kill-buffer temp-buffer))
-         (set-buffer previous-buffer))))))
+  (let ((previous-buffer (current-buffer))
+        (temp-buffer (generate-new-buffer " *temp*")))
+    (set-buffer temp-buffer)
+    (funcall
+     callback
+     (lambda ()
+       (and (buffer-name temp-buffer)
+            (kill-buffer temp-buffer))
+       (set-buffer previous-buffer)))))
 
 (defun context-coloring-test-with-fixture-async
     (fixture callback &optional setup)
@@ -113,7 +115,7 @@ instantiated in SETUP."
         (funcall callback done-with-test))))
    setup))
 
-(defmacro context-coloring-test-js2-mode (fixture &rest body)
+(defmacro context-coloring-test-js2-mode (fixture setup &rest body)
   "Use FIXTURE as the subject matter for test logic in BODY."
   `(context-coloring-test-with-fixture
     ,fixture
@@ -121,16 +123,20 @@ instantiated in SETUP."
     (setq js2-mode-show-parse-errors nil)
     (setq js2-mode-show-strict-warnings nil)
     (js2-mode)
+    (when ,setup (funcall ,setup))
     (context-coloring-mode)
     ,@body))
 
-(defmacro context-coloring-test-deftest-js-mode (name)
+(cl-defmacro context-coloring-test-deftest-js-mode (name &key fixture-name)
   "Define an asynchronous test for `js-mode' with the name NAME
 in the typical format."
+  (declare (indent defun))
   (let ((test-name (intern (format "context-coloring-test-js-mode-%s" name)))
-        (fixture (format "./fixtures/%s.js" name))
+        (fixture (format "./fixtures/%s.js" (or fixture-name name)))
         (function-name (intern-soft
-                        (format "context-coloring-test-js-%s" name))))
+                        (format "context-coloring-test-js-%s" name)))
+        (setup-function-name (intern-soft
+                              (format "context-coloring-test-js-%s-setup" name))))
     `(ert-deftest-async ,test-name (done)
                         (context-coloring-test-js-mode
                          ,fixture
@@ -138,18 +144,23 @@ in the typical format."
                            (unwind-protect
                                (,function-name)
                              (funcall teardown))
-                           (funcall done))))))
+                           (funcall done))
+                         ',setup-function-name))))
 
-(defmacro context-coloring-test-deftest-js2-mode (name)
+(cl-defmacro context-coloring-test-deftest-js2-mode (name &key fixture-name)
   "Define a test for `js2-mode' with the name NAME in the typical
 format."
+  (declare (indent defun))
   (let ((test-name (intern (format "context-coloring-test-js2-mode-%s" name)))
-        (fixture (format "./fixtures/%s.js" name))
+        (fixture (format "./fixtures/%s.js" (or fixture-name name)))
         (function-name (intern-soft
-                        (format "context-coloring-test-js-%s" name))))
+                        (format "context-coloring-test-js-%s" name)))
+        (setup-function-name (intern-soft
+                              (format "context-coloring-test-js-%s-setup" name))))
     `(ert-deftest ,test-name ()
        (context-coloring-test-js2-mode
         ,fixture
+        ',setup-function-name
         (,function-name)))))
 
 
@@ -163,8 +174,7 @@ Provides the free variables `i', `length', `point', `face' and
          (length (- end start)))
      (while (< i length)
        (let* ((point (+ i start))
-              (face (get-text-property point 'face))
-              actual-level)
+              (face (get-text-property point 'face)))
          ,@body)
        (setq i (+ i 1)))))
 
@@ -172,23 +182,24 @@ Provides the free variables `i', `length', `point', `face' and
   "Assert that all points in the range [START, END) are of level
 LEVEL."
   (context-coloring-test-assert-region
-   (when (not (when face
-                (let* ((face-string (symbol-name face))
-                       (matches (string-match
-                                 context-coloring-level-face-regexp
-                                 face-string)))
-                  (when matches
-                    (setq actual-level (string-to-number
-                                        (substring face-string
-                                                   (match-beginning 1)
-                                                   (match-end 1))))
-                    (= level actual-level)))))
-     (ert-fail (format (concat "Expected level in region [%s, %s), "
-                               "which is \"%s\", to be %s; "
-                               "but at point %s, it was %s")
-                       start end
-                       (buffer-substring-no-properties start end) level
-                       point actual-level)))))
+   (let (actual-level)
+     (when (not (when face
+                  (let* ((face-string (symbol-name face))
+                         (matches (string-match
+                                   context-coloring-level-face-regexp
+                                   face-string)))
+                    (when matches
+                      (setq actual-level (string-to-number
+                                          (substring face-string
+                                                     (match-beginning 1)
+                                                     (match-end 1))))
+                      (= level actual-level)))))
+       (ert-fail (format (concat "Expected level in region [%s, %s), "
+                                 "which is \"%s\", to be %s; "
+                                 "but at point %s, it was %s")
+                         start end
+                         (buffer-substring-no-properties start end) level
+                         point actual-level))))))
 
 (defun context-coloring-test-assert-region-face (start end expected-face)
   "Assert that all points in the range [START, END) have the face
@@ -690,32 +701,68 @@ see that function."
 (context-coloring-test-deftest-js-mode key-values)
 (context-coloring-test-deftest-js2-mode key-values)
 
-(defun context-coloring-test-js-comments-and-strings ()
-  "Test fixtures/comments-and-strings.js."
-  (context-coloring-test-assert-region-comment-delimiter 1 4)
-  (context-coloring-test-assert-region-comment 4 8)
+(defun context-coloring-test-js-syntactic-comments-and-strings ()
+  "Test comments and strings."
+  (context-coloring-test-assert-region-level 1 8 0)
   (context-coloring-test-assert-region-comment-delimiter 9 12)
-  (context-coloring-test-assert-region-comment 12 19)
-  (context-coloring-test-assert-region-string 20 32)
-  (context-coloring-test-assert-region-level 32 33 0))
+  (context-coloring-test-assert-region-comment 12 16)
+  (context-coloring-test-assert-region-comment-delimiter 17 20)
+  (context-coloring-test-assert-region-comment 20 27)
+  (context-coloring-test-assert-region-string 28 40)
+  (context-coloring-test-assert-region-level 40 41 0))
 
-(ert-deftest-async context-coloring-test-js-mode-comments-and-strings (done)
-  (context-coloring-test-js-mode
-   "./fixtures/comments-and-strings.js"
-   (lambda (teardown)
-     (unwind-protect
-         (context-coloring-test-js-comments-and-strings)
-       (funcall teardown))
-     (funcall done))
-   (lambda ()
-     (setq context-coloring-comments-and-strings t))))
+(defun context-coloring-test-js-syntactic-comments-and-strings-setup ()
+  (setq context-coloring-syntactic-comments t)
+  (setq context-coloring-syntactic-strings t))
 
-(ert-deftest context-coloring-test-js2-mode-comments-and-strings ()
-  (context-coloring-test-js2-mode
-   "./fixtures/comments-and-strings.js"
-   (setq context-coloring-comments-and-strings t)
-   (context-coloring-colorize)
-   (context-coloring-test-js-comments-and-strings)))
+(context-coloring-test-deftest-js-mode syntactic-comments-and-strings
+  :fixture-name comments-and-strings)
+(context-coloring-test-deftest-js2-mode syntactic-comments-and-strings
+  :fixture-name comments-and-strings)
+
+(defalias 'context-coloring-test-js-comments-and-strings
+  'context-coloring-test-js-syntactic-comments-and-strings
+  "Test comments and strings.  Deprecated.")
+
+(defun context-coloring-test-js-comments-and-strings-setup ()
+  "Setup comments and strings.  Deprecated."
+  (setq context-coloring-comments-and-strings t))
+
+(context-coloring-test-deftest-js-mode comments-and-strings)
+(context-coloring-test-deftest-js2-mode comments-and-strings)
+
+(defun context-coloring-test-js-syntactic-comments ()
+  "Test syntactic comments."
+  (context-coloring-test-assert-region-level 1 8 0)
+  (context-coloring-test-assert-region-comment-delimiter 9 12)
+  (context-coloring-test-assert-region-comment 12 16)
+  (context-coloring-test-assert-region-comment-delimiter 17 20)
+  (context-coloring-test-assert-region-comment 20 27)
+  (context-coloring-test-assert-region-level 28 41 0))
+
+(defun context-coloring-test-js-syntactic-comments-setup ()
+  "Setup syntactic comments."
+  (setq context-coloring-syntactic-comments t))
+
+(context-coloring-test-deftest-js-mode syntactic-comments
+  :fixture-name comments-and-strings)
+(context-coloring-test-deftest-js2-mode syntactic-comments
+  :fixture-name comments-and-strings)
+
+(defun context-coloring-test-js-syntactic-strings ()
+  "Test syntactic strings."
+  (context-coloring-test-assert-region-level 1 28 0)
+  (context-coloring-test-assert-region-string 28 40)
+  (context-coloring-test-assert-region-level 40 41 0))
+
+(defun context-coloring-test-js-syntactic-strings-setup ()
+  "Setup syntactic strings."
+  (setq context-coloring-syntactic-strings t))
+
+(context-coloring-test-deftest-js-mode syntactic-strings
+  :fixture-name comments-and-strings)
+(context-coloring-test-deftest-js2-mode syntactic-strings
+  :fixture-name comments-and-strings)
 
 (provide 'context-coloring-test)
 
