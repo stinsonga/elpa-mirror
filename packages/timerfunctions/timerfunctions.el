@@ -7,6 +7,7 @@
 ;; Filename: timerfunctions.el
 ;; Author: Dave Goel <deego3@gmail.com>
 ;; Version: 1.4.2
+;; Package-Requires: ((cl-lib "0.5"))
 ;; Created: 2000/11/20
 ;; Author's homepage: http://gnufans.net/~deego
 
@@ -35,6 +36,8 @@
 ;; See also: midnight.el (part of Emacs), timer.el
 
 ;;; Code:
+
+(eval-when-compile (require 'cl-lib))
 
 (defvar timerfunctions-version "1.4.2")
 
@@ -194,12 +197,12 @@ unless you clean things up carefully!"
 	(mytag nil)
 	(myvar nil)
 	)
-    (loop
+    (cl-loop
      for ctr from 0 to 10 do
      (message "ctr=%S" ctr)
      (tf-with-timeout 'inhi 'mytah 'myvar
       (0.3 nil)
-      (loop for i from 0 to 100000 do
+      (cl-loop for i from 0 to 100000 do
 	    (message "ctr=%S, i=%S" ctr i)
 	    (setq inhi t)
 	    (setq a (random 100))
@@ -208,7 +211,7 @@ unless you clean things up carefully!"
 	    (setq inhi nil)
 	    (sleep-for 0.02)
 	    ))
-     (if (equal b a) (incf goodcount) (incf badcount)))
+     (if (equal b a) (cl-incf goodcount) (cl-incf badcount)))
     (message "Goodcount: %S; badcount: %S" goodcount badcount)))
 
 
@@ -226,18 +229,18 @@ unless you clean things up carefully!"
     (tf-with-timeout
      'inhi 'mytag 'myvar
      (0.1 nil)
-     (loop for i from 0 to 10000 do
+     (cl-loop for i from 0 to 10000 do
 	   (message "first loop. ctr=%S, i=%S, " ctr i)
-	   (incf a))
+	   (cl-incf a))
      (message "initial loop ends here.")
      ;; no throw here because loop prohibited.
      (tf-with-timeout-check 'inhi 'mytag 'myvar)
      ;; this shouldn't help either
      (sit-for 0.3)
 
-     (loop for i from 0 to 10000 do
+     (cl-loop for i from 0 to 10000 do
 	   (message "second loop.  i=%S" i)
-	   (incf a))
+	   (cl-incf a))
      (message "second loop ends here.")
      (setq inhi nil)
      ;; this should throw.
@@ -245,9 +248,9 @@ unless you clean things up carefully!"
      ;; this should NOT be needed.
      ;;(sit-for 0.2)
      ;; this loop should never take place.
-     (loop for i from 0 to 1000 do
+     (cl-loop for i from 0 to 1000 do
 	   (message "third loop, i=%S" i)
-	   (incf a))
+	   (cl-incf a))
      (message "third loop ends here."))
     (message "%S" a)
     a))
@@ -290,16 +293,9 @@ a timer.  Will simply use `sit-for'."
 ;; FIXME: Use `with-demoted-errors' instead.
 (defmacro tf-ignore-errors (&rest body)
  "Ignore errors in BODY, but loudly."
- (let ((err (gensym)))
-   (list 'condition-case err (cons 'progn body)
-	 (list 'error
-	       (list 'message
-		     (list 'concat
-			   "IGNORED ERROR: "
-			   (list 'error-message-string err)))))
-   ))
-
-
+ (let ((err (make-symbol "err")))
+   `(condition-case ,err (progn ,@body)
+      (error (message "IGNORED ERROR: %s" (error-message-string ,err))))))
 
 
 (defvar tf-with-timeout-repeat-sec 0.01
