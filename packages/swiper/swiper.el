@@ -4,7 +4,7 @@
 
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
 ;; URL: https://github.com/abo-abo/swiper
-;; Version: 0.1.0
+;; Version: 0.2.0
 ;; Package-Requires: ((emacs "24.1") (ivy "0.1.0"))
 ;; Keywords: matching
 
@@ -72,13 +72,38 @@
   "Only highlight matches for regexps at least this long."
   :type 'integer)
 
+(defvar swiper-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "M-q") 'swiper-query-replace)
+    map)
+  "Keymap for swiper.")
+
+(defun swiper-query-replace ()
+  "Start `query-replace' with string to replace from last search string."
+  (interactive)
+  (if (null (window-minibuffer-p))
+      (user-error "Should only be called in the minibuffer through `swiper-map'")
+    (let* ((from (ivy--regex ivy-text))
+           (to (query-replace-read-to from "Query replace" t)))
+      (delete-minibuffer-contents)
+      (setq ivy--action
+            (lambda ()
+              (perform-replace from to
+                               t t t)))
+      (swiper--cleanup)
+      (exit-minibuffer))))
+
 (defvar swiper--window nil
   "Store the current window.")
 
 (defun swiper-font-lock-ensure ()
   "Ensure the entired buffer is highlighted."
   (unless (or (derived-mode-p 'magit-mode)
-              (memq major-mode '(package-menu-mode emms-playlist-mode)))
+              (memq major-mode '(package-menu-mode
+                                 gnus-summary-mode
+                                 gnus-article-mode
+                                 gnus-group-mode
+                                 emms-playlist-mode erc-mode)))
     (if (fboundp 'font-lock-ensure)
         (font-lock-ensure)
       (font-lock-fontify-buffer))))
@@ -146,8 +171,9 @@ When non-nil, INITIAL-INPUT is the initial search pattern."
                      "%s" "pattern: " swiper--format-spec)
                     candidates
                     initial-input
-                    #'swiper--update-input-ivy
-                    preselect))
+                    swiper-map
+                    preselect
+                    #'swiper--update-input-ivy))
       (ido-mode 1)
       (swiper--cleanup)
       (if (null ivy-exit)
