@@ -56,6 +56,8 @@
           (set-window-parameter lv-wnd 'no-other-window t))
         (select-window ori)))))
 
+(defvar golden-ratio-mode)
+
 (defun lv-message (format-string &rest args)
   "Set LV window contents to (`format' FORMAT-STRING ARGS)."
   (let* ((ori (selected-window))

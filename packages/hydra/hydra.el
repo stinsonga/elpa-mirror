@@ -396,6 +396,9 @@ BODY is the second argument to `defhydra'"
       (delete-window lv-wnd)
       (kill-buffer buf))))
 
+(defvar hydra-timer (timer-create)
+  "Timer for `hydra-timeout'.")
+
 (defun hydra-keyboard-quit ()
   "Quitting function similar to `keyboard-quit'."
   (interactive)
@@ -658,6 +661,11 @@ OTHER-POST is an optional extension to the :post key of BODY."
               (recur (cdr map)))))))
     (recur keymap)))
 
+(defmacro hydra--make-funcall (sym)
+  "Transform SYM into a `funcall' that calls it."
+  `(when (and ,sym (symbolp ,sym))
+     (setq ,sym `(funcall #',,sym))))
+
 (defun hydra--handle-nonhead (keymap name body heads)
   "Setup KEYMAP for intercepting non-head bindings.
 NAME, BODY and HEADS are parameters to `defhydra'."
@@ -729,6 +737,16 @@ In duplicate HEADS, :cmd-name is modified to whatever they duplicate."
     (if (= len n)
         lst
       (append lst (make-list (- n len) nil)))))
+
+(defmacro hydra-multipop (lst n)
+  "Return LST's first N elements while removing them."
+  `(if (<= (length ,lst) ,n)
+       (prog1 ,lst
+         (setq ,lst nil))
+     (prog1 ,lst
+       (setcdr
+        (nthcdr (1- ,n) (prog1 ,lst (setq ,lst (nthcdr ,n ,lst))))
+        nil))))
 
 (defun hydra--matrix (lst rows cols)
   "Create a matrix from elements of LST.
@@ -805,9 +823,6 @@ If CELL-FORMATS is nil, `hydra-cell-format' is used for all columns."
 NAMES should be defined by `defhydradio' or similar."
   (dolist (n names)
     (set n (aref (get n 'range) 0))))
-
-(defvar hydra-timer (timer-create)
-  "Timer for `hydra-timeout'.")
 
 (defun hydra-timeout (secs &optional function)
   "In SECS seconds call FUNCTION, then function `hydra-keyboard-quit'.
@@ -974,11 +989,6 @@ result of `defhydra'."
            (or body-body-pre body-pre) body-post
            '(setq prefix-arg current-prefix-arg))))))
 
-(defmacro hydra--make-funcall (sym)
-  "Transform SYM into a `funcall' that calls it."
-  `(when (and ,sym (symbolp ,sym))
-     (setq ,sym `(funcall #',,sym))))
-
 (defmacro defhydradio (name _body &rest heads)
   "Create radios with prefix NAME.
 _BODY specifies the options; there are none currently.
@@ -1001,16 +1011,6 @@ DOC defaults to TOGGLE-NAME split and capitalized."
      (defvar ,(intern (format "%S/names" name))
        ',(mapcar (lambda (h) (intern (format "%S/%S" name (car h))))
                  heads))))
-
-(defmacro hydra-multipop (lst n)
-  "Return LST's first N elements while removing them."
-  `(if (<= (length ,lst) ,n)
-       (prog1 ,lst
-         (setq ,lst nil))
-     (prog1 ,lst
-       (setcdr
-        (nthcdr (1- ,n) (prog1 ,lst (setq ,lst (nthcdr ,n ,lst))))
-        nil))))
 
 (defun hydra--radio (parent head)
   "Generate a hydradio with PARENT from HEAD."

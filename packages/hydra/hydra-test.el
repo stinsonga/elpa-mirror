@@ -25,6 +25,7 @@
 ;;; Code:
 
 (require 'ert)
+(require 'hydra)
 
 (ert-deftest hydra-red-error ()
   (should

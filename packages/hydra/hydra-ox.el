@@ -25,6 +25,7 @@
 
 ;;; Code:
 (require 'org)
+(require 'hydra)                        ;`defhydradio' is not autoloaded!
 
 (defhydradio hydra-ox ()
   (body-only "Export only the body.")
