@@ -914,7 +914,7 @@ offered by SERVICE."
 	       skeleton))
 
 	   ;; Define a destructor.
-	   (cl-defmethod ,(intern (format "%s-destroy" name)) (skeleton)
+	   (cl-defgeneric ,(intern (format "%s-destroy" name)) (skeleton)
 	     "Destroy a D-Bus skeleton SKELETON.")
 
 	   (cl-defmethod ,(intern (format "%s-destroy" name)) ((skeleton ,name))
