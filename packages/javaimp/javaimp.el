@@ -1,6 +1,6 @@
 ;;; javaimp.el --- Add and reorder Java import statements in Maven projects  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2014  Free Software Foundation, Inc.
+;; Copyright (C) 2014, 2015  Free Software Foundation, Inc.
 
 ;; Author: Filipp Gunbin <fgunbin@fastmail.fm>
 ;; Maintainer: Filipp Gunbin <fgunbin@fastmail.fm>
@@ -89,6 +89,9 @@
 
 
 ;;; User options
+
+(defgroup javaimp ()
+  "Add and reorder Java import statements in Maven projects.")
 
 (defcustom javaimp-import-group-alist '(("\\`javax?\\." . 10))
   "Specifies how to group classes and how to order resulting groups in the
@@ -191,6 +194,8 @@ class name.  The order of classes which were not matched is defined by
 
 ;; An artifact is represented as a list: (GROUP-ID ARTIFACT-ID VERSION).
 
+;; FIXME: use cl-defstruct!
+
 (defun javaimp-make-artifact (group-id artifact-id version)
   (list group-id artifact-id version))
 
@@ -201,13 +206,13 @@ class name.  The order of classes which were not matched is defined by
   (cadr artifact))
 
 (defun javaimp-artifact-version (artifact)
-  (caddr artifact))
+  (nth 2 artifact))
 
 (defun javaimp-artifact-to-string (artifact)
   (format "%s:%s:%s"
 	  (javaimp-artifact-artifact-id artifact)
 	  (javaimp-artifact-group-id artifact)
-	  (javaimp-artifact-version (artifact))))
+	  (javaimp-artifact-version artifact))) ;FIXME: `artifact' is not a function!
 
 (defun javaimp-parse-artifact (artifact)
   (apply #'javaimp-make-artifact (split-string artifact ":")))
@@ -271,7 +276,7 @@ with POM"
   (javaimp-call-mvn
    pom "help:effective-pom"
    (lambda ()
-     (let (xml-start-pos xml-end-pos start-tag)
+     (let (xml-start-pos xml-end-pos)
        ;; find where we should start parsing XML
        (goto-char (point-min))
        (re-search-forward "<\\?xml\\|<projects?>")
