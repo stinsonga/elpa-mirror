@@ -41,7 +41,7 @@ and modified without restriction.
 @top Debbugs User Guide
 
 Debbugs is a bugtracking system (BTS) that was initially written for
-the Debian project but actually used also by the GNU project.  The
+the Debian project but currently used also by the GNU project.  The
 main distinctive feature of Debbugs is that it's mostly email-based.
 All actions on bug reports: opening, closing, changing the status,
 commenting, forwarding are performed via email by sending specially

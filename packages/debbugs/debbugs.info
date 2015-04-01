@@ -30,7 +30,7 @@ Debbugs Programmer's Manual
 ***************************
 
 Debbugs is a bugtracking system (BTS) that was initially written for the
-Debian project but actually used also by the GNU project.  The main
+Debian project but currently used also by the GNU project.  The main
 distinctive feature of Debbugs is that it's mostly email-based.  All
 actions on bug reports: opening, closing, changing the status,
 commenting, forwarding are performed via email by sending specially
@@ -531,11 +531,11 @@ package names as user identification.
 
 Tag Table:
 Node: Top1089
-Node: Installation3042
-Node: Configuration4141
-Node: Requesting bug numbers6047
-Node: Requesting bugs statuses11275
-Node: Requesting messages15326
-Node: Requesting user tags18342
+Node: Installation3043
+Node: Configuration4142
+Node: Requesting bug numbers6048
+Node: Requesting bugs statuses11276
+Node: Requesting messages15327
+Node: Requesting user tags18343
 
 End Tag Table
