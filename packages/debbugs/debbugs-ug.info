@@ -30,7 +30,7 @@ Debbugs User Guide
 ******************
 
 Debbugs is a bugtracking system (BTS) that was initially written for the
-Debian project but actually used also by the GNU project.  The main
+Debian project but currently used also by the GNU project.  The main
 distinctive feature of Debbugs is that it's mostly email-based.  All
 actions on bug reports: opening, closing, changing the status,
 commenting, forwarding are performed via email by sending specially
@@ -525,16 +525,16 @@ Key Index
 
 Tag Table:
 Node: Top1087
-Node: Retrieving Bugs2563
-Node: Searching Bugs6085
-Ref: Searching Bugs-Footnote-19954
-Ref: Searching Bugs-Footnote-210042
-Node: Layout10133
-Node: Tabulated Lists10611
-Node: TODO Items13045
-Node: Control Messages14310
-Node: Command Index16470
-Node: Variable Index17054
-Node: Key Index17570
+Node: Retrieving Bugs2564
+Node: Searching Bugs6086
+Ref: Searching Bugs-Footnote-19955
+Ref: Searching Bugs-Footnote-210043
+Node: Layout10134
+Node: Tabulated Lists10612
+Node: TODO Items13046
+Node: Control Messages14311
+Node: Command Index16471
+Node: Variable Index17055
+Node: Key Index17571
 
 End Tag Table
