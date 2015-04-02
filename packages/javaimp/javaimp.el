@@ -40,6 +40,10 @@
 ;; 
 ;;  `javaimp-jdk-home' is a path for JDK.  It is used to scan JDK jars.
 ;; Usually you will need to set this.
+;;
+;;  `javaimp-additional-source-dirs' is a list specifying directories where
+;; additional (e.g. generated) source files reside.  Each directory is a
+;; relative path from ${project.build.directory} project property value.
 ;; 
 ;;  `javaimp-mvn-program' defines path of the `mvn' program.  Use if it's
 ;; not on `exec-path'.
@@ -65,9 +69,13 @@
 ;; Sample setup (put this into your .emacs):
 ;; 
 ;; (require 'javaimp)
-;; (add-to-list
-;;   'javaimp-import-group-alist '("\\`\\(ru\\.yota\\.\\|tv\\.okko\\.\\)" . 80))
-;; (setq javaimp-jdk-home "/opt/java")
+;; 
+;; (add-to-list 'javaimp-import-group-alist '("\\`\\(ru\\.yota\\.\\|tv\\.okko\\.\\)" . 80))
+;; 
+;; (setq javaimp-jdk-home (getenv "JAVA_HOME"))
+;; (setq javaimp-include-current-project-classes t)
+;; (setq javaimp-additional-source-dirs '("generated-sources/thrift"))
+;; 
 ;; (add-hook 'java-mode-hook
 ;; 	  (lambda ()
 ;; 	    (local-set-key "\C-ci" 'javaimp-add-import)
@@ -94,10 +102,14 @@
   "Add and reorder Java import statements in Maven projects.")
 
 (defcustom javaimp-import-group-alist '(("\\`javax?\\." . 10))
-  "Specifies how to group classes and how to order resulting groups in the
-imports list.  Each element should be of the form `(CLASSNAME-REGEXP
-. ORDER)' where `CLASSNAME-REGEXP' is a regexp matching the fully qualified
-class name.  The order of classes which were not matched is defined by
+  "Specifies how to group classes and how to order resulting
+groups in the imports list.
+
+Each element should be of the form `(CLASSNAME-REGEXP . ORDER)'
+where `CLASSNAME-REGEXP' is a regexp matching the fully qualified
+class name.
+
+The order of classes which were not matched is defined by
 `javaimp-import-default-order'.")
 
 (defcustom javaimp-import-default-order 50
@@ -106,6 +118,23 @@ class name.  The order of classes which were not matched is defined by
 
 (defcustom javaimp-jdk-home nil
   "Path to the JDK")
+
+(defcustom javaimp-additional-source-dirs nil
+  "List of directories where additional (e.g. generated)
+source files reside.
+
+Each directory is a relative path from ${project.build.directory} project
+property value.
+
+Typically you would check documentation for a Maven plugin, look
+at the parameter's default value there and add it to this list.
+
+E.g. \"${project.build.directory}/generated-sources/<plugin_name>\"
+becomes \"generated-sources/<plugin_name>\" (note the absence
+of the leading slash.
+
+Custom values set in plugin configuration in pom.xml are not
+supported yet.")
 
 (defcustom javaimp-mvn-program "mvn"
   "Path to the `mvn' program")
@@ -117,8 +146,10 @@ class name.  The order of classes which were not matched is defined by
   "Path to the `jar' program")
 
 (defcustom javaimp-include-current-project-classes t
-  "If non-nil, current project's classes are included into
-  completion alternatives.  Only top-level classes are included.")
+  "If non-nil, current project's classes are included into completion
+alternatives.
+
+Only top-level classes are included.")
 
 
 ;;; Variables and constants
@@ -152,11 +183,13 @@ class name.  The order of classes which were not matched is defined by
 
 
 ;; A module is represented as a list of the form `(ARTIFACT POM-FILE
-;; SOURCE-DIR TEST-SOURCE-DIR POM-FILE-MOD-TS PARENT PARENT-TS)'.
+;; SOURCE-DIR TEST-SOURCE-DIR BUILD-DIR POM-FILE-MOD-TS PARENT PARENT-TS)'.
 
-(defsubst javaimp-make-mod (artifact pom-file source-dir test-source-dir
-				     pom-file-mod-ts jars-list parent parent-ts)
-  (list artifact pom-file source-dir test-source-dir
+(defsubst javaimp-make-mod (artifact pom-file source-dir
+				     test-source-dir build-dir
+				     pom-file-mod-ts jars-list
+				     parent parent-ts)
+  (list artifact pom-file source-dir test-source-dir build-dir
 	pom-file-mod-ts jars-list parent parent-ts))
 
 (defsubst javaimp-get-mod-artifact (module)
@@ -171,25 +204,28 @@ class name.  The order of classes which were not matched is defined by
 (defsubst javaimp-get-mod-test-source-dir (module)
   (nth 3 module))
 
-(defsubst javaimp-get-mod-pom-mod-ts (module)
+(defsubst javaimp-get-mod-build-dir (module)
   (nth 4 module))
-(defsubst javaimp-set-mod-pom-mod-ts (module value)
-  (setcar (nthcdr 4 module) value))
 
-(defsubst javaimp-get-mod-pom-deps (module)
+(defsubst javaimp-get-mod-pom-mod-ts (module)
   (nth 5 module))
-(defsubst javaimp-set-mod-pom-deps (module value)
+(defsubst javaimp-set-mod-pom-mod-ts (module value)
   (setcar (nthcdr 5 module) value))
 
-(defsubst javaimp-get-mod-parent (module)
+(defsubst javaimp-get-mod-pom-deps (module)
   (nth 6 module))
-(defsubst javaimp-set-mod-parent (module value)
+(defsubst javaimp-set-mod-pom-deps (module value)
   (setcar (nthcdr 6 module) value))
 
-(defsubst javaimp-get-mod-parent-ts (module)
+(defsubst javaimp-get-mod-parent (module)
   (nth 7 module))
-(defsubst javaimp-set-mod-parent-ts (module value)
+(defsubst javaimp-set-mod-parent (module value)
   (setcar (nthcdr 7 module) value))
+
+(defsubst javaimp-get-mod-parent-ts (module)
+  (nth 8 module))
+(defsubst javaimp-set-mod-parent-ts (module value)
+  (setcar (nthcdr 8 module) value))
 
 
 ;; An artifact is represented as a list: (GROUP-ID ARTIFACT-ID VERSION).
@@ -268,7 +304,7 @@ PATH.  PATH should point to a directory."
 	 (list (assq 'project xml-tree)))
 	(t
 	 (error "Cannot find projects in mvn output"))))
-	
+
 (defun javaimp-maven-load-module-tree (pom)
   "Returns an alist of all Maven modules in a hierarchy starting
 with POM"
@@ -320,6 +356,8 @@ with POM"
 	     (test-source-dir (javaimp-xml-first-child
 			       (javaimp-xml-child 'testSourceDirectory
 						  build)))
+	     (build-dir (javaimp-xml-first-child
+			 (javaimp-xml-child 'directory build)))
 	     (parent (javaimp-make-artifact-from-xml
 		      (javaimp-xml-child 'parent proj))))
 	(push (javaimp-make-mod 
@@ -335,6 +373,11 @@ with POM"
 		    (car (process-lines javaimp-cygpath-program "-u" 
 					test-source-dir))
 		  test-source-dir))
+	       (file-name-as-directory
+		(if (eq system-type 'cygwin) 
+		    (car (process-lines javaimp-cygpath-program "-u" 
+					build-dir))
+		  build-dir))
 	       nil nil parent nil)
 	      result)))))
 
@@ -394,8 +437,8 @@ the temporary buffer and returns its result"
 	      (process-file javaimp-mvn-program nil t nil "-f" pom-file target)))
 	   (output-buf (current-buffer)))
       (with-current-buffer (get-buffer-create javaimp-debug-buf-name)
-	  (erase-buffer)
-	  (insert-buffer-substring output-buf))
+	(erase-buffer)
+	(insert-buffer-substring output-buf))
       (unless (and (numberp status) (= status 0))
 	(error "Maven target \"%s\" failed with status \"%s\""
 	       target status))
@@ -431,7 +474,7 @@ the temporary buffer and returns its result"
       (or (null last-ts)		; reading for the first time?
 	  (not (equal (float-time curr-ts) (float-time last-ts)))
 	  (javaimp-any-file-ts-updated (cdr files))))))
-      
+
 (defun javaimp-get-dep-jars-cached (module parent)
   "Returns a list of dependency jar file paths for a MODULE.
 Both MODULE and PARENT poms are checked for updates because
@@ -443,9 +486,9 @@ MODULE."
 			 (when parent
 			   (cons
 			    (javaimp-get-mod-pom-file parent)
-			   ;; here we check the saved parent ts because it
-			   ;; matters what version we had when we were
-			   ;; reloading this pom the last time
+			    ;; here we check the saved parent ts because it
+			    ;; matters what version we had when we were
+			    ;; reloading this pom the last time
 			    (javaimp-get-mod-parent-ts module))))))
     ;; (re-)fetch dependencies
     (javaimp-set-mod-pom-deps
@@ -491,7 +534,7 @@ directory"
 	(push (replace-regexp-in-string "[/$]" "." (match-string 1))
 	      result))
       result)))
-			     
+
 (defun javaimp-collect-jar-classes (jar-paths)
   (let (result jar)
     (dolist (jar-path jar-paths result)
@@ -515,7 +558,7 @@ directory"
 	 (car modules))
 	(t
 	 (javaimp-get-module (cdr modules) predicate))))
-  
+
 (defun javaimp-get-module-by-file (file)
   (javaimp-get-module-from-root
    javaimp-maven-root-modules
@@ -528,7 +571,7 @@ directory"
    javaimp-maven-root-modules
    (lambda (mod)
      (equal (javaimp-get-mod-artifact mod) artifact))))
-     
+
 
 ;;; Adding and organizing imports
 
@@ -561,11 +604,20 @@ module."
   "Scans current project and returns a list of top-level classes in both the
 source directory and test source directory"
   (let ((src-dir (javaimp-get-mod-source-dir module))
-	(test-src-dir (javaimp-get-mod-test-source-dir module)))
-  (append (and (file-accessible-directory-p src-dir)
-	       (javaimp-get-directory-classes src-dir nil))
-	  (and (file-accessible-directory-p test-src-dir)
-	       (javaimp-get-directory-classes test-src-dir nil)))))
+	(test-src-dir (javaimp-get-mod-test-source-dir module))
+	(build-dir (javaimp-get-mod-build-dir module)))
+    (append
+     (and javaimp-additional-source-dirs
+	  (seq-mapcat
+	   (lambda (rel-dir)
+	     (let ((dir (file-name-as-directory (concat build-dir rel-dir))))
+	       (and (file-accessible-directory-p dir)
+		    (javaimp-get-directory-classes dir nil))))
+	   javaimp-additional-source-dirs))
+     (and (file-accessible-directory-p test-src-dir)
+	  (javaimp-get-directory-classes test-src-dir nil))
+     (and (file-accessible-directory-p src-dir)
+	  (javaimp-get-directory-classes src-dir nil)))))
 
 (defun javaimp-get-directory-classes (dir prefix)
   "Returns the list of classes found in the directory DIR.  PREFIX is the
