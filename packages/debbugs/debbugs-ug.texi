@@ -62,6 +62,7 @@ Programmer's Manual, debbugs}).
 * Retrieving Bugs::             How to retrieve bugs.
 * Searching Bugs::              How to search in the debbugs database.
 * Layout::                      How to results are presented.
+* Minor Modes::                 How to use @code{debbugs} in files.
 
 * Command Index::               Debbugs commands.
 * Variable Index::              User options and variables.
@@ -531,6 +532,24 @@ The package name on the GNU Debbugs server is read interactively.
 The username, read interactively, is either a package name or an email
 address.  The tag to be set is also read interactively.
 @end table
+
+
+@node Minor Modes
+@chapter Minor Modes
+
+Emacs uses @file{bug-reference.el} for adding hyperlinks to bugs in
+files like @file{ChangeLog}, or in commentary sections of other files.
+The reference to such bugs have a specialized format,
+@samp{Bug#12345}.  The hyperlinks are implemented as minor modes
+@code{bug-reference-mode} and @code{bug-reference-prog-mode}.
+
+@findex debbugs-reference-mode
+@findex debbugs-reference-prog-mode
+This package adds two other minor modes on top of them,
+@code{debbugs-reference-mode} and @code{debbugs-reference-prog-mode}.
+They work like the @code{bug-reference-*} modes, but instead of
+opening a browser for a given bug reference, they open a corresponding
+bug report buffer.
 
 
 @node Command Index
