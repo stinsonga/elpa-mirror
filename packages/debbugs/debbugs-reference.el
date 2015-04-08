@@ -32,8 +32,16 @@
 
 ;;;###autoload
 (defun debbugs-browse-url (url &optional _new-window)
-  (when (and (stringp url) (string-match "[[:digit:]]+$" url))
-    (debbugs-gnu-bugs (string-to-number (match-string 0 url)))))
+  (when (and (stringp url)
+	     (string-match
+	      (format
+	       "^%s\\(%s\\)?\\([[:digit:]]+\\)$"
+	       (regexp-quote "http://debbugs.gnu.org/")
+	       (regexp-quote "cgi/bugreport.cgi?bug="))
+	      url))
+    (debbugs-gnu-bugs (string-to-number (match-string 2 url)))
+    ;; Return t for add-function mechanery.
+    t))
 
 ;;;###autoload
 (define-minor-mode debbugs-reference-mode
@@ -45,8 +53,9 @@ the mode if ARG is omitted or nil."
   ""
   nil
   (if debbugs-reference-mode
-	(setq-local browse-url-browser-function 'debbugs-browse-url)
-    (kill-local-variable 'browse-url-browser-function)))
+      (add-function
+       :before-until (local 'browse-url-browser-function) 'debbugs-browse-url)
+    (remove-function (local 'browse-url-browser-function) 'debbugs-browse-url)))
 
 ;;;###autoload
 (define-minor-mode debbugs-reference-prog-mode
@@ -55,8 +64,9 @@ the mode if ARG is omitted or nil."
   ""
   nil
   (if debbugs-reference-prog-mode
-	(setq-local browse-url-browser-function 'debbugs-browse-url)
-    (kill-local-variable 'browse-url-browser-function)))
+      (add-function
+       :before-until (local 'browse-url-browser-function) 'debbugs-browse-url)
+    (remove-function (local 'browse-url-browser-function) 'debbugs-browse-url)))
 
 (provide 'debbugs-reference)
 ;;; debbugs-reference.el ends here
