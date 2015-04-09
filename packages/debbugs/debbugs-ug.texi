@@ -61,8 +61,8 @@ Programmer's Manual, debbugs}).
 @menu
 * Retrieving Bugs::             How to retrieve bugs.
 * Searching Bugs::              How to search in the debbugs database.
-* Layout::                      How to results are presented.
-* Minor Modes::                 How to use @code{debbugs} in files.
+* Layout::                      How the results are presented.
+* Minor Mode::                  How to use browse bug URLs.
 
 * Command Index::               Debbugs commands.
 * Variable Index::              User options and variables.
@@ -534,22 +534,27 @@ address.  The tag to be set is also read interactively.
 @end table
 
 
-@node Minor Modes
-@chapter Minor Modes
+@node Minor Mode
+@chapter Minor Mode
 
 Emacs uses @file{bug-reference.el} for adding hyperlinks to bugs in
 files like @file{ChangeLog}, or in commentary sections of other files.
 The reference to such bugs have a specialized format,
-@samp{Bug#12345}.  The hyperlinks are implemented as minor modes
+@uref{Bug#12345}.  The hyperlinks are implemented as minor modes
 @code{bug-reference-mode} and @code{bug-reference-prog-mode}.
 
-@findex debbugs-reference-mode
-@findex debbugs-reference-prog-mode
-This package adds two other minor modes on top of them,
-@code{debbugs-reference-mode} and @code{debbugs-reference-prog-mode}.
-They work like the @code{bug-reference-*} modes, but instead of
-opening a browser for a given bug reference, they open a corresponding
-bug report buffer.
+@findex debbugs-browse-mode
+@vindex debbugs-browse-function
+This package adds a new minor mode @code{debbugs-browse-mode} on top
+of them.  Instead of using the default built-in Emacs browser for a
+given bug reference, it opens a corresponding bug report buffer.  The
+customer option @code{debbugs-browse-function} controls, whether
+@code{debbugs-gnu-bugs} or @code{debbugs-org-bugs} is called.
+
+This minor mode is applicable for all URLs, not only bug references.
+Any URL with the format @uref{http://debbugs.gnu.org/12345} will be
+shown in a bug report buffer, when @code{debbugs-browse-mode} is
+enabled.
 
 
 @node Command Index
@@ -567,3 +572,9 @@ bug report buffer.
 @printindex ky
 
 @bye
+
+@c Local Variables:
+@c bug-reference-url-format: "http://debbugs.gnu.org/%s"
+@c eval: (bug-reference-mode)
+@c eval: (debbugs-browse-mode)
+@c End:
