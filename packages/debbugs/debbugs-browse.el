@@ -1,4 +1,4 @@
-;; debbugs-reference.el --- use debbugs-gnu browsing bug references
+;; debbugs-browse.el --- browse bug URLs with debbugs-gnu or debbugs-org
 
 ;; Copyright (C) 2015 Free Software Foundation, Inc.
 
@@ -24,13 +24,19 @@
 
 ;;; Commentary:
 
-;; This file provides minor modes for putting clickable overlays on
-;; references to bugs.  It uses bug-reference.el, but changes
-;; buffer-local the browser to present the bugs to `debbugs-gnu-bugs'.
+;; This file provides a minor mode for browsing bug URLs with
+;; `debbugs-gnu-bugs' or `debbugs-org-bugs'.
 
 ;;; Code:
 
-;;;###autoload
+(defcustom debbugs-browse-function 'debbugs-gnu-bugs
+  "The debbugs function used for showing bugs.
+This can be either `debbugs-gnu-bugs' or `debbugs-org-bugs'."
+  :group 'debbugs-gnu
+  :type '(choice (const debbugs-gnu-bugs)
+		 (const debbugs-org-bugs))
+  :version "25.1")
+
 (defun debbugs-browse-url (url &optional _new-window)
   (when (and (stringp url)
 	     (string-match
@@ -39,34 +45,25 @@
 	       (regexp-quote "http://debbugs.gnu.org/")
 	       (regexp-quote "cgi/bugreport.cgi?bug="))
 	      url))
-    (debbugs-gnu-bugs (string-to-number (match-string 2 url)))
+    (funcall debbugs-browse-function (string-to-number (match-string 2 url)))
     ;; Return t for add-function mechanery.
     t))
 
 ;;;###autoload
-(define-minor-mode debbugs-reference-mode
-  "Toggle hyperlinking bug references in the buffer (Bug Reference mode).
-With a prefix argument ARG, enable Bug Reference mode if ARG is
+(define-minor-mode debbugs-browse-mode
+  "Browse GNU Debbugs bug URLs with debbugs-gnu or debbugs-org.
+With a prefix argument ARG, enable Debbugs Browse mode if ARG is
 positive, and disable it otherwise.  If called from Lisp, enable
-the mode if ARG is omitted or nil."
+the mode if ARG is omitted or nil.
+The customer option `debbugs-browse-function' controls, which of
+the two packages is used for showing bugs."
   nil
   ""
   nil
-  (if debbugs-reference-mode
+  (if debbugs-browse-mode
       (add-function
        :before-until (local 'browse-url-browser-function) 'debbugs-browse-url)
     (remove-function (local 'browse-url-browser-function) 'debbugs-browse-url)))
 
-;;;###autoload
-(define-minor-mode debbugs-reference-prog-mode
-  "Like `debbugs-reference-mode', but only buttonize in comments and strings."
-  nil
-  ""
-  nil
-  (if debbugs-reference-prog-mode
-      (add-function
-       :before-until (local 'browse-url-browser-function) 'debbugs-browse-url)
-    (remove-function (local 'browse-url-browser-function) 'debbugs-browse-url)))
-
-(provide 'debbugs-reference)
-;;; debbugs-reference.el ends here
+(provide 'debbugs-browse)
+;;; debbugs-browse.el ends here

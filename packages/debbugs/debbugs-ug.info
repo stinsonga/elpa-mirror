@@ -1,4 +1,4 @@
-This is debbugs-ug.info, produced by makeinfo version 5.2 from
+This is debbugs-ug.info, produced by makeinfo version 5.0 from
 debbugs-ug.texi.
 
 Copyright (C) 2015 Free Software Foundation, Inc.
@@ -50,8 +50,8 @@ Mode: (org)Top.).  As backend they use the 'debbugs' Emacs library
 
 * Retrieving Bugs::             How to retrieve bugs.
 * Searching Bugs::              How to search in the debbugs database.
-* Layout::                      How to results are presented.
-* Minor Modes::                 How to use 'debbugs' in files.
+* Layout::                      How the results are presented.
+* Minor Mode::                  How to use browse bug URLs.
 
 * Command Index::               Debbugs commands.
 * Variable Index::              User options and variables.
@@ -255,7 +255,7 @@ Debbugs server only.
 are not supported.
 
 
-File: debbugs-ug.info,  Node: Layout,  Next: Minor Modes,  Prev: Searching Bugs,  Up: Top
+File: debbugs-ug.info,  Node: Layout,  Next: Minor Mode,  Prev: Searching Bugs,  Up: Top
 
 3 Layout
 ********
@@ -467,24 +467,29 @@ the control messages.
      email address.  The tag to be set is also read interactively.
 
 
-File: debbugs-ug.info,  Node: Minor Modes,  Next: Command Index,  Prev: Layout,  Up: Top
+File: debbugs-ug.info,  Node: Minor Mode,  Next: Command Index,  Prev: Layout,  Up: Top
 
-4 Minor Modes
-*************
+4 Minor Mode
+************
 
 Emacs uses 'bug-reference.el' for adding hyperlinks to bugs in files
 like 'ChangeLog', or in commentary sections of other files.  The
-reference to such bugs have a specialized format, 'Bug#12345'.  The
+reference to such bugs have a specialized format, <Bug#12345>.  The
 hyperlinks are implemented as minor modes 'bug-reference-mode' and
 'bug-reference-prog-mode'.
 
-   This package adds two other minor modes on top of them,
-'debbugs-reference-mode' and 'debbugs-reference-prog-mode'.  They work
-like the 'bug-reference-*' modes, but instead of opening a browser for a
-given bug reference, they open a corresponding bug report buffer.
+   This package adds a new minor mode 'debbugs-browse-mode' on top of
+them.  Instead of using the default built-in Emacs browser for a given
+bug reference, it opens a corresponding bug report buffer.  The customer
+option 'debbugs-browse-function' controls, whether 'debbugs-gnu-bugs' or
+'debbugs-org-bugs' is called.
+
+   This minor mode is applicable for all URLs, not only bug references.
+Any URL with the format <http://debbugs.gnu.org/12345> will be shown in
+a bug report buffer, when 'debbugs-browse-mode' is enabled.
 
 
-File: debbugs-ug.info,  Node: Command Index,  Next: Variable Index,  Prev: Minor Modes,  Up: Top
+File: debbugs-ug.info,  Node: Command Index,  Next: Variable Index,  Prev: Minor Mode,  Up: Top
 
 Command Index
 *************
@@ -492,14 +497,13 @@ Command Index
  [index ]
 * Menu:
 
+* debbugs-browse-mode:                   Minor Mode.           (line 12)
 * debbugs-gnu:                           Retrieving Bugs.      (line 14)
 * debbugs-gnu-bugs:                      Retrieving Bugs.      (line 68)
 * debbugs-gnu-search:                    Searching Bugs.       (line 10)
 * debbugs-org:                           Retrieving Bugs.      (line 16)
 * debbugs-org-bugs:                      Retrieving Bugs.      (line 69)
 * debbugs-org-search:                    Searching Bugs.       (line 11)
-* debbugs-reference-mode:                Minor Modes.          (line 12)
-* debbugs-reference-prog-mode:           Minor Modes.          (line 12)
 
 
 File: debbugs-ug.info,  Node: Variable Index,  Next: Key Index,  Prev: Command Index,  Up: Top
@@ -510,6 +514,7 @@ Variable Index
  [index ]
 * Menu:
 
+* debbugs-browse-function:               Minor Mode.           (line 12)
 * debbugs-gnu-all-packages:              Retrieving Bugs.      (line 35)
 * debbugs-gnu-all-severities:            Retrieving Bugs.      (line 26)
 * debbugs-gnu-default-hits-per-page:     Retrieving Bugs.      (line 61)
@@ -545,17 +550,17 @@ Key Index
 
 Tag Table:
 Node: Top1087
-Node: Retrieving Bugs2627
-Node: Searching Bugs6149
-Ref: Searching Bugs-Footnote-110018
-Ref: Searching Bugs-Footnote-210106
-Node: Layout10197
-Node: Tabulated Lists10673
-Node: TODO Items13107
-Node: Control Messages14372
-Node: Minor Modes16532
-Node: Command Index17220
-Node: Variable Index17955
-Node: Key Index18471
+Node: Retrieving Bugs2625
+Node: Searching Bugs6147
+Ref: Searching Bugs-Footnote-110016
+Ref: Searching Bugs-Footnote-210104
+Node: Layout10195
+Node: Tabulated Lists10670
+Node: TODO Items13104
+Node: Control Messages14369
+Node: Minor Mode16529
+Node: Command Index17467
+Node: Variable Index18128
+Node: Key Index18717
 
 End Tag Table
