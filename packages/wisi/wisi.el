@@ -1,13 +1,13 @@
 ;;; wisi.el --- Utilities for implementing an indentation/navigation engine using a generalized LALR parser
 ;;
-;; Copyright (C) 2012 - 2014  Free Software Foundation, Inc.
+;; Copyright (C) 2012 - 2015  Free Software Foundation, Inc.
 ;;
 ;; Author: Stephen Leake <stephen_leake@member.fsf.org>
 ;; Maintainer: Stephen Leake <stephen_leake@member.fsf.org>
 ;; Keywords: parser
 ;;  indentation
 ;;  navigation
-;; Version: 1.1.0
+;; Version: 1.1.1
 ;; package-requires: ((cl-lib "0.4") (emacs "24.2"))
 ;; URL: http://stephe-leake.org/emacs/ada-mode/emacs-ada-mode.html
 ;;
@@ -179,12 +179,12 @@
   (require 'wisi-compat-24.2)
 ;;)
 
-(defcustom wisi-font-lock-size-threshold 100000
-  "Max size (in characters) for using wisi parser results for syntax highlighting."
+(defcustom wisi-size-threshold 100000
+  "Max size (in characters) for using wisi parser results for syntax highlighting and file navigation."
   :type 'integer
   :group 'wisi
   :safe 'integerp)
-(make-variable-buffer-local 'wisi-font-lock-size-threshold)
+(make-variable-buffer-local 'wisi-size-threshold)
 
 ;;;; lexer
 
@@ -209,11 +209,11 @@ TOKEN-TEXT; move point to just past token."
   ;; typical literals:
   ;; 1234
   ;; 1234.5678
-  ;; 1234.5678e+99
+  ;; _not_ including non-decimal base, or underscores (see ada-wisi-number-p)
   ;;
   (let ((end (point)))
     ;; starts with a simple integer
-    (when (string-match "^[0-9]+" token-text)
+    (when (string-match "^[0-9]+$" token-text)
       (when (looking-at "\\.[0-9]+")
 	;; real number
 	(goto-char (setq end (match-end 0)))
@@ -293,7 +293,7 @@ If at end of buffer, returns `wisent-eoi-term'."
 	   (error "wisi-forward-token: forward-sexp failed %s" err)
 	   ))))
 
-     (t ;; assuming word syntax
+     (t ;; assuming word or symbol syntax
       (skip-syntax-forward "w_'")
       (setq token-text (buffer-substring-no-properties start (point)))
       (setq token-id
@@ -315,6 +315,7 @@ If at end of buffer, returns `wisent-eoi-term'."
 
 (defun wisi-backward-token ()
   "Move point backward across one token, skipping whitespace and comments.
+Does _not_ handle numbers with wisi-number-p; just sees lower-level syntax.
 Return (nil start . end) - same structure as
 wisi-forward-token, but does not look up symbol."
   (forward-comment (- (point)))
@@ -326,6 +327,24 @@ wisi-forward-token, but does not look up symbol."
     (cond
      ((bobp) nil)
 
+     ((eq syntax 1)
+      ;; punctuation. Find the longest matching string in wisi-punctuation-table
+      (backward-char 1)
+      (let ((next-point (point))
+	    temp-text done)
+	(while (not done)
+	  (setq temp-text (buffer-substring-no-properties (point) end))
+	  (when (car (rassoc temp-text wisi-punctuation-table))
+	    (setq next-point (point)))
+	  (if (or
+	       (bobp)
+	       (= (- end (point)) wisi-punctuation-table-max-length))
+	      (setq done t)
+	    (backward-char 1))
+	  )
+	(goto-char next-point))
+      )
+
      ((memq syntax '(4 5)) ;; open, close parenthesis
       (backward-char 1))
 
@@ -334,7 +353,7 @@ wisi-forward-token, but does not look up symbol."
       (let ((forward-sexp-function nil))
 	(forward-sexp -1)))
 
-     (t
+     (t ;; assuming word or symbol syntax
       (if (zerop (skip-syntax-backward "."))
 	  (skip-syntax-backward "w_'")))
      )
@@ -507,9 +526,9 @@ Used in before/after change functions.")
 	   (t
 	    (setq wisi-change-need-invalidate
 		  (progn
+		    (goto-char begin)
 		    ;; note that because of the checks above, this never
 		    ;; triggers a parse, so it's fast
-	       (goto-char begin)
 		    (wisi-goto-statement-start)
 		    (point))))
 	   )))
@@ -655,8 +674,9 @@ If accessing cache at a marker for a token as set by `wisi-cache-tokens', POS mu
 (defun wisi-validate-cache (pos)
   "Ensure cached data is valid at least up to POS in current buffer."
   (let ((msg (when (> wisi-debug 0) (format "wisi: parsing %s:%d ..." (buffer-name) (line-number-at-pos pos)))))
+    ;; If wisi-cache-max = pos, then there is no cache at pos; need parse
     (when (and wisi-parse-try
-	       (< wisi-cache-max pos))
+	       (<= wisi-cache-max pos))
       (when (> wisi-debug 0)
 	(message msg))
 
@@ -702,7 +722,7 @@ If accessing cache at a marker for a token as set by `wisi-cache-tokens', POS mu
 
 (defun wisi-fontify-region (begin end)
   "For `jit-lock-functions'."
-  (when (< (point-max) wisi-font-lock-size-threshold)
+  (when (< (point-max) wisi-size-threshold)
     (wisi-validate-cache end)))
 
 (defun wisi-get-containing-cache (cache)

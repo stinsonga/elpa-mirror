@@ -1,6 +1,6 @@
 ;;; Grammar compiler for the wisent LALR parser, integrating Wisi OpenToken output.
 ;;
-;; Copyright (C) 2012, 2013 Free Software Foundation, Inc.
+;; Copyright (C) 2012, 2013, 2015 Free Software Foundation, Inc.
 ;;
 ;; Author: Stephen Leake <stephen_leake@member.fsf.org>
 ;;
@@ -47,16 +47,7 @@
 ;;
 ;;;;
 
-(eval-when-compile
-  ;; can't just 'require'; `wisent-with-context' doesn't work.
-  ;; also can't load .elc; must load .el or .el.gz
-  (let ((file (locate-library "semantic/wisent/comp.el")))
-    (if file
-	(load file)
-      (error "source library semantic/wisent/comp.el not installed; install emacs lisp sources"))))
-
-(eval-and-compile
-  (require 'semantic/wisent/comp))
+(require 'semantic/wisent/comp)
 
 (defun wisi-compose-action (value symbol-array nonterms)
   (let ((symbol (intern-soft (format "%s:%d" (car value) (cdr value)) symbol-array))
@@ -189,7 +180,7 @@ gotos is a copy of GOTOS.
 semantic-actions is an obarray containing functions that
 implement the user action for each nonterminal; the function
 names have the format nonterm:index."
-  (wisent-with-context compile-grammar
+  (let (nrules ptable rcode rlhs tags token-list var-list)
     (wisent-parse-grammar;; set global vars used by wisent-semantic-action
      (cons
       (nth 0 grammar);; TOKENS
