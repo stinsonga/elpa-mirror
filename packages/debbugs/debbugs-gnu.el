@@ -6,7 +6,7 @@
 ;;         Michael Albinus <michael.albinus@gmx.org>
 ;; Keywords: comm, hypermedia, maint
 ;; Package: debbugs
-;; Version: 0.6
+;; Version: 0.7
 
 ;; This file is not part of GNU Emacs.
 
@@ -187,7 +187,8 @@
   ;; <http://debbugs.gnu.org/Packages.html>
   ;; <http://debbugs.gnu.org/cgi/pkgindex.cgi>
   :group 'debbugs-gnu
-  :type '(set (const "auctex")
+  :type '(set (const "adns")
+	      (const "auctex")
 	      (const "automake")
 	      (const "cc-mode")
 	      (const "coreutils")
@@ -207,6 +208,7 @@
 	      (const "mh-e")
 	      (const "org-mode")
 	      (const "parted")
+	      (const "sed")
 	      (const "vc-dwim")
 	      (const "woodchuck"))
   :version "24.4")
