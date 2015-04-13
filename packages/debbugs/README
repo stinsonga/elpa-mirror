@@ -9,6 +9,9 @@ If you prefer the listing of bugs as TODO items of `org-mode', you
 could use the commands `M-x debbugs-org', `M-x debbugs-org-search' and
 `M-x debbugs-org-bugs' instead.
 
+A minor mode `debbugs-browse-mode' let you browse URLs to the GNU Bug
+Tracker as well as bug identifiers prepared for `bug-reference-mode'.
+
 This package works by implementing basic functions to access a Debbugs
 SOAP server (see <http://wiki.debian.org/DebbugsSoapInterface>).  It
 implements the SOAP functions "get_bugs", "newest_bugs", "get_status",
