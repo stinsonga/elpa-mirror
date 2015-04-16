@@ -1,11 +1,11 @@
 ;;; csv-mode.el --- Major mode for editing comma/char separated values  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2003, 2004, 2012, 2013, 2014  Free Software Foundation, Inc
+;; Copyright (C) 2003, 2004, 2012, 2013, 2014, 2015  Free Software Foundation, Inc
 
 ;; Author: Francis J. Wright <F.J.Wright at qmul.ac.uk>
 ;; Time-stamp: <23 August 2004>
 ;; URL: http://centaur.maths.qmul.ac.uk/Emacs/
-;; Version: 1.2
+;; Version: 1.3
 ;; Keywords: convenience
 
 ;; This package is free software; you can redistribute it and/or modify
@@ -249,16 +249,7 @@ Number of spaces used by `csv-align-fields' after separators."
 
 
 (defconst csv-mode-line-format
-  ;; See bindings.el for details of `mode-line-format' construction.
-  (let* ((ml (copy-sequence (default-value 'mode-line-format)))
-         (x (or (memq 'mode-line-position ml) (last 3 ml))))
-    (when x
-      (setcdr x (cons
-                 `(csv-field-index-string
-                   ("" csv-field-index-string
-                    ))
-                 (cdr x))))
-    ml)
+  '(csv-field-index-string ("" csv-field-index-string))
   "Mode line format string for CSV mode.")
 
 (defvar csv-mode-map
@@ -322,9 +313,13 @@ CSV mode provides the following specific keyboard key bindings:
   (setq
    ;; Font locking -- separator plus syntactic:
    font-lock-defaults '(csv-font-lock-keywords)
-   buffer-invisibility-spec csv-invisibility-default
-   ;; Mode line to support `csv-field-index-mode':
-   mode-line-format csv-mode-line-format)
+   buffer-invisibility-spec csv-invisibility-default)
+  ;; Mode line to support `csv-field-index-mode':
+  (set (make-local-variable 'mode-line-position)
+       (pcase mode-line-position
+         (`(,(or (pred consp) (pred stringp)) . ,_)
+          `(,@mode-line-position ,csv-mode-line-format))
+         (_ `("" ,mode-line-position ,csv-mode-line-format))))
   (set (make-local-variable 'truncate-lines) t)
   ;; Enable or disable `csv-field-index-mode' (could probably do this
   ;; a bit more efficiently):
