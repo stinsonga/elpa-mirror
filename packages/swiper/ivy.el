@@ -36,6 +36,8 @@
 ;; re-building it into a regex.
 ;; So "for example" is transformed into "\\(for\\).*\\(example\\)".
 
+(require 'cl-lib)
+
 ;;; Code:
 ;;* Customization
 (defgroup ivy nil
