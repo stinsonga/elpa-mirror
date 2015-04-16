@@ -4,7 +4,7 @@
 
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
 ;; URL: https://github.com/abo-abo/swiper
-;; Version: 0.2.0
+;; Version: 0.2.1
 ;; Package-Requires: ((emacs "24.1"))
 ;; Keywords: matching
 
@@ -59,6 +59,11 @@ Set this to nil if you don't want the count."
   "Whether to wrap around after the first and last candidate."
   :type 'boolean)
 
+(defcustom ivy-on-del-error-function 'minibuffer-keyboard-quit
+  "The handler for when `ivy-backward-delete-char' throws.
+This is usually meant as a quick exit out of the minibuffer."
+  :type 'function)
+
 ;;* User Visible
 ;;** Keymap
 (require 'delsel)
@@ -105,43 +110,41 @@ of `history-length', which see.")
   (interactive)
   (setq ivy--index (1- ivy--length)))
 
-(defun ivy-next-line ()
-  "Select the next completion candidate."
-  (interactive)
-  (if (>= ivy--index (1- ivy--length))
-      (when ivy-wrap
-        (ivy-beginning-of-buffer))
-    (cl-incf ivy--index)))
+(defun ivy-next-line (&optional arg)
+  "Move cursor vertically down ARG candidates."
+  (interactive "p")
+  (setq arg (or arg 1))
+  (cl-incf ivy--index arg)
+  (when (>= ivy--index (1- ivy--length))
+    (if ivy-wrap
+        (ivy-beginning-of-buffer)
+      (setq ivy--index (1- ivy--length)))))
 
-(defun ivy-next-line-or-history ()
-  "Select the next completion candidate.
+(defun ivy-next-line-or-history (&optional arg)
+  "Move cursor vertically down ARG candidates.
 If the input is empty, select the previous history element instead."
-  (interactive)
+  (interactive "p")
   (when (string= ivy-text "")
     (ivy-previous-history-element 1))
-  (if (>= ivy--index (1- ivy--length))
-      (when ivy-wrap
-        (ivy-beginning-of-buffer))
-    (cl-incf ivy--index)))
+  (ivy-next-line arg))
 
-(defun ivy-previous-line ()
-  "Select the previous completion candidate."
-  (interactive)
-  (if (zerop ivy--index)
-      (when ivy-wrap
-        (ivy-end-of-buffer))
-    (cl-decf ivy--index)))
+(defun ivy-previous-line (&optional arg)
+  "Move cursor vertically up ARG candidates."
+  (interactive "p")
+  (setq arg (or arg 1))
+  (cl-decf ivy--index arg)
+  (when (< ivy--index 0)
+    (if ivy-wrap
+        (ivy-end-of-buffer)
+      (setq ivy--index 0))))
 
-(defun ivy-previous-line-or-history ()
-  "Select the previous completion candidate.
+(defun ivy-previous-line-or-history (arg)
+  "Move cursor vertically up ARG candidates.
 If the input is empty, select the previous history element instead."
-  (interactive)
+  (interactive "p")
   (when (string= ivy-text "")
     (ivy-previous-history-element 1))
-  (if (zerop ivy--index)
-      (when ivy-wrap
-        (ivy-end-of-buffer))
-    (cl-decf ivy--index)))
+  (ivy-previous-line arg))
 
 (defun ivy-previous-history-element (arg)
   "Forward to `previous-history-element' with ARG."
@@ -157,12 +160,13 @@ If the input is empty, select the previous history element instead."
 
 (defun ivy-backward-delete-char ()
   "Forward to `backward-delete-char'.
-On error (read-only), quit without selecting."
+On error (read-only), call `ivy-on-del-error-function'."
   (interactive)
   (condition-case nil
       (backward-delete-char 1)
     (error
-     (minibuffer-keyboard-quit))))
+     (when ivy-on-del-error-function
+       (funcall ivy-on-del-error-function)))))
 
 ;;** Entry Point
 (defun ivy-read (prompt collection
@@ -172,17 +176,18 @@ On error (read-only), quit without selecting."
 PROMPT is a string to prompt with; normally it ends in a colon
 and a space.  When PROMPT contains %d, it will be updated with
 the current number of matching candidates.
+See also `ivy-count-format'.
 
 COLLECTION is a list of strings.
 
 If INITIAL-INPUT is non-nil, insert it in the minibuffer initially.
 
-UPDATE-FN is called each time the current candidate(s) is changed.
+KEYMAP is composed together with `ivy-minibuffer-map'.
 
 If PRESELECT is non-nil select the corresponding candidate out of
 the ones that match INITIAL-INPUT.
 
-KEYMAP is composed together with `ivy-minibuffer-map'."
+UPDATE-FN is called each time the current candidate(s) is changed."
   (cl-case (length collection)
     (0 nil)
     (1 (car collection))
@@ -225,6 +230,45 @@ KEYMAP is composed together with `ivy-minibuffer-map'."
            (remove-hook 'post-command-hook #'ivy--exhibit))
        (when ivy--action
          (funcall ivy--action))))))
+
+(defun ivy-completing-read (prompt collection
+                            &optional predicate _require-match initial-input
+                            &rest _ignore)
+  "Read a string in the minibuffer, with completion.
+
+This is an interface that conforms to `completing-read', so that
+it can be used for `completing-read-function'.
+
+PROMPT is a string to prompt with; normally it ends in a colon and a space.
+COLLECTION can be a list of strings, an alist, an obarray or a hash table.
+PREDICATE limits completion to a subset of COLLECTION.
+
+_REQUIRE-MATCH is ignored for now.
+INITIAL-INPUT is a string that can be inserted into the minibuffer initially.
+
+The history, defaults and input-method arguments are ignored for now."
+  (cond ((functionp collection)
+         (error "Function as a collection unsupported"))
+        ((hash-table-p collection)
+         (error "Hash table as a collection unsupported"))
+        ((listp (car collection))
+         (setq collection (mapcar #'car collection))))
+  (when predicate
+    (setq collection (cl-remove-if-not predicate collection)))
+  (ivy-read prompt collection initial-input))
+
+;;;###autoload
+(define-minor-mode ivy-mode
+    "Toggle Ivy mode on or off.
+With ARG, turn Ivy mode on if arg is positive, off otherwise.
+Turning on Ivy mode will set `completing-read-function' to
+`ivy-completing-read'."
+  :group 'ivy
+  :global t
+  :lighter " ivy"
+  (if ivy-mode
+      (setq completing-read-function 'ivy-completing-read)
+    (setq completing-read-function 'completing-read-default)))
 
 (defvar ivy--action nil
   "Store a function to call at the end of `ivy--read'.")
@@ -384,7 +428,6 @@ CANDIDATES is a list of strings."
          (cands (if (and (equal re ivy--old-re)
                          ivy--old-cands)
                     ivy--old-cands
-                  (setq ivy--old-re re)
                   (ignore-errors
                     (cl-remove-if-not
                      (lambda (x) (string-match re x))
@@ -392,12 +435,15 @@ CANDIDATES is a list of strings."
          (tail (nthcdr ivy--index ivy--old-cands))
          (ww (window-width))
          idx)
-    (setq ivy--length (length cands))
     (when (and tail ivy--old-cands)
-      (while (and tail
-                  (null (setq idx (cl-position (pop tail) cands
-                                               :test #'equal)))))
-      (setq ivy--index (or idx 0)))
+      (unless (and (not (equal re ivy--old-re))
+                   (setq ivy--index (cl-position re cands :test 'equal)))
+        (while (and tail (null idx))
+          ;; Compare with eq to handle equal duplicates in cands
+          (setq idx (cl-position (pop tail) cands)))
+        (setq ivy--index (or idx 0))))
+    (setq ivy--old-re re)
+    (setq ivy--length (length cands))
     (setq ivy--old-cands cands)
     (when (>= ivy--index ivy--length)
       (setq ivy--index (max (1- ivy--length) 0)))

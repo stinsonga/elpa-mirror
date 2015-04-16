@@ -4,8 +4,8 @@
 
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
 ;; URL: https://github.com/abo-abo/swiper
-;; Version: 0.2.0
-;; Package-Requires: ((emacs "24.1"))
+;; Version: 0.2.1
+;; Package-Requires: ((emacs "24.1") (ivy "0.2.1"))
 ;; Keywords: matching
 
 ;; This file is part of GNU Emacs.
@@ -75,6 +75,7 @@
 (defvar swiper-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "M-q") 'swiper-query-replace)
+    (define-key map (kbd "C-l") 'swiper-recenter-top-bottom)
     map)
   "Keymap for swiper.")
 
@@ -83,7 +84,8 @@
   (interactive)
   (if (null (window-minibuffer-p))
       (user-error "Should only be called in the minibuffer through `swiper-map'")
-    (let* ((from (ivy--regex ivy-text))
+    (let* ((enable-recursive-minibuffers t)
+           (from (ivy--regex ivy-text))
            (to (query-replace-read-to from "Query replace" t)))
       (delete-minibuffer-contents)
       (setq ivy--action
@@ -92,6 +94,12 @@
                                t t t)))
       (swiper--cleanup)
       (exit-minibuffer))))
+
+(defun swiper-recenter-top-bottom (&optional arg)
+  "Call (`recenter-top-bottom' ARG) in `swiper--window'."
+  (interactive "P")
+  (with-selected-window swiper--window
+    (recenter-top-bottom arg)))
 
 (defvar swiper--window nil
   "Store the current window.")
@@ -103,7 +111,8 @@
                                  gnus-summary-mode
                                  gnus-article-mode
                                  gnus-group-mode
-                                 emms-playlist-mode erc-mode)))
+                                 emms-playlist-mode erc-mode
+                                 org-agenda-mode)))
     (if (fboundp 'font-lock-ensure)
         (font-lock-ensure)
       (font-lock-fontify-buffer))))
@@ -129,7 +138,7 @@
                            (line-beginning-position)
                            (line-end-position)))
                   candidates)
-            (zerop (forward-line 1)))
+            (forward-line 1))
           (nreverse candidates))))))
 
 (defvar swiper--opoint 1
@@ -221,8 +230,8 @@ When non-nil, INITIAL-INPUT is the initial search pattern."
         (forward-line (1- num))
         (isearch-range-invisible (line-beginning-position)
                                  (line-end-position))
-        (unless (and (> (point) (window-start))
-                     (< (point) (window-end swiper--window t)))
+        (unless (and (>= (point) (window-start))
+                     (<= (point) (window-end swiper--window t)))
           (recenter)))
       (let ((ov (make-overlay
                  (line-beginning-position)
