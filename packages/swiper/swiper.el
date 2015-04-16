@@ -113,9 +113,10 @@
                                  gnus-group-mode
                                  emms-playlist-mode erc-mode
                                  org-agenda-mode)))
-    (if (fboundp 'font-lock-ensure)
-        (font-lock-ensure)
-      (font-lock-fontify-buffer))))
+    (unless (> (buffer-size) 100000)
+      (if (fboundp 'font-lock-ensure)
+          (font-lock-ensure)
+        (font-lock-fontify-buffer)))))
 
 (defvar swiper--format-spec ""
   "Store the current candidates format spec.")
@@ -163,7 +164,6 @@ When non-nil, INITIAL-INPUT is the initial search pattern."
   "`isearch' with an overview using `ivy'.
 When non-nil, INITIAL-INPUT is the initial search pattern."
   (interactive)
-  (ido-mode -1)
   (swiper--init)
   (let ((candidates (swiper--candidates))
         (preselect (format
@@ -183,7 +183,6 @@ When non-nil, INITIAL-INPUT is the initial search pattern."
                     swiper-map
                     preselect
                     #'swiper--update-input-ivy))
-      (ido-mode 1)
       (swiper--cleanup)
       (if (null ivy-exit)
           (goto-char swiper--opoint)
