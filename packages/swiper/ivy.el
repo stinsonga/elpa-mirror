@@ -117,20 +117,21 @@ of `history-length', which see.")
 (defun ivy-alt-done ()
   "Exit the minibuffer with the selected candidate."
   (interactive)
-  (if (and ivy--directory
-           (file-directory-p
-            (expand-file-name ivy--current ivy--directory)))
-      (progn
-        (delete-minibuffer-contents)
-        (setq ivy--directory
-              (expand-file-name ivy--current ivy--directory))
-        (setq ivy--old-cands nil)
-        (setq ivy--all-candidates
-              (let ((default-directory ivy--directory))
-                (all-completions "" 'read-file-name-internal)))
+  (let (dir)
+    (cond ((and ivy--directory
+                (= 0 ivy--index)
+                (= 0 (length ivy-text)))
+           (ivy-done))
 
-        (ivy--exhibit))
-    (ivy-done)))
+          ((and ivy--directory
+                (file-directory-p
+                 (setq dir (expand-file-name
+                            ivy--current ivy--directory))))
+           (ivy--cd dir)
+           (ivy--exhibit))
+
+          (t
+           (ivy-done)))))
 
 (defun ivy-beginning-of-buffer ()
   "Select the first completion candidate."
@@ -190,24 +191,49 @@ If the input is empty, select the previous history element instead."
   (next-history-element arg)
   (move-end-of-line 1))
 
+(defun ivy--cd (dir)
+  "When completing file names, move to directory DIR."
+  (if (null ivy--directory)
+      (error "Unexpected")
+    (setq ivy--old-cands nil)
+    (setq ivy--all-candidates
+          (ivy--sorted-files (setq ivy--directory dir)))
+    (setq ivy-text "")
+    (delete-minibuffer-contents)))
+
 (defun ivy-backward-delete-char ()
   "Forward to `backward-delete-char'.
 On error (read-only), call `ivy-on-del-error-function'."
   (interactive)
   (if (and ivy--directory (= (minibuffer-prompt-end) (point)))
       (progn
-        (setq ivy--old-cands nil)
-        (setq ivy--all-candidates
-              (let ((default-directory (setq ivy--directory
-                                             (file-name-directory
-                                              (directory-file-name ivy--directory)))))
-                (all-completions "" 'read-file-name-internal)))
+        (ivy--cd (file-name-directory
+                  (directory-file-name ivy--directory)))
         (ivy--exhibit))
     (condition-case nil
         (backward-delete-char 1)
       (error
        (when ivy-on-del-error-function
          (funcall ivy-on-del-error-function))))))
+
+(defun ivy--sorted-files (dir)
+  "Return the list of files in DIR.
+Directories come first."
+  (let* ((default-directory dir)
+         (seq (all-completions "" 'read-file-name-internal)))
+    (if (equal dir "/")
+        seq
+      (cons "./" (cons "../"
+                       (cl-sort
+                        (delete "./" (delete "../" seq))
+                        (lambda (x y)
+                          (if (file-directory-p x)
+                              (if (file-directory-p y)
+                                  (string< x y)
+                                t)
+                            (if (file-directory-p y)
+                                nil
+                              (string< x y))))))))))
 
 ;;** Entry Point
 (defun ivy-read (prompt collection
@@ -230,16 +256,22 @@ the ones that match INITIAL-INPUT.
 
 UPDATE-FN is called each time the current candidate(s) is changed."
   (setq ivy--directory nil)
-  (cond ((or (functionp collection)
+  (cond ((eq collection 'read-file-name-internal)
+         (setq ivy--directory default-directory)
+         (setq initial-input nil)
+         (setq collection
+               (ivy--sorted-files default-directory)))
+        ((or (functionp collection)
              (vectorp collection))
-         (when (eq collection 'read-file-name-internal)
-           (setq ivy--directory default-directory)
-           (setq initial-input nil))
          (setq collection (all-completions "" collection predicate)))
         ((hash-table-p collection)
          (error "Hash table as a collection unsupported"))
         ((listp (car collection))
          (setq collection (all-completions "" collection predicate))))
+  (when preselect
+    (unless (or ivy-require-match
+                (all-completions preselect collection))
+      (setq collection (cons preselect collection))))
   (cl-case (length collection)
     (0 nil)
     (1 (car collection))
@@ -448,6 +480,13 @@ When non-nil, it should contain one %d.")
 Should be run via minibuffer `post-command-hook'."
   (setq ivy-text (ivy--input))
   (ivy--cleanup)
+  (when ivy--directory
+    (if (string-match "/$" ivy-text)
+        (if (member ivy-text ivy--all-candidates)
+            (ivy--cd (expand-file-name ivy-text ivy--directory))
+          (ivy--cd "/"))
+      (if (string-match "~$" ivy-text)
+          (ivy--cd (expand-file-name "~/")))))
   (let ((text (ivy-completions
                ivy-text
                ivy--all-candidates))
