@@ -5,7 +5,7 @@
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
 ;; URL: https://github.com/abo-abo/swiper
 ;; Version: 0.2.1
-;; Package-Requires: ((emacs "24.1") (ivy "0.2.1"))
+;; Package-Requires: ((emacs "24.1"))
 ;; Keywords: matching
 
 ;; This file is part of GNU Emacs.
@@ -179,6 +179,7 @@ When non-nil, INITIAL-INPUT is the initial search pattern."
                     (replace-regexp-in-string
                      "%s" "pattern: " swiper--format-spec)
                     candidates
+                    nil
                     initial-input
                     swiper-map
                     preselect
