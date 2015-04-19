@@ -123,6 +123,9 @@ warn: keep KEYMAP and issue a warning instead of running the command."
 (defvar hydra--ignore nil
   "When non-nil, don't call `hydra-curr-on-exit'")
 
+(defvar hydra--input-method-function nil
+  "Store overridden `input-method-function' here.")
+
 (defun hydra-disable ()
   "Disable the current Hydra."
   (remove-hook 'pre-command-hook 'hydra--clearfun)
@@ -131,9 +134,11 @@ warn: keep KEYMAP and issue a warning instead of running the command."
       (when overriding-terminal-local-map
         (internal-pop-keymap hydra-curr-map 'overriding-terminal-local-map)
         (unless hydra--ignore
-          (when hydra--input-method-function
-            (setq input-method-function hydra--input-method-function)
-            (setq hydra--input-method-function nil))
+          (if (fboundp 'remove-function)
+              (remove-function input-method-function #'hydra--imf)
+            (when hydra--input-method-function
+              (setq input-method-function hydra--input-method-function)
+              (setq hydra--input-method-function nil)))
           (when hydra-curr-on-exit
             (let ((on-exit hydra-curr-on-exit))
               (setq hydra-curr-on-exit nil)
@@ -358,15 +363,16 @@ Return DEFAULT if PROP is not in H."
        ((blue teal) t)
        (t nil)))))
 
-(defvar hydra--input-method-function nil
-  "Store overridden `input-method-function' here.")
+(defalias 'hydra--imf #'list)
 
 (defun hydra-default-pre ()
   "Default setup that happens in each head before :pre."
   (when (eq input-method-function 'key-chord-input-method)
-    (unless hydra--input-method-function
-      (setq hydra--input-method-function input-method-function)
-      (setq input-method-function nil))))
+    (if (fboundp 'add-function)
+        (add-function :override input-method-function #'hydra--imf)
+      (unless hydra--input-method-function
+        (setq hydra--input-method-function input-method-function)
+        (setq input-method-function nil)))))
 
 (defvar hydra-timeout-timer (timer-create)
   "Timer for `hydra-timeout'.")
@@ -1015,10 +1021,9 @@ DOC defaults to TOGGLE-NAME split and capitalized."
                    0
                  i)))))
 
+;; Local Variables:
+;; outline-regexp: ";;\\*+"
+;; End:
+
 (provide 'hydra)
-
-;;; Local Variables:
-;;; outline-regexp: ";;\\*+"
-;;; End:
-
 ;;; hydra.el ends here
