@@ -637,6 +637,7 @@ supported:
 :transform-name FUNCTION -- FUNCTION is a function which converts
 D-Bus method/signal/property names, into another representation.
 By default `dbus-codegen-transform-name' is used."
+  ;; FIXME: A lot of redundancy with dbus-codegen-define-skeleton.
   (unless (symbolp name)
     (signal 'wrong-type-argument (list 'symbolp name)))
   ;; Accept a Lisp form as well as a string.
@@ -809,10 +810,10 @@ associated functions.
 Other keywords are same as `dbus-codegen-define-proxy'."
   (require 'xml)
   (require 'subword)
-  (let ((constructor (intern (format "%s-make" name))))
+  (let ((constructor (intern (format "%s--make" name))))
     (if (or (plist-get args :redefine)
 	    (not (fboundp constructor)))
-	(eval `(define-dbus-proxy ,(intern name)
+	(eval `(dbus-codegen-define-proxy ,name
 		 ,(dbus-introspect bus service path)
 		 ,interface
 		 ,@args)))
@@ -838,6 +839,7 @@ supported:
 :transform-name FUNCTION -- FUNCTION is a function which converts
 D-Bus method/signal/property names, into another representation.
 By default `dbus-codegen-transform-name' is used."
+  ;; FIXME: A lot of redundancy with dbus-codegen-define-proxy.
   (unless (symbolp name)
     (signal 'wrong-type-argument (list 'symbolp name)))
   ;; Accept a Lisp form as well as a string.
