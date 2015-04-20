@@ -5,7 +5,7 @@
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
 ;; URL: https://github.com/abo-abo/swiper
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "24.1") (swiper "0.2.1"))
+;; Package-Requires: ((emacs "24.1") (swiper "0.3.0"))
 ;; Keywords: completion, matching
 
 ;; This file is part of GNU Emacs.
@@ -40,6 +40,32 @@
   (counsel--generic
    (lambda (str) (all-completions str obarray))))
 
+(defvar counsel-describe-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-.") 'counsel-find-symbol)
+    map))
+
+(defun counsel-find-symbol ()
+  "Jump to the definition of the current symbol."
+  (interactive)
+  (setq ivy--action 'counsel--find-symbol)
+  (setq ivy-exit 'done)
+  (exit-minibuffer))
+
+(defun counsel--find-symbol ()
+  (let ((sym (read ivy--current)))
+    (cond ((boundp sym)
+           (find-variable sym))
+          ((fboundp sym)
+           (find-function sym))
+          ((or (featurep sym)
+               (locate-library
+                (prin1-to-string sym)))
+           (find-library (prin1-to-string sym)))
+          (t
+           (error "Couldn't fild definition of %s"
+                  sym)))))
+
 (defun counsel-describe-variable (variable &optional buffer frame)
   "Forward to (`describe-variable' VARIABLE BUFFER FRAME)."
   (interactive
@@ -59,7 +85,7 @@
                                (and (boundp vv) (not (keywordp vv))))
                        (push (symbol-name vv) cands))))
                   cands)
-                nil nil nil preselect))
+                nil nil counsel-describe-map preselect))
      (list (if (equal val "")
                v
              (intern val)))))
@@ -81,7 +107,7 @@
                               (when (fboundp x)
                                 (push (symbol-name x) cands))))
                            cands)
-                         nil nil nil preselect))
+                         nil nil counsel-describe-map preselect))
      (list (if (equal val "")
                fn (intern val)))))
   (describe-function function))
@@ -148,6 +174,27 @@
          (file (ivy-read "Find file: " cands)))
     (when file
       (find-file file))))
+
+(defun counsel-git-grep-function (string &optional _pred &rest _unused)
+  "Grep in the current git repository for STRING."
+  (split-string
+   (shell-command-to-string
+    (format "git --no-pager grep --full-name -n --no-color -i -e \"%s\"" string))
+   "\n"
+   t))
+
+(defun counsel-git-grep ()
+  "Grep for a string in the current git repository."
+  (interactive)
+  (let ((default-directory (locate-dominating-file
+                             default-directory ".git"))
+        (val (ivy-read "pattern: " 'counsel-git-grep-function))
+        lst)
+    (when val
+      (setq lst (split-string val ":"))
+      (find-file (car lst))
+      (goto-char (point-min))
+      (forward-line (1- (string-to-number (cadr lst)))))))
 
 (defun counsel--generic (completion-fn)
   "Complete thing at point with COMPLETION-FN."
