@@ -39,6 +39,8 @@
 (require 'cl-lib)
 
 ;;; Code:
+(require 'cl-lib)
+
 ;;* Customization
 (defgroup ivy nil
   "Incremental vertical completion."
@@ -188,7 +190,7 @@ When non-nil, it should contain one %d.")
            (ivy-done))
 
           ((and ivy--directory
-                (plusp ivy--length)
+                (cl-plusp ivy--length)
                 (file-directory-p
                  (setq dir (expand-file-name
                             ivy--current ivy--directory))))
@@ -524,6 +526,15 @@ Turning on Ivy mode will set `completing-read-function' to
     (goto-char (minibuffer-prompt-end))
     (delete-region (line-end-position) (point-max))))
 
+(defvar ivy--dynamic-function nil
+  "When this is non-nil, call it for each input change to get new candidates.")
+
+(defvar ivy--full-length nil
+  "When `ivy--dynamic-function' is non-nil, this can be the total amount of candidates.")
+
+(defvar ivy--old-text nil
+  "Store old `ivy-text' for dynamic completion.")
+
 (defun ivy--insert-prompt ()
   "Update the prompt according to `ivy--prompt'."
   (when ivy--prompt
@@ -532,7 +543,10 @@ Turning on Ivy mode will set `completing-read-function' to
            (format
             (if ivy--directory
                 (concat ivy--prompt (abbreviate-file-name ivy--directory))
-              ivy--prompt) ivy--length)))
+              ivy--prompt)
+            (or (and ivy--dynamic-function
+                     ivy--full-length)
+                ivy--length))))
       (save-excursion
         (goto-char (point-min))
         (delete-region (point-min) (minibuffer-prompt-end))
@@ -548,18 +562,30 @@ Turning on Ivy mode will set `completing-read-function' to
   "Insert Ivy completions display.
 Should be run via minibuffer `post-command-hook'."
   (setq ivy-text (ivy--input))
+  (if ivy--dynamic-function
+      ;; while-no-input would cause annoying
+      ;; "Waiting for process to die...done" message interruptions
+      (progn
+        (unless (equal ivy--old-text ivy-text)
+          (let ((store ivy--dynamic-function)
+                (ivy--dynamic-function nil))
+            (setq ivy--all-candidates (funcall store ivy-text)))
+          (setq ivy--old-text ivy-text))
+        (ivy--insert-minibuffer (ivy--format ivy--all-candidates)))
+    (when ivy--directory
+      (if (string-match "/$" ivy-text)
+          (if (member ivy-text ivy--all-candidates)
+              (ivy--cd (expand-file-name ivy-text ivy--directory))
+            (ivy--cd "/"))
+        (if (string-match "~$" ivy-text)
+            (ivy--cd (expand-file-name "~/")))))
+    (ivy--insert-minibuffer
+     (ivy--format
+      (ivy--filter ivy-text ivy--all-candidates)))))
+
+(defun ivy--insert-minibuffer (text)
   (ivy--cleanup)
-  (when ivy--directory
-    (if (string-match "/$" ivy-text)
-        (if (member ivy-text ivy--all-candidates)
-            (ivy--cd (expand-file-name ivy-text ivy--directory))
-          (ivy--cd "/"))
-      (if (string-match "~$" ivy-text)
-          (ivy--cd (expand-file-name "~/")))))
-  (let ((text (ivy-completions
-               ivy-text
-               ivy--all-candidates))
-        (buffer-undo-list t)
+  (let ((buffer-undo-list t)
         deactivate-mark)
     (when ivy--update-fn
       (funcall ivy--update-fn))
@@ -577,11 +603,9 @@ Should be run via minibuffer `post-command-hook'."
   (font-lock-append-text-property 0 (length str) 'face face str)
   str)
 
-(defun ivy-completions (name candidates)
-  "Return as text the current completions.
-NAME is a string of words separated by spaces that is used to
-build a regex.
-CANDIDATES is a list of strings."
+(defun ivy--filter (name candidates)
+  "Return the matches for NAME for CANDIDATES.
+CANDIDATES are assumed to be static."
   (let* ((re (ivy--regex name))
          (cands (cond ((and (equal re ivy--old-re)
                             ivy--old-cands)
@@ -603,7 +627,6 @@ CANDIDATES is a list of strings."
                           (lambda (x) (string-match re x))
                           candidates)))))
          (tail (nthcdr ivy--index ivy--old-cands))
-         (ww (window-width))
          idx)
     (when (and tail ivy--old-cands)
       (unless (and (not (equal re ivy--old-re))
@@ -613,34 +636,39 @@ CANDIDATES is a list of strings."
           (setq idx (cl-position (pop tail) cands)))
         (setq ivy--index (or idx 0))))
     (setq ivy--old-re re)
-    (setq ivy--length (length cands))
-    (setq ivy--old-cands cands)
-    (when (>= ivy--index ivy--length)
-      (setq ivy--index (max (1- ivy--length) 0)))
-    (if (null cands)
-        ""
-      (let* ((half-height (/ ivy-height 2))
-             (start (max 0 (- ivy--index half-height)))
-             (end (min (+ start (1- ivy-height)) ivy--length))
-             (cands (cl-subseq cands start end))
-             (index (min ivy--index half-height (1- (length cands)))))
-        (when ivy--directory
-          (setq cands (mapcar (lambda (x)
-                                (if (string-match-p "/$" x)
-                                    (propertize x 'face 'ivy-subdir)
-                                  x))
-                              cands)))
-        (setq ivy--current (copy-sequence (nth index cands)))
-        (setf (nth index cands)
-              (ivy--add-face ivy--current 'ivy-current-match))
-        (let ((res (concat "\n" (mapconcat
-                                 (lambda (s)
-                                   (if (> (length s) ww)
-                                       (concat (substring s 0 (- ww 3)) "...")
-                                     s))
-                                 cands "\n"))))
-          (put-text-property 0 (length res) 'read-only nil res)
-          res)))))
+    (setq ivy--old-cands cands)))
+
+(defun ivy--format (cands)
+  "Return a string for CANDS suitable for display in the minibuffer.
+CANDS is a list of strings."
+  (setq ivy--length (length cands))
+  (when (>= ivy--index ivy--length)
+    (setq ivy--index (max (1- ivy--length) 0)))
+  (if (null cands)
+      ""
+    (let* ((half-height (/ ivy-height 2))
+           (start (max 0 (- ivy--index half-height)))
+           (end (min (+ start (1- ivy-height)) ivy--length))
+           (cands (cl-subseq cands start end))
+           (index (min ivy--index half-height (1- (length cands)))))
+      (when ivy--directory
+        (setq cands (mapcar (lambda (x)
+                              (if (string-match-p "/$" x)
+                                  (propertize x 'face 'ivy-subdir)
+                                x))
+                            cands)))
+      (setq ivy--current (copy-sequence (nth index cands)))
+      (setf (nth index cands)
+            (ivy--add-face ivy--current 'ivy-current-match))
+      (let* ((ww (window-width))
+             (res (concat "\n" (mapconcat
+                                (lambda (s)
+                                  (if (> (length s) ww)
+                                      (concat (substring s 0 (- ww 3)) "...")
+                                    s))
+                                cands "\n"))))
+        (put-text-property 0 (length res) 'read-only nil res)
+        res))))
 
 (provide 'ivy)
 
