@@ -84,12 +84,16 @@ Only \"./\" and \"../\" apply here. They appear in reverse order."
     (define-key map (kbd "C-j") 'ivy-alt-done)
     (define-key map (kbd "C-n") 'ivy-next-line)
     (define-key map (kbd "C-p") 'ivy-previous-line)
+    (define-key map (kbd "<down>") 'ivy-next-line)
+    (define-key map (kbd "<up>") 'ivy-previous-line)
     (define-key map (kbd "C-s") 'ivy-next-line-or-history)
     (define-key map (kbd "C-r") 'ivy-previous-line-or-history)
     (define-key map (kbd "SPC") 'self-insert-command)
     (define-key map (kbd "DEL") 'ivy-backward-delete-char)
     (define-key map (kbd "M-<") 'ivy-beginning-of-buffer)
     (define-key map (kbd "M->") 'ivy-end-of-buffer)
+    (define-key map (kbd "<left>") 'ivy-beginning-of-buffer)
+    (define-key map (kbd "<right>") 'ivy-end-of-buffer)
     (define-key map (kbd "M-n") 'ivy-next-history-element)
     (define-key map (kbd "M-p") 'ivy-previous-history-element)
     (define-key map (kbd "C-g") 'minibuffer-keyboard-quit)
@@ -584,7 +588,11 @@ CANDIDATES is a list of strings."
                        ivy--old-cands)
                       ((and ivy--old-re
                             (not (equal ivy--old-re ""))
-                            (eq 0 (cl-search ivy--old-re re)))
+                            (memq (cl-search
+                                   (if (string-match "\\\\)$" ivy--old-re)
+                                       (substring ivy--old-re 0 -2)
+                                     ivy--old-re)
+                                   re) '(0 2)))
                        (ignore-errors
                          (cl-remove-if-not
                           (lambda (x) (string-match re x))
