@@ -153,9 +153,6 @@ When non-nil, INITIAL-INPUT is the initial search pattern."
   (interactive)
   (swiper--ivy initial-input))
 
-(defvar swiper--overlays nil
-  "Store overlays.")
-
 (defvar swiper--anchor nil
   "A line number to which the search should be anchored.")
 
@@ -207,6 +204,9 @@ When non-nil, INITIAL-INPUT is the initial search pattern."
       (if (and (invisible-p (overlay-get ov 'invisible))
                (setq expose (overlay-get ov 'isearch-open-invisible)))
           (funcall expose ov)))))
+
+(defvar swiper--overlays nil
+  "Store overlays.")
 
 (defun swiper--cleanup ()
   "Clean up the overlays."
