@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2014  Eric Abrahamsen
 
-;; Version: 1
+;; Version: 1.0.1
 
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
 
@@ -30,12 +30,15 @@
 
 ;;; Code:
 
-(require 'gnorb-utils)
-(require 'nngnorb)
-(require 'gnorb-gnus)
-(require 'gnorb-bbdb)
-(require 'gnorb-org)
-(require 'gnorb-registry)
+(with-eval-after-load 'gnus
+ (require 'nngnorb)
+ (require 'gnorb-gnus)
+ (require 'gnorb-registry))
+(with-eval-after-load 'bbdb
+  (require 'gnorb-bbdb))
+(with-eval-after-load 'org
+ (require 'gnorb-org))
+
 
 (provide 'gnorb)
 ;;; gnorb.el ends here

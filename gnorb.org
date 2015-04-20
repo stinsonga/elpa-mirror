@@ -118,11 +118,15 @@ There are three main email-related commands:
    The new heading will be created as a capture heading, using the
    template specified by the `gnorb-gnus-new-todo-capture-key' option.
    
-   If you call this function with a prefix arg, you'll be prompted to
-   choose an existing Org heading instead. After the the message is
-   sent, you'll be taken to that heading and prompted to trigger an
-   action on it.
+   If you call this function with a single prefix arg, you'll be
+   prompted to choose an existing Org heading instead. After the the
+   message is sent, you'll be taken to that heading and prompted to
+   trigger an action on it.
    
+   If you've called this function, and then realize you've associated
+   the message with the wrong TODO, call it again with a double prefix
+   to clear all associations.
+
    It's also possible to call this function *after* a message is sent,
    in case you forgot. Gnorb saves information about the most recently
    sent message for this purpose.
@@ -485,23 +489,3 @@ heading to jump to that heading.
     '(progn
        (define-key message-mode-map (kbd "C-c t") 'gnorb-gnus-outgoing-do-todo)))
 #+END_SRC
-* Wishlist/TODO
-- Provide a command that, when in the Org Agenda, does an email search
-  for messages received in the visible date span, or day under point,
-  etc. Make it work in the calendar, as well?
-- Add trigger actions that create new sibling or child headings on the
-  original Org heading.
-- Allow tagging of Gnus messages, by giving the message's registry
-  entry an 'org-tags key.
-- Provide persistent nngnorb search groups.
-- Allow automatic org-tagging of BBDB contacts: when messages from a
-  contact are associated with an Org heading, make it possible for the
-  contact to inherit that heading's tags automatically.
-- Provide completion when setting Org tags on a BBDB contact.
-- Provide a `gnorb-bbdb-view' command that opens a *Summary* buffer
-  containing all the tracked messages from the contact(s) under point.
-- Provide a `gnorb-view' command that takes a tags-todo search phrase
-  (or a single Org heading ID), finds all relevant messages, Org
-  headings, and BBDB records, and sets up a four-pane view: Org
-  Agenda, *BBDB* buffer, Gnus *Summary* buffer, and an *Article*
-  buffer.
