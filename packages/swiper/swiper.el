@@ -4,7 +4,7 @@
 
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
 ;; URL: https://github.com/abo-abo/swiper
-;; Version: 0.2.1
+;; Version: 0.3.0
 ;; Package-Requires: ((emacs "24.1"))
 ;; Keywords: matching
 
@@ -240,10 +240,15 @@ When non-nil, INITIAL-INPUT is the initial search pattern."
         (overlay-put ov 'face 'swiper-line-face)
         (overlay-put ov 'window swiper--window)
         (push ov swiper--overlays))
-      (swiper--add-overlays
-       re
-       (window-start swiper--window)
-       (window-end swiper--window t)))))
+      (let ((wh (window-height)))
+        (swiper--add-overlays
+         re
+         (save-excursion
+           (forward-line (- wh))
+           (point))
+         (save-excursion
+           (forward-line wh)
+           (point)))))))
 
 (defun swiper--add-overlays (re beg end)
   "Add overlays for RE regexp in current buffer between BEG and END."
