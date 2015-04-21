@@ -32,7 +32,7 @@
 
 ;;; Code:
 
-(require 'ivy)
+(require 'swiper)
 
 (defun counsel-el ()
   "Elisp completion at point."
@@ -73,6 +73,7 @@
          (enable-recursive-minibuffers t)
          (preselect (thing-at-point 'symbol))
          val)
+     (setq ivy--action nil)
      (setq val (ivy-read
                 (if (symbolp v)
                     (format
@@ -85,11 +86,13 @@
                                (and (boundp vv) (not (keywordp vv))))
                        (push (symbol-name vv) cands))))
                   cands)
-                nil nil counsel-describe-map preselect))
+                nil nil counsel-describe-map preselect
+                nil t))
      (list (if (equal val "")
                v
              (intern val)))))
-  (describe-variable variable buffer frame))
+  (unless (eq ivy--action 'counsel--find-symbol)
+    (describe-variable variable buffer frame)))
 
 (defun counsel-describe-function (function)
   "Forward to (`describe-function' FUNCTION) with ivy completion."
@@ -98,6 +101,7 @@
          (enable-recursive-minibuffers t)
          (preselect (thing-at-point 'symbol))
          val)
+     (setq ivy--action nil)
      (setq val (ivy-read (if fn
                              (format "Describe function (default %s): " fn)
                            "Describe function: ")
@@ -107,10 +111,12 @@
                               (when (fboundp x)
                                 (push (symbol-name x) cands))))
                            cands)
-                         nil nil counsel-describe-map preselect))
+                         nil nil counsel-describe-map preselect
+                         nil t))
      (list (if (equal val "")
                fn (intern val)))))
-  (describe-function function))
+  (unless (eq ivy--action 'counsel--find-symbol)
+    (describe-function function)))
 
 (defvar info-lookup-mode)
 (declare-function info-lookup->completions "info-look")
@@ -193,31 +199,39 @@
         (setq ivy--full-length counsel--git-grep-count)
         (list ""
               (format "%d chars more" (- 3 (length ivy-text)))))
-    (let ((cmd-t "git --no-pager grep --full-name -n --no-color -i -e \"%s\"")
+    (let ((cmd (format "git --no-pager grep --full-name -n --no-color -i -e \"%s\""
+                       (ivy--regex string t)))
           res)
       (if (<= counsel--git-grep-count 20000)
           (progn
-            (setq res (shell-command-to-string (format cmd-t string)))
+            (setq res (shell-command-to-string cmd))
             (setq ivy--full-length nil))
-        (setq res (shell-command-to-string (concat (format cmd-t (ivy--regex string)) " | head -n 5000")))
+        (setq res (shell-command-to-string (concat cmd " | head -n 5000")))
         (setq ivy--full-length (counsel-git-grep-count ivy-text)))
       (split-string res "\n" t))))
 
 (defun counsel-git-grep ()
   "Grep for a string in the current git repository."
   (interactive)
-  (let* ((counsel--git-grep-count (counsel-git-grep-count ""))
-         (ivy--dynamic-function (when (> counsel--git-grep-count 20000)
-                                  'counsel-git-grep-function))
-         (default-directory (locate-dominating-file
-                             default-directory ".git"))
-         (val (ivy-read "pattern: " 'counsel-git-grep-function))
-         lst)
-    (when val
-      (setq lst (split-string val ":"))
-      (find-file (car lst))
-      (goto-char (point-min))
-      (forward-line (1- (string-to-number (cadr lst)))))))
+  (unwind-protect
+       (let* ((counsel--git-grep-count (counsel-git-grep-count ""))
+              (ivy--dynamic-function (when (> counsel--git-grep-count 20000)
+                                       'counsel-git-grep-function))
+              (git-dir (locate-dominating-file
+                        default-directory ".git"))
+              (ivy--persistent-action (lambda (x)
+                                        (setq lst (split-string x ":"))
+                                        (find-file (expand-file-name (car lst) git-dir))
+                                        (goto-char (point-min))
+                                        (forward-line (1- (string-to-number (cadr lst))))
+                                        (setq swiper--window (selected-window))
+                                        (swiper--cleanup)
+                                        (swiper--add-overlays (ivy--regex ivy-text))))
+              (val (ivy-read "pattern: " 'counsel-git-grep-function))
+              lst)
+         (when val
+           (funcall ivy--persistent-action val)))
+    (swiper--cleanup)))
 
 (defun counsel-locate-function (str &rest _u)
   (if (< (length str) 3)
