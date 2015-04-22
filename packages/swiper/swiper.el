@@ -90,8 +90,9 @@
       (delete-minibuffer-contents)
       (setq ivy--action
             (lambda ()
-              (perform-replace from to
-                               t t t)))
+              (with-selected-window swiper--window
+                (perform-replace from to
+                                 t t t))))
       (swiper--cleanup)
       (exit-minibuffer))))
 
@@ -186,11 +187,11 @@ When non-nil, INITIAL-INPUT is the initial search pattern."
                     (replace-regexp-in-string
                      "%s" "pattern: " swiper--format-spec)
                     candidates
-                    nil
-                    initial-input
-                    swiper-map
-                    preselect
-                    #'swiper--update-input-ivy))
+                    :initial-input initial-input
+                    :keymap swiper-map
+                    :preselect preselect
+                    :require-match t
+                    :update-fn #'swiper--update-input-ivy))
       (swiper--cleanup)
       (if (null ivy-exit)
           (goto-char swiper--opoint)
@@ -236,8 +237,9 @@ When non-nil, INITIAL-INPUT is the initial search pattern."
           (recenter)))
       (swiper--add-overlays re))))
 
-(defun swiper--add-overlays (re)
-  "Add overlays for RE regexp in visible part of the current buffer."
+(defun swiper--add-overlays (re &optional beg end)
+  "Add overlays for RE regexp in visible part of the current buffer.
+BEG and END, when specified, are the point bounds."
   (let ((ov (make-overlay
              (line-beginning-position)
              (1+ (line-end-position)))))
@@ -245,12 +247,12 @@ When non-nil, INITIAL-INPUT is the initial search pattern."
     (overlay-put ov 'window swiper--window)
     (push ov swiper--overlays))
   (let* ((wh (window-height))
-         (beg (save-excursion
-                (forward-line (- wh))
-                (point)))
-         (end (save-excursion
-                (forward-line wh)
-                (point))))
+         (beg (or beg (save-excursion
+                        (forward-line (- wh))
+                        (point))))
+         (end (or end (save-excursion
+                        (forward-line wh)
+                        (point)))))
     (when (>= (length re) swiper-min-highlight)
       (save-excursion
         (goto-char beg)
