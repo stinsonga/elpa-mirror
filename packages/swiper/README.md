@@ -13,4 +13,8 @@ The package uses the `ivy` back end for the overview, see also
 
 ![ivy-swiper-1.png](http://oremacs.com/download/ivy-swiper-1.png)
 
-There's also a one minute [video demo](https://www.youtube.com/watch?v=s3qwiAtKjuA).
+There's also a ten minute [video demo](https://www.youtube.com/watch?v=VvnJQpTFVDc).
+
+## Issues
+
+Recently, the `ivy` package that provided `ivy.el` was removed from MELPA.  Now, the `swiper` package provides `ivy.el`. You should remove the outdated `ivy` package from your system.

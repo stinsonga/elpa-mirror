@@ -66,6 +66,9 @@
            (error "Couldn't fild definition of %s"
                   sym)))))
 
+(defvar counsel-describe-symbol-history nil
+  "History for `counsel-describe-variable' and `counsel-describe-function'.")
+
 (defun counsel-describe-variable (variable &optional buffer frame)
   "Forward to (`describe-variable' VARIABLE BUFFER FRAME)."
   (interactive
@@ -75,10 +78,7 @@
          val)
      (setq ivy--action nil)
      (setq val (ivy-read
-                (if (symbolp v)
-                    (format
-                     "Describe variable (default %s): " v)
-                  "Describe variable: ")
+                "Describe variable: "
                 (let (cands)
                   (mapatoms
                    (lambda (vv)
@@ -86,8 +86,11 @@
                                (and (boundp vv) (not (keywordp vv))))
                        (push (symbol-name vv) cands))))
                   cands)
-                nil nil counsel-describe-map preselect
-                nil t))
+                :keymap counsel-describe-map
+                :preselect preselect
+                :history 'counsel-describe-symbol-history
+                :require-match t
+                :sort t))
      (list (if (equal val "")
                v
              (intern val)))))
@@ -102,17 +105,18 @@
          (preselect (thing-at-point 'symbol))
          val)
      (setq ivy--action nil)
-     (setq val (ivy-read (if fn
-                             (format "Describe function (default %s): " fn)
-                           "Describe function: ")
+     (setq val (ivy-read "Describe function: "
                          (let (cands)
                            (mapatoms
                             (lambda (x)
                               (when (fboundp x)
                                 (push (symbol-name x) cands))))
                            cands)
-                         nil nil counsel-describe-map preselect
-                         nil t))
+                         :keymap counsel-describe-map
+                         :preselect preselect
+                         :history 'counsel-describe-symbol-history
+                         :require-match t
+                         :sort t))
      (list (if (equal val "")
                fn (intern val)))))
   (unless (eq ivy--action 'counsel--find-symbol)
@@ -181,11 +185,15 @@
     (when file
       (find-file file))))
 
+(defvar counsel--git-grep-dir nil
+  "Store the base git directory.")
+
 (defun counsel-git-grep-count (str)
   "Quickly count the amount of git grep STR matches."
-  (let ((out (shell-command-to-string
-              (format "git grep -c '%s' | sed 's/.*:\\(.*\\)/\\1/g' | awk '{s+=$1} END {print s}'"
-                      (ivy--regex str)))))
+  (let* ((default-directory counsel--git-grep-dir)
+         (out (shell-command-to-string
+               (format "git grep -i -c '%s' | sed 's/.*:\\(.*\\)/\\1/g' | awk '{s+=$1} END {print s}'"
+                       (ivy--regex str)))))
     (string-to-number out)))
 
 (defvar counsel--git-grep-count nil
@@ -199,14 +207,15 @@
         (setq ivy--full-length counsel--git-grep-count)
         (list ""
               (format "%d chars more" (- 3 (length ivy-text)))))
-    (let ((cmd (format "git --no-pager grep --full-name -n --no-color -i -e \"%s\""
-                       (ivy--regex string t)))
-          res)
+    (let* ((default-directory counsel--git-grep-dir)
+           (cmd (format "git --no-pager grep --full-name -n --no-color -i -e \"%s\""
+                        (ivy--regex string t)))
+           res)
       (if (<= counsel--git-grep-count 20000)
           (progn
             (setq res (shell-command-to-string cmd))
             (setq ivy--full-length nil))
-        (setq res (shell-command-to-string (concat cmd " | head -n 5000")))
+        (setq res (shell-command-to-string (concat cmd " | head -n 2000")))
         (setq ivy--full-length (counsel-git-grep-count ivy-text)))
       (split-string res "\n" t))))
 
@@ -214,14 +223,14 @@
   "Grep for a string in the current git repository."
   (interactive)
   (unwind-protect
-       (let* ((counsel--git-grep-count (counsel-git-grep-count ""))
+       (let* ((counsel--git-grep-dir (locate-dominating-file
+                                      default-directory ".git"))
+              (counsel--git-grep-count (counsel-git-grep-count ""))
               (ivy--dynamic-function (when (> counsel--git-grep-count 20000)
                                        'counsel-git-grep-function))
-              (git-dir (locate-dominating-file
-                        default-directory ".git"))
               (ivy--persistent-action (lambda (x)
                                         (setq lst (split-string x ":"))
-                                        (find-file (expand-file-name (car lst) git-dir))
+                                        (find-file (expand-file-name (car lst) counsel--git-grep-dir))
                                         (goto-char (point-min))
                                         (forward-line (1- (string-to-number (cadr lst))))
                                         (setq swiper--window (selected-window))
