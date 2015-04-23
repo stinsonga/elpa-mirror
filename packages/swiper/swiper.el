@@ -92,7 +92,7 @@
             (lambda ()
               (with-selected-window swiper--window
                 (perform-replace from to
-                                 t t t))))
+                                 t t nil))))
       (swiper--cleanup)
       (exit-minibuffer))))
 
@@ -114,7 +114,8 @@
                                  gnus-group-mode
                                  emms-playlist-mode erc-mode
                                  org-agenda-mode
-                                 dired-mode)))
+                                 dired-mode
+                                 jabber-chat-mode)))
     (unless (> (buffer-size) 100000)
       (if (fboundp 'font-lock-ensure)
           (font-lock-ensure)
@@ -172,6 +173,9 @@ When non-nil, INITIAL-INPUT is the initial search pattern."
   "`isearch' with an overview using `ivy'.
 When non-nil, INITIAL-INPUT is the initial search pattern."
   (interactive)
+  (unless (eq (length (help-function-arglist 'ivy-read)) 4)
+    (warn "You seem to be using the outdated stand-alone \"ivy\" package.
+Please remove it and update the \"swiper\" package."))
   (swiper--init)
   (let ((candidates (swiper--candidates))
         (preselect (format
