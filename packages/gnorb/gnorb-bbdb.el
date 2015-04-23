@@ -150,8 +150,6 @@ be composed, just as in `gnus-posting-styles'.
 An example value might look like:"
   :group 'gnorb-bbdb)
 
-(defvar message-mode-hook)
-
 (when (fboundp 'bbdb-record-xfield-string)
   (fset (intern (format "bbdb-read-xfield-%s"
 			gnorb-bbdb-org-tag-field))
@@ -206,6 +204,8 @@ Org tags are stored in the `gnorb-bbdb-org-tags-field'."
 	   (bbdb-display-list val gnorb-bbdb-org-tag-field "\n")
 	 (insert
 	  (bbdb-indent-string (concat val "\n") indent)))))))
+
+(defvar message-mode-hook)
 
 ;;;###autoload
 (defun gnorb-bbdb-mail (records &optional subject n verbose)
@@ -392,14 +392,16 @@ both, use \"C-u\" before the \"*\"."
 	 (mapconcat
 	  'identity
 	  (delete-dups
-	   (cl-mapcan (lambda (r)
-		     (bbdb-record-xfield-split r gnorb-bbdb-org-tag-field))
-		   records))
+	   (cl-mapcan
+	    (lambda (r)
+	      (bbdb-record-xfield-split r gnorb-bbdb-org-tag-field))
+	    records))
 	  "|")))
     (if tag-string
 	;; C-u = all headings, not just todos
-	(org-tags-view (not (equal current-prefix-arg '(4)))
-                       tag-string)
+	(if (equal current-prefix-arg '(4))
+	    (org-tags-view nil tag-string)
+	  (org-tags-view t tag-string))
       (error "No org-tags field present"))))
 
 ;;;###autoload
@@ -424,9 +426,9 @@ a prefix arg and \"*\", the prefix arg must come first."
     (when (equal current-prefix-arg '(4))
       (setq search-string
 	    (read-from-minibuffer
-	     (format "%s search string: " (cl-first backend)) search-string)))
+	     (format "%s search string: " (first backend)) search-string)))
     (funcall (cl-third backend) search-string)
-    (delete-other-windows)))  
+    (delete-other-windows)))
 
 ;;;###autoload
 (defun gnorb-bbdb-cite-contact (rec)
@@ -437,9 +439,8 @@ a prefix arg and \"*\", the prefix arg must come first."
      mail-string)))
 
 ;;; Field containing links to recent messages
-
 (when (boundp 'bbdb-xfield-label-list)
-  (add-to-list 'bbdb-xfield-label-list gnorb-bbdb-messages-field nil 'eq))
+ (add-to-list 'bbdb-xfield-label-list gnorb-bbdb-messages-field nil 'eq))
 
 (defun gnorb-bbdb-display-messages (record format)
   "Show links to the messages collected in the
@@ -594,16 +595,10 @@ to a message into the record's `gnorb-bbdb-messages-field'."
 			  (parse-time-string (mail-header-date heads))))
 	     (subject (mail-header-subject heads))
 	     (id (mail-header-id heads))
-	     (group gnus-newsgroup-name)
+	     (group (gnorb-get-real-group-name
+		     gnus-newsgroup-name
+		     art-no))
 	     link)
-	;; check for both nnvirtual and nnir, and link to the real
-	;; group in those cases
-	(when (eq (car (gnus-find-method-for-group group))
-		  'nnvirtual)
-	  (setq group (car (nnvirtual-map-article art-no))))
-	(when (eq (car (gnus-find-method-for-group group))
-		  'nnir)
-	  (setq group (nnir-article-group art-no)))
 	(if (not (and date subject id group))
 	    (message "Could not save a link to this message")
 	  (setq link (make-gnorb-bbdb-link :subject subject :date date
@@ -617,7 +612,7 @@ to a message into the record's `gnorb-bbdb-messages-field'."
 			      (time-less-p
 			       (gnorb-bbdb-link-date b)
 			       (gnorb-bbdb-link-date a))))))
-	  (setq val (cl-subseq val 0 gnorb-bbdb-collect-N-messages))
+	  (setq val (cl-subseq val 0 (min (length val) gnorb-bbdb-collect-N-messages)))
 	  (bbdb-record-set-xfield record
 				  gnorb-bbdb-messages-field
 				  (delq nil val))
