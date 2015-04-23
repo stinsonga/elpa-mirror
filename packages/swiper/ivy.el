@@ -166,6 +166,8 @@ When non-nil, it should contain one %d.")
 (defvar ivy--regex-function 'ivy--regex
   "Current function for building a regex.")
 
+(defvar Info-current-file)
+
 ;;** Commands
 (defun ivy-done ()
   "Exit the minibuffer with the selected candidate."
@@ -173,16 +175,9 @@ When non-nil, it should contain one %d.")
   (delete-minibuffer-contents)
   (when (cond (ivy--directory
                (insert
-                (cond ((string= ivy-text "")
-                       (if (equal ivy--current "./")
-                           ivy--directory
-                         (if (string-match "\\*" ivy--current)
-                             ivy--current
-                           (expand-file-name ivy--current ivy--directory))))
-                      ((zerop ivy--length)
-                       (expand-file-name ivy-text ivy--directory))
-                      (t
-                       (expand-file-name ivy--current ivy--directory))))
+                (if (zerop ivy--length)
+                    (expand-file-name ivy-text ivy--directory)
+                  (expand-file-name ivy--current ivy--directory)))
                (setq ivy-exit 'done))
               ((zerop ivy--length)
                (if (memq ivy-require-match
@@ -214,21 +209,16 @@ When ARG is t, exit with current text, ignoring the candidates."
   (if arg
       (ivy-immediate-done)
     (let (dir)
-      (cond ((and ivy--directory
-                  (= 0 ivy--index)
-                  (= 0 (length ivy-text)))
-             (ivy-done))
-
-            ((and ivy--directory
-                  (cl-plusp ivy--length)
-                  (file-directory-p
-                   (setq dir (expand-file-name
-                              ivy--current ivy--directory))))
-             (ivy--cd dir)
-             (ivy--exhibit))
-
-            (t
-             (ivy-done))))))
+      (if (and ivy--directory
+               (not (string= ivy--current "./"))
+               (cl-plusp ivy--length)
+               (file-directory-p
+                (setq dir (expand-file-name
+                           ivy--current ivy--directory))))
+          (progn
+            (ivy--cd dir)
+            (ivy--exhibit))
+        (ivy-done)))))
 
 (defun ivy-immediate-done ()
   "Exit the minibuffer with the current input."
@@ -343,7 +333,9 @@ On error (read-only), call `ivy-on-del-error-function'."
   (if (and ivy--directory (= (minibuffer-prompt-end) (point)))
       (progn
         (ivy--cd (file-name-directory
-                  (directory-file-name ivy--directory)))
+                  (directory-file-name
+                   (expand-file-name
+                    ivy--directory))))
         (ivy--exhibit))
     (condition-case nil
         (backward-delete-char 1)
@@ -414,8 +406,8 @@ Directories come first."
 
 ;;** Entry Point
 (cl-defun ivy-read (prompt collection
-                           &key predicate require-match initial-input
-                           history preselect keymap update-fn sort)
+                    &key predicate require-match initial-input
+                      history preselect keymap update-fn sort)
   "Read a string in the minibuffer, with completion.
 
 PROMPT is a string to prompt with; normally it ends in a colon
@@ -477,9 +469,10 @@ When SORT is t, refer to `ivy-sort-functions-alist' for sorting."
           (when (and (setq sort-fn (cdr sort-fn))
                      (not (eq collection 'read-file-name-internal)))
             (setq coll (cl-sort coll sort-fn)))
-        (if (and (setq sort-fn (cdr (assoc t ivy-sort-functions-alist)))
-                 (<= (length coll) ivy-sort-max-size))
-            (setq coll (cl-sort (copy-sequence coll) sort-fn)))))
+        (unless (eq history 'org-refile-history)
+          (if (and (setq sort-fn (cdr (assoc t ivy-sort-functions-alist)))
+                   (<= (length coll) ivy-sort-max-size))
+              (setq coll (cl-sort (copy-sequence coll) sort-fn))))))
     (when preselect
       (unless (or require-match
                   (member preselect coll))
@@ -678,6 +671,8 @@ When GREEDY is non-nil, join words in a greedy way."
       ;; get out of the prompt area
       (constrain-to-field nil (point-max)))))
 
+(defvar inhibit-message)
+
 (defun ivy--exhibit ()
   "Insert Ivy completions display.
 Should be run via minibuffer `post-command-hook'."
@@ -697,7 +692,8 @@ Should be run via minibuffer `post-command-hook'."
       (if (string-match "/$" ivy-text)
           (if (member ivy-text ivy--all-candidates)
               (ivy--cd (expand-file-name ivy-text ivy--directory))
-            (ivy--cd "/"))
+            (when (string-match "//$" ivy-text)
+              (ivy--cd "/")))
         (if (string-match "~$" ivy-text)
             (ivy--cd (expand-file-name "~/")))))
     (ivy--insert-minibuffer
