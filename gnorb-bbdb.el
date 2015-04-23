@@ -1,6 +1,6 @@
 ;;; gnorb-bbdb.el --- The BBDB-centric functions of gnorb
 
-;; Copyright (C) 2014  Eric Abrahamsen
+;; Copyright (C) 2014  Free Software Foundation, Inc.
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Keywords: 
@@ -24,11 +24,9 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'cl))
-
-(require 'bbdb)
+(require 'bbdb nil t)
 (require 'gnorb-utils)
+(require 'cl-lib)
 
 (defgroup gnorb-bbdb nil
   "The BBDB bits of gnorb."
@@ -40,8 +38,9 @@
   :group 'gnorb-bbdb
   :type 'symbol)
 
-(unless (assoc gnorb-bbdb-org-tag-field bbdb-separator-alist)
-  (push `(,gnorb-bbdb-org-tag-field ":" ":") bbdb-separator-alist))
+(when (boundp 'bbdb-separator-alist)    ;Allow compilation if BBDB is absent!
+  (unless (assoc gnorb-bbdb-org-tag-field bbdb-separator-alist)
+    (push `(,gnorb-bbdb-org-tag-field ":" ":") bbdb-separator-alist)))
 
 (defcustom gnorb-bbdb-messages-field 'messages
   "The name (as a symbol) of the field where links to recent gnus
@@ -108,7 +107,7 @@ mentioned in the docstring of `format-time-string', which see."
   Defaults to org-link."
   :group 'gnorb-bbdb)
 
-(defstruct gnorb-bbdb-link
+(cl-defstruct gnorb-bbdb-link
   subject date group id)
 
 (defcustom gnorb-bbdb-posting-styles nil
@@ -205,6 +204,8 @@ Org tags are stored in the `gnorb-bbdb-org-tags-field'."
 	   (bbdb-display-list val gnorb-bbdb-org-tag-field "\n")
 	 (insert
 	  (bbdb-indent-string (concat val "\n") indent)))))))
+
+(defvar message-mode-hook)
 
 ;;;###autoload
 (defun gnorb-bbdb-mail (records &optional subject n verbose)
@@ -420,14 +421,14 @@ a prefix arg and \"*\", the prefix arg must come first."
 			     gnorb-gnus-mail-search-backends)
 		      (error "No search backend specified")))
 	 (search-string
-	  (funcall (second backend)
+	  (funcall (cl-second backend)
 		   (cl-mapcan 'bbdb-record-mail records))))
     (when (equal current-prefix-arg '(4))
       (setq search-string
 	    (read-from-minibuffer
 	     (format "%s search string: " (first backend)) search-string)))
-    (funcall (third backend) search-string)
-    (delete-other-windows)))  
+    (funcall (cl-third backend) search-string)
+    (delete-other-windows)))
 
 ;;;###autoload
 (defun gnorb-bbdb-cite-contact (rec)
@@ -438,8 +439,8 @@ a prefix arg and \"*\", the prefix arg must come first."
      mail-string)))
 
 ;;; Field containing links to recent messages
-
-(add-to-list 'bbdb-xfield-label-list gnorb-bbdb-messages-field nil 'eq)
+(when (boundp 'bbdb-xfield-label-list)
+ (add-to-list 'bbdb-xfield-label-list gnorb-bbdb-messages-field nil 'eq))
 
 (defun gnorb-bbdb-display-messages (record format)
   "Show links to the messages collected in the
@@ -594,16 +595,10 @@ to a message into the record's `gnorb-bbdb-messages-field'."
 			  (parse-time-string (mail-header-date heads))))
 	     (subject (mail-header-subject heads))
 	     (id (mail-header-id heads))
-	     (group gnus-newsgroup-name)
+	     (group (gnorb-get-real-group-name
+		     gnus-newsgroup-name
+		     art-no))
 	     link)
-	;; check for both nnvirtual and nnir, and link to the real
-	;; group in those cases
-	(when (eq (car (gnus-find-method-for-group group))
-		  'nnvirtual)
-	  (setq group (car (nnvirtual-map-article art-no))))
-	(when (eq (car (gnus-find-method-for-group group))
-		  'nnir)
-	  (setq group (nnir-article-group art-no)))
 	(if (not (and date subject id group))
 	    (message "Could not save a link to this message")
 	  (setq link (make-gnorb-bbdb-link :subject subject :date date
@@ -617,7 +612,7 @@ to a message into the record's `gnorb-bbdb-messages-field'."
 			      (time-less-p
 			       (gnorb-bbdb-link-date b)
 			       (gnorb-bbdb-link-date a))))))
-	  (setq val (cl-subseq val 0 gnorb-bbdb-collect-N-messages))
+	  (setq val (cl-subseq val 0 (min (length val) gnorb-bbdb-collect-N-messages)))
 	  (bbdb-record-set-xfield record
 				  gnorb-bbdb-messages-field
 				  (delq nil val))
