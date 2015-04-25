@@ -1,4 +1,4 @@
-;;; modern-cobol-mode.el --- COBOL mode -*- lexical-binding: t; -*-
+;;; cobol-mode.el --- COBOL mode -*- lexical-binding: t; -*-
 
 ;;; Copyright (C) 2013-2015 --- Edward Hart <edward.dan.hart@gmail.com>
 
