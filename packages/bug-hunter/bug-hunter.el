@@ -229,8 +229,7 @@ the file."
           (with-temp-file file-name
             (print (list 'prin1 form) (current-buffer)))
           (call-process exec nil out-buf nil
-                        "-Q" "--batch" "-l"
-                        (shell-quote-argument file-name))
+                        "-Q" "--batch" "-l" file-name)
           (with-current-buffer out-buf
             (goto-char (point-max))
             (forward-sexp -1)
@@ -380,9 +379,6 @@ Wraps them in a progn if necessary."
            (let ((minibuffer-completing-symbol t))
              (minibuffer-with-setup-hook
                  (lambda ()
-                   ;; FIXME: call emacs-lisp-mode?
-                   (add-function :before-until (local 'eldoc-documentation-function)
-                                 #'elisp-eldoc-documentation-function)
                    (add-hook 'completion-at-point-functions
                              #'elisp-completion-at-point nil t)
                    (run-hooks 'eval-expression-minibuffer-setup-hook))
