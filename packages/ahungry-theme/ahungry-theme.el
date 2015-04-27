@@ -1,4 +1,4 @@
-;;; ahungry-theme.el --- Ahungry color theme for Emacs.  Make sure to (load-theme 'ahungry).
+;;; ahungry-theme.el --- Ahungry color theme for Emacs.  Make sure to (load-theme 'ahungry).  -*- lexical-binding:t -*-
 
 ;; Copyright (C) 2015  Free Software Foundation, Inc.
 
