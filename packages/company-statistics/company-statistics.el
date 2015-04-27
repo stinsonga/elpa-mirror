@@ -1,6 +1,6 @@
-;;; company-statistics.el --- Sort candidates using completion history
+;;; company-statistics.el --- Sort candidates using completion history  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2014  Free Software Foundation, Inc.
+;; Copyright (C) 2014-2015  Free Software Foundation, Inc.
 
 ;; Author: Ingo Lohmar <i.lohmar@gmail.com>
 ;; URL: https://github.com/company-mode/company-statistics
@@ -56,41 +56,35 @@
 (defcustom company-statistics-size 400
   "Number of completion choices that `company-statistics' keeps track of.
 As this is a global cache, making it too small defeats the purpose."
-  :group 'company-statistics
   :type 'integer
-  :initialize (lambda (option init-size) (setq company-statistics-size init-size))
-  :set 'company-statistics--log-resize)
+  :initialize (lambda (_option init-size) (setq company-statistics-size init-size))
+  :set #'company-statistics--log-resize)
 
 (defcustom company-statistics-file
   (concat user-emacs-directory "company-statistics-cache.el")
   "File to save company-statistics state."
-  :group 'company-statistics
   :type 'string)
 
 (defcustom company-statistics-auto-save t
   "Whether to save the statistics when leaving emacs."
-  :group 'company-statistics
   :type 'boolean)
 
 (defcustom company-statistics-auto-restore t
   "Whether to restore statistics when company-statistics is enabled and has
 not been used before."
-  :group 'company-statistics
   :type 'boolean)
 
-(defcustom company-statistics-score-change 'company-statistics-score-change-default
+(defcustom company-statistics-score-change #'company-statistics-score-change-default
   "Function called with completion choice.  Using arbitrary other info,
 it should produce an alist, each entry labeling a context and the
 associated score update: ((ctx-a . 1) (\"str\" . 0.5) (nil . 1)).  Nil is
 the global context."
-  :group 'company-statistics
   :type 'function)
 
 (defcustom company-statistics-score-calc 'company-statistics-score-calc-default
   "Function called with completion candidate.  Using arbitrary other info,
 eg, on the current context, it should evaluate to the candidate's score (a
 number)."
-  :group 'company-statistics
   :type 'function)
 
 ;; internal vars, persistence
@@ -114,7 +108,7 @@ number)."
 (defun company-statistics--initialized-p ()
   (hash-table-p company-statistics--scores))
 
-(defun company-statistics--log-resize (option new-size)
+(defun company-statistics--log-resize (_option new-size)
   (when (company-statistics--initialized-p)
     ;; hash scoresheet auto-resizes, but log does not
     (let ((new-hist (make-vector new-size nil))
@@ -163,7 +157,7 @@ number)."
 
 ;; score calculation for insert/retrieval --- can be changed on-the-fly
 
-(defun company-statistics-score-change-default (cand)
+(defun company-statistics-score-change-default (_cand)
   "Count for global score, mode context, filename context."
   (nconc                                ;when's nil is removed
    (list (cons nil 1) (cons major-mode 1)) ;major-mode is never nil
