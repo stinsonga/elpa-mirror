@@ -5,7 +5,7 @@
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
 ;; Maintainer: Oleh Krehel <ohwoeowho@gmail.com>
 ;; URL: https://github.com/abo-abo/hydra
-;; Version: 0.13.1
+;; Version: 0.13.2
 ;; Keywords: bindings
 ;; Package-Requires: ((cl-lib "0.5"))
 
@@ -88,6 +88,10 @@
 (defvar hydra-curr-foreign-keys nil
   "The current :foreign-keys behavior.")
 
+(defvar hydra-deactivate nil
+  "If a Hydra head sets this to t, exit the Hydra even if the
+  head wasn't designated for exiting.")
+
 (defun hydra-set-transient-map (keymap on-exit &optional foreign-keys)
   "Set KEYMAP to the highest priority.
 
@@ -99,11 +103,13 @@ that isn't in KEYMAP is called:
 nil: deactivate KEYMAP and run the command.
 run: keep KEYMAP and run the command.
 warn: keep KEYMAP and issue a warning instead of running the command."
-  (setq hydra-curr-map keymap)
-  (setq hydra-curr-on-exit on-exit)
-  (setq hydra-curr-foreign-keys foreign-keys)
-  (add-hook 'pre-command-hook 'hydra--clearfun)
-  (internal-push-keymap keymap 'overriding-terminal-local-map))
+  (if hydra-deactivate
+      (hydra-keyboard-quit)
+    (setq hydra-curr-map keymap)
+    (setq hydra-curr-on-exit on-exit)
+    (setq hydra-curr-foreign-keys foreign-keys)
+    (add-hook 'pre-command-hook 'hydra--clearfun)
+    (internal-push-keymap keymap 'overriding-terminal-local-map)))
 
 (defun hydra--clearfun ()
   "Disable the current Hydra unless `this-command' is a head."
@@ -128,6 +134,7 @@ warn: keep KEYMAP and issue a warning instead of running the command."
 
 (defun hydra-disable ()
   "Disable the current Hydra."
+  (setq hydra-deactivate nil)
   (remove-hook 'pre-command-hook 'hydra--clearfun)
   (dolist (frame (frame-list))
     (with-selected-frame frame
@@ -191,6 +198,11 @@ warn: keep KEYMAP and issue a warning instead of running the command."
   "Default `format'-style specifier for _a_  syntax in docstrings.
 When nil, you can specify your own at each location like this: _ 5a_.")
 
+(make-obsolete-variable
+ 'hydra-key-format-spec
+ "Since the docstrings are aligned by hand anyway, this isn't very useful."
+ "0.13.1")
+
 (defface hydra-face-red
     '((t (:foreground "#FF0000" :bold t)))
   "Red Hydra heads don't exit the Hydra.
@@ -214,7 +226,7 @@ Exitable only through a blue head.")
 
 (defface hydra-face-teal
     '((t (:foreground "#367588" :bold t)))
-  "Teal body has blue heads an warns on intercepting non-heads.
+  "Teal body has blue heads and warns on intercepting non-heads.
 Exitable only through a blue head.")
 
 ;;* Fontification
@@ -380,18 +392,21 @@ Return DEFAULT if PROP is not in H."
 (defvar hydra-message-timer (timer-create)
   "Timer for the hint.")
 
+(defvar hydra--work-around-dedicated t
+  "When non-nil, assume there's no bug in `pop-to-buffer'
+  selecting a dedicated window.")
+
 (defun hydra-keyboard-quit ()
   "Quitting function similar to `keyboard-quit'."
   (interactive)
   (hydra-disable)
   (cancel-timer hydra-timeout-timer)
   (cancel-timer hydra-message-timer)
-  (if hydra-lv
-      (when (window-live-p lv-wnd)
-        (let ((buf (window-buffer lv-wnd)))
-          (delete-window lv-wnd)
-          (kill-buffer buf)))
-    (message ""))
+  (unless (and hydra--ignore
+               (null hydra--work-around-dedicated))
+   (if hydra-lv
+       (lv-delete-window)
+     (message "")))
   nil)
 
 (defun hydra--hint (body heads)
@@ -437,7 +452,7 @@ HEAD's binding is returned as a string with a colored face."
               (run 'pink)
               (t 'red)))))
     (when (and (null (cadr head))
-               (not (eq head-color 'blue)))
+               (not head-exit))
       (hydra--complain "nil cmd can only be blue"))
     (propertize (car head) 'face
                 (cl-case head-color
@@ -473,7 +488,7 @@ The expressions can be auto-expanded according to NAME."
         offset)
     (while (setq start
                  (string-match
-                  "\\(?:%\\( ?-?[0-9]*s?\\)\\(`[a-z-A-Z/0-9]+\\|(\\)\\)\\|\\(?:_\\( ?-?[0-9]*\\)\\([[:alnum:]-~.,;:/|?<>={}*+#]+\\)_\\)"
+                  "\\(?:%\\( ?-?[0-9]*s?\\)\\(`[a-z-A-Z/0-9]+\\|(\\)\\)\\|\\(?:_\\( ?-?[0-9]*?\\)\\([-[:alnum:] ~.,;:/|?<>={}*+#]+?\\)_\\)"
                   docstring start))
       (cond ((eq ?_ (aref (match-string 0 docstring) 0))
              (let* ((key (match-string 4 docstring))
@@ -515,8 +530,9 @@ The expressions can be auto-expanded according to NAME."
 
 (defun hydra--complain (format-string &rest args)
   "Forward to (`message' FORMAT-STRING ARGS) unless `hydra-verbose' is nil."
-  (when hydra-verbose
-    (apply #'warn format-string args)))
+  (if hydra-verbose
+      (apply #'error format-string args)
+    (apply #'message format-string args)))
 
 (defun hydra--doc (body-key body-name heads)
   "Generate a part of Hydra docstring.
@@ -700,9 +716,8 @@ JOINER is a function similar to `concat'."
            strs))
    "\n"))
 
-(defcustom hydra-cell-format "% -20s %% -8`%s"
-  "The default format for docstring cells."
-  :type 'string)
+(defvar hydra-cell-format "% -20s %% -8`%s"
+  "The default format for docstring cells.")
 
 (defun hydra--table (names rows cols &optional cell-formats)
   "Format a `format'-style table from variables in NAMES.
@@ -957,7 +972,7 @@ result of `defhydra'."
                (or body-body-pre body-pre) body-before-exit
                '(setq prefix-arg current-prefix-arg)))))
     (error
-     (message "Error in defhydra %S: %s" name (cdr err))
+     (hydra--complain "Error in defhydra %S: %s" name (cdr err))
      nil)))
 
 (defmacro defhydradio (name _body &rest heads)
@@ -1022,8 +1037,10 @@ DOC defaults to TOGGLE-NAME split and capitalized."
                  i)))))
 
 ;; Local Variables:
-;; outline-regexp: ";;\\*+"
+;; outline-regexp: ";;\\([;*]+ [^\s\t\n]\\|###autoload\\)\\|("
+;; indent-tabs-mode: nil
 ;; End:
 
 (provide 'hydra)
+
 ;;; hydra.el ends here
