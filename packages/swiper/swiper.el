@@ -4,7 +4,7 @@
 
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
 ;; URL: https://github.com/abo-abo/swiper
-;; Version: 0.3.0
+;; Version: 0.4.0
 ;; Package-Requires: ((emacs "24.1"))
 ;; Keywords: matching
 
@@ -29,10 +29,13 @@
 ;; candidates.  The search regex can be split into groups with a
 ;; space.  Each group is highlighted with a different face.
 ;;
-;; The overview back end is `ivy'.
-;;
 ;; It can double as a quick `regex-builder', although only single
 ;; lines will be matched.
+;;
+;; It also provides `ivy-mode': a global minor mode that uses the
+;; matching back end of `swiper' for all matching on your system,
+;; including file matching. You can use it in place of `ido-mode'
+;; (can't have both on at once).
 
 ;;; Code:
 (require 'ivy)
@@ -88,11 +91,10 @@
            (from (ivy--regex ivy-text))
            (to (query-replace-read-to from "Query replace" t)))
       (delete-minibuffer-contents)
-      (setq ivy--action
-            (lambda ()
-              (with-selected-window swiper--window
-                (perform-replace from to
-                                 t t nil))))
+      (ivy-set-action (lambda ()
+                        (with-selected-window swiper--window
+                          (perform-replace from to
+                                           t t nil))))
       (swiper--cleanup)
       (exit-minibuffer))))
 
@@ -196,8 +198,8 @@ Please remove it and update the \"swiper\" package."))
                     :keymap swiper-map
                     :preselect preselect
                     :require-match t
-                    :update-fn #'swiper--update-input-ivy))
-      (swiper--cleanup)
+                    :update-fn #'swiper--update-input-ivy
+                    :unwind #'swiper--cleanup))
       (if (null ivy-exit)
           (goto-char swiper--opoint)
         (swiper--action res ivy-text)))))
