@@ -89,8 +89,7 @@ This is usually meant as a quick exit out of the minibuffer."
 Only \"./\" and \"../\" apply here. They appear in reverse order."
   :type 'list)
 
-;;* User Visible
-;;** Keymap
+;;* Keymap
 (require 'delsel)
 (defvar ivy-minibuffer-map
   (let ((map (make-sparse-keymap)))
@@ -120,17 +119,27 @@ Only \"./\" and \"../\" apply here. They appear in reverse order."
     map)
   "Keymap used in the minibuffer.")
 
+;;* Globals
+(cl-defstruct ivy-state
+  prompt collection
+  predicate require-match initial-input
+  history preselect keymap update-fn sort
+  ;; The window in which `ivy-read' was called
+  window
+  action
+  unwind)
+
+(defvar ivy-last nil
+  "The last parameters passed to `ivy-read'.")
+
+(defsubst ivy-set-action (action)
+  (setf (ivy-state-action ivy-last) action))
+
 (defvar ivy-history nil
   "History list of candidates entered in the minibuffer.
 
 Maximum length of the history list is determined by the value
 of `history-length', which see.")
-
-(defvar ivy-require-match t
-  "Store require-match.  See `completing-read'.")
-
-(defvar ivy-def nil
-  "Store the default completion value.  See `completing-read'.")
 
 (defvar ivy--directory nil
   "Current directory when completing file names.")
@@ -141,9 +150,6 @@ of `history-length', which see.")
 (defvar ivy-text ""
   "Store the user's string as it is typed in.")
 
-(defvar ivy-window nil
-  "Store the window in which `ivy-read' was called.")
-
 (defvar ivy--current ""
   "Current candidate.")
 
@@ -153,12 +159,6 @@ of `history-length', which see.")
 (defvar ivy-exit nil
   "Store 'done if the completion was successfully selected.
 Otherwise, store nil.")
-
-(defvar ivy--action nil
-  "Store a function to call at the end of `ivy--read'.")
-
-(defvar ivy--persistent-action nil
-  "Store a function to call for current candidate without exiting.")
 
 (defvar ivy--all-candidates nil
   "Store the candidates passed to `ivy-read'.")
@@ -190,7 +190,7 @@ When non-nil, it should contain one %d.")
 
 (defvar Info-current-file)
 
-;;** Commands
+;;* Commands
 (defun ivy-done ()
   "Exit the minibuffer with the selected candidate."
   (interactive)
@@ -212,7 +212,7 @@ When non-nil, it should contain one %d.")
                    ivy--current ivy--directory))
                  (setq ivy-exit 'done)))
               ((zerop ivy--length)
-               (if (memq ivy-require-match
+               (if (memq (ivy-state-require-match ivy-last)
                          '(nil confirm confirm-after-completion))
                    (progn
                      (insert ivy-text)
@@ -299,6 +299,23 @@ candidate."
   (setq ivy-exit 'done)
   (exit-minibuffer))
 
+(defun ivy-resume ()
+  "Resume the last completion session."
+  (interactive)
+  (ivy-read
+   (ivy-state-prompt ivy-last)
+   (ivy-state-collection ivy-last)
+   :predicate (ivy-state-predicate ivy-last)
+   :require-match (ivy-state-require-match ivy-last)
+   :initial-input ivy-text
+   :history (ivy-state-history ivy-last)
+   :preselect (regexp-quote ivy--current)
+   :keymap (ivy-state-keymap ivy-last)
+   :update-fn (ivy-state-update-fn ivy-last)
+   :sort (ivy-state-sort ivy-last)
+   :action (ivy-state-action ivy-last)
+   :unwind (ivy-state-unwind ivy-last)))
+
 (defun ivy-beginning-of-buffer ()
   "Select the first completion candidate."
   (interactive)
@@ -362,18 +379,16 @@ If the input is empty, select the previous history element instead."
   (interactive "p")
   (ivy-next-line arg)
   (ivy--exhibit)
-  (when ivy--persistent-action
-    (with-selected-window ivy-window
-      (funcall ivy--persistent-action ivy--current))))
+  (with-selected-window (ivy-state-window ivy-last)
+    (funcall (ivy-state-action ivy-last))))
 
 (defun ivy-previous-line-and-call (&optional arg)
   "Move cursor vertically down ARG candidates."
   (interactive "p")
   (ivy-previous-line arg)
   (ivy--exhibit)
-  (when ivy--persistent-action
-    (with-selected-window ivy-window
-      (funcall ivy--persistent-action ivy--current))))
+  (with-selected-window (ivy-state-window ivy-last)
+    (funcall (ivy-state-action ivy-last))))
 
 (defun ivy-previous-history-element (arg)
   "Forward to `previous-history-element' with ARG."
@@ -501,7 +516,8 @@ Directories come first."
 ;;** Entry Point
 (cl-defun ivy-read (prompt collection
                     &key predicate require-match initial-input
-                      history preselect keymap update-fn sort)
+                      history preselect keymap update-fn sort
+                      action unwind)
   "Read a string in the minibuffer, with completion.
 
 PROMPT is a string to prompt with; normally it ends in a colon
@@ -520,11 +536,27 @@ the ones that match INITIAL-INPUT.
 
 UPDATE-FN is called each time the current candidate(s) is changed.
 
-When SORT is t, refer to `ivy-sort-functions-alist' for sorting."
+When SORT is t, refer to `ivy-sort-functions-alist' for sorting.
+
+ACTION is a lambda to call after a result was selected.
+
+UNWIND is a lambda to call before exiting."
+  (setq ivy-last
+        (make-ivy-state
+         :prompt prompt
+         :collection collection
+         :predicate predicate
+         :require-match require-match
+         :initial-input initial-input
+         :history history
+         :preselect preselect
+         :keymap keymap
+         :update-fn update-fn
+         :sort sort
+         :action action
+         :window (selected-window)
+         :unwind unwind))
   (setq ivy--directory nil)
-  (setq ivy-require-match require-match)
-  (setq ivy-def preselect)
-  (setq ivy-window (selected-window))
   (setq ivy--regex-function
         (or (and (functionp collection)
                  (cdr (assoc collection ivy-re-builders-alist)))
@@ -607,7 +639,6 @@ When SORT is t, refer to `ivy-sort-functions-alist' for sorting."
                  prompt)
                 (t
                  nil)))
-    (setq ivy--action nil)
     (prog1
         (unwind-protect
              (minibuffer-with-setup-hook
@@ -624,9 +655,11 @@ When SORT is t, refer to `ivy-sort-functions-alist' for sorting."
                                    (delete ivy-text
                                            (cdr (symbol-value hist)))))
                    res)))
-          (remove-hook 'post-command-hook #'ivy--exhibit))
-      (when ivy--action
-        (funcall ivy--action)))))
+          (remove-hook 'post-command-hook #'ivy--exhibit)
+          (when (setq unwind (ivy-state-unwind ivy-last))
+            (funcall unwind)))
+      (when (setq action (ivy-state-action ivy-last))
+        (funcall action)))))
 
 (defun ivy-completing-read (prompt collection
                             &optional predicate require-match initial-input
@@ -639,8 +672,7 @@ it can be used for `completing-read-function'.
 PROMPT is a string to prompt with; normally it ends in a colon and a space.
 COLLECTION can be a list of strings, an alist, an obarray or a hash table.
 PREDICATE limits completion to a subset of COLLECTION.
-
-REQUIRE-MATCH is stored into `ivy-require-match'.  See `completing-read'.
+REQUIRE-MATCH is considered boolean. See `completing-read'.
 INITIAL-INPUT is a string that can be inserted into the minibuffer initially.
 _HISTORY is ignored for now.
 DEF is the default value.
@@ -674,6 +706,7 @@ Turning on Ivy mode will set `completing-read-function' to
 (defun ivy--preselect-index (candidates initial-input preselect)
   "Return the index in CANDIDATES filtered by INITIAL-INPUT for PRESELECT."
   (when initial-input
+    (setq initial-input (ivy--regex-plus initial-input))
     (setq candidates
           (cl-remove-if-not
            (lambda (x)
@@ -694,6 +727,24 @@ Turning on Ivy mode will set `completing-read-function' to
   (make-hash-table :test 'equal)
   "Store pre-computed regex.")
 
+(defun ivy--split (str)
+  "Split STR into a list by single spaces.
+The remaining spaces stick to their left.
+This allows to \"quote\" N spaces by inputting N+1 spaces."
+  (let ((len (length str))
+        (start 0)
+        res s)
+    (while (and (string-match " +" str start)
+                (< start len))
+      (setq s (substring str start (1- (match-end 0))))
+      (unless (= (length s) 0)
+        (push s res))
+      (setq start (match-end 0)))
+    (setq s (substring str start))
+    (unless (= (length s) 0)
+      (push s res))
+    (nreverse res)))
+
 (defun ivy--regex (str &optional greedy)
   "Re-build regex from STR in case it has a space.
 When GREEDY is non-nil, join words in a greedy way."
@@ -703,7 +754,7 @@ When GREEDY is non-nil, join words in a greedy way."
         (prog1 (cdr hashed)
           (setq ivy--subexps (car hashed)))
       (cdr (puthash str
-                    (let ((subs (split-string str " +" t)))
+                    (let ((subs (ivy--split str)))
                       (if (= (length subs) 1)
                           (cons
                            (setq ivy--subexps 0)
@@ -776,7 +827,8 @@ Everything after \"!\" should not match."
 (defun ivy--insert-prompt ()
   "Update the prompt according to `ivy--prompt'."
   (when ivy--prompt
-    (unless (memq this-command '(ivy-done ivy-alt-done ivy-partial-or-done))
+    (unless (memq this-command '(ivy-done ivy-alt-done ivy-partial-or-done
+                                 counsel-find-symbol))
       (setq ivy--prompt-extra ""))
     (let (head tail)
       (if (string-match "\\(.*\\): $" ivy--prompt)
@@ -942,7 +994,8 @@ CANDIDATES are assumed to be static."
         (setq ivy--index (or idx 0))))
     (when (and (string= name "") (not (equal ivy--old-re "")))
       (setq ivy--index
-            (or (cl-position ivy-def cands :test 'equal)
+            (or (cl-position (ivy-state-preselect ivy-last)
+                             cands :test 'equal)
                 ivy--index)))
     (setq ivy--old-re re)
     (setq ivy--old-cands cands)))
@@ -954,7 +1007,7 @@ CANDS is a list of strings."
   (when (>= ivy--index ivy--length)
     (setq ivy--index (max (1- ivy--length) 0)))
   (if (null cands)
-      ""
+      (setq ivy--current "")
     (let* ((half-height (/ ivy-height 2))
            (start (max 0 (- ivy--index half-height)))
            (end (min (+ start (1- ivy-height)) ivy--length))

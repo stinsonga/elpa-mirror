@@ -48,9 +48,8 @@
 (defun counsel-find-symbol ()
   "Jump to the definition of the current symbol."
   (interactive)
-  (setq ivy--action 'counsel--find-symbol)
-  (setq ivy-exit 'done)
-  (exit-minibuffer))
+  (ivy-set-action 'counsel--find-symbol)
+  (ivy-done))
 
 (defun counsel--find-symbol ()
   (let ((sym (read ivy--current)))
@@ -69,58 +68,47 @@
 (defvar counsel-describe-symbol-history nil
   "History for `counsel-describe-variable' and `counsel-describe-function'.")
 
-(defun counsel-describe-variable (variable &optional buffer frame)
-  "Forward to (`describe-variable' VARIABLE BUFFER FRAME)."
-  (interactive
-   (let ((v (variable-at-point))
-         (enable-recursive-minibuffers t)
-         (preselect (thing-at-point 'symbol))
-         val)
-     (setq ivy--action nil)
-     (setq val (ivy-read
-                "Describe variable: "
-                (let (cands)
-                  (mapatoms
-                   (lambda (vv)
-                     (when (or (get vv 'variable-documentation)
-                               (and (boundp vv) (not (keywordp vv))))
-                       (push (symbol-name vv) cands))))
-                  cands)
-                :keymap counsel-describe-map
-                :preselect preselect
-                :history 'counsel-describe-symbol-history
-                :require-match t
-                :sort t))
-     (list (if (equal val "")
-               v
-             (intern val)))))
-  (unless (eq ivy--action 'counsel--find-symbol)
-    (describe-variable variable buffer frame)))
+(defun counsel-describe-variable ()
+  "Forward to `describe-variable'."
+  (interactive)
+  (let ((enable-recursive-minibuffers t))
+    (ivy-read
+     "Describe variable: "
+     (let (cands)
+       (mapatoms
+        (lambda (vv)
+          (when (or (get vv 'variable-documentation)
+                    (and (boundp vv) (not (keywordp vv))))
+            (push (symbol-name vv) cands))))
+       cands)
+     :keymap counsel-describe-map
+     :preselect (thing-at-point 'symbol)
+     :history 'counsel-describe-symbol-history
+     :require-match t
+     :sort t
+     :action (lambda ()
+               (describe-variable
+                (intern ivy--current))))))
 
-(defun counsel-describe-function (function)
-  "Forward to (`describe-function' FUNCTION) with ivy completion."
-  (interactive
-   (let ((fn (function-called-at-point))
-         (enable-recursive-minibuffers t)
-         (preselect (thing-at-point 'symbol))
-         val)
-     (setq ivy--action nil)
-     (setq val (ivy-read "Describe function: "
-                         (let (cands)
-                           (mapatoms
-                            (lambda (x)
-                              (when (fboundp x)
-                                (push (symbol-name x) cands))))
-                           cands)
-                         :keymap counsel-describe-map
-                         :preselect preselect
-                         :history 'counsel-describe-symbol-history
-                         :require-match t
-                         :sort t))
-     (list (if (equal val "")
-               fn (intern val)))))
-  (unless (eq ivy--action 'counsel--find-symbol)
-    (describe-function function)))
+(defun counsel-describe-function ()
+  "Forward to `describe-function'."
+  (interactive)
+  (let ((enable-recursive-minibuffers t))
+    (ivy-read "Describe function: "
+              (let (cands)
+                (mapatoms
+                 (lambda (x)
+                   (when (fboundp x)
+                     (push (symbol-name x) cands))))
+                cands)
+              :keymap counsel-describe-map
+              :preselect (thing-at-point 'symbol)
+              :history 'counsel-describe-symbol-history
+              :require-match t
+              :sort t
+              :action (lambda ()
+                        (describe-function
+                         (intern ivy--current))))))
 
 (defvar info-lookup-mode)
 (declare-function info-lookup->completions "info-look")
@@ -227,19 +215,18 @@
                                       default-directory ".git"))
               (counsel--git-grep-count (counsel-git-grep-count ""))
               (ivy--dynamic-function (when (> counsel--git-grep-count 20000)
-                                       'counsel-git-grep-function))
-              (ivy--persistent-action (lambda (x)
-                                        (let ((lst (split-string x ":")))
-                                          (find-file (expand-file-name (car lst) counsel--git-grep-dir))
-                                          (goto-char (point-min))
-                                          (forward-line (1- (string-to-number (cadr lst))))
-                                          (setq swiper--window (selected-window))
-                                          (swiper--cleanup)
-                                          (swiper--add-overlays (ivy--regex ivy-text)))))
-              (val (ivy-read "pattern: " 'counsel-git-grep-function
-                             :initial-input initial-input)))
-         (when val
-           (funcall ivy--persistent-action val)))
+                                       'counsel-git-grep-function)))
+         (ivy-read "pattern: " 'counsel-git-grep-function
+                   :initial-input initial-input
+                   :action
+                   (lambda ()
+                     (let ((lst (split-string ivy--current ":")))
+                       (find-file (expand-file-name (car lst) counsel--git-grep-dir))
+                       (goto-char (point-min))
+                       (forward-line (1- (string-to-number (cadr lst))))
+                       (setq swiper--window (selected-window))
+                       (swiper--cleanup)
+                       (swiper--add-overlays (ivy--regex ivy-text))))))
     (swiper--cleanup)))
 
 (defun counsel-locate-function (str &rest _u)
