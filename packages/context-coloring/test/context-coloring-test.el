@@ -1,4 +1,4 @@
-;;; test/context-coloring-test.el --- Tests for context coloring. -*- lexical-binding: t; -*-
+;;; context-coloring-test.el --- Tests for context coloring  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2014-2015  Free Software Foundation, Inc.
 
@@ -19,12 +19,9 @@
 
 ;;; Commentary:
 
-;; Tests for context-coloring.
+;; Tests for context coloring.
 
-;; Tests for both synchronous (elisp) and asynchronous (shell command) coloring
-;; are available.  Basic plugin functionality is also tested.
-
-;; To run, execute `make test' from the project root.
+;; Use with `make test'.
 
 ;;; Code:
 
@@ -55,7 +52,11 @@
   (setq context-coloring-syntactic-comments nil)
   (setq context-coloring-syntactic-strings nil)
   (setq context-coloring-js-block-scopes nil)
-  (setq context-coloring-check-scopifier-version-hook nil))
+  (setq context-coloring-colorize-hook nil)
+  (setq context-coloring-check-scopifier-version-hook nil)
+  (setq context-coloring-maximum-face 7)
+  (setq context-coloring-original-maximum-face
+        context-coloring-maximum-face))
 
 (defmacro context-coloring-test-with-fixture (fixture &rest body)
   "With the relative FIXTURE, evaluate BODY in a temporary
@@ -300,16 +301,151 @@ FOREGROUND.  Apply ARGUMENTS to
   (apply 'context-coloring-test-assert-face
          (append arguments '(t))))
 
+(defun context-coloring-test-assert-error (body error-message)
+  "Assert that BODY signals ERROR-MESSAGE."
+  (let ((error-signaled-p nil))
+    (condition-case err
+        (progn
+          (funcall body))
+      (error
+       (setq error-signaled-p t)
+       (when (not (string-equal (cadr err) error-message))
+         (ert-fail (format (concat "Expected the error \"%s\" to be thrown, "
+                                   "but instead it was \"%s\".")
+                           error-message
+                           (cadr err))))))
+    (when (not error-signaled-p)
+      (ert-fail "Expected an error to be thrown, but there wasn't."))))
+
+(defun context-coloring-test-assert-trimmed (result expected)
+  (when (not (string-equal result expected))
+    (ert-fail "Expected string to be trimmed, but it wasn't.")))
+
 
 ;;; The tests
 
+(ert-deftest context-coloring-test-trim ()
+  (context-coloring-test-assert-trimmed (context-coloring-trim "") "")
+  (context-coloring-test-assert-trimmed (context-coloring-trim " ") "")
+  (context-coloring-test-assert-trimmed (context-coloring-trim "a") "a")
+  (context-coloring-test-assert-trimmed (context-coloring-trim " a") "a")
+  (context-coloring-test-assert-trimmed (context-coloring-trim "a ") "a")
+  (context-coloring-test-assert-trimmed (context-coloring-trim " a ") "a"))
+
+(ert-deftest-async context-coloring-test-async-mode-startup (done)
+  (context-coloring-test-with-fixture-async
+   "./fixtures/empty"
+   (lambda (teardown)
+     (js-mode)
+     (add-hook
+      'context-coloring-colorize-hook
+      (lambda ()
+        ;; If this runs we are implicitly successful; this test only confirms
+        ;; that colorization occurs on mode startup.
+        (funcall teardown)
+        (funcall done)))
+     (context-coloring-mode))))
+
+(define-derived-mode
+  context-coloring-change-detection-mode
+  fundamental-mode
+  "Testing"
+  "Prevent `context-coloring-test-change-detection' from
+  having any unintentional side-effects on mode support.")
+
+;; Simply cannot figure out how to trigger an idle timer; would much rather test
+;; that.  But (current-idle-time) always returns nil in these tests.
+(ert-deftest-async context-coloring-test-change-detection (done)
+  (context-coloring-define-dispatch
+     'idle-change
+     :modes '(context-coloring-change-detection-mode)
+     :executable "node"
+     :command "node test/binaries/noop")
+  (context-coloring-test-with-fixture-async
+   "./fixtures/empty"
+   (lambda (teardown)
+     (context-coloring-change-detection-mode)
+     (add-hook
+      'context-coloring-colorize-hook
+      (lambda ()
+        (setq context-coloring-colorize-hook nil)
+        (add-hook
+         'context-coloring-colorize-hook
+         (lambda ()
+           (funcall teardown)
+           (funcall done)))
+        (insert " ")
+        (set-window-buffer (selected-window) (current-buffer))
+        (context-coloring-maybe-colorize)))
+     (context-coloring-mode))))
+
+(ert-deftest context-coloring-test-check-version ()
+  (when (not (context-coloring-check-version "2.1.3" "3.0.1"))
+    (ert-fail "Expected version 3.0.1 to satisfy 2.1.3, but it didn't."))
+  (when (context-coloring-check-version "3.0.1" "2.1.3")
+    (ert-fail "Expected version 2.1.3 not to satisfy 3.0.1, but it did.")))
+
 (ert-deftest context-coloring-test-unsupported-mode ()
   (context-coloring-test-with-fixture
-   "./fixtures/function-scopes.js"
+   "./fixtures/empty"
    (context-coloring-mode)
    (context-coloring-test-assert-message
     "Context coloring is not available for this major mode"
     "*Messages*")))
+
+(define-derived-mode
+  context-coloring-test-define-dispatch-error-mode
+  fundamental-mode
+  "Testing"
+  "Prevent `context-coloring-test-define-dispatch-error' from
+  having any unintentional side-effects on mode support.")
+
+(ert-deftest context-coloring-test-define-dispatch-error ()
+  (context-coloring-test-assert-error
+   (lambda ()
+     (context-coloring-define-dispatch
+      'define-dispatch-no-modes))
+   "No mode defined for dispatch")
+  (context-coloring-test-assert-error
+   (lambda ()
+     (context-coloring-define-dispatch
+      'define-dispatch-no-strategy
+      :modes '(context-coloring-test-define-dispatch-error-mode)))
+   "No colorizer, scopifier or command defined for dispatch"))
+
+(define-derived-mode
+  context-coloring-test-define-dispatch-scopifier-mode
+  fundamental-mode
+  "Testing"
+  "Prevent `context-coloring-test-define-dispatch-scopifier' from
+  having any unintentional side-effects on mode support.")
+
+(ert-deftest context-coloring-test-define-dispatch-scopifier ()
+  (context-coloring-define-dispatch
+   'define-dispatch-scopifier
+   :modes '(context-coloring-test-define-dispatch-scopifier-mode)
+   :scopifier (lambda () (vector)))
+  (with-temp-buffer
+    (context-coloring-test-define-dispatch-scopifier-mode)
+    (context-coloring-mode)
+    (context-coloring-colorize)))
+
+(define-derived-mode
+  context-coloring-test-missing-executable-mode
+  fundamental-mode
+  "Testing"
+  "Prevent `context-coloring-test-define-dispatch-scopifier' from
+  having any unintentional side-effects on mode support.")
+
+(ert-deftest context-coloring-test-missing-executable ()
+  (context-coloring-define-dispatch
+   'scopifier
+   :modes '(context-coloring-test-missing-executable-mode)
+   :command ""
+   :executable "__should_not_exist__")
+  (with-temp-buffer
+    (context-coloring-test-missing-executable-mode)
+    (context-coloring-mode)))
 
 (define-derived-mode
   context-coloring-test-unsupported-version-mode
@@ -326,7 +462,7 @@ FOREGROUND.  Apply ARGUMENTS to
    :command "node test/binaries/outta-date"
    :version "v2.1.3")
   (context-coloring-test-with-fixture-async
-   "./fixtures/function-scopes.js"
+   "./fixtures/empty"
    (lambda (teardown)
      (context-coloring-test-unsupported-version-mode)
      (add-hook
@@ -342,6 +478,35 @@ FOREGROUND.  Apply ARGUMENTS to
           (funcall teardown))
         (funcall done)))
      (context-coloring-mode))))
+
+(define-derived-mode
+  context-coloring-test-disable-mode-mode
+  fundamental-mode
+  "Testing"
+  "Prevent `context-coloring-test-disable-mode' from having any
+  unintentional side-effects on mode support.")
+
+(ert-deftest-async context-coloring-test-disable-mode (done)
+  (let (torn-down)
+    (context-coloring-define-dispatch
+     'disable-mode
+     :modes '(context-coloring-test-disable-mode-mode)
+     :executable "node"
+     :command "node test/binaries/noop"
+     :teardown (lambda ()
+                 (setq torn-down t)))
+    (context-coloring-test-with-fixture-async
+     "./fixtures/empty"
+     (lambda (teardown)
+       (unwind-protect
+           (progn
+             (context-coloring-test-disable-mode-mode)
+             (context-coloring-mode)
+             (context-coloring-mode -1)
+             (when (not torn-down)
+               (ert-fail "Expected teardown function to have been called, but it wasn't.")))
+         (funcall teardown))
+       (funcall done)))))
 
 (defvar context-coloring-test-theme-index 0
   "Unique index for unique theme names.")
@@ -450,12 +615,14 @@ test completes."
                        (format "context-coloring-test-define-theme-%s" name))))
     `(ert-deftest ,deftest-name ()
        (context-coloring-test-kill-buffer "*Warnings*")
+       (context-coloring-test-setup)
        (let ((theme (context-coloring-test-get-next-theme)))
          (unwind-protect
              (progn
                ,@body)
            ;; Always cleanup.
-           (disable-theme theme))))))
+           (disable-theme theme)
+           (context-coloring-test-cleanup))))))
 
 (defun context-coloring-test-deftheme (theme)
   "Dynamically define theme THEME."
@@ -531,6 +698,18 @@ theme THEME is signaled."
   (context-coloring-test-assert-no-message "*Warnings*")
   (context-coloring-test-assert-face 0 "#cccccc")
   (context-coloring-test-assert-face 1 "#dddddd"))
+
+(context-coloring-test-deftest-define-theme pre-recede-delayed-application
+  (context-coloring-define-theme
+   theme
+   :recede t
+   :colors '("#aaaaaa"
+             "#bbbbbb"))
+  (context-coloring-test-deftheme theme)
+  (enable-theme theme)
+  (context-coloring-test-assert-no-message "*Warnings*")
+  (context-coloring-test-assert-face 0 "#aaaaaa")
+  (context-coloring-test-assert-face 1 "#bbbbbb"))
 
 (context-coloring-test-deftest-define-theme post-recede
   (context-coloring-test-deftheme theme)
@@ -621,42 +800,45 @@ see that function."
          (append arguments '(t))))
 
 (context-coloring-test-deftest-define-theme disable-cascade
-  (context-coloring-test-deftheme theme)
-  (context-coloring-define-theme
-   theme
-   :colors '("#aaaaaa"
-             "#bbbbbb"))
-  (let ((second-theme (context-coloring-test-get-next-theme)))
-    (context-coloring-test-deftheme second-theme)
+  (let ((maximum-face-value 9999))
+    (setq context-coloring-maximum-face maximum-face-value)
+    (context-coloring-test-deftheme theme)
     (context-coloring-define-theme
-     second-theme
-     :colors '("#cccccc"
-               "#dddddd"
-               "#eeeeee"))
-    (let ((third-theme (context-coloring-test-get-next-theme)))
-      (context-coloring-test-deftheme third-theme)
+     theme
+     :colors '("#aaaaaa"
+               "#bbbbbb"))
+    (let ((second-theme (context-coloring-test-get-next-theme)))
+      (context-coloring-test-deftheme second-theme)
       (context-coloring-define-theme
-       third-theme
-       :colors '("#111111"
-                 "#222222"
-                 "#333333"
-                 "#444444"))
-      (enable-theme theme)
-      (enable-theme second-theme)
-      (enable-theme third-theme)
-      (disable-theme third-theme)
-      (context-coloring-test-assert-face 0 "#cccccc")
-      (context-coloring-test-assert-face 1 "#dddddd")
-      (context-coloring-test-assert-face 2 "#eeeeee")
-      (context-coloring-test-assert-maximum-face 2))
-    (disable-theme second-theme)
-    (context-coloring-test-assert-face 0 "#aaaaaa")
-    (context-coloring-test-assert-face 1 "#bbbbbb")
-    (context-coloring-test-assert-maximum-face 1))
-  (disable-theme theme)
-  (context-coloring-test-assert-not-face 0 "#aaaaaa")
-  (context-coloring-test-assert-not-face 1 "#bbbbbb")
-  (context-coloring-test-assert-not-maximum-face 1))
+       second-theme
+       :colors '("#cccccc"
+                 "#dddddd"
+                 "#eeeeee"))
+      (let ((third-theme (context-coloring-test-get-next-theme)))
+        (context-coloring-test-deftheme third-theme)
+        (context-coloring-define-theme
+         third-theme
+         :colors '("#111111"
+                   "#222222"
+                   "#333333"
+                   "#444444"))
+        (enable-theme theme)
+        (enable-theme second-theme)
+        (enable-theme third-theme)
+        (disable-theme third-theme)
+        (context-coloring-test-assert-face 0 "#cccccc")
+        (context-coloring-test-assert-face 1 "#dddddd")
+        (context-coloring-test-assert-face 2 "#eeeeee")
+        (context-coloring-test-assert-maximum-face 2))
+      (disable-theme second-theme)
+      (context-coloring-test-assert-face 0 "#aaaaaa")
+      (context-coloring-test-assert-face 1 "#bbbbbb")
+      (context-coloring-test-assert-maximum-face 1))
+    (disable-theme theme)
+    (context-coloring-test-assert-not-face 0 "#aaaaaa")
+    (context-coloring-test-assert-not-face 1 "#bbbbbb")
+    (context-coloring-test-assert-maximum-face
+     maximum-face-value)))
 
 (defun context-coloring-test-js-function-scopes ()
   "Test fixtures/functions-scopes.js."
@@ -799,6 +981,12 @@ see that function."
   :fixture-name comments-and-strings)
 (context-coloring-test-deftest-js2-mode syntactic-strings
   :fixture-name comments-and-strings)
+
+;; As long as `add-text-properties' doesn't signal an error, this test passes.
+(defun context-coloring-test-js-unterminated-comment ()
+  "Test unterminated multiline comments.")
+
+(context-coloring-test-deftest-js2-mode unterminated-comment)
 
 (provide 'context-coloring-test)
 
