@@ -4,7 +4,7 @@
 
 ;; Author: Artur Malabarba <emacs@endlessparentheses.com>
 ;; URL: http://github.com/Malabarba/aggressive-indent-mode
-;; Version: 1.0.1
+;; Version: 1.0.2
 ;; Package-Requires: ((emacs "24.1") (names "20150125.9") (cl-lib "0.5"))
 ;; Keywords: indent lisp maint tools
 ;; Prefix: aggressive-indent
@@ -213,6 +213,10 @@ change."
   '(when (boundp 'ac-completing)
      (add-to-list 'aggressive-indent--internal-dont-indent-if
                   'ac-completing)))
+(eval-after-load 'iedit
+  '(when (boundp 'iedit-mode)
+     (add-to-list 'aggressive-indent--internal-dont-indent-if
+                  'iedit-mode)))
 
 (defcustom dont-indent-if '()
   "List of variables and functions to prevent aggressive indenting.
