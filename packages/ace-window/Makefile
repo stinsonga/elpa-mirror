@@ -1,14 +1,15 @@
-EMACS = emacs
-# EMACS = emacs-24.3
+emacs ?= emacs
+CASK = ~/.cask/bin/cask
 
-LOAD = -l avy.el -l avy-test.el
+.PHONY: all clean
 
-.PHONY: all test clean
+all: compile
 
-all: test
+cask:
+	$(shell EMACS=$(emacs) $(CASK) --verbose --debug)
 
-test:
-	$(EMACS) -batch $(LOAD) -f ert-run-tests-batch-and-exit
+compile:
+	$(CASK) exec $(emacs) -batch --eval "(byte-compile-file \"ace-window.el\")"
 
 clean:
 	rm -f *.elc
