@@ -2,7 +2,8 @@
 
 ;; Copyright (C) 2015  Free Software Foundation, Inc.
 
-;; Author: Oleh Krehel
+;; Author: Oleh Krehel <ohwoeowho@gmail.com>
+;; Version: 0
 
 ;; This file is part of GNU Emacs.
 
@@ -42,7 +43,7 @@
 ;; headache.
 
 ;;; Code:
-(require 'cl-macs)
+(require 'cl-lib)
 
 (defmacro avy-multipop (lst n)
   "Remove LST's first N elements and return them."
