@@ -3,7 +3,10 @@
 ;; Copyright (C) 2015  Free Software Foundation, Inc.
 
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
-;; Version: 0
+;; URL: https://github.com/abo-abo/avy
+;; Version: 0.2.0
+;; Package-Requires: ((emacs "24.1") (cl-lib "0.5"))
+;; Keywords: point, location
 
 ;; This file is part of GNU Emacs.
 
