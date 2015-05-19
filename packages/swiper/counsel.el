@@ -52,18 +52,22 @@
   (ivy-done))
 
 (defun counsel--find-symbol ()
-  (let ((sym (read ivy--current)))
-    (cond ((boundp sym)
-           (find-variable sym))
-          ((fboundp sym)
-           (find-function sym))
-          ((or (featurep sym)
-               (locate-library
+  (let ((full-name (get-text-property 0 'full-name ivy--current)))
+    (if full-name
+        (find-library full-name)
+      (let ((sym (read ivy--current)))
+        (cond ((boundp sym)
+               (find-variable sym))
+              ((fboundp sym)
+               (find-function sym))
+              ((or (featurep sym)
+                   (locate-library
+                    (prin1-to-string sym)))
+               (find-library
                 (prin1-to-string sym)))
-           (find-library (prin1-to-string sym)))
-          (t
-           (error "Couldn't fild definition of %s"
-                  sym)))))
+              (t
+               (error "Couldn't fild definition of %s"
+                      sym)))))))
 
 (defvar counsel-describe-symbol-history nil
   "History for `counsel-describe-variable' and `counsel-describe-function'.")
@@ -133,7 +137,8 @@
             (enable-recursive-minibuffers t)
             (value (ivy-read
                     "Describe symbol: "
-                    (mapcar #'car completions))))
+                    (mapcar #'car completions)
+                    :sort t)))
        (list value info-lookup-mode))))
   (info-lookup 'symbol symbol mode))
 
@@ -207,27 +212,59 @@
         (setq ivy--full-length (counsel-git-grep-count ivy-text)))
       (split-string res "\n" t))))
 
+(defvar counsel-git-grep-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-l") 'counsel-git-grep-recenter)
+    map))
+
+(defun counsel-git-grep-recenter ()
+  (interactive)
+  (with-selected-window (ivy-state-window ivy-last)
+    (counsel-git-grep-action)
+    (recenter-top-bottom)))
+
+(defun counsel-git-grep-action ()
+  (let ((lst (split-string ivy--current ":")))
+    (find-file (expand-file-name (car lst) counsel--git-grep-dir))
+    (goto-char (point-min))
+    (forward-line (1- (string-to-number (cadr lst))))
+    (unless (eq ivy-exit 'done)
+      (setq swiper--window (selected-window))
+      (swiper--cleanup)
+      (swiper--add-overlays (ivy--regex ivy-text)))))
+
 (defun counsel-git-grep (&optional initial-input)
   "Grep for a string in the current git repository."
   (interactive)
-  (unwind-protect
-       (let* ((counsel--git-grep-dir (locate-dominating-file
-                                      default-directory ".git"))
-              (counsel--git-grep-count (counsel-git-grep-count ""))
-              (ivy--dynamic-function (when (> counsel--git-grep-count 20000)
-                                       'counsel-git-grep-function)))
-         (ivy-read "pattern: " 'counsel-git-grep-function
-                   :initial-input initial-input
-                   :action
-                   (lambda ()
-                     (let ((lst (split-string ivy--current ":")))
-                       (find-file (expand-file-name (car lst) counsel--git-grep-dir))
-                       (goto-char (point-min))
-                       (forward-line (1- (string-to-number (cadr lst))))
-                       (setq swiper--window (selected-window))
-                       (swiper--cleanup)
-                       (swiper--add-overlays (ivy--regex ivy-text))))))
-    (swiper--cleanup)))
+  (setq counsel--git-grep-dir
+        (locate-dominating-file default-directory ".git"))
+  (if (null counsel--git-grep-dir)
+      (error "Not in a git repository")
+    (setq counsel--git-grep-count (counsel-git-grep-count ""))
+    (ivy-read "pattern: " 'counsel-git-grep-function
+              :initial-input initial-input
+              :matcher #'counsel-git-grep-matcher
+              :dynamic-collection (when (> counsel--git-grep-count 20000)
+                                    'counsel-git-grep-function)
+              :keymap counsel-git-grep-map
+              :action #'counsel-git-grep-action
+              :unwind #'swiper--cleanup)))
+
+(defun counsel-git-grep-matcher (x)
+  (ignore-errors
+    (when (string-match "^[^:]+:[^:]+:" x)
+      (setq x (substring x (match-end 0)))
+      (if (stringp ivy--old-re)
+          (string-match ivy--old-re x)
+        (let ((res t))
+          (dolist (re ivy--old-re)
+            (setq res
+                  (and res
+                       (ignore-errors
+                         (if (cdr re)
+                             (string-match (car re) x)
+                           (not (string-match (car re) x)))))))
+          res)))))
 
 (defun counsel-locate-function (str &rest _u)
   (if (< (length str) 3)
@@ -259,6 +296,67 @@
       (when bnd
         (delete-region (car bnd) (cdr bnd)))
       (insert res))))
+
+(defun counsel-directory-parent (dir)
+  "Return the directory parent of directory DIR."
+  (concat (file-name-nondirectory
+           (directory-file-name dir)) "/"))
+
+(defun counsel-string-compose (prefix str)
+  "Make PREFIX the display prefix of STR though text properties."
+  (let ((str (copy-sequence str)))
+    (put-text-property
+     0 1 'display
+     (concat prefix (substring str 0 1))
+     str)
+    str))
+
+(defun counsel-load-library ()
+  "Load a selected the Emacs Lisp library.
+The libraries are offered from `load-path'."
+  (interactive)
+  (let ((dirs load-path)
+        (suffix (concat (regexp-opt '(".el" ".el.gz") t) "\\'"))
+        (cands (make-hash-table :test #'equal))
+        short-name
+        old-val
+        dir-parent
+        res)
+    (dolist (dir dirs)
+      (when (file-directory-p dir)
+        (dolist (file (file-name-all-completions "" dir))
+          (when (string-match suffix file)
+            (unless (string-match "pkg.elc?$" file)
+              (setq short-name (substring file 0 (match-beginning 0)))
+              (if (setq old-val (gethash short-name cands))
+                  (progn
+                    ;; assume going up directory once will resolve name clash
+                    (setq dir-parent (counsel-directory-parent (cdr old-val)))
+                    (puthash short-name
+                             (cons
+                              (counsel-string-compose dir-parent (car old-val))
+                              (cdr old-val))
+                             cands)
+                    (setq dir-parent (counsel-directory-parent dir))
+                    (puthash (concat dir-parent short-name)
+                             (cons
+                              (propertize
+                               (counsel-string-compose
+                                dir-parent short-name)
+                               'full-name (expand-file-name file dir))
+                              dir)
+                             cands))
+                (puthash short-name
+                         (cons (propertize
+                                short-name
+                                'full-name (expand-file-name file dir))
+                               dir) cands)))))))
+    (maphash (lambda (_k v) (push (car v) res)) cands)
+    (ivy-read "Load library: " (nreverse res)
+              :action (lambda ()
+                        (load-library
+                         (get-text-property 0 'full-name ivy--current)))
+              :keymap counsel-describe-map)))
 
 (provide 'counsel)
 
