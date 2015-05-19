@@ -1,8 +1,8 @@
 ## Introduction
 
-`avy-jump` is a GNU Emacs package for jumping to visible text using a char-based decision tree.  See also [ace-jump-mode](https://github.com/winterTTr/ace-jump-mode) and [vim-easymotion](https://github.com/Lokaltog/vim-easymotion) - `avy-jump` uses the same idea.
+`avy` is a GNU Emacs package for jumping to visible text using a char-based decision tree.  See also [ace-jump-mode](https://github.com/winterTTr/ace-jump-mode) and [vim-easymotion](https://github.com/Lokaltog/vim-easymotion) - `avy` uses the same idea.
 
-![logo](https://raw.githubusercontent.com/wiki/abo-abo/avy-jump/images/avy-avatar-1.png)
+![logo](https://raw.githubusercontent.com/wiki/abo-abo/avy/images/avy-avatar-1.png)
 
 ## Command overview
 
@@ -46,6 +46,8 @@ After <kbd>M-g f</kbd>:
 
 ![avy-goto-line](http://oremacs.com/download/avi-goto-line.png)
 
+You can actually replace the <kbd>M-g g</kbd> binding of `goto-line`, since if you enter a digit for `avy-goto-line`, it will switch to `goto-line` with that digit already entered.
+
 ### `avy-goto-word-1`
 
 > Input one char at word start, jump to a word start with a tree.
@@ -87,14 +89,22 @@ You add this to your config to bind some stuff:
 
 It will bind, for example, `avy-isearch` to <kbd>C-'</kbd> in `isearch-mode-map`, so that you can select one of the currently visible `isearch` candidates using `avy`.
 
-### Style customization
+### Customization
 
-There are four styles of overlay functions to choose from. You can choose to use one style for all functions, or you can select a different style for each function.  Customize `avy-style` and `avy-styles-alist` respectively for this.
-The styles to choose from:
+See the comprehensive custom variable list on [the defcustom wiki page](https://github.com/abo-abo/avy/wiki/defcustom).
 
-- pre: the full path will be displayed before target, leaving all original text
-- at: the single character path will be displayed on target, obscuring the target
-- at-full: the full path will be displayed on target, obscuring the target and the text behind it
-- post: the full path will be displayed after target, leaving all original text
+## Contributing
 
-At first it seems that `pre` and `post` are advantageous over `at` and `at-full`, since you can still see the original text with them.  However, they make the text shift a bit. If you don't like that, use either `at` or `at-full`.
+### Copyright Assignment
+
+Avy is subject to the same [copyright assignment](http://www.gnu.org/prep/maintain/html_node/Copyright-Papers.html) policy as Emacs itself, org-mode, CEDET and other packages in [GNU ELPA](http://elpa.gnu.org/packages/). Any [legally significant](http://www.gnu.org/prep/maintain/html_node/Legally-Significant.html#Legally-Significant) contributions can only be accepted after the author has completed their paperwork. Please see [the request form](http://git.savannah.gnu.org/cgit/gnulib.git/tree/doc/Copyright/request-assign.future) if you want to proceed.
+
+The copyright assignment isn't a big deal, it just says that the copyright for your submitted changes to Emacs belongs to the FSF. This assignment works for all projects related to Emacs. To obtain it, you need to send one email, then send one letter (if you live in the US, it's digital), and wait for some time (in my case, I had to wait for one month).
+
+### Style
+
+The basic code style guide is to use `(setq indent-tabs-mode nil)`. It is provided for you in [.dir-locals.el](https://github.com/abo-abo/avy/blob/master/.dir-locals.el), please obey it.
+
+Before submitting the change, run `make compile` and `make test` to make sure that it doesn't introduce new compile warnings or test failures. Also run <kbd>M-x</kbd> `checkdoc` to see that your changes obey the documentation guidelines.
+
+Use your own judgment for the commit messages, I recommend a verbose style using `magit-commit-add-log`.
