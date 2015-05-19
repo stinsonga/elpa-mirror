@@ -79,8 +79,12 @@
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "M-q") 'swiper-query-replace)
     (define-key map (kbd "C-l") 'swiper-recenter-top-bottom)
+    (define-key map (kbd "C-'") 'swiper-avy)
     map)
   "Keymap for swiper.")
+
+(defvar swiper--window nil
+  "Store the current window.")
 
 (defun swiper-query-replace ()
   "Start `query-replace' with string to replace from last search string."
@@ -98,8 +102,25 @@
       (swiper--cleanup)
       (exit-minibuffer))))
 
-(defvar swiper--window nil
-  "Store the current window.")
+(defvar avy-background)
+(declare-function avy--regex-candidates "ext:avy")
+(declare-function avy--process "ext:avy")
+(declare-function avy--overlay-post "ext:avy")
+(declare-function avy--goto "ext:avy")
+
+;;;###autoload
+(defun swiper-avy ()
+  "Jump to one of the current swiper candidates."
+  (interactive)
+  (with-selected-window (ivy-state-window ivy-last)
+    (let* ((candidates
+            (avy--regex-candidates
+             (ivy--regex ivy-text)))
+           (avy-background nil)
+           (candidate
+            (avy--process candidates #'avy--overlay-post)))
+      (ivy-quit-and-run
+       (avy--goto candidate)))))
 
 (defun swiper-recenter-top-bottom (&optional arg)
   "Call (`recenter-top-bottom' ARG) in `swiper--window'."
@@ -118,7 +139,8 @@
                                  org-agenda-mode
                                  dired-mode
                                  jabber-chat-mode
-                                 elfeed-search-mode)))
+                                 elfeed-search-mode
+                                 fundamental-mode)))
     (unless (> (buffer-size) 100000)
       (if (fboundp 'font-lock-ensure)
           (font-lock-ensure)
@@ -127,12 +149,16 @@
 (defvar swiper--format-spec ""
   "Store the current candidates format spec.")
 
+(defvar swiper--width nil
+  "Store the amount of digits needed for the longest line nubmer.")
+
 (defun swiper--candidates ()
   "Return a list of this buffer lines."
   (let ((n-lines (count-lines (point-min) (point-max))))
     (unless (zerop n-lines)
+      (setq swiper--width (1+ (floor (log n-lines 10))))
       (setq swiper--format-spec
-            (format "%%-%dd %%s" (1+ (floor (log n-lines 10)))))
+            (format "%%-%dd %%s" swiper--width))
       (let ((line-number 0)
             candidates)
         (save-excursion
@@ -172,6 +198,27 @@ When non-nil, INITIAL-INPUT is the initial search pattern."
   (setq swiper--anchor (line-number-at-pos))
   (setq swiper--window (selected-window)))
 
+(defun swiper--re-builder (str)
+  "Transform STR into a swiper regex.
+This is the regex used in the minibuffer, since the candidates
+there have line numbers. In the buffer, `ivy--regex' should be used."
+  (cond
+    ((equal str "")
+     "")
+    ((equal str "^")
+     ".")
+    ((string-match "^\\^" str)
+     (setq ivy--old-re "")
+     (let ((re (ivy--regex-plus (substring str 1))))
+       (format "^[0-9][0-9 ]\\{%d\\}%s"
+               swiper--width
+               (if (zerop ivy--subexps)
+                   (prog1 (format "\\(%s\\)" re)
+                     (setq ivy--subexps 1))
+                 re))))
+    (t
+     (ivy--regex-plus str))))
+
 (defun swiper--ivy (&optional initial-input)
   "`isearch' with an overview using `ivy'.
 When non-nil, INITIAL-INPUT is the initial search pattern."
@@ -199,7 +246,8 @@ Please remove it and update the \"swiper\" package."))
                     :preselect preselect
                     :require-match t
                     :update-fn #'swiper--update-input-ivy
-                    :unwind #'swiper--cleanup))
+                    :unwind #'swiper--cleanup
+                    :re-builder #'swiper--re-builder))
       (if (null ivy-exit)
           (goto-char swiper--opoint)
         (swiper--action res ivy-text)))))
