@@ -33,7 +33,7 @@
 
 ;; To install cobol-mode.el, save it to your .emacs.d/ directory and add the
 ;; following to your .emacs:
-;; (autoload 'cobol-mode "modern-cobol-mode" "Major mode for highlighting COBOL files." t nil)
+;; (autoload 'cobol-mode "cobol-mode" "Major mode for highlighting COBOL files." t nil)
 
 ;; To automatically laod cobol-mode.el upon opening COBOL files, add this:
 ;; (setq auto-mode-alist
