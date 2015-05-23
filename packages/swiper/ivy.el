@@ -4,7 +4,6 @@
 
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
 ;; URL: https://github.com/abo-abo/swiper
-;; Version: 0.2.3
 ;; Package-Requires: ((emacs "24.1"))
 ;; Keywords: matching
 
@@ -330,7 +329,7 @@ If the text hasn't changed as a result, forward to `ivy-alt-done'."
                               (mapcar (lambda (str) (substring str (string-match postfix str)))
                                       ivy--old-cands))))
     (cond ((eq new t) nil)
-	  ((string= new ivy-text) nil)
+          ((string= new ivy-text) nil)
           (new
            (delete-region (minibuffer-prompt-end) (point-max))
            (setcar (last parts) new)
@@ -342,7 +341,7 @@ If the text hasn't changed as a result, forward to `ivy-alt-done'."
   "Exit the minibuffer with the current input."
   (interactive)
   (delete-minibuffer-contents)
-  (insert ivy-text)
+  (insert (setq ivy--current ivy-text))
   (setq ivy-exit 'done)
   (exit-minibuffer))
 
@@ -432,7 +431,7 @@ Call the permanent action if possible."
   (ivy--exhibit)
   (when (ivy-state-action ivy-last)
     (with-selected-window (ivy-state-window ivy-last)
-      (funcall (ivy-state-action ivy-last)))))
+      (funcall (ivy-state-action ivy-last) ivy--current))))
 
 (defun ivy-previous-line-and-call (&optional arg)
   "Move cursor vertically down ARG candidates.
@@ -442,7 +441,7 @@ Call the permanent action if possible."
   (ivy--exhibit)
   (when (ivy-state-action ivy-last)
     (with-selected-window (ivy-state-window ivy-last)
-      (funcall (ivy-state-action ivy-last)))))
+      (funcall (ivy-state-action ivy-last) ivy--current))))
 
 (defun ivy-previous-history-element (arg)
   "Forward to `previous-history-element' with ARG."
@@ -623,7 +622,8 @@ UPDATE-FN is called each time the current candidate(s) is changed.
 
 When SORT is t, refer to `ivy-sort-functions-alist' for sorting.
 
-ACTION is a lambda to call after a result was selected.
+ACTION is a lambda to call after a result was selected. It should
+take a single argument, usually a string.
 
 UNWIND is a lambda to call before exiting.
 
@@ -703,7 +703,7 @@ candidates with each input."
               (setq coll (cl-sort (copy-sequence coll) sort-fn))))))
     (when preselect
       (unless (or require-match
-                  (let ((re ,(format "\\`%s" preselect)))
+                  (let ((re (format "\\`%s" preselect)))
                     (cl-find-if (lambda (x) (string-match re x))
                                 coll)))
         (setq coll (cons preselect coll))))
@@ -750,7 +750,7 @@ candidates with each input."
           (when (setq unwind (ivy-state-unwind ivy-last))
             (funcall unwind)))
       (when (setq action (ivy-state-action ivy-last))
-        (funcall action)))))
+        (funcall action ivy--current)))))
 
 (defun ivy-completing-read (prompt collection
                             &optional predicate require-match initial-input
@@ -773,7 +773,9 @@ The history, defaults and input-method arguments are ignored for now."
   (ivy-read prompt collection
             :predicate predicate
             :require-match require-match
-            :initial-input initial-input
+            :initial-input (if (consp initial-input)
+                               (car initial-input)
+                             initial-input)
             :preselect (if (listp def) (car def) def)
             :history history
             :keymap nil
@@ -1231,16 +1233,17 @@ When VIRTUAL is non-nil, add virtual buffers."
     (and virtual
          (ivy--virtual-buffers)))))
 
-(defun ivy--switch-buffer-action ()
-  "Finalizer for `ivy-switch-buffer'."
-  (if (zerop (length ivy--current))
+(defun ivy--switch-buffer-action (buffer)
+  "Switch to BUFFER.
+BUFFER may be a string or nil."
+  (if (zerop (length buffer))
       (switch-to-buffer
        ivy-text nil 'force-same-window)
-    (let ((virtual (assoc ivy--current ivy--virtual-buffers)))
+    (let ((virtual (assoc buffer ivy--virtual-buffers)))
       (if virtual
           (find-file (cdr virtual))
         (switch-to-buffer
-         ivy--current nil 'force-same-window)))))
+         buffer nil 'force-same-window)))))
 
 (defun ivy-switch-buffer ()
   "Switch to another buffer."
@@ -1248,8 +1251,8 @@ When VIRTUAL is non-nil, add virtual buffers."
   (if (not ivy-mode)
       (call-interactively 'switch-to-buffer)
     (ivy-read "Switch to buffer: " 'internal-complete-buffer
-              :action #'ivy--switch-buffer-action
-              :preselect (buffer-name (other-buffer (current-buffer))))))
+              :preselect (buffer-name (other-buffer (current-buffer)))
+              :action #'ivy--switch-buffer-action)))
 
 (provide 'ivy)
 
