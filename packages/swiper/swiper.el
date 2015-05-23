@@ -4,7 +4,7 @@
 
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
 ;; URL: https://github.com/abo-abo/swiper
-;; Version: 0.4.0
+;; Version: 0.4.1
 ;; Package-Requires: ((emacs "24.1"))
 ;; Keywords: matching
 
@@ -95,7 +95,7 @@
            (from (ivy--regex ivy-text))
            (to (query-replace-read-to from "Query replace" t)))
       (delete-minibuffer-contents)
-      (ivy-set-action (lambda ()
+      (ivy-set-action (lambda (_)
                         (with-selected-window swiper--window
                           (perform-replace from to
                                            t t nil))))

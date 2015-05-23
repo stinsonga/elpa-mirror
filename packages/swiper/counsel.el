@@ -5,7 +5,7 @@
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
 ;; URL: https://github.com/abo-abo/swiper
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "24.1") (swiper "0.3.0"))
+;; Package-Requires: ((emacs "24.1") (swiper "0.4.0"))
 ;; Keywords: completion, matching
 
 ;; This file is part of GNU Emacs.
@@ -51,11 +51,12 @@
   (ivy-set-action 'counsel--find-symbol)
   (ivy-done))
 
-(defun counsel--find-symbol ()
-  (let ((full-name (get-text-property 0 'full-name ivy--current)))
+(defun counsel--find-symbol (x)
+  "Find symbol definition that corresponds to string X."
+  (let ((full-name (get-text-property 0 'full-name x)))
     (if full-name
         (find-library full-name)
-      (let ((sym (read ivy--current)))
+      (let ((sym (read x)))
         (cond ((boundp sym)
                (find-variable sym))
               ((fboundp sym)
@@ -90,9 +91,9 @@
      :history 'counsel-describe-symbol-history
      :require-match t
      :sort t
-     :action (lambda ()
+     :action (lambda (x)
                (describe-variable
-                (intern ivy--current))))))
+                (intern x))))))
 
 (defun counsel-describe-function ()
   "Forward to `describe-function'."
@@ -110,9 +111,9 @@
               :history 'counsel-describe-symbol-history
               :require-match t
               :sort t
-              :action (lambda ()
+              :action (lambda (x)
                         (describe-function
-                         (intern ivy--current))))))
+                         (intern x))))))
 
 (defvar info-lookup-mode)
 (declare-function info-lookup->completions "info-look")
@@ -174,9 +175,9 @@
                   "git ls-files --full-name --")
                  "\n"
                  t))
-         (file (ivy-read "Find file: " cands)))
-    (when file
-      (find-file file))))
+         (action (lambda (x) (find-file x))))
+    (ivy-read "Find file: " cands
+              :action action)))
 
 (defvar counsel--git-grep-dir nil
   "Store the base git directory.")
@@ -223,8 +224,8 @@
     (counsel-git-grep-action)
     (recenter-top-bottom)))
 
-(defun counsel-git-grep-action ()
-  (let ((lst (split-string ivy--current ":")))
+(defun counsel-git-grep-action (x)
+  (let ((lst (split-string x ":")))
     (find-file (expand-file-name (car lst) counsel--git-grep-dir))
     (goto-char (point-min))
     (forward-line (1- (string-to-number (cadr lst))))
@@ -353,9 +354,9 @@ The libraries are offered from `load-path'."
                                dir) cands)))))))
     (maphash (lambda (_k v) (push (car v) res)) cands)
     (ivy-read "Load library: " (nreverse res)
-              :action (lambda ()
+              :action (lambda (x)
                         (load-library
-                         (get-text-property 0 'full-name ivy--current)))
+                         (get-text-property 0 'full-name x)))
               :keymap counsel-describe-map)))
 
 (provide 'counsel)
