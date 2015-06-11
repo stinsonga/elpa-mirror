@@ -2,10 +2,11 @@
 
 ;; Copyright (C) 2014, 2015 Free Software Foundation, Inc.
 
-;; Author: Artur Malabarba  <bruce.connor.am@gmail.com>
+;; Author: Artur Malabarba  <bruce.connor.am@>
+;; URL: https://github.com/Malabarba/speed-of-thought-lisp
 ;; Keywords: convenience, lisp
 ;; Package-Requires: ((emacs "24.1"))
-;; Version: 0
+;; Version: 1.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -187,6 +188,7 @@ The space char is not included.  Any \"$\" are also removed."
     ("bc" . "forward-char -1")
     ("bfn" . "buffer-file-name")
     ("bl" . "buffer-list$")
+    ("blp" . "buffer-live-p ")
     ("bn" . "buffer-name")
     ("bod" . "beginning-of-defun")
     ("bol" . "forward-line 0$")
@@ -243,6 +245,7 @@ The space char is not included.  Any \"$\" are also removed."
     ("k" . "kbd \"$\"")
     ("kb" . "kill-buffer")
     ("kn" . "kill-new ")
+    ("kp" . "keywordp ")
     ("l" . "lambda ($)")
     ("la" . "looking-at \"$\"")
     ("lap" . "looking-at-p \"$\"")
@@ -265,6 +268,7 @@ The space char is not included.  Any \"$\" are also removed."
     ("ntr" . "narrow-to-region ")
     ("ow" . "other-window 1")
     ("p" . "point$")
+    ("pm" . "point-marker$")
     ("pa" . "point-max$")
     ("pg" . "plist-get ")
     ("pi" . "point-min$")
@@ -285,8 +289,8 @@ The space char is not included.  Any \"$\" are also removed."
     ("s" . "setq ")
     ("sb" . "search-backward $ nil 'noerror")
     ("sbr" . "search-backward-regexp $ nil 'noerror")
-    ("scb" . "skip-chars-backward \"$\r\n[:blank:]\"")
-    ("scf" . "skip-chars-forward \"$\r\n[:blank:]\"")
+    ("scb" . "skip-chars-backward \"$\\r\\n[:blank:]\"")
+    ("scf" . "skip-chars-forward \"$\\r\\n[:blank:]\"")
     ("se" . "save-excursion")
     ("sf" . "search-forward $ nil 'noerror")
     ("sfr" . "search-forward-regexp $ nil 'noerror")
@@ -314,6 +318,8 @@ The space char is not included.  Any \"$\" are also removed."
     ("wf" . "write-file ")
     ("wh" . "while ")
     ("wl" . "window-list nil 'nominibuffer")
+    ("we" . "window-end")
+    ("ws" . "window-start")
     ("wtb" . "with-temp-buffer")
     ("wtf" . "with-temp-file ")
     )
