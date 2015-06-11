@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013-2015  Free Software Foundation, Inc.
 
 ;; Author: Leo Liu <sdl.web@gmail.com>
-;; Version: 0.8.9
+;; Version: 0.8.10
 ;; Keywords: tools, convenience
 ;; Created: 2013-01-29
 ;; URL: https://github.com/leoliu/ggtags
@@ -36,10 +36,13 @@
 ;;
 ;; All commands are available from the `Ggtags' menu in `ggtags-mode'.
 
-;;; NEWS 0.8.9 (2015-01-16):
+;;; NEWS 0.8.10 (2015-06-12):
 
-;; - `ggtags-visit-project-root' can visit past projects.
-;; - `eldoc' support enabled for emacs 24.4+.
+;; - Tags update on save is configurable by `ggtags-update-on-save'.
+;; - New command `ggtags-explain-tags' to explain how each file is
+;;   indexed in current project.
+;; - New user option `ggtags-sort-by-nearness' that sorts matched tags
+;;   by nearness to current directory.
 ;;
 ;; See full NEWS on https://github.com/leoliu/ggtags#news
 
@@ -204,6 +207,21 @@ This feature requires GNU Global 6.3.3+ and is ignored if `gtags'
 isn't built with sqlite3 support."
   :type 'boolean
   :safe 'booleanp
+  :group 'ggtags)
+
+(defcustom ggtags-sort-by-nearness nil
+  "Sort tags by nearness to current directory.
+GNU Global 6.5+ required."
+  :type 'boolean
+  :safe #'booleanp
+  :group 'ggtags)
+
+(defcustom ggtags-update-on-save t
+  "Non-nil to update tags for current buffer on saving."
+  ;; It is reported that `global --single-update' can be slow in sshfs
+  ;; directories. See https://github.com/leoliu/ggtags/issues/85.
+  :safe #'booleanp
+  :type 'boolean
   :group 'ggtags)
 
 (defcustom ggtags-global-output-format 'grep
@@ -721,6 +739,16 @@ source trees. See Info node `(global)gtags' for details."
     (message "GTAGS generated in `%s'" root)
     root))
 
+(defun ggtags-explain-tags ()
+  "Explain how each file is indexed in current project."
+  (interactive (ignore (ggtags-check-project)
+                       (or (ggtags-process-succeed-p "gtags" "--explain" "--help")
+                           (user-error "Global 6.4+ required"))))
+  (ggtags-check-project)
+  (ggtags-with-current-project
+    (let ((default-directory (ggtags-current-project-root)))
+      (compilation-start (concat (ggtags-program-path "gtags") " --explain")))))
+
 (defun ggtags-update-tags (&optional force)
   "Update GNU Global tag database.
 Do nothing if GTAGS exceeds the oversize limit unless FORCE.
@@ -850,6 +878,10 @@ blocking emacs."
                 (default (substring-no-properties default))
                 (t (ggtags-read-tag type t prompt require-match default))))))
 
+(defun ggtags-sort-by-nearness-p ()
+  (and ggtags-sort-by-nearness
+       (ggtags-process-succeed-p "global" "--nearness" "--help")))
+
 (defun ggtags-global-build-command (cmd &rest args)
   ;; CMD can be definition, reference, symbol, grep, idutils
   (let ((xs (append (list (shell-quote-argument (ggtags-program-path "global"))
@@ -860,6 +892,7 @@ blocking emacs."
                                (ggtags-find-project)
                                (ggtags-project-has-color (ggtags-find-project))
                                "--color=always")
+                          (and (ggtags-sort-by-nearness-p) "--nearness")
                           (and (ggtags-find-project)
                                (ggtags-project-has-path-style (ggtags-find-project))
                                "--path-style=shorter")
@@ -921,7 +954,8 @@ blocking emacs."
 
 (defun ggtags-find-tag (cmd &rest args)
   (ggtags-check-project)
-  (ggtags-global-start (apply #'ggtags-global-build-command cmd args)))
+  (ggtags-global-start (apply #'ggtags-global-build-command cmd args)
+                       (and (ggtags-sort-by-nearness-p) default-directory)))
 
 (defun ggtags-include-file ()
   "Calculate the include file based on `ggtags-include-pattern'."
@@ -961,13 +995,16 @@ definition tags."
         (not (ggtags-project-has-refs (ggtags-find-project)))
         (not (ggtags-project-file-p buffer-file-name)))
     (ggtags-find-definition name))
-   (t (ggtags-find-tag (format "--from-here=%d:%s"
-                               (line-number-at-pos)
-                               (shell-quote-argument
-                                ;; Note `ggtags-global-start' binds
-                                ;; default-directory to project root.
-                                (ggtags-project-relative-file buffer-file-name)))
-                       (shell-quote-argument name)))))
+   (t (ggtags-find-tag
+       (format "--from-here=%d:%s"
+               (line-number-at-pos)
+               (shell-quote-argument
+                ;; Note `ggtags-find-tag' may bind `default-directory'
+                ;; to project root.
+                (funcall (if (ggtags-sort-by-nearness-p)
+                             #'file-relative-name #'ggtags-project-relative-file)
+                         buffer-file-name)))
+       (shell-quote-argument name)))))
 
 (defun ggtags-find-tag-mouse (event)
   (interactive "e")
@@ -1937,7 +1974,7 @@ commands `next-error' and `previous-error'.
 (defun ggtags-after-save-function ()
   (when (ggtags-find-project)
     (ggtags-project-update-mtime-maybe)
-    (and buffer-file-name
+    (and buffer-file-name ggtags-update-on-save
          (ggtags-update-tags-single buffer-file-name 'nowait))))
 
 (defun ggtags-global-output (buffer cmds callback &optional cutoff)
@@ -2256,7 +2293,13 @@ to nil disables displaying this information.")
                   ;; Prevent multiple runs of ggtags-show-definition
                   ;; for the same tag.
                   (setq ggtags-eldoc-cache (list tag))
-                  (ggtags-show-definition tag)
+                  (condition-case err
+                      (ggtags-show-definition tag)
+                    (file-error
+                     (remove-function (local 'eldoc-documentation-function)
+                                      'ggtags-eldoc-function)
+                     (message "\
+Function `ggtags-eldoc-function' disabled for eldoc in current buffer: %S" err)))
                   nil))))))
 
 ;;; imenu

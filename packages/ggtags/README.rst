@@ -264,6 +264,10 @@ ggtags-delete-tags
 
    Delete the GTAGS, GRTAGS, GPATH and ID files of current project.
 
+ggtags-explain-tags
+
+  Explain how each file is indexed in current project.
+
 ggtags-browse-file-as-hypertext
 
    Use ``htags`` to generate HTML of the source tree. This allows
@@ -307,6 +311,15 @@ Integration with other packages
 
 NEWS
 ~~~~
+
+[2015-06-12 Fri] 0.8.10
++++++++++++++++++++++++
+
+#. Tags update on save is configurable by ``ggtags-update-on-save``.
+#. New command ``ggtags-explain-tags`` to explain how each file is
+   indexed in current project. Global 6.4+ required.
+#. New user option ``ggtags-sort-by-nearness`` that sorts matched tags
+   by nearness to current directory.
 
 [2015-01-16 Fri] 0.8.9
 ++++++++++++++++++++++
