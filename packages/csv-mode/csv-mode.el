@@ -5,7 +5,7 @@
 ;; Author: Francis J. Wright <F.J.Wright at qmul.ac.uk>
 ;; Time-stamp: <23 August 2004>
 ;; URL: http://centaur.maths.qmul.ac.uk/Emacs/
-;; Version: 1.3
+;; Version: 1.4
 ;; Keywords: convenience
 
 ;; This package is free software; you can redistribute it and/or modify
@@ -332,24 +332,25 @@ It must be either a string or nil."
    (list (edit-and-eval-command
 	  "Comment start (string or nil): " csv-comment-start)))
   ;; Paragraph means a group of contiguous records:
-  (setq csv-comment-start string)
   (set (make-local-variable 'paragraph-separate) "[:space:]*$") ; White space.
   (set (make-local-variable 'paragraph-start) "\n");Must include \n explicitly!
-  (if string
-      (progn
-	(setq paragraph-separate (concat paragraph-separate "\\|" string)
-	      paragraph-start (concat paragraph-start "\\|" string))
-        (set (make-local-variable 'comment-start) string)
-	(modify-syntax-entry
-	 (string-to-char string) "<" csv-mode-syntax-table)
-	(modify-syntax-entry ?\n ">" csv-mode-syntax-table))
-    (with-syntax-table text-mode-syntax-table
-      (modify-syntax-entry (string-to-char string)
-			   (string (char-syntax (string-to-char string)))
-			   csv-mode-syntax-table)
-      (modify-syntax-entry ?\n
-			   (string (char-syntax ?\n))
-			   csv-mode-syntax-table))))
+  ;; Remove old comment-start/end if available
+  (with-syntax-table text-mode-syntax-table
+    (when comment-start
+      (modify-syntax-entry (string-to-char comment-start)
+			   (string (char-syntax (string-to-char comment-start)))
+			   csv-mode-syntax-table))
+    (modify-syntax-entry ?\n
+			 (string (char-syntax ?\n))
+			 csv-mode-syntax-table))
+  (when string
+    (setq paragraph-separate (concat paragraph-separate "\\|" string)
+	  paragraph-start (concat paragraph-start "\\|" string))
+    (set (make-local-variable 'comment-start) string)
+    (modify-syntax-entry
+     (string-to-char string) "<" csv-mode-syntax-table)
+    (modify-syntax-entry ?\n ">" csv-mode-syntax-table))
+  (setq csv-comment-start string))
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.[Cc][Ss][Vv]\\'" . csv-mode))
