@@ -82,18 +82,36 @@ Linum mode is a buffer-local minor mode."
           width)))))
 
 (defun nlinum--setup-window ()
-  (let ((width (if (display-graphic-p)
-                   (ceiling
-                    (let ((width (nlinum--face-width 'linum)))
-                      (if width
-                          (/ (* nlinum--width 1.0 width)
-                             (frame-char-width))
-                        (/ (* nlinum--width 1.0
-                              (nlinum--face-height 'linum))
-                           (frame-char-height)))))
-                 nlinum--width)))
-    (set-window-margins nil (if nlinum-mode width)
-                        (cdr (window-margins)))))
+  ;; FIXME: The interaction between different uses of the margin is
+  ;; problematic.  We should have a way for different packages to indicate (and
+  ;; change) their preference independently.
+  (let* ((width (if (display-graphic-p)
+                    (ceiling
+                     (let ((width (nlinum--face-width 'linum)))
+                       (if width
+                           (/ (* nlinum--width 1.0 width)
+                              (frame-char-width))
+                         (/ (* nlinum--width 1.0
+                               (nlinum--face-height 'linum))
+                            (frame-char-height)))))
+                  nlinum--width))
+         (cur-margins (window-margins))
+         (cur-margin (car cur-margins))
+         ;; (EXT . OURS) keeps track of the size of the margin, where EXT is the
+         ;; size chosen by external code and OURS is the size we last set.
+         ;; OURS is used to detect when someone else modifies the margin.
+         (margin-settings (window-parameter nil 'linum--margin)))
+    (if margin-settings
+        (unless (eq (cdr margin-settings) cur-margin)
+          ;; Damn!  The margin is not what it used to be!  => Update EXT!
+          (setcar margin-settings cur-margin))
+      (set-window-parameter nil 'linum--margin
+                            (setq margin-settings (list cur-margin))))
+    (and (car margin-settings) width
+         (setq width (max width (car margin-settings))))
+    (setcdr margin-settings width)
+    (set-window-margins nil (if nlinum-mode width (car margin-settings))
+                        (cdr cur-margins))))
 
 (defun nlinum--setup-windows ()
   (dolist (win (get-buffer-window-list nil nil t))
