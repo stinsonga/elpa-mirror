@@ -8,7 +8,7 @@
 ;;
 ;; Keywords: files tools
 ;; URL: https://github.com/fourier/ztree
-;; Compatibility: GNU Emacs GNU Emacs 24.x
+;; Compatibility: GNU Emacs 24.x
 ;;
 ;; This file is part of GNU Emacs.
 ;;
@@ -56,7 +56,7 @@ Taken from http://lists.gnu.org/archive/html/emacs-devel/2011-01/msg01238.html"
 
 (defun newline-and-begin ()
   "Move a point to the beginning of the next line."
-  (newline)
+  (insert "\n")
   (beginning-of-line))
 
 (defun car-atom (value)
