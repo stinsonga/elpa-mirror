@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014-2015  Free Software Foundation, Inc.
 
 ;; Author: Jackson Ray Hamilton <jackson@jacksonrayhamilton.com>
-;; Version: 6.4.0
+;; Version: 6.4.1
 ;; Keywords: convenience faces tools
 ;; Package-Requires: ((emacs "24") (js2-mode "20150126"))
 ;; URL: https://github.com/jacksonrayhamilton/context-coloring
@@ -150,7 +150,8 @@ START, END and LENGTH are recorded for later use."
 
 (defun context-coloring-maybe-colorize-with-buffer (buffer)
   "Color BUFFER and if it has changed."
-  (when context-coloring-changed-p
+  (when (and (eq buffer (current-buffer))
+             context-coloring-changed-p)
     (context-coloring-colorize-with-buffer buffer)
     (setq context-coloring-changed-p nil)
     (setq context-coloring-changed-start nil)
