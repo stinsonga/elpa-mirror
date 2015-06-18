@@ -5,7 +5,7 @@
 ;; Author: Artur Malabarba <bruce.connor.am@gmail.com>
 ;; Maintainer: Artur Malabarba <bruce.connor.am@gmail.com>
 ;; URL: http://github.com/Bruce-Connor/names
-;; Version: 20150115.1
+;; Version: 20150618.0
 ;; Package-Requires: ((emacs "24.1") (cl-lib "0.5"))
 ;; Keywords: extensions lisp
 ;; Prefix: names
@@ -86,7 +86,8 @@ it will set PROP."
   (if (fboundp 'macrop) #'macrop
     (lambda (object)
       "Non-nil if and only if OBJECT is a macro."
-      (let ((def (indirect-function object t)))
+      (let ((def (or (ignore-errors (indirect-function object t))
+                     (ignore-errors (indirect-function object)))))
         (when (consp def)
           (or (eq 'macro (car def))
               (and (names--autoloadp def) (memq (nth 4 def) '(macro t)))))))))
@@ -124,7 +125,7 @@ it will set PROP."
 
 ;;; ---------------------------------------------------------------
 ;;; Variables
-(defconst names-version "20150115.1" "Version of the names.el package.")
+(defconst names-version "20150618.0" "Version of the names.el package.")
 
 (defvar names--name nil
   "Name of the current namespace inside the `define-namespace' macro.")
@@ -186,6 +187,22 @@ Is only non-nil if the :group keyword is passed to `define-namespace'.")
   "The version number given by :version.
 Used to define a constant and a command.")
 
+(defvar names--functionlike-macros nil
+  "Function-like macros, even if their debug-spec says otherwise.
+When expanding the namespace, these macros will be treated
+exactly like functions. This means that their contents will be
+namespaced like regular function arguments.
+
+To add macros to this list, pass the :functionlike-macros keyword
+to your namespace along with a list of macro names (as unquoted
+symbols).
+Example:
+
+    (define-namespace foo-
+    :functionlike-macros (-> ->> thread-first thread-last)
+    ;; Rest of code
+    )")
+
 (defconst names--keyword-list
   `((:group
      1 ,(lambda (x)
@@ -244,6 +261,12 @@ needed by the :version and :group keywords.")
                 (format "\\`%s" (regexp-quote val)))))
      "Change the value of the `names--protection' variable.")
 
+    (:functionlike-macros
+     1
+     ,(lambda (x) (setq names--functionlike-macros
+                   (append x names--functionlike-macros)))
+     "A list of values to be appended to `names--functionlike-macros'.")
+
     (:no-let-vars
      0 nil
      "Indicates variables assigned in let-bind are NOT candidates for namespacing.")
@@ -296,8 +319,8 @@ behaviour.")
      (remove
       nil
       (mapcar (lambda (x) (when (funcall (or ,pred #'identity) (or (car-safe x) x))
-                (or (car-safe x) x)))
-          ,var))))
+                            (or (car-safe x) x)))
+              ,var))))
 
 (defmacro names--next-keyword (body)
   "If car of BODY is a known keyword, `pop' it (and its arguments) from body.
@@ -411,6 +434,7 @@ See `define-namespace' for more information."
               (names--remove-namespace-from-list
                (names--filter-if-bound byte-compile-macro-environment (lambda (x) (not (names--compat-macrop x))))
                (names--filter-if-bound byte-compile-function-environment (lambda (x) (not (names--compat-macrop x))))))
+             (names--functionlike-macros names--functionlike-macros)
              names--keywords names--local-vars key-and-args
              names--version names--package names--group-parent)
         ;; Read keywords
@@ -597,28 +621,29 @@ Also adds `version' to `names--fbound' and `names--bound'."
                                byte-compile-macro-environment))))))))
 
 ;;;###autoload
-(defadvice find-function-search-for-symbol
-    (around names-around-find-function-search-for-symbol-advice
-            (symbol type library) activate)
-  "Make sure `find-function-search-for-symbol' understands namespaces."
-  ad-do-it
-  (ignore-errors
-    (unless (cdr ad-return-value)
-      (with-current-buffer (car ad-return-value)
-        (search-forward-regexp "^(define-namespace\\_>")
-        (skip-chars-forward "\r\n[:blank:]")
-        (let* ((names--regexp
-                (concat "\\`" (regexp-quote
-                               (symbol-name (read (current-buffer))))))
-               (short-symbol
-                ;; We manually implement `names--remove-namespace'
-                ;; because it might not be loaded.
-                (let ((name (symbol-name symbol)))
-                  (when (string-match names--regexp name)
-                    (intern (replace-match "" nil nil name))))))
-          (when short-symbol
-            (ad-set-arg 0 short-symbol)
-            ad-do-it))))))
+(eval-after-load 'find-func
+  '(defadvice find-function-search-for-symbol
+       (around names-around-find-function-search-for-symbol-advice
+               (symbol type library) activate)
+     "Make sure `find-function-search-for-symbol' understands namespaces."
+     ad-do-it
+     (ignore-errors
+       (unless (cdr ad-return-value)
+         (with-current-buffer (car ad-return-value)
+           (search-forward-regexp "^(define-namespace\\_>")
+           (skip-chars-forward "\r\n[:blank:]")
+           (let* ((names--regexp
+                   (concat "\\`" (regexp-quote
+                                  (symbol-name (read (current-buffer))))))
+                  (short-symbol
+                   ;; We manually implement `names--remove-namespace'
+                   ;; because it might not be loaded.
+                   (let ((name (symbol-name symbol)))
+                     (when (string-match names--regexp name)
+                       (intern (replace-match "" nil nil name))))))
+             (when short-symbol
+               (ad-set-arg 0 short-symbol)
+               ad-do-it)))))))
 
 (defun names--extract-autoloads (body)
   "Return a list of the forms in BODY preceded by :autoload."
@@ -749,7 +774,6 @@ returns nil."
   "If non-nil, verbose message are printed regardless of the :verbose keyword.
 Use this to easily turn on verbosity during tests.")
 
-;; This is calling edebug even on `when' and `unless'
 (defun names--args-of-function-or-macro (function args macro)
   "Namespace FUNCTION's arguments ARGS, with special treatment if MACRO is non-nil."
   (if macro
@@ -757,7 +781,8 @@ Use this to easily turn on verbosity during tests.")
             (names--verbose (eq function 'push)))
         (names--message "Edebug-spec of `%s' is %s" function it)
         ;; Macros where we evaluate all arguments are like functions.
-        (if (equal it t)
+        (if (or (equal it t)
+                (memq function names--functionlike-macros))
             (names--args-of-function-or-macro function args nil)
           ;; Macros where nothing is evaluated we can just return.
           (if (equal it 0)
@@ -953,8 +978,7 @@ the keyword arguments, if any."
 ;; Defun, defmacro, and defsubst macros are pretty predictable.
 (defun names--convert-defmacro (form)
   "Special treatment for `defmacro' FORM."
-  (let* (;; (names--name-already-prefixed t) ;FIXME: Unused?!
-         (name (cadr form))
+  (let* ((name (cadr form))
          (spaced-name (names--prepend name))
          decl)
     (add-to-list 'names--macro name)
