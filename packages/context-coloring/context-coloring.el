@@ -3,9 +3,9 @@
 ;; Copyright (C) 2014-2015  Free Software Foundation, Inc.
 
 ;; Author: Jackson Ray Hamilton <jackson@jacksonrayhamilton.com>
-;; Version: 6.4.1
+;; Version: 6.5.0
 ;; Keywords: convenience faces tools
-;; Package-Requires: ((emacs "24") (js2-mode "20150126"))
+;; Package-Requires: ((emacs "24.3") (js2-mode "20150126"))
 ;; URL: https://github.com/jacksonrayhamilton/context-coloring
 
 ;; This file is part of GNU Emacs.
@@ -196,7 +196,7 @@ Supported modes: `js-mode', `js3-mode'"
 
 (defun context-coloring-setup-idle-change-detection ()
   "Setup idle change detection."
-  (let ((dispatch (context-coloring-get-dispatch-for-mode major-mode)))
+  (let ((dispatch (context-coloring-get-current-dispatch)))
     (add-hook
      'after-change-functions #'context-coloring-change-function nil t)
     (add-hook
@@ -447,10 +447,13 @@ bound as variables.")
 (defvar context-coloring-parse-interruptable-p t
   "Set this to nil to force parse to continue until finished.")
 
-(defconst context-coloring-elisp-sexps-per-pause 1000
+(defconst context-coloring-elisp-sexps-per-pause 350
   "Pause after this many iterations to check for user input.
 If user input is pending, stop the parse.  This makes for a
-smoother user experience for large files.")
+smoother user experience for large files.
+
+This number should trigger pausing at about 60 frames per
+second.")
 
 (defvar context-coloring-elisp-sexp-count 0
   "Current number of sexps leading up to the next pause.")
@@ -635,37 +638,25 @@ header in CALLBACK."
     (forward-char)
     (context-coloring-elisp-pop-scope)))
 
-(defun context-coloring-elisp-parse-header (callback start)
-  "Parse a function header at point with CALLBACK.  If there is
-no header, skip past the sexp at START."
-  (cond
-   ((= (context-coloring-get-syntax-code) context-coloring-OPEN-PARENTHESIS-CODE)
-    (funcall callback))
-   (t
-    ;; Skip it.
-    (goto-char start)
-    (context-coloring-elisp-forward-sexp))))
+(defun context-coloring-elisp-parse-header (callback)
+  "Parse a function header at point with CALLBACK."
+  (when (= (context-coloring-get-syntax-code) context-coloring-OPEN-PARENTHESIS-CODE)
+    (funcall callback)))
 
 (defun context-coloring-elisp-colorize-defun-like (callback)
   "Color the defun-like function at point, parsing the header
 with CALLBACK."
-  (let ((start (point)))
-    (context-coloring-elisp-colorize-scope
-     (lambda ()
-       (cond
-        ((context-coloring-elisp-identifier-p (context-coloring-get-syntax-code))
-         ;; Color the defun's name with the top-level color.
-         (context-coloring-colorize-region
-          (point)
-          (progn (forward-sexp)
-                 (point))
-          0)
-         (context-coloring-elisp-forward-sws)
-         (context-coloring-elisp-parse-header callback start))
-        (t
-         ;; Skip it.
-         (goto-char start)
-         (context-coloring-elisp-forward-sexp)))))))
+  (context-coloring-elisp-colorize-scope
+   (lambda ()
+     (when (context-coloring-elisp-identifier-p (context-coloring-get-syntax-code))
+       ;; Color the defun's name with the top-level color.
+       (context-coloring-colorize-region
+        (point)
+        (progn (forward-sexp)
+               (point))
+        0)
+       (context-coloring-elisp-forward-sws)
+       (context-coloring-elisp-parse-header callback)))))
 
 (defun context-coloring-elisp-colorize-defun ()
   "Color the `defun' at point."
@@ -687,17 +678,14 @@ with CALLBACK."
           (t
            ;; Ignore artifacts.
            (context-coloring-elisp-forward-sexp)))
-         (context-coloring-elisp-forward-sws))
-       ;; Exit.
-       (forward-char)))))
+         (context-coloring-elisp-forward-sws))))))
 
 (defun context-coloring-elisp-colorize-lambda-like (callback)
   "Color the lambda-like function at point, parsing the header
 with CALLBACK."
-  (let ((start (point)))
-    (context-coloring-elisp-colorize-scope
-     (lambda ()
-       (context-coloring-elisp-parse-header callback start)))))
+  (context-coloring-elisp-colorize-scope
+   (lambda ()
+     (context-coloring-elisp-parse-header callback))))
 
 (defun context-coloring-elisp-colorize-lambda ()
   "Color the `lambda' at point."
@@ -1008,43 +996,60 @@ point.  It could be a quoted or backquoted expression."
         (max-specpdl-size (max max-specpdl-size 3000)))
     (context-coloring-elisp-colorize-region start end)))
 
+(defun context-coloring-elisp-colorize-guard (callback)
+  "Silently color in CALLBACK."
+  (with-silent-modifications
+    (save-excursion
+      (condition-case nil
+          (funcall callback)
+        ;; Scan errors can happen virtually anywhere if parenthesis are
+        ;; unbalanced.  Just swallow them.  (`progn' for test coverage.)
+        (scan-error (progn))))))
+
 (defun context-coloring-elisp-colorize ()
   "Color the current buffer, parsing elisp to determine its
 scopes and variables."
   (interactive)
-  (with-silent-modifications
-    (save-excursion
-      (condition-case nil
-          (cond
-           ;; Just colorize the changed region.
-           (context-coloring-changed-p
-            (let* (;; Prevent `beginning-of-defun' from making poor assumptions.
-                   (open-paren-in-column-0-is-defun-start nil)
-                   ;; Seek the beginning and end of the previous and next
-                   ;; offscreen defuns, so just enough is colored.
-                   (start (progn (goto-char context-coloring-changed-start)
-                                 (while (and (< (point-min) (point))
-                                             (pos-visible-in-window-p))
-                                   (end-of-line 0))
-                                 (beginning-of-defun)
-                                 (point)))
-                   (end (progn (goto-char context-coloring-changed-end)
-                               (while (and (> (point-max) (point))
-                                           (pos-visible-in-window-p))
-                                 (forward-line 1))
-                               (end-of-defun)
-                               (point))))
-              (context-coloring-elisp-colorize-region-initially start end)
-              ;; Fast coloring is nice, but if the code is not well-formed
-              ;; (e.g. an unclosed string literal is parsed at any time) then
-              ;; there could be leftover incorrectly-colored code offscreen.  So
-              ;; do a clean sweep as soon as appropriate.
-              (context-coloring-schedule-coloring context-coloring-default-delay)))
-           (t
-            (context-coloring-elisp-colorize-region-initially (point-min) (point-max))))
-        ;; Scan errors can happen virtually anywhere if parenthesis are
-        ;; unbalanced.  Just swallow them.  (`progn' for test coverage.)
-        (scan-error (progn))))))
+  (context-coloring-elisp-colorize-guard
+   (lambda ()
+     (cond
+      ;; Just colorize the changed region.
+      (context-coloring-changed-p
+       (let* ( ;; Prevent `beginning-of-defun' from making poor assumptions.
+              (open-paren-in-column-0-is-defun-start nil)
+              ;; Seek the beginning and end of the previous and next
+              ;; offscreen defuns, so just enough is colored.
+              (start (progn (goto-char context-coloring-changed-start)
+                            (while (and (< (point-min) (point))
+                                        (pos-visible-in-window-p))
+                              (end-of-line 0))
+                            (beginning-of-defun)
+                            (point)))
+              (end (progn (goto-char context-coloring-changed-end)
+                          (while (and (> (point-max) (point))
+                                      (pos-visible-in-window-p))
+                            (forward-line 1))
+                          (end-of-defun)
+                          (point))))
+         (context-coloring-elisp-colorize-region-initially start end)
+         ;; Fast coloring is nice, but if the code is not well-formed
+         ;; (e.g. an unclosed string literal is parsed at any time) then
+         ;; there could be leftover incorrectly-colored code offscreen.  So
+         ;; do a clean sweep as soon as appropriate.
+         (context-coloring-schedule-coloring context-coloring-default-delay)))
+      (t
+       (context-coloring-elisp-colorize-region-initially (point-min) (point-max)))))))
+
+(defun context-coloring-eval-expression-colorize ()
+  "Color the `eval-expression' minibuffer prompt as elisp."
+  (interactive)
+  (context-coloring-elisp-colorize-guard
+   (lambda ()
+     (context-coloring-elisp-colorize-region-initially
+      (progn
+        (string-match "\\`Eval: " (buffer-string))
+        (1+ (match-end 0)))
+      (point-max)))))
 
 
 ;;; Shell command scopification / colorization
@@ -1223,13 +1228,22 @@ lists, which contain details about the strategies.")
 (defvar context-coloring-mode-hash-table (make-hash-table :test #'eq)
   "Map major mode names to dispatch property lists.")
 
-(defun context-coloring-get-dispatch-for-mode (mode)
-  "Return the dispatch for MODE (or a derivative mode)."
-  (let ((parent mode)
+(defvar context-coloring-dispatch-predicates '()
+  "Functions which may return a dispatch.")
+
+(defun context-coloring-get-current-dispatch ()
+  "Return the first dispatch appropriate for the current state."
+  (let ((predicates context-coloring-dispatch-predicates)
+        (parent major-mode)
         dispatch)
-    (while (and parent
-                (not (setq dispatch (gethash parent context-coloring-mode-hash-table)))
-                (setq parent (get parent 'derived-mode-parent))))
+    ;; Maybe a predicate will be satisfied and return a dispatch.
+    (while (and predicates
+                (not (setq dispatch (funcall (pop predicates))))))
+    ;; If not, maybe a major mode (or a derivative) will define a dispatch.
+    (when (not dispatch)
+      (while (and parent
+                  (not (setq dispatch (gethash parent context-coloring-mode-hash-table)))
+                  (setq parent (get parent 'derived-mode-parent)))))
     dispatch))
 
 (defun context-coloring-define-dispatch (symbol &rest properties)
@@ -1243,13 +1257,15 @@ server that returns scope data (`:command', `:host' and `:port').
 In the latter two cases, the scope data will be used to
 automatically color the buffer.
 
-PROPERTIES must include `:modes' and one of `:colorizer',
-`:scopifier' or `:command'.
+PROPERTIES must include one of `:modes' or `:predicate', and one
+of `:colorizer' or `:command'.
 
 `:modes' - List of major modes this dispatch is valid for.
 
-`:colorizer' - Symbol referring to a function that parses and
-colors the buffer.
+`:predicate' - Function that determines if the dispatch is valid
+for any given state.
+
+`:colorizer' - Function that parses and colors the buffer.
 
 `:executable' - Optional name of an executable required by
 `:command'.
@@ -1276,16 +1292,22 @@ should be numeric, e.g. \"2\", \"19700101\", \"1.2.3\",
 `:teardown' - Arbitrary code to tear down this dispatch when
 `context-coloring-mode' is disabled."
   (let ((modes (plist-get properties :modes))
+        (predicate (plist-get properties :predicate))
         (colorizer (plist-get properties :colorizer))
         (command (plist-get properties :command)))
-    (when (null modes)
-      (error "No mode defined for dispatch"))
+    (when (null (or modes
+                    predicate))
+      (error "No mode or predicate defined for dispatch"))
     (when (not (or colorizer
                    command))
       (error "No colorizer or command defined for dispatch"))
     (puthash symbol properties context-coloring-dispatch-hash-table)
     (dolist (mode modes)
-      (puthash mode properties context-coloring-mode-hash-table))))
+      (puthash mode properties context-coloring-mode-hash-table))
+    (when predicate
+      (push (lambda ()
+              (when (funcall predicate)
+                properties)) context-coloring-dispatch-predicates))))
 
 
 ;;; Colorization
@@ -1350,7 +1372,7 @@ produces (1 0 0), \"19700101\" produces (19700101), etc."
   "Asynchronously invoke CALLBACK with a predicate indicating
 whether the current scopifier version satisfies the minimum
 version number required for the current major mode."
-  (let ((dispatch (context-coloring-get-dispatch-for-mode major-mode)))
+  (let ((dispatch (context-coloring-get-current-dispatch)))
     (when dispatch
       (let ((version (plist-get dispatch :version))
             (command (plist-get dispatch :command)))
@@ -1738,13 +1760,28 @@ precedence, i.e. the car of `custom-enabled-themes'."
  :setup #'context-coloring-setup-idle-change-detection
  :teardown #'context-coloring-teardown-idle-change-detection)
 
+;; `eval-expression-minibuffer-setup-hook' is not available in Emacs 24.3, so
+;; the backwards-compatible recommendation is to use `minibuffer-setup-hook' and
+;; rely on this predicate instead.
+(defun context-coloring-eval-expression-predicate ()
+  "Non-nil if the minibuffer is for `eval-expression'."
+  (eq this-command 'eval-expression))
+
+(context-coloring-define-dispatch
+ 'eval-expression
+ :predicate #'context-coloring-eval-expression-predicate
+ :colorizer #'context-coloring-eval-expression-colorize
+ :delay 0.016
+ :setup #'context-coloring-setup-idle-change-detection
+ :teardown #'context-coloring-teardown-idle-change-detection)
+
 (defun context-coloring-dispatch (&optional callback)
   "Determine the optimal track for scopification / coloring of
 the current buffer, then execute it.
 
 Invoke CALLBACK when complete.  It is invoked synchronously for
 elisp tracks, and asynchronously for shell command tracks."
-  (let* ((dispatch (context-coloring-get-dispatch-for-mode major-mode))
+  (let* ((dispatch (context-coloring-get-current-dispatch))
          (colorizer (plist-get dispatch :colorizer))
          (command (plist-get dispatch :command))
          (host (plist-get dispatch :host))
@@ -1804,7 +1841,7 @@ Feature inspired by Douglas Crockford."
     (font-lock-set-defaults)
     ;; Safely change the value of this function as necessary.
     (make-local-variable 'font-lock-syntactic-face-function)
-    (let ((dispatch (context-coloring-get-dispatch-for-mode major-mode)))
+    (let ((dispatch (context-coloring-get-current-dispatch)))
       (cond
        (dispatch
         (let ((command (plist-get dispatch :command))
@@ -1841,7 +1878,7 @@ Feature inspired by Douglas Crockford."
        (t
         (message "Context coloring is not available for this major mode")))))
    (t
-    (let ((dispatch (context-coloring-get-dispatch-for-mode major-mode)))
+    (let ((dispatch (context-coloring-get-current-dispatch)))
       (when dispatch
         (let ((command (plist-get dispatch :command))
               (teardown (plist-get dispatch :teardown)))
