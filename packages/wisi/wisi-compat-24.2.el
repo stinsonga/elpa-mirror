@@ -1,6 +1,6 @@
-;;; wisi-compat-24.2.el --- Implement current Emacs features not present in Emacs 24.2
+;;; wisi-compat-24.2.el --- Implement current Emacs features not present in Emacs 24.2  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2014 Free Software Foundation, Inc.
+;; Copyright (C) 2014-2015 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -31,5 +31,4 @@ buffer-local wherever it is set."
   )
 
 (provide 'wisi-compat-24.2)
-
-;; end of file
+;;; wisi-compat-24.2.el ends here

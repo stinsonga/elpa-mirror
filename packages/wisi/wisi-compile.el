@@ -1,4 +1,4 @@
-;;; Grammar compiler for the wisent LALR parser, integrating Wisi OpenToken output.
+;;; Grammar compiler for the wisent LALR parser, integrating Wisi OpenToken output.  -*- lexical-binding:t -*-
 ;;
 ;; Copyright (C) 2012, 2013, 2015 Free Software Foundation, Inc.
 ;;
@@ -135,6 +135,13 @@ side-effects only."
     (list (car (aref actn 2)) action-symbol n)))
 
 (defun wisi-compile-grammar (grammar)
+  ;; FIXME: This docstring is full of ambiguities making it unclear whether
+  ;; we're talking for example about data that includes the symbol `nonterm' as
+  ;; opposed to data that includes some non terminal object we denote
+  ;; with the meta-variable "nonterm".
+  ;; The convention in Elisp's docstrings is to use all-caps for metavariables
+  ;; (and `...' quoting as opposed to the '... quoting used below in a few
+  ;; spots).
   "Compile the LALR(1) GRAMMAR; return the automaton for wisi-parse.
 GRAMMAR is a list TERMINALS NONTERMS ACTIONS GOTOS, where:
 
@@ -169,10 +176,10 @@ state.
 The automaton is an array with 3 elements:
 
 parser-actions is a copy of the input ACTIONS, with reduction
-actions replaced by a list (nonterm action-symbol token-count),
-where `nonterm' is a symbol from NONTERMS, and is the
-non-terminal to reduce to, token-count is the number of tokens in
-the reduction, action-symbol is nil if there is no user action,
+actions replaced by a list (NONTERM ACTION-SYMBOL TOKEN-COUNT),
+where NONTERM is a symbol from NONTERMS, and is the
+non-terminal to reduce to, TOKEN-COUNT is the number of tokens in
+the reduction, ACTION-SYMBOL is nil if there is no user action,
 or a symbol from semantic-actions (below).
 
 gotos is a copy of GOTOS.
@@ -180,6 +187,8 @@ gotos is a copy of GOTOS.
 semantic-actions is an obarray containing functions that
 implement the user action for each nonterminal; the function
 names have the format nonterm:index."
+  (defvar nrules) (defvar ptable) (defvar rcode) (defvar rlhs) (defvar tags)
+  (defvar token-list) (defvar var-list)
   (let (nrules ptable rcode rlhs tags token-list var-list)
     (wisent-parse-grammar;; set global vars used by wisent-semantic-action
      (cons
@@ -214,4 +223,4 @@ names have the format nonterm:index."
 
 (provide 'wisi-compile)
 
-;;;; end of file
+;;; wisi-compile.el ends here
