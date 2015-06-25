@@ -13,12 +13,12 @@ You can bind some of these useful commands in your config.
 > Input one char, jump to it with a tree.
 
 ```elisp
-(global-set-key (kbd "π") 'avy-goto-char)
+(global-set-key (kbd "C-:") 'avy-goto-char)
 ```
 
-After <kbd>πb</kbd>:
+After <kbd>C-: b</kbd>:
 
-![avy-goto-char](http://oremacs.com/download/avi-goto-char.png)
+![avy-goto-char](https://raw.githubusercontent.com/wiki/nloyola/avy/images/avy-goto-char.png)
 
 ### `avy-goto-char-2`
 
@@ -92,6 +92,8 @@ It will bind, for example, `avy-isearch` to <kbd>C-'</kbd> in `isearch-mode-map`
 ### Customization
 
 See the comprehensive custom variable list on [the defcustom wiki page](https://github.com/abo-abo/avy/wiki/defcustom).
+
+See how to write your own avy commands on [the custom-commands wiki page](https://github.com/abo-abo/avy/wiki/custom-commands).
 
 ## Contributing
 
