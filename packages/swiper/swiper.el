@@ -4,7 +4,7 @@
 
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
 ;; URL: https://github.com/abo-abo/swiper
-;; Version: 0.4.1
+;; Version: 0.5.1
 ;; Package-Requires: ((emacs "24.1"))
 ;; Keywords: matching
 
@@ -97,12 +97,14 @@
       (delete-minibuffer-contents)
       (ivy-set-action (lambda (_)
                         (with-selected-window swiper--window
+                          (move-beginning-of-line 1)
                           (perform-replace from to
                                            t t nil))))
       (swiper--cleanup)
       (exit-minibuffer))))
 
 (defvar avy-background)
+(defvar avy-all-windows)
 (declare-function avy--regex-candidates "ext:avy")
 (declare-function avy--process "ext:avy")
 (declare-function avy--overlay-post "ext:avy")
@@ -112,15 +114,17 @@
 (defun swiper-avy ()
   "Jump to one of the current swiper candidates."
   (interactive)
-  (with-selected-window (ivy-state-window ivy-last)
-    (let* ((candidates
-            (avy--regex-candidates
-             (ivy--regex ivy-text)))
-           (avy-background nil)
-           (candidate
-            (avy--process candidates #'avy--overlay-post)))
-      (ivy-quit-and-run
-       (avy--goto candidate)))))
+  (unless (string= ivy-text "")
+    (with-selected-window (ivy-state-window ivy-last)
+      (let* ((avy-all-windows nil)
+             (candidates
+              (avy--regex-candidates
+               (ivy--regex ivy-text)))
+             (avy-background nil)
+             (candidate
+              (avy--process candidates #'avy--overlay-post)))
+        (ivy-quit-and-run
+         (avy--goto candidate))))))
 
 (defun swiper-recenter-top-bottom (&optional arg)
   "Call (`recenter-top-bottom' ARG) in `swiper--window'."
@@ -131,6 +135,7 @@
 (defun swiper-font-lock-ensure ()
   "Ensure the entired buffer is highlighted."
   (unless (or (derived-mode-p 'magit-mode)
+              (bound-and-true-p magit-blame-mode)
               (memq major-mode '(package-menu-mode
                                  gnus-summary-mode
                                  gnus-article-mode
@@ -192,7 +197,6 @@ When non-nil, INITIAL-INPUT is the initial search pattern."
 
 (defun swiper--init ()
   "Perform initialization common to both completion methods."
-  (deactivate-mark)
   (setq swiper--opoint (point))
   (setq swiper--len 0)
   (setq swiper--anchor (line-number-at-pos))
@@ -219,6 +223,9 @@ there have line numbers. In the buffer, `ivy--regex' should be used."
     (t
      (ivy--regex-plus str))))
 
+(defvar swiper-history nil
+  "History for `swiper'.")
+
 (defun swiper--ivy (&optional initial-input)
   "`isearch' with an overview using `ivy'.
 When non-nil, INITIAL-INPUT is the initial search pattern."
@@ -231,10 +238,9 @@ Please remove it and update the \"swiper\" package."))
         (preselect (format
                     swiper--format-spec
                     (line-number-at-pos)
-                    (regexp-quote
-                     (buffer-substring-no-properties
-                      (line-beginning-position)
-                      (line-end-position)))))
+                    (buffer-substring-no-properties
+                     (line-beginning-position)
+                     (line-end-position))))
         res)
     (unwind-protect
          (setq res (ivy-read
@@ -247,7 +253,8 @@ Please remove it and update the \"swiper\" package."))
                     :require-match t
                     :update-fn #'swiper--update-input-ivy
                     :unwind #'swiper--cleanup
-                    :re-builder #'swiper--re-builder))
+                    :re-builder #'swiper--re-builder
+                    :history 'swiper-history))
       (if (null ivy-exit)
           (goto-char swiper--opoint)
         (swiper--action res ivy-text)))))
@@ -285,6 +292,11 @@ Please remove it and update the \"swiper\" package."))
       (when (cl-plusp num)
         (goto-char (point-min))
         (forward-line (1- num))
+        (if (and (equal ivy-text "")
+                 (>= swiper--opoint (line-beginning-position))
+                 (<= swiper--opoint (line-end-position)))
+            (goto-char swiper--opoint)
+          (re-search-forward re (line-end-position) t))
         (isearch-range-invisible (line-beginning-position)
                                  (line-end-position))
         (unless (and (>= (point) (window-start))
