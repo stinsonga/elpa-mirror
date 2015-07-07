@@ -5,6 +5,7 @@
 ;; Author: Terrence Brannon (was: <brannon@rana.usc.edu>)
 ;; Created: December 16, 1996 - first release to usenet
 ;; Keywords: games, neural network, adaptive search, chemotaxis
+;; Maintainer: No maintainer - help wanted.
 ;; Version: 1.0
 
 ;; This file is part of GNU Emacs.
