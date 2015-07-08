@@ -5,7 +5,7 @@
 ;; Author: Francis J. Wright <F.J.Wright at qmul.ac.uk>
 ;; Time-stamp: <23 August 2004>
 ;; URL: http://centaur.maths.qmul.ac.uk/Emacs/
-;; Version: 1.4
+;; Version: 1.5
 ;; Keywords: convenience
 
 ;; This package is free software; you can redistribute it and/or modify
@@ -964,18 +964,17 @@ The fields yanked are those last killed by `csv-kill-fields'."
     (while (not (eobp))                   ; for each record...
       (or (csv-not-looking-at-record)
           (let ((w widths)
-                (beg (point))            ; Beginning of current field.
+                (col (current-column))
                 x)
             (while (not (eolp))
               (csv-end-of-field)
-              (setq x (- (point) beg))    ; Field width.
+              (setq x (- (current-column) col)) ; Field width.
               (if w
                   (if (> x (car w)) (setcar w x))
                 (setq w (list x)
                       widths (nconc widths w)))
               (or (eolp) (forward-char))  ; Skip separator.
-              (setq w (cdr w)
-                    beg (point)))))
+              (setq w (cdr w) col (current-column)))))
       (forward-line))
     widths))
 
@@ -1021,8 +1020,8 @@ If there is no selected region, default to the whole buffer."
                        (align-padding (if (bolp) 0 csv-align-padding))
                        (left-padding 0) (right-padding 0)
                        (field-width
-                        ;; FIXME: Don't assume length=string-width!
-                        (progn (csv-end-of-field) (- (point) beg)))
+                        (- (- (current-column)
+                              (progn (csv-end-of-field) (current-column)))))
                        (column-width (pop w))
                        (x (- column-width field-width))) ; Required padding.
                   (set-marker end (point)) ; End of current field.
