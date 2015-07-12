@@ -3,11 +3,8 @@
 ;; Copyright (C) 2013-2015  Free Software Foundation, Inc.
 ;;
 ;; Author: Alexey Veretennikov <alexey dot veretennikov at gmail dot com>
-;; 
 ;; Created: 2013-11-1l
-;;
 ;; Version: 1.0.2
-;;
 ;; Keywords: files tools
 ;; URL: https://github.com/fourier/ztree
 ;; Compatibility: GNU Emacs 24.x
