@@ -2149,8 +2149,8 @@ DECLARATIVES.")
   "Regexp matching the PICTURE clause of a variable.")
 
 (defconst cobol-string-literal-type-re
-  "\\([ZBN]X?\\|[GX]\\)\\(\"\\|\'\\)"
-  "Regexp matching the type of a string literal.")
+  "\\([ZBN]X?\\|[GHLX]\\)\\(\"\\|\'\\)"
+  "Regexp matching the type of a string-style literal.")
 
 (defconst cobol-function-call-re
   "\\(\\w+\\)("
