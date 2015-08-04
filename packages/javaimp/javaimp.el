@@ -315,7 +315,7 @@ with POM"
      (let (xml-start-pos xml-end-pos)
        ;; find where we should start parsing XML
        (goto-char (point-min))
-       (re-search-forward "<\\?xml\\|<projects?>")
+       (re-search-forward "<\\?xml\\|<projects?")
        (setq xml-start-pos (match-beginning 0))
        ;; determine the start tag
        (goto-char (point-min))
