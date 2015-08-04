@@ -371,14 +371,14 @@ argument ilists are not modified."
 
 (defun ilist-setcar (ilist object)
   "Set the first element of ILIST to OBJECT.
-Error if ILIST is empty.  Returns OBJECT."
+Error if ILIST is empty.  Return OBJECT."
   (if (ilist-empty-p ilist)
       (signal 'empty-ilist nil)
     (setcar ilist object)))
 
 (defun ilist-setcdr (ilist newcdr)
   "Set the `ilist-cdr' of ILIST to NEWCDR.
-Error if ILIST is empty.  Returns NEWCDR."
+Error if ILIST is empty.  Return NEWCDR."
   (if (ilist-empty-p ilist)
       (signal 'empty-ilist nil)
     (setcdr ilist newcdr)))
