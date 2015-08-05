@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: Gnu Emacs 25
-;; Version: 0.0.1
+;; Version: 0.0.2
 ;; Package-Requires: ((emacs "25") (cl-lib "0"))
 
 
@@ -213,6 +213,7 @@ expression."
     (define-key map [up]   nil)
     (define-key map [down] nil)
     (define-key map [(control meta backspace)] #'backward-kill-sexp)
+    (define-key map [(control ?S)] #'exit-minibuffer)
     map)
   "Map for reading input with `el-search-read-expression'.")
 
@@ -405,14 +406,18 @@ return nil (no error)."
   (interactive (list (if (and (eq this-command last-command)
                               el-search-success)
                          el-search-current-pattern
-                       (let ((pattern (el-search--read-pattern "Find pcase pattern: " nil nil t)))
+                       (let ((pattern
+                              (el-search--read-pattern "Find pcase pattern: "
+                                                       (car el-search-history)
+                                                       nil t)))
                          ;; A very common mistake: input "foo" instead of "'foo"
                          (when (and (symbolp pattern)
                                     (not (eq pattern '_))
                                     (or (not (boundp pattern))
                                         (not (eq (symbol-value pattern) pattern))))
                            (error "Please don't forget the quote when searching for a symbol"))
-                         (setq el-search-current-pattern (el-search--maybe-wrap-pattern pattern))))))
+                         (el-search--maybe-wrap-pattern pattern)))))
+  (setq el-search-current-pattern pattern)
   (setq el-search-success nil)
   (let ((opoint (point)))
     (when (eq this-command last-command)
@@ -498,6 +503,7 @@ return nil (no error)."
 (defun el-search-query-replace (from to &optional mapping)
   "Replace some occurrences of FROM pattern with evaluated TO."
   (interactive (el-search-query-replace-read-args))
+  (setq el-search-current-pattern from)
   (barf-if-buffer-read-only)
   (el-search-search-and-replace-pattern from to mapping))
 
