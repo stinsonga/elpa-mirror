@@ -1,4 +1,4 @@
-;; el-search.el --- Expression based incremental search for emacs-lisp-mode -*- lexical-binding: t -*-
+;;; el-search.el --- Expression based incremental search for emacs-lisp-mode -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2015 Free Software Foundation, Inc
 
