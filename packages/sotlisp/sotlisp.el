@@ -6,7 +6,7 @@
 ;; URL: https://github.com/Malabarba/speed-of-thought-lisp
 ;; Keywords: convenience, lisp
 ;; Package-Requires: ((emacs "24.1"))
-;; Version: 1.1
+;; Version: 1.2
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -90,16 +90,32 @@
       (bound-and-true-p paredit-mode)
       (bound-and-true-p smartparens-mode)))
 
+(defun sotlisp--looking-back (regexp)
+  (string-match
+   (concat regexp "\\'")
+   (buffer-substring (line-beginning-position) (point))))
+
 (defun sotlisp--function-form-p ()
   "Non-nil if point is at the start of a sexp.
 Specially, avoids matching inside argument lists."
   (and (eq (char-before) ?\()
-       (not (looking-back "(\\(defun\\s-+.*\\|lambda\\s-+\\)("))
+       (not (sotlisp--looking-back "(\\(defun\\s-+.*\\|lambda\\s-+\\)("))
        (not (string-match (rx (syntax symbol)) (string last-command-event)))))
 
 (defun sotlisp--function-quote-p ()
   "Non-nil if point is at a sharp-quote."
-  (looking-back "#'"))
+  (ignore-errors
+    (save-excursion
+      (forward-char -2)
+      (looking-at-p "#'"))))
+
+(defun sotlisp--code-p ()
+  (save-excursion
+    (let ((r (point)))
+      (beginning-of-defun)
+      (let ((pps (parse-partial-sexp (point) r)))
+        (not (or (elt pps 3)
+                 (elt pps 4)))))))
 
 (defun sotlisp--function-p ()
   "Non-nil if point is at reasonable place for a function name.
@@ -109,13 +125,19 @@ non-nil."
   (save-excursion
     (ignore-errors
       (skip-chars-backward (rx alnum))
-      (or (sotlisp--function-form-p)
-          (sotlisp--function-quote-p)))))
+      (and (sotlisp--code-p)
+           (or (sotlisp--function-form-p)
+               (sotlisp--function-quote-p))))))
 
 (defun sotlisp--whitespace-p ()
   "Non-nil if current `self-insert'ed char is whitespace."
+  (sotlisp--whitespace-char-p last-command-event))
+(make-obsolete 'sotlisp--whitespace-p 'sotlisp--whitespace-char-p "1.2")
+
+(defun sotlisp--whitespace-char-p (char)
+  "Non-nil if CHAR is has whitespace syntax."
   (ignore-errors
-    (string-match (rx space) (string last-command-event))))
+    (string-match (rx space) (string char))))
 
 
 ;;; Expansion logic
@@ -140,6 +162,28 @@ Point is left where the `$' char was.  Does nothing if variable
              (sotlisp--auto-paired-p))
     (forward-char 1)))
 
+(defun sotlisp--post-expansion-cleanup ()
+  "Do some processing conditioned on the expansion done.
+If the command that triggered the expansion was a whitespace
+char, perform the steps below and return t.
+
+If the expansion ended in a $, delete it and call
+`sotlisp--maybe-skip-closing-paren'.
+If it ended in a space and there's a space ahead, delete the
+space ahead."
+  ;; Inform `expand-abbrev' that `self-insert-command' should not
+  ;; trigger, by returning non-nil on SPC.
+  (when (sotlisp--whitespace-char-p last-command-event)
+    ;; And maybe move out of closing paren if expansion ends with $.
+    (if (eq (char-before) ?$)
+        (progn (delete-char -1)
+               (setq sotlisp--needs-moving nil)
+               (sotlisp--maybe-skip-closing-paren))
+      (when (and (sotlisp--whitespace-char-p (char-after))
+                 (sotlisp--whitespace-char-p (char-before)))
+        (delete-char 1)))
+    t))
+
 (defvar sotlisp--function-table (make-hash-table :test #'equal)
   "Table where function abbrev expansions are stored.")
 
@@ -150,23 +194,18 @@ See `sotlisp-define-function-abbrev'."
     (skip-chars-backward (rx alnum))
     (let* ((name (buffer-substring (point) r))
            (expansion (gethash name sotlisp--function-table)))
-      (delete-region (point) r)
-      (if (sotlisp--function-quote-p)
-          ;; After #' use the simple expansion.
-          (insert (sotlisp--simplify-function-expansion expansion))
-        ;; Inside a form, use the full expansion.
-        (insert expansion)
-        (when (string-match "\\$" expansion)
-          (setq sotlisp--needs-moving t))))
-    ;; Inform `expand-abbrev' that `self-insert-command' should not
-    ;; trigger, by returning non-nil on SPC.
-    (when (sotlisp--whitespace-p)
-      ;; And maybe move out of closing paren if expansion ends with $.
-      (when (eq (char-before) ?$)
-        (delete-char -1)
-        (setq sotlisp--needs-moving nil)
-        (sotlisp--maybe-skip-closing-paren))
-      t)))
+      (if (not expansion)
+          (progn (goto-char r) nil)
+        (delete-region (point) r)
+        (if (sotlisp--function-quote-p)
+            ;; After #' use the simple expansion.
+            (insert (sotlisp--simplify-function-expansion expansion))
+          ;; Inside a form, use the full expansion.
+          (insert expansion)
+          (when (string-match "\\$" expansion)
+            (setq sotlisp--needs-moving t)))
+        ;; Must be last.
+        (sotlisp--post-expansion-cleanup)))))
 
 (put 'sotlisp--expand-function 'no-self-insert t)
 
@@ -236,6 +275,7 @@ The space char is not included.  Any \"$\" are also removed."
     ("i" . "insert ")
     ("ie" . "ignore-errors ")
     ("ii" . "interactive")
+    ("il" . "if-let (($))")
     ("ir" . "indent-region ")
     ("jcl" . "justify-current-line ")
     ("jl" . "delete-indentation")
@@ -317,7 +357,7 @@ The space char is not included.  Any \"$\" are also removed."
     ("wcb" . "with-current-buffer ")
     ("wf" . "write-file ")
     ("wh" . "while ")
-    ("wl" . "window-list nil 'nominibuffer")
+    ("wl" . "when-let (($))")
     ("we" . "window-end")
     ("ws" . "window-start")
     ("wtb" . "with-temp-buffer")
