@@ -37,6 +37,7 @@
  ("gnorb"               :subtree "https://github.com/girzel/gnorb")
  ("ioccur"		:subtree "https://github.com/thierryvolpiatto/ioccur.git")
  ("js2-mode"		:subtree "https://github.com/mooz/js2-mode.git")
+ ("omn-mode"            :external nil)
  ("pabbrev"             :external "https://github.com/phillord/pabbrev.git")
  ("pinentry"		:subtree "https://github.com/ueno/pinentry-el.git")
  ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
