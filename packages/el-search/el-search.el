@@ -169,7 +169,7 @@
 
 ;;; Code:
 
-;;; Requirements 
+;;; Requirements
 
 (eval-when-compile
   (require 'subr-x))
@@ -531,3 +531,4 @@ return nil (no error)."
 
 
 (provide 'el-search)
+;;; el-search.el ends here
