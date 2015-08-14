@@ -1,4 +1,4 @@
-;;; minor mode to enable global prefix keys for other frame/window buffer placement -*- lexical-binding: t -*-
+;;; other-frame-window.el --- Minor mode to enable global prefix keys for other frame/window buffer placement  -*- lexical-binding: t -*-
 ;;
 ;; Copyright (C) 2015  Free Software Foundation, Inc.
 ;;
@@ -24,7 +24,9 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 ;;
-;;; Usage:
+;;; Commentary:
+
+;;;; Usage:
 ;;
 ;; Enable the minor mode with:
 ;;
@@ -40,7 +42,7 @@
 ;; C-x 9 <command> causes a buffer displayed by <command> to appear in
 ;; another frame; a frame is created if necessary.
 
-;;; Design:
+;;;; Design:
 ;;
 ;; This uses C-x 7, 9 prefix because those keys are undefined in core
 ;; Emacs.  It could eventually switch to 4, 5, since those are
@@ -249,4 +251,4 @@ that allows the selected frame)."
   )
 
 (provide 'other-frame-window)
-;; end of file
+;;; other-frame-window.el ends here
