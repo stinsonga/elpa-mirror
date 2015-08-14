@@ -4,10 +4,9 @@
 ;;
 ;; Author: Stephen Leake <stephen_leake@member.fsf.org>
 ;; Maintainer: Stephen Leake <stephen_leake@member.fsf.org>
-;; Keywords: frame
-;; window
+;; Keywords: frame window
 ;; Version: 1.0.0
-;; package-requires: ((emacs "25.0"))
+;; Package-Requires: ((emacs "24.4"))
 ;;
 ;; This file is part of GNU Emacs.
 ;;
@@ -53,80 +52,126 @@
 ;; This adds advice to switch-to-buffer; eventually Emacs could
 ;; reimplement switch-to-buffer to do the same.
 
+;;;; Todo:
+
+;; - Make the `C-x 7' prefix appear in the echo area.
+;; - `C-x 7 C-h' should display the transient map.
+;; - `C-x 7 C-u foo' should pass both prefixes to `foo'.
+
 ;;; Code:
 
-(defun ofw-add-to-overriding (func)
-  "Add FUNC to 'display-buffer-overriding-action' action list."
+(defvar ofw--just-set nil
+  "Non-nil if we just set the prefix in the previous command.")
+
+(defvar ofw-transient-map
+  (let ((map (make-sparse-keymap)))
+    ;; FIXME: This is basically the union of the default the C-x 4 and C-x 5
+    ;; keymaps in Emacs-25.
+    (define-key map [?\C-f] #'find-file)
+    (define-key map [?\C-o] #'display-buffer)
+    (define-key map [?.]
+      (if (fboundp 'xref-find-definitions) ;Emacs≥25.
+          'xref-find-definitions 'find-tag))
+    (define-key map [?0] #'ofw-dwim-delete-this)
+    (define-key map [?1] #'ofw-dwim-one)
+    (define-key map [?2] #'ofw-dwim-open-other)
+    (define-key map [?a] #'add-change-log-entry)
+    (define-key map [?b] #'switch-to-buffer)
+    (define-key map [?c] #'clone-indirect-buffer)
+    (define-key map [?d] #'dired)
+    (define-key map [?f] #'find-file)
+    (define-key map [?m] #'compose-mail)
+    (define-key map [?o] #'ofw-dwim-select-other)
+    (define-key map [?r] #'find-file-read-only)
+    map)
+  "Keymap used for one command right after setting the prefix.")
+
+(defun ofw--set-prefix (func)
+  "Add ofw prefix function FUNC."
   (let ((functions (car display-buffer-overriding-action))
 	(attrs (cdr display-buffer-overriding-action)))
     (push func functions)
-    (setq display-buffer-overriding-action (cons functions attrs))))
+    (setq display-buffer-overriding-action (cons functions attrs))
+    ;; Make sure the next pre-command-hook doesn't immediately set
+    ;; display-buffer-overriding-action back to nil.
+    (setq ofw--just-set t)
+    ;; C-u C-x 7 foo should pass C-u to foo, not to C-x 7, so
+    ;; pass the normal prefix to the next command.
+    ;; FIXME: This should be done by all prefix commands and for all kinds of
+    ;; prefixes, so that C-x 7 C-u foo works as well!
+    (setq prefix-arg current-prefix-arg)
+    (set-transient-map ofw-transient-map)))
 
 (defun ofw-delete-from-overriding ()
-  "Delete 'ofw-display-buffer-other-window' and
-'ofw-display-buffer-other-frame' from
-'display-buffer-overriding-action' action list, if present."
-    (let ((functions (car display-buffer-overriding-action))
-	  (attrs (cdr display-buffer-overriding-action)))
-      (setq functions (delq 'ofw-display-buffer-other-frame (delq 'ofw-display-buffer-other-window functions)))
-      (setq display-buffer-overriding-action (cons functions attrs))))
+  "Remove ourselves from 'display-buffer-overriding-action' action list, if present."
+  (let ((functions (car display-buffer-overriding-action))
+        (attrs (cdr display-buffer-overriding-action)))
+    (setq functions (delq #'ofw-display-buffer-other-frame
+                          (delq #'ofw-display-buffer-other-window functions)))
+    (setq display-buffer-overriding-action
+          (when (or functions attrs) (cons functions attrs)))))
 
 (defun ofw-other-window ()
   "Set `display-buffer-overriding-action' to indicate other window."
   (interactive)
-  (ofw-add-to-overriding 'ofw-display-buffer-other-window))
+  (ofw--set-prefix #'ofw-display-buffer-other-window))
 
 (defun ofw-other-frame ()
   "Set `display-buffer-overriding-action' to indicate other frame."
   (interactive)
-  (ofw-add-to-overriding 'ofw-display-buffer-other-frame))
+  (ofw--set-prefix #'ofw-display-buffer-other-frame))
 
 (defun ofw-display-buffer-other-window (buffer alist)
   "Show BUFFER in another window in the current frame,
 creating new window if needed and allowed.
 If successful, return window; else return nil.
 Intended for 'display-buffer-overriding-action'."
-  ;; Reset for next display-buffer call. FIXME: C-g, and next command
-  ;; failure, should also reset this
+  ;; Reset for next display-buffer call.  Normally, this is taken care of by
+  ;; ofw--reset-prefix, but we do it here just in case.
+  ;; FIXME: Why be careful in ofw-delete-from-overriding and careless here?
   (setq display-buffer-overriding-action nil)
 
   ;; We can't use display-buffer-use-some-window here, because
   ;; that unconditionally allows another frame.
   (or (display-buffer-use-some-frame
        buffer
-       (append (list (cons 'frame-predicate (lambda (frame) (eq frame (selected-frame))))
+       (append (list (cons 'frame-predicate
+                           (lambda (frame) (eq frame (selected-frame))))
 		     '(inhibit-same-window . t))
 	       alist))
       (display-buffer-pop-up-window buffer alist)))
 
 (defun ofw-display-buffer-other-frame (buffer alist)
-  "Show BUFFER in another frame, creating a new frame
-if needed.
+  "Show BUFFER in another frame, creating a new frame if needed.
 If successful, return window; else return nil.
 Intended for 'display-buffer-overriding-action'."
   ;; Reset for next display-buffer call.
+  ;; FIXME: Why be careful in ofw-delete-from-overriding and careless here?
   (setq display-buffer-overriding-action nil)
 
   (or (display-buffer-use-some-frame buffer alist)
       (display-buffer-pop-up-frame buffer alist)))
 
 ;; FIXME: use defadvice for Emacs 24.3
-(defun ofw-switch-to-buffer-advice (_orig-fun buffer  &optional norecord _force-same-window)
-  "Change switch-to-buffer to call pop-to-buffer.
-This allows switch-to-buffer to respect 'ofw-other-window',
-'ofw-other-frame'."
-  (pop-to-buffer buffer (list 'display-buffer-same-window) norecord))
+(defun ofw-switch-to-buffer-advice (orig-fun buffer
+                                    &optional norecord force-same-window)
+  "Change `switch-to-buffer' to call `pop-to-buffer'.
+This allows `switch-to-buffer' to respect `ofw-other-window',
+`ofw-other-frame'."
+  (if display-buffer-overriding-action
+      (pop-to-buffer buffer (list #'display-buffer-same-window) norecord)
+    (funcall orig-fun buffer norecord force-same-window)))
 
 ;; FIXME: use defadvice for Emacs 24.3
-(defun ofw-temp-window-advice (orig-func buffer &optional action)
-  "Delete any ofw actions from 'display-buffer-overriding-action',
-call ORIG-FUNC, restore ofw actions to 'display-buffer-overriding-action'."
-  (let ((temp display-buffer-overriding-action)
-	result)
+(defun ofw--suspend-and-restore (orig-func &rest args)
+  "Call ORIG-FUNC without any ofw actions on 'display-buffer-overriding-action'."
+  (let ((display-buffer-overriding-action display-buffer-overriding-action))
+    ;; FIXME: ofw-delete-from-overriding operates destructively, so the
+    ;; subsequent "restore" step only works if our ofw actions were all at the
+    ;; very beginning display-buffer-overriding-action (in which case `delq'
+    ;; happens not to be destructive).
     (ofw-delete-from-overriding)
-    (setq result (funcall orig-func buffer action))
-    (setq display-buffer-overriding-action temp)
-    result))
+    (apply orig-func args)))
 
 (defun ofw-move-to-other-window ()
   "Move current buffer to another window in same frame.
@@ -153,27 +198,36 @@ Point stays in moved buffer."
 	   '((reusable-frames . visible)))
      )))
 
-(defvar ofw-map
+(defvar other-frame-window-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map "\C-x7" 'ofw-other-window)
-    (define-key map "\C-x9" 'ofw-other-frame)
-    (define-key map "\C-xW" 'ofw-move-to-other-window)
-    (define-key map "\C-xF" 'ofw-move-to-other-frame)
-    map
-  )  "Local keymap used for other-frame-window minor mode.")
+    (define-key map "\C-x7" #'ofw-other-window)
+    (define-key map "\C-x9" #'ofw-other-frame)
+    (define-key map "\C-xW" #'ofw-move-to-other-window)
+    (define-key map "\C-xF" #'ofw-move-to-other-frame)
+    map)
+  "Local keymap used for other-frame-window minor mode.")
+
+(defun ofw--reset-prefix ()
+  (if ofw--just-set
+      (setq ofw--just-set nil)
+    (ofw-delete-from-overriding)))
 
 (define-minor-mode other-frame-window-mode
   "Minor mode for other frame/window buffer placement.
 Enable mode if ARG is positive."
-  :init-value nil
+  ;; FIXME: I think the mode-line is too crowded to accommodate such
+  ;; global-and-permanent minor-modes.
   :lighter    " ofw"   ;; mode line
-  :keymap     ofw-map
   :global     t
+
+  (remove-hook 'pre-command-hook #'ofw--reset-prefix)
 
   (if other-frame-window-mode
       ;; enable
       (progn
-	;; We assume Emacs code calls pop-to-buffer when there is a good
+        (add-hook 'pre-command-hook #'ofw--reset-prefix)
+
+        ;; We assume Emacs code calls pop-to-buffer when there is a good
 	;; reason to put the buffer in another window, so we don't mess
 	;; with the default actions, except to allow
 	;; display-buffer-reuse-window to use a window in another frame;
@@ -185,20 +239,23 @@ Enable mode if ARG is positive."
 	  (setq display-buffer-base-action (cons functions attrs)))
 
 	;; Change switch-to-buffer to use display-buffer
-	(if (fboundp 'advice-add)
-	    ;; Emacs 25
+	(if (fboundp 'advice-add) ;Emacs≥24.4
 	    (advice-add 'switch-to-buffer :around #'ofw-switch-to-buffer-advice)
-	  ;; Emacs 24
-	  (ad-activate 'switch-to-buffer))
+          ;; FIXME: `ad-activate' affects all pieces of advice of that
+          ;; function, which is not what we want!
+	  ;; (ad-activate 'switch-to-buffer)
+          )
 
 	;; Completing-read <tab> pops up a buffer listing completions;
 	;; that should not respect or consume
-	;; ofw-frame-window-prefix-arg. We advise
-	;; temp-buffer-window-show-advice (used by completing-read) to
-	;; handle additional similar cases.
+	;; ofw-frame-window-prefix-arg.
 	(if (fboundp 'advice-add)
-	    (advice-add 'temp-buffer-window-show :around #'ofw-temp-window-advice)
-	  (ad-activate 'temp-buffer-window-show))
+	    (advice-add 'read-from-minibuffer
+                        :around #'ofw--suspend-and-restore)
+          ;; FIXME: `ad-activate' affects all pieces of advice of that
+          ;; function, which is not what we want!
+	  ;; (ad-activate 'read-from-minibuffer)
+          )
 	)
 
     ;; else disable
@@ -208,7 +265,7 @@ Enable mode if ARG is positive."
       (setq display-buffer-base-action (cons functions attrs)))
 
     (advice-remove 'switch-to-buffer #'ofw-switch-to-buffer-advice)
-    (advice-remove 'temp-buffer-window-show #'ofw-temp-buffer-window-show-advice)
+    (advice-remove 'read-from-minibuffer #'ofw--suspend-and-restore)
     ))
 
 (unless (fboundp 'display-buffer-use-some-frame)
@@ -249,6 +306,42 @@ that allows the selected frame)."
           (window--maybe-raise-frame frame))))
     ))
   )
+
+;; Some of the commands on the transient keymap don't actually *display*
+;; in another window/frame but instead do something either at the level
+;; of windows or frames.  I call those "ofw-dwim-*".
+
+(defun ofw-dwim--frame-p ()
+  "Return non-nil if the prefix is for \"other-frame\" rather than window."
+  ;; FIXME: Comparing functions is ugly/hackish!
+  (memq #'ofw-display-buffer-other-frame
+        (car display-buffer-overriding-action)))
+
+(defun ofw-dwim-delete-this ()
+  "Delete this frame or window."
+  (interactive)
+  (call-interactively
+   (if (ofw-dwim--frame-p) #'delete-frame #'kill-buffer-and-window)))
+
+(defun ofw-dwim-one ()
+  "Delete all other frames or windows."
+  (interactive)
+  (call-interactively
+   (if (ofw-dwim--frame-p) #'delete-other-frames #'delete-other-windows)))
+
+(defun ofw-dwim-open-other ()
+  "Show current buffer in other frame or window."
+  (interactive)
+  (if (ofw-dwim--frame-p)
+      ;; FIXME: This is the old C-x 5 2 behavior, but maybe it should just use
+      ;; display-buffer instead!
+      (call-interactively #'make-frame-command)
+    (display-buffer (current-buffer))))
+
+(defun ofw-dwim-select-other ()
+  "Select other frame or window."
+  (interactive)
+  (call-interactively (if (ofw-dwim--frame-p) #'other-frame #'other-window)))
 
 (provide 'other-frame-window)
 ;;; other-frame-window.el ends here
