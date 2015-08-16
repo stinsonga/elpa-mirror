@@ -49,8 +49,8 @@
 ;;   ,----
 ;;   | M-x bug-hunter-init-file RET i
 ;;   `----
-;;   The Bug Hunter will start a separate Emacs frame several times, and
-;;   then it will ask you each time whether that frame presented the
+;;   The Bug Hunter will start a separate Emacs instance several times, and
+;;   then it will ask you each time whether that instance presented the
 ;;   problem you have. After doing this about 5--12 times, you’ll be given
 ;;   the results.
 ;;
@@ -98,7 +98,7 @@
 
 (defconst bug-hunter--interactive-explanation
   "You have asked to do an interactive hunt, here's how it goes.
-1) I will start a new Emacs frame.
+1) I will start a new Emacs instance, which opens a new frame.
 2) You will try to reproduce your problem on the new frame.
 3) When you’re done, close that frame.
 4) I will ask you if you managed to reproduce the problem.
@@ -232,7 +232,7 @@ the file."
                             "")
                  (when (> size 16)
                    (format "\n    ... %s omitted expressions ...\n\n"
-                     (- size 14)))
+                           (- size 14)))
                  (when (> size 16)
                    (mapconcat (lambda (x) (bug-hunter--pretty-format x 4))
                               (seq-drop forms (- size 7)) "")))))
@@ -240,7 +240,7 @@ the file."
        (concat "The assertion returned the following value here:\n"
                (bug-hunter--pretty-format (cadr error) 4)))
       (t (format "The following error was signaled here:\n    %S"
-           error))))
+                 error))))
   (when expression
     (bug-hunter--report "  Caused by the following expression:\n%s"
       (bug-hunter--pretty-format expression 4)))
@@ -280,7 +280,7 @@ ARGS are passed before \"-l FILE\"."
       (delete-file file-name))))
 
 (defun bug-hunter--run-form-interactively (form)
-  "Run FORM in a graphical frame and ask user about the outcome."
+  "Run FORM in a graphical instance and ask user about the outcome."
   (let ((file-name (bug-hunter--print-to-temp (list 'prin1 form))))
     (unwind-protect
         (bug-hunter--run-emacs file-name "-Q")
@@ -340,16 +340,16 @@ which will be inspected if HEAD doesn't match ASSERTION."
       (vector (length safe) ret-val))
      (ret-val
       (apply #'bug-hunter--bisect
-        assertion
-        safe
-        (bug-hunter--split head)))
+             assertion
+             safe
+             (bug-hunter--split head)))
      ;; Issue in the tail.
      (t (apply #'bug-hunter--bisect
-          assertion
-          (append safe head)
-          ;; If tail has length 1, we already know where the issue is,
-          ;; but we still do this to get the return value.
-          (bug-hunter--split tail))))))
+               assertion
+               (append safe head)
+               ;; If tail has length 1, we already know where the issue is,
+               ;; but we still do this to get the return value.
+               (bug-hunter--split tail))))))
 
 (defun bug-hunter--bisect-start (forms assertion)
   "Run a bisection search on list of FORMS using ASSERTION.
@@ -393,7 +393,7 @@ are evaluated."
     ;; Prepare buffer, and make sure they've seen it.
     (switch-to-buffer (bug-hunter--init-report-buffer assertion bug-hunter--estimate))
     (when (eq assertion 'interactive)
-      (read-char-choice "Please the instructions above and type 6 when ready. " '(?6)))
+      (read-char-choice "Please read the instructions above and type 6 when ready. " '(?6)))
 
     (cond
      ;; Check for errors when reading the init file.
