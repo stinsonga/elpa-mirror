@@ -65,7 +65,7 @@
 
 (defvar ofw-transient-map
   (let ((map (make-sparse-keymap)))
-    ;; FIXME: This is basically the union of the default the C-x 4 and C-x 5
+    ;; This is basically the union of the default C-x 4 and C-x 5
     ;; keymaps in Emacs-25.
     (define-key map [?\C-f] #'find-file)
     (define-key map [?\C-o] #'display-buffer)
@@ -126,10 +126,10 @@
 creating new window if needed and allowed.
 If successful, return window; else return nil.
 Intended for 'display-buffer-overriding-action'."
-  ;; Reset for next display-buffer call.  Normally, this is taken care of by
-  ;; ofw--reset-prefix, but we do it here just in case.
-  ;; FIXME: Why be careful in ofw-delete-from-overriding and careless here?
-  (setq display-buffer-overriding-action nil)
+  ;; Reset for next display-buffer call.  Normally, this is taken care
+  ;; of by ofw--reset-prefix, but we do it here in case the user does
+  ;; two ofw prefixed commands consecutively.
+  (ofw-delete-from-overriding)
 
   ;; We can't use display-buffer-use-some-window here, because
   ;; that unconditionally allows another frame.
@@ -146,8 +146,7 @@ Intended for 'display-buffer-overriding-action'."
 If successful, return window; else return nil.
 Intended for 'display-buffer-overriding-action'."
   ;; Reset for next display-buffer call.
-  ;; FIXME: Why be careful in ofw-delete-from-overriding and careless here?
-  (setq display-buffer-overriding-action nil)
+  (ofw-delete-from-overriding)
 
   (or (display-buffer-use-some-frame buffer alist)
       (display-buffer-pop-up-frame buffer alist)))
@@ -215,10 +214,7 @@ Point stays in moved buffer."
 (define-minor-mode other-frame-window-mode
   "Minor mode for other frame/window buffer placement.
 Enable mode if ARG is positive."
-  ;; FIXME: I think the mode-line is too crowded to accommodate such
-  ;; global-and-permanent minor-modes.
-  :lighter    " ofw"   ;; mode line
-  :global     t
+  :global t
 
   (remove-hook 'pre-command-hook #'ofw--reset-prefix)
 
