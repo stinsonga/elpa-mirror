@@ -1,6 +1,6 @@
-;;; dts-mode.el --- Major mode for Devicetree source code
+;;; dts-mode.el --- Major mode for Device Tree source files
 
-;; Copyright (C) 2014  Free Software Foundation, Inc
+;; Copyright (C) 2014-2015  Free Software Foundation, Inc.
 
 ;; Version: 0.1.0
 ;; Author: Ben Gamari <ben@smart-cactus.org>
@@ -25,35 +25,35 @@
 
 ;;; Code:
 
-(defconst dts-re-ident "\\([[:word:]_][[:word:][:multibyte:]_,[:digit:]-]*\\)")
+(defconst dts-re-ident "\\([[:alpha:]_][[:alnum:]_,-]*\\)")
 
 (defvar dts-mode-font-lock-keywords
   `(
-    ;; names like `name: hi {`
+    ;; Names like `name: hi {`
     (,(concat dts-re-ident ":") 1 font-lock-variable-name-face)
-    ;; nodes
-    (,(concat dts-re-ident "\\(@[[:xdigit:]]+\\)?[[:space:]]*{") 1 font-lock-type-face)
-    ;; assignments
+    ;; Nodes
+    (,(concat dts-re-ident "\\(@[[:xdigit:]]+\\)?[[:space:]]*{")
+     (1 font-lock-type-face))
+    ;; Assignments
     (,(concat dts-re-ident "[[:space:]]*=") 1 font-lock-variable-name-face)
     (,(concat dts-re-ident "[[:space:]]*;") 1 font-lock-variable-name-face)
-    ;; references
-    (,(concat "\\&" dts-re-ident) 1 font-lock-variable-name-face)
+    ;; References
+    (,(concat "&" dts-re-ident) 1 font-lock-variable-name-face)
     )
   )
 
 (defvar dts-mode-syntax-table
   (let ((table (make-syntax-table)))
-    (modify-syntax-entry ?<  "(" table)
-    (modify-syntax-entry ?>  ")" table)
+    (modify-syntax-entry ?<  "(>" table)
+    (modify-syntax-entry ?>  ")<" table)
 
     (modify-syntax-entry ?&  "." table)
     (modify-syntax-entry ?|  "." table)
-    (modify-syntax-entry ?&  "." table)
     (modify-syntax-entry ?~  "." table)
 
-    ;; _ and , are both word characters
+    ;; _ and , are both symbol constituents.
     (modify-syntax-entry ?,  "_" table)
-    (modify-syntax-entry ?_  "w" table)
+    (modify-syntax-entry ?_  "_" table)
 
     ;; Strings
     (modify-syntax-entry ?\" "\"" table)
@@ -66,6 +66,8 @@
     (modify-syntax-entry ?\^m "> b"   table)
 
     table))
+
+;;;; Original manual indentation code.
 
 (defun dts--calculate-indentation ()
   (interactive)
@@ -91,27 +93,67 @@
   (let ((indent (dts--calculate-indentation)))
     (indent-line-to (* indent tab-width))))
 
+;;;; New SMIE-based indentation code.
+
+(require 'smie nil t)
+
+(defvar dts-use-smie (fboundp 'smie-prec2->grammar))
+
+(defconst dts-grammar
+  ;; FIXME: The syntax-table gives symbol-constituent syntax to the comma,
+  ;; but the comma is also used as a separator!
+  (when (fboundp 'smie-prec2->grammar)
+    (smie-prec2->grammar
+     (smie-bnf->prec2
+      '((id) (val ("<" val ">"))
+        (exp ("{" exps "}")
+             ;; The "foo,bar = toto" can be handled either by considering
+             ;; "foo,bar" as a single token or as 3 tokens.
+             ;; Currently I consider it as 3 tokens, so the LHS of "=" can't be
+             ;; just `id' but has to be `vals'.
+             (vals "=" vals))
+        (exps (exp) (exps ";" exps))
+        (vals  (val "," val)))
+      '((assoc ";")) '((assoc ","))))))
+
+(defun dts-indent-rules (kind token)
+  (pcase (cons kind token)
+    (`(:elem . basic) tab-width)
+    ;; (`(:elem . args) 0)
+    (`(:list-intro . "")                ;FIXME: Not sure why we get "" here!
+     ;; After < we either have a plain list of data, as in: "operating-points =
+     ;;  <1008000 1400000 ...>" or we have sometimes "refs with args" as in
+     ;; "clocks = <&apb1_gates 6>;".
+     (and (eq (char-before) ?<) (not (looking-at "&"))))
+    (`(:before . "{") (smie-rule-parent))
+    (`(:after . "=") (dts-indent-rules :elem 'basic))
+    ))
+
+;;;; The major mode itself.
+
 (defalias 'dts-parent-mode
   (if (fboundp 'prog-mode) 'prog-mode 'fundamental-mode))
 
 ;;;###autoload
 (define-derived-mode dts-mode dts-parent-mode "Devicetree"
-  "Major mode for editing Devicetrees"
-  :group 'dts-mode
-  :syntax-table dts-mode-syntax-table
+  "Major mode for editing Device Tree source files."
 
   ;; Fonts
-  (set (make-local-variable 'font-lock-defaults) '(dts-mode-font-lock-keywords nil nil nil nil))
+  (set (make-local-variable 'font-lock-defaults)
+       '(dts-mode-font-lock-keywords nil nil nil nil))
 
   (set (make-local-variable 'comment-start) "/* ")
   (set (make-local-variable 'comment-end)   " */")
   (set (make-local-variable 'comment-multi-line) t)
-  (set (make-local-variable 'indent-line-function) 'dts-indent-line))
+  (set (make-local-variable 'syntax-propertize-function)
+       (syntax-propertize-rules
+        ("#include[ \t]+\\(<\\).*\\(>\\)" (1 "|") (2 "|"))))
+  (if dts-use-smie
+      (smie-setup dts-grammar #'dts-indent-rules)
+    (set (make-local-variable 'indent-line-function) #'dts-indent-line)))
 
 ;;;###autoload
-(add-to-list 'auto-mode-alist '("\\.dts\\'" . dts-mode))
-;;;###autoload
-(add-to-list 'auto-mode-alist '("\\.dtsi\\'" . dts-mode))
+(add-to-list 'auto-mode-alist '("\\.dtsi?\\'" . dts-mode))
 
 (provide 'dts-mode)
 ;;; dts-mode.el ends here
