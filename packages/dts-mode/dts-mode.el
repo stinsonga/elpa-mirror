@@ -95,9 +95,17 @@
 
 ;;;; New SMIE-based indentation code.
 
+;; Compatibility macro.
+(defmacro dts--using-macro (name exp)
+  (declare (indent 1) (debug (symbol form)))
+  (if (fboundp name)            ;If macro exists at compiler-time, just use it.
+      exp
+    `(when (fboundp ',name)            ;Else, check if it exists at run-time.
+       (eval ',exp))))                 ;If it does, then run the code.
+
 (require 'smie nil t)
 
-(defvar dts-use-smie (fboundp 'smie-prec2->grammar))
+(defvar dts-use-smie (and (fboundp 'smie-prec2->grammar) (fboundp 'pcase)))
 
 (defconst dts-grammar
   ;; FIXME: The syntax-table gives symbol-constituent syntax to the comma,
@@ -117,17 +125,18 @@
       '((assoc ";")) '((assoc ","))))))
 
 (defun dts-indent-rules (kind token)
-  (pcase (cons kind token)
-    (`(:elem . basic) tab-width)
-    ;; (`(:elem . args) 0)
-    (`(:list-intro . "")                ;FIXME: Not sure why we get "" here!
-     ;; After < we either have a plain list of data, as in: "operating-points =
-     ;;  <1008000 1400000 ...>" or we have sometimes "refs with args" as in
-     ;; "clocks = <&apb1_gates 6>;".
-     (and (eq (char-before) ?<) (not (looking-at "&"))))
-    (`(:before . "{") (smie-rule-parent))
-    (`(:after . "=") (dts-indent-rules :elem 'basic))
-    ))
+  (dts--using-macro pcase
+    (pcase (cons kind token)
+      (`(:elem . basic) tab-width)
+      ;; (`(:elem . args) 0)
+      (`(:list-intro . "")                ;FIXME: Not sure why we get "" here!
+       ;; After < we either have a plain list of data, as in: "operating-points
+       ;;  = <1008000 1400000 ...>" or we have sometimes "refs with args" as in
+       ;;  "clocks = <&apb1_gates 6>;".
+       (and (eq (char-before) ?<) (not (looking-at "&"))))
+      (`(:before . "{") (smie-rule-parent))
+      (`(:after . "=") (dts-indent-rules :elem 'basic))
+      )))
 
 ;;;; The major mode itself.
 
@@ -135,7 +144,7 @@
   (if (fboundp 'prog-mode) 'prog-mode 'fundamental-mode))
 
 ;;;###autoload
-(define-derived-mode dts-mode dts-parent-mode "Devicetree"
+(define-derived-mode dts-mode dts-parent-mode "Devicetree";DTS would be shorter!
   "Major mode for editing Device Tree source files."
 
   ;; Fonts
@@ -145,9 +154,10 @@
   (set (make-local-variable 'comment-start) "/* ")
   (set (make-local-variable 'comment-end)   " */")
   (set (make-local-variable 'comment-multi-line) t)
-  (set (make-local-variable 'syntax-propertize-function)
-       (syntax-propertize-rules
-        ("#include[ \t]+\\(<\\).*\\(>\\)" (1 "|") (2 "|"))))
+  (dts--using-macro syntax-propertize-rules
+    (set (make-local-variable 'syntax-propertize-function)
+         (syntax-propertize-rules
+          ("#include[ \t]+\\(<\\).*\\(>\\)" (1 "|") (2 "|")))))
   (if dts-use-smie
       (smie-setup dts-grammar #'dts-indent-rules)
     (set (make-local-variable 'indent-line-function) #'dts-indent-line)))
