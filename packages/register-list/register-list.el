@@ -1,6 +1,6 @@
 ;;; register-list.el ---  Interactively list/edit registers  -*- lexical-binding:t -*-
 ;;
-;; Copyright (C) 2011-2014  Free Software Foundation, Inc.
+;; Copyright (C) 2011-2015  Free Software Foundation, Inc.
 ;;
 ;; Filename: register-list.el
 ;; Author: Bastien Guerry <bzg AT altern DOT org>
@@ -220,11 +220,15 @@ If FORCE-LINE is non-nil, force moving to this line."
     (goto-char (point-min))
     (line-move (- line 2) t)))
 
+(defconst register-list--intangible
+  (if (fboundp 'cursor-intangible-mode)
+      'cursor-intangible 'intangible))
+
 (defun register-list-set-mark (mark)
   "Set mark at the beginning of the line."
   (let ((inhibit-read-only t))
     (beginning-of-line)
-    (unless (get-text-property (point) 'intangible)
+    (unless (get-text-property (point) register-list--intangible)
       (delete-char 1)
       (save-excursion (insert mark))
       (unless (save-excursion (forward-line 1) (eobp))
@@ -320,6 +324,7 @@ copy the string to the kill ring or jump to the location.
 \\[register-list-tab] -- cycle between the key, the type and the value.
 \\[register-list-quit] -- quit the register menu."
   (setq truncate-lines t)
+  (if (fboundp 'cursor-intangible-mode) (cursor-intangible-mode 1))
   (setq buffer-read-only t))
 
 ;;\\[register-list-edit-key-or-value] -- edit the key for this register.
@@ -363,12 +368,12 @@ The list is displayed in a buffer named `*Register List*' in
     (setq register-alist ;; TODO better sorting.
 	  (sort register-alist (lambda (a b) (< (car a) (car b)))))
     (erase-buffer)
-    ;; FIXME: Why `intangible'?
+    ;; FIXME: Why intangible?
     (insert (concat (propertize "% Key  Type  Value\n"
 				'face 'font-lock-type-face
-				'intangible t) ;; 'front-sticky t)
+				register-list--intangible t) ;; 'front-sticky t)
 		    (propertize "- ---  ----  -----\n"
-				'intangible t
+				register-list--intangible t
 				'face 'font-lock-comment-delimiter-face)))
     (dolist (register register-alist)
       (let* ((key (char-to-string (car register)))
