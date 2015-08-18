@@ -3,8 +3,8 @@
 ;; Copyright (C) 2011-2015  Free Software Foundation, Inc.
 ;;
 ;; Filename: register-list.el
-;; Author: Bastien Guerry <bzg AT altern DOT org>
-;; Maintainer: Bastien Guerry <bzg AT altern DOT org>
+;; Author: Bastien Guerry <bzg@gnu.org>
+;; Maintainer: Bastien Guerry <bzg@gnu.org>
 ;; Keywords: register
 ;; Description: List and edit the register
 ;; Version: 0.1
