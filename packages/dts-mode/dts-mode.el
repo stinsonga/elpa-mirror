@@ -1,6 +1,6 @@
 ;;; dts-mode.el --- Major mode for Devicetree source code
 
-;; Copyright (C) 2014  Ben Gamari
+;; Copyright (C) 2014  Free Software Foundation, Inc
 
 ;; Version: 0.1.0
 ;; Author: Ben Gamari <ben@smart-cactus.org>
