@@ -36,7 +36,7 @@
 (require 'generator)
 
 
-;; Basic stuff
+;;;; Basic stuff
 
 (defmacro iterator-make (&rest body)
   "Create an anonymous iterator.
@@ -44,7 +44,7 @@ This is equivalent to (funcall (iter-lambda () BODY...))"
   `(funcall (iter-lambda () ,@body)))
 
 
-;; Special simple iterators
+;;;; Special simple iterators
 
 (defun iterator-from-elts (&rest elements)
   "Return an iterator generating the ELEMENTS."
@@ -92,7 +92,7 @@ used between the numbers and defaults to 1."
       (iterator-make (while t (iter-yield (prog1 i (cl-incf i))))))))
 
 
-;; Operations on iterators, transducers
+;;;; Operations on iterators, transducers
 
 (defun iterator-filter (predicate iterator)
   "Return an iterator filtering ITERATOR with PREDICATE.
@@ -174,7 +174,7 @@ returns an iterator of the factorials."
                    iterator))))
 
 
-;; Iteration
+;;;; Iteration
 
 (defun iterator-flush (iterator)
   "Request all elements from ITERATOR, for side effects only."
@@ -183,7 +183,7 @@ returns an iterator of the factorials."
     (iter-end-of-sequence nil)))
 
 
-;; Processing elements
+;;;; Processing elements
 
 (defun iterator-reduce (function init iterator)
   "Reduce two-argument FUNCTION across ITERATOR starting with INIT.
@@ -264,7 +264,7 @@ like `mapconcat', but for iterators."
                      (iterator-map function iterator))))
 
 
-;;; ILists - "Delayed" lists via iterators
+;;;; ILists - "Delayed" lists via iterators
 
 (defconst ilist--last-link-tag 'ilist--last-link-tag)
 
