@@ -97,7 +97,7 @@
 
 ;; Compatibility macro.
 (defmacro dts--using-macro (name exp)
-  (declare (indent 1) (debug (symbol form)))
+  (declare (indent 1) (debug (symbolp form)))
   (if (fboundp name)            ;If macro exists at compiler-time, just use it.
       exp
     `(when (fboundp ',name)            ;Else, check if it exists at run-time.
@@ -135,6 +135,7 @@
        ;;  "clocks = <&apb1_gates 6>;".
        (and (eq (char-before) ?<) (not (looking-at "&"))))
       (`(:before . "{") (smie-rule-parent))
+      (`(:before . "<") (if (smie-rule-hanging-p) (smie-rule-parent)))
       (`(:after . "=") (dts-indent-rules :elem 'basic))
       )))
 
@@ -150,10 +151,15 @@
   ;; Fonts
   (set (make-local-variable 'font-lock-defaults)
        '(dts-mode-font-lock-keywords nil nil nil nil))
-
   (set (make-local-variable 'comment-start) "/* ")
   (set (make-local-variable 'comment-end)   " */")
   (set (make-local-variable 'comment-multi-line) t)
+
+  ;; This is not specific to the DTS format, really, but DTS is mostly
+  ;; used in the context of the Linux kernel (and U-boot loader) where
+  ;; there's a strong preference to indent with TABs.
+  (set (make-local-variable 'indent-tabs-mode) t)
+
   (dts--using-macro syntax-propertize-rules
     (set (make-local-variable 'syntax-propertize-function)
          (syntax-propertize-rules
