@@ -4,6 +4,7 @@
 \#*\#
 ChangeLog
 core
+emacs/
 packages/*/*-autoloads.el
 packages/*/*-pkg.el
 
