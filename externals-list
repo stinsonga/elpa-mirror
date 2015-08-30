@@ -23,6 +23,7 @@
  ("chess"		:external nil) ;; Was https://github.com/jwiegley/emacs-chess.git
  ("coffee-mode"		:subtree "https://github.com/defunkt/coffee-mode")
  ("company"		:subtree "https://github.com/company-mode/company-mode.git")
+ ("company-math"	:subtree "https://github.com/vspinu/company-math.git")
  ("context-coloring"	:subtree "https://github.com/jacksonrayhamilton/context-coloring.git")
  ("darkroom"            :subtree "https://github.com/capitaomorte/darkroom.git")
  ("dbus-codegen"	:subtree "https://github.com/ueno/dbus-codegen-el.git")
@@ -38,6 +39,7 @@
  ("gnorb"               :subtree "https://github.com/girzel/gnorb")
  ("ioccur"		:subtree "https://github.com/thierryvolpiatto/ioccur.git")
  ("js2-mode"		:subtree "https://github.com/mooz/js2-mode.git")
+ ("math-symbol-lists" 	:subtree "https://github.com/vspinu/math-symbol-lists.git")
  ("omn-mode"            :external nil)
  ("pabbrev"             :external "https://github.com/phillord/pabbrev.git")
  ("pinentry"		:subtree "https://github.com/ueno/pinentry-el.git")
