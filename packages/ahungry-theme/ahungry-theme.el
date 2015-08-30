@@ -5,7 +5,7 @@
 ;; Author: Matthew Carter <m@ahungry.com>
 ;; Maintainer: Matthew Carter <m@ahungry.com>
 ;; URL: https://github.com/ahungry/color-theme-ahungry
-;; Version: 1.0.9
+;; Version: 1.0.10
 ;; Keywords: ahungry palette color theme emacs color-theme deftheme
 ;; Package-Requires: ((emacs "24"))
 
@@ -35,6 +35,9 @@
 ;; to a dark background.
 
 ;;; News:
+
+;;;; Changes since 1.0.9:
+;; - Add/adjust some of the org-mode faces
 
 ;;;; Changes since 1.0.8:
 ;; - Add even more colors for magit 2.0 face names
@@ -165,7 +168,7 @@
    '(message-header-to ((t (:foreground "#ffffff"))))
    '(message-header-cc ((t (:foreground "#ffffff"))))
    '(mm-uu-extract ((t (:foreground "#0066ff"))))
-   '(org-hide ((t (:foreground "#009933"))))
+   '(org-hide ((t (:foreground "#222222"))))
    '(org-level-1 ((t (:bold t :foreground "#4477ff" :height 1.5))))
    '(org-level-2 ((t (:bold nil :foreground "#ffc800" :height 1.2))))
    '(org-level-3 ((t (:bold t :foreground "#00aa33" :height 1.0))))
@@ -178,6 +181,7 @@
    '(org-block ((t (:foreground "#999999"))))
    '(org-quote ((t (:inherit org-block :bold t :slant italic))))
    '(org-verse ((t (:inherit org-block :bold t :slant italic))))
+   '(org-table ((t (:foreground "#0055ff"))))
    '(org-todo ((t (:bold t :foreground "#ff0099"))))
    '(org-done ((t (:bold t :foreground "#00cc33"))))
    '(org-agenda-structure ((t (:weight bold :foreground "#f68585"))))
@@ -190,6 +194,7 @@
    '(org-block-end-line ((t (:foreground "#bbbbbb" :background "#333333"))))
    '(org-document-title ((t (:weight bold :foreground "#0077cc"))))
    '(org-document-info ((t (:weight normal :foreground "#0077cc"))))
+   '(org-document-info-keyword ((t (:weight normal :foreground "#aaaaaa"))))
    '(org-warning ((t (:weight normal :foreground "#ee0033"))))
    '(magit-hash ((t (:foreground "#6699aa"))))
    '(magit-branch-local ((t (:foreground "#0066ff"))))
