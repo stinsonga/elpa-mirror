@@ -1,7 +1,7 @@
 ;;; math-symbol-lists.el --- Lists of Unicode math symbols and latex commands
 ;;
-;; Copyright (C) 2014 Free Software Foundation, Inc.
-;; Author: Vitalie Spinu
+;; Copyright (C) 2014, 2015 Free Software Foundation, Inc.
+;; Author: Vitalie Spinu <spinuvit@gmail.com>
 ;; URL: https://github.com/vspinu/math-symbol-lists
 ;; Keywords: Unicode, symbols, mathematics
 ;; Version: 1.0
@@ -3001,7 +3001,7 @@
     ("ord"	"\\mttseven"	#X1D7FD)
     ("ord"	"\\mtteight"	#X1D7FE)
     ("ord"	"\\mttnine"	#X1D7FF))
-  "Extended list of mathematical symbols")
+  "Extended list of mathematical symbols.")
 
 
 (defconst math-symbol-list-latex-commands
@@ -3021,7 +3021,7 @@
     "flushbottom" "fnsymbol" "fontencoding" "fontfamily" "fontseries"
     "fontshape" "fontsize" "footnote" "footnotemark" "footnoterule"
     "footnotesep" "footnotesize" "footnotetext" "footskip" "frame" "framebox"
-    "fussy" "gets" "glossary" "glossaryentry" 
+    "fussy" "gets" "glossary" "glossaryentry"
     "headheight" "headsep" "height" "hfill" "hline" "hrulefill" "hspace"
     "Huge" "huge" "hyphenation" "iff" "include" "includeonly"
     "indent" "index" "indexentry" "input" "intextsep"
@@ -3064,3 +3064,4 @@
   "List of the latex commands.")
 
 (provide 'math-symbol-lists)
+;;; math-symbol-lists.el ends here
