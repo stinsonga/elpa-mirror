@@ -1,7 +1,7 @@
 ;;; company-math.el --- Completion backends for unicode math symbols and latex tags
 ;;
 ;; Copyright (C) 2015 Free Software Foundation, Inc.
-;; Author: Vitalie Spinu
+;; Author: Vitalie Spinu <spinuvit@gmail.com>
 ;; URL: https://github.com/vspinu/company-math
 ;; Keywords:  Unicode, symbols, completion
 ;; Version: 1.0.1
@@ -28,6 +28,8 @@
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
+;;; Commentary:
+
 ;;; Code:
 
 (require 'math-symbol-lists)
@@ -77,7 +79,7 @@ When set to special value t, allow on all faces except those in
 
 (defun company-math--make-candidates (alist)
   "Build a list of math symbols ready to be used in ac source.
-ALIST is one of the defined alist in package `symbols'. Return a
+ALIST is one of the defined alist in package `symbols'.  Return a
 list of LaTeX symbols with text property :symbol being the
 corresponding unicode symbol."
   (delq nil
