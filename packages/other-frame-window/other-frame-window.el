@@ -54,9 +54,10 @@
 
 ;;;; Todo:
 
-;; - Make the `C-x 7' prefix appear in the echo area.
-;; - `C-x 7 C-h' should display the transient map.
-;; - `C-x 7 C-u foo' should pass both prefixes to `foo'.
+;; - Pay attention to bindings added to ctl-x-4-map and ctl-x-5-map
+;; - Should `C-x 7 C-h' display the transient map?
+;; - `C-x 7 C-h k f' should show `find-file' rather than `self-insert-command'.
+;;   This should probably be fixed in set-transient-map.
 
 ;;; Code:
 
@@ -88,19 +89,35 @@
 
 (defun ofw--set-prefix (func)
   "Add ofw prefix function FUNC."
+  (ofw-delete-from-overriding)
   (let ((functions (car display-buffer-overriding-action))
 	(attrs (cdr display-buffer-overriding-action)))
     (push func functions)
     (setq display-buffer-overriding-action (cons functions attrs))
-    ;; Make sure the next pre-command-hook doesn't immediately set
-    ;; display-buffer-overriding-action back to nil.
-    (setq ofw--just-set t)
     ;; C-u C-x 7 foo should pass C-u to foo, not to C-x 7, so
     ;; pass the normal prefix to the next command.
-    ;; FIXME: This should be done by all prefix commands and for all kinds of
-    ;; prefixes, so that C-x 7 C-u foo works as well!
-    (setq prefix-arg current-prefix-arg)
+    (if (fboundp 'prefix-command-preserve-state)
+        (prefix-command-preserve-state)
+      ;; Make sure the next pre-command-hook doesn't immediately set
+      ;; display-buffer-overriding-action back to nil.
+      (setq ofw--just-set t)
+      (setq prefix-arg current-prefix-arg))
     (set-transient-map ofw-transient-map)))
+
+(defun ofw--echo-keystrokes ()
+  (let ((funs (car display-buffer-overriding-action)))
+    (cond
+     ((memq #'ofw-display-buffer-other-frame funs) "[other-frame]")
+     ((memq #'ofw-display-buffer-other-window funs) "[other-window]"))))
+
+(when (boundp 'prefix-command-echo-keystrokes-functions)
+  (add-hook 'prefix-command-echo-keystrokes-functions
+            #'ofw--echo-keystrokes))
+
+(defun ofw--preserve-state () (setq ofw--just-set t))
+(when (boundp 'prefix-command-preserve-state-hook)
+  (add-hook 'prefix-command-preserve-state-hook
+            #'ofw--preserve-state))
 
 (defun ofw-delete-from-overriding ()
   "Remove ourselves from 'display-buffer-overriding-action' action list, if present."
@@ -211,6 +228,7 @@ Point stays in moved buffer."
       (setq ofw--just-set nil)
     (ofw-delete-from-overriding)))
 
+;;;###autoload
 (define-minor-mode other-frame-window-mode
   "Minor mode for other frame/window buffer placement.
 Enable mode if ARG is positive."
