@@ -96,6 +96,7 @@
 ;; -- Port to cl-lib.
 ;; -- Remove unnecessary fsm-debug-output message.
 ;; -- Add FSM name to fsm-debug-output messages that were not including it.
+;; -- Fix checkdoc errors.
 
 ;; NOTE: This is version 0.1ttn4 of fsm.el, with the following
 ;; mods (an exercise in meta-meta-programming ;-) by ttn:
@@ -320,12 +321,13 @@ event handler explicitly asks to keep the timer."
    ))
 
 (defun fsm-send (fsm event &optional callback)
-  "Send EVENT to FSM asynchronously.
+  "Send FSM EVENT asynchronously.
 If the state machine generates a response, eventually call
 CALLBACK with the response as only argument."
   (run-with-timer 0 nil #'fsm-send-sync fsm event callback))
 
 (defun fsm-update (fsm new-state new-state-data timeout)
+  "Update FSM with NEW-STATE, NEW-STATE-DATA and TIMEOUT."
   (let ((fsm-name (cadr fsm))
 	(old-state (plist-get (cddr fsm) :state)))
     (plist-put (cddr fsm) :state new-state)
@@ -355,7 +357,7 @@ CALLBACK with the response as only argument."
 	  (apply 'fsm-send-sync fsm event))))))
 
 (defun fsm-send-sync (fsm event &optional callback)
-  "Send EVENT to FSM synchronously.
+  "Send FSM EVENT synchronously.
 If the state machine generates a response, eventually call
 CALLBACK with the response as only argument."
   (save-match-data
@@ -396,9 +398,8 @@ CALLBACK with the response as only argument."
 			    result)))))))
 
 (defun fsm-call (fsm event)
-  "Send EVENT to FSM synchronously, and wait for a reply.
-Return the reply.
-`with-timeout' might be useful."
+  "Send FSM EVENT synchronously, and wait for a reply.
+Return the reply.  `with-timeout' might be useful."
   (let (reply)
     (fsm-send-sync fsm event (lambda (r) (setq reply (list r))))
     (while (null reply)
@@ -420,7 +421,7 @@ Events sent are of the form (:sentinel PROCESS STRING)."
       (fsm-send-sync fsm (list :sentinel process string)))))
 
 (defun fsm-sleep (fsm secs)
-  "Sleep up to SECS seconds in a way that lets FSM receive events."
+  "Let FSM receive events while sleeping up to SECS seconds."
   (funcall (plist-get (cddr fsm) :sleep) secs))
 
 (defun fsm-get-state-data (fsm)
