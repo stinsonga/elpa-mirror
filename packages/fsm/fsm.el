@@ -1,4 +1,4 @@
-;;; fsm.el --- state machine library
+;;; fsm.el --- state machine library  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2006, 2007, 2008  Magnus Henoch
 
@@ -56,6 +56,7 @@
 
 ;; Here is a simple (not using all the features of fsm.el) example:
 ;;
+;; ;; -*- lexical-binding: t; -*-
 ;; (require 'cl)
 ;; (labels ((hey (n ev)
 ;;               (message "%d (%s)\tp%sn%s!" n ev
@@ -91,6 +92,7 @@
 ;; Version 0.2:
 ;; -- Delete trailing whitespace.
 ;; -- Fix formatting.
+;; -- Use lexical binding.
 
 ;; NOTE: This is version 0.1ttn4 of fsm.el, with the following
 ;; mods (an exercise in meta-meta-programming ;-) by ttn:
@@ -394,7 +396,7 @@ CALLBACK with the response as only argument."
   "Send EVENT to FSM synchronously, and wait for a reply.
 Return the reply.
 `with-timeout' might be useful."
-  (lexical-let (reply)
+  (let (reply)
     (fsm-send-sync fsm event (lambda (r) (setq reply (list r))))
     (while (null reply)
       (fsm-sleep fsm 1))
@@ -403,14 +405,14 @@ Return the reply.
 (defun fsm-make-filter (fsm)
   "Return a filter function that sends events to FSM.
 Events sent are of the form (:filter PROCESS STRING)."
-  (lexical-let ((fsm fsm))
+  (let ((fsm fsm))
     (lambda (process string)
       (fsm-send-sync fsm (list :filter process string)))))
 
 (defun fsm-make-sentinel (fsm)
   "Return a sentinel function that sends events to FSM.
 Events sent are of the form (:sentinel PROCESS STRING)."
-  (lexical-let ((fsm fsm))
+  (let ((fsm fsm))
      (lambda (process string)
        (fsm-send-sync fsm (list :sentinel process string)))))
 
