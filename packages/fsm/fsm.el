@@ -57,14 +57,14 @@
 ;; Here is a simple (not using all the features of fsm.el) example:
 ;;
 ;; ;; -*- lexical-binding: t; -*-
-;; (require 'cl)
-;; (labels ((hey (n ev)
-;;               (message "%d (%s)\tp%sn%s!" n ev
-;;                        (if (zerop (% n 4)) "o" "i")
-;;                        (make-string (max 1 (abs n)) ?g))))
-;;   (macrolet ((zow (next timeout)
-;;                   `(progn (hey (incf count) event)
-;;                           (list ,next count ,timeout))))
+;; (require 'fsm)
+;; (cl-labels ((hey (n ev)
+;;                  (message "%d (%s)\tp%sn%s!" n ev
+;;                           (if (zerop (% n 4)) "o" "i")
+;;                           (make-string (max 1 (abs n)) ?g))))
+;;   (cl-macrolet ((zow (next timeout)
+;;                      `(progn (hey (cl-incf count) event)
+;;                              (list ,next count ,timeout))))
 ;;     (define-fsm pingpong
 ;;       :start ((init) "Start a pingpong fsm."
 ;;               (interactive "nInit (number, negative to auto-terminate): ")
@@ -86,13 +86,14 @@
 ;;
 ;; Copy into a buffer, uncomment, and type M-x eval-buffer RET.
 ;; Alternatively, you can replace the `fsm-goodbye-cruel-world'
-;; form with `nil', eval just the `labels' form and then type
+;; form with `nil', eval just the `cl-labels' form and then type
 ;; M-x start-pingpong RET -16 RET.
 
 ;; Version 0.2:
 ;; -- Delete trailing whitespace.
 ;; -- Fix formatting.
 ;; -- Use lexical binding.
+;; -- Port to cl-lib.
 
 ;; NOTE: This is version 0.1ttn4 of fsm.el, with the following
 ;; mods (an exercise in meta-meta-programming ;-) by ttn:
@@ -108,9 +109,9 @@
 
 ;;; Code:
 
-;; We require cl at runtime, since we insert `destructuring-bind' into
+;; We require cl-lib at runtime, since we insert `cl-destructuring-bind' into
 ;; modules that use fsm.el.
-(require 'cl)
+(require 'cl-lib)
 
 (defvar fsm-debug "*fsm-debug*"
   "*Name of buffer for fsm debug messages.
@@ -133,7 +134,7 @@ FORMAT and ARGS are passed to `format'."
 		  (concat (current-time-string) ": "))
 		(apply 'format format args) "\n")))))
 
-(defmacro* define-state-machine (name &key start sleep)
+(cl-defmacro define-state-machine (name &key start sleep)
   "Define a state machine class called NAME.
 A function called start-NAME is created, which uses the argument
 list and body specified in the :start argument.  BODY should
@@ -160,7 +161,7 @@ arguments.
 			   [":sleep" function-form])))
   (let ((start-name (intern (format "start-%s" name)))
 	interactive-spec)
-    (destructuring-bind (arglist docstring &body body) start
+    (cl-destructuring-bind (arglist docstring &body body) start
       (when (and (consp (car body)) (eq 'interactive (caar body)))
 	(setq interactive-spec (list (pop body))))
       (unless (stringp docstring)
@@ -173,7 +174,7 @@ arguments.
 	   ,@interactive-spec
 	   (fsm-debug-output "Starting %s" ',name)
 	   (let ((fsm (list :fsm ',name)))
-	     (destructuring-bind (state state-data &optional timeout)
+	     (cl-destructuring-bind (state state-data &optional timeout)
 		 (progn ,@body)
 	       (nconc fsm (list :state nil :state-data nil
 				:sleep ,(or sleep (lambda (secs)
@@ -183,7 +184,7 @@ arguments.
 	       (fsm-update fsm state state-data timeout)
 	       fsm)))))))
 
-(defmacro* define-state (fsm-name state-name arglist &body body)
+(cl-defmacro define-state (fsm-name state-name arglist &body body)
   "Define a state called STATE-NAME in the state machine FSM-NAME.
 ARGLIST and BODY make a function that gets called when the state
 machine receives an event in this state.  The arguments are:
@@ -214,7 +215,7 @@ another state."
   `(setf (gethash ',state-name (get ',fsm-name :fsm-event))
 	 (lambda ,arglist ,@body)))
 
-(defmacro* define-enter-state (fsm-name state-name arglist &body body)
+(cl-defmacro define-enter-state (fsm-name state-name arglist &body body)
   "Define a function to call when FSM-NAME enters the state STATE-NAME.
 ARGLIST and BODY make a function that gets called when the state
 machine enters this state.  The arguments are:
@@ -233,12 +234,12 @@ TIMEOUT        A number: send timeout event after this many seconds
   `(setf (gethash ',state-name (get ',fsm-name :fsm-enter))
 	 (lambda ,arglist ,@body)))
 
-(defmacro* define-fsm (name &key
-			    start sleep states
-			    (fsm-name 'fsm)
-			    (state-data-name 'state-data)
-			    (callback-name 'callback)
-			    (event-name 'event))
+(cl-defmacro define-fsm (name &key
+			      start sleep states
+			      (fsm-name 'fsm)
+			      (state-data-name 'state-data)
+			      (callback-name 'callback)
+			      (event-name 'event))
   "Define a state machine class called NAME, along with its STATES.
 This macro is (further) syntatic sugar for `define-state-machine',
 `define-state' and `define-enter-state' macros, q.v.
@@ -256,19 +257,19 @@ FSM-NAME, STATE-DATA-NAME, CALLBACK-NAME, and EVENT-NAME are symbols,
 used to construct the state functions' arglists."
   `(progn
      (define-state-machine ,name :start ,start :sleep ,sleep)
-     ,@(loop for (state-name . spec) in states
-	     if (assq :enter spec) collect
-	     `(define-enter-state ,name ,state-name
-		(,fsm-name ,state-data-name)
-		,@(cdr it))
-	     end
-	     if (assq :event spec) collect
-	     `(define-state ,name ,state-name
-		(,fsm-name ,state-data-name
-			   ,event-name
-			   ,callback-name)
-		,@(cdr it))
-	     end)))
+     ,@(cl-loop for (state-name . spec) in states
+		if (assq :enter spec) collect
+		`(define-enter-state ,name ,state-name
+		   (,fsm-name ,state-data-name)
+		   ,@(cdr it))
+		end
+		if (assq :event spec) collect
+		`(define-state ,name ,state-name
+		   (,fsm-name ,state-data-name
+			      ,event-name
+			      ,callback-name)
+		   ,@(cdr it))
+		end)))
 
 (defun fsm-goodbye-cruel-world (name)
   "Unbind functions related to fsm NAME (a symbol).
@@ -280,10 +281,10 @@ any state machines using them.  Return nil."
   (let (ht)
     (when (hash-table-p (setq ht (get name :fsm-event)))
       (clrhash ht)
-      (remprop name :fsm-event))
+      (cl-remprop name :fsm-event))
     (when (hash-table-p (setq ht (get name :fsm-enter)))
       (clrhash ht)
-      (remprop name :fsm-enter)))
+      (cl-remprop name :fsm-enter)))
   nil)
 
 (defun fsm-start-timer (fsm secs)
@@ -337,7 +338,7 @@ CALLBACK with the response as only argument."
 	(when (functionp enter-fn)
 	  (fsm-debug-output "Found enter function for %S" new-state)
 	  (condition-case e
-	      (destructuring-bind (newer-state-data newer-timeout)
+	      (cl-destructuring-bind (newer-state-data newer-timeout)
 		  (funcall enter-fn fsm new-state-data)
 		(fsm-debug-output "Using data from enter function")
 		(plist-put (cddr fsm) :state-data newer-state-data)
@@ -356,7 +357,7 @@ CALLBACK with the response as only argument."
 If the state machine generates a response, eventually call
 CALLBACK with the response as only argument."
   (save-match-data
-    (let* ((fsm-name (second fsm))
+    (let* ((fsm-name (cl-second fsm))
 	   (state (plist-get (cddr fsm) :state))
 	   (state-data (plist-get (cddr fsm) :state-data))
 	   (state-fn (gethash state (get fsm-name :fsm-event))))
@@ -384,8 +385,8 @@ CALLBACK with the response as only argument."
 	 ((and (listp result)
 	       (<= 2 (length result))
 	       (<= (length result) 3))
-	  (destructuring-bind (new-state new-state-data &optional timeout)
-			      result
+	  (cl-destructuring-bind (new-state new-state-data &optional timeout)
+	      result
 	    (fsm-update fsm new-state new-state-data timeout)))
 	 (t
 	  (fsm-debug-output "Incorrect return value in %s/%s: %S"
@@ -413,8 +414,8 @@ Events sent are of the form (:filter PROCESS STRING)."
   "Return a sentinel function that sends events to FSM.
 Events sent are of the form (:sentinel PROCESS STRING)."
   (let ((fsm fsm))
-     (lambda (process string)
-       (fsm-send-sync fsm (list :sentinel process string)))))
+    (lambda (process string)
+      (fsm-send-sync fsm (list :sentinel process string)))))
 
 (defun fsm-sleep (fsm secs)
   "Sleep up to SECS seconds in a way that lets FSM receive events."
