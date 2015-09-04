@@ -3,7 +3,10 @@
 ;; Copyright (C) 2006, 2007, 2008  Magnus Henoch
 
 ;; Author: Magnus Henoch <mange@freemail.hu>
+;; Maintainer: Thomas Fitzsimmons <fitzsim@fitzsim.org>
 ;; Version: 0.1ttn4
+;; Package-Requires: ((emacs "24.1") (cl-lib "0.5"))
+;; Keywords: extensions
 
 ;; This file is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
