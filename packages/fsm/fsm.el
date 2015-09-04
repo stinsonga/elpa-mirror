@@ -90,6 +90,7 @@
 
 ;; Version 0.2:
 ;; -- Delete trailing whitespace.
+;; -- Fix formatting.
 
 ;; NOTE: This is version 0.1ttn4 of fsm.el, with the following
 ;; mods (an exercise in meta-meta-programming ;-) by ttn:
@@ -126,9 +127,9 @@ FORMAT and ARGS are passed to `format'."
       (save-excursion
 	(goto-char (point-max))
 	(insert (if fsm-debug-timestamp-format
-                    (format-time-string fsm-debug-timestamp-format)
-                  (concat (current-time-string) ": "))
-                (apply 'format format args) "\n")))))
+		    (format-time-string fsm-debug-timestamp-format)
+		  (concat (current-time-string) ": "))
+		(apply 'format format args) "\n")))))
 
 (defmacro* define-state-machine (name &key start sleep)
   "Define a state machine class called NAME.
@@ -156,26 +157,26 @@ arguments.
 				 stringp def-body)]
 			   [":sleep" function-form])))
   (let ((start-name (intern (format "start-%s" name)))
-        interactive-spec)
+	interactive-spec)
     (destructuring-bind (arglist docstring &body body) start
       (when (and (consp (car body)) (eq 'interactive (caar body)))
-          (setq interactive-spec (list (pop body))))
+	(setq interactive-spec (list (pop body))))
       (unless (stringp docstring)
 	(error "Docstring is not a string"))
       `(progn
-         (put ',name :fsm-enter (make-hash-table :size 11 :test 'eq))
-         (put ',name :fsm-event (make-hash-table :size 11 :test 'eq))
+	 (put ',name :fsm-enter (make-hash-table :size 11 :test 'eq))
+	 (put ',name :fsm-event (make-hash-table :size 11 :test 'eq))
 	 (defun ,start-name ,arglist
 	   ,docstring
-           ,@interactive-spec
+	   ,@interactive-spec
 	   (fsm-debug-output "Starting %s" ',name)
 	   (let ((fsm (list :fsm ',name)))
 	     (destructuring-bind (state state-data &optional timeout)
 		 (progn ,@body)
 	       (nconc fsm (list :state nil :state-data nil
 				:sleep ,(or sleep (lambda (secs)
-                                                    (accept-process-output
-                                                     nil secs)))
+						    (accept-process-output
+						     nil secs)))
 				:deferred nil))
 	       (fsm-update fsm state state-data timeout)
 	       fsm)))))))
@@ -209,7 +210,7 @@ which case the event will be resent when the state machine enters
 another state."
   (declare (debug (&define name name :name handler lambda-list def-body)))
   `(setf (gethash ',state-name (get ',fsm-name :fsm-event))
-         (lambda ,arglist ,@body)))
+	 (lambda ,arglist ,@body)))
 
 (defmacro* define-enter-state (fsm-name state-name arglist &body body)
   "Define a function to call when FSM-NAME enters the state STATE-NAME.
@@ -228,14 +229,14 @@ TIMEOUT        A number: send timeout event after this many seconds
                :keep: let existing timer continue"
   (declare (debug (&define name name :name enter lambda-list def-body)))
   `(setf (gethash ',state-name (get ',fsm-name :fsm-enter))
-         (lambda ,arglist ,@body)))
+	 (lambda ,arglist ,@body)))
 
 (defmacro* define-fsm (name &key
-                            start sleep states
-                            (fsm-name 'fsm)
-                            (state-data-name 'state-data)
-                            (callback-name 'callback)
-                            (event-name 'event))
+			    start sleep states
+			    (fsm-name 'fsm)
+			    (state-data-name 'state-data)
+			    (callback-name 'callback)
+			    (event-name 'event))
   "Define a state machine class called NAME, along with its STATES.
 This macro is (further) syntatic sugar for `define-state-machine',
 `define-state' and `define-enter-state' macros, q.v.
@@ -254,18 +255,18 @@ used to construct the state functions' arglists."
   `(progn
      (define-state-machine ,name :start ,start :sleep ,sleep)
      ,@(loop for (state-name . spec) in states
-             if (assq :enter spec) collect
-             `(define-enter-state ,name ,state-name
-                (,fsm-name ,state-data-name)
-                ,@(cdr it))
-             end
-             if (assq :event spec) collect
-             `(define-state ,name ,state-name
-                (,fsm-name ,state-data-name
-                           ,event-name
-                           ,callback-name)
-                ,@(cdr it))
-             end)))
+	     if (assq :enter spec) collect
+	     `(define-enter-state ,name ,state-name
+		(,fsm-name ,state-data-name)
+		,@(cdr it))
+	     end
+	     if (assq :event spec) collect
+	     `(define-state ,name ,state-name
+		(,fsm-name ,state-data-name
+			   ,event-name
+			   ,callback-name)
+		,@(cdr it))
+	     end)))
 
 (defun fsm-goodbye-cruel-world (name)
   "Unbind functions related to fsm NAME (a symbol).
@@ -321,7 +322,7 @@ CALLBACK with the response as only argument."
 
 (defun fsm-update (fsm new-state new-state-data timeout)
   (let ((fsm-name (cadr fsm))
-        (old-state (plist-get (cddr fsm) :state)))
+	(old-state (plist-get (cddr fsm) :state)))
     (plist-put (cddr fsm) :state new-state)
     (plist-put (cddr fsm) :state-data new-state-data)
     (fsm-maybe-change-timer fsm timeout)
@@ -370,9 +371,10 @@ CALLBACK with the response as only argument."
 	 ((eq result :defer)
 	  (let ((deferred (plist-get (cddr fsm) :deferred)))
 	    (plist-put (cddr fsm) :deferred
-                       (cons (list event callback) deferred))))
+		       (cons (list event callback) deferred))))
 	 ((null result)
-	  (fsm-debug-output "Warning: event %S ignored in state %s/%s" event fsm-name state))
+	  (fsm-debug-output "Warning: event %S ignored in state %s/%s"
+			    event fsm-name state))
 	 ((eq (car-safe result) :error-signaled)
 	  (fsm-debug-output "Error in %s/%s: %s"
 			    fsm-name state
@@ -380,7 +382,8 @@ CALLBACK with the response as only argument."
 	 ((and (listp result)
 	       (<= 2 (length result))
 	       (<= (length result) 3))
-	  (destructuring-bind (new-state new-state-data &optional timeout) result
+	  (destructuring-bind (new-state new-state-data &optional timeout)
+			      result
 	    (fsm-update fsm new-state new-state-data timeout)))
 	 (t
 	  (fsm-debug-output "Incorrect return value in %s/%s: %S"
