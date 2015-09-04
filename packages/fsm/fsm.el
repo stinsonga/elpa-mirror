@@ -1,6 +1,6 @@
 ;;; fsm.el --- state machine library  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2006, 2007, 2008  Magnus Henoch
+;; Copyright (C) 2006, 2007, 2008, 2015  Free Software Foundation, Inc.
 
 ;; Author: Magnus Henoch <mange@freemail.hu>
 ;; Maintainer: Thomas Fitzsimmons <fitzsim@fitzsim.org>
