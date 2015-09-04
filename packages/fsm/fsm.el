@@ -42,7 +42,7 @@
 ;; possibly returning a value.
 
 ;; The essential macros/functions are:
-;; 
+;;
 ;; define-state-machine  - create start-FOO function
 ;; define-state          - event handler for each state (required)
 ;; define-enter-state    - called when entering a state (optional)
@@ -81,13 +81,15 @@
 ;;         (:event (zow :ping (if (= 0 count)
 ;;                                (fsm-goodbye-cruel-world 'pingpong)
 ;;                              3))))))))
-;;
 ;; (fsm-send (start-pingpong -16) t)
 ;;
 ;; Copy into a buffer, uncomment, and type M-x eval-buffer RET.
 ;; Alternatively, you can replace the `fsm-goodbye-cruel-world'
 ;; form with `nil', eval just the `labels' form and then type
 ;; M-x start-pingpong RET -16 RET.
+
+;; Version 0.2:
+;; -- Delete trailing whitespace.
 
 ;; NOTE: This is version 0.1ttn4 of fsm.el, with the following
 ;; mods (an exercise in meta-meta-programming ;-) by ttn:
@@ -148,7 +150,7 @@ arguments.
 \(fn NAME :start ((ARG ...) DOCSTRING BODY) [:sleep SLEEP-FUNCTION])"
   (declare (debug (&define name :name start
 			   &rest
-			   &or [":start" 
+			   &or [":start"
 				(lambda-list
 				 [&optional ("interactive" interactive)]
 				 stringp def-body)]
@@ -286,12 +288,12 @@ any state machines using them.  Return nil."
 The timer is canceled if another event occurs before, unless the
 event handler explicitly asks to keep the timer."
   (fsm-stop-timer fsm)
-  (setf (cddr fsm) 
-	(plist-put 
-	 (cddr fsm) 
+  (setf (cddr fsm)
+	(plist-put
+	 (cddr fsm)
 	 :timeout (run-with-timer secs
 				  nil
-				  #'fsm-send-sync fsm 
+				  #'fsm-send-sync fsm
 				  :timeout))))
 
 (defun fsm-stop-timer (fsm)
@@ -360,7 +362,7 @@ CALLBACK with the response as only argument."
       (fsm-debug-output "Sent %S to %s in state %s"
 			(or (car-safe event) event) fsm-name state)
       (let ((result (condition-case e
-			(funcall state-fn fsm state-data event 
+			(funcall state-fn fsm state-data event
 				 (or callback 'ignore))
 		      ((debug error) (cons :error-signaled e)))))
 	;; Special case for deferring an event until next state change.
