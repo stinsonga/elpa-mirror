@@ -94,6 +94,8 @@
 ;; -- Fix formatting.
 ;; -- Use lexical binding.
 ;; -- Port to cl-lib.
+;; -- Remove unnecessary fsm-debug-output message.
+;; -- Add FSM name to fsm-debug-output messages that were not including it.
 
 ;; NOTE: This is version 0.1ttn4 of fsm.el, with the following
 ;; mods (an exercise in meta-meta-programming ;-) by ttn:
@@ -336,15 +338,15 @@ CALLBACK with the response as only argument."
       (fsm-debug-output "%s enters %s" fsm-name new-state)
       (let ((enter-fn (gethash new-state (get fsm-name :fsm-enter))))
 	(when (functionp enter-fn)
-	  (fsm-debug-output "Found enter function for %S" new-state)
+	  (fsm-debug-output "Found enter function for %s/%s" fsm-name new-state)
 	  (condition-case e
 	      (cl-destructuring-bind (newer-state-data newer-timeout)
 		  (funcall enter-fn fsm new-state-data)
-		(fsm-debug-output "Using data from enter function")
 		(plist-put (cddr fsm) :state-data newer-state-data)
 		(fsm-maybe-change-timer fsm newer-timeout))
 	    ((debug error)
-	     (fsm-debug-output "Didn't work: %S" e)))))
+	     (fsm-debug-output "%s/%s update didn't work: %S"
+			       fsm-name new-state e)))))
 
       (let ((deferred (nreverse (plist-get (cddr fsm) :deferred))))
 	(setf (cddr fsm)
