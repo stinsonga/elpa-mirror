@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2006, 2007, 2008, 2015  Free Software Foundation, Inc.
 
-;; Author: Magnus Henoch <mange@freemail.hu>
+;; Author: Magnus Henoch <magnus.henoch@gmail.com>
 ;; Maintainer: Thomas Fitzsimmons <fitzsim@fitzsim.org>
 ;; Version: 0.1ttn4
 ;; Package-Requires: ((emacs "24.1") (cl-lib "0.5"))
@@ -100,6 +100,7 @@
 ;; -- Remove unnecessary fsm-debug-output message.
 ;; -- Add FSM name to fsm-debug-output messages that were not including it.
 ;; -- Fix checkdoc errors.
+;; -- Change FSMs from plists to uninterned symbols.
 
 ;; NOTE: This is version 0.1ttn4 of fsm.el, with the following
 ;; mods (an exercise in meta-meta-programming ;-) by ttn:
@@ -179,14 +180,16 @@ arguments.
 	   ,docstring
 	   ,@interactive-spec
 	   (fsm-debug-output "Starting %s" ',name)
-	   (let ((fsm (list :fsm ',name)))
+	   (let ((fsm (cl-gensym (concat "fsm-" ,(symbol-name name) "-"))))
 	     (cl-destructuring-bind (state state-data &optional timeout)
 		 (progn ,@body)
-	       (nconc fsm (list :state nil :state-data nil
-				:sleep ,(or sleep (lambda (secs)
-						    (accept-process-output
-						     nil secs)))
-				:deferred nil))
+	       (put fsm :name ',name)
+	       (put fsm :state nil)
+	       (put fsm :state-data nil)
+	       (put fsm :sleep ,(or sleep (lambda (secs)
+					    (accept-process-output
+					     nil secs))))
+	       (put fsm :deferred nil)
 	       (fsm-update fsm state state-data timeout)
 	       fsm)))))))
 
@@ -298,20 +301,17 @@ any state machines using them.  Return nil."
 The timer is canceled if another event occurs before, unless the
 event handler explicitly asks to keep the timer."
   (fsm-stop-timer fsm)
-  (setf (cddr fsm)
-	(plist-put
-	 (cddr fsm)
-	 :timeout (run-with-timer secs
-				  nil
-				  #'fsm-send-sync fsm
-				  :timeout))))
+  (put fsm
+       :timeout (run-with-timer
+		 secs nil
+		 #'fsm-send-sync fsm :timeout)))
 
 (defun fsm-stop-timer (fsm)
   "Stop the timeout timer of FSM."
-  (let ((timer (plist-get (cddr fsm) :timeout)))
+  (let ((timer (get fsm :timeout)))
     (when (timerp timer)
       (cancel-timer timer)
-      (setf (cddr fsm) (plist-put (cddr fsm) :timeout nil)))))
+      (put fsm :timeout nil))))
 
 (defun fsm-maybe-change-timer (fsm timeout)
   "Change the timer of FSM according to TIMEOUT."
@@ -331,10 +331,10 @@ CALLBACK with the response as only argument."
 
 (defun fsm-update (fsm new-state new-state-data timeout)
   "Update FSM with NEW-STATE, NEW-STATE-DATA and TIMEOUT."
-  (let ((fsm-name (cadr fsm))
-	(old-state (plist-get (cddr fsm) :state)))
-    (plist-put (cddr fsm) :state new-state)
-    (plist-put (cddr fsm) :state-data new-state-data)
+  (let ((fsm-name (get fsm :name))
+        (old-state (get fsm :state)))
+    (put fsm :state new-state)
+    (put fsm :state-data new-state-data)
     (fsm-maybe-change-timer fsm timeout)
 
     ;; On state change, call enter function and send deferred events
@@ -347,15 +347,14 @@ CALLBACK with the response as only argument."
 	  (condition-case e
 	      (cl-destructuring-bind (newer-state-data newer-timeout)
 		  (funcall enter-fn fsm new-state-data)
-		(plist-put (cddr fsm) :state-data newer-state-data)
+		(put fsm :state-data newer-state-data)
 		(fsm-maybe-change-timer fsm newer-timeout))
 	    ((debug error)
 	     (fsm-debug-output "%s/%s update didn't work: %S"
 			       fsm-name new-state e)))))
 
-      (let ((deferred (nreverse (plist-get (cddr fsm) :deferred))))
-	(setf (cddr fsm)
-	      (plist-put (cddr fsm) :deferred nil))
+      (let ((deferred (nreverse (get fsm :deferred))))
+	(put fsm :deferred nil)
 	(dolist (event deferred)
 	  (apply 'fsm-send-sync fsm event))))))
 
@@ -364,9 +363,9 @@ CALLBACK with the response as only argument."
 If the state machine generates a response, eventually call
 CALLBACK with the response as only argument."
   (save-match-data
-    (let* ((fsm-name (cl-second fsm))
-	   (state (plist-get (cddr fsm) :state))
-	   (state-data (plist-get (cddr fsm) :state-data))
+    (let* ((fsm-name (get fsm :name))
+	   (state (get fsm :state))
+	   (state-data (get fsm :state-data))
 	   (state-fn (gethash state (get fsm-name :fsm-event))))
       ;; If the event is a list, output only the car, to avoid an
       ;; overflowing debug buffer.
@@ -379,9 +378,8 @@ CALLBACK with the response as only argument."
 	;; Special case for deferring an event until next state change.
 	(cond
 	 ((eq result :defer)
-	  (let ((deferred (plist-get (cddr fsm) :deferred)))
-	    (plist-put (cddr fsm) :deferred
-		       (cons (list event callback) deferred))))
+	  (let ((deferred (get fsm :deferred)))
+	    (put fsm :deferred (cons (list event callback) deferred))))
 	 ((null result)
 	  (fsm-debug-output "Warning: event %S ignored in state %s/%s"
 			    event fsm-name state))
@@ -425,13 +423,13 @@ Events sent are of the form (:sentinel PROCESS STRING)."
 
 (defun fsm-sleep (fsm secs)
   "Let FSM receive events while sleeping up to SECS seconds."
-  (funcall (plist-get (cddr fsm) :sleep) secs))
+  (funcall (get fsm :sleep) secs))
 
 (defun fsm-get-state-data (fsm)
   "Return the state data of FSM.
 Note the absence of a set function.  The fsm should manage its
 state data itself; other code should just send messages to it."
-  (plist-get (cddr fsm) :state-data))
+  (get fsm :state-data))
 
 (provide 'fsm)
 
