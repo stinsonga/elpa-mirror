@@ -324,7 +324,7 @@ event handler explicitly asks to keep the timer."
    ))
 
 (defun fsm-send (fsm event &optional callback)
-  "Send FSM EVENT asynchronously.
+  "Send EVENT to FSM asynchronously.
 If the state machine generates a response, eventually call
 CALLBACK with the response as only argument."
   (run-with-timer 0 nil #'fsm-send-sync fsm event callback))
@@ -332,7 +332,7 @@ CALLBACK with the response as only argument."
 (defun fsm-update (fsm new-state new-state-data timeout)
   "Update FSM with NEW-STATE, NEW-STATE-DATA and TIMEOUT."
   (let ((fsm-name (get fsm :name))
-        (old-state (get fsm :state)))
+	(old-state (get fsm :state)))
     (put fsm :state new-state)
     (put fsm :state-data new-state-data)
     (fsm-maybe-change-timer fsm timeout)
@@ -359,7 +359,7 @@ CALLBACK with the response as only argument."
 	  (apply 'fsm-send-sync fsm event))))))
 
 (defun fsm-send-sync (fsm event &optional callback)
-  "Send FSM EVENT synchronously.
+  "Send EVENT to FSM synchronously.
 If the state machine generates a response, eventually call
 CALLBACK with the response as only argument."
   (save-match-data
@@ -399,7 +399,7 @@ CALLBACK with the response as only argument."
 			    result)))))))
 
 (defun fsm-call (fsm event)
-  "Send FSM EVENT synchronously, and wait for a reply.
+  "Send EVENT to FSM synchronously, and wait for a reply.
 Return the reply.  `with-timeout' might be useful."
   (let (reply)
     (fsm-send-sync fsm event (lambda (r) (setq reply (list r))))
@@ -422,7 +422,7 @@ Events sent are of the form (:sentinel PROCESS STRING)."
       (fsm-send-sync fsm (list :sentinel process string)))))
 
 (defun fsm-sleep (fsm secs)
-  "Let FSM receive events while sleeping up to SECS seconds."
+  "Sleep up to SECS seconds in a way that lets FSM receive events."
   (funcall (get fsm :sleep) secs))
 
 (defun fsm-get-state-data (fsm)
