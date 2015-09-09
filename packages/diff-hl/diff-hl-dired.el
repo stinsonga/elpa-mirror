@@ -1,6 +1,6 @@
 ;;; diff-hl-dired.el --- Highlight changed files in Dired -*- lexical-binding: t -*-
 
-;; Copyright (C) 2012-2014  Free Software Foundation, Inc.
+;; Copyright (C) 2012-2015  Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -126,10 +126,12 @@
                   (append dirs-alist files-alist))))))
          )))))
 
-(defun diff-hl-dired-status-files (backend dir files uf)
+(defun diff-hl-dired-status-files (backend dir files update-function)
+   "Using version control BACKEND, return list of (FILE STATE EXTRA) entries
+for DIR containing FILES. Call UPDATE-FUNCTION as entries are added."
   (if (version< "25" emacs-version)
-      (vc-call-backend backend 'dir-status-files dir files uf)
-    (vc-call-backend backend 'dir-status-files dir files nil uf)))
+      (vc-call-backend backend 'dir-status-files dir files update-function)
+    (vc-call-backend backend 'dir-status-files dir files nil update-function)))
 
 (when (version< emacs-version "24.4.51.5")
   ;; Work around http://debbugs.gnu.org/19386
@@ -161,6 +163,7 @@
 
 (defalias 'diff-hl-dired-clear 'diff-hl-remove-overlays)
 
+;;;###autoload
 (defun diff-hl-dired-mode-unless-remote ()
   (unless (file-remote-p default-directory)
     (diff-hl-dired-mode)))
