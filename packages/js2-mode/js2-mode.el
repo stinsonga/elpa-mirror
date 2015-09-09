@@ -10391,7 +10391,7 @@ EXPR is the first expression after the opening left-bracket.
 POS is the beginning of the LB token preceding EXPR.
 We should have just parsed the 'for' keyword before calling this function."
   (let ((current-scope js2-current-scope)
-        loops filter result)
+        loops first filter result)
     (unwind-protect
         (progn
           (while (js2-match-token js2-FOR)
@@ -10400,7 +10400,7 @@ We should have just parsed the 'for' keyword before calling this function."
               (push loop loops)
               (js2-parse-comp-loop loop)))
           ;; First loop takes expr scope's parent.
-          (setf (js2-scope-parent-scope (car (last loops)))
+          (setf (js2-scope-parent-scope (setq first (car (last loops))))
                 (js2-scope-parent-scope current-scope))
           ;; Set expr scope's parent to the last loop.
           (setf (js2-scope-parent-scope current-scope) (car loops))
