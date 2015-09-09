@@ -4,7 +4,7 @@
 
 ;; Author: Artur Malabarba <emacs@endlessparentheses.com>
 ;; Keywords: convenience, lisp
-;; Version: 0.3.1
+;; Version: 0.4
 ;; Package-Requires: ((emacs "24.4"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -72,6 +72,15 @@ This variable takes the same syntax and has the same effect as
 those in `nameless-global-aliases'.
 This variable is designed to be used as a file-local or dir-local
 variable.")
+(put 'nameless-aliases 'safe-local-variable
+     (lambda (x) (ignore-errors
+              (let ((safe t))
+                (mapc (lambda (cell)
+                        (unless (and (stringp (car cell))
+                                     (stringp (cdr cell)))
+                          (setq safe nil)))
+                      x)
+                safe))))
 
 (defface nameless-face
   '((t :inherit font-lock-type-face))
@@ -98,11 +107,13 @@ for it to take effect."
 (defvar nameless-mode)
 (defun nameless--compose-as (display)
   "Compose the matched region and return a face spec."
-  (when nameless-mode
+  (when (and nameless-mode
+             (not (get-text-property (match-beginning 1) 'composition))
+             (not (get-text-property (match-beginning 1) 'display)))
     (let ((compose (save-match-data
                      (and nameless-affect-indentation-and-filling
-                         (or (not (eq nameless-affect-indentation-and-filling 'outside-strings))
-                             (not (nth 3 (syntax-ppss)))))))
+                          (or (not (eq nameless-affect-indentation-and-filling 'outside-strings))
+                              (not (nth 3 (syntax-ppss)))))))
           (dis (concat display nameless-prefix)))
       (when compose
         (compose-region (match-beginning 1)
@@ -128,7 +139,7 @@ for it to take effect."
 \(fn (regexp . display) [(regexp . display) ...])"
   (setq-local font-lock-extra-managed-props
               `(composition display ,@font-lock-extra-managed-props))
-  (let ((kws (mapcar (lambda (x) `(,(nameless--name-regexp (cdr x)) 1 (nameless--compose-as ,(car x)) prepend)) r)))
+  (let ((kws (mapcar (lambda (x) `(,(nameless--name-regexp (cdr x)) 1 (nameless--compose-as ,(car x)))) r)))
     (setq nameless--font-lock-keywords kws)
     (font-lock-add-keywords nil kws t))
   (nameless--ensure))
@@ -136,6 +147,7 @@ for it to take effect."
 
 ;;; Name and regexp
 (defvar-local nameless-current-name nil)
+(put 'nameless-current-name 'safe-local-variable #'stringp)
 
 (defun nameless--in-arglist-p ()
   "Is point inside an arglist?"
@@ -171,7 +183,8 @@ configured, or if `nameless-current-name' is nil."
                                    (assoc alias nameless-global-aliases))))))
         (if full-name
             (progn (delete-region l r)
-                   (insert full-name "-"))
+                   (insert full-name "-")
+                   t)
           (unless noerror
             (user-error "No name for alias `%s', see `nameless-aliases'" alias))))
     (if nameless-current-name
@@ -191,6 +204,8 @@ configured, or if `nameless-current-name' is nil."
     (or (nameless-insert-name 'noerror)
         (call-interactively #'self-insert-command))))
 
+(put 'nameless-insert-name-or-self-insert 'delete-selection t)
+
 (defun nameless--name-regexp (name)
   "Return a regexp of the current name."
   (concat "\\_<@?\\(" (regexp-quote name) "-\\)\\(\\s_\\|\\sw\\)"))
@@ -206,7 +221,7 @@ Return S."
 ;;; Minor mode
 ;;;###autoload
 (define-minor-mode nameless-mode
-  nil nil " :" '(("_" . nameless-insert-name-or-self-insert))
+  nil nil " :" `((,(kbd "C-c C--") . nameless-insert-name))
   (if nameless-mode
       (if (or nameless-current-name
               (ignore-errors (string-match "\\.el\\'" (lm-get-package-name))))
@@ -224,6 +239,13 @@ Return S."
                      #'nameless--filter-string)
     (setq nameless-current-name nil)
     (nameless--remove-keywords)))
+
+;;;###autoload
+(defun nameless-mode-from-hook ()
+  "Turn on `nameless-mode'.
+Designed to be added to `emacs-lisp-mode-hook'.
+Interactively, just invoke `nameless-mode' directly."
+  (add-hook 'find-file-hook #'nameless-mode nil 'local))
 
 (provide 'nameless)
 ;;; nameless.el ends here
