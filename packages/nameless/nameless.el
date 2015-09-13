@@ -4,7 +4,7 @@
 
 ;; Author: Artur Malabarba <emacs@endlessparentheses.com>
 ;; Keywords: convenience, lisp
-;; Version: 0.4.1
+;; Version: 0.5
 ;; Package-Requires: ((emacs "24.4"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -98,6 +98,12 @@ for it to take effect."
                  (const :tag "Don't affect indentation" nil)
                  (const :tag "Only outside strings" 'outside-strings)))
 
+(defcustom nameless-private-prefix nil
+  "If non-nil, private symbols are displayed with a double prefix.
+For instance, the function `foobar--internal-impl' will be
+displayed as `::internal-impl', instead of `:-internal-impl'."
+  :type 'boolean)
+
 
 ;;; Font-locking
 (defun nameless--make-composition (s)
@@ -116,9 +122,16 @@ for it to take effect."
                               (not (nth 3 (syntax-ppss)))))))
           (dis (concat display nameless-prefix)))
       (when compose
-        (compose-region (match-beginning 1)
-                        (match-end 1)
-                        (nameless--make-composition dis)))
+        (if (and nameless-private-prefix
+                 (equal "-" (substring (match-string 0) -1)))
+            (progn
+              (setq dis (concat dis nameless-prefix))
+              (compose-region (match-beginning 0)
+                              (match-end 0)
+                              (nameless--make-composition dis)))
+          (compose-region (match-beginning 1)
+                          (match-end 1)
+                          (nameless--make-composition dis))))
       `(face nameless-face ,@(unless compose (list 'display dis))))))
 
 (defvar-local nameless--font-lock-keywords nil)
@@ -134,9 +147,10 @@ for it to take effect."
   (nameless--ensure))
 
 (defun nameless--add-keywords (&rest r)
-  "Add font-lock keywords displaying REGEXP as DISPLAY.
+  "Add font-lock keywords displaying ALIAS as DISPLAY.
+ALIAS may be nil, in which case it refers to `nameless-current-name'.
 
-\(fn (regexp . display) [(regexp . display) ...])"
+\(fn (alias . display) [(alias . display) ...])"
   (setq-local font-lock-extra-managed-props
               `(composition display ,@font-lock-extra-managed-props))
   (let ((kws (mapcar (lambda (x) `(,(nameless--name-regexp (cdr x)) 1 (nameless--compose-as ,(car x)))) r)))
@@ -149,15 +163,16 @@ for it to take effect."
 (defvar-local nameless-current-name nil)
 (put 'nameless-current-name 'safe-local-variable #'stringp)
 
-(defun nameless--in-arglist-p ()
-  "Is point inside an arglist?"
+(defun nameless--in-arglist-p (l)
+  "Is point L inside an arglist?"
   (save-excursion
+    (goto-char l)
     (ignore-errors
       (backward-up-list)
       (or (progn (forward-sexp -1)
                  (looking-at-p "[a-z-]lambda\\_>"))
           (progn (forward-sexp -1)
-                 (looking-at-p "\\(cl-\\)?def\\(un\\|macro\\|inline\\)\\*?\\_>"))))))
+                 (looking-at-p "\\(cl-\\)?def"))))))
 
 (defun nameless-insert-name (&optional noerror)
   "Insert `nameless-current-name' or the alias at point.
@@ -196,13 +211,16 @@ configured, or if `nameless-current-name' is nil."
 (defun nameless-insert-name-or-self-insert (&optional self-insert)
   "Insert the name of current package, with a hyphen."
   (interactive "P")
-  (if (or self-insert
-          (not nameless-current-name)
-          (eq (char-before) ?\\)
-          (nameless--in-arglist-p))
-      (call-interactively #'self-insert-command)
-    (or (nameless-insert-name 'noerror)
-        (call-interactively #'self-insert-command))))
+  (let ((l (point)))
+    (call-interactively #'self-insert-command)
+    (unless (or self-insert
+                (not nameless-current-name)
+                (eq (char-before l) ?\\)
+                (nameless--in-arglist-p l))
+      (undo-boundary)
+      (delete-region l (point))
+      (unless (nameless-insert-name 'noerror)
+        (call-interactively #'self-insert-command)))))
 
 (put 'nameless-insert-name-or-self-insert 'delete-selection t)
 
