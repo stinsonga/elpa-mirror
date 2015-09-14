@@ -6,7 +6,7 @@
 ;; Maintainer: Michael Heerdegen <michael_heerdegen@web.de>
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
-;; Compatibility: Gnu Emacs 25
+;; Compatibility: GNU Emacs 25
 ;; Version: 0.0.2
 ;; Package-Requires: ((emacs "25") (cl-lib "0"))
 
@@ -507,7 +507,7 @@ return nil (no error)."
   (barf-if-buffer-read-only)
   (el-search-search-and-replace-pattern from to mapping))
 
-(defun el-search--take-over-from-dired ()
+(defun el-search--take-over-from-isearch ()
   (let ((other-end isearch-other-end)
         (input isearch-string))
     (isearch-exit)
@@ -519,14 +519,14 @@ return nil (no error)."
   (interactive)
   (el-search-pattern
    (el-search--read-pattern
-    "Find pcase pattern: " nil (concat "'" (el-search--take-over-from-dired)) t))
+    "Find pcase pattern: " nil (concat "'" (el-search--take-over-from-isearch)) t))
   (setq this-command 'el-search-pattern))
 
 (defun el-search-replace-from-isearch ()
   (interactive)
   (let ((this-command 'el-search-query-replace))
     (apply #'el-search-query-replace
-           (el-search-query-replace-read-args (concat "'" (el-search--take-over-from-dired))))))
+           (el-search-query-replace-read-args (concat "'" (el-search--take-over-from-isearch))))))
 
 
 
