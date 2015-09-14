@@ -169,7 +169,7 @@
 
 ;;; Code:
 
-;;; Requirements
+;;;; Requirements
 
 (eval-when-compile
   (require 'subr-x))
@@ -179,7 +179,7 @@
 (require 'thingatpt)
 
 
-;;; Configuration stuff
+;;;; Configuration stuff
 
 (defgroup el-search nil
   "Expression based search and replace for `emacs-lisp-mode'."
@@ -198,7 +198,7 @@ expression."
   :group 'el-search)
 
 
-;;; Helpers
+;;;; Helpers
 
 (defun el-search--print (expr)
   (let ((print-quoted t)
@@ -364,7 +364,7 @@ return nil (no error)."
      (lambda () (buffer-substring (point-min) (point-max))))))
 
 
-;;; Highlighting
+;;;; Highlighting
 
 (defvar-local el-search-hl-overlay nil)
 
@@ -393,7 +393,7 @@ return nil (no error)."
           (remove-hook 'post-command-hook #'el-search-hl-post-command-fun t))))))
 
 
-;;; Core functions
+;;;; Core functions
 
 (defvar el-search-history '()
   "List of input strings.")
