@@ -8,7 +8,7 @@
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
 ;; Version: 0.0.2
-;; Package-Requires: ((emacs "25") (cl-lib "0"))
+;; Package-Requires: ((emacs "25"))
 
 
 ;; This file is not part of GNU Emacs.
