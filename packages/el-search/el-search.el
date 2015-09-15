@@ -190,12 +190,11 @@
 The default value is `expr'.  You can use this variable in the
 search prompt to refer to value of the currently searched
 expression."
-  :group 'el-search :type 'symbol)
+  :type 'symbol)
 
 (defface el-search-match '((((background dark)) (:background "#0000A0"))
 			   (t                   (:background "DarkSlateGray1")))
-  "Face for highlighting the current match."
-  :group 'el-search)
+  "Face for highlighting the current match.")
 
 
 ;;;; Helpers
