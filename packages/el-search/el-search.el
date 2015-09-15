@@ -400,6 +400,7 @@ return nil (no error)."
 (defvar el-search-success nil)
 (defvar el-search-current-pattern nil)
 
+;;;###autoload
 (defun el-search-pattern (pattern)
   "Do incremental elisp search forward."
   (interactive (list (if (and (eq this-command last-command)
@@ -499,6 +500,7 @@ return nil (no error)."
             (insert to)
             (el-search--create-read-map 1)))))
 
+;;;###autoload
 (defun el-search-query-replace (from to &optional mapping)
   "Replace some occurrences of FROM pattern with evaluated TO."
   (interactive (el-search-query-replace-read-args))
@@ -514,6 +516,7 @@ return nil (no error)."
       (goto-char other-end))
     input))
 
+;;;###autoload
 (defun el-search-search-from-isearch ()
   (interactive)
   (el-search-pattern
@@ -521,6 +524,7 @@ return nil (no error)."
     "Find pcase pattern: " nil (concat "'" (el-search--take-over-from-isearch)) t))
   (setq this-command 'el-search-pattern))
 
+;;;###autoload
 (defun el-search-replace-from-isearch ()
   (interactive)
   (let ((this-command 'el-search-query-replace))
