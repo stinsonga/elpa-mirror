@@ -29,10 +29,6 @@
 
 ;;; Commentary:
 
-;; The first version for trying!  Feedback and improvement suggestions
-;; welcome.
-
-
 ;; Introduction
 ;; ============
 ;;
@@ -67,7 +63,6 @@
 ;;
 ;;   `(defvar ,_ ,_
 ;;      ,(and s (guard (< 70 (length (car (split-string s "\n")))))))
-;;
 ;;
 ;;
 ;; Convenience
@@ -120,7 +115,6 @@
 ;; used to that.
 ;;
 ;;
-;;
 ;; Suggested key bindings
 ;; ======================
 ;;
@@ -135,7 +129,7 @@
 ;;
 ;;
 ;; Bugs, Known Limitations
-;;
+;; =======================
 ;;
 ;; - Replacing: in some cases the reader syntax of forms
 ;; is changing due to reading+printing.  "Some" because we can treat
@@ -154,10 +148,17 @@
 ;; the comment will be lost.
 ;;
 ;;
+;;  Acknowledgments
+;;  ===============
+;;
+;; Thanks to Stefan Monnier for corrections and advice.
+;;
 ;;
 ;; TODO:
 ;;
 ;; - improve docstrings
+;;
+;; - add more examples
 ;;
 ;; - Implement sessions; add multi-file support based on iterators.  A
 ;; file list is read in (or the user can specify an iterator as a
@@ -518,6 +519,8 @@ return nil (no error)."
 
 ;;;###autoload
 (defun el-search-search-from-isearch ()
+  ;; FIXME: an interesting alternative would be to really integrate it with
+  ;; Isearch, using `isearch-search-fun'.
   (interactive)
   (el-search-pattern
    (el-search--read-pattern
