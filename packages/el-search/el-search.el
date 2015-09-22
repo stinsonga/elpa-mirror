@@ -244,7 +244,11 @@ expression."
 Don't move if already at beginning of a sexp."
   (let ((not-done t) res)
     (while not-done
-      (let ((stop-here nil) syntax-here)
+      (let ((stop-here nil) syntax-here
+            (looking-at-from-back (lambda (regexp n)
+                                    (save-excursion
+                                      (backward-char n)
+                                      (looking-at regexp)))))
         (while (not stop-here)
           (cond
            ((eobp) (signal 'end-of-buffer nil))
@@ -257,10 +261,10 @@ Don't move if already at beginning of a sexp."
            ;; FIXME: can the rest be done more generically?
            ((and (looking-at (rx (or (syntax symbol) (syntax word))))
                  (not (looking-at "\\_<"))
-                 (not (looking-back ",@" 2)))
+                 (not (funcall looking-at-from-back ",@" 2)))
             (forward-symbol 1))
-           ((or (and (looking-at "'") (looking-back "#" 1))
-                (and (looking-at "@") (looking-back "," 1)))
+           ((or (and (looking-at "'") (funcall looking-at-from-back "#" 1))
+                (and (looking-at "@") (funcall looking-at-from-back "," 1)))
             (forward-char))
            (t (setq stop-here t)))))
       (condition-case nil
