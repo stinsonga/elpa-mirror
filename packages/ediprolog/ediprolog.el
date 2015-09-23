@@ -93,21 +93,18 @@
   :group 'languages
   :group 'processes)
 
-;;;###autoload
 (defcustom ediprolog-program
   (or (executable-find "swipl") (executable-find "pl") "swipl")
   "Program name of the Prolog executable."
   :group 'ediprolog
   :type 'string)
 
-;;;###autoload
 (defcustom ediprolog-program-switches nil
   "List of switches passed to the Prolog process. Example:
 '(\"-G128M\" \"-O\")"
   :group 'ediprolog
   :type '(repeat string))
 
-;;;###autoload
 (defcustom ediprolog-prefix "%@ "
   "String to prepend when inserting output from the Prolog
 process into the buffer."
