@@ -186,7 +186,7 @@
   "Expression based search and replace for `emacs-lisp-mode'."
   :group 'lisp)
 
-(defcustom el-search-this-expression-identifier 'expr
+(defcustom el-search-this-expression-identifier 'exp
   "Name of the identifier referring to the whole expression.
 The default value is `expr'.  You can use this variable in the
 search prompt to refer to value of the currently searched
