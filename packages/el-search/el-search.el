@@ -156,9 +156,13 @@
 ;;
 ;; TODO:
 ;;
+;; - implement backward searching and wrapped searching
+;;
 ;; - improve docstrings
 ;;
 ;; - add more examples
+;;
+;; - handle more reader syntaxes, e.g. #n, #n#
 ;;
 ;; - Implement sessions; add multi-file support based on iterators.  A
 ;; file list is read in (or the user can specify an iterator as a
@@ -523,8 +527,9 @@ return nil (no error)."
 
 ;;;###autoload
 (defun el-search-search-from-isearch ()
-  ;; FIXME: an interesting alternative would be to really integrate it with
-  ;; Isearch, using `isearch-search-fun'.
+  ;; FIXME: an interesting alternative would be to really integrate it
+  ;; with Isearch, using `isearch-search-fun-function'.
+  ;; Alas, this is not trivial if we want to transfer our optimizations.
   (interactive)
   (el-search-pattern
    (el-search--read-pattern
