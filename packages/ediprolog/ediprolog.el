@@ -1,10 +1,10 @@
 ;;; ediprolog.el --- Emacs Does Interactive Prolog
 
-;; Copyright (C) 2006, 2007, 2008, 2009  Free Software Foundation, Inc.
+;; Copyright (C) 2006, 2007, 2008, 2009, 2012, 2013  Free Software Foundation, Inc.
 
 ;; Author: Markus Triska <markus.triska@gmx.at>
 ;; Keywords: languages, processes
-;; Version: 1.0
+;; Version: 1.1
 
 ;; This file is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -82,29 +82,32 @@
 ;;   C-u F10       first consult buffer, then evaluate query (if any)
 ;;   C-u C-u F10   like C-u F10, with a new process
 
-;; Tested with SWI-Prolog 5.6.55 + Emacs 21.2, 22.3 and 23.0.92.2.
+;; Tested with SWI-Prolog 5.6.55 + Emacs 21.2, 22.3, 23.1 and 24.3
 
 ;;; Code:
 
-(defconst ediprolog-version "0.9yb")
+(defconst ediprolog-version "0.9z")
 
 (defgroup ediprolog nil
   "Transparent interaction with SWI-Prolog."
   :group 'languages
   :group 'processes)
 
+;;;###autoload
 (defcustom ediprolog-program
   (or (executable-find "swipl") (executable-find "pl") "swipl")
   "Program name of the Prolog executable."
   :group 'ediprolog
   :type 'string)
 
+;;;###autoload
 (defcustom ediprolog-program-switches nil
   "List of switches passed to the Prolog process. Example:
 '(\"-G128M\" \"-O\")"
   :group 'ediprolog
   :type '(repeat string))
 
+;;;###autoload
 (defcustom ediprolog-prefix "%@ "
   "String to prepend when inserting output from the Prolog
 process into the buffer."
@@ -160,8 +163,6 @@ default Prolog prompt.")
          (erase-buffer)))
      ;; execute forms with default-directory etc. from invocation buffer
      ,@forms
-     (unless (process-filter ediprolog-process)
-       (set-process-filter ediprolog-process 'ediprolog-wait-for-prompt-filter))
      (while (not ediprolog-seen-prompt)
        ;; Wait for output/sentinel and update consult window, if any.
        ;; As `accept-process-output' does not run the sentinel in
@@ -227,8 +228,11 @@ default Prolog prompt.")
          (setq ediprolog-process
                (apply #'start-process "ediprolog" (current-buffer) args))
          (set-process-sentinel ediprolog-process 'ediprolog-sentinel)
+         (set-process-filter ediprolog-process
+                             'ediprolog-wait-for-prompt-filter)
          (ediprolog-send-string
-          (format "'$set_prompt'('%s').\n" ediprolog-prompt)))
+          (format "set_prolog_flag(color_term, false),\
+                  '$set_prompt'('%s').\n" ediprolog-prompt)))
       ((error quit)
        (ediprolog-log "No prompt found." "red" t)
        (error "No prompt from: %s" ediprolog-program)))))
