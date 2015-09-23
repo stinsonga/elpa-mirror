@@ -374,7 +374,7 @@ return nil (no error)."
 
 (defvar el-search-keep-hl nil)
 
-(defun el-search-hl-sexp ()
+(defun el-search-hl-sexp-at-point ()
   (let ((bounds (list (point) (scan-sexps (point) 1))))
     (if (overlayp el-search-hl-overlay)
         (apply #'move-overlay el-search-hl-overlay bounds)
@@ -435,7 +435,7 @@ return nil (no error)."
                            (ding)
                            nil))
       (setq el-search-success t)
-      (el-search-hl-sexp)
+      (el-search-hl-sexp-at-point)
       (message "%s" (substitute-command-keys "Type \\[el-search-pattern] to repeat")))))
 
 (defun el-search-search-and-replace-pattern (pattern replacement &optional mapping)
@@ -444,7 +444,7 @@ return nil (no error)."
     (unwind-protect
         (while (and (not done) (el-search--search-pattern pattern t))
           (setq opoint (point))
-          (unless replace-all (el-search-hl-sexp))
+          (unless replace-all (el-search-hl-sexp-at-point))
           (let* ((read-mapping (el-search--create-read-map))
                  (region (list (point)  (scan-sexps (point) 1)))
                  (substring (apply #'buffer-substring-no-properties region))
@@ -461,7 +461,7 @@ return nil (no error)."
                                    (insert to-insert)
                                    (indent-region opoint (point))
                                    (goto-char opoint)
-                                   (el-search-hl-sexp)))
+                                   (el-search-hl-sexp-at-point)))
                                (cl-incf nbr-replaced)
                                (setq replaced-this t))))
             (if replace-all
