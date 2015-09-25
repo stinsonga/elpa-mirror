@@ -247,9 +247,10 @@ expression."
   ;;Point must be at sexp beginning
   (or (scan-sexps (point) 1) (point-max)))
 
-(defun el-search--goto-next-sexp ()
-  "Move point to the beginning of the next sexp.
-Don't move if already at beginning of a sexp."
+(defun el-search--ensure-sexp-start ()
+  "Move point to the beginning of the next sexp if necessary.
+Don't move if already at beginning of a sexp.
+Point must not be inside a string or comment."
   (let ((not-done t) res)
     (while not-done
       (let ((stop-here nil) syntax-here
@@ -308,7 +309,7 @@ return nil (no error)."
     (if (catch 'no-match
           (while (not match-beg)
             (condition-case nil
-                (setq current-expr (el-search--goto-next-sexp))
+                (setq current-expr (el-search--ensure-sexp-start))
               (end-of-buffer
                (goto-char opoint)
                (throw 'no-match t)))
@@ -329,7 +330,7 @@ return nil (no error)."
                  (this-sexp (buffer-substring-no-properties (point) this-sexp-end)))
             (funcall do-fun this-sexp this-sexp-end))
           (forward-char)
-          (el-search--goto-next-sexp))
+          (el-search--ensure-sexp-start))
       (end-of-buffer))
     (when ret-fun (funcall ret-fun))))
 
