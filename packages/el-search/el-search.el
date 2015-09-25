@@ -278,12 +278,16 @@ Don't move if already at beginning of a sexp."
         (error (forward-char))))
     res))
 
-(defun el-search--match-p (pattern expression)
-  (funcall
-   `(lambda ()
-      (pcase ',expression
-        (,pattern t)
-        (_        nil)))))
+(defun el-search--matcher (pattern &rest body)
+  (let ((warning-suppress-log-types '((bytecomp))))
+    (byte-compile
+     `(lambda (expression)
+        (pcase expression
+          (,pattern ,@(or body (list t)))
+          (_        nil))))))
+
+(defun el-search--match-p (matcher expression)
+  (funcall matcher expression))
 
 (defun el-search--wrap-pattern (pattern)
   `(and ,el-search-this-expression-identifier ,pattern))
@@ -296,7 +300,7 @@ return nil (no error)."
   ;; For better performance we read complete top-level sexps and test
   ;; for matches.  We enter top-level expressions in the buffer text
   ;; only when the test was successful.
-  (let ((match-beg nil) (opoint (point)) current-expr)
+  (let ((matcher (el-search--matcher pattern)) (match-beg nil) (opoint (point)) current-expr)
     (if (catch 'no-match
           (while (not match-beg)
             (condition-case nil
@@ -304,7 +308,7 @@ return nil (no error)."
               (end-of-buffer
                (goto-char opoint)
                (throw 'no-match t)))
-            (if (el-search--match-p pattern current-expr)
+            (if (el-search--match-p matcher current-expr)
                 (setq match-beg (point)
                       opoint (point))
               (forward-char))))
@@ -423,7 +427,8 @@ return nil (no error)."
 
 (defun el-search-search-and-replace-pattern (pattern replacement &optional mapping)
   (let ((replace-all nil) (nbr-replaced 0) (nbr-skipped 0) (done nil)
-        (el-search-keep-hl t) (opoint (point)))
+        (el-search-keep-hl t) (opoint (point))
+        (get-replacement (el-search--matcher pattern replacement)))
     (unwind-protect
         (while (and (not done) (el-search--search-pattern pattern t))
           (setq opoint (point))
@@ -433,7 +438,7 @@ return nil (no error)."
                  (substring (apply #'buffer-substring-no-properties region))
                  (expr      (read substring))
                  (replaced-this nil)
-                 (new-expr  (funcall `(lambda () (pcase ',expr (,pattern ,replacement)))))
+                 (new-expr  (funcall get-replacement expr))
                  (to-insert (el-search--repair-replacement-layout
                              (el-search--print new-expr) (append mapping read-mapping)))
                  (do-replace (lambda ()
