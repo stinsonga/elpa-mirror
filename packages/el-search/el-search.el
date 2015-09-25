@@ -337,7 +337,7 @@ return nil (no error)."
   (save-excursion
     (goto-char pos)
     (condition-case nil
-        (while (or (not bound) (< (point) bound))
+        (while (< (point) (or bound (point-max)))
           (let* ((this-sexp-end (save-excursion (thing-at-point--end-of-sexp) (point)))
                  (this-sexp (buffer-substring-no-properties (point) this-sexp-end)))
             (funcall do-fun this-sexp this-sexp-end))
