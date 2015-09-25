@@ -32,7 +32,7 @@
 ;; Introduction
 ;; ============
 ;;
-;; 
+;;
 ;; The main user entry point is the command `el-search-pattern'.  It
 ;; prompts for a `pcase' pattern and searches the current buffer for
 ;; expressions that are matched by it when read.  Point is put at the
@@ -95,13 +95,13 @@
 ;; Example: In some buffer you want to swap the two expressions at the
 ;; places of the first two arguments in all calls of function `foo',
 ;; so that e.g.
-;; 
+;;
 ;;   (foo 'a (* 2 (+ 3 4)) t)
-;;   
+;;
 ;; becomes
-;; 
+;;
 ;;   (foo (* 2 (+ 3 4)) 'a t).
-;;   
+;;
 ;; This will do it:
 ;;
 ;;    M-x el-search-query-replace RET
