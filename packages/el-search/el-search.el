@@ -285,21 +285,8 @@ Don't move if already at beginning of a sexp."
         (,pattern t)
         (_        nil)))))
 
-(defun el-search-expression-contains-match-p (pattern expression)
-  "Whether some subexp of EXPRESSION is matched by PATTERN."
-  (or (el-search--match-p pattern expression)
-      (and (consp expression)
-           (if (cdr (last expression))
-               ;; a dotted list
-               (or (el-search-expression-contains-match-p pattern (car expression))
-                   (el-search-expression-contains-match-p pattern (cdr expression)))
-             (cl-some (lambda (subexpr) (el-search-expression-contains-match-p pattern subexpr))
-                      expression)))))
-
 (defun el-search--maybe-wrap-pattern (pattern)
-  (if (el-search-expression-contains-match-p `',el-search-this-expression-identifier pattern)
-      `(and ,el-search-this-expression-identifier ,pattern)
-    pattern))
+  `(and ,el-search-this-expression-identifier ,pattern))
 
 (defun el-search--search-pattern (pattern &optional noerror)
   "Search elisp buffer with `pcase' PATTERN.
@@ -317,18 +304,10 @@ return nil (no error)."
               (end-of-buffer
                (goto-char opoint)
                (throw 'no-match t)))
-            (if (and (zerop (car (syntax-ppss)))
-                     (not (el-search-expression-contains-match-p pattern current-expr)))
-                ;; nothing here; skip to next top level form
-                (let ((end-of-next-sexp (scan-sexps (point) 2)))
-                  (if (not end-of-next-sexp)
-                      (throw 'no-match t)
-                    (goto-char end-of-next-sexp)
-                    (backward-sexp)))
-              (if (el-search--match-p pattern current-expr)
+            (if (el-search--match-p pattern current-expr)
                 (setq match-beg (point)
                       opoint (point))
-                (forward-char)))))
+              (forward-char))))
         (if noerror nil (signal 'end-of-buffer nil)))
     match-beg))
 
