@@ -243,6 +243,10 @@ expression."
                  (concat "'" (el-search--print this-sexp))))
    read))
 
+(defun el-search--end-of-sexp ()
+  ;;Point must be at sexp beginning
+  (or (scan-sexps (point) 1) (point-max)))
+
 (defun el-search--goto-next-sexp ()
   "Move point to the beginning of the next sexp.
 Don't move if already at beginning of a sexp."
@@ -362,7 +366,7 @@ return nil (no error)."
 (defvar el-search-keep-hl nil)
 
 (defun el-search-hl-sexp-at-point ()
-  (let ((bounds (list (point) (scan-sexps (point) 1))))
+  (let ((bounds (list (point) (el-search--end-of-sexp))))
     (if (overlayp el-search-hl-overlay)
         (apply #'move-overlay el-search-hl-overlay bounds)
       (overlay-put (setq el-search-hl-overlay (apply #'make-overlay bounds))
@@ -434,7 +438,7 @@ return nil (no error)."
           (setq opoint (point))
           (unless replace-all (el-search-hl-sexp-at-point))
           (let* ((read-mapping (el-search--create-read-map))
-                 (region (list (point)  (scan-sexps (point) 1)))
+                 (region (list (point) (el-search--end-of-sexp)))
                  (substring (apply #'buffer-substring-no-properties region))
                  (expr      (read substring))
                  (replaced-this nil)
