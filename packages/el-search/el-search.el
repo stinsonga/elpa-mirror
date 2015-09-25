@@ -285,7 +285,7 @@ Don't move if already at beginning of a sexp."
         (,pattern t)
         (_        nil)))))
 
-(defun el-search--maybe-wrap-pattern (pattern)
+(defun el-search--wrap-pattern (pattern)
   `(and ,el-search-this-expression-identifier ,pattern))
 
 (defun el-search--search-pattern (pattern &optional noerror)
@@ -404,7 +404,7 @@ return nil (no error)."
                                     (or (not (boundp pattern))
                                         (not (eq (symbol-value pattern) pattern))))
                            (error "Please don't forget the quote when searching for a symbol"))
-                         (el-search--maybe-wrap-pattern pattern)))))
+                         (el-search--wrap-pattern pattern)))))
   (setq el-search-current-pattern pattern)
   (setq el-search-success nil)
   (let ((opoint (point)))
@@ -483,7 +483,7 @@ return nil (no error)."
   (barf-if-buffer-read-only)
   (let* ((from (el-search--read-pattern "Replace from: " nil initial-contents))
          (to   (el-search--read-pattern "Replace with result of evaluation of: " from)))
-    (list (el-search--maybe-wrap-pattern (read from)) (read to)
+    (list (el-search--wrap-pattern (read from)) (read to)
           (with-temp-buffer
             (insert to)
             (el-search--create-read-map 1)))))
