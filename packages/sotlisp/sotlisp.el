@@ -6,7 +6,7 @@
 ;; URL: https://github.com/Malabarba/speed-of-thought-lisp
 ;; Keywords: convenience, lisp
 ;; Package-Requires: ((emacs "24.1"))
-;; Version: 1.3
+;; Version: 1.4
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -360,6 +360,7 @@ The space char is not included.  Any \"$\" are also removed."
     ("wl" . "when-let (($))")
     ("we" . "window-end")
     ("ws" . "window-start")
+    ("wsw" . "with-selected-window ")
     ("wtb" . "with-temp-buffer")
     ("wtf" . "with-temp-file ")
     )
@@ -596,6 +597,7 @@ With a prefix argument, defines a `defvar' instead of a `defcustom'."
   "Uncomment a sexp around point."
   (interactive "P")
   (let* ((initial-point (point-marker))
+         (inhibit-field-text-motion t)
          (p)
          (end (save-excursion
                 (when (elt (syntax-ppss) 4)
@@ -607,25 +609,31 @@ With a prefix argument, defines a `defvar' instead of a `defcustom'."
                 (point-marker)))
          (beg (save-excursion
                 (forward-line 0)
-                (while (= end (save-excursion
-                                (comment-forward (point-max))
-                                (point)))
+                (while (and (not (bobp))
+                            (= end (save-excursion
+                                     (comment-forward (point-max))
+                                     (point))))
                   (forward-line -1))
                 (goto-char (line-end-position))
                 (re-search-backward comment-start-skip
                                     (line-beginning-position)
                                     t)
-                (while (looking-at-p comment-start-skip)
-                  (forward-char -1))
+                (ignore-errors
+                  (while (looking-at comment-start-skip)
+                    (forward-char -1))
+                  (unless (looking-at "[\n\r[:blank]]")
+                    (forward-char 1)))
                 (point-marker))))
     (unless (= beg end)
       (uncomment-region beg end)
       (goto-char p)
       ;; Indentify the "top-level" sexp inside the comment.
-      (while (and (ignore-errors (backward-up-list) t)
-                  (>= (point) beg))
-        (skip-chars-backward (rx (syntax expression-prefix)))
-        (setq p (point-marker)))
+      (ignore-errors
+        (while (>= (point) beg)
+          (backward-prefix-chars)
+          (skip-chars-backward "\r\n[:blank:]")
+          (setq p (point-marker))
+          (backward-up-list)))
       ;; Re-comment everything before it. 
       (ignore-errors
         (comment-region beg p))
@@ -639,7 +647,7 @@ With a prefix argument, defines a `defvar' instead of a `defcustom'."
         ;; If this is a closing delimiter, pull it up.
         (goto-char end)
         (skip-chars-forward "\r\n[:blank:]")
-        (when (= 5 (car (syntax-after (point))))
+        (when (eq 5 (car (syntax-after (point))))
           (delete-indentation))))
     ;; Without a prefix, it's more useful to leave point where
     ;; it was.
