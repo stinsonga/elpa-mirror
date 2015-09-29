@@ -33,6 +33,7 @@
 ;;; Code:
 
 (require 'swiper)
+(require 'etags)
 
 (defvar counsel-completion-beg nil
   "Completion bounds start.")
@@ -81,18 +82,73 @@
               :initial-input str
               :action #'counsel--el-action)))
 
+(declare-function slime-symbol-start-pos "ext:slime")
+(declare-function slime-symbol-end-pos "ext:slime")
+(declare-function slime-contextual-completions "ext:slime-c-p-c")
+
+;;;###autoload
+(defun counsel-cl ()
+  "Common Lisp completion at point."
+  (interactive)
+  (setq counsel-completion-beg (slime-symbol-start-pos))
+  (setq counsel-completion-end (slime-symbol-end-pos))
+  (ivy-read "Symbol name: "
+            (car (slime-contextual-completions
+                  counsel-completion-beg
+                  counsel-completion-end))
+            :action #'counsel--el-action))
+
 (defun counsel--el-action (symbol)
   "Insert SYMBOL, erasing the previous one."
   (when (stringp symbol)
-    (when counsel-completion-beg
-      (delete-region
-       counsel-completion-beg
-       counsel-completion-end))
-    (setq counsel-completion-beg
-          (move-marker (make-marker) (point)))
-    (insert symbol)
-    (setq counsel-completion-end
-          (move-marker (make-marker) (point)))))
+    (with-ivy-window
+      (when counsel-completion-beg
+        (delete-region
+         counsel-completion-beg
+         counsel-completion-end))
+      (setq counsel-completion-beg
+            (move-marker (make-marker) (point)))
+      (insert symbol)
+      (setq counsel-completion-end
+            (move-marker (make-marker) (point))))))
+
+(declare-function deferred:sync! "ext:deferred")
+(declare-function jedi:complete-request "ext:jedi-core")
+(declare-function jedi:ac-direct-matches "ext:jedi")
+
+(defun counsel-jedi ()
+  "Python completion at point."
+  (interactive)
+  (let ((bnd (bounds-of-thing-at-point 'symbol)))
+    (if bnd
+        (progn
+          (setq counsel-completion-beg (car bnd))
+          (setq counsel-completion-end (cdr bnd)))
+      (setq counsel-completion-beg nil)
+      (setq counsel-completion-end nil)))
+  (deferred:sync!
+   (jedi:complete-request))
+  (ivy-read "Symbol name: " (jedi:ac-direct-matches)
+            :action #'counsel--py-action))
+
+(defun counsel--py-action (symbol)
+  "Insert SYMBOL, erasing the previous one."
+  (when (stringp symbol)
+    (with-ivy-window
+      (when counsel-completion-beg
+        (delete-region
+         counsel-completion-beg
+         counsel-completion-end))
+      (setq counsel-completion-beg
+            (move-marker (make-marker) (point)))
+      (insert symbol)
+      (setq counsel-completion-end
+            (move-marker (make-marker) (point)))
+      (when (equal (get-text-property 0 'symbol symbol) "f")
+        (insert "()")
+        (setq counsel-completion-end
+              (move-marker (make-marker) (point)))
+        (backward-char 1)))))
 
 (defvar counsel-describe-map
   (let ((map (make-sparse-keymap)))
@@ -114,6 +170,7 @@
 
 (defun counsel--find-symbol (x)
   "Find symbol definition that corresponds to string X."
+  (ring-insert find-tag-marker-ring (point-marker))
   (let ((full-name (get-text-property 0 'full-name x)))
     (if full-name
         (find-library full-name)
@@ -138,7 +195,7 @@
   "Return current symbol at point as a string."
   (let ((s (thing-at-point 'symbol)))
     (and (stringp s)
-         (if (string-match "\\`[`']?\\(.*\\)'?\\'" s)
+         (if (string-match "\\`[`']?\\(.*?\\)'?\\'" s)
              (match-string 1 s)
            s))))
 
@@ -230,11 +287,16 @@
   (require 'info-look)
   (info-lookup 'symbol symbol mode))
 
+(defvar counsel-unicode-char-history nil
+  "History for `counsel-unicode-char'.")
+
 ;;;###autoload
 (defun counsel-unicode-char ()
   "Insert a Unicode character at point."
   (interactive)
   (let ((minibuffer-allow-text-properties t))
+    (setq counsel-completion-beg (point))
+    (setq counsel-completion-end (point))
     (ivy-read "Unicode name: "
               (mapcar (lambda (x)
                         (propertize
@@ -242,7 +304,12 @@
                          'result (cdr x)))
                       (ucs-names))
               :action (lambda (char)
-                        (insert-char (get-text-property 0 'result char))))))
+                        (with-ivy-window
+                          (delete-region counsel-completion-beg counsel-completion-end)
+                          (setq counsel-completion-beg (point))
+                          (insert-char (get-text-property 0 'result char))
+                          (setq counsel-completion-end (point))))
+              :history 'counsel-unicode-char-history)))
 
 (declare-function cider-sync-request:complete "ext:cider-client")
 ;;;###autoload
@@ -288,7 +355,7 @@
       (counsel-more-chars 3)
     (let* ((default-directory counsel--git-grep-dir)
            (cmd (format "git --no-pager grep --full-name -n --no-color -i -e %S"
-                        (ivy--regex string t))))
+                        (setq ivy--old-re (ivy--regex string t)))))
       (if (<= counsel--git-grep-count 20000)
           (split-string (shell-command-to-string cmd) "\n" t)
         (counsel--gg-candidates (ivy--regex string))
@@ -430,7 +497,9 @@ Skip some dotfiles unless `ivy-text' requires them."
   (if (string= event "finished\n")
       (progn
         (with-current-buffer (process-buffer process)
-          (setq ivy--all-candidates (split-string (buffer-string) "\n" t))
+          (setq ivy--all-candidates
+                (ivy--sort-maybe
+                 (split-string (buffer-string) "\n" t)))
           (setq ivy--old-cands ivy--all-candidates))
         (ivy--exhibit))
     (if (string= event "exited abnormally with code 1\n")
@@ -444,7 +513,11 @@ Skip some dotfiles unless `ivy-text' requires them."
   (call-process shell-file-name nil
                 nil nil
                 shell-command-switch
-                (format "xdg-open %s" (shell-quote-argument x))))
+                (format "%s %s"
+                        (if (eq system-type 'darwin)
+                                    "open"
+                                  "xdg-open")
+                        (shell-quote-argument x))))
 
 (declare-function dired-jump "dired-x")
 (defun counsel-locate-action-dired (x)
@@ -454,16 +527,33 @@ Skip some dotfiles unless `ivy-text' requires them."
 (defvar counsel-locate-history nil
   "History for `counsel-locate'.")
 
+(defcustom counsel-locate-options (if (eq system-type 'darwin)
+                                      '("-i")
+                                    '("-i" "--regex"))
+  "Command line options for `locate`."
+  :group 'ivy
+  :type  '(repeat string))
+
 (ivy-set-actions
  'counsel-locate
  '(("x" counsel-locate-action-extern "xdg-open")
    ("d" counsel-locate-action-dired "dired")))
 
+(defun counsel-unquote-regex-parens (str)
+  (replace-regexp-in-string
+   "\\\\)" ")"
+   (replace-regexp-in-string
+    "\\\\(" "("
+    str)))
+
 (defun counsel-locate-function (str &rest _u)
   (if (< (length str) 3)
       (counsel-more-chars 3)
     (counsel--async-command
-     (concat "locate -i --regex " (ivy--regex str)))
+     (format "locate %s '%s'"
+             (mapconcat #'identity counsel-locate-options " ")
+             (counsel-unquote-regex-parens
+              (ivy--regex str))))
     '("" "working...")))
 
 ;;;###autoload
@@ -783,22 +873,50 @@ Usable with `ivy-resume', `ivy-next-line-and-call' and
       (t (error "Tags alignment failed")))
     (org-move-to-column col)))
 
+(defun counsel-org--set-tags ()
+  (counsel-org-change-tags
+   (if counsel-org-tags
+       (format ":%s:"
+               (mapconcat #'identity counsel-org-tags ":"))
+     "")))
+
+(defvar org-agenda-bulk-marked-entries)
+
+(declare-function org-get-at-bol "org")
+(declare-function org-agenda-error "org-agenda")
+
 (defun counsel-org-tag-action (x)
   (if (member x counsel-org-tags)
       (progn
         (setq counsel-org-tags (delete x counsel-org-tags)))
-    (setq counsel-org-tags (append counsel-org-tags (list x)))
-    (unless (member x ivy--all-candidates)
-      (setq ivy--all-candidates (append ivy--all-candidates (list x)))))
+    (unless (equal x "")
+      (setq counsel-org-tags (append counsel-org-tags (list x)))
+      (unless (member x ivy--all-candidates)
+        (setq ivy--all-candidates (append ivy--all-candidates (list x))))))
   (let ((prompt (counsel-org-tag-prompt)))
     (setf (ivy-state-prompt ivy-last) prompt)
     (setq ivy--prompt (concat "%-4d " prompt)))
-  (cond ((memq this-command '(ivy-done ivy-alt-done))
-         (counsel-org-change-tags
-          (if counsel-org-tags
-              (format ":%s:"
-                      (mapconcat #'identity counsel-org-tags ":"))
-            "")))
+  (cond ((memq this-command '(ivy-done
+                              ivy-alt-done
+                              ivy-immediate-done))
+         (if (eq major-mode 'org-agenda-mode)
+             (if (null org-agenda-bulk-marked-entries)
+                 (let ((hdmarker (or (org-get-at-bol 'org-hd-marker)
+                                     (org-agenda-error))))
+                   (with-current-buffer (marker-buffer hdmarker)
+                     (goto-char hdmarker)
+                     (counsel-org--set-tags)))
+               (let ((add-tags (copy-sequence counsel-org-tags)))
+                 (dolist (m org-agenda-bulk-marked-entries)
+                   (with-current-buffer (marker-buffer m)
+                     (save-excursion
+                       (goto-char m)
+                       (setq counsel-org-tags
+                             (delete-dups
+                              (append (split-string (org-get-tags-string) ":" t)
+                                      add-tags)))
+                       (counsel-org--set-tags))))))
+           (counsel-org--set-tags)))
         ((eq this-command 'ivy-call)
          (delete-minibuffer-contents))))
 
@@ -824,15 +942,25 @@ Usable with `ivy-resume', `ivy-next-line-and-call' and
   "Add or remove tags in org-mode."
   (interactive)
   (save-excursion
-    (unless (org-at-heading-p)
-      (org-back-to-heading t))
-    (setq counsel-org-tags (split-string (org-get-tags-string) ":" t))
+    (if (eq major-mode 'org-agenda-mode)
+        (if org-agenda-bulk-marked-entries
+            (setq counsel-org-tags nil)
+          (let ((hdmarker (or (org-get-at-bol 'org-hd-marker)
+                              (org-agenda-error))))
+            (with-current-buffer (marker-buffer hdmarker)
+              (goto-char hdmarker)
+              (setq counsel-org-tags
+                    (split-string (org-get-tags-string) ":" t)))))
+      (unless (org-at-heading-p)
+        (org-back-to-heading t))
+      (setq counsel-org-tags (split-string (org-get-tags-string) ":" t)))
     (let ((org-setting-tags t)
           (org-last-tags-completion-table
            (append org-tag-persistent-alist
                    (or org-tag-alist (org-get-buffer-tags))
                    (and
-                    org-complete-tags-always-offer-all-agenda-tags
+                    (or org-complete-tags-always-offer-all-agenda-tags
+                        (eq major-mode 'org-agenda-mode))
                     (org-global-tags-completion-table
                      (org-agenda-files))))))
       (ivy-read (counsel-org-tag-prompt)
@@ -858,11 +986,9 @@ Usable with `ivy-resume', `ivy-next-line-and-call' and
   "Grep in the current directory for STRING."
   (if (< (length string) 3)
       (counsel-more-chars 3)
-    (let ((regex (replace-regexp-in-string
-                  "\\\\)" ")"
-                  (replace-regexp-in-string
-                   "\\\\(" "("
-                   (ivy--regex string)))))
+    (let ((regex (counsel-unquote-regex-parens
+                  (setq ivy--old-re
+                        (ivy--regex string)))))
       (counsel--async-command
        (format "ag --noheading --nocolor %S" regex))
       nil)))
@@ -911,6 +1037,54 @@ INITIAL-INPUT can be given as the initial minibuffer input."
                           (find-file file-name)
                           (unless (string-match "pdf$" x)
                             (swiper ivy-text)))))))
+
+(defcustom counsel-yank-pop-truncate nil
+  "When non-nil, truncate the display of long strings."
+  :group 'ivy)
+
+;;;###autoload
+(defun counsel-yank-pop ()
+  "Ivy replacement for `yank-pop'."
+  (interactive)
+  (if (eq last-command 'yank)
+      (progn
+        (setq counsel-completion-end (point))
+        (setq counsel-completion-beg
+              (save-excursion
+                (search-backward (car kill-ring))
+                (point))))
+    (setq counsel-completion-beg (point))
+    (setq counsel-completion-end (point)))
+  (let ((candidates (cl-remove-if
+                     (lambda (s)
+                       (or (< (length s) 3)
+                           (string-match "\\`[\n[:blank:]]+\\'" s)))
+                     (delete-dups kill-ring))))
+    (when counsel-yank-pop-truncate
+      (setq candidates
+            (mapcar (lambda (s)
+                      (if (string-match "\\`\\(.*\n.*\n.*\n.*\\)\n" s)
+                          (progn
+                            (let ((s (copy-sequence s)))
+                              (put-text-property
+                               (match-end 1)
+                               (length s)
+                               'display
+                               " [...]"
+                               s)
+                              s))
+                        s))
+                    candidates)))
+    (ivy-read "kill-ring: " candidates
+              :action 'counsel-yank-pop-action)))
+
+(defun counsel-yank-pop-action (s)
+  "Insert S into the buffer, overwriting the previous yank."
+  (with-ivy-window
+    (delete-region counsel-completion-beg
+                   counsel-completion-end)
+    (insert (substring-no-properties s))
+    (setq counsel-completion-end (point))))
 
 (provide 'counsel)
 
