@@ -430,8 +430,7 @@ return nil (no error)."
 ;;;###autoload
 (defun el-search-pattern (pattern)
   "Do incremental elisp search forward."
-  (interactive (list (if (and (eq this-command last-command)
-                              el-search-success)
+  (interactive (list (if (eq this-command last-command)
                          el-search-current-pattern
                        (let ((pattern
                               (el-search--read-pattern "Find pcase pattern: "
@@ -447,8 +446,11 @@ return nil (no error)."
   (setq this-command 'el-search-pattern) ;in case we come from isearch
   (setq el-search-current-pattern pattern)
   (let ((opoint (point)))
-    (when (and (eq this-command last-command) el-search-success)
-      (el-search--skip-expression nil t))
+    (when (eq this-command last-command)
+      (if el-search-success
+          (el-search--skip-expression nil t)
+        ;; wrap search
+        (goto-char (point-min))))
     (setq el-search-success nil)
     (when (condition-case nil
               (el-search--search-pattern pattern)
