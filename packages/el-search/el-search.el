@@ -253,7 +253,7 @@ Don't move if already at beginning of a sexp.
 Point must not be inside a string or comment."
   (let ((not-done t) res)
     (while not-done
-      (let ((stop-here nil) syntax-here
+      (let ((stop-here nil)
             (looking-at-from-back (lambda (regexp n)
                                     (save-excursion
                                       (backward-char n)
@@ -263,10 +263,7 @@ Point must not be inside a string or comment."
            ((eobp) (signal 'end-of-buffer nil))
            ((looking-at (rx (and (* space) ";"))) (forward-line))
            ((looking-at (rx (+ (or space "\n")))) (goto-char (match-end 0)))
-           ((progn (setq syntax-here (syntax-ppss))
-                   (or (nth 4 syntax-here) (nth 8 syntax-here)))
-            (if (nth 4 syntax-here) (forward-line) (search-forward "\"")))
-           
+
            ;; FIXME: can the rest be done more generically?
            ((and (looking-at (rx (or (syntax symbol) (syntax word))))
                  (not (looking-at "\\_<"))
@@ -297,6 +294,28 @@ Point must not be inside a string or comment."
 (defun el-search--wrap-pattern (pattern)
   `(and ,el-search-this-expression-identifier ,pattern))
 
+(defun el-search--skip-expression (expression &optional read)
+  ;; Move forward at least one character.  Don't move into a string or
+  ;; comment.  Don't move further than the beginning of the next sexp.
+  ;; Try to move as far as possible.  Point must be at the beginning
+  ;; of an expression.
+  ;; If there are positions where `read' would succeed, but that do
+  ;; not represent a valid sexp start, move past them (e.g. when
+  ;; before "#'" move past both characters).
+  ;;
+  ;; EXPRESSION must be the (read) expression at point, but when READ
+  ;; is non-nil, ignore the first argument and read the expression at
+  ;; point instead.
+  (when read (setq expression (save-excursion (read (current-buffer)))))
+  (cond
+   ((or (null expression)
+        (equal [] expression)
+        (not (or (listp expression) (vectorp expression))))
+    (goto-char (el-search--end-of-sexp)))
+   ((looking-at (rx (or ",@" "," "#'" "'")))
+    (goto-char (match-end 0)))
+   (t (forward-char))))
+
 (defun el-search--search-pattern (pattern &optional noerror)
   "Search elisp buffer with `pcase' PATTERN.
 Set point to the beginning of the occurrence found and return
@@ -306,6 +325,17 @@ return nil (no error)."
   ;; for matches.  We enter top-level expressions in the buffer text
   ;; only when the test was successful.
   (let ((matcher (el-search--matcher pattern)) (match-beg nil) (opoint (point)) current-expr)
+
+    ;; when inside a string or comment, move past it
+    (let ((syntax-here (syntax-ppss)))
+      (when (nth 3 syntax-here) ;inside a string
+        (goto-char (nth 8 syntax-here))
+        (forward-sexp))
+      (when (nth 4 syntax-here) ;inside a comment
+        (forward-line 1)
+        (while (and (not (eobp)) (looking-at (rx (and (* space) ";"))))
+          (forward-line 1))))
+
     (if (catch 'no-match
           (while (not match-beg)
             (condition-case nil
@@ -316,7 +346,7 @@ return nil (no error)."
             (if (el-search--match-p matcher current-expr)
                 (setq match-beg (point)
                       opoint (point))
-              (forward-char))))
+              (el-search--skip-expression current-expr))))
         (if noerror nil (signal 'end-of-buffer nil)))
     match-beg))
 
@@ -328,9 +358,9 @@ return nil (no error)."
         (while (< (point) (or bound (point-max)))
           (let* ((this-sexp-end (save-excursion (thing-at-point--end-of-sexp) (point)))
                  (this-sexp-bounds (buffer-substring-no-properties (point) this-sexp-end)))
-            (funcall do-fun this-sexp-bounds this-sexp-end))
-          (forward-char)
-          (el-search--ensure-sexp-start))
+            (funcall do-fun this-sexp-bounds this-sexp-end)
+            (el-search--skip-expression (read this-sexp-bounds))
+            (el-search--ensure-sexp-start)))
       (end-of-buffer))
     (when ret-fun (funcall ret-fun))))
 
@@ -418,7 +448,7 @@ return nil (no error)."
   (setq el-search-success nil)
   (let ((opoint (point)))
     (when (eq this-command last-command)
-      (forward-char))
+      (el-search--skip-expression nil t))
     (when (condition-case nil
               (el-search--search-pattern pattern)
             (end-of-buffer (message "No match")
@@ -481,7 +511,7 @@ return nil (no error)."
                                 t)
                             (?q (setq done t)
                                 t)))))
-            (unless (or done (eobp)) (forward-char 1)))))
+            (unless (or done (eobp)) (el-search--skip-expression nil t)))))
     (el-search-hl-remove)
     (goto-char opoint)
     (message "Replaced %d matches%s"
