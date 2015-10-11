@@ -236,9 +236,9 @@ expression."
     (read-from-minibuffer prompt initial-contents el-search-read-expression-map read
                           (or hist 'read-expression-history) default)))
 
-(defun el-search--read-pattern (prompt &optional default initial-contents read)
+(defun el-search--read-pattern (prompt &optional default read)
   (el-search-read-expression
-   prompt initial-contents 'el-search-history
+   prompt el-search--initial-mb-contents 'el-search-history
    (or default (when-let ((this-sexp (sexp-at-point)))
                  (concat "'" (el-search--print this-sexp))))
    read))
@@ -436,7 +436,7 @@ return nil (no error)."
                        (let ((pattern
                               (el-search--read-pattern "Find pcase pattern: "
                                                        (car el-search-history)
-                                                       nil t)))
+                                                       t)))
                          ;; A very common mistake: input "foo" instead of "'foo"
                          (when (and (symbolp pattern)
                                     (not (eq pattern '_))
@@ -444,11 +444,12 @@ return nil (no error)."
                                         (not (eq (symbol-value pattern) pattern))))
                            (error "Please don't forget the quote when searching for a symbol"))
                          (el-search--wrap-pattern pattern)))))
+  (setq this-command 'el-search-pattern) ;in case we come from isearch
   (setq el-search-current-pattern pattern)
-  (setq el-search-success nil)
   (let ((opoint (point)))
-    (when (eq this-command last-command)
+    (when (and (eq this-command last-command) el-search-success)
       (el-search--skip-expression nil t))
+    (setq el-search-success nil)
     (when (condition-case nil
               (el-search--search-pattern pattern)
             (end-of-buffer (message "No match")
@@ -519,10 +520,15 @@ return nil (no error)."
              (if (zerop nbr-skipped)  ""
                (format "   (%d skipped)" nbr-skipped)))))
 
-(defun el-search-query-replace-read-args (&optional initial-contents)
+;; We need a variable for the initial contents because we want to `call-interactively '
+;; `el-search-query-replace-read-args'
+(defvar el-search--initial-mb-contents nil)
+
+(defun el-search-query-replace-read-args ()
   (barf-if-buffer-read-only)
-  (let* ((from (el-search--read-pattern "Replace from: " nil initial-contents))
-         (to   (el-search--read-pattern "Replace with result of evaluation of: " from)))
+  (let* ((from (el-search--read-pattern "Replace from: "))
+         (to   (let ((el-search--initial-mb-contents nil))
+                 (el-search--read-pattern "Replace with result of evaluation of: " from))))
     (list (el-search--wrap-pattern (read from)) (read to)
           (with-temp-buffer
             (insert to)
@@ -532,6 +538,7 @@ return nil (no error)."
 (defun el-search-query-replace (from to &optional mapping)
   "Replace some occurrences of FROM pattern with evaluated TO."
   (interactive (el-search-query-replace-read-args))
+  (setq this-command 'el-search-query-replace) ;in case we come from isearch
   (setq el-search-current-pattern from)
   (barf-if-buffer-read-only)
   (el-search-search-and-replace-pattern from to mapping))
@@ -550,17 +557,15 @@ return nil (no error)."
   ;; with Isearch, using `isearch-search-fun-function'.
   ;; Alas, this is not trivial if we want to transfer our optimizations.
   (interactive)
-  (el-search-pattern
-   (el-search--read-pattern
-    "Find pcase pattern: " nil (concat "'" (el-search--take-over-from-isearch)) t))
-  (setq this-command 'el-search-pattern))
+  (let ((el-search--initial-mb-contents (concat "'" (el-search--take-over-from-isearch))))
+    ;; use `call-interactively' so we get recorded in `extended-command-history'
+    (call-interactively #'el-search-pattern)))
 
 ;;;###autoload
 (defun el-search-replace-from-isearch ()
   (interactive)
-  (let ((this-command 'el-search-query-replace))
-    (apply #'el-search-query-replace
-           (el-search-query-replace-read-args (concat "'" (el-search--take-over-from-isearch))))))
+  (let ((el-search--initial-mb-contents (concat "'" (el-search--take-over-from-isearch))))
+    (call-interactively #'el-search-query-replace)))
 
 
 
