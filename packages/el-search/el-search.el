@@ -460,8 +460,7 @@ return nil (no error)."
                            (ding)
                            nil))
       (setq el-search-success t)
-      (el-search-hl-sexp-at-point)
-      (message "%s" (substitute-command-keys "Type \\[el-search-pattern] to repeat")))))
+      (el-search-hl-sexp-at-point))))
 
 (defun el-search-search-and-replace-pattern (pattern replacement &optional mapping)
   (let ((replace-all nil) (nbr-replaced 0) (nbr-skipped 0) (done nil)
