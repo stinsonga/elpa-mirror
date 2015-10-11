@@ -156,7 +156,10 @@
 ;;
 ;; TODO:
 ;;
-;; - implement backward searching and wrapped searching
+;; - display something useful in the echo area.  or leave it for being
+;; able to `message' in the pattern?
+;;
+;; - implement backward searching
 ;;
 ;; - improve docstrings
 ;;
