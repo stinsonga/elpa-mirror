@@ -2,11 +2,11 @@
 
 ;; Copyright (C) 2014, 2015 Free Software Foundation, Inc.
 
-;; Author: Artur Malabarba  <bruce.connor.am@>
+;; Author: Artur Malabarba <emacs@endlessparentheses.com>
 ;; URL: https://github.com/Malabarba/speed-of-thought-lisp
 ;; Keywords: convenience, lisp
 ;; Package-Requires: ((emacs "24.1"))
-;; Version: 1.4
+;; Version: 1.4.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -80,7 +80,6 @@
 ;; 
 ;;   (with-temp-buffer (insert text))
 
-
 ;;; Code:
 
 ;;; Predicates
@@ -254,6 +253,7 @@ The space char is not included.  Any \"$\" are also removed."
     ("dk" . "define-key ")
     ("dl" . "dolist (it $)")
     ("dmp" . "derived-mode-p '")
+    ("dm" . "defmacro $ ()\n  \"\"\n  ")
     ("dr" . "delete-region ")
     ("dv" . "defvar $ t\n  \"\"")
     ("e" . "error \"$\"")
@@ -268,6 +268,7 @@ The space char is not included.  Any \"$\" are also removed."
     ("fp" . "functionp ")
     ("frp" . "file-readable-p ")
     ("fs" . "forward-sexp 1")
+    ("fu" . "funcall ")
     ("fw" . "forward-word 1")
     ("g" . "goto-char ")
     ("gc" . "goto-char ")
@@ -296,11 +297,14 @@ The space char is not included.  Any \"$\" are also removed."
     ("lp" . "listp ")
     ("m" . "message \"$%s\"")
     ("mb" . "match-beginning 0")
+    ("mc" . "mapcar ")
+    ("mct" . "mapconcat ")
     ("me" . "match-end 0")
     ("ms" . "match-string 0")
     ("msn" . "match-string-no-properties 0")
     ("msnp" . "match-string-no-properties 0")
     ("msp" . "match-string-no-properties 0")
+    ("mt" . "mapconcat ")
     ("n" . "not ")
     ("nai" . "newline-and-indent$")
     ("nl" . "forward-line 1")
@@ -312,6 +316,7 @@ The space char is not included.  Any \"$\" are also removed."
     ("pa" . "point-max$")
     ("pg" . "plist-get ")
     ("pi" . "point-min$")
+    ("pz" . "propertize ")
     ("r" . "require '")
     ("ra" . "use-region-p$")
     ("rap" . "use-region-p$")
@@ -324,8 +329,8 @@ The space char is not included.  Any \"$\" are also removed."
     ("rris" . "replace-regexp-in-string ")
     ("rrs" . "replace-regexp-in-string ")
     ("rs" . "while (search-forward $ nil t)\n(replace-match \"\") nil t)")
-    ("rsb" . "re-search-backward $ nil 'noerror")
-    ("rsf" . "re-search-forward $ nil 'noerror")
+    ("rsb" . "re-search-backward \"$\" nil 'noerror")
+    ("rsf" . "re-search-forward \"$\" nil 'noerror")
     ("s" . "setq ")
     ("sb" . "search-backward $ nil 'noerror")
     ("sbr" . "search-backward-regexp $ nil 'noerror")
@@ -446,7 +451,7 @@ If `speed-of-thought-mode' is already on, call ON."
   nil nil " SoT"
   `(([M-return] . sotlisp-newline-and-parentheses)
     ([C-return] . sotlisp-downlist-newline-and-parentheses)
-    (,(kbd "C-M-;") . ,(if (boundp 'comment-or-uncomment-sexp)
+    (,(kbd "C-M-;") . ,(if (fboundp 'comment-or-uncomment-sexp)
                            #'comment-or-uncomment-sexp
                          #'sotlisp-comment-or-uncomment-sexp))
     ("\C-cf"    . sotlisp-find-or-define-function)
@@ -515,8 +520,9 @@ removes hooks and abbrevs."
   "`push-mark' and move above this defun."
   (push-mark)
   (beginning-of-defun)
-  (when (looking-back "^;;;###autoload\\s-*\n")
-    (forward-line -1)))
+  (forward-line -1)
+  (unless (looking-at "^;;;###autoload\\s-*\n")
+    (forward-line 1)))
 
 (defun sotlisp--function-at-point ()
   "Return name of `function-called-at-point'."
