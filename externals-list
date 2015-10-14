@@ -31,7 +31,9 @@
 ;; diverged).
 
 (("ack"			:subtree "https://github.com/leoliu/ack-el")
+ ("aggressive-indent" :subtree "https://github.com/Malabarba/aggressive-indent-mode")
  ("auctex"		:external "git://git.sv.gnu.org/auctex.git")
+ ("bug-hunter" :subtree "https://github.com/Malabarba/elisp-bug-hunter")
  ;;FIXME:("cedet"	:external "??")
  ("chess"		:external nil) ;; Was https://github.com/jwiegley/emacs-chess.git
  ("coffee-mode"		:subtree "https://github.com/defunkt/coffee-mode")
@@ -55,11 +57,16 @@
  ("ioccur"		:subtree "https://github.com/thierryvolpiatto/ioccur.git")
  ("js2-mode"		:subtree "https://github.com/mooz/js2-mode.git")
  ("math-symbol-lists" 	:subtree "https://github.com/vspinu/math-symbol-lists.git")
+ ("nameless" :subtree "https://github.com/Malabarba/Nameless")
+ ("names" :subtree "http://github.com/Bruce-Connor/names")
  ("omn-mode"            :external nil)
  ("pabbrev"             :external "https://github.com/phillord/pabbrev.git")
  ("pinentry"		:subtree "https://github.com/ueno/pinentry-el.git")
  ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
+ ("rich-minority" :subtree "https://github.com/Malabarba/rich-minority")
  ("rudel"		:external nil) ;; Was bzr::bzr://rudel.bzr.sourceforge.net/bzrroot/rudel/trunk
+ ("sotlisp" :subtree "https://github.com/Malabarba/speed-of-thought-lisp")
+ ("spinner" :subtree "https://github.com/Malabarba/spinner.el")
  ("temp-buffer-browse"  :subtree "https://github.com/leoliu/temp-buffer-browse")
  ("test-simple"         :subtree "https://github.com/rocky/emacs-test-simple")
  ;;FIXME:("vlf"		:subtree ??)
