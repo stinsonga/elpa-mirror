@@ -3,8 +3,9 @@
 ;; Copyright (C) 2015 Free Software Foundation, Inc.
 
 ;; Author: Artur Malabarba <emacs@endlessparentheses.com>
+;; URL: https://github.com/Malabarba/nameless
 ;; Keywords: convenience, lisp
-;; Version: 0.5
+;; Version: 0.5.1
 ;; Package-Requires: ((emacs "24.4"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -82,6 +83,13 @@ variable.")
                       x)
                 safe))))
 
+(defcustom nameless-discover-current-name t
+  "If non-nil, discover package name automatically.
+If nil, `nameless-current-name' must be set explicitly, or left as nil,
+in which case only namespaces from `nameless-global-aliases' and
+`nameless-aliases' are used."
+  :type 'boolean)
+
 (defface nameless-face
   '((t :inherit font-lock-type-face))
   "Face used on `nameless-prefix'")
@@ -96,13 +104,25 @@ After changing this variable, you must reenable `nameless-mode'
 for it to take effect."
   :type '(choice (const :tag "Always affect indentation" t)
                  (const :tag "Don't affect indentation" nil)
-                 (const :tag "Only outside strings" 'outside-strings)))
+                 (const :tag "Only outside strings" outside-strings)))
+(put 'nameless-current-name 'safe-local-variable #'symbolp)
 
 (defcustom nameless-private-prefix nil
   "If non-nil, private symbols are displayed with a double prefix.
 For instance, the function `foobar--internal-impl' will be
 displayed as `::internal-impl', instead of `:-internal-impl'."
   :type 'boolean)
+
+(defcustom nameless-separator "-"
+  "Separator used between package prefix and rest of symbol.
+The separator is hidden along with the package name.  For
+instance, setting it to \"/\" means that `init/bio' will be
+displayed as `:bio' (assuming `nameless-current-name' is
+\"init\").  The default is \"-\", since this is the
+separator recommended by the Elisp manual.
+
+Value can also be nil, in which case the separator is never hidden."
+  :type '(choice string (constant nil)))
 
 
 ;;; Font-locking
@@ -120,19 +140,19 @@ displayed as `::internal-impl', instead of `:-internal-impl'."
                      (and nameless-affect-indentation-and-filling
                           (or (not (eq nameless-affect-indentation-and-filling 'outside-strings))
                               (not (nth 3 (syntax-ppss)))))))
-          (dis (concat display nameless-prefix)))
-      (when compose
-        (if (and nameless-private-prefix
-                 (equal "-" (substring (match-string 0) -1)))
-            (progn
-              (setq dis (concat dis nameless-prefix))
-              (compose-region (match-beginning 0)
-                              (match-end 0)
-                              (nameless--make-composition dis)))
-          (compose-region (match-beginning 1)
-                          (match-end 1)
-                          (nameless--make-composition dis))))
-      `(face nameless-face ,@(unless compose (list 'display dis))))))
+          (dis (concat display nameless-prefix))
+          (beg (match-beginning 1))
+          (end (match-end 1))
+          (private-prefix (and nameless-private-prefix
+                               (equal nameless-separator (substring (match-string 0) -1)))))
+      (when private-prefix
+        (setq beg (match-beginning 0))
+        (setq end (match-end 0))
+        (setq dis (concat dis nameless-prefix)))
+      (if compose
+          (compose-region beg end (nameless--make-composition dis))
+        (add-text-properties beg end (list 'display dis)))
+      '(face nameless-face))))
 
 (defvar-local nameless--font-lock-keywords nil)
 
@@ -153,7 +173,7 @@ ALIAS may be nil, in which case it refers to `nameless-current-name'.
 \(fn (alias . display) [(alias . display) ...])"
   (setq-local font-lock-extra-managed-props
               `(composition display ,@font-lock-extra-managed-props))
-  (let ((kws (mapcar (lambda (x) `(,(nameless--name-regexp (cdr x)) 1 (nameless--compose-as ,(car x)))) r)))
+  (let ((kws (mapcar (lambda (x) `(,(nameless--name-regexp (cdr x)) 1 (nameless--compose-as ,(car x)) prepend)) r)))
     (setq nameless--font-lock-keywords kws)
     (font-lock-add-keywords nil kws t))
   (nameless--ensure))
@@ -203,7 +223,7 @@ configured, or if `nameless-current-name' is nil."
           (unless noerror
             (user-error "No name for alias `%s', see `nameless-aliases'" alias))))
     (if nameless-current-name
-        (progn (insert nameless-current-name "-")
+        (progn (insert nameless-current-name nameless-separator)
                t)
       (unless noerror
         (user-error "No name for current buffer, see `nameless-current-name'")))))
@@ -226,7 +246,8 @@ configured, or if `nameless-current-name' is nil."
 
 (defun nameless--name-regexp (name)
   "Return a regexp of the current name."
-  (concat "\\_<@?\\(" (regexp-quote name) "-\\)\\(\\s_\\|\\sw\\)"))
+  (concat "\\_<@?\\(" (regexp-quote name)
+          nameless-separator "\\)\\(\\s_\\|\\sw\\)"))
 
 (defun nameless--filter-string (s)
   "Remove from string S any disply or composition properties.
@@ -241,18 +262,19 @@ Return S."
 (define-minor-mode nameless-mode
   nil nil " :" `((,(kbd "C-c C--") . nameless-insert-name))
   (if nameless-mode
-      (if (or nameless-current-name
-              (ignore-errors (string-match "\\.el\\'" (lm-get-package-name))))
-          (progn
-            (unless nameless-current-name
-              (setq nameless-current-name (replace-regexp-in-string "\\(-mode\\)?\\.[^.]*\\'" "" (lm-get-package-name))))
-            (add-function :filter-return (local 'filter-buffer-substring-function)
-                          #'nameless--filter-string)
-            (apply #'nameless--add-keywords
-                   `((nil . ,nameless-current-name)
-                     ,@nameless-global-aliases
-                     ,@nameless-aliases)))
-        (nameless-mode -1))
+      (progn
+        (when (and (not nameless-current-name)
+                   nameless-discover-current-name
+                   (ignore-errors (string-match "\\.el\\'" (lm-get-package-name))))
+          (setq nameless-current-name
+                (replace-regexp-in-string "\\(-mode\\)?\\.[^.]*\\'" "" (lm-get-package-name))))
+        (add-function :filter-return (local 'filter-buffer-substring-function)
+                      #'nameless--filter-string)
+        (apply #'nameless--add-keywords
+               `(,@(when nameless-current-name
+                     `((nil . ,nameless-current-name)))
+                 ,@nameless-global-aliases
+                 ,@nameless-aliases)))
     (remove-function (local 'filter-buffer-substring-function)
                      #'nameless--filter-string)
     (setq nameless-current-name nil)
