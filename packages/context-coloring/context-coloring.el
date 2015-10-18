@@ -3,9 +3,9 @@
 ;; Copyright (C) 2014-2015  Free Software Foundation, Inc.
 
 ;; Author: Jackson Ray Hamilton <jackson@jacksonrayhamilton.com>
-;; Version: 7.0.0
+;; Version: 7.1.0
 ;; Keywords: convenience faces tools
-;; Package-Requires: ((emacs "24.3") (js2-mode "20150126"))
+;; Package-Requires: ((emacs "24.3") (js2-mode "20150713"))
 ;; URL: https://github.com/jacksonrayhamilton/context-coloring
 
 ;; This file is part of GNU Emacs.
@@ -184,6 +184,7 @@ START, END and LENGTH are recorded for later use."
 
 Increase this if your machine is high-performing.  Decrease it if
 it ain't."
+  :type 'float
   :group 'context-coloring)
 
 (make-obsolete-variable
@@ -248,10 +249,12 @@ it ain't."
 
 (defcustom context-coloring-syntactic-comments t
   "If non-nil, also color comments using `font-lock'."
+  :type 'boolean
   :group 'context-coloring)
 
 (defcustom context-coloring-syntactic-strings t
   "If non-nil, also color strings using `font-lock'."
+  :type 'boolean
   :group 'context-coloring)
 
 (defun context-coloring-font-lock-syntactic-comment-function (state)
@@ -285,8 +288,17 @@ MIN defaults to beginning of buffer.  MAX defaults to end."
         (when (eq major-mode 'emacs-lisp-mode)
           (font-lock-fontify-keywords-region min max))))))
 
+(defcustom context-coloring-initial-level 0
+  "Scope level at which to start coloring.
 
-;;; js2-mode colorization
+If top-level variables and functions do not become global, but
+are scoped to a file (as in Node.js), set this to `1'."
+  :type 'integer
+  :safe #'integerp
+  :group 'context-coloring)
+
+
+;;; JavaScript colorization
 
 (defvar-local context-coloring-js2-scope-level-hash-table nil
   "Associate `js2-scope' structures and with their scope
@@ -297,6 +309,8 @@ MIN defaults to beginning of buffer.  MAX defaults to end."
 
 The block-scoped `let' and `const' are introduced in ES6.  Enable
 this for ES6 code; disable it elsewhere."
+  :type 'boolean
+  :safe #'booleanp
   :group 'context-coloring)
 
 (make-obsolete-variable
@@ -304,11 +318,11 @@ this for ES6 code; disable it elsewhere."
  'context-coloring-javascript-block-scopes
  "7.0.0")
 
-(defsubst context-coloring-js2-scope-level (scope)
-  "Return the level of SCOPE."
+(defsubst context-coloring-js2-scope-level (scope initial)
+  "Return the level of SCOPE, starting from INITIAL."
   (cond ((gethash scope context-coloring-js2-scope-level-hash-table))
         (t
-         (let ((level 0)
+         (let ((level initial)
                (current-scope scope)
                enclosing-scope)
            (while (and current-scope
@@ -351,7 +365,7 @@ this for ES6 code; disable it elsewhere."
       context-coloring-point-max)
      level)))
 
-(defun context-coloring-js2-colorize ()
+(defun context-coloring-js2-colorize-ast ()
   "Color the buffer using the `js2-mode' abstract syntax tree."
   ;; Reset the hash table; the old one could be obsolete.
   (setq context-coloring-js2-scope-level-hash-table (make-hash-table :test #'eq))
@@ -365,7 +379,7 @@ this for ES6 code; disable it elsewhere."
           ((js2-scope-p node)
            (context-coloring-js2-colorize-node
             node
-            (context-coloring-js2-scope-level node)))
+            (context-coloring-js2-scope-level node context-coloring-initial-level)))
           ((context-coloring-js2-local-name-node-p node)
            (let* ((enclosing-scope (js2-node-get-enclosing-scope node))
                   (defining-scope (js2-get-defining-scope
@@ -378,10 +392,103 @@ this for ES6 code; disable it elsewhere."
              (when (not (eq defining-scope enclosing-scope))
                (context-coloring-js2-colorize-node
                 node
-                (context-coloring-js2-scope-level defining-scope))))))
+                ;; Use `0' as an initial level so global variables are always at
+                ;; the highest level (even if `context-coloring-initial-level'
+                ;; specifies an initial level for the rest of the code).
+                (context-coloring-js2-scope-level defining-scope 0))))))
          ;; The `t' indicates to search children.
          t)))
     (context-coloring-colorize-comments-and-strings)))
+
+(defconst context-coloring-node-comment-regexp
+  (concat
+   ;; Ensure the "//" or "/*" comment starts with the directive.
+   "\\(//[[:space:]]*\\|/\\*[[:space:]]*\\)"
+   ;; Support multiple directive formats.
+   "\\("
+   ;; JSLint and JSHint support a JSON-like format.
+   "\\(jslint\\|jshint\\)[[:space:]].*?node:[[:space:]]*true"
+   "\\|"
+   ;; ESLint just specifies the option name.
+   "eslint-env[[:space:]].*?node"
+   "\\)")
+  "Match a comment body hinting at a Node.js program.")
+
+;; TODO: Add ES6 module detection.
+(defun context-coloring-js2-top-level-local-p ()
+  "Guess whether top-level variables are local.
+For instance, the current file could be a Node.js program."
+  (or
+   ;; A shebang is a pretty obvious giveaway.
+   (string-equal
+    "node"
+    (save-excursion
+      (goto-char (point-min))
+      (when (looking-at auto-mode-interpreter-regexp)
+        (match-string 2))))
+   ;; Otherwise, perform static analysis.
+   (progn
+     (setq context-coloring-js2-scope-level-hash-table (make-hash-table :test #'eq))
+     (catch 'node-program-p
+       (js2-visit-ast
+        js2-mode-ast
+        (lambda (node end-p)
+          (when (null end-p)
+            (when
+                (cond
+                 ;; Infer based on inline linter configuration.
+                 ((js2-comment-node-p node)
+                  (string-match-p
+                   context-coloring-node-comment-regexp
+                   (js2-node-string node)))
+                 ;; Infer based on the prescence of certain variables.
+                 ((and (js2-name-node-p node)
+                       (let ((parent (js2-node-parent node)))
+                         (not (and (js2-object-prop-node-p parent)
+                                   (eq node (js2-object-prop-node-left parent))))))
+                  (let ((name (js2-name-node-name node))
+                        (parent (js2-node-parent node)))
+                    (and
+                     (cond
+                      ;; Check whether this is "exports.something" or
+                      ;; "module.exports".
+                      ((js2-prop-get-node-p parent)
+                       (and
+                        (eq node (js2-prop-get-node-left parent))
+                        (or (string-equal name "exports")
+                            (let* ((property (js2-prop-get-node-right parent))
+                                   (property-name (js2-name-node-name property)))
+                              (and (string-equal name "module")
+                                   (string-equal property-name "exports"))))))
+                      ;; Check whether it's a "require('module')" call.
+                      ((js2-call-node-p parent)
+                       (or (string-equal name "require"))))
+                     (let* ((enclosing-scope (js2-node-get-enclosing-scope node))
+                            (defining-scope (js2-get-defining-scope
+                                             enclosing-scope name)))
+                       ;; The variable also must be global.
+                       (null defining-scope))))))
+              (throw 'node-program-p t))
+            ;; The `t' indicates to search children.
+            t)))
+       ;; Default to returning nil from the catch body.
+       nil))))
+
+(defcustom context-coloring-javascript-detect-top-level-scope t
+  "If non-nil, detect when to use file-level scope."
+  :type 'boolean
+  :group 'context-coloring)
+
+(defun context-coloring-js2-colorize ()
+  "Color the buffer using the `js2-mode'."
+  (cond
+   ;; Increase the initial level if we should.
+   ((and context-coloring-javascript-detect-top-level-scope
+         (context-coloring-js2-top-level-local-p))
+    (let ((context-coloring-initial-level 1))
+      (context-coloring-js2-colorize-ast)))
+   (t
+    (context-coloring-js2-colorize-ast))))
 
 
 ;;; Emacs Lisp colorization
