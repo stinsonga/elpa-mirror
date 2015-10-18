@@ -16,6 +16,7 @@ By default, comments and strings are still highlighted syntactically.
 - Light and dark customizable color schemes.
 - JavaScript support:
   - Script, function and block scopes (and even `catch` block scopes).
+  - Node.js "file-level" scope detection.
 - Emacs Lisp support:
   - `defun`, `lambda`, `let`, `let*`, `cond`, `condition-case`, `defadvice`,
     `dolist`, `quote`, `backquote` and backquote splicing.
@@ -38,31 +39,17 @@ then add the following to your init file:
 (add-hook 'emacs-lisp-mode-hook #'context-coloring-mode)
 
 ;; eval-expression:
-(add-hook 'minibuffer-setup-hook #'context-coloring-mode)
+(add-hook 'eval-expression-minibuffer-setup-hook #'context-coloring-mode) ; 24.4+
+(add-hook 'minibuffer-setup-hook #'context-coloring-mode)                 ; 24.3
 ```
 
 ## Color Schemes
 
+The [Zenburn](https://github.com/bbatsov/zenburn-emacs) theme, featured in the
+screenshot above, now supports context coloring.
+
 You can define your own colors by customizing faces like
 `context-coloring-level-N-face`, where N is a number starting from 0.
-
-These are the colors used in the screenshot above:
-
-```lisp
-(custom-theme-set-faces
- 'zenburn
- '(context-coloring-level-0-face  ((t :foreground "#dcdccc")))
- '(context-coloring-level-1-face  ((t :foreground "#93e0e3")))
- '(context-coloring-level-2-face  ((t :foreground "#bfebbf")))
- '(context-coloring-level-3-face  ((t :foreground "#f0dfaf")))
- '(context-coloring-level-4-face  ((t :foreground "#dfaf8f")))
- '(context-coloring-level-5-face  ((t :foreground "#cc9393")))
- '(context-coloring-level-6-face  ((t :foreground "#dc8cc3")))
- '(context-coloring-level-7-face  ((t :foreground "#94bff3")))
- '(context-coloring-level-8-face  ((t :foreground "#9fc59f")))
- '(context-coloring-level-9-face  ((t :foreground "#d0bf8f")))
- '(context-coloring-level-10-face ((t :foreground "#dca3a3"))))
-```
 
 [See here](https://gist.github.com/jacksonrayhamilton/6b89ca3b85182c490816) for
 some color schemes for popular custom themes.
@@ -75,3 +62,5 @@ some color schemes for popular custom themes.
   strings using `font-lock`.
 - `context-coloring-javascript-block-scopes` (default: `nil`): If non-nil, also
   color block scopes in the scope hierarchy in JavaScript.
+- `context-coloring-javascript-detect-top-level-scope` (default: `t`): If
+  non-nil, detect when to use file-level scope.
