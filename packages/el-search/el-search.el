@@ -72,15 +72,15 @@
 ;; `emacs-lisp-mode'.
 ;;
 ;; When reading a search pattern in the minibuffer, the input is
-;; automatically wrapped into `(and expr ,(read input)).  So, if you
+;; automatically wrapped into `(and exp ,(read input)).  So, if you
 ;; want to search a buffer for symbols that are defined in "cl-lib",
 ;; you can use this pattern
 ;;
-;;   (guard (and (symbolp expr)
-;;               (when-let ((file (symbol-file expr)))
+;;   (guard (and (symbolp exp)
+;;               (when-let ((file (symbol-file exp)))
 ;;                 (string-match-p "cl-lib\\.elc?$" file))))
 ;;
-;; without binding the variable `expr'.
+;; without binding the variable `exp'.
 ;;
 ;;
 ;; Replacing
@@ -194,10 +194,9 @@
   :group 'lisp)
 
 (defcustom el-search-this-expression-identifier 'exp
-  "Name of the identifier referring to the whole expression.
-The default value is `expr'.  You can use this variable in the
-search prompt to refer to value of the currently searched
-expression."
+  "Name of the identifier referring to the current expression.
+The default value is `exp'.  You can use this name in the search
+prompt to refer to the value of the currently tested expression."
   :type 'symbol)
 
 (defface el-search-match '((((background dark)) (:background "#0000A0"))
@@ -324,9 +323,7 @@ Point must not be inside a string or comment."
 Set point to the beginning of the occurrence found and return
 point.  Optional second argument, if non-nil, means if fail just
 return nil (no error)."
-  ;; For better performance we read complete top-level sexps and test
-  ;; for matches.  We enter top-level expressions in the buffer text
-  ;; only when the test was successful.
+  
   (let ((matcher (el-search--matcher pattern)) (match-beg nil) (opoint (point)) current-expr)
 
     ;; when inside a string or comment, move past it
@@ -432,7 +429,7 @@ return nil (no error)."
 
 ;;;###autoload
 (defun el-search-pattern (pattern)
-  "Do incremental elisp search forward."
+  "Do incremental elisp search or resume last search."
   (interactive (list (if (eq this-command last-command)
                          el-search-current-pattern
                        (let ((pattern
