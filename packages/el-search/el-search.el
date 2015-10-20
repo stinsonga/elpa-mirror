@@ -386,7 +386,7 @@ return nil (no error)."
            (unless (looking-at "[[:space:]\)]*$")
              (insert "\n")
              (backward-char)))
-         (insert old)))
+         (save-excursion (insert old))))
      (lambda () (buffer-substring (point-min) (point-max))))))
 
 
