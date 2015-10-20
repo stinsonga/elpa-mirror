@@ -357,9 +357,9 @@ return nil (no error)."
     (condition-case nil
         (while (< (point) (or bound (point-max)))
           (let* ((this-sexp-end (save-excursion (thing-at-point--end-of-sexp) (point)))
-                 (this-sexp-bounds (buffer-substring-no-properties (point) this-sexp-end)))
-            (funcall do-fun this-sexp-bounds this-sexp-end)
-            (el-search--skip-expression (read this-sexp-bounds))
+                 (this-sexp-string (buffer-substring-no-properties (point) this-sexp-end)))
+            (funcall do-fun this-sexp-string this-sexp-end)
+            (el-search--skip-expression (read this-sexp-string))
             (el-search--ensure-sexp-start)))
       (end-of-buffer))
     (when ret-fun (funcall ret-fun))))
