@@ -271,11 +271,18 @@ If DELTA is nil, return nil."
        (markerp beacon--previous-place)
        (equal (marker-buffer beacon--previous-place)
               (current-buffer))
+       ;; Quick check that prevents running the code below in very
+       ;; short movements (like typing).
        (> (abs (- (point) beacon--previous-place))
           delta)
-       (> (count-screen-lines (min (point) beacon--previous-place)
-                              (max (point) beacon--previous-place))
-          delta)))
+       ;; Check if the movement was >= DELTA lines by moving DELTA
+       ;; lines. `count-screen-lines' is too slow if the movement had
+       ;; thousands of lines.
+       (save-excursion
+         (goto-char (min beacon--previous-place (point)))
+         (vertical-motion delta)
+         (> (max (point) beacon--previous-place)
+            (line-beginning-position)))))
 
 (defun beacon--maybe-push-mark ()
   "Push mark if it seems to be safe."
@@ -343,11 +350,17 @@ unreliable, so just blink immediately."
   (if beacon-mode
       (progn
         (add-hook 'window-scroll-functions #'beacon--window-scroll-function)
+        (add-hook 'focus-in-hook #'beacon-blink)
         (add-hook 'post-command-hook #'beacon--post-command)
         (add-hook 'pre-command-hook #'beacon--vanish))
+    (remove-hook 'focus-in-hook #'beacon-blink)
     (remove-hook 'window-scroll-functions #'beacon--window-scroll-function)
     (remove-hook 'post-command-hook #'beacon--post-command)
     (remove-hook 'pre-command-hook #'beacon--vanish)))
 
 (provide 'beacon)
 ;;; beacon.el ends here
+
+;; Local Variables:
+;; indent-tabs-mode: nil
+;; End:
