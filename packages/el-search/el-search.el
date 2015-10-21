@@ -526,7 +526,7 @@ return nil (no error)."
              (if (zerop nbr-skipped)  ""
                (format "   (%d skipped)" nbr-skipped)))))
 
-;; We need a variable for the initial contents because we want to `call-interactively '
+;; We need a variable for the initial contents because we want to `call-interactively'
 ;; `el-search-query-replace-read-args'
 (defvar el-search--initial-mb-contents nil)
 
