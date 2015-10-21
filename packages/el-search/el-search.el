@@ -351,7 +351,11 @@ return nil (no error)."
     match-beg))
 
 (defun el-search--do-subsexps (pos do-fun &optional ret-fun bound)
-  ;; bound -> nil means till end of buffer
+  ;; In current buffer, for any expression start between POS and BOUND
+  ;; or (point-max), in oder, call two argument function DO-FUN with
+  ;; the current sexp string and the ending position of the current
+  ;; sexp.  When done, with RET-FUN given, call it with no args and
+  ;; return the result; else, return nil.
   (save-excursion
     (goto-char pos)
     (condition-case nil
