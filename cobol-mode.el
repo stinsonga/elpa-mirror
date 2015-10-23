@@ -2196,7 +2196,7 @@ DECLARATIVES.")
   (cobol--with-opt-whitespace-line
    "\\("
    cobol--phrases-with-double-indent-after
-   "\\|\\(NOT\\s-+\\)?\\(\\(AT\\s-+\\)?END\\(-OF-PAGE\\)?\\>\\|\\(ON\\s-+\\)?\\(OVERFLOW\\|EXCEPTION\\|SIZE\\s-+ERROR\\)\\|INVALID\\s-+KEY\\)\\)")
+   "\\|\\(NOT\\s-+\\)?\\(\\(AT\\s-+\\)?END\\(-OF-PAGE\\)?\\>\\|\\(ON\\s-+\\)?\\(OVERFLOW\\|EXCEPTION\\|ESCAPE\\|SIZE\\s-+ERROR\\)\\|INVALID\\s-+KEY\\)\\)")
   "Regexp matching statements/phrases that contain nested statements.")
 
 (defconst cobol--verb-re
@@ -2743,46 +2743,28 @@ lines."
   "Return regexp matching PHRASE with optional ON and NOT."
   (cobol--phrase-with-not (concat "\\(ON\\s-+\\)?" phrase)))
 
-(defun cobol--get-phrase (str)
-  "Convert STR containing phrase to a symbol."
+(defun cobol--statements-with-phrase (str)
+  "Return a list of statements taking the phrase STR."
   (cond ((string-match (cobol--with-opt-whitespace-line "WHEN")
                        str)
-         'when)
-        ((string-match (cobol--at-phrase "END-OF-PAGE") str)
-         'at-end-of-page)
-        ((string-match (cobol--at-phrase "END") str)
-         'at-end)
-        ((string-match (cobol--on-phrase "OVERFLOW") str)
-         'on-overflow)
-        ((string-match (cobol--on-phrase "EXCEPTION") str)
-         'on-exception)
-        ((string-match (cobol--on-phrase "SIZE\\s-+ERROR") str)
-         'on-size-error)
-        ((string-match (cobol--phrase-with-not "INVALID\\s-+KEY") str)
-         'invalid-key)
-        (t
-         (error "Invalid phrase"))))
-
-(defun cobol--statements-with-phrase (phrase)
-  "Return a list of statements taking PHRASE."
-  (cond ((eql phrase 'when)
          '("EVALUATE" "SEARCH"))
-        ((eql phrase 'at-end)
+        ((string-match (cobol--at-phrase "END-OF-PAGE") str)
+         '("WRITE"))
+        ((string-match (cobol--at-phrase "END") str)
          ;; An AT END clause is added to OPEN in the XML TR.
          '("OPEN" "READ" "RETURN" "SEARCH"))
-        ((eql phrase 'at-end-of-page)
-         '("WRITE"))
-        ((eql phrase 'on-overflow)
-         '("CALL" "STRING" "UNSTRING"))
-        ((eql phrase 'on-exception)
-         '("ACCEPT" "CALL" "DISPLAY"))
-        ((eql phrase 'on-size-error)
-         '("ADD" "COMPUTE" "DIVIDE" "MULTIPLY" "SUBTRACT"))
-        ((eql phrase 'invalid-key)
-         '("DELETE" "READ" "REWRITE" "START"))
-        (t
-         (error "PHRASE must be a symbol"))))
-
+         ((string-match (cobol--on-phrase "OVERFLOW") str)
+          '("CALL" "STRING" "UNSTRING"))
+         ((string-match (cobol--on-phrase "EXCEPTION") str)
+          '("ACCEPT" "CALL" "DISPLAY"))
+         ((string-match (cobol--on-phrase "ESCAPE") str)
+          '("ACCEPT")) ; MF/ACUCOBOL extension
+         ((string-match (cobol--on-phrase "SIZE\\s-+ERROR") str)
+          '("ADD" "COMPUTE" "DIVIDE" "MULTIPLY" "SUBTRACT"))
+         ((string-match (cobol--phrase-with-not "INVALID\\s-+KEY") str)
+          '("DELETE" "READ" "REWRITE" "START"))
+         (t
+          (error "Invalid phrase"))))
 
 (defun cobol--scope-terminator-statement (scope-terminator)
   "Return the statement contained in SCOPE-TERMINATOR."
@@ -2838,8 +2820,7 @@ lines."
 
           (t
            (cobol--indent (cobol--indent-of-open-statement
-                          (cobol--statements-with-phrase
-                           (cobol--get-phrase str))))))))
+                          (cobol--statements-with-phrase str)))))))
 
 (defun cobol--get-current-division ()
   "Return the division containing the point as a symbol."
