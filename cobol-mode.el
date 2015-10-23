@@ -1,6 +1,10 @@
 ;;; cobol-mode.el --- COBOL mode -*- lexical-binding: t; -*-
 
-;;; Copyright (C) 2013-2015 --- Edward Hart <edward.dan.hart@gmail.com>
+;; Copyright (C) 2013-2015 Edward Hart
+
+;; Author: Edward Hart <edward.dan.hart@gmail.com>
+;; Created: 9 November 2013
+;; Keywords: languages
 
 ;;; This program is free software: you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -1939,309 +1943,309 @@ The next key typed is executed unless it is SPC."
 
 ;;; Highlighting regexps
 
-(defconst cobol-fixed-form-sequence-area-re
+(defconst cobol--fixed-form-sequence-area-re
   "^.\\{1,6\\}"
   "Regexp matching the fixed-form sequence area.")
 
-(defconst cobol-complete-sequence-area-re
+(defconst cobol--complete-sequence-area-re
   "^.\\{6\\}"
   "Regexp matching a complete sequence area.")
 
-(defconst cobol-fixed-comment-indicators-re
+(defconst cobol--fixed-comment-indicators-re
   "*/"
   "Regexp containing COBOL fixed-form comment indicators.")
 
-(defconst cobol-fixed-form-comment-re
-  (concat cobol-complete-sequence-area-re
+(defconst cobol--fixed-form-comment-re
+  (concat cobol--complete-sequence-area-re
           "\\(["
-          cobol-fixed-comment-indicators-re
+          cobol--fixed-comment-indicators-re
           "]\\)")
   "Regexp matching a fixed-form source comment.")
 
-(defconst cobol-continuation-or-debugging-indicator-re
-  (concat cobol-complete-sequence-area-re
+(defconst cobol--continuation-or-debugging-indicator-re
+  (concat cobol--complete-sequence-area-re
           "\\([d-]\\)")
   "Regexp matching a continuation or debugging line indicator.")
 
-(defconst cobol-non-fixed-comment-indicators-re
-  (concat "[^" cobol-fixed-comment-indicators-re "]")
+(defconst cobol--non-fixed-comment-indicators-re
+  (concat "[^" cobol--fixed-comment-indicators-re "]")
   "Regexp matching non-fixed-form-comment-indicator characters.")
 
-(defconst cobol-fixed-non-comment-sequence-area-re
-  (concat cobol-complete-sequence-area-re
-          cobol-non-fixed-comment-indicators-re)
+(defconst cobol--fixed-non-comment-sequence-area-re
+  (concat cobol--complete-sequence-area-re
+          cobol--non-fixed-comment-indicators-re)
   "Regexp matching the sequence area of a non-comment fixed-form line.")
 
-(defconst cobol-fixed-non-comment-grouped-sequence-area-re
-  (concat "\\(" cobol-fixed-form-sequence-area-re "\\)")
+(defconst cobol--fixed-non-comment-grouped-sequence-area-re
+  (concat "\\(" cobol--fixed-form-sequence-area-re "\\)")
   "Regexp matching the sequence area of a non-comment fixed-form line in a
 group.")
 
-(defconst cobol-fixed-form-areas-02-re
-  cobol-fixed-non-comment-grouped-sequence-area-re
+(defconst cobol--fixed-form-areas-02-re
+  cobol--fixed-non-comment-grouped-sequence-area-re
   "Regexp matching the ignored fixed-forms area in COBOL 2002 for non-comment
 lines.")
 
-(defconst cobol-fixed-form-areas-85-re
-  (concat cobol-fixed-non-comment-grouped-sequence-area-re
+(defconst cobol--fixed-form-areas-85-re
+  (concat cobol--fixed-non-comment-grouped-sequence-area-re
           ".\\{0,66\\}\\(.*\\)")
   "Regexp matching the ignored fixed-form areas up to COBOL-85 for non-comment
 lines.")
 
-(defconst cobol-fixed-form-wrong-indicator-re
-  (concat cobol-fixed-form-sequence-area-re "\\([^-\\*/d$]\\)")
+(defconst cobol--fixed-form-wrong-indicator-re
+  (concat cobol--fixed-form-sequence-area-re "\\([^-\\*/d$]\\)")
   "Regexp matching incorrect indicators in fixed-form code.")
 
-(defconst cobol-free-form-comment-re
+(defconst cobol--free-form-comment-re
   "\\*>.*"
   "Regexp matching a free-form source comment.")
 
-(defconst cobol-optional-whitespace-re
+(defconst cobol--optional-whitespace-re
   "[ 	]*" ; Space and tab
   "Regexp matching optional whitespace. \\w isn't used to avoid matching
 newlines.")
 
-(defconst cobol-optional-leading-whitespace-line-re
+(defconst cobol--optional-leading-whitespace-line-re
   (if (not (eq cobol-source-format 'free))
-      (concat cobol-fixed-non-comment-sequence-area-re
-              cobol-optional-whitespace-re)
-    (concat "^" cobol-optional-whitespace-re))
+      (concat cobol--fixed-non-comment-sequence-area-re
+              cobol--optional-whitespace-re)
+    (concat "^" cobol--optional-whitespace-re))
   "Regexp matching a line perhaps starting with whitespace.")
 
-(defun cobol-with-opt-whitespace-line (&rest strs)
-  "Return STRS concatenated after `cobol-optional-leading-whitespace-line-re'."
-  (apply #'concat (cons cobol-optional-leading-whitespace-line-re strs)))
+(defun cobol--with-opt-whitespace-line (&rest strs)
+  "Return STRS concatenated after `cobol--optional-leading-whitespace-line-re'."
+  (apply #'concat (cons cobol--optional-leading-whitespace-line-re strs)))
 
-(defconst cobol-free-form-comment-line-re
-  (cobol-with-opt-whitespace-line cobol-free-form-comment-re)
+(defconst cobol--free-form-comment-line-re
+  (cobol--with-opt-whitespace-line cobol--free-form-comment-re)
   "Regexp matching a free form comment line.")
 
-(defconst cobol-identifier-re
+(defconst cobol--identifier-re
   "\\s-+\\(\\w+\\)"
   "Regexp matching an identifier in a separate group preceded by whitespace.")
 
-(defconst cobol-mf-set-directive
-  (cobol-with-opt-whitespace-line "$SET\\s-+\\w+")
+(defconst cobol--mf-set-directive
+  (cobol--with-opt-whitespace-line "$SET\\s-+\\w+")
   "Regexp matching MF compiler directive with optional whitespace.")
 
-(defconst cobol-mf-compiler-directive-re
+(defconst cobol--mf-compiler-directive-re
   (if (not (eq cobol-source-format 'free))
-      (concat cobol-fixed-form-sequence-area-re
-              cobol-mf-set-directive)
-    (concat "^" cobol-mf-set-directive))
+      (concat cobol--fixed-form-sequence-area-re
+              cobol--mf-set-directive)
+    (concat "^" cobol--mf-set-directive))
   "Regexp matching Micro Focus compiler directives.")
 
-(defconst cobol-standard-constant-re
-  (cobol-with-opt-whitespace-line "0?1" cobol-identifier-re  "\\s-+CONSTANT")
+(defconst cobol--standard-constant-re
+  (cobol--with-opt-whitespace-line "0?1" cobol--identifier-re  "\\s-+CONSTANT")
   "Regexp matching constants declared as specified by the 2002 standard.")
 
-(defconst cobol-mf-constant-re
-  (cobol-with-opt-whitespace-line "78" cobol-identifier-re)
+(defconst cobol--mf-constant-re
+  (cobol--with-opt-whitespace-line "78" cobol--identifier-re)
   "Regexp matching constants declared as specified by Micro Focus.")
 
-(defconst cobol-directive-indicator-re
+(defconst cobol--directive-indicator-re
   ">> ?"
   "Regexp matching a valid directive indicator.")
 
-(defconst cobol-define-directive-re
-  (cobol-with-opt-whitespace-line cobol-directive-indicator-re
+(defconst cobol--define-directive-re
+  (cobol--with-opt-whitespace-line cobol--directive-indicator-re
                                   "DEFINE"
-                                  cobol-identifier-re)
+                                  cobol--identifier-re)
   "Regexp matching values defined by the pre-processor.")
 
-(defconst cobol-descriptor-level-re
+(defconst cobol--descriptor-level-re
   "[FRS]D"
   "Regexp matching file/report/sort descriptor 'level numbers'.")
 
-(defconst cobol-record-descriptor-re
-  (cobol-with-opt-whitespace-line cobol-descriptor-level-re cobol-identifier-re)
+(defconst cobol--record-descriptor-re
+  (cobol--with-opt-whitespace-line cobol--descriptor-level-re cobol--identifier-re)
   "Regexp matching file/report/sort record associations.")
 
-(defconst cobol-typedef-definition-re
-  (cobol-with-opt-whitespace-line "0?1" cobol-identifier-re ".+TYPEDEF")
+(defconst cobol--typedef-definition-re
+  (cobol--with-opt-whitespace-line "0?1" cobol--identifier-re ".+TYPEDEF")
   "Regexp matching typedefs.")
 
-(defconst cobol-level-number-re
+(defconst cobol--level-number-re
   "[[:digit:]]\\{1,2\\}"
   "Regexp matching level numbers.")
 
-(defconst cobol-variable-declaration-re
-  (cobol-with-opt-whitespace-line cobol-level-number-re cobol-identifier-re)
+(defconst cobol--variable-declaration-re
+  (cobol--with-opt-whitespace-line cobol--level-number-re cobol--identifier-re)
   "Regexp matching standard variable declarations.")
 
-(defconst cobol-mf-declare-variable-re
-  (cobol-with-opt-whitespace-line "DECLARE" cobol-identifier-re)
+(defconst cobol--mf-declare-variable-re
+  (cobol--with-opt-whitespace-line "DECLARE" cobol--identifier-re)
   "Regexp matching variable declarations using DECLARE verb used in Managed
 COBOL.")
 
-(defconst cobol-id-and-name-re
+(defconst cobol--id-and-name-re
   "-ID\\.?\\s-*\\(\\w+\\)"
   "Regexp matching a construct ID and the name of the declared construct.")
 
-(defun cobol-create-id-re (re)
+(defun cobol--create-id-re (re)
   "Create an id regexp using RE."
-  (cobol-with-opt-whitespace-line re cobol-id-and-name-re))
+  (cobol--with-opt-whitespace-line re cobol--id-and-name-re))
 
-(defun cobol-create-end-marker-re (re)
+(defun cobol--create-end-marker-re (re)
   "Create an end marker regexp using RE."
-  (cobol-with-opt-whitespace-line "END\\s-+" re cobol-identifier-re))
+  (cobol--with-opt-whitespace-line "END\\s-+" re cobol--identifier-re))
 
-(defconst cobol-standard-function-types
+(defconst cobol--standard-function-types
   '("FUNCTION" "METHOD" "PROGRAM")
   "List containing the names of standard constructs similar to functions.")
 
-(defconst cobol-mf-function-types
+(defconst cobol--mf-function-types
   '("ITERATOR" "OPERATOR" "PROPERTY")
   "List containing the names of constructs similar to functions created by Micro
 Focus.")
 
-(defconst cobol-function-types-re
-  (regexp-opt (append cobol-standard-function-types cobol-mf-function-types))
+(defconst cobol--function-types-re
+  (regexp-opt (append cobol--standard-function-types cobol--mf-function-types))
   "Regexp matching the names of constructs similar to functions.")
 
-(defconst cobol-function-id-name-re
-  (cobol-create-id-re (remove "PROPERTY" cobol-function-types-re))
+(defconst cobol--function-id-name-re
+  (cobol--create-id-re (remove "PROPERTY" cobol--function-types-re))
   "Regexp matching the id and name of a function or similar.")
 
-(defconst cobol-function-end-marker-re
-  (cobol-create-end-marker-re cobol-function-types-re)
+(defconst cobol--function-end-marker-re
+  (cobol--create-end-marker-re cobol--function-types-re)
   "Regexp matching the end marker of a function or similar.")
 
-(defconst cobol-standard-type-types
+(defconst cobol--standard-type-types
   '("CLASS" "INTERFACE")
   "List containing the standard type construct names.")
 
-(defconst cobol-mf-type-types
+(defconst cobol--mf-type-types
   '("DELEGATE" "ENUM" "INDEXER" "VALUETYPE")
   "List containing the names of type constructs added by Micro Focus.")
 
-(defconst cobol-type-types-re
-  (regexp-opt (append cobol-standard-type-types cobol-mf-type-types))
+(defconst cobol--type-types-re
+  (regexp-opt (append cobol--standard-type-types cobol--mf-type-types))
   "Regexp matching type construct names.")
 
-(defconst cobol-type-id-name-re
-  (cobol-create-id-re cobol-type-types-re)
+(defconst cobol--type-id-name-re
+  (cobol--create-id-re cobol--type-types-re)
   "Regexp matching the id and name of a type.")
 
-(defconst cobol-type-end-marker-re
-  (cobol-create-end-marker-re cobol-type-types-re)
+(defconst cobol--type-end-marker-re
+  (cobol--create-end-marker-re cobol--type-types-re)
   "Regexp matching the end marker of a type.")
 
-(defconst cobol-mf-property-id-name-re
-  (concat "PROPERTY" cobol-id-and-name-re cobol-identifier-re)
+(defconst cobol--mf-property-id-name-re
+  (concat "PROPERTY" cobol--id-and-name-re cobol--identifier-re)
   "Regexp matching the id, name and type of a property using MF's PROPERTY-ID
 syntax.")
 
-(defconst cobol-procedure-re
-  (cobol-with-opt-whitespace-line "\\(\\w+\\)\\(\\s-+SECTION\\)?\\.")
+(defconst cobol--procedure-re
+  (cobol--with-opt-whitespace-line "\\(\\w+\\)\\(\\s-+SECTION\\)?\\.")
   "Regexp matching the declaration of a procedure.  Note that this matches
 DECLARATIVES.")
 
-(defconst cobol-select-file-re
-  (cobol-with-opt-whitespace-line
+(defconst cobol--select-file-re
+  (cobol--with-opt-whitespace-line
    "SELECT\\(\\s-+OPTIONAL\\)?"
-   cobol-identifier-re)
+   cobol--identifier-re)
   "Regexp matching the declaration of a file.")
 
-(defconst cobol-pic-type-re
+(defconst cobol--pic-type-re
   "PIC\\(TURE\\)?\\(\\s-+IS\\)?\\s-+\\(\\([-$*+,./[:digit:]()ABENPSVXZ]\\|CR\\|DB\\)+?\\)\\(\\s-\\|\\.?
 \\)"
   "Regexp matching the PICTURE clause of a variable.")
 
-(defconst cobol-string-literal-type-re
+(defconst cobol--string-literal-type-re
   "\\([ZBN]X?\\|[GHLX]\\)\\(\"\\|\'\\)"
   "Regexp matching the type of a string-style literal.")
 
-(defconst cobol-function-call-re
+(defconst cobol--function-call-re
   "\\(\\w+\\)("
   "Regexp matching a function call.")
 
-(defun cobol-create-specifier-type-re (types)
+(defun cobol--create-specifier-type-re (types)
   "Create a specifier id regexp for the list of type names TYPES."
-  (cobol-with-opt-whitespace-line
+  (cobol--with-opt-whitespace-line
    "\\("
    (mapconcat #'identity types "\\|")
    "\\)"
-   cobol-identifier-re))
+   cobol--identifier-re))
 
-(defconst cobol-repository-function-type-clause-re
-  (cobol-create-specifier-type-re cobol-standard-function-types)
+(defconst cobol--repository-function-type-clause-re
+  (cobol--create-specifier-type-re cobol--standard-function-types)
   "Regexp matching a REPOSITORY specifier clause for function types.")
 
-(defconst cobol-repository-type-type-clause-re
-  (cobol-create-specifier-type-re cobol-standard-type-types)
+(defconst cobol--repository-type-type-clause-re
+  (cobol--create-specifier-type-re cobol--standard-type-types)
   "Regexp matching a REPOSITORY specifier clause for type types.")
 
-(defconst cobol-mf-invoked-class-re
-  (concat "TYPE" cobol-identifier-re)
+(defconst cobol--mf-invoked-class-re
+  (concat "TYPE" cobol--identifier-re)
   "Regexp matching a class being INVOKED.")
 
-(defconst cobol-implementer-user-exception-re
+(defconst cobol--implementer-user-exception-re
   "EC-\\(IMP\\|USER\\)-\\w+"
   "Regexp matching an implementor- or user-defined exception condition.")
 
-(defconst cobol-scope-terminator-re
-  (cobol-with-opt-whitespace-line (regexp-opt cobol-scope-terminators 'words))
+(defconst cobol--scope-terminator-re
+  (cobol--with-opt-whitespace-line (regexp-opt cobol-scope-terminators 'words))
   "Regexp matching a scope terminator.")
 
-(defconst cobol-phrases-with-double-indent-after
+(defconst cobol--phrases-with-double-indent-after
   "\\(IF\\|EVALUATE\\|WHEN\\|ELSE\\|PERFORM\\s-+\\(VARYING\\|UNTIL\\|\\(WITH\\s-+\\)?TEST\\|.+?\\s-+TIMES\\)\\)"
   "Regexp matching phrases whose conditions/clauses are indented twice.")
 
-(defconst cobol-containing-statement-or-phrase-re
-  (cobol-with-opt-whitespace-line
+(defconst cobol--containing-statement-or-phrase-re
+  (cobol--with-opt-whitespace-line
    "\\("
-   cobol-phrases-with-double-indent-after
+   cobol--phrases-with-double-indent-after
    "\\|\\(NOT\\s-+\\)?\\(\\(AT\\s-+\\)?END\\(-OF-PAGE\\)?\\>\\|\\(ON\\s-+\\)?\\(OVERFLOW\\|EXCEPTION\\|SIZE\\s-+ERROR\\)\\|INVALID\\s-+KEY\\)\\)")
   "Regexp matching statements/phrases that contain nested statements.")
 
-(defconst cobol-verb-re
-  (cobol-with-opt-whitespace-line (regexp-opt cobol-verbs 'words))
+(defconst cobol--verb-re
+  (cobol--with-opt-whitespace-line (regexp-opt cobol-verbs 'words))
   "Regexp matching a verb.")
 
-(defconst cobol-non-id-groups
+(defconst cobol--non-id-groups
   ;; AUTO-METHOD is part of the Finalizer TR.
   '("AUTO-METHOD" "DECLARATIVES" "FACTORY" "OBJECT")
   "Groups which do not take a (specifiable) ID.")
 
-(defconst cobol-non-id-group-end-marker-re
-  (cobol-with-opt-whitespace-line
-   "END\\s-+" (regexp-opt cobol-non-id-groups 'words))
+(defconst cobol--non-id-group-end-marker-re
+  (cobol--with-opt-whitespace-line
+   "END\\s-+" (regexp-opt cobol--non-id-groups 'words))
   "Regexp matching the end marker of the groups not taking IDs.")
 
-(defconst cobol-end-marker-re
-  (concat "\\(" cobol-function-end-marker-re
-          "\\|" cobol-type-end-marker-re
-          "\\|" cobol-non-id-group-end-marker-re
+(defconst cobol--end-marker-re
+  (concat "\\(" cobol--function-end-marker-re
+          "\\|" cobol--type-end-marker-re
+          "\\|" cobol--non-id-group-end-marker-re
           "\\)")
   "Regexp matching an end marker.")
 
-(defconst cobol-division-re
-  (cobol-with-opt-whitespace-line "\\(\\w+\\)\\s-+DIVISION")
+(defconst cobol--division-re
+  (cobol--with-opt-whitespace-line "\\(\\w+\\)\\s-+DIVISION")
   "Regexp matching division header.")
 
-(defconst cobol-procedure-division-re
-  (cobol-with-opt-whitespace-line "PROCEDURE\\s-+DIVISION")
+(defconst cobol--procedure-division-re
+  (cobol--with-opt-whitespace-line "PROCEDURE\\s-+DIVISION")
   "Regexp matching the procedure division header.")
 
-(defconst cobol-env-or-data-div-sections-re
-  (cobol-with-opt-whitespace-line
+(defconst cobol--env-or-data-div-sections-re
+  (cobol--with-opt-whitespace-line
    (regexp-opt '("CONFIGURATION" "INPUT-OUTPUT" "FILE" "WORKING-STORAGE" "LOCAL-STORAGE" "LINKAGE" "REPORT" "SCREEN"))
    "\\s-+SECTION.")
   "Regexp matching the sections of the environment and data divisions.")
 
-(defconst cobol-generic-declaration-re
-  (cobol-with-opt-whitespace-line
+(defconst cobol--generic-declaration-re
+  (cobol--with-opt-whitespace-line
    "\\("
-   cobol-descriptor-level-re
+   cobol--descriptor-level-re
    "\\|"
-   cobol-level-number-re
+   cobol--level-number-re
    "\\)"
-   cobol-identifier-re)
+   cobol--identifier-re)
   "Regexp matching any declaration.")
 
-(defconst cobol-blank-line-re
-  (concat "^" cobol-optional-whitespace-re "$")
+(defconst cobol--blank-line-re
+  (concat "^" cobol--optional-whitespace-re "$")
   "Regexp matching a blank line.")
 
 ;;; Font lock
@@ -2261,7 +2265,7 @@ Code copied from the emacs source."
   ;; Move back over chars that have whitespace syntax but have the p flag.
   (backward-prefix-chars))
 
-(defun cobol-syntax-propertize-sequence-area (beg end)
+(defun cobol--syntax-propertize-sequence-area (beg end)
   "Mark text in the program name area as comments."
   (goto-char beg)
   (while (and (< (point) end)
@@ -2273,31 +2277,31 @@ Code copied from the emacs source."
     (remove-text-properties (point) (line-end-position)
                             '(font-lock-face nil))))
 
-(defun cobol-syntax-propertize-indicator-area (beg end)
+(defun cobol--syntax-propertize-indicator-area (beg end)
   "Mark fixed-form comments as comments."
   (funcall
    (syntax-propertize-rules
-    (cobol-fixed-form-comment-re (1 "<"))
-    (cobol-continuation-or-debugging-indicator-re (1 ".")))
+    (cobol--fixed-form-comment-re (1 "<"))
+    (cobol--continuation-or-debugging-indicator-re (1 ".")))
    beg end))
 
-(defun cobol-syntax-propertize-program-name-area (beg end)
+(defun cobol--syntax-propertize-program-name-area (beg end)
   "Mark text in the program name area as comments."
   (funcall
    (syntax-propertize-rules
     ("^.\\{72\\}\\(.\\)" (1 "<")))
    beg end))
 
-(defun cobol-syntax-propertize-page-directive (beg end)
+(defun cobol--syntax-propertize-page-directive (beg end)
   "Mark text after >>PAGE as a comment."
   (funcall
    (syntax-propertize-rules
-    ((cobol-with-opt-whitespace-line cobol-directive-indicator-re
+    ((cobol--with-opt-whitespace-line cobol--directive-indicator-re
                                      "PAGE\\([ 	]\\)")
      (1 "<")))
    beg end))
 
-(defun cobol-syntax-propertize-adjacent-quotes (beg end)
+(defun cobol--syntax-propertize-adjacent-quotes (beg end)
   "Mark the first of adjacent quotes, e.g. \"\" or '', as an escape character."
   (goto-char beg)
   (while (and (< (point) end)
@@ -2314,99 +2318,100 @@ Code copied from the emacs source."
       ;; first character in another escaped quote sequence.
       (forward-char 1))))
 
-(defun cobol-syntax-propertize-function (beg end)
+(defun cobol--syntax-propertize-function (beg end)
   "Syntax propertize awkward COBOL features (fixed-form comments, indicators
 and ignored areas)."
   ;; TO-DO: Propertize continuation lines.
   (when (or (eq cobol-source-format 'fixed-2002)
             (eq cobol-source-format 'fixed-85))
-    (cobol-syntax-propertize-sequence-area beg end)
-    (cobol-syntax-propertize-indicator-area beg end))
+    (cobol--syntax-propertize-sequence-area beg end)
+    (cobol--syntax-propertize-indicator-area beg end))
   (when (eq cobol-source-format 'fixed-85)
-    (cobol-syntax-propertize-program-name-area beg end))
-  (cobol-syntax-propertize-page-directive beg end)
-  (cobol-syntax-propertize-adjacent-quotes beg end))
+    (cobol--syntax-propertize-program-name-area beg end))
+  (cobol--syntax-propertize-page-directive beg end)
+  (cobol--syntax-propertize-adjacent-quotes beg end))
 
+;; Chnage to defconst so it reloads on something?
 (defvar cobol-font-lock-defaults
   `((;; Directives
-     ( ,(concat cobol-directive-indicator-re
+     ( ,(concat cobol--directive-indicator-re
                 "\\(" (regexp-opt cobol-directives) "\\>\\)")
        . font-lock-preprocessor-face)
-     ( ,cobol-mf-compiler-directive-re . font-lock-preprocessor-face)
+     ( ,cobol--mf-compiler-directive-re . font-lock-preprocessor-face)
 
      ;; Standard language features.
      ( ,(regexp-opt cobol-verbs 'words) . 'cobol-verb)
      ( ,(regexp-opt cobol-keywords 'words) . font-lock-keyword-face)
      ( ,(regexp-opt cobol-context-sensitive-keywords 'words)
        . 'cobol-context-sensitive)
-     ( ,cobol-implementer-user-exception-re . 'cobol-context-sensitive)
+     ( ,cobol--implementer-user-exception-re . 'cobol-context-sensitive)
      ( ,(regexp-opt cobol-intrinsics 'words) . font-lock-builtin-face)
 
      ;; Constants
      ( ,(regexp-opt cobol-symbolic-literals 'words) . font-lock-constant-face)
-     ( ,cobol-standard-constant-re
+     ( ,cobol--standard-constant-re
        (1 'font-lock-constant-face))
-     ( ,cobol-mf-constant-re
+     ( ,cobol--mf-constant-re
        (1 'font-lock-constant-face))
-     ( ,cobol-define-directive-re
+     ( ,cobol--define-directive-re
        (1 'font-lock-constant-face))
 
      ;; PIC Type
-     ( ,cobol-pic-type-re
+     ( ,cobol--pic-type-re
        (3 'font-lock-type-face))
 
      ;; Functions
-     ( ,cobol-function-call-re
+     ( ,cobol--function-call-re
        (1 'font-lock-function-name-face))
 
      ;; REPOSITORY clauses
-     ( ,cobol-repository-function-type-clause-re
+     ( ,cobol--repository-function-type-clause-re
        (2 'font-lock-function-name-face))
-     ( ,cobol-repository-type-type-clause-re
+     ( ,cobol--repository-type-type-clause-re
        (2 'font-lock-type-face))
 
      ;; File declarations
-     ( ,cobol-select-file-re
+     ( ,cobol--select-file-re
        (2 'font-lock-type-face))
 
      ;; File/Report/Sort record associations
-     ( ,cobol-record-descriptor-re
+     ( ,cobol--record-descriptor-re
        (1 'font-lock-type-face))
 
      ;; Typedef
-     ( ,cobol-typedef-definition-re
+     ( ,cobol--typedef-definition-re
        (1 'font-lock-type-face))
 
      ;; Variables
-     ( ,cobol-variable-declaration-re
+     ( ,cobol--variable-declaration-re
        (1 'font-lock-variable-name-face))
-     ( ,cobol-mf-declare-variable-re
+     ( ,cobol--mf-declare-variable-re
        (1 'font-lock-variable-name-face))
 
      ;; Construct IDs
-     ( ,cobol-function-id-name-re
+     ( ,cobol--function-id-name-re
        (1 'font-lock-function-name-face))
-     ( ,cobol-type-id-name-re
+     ( ,cobol--type-id-name-re
        (1 'font-lock-type-face))
-     ( ,cobol-mf-property-id-name-re
+     ( ,cobol--mf-property-id-name-re
        (1 'font-lock-variable-name-face)
        (2 'font-lock-type-face))
 
      ;; Construct end markers
-     ( ,cobol-function-end-marker-re
+     ( ,cobol--function-end-marker-re
        (1 'font-lock-function-name-face))
-     ( ,cobol-type-end-marker-re
+     ( ,cobol--type-end-marker-re
        (1 'font-lock-type-face))
 
      ;; Invoked classes
-     ( ,cobol-mf-invoked-class-re
+     ( ,cobol--mf-invoked-class-re
        (1 'font-lock-type-face))
 
      ;; Procedures
-     ( ,cobol-procedure-re
+     ( ,cobol--procedure-re
        (1 'font-lock-function-name-face))
 
-     ( ,cobol-string-literal-type-re
+     ( ,cobol--string-literal-type-re
        (1 'font-lock-string-face)))
     nil
     t
@@ -2615,21 +2620,21 @@ and ignored areas)."
 ;;; Derived (a long time ago) from the wonderful Emacs Mode Tutorial at
 ;;; <http://www.emacswiki.org/emacs/ModeTutorial>.
 
-(defun cobol-code-start ()
+(defun cobol--code-start ()
   "Return the first column code can go in."
   (if (eq cobol-source-format 'free)
       0
     7))
 
-(cl-defun cobol-indent (indent &optional (times 1))
+(cl-defun cobol--indent (indent &optional (times 1))
   "Increment INDENT."
   (+ indent (* times cobol-tab-width)))
 
-(defun cobol-indent-current ()
+(defun cobol--indent-current ()
   "Return the current indent level indented once."
-  (cobol-indent (current-indentation)))
+  (cobol--indent (current-indentation)))
 
-(defun cobol-search-back (fn)
+(defun cobol--search-back (fn)
   "Go back a line at a time, calling FN each time. If the car of the return
 value is non-nil, return the cdr."
   (save-excursion
@@ -2637,128 +2642,128 @@ value is non-nil, return the cdr."
         ((car ret) (cdr ret))
       (forward-line -1))))
 
-(cl-defun cobol-search-back-for-indent (str &key with-whitespace)
+(cl-defun cobol--search-back-for-indent (str &key with-whitespace)
   "Return the indent of the previous line starting with the regexp STR (optionally
 after whitespace if WITH-WHITESPACE). If that cannot be found, return
-`cobol-code-start'."
-  (let ((line-re (concat (when with-whitespace cobol-optional-whitespace-re)
+`cobol--code-start'."
+  (let ((line-re (concat (when with-whitespace cobol--optional-whitespace-re)
                          str)))
-    (cobol-search-back
+    (cobol--search-back
      #'(lambda () (cond ((bobp)
-                         (cons t (cobol-code-start)))
+                         (cons t (cobol--code-start)))
                         ((looking-at line-re)
                          (cons t (current-indentation))))))))
 
-(defun cobol-indent-of-last-div ()
+(defun cobol--indent-of-last-div ()
   "Return the indent of the last division."
-  (cobol-search-back-for-indent cobol-division-re))
+  (cobol--search-back-for-indent cobol--division-re))
 
-(defun cobol-indent-of-last-div-or-section ()
+(defun cobol--indent-of-last-div-or-section ()
   "Return the indent of the preceding division or section."
-  (cobol-search-back-for-indent "\\w+\\s-+\\(DIVISION\\|SECTION\\)\\." :with-whitespace t))
+  (cobol--search-back-for-indent "\\w+\\s-+\\(DIVISION\\|SECTION\\)\\." :with-whitespace t))
 
-(defun cobol-indent-of-end-marker-match (group)
+(defun cobol--indent-of-end-marker-match (group)
   "Return the indent of the start of GROUP."
-  (if (memq (upcase group) cobol-non-id-groups)
-      (cobol-search-back-for-indent
+  (if (memq (upcase group) cobol--non-id-groups)
+      (cobol--search-back-for-indent
        (concat group ".") :with-whitespace t)
-    (cobol-search-back-for-indent
-     (cobol-create-id-re group))))
+    (cobol--search-back-for-indent
+     (cobol--create-id-re group))))
 
-(defun cobol-match-with-leading-whitespace (re str)
+(defun cobol--match-with-leading-whitespace (re str)
   "Match regexp RE (with optional leading whitespace) against STR."
-  (string-match (concat cobol-optional-leading-whitespace-line-re re)
+  (string-match (concat cobol--optional-leading-whitespace-line-re re)
                 str))
 
-(defun cobol-match-line-with-leading-whitespace (re)
+(defun cobol--match-line-with-leading-whitespace (re)
   "Match regexp RE (with optional leading whitespace) against the current line."
-  (cobol-match-with-leading-whitespace re (thing-at-point 'line)))
+  (cobol--match-with-leading-whitespace re (thing-at-point 'line)))
 
-(defun cobol-get-level-number (declaration)
+(defun cobol--get-level-number (declaration)
   "Return the level-number of DECLARATION.  If the declaration does not have a
 level number, return zero."
-  (string-match cobol-generic-declaration-re declaration)
+  (string-match cobol--generic-declaration-re declaration)
   (string-to-number (match-string 1 declaration)))
 
-(defun cobol-indent-of-group-item (wanted-level-num)
+(defun cobol--indent-of-group-item (wanted-level-num)
   "Return the indentation of the last item with WANTED-LEVEL-NUM or indented
 from the last item of lower level."
-  (cobol-search-back
+  (cobol--search-back
    #'(lambda ()
-       (cond ((looking-at cobol-generic-declaration-re)
-              (let ((level-num (cobol-get-level-number (thing-at-point 'line))))
+       (cond ((looking-at cobol--generic-declaration-re)
+              (let ((level-num (cobol--get-level-number (thing-at-point 'line))))
                 (cond ((eq level-num wanted-level-num)
                        (cons t (current-indentation)))
                       ((< level-num wanted-level-num)
-                       (cons t (cobol-indent-current))))))
+                       (cons t (cobol--indent-current))))))
              ((bobp)
-              (cons t (cobol-code-start)))))))
+              (cons t (cobol--code-start)))))))
 
-(defun cobol-indent-of-declaration (decl)
+(defun cobol--indent-of-declaration (decl)
   "Return the indentation of the declaration DECL."
-  (let ((level-num (cobol-get-level-number decl)))
+  (let ((level-num (cobol--get-level-number decl)))
     (if (or (>= 1 level-num) (eq 77 level-num) (eq 66 level-num))
         ;; If elementary item or FD/SD/RD.
-        (cobol-search-back-for-indent cobol-division-re)
+        (cobol--search-back-for-indent cobol--division-re)
       ;; Find indent of item with same level or add-indent to previous item of
       ;; lower level. (This means 88 levels will always be indented to the
       ;; previous item.)
-      (cobol-indent-of-group-item level-num))))
+      (cobol--indent-of-group-item level-num))))
 
-(defun cobol-indent-from-previous ()
+(defun cobol--indent-from-previous ()
   "Return what the indent of the current line should be based on previous
 lines."
-  (cobol-search-back
+  (cobol--search-back
    #'(lambda ()
-       (cond ((looking-at cobol-env-or-data-div-sections-re)
+       (cond ((looking-at cobol--env-or-data-div-sections-re)
               (cons t (current-indentation)))
-             ((or (looking-at cobol-containing-statement-or-phrase-re)
-                  (looking-at cobol-procedure-re)
-                  (looking-at cobol-procedure-division-re))
-              (cons t (cobol-indent-current)))
-             ((or (looking-at cobol-verb-re)
-                  (looking-at cobol-scope-terminator-re)
-                  (looking-at cobol-type-end-marker-re)
-                  (looking-at cobol-function-end-marker-re)
-                  (looking-at cobol-division-re)
-                  (looking-at cobol-generic-declaration-re))
+             ((or (looking-at cobol--containing-statement-or-phrase-re)
+                  (looking-at cobol--procedure-re)
+                  (looking-at cobol--procedure-division-re))
+              (cons t (cobol--indent-current)))
+             ((or (looking-at cobol--verb-re)
+                  (looking-at cobol--scope-terminator-re)
+                  (looking-at cobol--type-end-marker-re)
+                  (looking-at cobol--function-end-marker-re)
+                  (looking-at cobol--division-re)
+                  (looking-at cobol--generic-declaration-re))
               (cons t (current-indentation)))
              ((bobp)
-              (cons t (cobol-code-start)))))))
+              (cons t (cobol--code-start)))))))
 
-(defun cobol-phrase-with-not (phrase)
+(defun cobol--phrase-with-not (phrase)
   "Return regexp matching line with optional NOT and PHRASE."
-  (cobol-with-opt-whitespace-line "\\(NOT\\s-+\\)?" phrase))
+  (cobol--with-opt-whitespace-line "\\(NOT\\s-+\\)?" phrase))
 
-(defun cobol-at-phrase (phrase)
+(defun cobol--at-phrase (phrase)
   "Return regexp matching PHRASE with optional AT and NOT."
-  (cobol-phrase-with-not (concat "\\(AT\\s-+\\)?" phrase)))
+  (cobol--phrase-with-not (concat "\\(AT\\s-+\\)?" phrase)))
 
-(defun cobol-on-phrase (phrase)
+(defun cobol--on-phrase (phrase)
   "Return regexp matching PHRASE with optional ON and NOT."
-  (cobol-phrase-with-not (concat "\\(ON\\s-+\\)?" phrase)))
+  (cobol--phrase-with-not (concat "\\(ON\\s-+\\)?" phrase)))
 
-(defun cobol-get-phrase (str)
+(defun cobol--get-phrase (str)
   "Convert STR containing phrase to a symbol."
-  (cond ((string-match (cobol-with-opt-whitespace-line "WHEN")
+  (cond ((string-match (cobol--with-opt-whitespace-line "WHEN")
                        str)
          'when)
-        ((string-match (cobol-at-phrase "END-OF-PAGE") str)
+        ((string-match (cobol--at-phrase "END-OF-PAGE") str)
          'at-end-of-page)
-        ((string-match (cobol-at-phrase "END") str)
+        ((string-match (cobol--at-phrase "END") str)
          'at-end)
-        ((string-match (cobol-on-phrase "OVERFLOW") str)
+        ((string-match (cobol--on-phrase "OVERFLOW") str)
          'on-overflow)
-        ((string-match (cobol-on-phrase "EXCEPTION") str)
+        ((string-match (cobol--on-phrase "EXCEPTION") str)
          'on-exception)
-        ((string-match (cobol-on-phrase "SIZE\\s-+ERROR") str)
+        ((string-match (cobol--on-phrase "SIZE\\s-+ERROR") str)
          'on-size-error)
-        ((string-match (cobol-phrase-with-not "INVALID\\s-+KEY") str)
+        ((string-match (cobol--phrase-with-not "INVALID\\s-+KEY") str)
          'invalid-key)
         (t
          (error "Invalid phrase"))))
 
-(defun cobol-statements-with-phrase (phrase)
+(defun cobol--statements-with-phrase (phrase)
   "Return a list of statements taking PHRASE."
   (cond ((eql phrase 'when)
          '("EVALUATE" "SEARCH"))
@@ -2779,80 +2784,80 @@ lines."
          (error "PHRASE must be a symbol"))))
 
 
-(defun cobol-scope-terminator-statement (scope-terminator)
+(defun cobol--scope-terminator-statement (scope-terminator)
   "Return the statement contained in SCOPE-TERMINATOR."
-  (cobol-match-with-leading-whitespace "END-\\(\\w+\\)" scope-terminator)
+  (cobol--match-with-leading-whitespace "END-\\(\\w+\\)" scope-terminator)
   (match-string 1 scope-terminator))
 
-(defun cobol-first-word (str)
+(defun cobol--first-word (str)
   "Return the first word in STR."
-  (cobol-match-with-leading-whitespace "\\(\\w+\\)" str)
+  (cobol--match-with-leading-whitespace "\\(\\w+\\)" str)
   (match-string 1 str))
 
-(defun cobol-go-to-open-statement (statements)
+(defun cobol--go-to-open-statement (statements)
   "Go to the last open (unterminated) statement in STATEMENTS."
   (let* ((statements-re (regexp-opt statements t))
-         (valid-statement-re (cobol-with-opt-whitespace-line statements-re))
-         (valid-scope-terminator-re cobol-scope-terminator-re)
+         (valid-statement-re (cobol--with-opt-whitespace-line statements-re))
+         (valid-scope-terminator-re cobol--scope-terminator-re)
          found)
     (while (not found)
       (forward-line -1)
       (cond ((looking-at valid-statement-re)
              ;; Check the scope-terminator is not on the same line.
              (let ((scope-terminator
-                    (concat "END-" (cobol-first-word (thing-at-point 'line)))))
+                    (concat "END-" (cobol--first-word (thing-at-point 'line)))))
                (unless (string-match scope-terminator (thing-at-point 'line))
                  (setf found t))))
 
             ;; Skip past terminated statements
             ((looking-at valid-scope-terminator-re)
              (let ((terminated-statement
-                    (cobol-scope-terminator-statement (thing-at-point 'line))))
-               (cobol-go-to-open-statement (list terminated-statement))))
+                    (cobol--scope-terminator-statement (thing-at-point 'line))))
+               (cobol--go-to-open-statement (list terminated-statement))))
 
             ;; If no statement is found, stop at beginning of buffer.
             ((bobp)
              (setf found t))))))
 
-(defun cobol-indent-of-open-statement (statements)
+(defun cobol--indent-of-open-statement (statements)
   "Return the indent of the last open statement in STATEMENTS."
   (save-excursion
-    (cobol-go-to-open-statement statements)
+    (cobol--go-to-open-statement statements)
     (current-indentation)))
 
-(defun cobol-indent-of-containing-statement-or-phrase (str)
+(defun cobol--indent-of-containing-statement-or-phrase (str)
   "Return the indentation of containing statement/phrase in STR."
-  (let ((phrase (upcase (cobol-first-word str))))
+  (let ((phrase (upcase (cobol--first-word str))))
     (cond ((or (string-equal phrase "IF")
                (string-equal phrase "EVALUATE")
                (string-equal phrase "PERFORM"))
-           (cobol-indent-from-previous))
+           (cobol--indent-from-previous))
 
           ((string-equal phrase "ELSE")
-           (cobol-indent-of-open-statement '("IF")))
+           (cobol--indent-of-open-statement '("IF")))
 
           (t
-           (cobol-indent (cobol-indent-of-open-statement
-                          (cobol-statements-with-phrase
-                           (cobol-get-phrase str))))))))
+           (cobol--indent (cobol--indent-of-open-statement
+                          (cobol--statements-with-phrase
+                           (cobol--get-phrase str))))))))
 
-(defun cobol-get-current-division ()
+(defun cobol--get-current-division ()
   "Return the division containing the point as a symbol."
-  (cobol-search-back
+  (cobol--search-back
    #'(lambda ()
-       (cond ((looking-at cobol-division-re)
-              (string-match cobol-division-re (thing-at-point 'line))
+       (cond ((looking-at cobol--division-re)
+              (string-match cobol--division-re (thing-at-point 'line))
               (let ((division (downcase (match-string 1 (thing-at-point 'line)))))
                 (cons t (intern division))))
 
-             ((or (looking-at cobol-end-marker-re)
+             ((or (looking-at cobol--end-marker-re)
                   (bobp))
               (cons t 'identification))))))
 
-(defun cobol-no-instances-of-after-in-division (instance-re after-re division)
-  "Actual implementation of `cobol-no-instances-of'."
-  (and (eq division (cobol-get-current-division))
-       (cobol-search-back
+(defun cobol--no-instances-of-after-in-division (instance-re after-re division)
+  "Actual implementation of `cobol--no-instances-of'."
+  (and (eq division (cobol--get-current-division))
+       (cobol--search-back
         #'(lambda ()
             (cond ((looking-at after-re)
                    (cons t t))
@@ -2860,7 +2865,7 @@ lines."
                        (bobp))
                    (cons t nil)))))))
 
-(defmacro cobol-no-instances-of (&rest clauses)
+(defmacro cobol--no-instances-of (&rest clauses)
   "CLAUSES must be in the form 're AFTER re-2 IN division' where AFTER and IN
 are symbols. Return whether there are no instances of things matched by re
 between the point and the previous instance of re-2. Return nil if the point is
@@ -2870,99 +2875,99 @@ not in division or if nothing is found."
                (eq (nth 3 clauses) 'in))
           nil
           "Clauses should be in the form 're AFTER re-2 IN division'.")
-  `(cobol-no-instances-of-after-in-division ,(first clauses) ,(nth 2 clauses)
+  `(cobol--no-instances-of-after-in-division ,(first clauses) ,(nth 2 clauses)
                                             ,(nth 4 clauses)))
 
-(defun cobol-in-file-control-p ()
+(defun cobol--in-file-control-p ()
   "Return whether the point is in the FILE-CONTROL paragraph."
-  (cobol-no-instances-of cobol-procedure-re
-                         after (cobol-with-opt-whitespace-line "FILE-CONTROL.")
+  (cobol--no-instances-of cobol--procedure-re
+                         after (cobol--with-opt-whitespace-line "FILE-CONTROL.")
                          in 'environment))
 
-(defun cobol-no-statements-after (re)
+(defun cobol--no-statements-after (re)
   "Return whether there are any statements between the point and the previous
 instance of RE."
-  (cobol-no-instances-of cobol-verb-re
+  (cobol--no-instances-of cobol--verb-re
                          after re
                          in 'procedure))
 
-(defun cobol-in-proc-div-param-list-p ()
+(defun cobol--in-proc-div-param-list-p ()
   "Return whether the point is in the procedure division header parameter list."
-  (cobol-no-statements-after cobol-procedure-division-re))
+  (cobol--no-statements-after cobol--procedure-division-re))
 
-(defun cobol-in-if-eval-when-or-perform-cond-p ()
+(defun cobol--in-if-eval-when-or-perform-cond-p ()
   "Return whether the point is in the condition of an IF, EVALUATE or WHEN or in
 the clauses of a non-procedural PERFORM."
-  (cobol-no-statements-after (cobol-with-opt-whitespace-line
-                              cobol-phrases-with-double-indent-after)))
+  (cobol--no-statements-after (cobol--with-opt-whitespace-line
+                              cobol--phrases-with-double-indent-after)))
 
-(defun cobol-indent-of-last-statement ()
+(defun cobol--indent-of-last-statement ()
   "Return the indent of the last statement."
-  (cobol-search-back-for-indent cobol-verb-re))
+  (cobol--search-back-for-indent cobol--verb-re))
 
-(defun cobol-indent-of-clauses ()
+(defun cobol--indent-of-clauses ()
   "Return the indentation for a clause at the point."
-  (let ((current-division (cobol-get-current-division)))
+  (let ((current-division (cobol--get-current-division)))
     (cond ((eq current-division 'identification)
-           (cobol-indent-from-previous))
+           (cobol--indent-from-previous))
 
           ((eq current-division 'environment)
-           (if (cobol-in-file-control-p)
+           (if (cobol--in-file-control-p)
                ;; Indent clauses of SELECT.
-               (cobol-indent (cobol-indent-of-last-statement))
-             (cobol-indent-from-previous)))
+               (cobol--indent (cobol--indent-of-last-statement))
+             (cobol--indent-from-previous)))
 
           ((eq current-division 'data)
            cobol-declaration-clause-indent)
 
           ((eq current-division 'procedure)
-           (cond ((cobol-in-proc-div-param-list-p)
+           (cond ((cobol--in-proc-div-param-list-p)
                   ;; Indent procedure division parameter list twice.
-                  (cobol-indent (cobol-search-back-for-indent cobol-procedure-division-re)
+                  (cobol--indent (cobol--search-back-for-indent cobol--procedure-division-re)
                                 2))
-                ((cobol-in-if-eval-when-or-perform-cond-p)
+                ((cobol--in-if-eval-when-or-perform-cond-p)
                  ;; Indent after IF/EVALUATE/WHEN/non-procedural PEROFRM twice.
-                 (cobol-indent (cobol-search-back-for-indent
-                                cobol-phrases-with-double-indent-after
+                 (cobol--indent (cobol--search-back-for-indent
+                                cobol--phrases-with-double-indent-after
                                 :with-whitespace t)
                                2))
                 ;; Indent once after any other statement.
                 (t
-                 (cobol-indent (cobol-indent-of-last-statement))))))))
+                 (cobol--indent (cobol--indent-of-last-statement))))))))
 
-(defun cobol-find-indent-of-line ()
+(defun cobol--find-indent-of-line ()
   "Return what the indent of the current line should be."
-  (cond ((looking-at cobol-scope-terminator-re)
+  (cond ((looking-at cobol--scope-terminator-re)
          (let ((matching-statement
-                (cobol-scope-terminator-statement (thing-at-point 'line))))
-           (cobol-indent-of-open-statement (list matching-statement))))
+                (cobol--scope-terminator-statement (thing-at-point 'line))))
+           (cobol--indent-of-open-statement (list matching-statement))))
 
-        ((looking-at cobol-procedure-re)
-         (cobol-indent-of-last-div-or-section))
+        ((looking-at cobol--procedure-re)
+         (cobol--indent-of-last-div-or-section))
 
-        ((looking-at cobol-end-marker-re)
-         (cobol-match-line-with-leading-whitespace
-          (concat "END" cobol-identifier-re))
+        ((looking-at cobol--end-marker-re)
+         (cobol--match-line-with-leading-whitespace
+          (concat "END" cobol--identifier-re))
          (let ((group (match-string 1 (thing-at-point 'line))))
-           (cobol-indent-of-end-marker-match group)))
+           (cobol--indent-of-end-marker-match group)))
 
-        ((looking-at cobol-division-re)
-         (cobol-indent-of-last-div))
+        ((looking-at cobol--division-re)
+         (cobol--indent-of-last-div))
 
-        ((looking-at cobol-generic-declaration-re)
-         (cobol-indent-of-declaration (thing-at-point 'line)))
+        ((looking-at cobol--generic-declaration-re)
+         (cobol--indent-of-declaration (thing-at-point 'line)))
 
-        ((looking-at cobol-containing-statement-or-phrase-re)
-         (cobol-indent-of-containing-statement-or-phrase
+        ((looking-at cobol--containing-statement-or-phrase-re)
+         (cobol--indent-of-containing-statement-or-phrase
           (thing-at-point 'line)))
 
-        ((or (looking-at cobol-free-form-comment-line-re)
-             (looking-at cobol-verb-re)
-             (looking-at cobol-blank-line-re))
-         (cobol-indent-from-previous))
+        ((or (looking-at cobol--free-form-comment-line-re)
+             (looking-at cobol--verb-re)
+             (looking-at cobol--blank-line-re))
+         (cobol--indent-from-previous))
 
         (t
-         (cobol-indent-of-clauses))))
+         (cobol--indent-of-clauses))))
 
 (defun cobol-indent-line ()
   "Indent current line as COBOL code."
@@ -2970,7 +2975,7 @@ the clauses of a non-procedural PERFORM."
   (let (indent)
     (save-excursion
       (beginning-of-line)
-      (setf indent (cobol-find-indent-of-line))
+      (setf indent (cobol--find-indent-of-line))
       (indent-line-to indent))
     ;; HACK: When this is called in the leading whitespace, the point is moved
     ;; to the beginning of the line. I don't know why this happens.
@@ -2999,7 +3004,7 @@ the clauses of a non-procedural PERFORM."
 
   (set (make-local-variable 'back-to-indentation) #'cobol-back-to-indentation)
   (set (make-local-variable 'syntax-propertize-function)
-       #'cobol-syntax-propertize-function)
+       #'cobol--syntax-propertize-function)
 
   (set (make-local-variable 'cobol-mode-syntax-table) (make-syntax-table))
   (modify-syntax-entry ?- "w" cobol-mode-syntax-table)
