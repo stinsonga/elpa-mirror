@@ -66,8 +66,7 @@
 (defvar vcl-mode-abbrev-table nil
   "Abbreviation table used in vcl-mode buffers.")
 (c-define-abbrev-table 'vcl-mode-abbrev-table
-  '(("else" "else" c-electric-continued-statement 0)
-    ("while" "while" c-electric-continued-statement 0)))
+  '(("else" "else" c-electric-continued-statement 0)))
 
 ;; Font locking
 (defconst vcl-font-lock-keywords-1
@@ -308,7 +307,7 @@
 
 (defvar vcl-font-lock-keywords vcl-font-lock-keywords-3)
 
-(put 'vcl-mode  'c-mode-prefix "vcl-")
+(put 'vcl-mode 'c-mode-prefix "vcl-")
 
 (defun vcl-sharp-comment-syntax ()
   (save-excursion
@@ -360,9 +359,10 @@ Key bindings:
   (set (make-local-variable 'syntax-propertize-function)
        vcl-syntax-propertize-function)
   (set (make-local-variable 'parse-sexp-lookup-properties) t)
-  (set (make-local-variable 'comment-start) "# ")
   
   (c-initialize-cc-mode t)
+  (c-lang-setvar comment-start "# ")
+  (setq c-opt-cpp-prefix nil)
   (set-syntax-table vcl-mode-syntax-table)
   (setq local-abbrev-table vcl-mode-abbrev-table
 	abbrev-mode t)
