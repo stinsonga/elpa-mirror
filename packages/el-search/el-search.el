@@ -236,11 +236,17 @@ prompt to refer to the value of the currently tested expression."
                           (or hist 'read-expression-history) default)))
 
 (defun el-search--read-pattern (prompt &optional default read)
-  (el-search-read-expression
-   prompt el-search--initial-mb-contents 'el-search-history
-   (or default (when-let ((this-sexp (sexp-at-point)))
-                 (concat "'" (el-search--print this-sexp))))
-   read))
+  (let ((this-sexp (sexp-at-point)))
+    (minibuffer-with-setup-hook
+        (lambda ()
+          (when this-sexp
+            (let ((more-defaults (list (concat "'" (el-search--print this-sexp)))))
+              (setq-local minibuffer-default-add-function
+                          (lambda () (if (listp minibuffer-default)
+                                    (append minibuffer-default more-defaults)
+                                  (cons minibuffer-default more-defaults)))))))
+      (el-search-read-expression 
+       prompt el-search--initial-mb-contents 'el-search-history default read))))
 
 (defun el-search--end-of-sexp ()
   ;;Point must be at sexp beginning
