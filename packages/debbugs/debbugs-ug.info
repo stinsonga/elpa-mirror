@@ -1,4 +1,4 @@
-This is debbugs-ug.info, produced by makeinfo version 5.0 from
+This is debbugs-ug.info, produced by makeinfo version 5.2 from
 debbugs-ug.texi.
 
 Copyright (C) 2015 Free Software Foundation, Inc.
@@ -299,7 +299,8 @@ maintained by the user.
 ('debbugs-gnu-handled', the bug has been modified recently),
 MidnightBlue ('debbugs-gnu-pending', the bug is pending), orange
 ('debbugs-gnu-stale', the bug has not been touched for a while), and
-DarkGrey ('debbugs-gnu-done', the bug is closed).
+DarkGrey ('debbugs-gnu-done', the bug is closed).  Archived bugs are
+shown with inverse face ('debbugs-gnu-archived').
 
    The bug report buffers have enabled the minor 'debbugs-gnu-mode'.
 This enables the following key strokes:
@@ -380,10 +381,13 @@ server.  Their format is described in
 
    A control message can be initiated in the tabulated list of bugs, in
 the list of org TODO items, or in the GNUS ephemeral group opened for
-the messages belonging to a given bug.  In the minibuffer, the following
-control messages can be requested (assuming that 12345 is the bug the
-control message is intended for).  The strings show the exact format of
-the control messages.
+the messages belonging to a given bug.  Control messages can be sent to
+unarchived bugs only, in case a bug is archived the control message
+'unarchive' must be sent first.
+
+   In the minibuffer, the following control messages can be requested
+(assuming that 12345 is the bug the control message is intended for).
+The strings show the exact format of the control messages.
 
 'block'
 'unblock'
@@ -530,21 +534,21 @@ Key Index
  [index ]
 * Menu:
 
-* 'B':                                   Tabulated Lists.      (line 44)
-* 'b':                                   Tabulated Lists.      (line 45)
-* 'C':                                   Tabulated Lists.      (line 57)
+* 'B':                                   Tabulated Lists.      (line 45)
+* 'b':                                   Tabulated Lists.      (line 46)
+* 'C':                                   Tabulated Lists.      (line 58)
 * 'C-c # C':                             TODO Items.           (line 30)
 * 'C-c # d':                             TODO Items.           (line 24)
 * 'C-c # t':                             TODO Items.           (line 27)
-* 'd':                                   Tabulated Lists.      (line 38)
-* 'g':                                   Tabulated Lists.      (line 41)
-* '<mouse-1>':                           Tabulated Lists.      (line 34)
-* '<mouse-2>':                           Tabulated Lists.      (line 36)
-* '<RET>':                               Tabulated Lists.      (line 34)
-* 's':                                   Tabulated Lists.      (line 48)
-* 't':                                   Tabulated Lists.      (line 51)
+* 'd':                                   Tabulated Lists.      (line 39)
+* 'g':                                   Tabulated Lists.      (line 42)
+* '<mouse-1>':                           Tabulated Lists.      (line 35)
+* '<mouse-2>':                           Tabulated Lists.      (line 37)
+* '<RET>':                               Tabulated Lists.      (line 35)
+* 's':                                   Tabulated Lists.      (line 49)
+* 't':                                   Tabulated Lists.      (line 52)
 * '<TAB>':                               TODO Items.           (line 21)
-* 'x':                                   Tabulated Lists.      (line 54)
+* 'x':                                   Tabulated Lists.      (line 55)
 
 
 
@@ -556,11 +560,11 @@ Ref: Searching Bugs-Footnote-110016
 Ref: Searching Bugs-Footnote-210104
 Node: Layout10195
 Node: Tabulated Lists10670
-Node: TODO Items13104
-Node: Control Messages14369
-Node: Minor Mode16529
-Node: Command Index17467
-Node: Variable Index18128
-Node: Key Index18717
+Node: TODO Items13173
+Node: Control Messages14438
+Node: Minor Mode16733
+Node: Command Index17671
+Node: Variable Index18332
+Node: Key Index18921
 
 End Tag Table

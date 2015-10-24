@@ -560,7 +560,7 @@ Examples:
 	  (unless (keywordp kw)
 	    (error "Wrong keyword: %s" kw))
 	  (setq key (substring (symbol-name kw) 1))
-	  (case kw
+	  (cl-case kw
 	    ;; Phrase condition.
 	    (:phrase
 	     ;; It shouldn't happen in an attribute condition.
