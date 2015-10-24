@@ -6,7 +6,7 @@
 ;; Maintainer: Michael Heerdegen <michael_heerdegen@web.de>
 ;; Created: 24 Jan 2013
 ;; Keywords: convenience
-;; Version: 1.3
+;; Version: 1.3.1
 ;; Package-Requires: ((cl-lib "0"))
 
 
