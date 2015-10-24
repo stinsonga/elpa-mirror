@@ -310,7 +310,8 @@ ForestGreen (@code{debbugs-gnu-handled}, the bug has been modified
 recently), MidnightBlue (@code{debbugs-gnu-pending}, the bug is
 pending), orange (@code{debbugs-gnu-stale}, the bug has not been
 touched for a while), and DarkGrey (@code{debbugs-gnu-done}, the bug
-is closed).
+is closed).  Archived bugs are shown with inverse face
+(@code{debbugs-gnu-archived}).
 
 The bug report buffers have enabled the minor
 @code{debbugs-gnu-mode}.  This enables the following key strokes:
@@ -445,10 +446,13 @@ server.  Their format is described in
 
 A control message can be initiated in the tabulated list of bugs, in
 the list of org TODO items, or in the GNUS ephemeral group opened for
-the messages belonging to a given bug.  In the minibuffer, the
-following control messages can be requested (assuming that 12345 is
-the bug the control message is intended for).  The strings show the
-exact format of the control messages.
+the messages belonging to a given bug.  Control messages can be sent
+to unarchived bugs only, in case a bug is archived the control message
+@samp{unarchive} must be sent first.
+
+In the minibuffer, the following control messages can be requested
+(assuming that 12345 is the bug the control message is intended for).
+The strings show the exact format of the control messages.
 
 @table @samp
 @item block

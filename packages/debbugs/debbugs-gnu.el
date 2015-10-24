@@ -211,7 +211,7 @@
 	      (const "sed")
 	      (const "vc-dwim")
 	      (const "woodchuck"))
-  :version "24.4")
+  :version "25.1")
 
 (defconst debbugs-gnu-all-packages
   (mapcar 'cadr (cdr (get 'debbugs-gnu-default-packages 'custom-type)))
@@ -233,6 +233,9 @@ suppressed bugs is toggled by `debbugs-gnu-toggle-suppress'."
   :group 'debbugs-gnu
   :type '(alist :key-type symbol :value-type regexp)
   :version "24.1")
+
+(defface debbugs-gnu-archived '((t (:inverse-video t)))
+  "Face for archived bug reports.")
 
 (defface debbugs-gnu-new '((t (:foreground "red")))
   "Face for new reports that nobody has answered.")
@@ -667,6 +670,8 @@ marked as \"client-side filter\"."
 	      words
 	      'face
 	      (cond
+	       ((cdr (assq 'archived status))
+		'debbugs-gnu-archived)
 	       ((equal (cdr (assq 'pending status)) "done")
 		'debbugs-gnu-done)
 	       ((member "pending" (cdr (assq 'keywords status)))
