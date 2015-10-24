@@ -156,9 +156,6 @@
 ;;
 ;; TODO:
 ;;
-;; - display something useful in the echo area.  or leave it for being
-;; able to `message' in the pattern?
-;;
 ;; - implement backward searching
 ;;
 ;; - improve docstrings
@@ -457,9 +454,11 @@ return nil (no error)."
         ;; wrap search
         (goto-char (point-min))))
     (setq el-search-success nil)
+    (message "%s" (substitute-command-keys "Type \\[el-search-pattern] to repeat"))
     (when (condition-case nil
               (el-search--search-pattern pattern)
-            (end-of-buffer (message "No match")
+            (end-of-buffer (message "No match; %s"
+                                    (substitute-command-keys "Type \\[el-search-pattern] to wrap"))
                            (goto-char opoint)
                            (el-search-hl-remove)
                            (ding)
