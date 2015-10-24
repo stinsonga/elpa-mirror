@@ -58,8 +58,6 @@
     (modify-syntax-entry ?_ "_" st)
     (modify-syntax-entry ?\' "." st)
     (modify-syntax-entry ?\" "." st)
-    (modify-syntax-entry ?{ "." st)
-    (modify-syntax-entry ?} "." st)
     st)
   "Syntax table in use in VCL Mode buffers.")
 
