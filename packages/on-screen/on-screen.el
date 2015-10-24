@@ -109,7 +109,8 @@
 
 ;;;; Requirements
 
-(require 'cl-lib)
+(eval-when-compile
+  (require 'cl-lib))
 (require 'timer)
 (require 'hexrgb nil t)
 
