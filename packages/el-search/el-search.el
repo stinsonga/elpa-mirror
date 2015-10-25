@@ -355,7 +355,7 @@ return nil (no error)."
 
 (defun el-search--do-subsexps (pos do-fun &optional ret-fun bound)
   ;; In current buffer, for any expression start between POS and BOUND
-  ;; or (point-max), in oder, call two argument function DO-FUN with
+  ;; or (point-max), in order, call two argument function DO-FUN with
   ;; the current sexp string and the ending position of the current
   ;; sexp.  When done, with RET-FUN given, call it with no args and
   ;; return the result; else, return nil.
@@ -504,7 +504,7 @@ return nil (no error)."
               (while (not (pcase (if replaced-this
                                      (read-char-choice "[SPC ! q]" '(?\ ?! ?q ?n))
                                    (read-char-choice
-                                    (concat "Replace this occurence"
+                                    (concat "Replace this occurrence"
                                             (if (or (string-match-p "\n" to-insert)
                                                     (< 40 (length to-insert)))
                                                 "" (format " with `%s'" to-insert))
