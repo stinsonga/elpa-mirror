@@ -58,11 +58,6 @@
 
 ;;; Code:
 
-;;; We don't use `shell-quote-argument' because it doesn't provide any safety
-;;; guarantees, and this quotes shell keywords as well.
-(defun shqq--quote-string (string)
-  (concat "'" (replace-regexp-in-string "'" "'\\\\''" string) "'"))
-
 (defun shqq--atom-to-string (atom)
   (cond
    ((symbolp atom) (symbol-name atom))
@@ -71,7 +66,7 @@
    (t (error "Bad shqq atom: %S" atom))))
 
 (defun shqq--quote-atom (atom)
-  (shqq--quote-string (shqq--atom-to-string atom)))
+  (shell-quote-argument (shqq--atom-to-string atom)))
 
 (defun shqq--match-comma (form)
   "Matches FORM against ,foo i.e. (\, foo) and returns foo.
