@@ -5,7 +5,7 @@
 ;; Author: Artur Malabarba <emacs@endlessparentheses.com>
 ;; URL: https://github.com/Malabarba/beacon
 ;; Keywords: convenience
-;; Version: 0.2.1
+;; Version: 0.3
 ;; Package-Requires: ((seq "1.9"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -117,7 +117,7 @@ For instance, if you want to disable beacon on buffers where
 
 (add-hook 'beacon-dont-blink-predicates #'window-minibuffer-p)
 
-(defcustom beacon-dont-blink-major-modes '(magit-status-mode)
+(defcustom beacon-dont-blink-major-modes '(magit-status-mode magit-popup-mode)
   "A list of major-modes where the beacon won't blink.
 Whenever the current buffer satisfies `derived-mode-p' for
 one of the major-modes on this list, the beacon will not
@@ -130,6 +130,21 @@ Use this for commands that scroll the window in very
 predictable ways, when the blink would be more distracting
 than helpful.."
   :type '(repeat symbol))
+
+
+;;; Internal variables
+(defvar beacon--window-scrolled nil)
+(defvar beacon--previous-place nil)
+(defvar beacon--previous-mark-head nil)
+(defvar beacon--previous-window nil)
+(defvar beacon--previous-window-start 0)
+
+(defun beacon--record-vars ()
+  (unless (window-minibuffer-p)
+    (setq beacon--previous-mark-head (car mark-ring))
+    (setq beacon--previous-place (point-marker))
+    (setq beacon--previous-window (selected-window))
+    (setq beacon--previous-window-start (window-start))))
 
 
 ;;; Overlays
@@ -254,6 +269,9 @@ Only returns `beacon-size' elements."
   "Blink the beacon at the position of the cursor."
   (interactive)
   (beacon--vanish)
+  ;; Record vars here in case something is blinking outside the
+  ;; command loop.
+  (beacon--record-vars)
   (unless (or (not beacon-mode)
               (run-hook-with-args-until-success 'beacon-dont-blink-predicates)
               (seq-find #'derived-mode-p beacon-dont-blink-major-modes)
@@ -266,11 +284,6 @@ Only returns `beacon-size' elements."
 
 
 ;;; Movement detection
-(defvar beacon--window-scrolled nil)
-(defvar beacon--previous-place nil)
-(defvar beacon--previous-mark-head nil)
-(defvar beacon--previous-window nil)
-
 (defun beacon--movement-> (delta)
   "Return non-nil if latest point movement is > DELTA.
 If DELTA is nil, return nil."
@@ -308,7 +321,7 @@ If DELTA is nil, return nil."
     (beacon--vanish))
    ;; Blink for switching windows.
    ((and beacon-blink-when-window-changes
-	 (not (eq beacon--previous-window (selected-window))))
+         (not (eq beacon--previous-window (selected-window))))
     (beacon-blink))
    ;; Blink for scrolling.
    ((and beacon-blink-when-window-scrolls
@@ -321,13 +334,9 @@ If DELTA is nil, return nil."
    ;; Even if we don't blink, vanish any previous beacon.
    (t (beacon--vanish)))
   (beacon--maybe-push-mark)
-  (setq beacon--window-scrolled nil)
-  (unless (window-minibuffer-p)
-    (setq beacon--previous-mark-head (car mark-ring))
-    (setq beacon--previous-place (point-marker))
-    (setq beacon--previous-window (selected-window))))
+  (setq beacon--window-scrolled nil))
 
-(defun beacon--window-scroll-function (win _start-pos)
+(defun beacon--window-scroll-function (win start-pos)
   "Blink the beacon or record that window has been scrolled.
 If invoked during the command loop, record the current window so
 that it may be blinked on post-command.  This is because the
@@ -336,10 +345,12 @@ scrolled window might not be active, but we only know that at
 
 If invoked outside the command loop, `post-command-hook' would be
 unreliable, so just blink immediately."
-  (if this-command
-      (setq beacon--window-scrolled win)
-    (setq beacon--window-scrolled nil)
-    (beacon-blink)))
+  (unless (and (equal beacon--previous-window-start start-pos)
+               (equal beacon--previous-window win))
+    (if this-command
+        (setq beacon--window-scrolled win)
+      (setq beacon--window-scrolled nil)
+      (beacon-blink))))
 
 (defun beacon--blink-on-focus ()
   "Blink if `beacon-blink-when-focused' is non-nil"
@@ -365,10 +376,12 @@ unreliable, so just blink immediately."
         (add-hook 'window-scroll-functions #'beacon--window-scroll-function)
         (add-hook 'focus-in-hook #'beacon--blink-on-focus)
         (add-hook 'post-command-hook #'beacon--post-command)
+        (add-hook 'pre-command-hook #'beacon--record-vars)
         (add-hook 'pre-command-hook #'beacon--vanish))
     (remove-hook 'focus-in-hook #'beacon--blink-on-focus)
     (remove-hook 'window-scroll-functions #'beacon--window-scroll-function)
     (remove-hook 'post-command-hook #'beacon--post-command)
+    (remove-hook 'pre-command-hook #'beacon--record-vars)
     (remove-hook 'pre-command-hook #'beacon--vanish)))
 
 (provide 'beacon)
