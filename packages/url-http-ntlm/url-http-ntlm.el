@@ -73,14 +73,12 @@ the server's last response.  These are used by
   (url-ntlm-ensure-keepalive)
   (let ((stage (url-ntlm-get-stage args)))
     (case stage
-      ;;
       ;; NTLM Type 1 message: the request
       (:request
        (destructuring-bind (&optional server user hash)
            (url-http-ntlm-authorisation url)
          (when server
            (url-http-ntlm-string (ntlm-build-auth-request user server)))))
-      ;;
       ;; NTLM Type 3 message: the response
       (:response
        (let ((challenge (url-http-ntlm-get-challenge)))
@@ -129,7 +127,6 @@ response's \"WWW-Authenticate\" header, munged by
     (if (eq args (car url-ntlm-last-args))
         ;; multiple calls, return the same argument we returned last time
         (cdr url-ntlm-last-args)
-        ;;
         (let ((stage
                (cond ((and auth-header (string-match response-rxp
                                                      (cdr auth-header)))
@@ -190,7 +187,6 @@ stored."
                             (url-http-ntlm-rmssoc server
                                                   url-http-ntlm-auth-storage))))
               entry)
-            ;;
             stored))))
 
 (defun url-http-ntlm-get-challenge ()
