@@ -146,7 +146,7 @@ response's \"WWW-Authenticate\" header, munged by `url-parse-args'."
   "Get or clear NTLM authentication details for URL. If CLEAR is
   non-nil, clear any saved credentials for server. Otherwise,
   return the credentials, prompting the user if necessary.
-  
+
 If URL contains a username and a password, they are used and
 stored credentials are not affected.
 
