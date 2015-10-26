@@ -25,16 +25,17 @@
 ;;
 ;; Installation:
 ;;
-;; Add the directory containing this file to the load path and then load the url-http-ntlm
-;; package. One way would be to add something like the lines below to your .emacs file:
+;; Add the directory containing this file to the load path and then
+;; load the url-http-ntlm package.  One way would be to add something
+;; like the lines below to your .emacs file:
 ;;
 ;; (add-to-list 'load-path ".emacs.d/url-http-ntlm")
 ;; (require 'url-http-ntlm)
 ;;
 ;; Acknowledgements:
 ;;
-;; Taro Kawagishi <tarok@transpulse.org> wrote ntlm.el and md4.el, which are parts of FLIM
-;; (Faithful Library about Internet Message).
+;; Taro Kawagishi <tarok@transpulse.org> wrote ntlm.el and md4.el,
+;; which are parts of FLIM (Faithful Library about Internet Message).
 ;;
 ;; http://stuff.mit.edu/afs/sipb/contrib/emacs/packages/flim-1.14.7/ntlm.el
 ;; http://stuff.mit.edu/afs/sipb/contrib/emacs/packages/flim-1.14.7/md4.el
@@ -93,27 +94,30 @@ Note that for any server, only one user and password is ever stored.")
 (defun url-ntlm-ensure-keepalive ()
   (assert url-http-attempt-keepalives
           nil
-          "NTLM authentication won't work unless `url-http-attempt-keepalives' is set!"))
+          (concat "NTLM authentication won't work unless"
+                  " `url-http-attempt-keepalives' is set!")))
 
 (defun url-ntlm-clean-headers ()
   (setq url-http-extra-headers
         (url-http-ntlm-rmssoc "Authorization" url-http-extra-headers)))
 
 (defvar url-ntlm-last-args nil
-  "Stores the last ARGS argument to `url-ntlm-get-stage' and the return value. This is
-  used to detect multiple calls.")
+  "Stores the last ARGS argument to `url-ntlm-get-stage' and the return value.
+This is used to detect multiple calls.")
 (make-variable-buffer-local 'url-ntlm-last-args)
 
 (defun url-ntlm-get-stage (args)
   "Determine what stage of the NTLM handshake we are at.
+PROMPT and ARGS come from `url-ntlm-auth''s caller,
+`url-get-authentication'. Their meaning depends on the current
+implementation - this function is well and truly coupled.
 
-PROMPT and ARGS come from `url-ntlm-auth''s caller, `url-get-authentication'. Their
-meaning depends on the current implementation - this function is well and truly coupled...
-
-url-get-authentication' calls `url-ntlm-auth' once when checking what authentication
-schemes are supported (PROMPT and ARGS are nil), and then twice for every stage of the
-handshake: the first time PROMPT is nil, the second, t; ARGS contains the server
-response's \"WWW-Authenticate\" header, munged by `url-parse-args'."
+url-get-authentication' calls `url-ntlm-auth' once when checking
+what authentication schemes are supported (PROMPT and ARGS are
+nil), and then twice for every stage of the handshake: the first
+time PROMPT is nil, the second, t; ARGS contains the server
+response's \"WWW-Authenticate\" header, munged by
+`url-parse-args'."
   (let* ((response-rxp     "^NTLM TlRMTVNTUAADAAA")
          (challenge-rxp    "^TLRMTVNTUAACAAA")
          (auth-header      (assoc "Authorization" url-http-extra-headers))
@@ -124,12 +128,14 @@ response's \"WWW-Authenticate\" header, munged by `url-parse-args'."
         (cdr url-ntlm-last-args)
         ;;
         (let ((stage
-               (cond ((and auth-header (string-match response-rxp (cdr auth-header)))
+               (cond ((and auth-header (string-match response-rxp
+                                                     (cdr auth-header)))
                       :error)
                      ((and (= (length args) 2)
                            (destructuring-bind (challenge ntlm) args
                              (and (string-equal "ntlm" (car ntlm))
-                                  (string-match challenge-rxp (car challenge)))))
+                                  (string-match challenge-rxp
+                                                (car challenge)))))
                       :response)
                      (t
                       :request))))
@@ -172,11 +178,13 @@ stored."
                    (pass*  (if both
                                pass
                                (read-passwd "Password: ")))
-                   (entry `(,server . (,user* ,(ntlm-get-password-hashes pass*)))))
+                   (entry `(,server . (,user*
+                                       ,(ntlm-get-password-hashes pass*)))))
               (unless both
                 (setq url-http-ntlm-auth-storage
                       (cons entry
-                            (url-http-ntlm-rmssoc server url-http-ntlm-auth-storage))))
+                            (url-http-ntlm-rmssoc server
+                                                  url-http-ntlm-auth-storage))))
               entry)
             ;;
             stored))))
