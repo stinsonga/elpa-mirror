@@ -4,6 +4,7 @@
 
 ;; Author: Taylan Ulrich Bayırlı/Kammer <taylanbayirli@gmail.com>
 ;; Keywords: extensions, unix
+;; Version: 0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -67,27 +68,6 @@
 
 (defun shqq--quote-atom (atom)
   (shell-quote-argument (shqq--atom-to-string atom)))
-
-(defun shqq--match-comma (form)
-  "Matches FORM against ,foo i.e. (\, foo) and returns foo.
-Returns nil if FORM didn't match.  You can't disambiguate between
-FORM matching ,nil and not matching."
-  (if (and (consp form)
-           (eq '\, (car form))
-           (consp (cdr form))
-           (null (cddr form)))
-      (cadr form)))
-
-(defun shqq--match-comma2 (form)
-  "Matches FORM against ,,foo i.e. (\, (\, foo)) and returns foo.
-Returns nil if FORM didn't match.  You can't disambiguate between
-FORM matching ,,nil and not matching."
-  (if (and (consp form)
-           (eq '\, (car form))
-           (consp (cdr form))
-           (null (cddr form)))
-      (shqq--match-comma (cadr form))))
-
 
 (defmacro shqq (parts)
   "First, PARTS is turned into a list of strings.  For this,
@@ -124,19 +104,13 @@ separating spaces."
              ;; We use the match-comma helpers because pcase can't match ,foo.
              (t (pcase part
                   ;; ,,foo i.e. (, (, foo))
-                  ((pred shqq--match-comma2)
-                   (shqq--match-comma2 part))
+                  (`(,`\, (,`\, ,form))  form)
                   ;; ,,@foo i.e. (, (,@ foo))
-                  ((and (pred shqq--match-comma)
-                        (let `,@,form (shqq--match-comma part)))
-                   `(mapconcat #'identity ,form " "))
+                  (`(,`\, (,`\,@ ,form)) `(mapconcat #'identity ,form " "))
                   ;; ,foo
-                  ;; Insert redundant 'and x' to work around debbugs#18554.
-                  ((and x (pred shqq--match-comma))
-                   `(shqq--quote-atom ,(shqq--match-comma part)))
+                  (`(,`\, ,form) `(shqq--quote-atom ,form))
                   ;; ,@foo
-                  (`,@,form
-                   `(mapconcat #'shqq--quote-atom ,form " "))
+                  (`,@,form `(mapconcat #'shqq--quote-atom ,form " "))
                   (_
                    (error "Bad shqq part: %S" part))))))
           parts)))
