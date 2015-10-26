@@ -4,13 +4,14 @@
 \#*\#
 ChangeLog
 core
-emacs/
+/emacs
 packages/*/*-autoloads.el
 packages/*/*-pkg.el
 
 # External packages with their own .git tree.
 packages/auctex
 packages/chess
+packages/dash/
 packages/dismal
 packages/ergoemacs-mode
 packages/exwm
