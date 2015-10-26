@@ -1,6 +1,6 @@
 ;;; url-http-ntlm.el --- NTLM authentication for the url library
 
-;; Copyright (C) 2008  Tom Schutzer-Weissmann
+;; Copyright (C) 2008, 2015 Free Software Foundation, Inc.
 
 ;; Author: Tom Schutzer-Weissmann <tom@schutzer-weissmann.net>
 ;; Keywords: comm, data, processes, hypermedia
