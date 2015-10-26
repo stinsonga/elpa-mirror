@@ -245,7 +245,7 @@ prompt to refer to the value of the currently tested expression."
                           (lambda () (if (listp minibuffer-default)
                                     (append minibuffer-default more-defaults)
                                   (cons minibuffer-default more-defaults)))))))
-      (el-search-read-expression 
+      (el-search-read-expression
        prompt el-search--initial-mb-contents 'el-search-history default read))))
 
 (defun el-search--end-of-sexp ()
