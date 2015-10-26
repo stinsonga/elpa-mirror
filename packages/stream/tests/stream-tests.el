@@ -168,5 +168,12 @@
   (should (= (seq-length (seq-subseq (stream-range 2 10) 1 3)) 2))
   (should (= (seq-elt (seq-subseq (stream-range 2 10) 1 3) 1) 4)))
 
+(ert-deftest stream-rest-should-return-the-empty-stream-at-end-of-stream ()
+  (should (stream-empty-p (stream-rest (stream-rest (stream nil))))))
+
+(ert-deftest seq-take-should-not-signal-exceptions-at-end-of-stream ()
+  (should (equal (seq-into-sequence (seq-take (stream (list 1 2 3)) 4))
+                 '(1 2 3))))
+
 (provide 'stream-tests)
 ;;; stream-tests.el ends here
