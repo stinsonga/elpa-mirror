@@ -90,23 +90,19 @@ Note that for any server, only one user and password is ever stored.")
       (:error
        (url-http-ntlm-authorisation url :clear)))))
 
-
 (defun url-ntlm-ensure-keepalive ()
   (assert url-http-attempt-keepalives
           nil
           "NTLM authentication won't work unless `url-http-attempt-keepalives' is set!"))
 
-
 (defun url-ntlm-clean-headers ()
   (setq url-http-extra-headers
         (url-http-ntlm-rmssoc "Authorization" url-http-extra-headers)))
-
 
 (defvar url-ntlm-last-args nil
   "Stores the last ARGS argument to `url-ntlm-get-stage' and the return value. This is
   used to detect multiple calls.")
 (make-variable-buffer-local 'url-ntlm-last-args)
-
 
 (defun url-ntlm-get-stage (args)
   "Determine what stage of the NTLM handshake we are at.
@@ -140,7 +136,6 @@ response's \"WWW-Authenticate\" header, munged by `url-parse-args'."
           (url-ntlm-clean-headers)
           (setq url-ntlm-last-args (cons args stage))
           stage))))
-
 
 (defun url-http-ntlm-authorisation (url &optional clear)
   "Get or clear NTLM authentication details for URL. If CLEAR is
@@ -186,7 +181,6 @@ stored."
             ;;
             stored))))
 
-
 (defun url-http-ntlm-get-challenge ()
   "Return the NTLM Type-2 message in the WWW-Authenticate header,
 if it is there."
@@ -197,17 +191,14 @@ if it is there."
                           www-authenticate)
         (base64-decode-string (match-string 1 www-authenticate))))))
 
-
 (defun url-http-ntlm-rmssoc (key alist)
   (remove* key alist :key 'car :test 'equal))
-
 
 (defun url-http-ntlm-string (data)
   (concat "NTLM " (base64-encode-string data :nobreak)))
 
-
 (url-register-auth-scheme "ntlm" nil 8)
 
-
 (provide 'url-http-ntlm)
+
 ;;; url-http-ntlm.el ends here
