@@ -76,31 +76,33 @@ the server's last response.  These are used by
       ;; NTLM Type 1 message: the request
       (:request
        (destructuring-bind (&optional server user hash)
-           (url-http-ntlm-authorisation url)
-         (when server
-           (url-http-ntlm-string (ntlm-build-auth-request user server)))))
+	   (url-http-ntlm-authorisation url)
+	 (when server
+	   (url-http-ntlm-string
+	    (ntlm-build-auth-request user server)))))
       ;; NTLM Type 3 message: the response
       (:response
        (let ((challenge (url-http-ntlm-get-challenge)))
-         (destructuring-bind (server user hash)
-             (url-http-ntlm-authorisation url)
-           (url-http-ntlm-string (ntlm-build-auth-response challenge
-                                                           user
-                                                           hash)))))
+	 (destructuring-bind (server user hash)
+	     (url-http-ntlm-authorisation url)
+	   (url-http-ntlm-string
+	    (ntlm-build-auth-response challenge
+				      user
+				      hash)))))
       (:error
        (url-http-ntlm-authorisation url :clear)))))
 
 (defun url-ntlm-ensure-keepalive ()
   "Report an error if `url-http-attempt-keepalives' is not set."
   (assert url-http-attempt-keepalives
-          nil
-          (concat "NTLM authentication won't work unless"
-                  " `url-http-attempt-keepalives' is set!")))
+	  nil
+	  (concat "NTLM authentication won't work unless"
+		  " `url-http-attempt-keepalives' is set!")))
 
 (defun url-ntlm-clean-headers ()
   "Remove Authorization element from `url-http-extra-headers' alist."
   (setq url-http-extra-headers
-        (url-http-ntlm-rmssoc "Authorization" url-http-extra-headers)))
+	(url-http-ntlm-rmssoc "Authorization" url-http-extra-headers)))
 
 (defvar url-ntlm-last-args nil
   "Stores the last ARGS argument to `url-ntlm-get-stage' and the return value.
@@ -119,29 +121,29 @@ nil), and then twice for every stage of the handshake: the first
 time PROMPT is nil, the second, t; ARGS contains the server
 response's \"WWW-Authenticate\" header, munged by
 `url-parse-args'."
-  (let* ((response-rxp     "^NTLM TlRMTVNTUAADAAA")
-         (challenge-rxp    "^TLRMTVNTUAACAAA")
-         (auth-header      (assoc "Authorization" url-http-extra-headers))
-         (case-fold-search t)
-         stage)
+  (let* ((response-rxp	   "^NTLM TlRMTVNTUAADAAA")
+	 (challenge-rxp	   "^TLRMTVNTUAACAAA")
+	 (auth-header	   (assoc "Authorization" url-http-extra-headers))
+	 (case-fold-search t)
+	 stage)
     (if (eq args (car url-ntlm-last-args))
-        ;; multiple calls, return the same argument we returned last time
-        (cdr url-ntlm-last-args)
-        (let ((stage
-               (cond ((and auth-header (string-match response-rxp
-                                                     (cdr auth-header)))
-                      :error)
-                     ((and (= (length args) 2)
-                           (destructuring-bind (challenge ntlm) args
-                             (and (string-equal "ntlm" (car ntlm))
-                                  (string-match challenge-rxp
-                                                (car challenge)))))
-                      :response)
-                     (t
-                      :request))))
-          (url-ntlm-clean-headers)
-          (setq url-ntlm-last-args (cons args stage))
-          stage))))
+	;; multiple calls, return the same argument we returned last time
+	(cdr url-ntlm-last-args)
+      (let ((stage
+	     (cond ((and auth-header (string-match response-rxp
+						   (cdr auth-header)))
+		    :error)
+		   ((and (= (length args) 2)
+			 (destructuring-bind (challenge ntlm) args
+			   (and (string-equal "ntlm" (car ntlm))
+				(string-match challenge-rxp
+					      (car challenge)))))
+		    :response)
+		   (t
+		    :request))))
+	(url-ntlm-clean-headers)
+	(setq url-ntlm-last-args (cons args stage))
+	stage))))
 
 (defun url-http-ntlm-authorisation (url &optional clear)
   "Get or clear NTLM authentication details for URL.
@@ -154,40 +156,40 @@ stored credentials are not affected.
 
 Note that for any server, only one user and password is ever
 stored."
-  (let* ((href   (if (stringp url)
-                     (url-generic-parse-url url)
-                     url))
-         (server (url-host href))
-         (user   (url-user href))
-         (pass   (url-password href))
-         (stored (assoc server url-http-ntlm-auth-storage))
-         (both   (and user pass)))
+  (let* ((href	 (if (stringp url)
+		     (url-generic-parse-url url)
+		   url))
+	 (server (url-host href))
+	 (user	 (url-user href))
+	 (pass	 (url-password href))
+	 (stored (assoc server url-http-ntlm-auth-storage))
+	 (both	 (and user pass)))
     (if clear
-        ;; clear
-        (unless both
-          (setq url-http-ntlm-auth-storage
-                (url-http-ntlm-rmssoc server url-http-ntlm-auth-storage))
-          nil)
-        ;; get
-        (if (or both
-                (and stored user (not (equal user (second stored))))
-                (not stored))
-            (let* ((user*  (if both
-                               user
-                               (read-string (url-auth-user-prompt url realm)
-                                            (or user (user-real-login-name)))))
-                   (pass*  (if both
-                               pass
-                               (read-passwd "Password: ")))
-                   (entry `(,server . (,user*
-                                       ,(ntlm-get-password-hashes pass*)))))
-              (unless both
-                (setq url-http-ntlm-auth-storage
-                      (cons entry
-                            (url-http-ntlm-rmssoc server
-                                                  url-http-ntlm-auth-storage))))
-              entry)
-            stored))))
+	;; clear
+	(unless both
+	  (setq url-http-ntlm-auth-storage
+		(url-http-ntlm-rmssoc server url-http-ntlm-auth-storage))
+	  nil)
+      ;; get
+      (if (or both
+	      (and stored user (not (equal user (second stored))))
+	      (not stored))
+	  (let* ((user* (if both
+			    user
+			  (read-string (url-auth-user-prompt url realm)
+				       (or user (user-real-login-name)))))
+		 (pass* (if both
+			    pass
+			  (read-passwd "Password: ")))
+		 (entry `(,server . (,user*
+				     ,(ntlm-get-password-hashes pass*)))))
+	    (unless both
+	      (setq url-http-ntlm-auth-storage
+		    (cons entry
+			  (url-http-ntlm-rmssoc server
+						url-http-ntlm-auth-storage))))
+	    entry)
+	stored))))
 
 (defun url-http-ntlm-get-challenge ()
   "Return the NTLM Type-2 message in the WWW-Authenticate header, if present."
@@ -195,8 +197,8 @@ stored."
     (mail-narrow-to-head)
     (let ((www-authenticate (mail-fetch-field "www-authenticate")))
       (when (string-match "NTLM\\s-+\\(\\S-+\\)"
-                          www-authenticate)
-        (base64-decode-string (match-string 1 www-authenticate))))))
+			  www-authenticate)
+	(base64-decode-string (match-string 1 www-authenticate))))))
 
 (defun url-http-ntlm-rmssoc (key alist)
   "Remove all elements whose `car' match KEY from ALIST."
