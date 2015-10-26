@@ -66,8 +66,8 @@ PROMPT, OVERWRITE, and REALM are ignored.
 ARGS is expected to contain the WWW-Authentication header from
 the server's last response.  These are used by
 `url-http-get-stage' to determine what stage we are at."
-  (url-ntlm-ensure-keepalive)
-  (let ((stage (url-ntlm-get-stage args)))
+  (url-http-ntlm-ensure-keepalive)
+  (let ((stage (url-http-ntlm-get-stage args)))
     (case stage
       ;; NTLM Type 1 message: the request
       (:request
@@ -88,24 +88,24 @@ the server's last response.  These are used by
       (:error
        (url-http-ntlm-authorisation url :clear)))))
 
-(defun url-ntlm-ensure-keepalive ()
+(defun url-http-ntlm-ensure-keepalive ()
   "Report an error if `url-http-attempt-keepalives' is not set."
   (assert url-http-attempt-keepalives
 	  nil
 	  (concat "NTLM authentication won't work unless"
 		  " `url-http-attempt-keepalives' is set!")))
 
-(defun url-ntlm-clean-headers ()
+(defun url-http-ntlm-clean-headers ()
   "Remove Authorization element from `url-http-extra-headers' alist."
   (setq url-http-extra-headers
 	(url-http-ntlm-rmssoc "Authorization" url-http-extra-headers)))
 
-(defvar url-ntlm-last-args nil
-  "Stores the last ARGS argument to `url-ntlm-get-stage' and the return value.
+(defvar url-http-ntlm-last-args nil
+  "Stores the last `url-http-ntlm-get-stage' arguments and return value.
 This is used to detect multiple calls.")
-(make-variable-buffer-local 'url-ntlm-last-args)
+(make-variable-buffer-local 'url-http-ntlm-last-args)
 
-(defun url-ntlm-get-stage (args)
+(defun url-http-ntlm-get-stage (args)
   "Determine what stage of the NTLM handshake we are at.
 PROMPT and ARGS come from `url-ntlm-auth''s caller,
 `url-get-authentication'.  Their meaning depends on the current
@@ -122,9 +122,9 @@ response's \"WWW-Authenticate\" header, munged by
 	 (auth-header	   (assoc "Authorization" url-http-extra-headers))
 	 (case-fold-search t)
 	 stage)
-    (if (eq args (car url-ntlm-last-args))
+    (if (eq args (car url-http-ntlm-last-args))
 	;; multiple calls, return the same argument we returned last time
-	(cdr url-ntlm-last-args)
+	(cdr url-http-ntlm-last-args)
       (let ((stage
 	     (cond ((and auth-header (string-match response-rxp
 						   (cdr auth-header)))
@@ -137,8 +137,8 @@ response's \"WWW-Authenticate\" header, munged by
 		    :response)
 		   (t
 		    :request))))
-	(url-ntlm-clean-headers)
-	(setq url-ntlm-last-args (cons args stage))
+	(url-http-ntlm-clean-headers)
+	(setq url-http-ntlm-last-args (cons args stage))
 	stage))))
 
 (defun url-http-ntlm-authorisation (url &optional clear)
