@@ -48,8 +48,9 @@
 (require 'ntlm)
 
 (defvar url-http-ntlm-auth-storage nil
-  "Authentication storage. An alist that maps a server name
-to a pair of \(<username> <ntlm hashes>\).
+  "Authentication storage.
+An alist that maps a server name to a pair of \(<username> <ntlm
+hashes>\).
 
 The hashes are built using `ntlm-get-password-hashes'.
 The username can contain the domain name, in the form \"user@domain\".
@@ -57,18 +58,18 @@ The username can contain the domain name, in the form \"user@domain\".
 Note that for any server, only one user and password is ever stored.")
 
 (defun url-ntlm-auth (url &optional prompt overwrite realm args)
-  "Get the contents of the Authorization header for a HTTP
-  response using NTLM authentication, to access URL.  Because
-  NTLM is a two-step process, this function expects to be called
-  twice, first to generate the NTLM type 1 message (request),
-  then to respond to the server's type 2 message (challenge) with
-  a suitable response.
+  "Return an NTLM HTTP authorization header.
+Get the contents of the Authorization header for a HTTP response
+using NTLM authentication, to access URL.  Because NTLM is a
+two-step process, this function expects to be called twice, first
+to generate the NTLM type 1 message (request), then to respond to
+the server's type 2 message (challenge) with a suitable response.
 
-  PROMPT, OVERWRITE, and REALM are ignored.
+PROMPT, OVERWRITE, and REALM are ignored.
 
-  ARGS is expected to contain the WWW-Authentication header from
-  the server's last response. These are used by
-  `url-http-get-stage' to determine what stage we are at."
+ARGS is expected to contain the WWW-Authentication header from
+the server's last response.  These are used by
+`url-http-get-stage' to determine what stage we are at."
   (url-ntlm-ensure-keepalive)
   (let ((stage (url-ntlm-get-stage args)))
     (case stage
@@ -92,12 +93,14 @@ Note that for any server, only one user and password is ever stored.")
        (url-http-ntlm-authorisation url :clear)))))
 
 (defun url-ntlm-ensure-keepalive ()
+  "Report an error if `url-http-attempt-keepalives' is not set."
   (assert url-http-attempt-keepalives
           nil
           (concat "NTLM authentication won't work unless"
                   " `url-http-attempt-keepalives' is set!")))
 
 (defun url-ntlm-clean-headers ()
+  "Remove Authorization element from `url-http-extra-headers' alist."
   (setq url-http-extra-headers
         (url-http-ntlm-rmssoc "Authorization" url-http-extra-headers)))
 
@@ -109,7 +112,7 @@ This is used to detect multiple calls.")
 (defun url-ntlm-get-stage (args)
   "Determine what stage of the NTLM handshake we are at.
 PROMPT and ARGS come from `url-ntlm-auth''s caller,
-`url-get-authentication'. Their meaning depends on the current
+`url-get-authentication'.  Their meaning depends on the current
 implementation - this function is well and truly coupled.
 
 url-get-authentication' calls `url-ntlm-auth' once when checking
@@ -144,9 +147,10 @@ response's \"WWW-Authenticate\" header, munged by
           stage))))
 
 (defun url-http-ntlm-authorisation (url &optional clear)
-  "Get or clear NTLM authentication details for URL. If CLEAR is
-  non-nil, clear any saved credentials for server. Otherwise,
-  return the credentials, prompting the user if necessary.
+  "Get or clear NTLM authentication details for URL.
+If CLEAR is non-nil, clear any saved credentials for server.
+Otherwise, return the credentials, prompting the user if
+necessary.
 
 If URL contains a username and a password, they are used and
 stored credentials are not affected.
@@ -190,8 +194,7 @@ stored."
             stored))))
 
 (defun url-http-ntlm-get-challenge ()
-  "Return the NTLM Type-2 message in the WWW-Authenticate header,
-if it is there."
+  "Return the NTLM Type-2 message in the WWW-Authenticate header, if present."
   (save-restriction
     (mail-narrow-to-head)
     (let ((www-authenticate (mail-fetch-field "www-authenticate")))
@@ -200,9 +203,11 @@ if it is there."
         (base64-decode-string (match-string 1 www-authenticate))))))
 
 (defun url-http-ntlm-rmssoc (key alist)
+  "Remove all elements whose `car' match KEY from ALIST."
   (remove* key alist :key 'car :test 'equal))
 
 (defun url-http-ntlm-string (data)
+  "Return DATA encoded as an NTLM string."
   (concat "NTLM " (base64-encode-string data :nobreak)))
 
 (url-register-auth-scheme "ntlm" nil 8)
