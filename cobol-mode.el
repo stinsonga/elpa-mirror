@@ -70,26 +70,6 @@
   "Return a predicate to check whether a value is in the LIST."
   #'(lambda (value) (memq value list)))
 
-;; (defconst cobol-standards
-;;   '(1960 1968 1974 1985 2002 2014)
-;;   "The accepted values for cobol-standard.")
-
-;; (defcustom cobol-standard '2014
-;;   "Default version of the COBOL standard in COBOL mode."
-;;   :type (radio-of-list cobol-standards)
-;;   :safe (val-in-list-p cobol-standards)
-;;   :group 'cobol-highlight)
-
-;; (defconst cobol-dialects
-;;   '(Managed-COBOL MicroFocus GNU-COBOL Standard)
-;;   "The accepted values for cobol-dialect.")
-
-;; (defcustom cobol-dialect 'Standard
-;;   "Default version of the COBOL standard in COBOL mode."
-;;   :type (radio-of-list cobol-dialects)
-;;   :safe (val-in-list-p cobol-dialects)
-;;   :group 'cobol-highlight)
-
 (defcustom cobol-declaration-clause-indent 40
   "Column to indent data division declaration clauses to."
   :type 'integer
@@ -2245,8 +2225,8 @@ DECLARATIVES.")
   "Regexp matching any declaration.")
 
 (defconst cobol--blank-line-re
-  (concat "^" cobol--optional-whitespace-re "$")
-  "Regexp matching a blank line.")
+  (cobol--with-opt-whitespace-line "\\.?$")
+  "Regexp matching a blank line with optional period.")
 
 ;;; Font lock
 
