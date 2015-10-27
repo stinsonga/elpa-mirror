@@ -53,41 +53,6 @@ The username can contain the domain name, in the form \"user@domain\".
 
 Note that for any server, only one user and password is ever stored.")
 
-(defun url-ntlm-auth (url &optional prompt overwrite realm args)
-  "Return an NTLM HTTP authorization header.
-Get the contents of the Authorization header for a HTTP response
-using NTLM authentication, to access URL.  Because NTLM is a
-two-step process, this function expects to be called twice, first
-to generate the NTLM type 1 message (request), then to respond to
-the server's type 2 message (challenge) with a suitable response.
-
-PROMPT, OVERWRITE, and REALM are ignored.
-
-ARGS is expected to contain the WWW-Authentication header from
-the server's last response.  These are used by
-`url-http-get-stage' to determine what stage we are at."
-  (url-http-ntlm-ensure-keepalive)
-  (let ((stage (url-http-ntlm-get-stage args)))
-    (case stage
-      ;; NTLM Type 1 message: the request
-      (:request
-       (destructuring-bind (&optional server user hash)
-	   (url-http-ntlm-authorisation url)
-	 (when server
-	   (url-http-ntlm-string
-	    (ntlm-build-auth-request user server)))))
-      ;; NTLM Type 3 message: the response
-      (:response
-       (let ((challenge (url-http-ntlm-get-challenge)))
-	 (destructuring-bind (server user hash)
-	     (url-http-ntlm-authorisation url)
-	   (url-http-ntlm-string
-	    (ntlm-build-auth-response challenge
-				      user
-				      hash)))))
-      (:error
-       (url-http-ntlm-authorisation url :clear)))))
-
 (defun url-http-ntlm-ensure-keepalive ()
   "Report an error if `url-http-attempt-keepalives' is not set."
   (assert url-http-attempt-keepalives
@@ -203,6 +168,41 @@ stored."
 (defun url-http-ntlm-string (data)
   "Return DATA encoded as an NTLM string."
   (concat "NTLM " (base64-encode-string data :nobreak)))
+
+(defun url-ntlm-auth (url &optional prompt overwrite realm args)
+  "Return an NTLM HTTP authorization header.
+Get the contents of the Authorization header for a HTTP response
+using NTLM authentication, to access URL.  Because NTLM is a
+two-step process, this function expects to be called twice, first
+to generate the NTLM type 1 message (request), then to respond to
+the server's type 2 message (challenge) with a suitable response.
+
+PROMPT, OVERWRITE, and REALM are ignored.
+
+ARGS is expected to contain the WWW-Authentication header from
+the server's last response.  These are used by
+`url-http-get-stage' to determine what stage we are at."
+  (url-http-ntlm-ensure-keepalive)
+  (let ((stage (url-http-ntlm-get-stage args)))
+    (case stage
+      ;; NTLM Type 1 message: the request
+      (:request
+       (destructuring-bind (&optional server user hash)
+	   (url-http-ntlm-authorisation url)
+	 (when server
+	   (url-http-ntlm-string
+	    (ntlm-build-auth-request user server)))))
+      ;; NTLM Type 3 message: the response
+      (:response
+       (let ((challenge (url-http-ntlm-get-challenge)))
+	 (destructuring-bind (server user hash)
+	     (url-http-ntlm-authorisation url)
+	   (url-http-ntlm-string
+	    (ntlm-build-auth-response challenge
+				      user
+				      hash)))))
+      (:error
+       (url-http-ntlm-authorisation url :clear)))))
 
 (url-register-auth-scheme "ntlm" nil 8)
 
