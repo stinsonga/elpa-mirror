@@ -53,6 +53,11 @@ The username can contain the domain name, in the form \"user@domain\".
 
 Note that for any server, only one user and password is ever stored.")
 
+(defvar url-http-ntlm-last-args nil
+  "Stores the last `url-http-ntlm-get-stage' arguments and return value.
+This is used to detect multiple calls.")
+(make-variable-buffer-local 'url-http-ntlm-last-args)
+
 (defun url-http-ntlm-ensure-keepalive ()
   "Report an error if `url-http-attempt-keepalives' is not set."
   (assert url-http-attempt-keepalives
@@ -64,11 +69,6 @@ Note that for any server, only one user and password is ever stored.")
   "Remove Authorization element from `url-http-extra-headers' alist."
   (setq url-http-extra-headers
 	(url-http-ntlm-rmssoc "Authorization" url-http-extra-headers)))
-
-(defvar url-http-ntlm-last-args nil
-  "Stores the last `url-http-ntlm-get-stage' arguments and return value.
-This is used to detect multiple calls.")
-(make-variable-buffer-local 'url-http-ntlm-last-args)
 
 (defun url-http-ntlm-get-stage (args)
   "Determine what stage of the NTLM handshake we are at.
