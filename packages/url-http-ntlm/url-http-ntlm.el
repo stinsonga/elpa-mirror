@@ -43,6 +43,8 @@
 (require 'cl)
 (require 'ntlm)
 
+
+;;; Private variables.
 (defvar url-http-ntlm--auth-storage nil
   "Authentication storage.
 An alist that maps a server name to a pair of \(<username> <ntlm
@@ -58,6 +60,8 @@ Note that for any server, only one user and password is ever stored.")
 This is used to detect multiple calls.")
 (make-variable-buffer-local 'url-http-ntlm--last-args)
 
+
+;;; Private functions.
 (defun url-http-ntlm--ensure-keepalive ()
   "Report an error if `url-http-attempt-keepalives' is not set."
   (assert url-http-attempt-keepalives
@@ -169,6 +173,8 @@ stored."
   "Return DATA encoded as an NTLM string."
   (concat "NTLM " (base64-encode-string data :nobreak)))
 
+
+;;; Public function called by `url-get-authentication'.
 (defun url-ntlm-auth (url &optional prompt overwrite realm args)
   "Return an NTLM HTTP authorization header.
 Get the contents of the Authorization header for a HTTP response
@@ -204,6 +210,8 @@ the server's last response.  These are used by
       (:error
        (url-http-ntlm--authorisation url :clear)))))
 
+
+;;; Register `url-ntlm-auth' HTTP authentication method.
 (url-register-auth-scheme "ntlm" nil 8)
 
 (provide 'url-http-ntlm)
