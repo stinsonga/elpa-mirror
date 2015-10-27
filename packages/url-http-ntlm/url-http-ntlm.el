@@ -43,6 +43,13 @@
 (require 'cl-lib)
 (require 'ntlm)
 
+;; Remove authorization after redirect.
+(when (and (boundp 'emacs-major-version)
+	   (< emacs-major-version 25))
+  (require (intern (format "url-http-ntlm-parse-headers-%d.%d"
+			   emacs-major-version
+			   emacs-minor-version))))
+
 
 ;;; Private variables.
 (defvar url-http-ntlm--auth-storage nil
