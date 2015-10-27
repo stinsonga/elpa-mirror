@@ -40,7 +40,7 @@
 (require 'url-auth)
 (require 'url-http)
 (require 'mail-parse)
-(require 'cl)
+(require 'cl-lib)
 (require 'ntlm)
 
 
@@ -64,10 +64,10 @@ This is used to detect multiple calls.")
 ;;; Private functions.
 (defun url-http-ntlm--ensure-keepalive ()
   "Report an error if `url-http-attempt-keepalives' is not set."
-  (assert url-http-attempt-keepalives
-	  nil
-	  (concat "NTLM authentication won't work unless"
-		  " `url-http-attempt-keepalives' is set!")))
+  (cl-assert url-http-attempt-keepalives
+	     nil
+	     (concat "NTLM authentication won't work unless"
+		     " `url-http-attempt-keepalives' is set!")))
 
 (defun url-http-ntlm--clean-headers ()
   "Remove Authorization element from `url-http-extra-headers' alist."
@@ -99,7 +99,7 @@ response's \"WWW-Authenticate\" header, munged by
 						   (cdr auth-header)))
 		    :error)
 		   ((and (= (length args) 2)
-			 (destructuring-bind (challenge ntlm) args
+			 (cl-destructuring-bind (challenge ntlm) args
 			   (and (string-equal "ntlm" (car ntlm))
 				(string-match challenge-rxp
 					      (car challenge)))))
@@ -137,7 +137,7 @@ stored."
 	  nil)
       ;; get
       (if (or both
-	      (and stored user (not (equal user (second stored))))
+	      (and stored user (not (equal user (cl-second stored))))
 	      (not stored))
 	  (let* ((user* (if both
 			    user
@@ -167,7 +167,7 @@ stored."
 
 (defun url-http-ntlm--rmssoc (key alist)
   "Remove all elements whose `car' match KEY from ALIST."
-  (remove* key alist :key 'car :test 'equal))
+  (cl-remove key alist :key 'car :test 'equal))
 
 (defun url-http-ntlm--string (data)
   "Return DATA encoded as an NTLM string."
@@ -190,10 +190,10 @@ the server's last response.  These are used by
 `url-http-get-stage' to determine what stage we are at."
   (url-http-ntlm--ensure-keepalive)
   (let ((stage (url-http-ntlm--get-stage args)))
-    (case stage
+    (cl-case stage
       ;; NTLM Type 1 message: the request
       (:request
-       (destructuring-bind (&optional server user hash)
+       (cl-destructuring-bind (&optional server user hash)
 	   (url-http-ntlm--authorisation url)
 	 (when server
 	   (url-http-ntlm--string
@@ -201,7 +201,7 @@ the server's last response.  These are used by
       ;; NTLM Type 3 message: the response
       (:response
        (let ((challenge (url-http-ntlm--get-challenge)))
-	 (destructuring-bind (server user hash)
+	 (cl-destructuring-bind (server user hash)
 	     (url-http-ntlm--authorisation url)
 	   (url-http-ntlm--string
 	    (ntlm-build-auth-response challenge
