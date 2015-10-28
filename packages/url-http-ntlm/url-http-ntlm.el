@@ -67,8 +67,42 @@ Note that for any server, only one user and password is ever stored.")
 This is used to detect multiple calls.")
 (make-variable-buffer-local 'url-http-ntlm--last-args)
 
+(defvar url-http-ntlm--loop-timer-counter nil
+  "A hash table used to detect NTLM negotiation errors.
+Keys are urls, entries are (START-TIME . COUNTER).")
+
 
 ;;; Private functions.
+(defun url-http-ntlm--detect-loop (url)
+  "Detect potential infinite loop when NTLM fails on URL."
+  (when (not url-http-ntlm--loop-timer-counter)
+    (setq url-http-ntlm--loop-timer-counter (make-hash-table :test 'equal)))
+  (let* ((url-string (url-recreate-url url))
+	 (last-entry (gethash url-string url-http-ntlm--loop-timer-counter))
+	 (start-time (car last-entry))
+	 (counter (cdr last-entry)))
+    (if last-entry
+	(progn
+	  (if (< (-  (float-time) start-time) 10.0)
+	      (if (< counter 20)
+		  ;; Still within time window, so increment count.
+		  (puthash url-string (cons start-time (1+ counter))
+			   url-http-ntlm--loop-timer-counter)
+		;; Error detected, so remove entry and clear.
+		(url-http-ntlm--authorisation url-string :clear)
+		(remhash url-string url-http-ntlm--loop-timer-counter)
+		(error
+		 (format (concat "Access rate to %s is too high,"
+				 " indicating an NTLM failure;"
+				 " to debug, re-run with url-debug set to 1")
+			 url-string)))
+	    ;; Timeout expired, so reset counter.
+	    (puthash url-string (cons (float-time) 0)
+		     url-http-ntlm--loop-timer-counter)))
+      ;; New access, so initialize counter to 0.
+      (puthash url-string (cons (float-time) 0)
+	       url-http-ntlm--loop-timer-counter))))
+
 (defun url-http-ntlm--ensure-keepalive ()
   "Report an error if `url-http-attempt-keepalives' is not set."
   (cl-assert url-http-attempt-keepalives
@@ -200,6 +234,7 @@ the server's last response.  These are used by
     (cl-case stage
       ;; NTLM Type 1 message: the request
       (:request
+       (url-http-ntlm--detect-loop user-url)
        (cl-destructuring-bind (&optional server user hash)
 	   (url-http-ntlm--authorisation url)
 	 (when server
@@ -207,6 +242,7 @@ the server's last response.  These are used by
 	    (ntlm-build-auth-request user server)))))
       ;; NTLM Type 3 message: the response
       (:response
+       (url-http-ntlm--detect-loop user-url)
        (let ((challenge (url-http-ntlm--get-challenge)))
 	 (cl-destructuring-bind (server user hash)
 	     (url-http-ntlm--authorisation url)
