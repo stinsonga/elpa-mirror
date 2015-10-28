@@ -4,7 +4,7 @@
 
 ;; Author: Filipp Gunbin <fgunbin@fastmail.fm>
 ;; Maintainer: Filipp Gunbin <fgunbin@fastmail.fm>
-;; Version: 0.5
+;; Version: 0.6
 ;; Keywords: java, maven, programming
 
 ;;; Commentary:
