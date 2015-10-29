@@ -238,6 +238,7 @@ stored credentials are not affected."
 
 
 ;;; Public function called by `url-get-authentication'.
+;;;###autoload
 (defun url-ntlm-auth (url &optional prompt overwrite realm args)
   "Return an NTLM HTTP authorization header.
 Get the contents of the Authorization header for a HTTP response
@@ -278,6 +279,7 @@ the server's last response.  These are used by
 
 
 ;;; Register `url-ntlm-auth' HTTP authentication method.
+;;;###autoload
 (url-register-auth-scheme "ntlm" nil 8)
 
 (provide 'url-http-ntlm)
