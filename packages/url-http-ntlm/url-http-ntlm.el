@@ -22,7 +22,6 @@
 ;;; Commentary:
 ;;
 ;; This package provides a NTLM handler for the URL package.
-;; It supports one username and password per server.
 ;;
 ;; Installation:
 ;;
@@ -57,10 +56,7 @@
 An alist that maps a server name to a pair of \(<username> <ntlm
 hashes>\).
 
-The hashes are built using `ntlm-get-password-hashes'.
-The username can contain the domain name, in the form \"user@domain\".
-
-Note that for any server, only one user and password is ever stored.")
+The hashes are built using `ntlm-get-password-hashes'.")
 
 (defvar url-http-ntlm--last-args nil
   "Stores the last `url-http-ntlm--get-stage' arguments and return value.
@@ -70,6 +66,10 @@ This is used to detect multiple calls.")
 (defvar url-http-ntlm--loop-timer-counter nil
   "A hash table used to detect NTLM negotiation errors.
 Keys are urls, entries are (START-TIME . COUNTER).")
+
+(defvar url-http-ntlm--default-users nil
+  "An alist that maps each server to the default username for
+that server.")
 
 
 ;;; Private functions.
@@ -102,6 +102,17 @@ Keys are urls, entries are (START-TIME . COUNTER).")
       ;; New access, so initialize counter to 0.
       (puthash url-string (cons (float-time) 0)
 	       url-http-ntlm--loop-timer-counter))))
+
+(defun url-http-ntlm--ensure-user (url)
+  "Return URL with its user slot set.
+If URL's user slot is nil, set it to the last user that made a
+request to the host in URL's server slot."
+  (let ((new-url url))
+    (if (url-user new-url)
+	new-url
+      (setf (url-user new-url)
+	    (cdr (assoc (url-host new-url) url-http-ntlm--default-users)))
+      new-url)))
 
 (defun url-http-ntlm--ensure-keepalive ()
   "Report an error if `url-http-attempt-keepalives' is not set."
@@ -151,49 +162,58 @@ response's \"WWW-Authenticate\" header, munged by
 	(setq url-http-ntlm--last-args (cons args stage))
 	stage))))
 
-(defun url-http-ntlm--authorisation (url &optional clear)
+(defun url-http-ntlm--authorisation (url &optional clear realm)
   "Get or clear NTLM authentication details for URL.
 If CLEAR is non-nil, clear any saved credentials for server.
 Otherwise, return the credentials, prompting the user if
-necessary.
+necessary.  REALM appears in the prompt.
 
 If URL contains a username and a password, they are used and
-stored credentials are not affected.
-
-Note that for any server, only one user and password is ever
-stored."
-  (let* ((href	 (if (stringp url)
+stored credentials are not affected."
+  (let* ((href   (if (stringp url)
 		     (url-generic-parse-url url)
 		   url))
+	 (type   (url-type href))
+	 (user   (url-user href))
 	 (server (url-host href))
-	 (user	 (url-user href))
-	 (pass	 (url-password href))
-	 (stored (assoc server url-http-ntlm--auth-storage))
-	 (both	 (and user pass)))
+	 (port   (url-portspec href))
+	 (pass   (url-password href))
+	 (stored (assoc (list type user server port)
+			url-http-ntlm--auth-storage))
+	 (both   (and user pass)))
     (if clear
 	;; clear
 	(unless both
+	  (setq url-http-ntlm--default-users
+		(url-http-ntlm--rmssoc server url-http-ntlm--default-users))
 	  (setq url-http-ntlm--auth-storage
-		(url-http-ntlm--rmssoc server url-http-ntlm--auth-storage))
+		(url-http-ntlm--rmssoc '(type user* server port)
+				       url-http-ntlm--auth-storage))
 	  nil)
       ;; get
       (if (or both
-	      (and stored user (not (equal user (cl-second stored))))
+	      (and stored user (not (equal user (cl-second (car stored)))))
 	      (not stored))
-	  (let* ((user* (if both
-			    user
-			  (read-string (url-auth-user-prompt url realm)
-				       (or user (user-real-login-name)))))
+	  (let* ((user* (or user
+			    (read-string (url-auth-user-prompt url realm)
+					 (or user (user-real-login-name)))))
 		 (pass* (if both
 			    pass
-			  (read-passwd "Password: ")))
-		 (entry `(,server . (,user*
-				     ,(ntlm-get-password-hashes pass*)))))
+			  (read-passwd (format "Password [for %s]: "
+					       (url-recreate-url url)))))
+		 (key   (list type user* server port))
+		 (entry `(,key . (,(ntlm-get-password-hashes pass*)))))
 	    (unless both
+	      (setq url-http-ntlm--default-users
+		    (cons
+		     `(,server . ,user*)
+		     (url-http-ntlm--rmssoc server
+					    url-http-ntlm--default-users)))
 	      (setq url-http-ntlm--auth-storage
 		    (cons entry
-			  (url-http-ntlm--rmssoc server
-						 url-http-ntlm--auth-storage))))
+			  (url-http-ntlm--rmssoc
+			   key
+			   url-http-ntlm--auth-storage))))
 	    entry)
 	stored))))
 
@@ -230,28 +250,29 @@ ARGS is expected to contain the WWW-Authentication header from
 the server's last response.  These are used by
 `url-http-get-stage' to determine what stage we are at."
   (url-http-ntlm--ensure-keepalive)
-  (let ((stage (url-http-ntlm--get-stage args)))
+  (let* ((user-url (url-http-ntlm--ensure-user url))
+	 (stage (url-http-ntlm--get-stage args)))
     (cl-case stage
       ;; NTLM Type 1 message: the request
       (:request
        (url-http-ntlm--detect-loop user-url)
-       (cl-destructuring-bind (&optional server user hash)
-	   (url-http-ntlm--authorisation url)
-	 (when server
+       (cl-destructuring-bind (&optional key hash)
+	   (url-http-ntlm--authorisation user-url nil realm)
+	 (when (cl-third key)
 	   (url-http-ntlm--string
-	    (ntlm-build-auth-request user server)))))
+	    (ntlm-build-auth-request (cl-second key) (cl-third key))))))
       ;; NTLM Type 3 message: the response
       (:response
        (url-http-ntlm--detect-loop user-url)
        (let ((challenge (url-http-ntlm--get-challenge)))
-	 (cl-destructuring-bind (server user hash)
-	     (url-http-ntlm--authorisation url)
+	 (cl-destructuring-bind (key hash)
+	     (url-http-ntlm--authorisation user-url nil realm)
 	   (url-http-ntlm--string
 	    (ntlm-build-auth-response challenge
-				      user
+				      (cl-second key)
 				      hash)))))
       (:error
-       (url-http-ntlm--authorisation url :clear)))))
+       (url-http-ntlm--authorisation user-url :clear)))))
 
 
 ;;; Register `url-ntlm-auth' HTTP authentication method.
