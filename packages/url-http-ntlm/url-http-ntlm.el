@@ -123,6 +123,7 @@ request to the host in URL's server slot."
 
 (defun url-http-ntlm--clean-headers ()
   "Remove Authorization element from `url-http-extra-headers' alist."
+  (cl-declare (special url-http-extra-headers))
   (setq url-http-extra-headers
 	(url-http-ntlm--rmssoc "Authorization" url-http-extra-headers)))
 
@@ -138,6 +139,7 @@ nil), and then twice for every stage of the handshake: the first
 time PROMPT is nil, the second, t; ARGS contains the server
 response's \"WWW-Authenticate\" header, munged by
 `url-parse-args'."
+  (cl-declare (special url-http-extra-headers))
   (let* ((response-rxp	   "^NTLM TlRMTVNTUAADAAA")
 	 (challenge-rxp	   "^TLRMTVNTUAACAAA")
 	 (auth-header	   (assoc "Authorization" url-http-extra-headers))
