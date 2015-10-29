@@ -197,12 +197,14 @@ stored credentials are not affected."
 	      (and stored user (not (equal user (cl-second (car stored)))))
 	      (not stored))
 	  (let* ((user* (or user
+			    (url-do-auth-source-search server type :user)
 			    (read-string (url-auth-user-prompt url realm)
 					 (or user (user-real-login-name)))))
 		 (pass* (if both
 			    pass
-			  (read-passwd (format "Password [for %s]: "
-					       (url-recreate-url url)))))
+			  (or (url-do-auth-source-search server type :secret)
+			      (read-passwd (format "Password [for %s]: "
+						   (url-recreate-url url))))))
 		 (key   (list type user* server port))
 		 (entry `(,key . (,(ntlm-get-password-hashes pass*)))))
 	    (unless both
