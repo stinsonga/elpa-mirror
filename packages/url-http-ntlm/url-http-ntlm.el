@@ -90,7 +90,7 @@ that server.")
 		  (puthash url-string (cons start-time (1+ counter))
 			   url-http-ntlm--loop-timer-counter)
 		;; Error detected, so remove entry and clear.
-		(url-http-ntlm--authorisation url-string :clear)
+		(url-http-ntlm--authorization url-string :clear)
 		(remhash url-string url-http-ntlm--loop-timer-counter)
 		(error
 		 (format (concat "Access rate to %s is too high,"
@@ -165,7 +165,7 @@ response's \"WWW-Authenticate\" header, munged by
 	(setq url-http-ntlm--last-args (cons args stage))
 	stage))))
 
-(defun url-http-ntlm--authorisation (url &optional clear realm)
+(defun url-http-ntlm--authorization (url &optional clear realm)
   "Get or clear NTLM authentication details for URL.
 If CLEAR is non-nil, clear any saved credentials for server.
 Otherwise, return the credentials, prompting the user if
@@ -263,7 +263,7 @@ the server's last response.  These are used by
       (:request
        (url-http-ntlm--detect-loop user-url)
        (cl-destructuring-bind (&optional key hash)
-	   (url-http-ntlm--authorisation user-url nil realm)
+	   (url-http-ntlm--authorization user-url nil realm)
 	 (when (cl-third key)
 	   (url-http-ntlm--string
 	    (ntlm-build-auth-request (cl-second key) (cl-third key))))))
@@ -272,13 +272,13 @@ the server's last response.  These are used by
        (url-http-ntlm--detect-loop user-url)
        (let ((challenge (url-http-ntlm--get-challenge)))
 	 (cl-destructuring-bind (key hash)
-	     (url-http-ntlm--authorisation user-url nil realm)
+	     (url-http-ntlm--authorization user-url nil realm)
 	   (url-http-ntlm--string
 	    (ntlm-build-auth-response challenge
 				      (cl-second key)
 				      hash)))))
       (:error
-       (url-http-ntlm--authorisation user-url :clear)))))
+       (url-http-ntlm--authorization user-url :clear)))))
 
 
 ;;; Register `url-ntlm-auth' HTTP authentication method.
