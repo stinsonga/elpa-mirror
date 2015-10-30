@@ -26,6 +26,7 @@
 
 (require 'ert)
 (require 'hydra)
+(setq text-quoting-style 'grave)
 (message "Emacs version: %s" emacs-version)
 
 (ert-deftest hydra-red-error ()
