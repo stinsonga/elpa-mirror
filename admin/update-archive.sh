@@ -96,9 +96,10 @@ latest="emacs-packages-latest.tgz"
 (cd ../
  mkdir -p staging/packages
  # Not sure why we have `staging-old', but let's keep it for now.
+ mkdir -p staging-old
  rsync -av --inplace --delete staging/. staging-old/.
  # Move new files into place but don't throw out old package versions.
- for f in build/archive/packages/*; do
+ for f in $buildir/archive/packages/*; do
      # PKG-VER
      pv=$(basename "$f")
      dst="staging/packages/$pv"
@@ -118,10 +119,10 @@ latest="emacs-packages-latest.tgz"
              fi ;;
      esac
  done
- mv build/archive/"$latest" staging/
- rm -rf build/archive)
+ mv $buildir/archive/"$latest" staging/
+ rm -rf $buildid/archive)
 
 # Make the HTML and readme.txt files.
 (cd ../staging/packages
- emacs --batch -l ../../build/admin/archive-contents.el \
+ emacs --batch -l $buildir/admin/archive-contents.el \
        --eval '(batch-html-make-index)')
