@@ -5,6 +5,7 @@
 ;; Author: Tom Schutzer-Weissmann <tom.weissmann@gmail.com>
 ;; Maintainer: Thomas Fitzsimmons <fitzsim@fitzsim.org>
 ;; Keywords: comm, data, processes, hypermedia
+;; Homepage: https://code.google.com/p/url-http-ntlm/
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
