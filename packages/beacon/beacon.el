@@ -5,8 +5,8 @@
 ;; Author: Artur Malabarba <emacs@endlessparentheses.com>
 ;; URL: https://github.com/Malabarba/beacon
 ;; Keywords: convenience
-;; Version: 0.3
-;; Package-Requires: ((seq "1.9"))
+;; Version: 0.4
+;; Package-Requires: ((seq "1.11"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -53,11 +53,18 @@ Otherwise this should be a number, and `beacon' will push the
 mark whenever point moves more than that many lines."
   :type '(choice integer (const nil)))
 
-(defcustom beacon-blink-when-point-moves nil
-  "Should the beacon blink when moving a long distance?
-If nil, don't blink due to plain movement.
+(defcustom beacon-blink-when-point-moves-vertically nil
+  "Should the beacon blink when moving a long distance vertically?
+If nil, don't blink due to vertical movement.
 If non-nil, this should be an integer, which is the minimum
 movement distance (in lines) that triggers a beacon blink."
+  :type '(choice integer (const nil)))
+
+(defcustom beacon-blink-when-point-moves-horizontally nil
+  "Should the beacon blink when moving a long distance horizontally?
+If nil, don't blink due to horizontal movement.
+If non-nil, this should be an integer, which is the minimum
+movement distance (in columns) that triggers a beacon blink."
   :type '(choice integer (const nil)))
 
 (defcustom beacon-blink-when-buffer-changes t
@@ -102,6 +109,13 @@ number is a float between 0 and 1 specifing the brightness.
 If it is a string, it is a color name or specification,
 e.g. \"#666600\"."
   :type '(choice number color))
+
+(defface beacon-fallback-background
+  '((((class color) (background light)) (:background "black"))
+    (((class color) (background dark)) (:background "white")))
+  "Fallback beacon background color.
+Used in cases where the color can't be determined by Emacs.
+Only the background of this face is used.")
 
 (defvar beacon-dont-blink-predicates nil
   "A list of predicates that prevent the beacon blink.
@@ -197,9 +211,9 @@ COLORS applied to each one."
 
 (defun beacon--ov-at-point ()
   (car (or (seq-filter (lambda (o) (overlay-get o 'beacon))
-                     (overlays-in (point) (point)))
+                       (overlays-in (point) (point)))
            (seq-filter (lambda (o) (overlay-get o 'beacon))
-                     (overlays-at (point))))))
+                       (overlays-at (point))))))
 
 (defun beacon--vanish ()
   "Turn off the beacon."
@@ -221,14 +235,17 @@ Only returns `beacon-size' elements."
 
 (defun beacon--color-range ()
   "Return a list of background colors for the beacon."
-  (let* ((bg (color-values (face-attribute 'default :background)))
+  (let* ((default-bg (face-attribute 'default :background))
+         (bg (color-values (if (string-match "\\`unspecified-" default-bg)
+                               (face-attribute 'beacon-fallback-background :background)
+                             default-bg)))
          (fg (cond
               ((stringp beacon-color) (color-values beacon-color))
               ((< (color-distance "black" bg)
                   (color-distance "white" bg))
                (make-list 3 (* beacon-color 65535)))
               (t (make-list 3 (* (- 1 beacon-color) 65535))))))
-    (apply #'cl-mapcar (lambda (r g b) (format "#%04x%04x%04x" r g b))
+    (apply #'seq-mapn (lambda (r g b) (format "#%04x%04x%04x" r g b))
            (mapcar (lambda (n) (butlast (beacon--int-range (elt fg n) (elt bg n))))
                    [0 1 2]))))
 
@@ -284,26 +301,34 @@ Only returns `beacon-size' elements."
 
 
 ;;; Movement detection
-(defun beacon--movement-> (delta)
-  "Return non-nil if latest point movement is > DELTA.
-If DELTA is nil, return nil."
-  (and delta
+(defun beacon--movement-> (delta-y &optional delta-x)
+  "Return non-nil if latest vertical movement is > DELTA-Y.
+If DELTA-Y is nil, return nil.
+The same is true for DELTA-X and horizonta movement."
+  (and delta-y
        (markerp beacon--previous-place)
        (equal (marker-buffer beacon--previous-place)
               (current-buffer))
        ;; Quick check that prevents running the code below in very
        ;; short movements (like typing).
        (> (abs (- (point) beacon--previous-place))
-          delta)
-       ;; Check if the movement was >= DELTA lines by moving DELTA
-       ;; lines. `count-screen-lines' is too slow if the movement had
-       ;; thousands of lines.
-       (save-excursion
-         (let ((p (point)))
-           (goto-char (min beacon--previous-place p))
-           (vertical-motion delta)
-           (> (max p beacon--previous-place)
-              (line-beginning-position))))))
+          delta-y)
+       ;; Col movement.
+       (or (and delta-x
+                (> (abs (- (current-column)
+                           (save-excursion
+                             (goto-char beacon--previous-place)
+                             (current-column))))
+                   delta-x))
+           ;; Check if the movement was >= DELTA lines by moving DELTA
+           ;; lines. `count-screen-lines' is too slow if the movement had
+           ;; thousands of lines.
+           (save-excursion
+             (let ((p (point)))
+               (goto-char (min beacon--previous-place p))
+               (vertical-motion delta-y)
+               (> (max p beacon--previous-place)
+                  (line-beginning-position)))))))
 
 (defun beacon--maybe-push-mark ()
   "Push mark if it seems to be safe."
@@ -312,7 +337,7 @@ If DELTA is nil, return nil."
     (let ((head (car mark-ring)))
       (when (and (eq beacon--previous-mark-head head)
                  (not (equal head beacon--previous-place)))
-        (push-mark beacon--previous-place)))))
+        (push-mark beacon--previous-place 'silent)))))
 
 (defun beacon--post-command ()
   "Blink if point moved very far."
@@ -324,12 +349,12 @@ If DELTA is nil, return nil."
          (not (eq beacon--previous-window (selected-window))))
     (beacon-blink))
    ;; Blink for scrolling.
-   ((and beacon-blink-when-window-scrolls
-         beacon--window-scrolled
+   ((and beacon--window-scrolled
          (equal beacon--window-scrolled (selected-window)))
     (beacon-blink))
    ;; Blink for movement
-   ((beacon--movement-> beacon-blink-when-point-moves)
+   ((beacon--movement-> beacon-blink-when-point-moves-vertically
+                  beacon-blink-when-point-moves-horizontally)
     (beacon-blink))
    ;; Even if we don't blink, vanish any previous beacon.
    (t (beacon--vanish)))
@@ -345,8 +370,9 @@ scrolled window might not be active, but we only know that at
 
 If invoked outside the command loop, `post-command-hook' would be
 unreliable, so just blink immediately."
-  (unless (and (equal beacon--previous-window-start start-pos)
-               (equal beacon--previous-window win))
+  (unless (or (and (equal beacon--previous-window-start start-pos)
+                   (equal beacon--previous-window win))
+              (not beacon-blink-when-window-scrolls))
     (if this-command
         (setq beacon--window-scrolled win)
       (setq beacon--window-scrolled nil)
