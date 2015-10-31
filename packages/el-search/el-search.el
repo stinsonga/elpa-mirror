@@ -561,22 +561,18 @@ return nil (no error)."
         (apply #'move-overlay el-search-hl-overlay bounds)
       (overlay-put (setq el-search-hl-overlay (apply #'make-overlay bounds))
                    'face 'el-search-match)))
-  (add-hook 'post-command-hook (el-search-hl-post-command-fun (current-buffer)) t t))
+  (add-hook 'post-command-hook #'el-search-hl-post-command-fun t t))
 
 (defun el-search-hl-remove ()
   (when (overlayp el-search-hl-overlay)
     (delete-overlay el-search-hl-overlay)))
 
-(defun el-search-hl-post-command-fun (buf)
-  (letrec ((fun (lambda ()
-                  (when (buffer-live-p buf)
-                    (unless (or el-search-keep-hl
-                                (eq this-command 'el-search-query-replace)
-                                (eq this-command 'el-search-pattern))
-                      (with-current-buffer buf
-                        (el-search-hl-remove)
-                        (remove-hook 'post-command-hook fun t)))))))
-    fun))
+(defun el-search-hl-post-command-fun ()
+  (unless (or el-search-keep-hl
+              (eq this-command 'el-search-query-replace)
+              (eq this-command 'el-search-pattern))
+    (el-search-hl-remove)
+    (remove-hook 'post-command-hook 'el-search-hl-post-command-fun t)))
 
 
 ;;;; Core functions
