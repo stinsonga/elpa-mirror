@@ -33,14 +33,15 @@
 ;; ============
 ;;
 ;;
-;; The main user entry point is the command `el-search-pattern'.  It
+;; The main user entry point is `el-search-pattern'.  This command
 ;; prompts for a `pcase' pattern and searches the current buffer for
-;; expressions that are matched by it when read.  Point is put at the
-;; beginning of the expression found (unlike isearch).
+;; matching expressions by iteratively `read'ing buffer contents.  For
+;; any match, point is put at the beginning of the expression found
+;; (unlike isearch which puts point at the end of matches).
 ;;
 ;; It doesn't matter how the code is actually formatted.  Comments are
-;; ignored by the search, and strings are treated as objects, their
-;; contents are not being searched.
+;; ignored, and strings are treated as atomic objects, their contents
+;; are not being searched.
 ;;
 ;; Example 1: if you enter
 ;;
@@ -65,22 +66,72 @@
 ;;      ,(and s (guard (< 70 (length (car (split-string s "\n")))))))
 ;;
 ;;
+;; When a search pattern is processed, the searched buffer is current
+;; with point at the beginning of the currently tested expression.
+;;
+;;
+;; Example 3:
+;;
+;; I can be useful to use (guard EXP) patterns for side effects.
+;;
+;; The following pattern will search for symbols defined in any
+;; library whose name starts with "cl".  As a side effect, it prints
+;; the current line number, whether we have a macro or a function, and
+;; the defining file in the echo area for each match:
+;;
+;;   (and (pred symbolp)
+;;        (let file (symbol-file exp))
+;;        (guard file)
+;;        (let lib-name (file-name-sans-extension
+;;                       (file-name-nondirectory file)))
+;;        (guard (string-match-p "^cl" lib-name))
+;;        (or (and (pred macrop)    (let type "macro "))
+;;            (and (pred functionp) (let type "function "))
+;;            (let type ""))
+;;        (guard (message "Line %d: %s`%S' (from \"%s\")"
+;;                        (line-number-at-pos)
+;;                        type
+;;                        exp
+;;                        lib-name)))
+;;
+;; `message' never returns nil, so the last `guard' always "matches".
+;;
+;;
 ;; Convenience
 ;; ===========
 ;;
-;; For expression input, the minibuffer prompts here uses
-;; `emacs-lisp-mode'.
+;; For pattern input, the minibuffer is put into `emacs-lisp-mode'.
 ;;
-;; When reading a search pattern in the minibuffer, the input is
-;; automatically wrapped into `(and exp ,(read input)).  So, if you
-;; want to search a buffer for symbols that are defined in "cl-lib",
-;; you can use this pattern
+;; Any input PATTERN is silently transformed into (and exp PATTERN)
+;; so that you can always refer to the whole currently tested
+;; expression via the variable `exp'.
+;;
+;; Example 4:
+;;
+;; If you want to search a buffer for symbols that are defined in
+;; "cl-lib", you can use this pattern
 ;;
 ;;   (guard (and (symbolp exp)
 ;;               (when-let ((file (symbol-file exp)))
 ;;                 (string-match-p "cl-lib\\.elc?$" file))))
 ;;
-;; without binding the variable `exp'.
+;;
+;; ,----------------------------------------------------------------------
+;; | Q: "But I hate `pcase'!  Can't we just do without?"                 |
+;; |                                                                     |
+;; | A: Respect that you kept up until here! Just use (guard CODE), where|
+;; | CODE is any normal Elisp expression that returns non-nil when and   |
+;; | only when you have a match.  Use the variable `exp' to refer to     |
+;; | the currently tested expression.  Just like in the last example!    |
+;; `----------------------------------------------------------------------
+;;
+;;
+;; It's cumbersome to write out the same complicated pattern
+;; constructs in the minibuffer again and again.  You can define your
+;; own pcase pattern types for the purpose of el-search with
+;; `el-search-defpattern'.  It is just like `pcase-defmacro', but the
+;; effect is limited to this package.  See C-h f `el-search-pattern'
+;; for a list of predefined additional pattern forms.
 ;;
 ;;
 ;; Replacing
@@ -159,8 +210,6 @@
 ;; - implement backward searching
 ;;
 ;; - improve docstrings
-;;
-;; - add more examples
 ;;
 ;; - handle more reader syntaxes, e.g. #n, #n#
 ;;
@@ -285,13 +334,116 @@ Point must not be inside a string or comment."
         (error (forward-char))))
     res))
 
+(defvar el-search--pcase-macros '()
+  "List of additional \"el-search\" pcase macros.")
+
+(defun el-search--make-docstring ()
+  ;; code mainly from `pcase--make-docstring'
+  (let* ((main (documentation (symbol-function 'el-search-pattern) 'raw))
+         (ud (help-split-fundoc main 'pcase)))
+    (require 'help-fns)
+    (with-temp-buffer
+      (insert (or (cdr ud) main))
+      (mapc
+       (pcase-lambda (`(,symbol . ,fun))
+         (when-let ((doc (documentation fun)))
+           (insert "\n\n-- ")
+           (setq doc (help-fns--signature symbol doc nil fun nil))
+           (insert "\n" (or doc "Not documented."))))
+       (reverse el-search--pcase-macros))
+      (let ((combined-doc (buffer-string)))
+        (if ud (help-add-fundoc-usage combined-doc (car ud)) combined-doc)))))
+
+(put 'el-search-pattern 'function-documentation '(el-search--make-docstring))
+
+(defmacro el-search-defpattern (name args &rest body)
+  "Like `pcase-defmacro', but limited to el-search patterns.
+The semantics is exactly that of `pcase-defmacro', but the scope
+of the definitions is limited to \"el-search\"."
+  (declare (indent 2) (debug defun))
+  `(setf (alist-get ',name el-search--pcase-macros)
+         (lambda ,args ,@body)))
+
+(el-search-defpattern string (&rest regexps)
+  "Matches any string that is matched by all REGEXPS."
+  (let ((string (make-symbol "string"))
+        (regexp (make-symbol "regexp")))
+    `(and (pred stringp)
+          (pred (lambda (,string)
+                  (cl-every
+                   (lambda (,regexp) (string-match-p ,regexp ,string))
+                   (list ,@regexps)))))))
+
+(el-search-defpattern symbol (&rest regexps)
+  "Matches any symbol whose name is matched by all REGEXPS."
+  `(and (pred symbolp)
+        (app symbol-name (string ,@regexps))))
+
+(defun el-search--match-symbol-file (regexp symbol)
+  (when-let ((symbol-file (and (symbolp symbol)
+                               (symbol-file symbol))))
+    (string-match-p
+     (if (symbolp regexp) (concat "\\`" (symbol-name regexp) "\\'") regexp)
+     (file-name-sans-extension (file-name-nondirectory symbol-file)))))
+
+(el-search-defpattern source (regexp)
+  "Matches any symbol whose `symbol-file' is matched by REGEXP.
+
+This pattern matches when the object is a symbol for that
+`symbol-file' returns a (non-nil) FILE-NAME that fulfills
+  (string-match-p REGEXP (file-name-sans-extension
+                           (file-name-nondirectory FILENAME)))
+
+REGEXP can also be a symbol, in which case
+
+  (concat \"^\" (symbol-name regexp) \"$\")
+
+is used as regular expression."
+  `(pred (el-search--match-symbol-file ,regexp)))
+
+(defun el-search--match-key-sequence (keys expr)
+  (when-let ((expr-keys (pcase expr
+                          ((or (pred stringp) (pred vectorp))  expr)
+                          (`(kbd ,(and (pred stringp) string)) (ignore-errors (kbd string))))))
+    (apply #'equal
+           (mapcar (lambda (keys) (ignore-errors (key-description keys)))
+                   (list keys expr-keys)))))
+
+(el-search-defpattern keys (key-sequence)
+  "Matches any description of the KEY-SEQUENCE.
+KEY-SEQUENCE is a key description in a format that Emacs
+understands.
+
+This pattern matches any description of the same key sequence.
+
+Example: the pattern
+
+    (keys (kbd \"C-s\"))
+
+matches any of these expressions:
+
+    (kbd \"C-s\")
+    [(control ?s)]
+    \"\\C-s\"
+      
+Any of these could be used as equivalent KEY-SEQUENCE in terms of
+this pattern type."
+  `(pred (el-search--match-key-sequence ,key-sequence)))
+
+(defmacro el-search--with-additional-pcase-macros (&rest body)
+  `(cl-letf ,(mapcar (pcase-lambda (`(,symbol . ,fun))
+                       `((get ',symbol 'pcase-macroexpander) #',fun))
+                     el-search--pcase-macros)
+     ,@body))
+
 (defun el-search--matcher (pattern &rest body)
   (let ((warning-suppress-log-types '((bytecomp))))
-    (byte-compile
-     `(lambda (expression)
-        (pcase expression
-          (,pattern ,@(or body (list t)))
-          (_        nil))))))
+    (el-search--with-additional-pcase-macros
+     (byte-compile
+      `(lambda (expression)
+         (pcase expression
+           (,pattern ,@(or body (list t)))
+           (_        nil)))))))
 
 (defun el-search--match-p (matcher expression)
   (funcall matcher expression))
@@ -437,7 +589,17 @@ return nil (no error)."
 
 ;;;###autoload
 (defun el-search-pattern (pattern)
-  "Do incremental elisp search or resume last search."
+  "Start new or resume last elisp search.
+
+Search current buffer for expressions that are matched by `pcase'
+PATTERN.  Use `read' to transform buffer contents into
+expressions.
+
+
+Additional `pcase' pattern types to be used with this command can
+be defined with `el-search-defpattern'.
+
+The following additional pattern types are currently defined:\n"
   (interactive (list (if (eq this-command last-command)
                          el-search-current-pattern
                        (let ((pattern
