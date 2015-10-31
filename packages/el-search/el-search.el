@@ -600,7 +600,8 @@ Additional `pcase' pattern types to be used with this command can
 be defined with `el-search-defpattern'.
 
 The following additional pattern types are currently defined:\n"
-  (interactive (list (if (eq this-command last-command)
+  (interactive (list (if (and (eq this-command last-command)
+                              el-search-success)
                          el-search-current-pattern
                        (let ((pattern
                               (el-search--read-pattern "Find pcase pattern: "
@@ -616,17 +617,13 @@ The following additional pattern types are currently defined:\n"
   (setq this-command 'el-search-pattern) ;in case we come from isearch
   (setq el-search-current-pattern pattern)
   (let ((opoint (point)))
-    (when (eq this-command last-command)
-      (if el-search-success
-          (el-search--skip-expression nil t)
-        ;; wrap search
-        (goto-char (point-min))))
+    (when (and (eq this-command last-command) el-search-success)
+      (el-search--skip-expression nil t))
     (setq el-search-success nil)
     (message "%s" (substitute-command-keys "Type \\[el-search-pattern] to repeat"))
     (when (condition-case nil
               (el-search--search-pattern pattern)
-            (end-of-buffer (message "No match; %s"
-                                    (substitute-command-keys "Type \\[el-search-pattern] to wrap"))
+            (end-of-buffer (message "No match")
                            (goto-char opoint)
                            (el-search-hl-remove)
                            (ding)
