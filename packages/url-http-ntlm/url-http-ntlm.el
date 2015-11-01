@@ -26,12 +26,7 @@
 ;;
 ;; Installation:
 ;;
-;; Add the directory containing this file to the load path and then
-;; load the url-http-ntlm package.  One way would be to add something
-;; like the lines below to your .emacs file:
-;;
-;; (add-to-list 'load-path ".emacs.d/url-http-ntlm")
-;; (require 'url-http-ntlm)
+;; M-x package-install RET url-http-ntlm RET
 ;;
 ;; Acknowledgements:
 ;;
