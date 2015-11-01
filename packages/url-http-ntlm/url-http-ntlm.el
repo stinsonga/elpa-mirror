@@ -3,6 +3,7 @@
 ;; Copyright (C) 2008, 2015 Free Software Foundation, Inc.
 
 ;; Author: Tom Schutzer-Weissmann <tom@schutzer-weissmann.net>
+;; Maintainer: Thomas Fitzsimmons <fitzsim@fitzsim.org>
 ;; Keywords: comm, data, processes, hypermedia
 
 ;; This program is free software; you can redistribute it and/or modify
