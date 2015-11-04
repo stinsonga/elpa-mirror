@@ -4,7 +4,7 @@
 
 ;; Author: Nicolas Petton <nicolas@petton.fr>
 ;; Keywords: stream, laziness, sequences
-;; Version: 2.0.2
+;; Version: 2.0.5
 ;; Package-Requires: ((emacs "25"))
 ;; Package: stream
 
@@ -119,8 +119,7 @@ The sequence starts at POS if non-nil, 1 otherwise."
      (with-current-buffer buffer
        (setq match (re-search-forward regexp nil t)))
      (when match
-       (cons (match-data) (stream-regexp buffer regexp))
-       nil))))
+       (cons (match-data) (stream-regexp buffer regexp))))))
 
 (defun stream-range (&optional start end step)
   "Return a stream of the integers from START to END, stepping by STEP.
@@ -257,12 +256,9 @@ This function will eagerly consume the entire stream."
 The elements of the produced stream are the results of the
 applications of FUNCTION on each element of STREAM in succession."
   (stream-make
-   ;; Avoid using `stream-empty-p', as it will consume the first element of the
-   ;; stream before iterating over the stream.
-   (let ((first (stream-first stream)))
-     (when first
-       (cons (funcall function first)
-             (seq-map function (stream-rest stream)))))))
+   (when (not (stream-empty-p stream))
+     (cons (funcall function (stream-first stream))
+           (seq-map function (stream-rest stream))))))
 
 (cl-defmethod seq-do (function (stream stream))
   "Evaluate FUNCTION for each element of STREAM eagerly, and return nil.
