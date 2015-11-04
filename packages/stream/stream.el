@@ -62,7 +62,7 @@
 
 (defmacro stream-make (&rest body)
   "Return a stream built from BODY.
-BODY must return nil or a cons cell, which cdr is itself a
+BODY must return nil or a cons cell whose cdr is itself a
 stream."
   (declare (debug t))
   `(list ',stream--identifier (thunk-delay ,@body)))
@@ -98,7 +98,7 @@ SEQ can be a list, vector or string."
 
 (cl-defmethod stream ((buffer buffer) &optional pos)
   "Return a stream of the characters of the buffer BUFFER.
-BUFFER-OR-NAME may be a buffer or a string (buffer name).
+BUFFER may be a buffer or a string (buffer name).
 The sequence starts at POS if non-nil, 1 otherwise."
   (with-current-buffer buffer
     (unless pos (setq pos (point-min)))
@@ -112,6 +112,15 @@ The sequence starts at POS if non-nil, 1 otherwise."
            (goto-char pos)
            (char-after (point)))))
      (stream buffer (1+ pos)))))
+
+(defun stream-regexp (buffer regexp)
+  (stream-make
+   (let (match)
+     (with-current-buffer buffer
+       (setq match (re-search-forward regexp nil t)))
+     (when match
+       (cons (match-data) (stream-regexp buffer regexp))
+       nil))))
 
 (defun stream-range (&optional start end step)
   "Return a stream of the integers from START to END, stepping by STEP.
@@ -191,7 +200,7 @@ This function will eagerly consume the entire stream."
   (seq-take (seq-drop stream start) (- end start)))
 
 (cl-defmethod seq-into-sequence ((stream stream))
-  "Convert STREAM into a sequence"
+  "Convert STREAM into a sequence."
   (let ((list))
     (seq-doseq (elt stream)
       (push elt list))
@@ -244,19 +253,22 @@ This function will eagerly consume the entire stream."
            (stream-rest stream)))))
 
 (cl-defmethod seq-map (function (stream stream))
-  "Return a stream.
-The elements of the produced sequence consist of the application
-of FUNCTION to each element of STREAM."
-  (if (stream-empty-p stream)
-      stream
-    (stream-cons
-      (funcall function (stream-first stream))
-     (seq-map function (stream-rest stream)))))
+    "Return a stream representing the mapping of FUNCTION over STREAM.
+The elements of the produced stream are the results of the
+applications of FUNCTION on each element of STREAM in succession."
+  (stream-make
+   ;; Avoid using `stream-empty-p', as it will consume the first element of the
+   ;; stream before iterating over the stream.
+   (let ((first (stream-first stream)))
+     (when first
+       (cons (funcall function first)
+             (seq-map function (stream-rest stream)))))))
 
 (cl-defmethod seq-do (function (stream stream))
   "Evaluate FUNCTION for each element of STREAM eagerly, and return nil.
 
-`seq-do' should never be used on infinite streams."
+`seq-do' should never be used on infinite streams without some
+kind of nonlocal exit."
   (while (not (stream-empty-p stream))
     (funcall function (stream-first stream))
     (setq stream (stream-rest stream))))
