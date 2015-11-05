@@ -2930,6 +2930,23 @@ the clauses of a non-procedural PERFORM."
         (t
          (cobol--indent-of-clauses))))
 
+(defun cobol--indent-line-to (indent)
+  "Change the indent of line to INDENT."
+  (save-excursion
+    (let ((end-of-indent (+ (point-at-bol) indent)))
+      ;; Following lines (except the forward-char one) copied from source of
+      ;; `back-to-indentation'.
+      (beginning-of-line 1)
+      (if (< (point-at-eol) end-of-indent)
+          (indent-to indent)
+        (forward-char (cobol--code-start))
+        (skip-syntax-forward " " (line-end-position))
+        (backward-prefix-chars)
+        (cond ((< (point) end-of-indent)
+               (indent-to indent))
+              ((> (point) end-of-indent)
+               (delete-backward-char (- (point) end-of-indent))))))))
+
 (defun cobol-indent-line ()
   "Indent current line as COBOL code."
   (interactive "*")
@@ -2937,7 +2954,7 @@ the clauses of a non-procedural PERFORM."
     (save-excursion
       (beginning-of-line)
       (setf indent (cobol--find-indent-of-line))
-      (indent-line-to indent))
+      (cobol--indent-line-to indent))
     ;; HACK: When this is called in the leading whitespace, the point is moved
     ;; to the beginning of the line. I don't know why this happens.
     (if (bolp)
