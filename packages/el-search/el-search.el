@@ -231,6 +231,7 @@
 (require 'cl-lib)
 (require 'elisp-mode)
 (require 'thingatpt)
+(require 'help-fns) ;el-search--make-docstring
 
 
 ;;;; Configuration stuff
@@ -283,6 +284,8 @@ prompt to refer to the value of the currently tested expression."
         (goto-char (point-max)))
     (read-from-minibuffer prompt initial-contents el-search-read-expression-map read
                           (or hist 'read-expression-history) default)))
+
+(defvar el-search--initial-mb-contents nil)
 
 (defun el-search--read-pattern (prompt &optional default read)
   (let ((this-sexp (sexp-at-point)))
@@ -341,7 +344,6 @@ Point must not be inside a string or comment."
   ;; code mainly from `pcase--make-docstring'
   (let* ((main (documentation (symbol-function 'el-search-pattern) 'raw))
          (ud (help-split-fundoc main 'pcase)))
-    (require 'help-fns)
     (with-temp-buffer
       (insert (or (cdr ud) main))
       (mapc
@@ -437,13 +439,14 @@ this pattern type."
      ,@body))
 
 (defun el-search--matcher (pattern &rest body)
-  (let ((warning-suppress-log-types '((bytecomp))))
-    (el-search--with-additional-pcase-macros
-     (byte-compile
-      `(lambda (expression)
-         (pcase expression
-           (,pattern ,@(or body (list t)))
-           (_        nil)))))))
+  (eval
+   `(el-search--with-additional-pcase-macros
+     (let ((warning-suppress-log-types '((bytecomp))))
+       (byte-compile
+        (lambda (expression)
+          (pcase expression
+            (,pattern ,@(or body (list t)))
+            (_        nil))))))))
 
 (defun el-search--match-p (matcher expression)
   (funcall matcher expression))
@@ -685,10 +688,6 @@ The following additional pattern types are currently defined:\n"
              nbr-replaced
              (if (zerop nbr-skipped)  ""
                (format "   (%d skipped)" nbr-skipped)))))
-
-;; We need a variable for the initial contents because we want to `call-interactively'
-;; `el-search-query-replace-read-args'
-(defvar el-search--initial-mb-contents nil)
 
 (defun el-search-query-replace-read-args ()
   (barf-if-buffer-read-only)
