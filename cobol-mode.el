@@ -62,11 +62,11 @@
   :prefix 'cobol-
   :group 'languages)
 
-(defun radio-of-list (list)
+(defun cobol--radio-of-list (list)
   "Return radio with the elements of LIST as its arguments."
   (cons 'radio (mapcar #'(lambda (elt) (list 'const elt)) list)))
 
-(defun val-in-list-p (list)
+(defun cobol--val-in-list-p (list)
   "Return a predicate to check whether a value is in the LIST."
   #'(lambda (value) (memq value list)))
 
@@ -82,8 +82,8 @@
 
 (defcustom cobol-source-format 'fixed-85
   "Source format of COBOL source code."
-  :type (radio-of-list cobol-formats)
-  :safe (val-in-list-p cobol-formats)
+  :type (cobol--radio-of-list cobol-formats)
+  :safe (cobol--val-in-list-p cobol-formats)
   :group 'cobol)
 
 ;; Ruler
@@ -134,7 +134,7 @@ The next key typed is executed unless it is SPC."
   :type 'hook
   :group 'cobol)
 
-(defun cobol-remove-strings (l1 l2)
+(defun cobol--remove-strings (l1 l2)
   "Return a list of strings in L1 not in L2."
   (cl-set-difference l1 l2 :test #'string-equal))
 
@@ -221,7 +221,7 @@ The next key typed is executed unless it is SPC."
   '("ALTER" "ENTER"))
 
 (defconst cobol-verbs-2002
-  (append (cobol-remove-strings cobol-verbs-85 cobol-removed-verbs-2002)
+  (append (cobol--remove-strings cobol-verbs-85 cobol-removed-verbs-2002)
           '("ALLOCATE"
             "FREE"
             "GOBACK"
@@ -238,8 +238,8 @@ The next key typed is executed unless it is SPC."
     "RECEIVE"))
 
 (defconst cobol-verbs-2014
-  (cobol-remove-strings cobol-verbs-2002
-                        cobol-removed-verbs-2014))
+  (cobol--remove-strings cobol-verbs-2002
+                         cobol-removed-verbs-2014))
 
 (defconst cobol-verbs-extensions
   '("DELETE FILE"
@@ -317,8 +317,8 @@ The next key typed is executed unless it is SPC."
   '("END-RECEIVE"))
 
 (defconst cobol-scope-terminators-2014
-  (cobol-remove-strings cobol-scope-terminators-2002
-                        cobol-removed-scope-terminators-2014))
+  (cobol--remove-strings cobol-scope-terminators-2002
+                         cobol-removed-scope-terminators-2014))
 
 (defconst cobol-scope-terminators-xml-tr
   '("END-OPEN"))
@@ -634,8 +634,8 @@ The next key typed is executed unless it is SPC."
     "DEBUG-SUB-3"))
 
 (defconst cobol-keywords-2002
-  (append (cobol-remove-strings cobol-keywords-85
-                                cobol-removed-keywords-2002)
+  (append (cobol--remove-strings cobol-keywords-85
+                                 cobol-removed-keywords-2002)
           '("ACTIVE-CLASS"
             "ADDRESS"
             "ALIGNED"
@@ -735,8 +735,8 @@ The next key typed is executed unless it is SPC."
     "TEXT"))
 
 (defconst cobol-keywords-2014
-  (append (cobol-remove-strings cobol-keywords-2002
-                                cobol-removed-keywords-2014)
+  (append (cobol--remove-strings cobol-keywords-2002
+                                 cobol-removed-keywords-2014)
           '("FLOAT-BINARY-32"
             "FLOAT-BINARY-64"
             "FLOAT-BINARY-128"
@@ -2527,8 +2527,8 @@ and ignored areas)."
 
 (defcustom cobol-format-style 'upper-case
   "The type of formatting used when formatting COBOL code."
-  :type (radio-of-list cobol-formats)
-  :safe (val-in-list-p cobol-formats)
+  :type (cobol--radio-of-list cobol-formats)
+  :safe (cobol--val-in-list-p cobol-formats)
   :group 'cobol)
 
 (defun cobol-format-word (word)
