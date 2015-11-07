@@ -2623,9 +2623,18 @@ and ignored areas)."
   "Increment INDENT."
   (+ indent (* times cobol-tab-width)))
 
+(defun cobol--current-indentation ()
+  "Return the indentation of the current line."
+  (save-excursion
+    (goto-char (+ (line-beginning-position) (cobol--code-start)))
+    (let ((code-start-position (point)))
+      (skip-syntax-forward " " (line-end-position))
+      (backward-prefix-chars)
+      (- (point) code-start-position))))
+
 (defun cobol--indent-current ()
   "Return the current indent level indented once."
-  (cobol--indent (current-indentation)))
+  (cobol--indent (cobol--current-indentation)))
 
 (defun cobol--search-back (fn)
   "Go back a line at a time, calling FN each time. If the car of the return
@@ -2643,9 +2652,9 @@ after whitespace if WITH-WHITESPACE). If that cannot be found, return
                          str)))
     (cobol--search-back
      #'(lambda () (cond ((bobp)
-                         (cons t (cobol--code-start)))
+                         (cons t 0))
                         ((looking-at line-re)
-                         (cons t (current-indentation))))))))
+                         (cons t (cobol--current-indentation))))))))
 
 (defun cobol--indent-of-last-div ()
   "Return the indent of the last division."
@@ -2686,7 +2695,7 @@ from the last item of lower level."
        (cond ((looking-at cobol--generic-declaration-re)
               (let ((level-num (cobol--get-level-number (thing-at-point 'line))))
                 (cond ((eq level-num wanted-level-num)
-                       (cons t (current-indentation)))
+                       (cons t (cobol--current-indentation)))
                       ((< level-num wanted-level-num)
                        (cons t (cobol--indent-current))))))
              ((bobp)
@@ -2709,7 +2718,7 @@ lines."
   (cobol--search-back
    #'(lambda ()
        (cond ((looking-at cobol--env-or-data-div-sections-re)
-              (cons t (current-indentation)))
+              (cons t (cobol--current-indentation)))
              ((or (looking-at cobol--containing-statement-or-phrase-re)
                   (looking-at cobol--procedure-re)
                   (looking-at cobol--procedure-division-re))
@@ -2720,7 +2729,7 @@ lines."
                   (looking-at cobol--function-end-marker-re)
                   (looking-at cobol--division-re)
                   (looking-at cobol--generic-declaration-re))
-              (cons t (current-indentation)))
+              (cons t (cobol--current-indentation)))
              ((bobp)
               (cons t (cobol--code-start)))))))
 
@@ -2798,7 +2807,7 @@ lines."
   "Return the indent of the last open statement in STATEMENTS."
   (save-excursion
     (cobol--go-to-open-statement statements)
-    (current-indentation)))
+    (cobol--current-indentation)))
 
 (defun cobol--indent-of-containing-statement-or-phrase (str)
   "Return the indentation of containing statement/phrase in STR."
@@ -2892,7 +2901,7 @@ the clauses of a non-procedural PERFORM."
              (cobol--indent-from-previous)))
 
           ((eq current-division 'data)
-           cobol-declaration-clause-indent)
+           (- cobol-declaration-clause-indent (cobol--code-start)))
 
           ((eq current-division 'procedure)
            (cond ((cobol--in-proc-div-param-list-p)
@@ -2943,32 +2952,33 @@ the clauses of a non-procedural PERFORM."
         (t
          (cobol--indent-of-clauses))))
 
-(defun cobol--indent-line-to (column)
-  "Indent the line to COLUMN."
-  (let ((end-of-indent (+ (line-beginning-position) column)))
-    ;; Following lines derived from source of `back-to-indentation'.
-    (beginning-of-line)
-    (if (>= (line-end-position) end-of-indent)
-        (progn
-          (forward-char (cobol--code-start))
-          (skip-syntax-forward " " (line-end-position))
-          (backward-prefix-chars))
-      (end-of-line)
-      (indent-to (cobol--code-start)))
+(defun cobol--set-line-indent (indent)
+  "Set the indent of the current line to INDENT."
+  (save-excursion
+    (let ((end-of-indent (+ (line-beginning-position) (cobol--code-start)
+                            indent)))
+      ;; Following lines derived from source of `back-to-indentation'.
+      (if (>= (line-end-position)
+              (+ (line-beginning-position) (cobol--code-start)))
+          (progn
+            (goto-char (+ (line-beginning-position) (cobol--code-start)))
+            (skip-syntax-forward " " (line-end-position))
+            (backward-prefix-chars))
+        (end-of-line)
+        (indent-to (cobol--code-start)))
 
-    (cond ((< (point) end-of-indent)
-           (indent-to column))
-          ((> (point) end-of-indent)
-           (delete-backward-char (- (point) end-of-indent))))))
+      (cond ((< (point) end-of-indent)
+             (indent-to (+ indent (cobol--code-start))))
+            ((> (point) end-of-indent)
+             (delete-backward-char (- (point) end-of-indent)))))))
 
 (defun cobol-indent-line ()
   "Indent current line as COBOL code."
   (interactive "*")
   (let (indent)
-    (save-excursion
-      (beginning-of-line)
-      (setf indent (cobol--find-indent-of-line))
-      (cobol--indent-line-to indent))
+    (beginning-of-line)
+    (setf indent (cobol--find-indent-of-line))
+    (cobol--set-line-indent indent)
     ;; HACK: When this is called in the leading whitespace, the point is moved
     ;; to the beginning of the line. I don't know why this happens.
     (if (bolp)
