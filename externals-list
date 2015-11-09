@@ -60,6 +60,7 @@
  ("nameless" :subtree "https://github.com/Malabarba/Nameless")
  ("names" :subtree "http://github.com/Bruce-Connor/names")
  ("omn-mode"            :external nil)
+ ("on-screen"           :subtree "https://github.com/michael-heerdegen/on-screen.el.git")
  ("pabbrev"             :external "https://github.com/phillord/pabbrev.git")
  ("pinentry"		:subtree "https://github.com/ueno/pinentry-el.git")
  ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
