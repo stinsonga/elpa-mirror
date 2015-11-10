@@ -2920,37 +2920,39 @@ the clauses of a non-procedural PERFORM."
 
 (defun cobol--find-indent-of-line ()
   "Return what the indent of the current line should be."
-  (cond ((looking-at cobol--scope-terminator-re)
-         (let ((matching-statement
-                (cobol--scope-terminator-statement (thing-at-point 'line))))
-           (cobol--indent-of-open-statement (list matching-statement))))
+  (save-excursion
+    (beginning-of-line)
+    (cond ((looking-at cobol--scope-terminator-re)
+           (let ((matching-statement
+                  (cobol--scope-terminator-statement (thing-at-point 'line))))
+             (cobol--indent-of-open-statement (list matching-statement))))
 
-        ((looking-at cobol--procedure-re)
-         (cobol--indent-of-last-div-or-section))
+          ((looking-at cobol--procedure-re)
+           (cobol--indent-of-last-div-or-section))
 
-        ((looking-at cobol--end-marker-re)
-         (cobol--match-line-with-leading-whitespace
-          (concat "END" cobol--identifier-re))
-         (let ((group (match-string 1 (thing-at-point 'line))))
-           (cobol--indent-of-end-marker-match group)))
+          ((looking-at cobol--end-marker-re)
+           (cobol--match-line-with-leading-whitespace
+            (concat "END" cobol--identifier-re))
+           (let ((group (match-string 1 (thing-at-point 'line))))
+             (cobol--indent-of-end-marker-match group)))
 
-        ((looking-at cobol--division-re)
-         (cobol--indent-of-last-div))
+          ((looking-at cobol--division-re)
+           (cobol--indent-of-last-div))
 
-        ((looking-at cobol--generic-declaration-re)
-         (cobol--indent-of-declaration (thing-at-point 'line)))
+          ((looking-at cobol--generic-declaration-re)
+           (cobol--indent-of-declaration (thing-at-point 'line)))
 
-        ((looking-at cobol--containing-statement-or-phrase-re)
-         (cobol--indent-of-containing-statement-or-phrase
-          (thing-at-point 'line)))
+          ((looking-at cobol--containing-statement-or-phrase-re)
+           (cobol--indent-of-containing-statement-or-phrase
+            (thing-at-point 'line)))
 
-        ((or (looking-at cobol--free-form-comment-line-re)
-             (looking-at cobol--verb-re)
-             (looking-at cobol--blank-line-re))
-         (cobol--indent-from-previous))
+          ((or (looking-at cobol--free-form-comment-line-re)
+               (looking-at cobol--verb-re)
+               (looking-at cobol--blank-line-re))
+           (cobol--indent-from-previous))
 
-        (t
-         (cobol--indent-of-clauses))))
+          (t
+           (cobol--indent-of-clauses)))))
 
 (defun cobol--set-line-indent (indent)
   "Set the indent of the current line to INDENT."
@@ -2976,13 +2978,11 @@ the clauses of a non-procedural PERFORM."
   "Indent current line as COBOL code."
   (interactive "*")
   (let (indent)
-    (beginning-of-line)
     (setf indent (cobol--find-indent-of-line))
     (cobol--set-line-indent indent)
-    ;; HACK: When this is called in the leading whitespace, the point is moved
-    ;; to the beginning of the line. I don't know why this happens.
-    (if (bolp)
-        (back-to-indentation))))
+    (when (< (point) (+ (line-beginning-position) (cobol--code-start) indent))
+      (skip-syntax-forward " " (line-end-position))
+      (backward-prefix-chars))))
 
 ;;; Misc
 (defvar cobol-tab-width 4 "Width of a tab for `cobol-mode'.")
