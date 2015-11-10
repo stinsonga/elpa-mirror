@@ -2243,6 +2243,11 @@ DECLARATIVES.")
 
 ;;; Font lock
 
+(defun cobol--fixed-format-p ()
+  "Return whether the current source format is fixed."
+  (or (eq cobol-source-format 'fixed-85)
+      (eq cobol-source-format 'fixed-2002)))
+
 ;; This is required for indentation to function, because the initial sequence
 ;; area is marked as a comment, not whitespace.
 (defun cobol-back-to-indentation ()
@@ -2251,8 +2256,7 @@ fixed-form code, the sequence area and indicators are skipped.
 Code copied from the emacs source."
   (interactive "^")
   (beginning-of-line 1)
-  (when (or (eq cobol-source-format 'fixed-85)
-            (eq cobol-source-format 'fixed-2002))
+  (when (cobol--fixed-format-p)
     (forward-char 7))
   (skip-syntax-forward " " (line-end-position))
   ;; Move back over chars that have whitespace syntax but have the p flag.
@@ -2315,8 +2319,7 @@ Code copied from the emacs source."
   "Syntax propertize awkward COBOL features (fixed-form comments, indicators
 and ignored areas)."
   ;; TO-DO: Propertize continuation lines.
-  (when (or (eq cobol-source-format 'fixed-2002)
-            (eq cobol-source-format 'fixed-85))
+  (when (cobol--fixed-format-p)
     (cobol--syntax-propertize-sequence-area beg end)
     (cobol--syntax-propertize-indicator-area beg end))
   (when (eq cobol-source-format 'fixed-85)
@@ -2918,6 +2921,12 @@ the clauses of a non-procedural PERFORM."
                 (t
                  (cobol--indent (cobol--indent-of-last-statement))))))))
 
+(defun cobol--looking-at-comment-line ()
+  "Return whether we are looking at a comment line (using `looking-at')."
+  (or (looking-at cobol--free-form-comment-line-re)
+      (when (cobol--fixed-format-p)
+        (looking-at cobol--fixed-form-comment-re))))
+
 (defun cobol--find-indent-of-line ()
   "Return what the indent of the current line should be."
   (save-excursion
@@ -2946,7 +2955,7 @@ the clauses of a non-procedural PERFORM."
            (cobol--indent-of-containing-statement-or-phrase
             (thing-at-point 'line)))
 
-          ((or (looking-at cobol--free-form-comment-line-re)
+          ((or (cobol--looking-at-comment-line)
                (looking-at cobol--verb-re)
                (looking-at cobol--blank-line-re))
            (cobol--indent-from-previous))
