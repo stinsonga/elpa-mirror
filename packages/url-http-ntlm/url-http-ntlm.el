@@ -6,7 +6,7 @@
 ;; Maintainer: Thomas Fitzsimmons <fitzsim@fitzsim.org>
 ;; Keywords: comm, data, processes, hypermedia
 ;; Homepage: https://code.google.com/p/url-http-ntlm/
-;; Package-Requires: ((ntlm "2.0.0"))
+;; Package-Requires: ((cl-lib "0.5") (ntlm "2.0.0"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
