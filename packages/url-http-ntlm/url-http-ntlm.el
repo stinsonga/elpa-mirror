@@ -40,6 +40,7 @@
 ;;; Code:
 (require 'url-auth)
 (require 'url-http)
+(require 'url-util)
 (require 'mail-parse)
 (require 'cl-lib)
 (require 'ntlm)
@@ -146,9 +147,15 @@ response's \"WWW-Authenticate\" header, munged by
 	 (auth-header	   (assoc "Authorization" url-http-extra-headers))
 	 (case-fold-search t)
 	 stage)
+    (url-debug 'url-http-ntlm "Buffer: %s" (current-buffer))
+    (url-debug 'url-http-ntlm "Arguments: %s" args)
+    (url-debug 'url-http-ntlm "Previous arguments: %s" url-http-ntlm--last-args)
     (if (eq args (car url-http-ntlm--last-args))
 	;; multiple calls, return the same argument we returned last time
-	(cdr url-http-ntlm--last-args)
+	(progn
+	  (url-debug 'url-http-ntlm "Returning previous result: %s"
+		     (cdr url-http-ntlm--last-args))
+	  (cdr url-http-ntlm--last-args))
       (let ((stage
 	     (cond ((and auth-header (string-match response-rxp
 						   (cdr auth-header)))
@@ -259,6 +266,7 @@ the server's last response.  These are used by
   (url-http-ntlm--ensure-keepalive)
   (let* ((user-url (url-http-ntlm--ensure-user url))
 	 (stage (url-http-ntlm--get-stage args)))
+    (url-debug 'url-http-ntlm "Stage: %s" stage)
     (cl-case stage
       ;; NTLM Type 1 message: the request
       (:request
