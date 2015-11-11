@@ -2214,7 +2214,7 @@ DECLARATIVES.")
   "Regexp matching an end marker.")
 
 (defconst cobol--division-re
-  (cobol--with-opt-whitespace-line "\\(\\w+\\)\\s-+DIVISION")
+  (cobol--with-opt-whitespace-line "\\(IDENTIFICATION\\|ENVIRONMENT\\|DATA\\|PROCEDURE\\)\\s-+DIVISION")
   "Regexp matching division header.")
 
 (defconst cobol--procedure-division-re
@@ -2701,7 +2701,7 @@ from the last item of lower level."
                       ((< level-num wanted-level-num)
                        (cons t (cobol--indent-current))))))
              ((bobp)
-              (cons t (cobol--code-start)))))))
+              (cons t 0))))))
 
 (defun cobol--indent-of-declaration (decl)
   "Return the indentation of the declaration DECL."
@@ -2733,7 +2733,7 @@ lines."
                   (looking-at cobol--generic-declaration-re))
               (cons t (cobol--current-indentation)))
              ((bobp)
-              (cons t (cobol--code-start)))))))
+              (cons t 0))))))
 
 (defun cobol--phrase-with-not (phrase)
   "Return regexp matching line with optional NOT and PHRASE."
