@@ -61,7 +61,7 @@ hashes>\).
 The hashes are built using `ntlm-get-password-hashes'.")
 
 (defvar url-http-ntlm--last-args nil
-  "Stores the last `url-http-ntlm--get-stage' arguments and return value.
+  "The last `url-http-ntlm--get-stage' arguments and result.
 This is used to detect multiple calls.")
 (make-variable-buffer-local 'url-http-ntlm--last-args)
 
@@ -70,8 +70,7 @@ This is used to detect multiple calls.")
 Keys are urls, entries are (START-TIME . COUNTER).")
 
 (defvar url-http-ntlm--default-users nil
-  "An alist that maps each server to the default username for
-that server.")
+  "An alist that stores one default username per server.")
 
 
 ;;; Private functions.
@@ -224,7 +223,8 @@ stored credentials are not affected."
 	stored))))
 
 (defun url-http-ntlm--get-challenge ()
-  "Return the NTLM Type-2 message in the WWW-Authenticate header, if present."
+  "Return the NTLM Type-2 message in the WWW-Authenticate header.
+Return nil if the NTLM Type-2 message is not present."
   (save-restriction
     (mail-narrow-to-head)
     (let ((www-authenticate (mail-fetch-field "www-authenticate")))
