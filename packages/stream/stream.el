@@ -4,7 +4,7 @@
 
 ;; Author: Nicolas Petton <nicolas@petton.fr>
 ;; Keywords: stream, laziness, sequences
-;; Version: 2.0.5
+;; Version: 2.1.0
 ;; Package-Requires: ((emacs "25"))
 ;; Package: stream
 
@@ -156,6 +156,14 @@ range is infinite."
   "Return a stream of all but the first element of STREAM."
   (or (cdr (thunk-force (cadr stream)))
       (stream-empty)))
+
+(defmacro stream-pop (stream)
+  "Return the first element of STREAM and set the value of STREAM to its rest."
+  (unless (symbolp stream)
+    (error "STREAM must be a symbol"))
+  `(prog1
+       (stream-first ,stream)
+     (setq ,stream (stream-rest ,stream))))
 
 
 ;;; cl-generic support for streams
@@ -176,7 +184,7 @@ range is infinite."
 
 ;;; Implementation of seq.el generic functions
 
-(cl-defmethod seq-p ((_stream stream))
+(cl-defmethod seqp ((_stream stream))
   t)
 
 (cl-defmethod seq-elt ((stream stream) n)
