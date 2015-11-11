@@ -2418,28 +2418,28 @@ and ignored areas)."
 
 (define-skeleton cobol-skeleton-if-else
   "Insert an IF - ELSE - END-IF block." nil
-  "IF " (skeleton-read "Condition: ") > \n
-  _ > \n
+  > "IF " (skeleton-read "Condition: ") > \n
+  > _ \n
   "ELSE" > \n
   > \n
   "END-IF" > \n)
 
 (define-skeleton cobol-skeleton-if
   "Insert an IF - END-IF block." nil
-  "IF " (skeleton-read "Condition: ") > \n
-  _ > \n
+  > "IF " (skeleton-read "Condition: ") > \n
+  > _ \n
   "END-IF" > \n)
 
 (define-skeleton cobol-skeleton-perform-times
   "Insert a PERFORM - TIMES - END-PERFORM block." nil
-  "PERFORM " (skeleton-read "Number: ") " TIMES" > \n
-  _ > \n
+  > "PERFORM " (skeleton-read "Number: ") " TIMES" > \n
+  > _ \n
   "END-PERFORM" > \n)
 
 (define-skeleton cobol-skeleton-perform-varying
   "Insert a PERFORM VARYING - FROM - BY - UNTIL - END-PERFORM block."
   nil
-  "PERFORM VARYING "
+  > "PERFORM VARYING "
   (skeleton-read "Variable: ")
   " FROM "
   (skeleton-read "Start: ")
@@ -2447,7 +2447,7 @@ and ignored areas)."
   (skeleton-read "Step: ")
   " UNTIL "
   (skeleton-read "Condition: ") > \n
-  _ > \n
+  > _ \n
   "END-PERFORM" > \n)
 
 (defun cobol-when-with-also (prompt num-also)
@@ -2457,26 +2457,26 @@ and ignored areas)."
         (dotimes 'num-also
           (setf clauses (append clauses `(" ALSO " (skeleton-read ,prompt)))))
         clauses)
-    > \n _ > \n))
+    > \n > _ \n))
 
 (define-skeleton cobol-skeleton-evaluate
   "Insert an EVALUATE - END-EVALUATE block."
   "Variable/TRUE: "
   ;; This is set like so because num-conds is incremented even when no str is supplied.
   '(setf num-conds -1)
-  "EVALUATE " str ("Variable/TRUE: " '(setf num-conds (1+ num-conds)) " ALSO " str) > \n
+  > "EVALUATE " str ("Variable/TRUE: " '(setf num-conds (1+ num-conds)) " ALSO " str) > \n
   (cobol-when-with-also "Value/Condition: " num-conds)
   "END-EVALUATE")
 
 (define-skeleton cobol-skeleton-program
   "Insert an empty PROGRAM."
   "Program name: "
-  "IDENTIFICATION DIVISION." > \n
+  > "IDENTIFICATION DIVISION." > \n
   "PROGRAM-ID. " str "." > \n
   > \n
   "DATA DIVISION." > \n
   "WORKING-STORAGE SECTION." > \n
-  _ > \n
+  > _ \n
   "PROCEDURE DIVISION." > \n
   > \n
   "END PROGRAM " str "." > \n)
@@ -2484,14 +2484,14 @@ and ignored areas)."
 (define-skeleton cobol-skeleton-function
   "Insert an empty FUNCTION."
   "Function name: "
-  "IDENTIFICATION DIVISION." > \n
+  > "IDENTIFICATION DIVISION." > \n
   "FUNCTION-ID. " str "." > \n
   > \n
   "DATA DIVISION." > \n
   "LOCAL-STORAGE SECTION." > \n
   > \n
   "LINKAGE SECTION." > \n
-  _ > \n
+  > _ \n
   "PROCEDURE DIVISION RETURNING ." > \n
   > \n
   "END FUNCTION " str "." > \n)
@@ -2499,12 +2499,12 @@ and ignored areas)."
 (define-skeleton cobol-skeleton-method
   "Insert an empty METHOD."
   "Method name: "
-  "IDENTIFICATION DIVISION." > \n
+  > "IDENTIFICATION DIVISION." > \n
   "METHOD-ID. " str "." > \n
   > \n
   "DATA DIVISION." > \n
   "LOCAL-STORAGE SECTION." > \n
-  _ > \n
+  > _ \n
   "PROCEDURE DIVISION." > \n
   > \n
   "END METHOD " str "." > \n)
@@ -2512,9 +2512,9 @@ and ignored areas)."
 (define-skeleton cobol-skeleton-class
   "Insert an empty CLASS."
   "Class name: "
-  "IDENTIFICATION DIVISION." > \n
+  > "IDENTIFICATION DIVISION." > \n
   "CLASS-ID. " str "." > \n
-  > \n
+  > _ \n
   "FACTORY." > \n
   "END FACTORY." > \n
   > \n
@@ -2525,9 +2525,9 @@ and ignored areas)."
 (define-skeleton cobol-skeleton-interface
   "Insert an empty INTERFACE."
   "Interface name: "
-  "IDENTIFICATION DIVISION." > \n
+  > "IDENTIFICATION DIVISION." > \n
   "INTERFACE-ID. " str "." > \n
-  > \n
+  > _ \n
   "FACTORY." > \n
   "END FACTORY." > \n
   > \n
