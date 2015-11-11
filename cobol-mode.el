@@ -2649,8 +2649,7 @@ value is non-nil, return the cdr."
 
 (cl-defun cobol--search-back-for-indent (str &key with-whitespace)
   "Return the indent of the previous line starting with the regexp STR (optionally
-after whitespace if WITH-WHITESPACE). If that cannot be found, return
-`cobol--code-start'."
+after whitespace if WITH-WHITESPACE). If that cannot be found, return 0."
   (let ((line-re (concat (when with-whitespace cobol--optional-whitespace-re)
                          str)))
     (cobol--search-back
