@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014-2015  Free Software Foundation, Inc.
 
 ;; Author: Jackson Ray Hamilton <jackson@jacksonrayhamilton.com>
-;; Version: 7.1.0
+;; Version: 7.2.0
 ;; Keywords: convenience faces tools
 ;; Package-Requires: ((emacs "24.3") (js2-mode "20150713"))
 ;; URL: https://github.com/jacksonrayhamilton/context-coloring
@@ -493,6 +493,29 @@ For instance, the current file could be a Node.js program."
 
 ;;; Emacs Lisp colorization
 
+(defconst context-coloring-WORD-CODE 2)
+(defconst context-coloring-SYMBOL-CODE 3)
+(defconst context-coloring-OPEN-PARENTHESIS-CODE 4)
+(defconst context-coloring-CLOSE-PARENTHESIS-CODE 5)
+(defconst context-coloring-EXPRESSION-PREFIX-CODE 6)
+(defconst context-coloring-STRING-QUOTE-CODE 7)
+(defconst context-coloring-ESCAPE-CODE 9)
+(defconst context-coloring-COMMENT-START-CODE 11)
+(defconst context-coloring-COMMENT-END-CODE 12)
+
+(defconst context-coloring-OCTOTHORPE-CHAR (string-to-char "#"))
+(defconst context-coloring-APOSTROPHE-CHAR (string-to-char "'"))
+(defconst context-coloring-OPEN-PARENTHESIS-CHAR (string-to-char "("))
+(defconst context-coloring-COMMA-CHAR (string-to-char ","))
+(defconst context-coloring-AT-CHAR (string-to-char "@"))
+(defconst context-coloring-BACKTICK-CHAR (string-to-char "`"))
+
+(defsubst context-coloring-get-syntax-code ()
+  "Get the syntax code at point."
+  (syntax-class
+   ;; Faster version of `syntax-after':
+   (aref (syntax-table) (char-after (point)))))
+
 (defsubst context-coloring-forward-sws ()
   "Move forward through whitespace and comments."
   (while (forward-comment 1)))
@@ -504,17 +527,19 @@ For instance, the current file could be a Node.js program."
     (context-coloring-colorize-comments-and-strings start (point))))
 
 (defsubst context-coloring-elisp-forward-sexp ()
-  "Like `forward-sexp', coloring skipped comments and strings."
+  "Skip/ignore missing sexps, coloring comments and strings."
   (let ((start (point)))
-    (forward-sexp)
+    (when (= (context-coloring-get-syntax-code)
+             context-coloring-EXPRESSION-PREFIX-CODE)
+      ;; `forward-sexp' does not skip an unfinished expression (e.g. when the
+      ;; name of a symbol or the parentheses of a list do not follow a single
+      ;; quote).
+      (forward-char))
+    (condition-case nil
+        (forward-sexp)
+      (scan-error (context-coloring-forward-sws)))
     (context-coloring-elisp-colorize-comments-and-strings-in-region
      start (point))))
-
-(defsubst context-coloring-get-syntax-code ()
-  "Get the syntax code at point."
-  (syntax-class
-   ;; Faster version of `syntax-after':
-   (aref (syntax-table) (char-after (point)))))
 
 (defsubst context-coloring-exact-regexp (word)
   "Create a regexp matching exactly WORD."
@@ -532,23 +557,6 @@ For instance, the current file could be a Node.js program."
                                 '("t" "nil" "." "?")))
                          "\\|")
   "Match symbols that can't be bound as variables.")
-
-(defconst context-coloring-WORD-CODE 2)
-(defconst context-coloring-SYMBOL-CODE 3)
-(defconst context-coloring-OPEN-PARENTHESIS-CODE 4)
-(defconst context-coloring-CLOSE-PARENTHESIS-CODE 5)
-(defconst context-coloring-EXPRESSION-PREFIX-CODE 6)
-(defconst context-coloring-STRING-QUOTE-CODE 7)
-(defconst context-coloring-ESCAPE-CODE 9)
-(defconst context-coloring-COMMENT-START-CODE 11)
-(defconst context-coloring-COMMENT-END-CODE 12)
-
-(defconst context-coloring-OCTOTHORPE-CHAR (string-to-char "#"))
-(defconst context-coloring-APOSTROPHE-CHAR (string-to-char "'"))
-(defconst context-coloring-OPEN-PARENTHESIS-CHAR (string-to-char "("))
-(defconst context-coloring-COMMA-CHAR (string-to-char ","))
-(defconst context-coloring-AT-CHAR (string-to-char "@"))
-(defconst context-coloring-BACKTICK-CHAR (string-to-char "`"))
 
 (defsubst context-coloring-elisp-identifier-p (syntax-code)
   "Check if SYNTAX-CODE is an elisp identifier constituent."
@@ -660,6 +668,7 @@ bound immediately after its own initializer is parsed."
         syntax-code)
     ;; Enter.
     (forward-char)
+    (context-coloring-elisp-forward-sws)
     (while (/= (setq syntax-code (context-coloring-get-syntax-code))
                context-coloring-CLOSE-PARENTHESIS-CODE)
       (cond
@@ -699,6 +708,7 @@ bound immediately after its own initializer is parsed."
   (let (syntax-code)
     ;; Enter.
     (forward-char)
+    (context-coloring-elisp-forward-sws)
     (while (/= (setq syntax-code (context-coloring-get-syntax-code))
                context-coloring-CLOSE-PARENTHESIS-CODE)
       (cond
@@ -779,6 +789,7 @@ Parse the header with CALLBACK."
      (let (syntax-code)
        ;; Enter.
        (forward-char)
+       (context-coloring-elisp-forward-sws)
        (while (/= (setq syntax-code (context-coloring-get-syntax-code))
                   context-coloring-CLOSE-PARENTHESIS-CODE)
          (cond
@@ -812,6 +823,29 @@ Parsing the header with CALLBACK."
   (context-coloring-elisp-colorize-lambda-like
    (lambda ()
      (context-coloring-elisp-parse-let-varlist 'let*))))
+
+(defun context-coloring-elisp-colorize-macroexp-let2 ()
+  "Color the `macroexp-let2' at point."
+  (let (syntax-code
+        variable)
+    (context-coloring-elisp-colorize-scope
+     (lambda ()
+       (and
+        (progn
+          (setq syntax-code (context-coloring-get-syntax-code))
+          (context-coloring-elisp-identifier-p syntax-code))
+        (progn
+          (context-coloring-elisp-colorize-sexp)
+          (context-coloring-elisp-forward-sws)
+          (setq syntax-code (context-coloring-get-syntax-code))
+          (context-coloring-elisp-identifier-p syntax-code))
+        (progn
+          (context-coloring-elisp-parse-bindable
+           (lambda (parsed-variable)
+             (setq variable parsed-variable)))
+          (context-coloring-elisp-forward-sws)
+          (when variable
+            (context-coloring-elisp-add-variable variable))))))))
 
 (defun context-coloring-elisp-colorize-cond ()
   "Color the `cond' at point."
@@ -928,8 +962,10 @@ Parsing the header with CALLBACK."
       (puthash callee #'context-coloring-elisp-colorize-condition-case table))
     (dolist (callee '("dolist" "dotimes"))
       (puthash callee #'context-coloring-elisp-colorize-dolist table))
-    (puthash "let" #'context-coloring-elisp-colorize-let table)
+    (dolist (callee '("let" "gv-letplace"))
+      (puthash callee #'context-coloring-elisp-colorize-let table))
     (puthash "let*" #'context-coloring-elisp-colorize-let* table)
+    (puthash "macroexp-let2" #'context-coloring-elisp-colorize-macroexp-let2 table)
     (puthash "lambda" #'context-coloring-elisp-colorize-lambda table)
     (puthash "cond" #'context-coloring-elisp-colorize-cond table)
     (puthash "defadvice" #'context-coloring-elisp-colorize-defadvice table)
