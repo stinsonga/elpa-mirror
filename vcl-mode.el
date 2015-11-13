@@ -24,11 +24,12 @@
 ;; run:
 ;;    emacs -batch -f batch-byte-compile vcl-mode.el
 ;; Install the file vcl-mode.elc (and, optionally, vcl-mode.el) to
-;; any directory in your Emacs load-path.
+;; a directory in your Emacs load-path.
 
 ;; Customization:
 ;;  To your .emacs or site-start.el add:
-;;  (autoload 'vcl-mode "vcl-mode")
+;;  (autoload 'vcl-mode "vcl-mode" "Major mode for Varnish VCL sources" t)
+;;  (add-to-list 'auto-mode-alist (cons (purecopy "\\.vcl\\'")  'vcl-mode))
 
 (require 'cc-langs)
 
@@ -36,7 +37,8 @@
   "Keymap used in vcl-mode buffers.")
 (if vcl-mode-map
     nil
-  (setq vcl-mode-map (c-make-inherited-keymap)))
+  (setq vcl-mode-map (c-make-inherited-keymap))
+  (define-key vcl-mode-map "\C-c%" 'vcl-match-paren))
 
 (defvar vcl-mode-syntax-table
   (let ((st (make-syntax-table)))
@@ -343,6 +345,75 @@
    ("\\(#\\)"
     (1 (ignore (vcl-sharp-comment-syntax))))
    ))
+
+(defun vcl-match-paren (&optional arg)
+  "If point is on a parenthesis (including VCL multi-line string delimiter),
+find the matching one and move point to it.
+With ARG, do it that many times.
+"
+ (interactive "p")
+ (let ((n (or arg 1))
+       (matcher (cond
+		 ((looking-at "\\s\(")
+		  (cons
+		   (lexical-let ((s (buffer-substring
+				     (match-beginning 0)
+				     (match-end 0))))
+		     (lambda ()
+		       (search-forward s)
+		       (backward-char)))
+		   (lambda ()
+		     (forward-list)
+		     (backward-char))))
+		 ((looking-at "\\s\)")
+		  (cons
+		   (lexical-let ((s (buffer-substring
+				     (match-beginning 0)
+				     (match-end 0))))
+		     (lambda ()
+		       (search-backward s)))
+		   (lambda ()
+		     (forward-char)
+		     (backward-list))))
+		 ((or (looking-at "{\"")
+		      (save-excursion
+			(backward-char)
+			(looking-at "{\"")))
+		  (cons
+		   (lambda ()
+		     (search-forward "{\""))
+		   (lambda ()
+		     (search-forward-regexp "\"}")
+		     (backward-char))))
+		 ((or (looking-at "\"}")
+		      (save-excursion
+			(backward-char)
+			(looking-at "\"}")))
+		  (cons
+		   (lambda ()
+		     (search-backward "\"}"))
+		   (lambda ()
+		     (search-backward-regexp "{\"")))))))
+   (if (not matcher)
+       (message "Point not at parenthesis")
+     (condition-case err
+	 (let ((fx (car matcher))
+	       (fn (cdr matcher)))
+	   (catch 'stop
+	     (while t
+	       (funcall fn)
+	       (setq n (1- n))
+	       (if (= n 0)
+		   (throw 'stop t)
+		 (condition-case e
+		     (funcall fx)
+		   (search-failed
+		    (message "Not enough groups to satisfy the request")
+		    (throw 'stop t)))))))
+       
+       (scan-error (goto-char (nth 2 err))
+		   (message "%s" (nth 1 err)))
+       (search-failed (message "Unbalanced %s" (cdr err)))))))
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist (cons (purecopy "\\.vcl\\'")  'vcl-mode))
