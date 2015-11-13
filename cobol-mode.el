@@ -30,9 +30,6 @@
 ;; Highlighting changes with the code format, which can be specified using the
 ;; M-x customize menu.
 
-;; Be aware that support for fixed format code is not very good and that text in
-;; the sequence area may cause faulty indentation.
-
 ;;; Installation:
 
 ;; To install cobol-mode.el, save it to your .emacs.d/ directory and add the
