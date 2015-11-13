@@ -2198,7 +2198,7 @@ DECLARATIVES.")
 
 (defconst cobol--non-id-groups
   ;; AUTO-METHOD is part of the Finalizer TR.
-  '("AUTO-METHOD" "DECLARATIVES" "FACTORY" "OBJECT")
+  '("AUTO-METHOD" "DECLARATIVES" "FACTORY" "OBJECT" "METHOD")
   "Groups which do not take a (specifiable) ID.")
 
 (defconst cobol--non-id-group-end-marker-re
