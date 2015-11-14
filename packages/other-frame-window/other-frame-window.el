@@ -5,7 +5,7 @@
 ;; Author: Stephen Leake <stephen_leake@member.fsf.org>
 ;; Maintainer: Stephen Leake <stephen_leake@member.fsf.org>
 ;; Keywords: frame window
-;; Version: 1.0.1
+;; Version: 1.0.2
 ;; Package-Requires: ((emacs "24.4"))
 ;;
 ;; This file is part of GNU Emacs.
@@ -123,8 +123,8 @@
   "Remove ourselves from 'display-buffer-overriding-action' action list, if present."
   (let ((functions (car display-buffer-overriding-action))
         (attrs (cdr display-buffer-overriding-action)))
-    (setq functions (delq #'ofw-display-buffer-other-frame
-                          (delq #'ofw-display-buffer-other-window functions)))
+    (setq functions (remq #'ofw-display-buffer-other-frame
+                          (remq #'ofw-display-buffer-other-window functions)))
     (setq display-buffer-overriding-action
           (when (or functions attrs) (cons functions attrs)))))
 
@@ -165,10 +165,10 @@ Intended for 'display-buffer-overriding-action'."
   ;; Reset for next display-buffer call.
   (ofw-delete-from-overriding)
 
+  ;; IMPROVEME: prompt for a frame if more than 2
   (or (display-buffer-use-some-frame buffer alist)
       (display-buffer-pop-up-frame buffer alist)))
 
-;; FIXME: use defadvice for Emacs 24.3
 (defun ofw-switch-to-buffer-advice (orig-fun buffer
                                     &optional norecord force-same-window)
   "Change `switch-to-buffer' to call `pop-to-buffer'.
@@ -178,14 +178,9 @@ This allows `switch-to-buffer' to respect `ofw-other-window',
       (pop-to-buffer buffer (list #'display-buffer-same-window) norecord)
     (funcall orig-fun buffer norecord force-same-window)))
 
-;; FIXME: use defadvice for Emacs 24.3
 (defun ofw--suspend-and-restore (orig-func &rest args)
   "Call ORIG-FUNC without any ofw actions on 'display-buffer-overriding-action'."
   (let ((display-buffer-overriding-action display-buffer-overriding-action))
-    ;; FIXME: ofw-delete-from-overriding operates destructively, so the
-    ;; subsequent "restore" step only works if our ofw actions were all at the
-    ;; very beginning display-buffer-overriding-action (in which case `delq'
-    ;; happens not to be destructive).
     (ofw-delete-from-overriding)
     (apply orig-func args)))
 
@@ -253,23 +248,12 @@ Enable mode if ARG is positive."
 	  (setq display-buffer-base-action (cons functions attrs)))
 
 	;; Change switch-to-buffer to use display-buffer
-	(if (fboundp 'advice-add) ;Emacs≥24.4
-	    (advice-add 'switch-to-buffer :around #'ofw-switch-to-buffer-advice)
-          ;; FIXME: `ad-activate' affects all pieces of advice of that
-          ;; function, which is not what we want!
-	  ;; (ad-activate 'switch-to-buffer)
-          )
+	(advice-add 'switch-to-buffer :around #'ofw-switch-to-buffer-advice)
 
 	;; Completing-read <tab> pops up a buffer listing completions;
 	;; that should not respect or consume
 	;; ofw-frame-window-prefix-arg.
-	(if (fboundp 'advice-add)
-	    (advice-add 'read-from-minibuffer
-                        :around #'ofw--suspend-and-restore)
-          ;; FIXME: `ad-activate' affects all pieces of advice of that
-          ;; function, which is not what we want!
-	  ;; (ad-activate 'read-from-minibuffer)
-          )
+	(advice-add 'read-from-minibuffer :around #'ofw--suspend-and-restore)
 	)
 
     ;; else disable
@@ -327,7 +311,7 @@ that allows the selected frame)."
 
 (defun ofw-dwim--frame-p ()
   "Return non-nil if the prefix is for \"other-frame\" rather than window."
-  ;; FIXME: Comparing functions is ugly/hackish!
+  ;; IMPROVEME: Comparing functions is ugly/hackish!
   (memq #'ofw-display-buffer-other-frame
         (car display-buffer-overriding-action)))
 
@@ -347,7 +331,7 @@ that allows the selected frame)."
   "Show current buffer in other frame or window."
   (interactive)
   (if (ofw-dwim--frame-p)
-      ;; FIXME: This is the old C-x 5 2 behavior, but maybe it should just use
+      ;; IMPROVEME: This is the old C-x 5 2 behavior, but maybe it should just use
       ;; display-buffer instead!
       (call-interactively #'make-frame-command)
     (display-buffer (current-buffer))))
