@@ -6,7 +6,7 @@
 ;;         Michael Albinus <michael.albinus@gmx.org>
 ;; Keywords: comm, hypermedia, maint
 ;; Package: debbugs
-;; Version: 0.7
+;; Version: 0.8
 
 ;; This file is not part of GNU Emacs.
 
@@ -89,7 +89,7 @@
 ;; submitter, and the title of the bug.  On every bug line you could
 ;; apply the following actions by the following keystrokes:
 
-;;   RET: Show corresponding messages in Gnus
+;;   RET: Show corresponding messages in Gnus/Rmail
 ;;   "C": Send a control message
 ;;   "t": Mark the bug locally as tagged
 ;;   "b": Show bugs this bug is blocked by
@@ -158,6 +158,9 @@
 (autoload 'message-make-from "message")
 (autoload 'vc-dir-hide-up-to-date "vc-dir")
 (autoload 'vc-dir-mark "vc-dir")
+(autoload 'rmail-get-new-mail "rmail")
+(autoload 'rmail-show-message "rmail")
+(autoload 'rmail-summary "rmailsum")
 (defvar compilation-in-progress)
 
 (defgroup debbugs-gnu ()
@@ -236,6 +239,15 @@ suppressed bugs is toggled by `debbugs-gnu-toggle-suppress'."
 
 (defface debbugs-gnu-archived '((t (:inverse-video t)))
   "Face for archived bug reports.")
+
+(defcustom debbugs-gnu-mail-backend 'gnus
+  "*The email backend to use for reading bug report email exchange.
+If this is 'gnus, the default, use Gnus.
+If this is 'rmail, use Rmail instead."
+  :group 'debbugs-gnu
+  :type '(choice (const :tag "Use Gnus" 'gnus)
+		 (const :tag "Use Rmail" 'rmail))
+  :version "25.1")
 
 (defface debbugs-gnu-new '((t (:foreground "red")))
   "Face for new reports that nobody has answered.")
@@ -1065,6 +1077,42 @@ interest to you."
   (set-buffer-modified-p nil)
   (special-mode))
 
+(defvar rmail-current-message)
+(defvar rmail-total-messages)
+(defvar rmail-mode-map)
+(defvar rmail-summary-mode-map)
+
+(defun debbugs-read-emacs-bug-with-rmail (id status merged)
+  "Read email exchange for debbugs bug ID.
+STATUS is the bug's status list.
+MERGED is the list of bugs merged with this one."
+  (let* ((mbox-dir (make-temp-file "debbugs" t))
+	 (mbox-fname (format "%s/bug_%d.mbox" mbox-dir id)))
+    (debbugs-get-mbox id 'mboxmaint mbox-fname)
+    (rmail mbox-fname)
+    ;; Download messages of all the merged bug reports and append them
+    ;; to the mailbox of the requested bug.
+    (when merged
+      (dolist (bugno merged)
+	(let ((fn (make-temp-file "url")))
+	  (debbugs-get-mbox bugno 'mboxmaint fn)
+	  (rmail-get-new-mail fn)
+	  (delete-file fn)
+	  ;; Remove the 'unseen' attribute from all the messages we've
+	  ;; just read, so that all of them appear in the summary with
+	  ;; the same face.
+	  (while (< rmail-current-message rmail-total-messages)
+	    (rmail-show-message (1+ rmail-current-message))))))
+    (set (make-local-variable 'debbugs-gnu-bug-number) id)
+    (set (make-local-variable 'debbugs-gnu-subject)
+	 (format "Re: bug#%d: %s" id (cdr (assq 'subject status))))
+    (rmail-summary)
+    (define-key rmail-summary-mode-map "C" 'debbugs-gnu-send-control-message)
+    (set-window-text-height nil 10)
+    (other-window 1)
+    (define-key rmail-mode-map "C" 'debbugs-gnu-send-control-message)
+    (rmail-show-message 1)))
+
 (defun debbugs-gnu-select-report ()
   "Select the report on the current line."
   (interactive)
@@ -1072,17 +1120,22 @@ interest to you."
   (let* ((status (debbugs-gnu-current-status))
 	 (id (cdr (assq 'id status)))
 	 (merged (cdr (assq 'mergedwith status))))
-    (gnus-read-ephemeral-emacs-bug-group
-     (cons id (if (listp merged)
-		  merged
-		(list merged)))
-     (cons (current-buffer)
-	   (current-window-configuration)))
-    (with-current-buffer (window-buffer (selected-window))
-      (set (make-local-variable 'debbugs-gnu-bug-number) id)
-      (set (make-local-variable 'debbugs-gnu-subject)
-	   (format "Re: bug#%d: %s" id (cdr (assq 'subject status))))
-      (debbugs-gnu-summary-mode 1))))
+    (if (eq debbugs-gnu-mail-backend 'rmail)
+	(debbugs-read-emacs-bug-with-rmail id status (if (listp merged)
+							 merged
+						       (list merged)))
+      ;; Use Gnus.
+      (gnus-read-ephemeral-emacs-bug-group
+       (cons id (if (listp merged)
+		    merged
+		  (list merged)))
+       (cons (current-buffer)
+	     (current-window-configuration)))
+      (with-current-buffer (window-buffer (selected-window))
+	(set (make-local-variable 'debbugs-gnu-bug-number) id)
+	(set (make-local-variable 'debbugs-gnu-subject)
+	     (format "Re: bug#%d: %s" id (cdr (assq 'subject status))))
+	(debbugs-gnu-summary-mode 1)))))
 
 (defvar debbugs-gnu-summary-mode-map
   (let ((map (make-sparse-keymap)))
