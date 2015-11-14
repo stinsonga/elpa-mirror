@@ -326,7 +326,7 @@ The bug report buffers have enabled the minor
 @kindex @kbd{@key{mouse-2}}
 @kbd{@key{mouse-2}} @tab
 @code{debbugs-gnu-select-report} @*
-Open a GNUS ephemeral group for that bug.@c (@pxref{xxx}).
+Show the email messages that discuss the bug.
 
 @* @item
 @kindex @kbd{d}
@@ -386,6 +386,13 @@ Send a control message for this bug, @ref{Control Messages}.
 
 @end multitable
 
+@vindex debbugs-gnu-mail-backend
+The user option @code{debbugs-gnu-mail-backend} controls the
+presentation of email messages produced by typing @kbd{@key{RET}} or
+by clicking the mouse on a bug: if its value is @code{gnus}, the
+default, a GNUS ephemeral group for that bug will be shown; if its
+value is @code{rmail}, the command will present an Rmail folder
+instead.
 
 @node TODO Items
 @section TODO Items
@@ -445,10 +452,10 @@ server.  Their format is described in
 @uref{http://debbugs.gnu.org/server-control.html}.
 
 A control message can be initiated in the tabulated list of bugs, in
-the list of org TODO items, or in the GNUS ephemeral group opened for
-the messages belonging to a given bug.  Control messages can be sent
-to unarchived bugs only, in case a bug is archived the control message
-@samp{unarchive} must be sent first.
+the list of org TODO items, or in the GNUS ephemeral group or Rmail
+folder opened for the messages belonging to a given bug.  Control
+messages can be sent to unarchived bugs only, in case a bug is
+archived the control message @samp{unarchive} must be sent first.
 
 In the minibuffer, the following control messages can be requested
 (assuming that 12345 is the bug the control message is intended for).

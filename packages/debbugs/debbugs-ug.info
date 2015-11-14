@@ -1,4 +1,4 @@
-This is debbugs-ug.info, produced by makeinfo version 5.2 from
+This is debbugs-ug.info, produced by makeinfo version 6.0 from
 debbugs-ug.texi.
 
 Copyright (C) 2015 Free Software Foundation, Inc.
@@ -306,7 +306,7 @@ shown with inverse face ('debbugs-gnu-archived').
 This enables the following key strokes:
 
 '<RET>'       'debbugs-gnu-select-report'
-'<mouse-1>'   Open a GNUS ephemeral group for that bug.
+'<mouse-1>'   Show the email messages that discuss the bug.
 '<mouse-2>'   
               
 'd'           'debbugs-gnu-display-status'
@@ -331,6 +331,12 @@ This enables the following key strokes:
 'C'           'debbugs-gnu-send-control-message'
               Send a control message for this bug, *note Control Messages::.
               
+
+   The user option 'debbugs-gnu-mail-backend' controls the presentation
+of email messages produced by typing '<RET>' or by clicking the mouse on
+a bug: if its value is 'gnus', the default, a GNUS ephemeral group for
+that bug will be shown; if its value is 'rmail', the command will
+present an Rmail folder instead.
 
 
 File: debbugs-ug.info,  Node: TODO Items,  Next: Control Messages,  Prev: Tabulated Lists,  Up: Layout
@@ -380,10 +386,10 @@ server.  Their format is described in
 <http://debbugs.gnu.org/server-control.html>.
 
    A control message can be initiated in the tabulated list of bugs, in
-the list of org TODO items, or in the GNUS ephemeral group opened for
-the messages belonging to a given bug.  Control messages can be sent to
-unarchived bugs only, in case a bug is archived the control message
-'unarchive' must be sent first.
+the list of org TODO items, or in the GNUS ephemeral group or Rmail
+folder opened for the messages belonging to a given bug.  Control
+messages can be sent to unarchived bugs only, in case a bug is archived
+the control message 'unarchive' must be sent first.
 
    In the minibuffer, the following control messages can be requested
 (assuming that 12345 is the bug the control message is intended for).
@@ -524,6 +530,7 @@ Variable Index
 * debbugs-gnu-default-hits-per-page:     Retrieving Bugs.      (line 61)
 * debbugs-gnu-default-packages:          Retrieving Bugs.      (line 57)
 * debbugs-gnu-default-severities:        Retrieving Bugs.      (line 57)
+* debbugs-gnu-mail-backend:              Tabulated Lists.      (line 62)
 
 
 File: debbugs-ug.info,  Node: Key Index,  Prev: Variable Index,  Up: Top
@@ -560,11 +567,11 @@ Ref: Searching Bugs-Footnote-110016
 Ref: Searching Bugs-Footnote-210104
 Node: Layout10195
 Node: Tabulated Lists10670
-Node: TODO Items13173
-Node: Control Messages14438
-Node: Minor Mode16733
-Node: Command Index17671
-Node: Variable Index18332
-Node: Key Index18921
+Node: TODO Items13493
+Node: Control Messages14758
+Node: Minor Mode17069
+Node: Command Index18007
+Node: Variable Index18668
+Node: Key Index19330
 
 End Tag Table
