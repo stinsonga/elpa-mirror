@@ -622,7 +622,25 @@ Typically 2 for GNU style and `tab-width' for Linux style."
                          ;; "case" already handled above.
                          (delete "case" kws)))
                 "\\_>"))
-     (0 font-lock-keyword-face))))
+     (0 font-lock-keyword-face))
+    (,(let* ((spc0 "\\(?:\n?[ \t]\\|/\\*.*?\\*/\\)*")
+             (spc1 (concat "\n?[ \t]" spc0))
+             (id "\\(?:\\sw\\|\\s_\\)+"))
+        (cl-flet ((repeat (repetition &rest res)
+                          (concat "\\(?:" (apply #'concat res) "\\)"
+                                  (pcase repetition
+                                    ((pred symbolp) (symbol-name repetition))
+                                    (1 "")))))
+          (concat
+           "^"
+           (repeat '* "\\*" spc0)
+           (repeat '* id (repeat 1 spc1 "\\|" spc0 "\\*" spc0))
+           "\\(" id "\\)[ \t\n]*(")))
+     (1
+      (prog1 font-lock-function-name-face
+        (if (< (match-beginning 0) (line-beginning-position))
+            (put-text-property (match-beginning 0) (match-end 0)
+                               'font-lock-multiline t)))))))
 
 
 ;;;###autoload
