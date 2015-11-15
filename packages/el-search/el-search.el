@@ -207,6 +207,8 @@
 ;;
 ;; TODO:
 ;;
+;; - highlight matches around point in a timer
+;;
 ;; - implement backward searching
 ;;
 ;; - improve docstrings
@@ -214,10 +216,10 @@
 ;; - handle more reader syntaxes, e.g. #n, #n#
 ;;
 ;; - Implement sessions; add multi-file support based on iterators.  A
-;; file list is read in (or the user can specify an iterator as a
-;; variable).  The state in the current buffer is just (buffer
-;; . marker).  Or should this be abstracted into an own lib?  Could be
-;; named "files-session" or so.
+;;   file list is read in (or the user can specify an iterator as a
+;;   variable).  The state in the current buffer is just (buffer
+;;   . marker).  Or should this be abstracted into an own lib?  Could
+;;   be named "files-session" or so.
 
 
 
