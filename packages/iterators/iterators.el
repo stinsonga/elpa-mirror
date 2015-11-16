@@ -91,6 +91,41 @@ used between the numbers and defaults to 1."
              (iter-yield (prog1 i (cl-incf i inc))))))
       (iterator-make (while t (iter-yield (prog1 i (cl-incf i))))))))
 
+(iter-defun iterator-of-directory-files-1 (directory &optional match nosort recurse follow-links)
+  "Helper for `iterator-of-directory-files'."
+  (when (file-accessible-directory-p directory)
+    (let ((files (directory-files directory t match nosort))  file)
+      (while (setq file (pop files))
+        (cond
+         ((not (file-directory-p file))
+          (iter-yield file))
+         ((member (file-name-nondirectory (directory-file-name file))
+                  '("." "..")))
+         (t
+          (iter-yield file)
+          (when (and (or follow-links (not (file-symlink-p file)))
+                     (if (functionp recurse) (funcall recurse file) recurse))
+            (iter-yield-from (iterator-of-directory-files-1
+                              file match nosort recurse follow-links)))))))))
+
+(defun iterator-of-directory-files (directory &optional full match nosort recurse follow-links)
+  "Return an iterator of names of files in DIRECTORY.
+Don't include files named \".\" or \"..\".  The arguments FULL,
+MATCH and NOSORT are like in `directory-files'.
+
+Optional argument RECURSE non-nil means recurse on
+subdirectories.  If RECURSE is a function, it should be a
+predicate accepting one argument, an absolute file name of a
+directory, and return non-nil when the returned iterator should
+recurse into that directory.  Any other non-nil value means
+recurse into every readable subdirectory.
+
+Even with recurse non-nil, don't descent into directories by
+following symlinks unless FOLLOW-LINKS is non-nil."
+  (iterator-map
+   (lambda (file) (if full file (file-relative-name file directory)))
+   (iterator-of-directory-files-1 directory match nosort recurse follow-links)))
+
 
 ;;;; Operations on iterators, transducers
 
