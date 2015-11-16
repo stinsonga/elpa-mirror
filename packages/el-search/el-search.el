@@ -207,6 +207,8 @@
 ;;
 ;; TODO:
 ;;
+;; - detect infloops when replacing automatically (e.g. for 1 -> '(1))
+;;
 ;; - highlight matches around point in a timer
 ;;
 ;; - implement backward searching
