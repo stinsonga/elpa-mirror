@@ -1,8 +1,10 @@
-;;; cobol-mode.el --- COBOL mode -*- lexical-binding: t; -*-
+;;; cobol-mode.el --- Mode for editing COBOL code -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2013-2015 Edward Hart
 
 ;; Author: Edward Hart <edward.dan.hart@gmail.com>
+;; Maintainer: Edward Hart
+;; Version: 0
 ;; Created: 9 November 2013
 ;; Keywords: languages
 
