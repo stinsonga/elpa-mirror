@@ -2984,9 +2984,14 @@ the clauses of a non-procedural PERFORM."
       (cobol--indent-point-to-col end-of-indent))))
 
 (defun cobol--indent-point ()
-  "Indent the point to the next multiple of `cobol-tab-width'."
+  "Indent the point to the next multiple of `cobol-tab-width' (relative to the
+start of area A, if fixed-format)."
   (cobol--indent-point-to-col
-   (+ (current-column) (- cobol-tab-width (% (current-column) cobol-tab-width)))))
+   (+ (current-column) (- cobol-tab-width
+                          (% (if (cobol--fixed-format-p)
+                                 (1+ (current-column))
+                               (current-column))
+                             cobol-tab-width)))))
 
 (defun cobol-indent-line ()
   "Indent current line as COBOL code."
@@ -3003,7 +3008,7 @@ the clauses of a non-procedural PERFORM."
       (skip-syntax-forward " " (line-end-position))
       (backward-prefix-chars)
       ;; Indent stuff at point if not the first word.
-      (when (< (cobol--current-indentation) (current-column))
+      (when (< (cobol--current-indentation) (- (current-column) (cobol--code-start)))
         (cobol--indent-point)))))
 
 ;;; Misc
