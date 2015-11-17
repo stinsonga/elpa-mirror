@@ -2961,35 +2961,50 @@ the clauses of a non-procedural PERFORM."
           (t
            (cobol--indent-of-clauses)))))
 
+(defun cobol--indent-point-to-col (col)
+  "Indent the point to COL."
+  (cond ((< (current-column) col)
+         (indent-to col))
+        ((> (current-column) col)
+         (delete-backward-char (- (current-column) col)))))
+
 (defun cobol--set-line-indent (indent)
   "Set the indent of the current line to INDENT."
   (save-excursion
-    (let ((end-of-indent (+ (line-beginning-position) (cobol--code-start)
-                            indent)))
+    (let ((line-length (- (line-end-position) (line-beginning-position)))
+          (end-of-indent (+ (cobol--code-start) indent)))
       ;; Following lines derived from source of `back-to-indentation'.
-      (if (>= (line-end-position)
-              (+ (line-beginning-position) (cobol--code-start)))
+      (move-to-column (cobol--code-start))
+      (if (>= line-length (current-column))
           (progn
-            (goto-char (+ (line-beginning-position) (cobol--code-start)))
             (skip-syntax-forward " " (line-end-position))
             (backward-prefix-chars))
-        (end-of-line)
         (indent-to (cobol--code-start)))
 
-      (cond ((< (point) end-of-indent)
-             (indent-to (+ indent (cobol--code-start))))
-            ((> (point) end-of-indent)
-             (delete-backward-char (- (point) end-of-indent)))))))
+      (cobol--indent-point-to-col end-of-indent))))
+
+(defun cobol--indent-point ()
+  "Indent the point to the next multiple of `cobol-tab-width'."
+  (cobol--indent-point-to-col
+   (+ (current-column) (- cobol-tab-width (% (current-column) cobol-tab-width)))))
 
 (defun cobol-indent-line ()
   "Indent current line as COBOL code."
   (interactive "*")
-  (let (indent)
-    (setf indent (cobol--find-indent-of-line))
-    (cobol--set-line-indent indent)
-    (when (< (point) (+ (line-beginning-position) (cobol--code-start) indent))
+  (let ((indent (cobol--find-indent-of-line)))
+    (if (not (eq indent (cobol--current-indentation)))
+        (progn
+          (cobol--set-line-indent indent)
+          ;; If in leading whitespace/sequence area, move to first char of code.
+          (when (< (point) (+ (line-beginning-position) (cobol--code-start) indent))
+            (skip-syntax-forward " " (line-end-position))
+            (backward-prefix-chars)))
+      ;; Move to first non-whitespace char
       (skip-syntax-forward " " (line-end-position))
-      (backward-prefix-chars))))
+      (backward-prefix-chars)
+      ;; Indent stuff at point if not the first word.
+      (when (< (cobol--current-indentation) (current-column))
+        (cobol--indent-point)))))
 
 ;;; Misc
 (defvar cobol-tab-width 4 "Width of a tab for `cobol-mode'.")
