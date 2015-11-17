@@ -2626,13 +2626,16 @@ and ignored areas)."
   (+ indent (* times cobol-tab-width)))
 
 (defun cobol--current-indentation ()
-  "Return the indentation of the current line."
-  (save-excursion
-    (goto-char (+ (line-beginning-position) (cobol--code-start)))
-    (let ((code-start-position (point)))
-      (skip-syntax-forward " " (line-end-position))
-      (backward-prefix-chars)
-      (- (point) code-start-position))))
+  "Return the indentation of the current line or -1 if the line is within the
+sequence area."
+  (if (< (- (line-end-position) (line-beginning-position)) (cobol--code-start))
+     -1
+    (save-excursion
+      (goto-char (+ (line-beginning-position) (cobol--code-start)))
+      (let ((code-start-position (point)))
+        (skip-syntax-forward " " (line-end-position))
+        (backward-prefix-chars)
+        (- (point) code-start-position)))))
 
 (defun cobol--indent-current ()
   "Return the current indent level indented once."
