@@ -207,6 +207,8 @@
 ;;
 ;; TODO:
 ;;
+;; - change replace interface to include toggle(s)
+;;
 ;; - detect infloops when replacing automatically (e.g. for 1 -> '(1))
 ;;
 ;; - highlight matches around point in a timer
@@ -562,8 +564,9 @@ return nil (no error)."
 
 (defvar el-search-keep-hl nil)
 
-(defun el-search-hl-sexp-at-point ()
-  (let ((bounds (list (point) (el-search--end-of-sexp))))
+(defun el-search-hl-sexp (&optional bounds)
+  (let ((bounds (or bounds
+                    (list (point) (el-search--end-of-sexp)))))
     (if (overlayp el-search-hl-overlay)
         (apply #'move-overlay el-search-hl-overlay bounds)
       (overlay-put (setq el-search-hl-overlay (apply #'make-overlay bounds))
@@ -632,24 +635,31 @@ The following additional pattern types are currently defined:\n"
                            (ding)
                            nil))
       (setq el-search-success t)
-      (el-search-hl-sexp-at-point))))
+      (el-search-hl-sexp))))
 
-(defun el-search-search-and-replace-pattern (pattern replacement &optional mapping)
+(defun el-search-search-and-replace-pattern (pattern replacement &optional mapping splice)
   (let ((replace-all nil) (nbr-replaced 0) (nbr-skipped 0) (done nil)
         (el-search-keep-hl t) (opoint (point))
         (get-replacement (el-search--matcher pattern replacement)))
     (unwind-protect
         (while (and (not done) (el-search--search-pattern pattern t))
           (setq opoint (point))
-          (unless replace-all (el-search-hl-sexp-at-point))
+          (unless replace-all (el-search-hl-sexp))
           (let* ((read-mapping (el-search--create-read-map))
                  (region (list (point) (el-search--end-of-sexp)))
                  (substring (apply #'buffer-substring-no-properties region))
                  (expr      (read substring))
                  (replaced-this nil)
                  (new-expr  (funcall get-replacement expr))
-                 (to-insert (el-search--repair-replacement-layout
-                             (el-search--print new-expr) (append mapping read-mapping)))
+                 (get-replacement-string
+                  (lambda () (if (and splice (not (listp new-expr)))
+                            (error "Expression to splice in is an atom")
+                          (el-search--repair-replacement-layout
+                           (if splice
+                               (mapconcat #'el-search--print new-expr " ")
+                             (el-search--print new-expr))
+                           (append mapping read-mapping)))))
+                 (to-insert (funcall get-replacement-string))
                  (do-replace (lambda ()
                                (atomic-change-group
                                  (apply #'delete-region region)
@@ -657,8 +667,8 @@ The following additional pattern types are currently defined:\n"
                                        (opoint (point)))
                                    (insert to-insert)
                                    (indent-region opoint (point))
-                                   (goto-char opoint)
-                                   (el-search-hl-sexp-at-point)))
+                                   (el-search-hl-sexp (list opoint (point)))
+                                   (goto-char opoint)))
                                (cl-incf nbr-replaced)
                                (setq replaced-this t))))
             (if replace-all
@@ -670,8 +680,10 @@ The following additional pattern types are currently defined:\n"
                                             (if (or (string-match-p "\n" to-insert)
                                                     (< 40 (length to-insert)))
                                                 "" (format " with `%s'" to-insert))
-                                            "? [y SPC r ! q]" )
-                                    '(?y ?n ?r ?\ ?! ?q)))
+                                            "? "
+                                            (if splice "{splice} " "")
+                                            "[y SPC r ! q]" )
+                                    '(?y ?n ?r ?\ ?! ?q ?s)))
                             (?r (funcall do-replace)
                                 nil)
                             (?y (funcall do-replace)
@@ -683,6 +695,9 @@ The following additional pattern types are currently defined:\n"
                                   (funcall do-replace))
                                 (setq replace-all t)
                                 t)
+                            (?s (cl-callf not splice)
+                                (setq to-insert (funcall get-replacement-string))
+                                nil)
                             (?q (setq done t)
                                 t)))))
             (unless (or done (eobp)) (el-search--skip-expression nil t)))))
