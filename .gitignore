@@ -19,5 +19,6 @@ packages/ntlm
 packages/omn-mode/
 packages/pabbrev
 packages/rudel
+packages/soap-client
 packages/w3
 packages/xelb
