@@ -21,7 +21,7 @@
 ;; All file-names must be relative to the Emacs repository root and the package
 ;; directory.  When a file-name points to a directory all its files are copied
 ;; recursively into the package root or specified destination.  A special
-;; :excludes key can be provided to especify files to exclude when copying
+;; :excludes key can be provided to specify files to exclude when copying
 ;; directories, wildcards are supported, "*.elc" and "*~" are always excluded.
 ;; Exclude matches must be against the full file-name, substring matches don't
 ;; work unless wildcards are used (e.g. use "etc/*" instead of "etc/").
@@ -67,6 +67,7 @@
  ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
  ("rich-minority" :subtree "https://github.com/Malabarba/rich-minority")
  ("rudel"		:external nil) ;; Was bzr::bzr://rudel.bzr.sourceforge.net/bzrroot/rudel/trunk
+ ("soap-client"		:core ("lisp/net/soap-client.el" "lisp/net/soap-inspect.el"))
  ("sotlisp" :subtree "https://github.com/Malabarba/speed-of-thought-lisp")
  ("spinner" :subtree "https://github.com/Malabarba/spinner.el")
  ("temp-buffer-browse"  :subtree "https://github.com/leoliu/temp-buffer-browse")
