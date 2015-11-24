@@ -137,8 +137,7 @@ range is infinite."
 
 (defun streamp (stream)
   "Return non-nil if STREAM is a stream, nil otherwise."
-  (and (consp stream)
-       (eq (car stream) stream--identifier)))
+  (eq (car-safe stream) stream--identifier))
 
 (defun stream-empty ()
   "Return an empty stream."
