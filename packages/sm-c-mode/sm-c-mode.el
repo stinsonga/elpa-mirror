@@ -35,9 +35,8 @@
 ;; it'd be nice to hook the sm-c--while-to-do, sm-c--else-to-if, and sm-c--boi
 ;; functions into SMIE at some level.
 
-;; FIXME:
-;; - M-; mistakes # for a comment in CPP directives!
-;; Ha!  As if this was the only/main problem!
+;; Note that this mode makes no attempt to try and handle sanely K&R style
+;; function definitions.
 
 ;;; Code:
 
@@ -233,7 +232,15 @@ Typically 2 for GNU style and `tab-width' for Linux style."
   (sm-c--cpp-syntax-propertize end)
   (funcall
    (syntax-propertize-rules
-    (sm-c--cpp-regexp (2 (prog1 "< c" (sm-c--cpp-syntax-propertize end)))))
+    (sm-c--cpp-regexp
+     (2 (prog1 "< c"
+          (when (and (equal (match-string 3) "include")
+                     (looking-at "[ \t]*\\(<\\)[^>\n]*\\(>\\)"))
+            (put-text-property (match-beginning 1) (match-end 1)
+                               'syntax-table (string-to-syntax "|"))
+            (put-text-property (match-beginning 2) (match-end 2)
+                               'syntax-table (string-to-syntax "|")))
+          (sm-c--cpp-syntax-propertize end)))))
    (point) end))
 
 (defun sm-c-syntactic-face-function (ppss)
@@ -495,9 +502,19 @@ if INNER is non-nil, it stops at the innermost one."
         ((or "(" "[" "{" "}") "* deref")
         (`nil
          (goto-char pos)
-         (pcase (smie-backward-sexp "* mult")
-           (`(,_ ,_ ,(or ";" "{")) "* deref")
-           (_ "* mult")))
+         (let ((res nil))
+           (while (not res)
+             (pcase (smie-backward-sexp)
+               (`(,_ ,_ ,(or ";" "{")) (setq res "* deref"))
+               ((and `nil (guard (looking-at "{"))) (setq res "* deref"))
+               (`(,left ,_ ,op)
+                (if (and (numberp left)
+                         (numberp (nth 2 (assoc op smie-grammar)))
+                         (< (nth 2 (assoc op smie-grammar))
+                            (nth 1 (assoc "* mult" smie-grammar))))
+                    (smie-backward-sexp 'halfsexp)
+                  (setq res "* mult")))))
+           res))
         (_ "* mult")))))
 
 (defun sm-c-smie-hanging-eolp ()
@@ -565,8 +582,20 @@ if INNER is non-nil, it stops at the innermost one."
            (sm-c--boi 'inner) (sm-c--skip-labels (point-max))
            (let ((tok (save-excursion (sm-c-smie-forward-token))))
              (cond
-              ((member tok '("typedef")) ; "enum" "struct"
-               `(column . ,(+ (funcall smie-rules-function :elem 'basic)
+              ((or (equal tok "typedef")
+                   (and (member tok '("enum" "struct"))
+                        ;; Make sure that the {...} is about this struct/enum,
+                        ;; as opposed to "struct foo *get_foo () {...}"!
+                        (save-excursion
+                          (smie-indent-forward-token)
+                          (smie-indent-forward-token)
+                          (forward-comment (point-max))
+                          (>= (point) pos))))
+               `(column . ,(+ (if (save-excursion
+                                    (goto-char pos)
+                                    (smie-rule-hanging-p))
+                                  0
+                                (funcall smie-rules-function :elem 'basic))
                               (smie-indent-virtual))))
               ((or (member tok sm-c-paren-block-keywords)
                    (equal tok "do"))
@@ -689,6 +718,7 @@ if INNER is non-nil, it stops at the innermost one."
     (end-of-line)
     (unless (zerop (mod (skip-chars-backward "\\\\") 2))
       (skip-chars-backward " \t")
+      (setq from (point))
       (let ((col (current-column))
             start end)
         (while
@@ -702,14 +732,14 @@ if INNER is non-nil, it stops at the innermost one."
         (while
             (progn (setq end (point))
                    (end-of-line 2)
-                   (and (> (point) start)
+                   (and (> (line-beginning-position) end)
                         (not (zerop (mod (skip-chars-backward "\\\\") 2)))))
           (skip-chars-backward " \t")
           (setq col (max (current-column) col)))
         (goto-char to)
         (beginning-of-line)
         (unless (or (> (point) end)       ;Don't realign if we changed outside!
-                    (< end start))        ;A lone \
+                    (<= end start))        ;A lone \
           
           (setq col (1+ col))         ;Add a space before the backslashes.
           (goto-char end)
@@ -800,6 +830,17 @@ if INNER is non-nil, it stops at the innermost one."
   ;; Backslash auto-realign.
   (add-hook 'after-change-functions #'sm-c--bs-after-change nil t)
   (add-hook 'post-command-hook #'sm-c--bs-realign nil t))
+
+(defun sm-c--cpp-is-not-really-a-comment (&rest args)
+  ;; Without this, placing the region around a CPP directive and hitting
+  ;; M-; would just strip the leading "#" instead of commenting things out.
+  (if (not (derived-mode-p 'sm-c-mode))
+      (apply args)
+    (let ((parse-sexp-lookup-properties nil))
+      (apply args))))
+
+;; FIXME: Clearly, we should change newcomment.el instead.
+(advice-add 'comment-only-p :around #'sm-c--cpp-is-not-really-a-comment)
 
 (provide 'sm-c-mode)
 ;;; sm-c-mode.el ends here

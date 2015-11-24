@@ -1,5 +1,7 @@
 /* -*- sm-c -*- */
 
+#include <toto>
+
 #define toto(arg) /* bla
                      bla */ \
   if (a) {  /* toto
@@ -11,7 +13,19 @@
 #define test(arg) \
   (hello + arg)
 
-struct foo;
+struct foo
+  {
+    int field;
+  };
+
+struct foo {
+  int field;
+};
+
+struct foo *getfoo (void)
+{
+  return NULL;
+}
 
 #define titi(arg) { \
     if (a) {        \
