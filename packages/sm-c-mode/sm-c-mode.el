@@ -163,8 +163,19 @@ Typically 2 for GNU style and `tab-width' for Linux style."
 
 (defconst sm-c--cpp-smie-indent-functions
   ;; FIXME: Don't just align line after #define with the "d"!
-  (remq #'smie-indent-comment-inside
-        (default-value 'smie-indent-functions)))
+  (mapcar
+   (lambda (f)
+     (cond
+      ((eq f #'smie-indent-comment-inside) #'sm-c--cpp-indent-comment-inside)
+      ;; ((eq f #'smie-indent-exps) #'sm-c--cpp-indent-exps)
+      (t f)))
+   (default-value 'smie-indent-functions)))
+
+(defun sm-c--cpp-indent-comment-inside ()
+  (let ((ppss (syntax-ppss)))
+    (when (nth 4 ppss)
+      ;; Indicate where's the comment start.
+      `(noindent . ,(nth 8 ppss)))))
 
 (defun sm-c--cpp-smie-indent ()
   (let ((ppss (syntax-ppss)))
@@ -172,15 +183,36 @@ Typically 2 for GNU style and `tab-width' for Linux style."
      ((sm-c--cpp-inside-p ppss)
       (save-restriction
         (narrow-to-region (nth 8 ppss) (point-max))
-        (let ((smie-indent-functions sm-c--cpp-smie-indent-functions))
-          (smie-indent-calculate))))
+        (let ((indent
+               (let ((smie-indent-functions sm-c--cpp-smie-indent-functions)
+                     (syntax-ppss-cache nil)
+                     (syntax-ppss-last nil)
+                     (parse-sexp-lookup-properties nil))
+                 (smie-indent-calculate))))
+          (if (not (eq 'noindent (car-safe indent)))
+              (if (integerp indent)
+                  (max (funcall smie-rules-function :elem 'basic) indent)
+                indent)
+            ;; We can't just return `noindent' if we're inside a comment,
+            ;; because the indent.el code would then be similarly confused,
+            ;; thinking the `noindent' is because we're inside the cpp
+            ;; pseudo-comment, and would hence align the code with the content
+            ;; of the psuedo-comment rather than the nested real comment!
+            ;;
+            ;; FIXME: Copy&paste from indent--default-inside-comment.
+            ;; FIXME: This will always re-indent inside these comments, even
+            ;; during indent-region.
+            (save-excursion
+              (forward-line -1)
+              (skip-chars-forward " \t")
+              (when (< (1- (point)) (cdr indent) (line-end-position))
+                (goto-char (cdr indent))
+                (when (looking-at comment-start-skip)
+                  (goto-char (match-end 0))))
+              (current-column))))))
+
      ((equal (syntax-after (point)) (string-to-syntax "< c")) 0)
-     ((looking-at sm-c--cpp-regexp)
-      (message "s-p-l=%S s-p-d=%S" syntax-ppss-last syntax-propertize--done)
-      (when (get-buffer "*trace-output*")
-        (with-current-buffer "*trace-output*"
-          (message "%S" (buffer-string))))
-      (debug)))))
+     )))
 
 ;;; Syntax table
 
@@ -239,36 +271,48 @@ Typically 2 for GNU style and `tab-width' for Linux style."
 
 (defconst sm-c-smie-grammar
   ;; `((:smie-closer-alist ("{" . "}")) ("{" (39) 0) ("}" 0 (40)) ("else" 27 26) ("," 38 38) ("do" (41) 22) ("while" (42) 23) ("for" (43) 24) (";" 11 11) ("if" (44) 25))
-  (smie-prec2->grammar
-   (smie-merge-prec2s
-    (smie-bnf->prec2
-     '((decls ("typedef" decl) ("extern" decl)
-              (decls ";" decls))
-       (decl)
-       (id)
-       (insts ("{" insts "}")
-              (insts ";" insts)
-              ("return" exp)
-              ("goto" exp)
-              (":label")
-              ("case" subexp ": case")
-              ("else" exp-if))
-       (exp-if ("if" exp) ("do" exp) ("while" exp) ("switch" exp) ("for" exp)
-               (exp))
-       (exp ("(" exp ")") (exp "," exp) (subexp "?" exp ":" exp))
-       (subexp (subexp "||" subexp))
-       ;; Some of the precedence table deals with pre/postfixes, which
-       ;; smie-precs->prec2 can't handle, so handle it here instead.
-       (exp11 (exp12) (exp11 "/" exp11))
-       (exp12 (exp13))                  ;C++ only.
-       (exp13 (exp14) ("++ prefix" exp13) ("-- prefix" exp13)
-              ("!" exp13) ("~" exp13) ("&" exp13) ("* deref" exp13))
-       (exp14 (id) (exp14 "++ postfix") (exp14 "-- postfix")
-              (exp14 "->" id) (exp14 "." id)))
-     '((assoc ";") (assoc ",") (nonassoc "?" ":"))
-     sm-c-smie-precedence-table)
-    (smie-precs->prec2 sm-c-smie-precedence-table)
-    (smie-precs->prec2 '((nonassoc ";") (nonassoc ":"))))))
+  (let ((grm
+         (smie-prec2->grammar
+          (smie-merge-prec2s
+           (smie-bnf->prec2
+            '((decls ("typedef" decl) ("extern" decl)
+                     (decls ";" decls))
+              (decl)
+              (id)
+              (insts ("{" insts "}")
+                     (insts ";" insts)
+                     ("return" exp)
+                     ("goto" exp)
+                     (":label")
+                     ("case" subexp ": case")
+                     ("else" exp-if))
+              (exp-if ("if" exp) ("do" exp) ("while" exp) ("switch" exp) ("for" exp)
+                      (exp))
+              (exp ("(" exp ")") (exp "," exp) (subexp "?" exp ":" exp))
+              (subexp (subexp "||" subexp))
+              ;; Some of the precedence table deals with pre/postfixes, which
+              ;; smie-precs->prec2 can't handle, so handle it here instead.
+              (exp11 (exp12) (exp11 "/" exp11))
+              (exp12 (exp13))           ;C++ only.
+              (exp13 (exp14) ("++ prefix" exp13) ("-- prefix" exp13)
+                     ("!" exp13) ("~" exp13) ("&" exp13) ("* deref" exp13))
+              (exp14 (id) (exp14 "++ postfix") (exp14 "-- postfix")
+                     (exp14 "->" id) (exp14 "." id)))
+            '((assoc ";") (assoc ",") (nonassoc "?" ":"))
+            sm-c-smie-precedence-table)
+           (smie-precs->prec2 sm-c-smie-precedence-table)
+           (smie-precs->prec2 '((nonassoc ";") (nonassoc ":")))))))
+    ;; SMIE gives (":label" 261 262), but really this could just as well be
+    ;; (":label" nil nil) because labels don't have any argument to their left
+    ;; or right.  They're like both openers and closers at the same time.
+    (mapcar (lambda (x)
+              (if (equal (car-safe x) ":label")
+                  ;; Rather than (":label" (n1) (n2)) we use
+                  ;; (":label" (n1) n2) because SMIE otherwise complains:
+                  ;; cl--assertion-failed((numberp (funcall op-forw toklevels)))
+                  ;; in smie-next-sexp.
+                  `(,(nth 0 x) (,(nth 1 x)) ,(nth 2 x)) x))
+            grm)))
 
 ;; (defun sm-c--:-discriminate ()
 ;;   (save-excursion
@@ -282,7 +326,7 @@ Typically 2 for GNU style and `tab-width' for Linux style."
 (defconst sm-c-smie-operator-regexp
   (let ((ops '()))
     (pcase-dolist (`(,token . ,_) sm-c-smie-grammar)
-      (when (and (stringp token) (string-match "\\`[^ [:alnum:]]+" token))
+      (when (and (stringp token) (string-match "\\`[^ [:alnum:](){}]+" token))
         (push (match-string 0 token) ops)))
     (regexp-opt ops)))
 
@@ -385,7 +429,10 @@ Typically 2 for GNU style and `tab-width' for Linux style."
              t))
           (_ (goto-char start) nil)))))
 
-(defun sm-c--boi ()
+(defun sm-c--boi (&optional inner)
+  "Jump to the beginning-of-instruction.
+By default for things like nested ifs, it jumps to the outer if, but
+if INNER is non-nil, it stops at the innermost one."
   (while
       (let ((pos (point)))
         (pcase (smie-backward-sexp)
@@ -401,6 +448,12 @@ Typically 2 for GNU style and `tab-width' for Linux style."
                t
              (goto-char pos) nil))
           (`(,_ ,_ ,(or "(" "{" "[")) nil) ;Found it!
+          (`(,_ ,pos ,(and tok
+                           (guard (when inner
+                                    (or (member tok sm-c-paren-block-keywords)
+                                        (equal tok "do"))))))
+           (goto-char pos) nil) ;Found it!
+          (`(t ,(pred (eq (point-min))) . ,_) nil)
           (`(,_ ,pos . ,_) (goto-char pos) t)))))
 
 ;; (defun sm-c--if-tail-to-head ()
@@ -414,31 +467,32 @@ Typically 2 for GNU style and `tab-width' for Linux style."
 
 (defun sm-c--boe (tok)
   (let ((start (point))
-        (res (smie-backward-sexp tok))
-        (min (point)))
-    (while
-        (and (member (nth 2 res) '("if" "while" "do" "for" "else"))
-             (let ((skip (cdr (assoc (nth 2 res)
-                                '(("{" . 1)
-                                  ("else" . 1)
-                                  ("do" . 1)
-                                  ("if" . 2)
-                                  ("for" . 2)
-                                  ("while" . 2))))))
-               (let ((forward-sexp-function nil))
-                 (forward-sexp (1- skip)))
-               (forward-comment (point-max))
-               (if (< (point) start)
-                   (setq min (point))
-                 (goto-char min)
-                 nil))))))
+        (res (smie-backward-sexp tok)))
+    (when (member (nth 2 res) '("if" "while" "do" "for" "else"))
+      (when (member (nth 2 res) '("if" "for"))
+        (let ((forward-sexp-function nil))
+          (forward-sexp 1))
+        (forward-comment (point-max)))
+      (when (looking-at "{")
+        (let ((forward-sexp-function nil))
+          (forward-sexp 1))
+        (forward-comment (point-max)))
+      (if (> (point) start) (goto-char start)))))
 
 (defun sm-c-smie--*-token ()
   (save-excursion
     (let ((pos (point)))
       (pcase (car (smie-indent-backward-token))
-        ((or ")" "]") "* mult")                ;Multiplication.
-        ((or "(" "[" "{") "* deref")
+        (")"
+         ;; Can be a multiplication (as in "(a+b)*c"), or a deref
+         ;; (as in "if (stop) *a = 0;")
+         (if (and (goto-char (nth 1 (syntax-ppss)))
+                  (eq ?\( (char-after))
+                  (member (smie-default-backward-token) '("if" "for")))
+             "* deref"
+           "* mult"))
+        ("]" "* mult")                         ;Multiplication.
+        ((or "(" "[" "{" "}") "* deref")
         (`nil
          (goto-char pos)
          (pcase (smie-backward-sexp "* mult")
@@ -507,16 +561,23 @@ Typically 2 for GNU style and `tab-width' for Linux style."
      (cond
       ((smie-rule-prev-p "=") nil)      ;Not a block of instructions!
       ((save-excursion
-         (sm-c--boi) (sm-c--skip-labels (point-max))
-         (let ((tok (save-excursion (sm-c-smie-forward-token))))
-           (cond
-            ((member tok '("enum" "struct" "typedef"))
-             `(column . ,(+ (funcall smie-rules-function :elem 'basic)
-                            (smie-indent-virtual))))
-            ((or (member tok sm-c-paren-block-keywords)
-                 (equal tok "do"))
-             nil)
-            (t `(column . ,(smie-indent-virtual)))))))
+         (let ((pos (point)))
+           (sm-c--boi 'inner) (sm-c--skip-labels (point-max))
+           (let ((tok (save-excursion (sm-c-smie-forward-token))))
+             (cond
+              ((member tok '("typedef")) ; "enum" "struct"
+               `(column . ,(+ (funcall smie-rules-function :elem 'basic)
+                              (smie-indent-virtual))))
+              ((or (member tok sm-c-paren-block-keywords)
+                   (equal tok "do"))
+               nil)
+              ((save-excursion
+                 (goto-char pos)
+                 (when (and (> (car (syntax-ppss)) 0)
+                            (equal ")" (car (smie-indent-backward-token))))
+                   (up-list -1)
+                   `(column . ,(sm-c--smie-virtual)))))
+              (t `(column . ,(smie-indent-virtual))))))))
       ((smie-rule-hanging-p)
        (cond
         ((smie-rule-prev-p "do" "else")
@@ -524,7 +585,7 @@ Typically 2 for GNU style and `tab-width' for Linux style."
         ((smie-rule-prev-p ")")
          (smie-backward-sexp)
          (smie-indent-backward-token))
-        (t (sm-c--boi)))
+        (t (sm-c--boi 'inner)))
        `(column . ,(sm-c--smie-virtual)))
       (t
        (let ((pos (point)))
@@ -542,23 +603,35 @@ Typically 2 for GNU style and `tab-width' for Linux style."
      (save-excursion
        (let ((res (smie-backward-sexp)))
          (pcase res
-           (`nil `(column . ,(+ (funcall smie-rules-function :elem 'basic)
-                                (sm-c--smie-virtual))))
-           (`(nil ,_ "(")
-            (unless (save-excursion
-                      (member (sm-c-smie-backward-token)
-                              sm-c-paren-block-keywords))
-              `(column . ,(sm-c--smie-virtual))))))))
+           (`nil
+            (if (looking-at "(")
+                ;; (unless (save-excursion
+                ;;           (member (sm-c-smie-backward-token)
+                ;;                   sm-c-paren-block-keywords))
+                ;;   `(column . ,(sm-c--smie-virtual)))
+                nil
+              `(column . ,(+ (funcall smie-rules-function :elem 'basic)
+                             (sm-c--smie-virtual)))))))))
     (`(:after . "else")
      (save-excursion
        (funcall smie-rules-function :elem 'basic)))
     (`(:after . ")")
      (save-excursion
-       (forward-char 1) (backward-sexp 1)
-       (let ((prev (sm-c-smie-backward-token)))
-         (when (member prev sm-c-paren-block-keywords)
+       (let ((_ (progn (forward-char 1) (backward-sexp 1)))
+             (pos (point))
+             (prev (sm-c-smie-backward-token)))
+         (cond
+          ((member prev sm-c-paren-block-keywords)
            `(column . ,(+ (funcall smie-rules-function :elem 'basic)
-                          (smie-indent-virtual)))))))
+                          (smie-indent-virtual))))
+          ((and (looking-at "[[:alnum:]_]+(")
+                (save-excursion
+                  (forward-line 0)
+                  (and (bobp) (looking-at sm-c--cpp-regexp))))
+           ;; Will be bumped up presumably by the "max" in
+           ;; sm-c--cpp-smie-indent.
+           `(column . 0))
+          (t (goto-char pos) `(column . ,(sm-c--smie-virtual)))))))
     (`(:after . "}")
      (save-excursion
        (forward-char 1) (backward-sexp 1)
@@ -594,6 +667,65 @@ Typically 2 for GNU style and `tab-width' for Linux style."
                 (goto-char pos)
                 (throw 'found `(column . ,(smie-indent-virtual))))))))))
 
+;;; Backslash alignment
+
+(defvar-local sm-c--bs-changed nil)
+
+(defun sm-c--bs-after-change (beg end _len)
+  (unless undo-in-progress
+    (if (null sm-c--bs-changed)
+        (setq sm-c--bs-changed (cons beg end))
+      (cl-callf (lambda (x) (min x beg)) (car sm-c--bs-changed))
+      (cl-callf (lambda (x) (max x end)) (cdr sm-c--bs-changed)))))
+
+(defun sm-c--bs-realign ()
+  (when sm-c--bs-changed
+    (sm-c--bs-realign-1 (car sm-c--bs-changed) (cdr sm-c--bs-changed))
+    (setq sm-c--bs-changed nil)))
+
+(defun sm-c--bs-realign-1 (from to)
+  (save-excursion
+    (goto-char from)
+    (end-of-line)
+    (unless (zerop (mod (skip-chars-backward "\\\\") 2))
+      (skip-chars-backward " \t")
+      (let ((col (current-column))
+            start end)
+        (while
+            (progn (setq start (point))
+                   (end-of-line 0)
+                   (and (< (point) start)
+                        (not (zerop (mod (skip-chars-backward "\\\\") 2)))))
+          (skip-chars-backward " \t")
+          (setq col (max (current-column) col)))
+        (goto-char from)
+        (while
+            (progn (setq end (point))
+                   (end-of-line 2)
+                   (and (> (point) start)
+                        (not (zerop (mod (skip-chars-backward "\\\\") 2)))))
+          (skip-chars-backward " \t")
+          (setq col (max (current-column) col)))
+        (goto-char to)
+        (beginning-of-line)
+        (unless (or (> (point) end)       ;Don't realign if we changed outside!
+                    (< end start))        ;A lone \
+          
+          (setq col (1+ col))         ;Add a space before the backslashes.
+          (goto-char end)
+          (end-of-line)
+          (while (>= (point) start)
+            (cl-assert (eq (char-before) ?\\))
+            (forward-char -1)
+            (let ((curcol (current-column)))
+              (cond
+               ((> col curcol) (indent-to col))
+               ((< col curcol)
+                (move-to-column col t)
+                (delete-region (point)
+                               (progn (skip-chars-forward " \t") (point))))))
+            (end-of-line 0)))))))
+            
 ;;; Font-lock support
 
 (defconst sm-c-font-lock-keywords
@@ -659,12 +791,15 @@ Typically 2 for GNU style and `tab-width' for Linux style."
               :forward-token #'sm-c-smie-forward-token)
   ;; FIXME: The stock SMIE forward-sexp-function is not good enough here, since
   ;; our grammar is much too poor.  We should setup another function instead
-  ;; (and ideally teach SMIE to use it).
+  ;; (or ideally teach SMIE to use it).
   (kill-local-variable 'forward-sexp-function)
   (add-hook 'smie-indent-functions #'sm-c--cpp-smie-indent nil t)
   (add-function :after (local 'indent-line-function)
                 #'sm-c--cpp-indent-line)
-  (setq-local smie--hanging-eolp-function #'sm-c-smie-hanging-eolp))
+  (setq-local smie--hanging-eolp-function #'sm-c-smie-hanging-eolp)
+  ;; Backslash auto-realign.
+  (add-hook 'after-change-functions #'sm-c--bs-after-change nil t)
+  (add-hook 'post-command-hook #'sm-c--bs-realign nil t))
 
 (provide 'sm-c-mode)
 ;;; sm-c-mode.el ends here

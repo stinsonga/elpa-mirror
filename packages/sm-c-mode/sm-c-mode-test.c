@@ -1,12 +1,29 @@
 /* -*- sm-c -*- */
 
-#define toto /* bla
-                bla */ \
- if (a) { \
-   f \
- }
+#define toto(arg) /* bla
+                     bla */ \
+  if (a) {  /* toto
+             * titi
+             */    \
+    fs((arg) + 2); \
+  }
+
+#define test(arg) \
+  (hello + arg)
+
+struct foo;
+
+#define titi(arg) { \
+    if (a) {        \
+      f(arg + 1)    \
+    }               \
+  }
 
 DEFUN ()
+  ()
+{
+  return Qnil;
+}
 
 int main (void)
 {
@@ -24,10 +41,22 @@ int main (void)
     printf ("wow\n");
   else
     if (c)
-      printf ("weee\n");
+      printf
+        ("weee\n");
     else
       printf ("wop\n");
-    
+
+  if (a)
+    if (b) {
+      c;
+    }
+
+  *a = b;
+
+  if (pITORIG != pITCOPY)
+    *(pITORIG)
+      = *(pITCOPY);
+
   switch (a)
     {
     case 1:
@@ -42,8 +71,8 @@ int main (void)
     }
 }
 
-static struct myownspecialstruct
-  *testfunction
+static struct myownspecialstruct *
+testfunction
   (args)
 {
   return NULL;
