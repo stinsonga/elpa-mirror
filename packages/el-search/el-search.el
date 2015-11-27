@@ -165,6 +165,12 @@
 ;; y and n work like in isearch (meaning "yes" and "no") if you are
 ;; used to that.
 ;;
+;; It is possible to replace a match with multiple expressions using
+;; "splicing mode".  When it is active, the replacement expression
+;; must evaluate to a list, and is spliced instead of inserted into
+;; the buffer for any replaced match.  Use s to toggle splicing mode
+;; in a `el-search-query-replace' session.
+;;
 ;;
 ;; Suggested key bindings
 ;; ======================
@@ -637,6 +643,22 @@ The following additional pattern types are currently defined:\n"
       (setq el-search-success t)
       (el-search-hl-sexp))))
 
+(defvar el-search-search-and-replace-help-string
+  "\
+y         Replace this match and move to the next.
+SPC or n  Skip this match and move to the next.
+r         Replace this match but don't move.
+!         Replace all remaining matches automatically.
+q         Quit.  To resume, use e.g. `repeat-complex-command'.
+?         Show this help.
+s         Toggle splicing mode.  When splicing mode is
+          on (default off), the replacement expression must
+          evaluate to a list, and the result is spliced into the
+          buffer, instead of just inserted.
+
+Hit any key to proceed."
+  "Help string for ? in `el-search-query-replace'.")
+
 (defun el-search-search-and-replace-pattern (pattern replacement &optional mapping splice)
   (let ((replace-all nil) (nbr-replaced 0) (nbr-skipped 0) (done nil)
         (el-search-keep-hl t) (opoint (point))
@@ -674,7 +696,8 @@ The following additional pattern types are currently defined:\n"
             (if replace-all
                 (funcall do-replace)
               (while (not (pcase (if replaced-this
-                                     (read-char-choice "[SPC ! q]" '(?\ ?! ?q ?n))
+                                     (read-char-choice "[SPC ! q]  (? for help)"
+                                                       '(?\ ?! ?q ?n ??))
                                    (read-char-choice
                                     (concat "Replace this occurrence"
                                             (if (or (string-match-p "\n" to-insert)
@@ -682,8 +705,8 @@ The following additional pattern types are currently defined:\n"
                                                 "" (format " with `%s'" to-insert))
                                             "? "
                                             (if splice "{splice} " "")
-                                            "[y SPC r ! q]" )
-                                    '(?y ?n ?r ?\ ?! ?q ?s)))
+                                            "[y SPC r ! s q]  (? for help)" )
+                                    '(?y ?n ?r ?\ ?! ?q ?s ??)))
                             (?r (funcall do-replace)
                                 nil)
                             (?y (funcall do-replace)
@@ -699,7 +722,9 @@ The following additional pattern types are currently defined:\n"
                                 (setq to-insert (funcall get-replacement-string))
                                 nil)
                             (?q (setq done t)
-                                t)))))
+                                t)
+                            (?? (ignore (read-char el-search-search-and-replace-help-string))
+                                nil)))))
             (unless (or done (eobp)) (el-search--skip-expression nil t)))))
     (el-search-hl-remove)
     (goto-char opoint)
