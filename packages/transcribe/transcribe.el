@@ -1,25 +1,24 @@
-;;;transcribe.el --- package for audio transcriptions
+;;; transcribe.el --- package for audio transcriptions
 
-;;Copyright 2014 David González Gándara
+;; Copyright 2014-2015  Free Software Foundation, Inc.
 
-;;Author: David Gonzalez Gandara <dggandara@member.fsf.org>
-;;version: 0.0.1
+;; Author: David Gonzalez Gandara <dggandara@member.fsf.org>
+;; Version: 0.0.1
 
-;;This program is free software: you can redistribute it and/or modify
-;;    it under the terms of the GNU General Public License as published by
-;;    the Free Software Foundation, either version 3 of the License, or
-;;    (at your option) any later version.
+;; This program is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
 ;;
-;;    This program is distributed in the hope that it will be useful,
-;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;;    GNU General Public License for more details.
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
 ;;
-;;    You should have received a copy of the GNU General Public License
-;;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-;;;Commentary:
+;;; Commentary:
 
 ;; INSTALLATION
 ;;-------------------
@@ -59,7 +58,7 @@
 ;;     <f7> ---------> Break tag. This command "breaks" a tag in two, that is it inserts an ending tag and then a starting tag. Edit the function to suit your needs. It is useful if you are segmenting discourse into tags and then you decide the segmentation was not correct.
 ;;     <f4> ---------> Insert atributes. This function insert custom xml attributes. Edit the function to suit you needs.
 
-;;;Code:
+;;; Code:
 
 (require 'emms-setup)
 ;(require 'emms-player-mpd)
@@ -141,4 +140,4 @@
 (global-unset-key (kbd "C-x C-n"))
 (global-set-key (kbd "C-x C-n") 'NewEpisode)
 
-;;;transcribe.el ends here
+;;; transcribe.el ends here
