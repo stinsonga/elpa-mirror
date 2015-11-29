@@ -21,23 +21,43 @@
 
 ;;;Commentary:
 
-;; 
-;; to install manually:
+;; INSTALLATION
+;;-------------------
+;; If you don't use transcribe as a package, you can install manually:
 ;;    Copy this file to somewhere in your drive
 
 ;; To load the file --> M-: (load "~/transcribe.el") --- change the route to where you copied the file
 
-;; Commands: 
-;;     C-x C-n --> new episode structure
-;;     <f6> ----> New tag. Interactively insert new tag
-;;     C-x C-a ----> call interactively analyze_episodes.py to extract interactions by a person
-;;     C-x C-p ----> play audio file
-;;     <f5> ----> pause or play audio
-;;     C-x <right> ----> seek 10 seconds forward
-;;     C-x <left> ---->seek 10 seconds backward
-;;     <f8> ----> seek interactively: positive seconds go forward and negative seconds go backward
-;;     <f11> --------> l1 tag
-;;     <f12> --------> l2 tag
+;; DEPENDENCIES:
+;;-----------------------------
+;; In order to use the most important functions of transcribe, you need to install emms and mpg321.
+;;
+;; DESCRIPTION
+;;-------------------------
+;; Transcribe is a tool to make audio transcriptions easy. It allows the transcriber to control the audio easily while typing, as well as automate the insertion of xml tags, in case the transcription protocol include them.
+;; 
+;;  AUDIO COMMANDS
+;;------------------------------
+;;     C-x C-p --------> Play audio file. You will be prompted for the name of the file. The recommended format is mp2.
+;;     <f5> -----------> Pause or play audio.
+;;     C-x <right> ----> seek audio 10 seconds forward.
+;;     C-x <left> ----->seek audio 10 seconds backward.
+;;     <f8> -----------> seek interactively: positive seconds go forward and negative seconds go backward
+;;
+;;  XML TAGGING COMMANDS
+;;--------------------------------------------------
+;;     C-x C-n --> Create new episode structure. This is useful in case your xml file structure requires it. You can customize the text inserted manipulating the realted function.
+;;     <f6> -----> Interactively insert new tag. You will be prompted for the content of the tag. The starting tag and the end tag will be inserted automatically and the cursor placed in the proper place to type.
+;;
+;;
+;;
+;; SPECIFIC COMMANDS I USE, THAT YOU MAY FIND USEFUL
+;;------------------------------------------------
+;;     C-x C-a ------> This runs an external discourse analysis tool. It defaults to my own script analyze_episodes2.py, but you can customise the command to launch any other.
+;;     <f11> --------> Customised tag 1. Edit the function to adapt to your needs.
+;;     <f12> --------> Customised tag 2. Edit the function to adapt to your needs.
+;;     <f7> ---------> Break tag. This command "breaks" a tag in two, that is it inserts an ending tag and then a starting tag. Edit the function to suit your needs. It is useful if you are segmenting discourse into tags and then you decide the segmentation was not correct.
+;;     <f4> ---------> Insert atributes. This function insert custom xml attributes. Edit the function to suit you needs.
 
 ;;;Code:
 
