@@ -140,4 +140,6 @@
 (global-unset-key (kbd "C-x C-n"))
 (global-set-key (kbd "C-x C-n") 'NewEpisode)
 
+(provide 'transcribe)
+
 ;;; transcribe.el ends here
