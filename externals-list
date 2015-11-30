@@ -68,7 +68,6 @@
  ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
  ("rich-minority" :subtree "https://github.com/Malabarba/rich-minority")
  ("rudel"		:external nil) ;; Was bzr::bzr://rudel.bzr.sourceforge.net/bzrroot/rudel/trunk
- ("seq"			:core "lisp/emacs-lisp/seq.el")
  ("soap-client"		:core ("lisp/net/soap-client.el" "lisp/net/soap-inspect.el"))
  ("sotlisp" :subtree "https://github.com/Malabarba/speed-of-thought-lisp")
  ("spinner" :subtree "https://github.com/Malabarba/spinner.el")
