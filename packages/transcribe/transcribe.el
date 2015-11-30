@@ -60,19 +60,20 @@
 
 ;;; Code:
 
-(require 'emms-setup)
+(if t (require 'emms-setup))    ;Only require it at run-time.
 ;(require 'emms-player-mpd)
 ;(setq emms-player-mpd-server-name "localhost")
 ;(setq emms-player-mpd-server-port "6600")
 
 (emms-standard)
 (emms-default-players)
-(require 'emms-player-mpg321-remote)
+(if t (require 'emms-player-mpg321-remote))
+(defvar emms-player-list)
 (push 'emms-player-mpg321-remote emms-player-list)
 
-(require 'emms-mode-line)
+(if t (require 'emms-mode-line))
 (emms-mode-line 1)
-(require 'emms-playing-time)
+(if t (require 'emms-playing-time))
 (emms-playing-time 1)
 
 (global-set-key (kbd "C-x C-p") 'emms-play-file)
