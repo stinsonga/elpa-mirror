@@ -22,6 +22,10 @@ struct foo {
   int field;
 };
 
+typedef struct bar {
+  int field;
+} *BarPtr;
+
 struct foo *getfoo (void)
 {
   return NULL;

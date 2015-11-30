@@ -801,6 +801,27 @@ if INNER is non-nil, it stops at the innermost one."
             
 ;;; Font-lock support
 
+(defconst sm-c--comment-regexp
+  "/\\(?:/.*\n\\|\\*\\(?:[^*]+\\(?:\\*+[^/*]\\)*\\)*\\*/\\)")
+
+(defconst sm-c--defun-regexp
+  (let* ((spc0 (concat "\\(?:\n?[ \t]\\|" sm-c--comment-regexp "\\)*"))
+         (spc1 (concat "\n?[ \t]" spc0))
+         (id "\\(?:\\sw\\|\\s_\\)+"))
+    (cl-flet ((repeat (repetition &rest res)
+                      (concat "\\(?:" (apply #'concat res) "\\)"
+                              (pcase repetition
+                                ((pred symbolp) (symbol-name repetition))
+                                (1 "")))))
+      (concat
+       "^\\(?:"
+       (repeat '* "\\*" spc0)
+       (repeat '* id (repeat 1 spc1 "\\|" spc0 "\\*" spc0))
+       "\\(" id "\\)[ \t\n]*("
+       "\\|"
+       "[ \t]*#[ \t]*define[ \t]+\\(?1:" id "\\)("
+       "\\)"))))
+
 (defconst sm-c-font-lock-keywords
   `((,sm-c--cpp-regexp (1 font-lock-preprocessor-face))
     ("\\_<\\(?:true\\|false\\)\\_>" (0 font-lock-constant-face))
@@ -828,25 +849,19 @@ if INNER is non-nil, it stops at the innermost one."
                          (delete "case" kws)))
                 "\\_>"))
      (0 font-lock-keyword-face))
-    (,(let* ((spc0 "\\(?:\n?[ \t]\\|/\\*.*?\\*/\\)*")
-             (spc1 (concat "\n?[ \t]" spc0))
-             (id "\\(?:\\sw\\|\\s_\\)+"))
-        (cl-flet ((repeat (repetition &rest res)
-                          (concat "\\(?:" (apply #'concat res) "\\)"
-                                  (pcase repetition
-                                    ((pred symbolp) (symbol-name repetition))
-                                    (1 "")))))
-          (concat
-           "^"
-           (repeat '* "\\*" spc0)
-           (repeat '* id (repeat 1 spc1 "\\|" spc0 "\\*" spc0))
-           "\\(" id "\\)[ \t\n]*(")))
+    (,sm-c--defun-regexp
      (1
       (prog1 font-lock-function-name-face
         (if (< (match-beginning 0) (line-beginning-position))
             (put-text-property (match-beginning 0) (match-end 0)
                                'font-lock-multiline t)))))))
 
+(defconst sm-c--def-regexp
+  (let ((spc0 (concat "\\(?:[ \t\n]\\|" sm-c--comment-regexp "\\)*"))
+        (id "\\(?:\\sw\\|\\s_\\)+"))
+    (concat sm-c--defun-regexp
+            "\\|"
+            "\\_<\\(?1:\\(?:struct\\|enum\\)[ \t]+" id "\\)" spc0 "{")))
 
 ;;;###autoload
 (define-derived-mode sm-c-mode prog-mode "smC"
@@ -872,7 +887,9 @@ if INNER is non-nil, it stops at the innermost one."
   (setq-local smie--hanging-eolp-function #'sm-c-smie-hanging-eolp)
   ;; Backslash auto-realign.
   (add-hook 'after-change-functions #'sm-c--bs-after-change nil t)
-  (add-hook 'post-command-hook #'sm-c--bs-realign nil t))
+  (add-hook 'post-command-hook #'sm-c--bs-realign nil t)
+  (setq-local add-log-current-defun-header-regexp sm-c--def-regexp)
+  (setq-local imenu-generic-expression `((nil ,sm-c--def-regexp 1))))
 
 (defun sm-c--cpp-is-not-really-a-comment (&rest args)
   ;; Without this, placing the region around a CPP directive and hitting
