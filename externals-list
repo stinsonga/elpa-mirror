@@ -64,9 +64,11 @@
  ("on-screen"           :subtree "https://github.com/michael-heerdegen/on-screen.el.git")
  ("pabbrev"             :external "https://github.com/phillord/pabbrev.git")
  ("pinentry"		:subtree "https://github.com/ueno/pinentry-el.git")
+ ("python"		:core "lisp/progmodes/python.el")
  ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
  ("rich-minority" :subtree "https://github.com/Malabarba/rich-minority")
  ("rudel"		:external nil) ;; Was bzr::bzr://rudel.bzr.sourceforge.net/bzrroot/rudel/trunk
+ ("seq"			:core "lisp/emacs-lisp/seq.el")
  ("soap-client"		:core ("lisp/net/soap-client.el" "lisp/net/soap-inspect.el"))
  ("sotlisp" :subtree "https://github.com/Malabarba/speed-of-thought-lisp")
  ("spinner" :subtree "https://github.com/Malabarba/spinner.el")
