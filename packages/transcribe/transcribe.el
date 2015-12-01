@@ -3,7 +3,7 @@
 ;; Copyright 2014-2015  Free Software Foundation, Inc.
 
 ;; Author: David Gonzalez Gandara <dggandara@member.fsf.org>
-;; version: 0.5.0
+;; Version: 0.5.0
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -125,6 +125,10 @@
 
 ;;;; ChangeLog:
 
+;; 2015-11-30  David Gonzalez Gandara  <dggandara@member.fsf.org>
+;; 
+;; 	Added minor-mode function as suggested
+;; 
 ;; 2015-11-29  Stefan Monnier  <monnier@iro.umontreal.ca>
 ;; 
 ;; 	* transcribe.el: Add `provide' statement
