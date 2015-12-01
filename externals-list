@@ -58,7 +58,7 @@
  ("js2-mode"		:subtree "https://github.com/mooz/js2-mode.git")
  ("math-symbol-lists" 	:subtree "https://github.com/vspinu/math-symbol-lists.git")
  ("nameless" :subtree "https://github.com/Malabarba/Nameless")
- ("names" :subtree "http://github.com/Bruce-Connor/names")
+ ("names" :subtree "http://github.com/Malabarba/names")
  ("omn-mode"            :external nil)
  ("ntlm"		:core "lisp/net/ntlm.el")
  ("on-screen"           :subtree "https://github.com/michael-heerdegen/on-screen.el.git")
