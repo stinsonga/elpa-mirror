@@ -123,30 +123,6 @@
     ([f12] . transcribe-xml-tag-l2))
 )
 
-;;;; ChangeLog:
-
-;; 2015-11-30  David Gonzalez Gandara  <dggandara@member.fsf.org>
-;; 
-;; 	Added minor-mode function as suggested
-;; 
-;; 2015-11-29  Stefan Monnier  <monnier@iro.umontreal.ca>
-;; 
-;; 	* transcribe.el: Add `provide' statement
-;; 
-;; 2015-11-29  Stefan Monnier  <monnier@iro.umontreal.ca>
-;; 
-;; 	* transcribe.el: Fix up formatting and copyright
-;; 
-;; 2015-11-29  David Gonzalez Gandara  <dggandara@member.fsf.org>
-;; 
-;; 	Added some usage information
-;; 
-;; 2015-11-29  David Gonzalez Gandara  <dggandara@member.fsf.org>
-;; 
-;; 	Package transcribe added
-;; 
-
-
 (provide 'transcribe)
 
 ;;; transcribe.el ends here
