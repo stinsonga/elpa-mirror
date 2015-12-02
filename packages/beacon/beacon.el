@@ -149,14 +149,16 @@ For instance, if you want to disable beacon on buffers where
 
 (add-hook 'beacon-dont-blink-predicates #'window-minibuffer-p)
 
-(defcustom beacon-dont-blink-major-modes '(magit-status-mode magit-popup-mode)
+(defcustom beacon-dont-blink-major-modes '(t magit-status-mode magit-popup-mode
+                                       gnus-summary-mode gnus-group-mode)
   "A list of major-modes where the beacon won't blink.
 Whenever the current buffer satisfies `derived-mode-p' for
 one of the major-modes on this list, the beacon will not
 blink."
   :type '(repeat symbol))
 
-(defcustom beacon-dont-blink-commands '(recenter-top-bottom)
+(defcustom beacon-dont-blink-commands '(recenter-top-bottom next-line previous-line
+                                                      forward-line)
   "A list of commands that should not make the beacon blink.
 Use this for commands that scroll the window in very
 predictable ways, when the blink would be more distracting
