@@ -1,5 +1,6 @@
 *.elc
 *.orig
+.dir-locals?.el
 *~
 \#*\#
 ChangeLog
