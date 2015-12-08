@@ -3,7 +3,7 @@
 ;; Copyright 2014-2015  Free Software Foundation, Inc.
 
 ;; Author: David Gonzalez Gandara <dggandara@member.fsf.org>
-;; Version: 1.0.0
+;; Version: 1.0.1
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -101,50 +101,60 @@
   "Extract from a given episode and person the number of asunits per 
    second produced, and the number of clauses per asunits, for L2 and L1."
   (interactive "sepisodenumber: \nspersonid:")
-  (setq interventionsl2 '())
-  (setq interventionsl1 '())
-  (setq xml (xml-parse-region (point-min) (point-max)))
-  (setq results (car xml))
-  (setq episodes (xml-get-children results 'episode))
-  (setq asunitsl2 0.0000)
-  (setq asunitsl1 0.0000)
-  (setq shifts)
-  (setq clausesl1 0.0000)
-  (setq errorsl1 0.0000)
-  (setq clausesl2 0.0000)
-  (setq errorsl2 0.0000)
-  (dolist (episode episodes)
-     (setq numbernode (xml-get-children episode 'number))
-     (setq number (nth 2 (car numbernode)))
-     (when (equal episodenumber number)
-           (setq durationnode (xml-get-children episode 'duration))
-           (setq duration (nth 2 (car durationnode)))
-           (setq transcription (xml-get-children episode 'transcription))
-           (dolist (turn transcription)
-                   (setq interventionnode (xml-get-children turn (intern personid)))
-                   (dolist (intervention interventionnode)
-                           (setq l2node (xml-get-children intervention 'l2))
-                           (dolist (l2turn l2node)
-                                   (setq l2 (nth 2 l2turn))
-                                   (setq clausesl2node (nth 1 l2turn))
-                                   (setq clausesl2nodeinc (cdr (car clausesl2node)))
-                                   (when (not (equal clausesl2node nil))
-                                         (setq clausesl2 (+ clausesl2 
-                                              (string-to-number clausesl2nodeinc))))
-                                   (when (not (equal l2 nil)) 
-                                         (add-to-list 'interventionsl2 l2) 
-                                         (setq asunitsl2 (1+ asunitsl2))))
-                           (setq l1node (xml-get-children intervention 'l1))
-                           (dolist (l1turn l1node)
-                                   (setq l1 (nth 2 l1turn))
-                                   (setq clausesl1node (nth 1 l1turn))
-                                   (setq clausesl1nodeinc (cdr (car clausesl1node)))
-                                   (when (not (equal clausesl1node nil))
-                                         (setq clausesl1 (+ clausesl1 
-                                               (string-to-number clausesl1nodeinc))))
-                                   (when (not (equal l1 nil)) 
-                                         (add-to-list 'interventionsl1 l1) 
-                                         (setq asunitsl1 (1+ asunitsl1))))))))
+  (let* ((interventionsl2 '())
+     (interventionsl1 '())
+     (xml (xml-parse-region (point-min) (point-max)))
+     (results (car xml))
+     (episodes (xml-get-children results 'episode))
+     (asunitsl2 0.0000)
+     (asunitsl1 0.0000)
+     (shifts nil)
+     (clausesl1 0.0000)
+     (errorsl1 0.0000)
+     (clausesl2 0.0000)
+     (errorsl2 0.0000)
+     (duration nil)
+     (number nil))
+         
+     (dolist (episode episodes)
+       (let*((numbernode (xml-get-children episode 'number)))
+                 
+         (setq number (nth 2 (car numbernode)))
+         (when (equal episodenumber number)
+           (let* ((durationnode (xml-get-children episode 'duration))
+             (transcription (xml-get-children episode 'transcription)))
+                       
+             (setq duration (nth 2 (car durationnode)))
+             (dolist (turn transcription)
+               (let* ((interventionnode (xml-get-children turn 
+                 (intern personid))))
+                 
+                 (dolist (intervention interventionnode)
+                   (let* ((l2node (xml-get-children intervention 'l2))
+                     (l1node (xml-get-children intervention 'l1)))
+                       
+                     (dolist (l2turn l2node)
+                       (let* ((l2 (nth 2 l2turn))
+                          (clausesl2node (nth 1 l2turn))
+                          (clausesl2nodeinc (cdr (car clausesl2node))))
+                          
+                          (when (not (equal clausesl2node nil))
+                            (setq clausesl2 (+ clausesl2 (string-to-number 
+                             clausesl2nodeinc))))
+                          (when (not (equal l2 nil)) 
+                            (add-to-list 'interventionsl2 l2) 
+                            (setq asunitsl2 (1+ asunitsl2)))))
+                     (dolist (l1turn l1node)
+                       (let*((l1 (nth 2 l1turn))
+                         (clausesl1node (nth 1 l1turn))
+                         (clausesl1nodeinc (cdr (car clausesl1node))))
+                         
+                         (when (not (equal clausesl1node nil))
+                           (setq clausesl1 (+ clausesl1 (string-to-number 
+                              clausesl1nodeinc))))
+                         (when (not (equal l1 nil)) 
+                           (add-to-list 'interventionsl1 l1) 
+                           (setq asunitsl1 (1+ asunitsl1)))))))))))))
   (reverse interventionsl2)
   (reverse interventionsl1)
   ;(print interventions) ;uncomment to display all the interventions on screen
@@ -154,7 +164,7 @@
   (setq clausesperasunitl1 (/ clausesl1 asunitsl1))
   (princ (format "episode: %s, duration: %s, person: %s\n" number duration personid))
   (princ (format "L2(Asunits/second): %s, L2(clauses/Asunit): %s, L1(Asunits/second): %s" 
-          asunitspersecondl2 clausesperasunitl2 asunitspersecondl1))
+          asunitspersecondl2 clausesperasunitl2 asunitspersecondl1)))
 )
 
 (defun transcribe-define-xml-tag (xmltag)
