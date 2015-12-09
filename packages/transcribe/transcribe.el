@@ -158,14 +158,14 @@
   (reverse interventionsl2)
   (reverse interventionsl1)
   ;(print interventions) ;uncomment to display all the interventions on screen
-  (setq asunitspersecondl2 (/ asunitsl2 (string-to-number duration)))
-  (setq clausesperasunitl2 (/ clausesl2 asunitsl2))
-  (setq asunitspersecondl1 (/ asunitsl1 (string-to-number duration)))
-  (setq clausesperasunitl1 (/ clausesl1 asunitsl1))
-  (princ (format "episode: %s, duration: %s, person: %s\n" number duration personid))
-  (princ (format "L2(Asunits/second): %s, L2(clauses/Asunit): %s, L1(Asunits/second): %s" 
-          asunitspersecondl2 clausesperasunitl2 asunitspersecondl1)))
-)
+  (let((asunitspersecondl2 (/ asunitsl2 (string-to-number duration)))
+    (clausesperasunitl2 (/ clausesl2 asunitsl2))
+    (asunitspersecondl1 (/ asunitsl1 (string-to-number duration)))
+    (clausesperasunitl1 (/ clausesl1 asunitsl1)))
+  
+    (princ (format "episode: %s, duration: %s, person: %s\n" episodenumber duration personid))
+    (princ (format "L2(Asunits/second): %s, L2(clauses/Asunit): %s, L1(Asunits/second): %s" 
+          asunitspersecondl2 clausesperasunitl2 asunitspersecondl1)))))
 
 (defun transcribe-define-xml-tag (xmltag)
   "This function allows the automatic insetion of a xml tag and places the cursor."
