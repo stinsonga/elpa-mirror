@@ -451,14 +451,15 @@ this pattern type."
      ,@body))
 
 (defun el-search--matcher (pattern &rest body)
-  (eval
+  (eval ;use `eval' to allow for user defined pattern types at run time
    `(el-search--with-additional-pcase-macros
-     (let ((warning-suppress-log-types '((bytecomp))))
-       (byte-compile
-        (lambda (expression)
-          (pcase expression
-            (,pattern ,@(or body (list t)))
-            (_        nil))))))))
+     (let ((byte-compile-debug t) ;make undefined pattern types raise an error
+           (warning-suppress-log-types '((bytecomp)))
+           (pcase--dontwarn-upats (cons '_ pcase--dontwarn-upats)))
+       (byte-compile (lambda (expression)
+                       (pcase expression
+                         (,pattern ,@(or body (list t)))
+                         (_        nil))))))))
 
 (defun el-search--match-p (matcher expression)
   (funcall matcher expression))
