@@ -98,7 +98,7 @@
 (if t (require 'emms-playing-time))
 (emms-playing-time 1)
 
-(defvar transcribe-function-list '("initiating (inform, request, question, etc)" "responding" "control (reformulate, echo, etc.)" "expresive" "interpersonal (thank, bye, etc.)"))
+(defvar transcribe-function-list '("initiating" "responding" "control" "expresive" "interpersonal"))
 (defvar transcribe-move-list '("initiation" "response" "follow-up"))
 (defvar transcribe-attribute-list (append '("clauses" "errors") transcribe-function-list transcribe-move-list))
 ;(append transcribe-attribute-list transcribe-function-list transcribe-move-list)
