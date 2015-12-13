@@ -41,7 +41,7 @@
 ;; on the language used by the person. The attributes expected are the 
 ;; number of clauses that form the utterance, the number of errors the 
 ;; transcriber observes, and the function of the speech act. The parser will
-;; even if some attributes are missing.
+;; work even if some attributes are missing.
 ;; 
 ;; 
 ;; AUDIO COMMANDS
@@ -56,29 +56,22 @@
 ;;
 ;; XML TAGGING COMMANDS
 ;; --------------------------------------------------
-;;     C-x C-n --> Create new episode structure. This is useful in case your 
-;;                 xml file structure requires it. You can customize the text 
-;;                 inserted manipulating the realted function.
-;;     <f2> -----> Interactively insert a function attribute in a speech act 
+;;     C-x C-n ------> Create new episode structure. This is useful in case your 
+;;                 xml file structure requires it.
+;;     <f2> ---------> Interactively insert a function attribute in a speech act 
 ;;                 (l1 or l2) tag.
-;;     <f3> -----> Interactively insert a move attribute in a turn (person) tag
-;;     <f4> -----> Interactively insert an attribute (any kind)
-;;     <f6> -----> Interactively insert new tag. You will be prompted for the 
-;;                 content of the tag. The starting tag and the end tag will be 
-;;                 inserted automatically and the cursor placed in the proper 
-;;                 place to type.
+;;     <f3> ---------> Interactively insert a move attribute in a turn (person) tag
+;;     <f4> ---------> Interactively insert an attribute (any kind)
+;;     <f9> ---------> Insert turn (person) tag. Inserts a move attribute.
+;;     <f10> --------> Insert a custom tag. Edit the function to adapt to your needs.
+;;     <f11> --------> Insert speech act tag in L1, with clauses, errors and function
+;;                     attributes.
+;;     <f12> --------> Insert speech act tag in L2, with clauses, errors and function
+;;                     attributes.
 ;;
-;;
-;;
-;; SPECIFIC COMMANDS I USE, THAT YOU MAY FIND USEFUL
-;; ------------------------------------------------
+;; AUTOMATIC PARSING
+;; -----------------------------------------------------
 ;;     C-x C-a ------> Analyses the text for measurments of performance.
-;;     <f11> --------> Customised tag 1. Edit the function to adapt to your needs.
-;;     <f12> --------> Customised tag 2. Edit the function to adapt to your needs.
-;;     <f7> ---------> Break tag. This command "breaks" a tag in two, that is 
-;;                     it inserts an ending tag and then a starting tag.
-;;     <f4> ---------> Insert atributes. This function insert custom xml attributes. 
-;;                     Edit the function to suit you needs.
 
 ;;; Code:
 
@@ -100,7 +93,7 @@
 
 (defvar transcribe-function-list '("initiating" "responding" "control" "expresive" "interpersonal"))
 (defvar transcribe-move-list '("initiation" "response" "follow-up"))
-(defvar transcribe-attribute-list (append '("clauses" "errors") transcribe-function-list transcribe-move-list))
+(defvar transcribe-attribute-list '("clauses" "errors" "function" "move"))
 ;(append transcribe-attribute-list transcribe-function-list transcribe-move-list)
 
 (defun transcribe-analyze-episode (episode person)
@@ -180,12 +173,29 @@
     (princ (format "L2(Asunits/second): %s, L2(clauses/Asunit): %s, L1(Asunits/second): %s" 
           asunitspersecondl2 clausesperasunitl2 asunitspersecondl1)))))
 
-(defun transcribe-define-xml-tag (xmltag)
-  "This function allows the automatic insetion of a xml tag and places the cursor."
+(defun transcribe-xml-tag-person (xmltag)
+  "This function allows the automatic insetion of a speaker xml tag and places the cursor."
+  (interactive "stag:")
+  (insert (format "<%s move=\"\"></%s>" xmltag xmltag))
+  (backward-char 3)
+  (backward-char (string-width xmltag)))
+
+(defun transcribe-xml-tag (xmltag)
+  "This function allows the automatic insetion of a custom xml tag and places the cursor."
   (interactive "stag:")
   (insert (format "<%s></%s>" xmltag xmltag))
   (backward-char 3)
   (backward-char (string-width xmltag)))
+
+(defun transcribe-region-xml-tag (xmltag)
+  "This function encapsulates the marked region in the given tag."
+  (interactive "stag:")
+  (let ((beginning (region-beginning))
+       (end (region-end)))
+  (goto-char beginning)
+  (insert (format "<%s>" xmltag))
+  (goto-char end)
+  (insert (format "</%s>" xmltag))))
 
 (defun transcribe-add-attribute (att val)
   "Adds a xml attribute at cursor with the name and value specified (autocompletion possible)"
@@ -205,19 +215,19 @@
 (defun transcribe-xml-tag-l1 ()
   "Inserts a l1 tag and places the cursor"
   (interactive)
-  (insert "<l1></l1>")
-  (backward-char 3)
-  (backward-char 2))
+  (insert "<l1 clauses=\"1\" errors=\"0\" function=\"\"></l1>")
+  (backward-char 5))
 
 (defun transcribe-xml-tag-l2 ()
   "Inserts a l2 tag and places the cursor"
   (interactive)
-  (insert "<l2 clauses=\"1\" errors=\"0\"></l2>")
-  (backward-char 3)
-  (backward-char 2))
+  (insert "<l2 clauses=\"1\" errors=\"0\" function=\"\"></l2>")
+  (backward-char 5))
 
-(fset 'transcribe-xml-tag-l2-break "</l2><l2 clauses=\"1\" errors=\"0\">")
-   ;inserts a break inside a l2 tag
+(defun transcribe-xml-tag-break (xmltag)
+  "This function breaks an unit into two. That is, insert a closing and an opening equal tags"
+  (interactive "stag:")
+  (insert (format "</%s><%s clauses=\"1\" errors=\"0\" function=\"\">" xmltag xmltag)))
 
 (defun transcribe-display-audio-info ()
   (interactive)
@@ -239,14 +249,16 @@
     ([?\C-x down] . emms-stop)
     ([?\C-x right] . emms-seek-forward)
     ([?\C-x left] . emms-seek-backward)
+    
     ([f2] . transcribe-add-attribute-function)
     ([f3] . transcribe-add-attribute-move)
-    ([f4] . transcribe-add-atribute)
+    ([f4] . transcribe-add-attribute)
+    
     ([f5] . emms-pause)
-    ([f6] . transcribe-define-xml-tag)
-    ([f7] . transcribe-xml-tag-l2-break)
     ([f8] . emms-seek)
    
+    ([f9] . transcribe-xml-tag)
+    ([f10] . transcribe-xml-tag-person)
     ([f11] . transcribe-xml-tag-l1)
     ([f12] . transcribe-xml-tag-l2))
 )
