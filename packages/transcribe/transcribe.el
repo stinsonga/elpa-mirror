@@ -3,7 +3,7 @@
 ;; Copyright 2014-2015  Free Software Foundation, Inc.
 
 ;; Author: David Gonzalez Gandara <dggandara@member.fsf.org>
-;; Version: 1.0.1
+;; Version: 1.0.2
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -22,8 +22,10 @@
 
 ;; REQUIRES:
 ;; -----------------------------
-;; In order to use the audio functions of transcribe, you need to install 
-;; emms and mpg321.
+;; This module works without any requires, but in order to use the audio 
+;; functions, you need to install the emacs package "emms", by Joe Drew, 
+;; and the external program "mpg321", by Jorgen Schafer and Ulrik Jensen,
+;; both under GPL licenses.
 ;;
 ;; USAGE:
 ;; -------------------------
@@ -33,11 +35,13 @@
 ;; include them.
 ;; The analyse function will search for a specific structure 
 ;; of episodes that can be automatically added with the macro NewEpisode. 
-;; The function expects the utterances to be transcribed inside a xml tag 
-;; with the identifier of the speaker, with the tags <l1> or <l2>, depending 
+;; The function expects the speech acts to be transcribed inside a turn xml 
+;; tag with the identifier of the speaker with optional move attribute.
+;; Each speech act is spected inside a <l1> or <l2> tag, depending 
 ;; on the language used by the person. The attributes expected are the 
-;; number of clauses that form the utterance and the number of errors the 
-;; transcriber observes.
+;; number of clauses that form the utterance, the number of errors the 
+;; transcriber observes, and the function of the speech act. The parser will
+;; even if some attributes are missing.
 ;; 
 ;; 
 ;; AUDIO COMMANDS
@@ -55,6 +59,10 @@
 ;;     C-x C-n --> Create new episode structure. This is useful in case your 
 ;;                 xml file structure requires it. You can customize the text 
 ;;                 inserted manipulating the realted function.
+;;     <f2> -----> Interactively insert a function attribute in a speech act 
+;;                 (l1 or l2) tag.
+;;     <f3> -----> Interactively insert a move attribute in a turn (person) tag
+;;     <f4> -----> Interactively insert an attribute (any kind)
 ;;     <f6> -----> Interactively insert new tag. You will be prompted for the 
 ;;                 content of the tag. The starting tag and the end tag will be 
 ;;                 inserted automatically and the cursor placed in the proper 
@@ -89,6 +97,11 @@
 (emms-mode-line 1)
 (if t (require 'emms-playing-time))
 (emms-playing-time 1)
+
+(defvar transcribe-function-list '("initiating (inform, request, question, etc)" "responding" "control (reformulate, echo, etc.)" "expresive" "interpersonal (thank, bye, etc.)"))
+(defvar transcribe-move-list '("initiation" "response" "follow-up"))
+(defvar transcribe-attribute-list (append '("clauses" "errors") transcribe-function-list transcribe-move-list))
+;(append transcribe-attribute-list transcribe-function-list transcribe-move-list)
 
 (defun transcribe-analyze-episode (episode person)
   "This calls the external python package analyze_episodes2.py. The new 
@@ -174,6 +187,21 @@
   (backward-char 3)
   (backward-char (string-width xmltag)))
 
+(defun transcribe-add-attribute (att val)
+  "Adds a xml attribute at cursor with the name and value specified (autocompletion possible)"
+  (interactive (list(completing-read "attibute name:" transcribe-attribute-list)(read-string "value:"))) 
+  (insert (format "%s=\"%s\"" att val)))
+
+(defun transcribe-add-attribute-function (val)
+  "Adds the xml attribute 'function' at cursor with the name specified (autocompletion possible)"
+  (interactive (list(completing-read "function name:" transcribe-function-list))) 
+  (insert (format "function=\"%s\"" val)))
+
+(defun transcribe-add-attribute-move (val)
+  "Adds the xml attribute 'move' at cursor with the name specified (autocompletion possible"
+  (interactive (list(completing-read "move name:" transcribe-move-list))) 
+  (insert (format "move=\"%s\"" val)))
+
 (defun transcribe-xml-tag-l1 ()
   "Inserts a l1 tag and places the cursor"
   (interactive)
@@ -190,8 +218,6 @@
 
 (fset 'transcribe-xml-tag-l2-break "</l2><l2 clauses=\"1\" errors=\"0\">")
    ;inserts a break inside a l2 tag
-(fset 'transcribe-set-attributes "clauses=\"1\" errors=\"0\"")
-    ;inserts the attributes where they are missing
 
 (defun transcribe-display-audio-info ()
   (interactive)
@@ -213,11 +239,14 @@
     ([?\C-x down] . emms-stop)
     ([?\C-x right] . emms-seek-forward)
     ([?\C-x left] . emms-seek-backward)
+    ([f2] . transcribe-add-attribute-function)
+    ([f3] . transcribe-add-attribute-move)
+    ([f4] . transcribe-add-atribute)
     ([f5] . emms-pause)
     ([f6] . transcribe-define-xml-tag)
     ([f7] . transcribe-xml-tag-l2-break)
     ([f8] . emms-seek)
-    ([f4] . transcribe-set-atributes)
+   
     ([f11] . transcribe-xml-tag-l1)
     ([f12] . transcribe-xml-tag-l2))
 )
