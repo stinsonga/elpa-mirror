@@ -220,7 +220,7 @@
   (mapcar 'cadr (cdr (get 'debbugs-gnu-default-packages 'custom-type)))
   "*List of all possible package names.")
 
-(defcustom debbugs-gnu-default-hits-per-page 500
+(defcustom debbugs-gnu-default-hits-per-page 3000
   "*The number of bugs shown per page."
   :group 'debbugs-gnu
   :type 'integer
