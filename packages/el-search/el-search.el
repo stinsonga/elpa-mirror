@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 0.1.1
+;; Version: 0.1.2
 ;; Package-Requires: ((emacs "25"))
 
 
@@ -39,9 +39,16 @@
 ;; any match, point is put at the beginning of the expression found
 ;; (unlike isearch which puts point at the end of matches).
 ;;
+;; Why is it based on `pcase'?  Because pattern matching (and the
+;; ability to combine destructuring and condition testing) is well
+;; suited for this task.  In addition, pcase allows to add specialized
+;; pattern types and to combine them with other patterns in a natural
+;; and transparent way out of the box.
+;;
 ;; It doesn't matter how the code is actually formatted.  Comments are
 ;; ignored, and strings are treated as atomic objects, their contents
 ;; are not being searched.
+;;
 ;;
 ;; Example 1: if you enter
 ;;
@@ -72,7 +79,8 @@
 ;;
 ;; Example 3:
 ;;
-;; I can be useful to use (guard EXP) patterns for side effects.
+;; I can be useful to use (guard EXP) patterns for side effects (note:
+;; this only works when applied to the top level expression).
 ;;
 ;; The following pattern will search for symbols defined in any
 ;; library whose name starts with "cl".  As a side effect, it prints
@@ -213,7 +221,11 @@
 ;;
 ;; TODO:
 ;;
-;; - change replace interface to include toggle(s)
+;; - When replacing like (progn A B C) -> A B C, the layout of the
+;; whole "group" A B C as a unit is lost.  Instead of restoring layout
+;; as we do now (via "read mappings"), we could just make a backup of
+;; the original expression as a string, and use our search machinery
+;; to find occurrences in the replacement recursively.
 ;;
 ;; - detect infloops when replacing automatically (e.g. for 1 -> '(1))
 ;;
@@ -362,7 +374,7 @@ Point must not be inside a string or comment."
        (pcase-lambda (`(,symbol . ,fun))
          (when-let ((doc (documentation fun)))
            (insert "\n\n-- ")
-           (setq doc (help-fns--signature symbol doc nil fun nil))
+           (setq doc (help-fns--signature symbol doc fun fun nil))
            (insert "\n" (or doc "Not documented."))))
        (reverse el-search--pcase-macros))
       (let ((combined-doc (buffer-string)))
@@ -378,71 +390,6 @@ of the definitions is limited to \"el-search\"."
   `(setf (alist-get ',name el-search--pcase-macros)
          (lambda ,args ,@body)))
 
-(el-search-defpattern string (&rest regexps)
-  "Matches any string that is matched by all REGEXPS."
-  (let ((string (make-symbol "string"))
-        (regexp (make-symbol "regexp")))
-    `(and (pred stringp)
-          (pred (lambda (,string)
-                  (cl-every
-                   (lambda (,regexp) (string-match-p ,regexp ,string))
-                   (list ,@regexps)))))))
-
-(el-search-defpattern symbol (&rest regexps)
-  "Matches any symbol whose name is matched by all REGEXPS."
-  `(and (pred symbolp)
-        (app symbol-name (string ,@regexps))))
-
-(defun el-search--match-symbol-file (regexp symbol)
-  (when-let ((symbol-file (and (symbolp symbol)
-                               (symbol-file symbol))))
-    (string-match-p
-     (if (symbolp regexp) (concat "\\`" (symbol-name regexp) "\\'") regexp)
-     (file-name-sans-extension (file-name-nondirectory symbol-file)))))
-
-(el-search-defpattern source (regexp)
-  "Matches any symbol whose `symbol-file' is matched by REGEXP.
-
-This pattern matches when the object is a symbol for that
-`symbol-file' returns a (non-nil) FILE-NAME that fulfills
-  (string-match-p REGEXP (file-name-sans-extension
-                           (file-name-nondirectory FILENAME)))
-
-REGEXP can also be a symbol, in which case
-
-  (concat \"^\" (symbol-name regexp) \"$\")
-
-is used as regular expression."
-  `(pred (el-search--match-symbol-file ,regexp)))
-
-(defun el-search--match-key-sequence (keys expr)
-  (when-let ((expr-keys (pcase expr
-                          ((or (pred stringp) (pred vectorp))  expr)
-                          (`(kbd ,(and (pred stringp) string)) (ignore-errors (kbd string))))))
-    (apply #'equal
-           (mapcar (lambda (keys) (ignore-errors (key-description keys)))
-                   (list keys expr-keys)))))
-
-(el-search-defpattern keys (key-sequence)
-  "Matches any description of the KEY-SEQUENCE.
-KEY-SEQUENCE is a key description in a format that Emacs
-understands.
-
-This pattern matches any description of the same key sequence.
-
-Example: the pattern
-
-    (keys (kbd \"C-s\"))
-
-matches any of these expressions:
-
-    (kbd \"C-s\")
-    [(control ?s)]
-    \"\\C-s\"
-      
-Any of these could be used as equivalent KEY-SEQUENCE in terms of
-this pattern type."
-  `(pred (el-search--match-key-sequence ,key-sequence)))
 
 (defmacro el-search--with-additional-pcase-macros (&rest body)
   `(cl-letf ,(mapcar (pcase-lambda (`(,symbol . ,fun))
@@ -563,6 +510,93 @@ return nil (no error)."
              (backward-char)))
          (save-excursion (insert old))))
      (lambda () (buffer-substring (point-min) (point-max))))))
+
+(defun el-search--check-pattern-args (type args predicate &optional message)
+  "Check whether all ARGS fulfill PREDICATE.
+Raise an error if not.  TYPE and optional argument MESSAGE are
+used to construct the error message."
+  (mapc (lambda (arg)
+          (unless (funcall predicate arg)
+            (error (concat "Pattern `%S': "
+                           (or message (format "argument doesn't fulfill %S" predicate))
+                           ": %S")
+                   type arg)))
+        args))
+
+
+;;;; Additional pattern type definitions
+
+(el-search-defpattern string (&rest regexps)
+  "Matches any string that is matched by all REGEXPS."
+  (el-search--check-pattern-args 'string regexps #'stringp)
+  (let ((string (make-symbol "string"))
+        (regexp (make-symbol "regexp")))
+    `(and (pred stringp)
+          (pred (lambda (,string)
+                  (cl-every
+                   (lambda (,regexp) (string-match-p ,regexp ,string))
+                   (list ,@regexps)))))))
+
+(el-search-defpattern symbol (&rest regexps)
+  "Matches any symbol whose name is matched by all REGEXPS."
+  (el-search--check-pattern-args 'symbol regexps #'stringp)
+  `(and (pred symbolp)
+        (app symbol-name (string ,@regexps))))
+
+(defun el-search--match-symbol-file (regexp symbol)
+  (when-let ((symbol-file (and (symbolp symbol)
+                               (symbol-file symbol))))
+    (string-match-p
+     (if (symbolp regexp) (concat "\\`" (symbol-name regexp) "\\'") regexp)
+     (file-name-sans-extension (file-name-nondirectory symbol-file)))))
+
+(el-search-defpattern source (regexp)
+  "Matches any symbol whose `symbol-file' is matched by REGEXP.
+
+This pattern matches when the object is a symbol for that
+`symbol-file' returns a (non-nil) FILE-NAME that fulfills
+  (string-match-p REGEXP (file-name-sans-extension
+                           (file-name-nondirectory FILENAME)))
+
+REGEXP can also be a symbol, in which case
+
+  (concat \"^\" (symbol-name regexp) \"$\")
+
+is used as regular expression."
+  (el-search--check-pattern-args 'source (list regexp) #'stringp)
+  `(pred (el-search--match-symbol-file ,regexp)))
+
+(defun el-search--match-key-sequence (keys expr)
+  (when-let ((expr-keys (pcase expr
+                          ((or (pred stringp) (pred vectorp))  expr)
+                          (`(kbd ,(and (pred stringp) string)) (ignore-errors (kbd string))))))
+    (apply #'equal
+           (mapcar (lambda (keys) (ignore-errors (key-description keys)))
+                   (list keys expr-keys)))))
+
+(el-search-defpattern keys (key-sequence)
+  "Matches descriptions of the KEY-SEQUENCE.
+KEY-SEQUENCE is a string or vector representing a key sequence,
+or an expression of the form (kbd STRING).
+
+Match any description of the same key sequence in any of these
+formats.
+
+Example: the pattern
+
+    (keys (kbd \"C-s\"))
+
+matches any of these expressions:
+
+    \"\\C-s\"
+    \"\C-s\"
+    (kbd \"C-s\")
+    [(control ?s)]"
+  (when (eq (car-safe key-sequence) 'kbd)
+    (setq key-sequence (kbd (cadr key-sequence))))
+  (el-search--check-pattern-args 'keys (list key-sequence) (lambda (x) (or (stringp x) (vectorp x)))
+                                 "argument not a string or vector")
+  `(pred (el-search--match-key-sequence ,key-sequence)))
 
 
 ;;;; Highlighting
