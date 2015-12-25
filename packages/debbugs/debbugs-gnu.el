@@ -1120,22 +1120,24 @@ MERGED is the list of bugs merged with this one."
   (let* ((status (debbugs-gnu-current-status))
 	 (id (cdr (assq 'id status)))
 	 (merged (cdr (assq 'mergedwith status))))
-    (if (eq debbugs-gnu-mail-backend 'rmail)
-	(debbugs-read-emacs-bug-with-rmail id status (if (listp merged)
-							 merged
-						       (list merged)))
-      ;; Use Gnus.
-      (gnus-read-ephemeral-emacs-bug-group
-       (cons id (if (listp merged)
-		    merged
-		  (list merged)))
-       (cons (current-buffer)
-	     (current-window-configuration)))
-      (with-current-buffer (window-buffer (selected-window))
-	(set (make-local-variable 'debbugs-gnu-bug-number) id)
-	(set (make-local-variable 'debbugs-gnu-subject)
-	     (format "Re: bug#%d: %s" id (cdr (assq 'subject status))))
-	(debbugs-gnu-summary-mode 1)))))
+    (if (not id)
+	(message "No bug report on the current line")
+      (if (eq debbugs-gnu-mail-backend 'rmail)
+	  (debbugs-read-emacs-bug-with-rmail id status (if (listp merged)
+							   merged
+							 (list merged)))
+	;; Use Gnus.
+	(gnus-read-ephemeral-emacs-bug-group
+	 (cons id (if (listp merged)
+		      merged
+		    (list merged)))
+	 (cons (current-buffer)
+	       (current-window-configuration)))
+	(with-current-buffer (window-buffer (selected-window))
+	  (set (make-local-variable 'debbugs-gnu-bug-number) id)
+	  (set (make-local-variable 'debbugs-gnu-subject)
+	       (format "Re: bug#%d: %s" id (cdr (assq 'subject status))))
+	  (debbugs-gnu-summary-mode 1))))))
 
 (defvar debbugs-gnu-summary-mode-map
   (let ((map (make-sparse-keymap)))
