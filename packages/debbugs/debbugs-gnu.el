@@ -168,6 +168,9 @@
   :group 'debbugs
   :version "24.1")
 
+(defvar debbugs-gnu-blocking-report 19759
+  "The ID of the current release report used to track blocking bug reports.")
+
 (defcustom debbugs-gnu-default-severities '("serious" "important" "normal")
   "*The list severities bugs are searched for.
 \"tagged\" is not a severity but marks locally tagged bugs."
@@ -825,6 +828,7 @@ Used instead of `tabulated-list-print-entry'."
     (define-key map "b" 'debbugs-gnu-show-blocked-by-reports)
     (define-key map "B" 'debbugs-gnu-show-blocking-reports)
     (define-key map "C" 'debbugs-gnu-send-control-message)
+    (define-key map "R" 'debbugs-gnu-show-all-blocking-reports)
     map))
 
 (defun debbugs-gnu-rescan ()
@@ -976,6 +980,26 @@ The following commands are available:
     (if (null (cdr (assq 'blocks status)))
 	(message "Bug %d is not blocking any other bug" id)
       (apply 'debbugs-gnu-bugs (cdr (assq 'blocks status))))))
+
+(defun debbugs-gnu-show-all-blocking-reports ()
+  "Narrow the display to just the reports that are blocking a release."
+  (interactive)
+  (let ((blockers (cdr (assq 'blockedby
+			     (car (debbugs-get-status
+				   debbugs-gnu-blocking-report)))))
+	(id (debbugs-gnu-current-id t))
+	(inhibit-read-only t)
+	status)
+    (setq debbugs-gnu-current-limit nil)
+    (goto-char (point-min))
+    (while (not (eobp))
+      (setq status (debbugs-gnu-current-status))
+      (if (not (memq (cdr (assq 'id status)) blockers))
+	  (delete-region (point) (progn (forward-line 1) (point)))
+	(push (cdr (assq 'id status)) debbugs-gnu-current-limit)
+	(forward-line 1)))
+    (when id
+      (debbugs-gnu-goto id))))
 
 (defun debbugs-gnu-narrow-to-status (string &optional status-only)
   "Only display the bugs matching STRING.

@@ -334,15 +334,24 @@ Show the email messages that discuss the bug.
 @code{debbugs-gnu-display-status} @*
 Show all bug attributes.
 
-@c @item
-@c @kindex @kbd{/}
-@c @kbd{/} @tab
-@c @code{debbugs-gnu-narrow-to-status}
+@item
+@kindex @kbd{/}
+@kbd{/} @tab
+@code{debbugs-gnu-narrow-to-status}
+Narrow the list of bugs to the bugs that match the given regex.
 
-@c @item
-@c @kindex @kbd{w}
-@c @kbd{w} @tab
-@c @code{debbugs-gnu-widen}
+@item
+@kindex @kbd{w}
+@kbd{w} @tab
+@code{debbugs-gnu-widen}
+Restore the full list again after narrowing.
+
+@item
+@kindex @kbd{R}
+@kbd{R} @tab
+@code{debbugs-gnu-show-all-blocking-reports}
+Narrow the list of reports to the ones that are blocking the current
+release.
 
 @item
 @kindex @kbd{g}
