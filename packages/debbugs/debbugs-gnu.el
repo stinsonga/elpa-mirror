@@ -619,7 +619,7 @@ marked as \"client-side filter\"."
   ;; of them.
   (when (get-buffer (widget-get widget :buffer-name))
     (kill-buffer (widget-get widget :buffer-name)))
-  (pop-to-buffer (get-buffer-create (widget-get widget :buffer-name)))
+  (switch-to-buffer (get-buffer-create (widget-get widget :buffer-name)))
   (debbugs-gnu-mode)
   (let ((inhibit-read-only t)
 	(debbugs-port "gnu.org"))
