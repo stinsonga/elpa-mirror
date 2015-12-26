@@ -1016,7 +1016,7 @@ Subject fields."
       (while (not (eobp))
 	(setq status (debbugs-gnu-current-status))
 	(if (and (not (member string (assq 'keywords status)))
-		 (not (member string (assq 'severity status)))
+		 (not (equal string (cdr (assq 'severity status))))
 		 (or status-only
 		     (not (string-match string (cdr (assq 'originator status)))))
 		 (or status-only
