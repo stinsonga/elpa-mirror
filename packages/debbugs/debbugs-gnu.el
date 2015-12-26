@@ -1150,6 +1150,9 @@ MERGED is the list of bugs merged with this one."
 	  (debbugs-read-emacs-bug-with-rmail id status (if (listp merged)
 							   merged
 							 (list merged)))
+	(require 'gnus-dup)
+	(setq gnus-suppress-duplicates t
+	      gnus-save-duplicate-list t)
 	;; Use Gnus.
 	(gnus-read-ephemeral-emacs-bug-group
 	 (cons id (if (listp merged)
