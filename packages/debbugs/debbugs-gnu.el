@@ -1376,7 +1376,7 @@ If given a prefix, patch in the branch directory instead."
     (unless patch-buffers
       (gnus-summary-show-article 'raw)
       (article-decode-charset)
-      (push (current-buffer) patch-buffers))
+      (push gnus-article-buffer patch-buffers))
     (dolist (buffer patch-buffers)
       (with-current-buffer buffer
 	(call-process-region (point-min) (point-max)
