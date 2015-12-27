@@ -140,8 +140,6 @@
 ;;; Code:
 
 (require 'debbugs)
-(require 'widget)
-(require 'wid-edit)
 (require 'tabulated-list)
 (require 'add-log)
 (eval-when-compile (require 'cl))
@@ -224,11 +222,10 @@
   (mapcar 'cadr (cdr (get 'debbugs-gnu-default-packages 'custom-type)))
   "*List of all possible package names.")
 
-(defcustom debbugs-gnu-default-hits-per-page 1000
-  "*The number of bugs shown per page."
-  :group 'debbugs-gnu
-  :type 'integer
-  :version "24.1")
+;; Please do not increase this value, otherwise we would run into
+;; performance problems on the server.
+(defconst debbugs-gnu-default-hits-per-page 500
+  "The number of bugs shown per page.")
 
 (defcustom debbugs-gnu-default-suppress-bugs
   '((pending . "done"))
@@ -270,14 +267,6 @@ If this is 'rmail, use Rmail instead."
 
 (defface debbugs-gnu-tagged '((t (:foreground "red")))
   "Face for reports that have been tagged locally.")
-
-(defvar debbugs-gnu-widgets nil)
-
-(defvar debbugs-gnu-widget-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map "\r" 'widget-button-press)
-    (define-key map [mouse-2] 'widget-button-press)
-    map))
 
 (defvar debbugs-gnu-local-tags nil
   "List of bug numbers tagged locally, and kept persistent.")
@@ -460,6 +449,9 @@ marked as \"client-side filter\"."
     (setq debbugs-gnu-current-query nil
 	  debbugs-gnu-current-filter nil)))
 
+(defvar debbugs-gnu-current-limit nil)
+(defvar debbugs-gnu-current-suppress nil)
+
 ;;;###autoload
 (defun debbugs-gnu (severities &optional packages archivedp suppress tags)
   "List all outstanding bugs."
@@ -490,7 +482,6 @@ marked as \"client-side filter\"."
     (with-temp-buffer
       (insert-file-contents debbugs-gnu-persistency-file)
       (eval (read (current-buffer)))))
-  (setq debbugs-gnu-widgets nil)
 
   ;; Add queries.
   (dolist (severity (if (consp severities) severities (list severities)))
@@ -503,65 +494,18 @@ marked as \"client-side filter\"."
     (add-to-list 'debbugs-gnu-current-query '(archive . "1")))
   (when suppress
     (add-to-list 'debbugs-gnu-current-query '(status . "open"))
-    (add-to-list 'debbugs-gnu-current-query '(status . "forwarded")))
+    (add-to-list 'debbugs-gnu-current-query '(status . "forwarded"))
+    (setq debbugs-gnu-current-suppress suppress))
   (dolist (tag (if (consp tags) tags (list tags)))
     (when (not (zerop (length tag)))
       (add-to-list 'debbugs-gnu-current-query (cons 'tag tag))))
 
-  (unwind-protect
-      (let ((hits debbugs-gnu-default-hits-per-page)
-	    (ids (debbugs-gnu-get-bugs debbugs-gnu-current-query)))
+  ;; Show result.
+  (debbugs-gnu-show-reports)
 
-	(if (> (length ids) hits)
-	    (let ((cursor-in-echo-area nil))
-	      (setq hits
-		    (string-to-number
-		     (read-string
-		      (format
-		       "How many reports (available %d, default %d): "
-		       (length ids) hits)
-		      nil
-		      nil
-		      (number-to-string hits))))))
-
-	(if (> (length ids) hits)
-	    (let ((i 0)
-		  curr-ids)
-	      (while ids
-		(setq i (1+ i)
-		      curr-ids (butlast ids (- (length ids) hits)))
-		(add-to-list
-		 'debbugs-gnu-widgets
-		 (widget-convert
-		  'push-button
-		  :follow-link 'mouse-face
-		  :notify (lambda (widget &rest ignore)
-			    (debbugs-gnu-show-reports widget))
-		  :keymap debbugs-gnu-widget-map
-		  :suppress suppress
-		  :buffer-name (format "*Emacs Bugs*<%d>" i)
-		  :bug-ids curr-ids
-		  :query debbugs-gnu-current-query
-		  :filter debbugs-gnu-current-filter
-		  :help-echo (format "%d-%d" (car ids) (car (last curr-ids)))
-		  :format " %[%v%]"
-		  (number-to-string i))
-		 'append)
-		(setq ids (last ids (- (length ids) hits))))
-	      (debbugs-gnu-show-reports (car debbugs-gnu-widgets)))
-
-	  (debbugs-gnu-show-reports
-	   (widget-convert
-	    'const
-	    :suppress suppress
-	    :buffer-name "*Emacs Bugs*"
-	    :bug-ids ids
-	    :query debbugs-gnu-current-query
-	    :filter debbugs-gnu-current-filter))))
-
-    ;; Reset query and filter.
-    (setq debbugs-gnu-current-query nil
-	  debbugs-gnu-current-filter nil)))
+  ;; Reset query and filter.
+  (setq debbugs-gnu-current-query nil
+	debbugs-gnu-current-filter nil))
 
 (defun debbugs-gnu-get-bugs (query)
   "Retrieve bugs numbers from debbugs.gnu.org according search criteria."
@@ -614,23 +558,33 @@ marked as \"client-side filter\"."
      ;; Sort function.
      '<)))
 
-(defvar debbugs-gnu-current-widget nil)
-(defvar debbugs-gnu-current-limit nil)
-
-(defun debbugs-gnu-show-reports (widget)
-  "Show bug reports as given in WIDGET property :bug-ids."
-  ;; The tabulated mode sets several local variables.  We must get rid
-  ;; of them.
-  (when (get-buffer (widget-get widget :buffer-name))
-    (kill-buffer (widget-get widget :buffer-name)))
-  (switch-to-buffer (get-buffer-create (widget-get widget :buffer-name)))
-  (debbugs-gnu-mode)
+(defun debbugs-gnu-show-reports ()
+  "Show bug reports."
   (let ((inhibit-read-only t)
-	(debbugs-port "gnu.org"))
-    (erase-buffer)
-    (set (make-local-variable 'debbugs-gnu-current-widget) widget)
+	(debbugs-port "gnu.org")
+	(buffer-name "*Emacs Bugs*")
+	all-status)
+    ;; The tabulated mode sets several local variables.  We must get
+    ;; rid of them.
+    (when (get-buffer buffer-name)
+      (kill-buffer buffer-name))
+    (switch-to-buffer (get-buffer-create buffer-name))
+    (debbugs-gnu-mode)
 
-    (dolist (status (apply 'debbugs-get-status (widget-get widget :bug-ids)))
+    ;; Retrieve all bugs in chunks of `debbugs-gnu-default-hits-per-page'.
+    (let ((bug-ids (debbugs-gnu-get-bugs debbugs-gnu-current-query))
+	  (hits debbugs-gnu-default-hits-per-page)
+	  curr-ids)
+      (while bug-ids
+	(setq curr-ids (butlast bug-ids (- (length bug-ids) hits))
+	      bug-ids (last bug-ids (- (length bug-ids) hits))
+	      all-status
+	      (append all-status (apply 'debbugs-get-status curr-ids)))))
+
+    ;; Print bug reports.
+    ;; TODO: Do it asynchronously, in parallel to retrieving next chunk
+    ;; of bug statuses.
+    (dolist (status all-status)
       (let* ((id (cdr (assq 'id status)))
 	     (words
 	      (mapconcat
@@ -729,24 +683,6 @@ marked as \"client-side filter\"."
 (defun debbugs-gnu-print-entry (list-id cols)
   "Insert a debbugs entry at point.
 Used instead of `tabulated-list-print-entry'."
-  ;; This shall be in `debbugs-gnu-show-reports'.  But
-  ;; `tabulated-list-print' erases the buffer, therefore we do it
-  ;; here.  (bug#9047)
-  (when (and debbugs-gnu-widgets (= (point) (point-min)))
-    (widget-insert "Page:")
-    (mapc
-     (lambda (obj)
-       (if (eq obj debbugs-gnu-current-widget)
-	   (widget-put obj :button-face 'widget-button-pressed)
-	 (widget-put obj :button-face 'widget-button-face))
-       (widget-apply obj :create))
-     debbugs-gnu-widgets)
-    (widget-insert "\n\n")
-    (save-excursion
-      (widget-insert "\nPage:")
-      (mapc (lambda (obj) (widget-apply obj :create)) debbugs-gnu-widgets)
-      (widget-setup)))
-
   (let ((beg (point))
 	(pos 0)
 	(case-fold-search t)
@@ -763,7 +699,7 @@ Used instead of `tabulated-list-print-entry'."
 	   (or (not debbugs-gnu-current-limit)
 	       (memq (cdr (assq 'id list-id)) debbugs-gnu-current-limit))
 	   ;; Filter suppressed bugs.
-	   (or (not (widget-get debbugs-gnu-current-widget :suppress))
+	   (or (not debbugs-gnu-current-suppress)
 	       (and (not (memq (cdr (assq 'id list-id)) debbugs-gnu-local-tags))
 		    (not (catch :suppress
 			   (dolist (check debbugs-gnu-default-suppress-bugs)
@@ -774,8 +710,7 @@ Used instead of `tabulated-list-print-entry'."
 			       (throw :suppress t)))))))
 	   ;; Filter search list.
 	   (not (catch :suppress
-		  (dolist (check
-			   (widget-get debbugs-gnu-current-widget :filter))
+		  (dolist (check debbugs-gnu-current-filter)
 		    (let ((val (cdr (assq (car check) list-id))))
 		      (if (stringp (cdr check))
 			  ;; Regular expression.
@@ -810,7 +745,8 @@ Used instead of `tabulated-list-print-entry'."
       (insert (propertize title 'help-echo title))
       ;; Add properties.
       (add-text-properties
-       beg (point) `(tabulated-list-id ,list-id mouse-face ,widget-mouse-face))
+       beg (point)
+       `(tabulated-list-id ,list-id mouse-face highlight))
       (insert ?\n))))
 
 (defvar debbugs-gnu-mode-map
@@ -836,26 +772,10 @@ Used instead of `tabulated-list-print-entry'."
   "Rescan the current set of bug reports."
   (interactive)
 
-  ;; The last page will be provided with new bug ids.
-  ;; TODO: Do it also for the other pages.
-  (when (and debbugs-gnu-widgets
-	     (eq debbugs-gnu-current-widget (car (last debbugs-gnu-widgets))))
-    (let ((first-id (car (widget-get debbugs-gnu-current-widget :bug-ids)))
-	  (last-id  (car
-		     (last (widget-get debbugs-gnu-current-widget :bug-ids))))
-	  (ids (debbugs-gnu-get-bugs
-		(widget-get debbugs-gnu-current-widget :query))))
-
-      (while (and (<= first-id last-id) (not (memq first-id ids)))
-	(setq first-id (1+ first-id)))
-
-      (when (<= first-id last-id)
-	(widget-put debbugs-gnu-current-widget :bug-ids (memq first-id ids)))))
-
   ;; Refresh the buffer.  `save-excursion' does not work, so we
   ;; remember the position.
   (let ((pos (point)))
-    (debbugs-gnu-show-reports debbugs-gnu-current-widget)
+    (debbugs-gnu-show-reports)
     (goto-char pos)))
 
 (defvar debbugs-gnu-sort-state 'number)
@@ -871,6 +791,7 @@ The following commands are available:
 \\{debbugs-gnu-mode-map}"
   (set (make-local-variable 'debbugs-gnu-sort-state) 'number)
   (set (make-local-variable 'debbugs-gnu-current-limit) nil)
+  (set (make-local-variable 'debbugs-gnu-current-suppress) nil)
   (setq tabulated-list-format [("Id"         5 debbugs-gnu-sort-id)
 			       ("State"     20 debbugs-gnu-sort-state)
 			       ("Submitter" 25 t)
@@ -1070,8 +991,7 @@ interest to you."
 (defun debbugs-gnu-toggle-suppress ()
   "Suppress bugs marked in `debbugs-gnu-suppress-bugs'."
   (interactive)
-  (widget-put debbugs-gnu-current-widget :suppress
-	      (not (widget-get debbugs-gnu-current-widget :suppress)))
+  (setq debbugs-gnu-current-suppress (not debbugs-gnu-current-suppress))
   (tabulated-list-init-header)
   (tabulated-list-print))
 
@@ -1087,7 +1007,7 @@ interest to you."
   (get-text-property (line-beginning-position) 'tabulated-list-id))
 
 (defun debbugs-gnu-current-query ()
-  (widget-get debbugs-gnu-current-widget :query))
+  debbugs-gnu-current-query)
 
 (defun debbugs-gnu-display-status (query status)
   "Display the query and status of the report on the current line."
@@ -1386,8 +1306,8 @@ The following commands are available:
 	     'tabulated-list-entries
 	     ;; `tabulated-list-id' is the parameter list for `debbugs-gnu'.
 	     `((("tagged") (,user) nil nil (,tag))
-	       ,(vector (propertize user 'mouse-face widget-mouse-face)
-			(propertize tag 'mouse-face widget-mouse-face)))
+	       ,(vector (propertize user 'mouse-face highlight)
+			(propertize tag 'mouse-face highlight)))
 	     'append)))
 
 	;; Add local tags.
@@ -1395,8 +1315,8 @@ The following commands are available:
 	  (add-to-list
 	     'tabulated-list-entries
 	     `((("tagged"))
-	       ,(vector "" (propertize "(local tags)"
-				       'mouse-face widget-mouse-face)))))
+	       ,(vector
+		 "" (propertize "(local tags)" 'mouse-face highlight)))))
 
 	;; Show them.
 	(tabulated-list-init-header)
