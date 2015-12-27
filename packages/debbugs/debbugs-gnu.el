@@ -1378,7 +1378,9 @@ If given a prefix, patch in the branch directory instead."
       (article-decode-charset)
       (push gnus-article-buffer patch-buffers))
     (dolist (buffer patch-buffers)
-      (with-current-buffer buffer
+      (with-temp-buffer
+	(insert-buffer-substring buffer)
+	(debbugs-gnu-fix-patch dir)
 	(call-process-region (point-min) (point-max)
 			     "patch" nil output-buffer nil
 			     "-r" rej "--no-backup-if-mismatch"
@@ -1413,6 +1415,28 @@ If given a prefix, patch in the branch directory instead."
     (other-window 1)
     (switch-to-buffer "*vc-diff*")
     (goto-char (point-min))))
+
+(defun debbugs-gnu-fix-patch (dir)
+  (setq dir (directory-file-name (expand-file-name dir)))
+  (goto-char (point-min))
+  (re-search-forward diff-file-header-re nil t)
+  (goto-char (match-beginning 0))
+  (let ((file-names (diff-hunk-file-names)))
+    (when (and file-names
+	       (not (string-match "/" (car file-names))))
+      ;; We have a simple patch that refers to a file somewhere in the
+      ;; tree.  Find it.
+      (when-let ((files (directory-files-recursively
+			 dir (concat "^" (regexp-quote (car file-names))
+				     "$"))))
+	(when (re-search-forward (concat "^[+]+ "
+					 (regexp-quote (car file-names))
+					 "[ \t]")
+				 nil t)
+	  (replace-match (concat "+++ a"
+				 (substring (car files) (length dir))
+				 "\t")
+			 nil t))))))
 
 (defun debbugs-gnu-find-contributor (string)
   "Search through ChangeLogs to find contributors."
@@ -1503,7 +1527,11 @@ If given a prefix, patch in the branch directory instead."
   (save-some-buffers t)
    (when (get-buffer "*vc-dir*")
      (kill-buffer (get-buffer "*vc-dir*")))
-   (vc-dir debbugs-gnu-trunk-directory)
+   (let ((trunk (expand-file-name debbugs-gnu-trunk-directory)))
+     (if (equal (subseq default-directory 0 (length trunk))
+		trunk)
+	 (vc-dir debbugs-gnu-trunk-directory)
+       (vc-dir debbugs-gnu-branch-directory)))
    (goto-char (point-min))
    (while (not (search-forward "edited" nil t))
      (sit-for 0.01))
