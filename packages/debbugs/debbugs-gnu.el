@@ -1372,14 +1372,20 @@ If given a prefix, patch in the branch directory instead."
     (gnus-with-article-buffer
       (dolist (handle (mapcar 'cdr (gnus-article-mime-handles)))
 	(when (string-match "diff\\|patch" (mm-handle-media-type handle))
-	  (push (mm-handle-buffer handle) patch-buffers))))
+	  (push (cons (mm-handle-encoding handle)
+		      (mm-handle-buffer handle))
+		patch-buffers))))
     (unless patch-buffers
       (gnus-summary-show-article 'raw)
       (article-decode-charset)
-      (push gnus-article-buffer patch-buffers))
-    (dolist (buffer patch-buffers)
+      (push (cons nil gnus-article-buffer) patch-buffers))
+    (dolist (elem patch-buffers)
       (with-temp-buffer
-	(insert-buffer-substring buffer)
+	(insert-buffer-substring (cdr elem))
+	(cond ((eq (car elem) 'base64)
+	       (base64-decode-region (point-min) (point-max)))
+	      ((eq (car elem) 'qp)
+	       (quoted-printable-decode-region (point-min) (point-max))))
 	(debbugs-gnu-fix-patch dir)
 	(call-process-region (point-min) (point-max)
 			     "patch" nil output-buffer nil
@@ -1419,29 +1425,31 @@ If given a prefix, patch in the branch directory instead."
 (defun debbugs-gnu-fix-patch (dir)
   (setq dir (directory-file-name (expand-file-name dir)))
   (goto-char (point-min))
-  (re-search-forward diff-file-header-re nil t)
-  (goto-char (match-beginning 0))
-  (let ((target-name (car (diff-hunk-file-names))))
-    (when (and target-name
-	       (or (not (string-match "/" target-name))
-		   (and (string-match "^[ab]/" target-name)
-			(not (file-exists-p
-			      (expand-file-name (substring target-name 2)
-						dir))))))
-      ;; We have a simple patch that refers to a file somewhere in the
-      ;; tree.  Find it.
-      (when-let ((files (directory-files-recursively
-			 dir (concat "^" (regexp-quote
-					  (file-name-nondirectory target-name))
-				     "$"))))
-	(when (re-search-forward (concat "^[+]+ "
-					 (regexp-quote target-name)
-					 "\\([ \t\n]\\)")
-				 nil t)
-	  (replace-match (concat "+++ a"
-				 (substring (car files) (length dir))
-				 (match-string 1))
-			 nil t))))))
+  (while (re-search-forward diff-file-header-re nil t)
+    (goto-char (match-beginning 0))
+    (let ((target-name (car (diff-hunk-file-names))))
+      (when (and target-name
+		 (or (not (string-match "/" target-name))
+		     (and (string-match "^[ab]/" target-name)
+			  (not (file-exists-p
+				(expand-file-name (substring target-name 2)
+						  dir))))
+		     (file-exists-p (expand-file-name target-name dir))))
+	;; We have a simple patch that refers to a file somewhere in the
+	;; tree.  Find it.
+	(when-let ((files (directory-files-recursively
+			   dir (concat "^" (regexp-quote
+					    (file-name-nondirectory target-name))
+				       "$"))))
+	  (when (re-search-forward (concat "^[+]+ "
+					   (regexp-quote target-name)
+					   "\\([ \t\n]\\)")
+				   nil t)
+	    (replace-match (concat "+++ a"
+				   (substring (car files) (length dir))
+				   (match-string 1))
+			   nil t)))))
+    (forward-line 2)))
 
 (defun debbugs-gnu-find-contributor (string)
   "Search through ChangeLogs to find contributors."
@@ -1485,7 +1493,7 @@ If given a prefix, patch in the branch directory instead."
 			 ;; Fall back on the email address.
 			 (t
 			  (cadr from))))))
-	  (goto-char (point-min))
+	  (goto-char (point-max))
 	  (end-of-line)
 	  (insert "  (tiny change"))
 	(goto-char point)))))
