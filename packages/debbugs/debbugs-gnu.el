@@ -1421,21 +1421,26 @@ If given a prefix, patch in the branch directory instead."
   (goto-char (point-min))
   (re-search-forward diff-file-header-re nil t)
   (goto-char (match-beginning 0))
-  (let ((file-names (diff-hunk-file-names)))
-    (when (and file-names
-	       (not (string-match "/" (car file-names))))
+  (let ((target-name (car (diff-hunk-file-names))))
+    (when (and target-name
+	       (or (not (string-match "/" target-name))
+		   (and (string-match "^[ab]/" target-name)
+			(not (file-exists-p
+			      (expand-file-name (substring target-name 2)
+						dir))))))
       ;; We have a simple patch that refers to a file somewhere in the
       ;; tree.  Find it.
       (when-let ((files (directory-files-recursively
-			 dir (concat "^" (regexp-quote (car file-names))
+			 dir (concat "^" (regexp-quote
+					  (file-name-nondirectory target-name))
 				     "$"))))
 	(when (re-search-forward (concat "^[+]+ "
-					 (regexp-quote (car file-names))
-					 "[ \t]")
+					 (regexp-quote target-name)
+					 "\\([ \t\n]\\)")
 				 nil t)
 	  (replace-match (concat "+++ a"
 				 (substring (car files) (length dir))
-				 "\t")
+				 (match-string 1))
 			 nil t))))))
 
 (defun debbugs-gnu-find-contributor (string)
