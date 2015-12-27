@@ -103,6 +103,7 @@
 ;;   "s": Toggle bug sorting for age or for state
 ;;   "x": Toggle suppressing of bugs
 ;;   "/": Display only bugs matching a string
+;;   "R": Display only bugs blocking the current release
 ;;   "w": Display all the currently selected bug reports
 
 ;; When you visit the related bug messages in Gnus, you could also
@@ -240,9 +241,6 @@ suppressed bugs is toggled by `debbugs-gnu-toggle-suppress'."
   :type '(alist :key-type symbol :value-type regexp)
   :version "24.1")
 
-(defface debbugs-gnu-archived '((t (:inverse-video t)))
-  "Face for archived bug reports.")
-
 (defcustom debbugs-gnu-mail-backend 'gnus
   "*The email backend to use for reading bug report email exchange.
 If this is 'gnus, the default, use Gnus.
@@ -251,6 +249,9 @@ If this is 'rmail, use Rmail instead."
   :type '(choice (const :tag "Use Gnus" 'gnus)
 		 (const :tag "Use Rmail" 'rmail))
   :version "25.1")
+
+(defface debbugs-gnu-archived '((t (:inverse-video t)))
+  "Face for archived bug reports.")
 
 (defface debbugs-gnu-new '((t (:foreground "red")))
   "Face for new reports that nobody has answered.")
@@ -1137,6 +1138,27 @@ MERGED is the list of bugs merged with this one."
     (define-key rmail-mode-map "C" 'debbugs-gnu-send-control-message)
     (rmail-show-message 1)))
 
+(defvar gnus-suppress-duplicates)
+(defvar gnus-save-duplicate-list)
+
+(defun debbugs-read-emacs-bug-with-gnus (id status merged)
+  "Read email exchange for debbugs bug ID.
+STATUS is the bug's status list.
+MERGED is the list of bugs merged with this one."
+  (require 'gnus-dup)
+  (setq gnus-suppress-duplicates t
+	gnus-save-duplicate-list t)
+  ;; Use Gnus.
+  (gnus-read-ephemeral-emacs-bug-group
+   (cons id (if (listp merged) merged (list merged)))
+   (cons (current-buffer)
+	 (current-window-configuration)))
+  (with-current-buffer (window-buffer (selected-window))
+    (set (make-local-variable 'debbugs-gnu-bug-number) id)
+    (set (make-local-variable 'debbugs-gnu-subject)
+	 (format "Re: bug#%d: %s" id (cdr (assq 'subject status))))
+    (debbugs-gnu-summary-mode 1)))
+
 (defun debbugs-gnu-select-report ()
   "Select the report on the current line."
   (interactive)
@@ -1144,27 +1166,15 @@ MERGED is the list of bugs merged with this one."
   (let* ((status (debbugs-gnu-current-status))
 	 (id (cdr (assq 'id status)))
 	 (merged (cdr (assq 'mergedwith status))))
-    (if (not id)
-	(message "No bug report on the current line")
-      (if (eq debbugs-gnu-mail-backend 'rmail)
-	  (debbugs-read-emacs-bug-with-rmail id status (if (listp merged)
-							   merged
-							 (list merged)))
-	(require 'gnus-dup)
-	(setq gnus-suppress-duplicates t
-	      gnus-save-duplicate-list t)
-	;; Use Gnus.
-	(gnus-read-ephemeral-emacs-bug-group
-	 (cons id (if (listp merged)
-		      merged
-		    (list merged)))
-	 (cons (current-buffer)
-	       (current-window-configuration)))
-	(with-current-buffer (window-buffer (selected-window))
-	  (set (make-local-variable 'debbugs-gnu-bug-number) id)
-	  (set (make-local-variable 'debbugs-gnu-subject)
-	       (format "Re: bug#%d: %s" id (cdr (assq 'subject status))))
-	  (debbugs-gnu-summary-mode 1))))))
+    (setq merged (if (listp merged) merged (list merged)))
+    (cond
+     ((not id)
+      (message "No bug report on the current line"))
+     ((eq debbugs-gnu-mail-backend 'rmail)
+      (debbugs-read-emacs-bug-with-rmail id status merged))
+     ((eq debbugs-gnu-mail-backend 'gnus)
+      (debbugs-read-emacs-bug-with-gnus id status merged))
+     (t (error "No valid mail backend specified")))))
 
 (defvar debbugs-gnu-summary-mode-map
   (let ((map (make-sparse-keymap)))

@@ -37,6 +37,7 @@ and modified without restriction.
 
 @contents
 
+
 @node Top
 @top Debbugs User Guide
 
@@ -68,6 +69,7 @@ Programmer's Manual, debbugs}).
 * Variable Index::              User options and variables.
 * Key Index::                   Keyboard strokes on bug report buffers.
 @end menu
+
 
 @node Retrieving Bugs
 @chapter Retrieving Bugs
@@ -283,6 +285,7 @@ in @code{org-mode}.
 * Control Messages::            Control Messages.
 @end menu
 
+
 @node Tabulated Lists
 @section Tabulated Lists
 
@@ -316,13 +319,13 @@ is closed).  Archived bugs are shown with inverse face
 The bug report buffers have enabled the minor
 @code{debbugs-gnu-mode}.  This enables the following key strokes:
 
-@multitable {@kbd{@key{mouse-2}}} {Some very very very long long text Some very very very long long text Some very very very long long text}
+@multitable @columnfractions .20 .80
 
 @item
 @kindex @kbd{@key{RET}}
-@kbd{@key{RET}}
+@kbd{@key{RET}} @*
 @kindex @kbd{@key{mouse-1}}
-@kbd{@key{mouse-1}}
+@kbd{@key{mouse-1}} @*
 @kindex @kbd{@key{mouse-2}}
 @kbd{@key{mouse-2}} @tab
 @code{debbugs-gnu-select-report} @*
@@ -337,21 +340,22 @@ Show all bug attributes.
 @item
 @kindex @kbd{/}
 @kbd{/} @tab
-@code{debbugs-gnu-narrow-to-status}
-Narrow the list of bugs to the bugs that match the given regex.
-
-@item
-@kindex @kbd{w}
-@kbd{w} @tab
-@code{debbugs-gnu-widen}
-Restore the full list again after narrowing.
+@code{debbugs-gnu-narrow-to-status} @*
+Narrow the list of bugs to the bugs that match the given regex in
+@code{State}, @code{Submitter} or @code{Title}.
 
 @item
 @kindex @kbd{R}
 @kbd{R} @tab
-@code{debbugs-gnu-show-all-blocking-reports}
-Narrow the list of reports to the ones that are blocking the current
-release.
+@code{debbugs-gnu-show-all-blocking-reports} @*
+Narrow the list of bug reports to the ones that are blocking the
+current release.
+
+@item
+@kindex @kbd{w}
+@kbd{w} @tab
+@code{debbugs-gnu-widen} @*
+Restore the full list again after narrowing.
 
 @item
 @kindex @kbd{g}
@@ -361,11 +365,10 @@ Reload all bugs from the GNU Debbugs server.
 
 @item
 @kindex @kbd{B}
-@kbd{B} @tab
-@code{debbugs-gnu-show-blocking-reports}
-@item
+@kbd{B} @*
 @kindex @kbd{b}
 @kbd{b} @tab
+@code{debbugs-gnu-show-blocking-reports} @*
 @code{debbugs-gnu-show-blocked-by-reports} @*
 Show all bug reports which are blocking / blocked by this bug.
 
@@ -402,6 +405,7 @@ by clicking the mouse on a bug: if its value is @code{gnus}, the
 default, a GNUS ephemeral group for that bug will be shown; if its
 value is @code{rmail}, the command will present an Rmail folder
 instead.
+
 
 @node TODO Items
 @section TODO Items
