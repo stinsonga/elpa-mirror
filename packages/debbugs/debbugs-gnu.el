@@ -1416,7 +1416,7 @@ The following commands are available:
 (defvar debbugs-gnu-trunk-directory "~/src/emacs/trunk/"
   "The directory where the main source tree lives.")
 
-(defvar debbugs-gnu-branch-directory "~/src/emacs/emacs-24/"
+(defvar debbugs-gnu-branch-directory "~/src/emacs/emacs-25/"
   "The directory where the previous source tree lives.")
 
 (defun debbugs-gnu-apply-patch (&optional branch)
