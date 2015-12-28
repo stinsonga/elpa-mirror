@@ -142,10 +142,12 @@
 (require 'debbugs)
 (require 'tabulated-list)
 (require 'add-log)
+(require 'subr-x)
 (eval-when-compile (require 'cl))
 
 (autoload 'article-decode-charset "gnus-art")
 (autoload 'diff-goto-source "diff-mode")
+(autoload 'diff-hunk-file-names "diff-mode")
 (autoload 'gnus-article-mime-handles "gnus-art")
 (autoload 'gnus-read-ephemeral-emacs-bug-group "gnus-group")
 (autoload 'gnus-summary-article-header "gnus-sum")
@@ -155,12 +157,22 @@
 (autoload 'log-edit-insert-changelog "log-edit")
 (autoload 'mail-header-subject "nnheader")
 (autoload 'message-make-from "message")
-(autoload 'vc-dir-hide-up-to-date "vc-dir")
-(autoload 'vc-dir-mark "vc-dir")
 (autoload 'rmail-get-new-mail "rmail")
 (autoload 'rmail-show-message "rmail")
 (autoload 'rmail-summary "rmailsum")
+(autoload 'vc-dir-hide-up-to-date "vc-dir")
+(autoload 'vc-dir-mark "vc-dir")
+
 (defvar compilation-in-progress)
+(defvar diff-file-header-re)
+(defvar gnus-article-buffer)
+(defvar gnus-posting-styles)
+(defvar gnus-save-duplicate-list)
+(defvar gnus-suppress-duplicates)
+(defvar rmail-current-message)
+(defvar rmail-mode-map)
+(defvar rmail-summary-mode-map)
+(defvar rmail-total-messages)
 
 (defgroup debbugs-gnu ()
   "UI for the debbugs.gnu.org bug tracker."
@@ -940,7 +952,8 @@ Subject fields."
 	(if (and (not (member string (assq 'keywords status)))
 		 (not (equal string (cdr (assq 'severity status))))
 		 (or status-only
-		     (not (string-match string (cdr (assq 'originator status)))))
+		     (not (string-match
+			   string (cdr (assq 'originator status)))))
 		 (or status-only
 		     (not (string-match string (cdr (assq 'subject status))))))
 	    (delete-region (point) (progn (forward-line 1) (point)))
@@ -1013,7 +1026,7 @@ interest to you."
   "Display the query and status of the report on the current line."
   (interactive (list (debbugs-gnu-current-query)
 		     (debbugs-gnu-current-status)))
-  (pop-to-buffer "*Bug Status*")
+  (switch-to-buffer "*Bug Status*")
   (let ((inhibit-read-only t))
     (erase-buffer)
     (when query (pp query (current-buffer)))
@@ -1021,11 +1034,6 @@ interest to you."
     (goto-char (point-min)))
   (set-buffer-modified-p nil)
   (special-mode))
-
-(defvar rmail-current-message)
-(defvar rmail-total-messages)
-(defvar rmail-mode-map)
-(defvar rmail-summary-mode-map)
 
 (defun debbugs-read-emacs-bug-with-rmail (id status merged)
   "Read email exchange for debbugs bug ID.
@@ -1057,9 +1065,6 @@ MERGED is the list of bugs merged with this one."
     (other-window 1)
     (define-key rmail-mode-map "C" 'debbugs-gnu-send-control-message)
     (rmail-show-message 1)))
-
-(defvar gnus-suppress-duplicates)
-(defvar gnus-save-duplicate-list)
 
 (defun debbugs-read-emacs-bug-with-gnus (id status merged)
   "Read email exchange for debbugs bug ID.
@@ -1101,8 +1106,6 @@ MERGED is the list of bugs merged with this one."
     (define-key map "C" 'debbugs-gnu-send-control-message)
     (define-key map [(meta m)] 'debbugs-gnu-apply-patch)
     map))
-
-(defvar gnus-posting-styles)
 
 (define-minor-mode debbugs-gnu-summary-mode
   "Minor mode for providing a debbugs interface in Gnus summary buffers.
@@ -1291,13 +1294,12 @@ The following commands are available:
 	;; Create buffer.
 	(when (get-buffer buffer-name)
 	  (kill-buffer buffer-name))
-	(pop-to-buffer (get-buffer-create buffer-name))
+	(switch-to-buffer (get-buffer-create buffer-name))
 	(debbugs-gnu-usertags-mode)
 	(setq tabulated-list-format `[("User" ,user-tab-length t)
 				      ("Tag"  10 t)])
 	(setq tabulated-list-sort-key (cons "User" nil))
 	;(setq tabulated-list-printer 'debbugs-gnu-print-entry)
-	(erase-buffer)
 
 	;; Retrieve user tags.
 	(dolist (user users)
@@ -1306,8 +1308,8 @@ The following commands are available:
 	     'tabulated-list-entries
 	     ;; `tabulated-list-id' is the parameter list for `debbugs-gnu'.
 	     `((("tagged") (,user) nil nil (,tag))
-	       ,(vector (propertize user 'mouse-face highlight)
-			(propertize tag 'mouse-face highlight)))
+	       ,(vector (propertize user 'mouse-face 'highlight)
+			(propertize tag  'mouse-face 'highlight)))
 	     'append)))
 
 	;; Add local tags.
@@ -1316,7 +1318,7 @@ The following commands are available:
 	     'tabulated-list-entries
 	     `((("tagged"))
 	       ,(vector
-		 "" (propertize "(local tags)" 'mouse-face highlight)))))
+		 "" (propertize "(local tags)" 'mouse-face 'highlight)))))
 
 	;; Show them.
 	(tabulated-list-init-header)
@@ -1438,8 +1440,9 @@ If given a prefix, patch in the branch directory instead."
 	;; We have a simple patch that refers to a file somewhere in the
 	;; tree.  Find it.
 	(when-let ((files (directory-files-recursively
-			   dir (concat "^" (regexp-quote
-					    (file-name-nondirectory target-name))
+			   dir
+			   (concat "^" (regexp-quote
+					(file-name-nondirectory target-name))
 				       "$"))))
 	  (when (re-search-forward (concat "^[+]+ "
 					   (regexp-quote target-name)
@@ -1541,7 +1544,7 @@ If given a prefix, patch in the branch directory instead."
    (when (get-buffer "*vc-dir*")
      (kill-buffer (get-buffer "*vc-dir*")))
    (let ((trunk (expand-file-name debbugs-gnu-trunk-directory)))
-     (if (equal (subseq default-directory 0 (length trunk))
+     (if (equal (cl-subseq default-directory 0 (length trunk))
 		trunk)
 	 (vc-dir debbugs-gnu-trunk-directory)
        (vc-dir debbugs-gnu-branch-directory)))
@@ -1564,7 +1567,5 @@ If given a prefix, patch in the branch directory instead."
 (provide 'debbugs-gnu)
 
 ;;; TODO:
-
-;; * Reorganize pages after client-side filtering.
 
 ;;; debbugs-gnu.el ends here
