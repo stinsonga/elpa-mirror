@@ -6,6 +6,7 @@
 ;;         Michael Albinus <michael.albinus@gmx.org>
 ;; Keywords: comm, hypermedia, maint
 ;; Package: debbugs
+;; Package-Requires: ((async))
 ;; Version: 0.8
 
 ;; This file is not part of GNU Emacs.
@@ -143,6 +144,7 @@
 (require 'tabulated-list)
 (require 'add-log)
 (require 'subr-x)
+(require 'async)
 (eval-when-compile (require 'cl))
 
 (autoload 'article-decode-charset "gnus-art")
@@ -575,7 +577,7 @@ marked as \"client-side filter\"."
   (let ((inhibit-read-only t)
 	(debbugs-port "gnu.org")
 	(buffer-name "*Emacs Bugs*")
-	all-status)
+	all-proc)
     ;; The tabulated mode sets several local variables.  We must get
     ;; rid of them.
     (when (get-buffer buffer-name)
@@ -590,102 +592,107 @@ marked as \"client-side filter\"."
       (while bug-ids
 	(setq curr-ids (butlast bug-ids (- (length bug-ids) hits))
 	      bug-ids (last bug-ids (- (length bug-ids) hits))
-	      all-status
-	      (append all-status (apply 'debbugs-get-status curr-ids)))))
+	      all-proc
+	      (append all-proc
+		      (list
+		       (async-start
+			`(lambda ()
+			   (load ,(locate-library "debbugs"))
+			   (apply 'debbugs-get-status ',curr-ids))))))))
 
     ;; Print bug reports.
-    ;; TODO: Do it asynchronously, in parallel to retrieving next chunk
-    ;; of bug statuses.
-    (dolist (status all-status)
-      (let* ((id (cdr (assq 'id status)))
-	     (words
-	      (mapconcat
-	       'identity
-	       (cons (cdr (assq 'severity status))
-		     (cdr (assq 'keywords status)))
-	       ","))
-	     (address (mail-header-parse-address
-		       (decode-coding-string (cdr (assq 'originator status))
-					     'utf-8)))
-	     (owner (if (cdr (assq 'owner status))
-			(car (mail-header-parse-address
-			      (decode-coding-string (cdr (assq 'owner status))
-						    'utf-8)))))
-	     (subject (decode-coding-string (cdr (assq 'subject status))
-					    'utf-8))
-	     merged)
-	(unless (equal (cdr (assq 'pending status)) "pending")
-	  (setq words
-		(concat words "," (cdr (assq 'pending status)))))
-	(let ((packages (delete "emacs" (cdr (assq 'package status)))))
-	  (when packages
-	    (setq words (concat words "," (mapconcat 'identity packages ",")))))
-	(when (setq merged (cdr (assq 'mergedwith status)))
-	  (setq words (format "%s,%s"
-			      (if (numberp merged)
-				  merged
-				(mapconcat 'number-to-string merged ","))
-			      words)))
-	(when (or (not merged)
-		  (not (let ((found nil))
-			 (dolist (id (if (listp merged)
-					 merged
-				       (list merged)))
-			   (dolist (entry tabulated-list-entries)
-			     (when (equal id (cdr (assq 'id (car entry))))
-			       (setq found t))))
-			 found)))
-	  (add-to-list
-	   'tabulated-list-entries
-	   (list
-	    status
-	    (vector
-	     (propertize
-	      (format "%5d" id)
-	      'face
-	      ;; Mark tagged bugs.
-	      (if (memq id debbugs-gnu-local-tags)
-		  'debbugs-gnu-tagged
-		'default))
-	     (propertize
-	      ;; Mark status and age.
-	      words
-	      'face
-	      (cond
-	       ((cdr (assq 'archived status))
-		'debbugs-gnu-archived)
-	       ((equal (cdr (assq 'pending status)) "done")
-		'debbugs-gnu-done)
-	       ((member "pending" (cdr (assq 'keywords status)))
-		'debbugs-gnu-pending)
-	       ((= (cdr (assq 'date status))
-		   (cdr (assq 'log_modified status)))
-		'debbugs-gnu-new)
-	       ((< (- (float-time)
-		      (cdr (assq 'log_modified status)))
-		   (* 60 60 24 7 2))
-		'debbugs-gnu-handled)
-	       (t
-		'debbugs-gnu-stale)))
-	     (propertize
-	      ;; Prefer the name over the address.
-	      (or (cdr address)
-		  (car address))
-	      'face
-	      ;; Mark own submitted bugs.
-	      (if (and (stringp (car address))
-		       (string-equal (car address) user-mail-address))
-		  'debbugs-gnu-tagged
-		'default))
-	     (propertize
-	      subject
-	      'face
-	      ;; Mark owned bugs.
-	      (if (and (stringp owner)
-		       (string-equal owner user-mail-address))
-		  'debbugs-gnu-tagged
-		'default))))
-	   'append))))
+    (dolist (proc all-proc)
+      (dolist (status (async-get proc))
+	(let* ((id (cdr (assq 'id status)))
+	       (words
+		(mapconcat
+		 'identity
+		 (cons (cdr (assq 'severity status))
+		       (cdr (assq 'keywords status)))
+		 ","))
+	       (address (mail-header-parse-address
+			 (decode-coding-string (cdr (assq 'originator status))
+					       'utf-8)))
+	       (owner (if (cdr (assq 'owner status))
+			  (car (mail-header-parse-address
+				(decode-coding-string (cdr (assq 'owner status))
+						      'utf-8)))))
+	       (subject (decode-coding-string (cdr (assq 'subject status))
+					      'utf-8))
+	       merged)
+	  (unless (equal (cdr (assq 'pending status)) "pending")
+	    (setq words (concat words "," (cdr (assq 'pending status)))))
+	  (let ((packages (delete "emacs" (cdr (assq 'package status)))))
+	    (when packages
+	      (setq words
+		    (concat words "," (mapconcat 'identity packages ",")))))
+	  (when (setq merged (cdr (assq 'mergedwith status)))
+	    (setq words (format "%s,%s"
+				(if (numberp merged)
+				    merged
+				  (mapconcat 'number-to-string merged ","))
+				words)))
+	  (when (or (not merged)
+		    (not (let ((found nil))
+			   (dolist (id (if (listp merged)
+					   merged
+					 (list merged)))
+			     (dolist (entry tabulated-list-entries)
+			       (when (equal id (cdr (assq 'id (car entry))))
+				 (setq found t))))
+			   found)))
+	    (add-to-list
+	     'tabulated-list-entries
+	     (list
+	      status
+	      (vector
+	       (propertize
+		(format "%5d" id)
+		'face
+		;; Mark tagged bugs.
+		(if (memq id debbugs-gnu-local-tags)
+		    'debbugs-gnu-tagged
+		  'default))
+	       (propertize
+		;; Mark status and age.
+		words
+		'face
+		(cond
+		 ((cdr (assq 'archived status))
+		  'debbugs-gnu-archived)
+		 ((equal (cdr (assq 'pending status)) "done")
+		  'debbugs-gnu-done)
+		 ((member "pending" (cdr (assq 'keywords status)))
+		  'debbugs-gnu-pending)
+		 ((= (cdr (assq 'date status))
+		     (cdr (assq 'log_modified status)))
+		  'debbugs-gnu-new)
+		 ((< (- (float-time)
+			(cdr (assq 'log_modified status)))
+		     (* 60 60 24 7 2))
+		  'debbugs-gnu-handled)
+		 (t
+		  'debbugs-gnu-stale)))
+	       (propertize
+		;; Prefer the name over the address.
+		(or (cdr address)
+		    (car address))
+		'face
+		;; Mark own submitted bugs.
+		(if (and (stringp (car address))
+			 (string-equal (car address) user-mail-address))
+		    'debbugs-gnu-tagged
+		  'default))
+	       (propertize
+		subject
+		'face
+		;; Mark owned bugs.
+		(if (and (stringp owner)
+			 (string-equal owner user-mail-address))
+		    'debbugs-gnu-tagged
+		  'default))))
+	     'append)))))
+
     (tabulated-list-init-header)
     (tabulated-list-print)
 
@@ -783,7 +790,6 @@ Used instead of `tabulated-list-print-entry'."
 (defun debbugs-gnu-rescan ()
   "Rescan the current set of bug reports."
   (interactive)
-
   ;; Refresh the buffer.  `save-excursion' does not work, so we
   ;; remember the position.
   (let ((pos (point)))
