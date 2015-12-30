@@ -700,7 +700,6 @@ The following additional pattern types are currently defined:\n"
     (when (and (eq this-command last-command) el-search-success)
       (el-search--skip-expression nil t))
     (setq el-search-success nil)
-    (message "%s" (substitute-command-keys "Type \\[el-search-pattern] to repeat"))
     (when (condition-case nil
               (el-search--search-pattern pattern)
             (end-of-buffer (message "No match")
