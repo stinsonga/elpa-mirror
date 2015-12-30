@@ -526,6 +526,59 @@ used to construct the error message."
 
 ;;;; Additional pattern type definitions
 
+(defun el-search--split (matcher1 matcher2 list)
+  "Helper for the append pattern type.
+
+When a splitting of LIST into two lists L1, L2 exist so that Li
+is matched by MATCHERi, return (L1 L2) for such Li, else return
+nil."
+  (let ((try-match (lambda (list1 list2)
+                     (when (and (el-search--match-p matcher1 list1)
+                                (el-search--match-p matcher2 list2))
+                       (list list1 list2))))
+        (list1 list) (list2 '()) (match nil))
+    ;; don't use recursion, this could hit `max-lisp-eval-depth'
+    (while (and (not (setq match (funcall try-match list1 list2)))
+                (consp list1))
+      (let ((last-list1 (last list1)))
+        (if-let ((cdr-last-list1 (cdr last-list1)))
+            ;; list1 is a dotted list.  Then list2 must be empty.
+            (progn (setcdr last-list1 nil)
+                   (setq list2 cdr-last-list1))
+          (setq list1 (butlast list1 1)
+                list2 (cons (car last-list1) list2)))))
+    match))
+
+(el-search-defpattern append (&rest patterns)
+  "Matches any list factorable into lists matched by PATTERNS in order.
+
+PATTERNS is a list of patterns P1..Pn.  Match any list L for that
+lists L1..Ln exist that are matched by P1..Pn in order and L is
+equal to the concatenation of L1..Ln.  Ln is allowed to be no
+list.
+
+When different ways of matching are possible, it is unspecified
+which one is chosen.
+
+Example: the pattern
+
+   (append '(1 2 3) x (app car-safe 7))
+
+matches the list (1 2 3 4 5 6 7 8 9) and binds `x' to (4 5 6)."
+  (if (null patterns)
+      '(pred null)
+    (pcase-let ((`(,pattern . ,more-patterns) patterns))
+      (cond
+       ((null more-patterns)  pattern)
+       ((null (cdr more-patterns))
+        `(and (pred listp)
+              (app ,(apply-partially #'el-search--split
+                                     (el-search--matcher pattern)
+                                     (el-search--matcher (car more-patterns)))
+                   (,'\` ((,'\, ,pattern)
+                          (,'\, ,(car more-patterns)))))))
+       (t `(append ,pattern (append ,@more-patterns)))))))
+
 (el-search-defpattern string (&rest regexps)
   "Matches any string that is matched by all REGEXPS."
   (el-search--check-pattern-args 'string regexps #'stringp)
