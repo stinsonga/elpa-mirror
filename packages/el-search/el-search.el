@@ -409,13 +409,8 @@ of the definitions is limited to \"el-search\"."
     (goto-char (match-end 0)))
    (t (forward-char))))
 
-(defun el-search--search-pattern (pattern &optional noerror)
-  "Search elisp buffer with `pcase' PATTERN.
-Set point to the beginning of the occurrence found and return
-point.  Optional second argument, if non-nil, means if fail just
-return nil (no error)."
-  
-  (let ((matcher (el-search--matcher pattern)) (match-beg nil) (opoint (point)) current-expr)
+(defun el-search--search-pattern-1 (matcher &optional noerror)
+  (let ((match-beg nil) (opoint (point)) current-expr)
 
     ;; when inside a string or comment, move past it
     (let ((syntax-here (syntax-ppss)))
@@ -440,6 +435,13 @@ return nil (no error)."
               (el-search--skip-expression current-expr))))
         (if noerror nil (signal 'end-of-buffer nil)))
     match-beg))
+
+(defun el-search--search-pattern (pattern &optional noerror)
+  "Search elisp buffer with `pcase' PATTERN.
+Set point to the beginning of the occurrence found and return
+point.  Optional second argument, if non-nil, means if fail just
+return nil (no error)."
+  (el-search--search-pattern-1 (el-search--matcher pattern) noerror))
 
 (defun el-search--do-subsexps (pos do-fun &optional ret-fun bound)
   ;; In current buffer, for any expression start between POS and BOUND
