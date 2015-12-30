@@ -571,6 +571,34 @@ matches the list (1 2 3 4 5 6 7 8 9) and binds `x' to (4 5 6)."
   `(and (pred symbolp)
         (app symbol-name (string ,@regexps))))
 
+(defun el-search--contains-p (matcher exp)
+  "Return non-nil when tree EXP contains a match for MATCHER.
+Recurse on all types of sequences.  In the positive case the
+return value is (t elt), where ELT is a matching element found in
+EXP."
+  (if (el-search--match-p matcher exp)
+      (list t exp)
+    (and (sequencep exp)
+         (let ((try-match (apply-partially #'el-search--contains-p matcher)))
+           (if (consp exp)
+               (or (funcall try-match (car exp))
+                   (funcall try-match (cdr exp)))
+             (cl-some try-match exp))))))
+
+(el-search-defpattern contains (&rest patterns)
+  "Matches trees that contain a match for all PATTERNs.
+Searches any tree of sequences recursively for matches.  Objects
+of any kind matched by all PATTERNs are also matched.
+
+  Example: (contains (string \"H\") 17) matches ((\"Hallo\") x (5 [1 17]))"
+  (cond
+   ((null patterns) '_)
+   ((null (cdr patterns))
+    (let ((pattern (car patterns)))
+      `(app ,(apply-partially #'el-search--contains-p (el-search--matcher pattern))
+            (,'\`  (t (,'\, ,pattern))))))
+   (t `(and ,@(mapcar (lambda (pattern) `(contains ,pattern)) patterns)))))
+
 (el-search-defpattern not (pattern)
   "Matches any object that is not matched by PATTERN."
   `(app ,(apply-partially #'el-search--match-p (el-search--matcher pattern))
