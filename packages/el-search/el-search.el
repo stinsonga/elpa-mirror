@@ -77,34 +77,6 @@
 ;; with point at the beginning of the currently tested expression.
 ;;
 ;;
-;; Example 3:
-;;
-;; I can be useful to use (guard EXP) patterns for side effects (note:
-;; this only works when applied to the top level expression).
-;;
-;; The following pattern will search for symbols defined in any
-;; library whose name starts with "cl".  As a side effect, it prints
-;; the current line number, whether we have a macro or a function, and
-;; the defining file in the echo area for each match:
-;;
-;;   (and (pred symbolp)
-;;        (let file (symbol-file exp))
-;;        (guard file)
-;;        (let lib-name (file-name-sans-extension
-;;                       (file-name-nondirectory file)))
-;;        (guard (string-match-p "^cl" lib-name))
-;;        (or (and (pred macrop)    (let type "macro "))
-;;            (and (pred functionp) (let type "function "))
-;;            (let type ""))
-;;        (guard (message "Line %d: %s`%S' (from \"%s\")"
-;;                        (line-number-at-pos)
-;;                        type
-;;                        exp
-;;                        lib-name)))
-;;
-;; `message' never returns nil, so the last `guard' always "matches".
-;;
-;;
 ;; Convenience
 ;; ===========
 ;;
@@ -114,7 +86,8 @@
 ;; so that you can always refer to the whole currently tested
 ;; expression via the variable `exp'.
 ;;
-;; Example 4:
+;;
+;; Example 3:
 ;;
 ;; If you want to search a buffer for symbols that are defined in
 ;; "cl-lib", you can use this pattern
