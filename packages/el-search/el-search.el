@@ -346,7 +346,7 @@ Point must not be inside a string or comment."
       (mapc
        (pcase-lambda (`(,symbol . ,fun))
          (when-let ((doc (documentation fun)))
-           (insert "\n\n-- ")
+           (insert "\n\n\n-- ")
            (setq doc (help-fns--signature symbol doc fun fun nil))
            (insert "\n" (or doc "Not documented."))))
        (reverse el-search--pcase-macros))
@@ -679,7 +679,7 @@ expressions.
 Additional `pcase' pattern types to be used with this command can
 be defined with `el-search-defpattern'.
 
-The following additional pattern types are currently defined:\n"
+The following additional pattern types are currently defined:"
   (interactive (list (if (and (eq this-command last-command)
                               el-search-success)
                          el-search-current-pattern
