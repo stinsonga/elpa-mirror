@@ -569,6 +569,11 @@ matches the list (1 2 3 4 5 6 7 8 9) and binds `x' to (4 5 6)."
   `(and (pred symbolp)
         (app symbol-name (string ,@regexps))))
 
+(el-search-defpattern not (pattern)
+  "Matches any object that is not matched by PATTERN."
+  `(app ,(apply-partially #'el-search--match-p (el-search--matcher pattern))
+        (pred not)))
+
 (defun el-search--match-symbol-file (regexp symbol)
   (when-let ((symbol-file (and (symbolp symbol)
                                (symbol-file symbol))))
