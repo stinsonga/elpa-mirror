@@ -848,12 +848,7 @@ Hit any key to proceed."
   (el-search-search-and-replace-pattern from to mapping))
 
 (defun el-search--take-over-from-isearch ()
-  (let ((other-end isearch-other-end)
-        (input isearch-string))
-    (isearch-exit)
-    (when (and other-end (< other-end (point)))
-      (goto-char other-end))
-    input))
+  (prog1 isearch-string (isearch-exit)))
 
 ;;;###autoload
 (defun el-search-search-from-isearch ()
