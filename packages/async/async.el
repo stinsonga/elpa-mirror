@@ -132,7 +132,10 @@ as follows:
     (eval sexp)))
 
 (defun async--insert-sexp (sexp)
-  (let (print-level print-length)
+  (let (print-level
+	print-length
+	(print-escape-nonascii t)
+	(print-circle t))
     (prin1 sexp (current-buffer))
     ;; Just in case the string we're sending might contain EOF
     (encode-coding-region (point-min) (point-max) 'utf-8-unix)
