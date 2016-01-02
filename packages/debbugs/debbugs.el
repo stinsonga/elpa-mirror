@@ -36,6 +36,10 @@
 (require 'soap-client)
 (eval-when-compile (require 'cl))
 
+(declare-function soap-invoke-async "soap-client")
+(declare-function async-start "async")
+(declare-function async-get "async")
+
 (defgroup debbugs nil
   "Debbugs library"
   :group 'hypermedia)
@@ -94,6 +98,42 @@ This corresponds to the Debbugs server to be accessed, either
 	(file-name-directory load-file-name)
       default-directory)))
   "The WSDL object to be used describing the SOAP interface.")
+
+;; Please do not increase this value, otherwise we would run into
+;; performance problems on the server.  Maybe we need to change this a
+;; server specific value.
+(defconst debbugs-max-hits-per-request 500
+  "The max number of bugs or results per soap invocation.")
+
+(defvar debbugs-soap-invoke-async-object nil
+  "The object manipulated by `debbugs-soap-invoke-async'.")
+
+(defun debbugs-soap-invoke-async (operation-name &rest parameters)
+  "Invoke the SOAP connection asynchronously.
+If possible, it uses `soap-invoke-async' from soapclient 3.0.
+Otherwise, `async-start' from the async package is used."
+  (if nil;(fboundp 'soap-invoke-async)
+      ;; This is soap-client 3.0.  Does not work for large requests.
+      (apply
+       'soap-invoke-async
+       (lambda (response &rest args)
+	 (message "lambda\n%s" response)
+	 (setq debbugs-soap-invoke-async-object
+	       (append debbugs-soap-invoke-async-object (car response)))
+	 (message "lambda1\n%s" debbugs-soap-invoke-async-object))
+       nil
+       debbugs-wsdl debbugs-port operation-name parameters)
+    ;; Fallback.
+    (async-start
+     `(lambda ()
+	(load ,(locate-library "soap-client"))
+	(apply
+	 'soap-invoke
+	 (soap-load-wsdl
+	  ,(expand-file-name
+	    "Debbugs.wsdl"
+	    (file-name-directory (locate-library "debbugs"))))
+	 ,debbugs-port ,operation-name ',parameters)))))
 
 (defun debbugs-get-bugs (&rest query)
   "Return a list of bug numbers which match QUERY.
@@ -291,40 +331,73 @@ Example:
        \(pending . \"pending\")
        \(package \"emacs\")))"
   (when bug-numbers
-    (let ((object
-	   (car
-	    (soap-invoke
-	     debbugs-wsdl debbugs-port "get_status"
-	     (apply 'vector bug-numbers)))))
-      (mapcar
-       (lambda (x)
-	 (let (y)
-	   ;; "archived" is the number 1 or 0.
-	   (setq y (assoc 'archived (cdr (assoc 'value x))))
-	   (setcdr y (= (cdr y) 1))
-	   ;; "found_versions" and "fixed_versions" are lists,
-	   ;; containing strings or numbers.
-	   (dolist (attribute '(found_versions fixed_versions))
-	     (setq y (assoc attribute (cdr (assoc 'value x))))
+    (if (<= (length bug-numbers) debbugs-max-hits-per-request)
+	;; Do it directly.
+	(setq debbugs-soap-invoke-async-object
+	      (car (soap-invoke
+		    debbugs-wsdl debbugs-port "get_status"
+		    (apply 'vector bug-numbers))))
+
+      ;; Retrieve bugs asynchronously.
+      (let ((bug-ids bug-numbers)
+	    results)
+	(setq debbugs-soap-invoke-async-object nil)
+	(while bug-ids
+	  (setq results
+		(append
+		 results
+		 (list
+		  (debbugs-soap-invoke-async
+		   "get_status"
+		   (apply
+		    'vector
+		    (butlast
+		     bug-ids (- (length bug-ids)
+				debbugs-max-hits-per-request))))))
+
+		bug-ids
+		(last bug-ids (- (length bug-ids)
+				 debbugs-max-hits-per-request))))
+
+	(dolist (res results)
+	  (if (bufferp res)
+	      ;; This is soap-client 3.0.
+	      (while (buffer-live-p res)
+		(sit-for 0.1))
+	    ;; Fallback.
+	    (dolist (status (async-get res))
+	      (setq debbugs-soap-invoke-async-object
+		    (append debbugs-soap-invoke-async-object status)))))))
+
+    (mapcar
+     (lambda (x)
+       (let (y)
+	 ;; "archived" is the number 1 or 0.
+	 (setq y (assoc 'archived (cdr (assoc 'value x))))
+	 (setcdr y (= (cdr y) 1))
+	 ;; "found_versions" and "fixed_versions" are lists,
+	 ;; containing strings or numbers.
+	 (dolist (attribute '(found_versions fixed_versions))
+	   (setq y (assoc attribute (cdr (assoc 'value x))))
+	   (setcdr y (mapcar
+		      (lambda (z) (if (numberp z) (number-to-string z) z))
+		      (cdr y))))
+	 ;; "mergedwith", "blocks" and "blockedby are strings,
+	 ;; containing blank separated bug numbers.
+	 (dolist (attribute '(mergedwith blocks blockedby))
+	   (setq y (assoc attribute (cdr (assoc 'value x))))
+	   (when (stringp (cdr y))
 	     (setcdr y (mapcar
-			(lambda (z) (if (numberp z) (number-to-string z) z))
-			(cdr y))))
-	   ;; "mergedwith", "blocks" and "blockedby are strings,
-	   ;; containing blank separated bug numbers.
-	   (dolist (attribute '(mergedwith blocks blockedby))
-	     (setq y (assoc attribute (cdr (assoc 'value x))))
-	     (when (stringp (cdr y))
-	       (setcdr y (mapcar
-			  'string-to-number (split-string (cdr y) " " t)))))
-	   ;; "package" is a string, containing comma separated
-	   ;; package names.  "keywords" and "tags" are strings,
-	   ;; containing blank separated package names.
-	   (dolist (attribute '(package keywords tags))
-	     (setq y (assoc attribute (cdr (assoc 'value x))))
-	     (when (stringp (cdr y))
-	       (setcdr y (split-string (cdr y) ",\\| " t))))
-	   (cdr (assoc 'value x))))
-       object))))
+			'string-to-number (split-string (cdr y) " " t)))))
+	 ;; "package" is a string, containing comma separated
+	 ;; package names.  "keywords" and "tags" are strings,
+	 ;; containing blank separated package names.
+	 (dolist (attribute '(package keywords tags))
+	   (setq y (assoc attribute (cdr (assoc 'value x))))
+	   (when (stringp (cdr y))
+	     (setcdr y (split-string (cdr y) ",\\| " t))))
+	 (cdr (assoc 'value x))))
+     debbugs-soap-invoke-async-object)))
 
 (defun debbugs-get-usertag (&rest query)
   "Return a list of bug numbers which match QUERY.
@@ -752,6 +825,7 @@ current buffer."
 
 ;;; TODO:
 
+;; * Make `debbugs-soap-invoke-async' work with `soap-invoke-async'.
 ;; * SOAP interface extensions (wishlist).
 ;;   - Server-side sorting.
 ;;   - Regexp and/or wildcards search.
