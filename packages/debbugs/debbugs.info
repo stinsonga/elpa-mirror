@@ -1,20 +1,21 @@
-This is debbugs.info, produced by makeinfo version 5.0 from
+This is debbugs.info, produced by makeinfo version 6.0 from
 debbugs.texi.
 
-Copyright (C) 2011-2015 Free Software Foundation, Inc.
+Copyright (C) 2011-2016 Free Software Foundation, Inc.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
      Version 1.2 or any later version published by the Free Software
      Foundation; with no Invariant Sections, with the Front-Cover, or
-     Back-Cover Texts.  A copy of the license is included in the section
-     entitled "GNU Free Documentation License" in the Emacs manual.
+     Back-Cover Texts.  A copy of the license is included in the
+     section entitled "GNU Free Documentation License" in the Emacs
+     manual.
 
      This document is part of a collection distributed under the GNU
      Free Documentation License.  If you want to distribute this
-     document separately from the collection, you can do so by adding a
-     copy of the license to the document, as described in section 6 of
-     the license.
+     document separately from the collection, you can do so by adding
+     a copy of the license to the document, as described in section 6
+     of the license.
 
      All Emacs Lisp code contained in this document may be used,
      distributed, and modified without restriction.
@@ -29,10 +30,10 @@ File: debbugs.info,  Node: Top,  Next: Installation,  Up: (dir)
 Debbugs Programmer's Manual
 ***************************
 
-Debbugs is a bugtracking system (BTS) that was initially written for the
-Debian project but currently used also by the GNU project.  The main
-distinctive feature of Debbugs is that it's mostly email-based.  All
-actions on bug reports: opening, closing, changing the status,
+Debbugs is a bugtracking system (BTS) that was initially written for
+the Debian project but currently used also by the GNU project.  The
+main distinctive feature of Debbugs is that it's mostly email-based.
+All actions on bug reports: opening, closing, changing the status,
 commenting, forwarding are performed via email by sending specially
 composed letters to the particular mail addresses.  However, searching
 the bug reports, querying bug report status and viewing comments have
@@ -51,8 +52,8 @@ exposes to developers the available functions provided by the Debbugs
 server.  'debbugs' uses Emacs' SOAP client library for communication
 with the Debbugs server.  In tandem with Emacs' email facilities,
 'debbugs' provides a solution for building applications that interact
-with the Debbugs BTS directly from Emacs without addressing Debbugs' web
-interface.
+with the Debbugs BTS directly from Emacs without addressing Debbugs'
+web interface.
 
 * Menu:
 
@@ -78,8 +79,8 @@ Installation on Emacs 22 and Emacs 23
 -------------------------------------
 
 If you want to install 'debbugs' on Emacs 22/23, you will need to
-install the 'soap-client' library first.  It can be downloaded from the
-Emacs SOAP client project page
+install the 'soap-client' library first.  It can be downloaded from
+the Emacs SOAP client project page
 (http://code.google.com/p/emacs-soap-client/).
 
    Compile the library and add it into your 'load-path':
@@ -106,17 +107,17 @@ File: debbugs.info,  Node: Configuration,  Next: Requesting bug numbers,  Prev: 
 
 'debbugs' is already configured to work with two main ports of Debbugs
 BTS: <http://bugs.debian.org> and <http://debbugs.gnu.org>.  So if you
-intend to use one of these ports, you don't need to configure 'debbugs'.
-If you want to interact with a Debbugs port other than those listed, you
-have to configure 'debbugs' by adding a new server specifier to the
-'debbugs-servers' variable.  The actual port can be selected by the
-'debbugs-port' variable.
+intend to use one of these ports, you don't need to configure
+'debbugs'.  If you want to interact with a Debbugs port other than
+those listed, you have to configure 'debbugs' by adding a new server
+specifier to the 'debbugs-servers' variable.  The actual port can be
+selected by the 'debbugs-port' variable.
 
  -- Variable: debbugs-servers
      List of Debbugs server specifiers.  Each entry is a list that
      contains a string identifying the port name and the server
-     parameters in keyword-value form.  The list initially contains two
-     predefined and configured Debbugs servers: '"gnu.org"' and
+     parameters in keyword-value form.  The list initially contains
+     two predefined and configured Debbugs servers: '"gnu.org"' and
      '"debian.org"'.
 
      Valid keywords are:
@@ -129,8 +130,8 @@ have to configure 'debbugs' by adding a new server specifier to the
 
      ':bugreport-url'
           The URL of the server script ('bugreport.cgi' in the default
-          Debbugs installation) that provides the access to mboxes with
-          messages from bug reports.
+          Debbugs installation) that provides the access to mboxes
+          with messages from bug reports.
 
      Example.  Add a new Debbugs port with name "foobars.net":
 
@@ -141,9 +142,10 @@ have to configure 'debbugs' by adding a new server specifier to the
              :bugreport-url "http://bugs.foobars.net/cgi/bugreport.cgi"))
 
  -- Variable: debbugs-port
-     This variable holds the name of the currently used port.  The value
-     of the variable corresponds to the Debbugs server to be accessed,
-     either '"gnu.org"' or '"debian.org"', or a user defined port name.
+     This variable holds the name of the currently used port.  The
+     value of the variable corresponds to the Debbugs server to be
+     accessed, either '"gnu.org"' or '"debian.org"', or a user defined
+     port name.
 
 
 File: debbugs.info,  Node: Requesting bug numbers,  Next: Requesting bugs statuses,  Prev: Configuration,  Up: Top
@@ -151,17 +153,17 @@ File: debbugs.info,  Node: Requesting bug numbers,  Next: Requesting bugs status
 3 Requesting bug numbers
 ************************
 
-In Debbugs BTS, the bug number is the unique identifier of a bug report.
-The functions described in this section return from the Debbugs server
-the list of bug numbers that match a user's query.
+In Debbugs BTS, the bug number is the unique identifier of a bug
+report.  The functions described in this section return from the
+Debbugs server the list of bug numbers that match a user's query.
 
  -- Function: debbugs-get-bugs &rest query
      This function returns a list of bug numbers that match the QUERY.
      QUERY is a sequence of keyword-value pairs where the values are
      strings, i.e.  :KEYWORD "VALUE" [:KEYWORD "VALUE"]*
 
-     The keyword-value pair is a subquery.  The keywords are allowed to
-     have multiple occurrence within the query at any place.  The
+     The keyword-value pair is a subquery.  The keywords are allowed
+     to have multiple occurrence within the query at any place.  The
      subqueries with the same keyword form the logical subquery, which
      returns the union of bugs of every subquery it contains.
 
@@ -175,12 +177,13 @@ the list of bug numbers that match a user's query.
           '"emacs"', '"coreutils"', '"gnus"', or '"tramp"'.
 
      ':src'
-          This is used to retrieve bugs that belong to source with given
-          name.
+          This is used to retrieve bugs that belong to source with
+          given name.
 
      ':severity'
           This is the severity of the bug.  The exact set of available
-          severities depends on the policy of a particular Debbugs port:
+          severities depends on the policy of a particular Debbugs
+          port:
 
           Debian port: '"critical"', '"grave"', '"serious"',
           '"important"', '"normal"', '"minor"', '"wishlist"', and
@@ -190,19 +193,20 @@ the list of bug numbers that match a user's query.
           '"wishlist"'.
 
      ':tag'
-          An arbitrary string the bug is annotated with.  Usually, this
-          is used to mark the status of the bug.  The list of possible
-          tags depends on the Debbugs port.
+          An arbitrary string the bug is annotated with.  Usually,
+          this is used to mark the status of the bug.  The list of
+          possible tags depends on the Debbugs port.
 
           Debian port: '"patch"', '"wontfix"', '"moreinfo"',
-          '"unreproducible"', '"fixed"', '"potato"', '"woody"', '"sid"',
-          '"help"', '"security"', '"upstream"', '"pending"', '"sarge"',
-          '"sarge-ignore"', '"experimental"', '"d-i"', '"confirmed"',
-          '"ipv6"', '"lfs"', '"fixed-in-experimental"',
+          '"unreproducible"', '"fixed"', '"potato"', '"woody"',
+          '"sid"', '"help"', '"security"', '"upstream"', '"pending"',
+          '"sarge"', '"sarge-ignore"', '"experimental"', '"d-i"',
+          '"confirmed"', '"ipv6"', '"lfs"', '"fixed-in-experimental"',
           '"fixed-upstream"', '"l10n"', '"etch"', '"etch-ignore"',
-          '"lenny"', '"lenny-ignore"', '"squeeze"', '"squeeze-ignore"',
-          '"wheezy"', '"wheezy-ignore"'.  The actual list of tags can be
-          found on <http://www.debian.org/Bugs/Developer#tags>.
+          '"lenny"', '"lenny-ignore"', '"squeeze"',
+          '"squeeze-ignore"', '"wheezy"', '"wheezy-ignore"'.  The
+          actual list of tags can be found on
+          <http://www.debian.org/Bugs/Developer#tags>.
 
           GNU port: '"fixed"', '"notabug"', '"wontfix"',
           '"unreproducible"', '"moreinfo"', '"patch"', '"pending"',
@@ -212,9 +216,9 @@ the list of bug numbers that match a user's query.
 
      ':owner'
           This is used to identify bugs by the owner's email address.
-          The special email address '"me"' is used as pattern, replaced
-          with the variable 'user-mail-address' (*note (elisp)User
-          Identification::).
+          The special email address '"me"' is used as pattern,
+          replaced with the variable 'user-mail-address' (*note
+          (elisp)User Identification::).
 
      ':submitter'
           With this keyword it is possible to filter bugs by the
@@ -223,10 +227,10 @@ the list of bug numbers that match a user's query.
           'user-mail-address'.
 
      ':maint'
-          This is used to find bugs of the packages which are maintained
-          by the person with the given email address.  The special email
-          address '"me"' is used as pattern, replaced with
-          'user-mail-address'.
+          This is used to find bugs of the packages which are
+          maintained by the person with the given email address.  The
+          special email address '"me"' is used as pattern, replaced
+          with 'user-mail-address'.
 
      ':correspondent'
           This allows to find bug reports where the person with the
@@ -235,10 +239,10 @@ the list of bug numbers that match a user's query.
           'user-mail-address'.
 
      ':affects'
-          With this keyword it is possible to find bugs which affect the
-          package with the given name.  The bugs are chosen by the value
-          of field 'affects' in bug's status.  The returned bugs do not
-          necessary belong to this package.
+          With this keyword it is possible to find bugs which affect
+          the package with the given name.  The bugs are chosen by the
+          value of field 'affects' in bug's status.  The returned bugs
+          do not necessary belong to this package.
 
      ':status'
           Status of bug.  Valid values are '"done"', '"forwarded"' and
@@ -246,12 +250,13 @@ the list of bug numbers that match a user's query.
 
      ':archive'
           A keyword to filter for bugs which are already archived, or
-          not.  Valid values are '"0"' (not archived), '"1"' (archived)
-          or '"both"'.  If this keyword is not given in the query,
-          ':archive "0"' is assumed by default.
+          not.  Valid values are '"0"' (not archived), '"1"'
+          (archived) or '"both"'.  If this keyword is not given in the
+          query, ':archive "0"' is assumed by default.
 
      Example.  Get all opened and forwarded release critical bugs for
-     the packages which are maintained by '"me"' and which have a patch:
+     the packages which are maintained by '"me"' and which have a
+     patch:
 
           (let ((debbugs-port "debian.org"))
             (debbugs-get-bugs :maint "me" :tag "patch"
@@ -262,8 +267,8 @@ the list of bug numbers that match a user's query.
                               :severity "serious"))
 
  -- Function: debbugs-newest-bugs amount
-     This function returns a list of bug numbers, according to AMOUNT (a
-     number) of latest bugs.
+     This function returns a list of bug numbers, according to AMOUNT
+     (a number) of latest bugs.
 
      Example.  Get the latest six bug report numbers from Debian BTS:
 
@@ -278,13 +283,13 @@ File: debbugs.info,  Node: Requesting bugs statuses,  Next: Requesting messages,
 **************************
 
 Bug status is a collection of fields that holds the information about
-the state and importance of the bug report, about originator, owner and
-various aspects of relationship with other bug reports.
+the state and importance of the bug report, about originator, owner
+and various aspects of relationship with other bug reports.
 
  -- Function: debbugs-get-status &rest bug-numbers
      Return a list of status entries for the bug reports identified by
-     BUG-NUMBERS.  Every returned entry is an association list with the
-     following attributes:
+     BUG-NUMBERS.  Every returned entry is an association list with
+     the following attributes:
 
      'id'
      'bug_num'
@@ -294,9 +299,9 @@ various aspects of relationship with other bug reports.
           A list of package names the bug belongs to.
 
      'severity'
-          The severity of the bug report.  Possible values are the same
-          as for ':severity' in 'debbugs-get-bugs' (*note Requesting bug
-          numbers::).
+          The severity of the bug report.  Possible values are the
+          same as for ':severity' in 'debbugs-get-bugs' (*note
+          Requesting bug numbers::).
 
      'tags'
           The status of the bug report, a list of strings.  Possible
@@ -327,8 +332,8 @@ various aspects of relationship with other bug reports.
 
      'found_date'
      'fixed_date'
-          Date of bug report / bug fix (empty for now).  Encoded as UNIX
-          time.
+          Date of bug report / bug fix (empty for now).  Encoded as
+          UNIX time.
 
      'done'
           The E-mail address of the worker who has closed the bug (if
@@ -408,20 +413,20 @@ File: debbugs.info,  Node: Requesting messages,  Next: Requesting user tags,  Pr
 *********************
 
  -- Function: debbugs-get-bug-log bug-number
-     Returns a list of messages related to BUG-NUMBER.  Every message is
-     an association list with the following attributes:
+     Returns a list of messages related to BUG-NUMBER.  Every message
+     is an association list with the following attributes:
 
      'msg_num'
-          The number of the message inside the bug log.  The numbers are
-          ascending, newer messages have a higher number.
+          The number of the message inside the bug log.  The numbers
+          are ascending, newer messages have a higher number.
      'header'
           The header lines from the E-mail messages, as arrived at the
           bug tracker.
      'body'
           The message body.
      'attachments'
-          A list of possible attachments, or 'nil'.  Not implemented yet
-          server side.
+          A list of possible attachments, or 'nil'.  Not implemented
+          yet server side.
 
  -- Function: debbugs-get-message-numbers messages
      Returns the message numbers of MESSAGES.  MESSAGES must be the
@@ -440,11 +445,11 @@ File: debbugs.info,  Node: Requesting messages,  Next: Requesting user tags,  Pr
      is a list of strings.  The first element are the header lines of
      the message, the second element is the body of the message.
      Further elements of the list, if any, are attachments of the
-     message.  If there is no message with MESSAGE-NUMBER, the function
-     returns 'nil'.
+     message.  If there is no message with MESSAGE-NUMBER, the
+     function returns 'nil'.
 
-     Example: Return the first message of the last submitted bug report
-     to GNU BTS:
+     Example: Return the first message of the last submitted bug
+     report to GNU BTS:
 
           (let* ((debbugs-port "gnu.org")
                  (messages (apply 'debbugs-get-bug-log
@@ -455,12 +460,12 @@ File: debbugs.info,  Node: Requesting messages,  Next: Requesting user tags,  Pr
 
  -- Function: debbugs-get-mbox bug-number mbox-type &optional filename
      Download mbox with all messages from bug report BUG-NUMBER.
-     MBOX-TYPE specifies a type of mbox and can be one of the following
-     symbols:
+     MBOX-TYPE specifies a type of mbox and can be one of the
+     following symbols:
 
      'mboxfolder'
-          Download mbox folder, i.e.  mbox with messages as they arrived
-          at the Debbugs server.
+          Download mbox folder, i.e.  mbox with messages as they
+          arrived at the Debbugs server.
 
      'mboxmaint'
           Download maintainer's mbox, i.e.  mbox with messages as they
@@ -468,17 +473,17 @@ File: debbugs.info,  Node: Requesting messages,  Next: Requesting user tags,  Pr
 
      'mboxstat'
      'mboxstatus'
-          Download status mbox.  The use of either symbol depends on the
-          actual Debbugs server configuration.  For '"gnu.org"', use the
-          former; for '"debian.org' - the latter.
+          Download status mbox.  The use of either symbol depends on
+          the actual Debbugs server configuration.  For '"gnu.org"',
+          use the former; for '"debian.org' - the latter.
 
-     FILENAME, if non-'nil', is the name of the file to store mbox.  If
-     FILENAME is 'nil', the downloaded mbox is inserted into the current
-     buffer.
+     FILENAME, if non-'nil', is the name of the file to store mbox.
+     If FILENAME is 'nil', the downloaded mbox is inserted into the
+     current buffer.
 
-     Note, that mbox downloading will work only if the ':bugreport-url'
-     field of the 'debbugs-servers' variable is specified (*note
-     Configuration::).
+     Note, that mbox downloading will work only if the
+     ':bugreport-url' field of the 'debbugs-servers' variable is
+     specified (*note Configuration::).
 
 
 File: debbugs.info,  Node: Requesting user tags,  Prev: Requesting messages,  Up: Top
@@ -486,9 +491,9 @@ File: debbugs.info,  Node: Requesting user tags,  Prev: Requesting messages,  Up
 6 Requesting user tags
 **********************
 
-A user tag is a string, a user has assigned to one or several bugs.  The
-user is identified by an email address.  The port '"gnu.org"' uses also
-package names as user identification.
+A user tag is a string, a user has assigned to one or several bugs.
+The user is identified by an email address.  The port '"gnu.org"' uses
+also package names as user identification.
 
  -- Function: debbugs-get-usertag &rest query
      Return a list of bug numbers which match QUERY.
@@ -502,17 +507,17 @@ package names as user identification.
           The value is the name of the package a bug belongs to, like
           '"emacs"', '"coreutils"', or '"tramp"'.  It can also be an
           email address of a user who has applied a user tag.  The
-          special email address '"me"' is used as pattern, replaced with
-          'user-mail-address'.  There must be at least one such entry;
-          it is recommended to have exactly one.
+          special email address '"me"' is used as pattern, replaced
+          with 'user-mail-address'.  There must be at least one such
+          entry; it is recommended to have exactly one.
 
      ':tag'
           A string applied as user tag.  Often, it is a subproduct
           identification, like '"cedet"' or '"tramp"' for the package
           '"emacs"'.
 
-     If there is no ':tag' entry, no bug numbers will be returned but a
-     list of existing user tags for ':user'.
+     If there is no ':tag' entry, no bug numbers will be returned but
+     a list of existing user tags for ':user'.
 
      Example.  Get all user tags for the package '"emacs"':
 
@@ -530,12 +535,12 @@ package names as user identification.
 
 
 Tag Table:
-Node: Top1089
-Node: Installation3043
-Node: Configuration4142
-Node: Requesting bug numbers6048
-Node: Requesting bugs statuses11276
-Node: Requesting messages15327
-Node: Requesting user tags18343
+Node: Top1094
+Node: Installation3047
+Node: Configuration4146
+Node: Requesting bug numbers6058
+Node: Requesting bugs statuses11312
+Node: Requesting messages15363
+Node: Requesting user tags18378
 
 End Tag Table
