@@ -1,7 +1,7 @@
 This is debbugs-ug.info, produced by makeinfo version 6.0 from
 debbugs-ug.texi.
 
-Copyright (C) 2015 Free Software Foundation, Inc.
+Copyright (C) 2015-2016 Free Software Foundation, Inc.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -583,18 +583,18 @@ Key Index
 
 
 Tag Table:
-Node: Top1092
-Node: Retrieving Bugs2629
-Node: Searching Bugs6160
-Ref: Searching Bugs-Footnote-110039
-Ref: Searching Bugs-Footnote-210127
-Node: Layout10218
-Node: Tabulated Lists10693
-Node: TODO Items14057
-Node: Control Messages15322
-Node: Minor Mode17633
-Node: Command Index18572
-Node: Variable Index19219
-Node: Key Index19867
+Node: Top1097
+Node: Retrieving Bugs2634
+Node: Searching Bugs6165
+Ref: Searching Bugs-Footnote-110044
+Ref: Searching Bugs-Footnote-210132
+Node: Layout10223
+Node: Tabulated Lists10698
+Node: TODO Items14062
+Node: Control Messages15327
+Node: Minor Mode17638
+Node: Command Index18577
+Node: Variable Index19224
+Node: Key Index19872
 
 End Tag Table

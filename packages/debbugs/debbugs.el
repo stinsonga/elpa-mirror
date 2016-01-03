@@ -1,6 +1,6 @@
 ;;; debbugs.el --- SOAP library to access debbugs servers
 
-;; Copyright (C) 2011-2015 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2016 Free Software Foundation, Inc.
 
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, hypermedia
@@ -112,18 +112,16 @@ This corresponds to the Debbugs server to be accessed, either
   "Invoke the SOAP connection asynchronously.
 If possible, it uses `soap-invoke-async' from soapclient 3.0.
 Otherwise, `async-start' from the async package is used."
-  (if nil;(fboundp 'soap-invoke-async)
-      ;; This is soap-client 3.0.  Does not work for large requests.
+  (if (fboundp 'soap-invoke-async)
+      ;; This is soap-client 3.0.
       (apply
        'soap-invoke-async
        (lambda (response &rest args)
-	 (message "lambda\n%s" response)
 	 (setq debbugs-soap-invoke-async-object
-	       (append debbugs-soap-invoke-async-object (car response)))
-	 (message "lambda1\n%s" debbugs-soap-invoke-async-object))
+	       (append debbugs-soap-invoke-async-object (car response))))
        nil
        debbugs-wsdl debbugs-port operation-name parameters)
-    ;; Fallback.
+    ;; Fallback with async.
     (async-start
      `(lambda ()
 	(load ,(locate-library "soap-client"))
@@ -363,8 +361,8 @@ Example:
 	  (if (bufferp res)
 	      ;; This is soap-client 3.0.
 	      (while (buffer-live-p res)
-		(sit-for 0.1))
-	    ;; Fallback.
+		(accept-process-output (get-buffer-process res) 0.1))
+	    ;; Fallback with async.
 	    (dolist (status (async-get res))
 	      (setq debbugs-soap-invoke-async-object
 		    (append debbugs-soap-invoke-async-object status)))))))
@@ -825,7 +823,6 @@ current buffer."
 
 ;;; TODO:
 
-;; * Make `debbugs-soap-invoke-async' work with `soap-invoke-async'.
 ;; * SOAP interface extensions (wishlist).
 ;;   - Server-side sorting.
 ;;   - Regexp and/or wildcards search.
