@@ -1,13 +1,13 @@
 ;;; wcheck-mode.el --- General interface for text checkers
 
-;; Copyright (C) 2009-2014  Free Software Foundation, Inc.
+;; Copyright (C) 2009-2016  Free Software Foundation, Inc.
 
 ;; Author: Teemu Likonen <tlikonen@iki.fi>
 ;; Maintainer: Teemu Likonen <tlikonen@iki.fi>
 ;; Created: 2009-07-04
 ;; URL: https://github.com/tlikonen/wcheck-mode
 ;; Keywords: text spell check languages ispell
-;; Version: 2014.6.21
+;; Version: 2016.1.5
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
