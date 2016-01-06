@@ -32,7 +32,6 @@
 
 (("ack"			:subtree "https://github.com/leoliu/ack-el")
  ("aggressive-indent" :subtree "https://github.com/Malabarba/aggressive-indent-mode")
- ("async"		:subtree "https://github.com/jwiegley/emacs-async")
  ("auctex"		:external "git://git.sv.gnu.org/auctex.git")
  ("bug-hunter" :subtree "https://github.com/Malabarba/elisp-bug-hunter")
  ;;FIXME:("cedet"	:external "??")
