@@ -659,6 +659,59 @@ matches any of these expressions:
                                  "argument not a string or vector")
   `(pred (el-search--match-key-sequence ,key-sequence)))
 
+(defun el-search--s (expr)
+  (cond
+   ((symbolp expr) `(symbol ,(symbol-name expr)))
+   ((stringp expr) `(string ,expr))
+   (t expr)))
+
+(el-search-defpattern l (&rest lpats)
+  "Alternative pattern type for matching lists.
+Match any list with subsequent elements matched by all LPATS in
+order.
+
+The idea is to be able to search for pieces of code (i.e. lists)
+with very brief input by using a specialized syntax.
+
+An LPAT can take the following forms:
+
+SYMBOL  Matches any symbol matched by SYMBOL's name interpreted as
+        a regexp
+STRING  Matches any string matched by STRING interpreted as a
+        regexp
+_       Matches any list element
+__      Matches any number of list elements (including zero)
+^       Matches zero elements, but only at the beginning of a list
+$       Matches zero elements, but only at the end of a list
+PAT     Anything else is interpreted as a normal pcase pattern, and
+        matches one list element matched by it
+
+^ is only valid as the first, $ as the last of the LPATS.
+
+Example: To match defuns that contain \"hl\" in their name and
+have at least one mandatory, but also optional arguments, you
+could use this pattern:
+
+    (l ^ 'defun hl (l _ &optional))"
+  (let ((match-start nil) (match-end nil))
+    (when (eq (car-safe lpats) '^)
+      (setq match-start t)
+      (cl-callf cdr lpats))
+    (when (eq (car-safe (last lpats)) '$)
+      (setq match-end t)
+      (cl-callf butlast lpats 1))
+    `(append ,@(if match-start '() '(_))
+             ,@(mapcar
+                (lambda (elt)
+                  (pcase elt
+                    ('__ '_)
+                    ('_ '`(,_))
+                    ('_? '(or '() `(,_))) ;FIXME: useful - document? or should we provide a (? PAT)
+                                          ;thing?
+                    (_ `(,'\` ((,'\, ,(el-search--s elt)))))))
+                lpats)
+             ,@(if match-end '() '(_)))))
+
 
 ;;;; Highlighting
 
