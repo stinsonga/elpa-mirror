@@ -35,10 +35,10 @@ the Debian project but currently used also by the GNU project.  The
 main distinctive feature of Debbugs is that it's mostly email-based.
 All actions on bug reports: opening, closing, changing the status,
 commenting, forwarding are performed via email by sending specially
-composed letters to the particular mail addresses.  However, searching
-the bug reports, querying bug report status and viewing comments have
-been web-based for a long time.  To overcome this inconvenience the
-Debbugs/SOAP service was introduced.
+composed letters to the particular email addresses.  However,
+searching the bug reports, querying bug report status and viewing
+comments have been web-based for a long time.  To overcome this
+inconvenience the Debbugs/SOAP service was introduced.
 
    Based on the Debbugs/SOAP service, frontends are written which
 offer handling of bugs inside Emacs.  These frontends are restricted
@@ -80,10 +80,10 @@ prefix.
 
      These commands retrieve bug reports from the GNU Debbugs server.
      'debbugs-gnu' returns a tabulated list, and 'debbugs-org' returns
-     a list of TODO items in 'org-mode'.  If there were more than
-     'debbugs-gnu-default-hits-per-page' bug results from the query,
-     there are widgets ('debbugs-gnu') or links ('debbugs-org') in the
-     result buffer for retrieving the other results.
+     a list of TODO items in 'org-mode'.  In order not to stress the
+     GNU Debbugs server, the bugs are retrieved in chunks of 500 bugs.
+     However, the bug report buffer shows all retrieved bugs then, in
+     reverse bug number order.
 
      SEVERITIES is a list of strings which filter for the severities
      of the bugs to be retrieved.  Valid severities are '"serious"',
@@ -103,7 +103,11 @@ prefix.
      on the GNU Debbugs server.
 
      SUPPRESS shall also distinct between 'nil' and non-'nil'.  When
-     non-'nil', closed bugs are suppressed from the results.
+     non-'nil', closed bugs are suppressed from being retrieved from
+     the Debbugs server.  Which bugs are regarded as suppressed is
+     configured in the customer option 'debbugs-gnu-suppress-bugs'.
+     Per default, bugs marked as '"done"' are suppressed from being
+     retrieved.
 
      When SEVERITIES contains the severity '"tagged"', TAGS is
      consulted in order to restrict the result on bugs which are
@@ -120,12 +124,6 @@ prefix.
      Default values for interactive use could be configured in the
      customer options 'debbugs-gnu-default-severities' and
      'debbugs-gnu-default-packages'.
-
-     When the result would exceed more than 500 bugs, the user is
-     asked how many bugs to retrieve at once.  This value can be
-     configured in the customer option
-     'debbugs-gnu-default-hits-per-page'.  However, it is not
-     recommended to exceeds the default value.
 
      *note Layout:: for the presentation of the results.
 
@@ -185,7 +183,7 @@ uses a HyperEstraier based search engine
           A comma-separated list of defined user tags.
 
      'submitter'
-          The address of the bug submitter.
+          The email address of the bug submitter.
 
      'date'
           A time period the bug has been in which the bug has been
@@ -285,14 +283,8 @@ File: debbugs-ug.info,  Node: Tabulated Lists,  Next: TODO Items,  Up: Layout
 A tabulated list of bug reports consist of four columns for every bug
 entry: 'Id' (the bug number), 'State' (some bug attributes),
 'Submitter' (the name of the bug submitter), and 'Title' (the bug
-subject).  Per default the bugs are sorted by 'Id'; this could be
-changed by clicking in the headline.
-
-   Per bug retrieval only up to 500
-('debbugs-gnu-default-hits-per-page') bugs are retrieved and presented
-in a buffer.  If there shall be presented more bugs, widgets are
-placed on the top and bottom of the buffer for navigation to further
-report buffers.
+subject).  Per default the bugs are sorted descending by 'Id'; this
+could be changed by clicking in the headline.
 
    Different foreground colours present further information on the bug
 report.  If the bug number uses a red colour ('debbugs-gnu-tagged'),
@@ -367,15 +359,10 @@ TODO items are offered as usual in 'org-mode'.  The bug attributes are
 mapped onto properties of these items.  They can be shown by the usual
 navigation in 'org-mode'.
 
-   Per bug retrieval only up to 500
-('debbugs-gnu-default-hits-per-page') bugs are retrieved and presented
-in a buffer.  At the end of the buffer there is a link, which allows
-to append the next 500 bugs to the list.
-
    Bug severities are mapped onto org severities, see
 'debbugs-org-severity-priority'.
 
-   The bug report buffers have enabled the minor 'debbugs-gnu-mode'.
+   The bug report buffers have enabled the minor 'debbugs-org-mode'.
 This enables the following key strokes:
 
 '<TAB>'     'org-cycle'
@@ -456,12 +443,12 @@ The strings show the exact format of the control messages.
 
      The second bug number is read interactively.
 
-'important'
-'minor'
-'normal'
 'serious'
+'important'
+'normal'
+'minor'
 'wishlist'
-     "severity 12345 important|minor|normal|serious|wishlist"
+     "severity 12345 serious|important|normal|minor|wishlist"
 
 'invalid'
      "tags 12345 notabug"
@@ -529,10 +516,10 @@ Command Index
 
 * debbugs-browse-mode:                   Minor Mode.         (line 12)
 * debbugs-gnu:                           Retrieving Bugs.    (line 15)
-* debbugs-gnu-bugs:                      Retrieving Bugs.    (line 71)
+* debbugs-gnu-bugs:                      Retrieving Bugs.    (line 69)
 * debbugs-gnu-search:                    Searching Bugs.     (line 10)
 * debbugs-org:                           Retrieving Bugs.    (line 17)
-* debbugs-org-bugs:                      Retrieving Bugs.    (line 72)
+* debbugs-org-bugs:                      Retrieving Bugs.    (line 70)
 * debbugs-org-search:                    Searching Bugs.     (line 11)
 
 
@@ -547,10 +534,10 @@ Variable Index
 * debbugs-browse-function:               Minor Mode.         (line 12)
 * debbugs-gnu-all-packages:              Retrieving Bugs.    (line 36)
 * debbugs-gnu-all-severities:            Retrieving Bugs.    (line 27)
-* debbugs-gnu-default-hits-per-page:     Retrieving Bugs.    (line 63)
-* debbugs-gnu-default-packages:          Retrieving Bugs.    (line 59)
-* debbugs-gnu-default-severities:        Retrieving Bugs.    (line 59)
-* debbugs-gnu-mail-backend:              Tabulated Lists.    (line 75)
+* debbugs-gnu-default-packages:          Retrieving Bugs.    (line 63)
+* debbugs-gnu-default-severities:        Retrieving Bugs.    (line 63)
+* debbugs-gnu-default-suppress-bugs:     Retrieving Bugs.    (line 44)
+* debbugs-gnu-mail-backend:              Tabulated Lists.    (line 69)
 
 
 File: debbugs-ug.info,  Node: Key Index,  Prev: Variable Index,  Up: Top
@@ -561,40 +548,40 @@ Key Index
  [index ]
 * Menu:
 
-* '/':                                   Tabulated Lists.    (line 42)
-* 'B':                                   Tabulated Lists.    (line 56)
-* 'b':                                   Tabulated Lists.    (line 57)
-* 'C':                                   Tabulated Lists.    (line 70)
-* 'C-c # C':                             TODO Items.         (line 30)
-* 'C-c # d':                             TODO Items.         (line 24)
-* 'C-c # t':                             TODO Items.         (line 27)
-* 'd':                                   Tabulated Lists.    (line 39)
-* 'g':                                   Tabulated Lists.    (line 53)
-* '<mouse-1>':                           Tabulated Lists.    (line 36)
-* '<mouse-2>':                           Tabulated Lists.    (line 37)
-* 'R':                                   Tabulated Lists.    (line 46)
-* '<RET>':                               Tabulated Lists.    (line 35)
-* 's':                                   Tabulated Lists.    (line 61)
-* 't':                                   Tabulated Lists.    (line 64)
-* '<TAB>':                               TODO Items.         (line 21)
-* 'w':                                   Tabulated Lists.    (line 50)
-* 'x':                                   Tabulated Lists.    (line 67)
+* '/':                                   Tabulated Lists.    (line 36)
+* 'B':                                   Tabulated Lists.    (line 50)
+* 'b':                                   Tabulated Lists.    (line 51)
+* 'C':                                   Tabulated Lists.    (line 64)
+* 'C-c # C':                             TODO Items.         (line 25)
+* 'C-c # d':                             TODO Items.         (line 19)
+* 'C-c # t':                             TODO Items.         (line 22)
+* 'd':                                   Tabulated Lists.    (line 33)
+* 'g':                                   Tabulated Lists.    (line 47)
+* '<mouse-1>':                           Tabulated Lists.    (line 30)
+* '<mouse-2>':                           Tabulated Lists.    (line 31)
+* 'R':                                   Tabulated Lists.    (line 40)
+* '<RET>':                               Tabulated Lists.    (line 29)
+* 's':                                   Tabulated Lists.    (line 55)
+* 't':                                   Tabulated Lists.    (line 58)
+* '<TAB>':                               TODO Items.         (line 16)
+* 'w':                                   Tabulated Lists.    (line 44)
+* 'x':                                   Tabulated Lists.    (line 61)
 
 
 
 Tag Table:
 Node: Top1097
-Node: Retrieving Bugs2634
-Node: Searching Bugs6165
-Ref: Searching Bugs-Footnote-110044
-Ref: Searching Bugs-Footnote-210132
-Node: Layout10223
-Node: Tabulated Lists10698
-Node: TODO Items14062
-Node: Control Messages15327
-Node: Minor Mode17638
-Node: Command Index18577
-Node: Variable Index19224
-Node: Key Index19872
+Node: Retrieving Bugs2635
+Node: Searching Bugs6095
+Ref: Searching Bugs-Footnote-19980
+Ref: Searching Bugs-Footnote-210068
+Node: Layout10159
+Node: Tabulated Lists10634
+Node: TODO Items13751
+Node: Control Messages14798
+Node: Minor Mode17109
+Node: Command Index18048
+Node: Variable Index18695
+Node: Key Index19343
 
 End Tag Table

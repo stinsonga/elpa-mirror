@@ -46,10 +46,10 @@ the Debian project but currently used also by the GNU project.  The
 main distinctive feature of Debbugs is that it's mostly email-based.
 All actions on bug reports: opening, closing, changing the status,
 commenting, forwarding are performed via email by sending specially
-composed letters to the particular mail addresses.  However, searching
-the bug reports, querying bug report status and viewing comments have
-been web-based for a long time.  To overcome this inconvenience the
-Debbugs/SOAP service was introduced.
+composed letters to the particular email addresses.  However,
+searching the bug reports, querying bug report status and viewing
+comments have been web-based for a long time.  To overcome this
+inconvenience the Debbugs/SOAP service was introduced.
 
 Based on the Debbugs/SOAP service, frontends are written which offer
 handling of bugs inside Emacs.  These frontends are restricted to the
@@ -89,11 +89,10 @@ When the bug numbers to be retrieved are known, the commands
 
 These commands retrieve bug reports from the GNU Debbugs server.
 @code{debbugs-gnu} returns a tabulated list, and @code{debbugs-org}
-returns a list of TODO items in @code{org-mode}.  If there were more
-than @code{debbugs-gnu-default-hits-per-page} bug results from the
-query, there are widgets (@code{debbugs-gnu}) or links
-(@code{debbugs-org}) in the result buffer for retrieving the other
-results.
+returns a list of TODO items in @code{org-mode}.  In order not to
+stress the GNU Debbugs server, the bugs are retrieved in chunks of 500
+bugs.  However, the bug report buffer shows all retrieved bugs then,
+in reverse bug number order.
 
 @vindex debbugs-gnu-all-severities
 @var{severities} is a list of strings which filter for the severities
@@ -114,9 +113,13 @@ The existing package names are compiled into the constant
 @var{archivedp}, if non-@code{nil}, extends the result also on
 archived bugs on the GNU Debbugs server.
 
+@vindex debbugs-gnu-default-suppress-bugs
 @var{suppress} shall also distinct between @code{nil} and
 non-@code{nil}.  When non-@code{nil}, closed bugs are suppressed from
-the results.
+being retrieved from the Debbugs server.  Which bugs are regarded as
+suppressed is configured in the customer option
+@code{debbugs-gnu-suppress-bugs}.  Per default, bugs marked as
+@code{"done"} are suppressed from being retrieved.
 
 When @var{severities} contains the severity @code{"tagged"},
 @var{tags} is consulted in order to restrict the result on bugs which
@@ -135,12 +138,6 @@ minibuffer, lists must be entered comma-separated.
 Default values for interactive use could be configured in the customer
 options @code{debbugs-gnu-default-severities} and
 @code{debbugs-gnu-default-packages}.
-
-@vindex debbugs-gnu-default-hits-per-page
-When the result would exceed more than 500 bugs, the user is asked how
-many bugs to retrieve at once.  This value can be configured in the
-customer option @code{debbugs-gnu-default-hits-per-page}.  However, it
-is not recommended to exceeds the default value.
 
 @ref{Layout} for the presentation of the results.
 
@@ -206,7 +203,7 @@ server, @xref{Retrieving Bugs}.
 A comma-separated list of defined user tags.
 
 @item submitter
-The address of the bug submitter.
+The email address of the bug submitter.
 
 @item date
 A time period the bug has been in which the bug has been submitted or
@@ -292,14 +289,8 @@ in @code{org-mode}.
 A tabulated list of bug reports consist of four columns for every bug
 entry: @code{Id} (the bug number), @code{State} (some bug attributes),
 @code{Submitter} (the name of the bug submitter), and @code{Title}
-(the bug subject).  Per default the bugs are sorted by @code{Id}; this
-could be changed by clicking in the headline.
-
-Per bug retrieval only up to 500
-(@code{debbugs-gnu-default-hits-per-page}) bugs are retrieved and
-presented in a buffer.  If there shall be presented more bugs, widgets
-are placed on the top and bottom of the buffer for navigation to
-further report buffers.
+(the bug subject).  Per default the bugs are sorted descending by
+@code{Id}; this could be changed by clicking in the headline.
 
 Different foreground colours present further information on the bug
 report.  If the bug number uses a red colour
@@ -414,16 +405,11 @@ TODO items are offered as usual in @code{org-mode}.  The bug
 attributes are mapped onto properties of these items.  They can be
 shown by the usual navigation in @code{org-mode}.
 
-Per bug retrieval only up to 500
-(@code{debbugs-gnu-default-hits-per-page}) bugs are retrieved and
-presented in a buffer.  At the end of the buffer there is a link,
-which allows to append the next 500 bugs to the list.
-
 Bug severities are mapped onto org severities, see
 @code{debbugs-org-severity-priority}.
 
 The bug report buffers have enabled the minor
-@code{debbugs-gnu-mode}.  This enables the following key strokes:
+@code{debbugs-org-mode}.  This enables the following key strokes:
 
 @multitable {@kbd{C-c # C}} {Some very very very long long text Some very very very long long text Some very very very long long text}
 
@@ -517,12 +503,12 @@ interactively.
 
 The second bug number is read interactively.
 
-@item important
+@item serious
+@itemx important
+@itemx normal
 @itemx minor
-@item normal
-@itemx serious
-@item wishlist
-"severity 12345 important|minor|normal|serious|wishlist"
+@itemx wishlist
+"severity 12345 serious|important|normal|minor|wishlist"
 
 @item invalid
 "tags 12345 notabug" @*

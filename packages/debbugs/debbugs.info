@@ -55,6 +55,9 @@ with the Debbugs server.  In tandem with Emacs' email facilities,
 with the Debbugs BTS directly from Emacs without addressing Debbugs'
 web interface.
 
+   The user interface for accessing the Debbugs server for GNU
+projects is described in *note Debbugs User Guide: (debbugs-ug)Top.
+
 * Menu:
 
 * Installation::                Getting and installing 'debbugs'.
@@ -536,11 +539,11 @@ also package names as user identification.
 
 Tag Table:
 Node: Top1094
-Node: Installation3047
-Node: Configuration4146
-Node: Requesting bug numbers6058
-Node: Requesting bugs statuses11312
-Node: Requesting messages15363
-Node: Requesting user tags18378
+Node: Installation3179
+Node: Configuration4278
+Node: Requesting bug numbers6190
+Node: Requesting bugs statuses11444
+Node: Requesting messages15495
+Node: Requesting user tags18510
 
 End Tag Table

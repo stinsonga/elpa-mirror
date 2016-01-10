@@ -5,7 +5,6 @@
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, hypermedia, maint
 ;; Package: debbugs
-;; Version: 0.8
 
 ;; This file is part of GNU Emacs.
 
