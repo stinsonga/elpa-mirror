@@ -952,8 +952,13 @@ Hit any key to proceed."
   (barf-if-buffer-read-only)
   (el-search-search-and-replace-pattern from to mapping))
 
-(defun el-search--take-over-from-isearch ()
-  (prog1 isearch-string (isearch-exit)))
+(defun el-search--take-over-from-isearch (&optional goto-left-end)
+  (let ((other-end (and goto-left-end isearch-other-end))
+        (input isearch-string))
+    (isearch-exit)
+    (when (and other-end (< other-end (point)))
+      (goto-char other-end))
+    input))
 
 ;;;###autoload
 (defun el-search-search-from-isearch ()
@@ -968,7 +973,7 @@ Hit any key to proceed."
 ;;;###autoload
 (defun el-search-replace-from-isearch ()
   (interactive)
-  (let ((el-search--initial-mb-contents (concat "'" (el-search--take-over-from-isearch))))
+  (let ((el-search--initial-mb-contents (concat "'" (el-search--take-over-from-isearch t))))
     (call-interactively #'el-search-query-replace)))
 
 
