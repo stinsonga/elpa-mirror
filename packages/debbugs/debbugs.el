@@ -6,6 +6,7 @@
 ;; Keywords: comm, hypermedia
 ;; Package: debbugs
 ;; Version: 0.8
+;; Package-Requires: ((async "1.6"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -261,7 +262,8 @@ Every returned entry is an association list with the following attributes:
   `package': A list of package names the bug belongs to.
 
   `severity': The severity of the bug report. This can be
-  \"important\", \"grave\", \"normal\", \"minor\" or \"wishlist\".
+  \"critical\", \"grave\", \"serious\", \"important\",
+  \"normal\", \"minor\" or \"wishlist\".
 
   `tags': The status of the bug report, a list of strings.  This
   can be \"fixed\", \"notabug\", \"wontfix\", \"unreproducible\",

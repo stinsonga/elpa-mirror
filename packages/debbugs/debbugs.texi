@@ -65,6 +65,9 @@ facilities, @code{debbugs} provides a solution for building
 applications that interact with the Debbugs BTS directly from Emacs
 without addressing Debbugs' web interface.
 
+The user interface for accessing the Debbugs server for GNU projects
+is described in @ref{Top, Debbugs User Guide, , debbugs-ug}.
+
 @menu
 * Installation::                Getting and installing @code{debbugs}.
 * Configuration::               Configuring @code{debbugs}.
