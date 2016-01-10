@@ -202,8 +202,6 @@
 ;;
 ;; - detect infloops when replacing automatically (e.g. for 1 -> '(1))
 ;;
-;; - highlight matches around point in a timer
-;;
 ;; - implement backward searching
 ;;
 ;; - improve docstrings
@@ -244,8 +242,12 @@ prompt to refer to the value of the currently tested expression."
   :type 'symbol)
 
 (defface el-search-match '((((background dark)) (:background "#0000A0"))
-			   (t                   (:background "DarkSlateGray1")))
+			   (t                   (:background "DarkSlateGray3")))
   "Face for highlighting the current match.")
+
+(defface el-search-other-match '((((background dark)) (:background "#202060"))
+                                 (t                   (:background "DarkSlateGray1")))
+  "Face for highlighting the other matches.")
 
 
 ;;;; Helpers
@@ -717,6 +719,8 @@ could use this pattern:
 
 (defvar-local el-search-hl-overlay nil)
 
+(defvar-local el-search-hl-other-overlays '())
+
 (defvar el-search-keep-hl nil)
 
 (defun el-search-hl-sexp (&optional bounds)
@@ -725,12 +729,55 @@ could use this pattern:
     (if (overlayp el-search-hl-overlay)
         (apply #'move-overlay el-search-hl-overlay bounds)
       (overlay-put (setq el-search-hl-overlay (apply #'make-overlay bounds))
-                   'face 'el-search-match)))
+                   'face 'el-search-match))
+    (overlay-put el-search-hl-overlay 'priority 1002))
   (add-hook 'post-command-hook #'el-search-hl-post-command-fun t t))
+
+(defun el-search--hl-other-matches-1 (pattern from to)
+  (mapc #'delete-overlay el-search-hl-other-overlays)
+  (setq el-search-hl-other-overlays '())
+  (let ((matcher (el-search--matcher pattern))
+        this-match-beg this-match-end
+        (done nil))
+    (save-excursion
+      (goto-char from)
+      (while (not done)
+        (setq this-match-beg (el-search--search-pattern-1 matcher t))
+        (if (not this-match-beg)
+            (setq done t)
+          (goto-char this-match-beg)
+          (setq this-match-end (el-search--end-of-sexp))
+          (let ((ov (make-overlay this-match-beg this-match-end)))
+            (overlay-put ov 'face 'el-search-other-match)
+            (overlay-put ov 'priority 1001)
+            (push ov el-search-hl-other-overlays)
+            (goto-char this-match-end)
+            (when (>= (point) to) (setq done t))))))))
+
+(defun el-search-hl-other-matches (pattern)
+  "Highlight all matches visible in the selected window."
+  (el-search--hl-other-matches-1 pattern
+                                 (save-excursion
+                                   (goto-char (window-start))
+                                   (beginning-of-defun-raw)
+                                   (point))
+                                 (window-end))
+  (add-hook 'window-scroll-functions #'el-search--after-scroll t t))
+
+(defun el-search--after-scroll (_win start)
+  (el-search--hl-other-matches-1 el-search-current-pattern
+                                 (save-excursion
+                                   (goto-char start)
+                                   (beginning-of-defun-raw)
+                                   (point))
+                                 (window-end nil t)))
 
 (defun el-search-hl-remove ()
   (when (overlayp el-search-hl-overlay)
-    (delete-overlay el-search-hl-overlay)))
+    (delete-overlay el-search-hl-overlay))
+  (remove-hook 'window-scroll-functions #'el-search--after-scroll t)
+  (mapc #'delete-overlay el-search-hl-other-overlays)
+  (setq el-search-hl-other-overlays '()))
 
 (defun el-search-hl-post-command-fun ()
   (unless (or el-search-keep-hl
@@ -789,7 +836,9 @@ The following additional pattern types are currently defined:"
                            (ding)
                            nil))
       (setq el-search-success t)
-      (el-search-hl-sexp))))
+      (el-search-hl-sexp)
+      (unless (eq this-command last-command)
+        (el-search-hl-other-matches pattern)))))
 
 (defvar el-search-search-and-replace-help-string
   "\
@@ -814,7 +863,10 @@ Hit any key to proceed."
     (unwind-protect
         (while (and (not done) (el-search--search-pattern pattern t))
           (setq opoint (point))
-          (unless replace-all (el-search-hl-sexp))
+          (unless replace-all
+            (el-search-hl-sexp)
+            (unless (eq this-command last-command)
+              (el-search-hl-other-matches pattern)))
           (let* ((read-mapping (el-search--create-read-map))
                  (region (list (point) (el-search--end-of-sexp)))
                  (substring (apply #'buffer-substring-no-properties region))
