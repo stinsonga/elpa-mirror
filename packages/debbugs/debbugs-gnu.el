@@ -58,7 +58,7 @@
 ;; If a prefix is given to the command, more search parameters are
 ;; asked for, like packages (also a comma separated list, "emacs" is
 ;; the default), whether archived bugs shall be shown, and whether
-;; closed bugs shall be shown.
+;; closed bugs shall be suppressed from being retrieved.
 
 ;; Another command is
 ;;
@@ -75,18 +75,18 @@
 
 ;; The bug reports are downloaded from the bug tracker.  In order to
 ;; not generate too much load of the server, up to 500 bugs will be
-;; downloaded at once.  If there are more hits, you will be asked to
-;; change this limit, but please don't increase this number too much.
+;; downloaded at once.  If there are more hits, several downloads will
+;; be performed, until all bugs are retrieved.
 
 ;; These default values could be changed also by customer options
-;; `debbugs-gnu-default-severities', `debbugs-gnu-default-packages',
-;; `debbugs-gnu-default-hits-per-page' and `debbugs-gnu-default-suppress-bugs'.
+;; `debbugs-gnu-default-severities', `debbugs-gnu-default-packages'
+;; and `debbugs-gnu-default-suppress-bugs'.
 
-;; The commands create one or more pages of bug lists.  Every bug is
-;; shown in one line, including the bug number, the status (combining
-;; merged bug numbers, keywords and severities), the name of the
-;; submitter, and the title of the bug.  On every bug line you could
-;; apply the following actions by the following keystrokes:
+;; The commands create a page of bug lists.  Every bug is shown in one
+;; line, including the bug number, the status (combining merged bug
+;; numbers, keywords and severities), the name of the submitter, and
+;; the title of the bug.  On every bug line you could apply the
+;; following actions by the following keystrokes:
 
 ;;   RET: Show corresponding messages in Gnus/Rmail
 ;;   "C": Send a control message
@@ -105,8 +105,8 @@
 ;;   "R": Display only bugs blocking the current release
 ;;   "w": Display all the currently selected bug reports
 
-;; When you visit the related bug messages in Gnus, you could also
-;; send control messages by keystroke "C".
+;; When you visit the related bug messages in Gnus or Rmail, you could
+;; also send control messages by keystroke "C".
 
 ;; In the header line of every bug list page, you can toggle sorting
 ;; per column by selecting a column with the mouse.  The sorting
@@ -119,11 +119,11 @@
 
 ;; This command shows you all existing user tags for the packages
 ;; defined in `debbugs-gnu-default-packages'.  A prefix for the
-;; command allows you to use other packe names, or an arbitrary string
-;; for a user who has tagged bugs.  The command returns the list of
-;; existing user tags for the given user(s) or package name(s),
-;; respectively.  Applying RET on a user tag, all bugs tagged with
-;; this user tag are shown.
+;; command allows you to use other package names, or an arbitrary
+;; string for a user who has tagged bugs.  The command returns the
+;; list of existing user tags for the given user(s) or package
+;; name(s), respectively.  Applying RET on a user tag, all bugs tagged
+;; with this user tag are shown.
 
 ;; Unfortunately, it is not possible with the SOAP interface to show
 ;; all users who have tagged bugs.  This list can be retrieved via
@@ -173,6 +173,13 @@
 (defvar rmail-mode-map)
 (defvar rmail-summary-mode-map)
 (defvar rmail-total-messages)
+
+;; Buffer-local variables.
+(defvar debbugs-gnu-local-query)
+(defvar debbugs-gnu-local-filter)
+(defvar debbugs-gnu-local-suppress)
+(defvar debbugs-gnu-sort-state)
+(defvar debbugs-gnu-limit)
 
 (defgroup debbugs-gnu ()
   "UI for the debbugs.gnu.org bug tracker."
@@ -305,6 +312,11 @@ It will be applied client-side, when parsing the results of
 `debbugs-gnu-default-suppress-bugs'.  In case of keys representing
 a date, value is the cons cell \(BEFORE . AFTER\).")
 
+(defvar debbugs-gnu-current-suppress nil
+  "Whether bugs shall be suppressed.
+The specification which bugs shall be suppressed is taken from
+  `debbugs-gnu-default-suppress-bugs'.")
+
 (defun debbugs-gnu-calendar-read (prompt acceptable &optional initial-contents)
   "Return a string read from the minibuffer.
 Derived from `calendar-read'."
@@ -343,7 +355,7 @@ marked as \"client-side filter\"."
 	    (setq phrase nil)
 	  (add-to-list 'debbugs-gnu-current-query (cons 'phrase phrase)))
 	;; We suppress the bugs if there is no phrase.
-	(setq-default debbugs-gnu-current-suppress (null phrase))
+	(setq debbugs-gnu-current-suppress (null phrase))
 
 	;; The other queries.
 	(catch :finished
@@ -454,19 +466,7 @@ marked as \"client-side filter\"."
 	     (t (throw :finished nil)))))
 
 	;; Do the search.
-	(debbugs-gnu severities packages archivedp))
-
-    ;; Reset query and filter.
-    (setq debbugs-gnu-current-query nil
-	  debbugs-gnu-current-filter nil)))
-
-(defvar debbugs-gnu-current-limit nil
-  "List of bug ids to be shown, if non-nil")
-
-(defvar debbugs-gnu-current-suppress nil
-  "Whether bugs shall be suppressed.
-The specification which bugs shall be suppressed is taken from
-  `debbugs-gnu-default-suppress-bugs'.")
+	(debbugs-gnu severities packages archivedp))))
 
 ;;;###autoload
 (defun debbugs-gnu (severities &optional packages archivedp suppress tags)
@@ -500,22 +500,22 @@ The specification which bugs shall be suppressed is taken from
       (eval (read (current-buffer)))))
   ;; Per default, we suppress retrieved unwanted bugs.
   (when (called-interactively-p 'any)
-    (setq-default debbugs-gnu-current-suppress t))
+    (setq debbugs-gnu-current-suppress t))
 
   ;; Add queries.
   (dolist (severity (if (consp severities) severities (list severities)))
     (when (not (zerop (length severity)))
       (when (string-equal severity "tagged")
-	(setq-default debbugs-gnu-current-suppress nil))
+	(setq debbugs-gnu-current-suppress nil))
       (add-to-list 'debbugs-gnu-current-query (cons 'severity severity))))
   (dolist (package (if (consp packages) packages (list packages)))
     (when (not (zerop (length package)))
       (add-to-list 'debbugs-gnu-current-query (cons 'package package))))
   (when archivedp
-    (setq-default debbugs-gnu-current-suppress nil)
+    (setq debbugs-gnu-current-suppress nil)
     (add-to-list 'debbugs-gnu-current-query '(archive . "1")))
   (when suppress
-    (setq-default debbugs-gnu-current-suppress t)
+    (setq debbugs-gnu-current-suppress t)
     (add-to-list 'debbugs-gnu-current-query '(status . "open"))
     (add-to-list 'debbugs-gnu-current-query '(status . "forwarded")))
   (dolist (tag (if (consp tags) tags (list tags)))
@@ -525,9 +525,10 @@ The specification which bugs shall be suppressed is taken from
   ;; Show result.
   (debbugs-gnu-show-reports)
 
-  ;; Reset query and filter.
+  ;; Reset query, filter and suppress.
   (setq debbugs-gnu-current-query nil
-	debbugs-gnu-current-filter nil))
+	debbugs-gnu-current-filter nil
+	debbugs-gnu-current-suppress nil))
 
 (defun debbugs-gnu-get-bugs (query)
   "Retrieve bugs numbers from debbugs.gnu.org according search criteria."
@@ -592,7 +593,7 @@ The specification which bugs shall be suppressed is taken from
     ;; Print bug reports.
     (dolist (status
 	     (apply 'debbugs-get-status
-		    (debbugs-gnu-get-bugs debbugs-gnu-current-query)))
+		    (debbugs-gnu-get-bugs debbugs-gnu-local-query)))
       (let* ((id (cdr (assq 'id status)))
 	     (words
 	      (mapconcat
@@ -600,15 +601,17 @@ The specification which bugs shall be suppressed is taken from
 	       (cons (cdr (assq 'severity status))
 		     (cdr (assq 'keywords status)))
 	       ","))
-	     (address (mail-header-parse-address
-		       (decode-coding-string (cdr (assq 'originator status))
-					     'utf-8)))
+	     (address (if (cdr (assq 'originator status))
+			  (mail-header-parse-address
+			   (decode-coding-string (cdr (assq 'originator status))
+						 'utf-8))))
 	     (owner (if (cdr (assq 'owner status))
 			(car (mail-header-parse-address
 			      (decode-coding-string (cdr (assq 'owner status))
 						    'utf-8)))))
-	     (subject (decode-coding-string (cdr (assq 'subject status))
-					    'utf-8))
+	     (subject (if (cdr (assq 'subject status))
+			  (decode-coding-string (cdr (assq 'subject status))
+						'utf-8)))
 	     merged)
 	(unless (equal (cdr (assq 'pending status)) "pending")
 	  (setq words (concat words "," (cdr (assq 'pending status)))))
@@ -644,7 +647,7 @@ The specification which bugs shall be suppressed is taken from
 		'default))
 	     (propertize
 	      ;; Mark status and age.
-	      words
+	      (or words "")
 	      'face
 	      (cond
 	       ((cdr (assq 'archived status))
@@ -665,7 +668,8 @@ The specification which bugs shall be suppressed is taken from
 	     (propertize
 	      ;; Prefer the name over the address.
 	      (or (cdr address)
-		  (car address))
+		  (car address)
+		  "")
 	      'face
 	      ;; Mark own submitted bugs.
 	      (if (and (stringp (car address))
@@ -673,7 +677,7 @@ The specification which bugs shall be suppressed is taken from
 		  'debbugs-gnu-tagged
 		'default))
 	     (propertize
-	      subject
+	      (or subject "")
 	      'face
 	      ;; Mark owned bugs.
 	      (if (and (stringp owner)
@@ -704,10 +708,10 @@ Used instead of `tabulated-list-print-entry'."
 	(title-length     (nth 1 (aref tabulated-list-format 3))))
     (when (and
 	   ;; We may have a narrowing in effect.
-	   (or (not debbugs-gnu-current-limit)
-	       (memq (cdr (assq 'id list-id)) debbugs-gnu-current-limit))
+	   (or (not debbugs-gnu-limit)
+	       (memq (cdr (assq 'id list-id)) debbugs-gnu-limit))
 	   ;; Filter suppressed bugs.
-	   (or (not debbugs-gnu-current-suppress)
+	   (or (not debbugs-gnu-local-suppress)
 	       (not (catch :suppress
 		      (dolist (check debbugs-gnu-default-suppress-bugs)
 			(when
@@ -717,7 +721,7 @@ Used instead of `tabulated-list-print-entry'."
 			  (throw :suppress t))))))
 	   ;; Filter search list.
 	   (not (catch :suppress
-		  (dolist (check debbugs-gnu-current-filter)
+		  (dolist (check debbugs-gnu-local-filter)
 		    (let ((val (cdr (assq (car check) list-id))))
 		      (if (stringp (cdr check))
 			  ;; Regular expression.
@@ -756,6 +760,28 @@ Used instead of `tabulated-list-print-entry'."
        `(tabulated-list-id ,list-id mouse-face highlight))
       (insert ?\n))))
 
+(defun debbugs-gnu-menu-map-emacs-enabled ()
+  "Whether \"Show Release Blocking Bugs\" is enabled in the menu."
+  (or ;; No package discriminator has been used.
+      (not (assq 'package debbugs-gnu-local-query))
+      ;; Package "emacs" has been selected.
+      (member '(package . "emacs") debbugs-gnu-local-query)))
+
+(defconst debbugs-gnu-bug-triage-file
+  (expand-file-name "../admin/notes/bug-triage" data-directory)
+  "The \"bug-triage\" file.")
+
+(defun debbugs-gnu-menu-map-bug-triage-enabled ()
+  "Whether \"Describe Bug Triage Procedure\" is enabled in the menu."
+  (and (debbugs-gnu-menu-map-emacs-enabled)
+       (stringp debbugs-gnu-bug-triage-file)
+       (file-readable-p debbugs-gnu-bug-triage-file)))
+
+(defun debbugs-gnu-view-bug-triage ()
+  "Show \"bug-triage\" file."
+  (interactive)
+  (view-file debbugs-gnu-bug-triage-file))
+
 (defvar debbugs-gnu-mode-map
   (let ((map (make-sparse-keymap))
 	(menu-map (make-sparse-keymap)))
@@ -763,17 +789,19 @@ Used instead of `tabulated-list-print-entry'."
     (define-key map "\r" 'debbugs-gnu-select-report)
     (define-key map [mouse-1] 'debbugs-gnu-select-report)
     (define-key map [mouse-2] 'debbugs-gnu-select-report)
+    (define-key map "g" 'debbugs-gnu-rescan)
+    (define-key map "R" 'debbugs-gnu-show-all-blocking-reports)
+    (define-key map "C" 'debbugs-gnu-send-control-message)
+
     (define-key map "s" 'debbugs-gnu-toggle-sort)
     (define-key map "t" 'debbugs-gnu-toggle-tag)
-    (define-key map "d" 'debbugs-gnu-display-status)
-    (define-key map "g" 'debbugs-gnu-rescan)
     (define-key map "x" 'debbugs-gnu-toggle-suppress)
     (define-key map "/" 'debbugs-gnu-narrow-to-status)
     (define-key map "w" 'debbugs-gnu-widen)
+
     (define-key map "b" 'debbugs-gnu-show-blocked-by-reports)
     (define-key map "B" 'debbugs-gnu-show-blocking-reports)
-    (define-key map "C" 'debbugs-gnu-send-control-message)
-    (define-key map "R" 'debbugs-gnu-show-all-blocking-reports)
+    (define-key map "d" 'debbugs-gnu-display-status)
 
     (define-key map [menu-bar debbugs] (cons "Debbugs" menu-map))
     (define-key menu-map [debbugs-gnu-select-report]
@@ -786,15 +814,21 @@ Used instead of `tabulated-list-print-entry'."
     (define-key-after menu-map [debbugs-gnu-show-all-blocking-reports]
       '(menu-item "Show Release Blocking Bugs"
 		  debbugs-gnu-show-all-blocking-reports
+		  :enable (debbugs-gnu-menu-map-emacs-enabled)
 		  :help "Show all bugs blocking next Emacs release")
-		  ;:enable '(assq 'phrase debbugs-gnu-current-query))
       'debbugs-gnu-rescan)
-    (define-key-after menu-map [debbugs-gnu-separator]
-      '(menu-item "--") 'debbugs-gnu-show-all-blocking-reports)
+    (define-key-after menu-map [debbugs-gnu-send-control-message]
+      '(menu-item "Send Control Message"
+		  debbugs-gnu-send-control-message
+		  :help "Send control message to debbugs.gnu.org")
+      'debbugs-gnu-show-all-blocking-reports)
+
+    (define-key-after menu-map [debbugs-gnu-separator1]
+      '(menu-item "--") 'debbugs-gnu-send-control-message)
     (define-key-after menu-map [debbugs-gnu-search]
       '(menu-item "Search Bugs" debbugs-gnu-search
 		  :help "Search bugs on debbugs.gnu.org")
-      'debbugs-gnu-separator)
+      'debbugs-gnu-separator1)
     (define-key-after menu-map [debbugs-gnu]
       '(menu-item "Retrieve Bugs" debbugs-gnu
 		  :help "Retrieve bugs from debbugs.gnu.org")
@@ -803,19 +837,27 @@ Used instead of `tabulated-list-print-entry'."
       '(menu-item "Retrieve Bugs by Number" debbugs-gnu-bugs
 		  :help "Retrieve selected bugs from debbugs.gnu.org")
       'debbugs-gnu)
+
+    (define-key-after menu-map [debbugs-gnu-separator2]
+      '(menu-item "--") 'debbugs-gnu-bugs)
+    (define-key-after menu-map [debbugs-gnu-view-bug-triage]
+      '(menu-item "Describe Bug Triage Procedure"
+		  debbugs-gnu-view-bug-triage
+		  :enable (debbugs-gnu-menu-map-bug-triage-enabled)
+		  :help "Show procedure of triaging bugs")
+      'debbugs-gnu-separator2)
     map))
 
 (defun debbugs-gnu-rescan ()
   "Rescan the current set of bug reports."
   (interactive)
-  ;; Refresh the buffer.  `save-excursion' does not work, so we
-  ;; remember the position.
-  (setq-default debbugs-gnu-current-suppress debbugs-gnu-current-suppress)
-  (let ((pos (point)))
+  (let ((id (debbugs-gnu-current-id))
+	(debbugs-gnu-current-query debbugs-gnu-local-query)
+	(debbugs-gnu-current-filter debbugs-gnu-local-filter)
+	(debbugs-gnu-current-suppress debbugs-gnu-local-suppress))
     (debbugs-gnu-show-reports)
-    (goto-char pos)))
-
-(defvar debbugs-gnu-sort-state 'number)
+    (when id
+      (debbugs-gnu-goto id))))
 
 (define-derived-mode debbugs-gnu-mode tabulated-list-mode "Debbugs"
   "Major mode for listing bug reports.
@@ -827,8 +869,12 @@ The following commands are available:
 
 \\{debbugs-gnu-mode-map}"
   (set (make-local-variable 'debbugs-gnu-sort-state) 'number)
-  (set (make-local-variable 'debbugs-gnu-current-limit) nil)
-  (set (make-local-variable 'debbugs-gnu-current-suppress)
+  (set (make-local-variable 'debbugs-gnu-limit) nil)
+  (set (make-local-variable 'debbugs-gnu-local-query)
+       debbugs-gnu-current-query)
+  (set (make-local-variable 'debbugs-gnu-local-filter)
+       debbugs-gnu-current-filter)
+  (set (make-local-variable 'debbugs-gnu-local-suppress)
        debbugs-gnu-current-suppress)
   (setq tabulated-list-format [("Id"         5 debbugs-gnu-sort-id)
 			       ("State"     20 debbugs-gnu-sort-state)
@@ -917,7 +963,7 @@ The following commands are available:
   (interactive)
   (let ((id (debbugs-gnu-current-id t))
 	(inhibit-read-only t))
-    (setq debbugs-gnu-current-limit nil)
+    (setq debbugs-gnu-limit nil)
     (tabulated-list-init-header)
     (tabulated-list-print)
     (when id
@@ -950,13 +996,13 @@ The following commands are available:
 	(id (debbugs-gnu-current-id t))
 	(inhibit-read-only t)
 	status)
-    (setq debbugs-gnu-current-limit nil)
+    (setq debbugs-gnu-limit nil)
     (goto-char (point-min))
     (while (not (eobp))
       (setq status (debbugs-gnu-current-status))
       (if (not (memq (cdr (assq 'id status)) blockers))
 	  (delete-region (point) (progn (forward-line 1) (point)))
-	(push (cdr (assq 'id status)) debbugs-gnu-current-limit)
+	(push (cdr (assq 'id status)) debbugs-gnu-limit)
 	(forward-line 1)))
     (when id
       (debbugs-gnu-goto id))))
@@ -969,7 +1015,7 @@ Subject fields."
   (let ((id (debbugs-gnu-current-id t))
 	(inhibit-read-only t)
 	status)
-    (setq debbugs-gnu-current-limit nil)
+    (setq debbugs-gnu-limit nil)
     (if (equal string "")
 	(debbugs-gnu-toggle-suppress)
       (goto-char (point-min))
@@ -983,7 +1029,7 @@ Subject fields."
 		 (or status-only
 		     (not (string-match string (cdr (assq 'subject status))))))
 	    (delete-region (point) (progn (forward-line 1) (point)))
-	  (push (cdr (assq 'id status)) debbugs-gnu-current-limit)
+	  (push (cdr (assq 'id status)) debbugs-gnu-limit)
 	  (forward-line 1)))
       (when id
 	(debbugs-gnu-goto id)))))
@@ -1030,7 +1076,7 @@ interest to you."
 (defun debbugs-gnu-toggle-suppress ()
   "Suppress bugs marked in `debbugs-gnu-suppress-bugs'."
   (interactive)
-  (setq debbugs-gnu-current-suppress (not debbugs-gnu-current-suppress))
+  (setq debbugs-gnu-local-suppress (not debbugs-gnu-local-suppress))
   (tabulated-list-init-header)
   (tabulated-list-print))
 
@@ -1045,17 +1091,20 @@ interest to you."
 (defun debbugs-gnu-current-status ()
   (get-text-property (line-beginning-position) 'tabulated-list-id))
 
-(defun debbugs-gnu-current-query ()
-  debbugs-gnu-current-query)
-
-(defun debbugs-gnu-display-status (query status)
-  "Display the query and status of the report on the current line."
-  (interactive (list (debbugs-gnu-current-query)
+(defun debbugs-gnu-display-status (query filter status)
+  "Display the query, filter and status of the report on the current line."
+  (interactive (list debbugs-gnu-local-query
+		     debbugs-gnu-local-filter
 		     (debbugs-gnu-current-status)))
   (switch-to-buffer "*Bug Status*")
   (let ((inhibit-read-only t))
     (erase-buffer)
-    (when query (pp query (current-buffer)))
+    (when query
+      (pp query (current-buffer))
+      (insert "\n"))
+    (when filter
+      (pp filter (current-buffer))
+      (insert "\n"))
     (when status (pp status (current-buffer)))
     (goto-char (point-min)))
   (set-buffer-modified-p nil)
@@ -1373,7 +1422,7 @@ The following commands are available:
     (unless (natnump elt) (signal 'wrong-type-argument (list 'natnump elt))))
   (add-to-list 'debbugs-gnu-current-query (cons 'bugs bugs))
   ;; We do not suppress bugs requested explicitely.
-  (setq-default debbugs-gnu-current-suppress nil)
+  (setq debbugs-gnu-current-suppress nil)
   (debbugs-gnu nil))
 
 (defvar debbugs-gnu-trunk-directory "~/src/emacs/trunk/"
