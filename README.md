@@ -1,4 +1,4 @@
-gobject-minor-mode --- Emacs minor mode for editing GObject C source code
+gobject-minor-mode
 ======
 
 In the C coding style widely used in GNOME, identifiers are written in
@@ -25,10 +25,11 @@ Install
 Usage
 ------
 
-* To align argument list at point: C-c C-g a
-* To align function declarations in the current region: C-c C-g f
-
-* To insert "module_object": C-c C-g c
-* To insert "MODULE_OBJECT": C-c C-g C
-* To insert "ModuleObject": C-c C-g C-c
-* To insert custom snippets: C-c C-g s
+| Key         | Command                                           |
+--------------|---------------------------------------------------|
+| C-c C-g a   | Align argument list at point                      |
+| C-c C-g f   | Align function declarations in the current region |
+| C-c C-g c   | Insert ```module_object```                        |
+| C-c C-g C   | Insert ```MODULE_OBJECT```                        |
+| C-c C-g C-c | Insert ```ModuleObject```                         |
+| C-c C-g s   | Insert custom snippets                            |
