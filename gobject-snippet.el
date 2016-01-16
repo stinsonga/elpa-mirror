@@ -1,4 +1,4 @@
-;;; gobject-snippet.el --- GObject C code generation
+;;; gobject-snippet.el --- GObject code generation -*- lexical-binding: t; -*-
 ;; Copyright (C) 2016 Daiki Ueno <ueno@gnu.org>
 
 ;; Author: Daiki Ueno <ueno@gnu.org>
@@ -311,7 +311,7 @@ static GObject *
 guint n_construct_properties,
 GObjectConstructParam *construct_properties")
     (funcall (if gobject-snippet-align-arglist
-		 #'gobject-align-arglist-region
+		 #'gobject-align-region
 	       #'indent-region)
 	     arglist-start (point))
     (insert ")\n")
@@ -342,7 +342,7 @@ guint prop_id,
 const GValue *value,
 GParamSpec *pspec")
     (funcall (if gobject-snippet-align-arglist
-		 #'gobject-align-arglist-region
+		 #'gobject-align-region
 	       #'indent-region)
 	     arglist-start (point))
     (insert ")\n")
@@ -378,7 +378,7 @@ guint prop_id,
 GValue *value,
 GParamSpec *pspec")
     (funcall (if gobject-snippet-align-arglist
-		 #'gobject-align-arglist-region
+		 #'gobject-align-region
 	       #'indent-region)
 	     arglist-start (point))
     (insert ")\n")

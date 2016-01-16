@@ -1,5 +1,5 @@
-;;; gobject-minor-mode.el --- minor mode for editing GObject-based C source code
-;; Copyright (C) 2010,2011,2016 Daiki Ueno <ueno@gnu.org>
+;;; gobject-minor-mode.el --- minor mode for editing GObject-style C source code -*- lexical-binding: t; -*-
+;; Copyright (C) 2016 Daiki Ueno <ueno@gnu.org>
 
 ;; Author: Daiki Ueno <ueno@gnu.org>
 ;; Keywords: GObject, C, coding style
@@ -22,8 +22,10 @@
 
 ;;; Code:
 
-(autoload 'gobject-align-arglist-region "gobject-align")
-(autoload 'gobject-align-func-decls-region "gobject-align")
+(autoload 'gobject-align-at-point "gobject-align")
+(autoload 'gobject-align-region "gobject-align")
+(autoload 'gobject-align-set-column "gobject-align")
+(autoload 'gobject-align-guess-columns "gobject-align")
 (autoload 'gobject-snippet-insert-package_class "gobject-snippet")
 (autoload 'gobject-snippet-insert-PACKAGE_CLASS "gobject-snippet")
 (autoload 'gobject-snippet-insert-PackageClass "gobject-snippet")
@@ -39,8 +41,10 @@
 
 (defvar gobject-minor-mode-map
   (let ((keymap (make-sparse-keymap)))
-    (define-key keymap "\C-c\C-ga" 'gobject-align-arglist-region)
-    (define-key keymap "\C-c\C-gf" 'gobject-align-func-decls-region)
+    (define-key keymap "\C-c\C-ga" 'gobject-align-at-point)
+    (define-key keymap "\C-c\C-gr" 'gobject-align-region)
+    (define-key keymap "\C-c\C-gf" 'gobject-align-set-column)
+    (define-key keymap "\C-c\C-gg" 'gobject-align-guess-columns)
     (define-key keymap "\C-c\C-gc" 'gobject-snippet-insert-package_class)
     (define-key keymap "\C-c\C-gC" 'gobject-snippet-insert-PACKAGE_CLASS)
     (define-key keymap "\C-c\C-g\C-c" 'gobject-snippet-insert-PackageClass)
