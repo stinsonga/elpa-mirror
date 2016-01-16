@@ -106,6 +106,13 @@ This corresponds to the Debbugs server to be accessed, either
 (defconst debbugs-max-hits-per-request 500
   "The max number of bugs or results per soap invocation.")
 
+(defvar debbugs-cache-data
+  (make-hash-table :test 'equal :size debbugs-max-hits-per-request)
+  "Hash table of retrieved bugs.")
+
+(defconst debbugs-cache-expiry (* 60 60)
+  "How many seconds debbugs results are cached, or nil to disable expiring.")
+
 (defvar debbugs-soap-invoke-async-object nil
   "The object manipulated by `debbugs-soap-invoke-async'.")
 
@@ -330,74 +337,104 @@ Example:
        \(last_modified . 1271200046.0)
        \(pending . \"pending\")
        \(package \"emacs\")))"
-  (when bug-numbers
-    (if (<= (length bug-numbers) debbugs-max-hits-per-request)
-	;; Do it directly.
-	(setq debbugs-soap-invoke-async-object
-	      (car (soap-invoke
-		    debbugs-wsdl debbugs-port "get_status"
-		    (apply 'vector bug-numbers))))
+  (let (cached-bugs)
+    ;; Check for cached bugs.
+    (setq bug-numbers
+	  (delete
+	   nil
+	   (mapcar
+	    (lambda (bug)
+	      (let ((status (gethash bug debbugs-cache-data)))
+		(if (and
+		     status
+		     (or
+		      (null debbugs-cache-expiry)
+		      (> (cdr (assoc 'cache_time status))
+			 (- (float-time) debbugs-cache-expiry))))
+		    (progn
+		      (setq cached-bugs (append cached-bugs (list status)))
+		      nil)
+		  bug)))
+	    bug-numbers)))
 
-      ;; Retrieve bugs asynchronously.
-      (let ((bug-ids bug-numbers)
-	    results)
-	(setq debbugs-soap-invoke-async-object nil)
-	(while bug-ids
-	  (setq results
-		(append
-		 results
-		 (list
-		  (debbugs-soap-invoke-async
-		   "get_status"
-		   (apply
-		    'vector
-		    (butlast
-		     bug-ids (- (length bug-ids)
-				debbugs-max-hits-per-request))))))
+    ;; Retrieve the data.
+    (setq debbugs-soap-invoke-async-object nil)
+    (when bug-numbers
+      (if (<= (length bug-numbers) debbugs-max-hits-per-request)
+	  ;; Do it directly.
+	  (setq debbugs-soap-invoke-async-object
+		(car (soap-invoke
+		      debbugs-wsdl debbugs-port "get_status"
+		      (apply 'vector bug-numbers))))
 
-		bug-ids
-		(last bug-ids (- (length bug-ids)
-				 debbugs-max-hits-per-request))))
+	;; Retrieve bugs asynchronously.
+	(let ((bug-ids bug-numbers)
+	      results)
+	  (setq debbugs-soap-invoke-async-object nil)
+	  (while bug-ids
+	    (setq results
+		  (append
+		   results
+		   (list
+		    (debbugs-soap-invoke-async
+		     "get_status"
+		     (apply
+		      'vector
+		      (butlast
+		       bug-ids (- (length bug-ids)
+				  debbugs-max-hits-per-request))))))
 
-	(dolist (res results)
-	  (if (bufferp res)
-	      ;; This is soap-client 3.0.
-	      (while (buffer-live-p res)
-		(accept-process-output (get-buffer-process res) 0.1))
-	    ;; Fallback with async.
-	    (dolist (status (async-get res))
-	      (setq debbugs-soap-invoke-async-object
-		    (append debbugs-soap-invoke-async-object status)))))))
+		  bug-ids
+		  (last bug-ids (- (length bug-ids)
+				   debbugs-max-hits-per-request))))
 
-    (mapcar
-     (lambda (x)
-       (let (y)
-	 ;; "archived" is the number 1 or 0.
-	 (setq y (assoc 'archived (cdr (assoc 'value x))))
-	 (setcdr y (= (cdr y) 1))
-	 ;; "found_versions" and "fixed_versions" are lists,
-	 ;; containing strings or numbers.
-	 (dolist (attribute '(found_versions fixed_versions))
-	   (setq y (assoc attribute (cdr (assoc 'value x))))
-	   (setcdr y (mapcar
-		      (lambda (z) (if (numberp z) (number-to-string z) z))
-		      (cdr y))))
-	 ;; "mergedwith", "blocks" and "blockedby are strings,
-	 ;; containing blank separated bug numbers.
-	 (dolist (attribute '(mergedwith blocks blockedby))
-	   (setq y (assoc attribute (cdr (assoc 'value x))))
-	   (when (stringp (cdr y))
-	     (setcdr y (mapcar
-			'string-to-number (split-string (cdr y) " " t)))))
-	 ;; "package" is a string, containing comma separated
-	 ;; package names.  "keywords" and "tags" are strings,
-	 ;; containing blank separated package names.
-	 (dolist (attribute '(package keywords tags))
-	   (setq y (assoc attribute (cdr (assoc 'value x))))
-	   (when (stringp (cdr y))
-	     (setcdr y (split-string (cdr y) ",\\| " t))))
-	 (cdr (assoc 'value x))))
-     debbugs-soap-invoke-async-object)))
+	  (dolist (res results)
+	    (if (bufferp res)
+		;; This is soap-client 3.0.
+		(while (buffer-live-p res)
+		  (accept-process-output (get-buffer-process res) 0.1))
+	      ;; Fallback with async.
+	      (dolist (status (async-get res))
+		(setq debbugs-soap-invoke-async-object
+		      (append debbugs-soap-invoke-async-object status))))))))
+
+    (append
+     cached-bugs
+     ;; Massage results.
+     (mapcar
+      (lambda (x)
+	(let (y)
+	  ;; "archived" is the number 1 or 0.
+	  (setq y (assoc 'archived (cdr (assoc 'value x))))
+	  (setcdr y (= (cdr y) 1))
+	  ;; "found_versions" and "fixed_versions" are lists,
+	  ;; containing strings or numbers.
+	  (dolist (attribute '(found_versions fixed_versions))
+	    (setq y (assoc attribute (cdr (assoc 'value x))))
+	    (setcdr y (mapcar
+		       (lambda (z) (if (numberp z) (number-to-string z) z))
+		       (cdr y))))
+	  ;; "mergedwith", "blocks" and "blockedby are strings,
+	  ;; containing blank separated bug numbers.
+	  (dolist (attribute '(mergedwith blocks blockedby))
+	    (setq y (assoc attribute (cdr (assoc 'value x))))
+	    (when (stringp (cdr y))
+	      (setcdr y (mapcar
+			 'string-to-number (split-string (cdr y) " " t)))))
+	  ;; "package" is a string, containing comma separated
+	  ;; package names.  "keywords" and "tags" are strings,
+	  ;; containing blank separated package names.
+	  (dolist (attribute '(package keywords tags))
+	    (setq y (assoc attribute (cdr (assoc 'value x))))
+	    (when (stringp (cdr y))
+	      (setcdr y (split-string (cdr y) ",\\| " t))))
+	  ;; Cache the result, and return.
+	  (puthash
+	   (cdr (assoc 'key x))
+	   ;; Put also a time stamp.
+	   (cons (cons 'cache_time (float-time)) (cdr (assoc 'value x)))
+	   debbugs-cache-data)))
+      debbugs-soap-invoke-async-object))))
 
 (defun debbugs-get-usertag (&rest query)
   "Return a list of bug numbers which match QUERY.
