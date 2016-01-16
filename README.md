@@ -27,7 +27,7 @@ Usage
 
 | Key         | Command                                           |
 --------------|---------------------------------------------------|
-| C-c C-g g   | Guess alignment columns from region               |
+| C-c C-g g   | Guess alignment columns from the current region   |
 | C-c C-g s   | Set alignment column to point                     |
 | C-c C-g a   | Align argument list at point                      |
 | C-c C-g r   | Align function declarations in the current region |
@@ -35,3 +35,59 @@ Usage
 | C-c C-g C   | Insert ```MODULE_OBJECT```                        |
 | C-c C-g C-c | Insert ```ModuleObject```                         |
 | C-c C-g s   | Insert custom snippet                             |
+
+Example
+------
+
+If you have the following code in a header file:
+```c
+GGpgCtx *g_gpg_ctx_new (GError **error);
+
+typedef void (*GGpgProgressCallback) (gpointer user_data,
+                                      const gchar *what,
+                                      gint type,
+                                      gint current,
+                                      gint total);
+
+void g_gpg_ctx_set_progress_callback (GGpgCtx *ctx,
+                                      GGpgProgressCallback callback,
+                                      gpointer user_data,
+                                      GDestroyNotify destroy_data);
+void g_gpg_ctx_add_signer (GGpgCtx *ctx, GGpgKey *key);
+guint g_gpg_ctx_get_n_signers (GGpgCtx *ctx);
+GGpgKey *g_gpg_ctx_get_signer (GGpgCtx *ctx, guint index);
+void g_gpg_ctx_clear_signers (GGpgCtx *ctx);
+```
+
+Mark the region, type ```C-c C-g g```, and you will see the optimum
+alignment columns:
+
+```
+identifier-start: 9, arglist-start: 41, arglist-identifier-start: 63
+```
+
+Then, mark the region again, type ```C-c C-g r```, and you will get
+the code aligned:
+
+```c
+GGpgCtx *g_gpg_ctx_new                   (GError             **error);
+
+typedef void (*GGpgProgressCallback) (gpointer user_data,
+                                      const gchar *what,
+                                      gint type,
+                                      gint current,
+                                      gint total);
+
+void     g_gpg_ctx_set_progress_callback (GGpgCtx             *ctx,
+                                          GGpgProgressCallback callback,
+                                          gpointer             user_data,
+                                          GDestroyNotify       destroy_data);
+void     g_gpg_ctx_add_signer            (GGpgCtx             *ctx,
+                                          GGpgKey             *key);
+guint    g_gpg_ctx_get_n_signers         (GGpgCtx             *ctx);
+GGpgKey *g_gpg_ctx_get_signer            (GGpgCtx             *ctx,
+                                          guint                index);
+void     g_gpg_ctx_clear_signers         (GGpgCtx             *ctx);
+```
+
+Note that ```typedef``` is skipped as it is not a function declaration.
