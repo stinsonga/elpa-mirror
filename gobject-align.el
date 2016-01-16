@@ -424,7 +424,7 @@
 	  (gobject-align--indent-to-column
 	   gobject-align-identifier-start-column)
 	  (goto-char (gobject-align--decl-identifier-end decl))
-	  (when (> (current-column) gobject-align-arglist-start-column)
+	  (when (>= (current-column) gobject-align-arglist-start-column)
 	    (insert "\n"))
 	  (goto-char (gobject-align--decl-arglist-start decl))
 	  (gobject-align--indent-to-column
