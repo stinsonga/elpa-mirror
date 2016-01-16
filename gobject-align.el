@@ -294,13 +294,17 @@
 				       (1+ arglist-start)
 				       (1- arglist-end)))))))))
 
-(defun gobject-align--normalize-decl (beg end)
+(defun gobject-align--normalize-decl (decl)
   (save-excursion
     (save-restriction
-      (narrow-to-region beg end)
+      (narrow-to-region (gobject-align--decl-identifier-start decl)
+			(gobject-align--decl-arglist-end decl))
       (goto-char (point-min))
-      (while (re-search-forward "\n" (1- (point-max)) t)
-	(replace-match " "))
+      (while (re-search-forward "\n" nil t)
+	(replace-match " ")))
+    (save-restriction
+      (narrow-to-region (gobject-align--decl-start decl)
+			(gobject-align--decl-end decl))
       (goto-char (point-min))
       (while (re-search-forward "\\s-+" nil t)
 	(replace-match " ")))))
@@ -358,9 +362,7 @@
       (insert-buffer-substring-no-properties buffer beg end)
       (c-mode)
       (setq decls (gobject-align--scan-decls (point-min) (point-max)))
-      (dolist (decl decls)
-	(gobject-align--normalize-decl (gobject-align--decl-start decl)
-				       (gobject-align--decl-end decl)))
+      (mapc #'gobject-align--normalize-decl decls)
       (let* ((identifier-start-column
 	      (gobject-align--decls-identifier-start-column
 	       decls 0))
@@ -369,7 +371,7 @@
 	       decls identifier-start-column))
 	     (arglist-identifier-start-column
 	      (gobject-align--decls-arglist-identifier-start-column
-	       decls arglist-start-column)))
+	       decls (+ (length "(") arglist-start-column))))
 	(message
 	 "identifier-start: %d, arglist-start: %d, arglist-identifier-start: %d"
 	 identifier-start-column
@@ -416,9 +418,7 @@
 	      (setq gobject-align-arglist-identifier-start-column
 		    (cdr (assq 'arglist-identifier-start-column columns))))))
 	(setq decls (gobject-align--scan-decls beg end))
-	(dolist (decl decls)
-	  (gobject-align--normalize-decl (gobject-align--decl-start decl)
-					 (gobject-align--decl-end decl)))
+	(mapc #'gobject-align--normalize-decl decls)
 	(dolist (decl decls)
 	  (goto-char (gobject-align--decl-identifier-start decl))
 	  (gobject-align--indent-to-column
@@ -432,7 +432,8 @@
 	  (forward-char)
 	  (gobject-align-at-point
 	   (- gobject-align-arglist-identifier-start-column
-	      gobject-align-arglist-start-column)))))))
+	      gobject-align-arglist-start-column
+	      (length "("))))))))
 
 (provide 'gobject-align)
 
