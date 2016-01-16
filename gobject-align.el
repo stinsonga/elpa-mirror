@@ -127,8 +127,7 @@
 	    identifier-start
 	    identifier-end
 	    arglist
-	    last-token-start
-	    c)
+	    last-token-start)
 	(goto-char (point-max))
 	(while (not (bobp))
 	  (c-backward-syntactic-ws)
@@ -150,7 +149,7 @@
 	    (while (and (not (bobp))
 			(progn
 			  (c-backward-token-2)
-			  (unless (eq (setq c (char-after)) ?,)
+			  (unless (eq (char-after) ?,)
 			    (setq last-token-start (point-marker)))))
 	      (c-backward-syntactic-ws))
 	    (setq type-start last-token-start))
@@ -431,9 +430,9 @@
 	   gobject-align-arglist-start-column)
 	  (forward-char)
 	  (gobject-align-at-point
-	   (- gobject-align-arglist-identifier-start-column
-	      gobject-align-arglist-start-column
-	      (length "("))))))))
+	   (- (+ gobject-align-arglist-identifier-start-column
+		 (length "("))
+	      gobject-align-arglist-start-column)))))))
 
 (provide 'gobject-align)
 
