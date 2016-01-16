@@ -27,7 +27,7 @@ Usage
 
 | Key         | Command                                           |
 --------------|---------------------------------------------------|
-| C-c C-g g   | Guess alignment columns from the current region   |
+| C-c C-g g   | Compute alignment columns from the current region |
 | C-c C-g s   | Set alignment column to the current point         |
 | C-c C-g a   | Align argument list at the current point          |
 | C-c C-g r   | Align function declarations in the current region |
