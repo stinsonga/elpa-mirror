@@ -272,7 +272,8 @@
 	    identifier-end)
 	(goto-char (point-min))
 	(c-forward-syntactic-ws)
-	(unless (looking-at "typedef\\|#")
+	(unless (looking-at
+		 "typedef\\|#\\|G_DECLARE_\\(?:\\(?:FINAL\\|DECLARATIVE\\)_TYPE\\|INTERFACE\\)")
 	  (while (and (not (eobp))
 		      (not (eq (char-after) ?\()))
 	    (c-forward-token-2)
