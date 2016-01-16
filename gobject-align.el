@@ -98,7 +98,7 @@
 	(setq width argument-width)))
     width))
 
-(defun gobject-align--normalize-arglist (beg end)
+(defun gobject-align--normalize-arglist-region (beg end)
   (save-excursion
     (save-restriction
       (narrow-to-region beg end)
@@ -171,7 +171,7 @@
 	(save-restriction
 	  (narrow-to-region beg end)
 	  (setq arglist (gobject-align--parse-arglist (point-min) (point-max)))
-	  (gobject-align--normalize-arglist (point-min) (point-max))
+	  (gobject-align--normalize-arglist-region (point-min) (point-max))
 	  (unless identifier-start-column
 	    (setq identifier-start-column
 		  (gobject-align--arglist-identifier-start-column arglist 0)))
@@ -371,11 +371,6 @@
 	     (arglist-identifier-start-column
 	      (gobject-align--decls-arglist-identifier-start-column
 	       decls (+ (length "(") arglist-start-column))))
-	(message
-	 "identifier-start: %d, arglist-start: %d, arglist-identifier-start: %d"
-	 identifier-start-column
-	 arglist-start-column
-	 arglist-identifier-start-column)
 	(list (cons 'identifier-start-column
 		    identifier-start-column)
 	      (cons 'arglist-start-column
@@ -393,7 +388,12 @@
 	  gobject-align-arglist-start-column
 	  (cdr (assq 'arglist-start-column columns))
 	  gobject-align-arglist-identifier-start-column
-	  (cdr (assq 'arglist-identifier-start-column columns)))))
+	  (cdr (assq 'arglist-identifier-start-column columns)))
+    (message
+     "identifier-start: %d, arglist-start: %d, arglist-identifier-start: %d"
+     gobject-align-identifier-start-column
+     gobject-align-arglist-start-column
+     gobject-align-arglist-identifier-start-column)))
 
 ;;;###autoload
 (defun gobject-align-region (beg end)
@@ -430,7 +430,7 @@
 	   gobject-align-arglist-start-column)
 	  (forward-char)
 	  (gobject-align-at-point
-	   (- (+ gobject-align-arglist-identifier-start-column
+	   (- (- gobject-align-arglist-identifier-start-column
 		 (length "("))
 	      gobject-align-arglist-start-column)))))))
 
