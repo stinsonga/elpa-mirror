@@ -1319,6 +1319,7 @@ removed instead."
 			id (if reverse " -" "")
 			message))))
       (funcall send-mail-function)
+      (remhash id debbugs-cache-data)
       (message-goto-body)
       (message "Control message sent:\n%s"
 	       (buffer-substring-no-properties (point) (1- (point-max)))))))
