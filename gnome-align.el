@@ -25,11 +25,16 @@
 (require 'cc-mode)
 (require 'cl-lib)
 
+(defgroup gnome-minor-mode nil
+  "GNOME-style C source code editing"
+  :prefix "gnome-"
+  :group 'c)
+
 (defcustom gnome-align-max-column 80
   "Maximum number of columns per line."
   :type '(choice (integer :tag "Columns")
 		 (const :tag "No wrap"))
-  :group 'c)
+  :group 'gnome-minor-mode)
 
 (defvar gnome-align-identifier-start-column nil)
 (make-variable-buffer-local 'gnome-align-identifier-start-column)

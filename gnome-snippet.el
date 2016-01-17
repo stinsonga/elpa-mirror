@@ -41,7 +41,11 @@
 (defvar gnome-snippet-parent-class nil)
 (make-variable-buffer-local 'gnome-snippet-parent-class)
 
-(defvar gnome-snippet-align-arglist nil)
+(defcustom gnome-snippet-align-arglist t
+  "Whether to align argument list of the inserted snippet"
+  :type 'boolean
+  :group 'gnome-minor-mode)
+
 (make-variable-buffer-local 'gnome-snippet-align-arglist)
 
 (defun gnome-snippet--parse-name (name)
@@ -309,13 +313,14 @@ static GObject *
     (setq arglist-start (point-marker))
     (insert "GType *object,
 guint n_construct_properties,
-GObjectConstructParam *construct_properties")
-    (funcall (if gnome-snippet-align-arglist
-		 #'gnome-align-region
-	       #'indent-region)
-	     arglist-start (point))
-    (insert ")\n")
+GObjectConstructParam *construct_properties)\n")
     (setq body-start (point-marker))
+    (if gnome-snippet-align-arglist
+	(progn
+	  (goto-char arglist-start)
+	  (gnome-align-at-point))
+      (indent-region arglist-start (point)))
+    (goto-char body-start)
     (insert "{
   " (gnome-snippet--format-PackageClass package class) " *self = "
   (gnome-snippet--format-PACKAGE_CLASS package class) " (object);
@@ -340,13 +345,14 @@ static void
     (insert "GObject *object,
 guint prop_id,
 const GValue *value,
-GParamSpec *pspec")
-    (funcall (if gnome-snippet-align-arglist
-		 #'gnome-align-region
-	       #'indent-region)
-	     arglist-start (point))
-    (insert ")\n")
+GParamSpec *pspec)\n")
     (setq body-start (point-marker))
+    (if gnome-snippet-align-arglist
+	(progn
+	  (goto-char arglist-start)
+	  (gnome-align-at-point))
+      (indent-region arglist-start (point)))
+    (goto-char body-start)
     (insert "{
   " (gnome-snippet--format-PackageClass package class) " *self = "
   (gnome-snippet--format-PACKAGE_CLASS package class) " (object);
@@ -376,13 +382,14 @@ static void
     (insert "GObject *object,
 guint prop_id,
 GValue *value,
-GParamSpec *pspec")
-    (funcall (if gnome-snippet-align-arglist
-		 #'gnome-align-region
-	       #'indent-region)
-	     arglist-start (point))
-    (insert ")\n")
+GParamSpec *pspec)\n")
     (setq body-start (point-marker))
+    (if gnome-snippet-align-arglist
+	(progn
+	  (goto-char arglist-start)
+	  (gnome-align-at-point))
+      (indent-region arglist-start (point)))
+    (goto-char body-start)
     (insert "{
   " (gnome-snippet--format-PackageClass package class) " *self = "
 (gnome-snippet--format-PACKAGE_CLASS package class) " (object);
