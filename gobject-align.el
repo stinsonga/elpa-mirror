@@ -59,6 +59,7 @@
   (when (looking-back "\*+" nil t)
     (setq column (- column (- (match-end 0) (match-beginning 0))))
     (goto-char (match-beginning 0)))
+  ;; FIXME: should respect indent-tabs-mode?
   (let (indent-tabs-mode)
     (indent-to-column column)))
 
@@ -354,7 +355,7 @@
 	      (push decl decls))))
 	decls))))
 
-(defun gobject-align--guess-columns (beg end)
+(defun gobject-align--compute-optimal-columns (beg end)
   (let ((buffer (current-buffer))
 	decls)
     (with-temp-buffer
@@ -379,16 +380,54 @@
 		    arglist-identifier-start-column))))))
 
 ;;;###autoload
-(defun gobject-align-guess-columns (beg end)
-  "Guess the alignment rule from the function declarations in BEG and END"
+(defun gobject-align-compute-optimal-columns (beg end)
+  "Compute the optimal alignment rule from the declarations in BEG and END.
+
+This sets `gobject-align-identifier-start-column',
+`gobject-align-arglist-start-column', and
+`gobject-align-arglist-identifier-start-column'."
   (interactive "r")
-  (let ((columns (gobject-align--guess-columns beg end)))
+  (let ((columns (gobject-align--compute-optimal-columns beg end)))
     (setq gobject-align-identifier-start-column
 	  (cdr (assq 'identifier-start-column columns))
 	  gobject-align-arglist-start-column
 	  (cdr (assq 'arglist-start-column columns))
 	  gobject-align-arglist-identifier-start-column
 	  (cdr (assq 'arglist-identifier-start-column columns)))
+    (message
+     "identifier-start: %d, arglist-start: %d, arglist-identifier-start: %d"
+     gobject-align-identifier-start-column
+     gobject-align-arglist-start-column
+     gobject-align-arglist-identifier-start-column)))
+
+;;;###autoload
+(defun gobject-align-guess-columns (beg end)
+  "Guess the existing alignment rule from the declarations in BEG and END.
+
+This sets `gobject-align-identifier-start-column',
+`gobject-align-arglist-start-column', and
+`gobject-align-arglist-identifier-start-column'."
+  (interactive "r")
+  (let ((decls (gobject-align--scan-decls beg end))
+	arglist)
+    (unless decls
+      (error "No function declaration in the region"))
+    (setq arglist (gobject-align--parse-arglist
+		   (1+ (gobject-align--decl-arglist-start (car decls)))
+		   (1- (gobject-align--decl-arglist-end (car decls)))))
+    (unless arglist
+      (error "Empty argument list"))
+    (unless (gobject-align--argument-identifier-start (car arglist))
+      (error "No identifier in the argument list"))
+    (setq gobject-align-identifier-start-column
+	  (gobject-align--marker-column
+	   (gobject-align--decl-identifier-start (car decls)))
+	  gobject-align-arglist-start-column
+	  (gobject-align--marker-column
+	   (gobject-align--decl-arglist-start (car decls)))
+	  gobject-align-arglist-identifier-start-column
+	  (gobject-align--marker-column
+	   (gobject-align--argument-identifier-start (car arglist))))
     (message
      "identifier-start: %d, arglist-start: %d, arglist-identifier-start: %d"
      gobject-align-identifier-start-column
@@ -406,7 +445,7 @@
 	(unless (and gobject-align-identifier-start-column
 		     gobject-align-arglist-start-column
 		     gobject-align-arglist-identifier-start-column)
-	  (let ((columns (gobject-align--guess-columns beg end)))
+	  (let ((columns (gobject-align--compute-optimal-columns beg end)))
 	    (unless gobject-align-identifier-start-column
 	      (setq gobject-align-identifier-start-column
 		    (cdr (assq 'identifier-start-column columns))))

@@ -40,12 +40,17 @@ GGpgKey *g_gpg_ctx_get_signer            (GGpgCtx             *ctx,
 void     g_gpg_ctx_clear_signers         (GGpgCtx             *ctx);
 ")
 
-(ert-deftest gobject-test-align--guess-columns ()
-  "Tests the `gobject-align--guess-columns'."
+(defconst gobject-test-program-2 "\
+GDK_AVAILABLE_IN_3_16
+const gchar **          gtk_widget_list_action_prefixes (GtkWidget             *widget);
+")
+
+(ert-deftest gobject-test-align--compute-optimal-columns ()
+  "Tests the `gobject-align--compute-optimal-columns'."
   (with-temp-buffer
     (insert gobject-test-program-1)
     (c-mode)
-    (let ((columns (gobject-align--guess-columns (point-min) (point-max))))
+    (let ((columns (gobject-align--compute-optimal-columns (point-min) (point-max))))
       (should (= (cdr (assq 'identifier-start-column columns)) 9))
       (should (= (cdr (assq 'arglist-start-column columns)) 41))
       (should (= (cdr (assq 'arglist-identifier-start-column columns)) 63)))))
@@ -55,6 +60,16 @@ void     g_gpg_ctx_clear_signers         (GGpgCtx             *ctx);
   (with-temp-buffer
     (insert gobject-test-program-1)
     (c-mode)
-    (gobject-align-guess-columns (point-min) (point-max))
+    (gobject-align-compute-optimal-columns (point-min) (point-max))
     (gobject-align-region (point-min) (point-max))
     (should (equal (buffer-string) gobject-test-program-1-aligned))))
+
+(ert-deftest gobject-test-align-guess-columns ()
+  "Tests the `gobject-align-guess-columns'."
+  (with-temp-buffer
+    (insert gobject-test-program-2)
+    (c-mode)
+    (gobject-align-guess-columns (point-min) (point-max))
+    (should (= gobject-align-identifier-start-column 24))
+    (should (= gobject-align-arglist-start-column 56))
+    (should (= gobject-align-arglist-identifier-start-column 80))))

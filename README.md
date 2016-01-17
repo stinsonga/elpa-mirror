@@ -25,16 +25,17 @@ Install
 Usage
 ------
 
-| Key         | Command                                           |
---------------|---------------------------------------------------|
-| C-c C-g g   | Compute alignment columns from the current region |
-| C-c C-g s   | Set alignment column to the current point         |
-| C-c C-g a   | Align argument list at the current point          |
-| C-c C-g r   | Align function declarations in the current region |
-| C-c C-g c   | Insert ```module_object```                        |
-| C-c C-g C   | Insert ```MODULE_OBJECT```                        |
-| C-c C-g C-c | Insert ```ModuleObject```                         |
-| C-c C-g s   | Insert custom snippet                             |
+| Key         | Command                                                   |
+--------------|-----------------------------------------------------------|
+| C-c C-g C-g | Compute optimal alignment columns from the current region |
+| C-c C-g s   | Set alignment column to the current point                 |
+| C-c C-g g   | Guess alignment columns from the current region           |
+| C-c C-g a   | Align argument list at the current point                  |
+| C-c C-g r   | Align function declarations in the current region         |
+| C-c C-g c   | Insert ```module_object```                                |
+| C-c C-g C   | Insert ```MODULE_OBJECT```                                |
+| C-c C-g C-c | Insert ```ModuleObject```                                 |
+| C-c C-g s   | Insert custom snippet                                     |
 
 Example
 ------
@@ -59,7 +60,7 @@ GGpgKey *g_gpg_ctx_get_signer (GGpgCtx *ctx, guint index);
 void g_gpg_ctx_clear_signers (GGpgCtx *ctx);
 ```
 
-Mark the region, type ```C-c C-g g```, and you will see the optimum
+Mark the region, type ```C-c C-g C-g```, and you will see the optimum
 alignment columns:
 
 ```
