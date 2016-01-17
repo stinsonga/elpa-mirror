@@ -322,7 +322,9 @@ This enables the following key strokes:
                Restore the full list again after narrowing.
                
 'g'            'debbugs-gnu-rescan'
-               Reload all bugs from the GNU Debbugs server.
+               Reload all bugs.  With a prefix argument 'C-u', the
+               bug status cache is disabled, and all bug reports are
+               retrieved from the GNU Debbugs server.
                
 'B'            'debbugs-gnu-show-blocking-reports'
 'b'            'debbugs-gnu-show-blocked-by-reports'
@@ -537,7 +539,7 @@ Variable Index
 * debbugs-gnu-default-packages:          Retrieving Bugs.    (line 63)
 * debbugs-gnu-default-severities:        Retrieving Bugs.    (line 63)
 * debbugs-gnu-default-suppress-bugs:     Retrieving Bugs.    (line 44)
-* debbugs-gnu-mail-backend:              Tabulated Lists.    (line 69)
+* debbugs-gnu-mail-backend:              Tabulated Lists.    (line 71)
 
 
 File: debbugs-ug.info,  Node: Key Index,  Prev: Variable Index,  Up: Top
@@ -549,9 +551,9 @@ Key Index
 * Menu:
 
 * '/':                                   Tabulated Lists.    (line 36)
-* 'B':                                   Tabulated Lists.    (line 50)
-* 'b':                                   Tabulated Lists.    (line 51)
-* 'C':                                   Tabulated Lists.    (line 64)
+* 'B':                                   Tabulated Lists.    (line 52)
+* 'b':                                   Tabulated Lists.    (line 53)
+* 'C':                                   Tabulated Lists.    (line 66)
 * 'C-c # C':                             TODO Items.         (line 25)
 * 'C-c # d':                             TODO Items.         (line 19)
 * 'C-c # t':                             TODO Items.         (line 22)
@@ -561,11 +563,11 @@ Key Index
 * '<mouse-2>':                           Tabulated Lists.    (line 31)
 * 'R':                                   Tabulated Lists.    (line 40)
 * '<RET>':                               Tabulated Lists.    (line 29)
-* 's':                                   Tabulated Lists.    (line 55)
-* 't':                                   Tabulated Lists.    (line 58)
+* 's':                                   Tabulated Lists.    (line 57)
+* 't':                                   Tabulated Lists.    (line 60)
 * '<TAB>':                               TODO Items.         (line 16)
 * 'w':                                   Tabulated Lists.    (line 44)
-* 'x':                                   Tabulated Lists.    (line 61)
+* 'x':                                   Tabulated Lists.    (line 63)
 
 
 
@@ -577,11 +579,11 @@ Ref: Searching Bugs-Footnote-19980
 Ref: Searching Bugs-Footnote-210068
 Node: Layout10159
 Node: Tabulated Lists10634
-Node: TODO Items13751
-Node: Control Messages14798
-Node: Minor Mode17109
-Node: Command Index18048
-Node: Variable Index18695
-Node: Key Index19343
+Node: TODO Items13881
+Node: Control Messages14928
+Node: Minor Mode17239
+Node: Command Index18178
+Node: Variable Index18825
+Node: Key Index19473
 
 End Tag Table
