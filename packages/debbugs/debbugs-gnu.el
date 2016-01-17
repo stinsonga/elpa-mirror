@@ -354,7 +354,7 @@ marked as \"client-side filter\"."
 	(if (zerop (length phrase))
 	    (setq phrase nil)
 	  (add-to-list 'debbugs-gnu-current-query (cons 'phrase phrase)))
-	;; We suppress the bugs if there is no phrase.
+	;; We suppress closed bugs if there is no phrase.
 	(setq debbugs-gnu-current-suppress (null phrase))
 
 	;; The other queries.
@@ -550,7 +550,7 @@ marked as \"client-side filter\"."
 	       (if phrase
 		   (cond
 		    ((eq (car elt) 'phrase)
-		     (list (list :phrase (cdr elt) :max 500)))
+		     (list (list :phrase (cdr elt))))
 		    ((eq (car elt) 'date)
 		     (list (list :date (cddr elt) (cadr elt)
 				 :operator "NUMBT")))
@@ -854,7 +854,8 @@ Used instead of `tabulated-list-print-entry'."
   (let ((id (debbugs-gnu-current-id))
 	(debbugs-gnu-current-query debbugs-gnu-local-query)
 	(debbugs-gnu-current-filter debbugs-gnu-local-filter)
-	(debbugs-gnu-current-suppress debbugs-gnu-local-suppress))
+	(debbugs-gnu-current-suppress debbugs-gnu-local-suppress)
+	(debbugs-cache-expiry (if current-prefix-arg t debbugs-cache-expiry)))
     (debbugs-gnu-show-reports)
     (when id
       (debbugs-gnu-goto id))))
@@ -1100,12 +1101,16 @@ interest to you."
   (let ((inhibit-read-only t))
     (erase-buffer)
     (when query
+      (insert ";; Query\n")
       (pp query (current-buffer))
       (insert "\n"))
     (when filter
+      (insert ";; Filter\n")
       (pp filter (current-buffer))
       (insert "\n"))
-    (when status (pp status (current-buffer)))
+    (when status
+      (insert ";; Status\n")
+      (pp status (current-buffer)))
     (goto-char (point-min)))
   (set-buffer-modified-p nil)
   (special-mode))

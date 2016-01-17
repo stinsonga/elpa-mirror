@@ -352,7 +352,9 @@ Restore the full list again after narrowing.
 @kindex @kbd{g}
 @kbd{g} @tab
 @code{debbugs-gnu-rescan} @*
-Reload all bugs from the GNU Debbugs server.
+Reload all bugs.  With a prefix argument @kbd{C-u}, the bug status
+cache is disabled, and all bug reports are retrieved from the GNU
+Debbugs server.
 
 @item
 @kindex @kbd{B}

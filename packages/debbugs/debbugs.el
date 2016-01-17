@@ -110,8 +110,13 @@ This corresponds to the Debbugs server to be accessed, either
   (make-hash-table :test 'equal :size debbugs-max-hits-per-request)
   "Hash table of retrieved bugs.")
 
-(defconst debbugs-cache-expiry (* 60 60)
-  "How many seconds debbugs results are cached, or nil to disable expiring.")
+(defcustom debbugs-cache-expiry (* 60 60)
+  "How many seconds debbugs query results are cached.
+`t' or 0 disables caching, `nil' disables expiring."
+  :group 'debbugs
+  :type '(choice (const :tag "Always" t)
+		 (const :tag "Never" nil)
+		 (integer :tag "Seconds")))
 
 (defvar debbugs-soap-invoke-async-object nil
   "The object manipulated by `debbugs-soap-invoke-async'.")
@@ -339,7 +344,8 @@ Example:
        \(package \"emacs\")))"
   (let (cached-bugs)
     ;; Check for cached bugs.
-    (setq bug-numbers
+    (setq bug-numbers (delete-dups bug-numbers)
+	  bug-numbers
 	  (delete
 	   nil
 	   (mapcar
@@ -349,8 +355,10 @@ Example:
 		     status
 		     (or
 		      (null debbugs-cache-expiry)
-		      (> (cdr (assoc 'cache_time status))
-			 (- (float-time) debbugs-cache-expiry))))
+		      (and
+		       (natnump debbugs-cache-expiry)
+		       (> (cdr (assoc 'cache_time status))
+			  (- (float-time)) debbugs-cache-expiry))))
 		    (progn
 		      (setq cached-bugs (append cached-bugs (list status)))
 		      nil)
@@ -360,43 +368,35 @@ Example:
     ;; Retrieve the data.
     (setq debbugs-soap-invoke-async-object nil)
     (when bug-numbers
-      (if (<= (length bug-numbers) debbugs-max-hits-per-request)
-	  ;; Do it directly.
-	  (setq debbugs-soap-invoke-async-object
-		(car (soap-invoke
-		      debbugs-wsdl debbugs-port "get_status"
-		      (apply 'vector bug-numbers))))
+      ;; Retrieve bugs asynchronously.
+      (let ((bug-ids bug-numbers)
+	    results)
+	(while bug-ids
+	  (setq results
+		(append
+		 results
+		 (list
+		  (debbugs-soap-invoke-async
+		   "get_status"
+		   (apply
+		    'vector
+		    (butlast
+		     bug-ids (- (length bug-ids)
+				debbugs-max-hits-per-request))))))
 
-	;; Retrieve bugs asynchronously.
-	(let ((bug-ids bug-numbers)
-	      results)
-	  (setq debbugs-soap-invoke-async-object nil)
-	  (while bug-ids
-	    (setq results
-		  (append
-		   results
-		   (list
-		    (debbugs-soap-invoke-async
-		     "get_status"
-		     (apply
-		      'vector
-		      (butlast
-		       bug-ids (- (length bug-ids)
-				  debbugs-max-hits-per-request))))))
+		bug-ids
+		(last bug-ids (- (length bug-ids)
+				 debbugs-max-hits-per-request))))
 
-		  bug-ids
-		  (last bug-ids (- (length bug-ids)
-				   debbugs-max-hits-per-request))))
-
-	  (dolist (res results)
-	    (if (bufferp res)
-		;; This is soap-client 3.0.
-		(while (buffer-live-p res)
-		  (accept-process-output (get-buffer-process res) 0.1))
-	      ;; Fallback with async.
-	      (dolist (status (async-get res))
-		(setq debbugs-soap-invoke-async-object
-		      (append debbugs-soap-invoke-async-object status))))))))
+	(dolist (res results)
+	  (if (bufferp res)
+	      ;; This is soap-client 3.0.
+	      (while (buffer-live-p res)
+		(accept-process-output (get-buffer-process res) 0.1))
+	    ;; Fallback with async.
+	    (dolist (status (async-get res))
+	      (setq debbugs-soap-invoke-async-object
+		    (append debbugs-soap-invoke-async-object status)))))))
 
     (append
      cached-bugs
@@ -429,11 +429,15 @@ Example:
 	    (when (stringp (cdr y))
 	      (setcdr y (split-string (cdr y) ",\\| " t))))
 	  ;; Cache the result, and return.
-	  (puthash
-	   (cdr (assoc 'key x))
-	   ;; Put also a time stamp.
-	   (cons (cons 'cache_time (float-time)) (cdr (assoc 'value x)))
-	   debbugs-cache-data)))
+	  (if (and debbugs-cache-expiry (natnump debbugs-cache-expiry))
+	      (puthash
+	       (cdr (assoc 'key x))
+	       ;; Put also a time stamp.
+	       (cons (cons 'cache_time (floor (float-time)))
+		     (cdr (assoc 'value x)))
+	       debbugs-cache-data)
+	    ;; Don't cache.
+	    (cdr (assoc 'value x)))))
       debbugs-soap-invoke-async-object))))
 
 (defun debbugs-get-usertag (&rest query)
@@ -551,7 +555,8 @@ The following conditions are possible:
 
   :skip and :max are optional.  They specify, how many hits are
   skipped, and how many maximal hits are returned.  This can be
-  used for paged results.  Per default, :skip is 0 and :max is 10.
+  used for paged results.  Per default, :skip is 0 and all
+  possible hits are returned.
 
   There must be exactly one such condition.
 
@@ -653,134 +658,155 @@ Examples:
       ,\(floor \(float-time \(encode-time 0 0 0 31 8 2011)))
       :operator \"NUMBT\"))"
 
-  (let (args result)
-    ;; Compile search arguments.
-    (dolist (elt query)
-      (let (vec kw key val
-	    phrase-cond attr-cond)
+  (let ((phrase (assoc :phrase query))
+	args result)
+    (if (and phrase (not (member :skip phrase)) (not (member :skip phrase)))
+	;; We loop, until we have all results.
+	(let ((skip 0)
+	      (query (delete phrase query))
+	      result1)
+	  (while skip
+	    (setq result1
+		  (apply
+		   'debbugs-search-est
+		   (append
+		    (list
+		     (append
+		      phrase `(:skip ,skip)
+		      `(:max ,debbugs-max-hits-per-request)))
+		    query))
+		  skip (and (= (length result1) debbugs-max-hits-per-request)
+			    (+ skip debbugs-max-hits-per-request))
+		  result (append result result1)))
+	  result)
 
-	;; Phrase is mandatory, even if empty.
-	(when (and (or  (member :skip elt) (member :max elt))
-		   (not (member :phrase elt)))
-	  (setq vec (vector "phrase" "")))
+      ;; Compile search arguments.
+      (dolist (elt query)
+	(let (vec kw key val
+		  phrase-cond attr-cond)
 
-	;; Parse condition.
-	(while (consp elt)
-	  (setq kw (pop elt))
-	  (unless (keywordp kw)
-	    (error "Wrong keyword: %s" kw))
-	  (setq key (substring (symbol-name kw) 1))
-	  (cl-case kw
-	    ;; Phrase condition.
-	    (:phrase
-	     ;; It shouldn't happen in an attribute condition.
-	     (if attr-cond
-		 (error "Wrong keyword: %s" kw))
-	     (setq phrase-cond t val (pop elt))
-	     ;; Value is a string.
-	     (if (stringp val)
-		 (setq vec (vconcat vec (list key val)))
-	       (error "Wrong %s: %s" key val)))
+	  ;; Phrase is mandatory, even if empty.
+	  (when (and (or  (member :skip elt) (member :max elt))
+		     (not (member :phrase elt)))
+	    (setq vec (vector "phrase" "")))
 
-	    ((:skip :max)
-	     ;; It shouldn't happen in an attribute condition.
-	     (if attr-cond
-		 (error "Wrong keyword: %s" kw))
-	     (setq phrase-cond t val (pop elt))
-	     ;; Value is a number.
-	     (if (numberp val)
-		 (setq vec (vconcat vec (list key (number-to-string val))))
-	       (error "Wrong %s: %s" key val)))
+	  ;; Parse condition.
+	  (while (consp elt)
+	    (setq kw (pop elt))
+	    (unless (keywordp kw)
+	      (error "Wrong keyword: %s" kw))
+	    (setq key (substring (symbol-name kw) 1))
+	    (cl-case kw
+	      ;; Phrase condition.
+	      (:phrase
+	       ;; It shouldn't happen in an attribute condition.
+	       (if attr-cond
+		   (error "Wrong keyword: %s" kw))
+	       (setq phrase-cond t val (pop elt))
+	       ;; Value is a string.
+	       (if (stringp val)
+		   (setq vec (vconcat vec (list key val)))
+		 (error "Wrong %s: %s" key val)))
 
-	    ;; Attribute condition.
-	    ((:submitter :@author)
-	     ;; It shouldn't happen in a phrase condition.
-	     (if phrase-cond
-		 (error "Wrong keyword: %s" kw))
-	     (if (not (stringp (car elt)))
-		 (setq vec (vconcat vec (list key "")))
-	       ;; Value is an email address.
-	       (while (and (stringp (car elt))
-			   (string-match "\\`\\S-+\\'" (car elt)))
-		 (when (string-equal "me" (car elt))
-		   (setcar elt user-mail-address))
-		 (when (string-match "<\\(.+\\)>" (car elt))
-		   (setcar elt (match-string 1 (car elt))))
-                 (let ((x (pop elt)))
-                   (unless (member x val)
-                     (setq val (append val (list x))))))
-	       (setq vec
-		     (vconcat vec (list key (mapconcat 'identity val " "))))))
+	      ((:skip :max)
+	       ;; It shouldn't happen in an attribute condition.
+	       (if attr-cond
+		   (error "Wrong keyword: %s" kw))
+	       (setq phrase-cond t val (pop elt))
+	       ;; Value is a number.
+	       (if (numberp val)
+		   (setq vec (vconcat vec (list key (number-to-string val))))
+		 (error "Wrong %s: %s" key val)))
 
-	    (:status
-	     ;; It shouldn't happen in a phrase condition.
-	     (if phrase-cond
-		 (error "Wrong keyword: %s" kw))
-	     (setq attr-cond t)
-	     (if (not (stringp (car elt)))
-		 (setq vec (vconcat vec (list key "")))
-	       ;; Possible values: "done", "forwarded" and "open"
-	       (while  (and (stringp (car elt))
-			    (string-match
-			     "\\`\\(done\\|forwarded\\|open\\)\\'" (car elt)))
-		 (let ((x (pop elt)))
-                   (unless (member x val)
-                     (setq val (append val (list x))))))
-	       (setq vec
-		     (vconcat vec (list key (mapconcat 'identity val " "))))))
+	      ;; Attribute condition.
+	      ((:submitter :@author)
+	       ;; It shouldn't happen in a phrase condition.
+	       (if phrase-cond
+		   (error "Wrong keyword: %s" kw))
+	       (if (not (stringp (car elt)))
+		   (setq vec (vconcat vec (list key "")))
+		 ;; Value is an email address.
+		 (while (and (stringp (car elt))
+			     (string-match "\\`\\S-+\\'" (car elt)))
+		   (when (string-equal "me" (car elt))
+		     (setcar elt user-mail-address))
+		   (when (string-match "<\\(.+\\)>" (car elt))
+		     (setcar elt (match-string 1 (car elt))))
+		   (let ((x (pop elt)))
+		     (unless (member x val)
+		       (setq val (append val (list x))))))
+		 (setq vec
+		       (vconcat vec (list key (mapconcat 'identity val " "))))))
 
-	    ((:subject :package :tags :severity :@title)
-	     ;; It shouldn't happen in a phrase condition.
-	     (if phrase-cond
-		 (error "Wrong keyword: %s" kw))
-	     (setq attr-cond t)
-	     (if (not (stringp (car elt)))
-		 (setq vec (vconcat vec (list key "")))
-	       ;; Just a string.
-	       (while (stringp (car elt))
-		 (let ((x (pop elt)))
-                   (unless (member x val)
-                     (setq val (append val (list x))))))
-	       (setq vec
-		     (vconcat vec (list key (mapconcat 'identity val " "))))))
+	      (:status
+	       ;; It shouldn't happen in a phrase condition.
+	       (if phrase-cond
+		   (error "Wrong keyword: %s" kw))
+	       (setq attr-cond t)
+	       (if (not (stringp (car elt)))
+		   (setq vec (vconcat vec (list key "")))
+		 ;; Possible values: "done", "forwarded" and "open"
+		 (while  (and (stringp (car elt))
+			      (string-match
+			       "\\`\\(done\\|forwarded\\|open\\)\\'" (car elt)))
+		   (let ((x (pop elt)))
+		     (unless (member x val)
+		       (setq val (append val (list x))))))
+		 (setq vec
+		       (vconcat vec (list key (mapconcat 'identity val " "))))))
 
-	    ((:date :@cdate)
-	     ;; It shouldn't happen in a phrase condition.
-	     (if phrase-cond
-		 (error "Wrong keyword: %s" kw))
-	     (setq attr-cond t)
-	     (if (not (numberp (car elt)))
-		 (setq vec (vconcat vec (list key "")))
-	       ;; Just a number.
-	       (while (numberp (car elt))
-                 (let ((x (pop elt)))
-                   (unless (member x val)
-                     (setq val (append val (list x))))))
-	       (setq vec
-		     (vconcat
-		      vec (list key (mapconcat 'number-to-string val " "))))))
+	      ((:subject :package :tags :severity :@title)
+	       ;; It shouldn't happen in a phrase condition.
+	       (if phrase-cond
+		   (error "Wrong keyword: %s" kw))
+	       (setq attr-cond t)
+	       (if (not (stringp (car elt)))
+		   (setq vec (vconcat vec (list key "")))
+		 ;; Just a string.
+		 (while (stringp (car elt))
+		   (let ((x (pop elt)))
+		     (unless (member x val)
+		       (setq val (append val (list x))))))
+		 (setq vec
+		       (vconcat vec (list key (mapconcat 'identity val " "))))))
 
-	    ((:operator :order)
-	     ;; It shouldn't happen in a phrase condition.
-	     (if phrase-cond
-		 (error "Wrong keyword: %s" kw))
-	     (setq attr-cond t val (pop elt))
-	     ;; Value is a number.
-	     (if (stringp val)
-		 (setq vec (vconcat vec (list key val)))
-	       (error "Wrong %s: %s" key val)))
+	      ((:date :@cdate)
+	       ;; It shouldn't happen in a phrase condition.
+	       (if phrase-cond
+		   (error "Wrong keyword: %s" kw))
+	       (setq attr-cond t)
+	       (if (not (numberp (car elt)))
+		   (setq vec (vconcat vec (list key "")))
+		 ;; Just a number.
+		 (while (numberp (car elt))
+		   (let ((x (pop elt)))
+		     (unless (member x val)
+		       (setq val (append val (list x))))))
+		 (setq vec
+		       (vconcat
+			vec (list key (mapconcat 'number-to-string val " "))))))
 
-	    (t (error "Unknown key: %s" kw))))
+	      ((:operator :order)
+	       ;; It shouldn't happen in a phrase condition.
+	       (if phrase-cond
+		   (error "Wrong keyword: %s" kw))
+	       (setq attr-cond t val (pop elt))
+	       ;; Value is a number.
+	       (if (stringp val)
+		   (setq vec (vconcat vec (list key val)))
+		 (error "Wrong %s: %s" key val)))
 
-	(setq args (vconcat args (list vec)))))
+	      (t (error "Unknown key: %s" kw))))
 
-    (setq result
-	  (car (soap-invoke debbugs-wsdl debbugs-port "search_est" args)))
-    ;; The result contains lists (key value).  We transform it into
-    ;; cons cells (key . value).
-    (dolist (elt1 result result)
-      (dolist (elt2 elt1)
-	(setcdr elt2 (cadr elt2))))))
+	  (setq args (vconcat args (list vec)))))
+
+      (setq result
+	    (car (soap-invoke debbugs-wsdl debbugs-port "search_est" args)))
+      ;; The result contains lists (key value).  We transform it into
+      ;; cons cells (key . value).
+      (dolist (elt1 result result)
+	(dolist (elt2 elt1)
+	  (setcdr elt2 (cadr elt2)))))))
 
 (defun debbugs-get-attribute (bug-or-message attribute)
   "Return the value of key ATTRIBUTE.

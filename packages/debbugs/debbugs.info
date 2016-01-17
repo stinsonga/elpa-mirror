@@ -150,6 +150,14 @@ selected by the 'debbugs-port' variable.
      accessed, either '"gnu.org"' or '"debian.org"', or a user defined
      port name.
 
+ -- Variable: debbugs-cache-expiry
+     The function 'debbugs-get-status' (*note Requesting bugs
+     statuses::) caches retrieved status entries in order to improve
+     the performance.  This variable determines the number of seconds
+     an entry is cached, before it is retrieved again.  A value of
+     'nil' disables cache expiration, and a value of 't' disables
+     caching.  Both values are not recommended for a usual workflow.
+
 
 File: debbugs.info,  Node: Requesting bug numbers,  Next: Requesting bugs statuses,  Prev: Configuration,  Up: Top
 
@@ -541,9 +549,9 @@ Tag Table:
 Node: Top1094
 Node: Installation3179
 Node: Configuration4278
-Node: Requesting bug numbers6190
-Node: Requesting bugs statuses11444
-Node: Requesting messages15495
-Node: Requesting user tags18510
+Node: Requesting bug numbers6629
+Node: Requesting bugs statuses11883
+Node: Requesting messages15934
+Node: Requesting user tags18949
 
 End Tag Table

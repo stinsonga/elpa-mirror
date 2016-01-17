@@ -160,6 +160,15 @@ the variable corresponds to the Debbugs server to be accessed, either
 @code{"gnu.org"} or @code{"debian.org"}, or a user defined port name.
 @end defvar
 
+@defvar debbugs-cache-expiry
+The function @code{debbugs-get-status} (@pxref{Requesting bugs
+statuses}) caches retrieved status entries in order to improve the
+performance.  This variable determines the number of seconds an entry
+is cached, before it is retrieved again.  A value of @code{nil}
+disables cache expiration, and a value of @code{t} disables caching.
+Both values are not recommended for a usual workflow.
+@end defvar
+
 @node Requesting bug numbers
 @chapter Requesting bug numbers
 
