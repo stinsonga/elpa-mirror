@@ -1,4 +1,4 @@
-gobject-minor-mode
+gnome-minor-mode
 ======
 
 In the C coding style commonly used in GNOME, identifiers are written
@@ -6,7 +6,7 @@ in camel case and function arguments are aligned to the right end.
 That makes it a bit cumbersome to keep your code consistent with the
 style, even with align.el or plugins like yasnippet.
 
-gobject-minor-mode is an Emacs minor mode intended to help editing C
+gnome-minor-mode is an Emacs minor mode intended to help editing C
 source code in that style.  It mainly provides two features: text
 alignment and snippet insersion.
 
@@ -18,8 +18,8 @@ Install
 * Add the following lines to ~/.emacs/init.el:
 
 ```
-(autoload 'gobject-minor-mode "gobject-minor-mode" "GObject minor mode" t)
-(add-hook 'c-mode-hook 'gobject-minor-mode)
+(autoload 'gnome-minor-mode "gnome-minor-mode" "GNOME minor mode" t)
+(add-hook 'c-mode-hook 'gnome-minor-mode)
 ```
 
 Usage
