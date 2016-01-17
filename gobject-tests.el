@@ -45,6 +45,18 @@ GDK_AVAILABLE_IN_3_16
 const gchar **          gtk_widget_list_action_prefixes (GtkWidget             *widget);
 ")
 
+(defconst gobject-test-program-3 "\
+  /* overridable methods */
+  void       (*set_property)            (GObject        *object,
+                                         guint           property_id,
+                                         const GValue   *value,
+                                         GParamSpec     *pspec);
+  void       (*get_property)            (GObject        *object,
+                                         guint           property_id,
+                                         GValue         *value,
+                                         GParamSpec     *pspec);
+")
+
 (ert-deftest gobject-test-align--compute-optimal-columns ()
   "Tests the `gobject-align--compute-optimal-columns'."
   (with-temp-buffer
@@ -64,7 +76,7 @@ const gchar **          gtk_widget_list_action_prefixes (GtkWidget             *
     (gobject-align-region (point-min) (point-max))
     (should (equal (buffer-string) gobject-test-program-1-aligned))))
 
-(ert-deftest gobject-test-align-guess-columns ()
+(ert-deftest gobject-test-align-guess-columns-1 ()
   "Tests the `gobject-align-guess-columns'."
   (with-temp-buffer
     (insert gobject-test-program-2)
@@ -73,3 +85,13 @@ const gchar **          gtk_widget_list_action_prefixes (GtkWidget             *
     (should (= gobject-align-identifier-start-column 24))
     (should (= gobject-align-arglist-start-column 56))
     (should (= gobject-align-arglist-identifier-start-column 80))))
+
+(ert-deftest gobject-test-align-guess-columns-2 ()
+  "Tests the `gobject-align-guess-columns'."
+  (with-temp-buffer
+    (insert gobject-test-program-3)
+    (c-mode)
+    (gobject-align-guess-columns (point-min) (point-max))
+    (should (= gobject-align-identifier-start-column 13))
+    (should (= gobject-align-arglist-start-column 40))
+    (should (= gobject-align-arglist-identifier-start-column 57))))

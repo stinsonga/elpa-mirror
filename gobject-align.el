@@ -269,20 +269,28 @@
       (let (arglist-start
 	    arglist-end
 	    identifier-start
-	    identifier-end)
+	    identifier-end
+	    vfunc-p)
 	(goto-char (point-min))
 	(c-forward-syntactic-ws)
 	(unless (looking-at
-		 "typedef\\|#\\|G_DECLARE_\\(?:\\(?:FINAL\\|DECLARATIVE\\)_TYPE\\|INTERFACE\\)")
+		 "typedef\\|#\\|G_\\(?:DECLARE\\|DEFINE\\)")
 	  (while (and (not (eobp))
 		      (not (eq (char-after) ?\()))
 	    (c-forward-token-2)
 	    (c-forward-syntactic-ws))
+	  ;; Identifier is vfunc.
+	  (when (looking-at "(\\s-*\\*")
+	    (c-forward-sexp)
+	    (c-forward-syntactic-ws)
+	    (setq vfunc-p t))
 	  (when (eq (char-after) ?\()
 	    (setq arglist-start (point-marker))
 	    (c-backward-syntactic-ws)
 	    (setq identifier-end (point-marker))
-	    (c-backward-token-2)
+	    (if vfunc-p
+		(c-backward-sexp)
+	      (c-backward-token-2))
 	    (setq identifier-start (point-marker))
 	    (goto-char arglist-start)
 	    (c-forward-sexp)
