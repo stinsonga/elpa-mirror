@@ -48,15 +48,17 @@
 (cl-defstruct (gnome-align--argument
 	       (:constructor nil)
 	       (:constructor gnome-align--make-argument (type-start
-							   type-end
-							   identifier-start
-							   identifier-end))
+							 type-end
+							 identifier-start
+							 identifier-end
+							 stars))
 	       (:copier nil)
 	       (:predicate nil))
   (type-start nil :read-only t)
   (type-end nil :read-only t)
   (identifier-start nil :read-only t)
-  (identifier-end nil :read-only t))
+  (identifier-end nil :read-only t)
+  (stars 0 :read-only t))
 
 (defun gnome-align--marker-column (marker)
   (save-excursion
@@ -78,7 +80,9 @@
 
 (defun gnome-align--arglist-identifier-start-column (arglist start-column)
   (let ((column start-column)
-	argument-column)
+	argument-column
+	(stars 0)
+	argument-stars)
     (dolist (argument arglist)
       (setq argument-column (+ start-column
 			       (gnome-align--argument-type-width argument)))
@@ -88,8 +92,11 @@
 	  (when (eq (preceding-char) ? )
 	    (setq argument-column (1+ argument-column)))))
       (when (> argument-column column)
-	(setq column argument-column)))
-    column))
+	(setq column argument-column))
+      (setq argument-stars (gnome-align--argument-stars argument))
+      (when (> argument-stars stars)
+	(setq stars argument-stars)))
+    (+ column stars)))
 
 (defun gnome-align--argument-identifier-width (argument)
   (if (gnome-align--argument-identifier-start argument)
@@ -136,6 +143,7 @@
 	    type-end
 	    identifier-start
 	    identifier-end
+	    (stars 0)
 	    arglist
 	    last-token-start)
 	(goto-char (point-max))
@@ -162,9 +170,16 @@
 			  (unless (eq (char-after) ?,)
 			    (setq last-token-start (point-marker)))))
 	      (c-backward-syntactic-ws))
-	    (setq type-start last-token-start))
+	    (setq type-start last-token-start)
+	    (save-excursion
+	      (goto-char type-end)
+	      (while (and (< type-start (point))
+			  (eq (preceding-char) ?*))
+		(setq stars (1+ stars))
+		(c-backward-token-2))))
 	  (push (gnome-align--make-argument type-start type-end
-					      identifier-start identifier-end)
+					    identifier-start identifier-end
+					    stars)
 		arglist))
 	arglist))))
 
