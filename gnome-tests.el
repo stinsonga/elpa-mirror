@@ -74,7 +74,9 @@ int foo (struct foo ***a,
   (with-temp-buffer
     (insert gnome-test-program-1)
     (c-mode)
-    (let ((columns (gnome-align--compute-optimal-columns (point-min) (point-max))))
+    (let* (gnome-align-max-column
+	   (columns
+	    (gnome-align--compute-optimal-columns (point-min) (point-max))))
       (should (= (cdr (assq 'identifier-start-column columns)) 9))
       (should (= (cdr (assq 'arglist-start-column columns)) 41))
       (should (= (cdr (assq 'arglist-identifier-start-column columns)) 64)))))
@@ -84,8 +86,9 @@ int foo (struct foo ***a,
   (with-temp-buffer
     (insert gnome-test-program-1)
     (c-mode)
-    (gnome-align-compute-optimal-columns (point-min) (point-max))
-    (gnome-align-region (point-min) (point-max))
+    (let (gnome-align-max-column)
+      (gnome-align-compute-optimal-columns (point-min) (point-max))
+      (gnome-align-region (point-min) (point-max)))
     (should (equal (buffer-string) gnome-test-program-1-aligned))))
 
 (ert-deftest gnome-test-align-region-2 ()
@@ -93,8 +96,9 @@ int foo (struct foo ***a,
   (with-temp-buffer
     (insert gnome-test-program-4)
     (c-mode)
-    (gnome-align-compute-optimal-columns (point-min) (point-max))
-    (gnome-align-region (point-min) (point-max))
+    (let (gnome-align-max-column)
+      (gnome-align-compute-optimal-columns (point-min) (point-max))
+      (gnome-align-region (point-min) (point-max)))
     (should (equal (buffer-string) gnome-test-program-4-aligned))))
 
 (ert-deftest gnome-test-align-guess-columns-1 ()
@@ -102,7 +106,8 @@ int foo (struct foo ***a,
   (with-temp-buffer
     (insert gnome-test-program-2)
     (c-mode)
-    (gnome-align-guess-columns (point-min) (point-max))
+    (let (gnome-align-max-column)
+      (gnome-align-guess-columns (point-min) (point-max)))
     (should (= gnome-align-identifier-start-column 24))
     (should (= gnome-align-arglist-start-column 56))
     (should (= gnome-align-arglist-identifier-start-column 80))))
@@ -112,7 +117,8 @@ int foo (struct foo ***a,
   (with-temp-buffer
     (insert gnome-test-program-3)
     (c-mode)
-    (gnome-align-guess-columns (point-min) (point-max))
+    (let (gnome-align-max-column)
+      (gnome-align-guess-columns (point-min) (point-max)))
     (should (= gnome-align-identifier-start-column 13))
     (should (= gnome-align-arglist-start-column 40))
     (should (= gnome-align-arglist-identifier-start-column 57))))
