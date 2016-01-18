@@ -48,12 +48,14 @@
 (cl-defstruct (gnome-align--argument
 	       (:constructor nil)
 	       (:constructor gnome-align--make-argument (type-start
-							   type-end
-							   identifier-start
-							   identifier-end))
+							 type-identifier-end
+							 type-end
+							 identifier-start
+							 identifier-end))
 	       (:copier nil)
 	       (:predicate nil))
   (type-start nil :read-only t)
+  (type-identifier-end nil :read-only t)
   (type-end nil :read-only t)
   (identifier-start nil :read-only t)
   (identifier-end nil :read-only t))
@@ -76,20 +78,24 @@
   (- (gnome-align--marker-column (gnome-align--argument-type-end arg))
      (gnome-align--marker-column (gnome-align--argument-type-start arg))))
 
+(defun gnome-align--argument-type-identifier-width (arg)
+  (- (gnome-align--marker-column
+      (gnome-align--argument-type-identifier-end arg))
+     (gnome-align--marker-column
+      (gnome-align--argument-type-start arg))))
+
 (defun gnome-align--arglist-identifier-start-column (arglist start-column)
-  (let ((column start-column)
-	argument-column)
-    (dolist (argument arglist)
-      (setq argument-column (+ start-column
-			       (gnome-align--argument-type-width argument)))
-      (when (gnome-align--argument-identifier-start argument)
-	(save-excursion
-	  (goto-char (gnome-align--argument-identifier-start argument))
-	  (when (eq (preceding-char) ? )
-	    (setq argument-column (1+ argument-column)))))
-      (when (> argument-column column)
-	(setq column argument-column)))
-    column))
+  (let ((max-type-identifier-width
+	 (apply #'max
+		(mapcar #'gnome-align--argument-type-identifier-width arglist)))
+	(max-extra-width
+	 (apply #'max
+		(mapcar
+		 (lambda (argument)
+		   (- (gnome-align--argument-type-end argument)
+		      (gnome-align--argument-type-identifier-end argument)))
+		 arglist))))
+    (+ start-column max-type-identifier-width max-extra-width)))
 
 (defun gnome-align--argument-identifier-width (argument)
   (if (gnome-align--argument-identifier-start argument)
@@ -133,6 +139,7 @@
     (save-restriction
       (narrow-to-region beg end)
       (let (type-start
+	    type-identifier-end
 	    type-end
 	    identifier-start
 	    identifier-end
@@ -149,11 +156,14 @@
 	  (setq identifier-start (point-marker))
 	  (c-backward-syntactic-ws)
 	  (if (or (bobp) (eq (preceding-char) ?,))
-	      ;; Identifier is omitted, or '...'.
-	      (setq type-start identifier-start
-		    type-end identifier-end
-		    identifier-start nil
-		    identifier-end nil)
+	      (progn
+		;; Identifier is omitted, or '...'.
+		(setq type-start identifier-start
+		      type-identifier-end identifier-end
+		      type-end identifier-end
+		      identifier-start nil
+		      identifier-end nil)
+		(c-backward-token-2))
 	    (setq type-end (point-marker)
 		  last-token-start type-end)
 	    (while (and (not (bobp))
@@ -162,9 +172,17 @@
 			  (unless (eq (char-after) ?,)
 			    (setq last-token-start (point-marker)))))
 	      (c-backward-syntactic-ws))
-	    (setq type-start last-token-start))
-	  (push (gnome-align--make-argument type-start type-end
-					      identifier-start identifier-end)
+	    (setq type-start last-token-start)
+	    (save-excursion
+	      (goto-char type-end)
+	      (skip-chars-backward "*" type-start)
+	      (c-backward-syntactic-ws)
+	      (setq type-identifier-end (point-marker))))
+	  (push (gnome-align--make-argument type-start
+					    type-identifier-end
+					    type-end
+					    identifier-start
+					    identifier-end)
 		arglist))
 	arglist))))
 
