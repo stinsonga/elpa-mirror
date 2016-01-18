@@ -106,13 +106,7 @@
     0))
 
 (defun gnome-align--arglist-identifier-width (arglist)
-  (let ((width 0)
-	argument-width)
-    (dolist (argument arglist)
-      (setq argument-width (gnome-align--argument-identifier-width argument))
-      (when (> argument-width width)
-	(setq width argument-width)))
-    width))
+  (apply #'max (mapcar #'gnome-align--argument-identifier-width arglist)))
 
 (defun gnome-align--normalize-arglist-region (beg end)
   (save-excursion
@@ -233,17 +227,19 @@
   (arglist nil :read-only t))
 
 (defun gnome-align--decls-identifier-start-column (decls start-column)
-  (let ((column start-column)
-	decl-column)
-    (dolist (decl decls)
-      (setq decl-column (+ start-column
-			   (gnome-align--marker-column
-			    (gnome-align--decl-identifier-start decl))))
-      (when (and (or (null gnome-align-max-column)
-		     (<= decl-column gnome-align-max-column))
-		 (> decl-column column))
-	(setq column decl-column)))
-    column))
+  (apply #'max
+	 (delq nil
+	       (mapcar
+		(lambda (decl)
+		  (let ((decl-column
+			 (+ start-column
+			    (gnome-align--marker-column
+			     (gnome-align--decl-identifier-start decl)))))
+		    (if (and gnome-align-max-column
+			     (> decl-column gnome-align-max-column))
+			nil
+		      decl-column)))
+		decls))))
 
 (defun gnome-align--decl-identifier-width (decl)
   (- (gnome-align--marker-column
@@ -252,43 +248,38 @@
       (gnome-align--decl-identifier-start decl))))
 
 (defun gnome-align--decls-arglist-start-column (decls start-column)
-  (let ((column start-column)
-	decl-column
-	(arglist-width
+  (let ((arglist-width
 	 (+ (gnome-align--decls-arglist-identifier-start-column decls 0)
 	    (gnome-align--decls-arglist-identifier-width decls)
 	    (length ");"))))
-    (dolist (decl decls)
-      (setq decl-column (+ start-column
-			   (gnome-align--decl-identifier-width decl)))
-      (when (and (or (null gnome-align-max-column)
-		     (<= (+ decl-column arglist-width)
-			 gnome-align-max-column))
-		 (> decl-column column))
-	(setq column decl-column)))
-    (1+ column)))
+    (apply #'max
+	   (delq nil
+		 (mapcar
+		  (lambda (decl)
+		    (let ((decl-column
+			   (+ start-column
+			      (gnome-align--decl-identifier-width decl)
+			      1)))
+		      (if (and gnome-align-max-column
+			       (> (+ decl-column arglist-width)
+				  gnome-align-max-column))
+			  nil
+			decl-column)))
+		  decls)))))
 
 (defun gnome-align--decls-arglist-identifier-width (decls)
-  (let ((width 0)
-	decl-width)
-    (dolist (decl decls)
-      (setq decl-width (gnome-align--arglist-identifier-width
-			(gnome-align--decl-arglist decl)))
-      (when (> decl-width width)
-	(setq width decl-width)))
-    width))
+  (apply #'max (mapcar (lambda (decl)
+			 (gnome-align--arglist-identifier-width
+			  (gnome-align--decl-arglist decl)))
+		       decls)))
 
 (defun gnome-align--decls-arglist-identifier-start-column (decls start-column)
-  (let ((column start-column)
-	decl-column)
-    (dolist (decl decls)
-      (setq decl-column (gnome-align--arglist-identifier-start-column
-			 (gnome-align--decl-arglist decl)
-			 start-column))
-      ;; FIXME: should wrap lines inside argument list?
-      (when (> decl-column column)
-	(setq column decl-column)))
-    column))
+  (apply #'max (mapcar (lambda (decl)
+			 ;; FIXME: should wrap lines inside argument list?
+			 (gnome-align--arglist-identifier-start-column
+			  (gnome-align--decl-arglist decl)
+			  start-column))
+		       decls)))
 
 (defun gnome-align--parse-decl (beg end)
   ;; Parse at most one func declaration found in BEG END.
