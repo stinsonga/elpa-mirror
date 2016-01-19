@@ -325,7 +325,7 @@ GObjectConstructParam *construct_properties)\n")
   " (gnome-c-snippet--format-PackageClass package class) " *self = "
   (gnome-c-snippet--format-PACKAGE_CLASS package class) " (object);
 
-  G_OBJECT_CLASS (" (gnome-c-snippet--format-package_class package class) "_parent_class)->constructed (object);
+  G_OBJECT_CLASS (" (gnome-c-snippet--format-package_class package class) "_parent_class)->constructed (type, n_construct_properties, construct_properties);
 }
 ")
     (indent-region body-start (point))))
@@ -446,6 +446,38 @@ static void
 ")
     (indent-region body-start (point))))
 
+(defun gnome-c-snippet-insert-dispatch_properties_changed (package class)
+  "Insert 'dispatch_properties_changed vfunc of GObjectClass for
+PACKAGE and CLASS."
+  (interactive
+   (gnome-c-snippet--read-package-and-class
+    nil nil
+    'gnome-c-snippet-package
+    'gnome-c-snippet-class))
+  (let (arglist-start body-start)
+    (insert "\
+static void
+" (gnome-c-snippet--format-package_class package class) "_dispatch_properties_changed (")
+    (setq arglist-start (point-marker))
+    (insert "GObject *object,
+guint n_pspecs,
+GParamSpec **pspecs)\n")
+    (setq body-start (point-marker))
+    (if gnome-c-snippet-align-arglist
+	(progn
+	  (goto-char arglist-start)
+	  (gnome-c-align-arglist-at-point))
+      (indent-region arglist-start (point)))
+    (goto-char body-start)
+    (insert "{
+  " (gnome-c-snippet--format-PackageClass package class) " *self = "
+  (gnome-c-snippet--format-PACKAGE_CLASS package class) " (object);
+
+  G_OBJECT_CLASS (" (gnome-c-snippet--format-package_class package class) "_parent_class)->dispatch_properties_changed (object, n_pspecs, pspecs);
+}
+")
+    (indent-region body-start (point))))
+
 (defun gnome-c-snippet-insert-notify (package class)
   "Insert 'notify' vfunc of GObjectClass for PACKAGE and CLASS."
   (interactive
@@ -453,16 +485,24 @@ static void
     nil nil
     'gnome-c-snippet-package
     'gnome-c-snippet-class))
-  (let (body-start)
+  (let (arglist-start body-start)
     (insert "\
 static void
-" (gnome-c-snippet--format-package_class package class) "_notify (GObject *object)\n")
+" (gnome-c-snippet--format-package_class package class) "_notify (")
+    (setq arglist-start (point-marker))
+    (insert "GObject *object,
+GParamSpec *pspec)\n")
     (setq body-start (point-marker))
+    (if gnome-c-snippet-align-arglist
+	(progn
+	  (goto-char arglist-start)
+	  (gnome-c-align-arglist-at-point))
+      (indent-region arglist-start (point)))
     (insert "{
   " (gnome-c-snippet--format-PackageClass package class) " *self = "
   (gnome-c-snippet--format-PACKAGE_CLASS package class) " (object);
 
-  G_OBJECT_CLASS (" (gnome-c-snippet--format-package_class package class) "_parent_class)->finalize (object);
+  G_OBJECT_CLASS (" (gnome-c-snippet--format-package_class package class) "_parent_class)->notify (object, pspec);
 }
 ")
     (indent-region body-start (point))))
@@ -502,7 +542,8 @@ static void
     ("GObjectClass.get_property" . gnome-c-snippet-insert-get_property)
     ("GObjectClass.dispose" . gnome-c-snippet-insert-dispose)
     ("GObjectClass.finalize" . gnome-c-snippet-insert-finalize)
-    ;; GObjectClass.dispatch_properties_changed
+    ("GObjectClass.dispatch_properties_changed" .
+     gnome-c-snippet-insert-dispatch_properties_changed)
     ("GObjectClass.notify" . gnome-c-snippet-insert-notify)
     ("GObjectClass.contructed" . gnome-c-snippet-insert-constructed)))
 
