@@ -171,9 +171,9 @@ G_DECLARE_" (if derivable "DERIVABLE" "FINAL") "_TYPE (" (gnome-c-snippet--forma
 "))
 
 (defun gnome-c-snippet-insert-final-class-declaration (package
-						     class
-						     parent-package
-						     parent-class)
+						       class
+						       parent-package
+						       parent-class)
   "Insert final class declaration for PACKAGE and CLASS."
   (interactive
    (append (gnome-c-snippet--read-package-and-class
@@ -192,9 +192,9 @@ G_DECLARE_" (if derivable "DERIVABLE" "FINAL") "_TYPE (" (gnome-c-snippet--forma
 					     nil))
 
 (defun gnome-c-snippet-insert-derivable-class-declaration (package
-							 class
-							 parent-package
-							 parent-class)
+							   class
+							   parent-package
+							   parent-class)
   "Insert derivable class declaration for PACKAGE and CLASS."
   (interactive
    (append (gnome-c-snippet--read-package-and-class
@@ -213,9 +213,9 @@ G_DECLARE_" (if derivable "DERIVABLE" "FINAL") "_TYPE (" (gnome-c-snippet--forma
 					     t))
 
 (defun gnome-c-snippet-insert-interface-definition (package
-						  iface
-						  parent-package
-						  parent-class)
+						    iface
+						    parent-package
+						    parent-class)
   "Insert class definition for PACKAGE and CLASS."
   (interactive
    (append (gnome-c-snippet--read-package-and-class
@@ -238,10 +238,10 @@ G_DEFINE_INTERFACE (" (gnome-c-snippet--format-PackageClass package iface) ", "
 "))
 
 (defun gnome-c-snippet--insert-class-definition (package
-					       class
-					       parent-package
-					       parent-class
-					       abstract)
+						 class
+						 parent-package
+						 parent-class
+						 abstract)
   (insert "\
 G_DEFINE_" (if abstract "ABSTRACT_" "") "TYPE (" (gnome-c-snippet--format-PackageClass package class) ", "
 (gnome-c-snippet--format-package_class package class) ", " (gnome-c-snippet--format-PACKAGE parent-package) "_TYPE_" (gnome-c-snippet--format-CLASS parent-class) ")
@@ -258,9 +258,9 @@ static void
 "))
 
 (defun gnome-c-snippet-insert-class-definition (package
-					      class
-					      parent-package
-					      parent-class)
+						class
+						parent-package
+						parent-class)
   "Insert class definition for PACKAGE and CLASS."
   (interactive
    (append (gnome-c-snippet--read-package-and-class
@@ -273,15 +273,15 @@ static void
 	    'gnome-c-snippet-parent-package
 	    'gnome-c-snippet-parent-class)))
   (gnome-c-snippet--insert-class-definition package
-					  class
-					  parent-package
-					  parent-class
-					  nil))
+					    class
+					    parent-package
+					    parent-class
+					    nil))
 
 (defun gnome-c-snippet-insert-abstract-class-definition (package
-						       class
-						       parent-package
-						       parent-class)
+							 class
+							 parent-package
+							 parent-class)
   "Insert abstract class definition for PACKAGE and CLASS."
   (interactive
    (append (gnome-c-snippet--read-package-and-class
@@ -294,10 +294,10 @@ static void
 	    'gnome-c-snippet-parent-package
 	    'gnome-c-snippet-parent-class)))
   (gnome-c-snippet--insert-class-definition package
-					  class
-					  parent-package
-					  parent-class
-					  t))
+					    class
+					    parent-package
+					    parent-class
+					    t))
 
 (defun gnome-c-snippet-insert-constructor (package class)
   "Insert 'constructor' vfunc of GObjectClass for PACKAGE and CLASS."
@@ -392,7 +392,7 @@ GParamSpec *pspec)\n")
     (goto-char body-start)
     (insert "{
   " (gnome-c-snippet--format-PackageClass package class) " *self = "
-(gnome-c-snippet--format-PACKAGE_CLASS package class) " (object);
+  (gnome-c-snippet--format-PACKAGE_CLASS package class) " (object);
 
   switch (prop_id)
     {
