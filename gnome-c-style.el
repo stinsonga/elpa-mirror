@@ -1,5 +1,5 @@
 ;;; gnome-c-style.el --- minor mode for editing GNOME-style C source code -*- lexical-binding: t; -*-
-;; Copyright (C) 2016 Daiki Ueno <ueno@gnu.org>
+;; Copyright (C) 2016 Free Software Foundation, Inc.
 
 ;; Author: Daiki Ueno <ueno@gnu.org>
 ;; Keywords: GNOME, C, coding style
