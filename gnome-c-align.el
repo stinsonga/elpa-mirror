@@ -43,10 +43,10 @@
 (cl-defstruct (gnome-c-align--argument
 	       (:constructor nil)
 	       (:constructor gnome-c-align--make-argument (type-start
-							 type-identifier-end
-							 type-end
-							 identifier-start
-							 identifier-end))
+							   type-identifier-end
+							   type-end
+							   identifier-start
+							   identifier-end))
 	       (:copier nil)
 	       (:predicate nil))
   (type-start nil :read-only t)
@@ -62,7 +62,7 @@
 
 (defun gnome-c-align--indent-to-column (column)
   ;; Prefer 'char **foo' than 'char ** foo'
-  (when (looking-back "\*+" nil t)
+  (when (looking-back "\\*+" nil t)
     (setq column (- column (- (match-end 0) (match-beginning 0))))
     (goto-char (match-beginning 0)))
   ;; FIXME: should respect indent-tabs-mode?
@@ -82,7 +82,8 @@
 (defun gnome-c-align--arglist-identifier-start-column (arglist start-column)
   (let ((max-type-identifier-width
 	 (apply #'max
-		(mapcar #'gnome-c-align--argument-type-identifier-width arglist)))
+		(mapcar #'gnome-c-align--argument-type-identifier-width
+			arglist)))
 	(max-extra-width
 	 (apply #'max
 		(mapcar
@@ -103,7 +104,7 @@
 (defun gnome-c-align--arglist-identifier-width (arglist)
   (apply #'max (mapcar #'gnome-c-align--argument-identifier-width arglist)))
 
-(defun gnome-c-align--normalize-arglist-region (beg end)
+(defun gnome-c-align--normalize-arglist-region (arglist beg end)
   (save-excursion
     (save-restriction
       (narrow-to-region beg end)
@@ -121,7 +122,20 @@
 	(replace-match ""))
       ;; Remove empty lines
       (goto-char (point-min))
-      (delete-matching-lines "^$"))))
+      (delete-matching-lines "^$")
+      ;; 'int * * * foo' -> 'int ***foo'
+      (dolist (argument arglist)
+	(goto-char (gnome-c-align--argument-type-end argument))
+	(while (re-search-backward
+		"\\(\\*+\\)\\s-+"
+		(gnome-c-align--argument-type-identifier-end argument)
+		t)
+	  (replace-match "\\1"))
+	(when (gnome-c-align--argument-identifier-start argument)
+	  (goto-char (gnome-c-align--argument-identifier-start argument))
+	  (if (looking-back "\\* " nil)
+	      (delete-char -1)))
+	(goto-char (gnome-c-align--argument-type-end argument))))))
 
 (defun gnome-c-align--parse-arglist (beg end)
   (save-excursion
@@ -164,14 +178,14 @@
 	    (setq type-start last-token-start)
 	    (save-excursion
 	      (goto-char type-end)
-	      (skip-chars-backward "*" type-start)
+	      (skip-chars-backward "* " type-start)
 	      (c-backward-syntactic-ws)
 	      (setq type-identifier-end (point-marker))))
 	  (push (gnome-c-align--make-argument type-start
-					    type-identifier-end
-					    type-end
-					    identifier-start
-					    identifier-end)
+					      type-identifier-end
+					      type-end
+					      identifier-start
+					      identifier-end)
 		arglist))
 	arglist))))
 
@@ -188,7 +202,8 @@
 	(save-restriction
 	  (narrow-to-region beg end)
 	  (setq arglist (gnome-c-align--parse-arglist (point-min) (point-max)))
-	  (gnome-c-align--normalize-arglist-region (point-min) (point-max))
+	  (gnome-c-align--normalize-arglist-region
+	   arglist (point-min) (point-max))
 	  (unless identifier-start-column
 	    (setq identifier-start-column
 		  (gnome-c-align--arglist-identifier-start-column arglist 0)))
@@ -319,18 +334,34 @@
 
 (defun gnome-c-align--normalize-decl (decl)
   (save-excursion
+    ;; Replace newlines with a space
     (save-restriction
-      (narrow-to-region (gnome-c-align--decl-identifier-start decl)
+      ;; Ignore lines before identifier-start
+      (goto-char (gnome-c-align--decl-identifier-start decl))
+      (beginning-of-line)
+      (narrow-to-region (point)
 			(gnome-c-align--decl-arglist-end decl))
       (goto-char (point-min))
       (while (re-search-forward "\n" nil t)
 	(replace-match " ")))
+    ;; Replace consequent spaces with a space
     (save-restriction
-      (narrow-to-region (gnome-c-align--decl-start decl)
-			(gnome-c-align--decl-end decl))
+      ;; Ignore lines before identifier-start
+      (goto-char (gnome-c-align--decl-identifier-start decl))
+      (beginning-of-line)
+      (narrow-to-region (point)
+			(gnome-c-align--decl-arglist-end decl))
       (goto-char (point-min))
       (while (re-search-forward "\\s-+" nil t)
-	(replace-match " ")))))
+	(replace-match " ")))
+    (goto-char (gnome-c-align--decl-identifier-start decl))
+    (if (looking-back "\\* " nil)
+	(delete-char -1))
+    ;; Normalize the argument list
+    (gnome-c-align--normalize-arglist-region
+     (gnome-c-align--decl-arglist decl)
+     (gnome-c-align--decl-arglist-start decl)
+     (gnome-c-align--decl-arglist-end decl))))
 
 (defun gnome-c-align--arglist-region-at-point (point)
   (save-excursion

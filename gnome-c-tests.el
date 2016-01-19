@@ -69,6 +69,15 @@ int foo (struct foo ***a,
          ...) G_GNUC_CONST;
 ")
 
+(defconst gnome-c-test-program-5 "\
+int  * bar (const char * const *  * a, int b);
+")
+
+(defconst gnome-c-test-program-5-aligned "\
+int *bar (const char * const **a,
+          int                  b);
+")
+
 (ert-deftest gnome-c-test-align--compute-optimal-columns ()
   "Tests the `gnome-c-align--compute-optimal-columns'."
   (with-temp-buffer
@@ -100,6 +109,16 @@ int foo (struct foo ***a,
       (gnome-c-align-compute-optimal-columns (point-min) (point-max))
       (gnome-c-align-region (point-min) (point-max)))
     (should (equal (buffer-string) gnome-c-test-program-4-aligned))))
+
+(ert-deftest gnome-c-test-align-region-3 ()
+  "Tests the `gnome-c-align-region'."
+  (with-temp-buffer
+    (insert gnome-c-test-program-5)
+    (c-mode)
+    (let (gnome-c-align-max-column)
+      (gnome-c-align-compute-optimal-columns (point-min) (point-max))
+      (gnome-c-align-region (point-min) (point-max)))
+    (should (equal (buffer-string) gnome-c-test-program-5-aligned))))
 
 (ert-deftest gnome-c-test-align-guess-columns-1 ()
   "Tests the `gnome-c-align-guess-columns'."
