@@ -82,10 +82,12 @@
 (defun gnome-c-align--arglist-identifier-start-column (arglist start-column)
   (let ((max-type-identifier-width
 	 (apply #'max
+		0
 		(mapcar #'gnome-c-align--argument-type-identifier-width
 			arglist)))
 	(max-extra-width
 	 (apply #'max
+		0
 		(mapcar
 		 (lambda (argument)
 		   (- (gnome-c-align--argument-type-end argument)
@@ -102,7 +104,7 @@
     0))
 
 (defun gnome-c-align--arglist-identifier-width (arglist)
-  (apply #'max (mapcar #'gnome-c-align--argument-identifier-width arglist)))
+  (apply #'max 0 (mapcar #'gnome-c-align--argument-identifier-width arglist)))
 
 (defun gnome-c-align--normalize-arglist-region (arglist beg end)
   (save-excursion
@@ -238,6 +240,7 @@
 
 (defun gnome-c-align--decls-identifier-start-column (decls start-column)
   (apply #'max
+	 start-column
 	 (delq nil
 	       (mapcar
 		(lambda (decl)
@@ -263,6 +266,7 @@
 	    (gnome-c-align--decls-arglist-identifier-width decls)
 	    (length ");"))))
     (apply #'max
+	   start-column
 	   (delq nil
 		 (mapcar
 		  (lambda (decl)
@@ -278,18 +282,18 @@
 		  decls)))))
 
 (defun gnome-c-align--decls-arglist-identifier-width (decls)
-  (apply #'max (mapcar (lambda (decl)
-			 (gnome-c-align--arglist-identifier-width
-			  (gnome-c-align--decl-arglist decl)))
-		       decls)))
+  (apply #'max 0 (mapcar (lambda (decl)
+			   (gnome-c-align--arglist-identifier-width
+			    (gnome-c-align--decl-arglist decl)))
+			 decls)))
 
 (defun gnome-c-align--decls-arglist-identifier-start-column (decls start-column)
-  (apply #'max (mapcar (lambda (decl)
-			 ;; FIXME: should wrap lines inside argument list?
-			 (gnome-c-align--arglist-identifier-start-column
-			  (gnome-c-align--decl-arglist decl)
-			  start-column))
-		       decls)))
+  (apply #'max 0 (mapcar (lambda (decl)
+			   ;; FIXME: should wrap lines inside argument list?
+			   (gnome-c-align--arglist-identifier-start-column
+			    (gnome-c-align--decl-arglist decl)
+			    start-column))
+			 decls)))
 
 (defun gnome-c-align--parse-decl (beg end)
   ;; Parse at most one func declaration found in BEG END.
