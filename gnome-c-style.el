@@ -22,6 +22,26 @@
 ;; along with this program.  If not, see
 ;; <http://www.gnu.org/licenses/>.
 
+;;; Commentary:
+
+;; This package provides a minor mode to help editing C source code
+;; in the GNOME C coding style:
+;;
+;; <https://developer.gnome.org/programming-guidelines/stable/c-coding-style.html.en#header-files>
+;; <https://developer.gnome.org/programming-guidelines/stable/c-coding-style.html.en#functions>
+;;
+;; It basically provides two functions: code alignment and snippet
+;; insertion.  To align code, use `gnome-c-style-align-region' to
+;; line-up multiple function declarations in region, and
+;; `gnome-c-style-align-at-point' to line-up arguments in the argument
+;; list at point.
+;;
+;; To insert code snippet, use `gnome-c-snippet-insert'.  The command
+;; will let you choose a template to be inserted.  This package also
+;; provide commands to insert package/class names in upper case,
+;; capital case, and lower case.  For complete list of commands, do
+;; M-x describe-bindings.
+
 ;;; Code:
 
 (require 'gnome-c-align)
