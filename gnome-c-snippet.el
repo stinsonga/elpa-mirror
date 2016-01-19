@@ -20,6 +20,10 @@
 ;; along with this program.  If not, see
 ;; <http://www.gnu.org/licenses/>.
 
+;;; Commentary:
+
+;; FIXME: The snippets defined here could be rewritten in yasnippet
+
 ;;; Code:
 
 (require 'gnome-c-align)
