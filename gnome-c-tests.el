@@ -1,6 +1,6 @@
-(require 'gnome-align)
+(require 'gnome-c-align)
 
-(defconst gnome-test-program-1 "\
+(defconst gnome-c-test-program-1 "\
 GGpgCtx *g_gpg_ctx_new (GError **error);
 
 typedef void (*GGpgProgressCallback) (gpointer user_data,
@@ -19,7 +19,7 @@ GGpgKey *g_gpg_ctx_get_signer (GGpgCtx *ctx, guint index);
 void g_gpg_ctx_clear_signers (GGpgCtx *ctx);
 ")
 
-(defconst gnome-test-program-1-aligned "\
+(defconst gnome-c-test-program-1-aligned "\
 GGpgCtx *g_gpg_ctx_new                   (GError              **error);
 
 typedef void (*GGpgProgressCallback) (gpointer user_data,
@@ -40,12 +40,12 @@ GGpgKey *g_gpg_ctx_get_signer            (GGpgCtx              *ctx,
 void     g_gpg_ctx_clear_signers         (GGpgCtx              *ctx);
 ")
 
-(defconst gnome-test-program-2 "\
+(defconst gnome-c-test-program-2 "\
 GDK_AVAILABLE_IN_3_16
 const gchar **          gtk_widget_list_action_prefixes (GtkWidget             *widget);
 ")
 
-(defconst gnome-test-program-3 "\
+(defconst gnome-c-test-program-3 "\
   /* overridable methods */
   void       (*set_property)            (GObject        *object,
                                          guint           property_id,
@@ -57,68 +57,68 @@ const gchar **          gtk_widget_list_action_prefixes (GtkWidget             *
                                          GParamSpec     *pspec);
 ")
 
-(defconst gnome-test-program-4 "\
+(defconst gnome-c-test-program-4 "\
 FOO_AVAILABLE_IN_ALL
 int foo (struct foo ***a, int b, ...) G_GNUC_CONST;
 ")
 
-(defconst gnome-test-program-4-aligned "\
+(defconst gnome-c-test-program-4-aligned "\
 FOO_AVAILABLE_IN_ALL
 int foo (struct foo ***a,
          int           b,
          ...) G_GNUC_CONST;
 ")
 
-(ert-deftest gnome-test-align--compute-optimal-columns ()
-  "Tests the `gnome-align--compute-optimal-columns'."
+(ert-deftest gnome-c-test-align--compute-optimal-columns ()
+  "Tests the `gnome-c-align--compute-optimal-columns'."
   (with-temp-buffer
-    (insert gnome-test-program-1)
+    (insert gnome-c-test-program-1)
     (c-mode)
-    (let* (gnome-align-max-column
+    (let* (gnome-c-align-max-column
 	   (columns
-	    (gnome-align--compute-optimal-columns (point-min) (point-max))))
+	    (gnome-c-align--compute-optimal-columns (point-min) (point-max))))
       (should (= (cdr (assq 'identifier-start-column columns)) 9))
       (should (= (cdr (assq 'arglist-start-column columns)) 41))
       (should (= (cdr (assq 'arglist-identifier-start-column columns)) 64)))))
 
-(ert-deftest gnome-test-align-region ()
-  "Tests the `gnome-align-region'."
+(ert-deftest gnome-c-test-align-region ()
+  "Tests the `gnome-c-align-region'."
   (with-temp-buffer
-    (insert gnome-test-program-1)
+    (insert gnome-c-test-program-1)
     (c-mode)
-    (let (gnome-align-max-column)
-      (gnome-align-compute-optimal-columns (point-min) (point-max))
-      (gnome-align-region (point-min) (point-max)))
-    (should (equal (buffer-string) gnome-test-program-1-aligned))))
+    (let (gnome-c-align-max-column)
+      (gnome-c-align-compute-optimal-columns (point-min) (point-max))
+      (gnome-c-align-region (point-min) (point-max)))
+    (should (equal (buffer-string) gnome-c-test-program-1-aligned))))
 
-(ert-deftest gnome-test-align-region-2 ()
-  "Tests the `gnome-align-region'."
+(ert-deftest gnome-c-test-align-region-2 ()
+  "Tests the `gnome-c-align-region'."
   (with-temp-buffer
-    (insert gnome-test-program-4)
+    (insert gnome-c-test-program-4)
     (c-mode)
-    (let (gnome-align-max-column)
-      (gnome-align-compute-optimal-columns (point-min) (point-max))
-      (gnome-align-region (point-min) (point-max)))
-    (should (equal (buffer-string) gnome-test-program-4-aligned))))
+    (let (gnome-c-align-max-column)
+      (gnome-c-align-compute-optimal-columns (point-min) (point-max))
+      (gnome-c-align-region (point-min) (point-max)))
+    (should (equal (buffer-string) gnome-c-test-program-4-aligned))))
 
-(ert-deftest gnome-test-align-guess-columns-1 ()
-  "Tests the `gnome-align-guess-columns'."
+(ert-deftest gnome-c-test-align-guess-columns-1 ()
+  "Tests the `gnome-c-align-guess-columns'."
   (with-temp-buffer
-    (insert gnome-test-program-2)
+    (insert gnome-c-test-program-2)
     (c-mode)
-    (let (gnome-align-max-column)
-      (gnome-align-guess-columns (point-min) (point-max)))
-    (should (= gnome-align-identifier-start-column 24))
-    (should (= gnome-align-arglist-start-column 56))
-    (should (= gnome-align-arglist-identifier-start-column 80))))
+    (let (gnome-c-align-max-column)
+      (gnome-c-align-guess-columns (point-min) (point-max)))
+    (should (= gnome-c-align-identifier-start-column 24))
+    (should (= gnome-c-align-arglist-start-column 56))
+    (should (= gnome-c-align-arglist-identifier-start-column 80))))
 
-(ert-deftest gnome-test-align-guess-columns-2 ()
-  "Tests the `gnome-align-guess-columns'."
+(ert-deftest gnome-c-test-align-guess-columns-2 ()
+  "Tests the `gnome-c-align-guess-columns'."
   (with-temp-buffer
-    (insert gnome-test-program-3)
+    (insert gnome-c-test-program-3)
     (c-mode)
-    (let (gnome-align-max-column)
-      (gnome-align-guess-columns (point-min) (point-max)))
-    (should (= gnome-align-identifier-start-column 13))
-    (should (= gnome-align-arglist-start-column 40))
-    (should (= gnome-align-arglist-identifier-start-column 57))))
+    (let (gnome-c-align-max-column)
+      (gnome-c-align-guess-columns (point-min) (point-max)))
+    (should (= gnome-c-align-identifier-start-column 13))
+    (should (= gnome-c-align-arglist-start-column 40))
+    (should (= gnome-c-align-arglist-identifier-start-column 57))))
