@@ -531,7 +531,7 @@ marked as \"client-side filter\"."
 	debbugs-gnu-current-suppress nil))
 
 (defun debbugs-gnu-get-bugs (query)
-  "Retrieve bugs numbers from debbugs.gnu.org according search criteria."
+  "Retrieve bug numbers from debbugs.gnu.org according search criteria."
   (let* ((debbugs-port "gnu.org")
 	 (bugs (assoc 'bugs query))
 	 (tags (assoc 'tag query))
@@ -581,7 +581,6 @@ marked as \"client-side filter\"."
 (defun debbugs-gnu-show-reports ()
   "Show bug reports."
   (let ((inhibit-read-only t)
-	(debbugs-port "gnu.org")
 	(buffer-name "*Emacs Bugs*"))
     ;; The tabulated mode sets several local variables.  We must get
     ;; rid of them.
