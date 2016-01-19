@@ -78,6 +78,34 @@ int *bar (const char * const **a,
           int                  b);
 ")
 
+(defconst gnome-c-test-program-6 "\
+int foo (char **a, int b);
+type_1234567890 bar (char a, int b);
+int identifier_1234567890 (double a, double b);
+")
+
+(defconst gnome-c-test-program-6-aligned-1 "\
+int             foo
+                (char **a,
+                 int    b);
+type_1234567890 bar
+                (char   a,
+                 int    b);
+int             identifier_1234567890
+                (double a,
+                 double b);
+")
+
+(defconst gnome-c-test-program-6-aligned-2 "\
+int             foo (char **a,
+                     int    b);
+type_1234567890 bar (char   a,
+                     int    b);
+int             identifier_1234567890
+                    (double a,
+                     double b);
+")
+
 (ert-deftest gnome-c-test-align--guess-optimal-columns ()
   "Tests the `gnome-c-align--guess-optimal-columns'."
   (with-temp-buffer
@@ -119,6 +147,26 @@ int *bar (const char * const **a,
       (gnome-c-align-guess-optimal-columns (point-min) (point-max))
       (gnome-c-align-decls-region (point-min) (point-max)))
     (should (equal (buffer-string) gnome-c-test-program-5-aligned))))
+
+(ert-deftest gnome-c-test-align-region-4 ()
+  "Tests the `gnome-c-align-decls-region', with max columns set."
+  (with-temp-buffer
+    (insert gnome-c-test-program-6)
+    (c-mode)
+    (let ((gnome-c-align-max-column 20))
+      (gnome-c-align-guess-optimal-columns (point-min) (point-max))
+      (gnome-c-align-decls-region (point-min) (point-max)))
+    (should (equal (buffer-string) gnome-c-test-program-6-aligned-1))))
+
+(ert-deftest gnome-c-test-align-region-5 ()
+  "Tests the `gnome-c-align-decls-region', with max columns set."
+  (with-temp-buffer
+    (insert gnome-c-test-program-6)
+    (c-mode)
+    (let ((gnome-c-align-max-column 30))
+      (gnome-c-align-guess-optimal-columns (point-min) (point-max))
+      (gnome-c-align-decls-region (point-min) (point-max)))
+    (should (equal (buffer-string) gnome-c-test-program-6-aligned-2))))
 
 (ert-deftest gnome-c-test-align-guess-columns-1 ()
   "Tests the `gnome-c-align-guess-columns'."
