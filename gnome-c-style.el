@@ -48,7 +48,7 @@
 ;;;###autoload
 (define-minor-mode gnome-c-style-mode
   "A minor-mode for editing GNOME-style C source code."
-  nil " GNOME" gnome-c-style-map)
+  nil " GNOME" gnome-c-style-mode-map)
 
 (provide 'gnome-c-style)
 
