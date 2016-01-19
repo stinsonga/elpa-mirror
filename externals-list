@@ -53,6 +53,7 @@
  ("exwm"		:external "https://github.com/ch11ng/exwm.git")
  ("f90-interface-browser" :subtree "https://github.com/wence-/f90-iface")
  ("ggtags"		:subtree "https://github.com/leoliu/ggtags")
+ ("gnome-c-style"	:subtree "https://github.com/ueno/gnome-c-style.git")
  ("gnorb"               :subtree "https://github.com/girzel/gnorb")
  ("ioccur"		:subtree "https://github.com/thierryvolpiatto/ioccur.git")
  ("js2-mode"		:subtree "https://github.com/mooz/js2-mode.git")
