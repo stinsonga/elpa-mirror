@@ -5,7 +5,7 @@
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, hypermedia
 ;; Package: debbugs
-;; Version: 0.8
+;; Version: 0.9
 ;; Package-Requires: ((async "1.6"))
 
 ;; This file is not part of GNU Emacs.
