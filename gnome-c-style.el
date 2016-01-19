@@ -54,11 +54,11 @@
 
 (defvar gnome-c-style-mode-map
   (let ((keymap (make-sparse-keymap)))
-    (define-key keymap "\C-c\C-ga" 'gnome-c-align-at-point)
-    (define-key keymap "\C-c\C-gr" 'gnome-c-align-region)
+    (define-key keymap "\C-c\C-ga" 'gnome-c-align-arglist-at-point)
+    (define-key keymap "\C-c\C-gr" 'gnome-c-align-decls-region)
     (define-key keymap "\C-c\C-gf" 'gnome-c-align-set-column)
     (define-key keymap "\C-c\C-gg" 'gnome-c-align-guess-columns)
-    (define-key keymap "\C-c\C-g\C-g" 'gnome-c-align-compute-optimal-columns)
+    (define-key keymap "\C-c\C-g\C-g" 'gnome-c-align-guess-optimal-columns)
     (define-key keymap "\C-c\C-gc" 'gnome-c-snippet-insert-package_class)
     (define-key keymap "\C-c\C-gC" 'gnome-c-snippet-insert-PACKAGE_CLASS)
     (define-key keymap "\C-c\C-g\C-c" 'gnome-c-snippet-insert-PackageClass)

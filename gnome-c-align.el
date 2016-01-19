@@ -190,7 +190,7 @@
 	arglist))))
 
 ;;;###autoload
-(defun gnome-c-align-at-point (&optional identifier-start-column)
+(defun gnome-c-align-arglist-at-point (&optional identifier-start-column)
   "Reformat argument list at point, aligning argument to the right end."
   (interactive)
   (save-excursion
@@ -409,7 +409,7 @@
 	      (push decl decls))))
 	decls))))
 
-(defun gnome-c-align--compute-optimal-columns (beg end)
+(defun gnome-c-align--guess-optimal-columns (beg end)
   (let ((buffer (current-buffer))
 	decls)
     (with-temp-buffer
@@ -434,14 +434,14 @@
 		    arglist-identifier-start-column))))))
 
 ;;;###autoload
-(defun gnome-c-align-compute-optimal-columns (beg end)
+(defun gnome-c-align-guess-optimal-columns (beg end)
   "Compute the optimal alignment rule from the declarations in BEG and END.
 
 This sets `gnome-c-align-identifier-start-column',
 `gnome-c-align-arglist-start-column', and
 `gnome-c-align-arglist-identifier-start-column'."
   (interactive "r")
-  (let ((columns (gnome-c-align--compute-optimal-columns beg end)))
+  (let ((columns (gnome-c-align--guess-optimal-columns beg end)))
     (setq gnome-c-align-identifier-start-column
 	  (cdr (assq 'identifier-start-column columns))
 	  gnome-c-align-arglist-start-column
@@ -489,7 +489,7 @@ This sets `gnome-c-align-identifier-start-column',
      gnome-c-align-arglist-identifier-start-column)))
 
 ;;;###autoload
-(defun gnome-c-align-region (beg end)
+(defun gnome-c-align-decls-region (beg end)
   "Reformat function declarations in the region between BEG and END."
   (interactive "r")
   (save-excursion
@@ -499,7 +499,7 @@ This sets `gnome-c-align-identifier-start-column',
 	(unless (and gnome-c-align-identifier-start-column
 		     gnome-c-align-arglist-start-column
 		     gnome-c-align-arglist-identifier-start-column)
-	  (let ((columns (gnome-c-align--compute-optimal-columns beg end)))
+	  (let ((columns (gnome-c-align--guess-optimal-columns beg end)))
 	    (unless gnome-c-align-identifier-start-column
 	      (setq gnome-c-align-identifier-start-column
 		    (cdr (assq 'identifier-start-column columns))))
@@ -522,7 +522,7 @@ This sets `gnome-c-align-identifier-start-column',
 	  (gnome-c-align--indent-to-column
 	   gnome-c-align-arglist-start-column)
 	  (forward-char)
-	  (gnome-c-align-at-point
+	  (gnome-c-align-arglist-at-point
 	   (- (- gnome-c-align-arglist-identifier-start-column
 		 (length "("))
 	      gnome-c-align-arglist-start-column)))))))

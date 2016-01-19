@@ -78,46 +78,46 @@ int *bar (const char * const **a,
           int                  b);
 ")
 
-(ert-deftest gnome-c-test-align--compute-optimal-columns ()
-  "Tests the `gnome-c-align--compute-optimal-columns'."
+(ert-deftest gnome-c-test-align--guess-optimal-columns ()
+  "Tests the `gnome-c-align--guess-optimal-columns'."
   (with-temp-buffer
     (insert gnome-c-test-program-1)
     (c-mode)
     (let* (gnome-c-align-max-column
 	   (columns
-	    (gnome-c-align--compute-optimal-columns (point-min) (point-max))))
+	    (gnome-c-align--guess-optimal-columns (point-min) (point-max))))
       (should (= (cdr (assq 'identifier-start-column columns)) 9))
       (should (= (cdr (assq 'arglist-start-column columns)) 41))
       (should (= (cdr (assq 'arglist-identifier-start-column columns)) 64)))))
 
 (ert-deftest gnome-c-test-align-region ()
-  "Tests the `gnome-c-align-region'."
+  "Tests the `gnome-c-align-decls-region'."
   (with-temp-buffer
     (insert gnome-c-test-program-1)
     (c-mode)
     (let (gnome-c-align-max-column)
-      (gnome-c-align-compute-optimal-columns (point-min) (point-max))
-      (gnome-c-align-region (point-min) (point-max)))
+      (gnome-c-align-guess-optimal-columns (point-min) (point-max))
+      (gnome-c-align-decls-region (point-min) (point-max)))
     (should (equal (buffer-string) gnome-c-test-program-1-aligned))))
 
 (ert-deftest gnome-c-test-align-region-2 ()
-  "Tests the `gnome-c-align-region'."
+  "Tests the `gnome-c-align-decls-region'."
   (with-temp-buffer
     (insert gnome-c-test-program-4)
     (c-mode)
     (let (gnome-c-align-max-column)
-      (gnome-c-align-compute-optimal-columns (point-min) (point-max))
-      (gnome-c-align-region (point-min) (point-max)))
+      (gnome-c-align-guess-optimal-columns (point-min) (point-max))
+      (gnome-c-align-decls-region (point-min) (point-max)))
     (should (equal (buffer-string) gnome-c-test-program-4-aligned))))
 
 (ert-deftest gnome-c-test-align-region-3 ()
-  "Tests the `gnome-c-align-region'."
+  "Tests the `gnome-c-align-decls-region'."
   (with-temp-buffer
     (insert gnome-c-test-program-5)
     (c-mode)
     (let (gnome-c-align-max-column)
-      (gnome-c-align-compute-optimal-columns (point-min) (point-max))
-      (gnome-c-align-region (point-min) (point-max)))
+      (gnome-c-align-guess-optimal-columns (point-min) (point-max))
+      (gnome-c-align-decls-region (point-min) (point-max)))
     (should (equal (buffer-string) gnome-c-test-program-5-aligned))))
 
 (ert-deftest gnome-c-test-align-guess-columns-1 ()

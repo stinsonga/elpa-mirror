@@ -318,7 +318,7 @@ GObjectConstructParam *construct_properties)\n")
     (if gnome-c-snippet-align-arglist
 	(progn
 	  (goto-char arglist-start)
-	  (gnome-c-align-at-point))
+	  (gnome-c-align-arglist-at-point))
       (indent-region arglist-start (point)))
     (goto-char body-start)
     (insert "{
@@ -350,7 +350,7 @@ GParamSpec *pspec)\n")
     (if gnome-c-snippet-align-arglist
 	(progn
 	  (goto-char arglist-start)
-	  (gnome-c-align-at-point))
+	  (gnome-c-align-arglist-at-point))
       (indent-region arglist-start (point)))
     (goto-char body-start)
     (insert "{
@@ -387,7 +387,7 @@ GParamSpec *pspec)\n")
     (if gnome-c-snippet-align-arglist
 	(progn
 	  (goto-char arglist-start)
-	  (gnome-c-align-at-point))
+	  (gnome-c-align-arglist-at-point))
       (indent-region arglist-start (point)))
     (goto-char body-start)
     (insert "{
