@@ -19,20 +19,24 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 ;;
-;;; History: first experimental version Jan 2013
+
+;;; Commentary:
+;; 
+
+;;;; History: first experimental version Jan 2013
 ;;
-;;; Context
+;;;; Context
 ;;
 ;; Semantic (info "(semantic)Top") provides an LALR(1) parser
-;; wisent-parse. The grammar used is defined by the functions
+;; wisent-parse.  The grammar used is defined by the functions
 ;; semantic-grammar-create-package, which reads a bison-like source
 ;; file and produces corresponding elisp source, and
 ;; wisent-compile-grammar, which generates a parser table.
 ;;
 ;; However, the algorithm used in wisent-compile-grammar cannot cope
 ;; with the grammar for the Ada language, because it is not
-;; LALR(1). So we provide a generalized LALR parser, which spawns
-;; parallel LALR parsers at each conflict. Instead of also rewriting
+;; LALR(1).  So we provide a generalized LALR parser, which spawns
+;; parallel LALR parsers at each conflict.  Instead of also rewriting
 ;; the entire semantic grammar compiler, we use the OpenToken LALR
 ;; parser generator, which is easier to modify (it is written in Ada,
 ;; not Lisp).
@@ -231,5 +235,4 @@ names have the format nonterm:index."
       )))
 
 (provide 'wisi-compile)
-
-;;;; end of file
+;;; wisi-compile.el ends here

@@ -124,6 +124,7 @@ RIGHT if only on the right side."
 
 (defun ztree-diff-untrampify-filename (file)
   "Return FILE as the local file name."
+  ;; FIXME: We shouldn't use internal Tramp functions.
   (require 'tramp)
   (if (not (tramp-tramp-file-p file))
       file
@@ -136,6 +137,10 @@ RIGHT if only on the right side."
 (defun ztree-diff-model-files-equal (file1 file2)
   "Compare files FILE1 and FILE2 using external diff.
 Returns t if equal."
+  ;; FIXME: This "untrampification" only works if both file1 and file2 are on
+  ;; the same host.
+  ;; FIXME: We assume that default-directory is also on the same host as
+  ;; file(1|2).
   (let* ((file1-untrampified (ztree-diff-untrampify-filename (ztree-diff-modef-quotify-string file1)))
          (file2-untrampified (ztree-diff-untrampify-filename (ztree-diff-modef-quotify-string file2)))
          (diff-command (concat "diff -q" " " file1-untrampified " " file2-untrampified))
@@ -154,8 +159,7 @@ Filters out . and .."
   "Rescan the NODE."
   ;; assuming what parent is always exists
   ;; otherwise the UI shall force the full rescan
-  (let ((parent (ztree-diff-node-parent node))
-        (isdir (ztree-diff-node-is-directory node))
+  (let ((isdir (ztree-diff-node-is-directory node))
         (left (ztree-diff-node-left-path node))
         (right (ztree-diff-node-right-path node)))
     ;; if node is a directory - traverse

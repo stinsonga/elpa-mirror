@@ -543,7 +543,7 @@ Optional argument FACE face to write text with."
     (move-to-column offset t)
     (delete-region (point) (line-end-position))
     (when (> depth 0)
-      (dotimes (i depth)
+      (dotimes (_ depth)
         (insert " ")
         (insert-char ?\s 3)))           ; insert 3 spaces
     (when (> (length short-name) 0)
@@ -584,13 +584,12 @@ Optional argument LINE scroll to the line given."
     ;; used in 2-side tree mode
     (when ztree-node-side-fun
       (setq ztree-line-tree-properties (make-hash-table)))
-    (toggle-read-only)
-    (erase-buffer)
-    (funcall ztree-tree-header-fun)
-    (setq ztree-start-line (line-number-at-pos (point)))
-    (ztree-insert-node-contents ztree-start-node)
-    (scroll-to-line (if line line ztree-start-line))
-    (toggle-read-only)))
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (funcall ztree-tree-header-fun)
+      (setq ztree-start-line (line-number-at-pos (point)))
+      (ztree-insert-node-contents ztree-start-node))
+    (scroll-to-line (if line line ztree-start-line))))
 
 
 (defun ztree-view (
