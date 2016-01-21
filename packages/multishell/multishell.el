@@ -319,11 +319,7 @@ customize the savehist group to activate savehist."
          (curr-buff-proc (get-buffer-process from-buffer))
          (target-buffer (if from-buffer-is-shell
                             from-buffer
-                          (let ((got (get-buffer target-shell-buffer-name)))
-                            (if (buffer-live-p got)
-                                got
-                              (kill-buffer got)
-                              (get-buffer target-shell-buffer-name)))))
+                          (get-buffer target-shell-buffer-name)))
          inwin
          already-there)
 
@@ -539,15 +535,16 @@ Return them as a list (name dir), with dir nil if none given."
         (cd default-directory)
       (error
        ;; Aargh. Need to isolate this tramp bug.
-       (when (and (stringp (cadr err))
-                  (string-equal (cadr err)
-                                "Selecting deleted buffer"))
-         (signal (car err)
-                 (list
-                  (format "%s, %s (\"%s\")"
-                          "Tramp shell can fail on empty (homedir) path"
-                          "please try again with an explicit path"
-                          (cadr err)))))))
+       (if (and (stringp (cadr err))
+                (string-equal (cadr err)
+                              "Selecting deleted buffer"))
+           (signal (car err)
+                   (list
+                    (format "%s, %s (\"%s\")"
+                            "Tramp shell can fail on empty (homedir) path"
+                            "please try again with an explicit path"
+                            (cadr err))))
+         (signal (car err)(cdr err)))))
     (setq buffer (set-buffer (apply 'make-comint
                                     (multishell-unbracket-asterisks buffer-name)
                                     prog
