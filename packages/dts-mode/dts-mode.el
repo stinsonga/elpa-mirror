@@ -163,7 +163,9 @@
   (dts--using-macro syntax-propertize-rules
     (set (make-local-variable 'syntax-propertize-function)
          (syntax-propertize-rules
-          ("#include[ \t]+\\(<\\).*\\(>\\)" (1 "|") (2 "|")))))
+          ("#include[ \t]+\\(<\\).*\\(>\\)" (1 "|") (2 "|"))
+          ;; Treat things like /delete-property/ as a single identifier.
+          ("\\(/\\)[a-z]+\\(/\\)" (1 "_") (2 "_")))))
   (if dts-use-smie
       (smie-setup dts-grammar #'dts-indent-rules)
     (set (make-local-variable 'indent-line-function) #'dts-indent-line)))
