@@ -1,6 +1,6 @@
 ;;; lex.el --- Lexical analyser construction  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2008,2013,2014  Free Software Foundation, Inc.
+;; Copyright (C) 2008,2013,2014,2015  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords:
@@ -918,7 +918,15 @@ Returns a new NFA."
 
     res))
 
+;;;###autoload
 (defun lex-compile (alist)
+  "Compile a set of regular expressions.
+ALIST is a list of elements of the form (REGEXP . VALUE).
+The compiled automaton will match all those regexps at the same time
+and will return the VALUE fof the leftmost longest match.
+
+Each REGEXP object should be in the sexp form described in the
+Commentary section."
   (lex--dfa-wrapper
    (lambda ()
      (let* ((lex--char-equiv-table
