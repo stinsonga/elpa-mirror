@@ -1,6 +1,6 @@
 ;;; f90-interface-browser.el --- Parse and browse f90 interfaces
 
-;; Copyright (C) 2011, 2012, 2013, 2014  Free Software Foundation, Inc
+;; Copyright (C) 2011, 2012, 2013, 2014, 2015  Free Software Foundation, Inc
 
 ;; Author: Lawrence Mitchell <wence@gmx.li>
 ;; Created: 2011-07-06
@@ -272,7 +272,8 @@ an alphanumeric character."
   (loop for file in (directory-files dir t
                                      (rx-to-string
                                       `(and "." (or ,@f90-file-extensions)
-                                            eos) t))
+                                            eos)
+                                      t))
         do (f90-parse-interfaces file f90-all-interfaces)))
 
 (defun f90-find-tag-interface (name &optional match-sublist)
@@ -530,11 +531,11 @@ default is the type of the variable."
       "UNION-TYPE"
     ;; Ignore name
     (setq type (cdr type))
-    (mapconcat 'identity (loop for a in type
+    (mapconcat #'identity (loop for a in type
                                if (and (consp a)
                                        (string= (car a) "dimension"))
                                collect (format "dimension(%s)"
-                                               (mapconcat 'identity
+                                               (mapconcat #'identity
                                                           (make-list (cdr a)
                                                                      ":")
                                                           ","))
@@ -555,9 +556,10 @@ default is the type of the variable."
                          arglist "\n")))
     (f90-mode)
     (if (fboundp 'font-lock-ensure)
-        (font-lock-ensure) (font-lock-fontify-buffer))
+        (font-lock-ensure)
+      (with-no-warnings (font-lock-fontify-buffer)))
     (goto-char (point-min))
-    (mapconcat 'identity
+    (mapconcat #'identity
                (loop while (not (eobp))
                      collect (buffer-substring (line-beginning-position)
                                                (- (line-end-position)
@@ -817,16 +819,16 @@ needs a reference count interface, so insert one."
 
 (defun f90-parse-type-definition ()
   "Parse a type definition at (or in front of) `point'."
-  (let (type slots slot fn)
-    (goto-char (point-min))
-    (unless (re-search-forward "^[ \t]*type[ \t]+\\(.+?\\)[ \t]*$" nil t)
-      (error "Trying parse a type but no type found"))
-    (setq type (format "type(%s)" (f90-normalise-string (match-string 1))))
+  (goto-char (point-min))
+  (unless (re-search-forward "^[ \t]*type[ \t]+\\(.+?\\)[ \t]*$" nil t)
+    (error "Trying parse a type but no type found"))
+  (let ((type (format "type(%s)" (f90-normalise-string (match-string 1))))
+        (slots ()))
     (while (not (eobp))
-      (setq slot (f90-parse-single-type-declaration))
-      (when slot
-        (setf slots (nconc slot slots)))
-      (forward-line 1))
+      (let ((slot (f90-parse-single-type-declaration)))
+        (when slot
+          (setf slots (nconc slot slots)))
+        (forward-line 1)))
     (setf (gethash type f90-types) slots)))
 
 (defun f90-arglist-types ()
