@@ -1,24 +1,15 @@
 gnome-c-style
 ======
 
-In the C coding style commonly used in GNOME, identifiers are written
-in camel case and function arguments are aligned to the right end.
-That makes it a bit cumbersome to keep your code consistent with the
-style, even with align.el or plugins like yasnippet.
-
-gnome-c-style is an Emacs minor mode intended to help editing C
-source code in that style.  It mainly provides two features: text
-alignment and snippet insersion.
+gnome-c-style is an Emacs minor mode for editing C source code in [GNOME C coding style](https://developer.gnome.org/programming-guidelines/stable/c-coding-style.html.en).  In particular, it is useful to properly line-up [function arguments](https://developer.gnome.org/programming-guidelines/stable/c-coding-style.html.en#functions) and [function declarations in header files](https://developer.gnome.org/programming-guidelines/stable/c-coding-style.html.en#functions).
 
 Install
 ------
 
-* Type "make"
-* Copy .elc files somewhere in your load-path
+* M-x package-install gnome-c-style
 * Add the following lines to ~/.emacs/init.el:
 
 ```
-(autoload 'gnome-c-style-mode "gnome-c-style" "GNOME-style C minor mode" t)
 (add-hook 'c-mode-hook 'gnome-c-style-mode)
 ```
 

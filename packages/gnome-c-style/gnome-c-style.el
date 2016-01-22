@@ -30,10 +30,10 @@
 ;; <https://developer.gnome.org/programming-guidelines/stable/c-coding-style.html.en#functions>
 ;;
 ;; It basically provides two functions: code alignment and snippet
-;; insertion.  To align code, use `gnome-c-style-align-region' to
-;; line-up multiple function declarations in region, and
-;; `gnome-c-style-align-at-point' to line-up arguments in the argument
-;; list at point.
+;; insertion.  To align code, use `gnome-c-style-align-decls-region'
+;; to line-up multiple function declarations in region, and
+;; `gnome-c-style-align-arglist-at-point' to line-up arguments in the
+;; argument list at point.
 ;;
 ;; To insert code snippet, use `gnome-c-snippet-insert'.  The command
 ;; will let you choose a template to be inserted.  This package also
