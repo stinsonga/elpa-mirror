@@ -57,14 +57,14 @@ Mark the region, type ```C-c C-g C-g```, and you will see the optimum
 alignment columns:
 
 ```
-identifier-start: 9, arglist-start: 41, arglist-identifier-start: 63
+identifier-start: 9, arglist-start: 41, arglist-identifier-start: 64
 ```
 
 Then, mark the region again, type ```C-c C-g r```, and you will get
 the code aligned:
 
 ```c
-GGpgCtx *g_gpg_ctx_new                   (GError             **error);
+GGpgCtx *g_gpg_ctx_new                   (GError              **error);
 
 typedef void (*GGpgProgressCallback) (gpointer user_data,
                                       const gchar *what,
@@ -72,16 +72,16 @@ typedef void (*GGpgProgressCallback) (gpointer user_data,
                                       gint current,
                                       gint total);
 
-void     g_gpg_ctx_set_progress_callback (GGpgCtx             *ctx,
-                                          GGpgProgressCallback callback,
-                                          gpointer             user_data,
-                                          GDestroyNotify       destroy_data);
-void     g_gpg_ctx_add_signer            (GGpgCtx             *ctx,
-                                          GGpgKey             *key);
-guint    g_gpg_ctx_get_n_signers         (GGpgCtx             *ctx);
-GGpgKey *g_gpg_ctx_get_signer            (GGpgCtx             *ctx,
-                                          guint                index);
-void     g_gpg_ctx_clear_signers         (GGpgCtx             *ctx);
+void     g_gpg_ctx_set_progress_callback (GGpgCtx              *ctx,
+                                          GGpgProgressCallback  callback,
+                                          gpointer              user_data,
+                                          GDestroyNotify        destroy_data);
+void     g_gpg_ctx_add_signer            (GGpgCtx              *ctx,
+                                          GGpgKey              *key);
+guint    g_gpg_ctx_get_n_signers         (GGpgCtx              *ctx);
+GGpgKey *g_gpg_ctx_get_signer            (GGpgCtx              *ctx,
+                                          guint                 index);
+void     g_gpg_ctx_clear_signers         (GGpgCtx              *ctx);
 ```
 
 Note that ```typedef``` is skipped as it is not a function declaration.
