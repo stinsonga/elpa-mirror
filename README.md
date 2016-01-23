@@ -1,7 +1,9 @@
 gnome-c-style
 ======
 
-gnome-c-style is an Emacs minor mode for editing C source code in [GNOME C coding style](https://developer.gnome.org/programming-guidelines/stable/c-coding-style.html.en).  In particular, it is useful to properly line-up [function arguments](https://developer.gnome.org/programming-guidelines/stable/c-coding-style.html.en#functions) and [function declarations in header files](https://developer.gnome.org/programming-guidelines/stable/c-coding-style.html.en#functions).
+gnome-c-style is an Emacs minor mode for editing C source code in [GNOME C coding style](https://developer.gnome.org/programming-guidelines/stable/c-coding-style.html.en).
+In particular, it is useful to properly line-up [function arguments](https://developer.gnome.org/programming-guidelines/stable/c-coding-style.html.en#functions) and
+[function declarations in header files](https://developer.gnome.org/programming-guidelines/stable/c-coding-style.html.en#header-files).
 
 Install
 ------
