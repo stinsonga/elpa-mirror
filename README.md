@@ -5,13 +5,11 @@ gnome-c-style is an Emacs minor mode for editing C source code in [GNOME C codin
 In particular, it is useful to properly line-up [function arguments](https://developer.gnome.org/programming-guidelines/stable/c-coding-style.html.en#functions) and
 [function declarations in header files](https://developer.gnome.org/programming-guidelines/stable/c-coding-style.html.en#header-files).
 
-It also provides commands to insert basic snippets.
-
 Install
 ------
 
-* M-x package-install gnome-c-style
-* Add the following lines to ~/.emacs/init.el:
+* `M-x package-install gnome-c-style`
+* Add the following lines to `~/.emacs/init.el`:
 
 ```
 (add-hook 'c-mode-hook 'gnome-c-style-mode)
@@ -27,9 +25,9 @@ Usage
 | C-c C-g C-g | Compute optimal alignment columns from the current region |
 | C-c C-g g   | Guess alignment columns from the current region           |
 | C-c C-g f   | Set alignment column to the current point                 |
-| C-c C-g c   | Insert ```module_object```                                |
-| C-c C-g C   | Insert ```MODULE_OBJECT```                                |
-| C-c C-g C-c | Insert ```ModuleObject```                                 |
+| C-c C-g c   | Insert `module_object`                                    |
+| C-c C-g C   | Insert `MODULE_OBJECT`                                    |
+| C-c C-g C-c | Insert `ModuleObject`                                     |
 | C-c C-g s   | Insert custom snippet                                     |
 
 Example
@@ -55,15 +53,15 @@ GGpgKey *g_gpg_ctx_get_signer (GGpgCtx *ctx, guint index);
 void g_gpg_ctx_clear_signers (GGpgCtx *ctx);
 ```
 
-Mark the region, type ```C-c C-g C-g```, and you will see the optimum
+Mark the region, type `C-c C-g C-g`, and you will see the optimum
 alignment columns:
 
 ```
 identifier-start: 9, arglist-start: 41, arglist-identifier-start: 64
 ```
 
-Then, mark the region again, type ```C-c C-g r```, and you will get
-the code aligned:
+Then, mark the region again, type `C-c C-g r`, and you will get the
+code aligned:
 
 ```c
 GGpgCtx *g_gpg_ctx_new                   (GError              **error);
@@ -86,4 +84,5 @@ GGpgKey *g_gpg_ctx_get_signer            (GGpgCtx              *ctx,
 void     g_gpg_ctx_clear_signers         (GGpgCtx              *ctx);
 ```
 
-Note that ```typedef``` is skipped as it is not a function declaration.
+Note that the `typedef` statement is skipped as it is not a function
+declaration.
