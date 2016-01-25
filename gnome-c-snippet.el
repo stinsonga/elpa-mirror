@@ -328,7 +328,7 @@ GObjectConstructParam *construct_properties)\n")
   " (gnome-c-snippet--format-PackageClass package class) " *self = "
   (gnome-c-snippet--format-PACKAGE_CLASS package class) " (object);
 
-  G_OBJECT_CLASS (" (gnome-c-snippet--format-package_class package class) "_parent_class)->constructed (type, n_construct_properties, construct_properties);
+  G_OBJECT_CLASS (" (gnome-c-snippet--format-package_class package class) "_parent_class)->constructor (type, n_construct_properties, construct_properties);
 }
 ")
     (indent-region body-start (point))))
@@ -548,7 +548,7 @@ static void
     ("GObjectClass.dispatch_properties_changed" .
      gnome-c-snippet-insert-dispatch_properties_changed)
     ("GObjectClass.notify" . gnome-c-snippet-insert-notify)
-    ("GObjectClass.contructed" . gnome-c-snippet-insert-constructed)))
+    ("GObjectClass.constructed" . gnome-c-snippet-insert-constructed)))
 
 ;;;###autoload
 (defun gnome-c-snippet-insert (snippet)
