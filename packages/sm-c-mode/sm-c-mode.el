@@ -640,6 +640,16 @@ if INNER is non-nil, it stops at the innermost one."
                                   0
                                 (funcall smie-rules-function :elem 'basic))
                               (smie-indent-virtual))))
+              ((and (member tok '("enum" "struct"))
+                    ;; Make sure that the {...} is about this struct/enum, as
+                    ;; opposed to "struct foo *get_foo () {...}"!
+                    (save-excursion
+                      (smie-indent-forward-token)
+                      (smie-indent-forward-token)
+                      (forward-comment (point-max))
+                      (>= (point) pos)))
+               `(column . ,(+ (funcall smie-rules-function :elem 'basic)
+                              (smie-indent-virtual))))
               ((or (member tok sm-c-paren-block-keywords)
                    (equal tok "do"))
                nil)
