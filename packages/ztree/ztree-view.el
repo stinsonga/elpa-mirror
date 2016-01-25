@@ -326,11 +326,13 @@ Argument NODE node which contents will be returned."
                             (funcall ztree-node-short-name-fun y)))))
     (cons (sort (ztree-filter
                  #'(lambda (f) (funcall ztree-node-is-expandable-fun f))
-                 nodes) comp)
+                 nodes)
+                comp)
           (sort (ztree-filter
                  #'(lambda (f) (not (funcall ztree-node-is-expandable-fun f)))
-                 nodes) comp))))
-
+                 nodes)
+                comp))))
+                
 
 (defun ztree-draw-char (c x y &optional face)
   "Draw char C at the position (1-based) (X Y).

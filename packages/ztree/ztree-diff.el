@@ -217,9 +217,11 @@ Argument NODE node containing paths to files to call a diff on."
 2 if left or right present - view left or rigth"
   (let ((left (ztree-diff-node-left-path node))
         (right (ztree-diff-node-right-path node))
+        ;; FIXME: The GNU convention is to only use "path" for lists of
+        ;; directories as in load-path.
         (open-f #'(lambda (path) (if hard (find-file path)
-                                  (let ((split-width-threshold nil))
-                                    (view-file-other-window path))))))
+                              (let ((split-width-threshold nil))
+                                (view-file-other-window path))))))
     (cond ((and left right)
            (if (not (ztree-diff-node-different node))
                (funcall open-f left)
@@ -252,11 +254,11 @@ COPY-TO-RIGHT specifies which side of the NODE to update."
         (progn              ; otherwise:
           ;; assuming all went ok when left and right nodes are the same
           ;; set both as not different
-          (ztree-diff-node-set-different node nil)
+          (setf (ztree-diff-node-different node) nil)
           ;; update left/right paths
           (if copy-to-right
-              (ztree-diff-node-set-right-path node target-path)
-            (ztree-diff-node-set-left-path node target-path))
+              (setf (ztree-diff-node-right-path node) target-path)
+            (setf (ztree-diff-node-left-path node) target-path))
           (ztree-diff-node-update-all-parents-diff node)
           (ztree-refresh-buffer (line-number-at-pos)))))))
 
@@ -283,10 +285,10 @@ COPY-TO-RIGHT specifies which side of the NODE to update."
         (progn
           (message target-full-path)
           (if copy-to-right
-              (ztree-diff-node-set-right-path node
-                                              target-full-path)
-            (ztree-diff-node-set-left-path node
-                                           target-full-path))
+              (setf (ztree-diff-node-right-path node)
+                    target-full-path)
+            (setf (ztree-diff-node-left-path node)
+                  target-full-path))
           (ztree-diff-model-update-node node)
           (ztree-diff-node-update-all-parents-diff node)
           (ztree-refresh-buffer (line-number-at-pos)))))))
@@ -411,7 +413,7 @@ COPY-TO-RIGHT specifies which side of the NODE to update."
                   (setq children (ztree-filter
                                   #'(lambda (x) (not (ztree-diff-node-equal x node)))
                                   children))
-                  (ztree-diff-node-set-children parent children))
+                  (setf (ztree-diff-node-children parent) children))
                 (ztree-diff-node-update-all-parents-diff node)
                 ;;(ztree-diff-model-partial-rescan node)
                 (ztree-refresh-buffer (line-number-at-pos))))))))))
