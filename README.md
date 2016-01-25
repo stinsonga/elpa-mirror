@@ -9,7 +9,7 @@ Install
 ------
 
 * `M-x package-install gnome-c-style`
-* Add the following lines to `~/.emacs.d/init.el`:
+* Add the following line to `~/.emacs.d/init.el`:
 
 ```
 (add-hook 'c-mode-hook 'gnome-c-style-mode)
