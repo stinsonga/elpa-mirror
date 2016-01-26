@@ -493,7 +493,19 @@ This sets `gnome-c-align-identifier-start-column',
 
 ;;;###autoload
 (defun gnome-c-align-decls-region (beg end)
-  "Reformat function declarations in the region between BEG and END."
+  "Reformat function declarations in the region between BEG and END.
+
+The `gnome-c-align-identifier-start-column',
+`gnome-c-align-arglist-start-column', and
+`gnome-c-align-arglist-identifier-start-column' variables
+control the widths.
+
+To set those variables, use \\[gnome-c-align-set-column],
+\\[gnome-c-align-guess-columns], or
+\\[gnome-c-align-guess-optimal-columns].
+
+If they are not set, this function internally calls
+\\[gnome-c-align-guess-optimal-columns] before formatting."
   (interactive "r")
   (save-excursion
     (let (decls)
@@ -513,8 +525,8 @@ This sets `gnome-c-align-identifier-start-column',
 	      (setq gnome-c-align-arglist-identifier-start-column
 		    (cdr (assq 'arglist-identifier-start-column columns))))))
 	(setq decls (gnome-c-align--scan-decls beg end))
-	(mapc #'gnome-c-align--normalize-decl decls)
 	(dolist (decl decls)
+	  (gnome-c-align--normalize-decl decl)
 	  (goto-char (gnome-c-align--decl-identifier-start decl))
 	  (gnome-c-align--indent-to-column
 	   gnome-c-align-identifier-start-column)
