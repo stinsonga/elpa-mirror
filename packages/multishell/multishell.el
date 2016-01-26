@@ -27,14 +27,14 @@
 ;;   ... and use a path with Emacs tramp syntax to launch a remote shell -
 ;;   for example:
 ;;
-;;   * `#root/sudo:root@localhost:/etc` for a buffer named "#root" with a
+;;   * `#root/sudo:root@localhost:/etc` for a buffer named "*#root*" with a
 ;;     root shell starting in /etc.
 ;;
-;;   * `/ssh:example.net:/` for a shell buffer in / on example.net.
+;;   * `/ssh:example.net:` for a shell buffer in your homedir on example.net.
 ;;     The buffer will be named "*example.net*".
 ;;
-;;   * `#ex/ssh:example.net|sudo:root@example.net:/etc` for a root shell
-;;     starting in /etc on example.net named "*#ex*".
+;;   * `#ex/ssh:example.net|sudo:root@example.net:/var/log` for a root shell
+;;     starting in /var/log on example.net named "*#ex*".
 ;;
 ;;   * 'interior/ssh:gateway.corp.com|ssh:interior.corp.com:' to go via
 ;;     gateway.corp.com to your homedir on interior.corp.com.  The buffer
@@ -96,6 +96,17 @@
 ;;   - some way for user to toggle between presenting just buffer names vs
 ;;     full buffer/path
 ;;     - without cutting user off from easy editing of path
+;;     - maybe use keybindings that wrap minibuffer completion keys
+;;       - minibuffer-local-completion-map, minibuffer-local-must-match-map
+;;         - setup minibuffer with these vars just before doing completions
+;;         - minibuffer exit reverts these vars, if necessary
+;;       - toggles between name and name/path if last command was one of them
+;;       - and an instruction in the completion buffer
+;;       - "complete again immediately to toggle name vs name/path completions"
+;; * Add custom shell launch prep actions
+;;   - shell commands to execute when shell name or path matches a regexp
+;;   - list of [regexp, which (name, path, or both), command]
+;;   - for, eg, knock commands or interface activations, whatever
 ;; * Try minibuffer field boundary at beginning of tramp path, to see whether
 ;;   the field boundary magically enables tramp path completion.
 ;; * Assess whether deletion of history entry via kill-buffer is sufficient.
@@ -165,8 +176,11 @@ lisp, eg: (global-set-key \"\\M- \" 'multishell-pop-to-shell)."
   :group 'multishell)
 
 ;; Implement the key customization whenever the package is loaded:
-(with-eval-after-load "multishell"
-  (multishell-implement-command-key-choice))
+(if (fboundp 'with-eval-after-load)
+    (with-eval-after-load "multishell"
+			  (multishell-implement-command-key-choice))
+  (eval-after-load "multishell"
+    (multishell-implement-command-key-choice)))
 
 (defcustom multishell-pop-to-frame nil
   "*If non-nil, jump to a frame already showing the shell, if another one is.
@@ -206,27 +220,13 @@ path) will be conveyed between emacs sessions."
 (defvar multishell-primary-name "*shell*"
   "Default shell name for un-modified multishell-pop-to-shell buffer target.
 
-This is adjusted by `multishell-pop-to-shell' when it is
-invoked (with doubled universal argument) to set the default.
+This is set by `multishell-pop-to-shell' as the current default,
+when invoked with doubled universal argument.
 
-To preserve changes to this setting across emacs restarts, add it
-to `savehist-additional-variables' by customizing the latter.")
-
-;;; Can't just add multishell-primary-name to savehist-additional-variables
-;;; - it'll be lost any time the user runs emacs without loading
-;;; multishell.  So instead, inform the user that they can customize
-;;; savehist-additional-variables.
-;;;
-;;; I suspect that including savehist-additional-variables *on*
-;;; savehist-additional-variables could avoid this problem, as long as it
-;;; doesn't conflict with user customizations. However, even if that works,
-;;; doing so from multishell would change a behavior (for the better, but)
-;;; beyond multishell's scope, making the change hard to track down.
-
-;; (when (not (member 'multishell-primary-name
-;;                    savehist-additional-variables))
-;;   (setq savehist-additional-variables
-;;         (cons 'multishell-primary-name savehist-additional-variables)))
+If you want the designated primary that you have at the end of
+one emacs session to be resumed at the next, customize
+`savehist-additional-variables' to include the
+`multishell-primary-name'.")
 
 ;; Multiple entries happen because completion also adds name to history.
 (defun multishell-register-name-to-path (name path)
@@ -248,13 +248,14 @@ Promote added/changed entry to the front of the list."
 
 (defun multishell-history-entries (name)
   "Return `multishell-history' entry that starts with NAME, or nil if none."
-  (let ((match-expr (concat "^" name "\\\(/.*$\\\)?$"))
-        got)
-    (dolist (entry multishell-history)
-      (when (and (string-match match-expr entry)
-                 (not (member entry got)))
-        (setq got (cons entry got))))
-    got))
+  (save-match-data
+    (let ((match-expr (concat "^" name "\\\(/.*$\\\)?$"))
+          got)
+      (dolist (entry multishell-history)
+        (when (and (string-match match-expr entry)
+                   (not (member entry got)))
+          (setq got (cons entry got))))
+      got)))
 
 (defun multishell-pop-to-shell (&optional arg)
   "Easily navigate to and within multiple shell buffers, local and remote.
@@ -322,14 +323,14 @@ the buffer name. Otherwise, the host, domain, or path is used.
 
 For example:
 
-* '#root/sudo:root@localhost:/etc' for a buffer named \"#root\" with a
+* '#root/sudo:root@localhost:/etc' for a buffer named \"*#root*\" with a
   root shell starting in /etc.
 
-* '/ssh:example.net:/' for a shell buffer in / on example.net; the buffer
-  will be named \"*example.net*\".
+* '/ssh:example.net:' for a shell buffer in your homedir on example.net. 
+  The buffer will be named \"*example.net*\".
 
-* '#ex/ssh:example.net|sudo:root@example.net:/etc' for a root shell
-  starting in /etc on example.net named \"*#ex*\".
+* '#ex/ssh:example.net|sudo:root@example.net:/var/log' for a root shell
+  starting in /var/log on example.net named \"*#ex*\".
 
 * 'interior/ssh:gateway.corp.com|ssh:interior.corp.com:' to go
   via gateway.corp.com to your homedir on interior.corp.com.  The
@@ -547,59 +548,26 @@ and path nil if none resolved."
                (multishell-unbracket-asterisks name))))
     (list (multishell-bracket-asterisks name) path)))
 
-(defun multishell-bracket-asterisks (name)
-  "Return a copy of name, ensuring it has an asterisk at the beginning and end."
-  (if (not (string= (substring name 0 1) "*"))
-      (setq name (concat "*" name)))
-  (if (not (string= (substring name -1) "*"))
-      (setq name (concat name "*")))
-  name)
-(defun multishell-unbracket-asterisks (name)
-  "Return a copy of name, removing asterisks, if any, at beginning and end."
-  (if (string= (substring name 0 1) "*")
-      (setq name (substring name 1)))
-  (if (string= (substring name -1) "*")
-      (setq name (substring name 0 -1)))
-  name)
-
 (defun multishell-start-shell-in-buffer (buffer-name path)
-  "Ensure a shell is started, with name NAME and PATH."
-  ;; We work around shell-mode's bracketing of the buffer name, and do
-  ;; some tramp-mode hygiene for remote connections.
-
-  (let* ((buffer buffer-name)
-         (prog (or explicit-shell-file-name
-                   (getenv "ESHELL")
-                   (getenv "SHELL")
-                   "/bin/sh"))
-         (name (file-name-nondirectory prog))
-         (startfile (concat "~/.emacs_" name))
-         (xargs-name (intern-soft (concat "explicit-" name "-args")))
+  "Start, restart, or continue a shell in BUFFER-NAME on PATH."
+  (let* ((buffer (get-buffer buffer-name))
          is-remote)
-    (set-buffer buffer-name)
-    (setq is-remote (and path (file-remote-p path)))
-    (when (and is-remote
-               (derived-mode-p 'shell-mode)
-               (not (comint-check-proc (current-buffer))))
-      ;; We're returning to an already established but disconnected remote
-      ;; shell, tidy it:
-      (tramp-cleanup-connection
-       (tramp-dissect-file-name default-directory 'noexpand)
-       'keep-debug 'keep-password))
-    (when is-remote
-      (message "Connecting to %s" path))
-    (if (and path (not (string= path "")))
-        (cd path))
-    (setq buffer (set-buffer (apply 'make-comint
-                                    (multishell-unbracket-asterisks buffer-name)
-                                    prog
-                                    (if (file-exists-p startfile)
-                                        startfile)
-                                    (if (and xargs-name
-                                             (boundp xargs-name))
-                                        (symbol-value xargs-name)
-                                      '("-i")))))
-    (shell-mode)))
+
+    (set-buffer buffer)
+
+    (when (and path (file-remote-p path))
+
+      (when (and (derived-mode-p 'shell-mode)
+                 (not (comint-check-proc (current-buffer))))
+        ;; Returning to disconnected remote shell. Do some tidying:
+        (tramp-cleanup-connection
+         (tramp-dissect-file-name default-directory 'noexpand)
+         'keep-debug 'keep-password))
+
+      (message "Connecting to %s" path)
+      (cd path))
+
+    (shell buffer)))
 
 (defun multishell-track-dirchange (name newpath)
   "Change multishell history entry to track current directory."
@@ -666,12 +634,27 @@ and path nil if none resolved."
   "Given multishell name/path ENTRY, return the separated name and path pair.
 
 Returns nil for empty parts, rather than the empty string."
-  (string-match "^\\([^/]*\\)\\(/?.*\\)?" entry)
-  (let ((name (match-string 1 entry))
-        (path (match-string 2 entry)))
-    (and (string= name "") (setq name nil))
-    (and (string= path "") (setq path nil))
-    (list name path)))
+  (save-match-data
+    (string-match "^\\([^/]*\\)\\(/?.*\\)?" entry)
+    (let ((name (match-string 1 entry))
+          (path (match-string 2 entry)))
+      (and (string= name "") (setq name nil))
+      (and (string= path "") (setq path nil))
+      (list name path))))
+(defun multishell-bracket-asterisks (name)
+  "Return a copy of name, ensuring it has an asterisk at the beginning and end."
+  (if (not (string= (substring name 0 1) "*"))
+      (setq name (concat "*" name)))
+  (if (not (string= (substring name -1) "*"))
+      (setq name (concat name "*")))
+  name)
+(defun multishell-unbracket-asterisks (name)
+  "Return a copy of name, removing asterisks, if any, at beginning and end."
+  (if (string= (substring name 0 1) "*")
+      (setq name (substring name 1)))
+  (if (string= (substring name -1) "*")
+      (setq name (substring name 0 -1)))
+  name)
 
 (provide 'multishell)
 
