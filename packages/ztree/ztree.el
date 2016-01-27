@@ -3,8 +3,8 @@
 ;; Copyright (C) 2013-2016  Free Software Foundation, Inc.
 ;;
 ;; Author: Alexey Veretennikov <alexey.veretennikov@gmail.com>
-;; Created: 2013-11-1l
-;; Version: 1.0.2
+;; Created: 2013-11-11
+;; Version: 1.0.3
 ;; Package-Requires: ((cl-lib "0"))
 ;; Keywords: files tools
 ;; URL: https://github.com/fourier/ztree
