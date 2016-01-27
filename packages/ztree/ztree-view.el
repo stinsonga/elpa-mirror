@@ -1,10 +1,10 @@
 ;;; ztree-view.el --- Text mode tree view (buffer) -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2013-2015  Free Software Foundation, Inc.
+;; Copyright (C) 2013-2016  Free Software Foundation, Inc.
 ;;
-;; Author: Alexey Veretennikov <alexey dot veretennikov at gmail dot com>
+;; Author: Alexey Veretennikov <alexey.veretennikov@gmail.com>
 ;; 
-;; Created: 2013-11-1l
+;; Created: 2013-11-11
 ;;
 ;; Keywords: files tools
 ;; URL: https://github.com/fourier/ztree
@@ -48,78 +48,65 @@
 ;; Globals
 ;;
 
-(defvar ztree-expanded-nodes-list nil
+(defvar ztree-draw-unicode-lines nil
+  "If set forces ztree to draw lines with unicode characters.")
+
+(defvar-local ztree-expanded-nodes-list nil
   "A list of Expanded nodes (i.e. directories) entries.")
-(make-variable-buffer-local 'ztree-expanded-nodes-list)
 
-(defvar ztree-start-node nil
+(defvar-local ztree-start-node nil
   "Start node(i.e. directory) for the window.")
-(make-variable-buffer-local 'ztree-start-node)
 
-(defvar ztree-line-to-node-table nil
+(defvar-local ztree-line-to-node-table nil
   "List of tuples with full node(i.e. file/directory name and the line.")
-(make-variable-buffer-local 'ztree-line-to-node-table)
 
-(defvar ztree-start-line nil
+(defvar-local ztree-start-line nil
   "Index of the start line - the root.")
-(make-variable-buffer-local 'ztree-start-line)
 
-(defvar ztree-parent-lines-array nil
+(defvar-local ztree-parent-lines-array nil
   "Array of parent lines.
 The ith value of the array is the parent line for line i.
 If ith value is i - it is the root line")
-(make-variable-buffer-local 'ztree-parent-lines-array)
 
-(defvar ztree-count-subsequent-bs nil
+(defvar-local ztree-count-subsequent-bs nil
   "Counter for the subsequest BS keys (to identify double BS).
 Used in order to not to use cl package and `lexical-let'")
-(make-variable-buffer-local 'ztree-count-subsequent-bs)
 
-(defvar ztree-line-tree-properties nil
+(defvar-local ztree-line-tree-properties nil
   "Hash with key - line number, value - property ('left, 'right, 'both).
 Used for 2-side trees, to determine if the node exists on left or right
 or both sides")
-(make-variable-buffer-local 'ztree-line-tree-properties)
 
-(defvar ztree-tree-header-fun nil
+(defvar-local ztree-tree-header-fun nil
   "Function inserting the header into the tree buffer.
 MUST inster newline at the end!")
-(make-variable-buffer-local 'ztree-tree-header-fun)
 
-(defvar ztree-node-short-name-fun nil
+(defvar-local ztree-node-short-name-fun nil
   "Function which creates a pretty-printable short string from the node.")
-(make-variable-buffer-local 'ztree-node-short-name-fun)
 
-(defvar ztree-node-is-expandable-fun nil
+(defvar-local ztree-node-is-expandable-fun nil
   "Function which determines if the node is expandable.
 For example if the node is a directory")
-(make-variable-buffer-local 'ztree-node-is-expandable-fun)
 
-(defvar ztree-node-equal-fun nil
+(defvar-local ztree-node-equal-fun nil
   "Function which determines if the 2 nodes are equal.")
-(make-variable-buffer-local 'ztree-node-equal-fun)
 
-(defvar ztree-node-contents-fun nil
+(defvar-local ztree-node-contents-fun nil
   "Function returning list of node contents.")
-(make-variable-buffer-local 'ztree-node-contents-fun)
 
-(defvar ztree-node-side-fun nil
+(defvar-local ztree-node-side-fun nil
   "Function returning position of the node: 'left, 'right or 'both.
 If not defined(by default) - using single screen tree, otherwise
 the buffer is split to 2 trees")
-(make-variable-buffer-local 'ztree-node-side-fun)
 
-(defvar ztree-node-face-fun nil
+(defvar-local ztree-node-face-fun nil
   "Function returning face for the node.")
-(make-variable-buffer-local 'ztree-node-face-fun)
 
-(defvar ztree-node-action-fun nil
+(defvar-local ztree-node-action-fun nil
   "Function called when Enter/Space pressed on the node.")
-(make-variable-buffer-local 'ztree-node-action-fun)
 
-(defvar ztree-node-showp-fun nil
+(defvar-local ztree-node-showp-fun nil
   "Function called to decide if the node should be visible.")
-(make-variable-buffer-local 'ztree-node-showp-fun)
 
 
 ;;
@@ -176,7 +163,9 @@ the buffer is split to 2 trees")
 (define-derived-mode ztree-mode special-mode "Ztree"
   "A major mode for displaying the directory tree in text mode."
   ;; only spaces
-  (setq indent-tabs-mode nil))
+  (setq indent-tabs-mode nil)
+  (setq	buffer-read-only t))
+
 
 (defun ztree-find-node-in-line (line)
   "Return the node for the LINE specified.
@@ -343,45 +332,66 @@ Optional argument FACE face to use to draw a character."
     (goto-char (+ x (-(point) 1)))
     (delete-char 1)
     (insert-char c 1)
-    (put-text-property (1- (point)) (point) 'face (if face face 'ztreep-arrow-face))))
+    (put-text-property (1- (point)) (point) 'font-lock-face (if face face 'ztreep-arrow-face))))
+
+(defun ztree-vertical-line-char ()
+  "Return the character used to draw vertical line"
+  (if ztree-draw-unicode-lines #x2502 ?\|))
+
+(defun ztree-horizontal-line-char ()
+  "Return the character used to draw vertical line"
+  (if ztree-draw-unicode-lines #x2500 ?\-))
+
+(defun ztree-left-bottom-corner-char ()
+  "Return the character used to draw vertical line"
+  (if ztree-draw-unicode-lines #x2514 ?\`))
+
+(defun ztree-left-intersection-char ()
+  "Return left intersection character.
+It is just vertical bar when unicode disabled"
+  (if ztree-draw-unicode-lines #x251C ?\|))
 
 (defun ztree-draw-vertical-line (y1 y2 x &optional face)
   "Draw a vertical line of '|' characters from Y1 row to Y2 in X column.
 Optional argument FACE face to draw line with."
-  (let ((count (abs (- y1 y2))))
+  (let ((ver-line-char (ztree-vertical-line-char))
+        (count (abs (- y1 y2))))
     (if (> y1 y2)
         (progn
           (dotimes (y count)
-            (ztree-draw-char ?\| x (+ y2 y) face))
-          (ztree-draw-char ?\| x (+ y2 count) face))
+            (ztree-draw-char ver-line-char x (+ y2 y) face))
+          (ztree-draw-char ver-line-char x (+ y2 count) face))
       (progn
         (dotimes (y count)
-          (ztree-draw-char ?\| x (+ y1 y) face))
-        (ztree-draw-char ?\| x (+ y1 count) face)))))
+          (ztree-draw-char ver-line-char x (+ y1 y) face))
+        (ztree-draw-char ver-line-char x (+ y1 count) face)))))
 
 (defun ztree-draw-vertical-rounded-line (y1 y2 x &optional face)
   "Draw a vertical line of '|' characters finishing with '`' character.
 Draws the line from Y1 row to Y2 in X column.
 Optional argument FACE facet to draw the line with."
-  (let ((count (abs (- y1 y2))))
+  (let ((ver-line-char (ztree-vertical-line-char))
+        (corner-char (ztree-left-bottom-corner-char))
+        (count (abs (- y1 y2))))
     (if (> y1 y2)
         (progn
           (dotimes (y count)
-            (ztree-draw-char ?\| x (+ y2 y) face))
-          (ztree-draw-char ?\` x (+ y2 count) face))
+            (ztree-draw-char ver-line-char x (+ y2 y) face))
+          (ztree-draw-char corner-char x (+ y2 count) face))
       (progn
         (dotimes (y count)
-          (ztree-draw-char ?\| x (+ y1 y) face))
-        (ztree-draw-char ?\` x (+ y1 count) face)))))
+          (ztree-draw-char ver-line-char x (+ y1 y) face))
+        (ztree-draw-char corner-char x (+ y1 count) face)))))
 
 
 (defun ztree-draw-horizontal-line (x1 x2 y)
   "Draw the horizontal line from column X1 to X2 in the row Y."
-  (if (> x1 x2)
-      (dotimes (x (1+ (- x1 x2)))
-        (ztree-draw-char ?\- (+ x2 x) y))
-    (dotimes (x (1+ (- x2 x1)))
-      (ztree-draw-char ?\- (+ x1 x) y))))
+  (let ((hor-line-char (ztree-horizontal-line-char)))
+    (if (> x1 x2)
+        (dotimes (x (1+ (- x1 x2)))
+          (ztree-draw-char hor-line-char (+ x2 x) y))
+      (dotimes (x (1+ (- x2 x1)))
+        (ztree-draw-char hor-line-char (+ x1 x) y)))))
 
 
 (defun ztree-draw-tree (tree depth start-offset)
@@ -396,6 +406,8 @@ Argument START-OFFSET column to start drawing from."
            (line-start (+ 3 offset))
            (line-end-leaf (+ 7 offset))
            (line-end-node (+ 4 offset))
+           (corner-char (ztree-left-bottom-corner-char))
+           (intersection-char (ztree-left-intersection-char))
            ;; determine if the line is visible. It is always the case
            ;; for 1-sided trees; however for 2 sided trees
            ;; it depends on which side is the actual element
@@ -417,17 +429,24 @@ Argument START-OFFSET column to start drawing from."
                                           (funcall visible (ztree-car-atom x)))))
               (x-offset (+ 2 offset)))
           (when last-child
-            (ztree-draw-vertical-rounded-line (1+ root)
-                                              (ztree-car-atom last-child)
-                                              x-offset)))
-        ;; draw recursively
-        (dolist (child children)
-          (ztree-draw-tree child (1+ depth) start-offset)
-          (let ((end (if (listp child) line-end-node line-end-leaf)))
-            (when (funcall visible (ztree-car-atom child))
-              (ztree-draw-horizontal-line line-start
-                                          end
-                                          (ztree-car-atom child)))))))))
+            (ztree-draw-vertical-line (1+ root)
+                                      (ztree-car-atom last-child)
+                                      x-offset))
+          ;; draw recursively
+          (dolist (child children)
+            (ztree-draw-tree child (1+ depth) start-offset)
+            (let ((end (if (listp child) line-end-node line-end-leaf))
+                  (row (ztree-car-atom child)))
+              (when (funcall visible (ztree-car-atom child))
+                (ztree-draw-char intersection-char (1- line-start) row)
+                (ztree-draw-horizontal-line line-start
+                                            end
+                                            row))))
+          ;; finally draw the corner at the end of vertical line
+          (when last-child
+            (ztree-draw-char corner-char
+                             x-offset
+                             (ztree-car-atom last-child))))))))
 
 (defun ztree-fill-parent-array (tree)
   "Set the root lines array.
@@ -538,29 +557,33 @@ Writes a string with given DEPTH, prefixed with [ ] if EXPANDABLE
 and [-] or [+] depending on if it is EXPANDED from the specified OFFSET.
 Optional argument FACE face to write text with."
   (let ((node-sign #'(lambda (exp)
-                       (insert "[" (if exp "-" "+") "]")
-                       (set-text-properties (- (point) 3)
-                                            (point)
-                                            '(face ztreep-expand-sign-face)))))
-    (move-to-column offset t)
+                       (let ((sign (concat "[" (if exp "-" "+") "]")))
+                         (insert (propertize sign 
+                                             'font-lock-face
+                                             ztreep-expand-sign-face)))))
+        ;; face to use. if FACE is not null, use it, otherwise
+        ;; deside from the node type
+        (entry-face (cond (face face)
+                          (expandable 'ztreep-node-face)
+                          (t ztreep-leaf-face))))
+    ;; move-to-column in contrast to insert reuses the last property
+    ;; so need to clear it
+    (let ((start-pos (point)))
+      (move-to-column offset t)
+      (remove-text-properties start-pos (point) '(font-lock-face nil)))
     (delete-region (point) (line-end-position))
+    ;; every indentation level is 4 characters
     (when (> depth 0)
-      (dotimes (_ depth)
-        (insert " ")
-        (insert-char ?\s 3)))           ; insert 3 spaces
+      (insert-char ?\s (* 4 depth)))           ; insert 4 spaces
     (when (> (length short-name) 0)
-      (if expandable
-          (progn
-            (funcall node-sign expanded)   ; for expandable nodes insert "[+/-]"
-            (insert " ")
-            (put-text-property 0 (length short-name)
-                               'face (if face face 'ztreep-node-face) short-name)
-            (insert short-name))
-        (progn
-          (insert "    ")
-          (put-text-property 0 (length short-name)
-                             'face (if face face 'ztreep-leaf-face) short-name)
-          (insert short-name))))))
+      (let ((start-pos (point)))
+        (if expandable
+            (funcall node-sign expanded))   ; for expandable nodes insert "[+/-]"
+        ;; indentation for leafs 4 spaces from the node name
+        (insert-char ?\s (- 4 (- (point) start-pos))))
+      (insert (propertize short-name 'font-lock-face entry-face)))))
+
+
 
 (defun ztree-jump-side ()
   "Jump to another side for 2-sided trees."
@@ -605,7 +628,8 @@ Optional argument LINE scroll to the line given."
                    children-fun
                    face-fun
                    action-fun
-                   &optional node-side-fun
+                   &optional
+                   node-side-fun
                    )
   "Create a ztree view buffer configured with parameters given.
 Argument BUFFER-NAME Name of the buffer created.
