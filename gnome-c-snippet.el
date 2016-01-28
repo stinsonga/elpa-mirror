@@ -26,11 +26,7 @@
 ;;; Code:
 
 (require 'gnome-c-align)
-
-(eval-when-compile
-  (require 'subword))
-
-(declare-function subword-forward "subword.el" (&optional arg))
+(require 'subword)
 
 (defvar gnome-c-snippet-package nil)
 (make-variable-buffer-local 'gnome-c-snippet-package)
@@ -52,7 +48,6 @@
 (make-variable-buffer-local 'gnome-c-snippet-align-arglist)
 
 (defun gnome-c-snippet--parse-name (name)
-  (require 'subword)
   (with-temp-buffer
     (let (words)
       (insert (upcase-initials name))
