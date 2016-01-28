@@ -55,7 +55,7 @@
   (require 'subword)
   (with-temp-buffer
     (let (words)
-      (insert name)
+      (insert (upcase-initials name))
       (goto-char (point-min))
       (while (not (eobp))
 	;; Skip characters not recognized by subword-mode.
