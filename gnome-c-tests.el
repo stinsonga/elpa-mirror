@@ -226,6 +226,12 @@ G_DECLARE_FINAL_TYPE (GGpgEngineInfo, g_gpg_engine_info, G_GPG, ENGINE_INFO,
     (c-mode)
     (setq buffer-file-name "gpgme-glib.h")
     (let ((package (gnome-c-snippet--guess-name-from-declaration 'package))
-	  (class (gnome-c-snippet--guess-name-from-declaration 'class)))
+	  (class (gnome-c-snippet--guess-name-from-declaration 'class))
+	  (parent-package
+	   (gnome-c-snippet--guess-name-from-declaration 'parent-package))
+	  (parent-class
+	   (gnome-c-snippet--guess-name-from-declaration 'parent-class)))
       (should (equal package '("G" "Gpg")))
-      (should (equal class '("Engine" "Info"))))))
+      (should (equal class '("Engine" "Info")))
+      (should (equal parent-package '("G")))
+      (should (equal parent-class '("Object"))))))

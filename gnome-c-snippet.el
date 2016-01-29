@@ -83,7 +83,7 @@
 					     (c-backward-syntactic-ws)
 					     (point))))
 	  uppercased-package uppercased-class
-	  capitalized-package capitalized-class)
+	  capitalized-package capitalized-class capitalized-parent)
       (c-forward-syntactic-ws)
       (c-forward-token-2 3)
       (setq uppercased-package (split-string
@@ -102,6 +102,14 @@
 						  (c-backward-syntactic-ws)
 						  (point)))
 			      "_"))
+      (c-forward-syntactic-ws)
+      (c-forward-token-2)
+      (setq capitalized-parent (gnome-c-snippet--parse-name
+				(buffer-substring (point)
+						  (progn
+						    (c-forward-token-2)
+						    (c-backward-syntactic-ws)
+						    (point)))))
       (catch 'error
 	(let ((index 0))
 	  (dolist (uppercased uppercased-package)
@@ -123,7 +131,8 @@
 	      (push capitalized capitalized-class)
 	      (setq index (+ index length))))))
       (list (nreverse capitalized-package)
-	    (nreverse capitalized-class)))))
+	    (nreverse capitalized-class)
+	    capitalized-parent))))
 
 (defun gnome-c-snippet--find-header-buffer ()
   (pcase (file-name-extension buffer-file-name)
@@ -145,7 +154,7 @@
 	(symbol-value (intern (format "gnome-c-snippet-%S" symbol)))))))
 
 (defun gnome-c-snippet--guess-name-from-declaration (symbol)
-  (when (memq symbol '(package class))
+  (when (memq symbol '(package class parent-package parent-class))
     (let ((header-buffer (gnome-c-snippet--find-header-buffer)))
       (when header-buffer
 	(with-current-buffer header-buffer
@@ -158,7 +167,9 @@
 	      (when names
 		(pcase symbol
 		  (`package (car names))
-		  (`class (nth 1 names)))))))))))
+		  (`class (nth 1 names))
+		  (`parent-package (list (car (nth 2 names))))
+		  (`parent-class (cdr (nth 2 names))))))))))))
 
 (defun gnome-c-snippet--guess-name-from-file-name (symbol)
   (when (memq symbol '(package class))
