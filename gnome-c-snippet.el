@@ -614,6 +614,26 @@ static void
 ")
     (indent-region body-start (point))))
 
+(defun gnome-c-snippet-insert-class-init (package class)
+  "Insert '_class_init' function for PACKAGE and CLASS."
+  (interactive (gnome-c-snippet--read-package-and-class nil))
+  (insert "\
+static void
+" (gnome-c-snippet--format-package_class package class) "_class_init (" (gnome-c-snippet--format-PackageClass package class) "Class *klass)\n")
+    (insert "{
+}
+"))
+
+(defun gnome-c-snippet-insert-init (package class)
+  "Insert '_init' function for PACKAGE and CLASS."
+  (interactive (gnome-c-snippet--read-package-and-class nil))
+  (insert "\
+static void
+" (gnome-c-snippet--format-package_class package class) "_init (" (gnome-c-snippet--format-PackageClass package class) " *self)\n")
+    (insert "{
+}
+"))
+
 (defvar gnome-c-snippet-snippet-commands
   '(("G_DECLARE_INTERFACE" . gnome-c-snippet-insert-interface-declaration)
     ("G_DECLARE_FINAL_TYPE" . gnome-c-snippet-insert-final-class-declaration)
@@ -631,7 +651,9 @@ static void
     ("GObjectClass.dispatch_properties_changed" .
      gnome-c-snippet-insert-dispatch_properties_changed)
     ("GObjectClass.notify" . gnome-c-snippet-insert-notify)
-    ("GObjectClass.constructed" . gnome-c-snippet-insert-constructed)))
+    ("GObjectClass.constructed" . gnome-c-snippet-insert-constructed)
+    ("_class_init" . gnome-c-snippet-insert-class-init)
+    ("_init" . gnome-c-snippet-insert-init)))
 
 ;;;###autoload
 (defun gnome-c-snippet-insert (snippet)
