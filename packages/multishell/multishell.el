@@ -57,6 +57,20 @@
 ;;
 ;; Change Log:
 ;;
+;; * XXX 1.0.9 Ken Manheimer:
+;;   - Allow existing shell buffers names as completions, even though they
+;;     duplicate the names with paths. The different behavior for entries
+;;     with existing buffers is actually useful. And in accord with actual
+;;     behavior, where changing path for existing shells doesn't, actually.
+;;   - Add paths to buffers started without one, if multishell history dir
+;;     tracking is enabled.
+;;   - Substantial code cleanup:
+;;     - simplify multishell-start-shell-in-buffer, in particular using
+;;       shell function, rather than unnecessarily going underneath it.
+;;     - fallback to eval-after-load in emacs, that lack
+;;       with-eval-after-load (eg, emacs 23).
+;;     - save-match-data, where match-string is used
+;;     - resituate some helpers
 ;; * 2016-01-24 1.0.8 Ken Manheimer:
 ;;   - Work around the shell/tramp mishandling of remote+sudo+homedir problem!
 ;;     The work around is clean and simple, basically using high-level `cd'
@@ -88,7 +102,7 @@
 ;; * 2016-01-04 1.0.4 Ken Manheimer - Released to ELPA
 ;; * 2016-01-02 Ken Manheimer - working on this in public, but not yet released.
 ;;
-;; TODO:
+;; TODO and Known Issues:
 ;;
 ;; * Find suitable, internally consistent ways to tidy completions, eg:
 ;;   - first list completions for active shells, then present but inactive,
@@ -100,9 +114,18 @@
 ;;       - minibuffer-local-completion-map, minibuffer-local-must-match-map
 ;;         - setup minibuffer with these vars just before doing completions
 ;;         - minibuffer exit reverts these vars, if necessary
-;;       - toggles between name and name/path if last command was one of them
-;;       - and an instruction in the completion buffer
-;;       - "complete again immediately to toggle name vs name/path completions"
+;;       - toggles between name and name/path if repeat count provided
+;;       - and an instruction about toggling in the completion buffer
+;;     - eventually? "multishell-list-all", based on tabulated-list-mode
+;;       - list-environment package is small, tidy, may be an easy template?
+;;       - sort based on existing vs just historical
+;;       - launch
+;;       - rename, change path, and remove history entries
+;;       - could we use it as the transient completions help window?
+;; * Investigate whether we can recognize and provide for failed hops.
+;;   - Tramp doesn't provide useful reactions for any hop but the first
+;;   - Might be stuff we can do to detect and convey failures?
+;;   - Might be no recourse but to seek tramp changes.
 ;; * Add custom shell launch prep actions
 ;;   - shell commands to execute when shell name or path matches a regexp
 ;;   - list of [regexp, which (name, path, or both), command]
@@ -337,14 +360,14 @@ For example:
   buffer will be named \"*interior*\". You could append a sudo
   hop to the path, combining the previous example, and so on.
 
-Thanks to tramp, file visits from the shell, and many common
-emacs activities, like dired, will seamlessly be in the auspices
-of the target account, and relative to the current directory, on
-the host where the shell is running.
+File visits from the shell, and many common emacs activities like
+dired, will be on the host where the shell is running, in the
+auspices of the target account, and relative to the current
+directory.
 
 You can change the startup path for a shell buffer by editing it
-at the completion prompt. The new path will be preserved in
-history but will not take effect for an already-running shell.
+at the completion prompt. The new path will not take effect for
+an already-running shell.
 
 To remove a shell buffer's history entry, kill the buffer and
 affirm removal of the entry when prompted.
@@ -408,9 +431,11 @@ customize the savehist group to activate savehist."
           (not (setq inwin
                      (multishell-get-visible-window-for-buffer target-buffer))))
       ;; No preexisting shell buffer, or not in a visible window:
+      (when (not (get-buffer target-shell-buffer-name))
+        (message "Creating new shell buffer '%s'" target-shell-buffer-name))
       (pop-to-buffer target-shell-buffer-name pop-up-windows))
 
-       ;; Buffer exists and already has a window - jump to it:
+     ;; Buffer exists and already has a window - jump to it:
      (t (if (and multishell-pop-to-frame
                  inwin
                  (not (equal (window-frame (selected-window))
@@ -494,8 +519,8 @@ Return the supplied name, if provided, else return nil."
                              (and (buffer-live-p buffer)
                                   (with-current-buffer buffer
                                     ;; Shell mode buffers.
-                                    (derived-mode-p 'shell-mode))
-                                  (not (multishell-history-entries name))
+                                    (and (derived-mode-p 'shell-mode)
+                                         (comint-check-proc (current-buffer))))
                                   name)))
                          (buffer-list)))
            multishell-history))
@@ -551,15 +576,15 @@ and path nil if none resolved."
 (defun multishell-start-shell-in-buffer (buffer-name path)
   "Start, restart, or continue a shell in BUFFER-NAME on PATH."
   (let* ((buffer (get-buffer buffer-name))
-         is-remote)
+         is-remote is-active)
 
     (set-buffer buffer)
+    (setq is-active (comint-check-proc buffer))
 
-    (when (and path (file-remote-p path))
+    (when (and path (not is-active))
 
-      (when (and (derived-mode-p 'shell-mode)
-                 (not (comint-check-proc (current-buffer))))
-        ;; Returning to disconnected remote shell. Do some tidying:
+      (when (and (derived-mode-p 'shell-mode) (file-remote-p path))
+        ;; Returning to disconnected remote shell - do some tidying:
         (tramp-cleanup-connection
          (tramp-dissect-file-name default-directory 'noexpand)
          'keep-debug 'keep-password))
@@ -575,7 +600,7 @@ and path nil if none resolved."
     (dolist (entry entries)
       (let* ((name-path (multishell-split-entry entry))
              (name (car name-path))
-             (path (cadr name-path)))
+             (path (or (cadr name-path) "")))
         (when path
           (let* ((is-remote (file-remote-p path))
                  (vec (and is-remote (tramp-dissect-file-name path nil)))
@@ -601,7 +626,7 @@ and path nil if none resolved."
                                                           (aref vec 2)
                                                           newlocalname
                                                           (aref vec 4))
-                            newlocalname))
+                            newpath))
                  (newentry (concat name newpath))
                  (membership (member entry multishell-history)))
             (when membership
@@ -619,8 +644,7 @@ and path nil if none resolved."
                           (tramp-file-name-localname
                            (tramp-dissect-file-name default-directory))
                         default-directory)))
-          (when (and multishell-was-default-directory
-                     (not (string= curdir multishell-was-default-directory)))
+          (when (not (string= curdir (or multishell-was-default-directory "")))
             (multishell-track-dirchange (multishell-unbracket-asterisks
                                          (buffer-name))
                                         curdir))
