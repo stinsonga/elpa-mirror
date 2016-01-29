@@ -126,14 +126,17 @@
 	    (nreverse capitalized-class)))))
 
 (defun gnome-c-snippet--find-header-buffer ()
-  (when (equal (file-name-extension buffer-file-name) "c")
-    (let ((header-file-name
-	   (concat (file-name-sans-extension buffer-file-name) ".h")))
-      (cl-find-if
-       (lambda (buffer)
-	 (with-current-buffer buffer
-	   (equal buffer-file-name header-file-name)))
-       (buffer-list)))))
+  (pcase (file-name-extension buffer-file-name)
+    ("h"
+     (current-buffer))
+    ("c"
+     (let ((header-file-name
+	    (concat (file-name-sans-extension buffer-file-name) ".h")))
+       (cl-find-if
+	(lambda (buffer)
+	  (with-current-buffer buffer
+	    (equal buffer-file-name header-file-name)))
+	(buffer-list))))))
 
 (defun gnome-c-snippet--guess-name-from-header-buffer (symbol)
   (let ((header-buffer (gnome-c-snippet--find-header-buffer)))
@@ -154,8 +157,8 @@
 			   region))
 	      (when names
 		(pcase symbol
-		  ('package (car names))
-		  ('class (nth 1 names)))))))))))
+		  (`package (car names))
+		  (`class (nth 1 names)))))))))))
 
 (defun gnome-c-snippet--guess-name-from-file-name (symbol)
   (when (memq symbol '(package class))
@@ -164,8 +167,8 @@
       (when (string-match-p "-" filename)
 	(let ((names (split-string filename "-")))
 	  (pcase symbol
-	    ('package (list (upcase-initials (car names))))
-	    ('class (mapcar #'upcase-initials (cdr names)))))))))
+	    (`package (list (upcase-initials (car names))))
+	    (`class (mapcar #'upcase-initials (cdr names)))))))))
 
 (defun gnome-c-snippet--parse-name (name)
   (with-temp-buffer
