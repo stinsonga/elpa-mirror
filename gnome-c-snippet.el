@@ -61,28 +61,47 @@
 	      words))
       (nreverse words))))
 
-(defun gnome-c-snippet--read-package-and-class (package-prompt
-						class-prompt
-						package-symbol
-						class-symbol)
+(defun gnome-c-snippet--read-name (prompt symbol &optional default)
   (when (or current-prefix-arg
-	    (not (and (symbol-value package-symbol)
-		      (symbol-value class-symbol))))
-    (set package-symbol
+	    (not (symbol-value symbol)))
+    (set symbol
 	 (gnome-c-snippet--parse-name
-	  (read-string (or package-prompt
-			   "Package (CamelCase): ")
-		       (if (symbol-value package-symbol)
-			   (gnome-c-snippet--format-Package
-			    (symbol-value package-symbol))))))
-    (set class-symbol
-	 (gnome-c-snippet--parse-name
-	  (read-string (or class-prompt
-			   "Class (CamelCase): ")
-		       (if (symbol-value class-symbol)
-			   (gnome-c-snippet--format-Class
-			    (symbol-value class-symbol)))))))
-  (list (symbol-value package-symbol) (symbol-value class-symbol)))
+	  (read-string prompt
+		       (or (if (symbol-value symbol)
+			       (gnome-c-snippet--format-Package
+				(symbol-value symbol)))
+			   default)))))
+  (symbol-value symbol))
+
+(defun gnome-c-snippet--read-package-and-class (parent)
+  (append (list (gnome-c-snippet--read-name
+		 "Package (CamelCase): "
+		 'gnome-c-snippet-package)
+		(gnome-c-snippet--read-name
+		 "Class (CamelCase): "
+		 'gnome-c-snippet-class))
+	  (when parent
+	    (list (gnome-c-snippet--read-name
+		   "Parent package (CamelCase): "
+		   'gnome-c-snippet-parent-package)
+		  (gnome-c-snippet--read-name
+		   "Parent class (CamelCase): "
+		   'gnome-c-snippet-parent-class)))))
+
+(defun gnome-c-snippet--read-package-and-interface (parent)
+  (list (gnome-c-snippet--read-name
+	  "Package (CamelCase): "
+	  'gnome-c-snippet-package)
+	 (gnome-c-snippet--read-name
+	  "Interface (CamelCase): "
+	  'gnome-c-snippet-class)
+	 (when parent
+	   (list (gnome-c-snippet--read-name
+		  "Parent package (CamelCase): "
+		  'gnome-c-snippet-parent-package)
+		 (gnome-c-snippet--read-name
+		  "Parent class (CamelCase): "
+		  'gnome-c-snippet-parent-class)))))
 
 (defun gnome-c-snippet--format-PACKAGE (package)
   (mapconcat #'upcase package "_"))
@@ -113,44 +132,25 @@
 ;;;###autoload
 (defun gnome-c-snippet-insert-package_class (package class)
   "Insert the class name before the current point."
-  (interactive (gnome-c-snippet--read-package-and-class
-		nil nil
-		'gnome-c-snippet-package
-		'gnome-c-snippet-class))
+  (interactive (gnome-c-snippet--read-package-and-class nil))
   (insert (gnome-c-snippet--format-package_class package class)))
 
 ;;;###autoload
 (defun gnome-c-snippet-insert-PACKAGE_CLASS (package class)
   "Insert the class name before the current point."
-  (interactive (gnome-c-snippet--read-package-and-class
-		nil nil
-		'gnome-c-snippet-package
-		'gnome-c-snippet-class))
+  (interactive (gnome-c-snippet--read-package-and-class nil))
   (insert (gnome-c-snippet--format-PACKAGE_CLASS package class)))
 
 ;;;###autoload
 (defun gnome-c-snippet-insert-PackageClass (package class)
   "Insert the class name (in CamelCase) before the current point."
-  (interactive (gnome-c-snippet--read-package-and-class
-		nil nil
-		'gnome-c-snippet-package
-		'gnome-c-snippet-class))
+  (interactive (gnome-c-snippet--read-package-and-class nil))
   (insert (gnome-c-snippet--format-PackageClass package class)))
 
 (defun gnome-c-snippet-insert-interface-declaration (package iface
 							     parent-package parent-class)
   "Insert interface declaration for PACKAGE and IFACE"
-  (interactive
-   (append (gnome-c-snippet--read-package-and-class
-	    nil
-	    "Interface (CamelCase): "
-	    'gnome-c-snippet-package
-	    'gnome-c-snippet-class)
-	   (gnome-c-snippet--read-package-and-class
-	    "Parent package (CamelCase): "
-	    "Parent class (CamelCase): "
-	    'gnome-c-snippet-parent-package
-	    'gnome-c-snippet-parent-class)))
+  (interactive (gnome-c-snippet--read-package-and-interface t))
   (insert "\
 #define " (gnome-c-snippet--format-PACKAGE package) "_TYPE_" (gnome-c-snippet--format-CLASS iface) " (" (gnome-c-snippet--format-package package) "_" (gnome-c-snippet--format-class iface) "_get_type ())
 G_DECLARE_INTERFACE (" (gnome-c-snippet--format-PackageClass package iface) ", "
@@ -173,16 +173,7 @@ G_DECLARE_" (if derivable "DERIVABLE" "FINAL") "_TYPE (" (gnome-c-snippet--forma
 						       parent-package
 						       parent-class)
   "Insert final class declaration for PACKAGE and CLASS."
-  (interactive
-   (append (gnome-c-snippet--read-package-and-class
-	    nil nil
-	    'gnome-c-snippet-package
-	    'gnome-c-snippet-class)
-	   (gnome-c-snippet--read-package-and-class
-	    "Parent package (CamelCase): "
-	    "Parent class (CamelCase): "
-	    'gnome-c-snippet-parent-package
-	    'gnome-c-snippet-parent-class)))
+  (interactive (gnome-c-snippet--read-package-and-class t))
   (gnome-c-snippet--insert-class-declaration package
 					     class
 					     parent-package
@@ -194,16 +185,7 @@ G_DECLARE_" (if derivable "DERIVABLE" "FINAL") "_TYPE (" (gnome-c-snippet--forma
 							   parent-package
 							   parent-class)
   "Insert derivable class declaration for PACKAGE and CLASS."
-  (interactive
-   (append (gnome-c-snippet--read-package-and-class
-	    nil nil
-	    'gnome-c-snippet-package
-	    'gnome-c-snippet-class)
-	   (gnome-c-snippet--read-package-and-class
-	    "Parent package (CamelCase): "
-	    "Parent class (CamelCase): "
-	    'gnome-c-snippet-parent-package
-	    'gnome-c-snippet-parent-class)))
+  (interactive (gnome-c-snippet--read-package-and-class t))
   (gnome-c-snippet--insert-class-declaration package
 					     class
 					     parent-package
@@ -215,17 +197,7 @@ G_DECLARE_" (if derivable "DERIVABLE" "FINAL") "_TYPE (" (gnome-c-snippet--forma
 						    parent-package
 						    parent-class)
   "Insert class definition for PACKAGE and CLASS."
-  (interactive
-   (append (gnome-c-snippet--read-package-and-class
-	    nil
-	    "Interface (CamelCase): "
-	    'gnome-c-snippet-package
-	    'gnome-c-snippet-class)
-	   (gnome-c-snippet--read-package-and-class
-	    "Parent package (CamelCase): "
-	    "Parent class (CamelCase): "
-	    'gnome-c-snippet-parent-package
-	    'gnome-c-snippet-parent-class)))
+  (interactive (gnome-c-snippet--read-package-and-interface t))
   (insert "\
 static void
 " (gnome-c-snippet--format-package_class package iface) "_default_init (" (gnome-c-snippet--format-PackageClass package iface) "Interface *iface) {
@@ -260,16 +232,7 @@ static void
 						parent-package
 						parent-class)
   "Insert class definition for PACKAGE and CLASS."
-  (interactive
-   (append (gnome-c-snippet--read-package-and-class
-	    nil nil
-	    'gnome-c-snippet-package
-	    'gnome-c-snippet-class)
-	   (gnome-c-snippet--read-package-and-class
-	    "Parent package (CamelCase): "
-	    "Parent class (CamelCase): "
-	    'gnome-c-snippet-parent-package
-	    'gnome-c-snippet-parent-class)))
+  (interactive (gnome-c-snippet--read-package-and-class t))
   (gnome-c-snippet--insert-class-definition package
 					    class
 					    parent-package
@@ -281,16 +244,7 @@ static void
 							 parent-package
 							 parent-class)
   "Insert abstract class definition for PACKAGE and CLASS."
-  (interactive
-   (append (gnome-c-snippet--read-package-and-class
-	    nil nil
-	    'gnome-c-snippet-package
-	    'gnome-c-snippet-class)
-	   (gnome-c-snippet--read-package-and-class
-	    "Parent package (CamelCase): "
-	    "Parent class (CamelCase): "
-	    'gnome-c-snippet-parent-package
-	    'gnome-c-snippet-parent-class)))
+  (interactive (gnome-c-snippet--read-package-and-class t))
   (gnome-c-snippet--insert-class-definition package
 					    class
 					    parent-package
@@ -299,11 +253,7 @@ static void
 
 (defun gnome-c-snippet-insert-constructor (package class)
   "Insert 'constructor' vfunc of GObjectClass for PACKAGE and CLASS."
-  (interactive
-   (gnome-c-snippet--read-package-and-class
-    nil nil
-    'gnome-c-snippet-package
-    'gnome-c-snippet-class))
+  (interactive (gnome-c-snippet--read-package-and-class nil))
   (let (arglist-start body-start)
     (insert "\
 static GObject *
@@ -330,11 +280,7 @@ GObjectConstructParam *construct_properties)\n")
 
 (defun gnome-c-snippet-insert-set_property (package class)
   "Insert 'set_property' vfunc of GObjectClass for PACKAGE and CLASS."
-  (interactive
-   (gnome-c-snippet--read-package-and-class
-    nil nil
-    'gnome-c-snippet-package
-    'gnome-c-snippet-class))
+  (interactive (gnome-c-snippet--read-package-and-class nil))
   (let (arglist-start body-start)
     (insert "\
 static void
@@ -367,11 +313,7 @@ GParamSpec *pspec)\n")
 
 (defun gnome-c-snippet-insert-get_property (package class)
   "Insert 'get_property' vfunc of GObjectClass for PACKAGE and CLASS."
-  (interactive
-   (gnome-c-snippet--read-package-and-class
-    nil nil
-    'gnome-c-snippet-package
-    'gnome-c-snippet-class))
+  (interactive (gnome-c-snippet--read-package-and-class nil))
   (let (arglist-start body-start)
     (insert "\
 static void
@@ -404,11 +346,7 @@ GParamSpec *pspec)\n")
 
 (defun gnome-c-snippet-insert-dispose (package class)
   "Insert 'dispose' vfunc of GObjectClass for PACKAGE and CLASS."
-  (interactive
-   (gnome-c-snippet--read-package-and-class
-    nil nil
-    'gnome-c-snippet-package
-    'gnome-c-snippet-class))
+  (interactive (gnome-c-snippet--read-package-and-class nil))
   (let (body-start)
     (insert "\
 static void
@@ -425,11 +363,7 @@ static void
 
 (defun gnome-c-snippet-insert-finalize (package class)
   "Insert 'finalize' vfunc of GObjectClass for PACKAGE and CLASS."
-  (interactive
-   (gnome-c-snippet--read-package-and-class
-    nil nil
-    'gnome-c-snippet-package
-    'gnome-c-snippet-class))
+  (interactive (gnome-c-snippet--read-package-and-class nil))
   (let (body-start)
     (insert "\
 static void
@@ -447,11 +381,7 @@ static void
 (defun gnome-c-snippet-insert-dispatch_properties_changed (package class)
   "Insert 'dispatch_properties_changed vfunc of GObjectClass for
 PACKAGE and CLASS."
-  (interactive
-   (gnome-c-snippet--read-package-and-class
-    nil nil
-    'gnome-c-snippet-package
-    'gnome-c-snippet-class))
+  (interactive (gnome-c-snippet--read-package-and-class nil))
   (let (arglist-start body-start)
     (insert "\
 static void
@@ -478,11 +408,7 @@ GParamSpec **pspecs)\n")
 
 (defun gnome-c-snippet-insert-notify (package class)
   "Insert 'notify' vfunc of GObjectClass for PACKAGE and CLASS."
-  (interactive
-   (gnome-c-snippet--read-package-and-class
-    nil nil
-    'gnome-c-snippet-package
-    'gnome-c-snippet-class))
+  (interactive (gnome-c-snippet--read-package-and-class nil))
   (let (arglist-start body-start)
     (insert "\
 static void
@@ -507,11 +433,7 @@ GParamSpec *pspec)\n")
 
 (defun gnome-c-snippet-insert-constructed (package class)
   "Insert 'constructed' vfunc of GObjectClass for PACKAGE and CLASS."
-  (interactive
-   (gnome-c-snippet--read-package-and-class
-    nil nil
-    'gnome-c-snippet-package
-    'gnome-c-snippet-class))
+  (interactive (gnome-c-snippet--read-package-and-class nil))
   (let (body-start)
     (insert "\
 static void
