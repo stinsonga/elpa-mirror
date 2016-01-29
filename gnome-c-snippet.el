@@ -40,12 +40,132 @@
 (defvar gnome-c-snippet-parent-class nil)
 (make-variable-buffer-local 'gnome-c-snippet-parent-class)
 
+(defconst gnome-c-snippet-guess-name-functions
+  '(gnome-c-snippet--guess-name-from-header-buffer
+    gnome-c-snippet--guess-name-from-declaration
+    gnome-c-snippet--guess-name-from-file-name))
+
 (defcustom gnome-c-snippet-align-arglist t
   "Whether to align argument list of the inserted snippet"
   :type 'boolean
   :group 'gnome-c-style)
 
 (make-variable-buffer-local 'gnome-c-snippet-align-arglist)
+
+(defun gnome-c-snippet--find-declaration ()
+  (save-excursion
+    (let (beg end)
+      (goto-char (point-min))
+      (when (re-search-forward
+	     "^G_DECLARE_\\(?:FINAL\\|DERIVABLE\\)_TYPE\\s-*("
+	     nil t)
+	(setq beg (match-beginning 0))
+	(goto-char (match-end 0))
+	(backward-char)
+	(condition-case nil
+	    (progn
+	      (c-forward-sexp)
+	      (setq end (point)))
+	  (error)))
+      (when (and beg end)
+	(list beg end)))))
+
+(defun gnome-c-snippet--extract-names-from-declaration (beg end)
+  (save-excursion
+    (narrow-to-region beg end)
+    (goto-char (point-min))
+    (search-forward "(")
+    (c-forward-syntactic-ws)
+    (let ((capitalized-package-class
+	   (buffer-substring-no-properties (point)
+					   (progn
+					     (c-forward-token-2)
+					     (c-backward-syntactic-ws)
+					     (point))))
+	  uppercased-package uppercased-class
+	  capitalized-package capitalized-class)
+      (c-forward-syntactic-ws)
+      (c-forward-token-2 3)
+      (setq uppercased-package (split-string
+				(buffer-substring (point)
+						  (progn
+						    (c-forward-token-2)
+						    (c-backward-syntactic-ws)
+						    (point)))
+				"_"))
+      (c-forward-syntactic-ws)
+      (c-forward-token-2)
+      (setq uppercased-class (split-string
+			      (buffer-substring (point)
+						(progn
+						  (c-forward-token-2)
+						  (c-backward-syntactic-ws)
+						  (point)))
+			      "_"))
+      (catch 'error
+	(let ((index 0))
+	  (dolist (uppercased uppercased-package)
+	    (let* ((length (length uppercased))
+		   (capitalized
+		    (substring capitalized-package-class
+			       index (+ index length))))
+	      (unless (equal (upcase capitalized) uppercased)
+		(throw 'error nil))
+	      (push capitalized capitalized-package)
+	      (setq index (+ index length))))
+	  (dolist (uppercased uppercased-class)
+	    (let* ((length (length uppercased))
+		   (capitalized
+		    (substring capitalized-package-class
+			       index (+ index length))))
+	      (unless (equal (upcase capitalized) uppercased)
+		(throw 'error nil))
+	      (push capitalized capitalized-class)
+	      (setq index (+ index length))))))
+      (list (nreverse capitalized-package)
+	    (nreverse capitalized-class)))))
+
+(defun gnome-c-snippet--find-header-buffer ()
+  (when (equal (file-name-extension buffer-file-name) "c")
+    (let ((header-file-name
+	   (concat (file-name-sans-extension buffer-file-name) ".h")))
+      (cl-find-if
+       (lambda (buffer)
+	 (with-current-buffer buffer
+	   (equal buffer-file-name header-file-name)))
+       (buffer-list)))))
+
+(defun gnome-c-snippet--guess-name-from-header-buffer (symbol)
+  (let ((header-buffer (gnome-c-snippet--find-header-buffer)))
+    (when header-buffer
+      (with-current-buffer header-buffer
+	(symbol-value (intern (format "gnome-c-snippet-%S" symbol)))))))
+
+(defun gnome-c-snippet--guess-name-from-declaration (symbol)
+  (when (memq symbol '(package class))
+    (let ((header-buffer (gnome-c-snippet--find-header-buffer)))
+      (when header-buffer
+	(with-current-buffer header-buffer
+	  (let ((region (gnome-c-snippet--find-declaration))
+		names)
+	    (when region
+	      (setq names
+		    (apply #'gnome-c-snippet--extract-names-from-declaration
+			   region))
+	      (when names
+		(pcase symbol
+		  ('package (car names))
+		  ('class (nth 1 names)))))))))))
+
+(defun gnome-c-snippet--guess-name-from-file-name (symbol)
+  (when (memq symbol '(package class))
+    (let ((filename (file-name-sans-extension
+		     (file-name-nondirectory buffer-file-name))))
+      (when (string-match-p "-" filename)
+	(let ((names (split-string filename "-")))
+	  (pcase symbol
+	    ('package (list (upcase-initials (car names))))
+	    ('class (mapcar #'upcase-initials (cdr names)))))))))
 
 (defun gnome-c-snippet--parse-name (name)
   (with-temp-buffer
@@ -76,32 +196,64 @@
 (defun gnome-c-snippet--read-package-and-class (parent)
   (append (list (gnome-c-snippet--read-name
 		 "Package (CamelCase): "
-		 'gnome-c-snippet-package)
+		 'gnome-c-snippet-package
+		 (gnome-c-snippet--format-Package
+		  (run-hook-with-args-until-success
+		   'gnome-c-snippet-guess-name-functions
+		   'package)))
 		(gnome-c-snippet--read-name
 		 "Class (CamelCase): "
-		 'gnome-c-snippet-class))
+		 'gnome-c-snippet-class
+		 (gnome-c-snippet--format-Class
+		  (run-hook-with-args-until-success
+		   'gnome-c-snippet-guess-name-functions
+		   'class))))
 	  (when parent
 	    (list (gnome-c-snippet--read-name
 		   "Parent package (CamelCase): "
-		   'gnome-c-snippet-parent-package)
+		   'gnome-c-snippet-parent-package
+		   (gnome-c-snippet--format-Package
+		    (run-hook-with-args-until-success
+		     'gnome-c-snippet-guess-name-functions
+		     'parent-package)))
 		  (gnome-c-snippet--read-name
 		   "Parent class (CamelCase): "
-		   'gnome-c-snippet-parent-class)))))
+		   'gnome-c-snippet-parent-class
+		   (gnome-c-snippet--format-Class
+		    (run-hook-with-args-until-success
+		     'gnome-c-snippet-guess-name-functions
+		     'parent-class)))))))
 
 (defun gnome-c-snippet--read-package-and-interface (parent)
   (list (gnome-c-snippet--read-name
 	  "Package (CamelCase): "
-	  'gnome-c-snippet-package)
+	  'gnome-c-snippet-package
+	  (gnome-c-snippet--format-Package
+	   (run-hook-with-args-until-success
+	    'gnome-c-snippet-guess-name-functions
+	    'package)))
 	 (gnome-c-snippet--read-name
 	  "Interface (CamelCase): "
-	  'gnome-c-snippet-class)
+	  'gnome-c-snippet-class
+	  (gnome-c-snippet--format-Class
+	   (run-hook-with-args-until-success
+	    'gnome-c-snippet-guess-name-functions
+	    'class)))
 	 (when parent
 	   (list (gnome-c-snippet--read-name
 		  "Parent package (CamelCase): "
-		  'gnome-c-snippet-parent-package)
+		  'gnome-c-snippet-parent-package
+		  (gnome-c-snippet--format-Package
+		   (run-hook-with-args-until-success
+		    'gnome-c-snippet-guess-name-functions
+		    'parent-package)))
 		 (gnome-c-snippet--read-name
 		  "Parent class (CamelCase): "
-		  'gnome-c-snippet-parent-class)))))
+		  'gnome-c-snippet-parent-class
+		   (gnome-c-snippet--format-Class
+		    (run-hook-with-args-until-success
+		     'gnome-c-snippet-guess-name-functions
+		     'parent-class)))))))
 
 (defun gnome-c-snippet--format-PACKAGE (package)
   (mapconcat #'upcase package "_"))
