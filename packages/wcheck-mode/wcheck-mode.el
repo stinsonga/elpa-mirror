@@ -7,7 +7,7 @@
 ;; Created: 2009-07-04
 ;; URL: https://github.com/tlikonen/wcheck-mode
 ;; Keywords: text spell check languages ispell
-;; Version: 2016.1.5
+;; Version: 2016.1.30
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -1388,7 +1388,7 @@ areas, including invisible ones. Otherwise skip invisible text."
 
         (when font-lock-mode
           (save-excursion
-            (jit-lock-fontify-now (min beg end) (max beg end))))
+            (font-lock-fontify-region (min beg end) (max beg end))))
 
         (wcheck--with-language-data
             (language (wcheck--buffer-data-get :buffer buffer :language))
