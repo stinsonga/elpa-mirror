@@ -377,44 +377,62 @@ G_DEFINE_INTERFACE (" (gnome-c-snippet--format-PackageClass package iface) ", "
 						 class
 						 parent-package
 						 parent-class
-						 abstract)
+						 abstract
+						 code)
   (insert "\
-G_DEFINE_" (if abstract "ABSTRACT_" "") "TYPE (" (gnome-c-snippet--format-PackageClass package class) ", "
-(gnome-c-snippet--format-package_class package class) ", " (gnome-c-snippet--format-PACKAGE parent-package) "_TYPE_" (gnome-c-snippet--format-CLASS parent-class) ")
+G_DEFINE_" (if abstract "ABSTRACT_" "") "TYPE" (if code "WITH_CODE" "") " (" (gnome-c-snippet--format-PackageClass package class) ", "
+(gnome-c-snippet--format-package_class package class) ", " (gnome-c-snippet--format-PACKAGE parent-package) "_TYPE_" (gnome-c-snippet--format-CLASS parent-class) (if code ", " "") ")"))
 
-static void
-" (gnome-c-snippet--format-package_class package class) "_class_init (" (gnome-c-snippet--format-PackageClass package class) "Class *klass)
-{
-}
-
-static void
-" (gnome-c-snippet--format-package_class package class) "_init (" (gnome-c-snippet--format-PackageClass package class) " *self)
-{
-}
-"))
-
-(defun gnome-c-snippet-insert-class-definition (package
-						class
-						parent-package
-						parent-class)
-  "Insert class definition for PACKAGE and CLASS."
+(defun gnome-c-snippet-insert-G_DEFINE_TYPE (package
+					     class
+					     parent-package
+					     parent-class)
+  "Insert G_DEFINE_TYPE for PACKAGE and CLASS."
   (interactive (gnome-c-snippet--read-package-and-class t))
   (gnome-c-snippet--insert-class-definition package
 					    class
 					    parent-package
 					    parent-class
+					    nil
 					    nil))
 
-(defun gnome-c-snippet-insert-abstract-class-definition (package
-							 class
-							 parent-package
-							 parent-class)
-  "Insert abstract class definition for PACKAGE and CLASS."
+(defun gnome-c-snippet-insert-G_DEFINE_TYPE_WITH_CODE (package
+						       class
+						       parent-package
+						       parent-class)
+  "Insert G_DEFINE_TYPE_WITH_CODE for PACKAGE and CLASS."
   (interactive (gnome-c-snippet--read-package-and-class t))
   (gnome-c-snippet--insert-class-definition package
 					    class
 					    parent-package
 					    parent-class
+					    nil
+					    t))
+
+(defun gnome-c-snippet-insert-G_DEFINE_ABSTRACT_TYPE (package
+						      class
+						      parent-package
+						      parent-class)
+  "Insert G_DEFINE_ABSTRACT_TYPE for PACKAGE and CLASS."
+  (interactive (gnome-c-snippet--read-package-and-class t))
+  (gnome-c-snippet--insert-class-definition package
+					    class
+					    parent-package
+					    parent-class
+					    t
+					    nil))
+
+(defun gnome-c-snippet-insert-G_DEFINE_ABSTRACT_TYPE_WITH_CODE (package
+								class
+								parent-package
+								parent-class)
+  "Insert G_DEFINE_ABSTRACT_TYPE_WITH_CODE for PACKAGE and CLASS."
+  (interactive (gnome-c-snippet--read-package-and-class t))
+  (gnome-c-snippet--insert-class-definition package
+					    class
+					    parent-package
+					    parent-class
+					    t
 					    t))
 
 (defun gnome-c-snippet-insert-constructor (package class)
@@ -640,9 +658,12 @@ static void
     ("G_DECLARE_DERIVABLE_TYPE" .
      gnome-c-snippet-insert-derivable-class-declaration)
     ("G_DEFINE_INTERFACE" . gnome-c-snippet-insert-interface-definition)
-    ("G_DEFINE_TYPE" . gnome-c-snippet-insert-class-definition)
+    ("G_DEFINE_TYPE" . gnome-c-snippet-insert-G_DEFINE_TYPE)
+    ("G_DEFINE_TYPE_WITH_CODE" . gnome-c-snippet-insert-G_DEFINE_TYPE_WITH_CODE)
     ("G_DEFINE_ABSTRACT_TYPE" .
-     gnome-c-snippet-insert-abstract-class-definition)
+     gnome-c-snippet-insert-G_DEFINE_ABSTRACT_TYPE)
+    ("G_DEFINE_ABSTRACT_TYPE_WITH_CODE" .
+     gnome-c-snippet-insert-G_DEFINE_ABSTRACT_TYPE_WITH_CODE)
     ("GObjectClass.constructor" . gnome-c-snippet-insert-constructor)
     ("GObjectClass.set_property" . gnome-c-snippet-insert-set_property)
     ("GObjectClass.get_property" . gnome-c-snippet-insert-get_property)
@@ -652,17 +673,30 @@ static void
      gnome-c-snippet-insert-dispatch_properties_changed)
     ("GObjectClass.notify" . gnome-c-snippet-insert-notify)
     ("GObjectClass.constructed" . gnome-c-snippet-insert-constructed)
+    ;; Will be overridden by `gnome-c-snippet-insert'.
     ("_class_init" . gnome-c-snippet-insert-class-init)
+    ;; Will be overridden by `gnome-c-snippet-insert'.
     ("_init" . gnome-c-snippet-insert-init)))
 
 ;;;###autoload
-(defun gnome-c-snippet-insert (snippet)
+(defun gnome-c-snippet-insert (command)
   (interactive
-   (list (completing-read "Snippet: " gnome-c-snippet-snippet-commands nil t)))
-  (let ((entry (assoc snippet gnome-c-snippet-snippet-commands)))
-    (unless entry
-      (error "Unknown snippet: %s" snippet))
-    (call-interactively (cdr entry))))
+   (let ((commands (copy-tree gnome-c-snippet-snippet-commands)))
+     (when (and gnome-c-snippet-package gnome-c-snippet-class)
+       (setcar (assoc "_class_init" commands)
+	       (concat (gnome-c-snippet--format-package_class
+			gnome-c-snippet-package gnome-c-snippet-class)
+		       "_class_init"))
+       (setcar (assoc "_init" commands)
+	       (concat (gnome-c-snippet--format-package_class
+			gnome-c-snippet-package gnome-c-snippet-class)
+		       "_init")))
+     (let* ((name (completing-read "Snippet: " commands nil t))
+	    (entry (assoc name commands)))
+       (unless entry
+	 (error "Unknown snippet: %s" name))
+       (list (cdr entry)))))
+  (call-interactively command))
 
 (provide 'gnome-c-snippet)
 
