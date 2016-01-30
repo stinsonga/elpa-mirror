@@ -3,7 +3,7 @@
 ;; Copyright (C) 1999-2016 Free Software Foundation, Inc. and Ken Manheimer
 
 ;; Author: Ken Manheimer <ken.manheimer@gmail.com>
-;; Version: 1.0.9
+;; Version: 1.1.1
 ;; Created: 1999 -- first public availability
 ;; Keywords: processes
 ;; URL: https://github.com/kenmanheimer/EmacsMultishell
@@ -59,6 +59,13 @@
 ;;
 ;; Change Log:
 ;;
+;; * 2016-01-30 1.1.1 Ken Manheimer:
+;;   - shake out initial multishell-list glitches:
+;;     - (Offer to) delete shell buffer, if present, when deleting entry.
+;;     - Set recency (numeric rank) as initial sort field
+;;     - Recompute list on most operations that affect the order, and try to
+;;       preserve stability. (Kludgy solution, needs work.)
+;;   - Set version to 1.1.1 - multishell-list addition should have been 1.1.0.
 ;; * 2016-01-30 1.0.9 Ken Manheimer:
 ;;   - Add multishell-list for managing the collection of current and
 ;;     history-registered shells: edit, delete, and switch/pop to entries.
@@ -108,13 +115,20 @@
 ;;
 ;; TODO and Known Issues:
 ;;
+;; * Add mouse actions - buttons - to multishell-list entries
+;;   - see buf-menu.el, eg Buffer-menu-mouse-select
+;; * Resolve multishell-list sort glitches:
+;;   - Fix config so multishell-list-revert-buffer-kludge is not needed
+;;   - Make multishell-list-edit-entry in-place, so changed entries recency
+;;     doesn't change.
+;;   - Fill in kill-buffer prompting gaps, eg if default live-process
+;;     prompts are inhibited.
 ;; * Add custom shell launch prep actions
 ;;   - for, eg, port knocking, interface activations
 ;;   - shell commands to execute when shell name or path matches a regexp
 ;;   - list of (regexp, which - name, path, or both, command)
 ;; * Adapt multishell-list facilities for all-completions
 ;;   - See info on minibuffer-completion-help, display-completion-list
-;;   - implement markup for mouse selection
 ;; * Investigate whether we can recognize and provide for failed hops.
 ;;   - Tramp doesn't provide useful reactions for any hop but the first
 ;;   - Might be stuff we can do to detect and convey failures?
@@ -129,7 +143,7 @@
 (require 'savehist)
 (require 'multishell-list)
 
-(defvar multishell-version "1.0.9")
+(defvar multishell-version "1.1.1")
 (defun multishell-version (&optional here)
   "Return string describing the loaded multishell version."
   (interactive "P")
