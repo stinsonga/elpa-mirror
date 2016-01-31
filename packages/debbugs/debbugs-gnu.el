@@ -1274,6 +1274,7 @@ removed instead."
       (insert "To: control@debbugs.gnu.org\n"
 	      "From: " (message-make-from) "\n"
 	      (format "Subject: control message for bug #%d\n" id)
+	      mail-header-separator
 	      "\n"
 	      (cond
 	       ((member message '("unarchive" "unmerge" "reopen" "noowner"))
