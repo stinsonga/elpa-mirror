@@ -3,7 +3,7 @@
 ;; Copyright (C) 2016 Free Software Foundation, Inc. and Ken Manheimer
 
 ;; Author: Ken Manheimer <ken.manheimer@gmail.com>
-;; Version: 1.1.1
+;; Version: 1.1.2
 ;; Created: 2016 -- first public availability
 ;; Keywords: processes
 ;; URL: https://github.com/kenmanheimer/EmacsMultishell
@@ -62,18 +62,16 @@ supplemented by our own when buffer is inactive.)"
          (name (multishell-name-from-entry entry))
          (revised (multishell-read-unbracketed-entry
                    (format "Edit shell spec for %s: " name)
-                   nil
-                   entry))
-         (revised-path (and revised (cadr (multishell-split-entry revised))))
+                   entry
+                   'no-record))
          (revised-name (multishell-name-from-entry revised))
          buffer)
     (when (not (string= revised entry))
-      (multishell-delete-history-name name)
+      (multishell-replace-entry entry revised)
       (when (and (not (string= name revised-name))
                  (setq buffer (get-buffer (multishell-bracket name))))
         (with-current-buffer buffer
           (rename-buffer (multishell-bracket revised-name))))
-      (multishell-register-name-to-path revised-name revised-path)
       (revert-buffer)
       (goto-char where))))
 
@@ -102,11 +100,9 @@ supplemented by our own when buffer is inactive.)"
                                       multishell-list-active-buffer-flag)
                                      (t multishell-list-inactive-buffer-flag)))
                        (rest (cadr splat))
-                       (dissected (and rest (file-remote-p rest)
-                                       (tramp-dissect-file-name rest t)))
-                       (path (or (and dissected (aref dissected 3))
+                       (path (or (file-remote-p rest 'localname)
                                  rest))
-                       (hops (and dissected
+                       (hops (and (file-remote-p rest 'localname)
                                   (substring
                                    rest 0 (- (length rest) (length path))))))
                   (when (not name)
@@ -123,9 +119,21 @@ supplemented by our own when buffer is inactive.)"
   (let ((a (aref (cadr a) 0))
         (b (aref (cadr b) 0)))
     (> (string-to-number a) (string-to-number b))))
+
+(defvar multishell-list-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "d") 'multishell-list-delete)
+    (define-key map (kbd "\C-k") 'multishell-list-delete)
+    (define-key map (kbd "k") 'multishell-list-delete)
+    (define-key map (kbd "e") 'multishell-list-edit-entry)
+    (define-key map (kbd "o") 'multishell-list-open-pop)
+    (define-key map (kbd " ") 'multishell-list-open-pop)
+    (define-key map (kbd "O") 'multishell-list-open-as-default)
+    (define-key map (kbd "RET") 'multishell-list-open-here)
+    map))
 (define-derived-mode multishell-list-mode
     tabulated-list-mode "Shells"
-  "Major mode for listing current and historically registered shells..
+  "Major mode for listing current and historically registered shells.
 \\{multishell-list-mode-map\}"
   (setq tabulated-list-format
         [;; (name width sort '(:right-align nil :pad-right nil))
@@ -137,25 +145,6 @@ supplemented by our own when buffer is inactive.)"
         tabulated-list-sort-key '("#" . t)
         tabulated-list-entries #'multishell-list-entries)
   (tabulated-list-init-header))
-
-(defvar multishell-list-already-re-reverting nil
-  "Don't set - internal for `multishell-list-revert-buffer-kludge'.")
-(defun multishell-list-revert-buffer-kludge ()
-  "Double revert for kludge workaround of untable sorting."
-  (if (not multishell-list-already-re-reverting)
-      (let ((multishell-list-already-re-reverting t))
-        (revert-buffer))))
-(add-hook 'tabulated-list-revert-hook 'multishell-list-revert-buffer-kludge)
-
-(define-key multishell-list-mode-map (kbd "d") 'multishell-list-delete)
-(define-key multishell-list-mode-map (kbd "\C-k") 'multishell-list-delete)
-(define-key multishell-list-mode-map (kbd "k") 'multishell-list-delete)
-(define-key multishell-list-mode-map (kbd "e") 'multishell-list-edit-entry)
-(define-key multishell-list-mode-map (kbd "o") 'multishell-list-open-pop)
-(define-key multishell-list-mode-map (kbd " ") 'multishell-list-open-pop)
-(define-key multishell-list-mode-map (kbd "O") 'multishell-list-open-as-default)
-(define-key multishell-list-mode-map
-  (kbd "<return>") 'multishell-list-open-here)
 
 ;;;###autoload
 (defun multishell-list ()
