@@ -1472,7 +1472,7 @@ If given a prefix, patch in the branch directory instead."
 	(insert-buffer-substring (cdr elem))
 	(cond ((eq (car elem) 'base64)
 	       (base64-decode-region (point-min) (point-max)))
-	      ((eq (car elem) 'qp)
+	      ((eq (car elem) 'quoted-printable)
 	       (quoted-printable-decode-region (point-min) (point-max))))
 	(debbugs-gnu-fix-patch dir)
 	(call-process-region (point-min) (point-max)
