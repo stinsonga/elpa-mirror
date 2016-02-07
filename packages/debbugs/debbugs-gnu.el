@@ -1243,6 +1243,7 @@ removed instead."
 	    "owner" "noowner"
 	    "invalid"
 	    "reassign"
+	    "retitle"
 	    "patch" "wontfix" "moreinfo" "unreproducible" "fixed" "notabug"
 	    "pending" "help" "security" "confirmed"
 	    "usertag")
@@ -1296,6 +1297,8 @@ removed instead."
 		  " ")))
 	       ((equal message "owner")
 		(format "owner %d !\n" id))
+	       ((equal message "retitle")
+		(format "retitle %d %s\n" id (read-string "New title: ")))
 	       ((equal message "reassign")
 		(format "reassign %d %s\n" id (read-string "Package(s): ")))
 	       ((equal message "close")
