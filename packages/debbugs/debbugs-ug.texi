@@ -505,13 +505,6 @@ interactively.
 
 The second bug number is read interactively.
 
-@item serious
-@itemx important
-@itemx normal
-@itemx minor
-@itemx wishlist
-"severity 12345 serious|important|normal|minor|wishlist"
-
 @item invalid
 "tags 12345 notabug" @*
 "tags 12345 wontfix" @*
@@ -530,6 +523,18 @@ The package name on the GNU Debbugs server is read interactively.
 
 @item reopen
 "reopen 12345"
+
+@item retitle
+"retitle 12345 @var{title}"
+
+The new bug title is read interactively.
+
+@item serious
+@itemx important
+@itemx normal
+@itemx minor
+@itemx wishlist
+"severity 12345 serious|important|normal|minor|wishlist"
 
 @item unarchive
 "unarchive 12345"

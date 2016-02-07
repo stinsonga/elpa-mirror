@@ -445,13 +445,6 @@ The strings show the exact format of the control messages.
 
      The second bug number is read interactively.
 
-'serious'
-'important'
-'normal'
-'minor'
-'wishlist'
-     "severity 12345 serious|important|normal|minor|wishlist"
-
 'invalid'
      "tags 12345 notabug"
      "tags 12345 wontfix"
@@ -470,6 +463,18 @@ The strings show the exact format of the control messages.
 
 'reopen'
      "reopen 12345"
+
+'retitle'
+     "retitle 12345 TITLE"
+
+     The new bug title is read interactively.
+
+'serious'
+'important'
+'normal'
+'minor'
+'wishlist'
+     "severity 12345 serious|important|normal|minor|wishlist"
 
 'unarchive'
      "unarchive 12345"
@@ -581,9 +586,9 @@ Node: Layout10159
 Node: Tabulated Lists10634
 Node: TODO Items13881
 Node: Control Messages14928
-Node: Minor Mode17239
-Node: Command Index18178
-Node: Variable Index18825
-Node: Key Index19473
+Node: Minor Mode17324
+Node: Command Index18263
+Node: Variable Index18910
+Node: Key Index19558
 
 End Tag Table
