@@ -4,7 +4,7 @@
 
 ;; Author: Artur Malabarba <emacs@endlessparentheses.com>
 ;; URL: https://github.com/Malabarba/elisp-bug-hunter
-;; Version: 1.0.1
+;; Version: 1.1
 ;; Keywords: lisp
 ;; Package-Requires: ((seq "1.3") (cl-lib "0.5"))
 
@@ -143,7 +143,10 @@ file.")
               nil)
           (end-of-file `(bug-caught (end-of-file) ,line ,col))
           (invalid-read-syntax `(bug-caught ,er ,line ,col))
-          (error (error "Ran into an error we don't understand, please file a bug report: %S" er)))
+          (error
+           (if (string= (elt er 1) "Invalid modifier in string")
+               `(bug-caught (invalid-modifier) ,line ,col)
+             (error "Ran into an error we don't understand, please file a bug report: %S" er))))
         (nreverse out))))
 
 (defun bug-hunter--read-contents (file)
@@ -215,6 +218,9 @@ the file."
     (cl-case (car error)
       (end-of-file
        "There's a missing closing parenthesis, the expression on this line never ends.")
+      (invalid-modifier (concat "There's a string on this line with an invalid modifier."
+                                "\n  A \"modifier\" is a \\ followed by a few characters."
+                                "\n  For example, \\C-; is an invalid modifier."))
       (invalid-read-syntax
        (let ((char (cadr error)))
          (if (member char '("]" ")"))
@@ -288,7 +294,7 @@ ARGS are passed before \"-l FILE\"."
     (unwind-protect
         (bug-hunter--run-emacs file-name "-Q")
       (delete-file file-name))
-    (y-or-n-p "Did you find the problem/bug in this instance? ")))
+    (y-or-n-p "Did you find the problem/bug in this instance (if you encounter some other issue, answer `n')? ")))
 
 (defun bug-hunter--wrap-forms-for-eval (forms)
   "Return FORMS wrapped in initialization code."
