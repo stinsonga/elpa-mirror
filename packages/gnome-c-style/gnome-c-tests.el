@@ -22,6 +22,7 @@
 ;;; Code:
 
 (require 'gnome-c-align)
+(require 'gnome-c-snippet)
 
 (defconst gnome-c-test-program-1 "\
 GGpgCtx *g_gpg_ctx_new (GError **error);
@@ -129,6 +130,11 @@ int             identifier_1234567890
                      double b);
 ")
 
+(defconst gnome-c-test-program-7 "\
+G_DECLARE_FINAL_TYPE (GGpgEngineInfo, g_gpg_engine_info, G_GPG, ENGINE_INFO,
+                      GObject)
+")
+
 (ert-deftest gnome-c-test-align--guess-optimal-columns ()
   "Tests the `gnome-c-align--guess-optimal-columns'."
   (with-temp-buffer
@@ -212,3 +218,67 @@ int             identifier_1234567890
     (should (= gnome-c-align-identifier-start-column 13))
     (should (= gnome-c-align-arglist-start-column 40))
     (should (= gnome-c-align-arglist-identifier-start-column 57))))
+
+(ert-deftest gnome-c-test-snippet-guess-name-from-declaration ()
+  "Tests the `gnome-c-snippet--guess-name-from-declaration'."
+  (with-temp-buffer
+    (insert gnome-c-test-program-7)
+    (c-mode)
+    (setq buffer-file-name "gpgme-glib.h")
+    (let ((package (gnome-c-snippet--guess-name-from-declaration 'package))
+	  (class (gnome-c-snippet--guess-name-from-declaration 'class))
+	  (parent-package
+	   (gnome-c-snippet--guess-name-from-declaration 'parent-package))
+	  (parent-class
+	   (gnome-c-snippet--guess-name-from-declaration 'parent-class)))
+      (should (equal package '("G" "Gpg")))
+      (should (equal class '("Engine" "Info")))
+      (should (equal parent-package '("G")))
+      (should (equal parent-class '("Object"))))))
+
+(ert-deftest gnome-c-test-snippet-guess-name-from-declaration-2 ()
+  "Tests the `gnome-c-snippet--guess-name-from-declaration'."
+  (let (buffer)
+    (unwind-protect
+	(progn
+	  (setq buffer (generate-new-buffer "header"))
+	  (with-current-buffer buffer
+	    (insert gnome-c-test-program-7)
+	    (c-mode)
+	    (setq buffer-file-name "gpgme-glib.h"))
+	  (with-temp-buffer
+	    (c-mode)
+	    (setq buffer-file-name "gpgme-glib.c")
+	    (let ((package
+		   (gnome-c-snippet--guess-name-from-declaration 'package))
+		  (class
+		   (gnome-c-snippet--guess-name-from-declaration 'class))
+		  (parent-package
+		   (gnome-c-snippet--guess-name-from-declaration
+		    'parent-package))
+		  (parent-class
+		   (gnome-c-snippet--guess-name-from-declaration
+		    'parent-class)))
+	      (should (equal package '("G" "Gpg")))
+	      (should (equal class '("Engine" "Info")))
+	      (should (equal parent-package '("G")))
+	      (should (equal parent-class '("Object"))))))
+      (kill-buffer buffer))))
+
+(ert-deftest gnome-c-test-snippet-guess-name-from-file-name ()
+  "Tests the `gnome-c-snippet--guess-name-from-file-name'"
+  (with-temp-buffer
+    (c-mode)
+    (setq buffer-file-name "g-gpg-engine-info.c")
+    (let ((package
+	   (gnome-c-snippet--guess-name-from-file-name 'package))
+	  (class
+	   (gnome-c-snippet--guess-name-from-file-name 'class))
+	  (parent-package
+	   (gnome-c-snippet--guess-name-from-file-name 'parent-package))
+	  (parent-class
+	   (gnome-c-snippet--guess-name-from-file-name 'parent-class)))
+      (should (equal package '("G")))
+      (should (equal class '("Gpg" "Engine" "Info")))
+      (should (equal parent-package nil))
+      (should (equal parent-class nil)))))
