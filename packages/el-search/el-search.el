@@ -374,14 +374,15 @@ of the definitions is limited to \"el-search\"."
 
 (defun el-search--matcher (pattern &rest body)
   (eval ;use `eval' to allow for user defined pattern types at run time
-   `(el-search--with-additional-pcase-macros
-     (let ((byte-compile-debug t) ;make undefined pattern types raise an error
-           (warning-suppress-log-types '((bytecomp)))
-           (pcase--dontwarn-upats (cons '_ pcase--dontwarn-upats)))
-       (byte-compile (lambda (expression)
-                       (pcase expression
-                         (,pattern ,@(or body (list t)))
-                         (_        nil))))))))
+   (let ((expression (make-symbol "expression")))
+     `(el-search--with-additional-pcase-macros
+       (let ((byte-compile-debug t) ;make undefined pattern types raise an error
+             (warning-suppress-log-types '((bytecomp)))
+             (pcase--dontwarn-upats (cons '_ pcase--dontwarn-upats)))
+         (byte-compile (lambda (,expression)
+                         (pcase ,expression
+                           (,pattern ,@(or body (list t)))
+                           (_        nil)))))))))
 
 (defun el-search--match-p (matcher expression)
   (funcall matcher expression))
