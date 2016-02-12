@@ -664,7 +664,9 @@ matches any of these expressions:
 
 (defun el-search--s (expr)
   (cond
-   ((symbolp expr) `(symbol ,(symbol-name expr)))
+   ((symbolp expr) `(or (symbol ,(symbol-name expr))
+                        (,'\` (,'quote    (,'\, (symbol ,(symbol-name expr)))))
+                        (,'\` (,'function (,'\, (symbol ,(symbol-name expr)))))))
    ((stringp expr) `(string ,expr))
    (t expr)))
 
@@ -678,8 +680,8 @@ with very brief input by using a specialized syntax.
 
 An LPAT can take the following forms:
 
-SYMBOL  Matches any symbol matched by SYMBOL's name interpreted as
-        a regexp
+SYMBOL  Matches any symbol S matched by SYMBOL's name interpreted
+        as a regexp.  Matches also 'S and #'S for any such S.
 STRING  Matches any string matched by STRING interpreted as a
         regexp
 _       Matches any list element
