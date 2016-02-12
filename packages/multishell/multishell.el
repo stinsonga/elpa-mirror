@@ -1,9 +1,9 @@
-;;; multishell.el --- facilitate multiple local and remote shell buffers
+;;; multishell.el --- Easily use multiple shell buffers, local and remote.
 
 ;; Copyright (C) 1999-2016 Free Software Foundation, Inc.
 
 ;; Author: Ken Manheimer <ken.manheimer@gmail.com>
-;; Version: 1.1.3
+;; Version: 1.1.4
 ;; Created: 1999 -- first public availability
 ;; Keywords: processes
 ;; URL: https://github.com/kenmanheimer/EmacsMultishell
@@ -59,6 +59,10 @@
 ;;
 ;; Change Log:
 ;;
+;; * 2016-02-11 1.1.4 Ken Manheimer:
+;;   - hookup multishell-list as completion help buffer.
+;;     Mouse and keyboard selections from help listing properly exits
+;;     minibuffer.
 ;; * 2016-02-09 1.1.3 Ken Manheimer:
 ;;   multishell-list:
 ;;   - add some handy operations, like cloning new entry from existing
@@ -134,20 +138,10 @@
 ;;
 ;; TODO and Known Issues:
 ;;
-;; * Add mouse actions - buttons - to multishell-list entries
-;;   - see buf-menu.el, eg Buffer-menu-mouse-select
-;; * Resolve multishell-list sort glitches:
-;;   - Fix config so multishell-list-revert-buffer-kludge is not needed
-;;   - Make multishell-list-edit-entry in-place, so changed entries recency
-;;     doesn't change.
-;;   - Fill in kill-buffer prompting gaps, eg if default live-process
-;;     prompts are inhibited.
 ;; * Add custom shell launch prep actions
 ;;   - for, eg, port knocking, interface activations
 ;;   - shell commands to execute when shell name or path matches a regexp
 ;;   - list of (regexp, which - name, path, or both, command)
-;; * Adapt multishell-list facilities for all-completions
-;;   - See info on minibuffer-completion-help, display-completion-list
 ;; * Investigate whether we can recognize and provide for failed hops.
 ;;   - Tramp doesn't provide useful reactions for any hop but the first
 ;;   - Might be stuff we can do to detect and convey failures?
@@ -266,6 +260,10 @@ If you want the designated primary that you have at the end of
 one emacs session to be resumed at the next, customize
 `savehist-additional-variables' to include the
 `multishell-primary-name'.")
+
+(defvar multishell-completing-read nil
+  "Internal use, conveying whether or not we're in the midst of a multishell
+completing-read.")
 
 ;; Multiple entries happen because completion also adds name to history.
 (defun multishell-register-name-to-path (name path)
@@ -428,11 +426,19 @@ customize the savehist group to activate savehist."
 
   (let ((token '(token)))
     (if (window-minibuffer-p)
-        (throw 'multishell-do-list token)
-      (if (equal token
-                 (catch 'multishell-do-list
-                   (multishell-pop-to-shell-worker arg name here)))
-          (multishell-list)))))
+        (throw 'multishell-minibuffer-exit token)
+      (let ((got (catch 'multishell-minibuffer-exit
+                   (multishell-pop-to-shell-worker arg name here))))
+        ;; Handle catch or plain fall-through - see cond comments for protocol.
+        (cond
+         ;; Caught token from recursive invocation in minibuffer:
+         ((equal token got) (multishell-list))
+         ;; Caught specifaction of multishell args, eg from multishell-list:
+         ((listp got) (multishell-pop-to-shell-worker (nth 2 got)
+                                                      (nth 0 got)
+                                                      (nth 1 got)))
+         ;; Regular fallthrough - just relay the result:
+         (t got))))))
 
 (defun multishell-pop-to-shell-worker (&optional arg name here)
   "Do real work of `multishell-pop-to-shell', which see."
@@ -616,7 +622,14 @@ Input and completion can include associated path, if any.
 Return what's provided, if anything, else nil."
   (let* ((was-multishell-history multishell-history)
          (candidates (multishell-all-entries 'active-duplicated))
-         (got (completing-read prompt
+         (multishell-completing-read t)
+         (got
+          ;; Use `cl-letf' to dynamically bind multishell-list to
+          ;; display-completion-list, so multishell-list is used when doing
+          ;; minibuffer-completion-help.
+          (cl-letf (((symbol-function 'display-completion-list)
+                     #'multishell-list))
+              (completing-read prompt
                                ;; COLLECTION:
                                (reverse candidates)
                                ;; PREDICATE:
@@ -626,7 +639,7 @@ Return what's provided, if anything, else nil."
                                ;; INITIAL-INPUT
                                initial
                                ;; HIST:
-                               'multishell-history)))
+                               'multishell-history))))
     (when no-record
       (setq multishell-history was-multishell-history))
     (if (not (string= got ""))
@@ -685,7 +698,11 @@ and path nil if none is resolved."
 
       (when (and (derived-mode-p 'shell-mode) (file-remote-p path))
         ;; Returning to disconnected remote shell - do some tidying.
-        ;; (Prevents the "Args out of range" failure when reconnecting.)
+        ;; Without this cleanup, occasionally restarting a disconnected
+        ;; remote session, particularly one that includes sudo, results in
+        ;; an untraceable "Args out of range" error. That never happens if
+        ;; we precedeed connection attempts with this cleanup -
+        ;; prophylactic.
         (tramp-cleanup-connection
          (tramp-dissect-file-name default-directory 'noexpand)
          'keep-debug 'keep-password))
