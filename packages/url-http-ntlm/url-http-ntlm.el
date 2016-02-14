@@ -1,6 +1,6 @@
 ;;; url-http-ntlm.el --- NTLM authentication for the url library
 
-;; Copyright (C) 2008, 2015 Free Software Foundation, Inc.
+;; Copyright (C) 2008, 2016 Free Software Foundation, Inc.
 
 ;; Author: Tom Schutzer-Weissmann <tom.weissmann@gmail.com>
 ;; Maintainer: Thomas Fitzsimmons <fitzsim@fitzsim.org>
