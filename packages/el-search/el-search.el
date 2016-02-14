@@ -236,9 +236,13 @@
   :group 'lisp)
 
 (defcustom el-search-this-expression-identifier 'exp
-  "Name of the identifier referring to the current expression.
-The default value is `exp'.  You can use this name in the search
-prompt to refer to the value of the currently tested expression."
+  "Identifier referring to the current expression in pattern input.
+When entering a PATTERN in an interactive \"el-search\" command,
+the pattern actually used will be
+
+    `(and ,el-search-this-expression-identifier ,pattern)
+
+The default value is `exp'."
   :type 'symbol)
 
 (defface el-search-match '((((background dark)) (:background "#0000A0"))
