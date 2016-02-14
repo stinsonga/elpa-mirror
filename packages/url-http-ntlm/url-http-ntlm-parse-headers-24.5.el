@@ -1,6 +1,6 @@
 ;;; url-http-ntlm-parse-headers-24.5.el --- Override url-http-parse-headers
 
-;; Copyright (C) 1999, 2001, 2004-2014 Free Software Foundation, Inc.
+;; Copyright (C) 1999, 2001, 2004-2016 Free Software Foundation, Inc.
 
 ;; Author: Bill Perry <wmperry@gnu.org>
 ;; Keywords: comm, data, processes
