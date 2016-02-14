@@ -52,6 +52,35 @@
   (should (= 4 (stream-first (stream-rest (stream-range 3)))))
   (should (= 5 (stream-first (stream-rest (stream-rest (stream-range 3)))))))
 
+(ert-deftest stream-from-iterator-test ()
+  (skip-unless (require 'generator nil t))
+  (should (equal '(1 2)
+                 (seq-into-sequence
+                  (stream-from-iterator
+                   (funcall (iter-lambda ()
+                              (iter-yield 1)
+                              (iter-yield 2))))))))
+
+(ert-deftest stream-append-test ()
+  (should (stream-empty-p (stream-append)))
+  (should (let ((list '(1 2)))
+            (equal list (seq-into-sequence (stream-append (stream list))))))
+  (should (= (seq-elt (stream-append
+                       (stream (list 0 1))
+                       (stream-range 2))
+                      4)
+             4))
+  (should (let ((stream (stream (list 0))))
+            (and (= (seq-elt (stream-append stream (stream-range 1)) 10)
+                    10)
+                 (stream-empty-p (stream-rest stream)))))
+  (should (equal (seq-into-sequence
+                  (stream-append
+                   (stream '(1))
+                   (stream '())
+                   (stream '(2 3))))
+                 '(1 2 3))))
+
 (ert-deftest stream-seqp-test ()
   (should (seqp (stream-range))))
 
@@ -174,6 +203,14 @@
          (stream (stream-cons (setq consumed t) (stream-empty))))
     (seq-map #'identity stream)
     (should-not consumed)))
+
+(ert-deftest stream-pop-test ()
+  (let* ((str (stream '(1 2 3)))
+         (first (stream-pop str))
+         (stream-empty (stream-empty)))
+    (should (= 1 first))
+    (should (= 2 (stream-first str)))
+    (should (null (stream-pop stream-empty)))))
 
 (provide 'stream-tests)
 ;;; stream-tests.el ends here

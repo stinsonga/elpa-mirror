@@ -113,6 +113,17 @@ The sequence starts at POS if non-nil, 1 otherwise."
            (char-after (point)))))
      (stream buffer (1+ pos)))))
 
+(declare-function iter-next "generator")
+
+(defun stream-from-iterator (iterator)
+  "Return a stream generating new elements through ITERATOR.
+ITERATOR is an iterator object in terms of the \"generator\"
+package."
+  (stream-make
+   (condition-case nil
+       (cons (iter-next iterator) (stream-from-iterator iterator))
+     (iter-end-of-sequence nil))))
+
 (defun stream-regexp (buffer regexp)
   (stream-make
    (let (match)
@@ -137,7 +148,8 @@ range is infinite."
 
 (defun streamp (stream)
   "Return non-nil if STREAM is a stream, nil otherwise."
-  (eq (car-safe stream) stream--identifier))
+  (and (consp stream)
+       (eq (car stream) stream--identifier)))
 
 (defun stream-empty ()
   "Return an empty stream."
@@ -155,6 +167,22 @@ range is infinite."
   "Return a stream of all but the first element of STREAM."
   (or (cdr (thunk-force (cadr stream)))
       (stream-empty)))
+
+(defun stream-append (&rest streams)
+  "Concatenate the STREAMS.
+Requesting elements from the resulting stream will request the
+elements in the STREAMS in order."
+  (if (null streams)
+      (stream-empty)
+    (stream-make
+     (let ((first (pop streams)))
+       (while (and (stream-empty-p first) streams)
+         (setq first (pop streams)))
+       (if (stream-empty-p first)
+           nil
+         (cons (stream-first first)
+               (if streams (apply #'stream-append (stream-rest first) streams)
+                 (stream-rest first))))))))
 
 (defmacro stream-pop (stream)
   "Return the first element of STREAM and set the value of STREAM to its rest."
