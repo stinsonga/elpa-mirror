@@ -273,35 +273,35 @@ The default value is `exp'."
     map)
   "Map for reading input with `el-search-read-expression'.")
 
+(defun el-search--setup-minibuffer ()
+  (emacs-lisp-mode)
+  (use-local-map el-search-read-expression-map)
+  (setq font-lock-mode t)
+  (funcall font-lock-function 1)
+  (backward-sexp)
+  (indent-sexp)
+  (goto-char (point-max))
+  (when-let ((this-sexp (with-current-buffer (window-buffer (minibuffer-selected-window))
+                          (thing-at-point 'sexp))))
+    (let ((more-defaults (list (concat "'" this-sexp))))
+      (setq-local minibuffer-default-add-function
+                  (lambda () (if (listp minibuffer-default)
+                            (append minibuffer-default more-defaults)
+                          (cons minibuffer-default more-defaults)))))))
+
 ;; $$$$$FIXME: this should be in Emacs!  There is only a helper `read--expression'.
 (defun el-search-read-expression (prompt &optional initial-contents hist default read)
   "Read expression for `my-eval-expression'."
-  (minibuffer-with-setup-hook
-      (lambda ()
-        (emacs-lisp-mode)
-        (use-local-map el-search-read-expression-map)
-        (setq font-lock-mode t)
-        (funcall font-lock-function 1)
-        (backward-sexp)
-        (indent-sexp)
-        (goto-char (point-max)))
+  (minibuffer-with-setup-hook #'el-search--setup-minibuffer
     (read-from-minibuffer prompt initial-contents el-search-read-expression-map read
                           (or hist 'read-expression-history) default)))
 
 (defvar el-search--initial-mb-contents nil)
 
 (defun el-search--read-pattern (prompt &optional default read)
-  (let ((this-sexp (sexp-at-point)))
-    (minibuffer-with-setup-hook
-        (lambda ()
-          (when this-sexp
-            (let ((more-defaults (list (concat "'" (el-search--print this-sexp)))))
-              (setq-local minibuffer-default-add-function
-                          (lambda () (if (listp minibuffer-default)
-                                    (append minibuffer-default more-defaults)
-                                  (cons minibuffer-default more-defaults)))))))
-      (el-search-read-expression
-       prompt el-search--initial-mb-contents 'el-search-history default read))))
+  (let ((input (el-search-read-expression
+                prompt el-search--initial-mb-contents 'el-search-history default read)))
+    (if (or read (not (string= input ""))) input (car el-search-history))))
 
 (defun el-search--end-of-sexp ()
   ;;Point must be at sexp beginning
