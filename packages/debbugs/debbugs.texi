@@ -8,7 +8,7 @@
 @end direntry
 
 @copying
-Copyright @copyright{} 2011-2015 Free Software Foundation, Inc.
+Copyright @copyright{} 2011-2016 Free Software Foundation, Inc.
 
 @quotation
 Permission is granted to copy, distribute and/or modify this document
@@ -64,6 +64,9 @@ communication with the Debbugs server.  In tandem with Emacs' email
 facilities, @code{debbugs} provides a solution for building
 applications that interact with the Debbugs BTS directly from Emacs
 without addressing Debbugs' web interface.
+
+The user interface for accessing the Debbugs server for GNU projects
+is described in @ref{Top, Debbugs User Guide, , debbugs-ug}.
 
 @menu
 * Installation::                Getting and installing @code{debbugs}.
@@ -155,6 +158,15 @@ Example.  Add a new Debbugs port with name "foobars.net":
 This variable holds the name of the currently used port.  The value of
 the variable corresponds to the Debbugs server to be accessed, either
 @code{"gnu.org"} or @code{"debian.org"}, or a user defined port name.
+@end defvar
+
+@defvar debbugs-cache-expiry
+The function @code{debbugs-get-status} (@pxref{Requesting bugs
+statuses}) caches retrieved status entries in order to improve the
+performance.  This variable determines the number of seconds an entry
+is cached, before it is retrieved again.  A value of @code{nil}
+disables cache expiration, and a value of @code{t} disables caching.
+Both values are not recommended for a usual workflow.
 @end defvar
 
 @node Requesting bug numbers

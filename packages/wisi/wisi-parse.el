@@ -111,6 +111,9 @@ point at which that max was spawned.")
   list (symbol text start . end), where `symbol' is the terminal
   symbol, `text' is the token string, `start . end' is the range
   in the buffer."
+
+  ;; FIXME: (aref automaton 3) is the obarray storing the semantic actions;
+  ;; not used here (see related FIXME in wisi-compile)
   (let* ((actions (aref automaton 0))
 	 (gotos   (aref automaton 1))
 	 (parser-states ;; vector of parallel parser states
@@ -148,8 +151,8 @@ point at which that max was spawned.")
 			(let ((state (aref (wisi-parser-state-stack parser-state)
 					   (wisi-parser-state-sp parser-state))))
 			  (wisi-error-msg (concat "too many parallel parsers required in grammar state %d;"
-						  " simplify grammar, or increase `wisi-parse-max-parallel'"
-						  state)))))
+						  " simplify grammar, or increase `wisi-parse-max-parallel'")
+						  state))))
 
 	      (let ((j (wisi-free-parser parser-states)))
 		(cond
@@ -381,7 +384,7 @@ nil, 'shift, or 'accept."
     result)
   )
 
-(defun wisi-parse-exec-action (func tokens)
+(defun wisi-parse-exec-action (func nonterm tokens)
   "Execute action if all tokens past wisi-cache-max."
   ;; We don't execute actions if all tokens are before wisi-cache-max,
   ;; because later actions can update existing caches, and if the
@@ -392,7 +395,7 @@ nil, 'shift, or 'accept."
   (if (< 0 (length tokens))
       (if (>= (wisi-parse-max-pos tokens) wisi-cache-max)
 
-	  (funcall func tokens)
+	  (funcall func nonterm tokens)
 
 	(when (> wisi-debug 1)
 	  (message "... action skipped; before wisi-cache-max %d" wisi-cache-max)))
@@ -407,7 +410,7 @@ nil, 'shift, or 'accept."
     (when (> wisi-debug 1) (message "%s" (car pending)))
 
     (let ((func-args (pop pending)))
-      (wisi-parse-exec-action (car func-args) (cadr func-args)))
+      (wisi-parse-exec-action (nth 0 func-args) (nth 1 func-args) (cl-caddr func-args)))
     ))
 
 (defun wisi-parse-1 (token parser-state pendingp actions gotos)
@@ -508,7 +511,7 @@ the first and last tokens of the nonterminal."
   "Reduce PARSER-STATE.stack, and execute or pend ACTION."
   (let* ((stack (wisi-parser-state-stack parser-state)); reference
 	 (sp (wisi-parser-state-sp parser-state)); copy
-	 (token-count (or (nth 2 action) 0))
+	 (token-count (nth 2 action))
 	 (nonterm (nth 0 action))
 	 (nonterm-region (when (> token-count 0)
 			   (wisi-nonterm-bounds stack (- sp (* 2 (1- token-count)) 1) (1- sp))))
@@ -519,25 +522,29 @@ the first and last tokens of the nonterminal."
     (when (not new-state)
       (error "no goto for %s %d" nonterm post-reduce-state))
 
-    (dotimes (i token-count)
-      (aset tokens (- token-count i 1) (aref stack (- sp (* 2 i) 1))))
+    (when (nth 1 action)
+      ;; don't need wisi-tokens for a null user action
+      (dotimes (i token-count)
+	(aset tokens (- token-count i 1) (aref stack (- sp (* 2 i) 1)))))
 
     (setq sp (+ 2 (- sp (* 2 token-count))))
     (aset stack (1- sp) (cons nonterm nonterm-region))
     (aset stack sp new-state)
     (setf (wisi-parser-state-sp parser-state) sp)
 
-    (if pendingp
-	(if (wisi-parser-state-pending parser-state)
+    (when (nth 1 action)
+      ;; nothing to do for a null user action
+      (if pendingp
+	  (if (wisi-parser-state-pending parser-state)
+	      (setf (wisi-parser-state-pending parser-state)
+		    (append (wisi-parser-state-pending parser-state)
+			    (list (list (nth 1 action) nonterm tokens))))
 	    (setf (wisi-parser-state-pending parser-state)
-		  (append (wisi-parser-state-pending parser-state)
-			  (list (list (nth 1 action) tokens))))
-	  (setf (wisi-parser-state-pending parser-state)
-		(list (list (nth 1 action) tokens))))
+		  (list (list (nth 1 action) nonterm tokens))))
 
-      ;; Not pending.
-      (wisi-parse-exec-action (nth 1 action) tokens)
-      )
+	;; Not pending.
+	(wisi-parse-exec-action (nth 1 action) nonterm tokens)
+	))
     ))
 
 (provide 'wisi-parse)

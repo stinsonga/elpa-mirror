@@ -54,7 +54,9 @@ Then you need to specify the left and right directories to compare.
  * `F5` forces the full rescan.
 
 ### Customizations
-By default all files starting with dot (like `.gitignore`) are not shown and excluded from the difference status for directories. One can add an additional regexps to the list `ztree-diff-filter-list`. 
+By default all files starting with dot (like `.gitignore`) are not shown and excluded from the difference status for directories. One can add an additional regexps to the list `ztree-diff-filter-list`.
+
+One also could turn on unicode characters to draw the tree with instead of normal ASCII-characters. This is controlled by the `ztree-draw-unicode-lines` variable.
 
 ### Screenshots
 
@@ -86,4 +88,21 @@ Set the `ztree-dir-move-focus` variable to `t` in order to move focus to the oth
 ![ztree emacsapp](https://github.com/fourier/ztree/raw/screenshots/screenshots/emacs_app.png "Emacs App with ztree-dir")
 
 ![ztree emacsx11](https://github.com/fourier/ztree/raw/screenshots/screenshots/emacs_xterm.png "Emacs in xterm with ztree-dir")
+
+
+## Contributions
+You can contribute to **ztree** in one of the following ways.
+- Submit a bug report
+- Submit a feature request
+- Submit a simple pull request (with changes < 15 lines)
+
+### Copyright issues
+Since **ztree** is a part of [GNU ELPA](https://elpa.gnu.org/), it is copyrighted by the [Free Software Foundation, Inc.](http://www.fsf.org/). Therefore in order to submit nontrivial changes (with total amount of lines > 15), one needs to to grant the right to include your works in GNU Emacs to the FSF.
+
+For this you need to complete [this](https://raw.githubusercontent.com/fourier/ztree/contributions/request-assign.txt) form, and send it to [assign@gnu.org](mailto:assign@gnu.org). The FSF will send you the assignment contract that both you and the FSF will sign.
+
+For more information one can read [here](http://www.gnu.org/licenses/why-assign.html) to understand why it is needed.
+
+As soon as the paperwork is done one can contribute to **ztree** with bigger pull requests.
+Note what pull requests without paperwork done will not be accepted, so please notify the [maintainer](mailto:alexey.veretennikov@gmail.com) if everything is in place.
 

@@ -26,6 +26,7 @@
 
 (require 'ert)
 (require 'stream)
+(require 'cl-lib)
 
 (defun stream-to-list (stream)
   "Eagerly traverse STREAM and return a list of its elements."
@@ -51,8 +52,37 @@
   (should (= 4 (stream-first (stream-rest (stream-range 3)))))
   (should (= 5 (stream-first (stream-rest (stream-rest (stream-range 3)))))))
 
-(ert-deftest stream-seq-p-test ()
-  (should (seq-p (stream-range))))
+(ert-deftest stream-from-iterator-test ()
+  (skip-unless (require 'generator nil t))
+  (should (equal '(1 2)
+                 (seq-into-sequence
+                  (stream-from-iterator
+                   (funcall (iter-lambda ()
+                              (iter-yield 1)
+                              (iter-yield 2))))))))
+
+(ert-deftest stream-append-test ()
+  (should (stream-empty-p (stream-append)))
+  (should (let ((list '(1 2)))
+            (equal list (seq-into-sequence (stream-append (stream list))))))
+  (should (= (seq-elt (stream-append
+                       (stream (list 0 1))
+                       (stream-range 2))
+                      4)
+             4))
+  (should (let ((stream (stream (list 0))))
+            (and (= (seq-elt (stream-append stream (stream-range 1)) 10)
+                    10)
+                 (stream-empty-p (stream-rest stream)))))
+  (should (equal (seq-into-sequence
+                  (stream-append
+                   (stream '(1))
+                   (stream '())
+                   (stream '(2 3))))
+                 '(1 2 3))))
+
+(ert-deftest stream-seqp-test ()
+  (should (seqp (stream-range))))
 
 (ert-deftest stream-seq-elt-test ()
   (should (null (seq-elt (stream-empty) 0)))
@@ -108,18 +138,18 @@
 (ert-deftest stream-seq-take-while-test ()
   (let ((stream (stream '(1 3 2 5))))
     (should (stream-empty-p (seq-take-while #'identity (stream-empty))))
-    (should (streamp (seq-take-while #'oddp stream)))
-    (should (= 1 (stream-first (seq-take-while #'oddp stream))))
-    (should (= 3 (stream-first (stream-rest (seq-take-while #'oddp stream)))))
-    (should (stream-empty-p (stream-rest (stream-rest (seq-take-while #'oddp stream)))))))
+    (should (streamp (seq-take-while #'cl-oddp stream)))
+    (should (= 1 (stream-first (seq-take-while #'cl-oddp stream))))
+    (should (= 3 (stream-first (stream-rest (seq-take-while #'cl-oddp stream)))))
+    (should (stream-empty-p (stream-rest (stream-rest (seq-take-while #'cl-oddp stream)))))))
 
 (ert-deftest stream-seq-drop-while-test ()
   (let ((stream (stream '(1 3 2 5))))
-    (should (streamp (seq-drop-while #'evenp stream)))
+    (should (streamp (seq-drop-while #'cl-evenp stream)))
     (should (stream-empty-p (seq-drop-while #'identity (stream-empty))))
-    (should (= 2 (stream-first (seq-drop-while #'evenp stream))))
-    (should (= 5 (stream-first (stream-rest (seq-drop-while #'evenp stream)))))
-    (should (stream-empty-p (stream-rest (stream-rest (seq-drop-while #'evenp stream)))))))
+    (should (= 2 (stream-first (seq-drop-while #'cl-evenp stream))))
+    (should (= 5 (stream-first (stream-rest (seq-drop-while #'cl-evenp stream)))))
+    (should (stream-empty-p (stream-rest (stream-rest (seq-drop-while #'cl-evenp stream)))))))
 
 (ert-deftest stream-seq-map-test ()
   (should (stream-empty-p (seq-map #'- (stream-empty))))
@@ -135,11 +165,11 @@
     (should (equal result '(4 3 2 1 0)))))
 
 (ert-deftest stream-seq-filter-test ()
-  (should (stream-empty-p (seq-filter #'oddp (stream-empty))))
-  (should (stream-empty-p (seq-filter #'oddp (stream-range 0 4 2))))
-  (should (= 1 (stream-first (seq-filter #'oddp (stream-range 0 4)))))
-  (should (= 3 (stream-first (stream-rest (seq-filter #'oddp (stream-range 0 4))))))
-  (should (stream-empty-p (stream-rest (stream-rest (seq-filter #'oddp (stream-range 0 4)))))))
+  (should (stream-empty-p (seq-filter #'cl-oddp (stream-empty))))
+  (should (stream-empty-p (seq-filter #'cl-oddp (stream-range 0 4 2))))
+  (should (= 1 (stream-first (seq-filter #'cl-oddp (stream-range 0 4)))))
+  (should (= 3 (stream-first (stream-rest (seq-filter #'cl-oddp (stream-range 0 4))))))
+  (should (stream-empty-p (stream-rest (stream-rest (seq-filter #'cl-oddp (stream-range 0 4)))))))
 
 (ert-deftest stream-seq-copy-test ()
   (should (streamp (seq-copy (stream-range))))
@@ -167,6 +197,20 @@
   (should (= (stream-first (seq-subseq (stream-range 2 10) 1 3)) 3))
   (should (= (seq-length (seq-subseq (stream-range 2 10) 1 3)) 2))
   (should (= (seq-elt (seq-subseq (stream-range 2 10) 1 3) 1) 4)))
+
+(ert-deftest stream-seq-map-should-not-consume-stream-elements ()
+  (let* (consumed
+         (stream (stream-cons (setq consumed t) (stream-empty))))
+    (seq-map #'identity stream)
+    (should-not consumed)))
+
+(ert-deftest stream-pop-test ()
+  (let* ((str (stream '(1 2 3)))
+         (first (stream-pop str))
+         (stream-empty (stream-empty)))
+    (should (= 1 first))
+    (should (= 2 (stream-first str)))
+    (should (null (stream-pop stream-empty)))))
 
 (provide 'stream-tests)
 ;;; stream-tests.el ends here

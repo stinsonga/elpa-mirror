@@ -4,7 +4,7 @@
 
 ;; Author: Ingo Lohmar <i.lohmar@gmail.com>
 ;; URL: https://github.com/company-mode/company-statistics
-;; Version: 0.2.1
+;; Version: 0.2.2
 ;; Keywords: abbrev, convenience, matching
 ;; Package-Requires: ((emacs "24.3") (company "0.8.5"))
 
@@ -184,12 +184,14 @@ number)."
 font-lock-keyword-face up to point, or nil."
   (let ((face-pos (point)))
     (while (and (number-or-marker-p face-pos)
-                (< 1 face-pos)
+                (< (point-min) face-pos)
                 (not (eq (get-text-property (1- face-pos) 'face)
                          'font-lock-keyword-face)))
       (setq face-pos
             (previous-single-property-change face-pos 'face nil (point-min))))
-    (when (and (number-or-marker-p face-pos))      ;else eval to nil
+    (when (and (number-or-marker-p face-pos)
+               (eq (get-text-property (max (point-min) (1- face-pos)) 'face)
+                   'font-lock-keyword-face))
       (list :keyword
             (buffer-substring-no-properties
              (previous-single-property-change face-pos 'face nil (point-min))

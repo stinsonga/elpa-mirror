@@ -1,11 +1,10 @@
 ;; debbugs-browse.el --- browse bug URLs with debbugs-gnu or debbugs-org
 
-;; Copyright (C) 2015 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2016 Free Software Foundation, Inc.
 
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, hypermedia, maint
 ;; Package: debbugs
-;; Version: 0.7
 
 ;; This file is part of GNU Emacs.
 

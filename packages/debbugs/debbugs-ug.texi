@@ -8,7 +8,7 @@
 @end direntry
 
 @copying
-Copyright @copyright{} 2015 Free Software Foundation, Inc.
+Copyright @copyright{} 2015-2016 Free Software Foundation, Inc.
 
 @quotation
 Permission is granted to copy, distribute and/or modify this document
@@ -37,6 +37,7 @@ and modified without restriction.
 
 @contents
 
+
 @node Top
 @top Debbugs User Guide
 
@@ -45,10 +46,10 @@ the Debian project but currently used also by the GNU project.  The
 main distinctive feature of Debbugs is that it's mostly email-based.
 All actions on bug reports: opening, closing, changing the status,
 commenting, forwarding are performed via email by sending specially
-composed letters to the particular mail addresses.  However, searching
-the bug reports, querying bug report status and viewing comments have
-been web-based for a long time.  To overcome this inconvenience the
-Debbugs/SOAP service was introduced.
+composed letters to the particular email addresses.  However,
+searching the bug reports, querying bug report status and viewing
+comments have been web-based for a long time.  To overcome this
+inconvenience the Debbugs/SOAP service was introduced.
 
 Based on the Debbugs/SOAP service, frontends are written which offer
 handling of bugs inside Emacs.  These frontends are restricted to the
@@ -69,6 +70,7 @@ Programmer's Manual, debbugs}).
 * Key Index::                   Keyboard strokes on bug report buffers.
 @end menu
 
+
 @node Retrieving Bugs
 @chapter Retrieving Bugs
 
@@ -87,11 +89,10 @@ When the bug numbers to be retrieved are known, the commands
 
 These commands retrieve bug reports from the GNU Debbugs server.
 @code{debbugs-gnu} returns a tabulated list, and @code{debbugs-org}
-returns a list of TODO items in @code{org-mode}.  If there were more
-than @code{debbugs-gnu-default-hits-per-page} bug results from the
-query, there are widgets (@code{debbugs-gnu}) or links
-(@code{debbugs-org}) in the result buffer for retrieving the other
-results.
+returns a list of TODO items in @code{org-mode}.  In order not to
+stress the GNU Debbugs server, the bugs are retrieved in chunks of 500
+bugs.  However, the bug report buffer shows all retrieved bugs then,
+in reverse bug number order.
 
 @vindex debbugs-gnu-all-severities
 @var{severities} is a list of strings which filter for the severities
@@ -112,9 +113,13 @@ The existing package names are compiled into the constant
 @var{archivedp}, if non-@code{nil}, extends the result also on
 archived bugs on the GNU Debbugs server.
 
+@vindex debbugs-gnu-default-suppress-bugs
 @var{suppress} shall also distinct between @code{nil} and
 non-@code{nil}.  When non-@code{nil}, closed bugs are suppressed from
-the results.
+being retrieved from the Debbugs server.  Which bugs are regarded as
+suppressed is configured in the customer option
+@code{debbugs-gnu-suppress-bugs}.  Per default, bugs marked as
+@code{"done"} are suppressed from being retrieved.
 
 When @var{severities} contains the severity @code{"tagged"},
 @var{tags} is consulted in order to restrict the result on bugs which
@@ -133,12 +138,6 @@ minibuffer, lists must be entered comma-separated.
 Default values for interactive use could be configured in the customer
 options @code{debbugs-gnu-default-severities} and
 @code{debbugs-gnu-default-packages}.
-
-@vindex debbugs-gnu-default-hits-per-page
-When the result would exceed more than 500 bugs, the user is asked how
-many bugs to retrieve at once.  This value can be configured in the
-customer option @code{debbugs-gnu-default-hits-per-page}.  However, it
-is not recommended to exceeds the default value.
 
 @ref{Layout} for the presentation of the results.
 
@@ -204,7 +203,7 @@ server, @xref{Retrieving Bugs}.
 A comma-separated list of defined user tags.
 
 @item submitter
-The address of the bug submitter.
+The email address of the bug submitter.
 
 @item date
 A time period the bug has been in which the bug has been submitted or
@@ -283,20 +282,15 @@ in @code{org-mode}.
 * Control Messages::            Control Messages.
 @end menu
 
+
 @node Tabulated Lists
 @section Tabulated Lists
 
 A tabulated list of bug reports consist of four columns for every bug
 entry: @code{Id} (the bug number), @code{State} (some bug attributes),
 @code{Submitter} (the name of the bug submitter), and @code{Title}
-(the bug subject).  Per default the bugs are sorted by @code{Id}; this
-could be changed by clicking in the headline.
-
-Per bug retrieval only up to 500
-(@code{debbugs-gnu-default-hits-per-page}) bugs are retrieved and
-presented in a buffer.  If there shall be presented more bugs, widgets
-are placed on the top and bottom of the buffer for navigation to
-further report buffers.
+(the bug subject).  Per default the bugs are sorted descending by
+@code{Id}; this could be changed by clicking in the headline.
 
 Different foreground colours present further information on the bug
 report.  If the bug number uses a red colour
@@ -316,17 +310,17 @@ is closed).  Archived bugs are shown with inverse face
 The bug report buffers have enabled the minor
 @code{debbugs-gnu-mode}.  This enables the following key strokes:
 
-@multitable {@kbd{@key{mouse-2}}} {Some very very very long long text Some very very very long long text Some very very very long long text}
+@multitable @columnfractions .20 .80
 
 @item
 @kindex @kbd{@key{RET}}
-@kbd{@key{RET}}
+@kbd{@key{RET}} @*
 @kindex @kbd{@key{mouse-1}}
-@kbd{@key{mouse-1}}
+@kbd{@key{mouse-1}} @*
 @kindex @kbd{@key{mouse-2}}
 @kbd{@key{mouse-2}} @tab
 @code{debbugs-gnu-select-report} @*
-Open a GNUS ephemeral group for that bug.@c (@pxref{xxx}).
+Show the email messages that discuss the bug.
 
 @* @item
 @kindex @kbd{d}
@@ -334,29 +328,40 @@ Open a GNUS ephemeral group for that bug.@c (@pxref{xxx}).
 @code{debbugs-gnu-display-status} @*
 Show all bug attributes.
 
-@c @item
-@c @kindex @kbd{/}
-@c @kbd{/} @tab
-@c @code{debbugs-gnu-narrow-to-status}
+@item
+@kindex @kbd{/}
+@kbd{/} @tab
+@code{debbugs-gnu-narrow-to-status} @*
+Narrow the list of bugs to the bugs that match the given regex in
+@code{State}, @code{Submitter} or @code{Title}.
 
-@c @item
-@c @kindex @kbd{w}
-@c @kbd{w} @tab
-@c @code{debbugs-gnu-widen}
+@item
+@kindex @kbd{R}
+@kbd{R} @tab
+@code{debbugs-gnu-show-all-blocking-reports} @*
+Narrow the list of bug reports to the ones that are blocking the
+current release.
+
+@item
+@kindex @kbd{w}
+@kbd{w} @tab
+@code{debbugs-gnu-widen} @*
+Restore the full list again after narrowing.
 
 @item
 @kindex @kbd{g}
 @kbd{g} @tab
 @code{debbugs-gnu-rescan} @*
-Reload all bugs from the GNU Debbugs server.
+Reload all bugs.  With a prefix argument @kbd{C-u}, the bug status
+cache is disabled, and all bug reports are retrieved from the GNU
+Debbugs server.
 
 @item
 @kindex @kbd{B}
-@kbd{B} @tab
-@code{debbugs-gnu-show-blocking-reports}
-@item
+@kbd{B} @*
 @kindex @kbd{b}
 @kbd{b} @tab
+@code{debbugs-gnu-show-blocking-reports} @*
 @code{debbugs-gnu-show-blocked-by-reports} @*
 Show all bug reports which are blocking / blocked by this bug.
 
@@ -386,6 +391,14 @@ Send a control message for this bug, @ref{Control Messages}.
 
 @end multitable
 
+@vindex debbugs-gnu-mail-backend
+The user option @code{debbugs-gnu-mail-backend} controls the
+presentation of email messages produced by typing @kbd{@key{RET}} or
+by clicking the mouse on a bug: if its value is @code{gnus}, the
+default, a GNUS ephemeral group for that bug will be shown; if its
+value is @code{rmail}, the command will present an Rmail folder
+instead.
+
 
 @node TODO Items
 @section TODO Items
@@ -394,16 +407,11 @@ TODO items are offered as usual in @code{org-mode}.  The bug
 attributes are mapped onto properties of these items.  They can be
 shown by the usual navigation in @code{org-mode}.
 
-Per bug retrieval only up to 500
-(@code{debbugs-gnu-default-hits-per-page}) bugs are retrieved and
-presented in a buffer.  At the end of the buffer there is a link,
-which allows to append the next 500 bugs to the list.
-
 Bug severities are mapped onto org severities, see
 @code{debbugs-org-severity-priority}.
 
 The bug report buffers have enabled the minor
-@code{debbugs-gnu-mode}.  This enables the following key strokes:
+@code{debbugs-org-mode}.  This enables the following key strokes:
 
 @multitable {@kbd{C-c # C}} {Some very very very long long text Some very very very long long text Some very very very long long text}
 
@@ -445,10 +453,10 @@ server.  Their format is described in
 @uref{http://debbugs.gnu.org/server-control.html}.
 
 A control message can be initiated in the tabulated list of bugs, in
-the list of org TODO items, or in the GNUS ephemeral group opened for
-the messages belonging to a given bug.  Control messages can be sent
-to unarchived bugs only, in case a bug is archived the control message
-@samp{unarchive} must be sent first.
+the list of org TODO items, or in the GNUS ephemeral group or Rmail
+folder opened for the messages belonging to a given bug.  Control
+messages can be sent to unarchived bugs only, in case a bug is
+archived the control message @samp{unarchive} must be sent first.
 
 In the minibuffer, the following control messages can be requested
 (assuming that 12345 is the bug the control message is intended for).
@@ -497,13 +505,6 @@ interactively.
 
 The second bug number is read interactively.
 
-@item important
-@itemx minor
-@item normal
-@itemx serious
-@item wishlist
-"severity 12345 important|minor|normal|serious|wishlist"
-
 @item invalid
 "tags 12345 notabug" @*
 "tags 12345 wontfix" @*
@@ -522,6 +523,18 @@ The package name on the GNU Debbugs server is read interactively.
 
 @item reopen
 "reopen 12345"
+
+@item retitle
+"retitle 12345 @var{title}"
+
+The new bug title is read interactively.
+
+@item serious
+@itemx important
+@itemx normal
+@itemx minor
+@itemx wishlist
+"severity 12345 serious|important|normal|minor|wishlist"
 
 @item unarchive
 "unarchive 12345"

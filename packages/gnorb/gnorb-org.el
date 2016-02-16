@@ -177,9 +177,10 @@ we came from."
 		   strings)
 		  ((numberp gnorb-org-mail-scan-scope)
 		   (cl-subseq
-		    strings 0 (min
-			       (length strings)
-			       (1+ gnorb-org-mail-scan-scope))))
+		    (nreverse strings)
+		    0 (min
+		       (length strings)
+		       (1+ gnorb-org-mail-scan-scope))))
 		  ;; We could provide more options here. 'tree vs
 		  ;; 'subtree, for instance.
 		  (t
@@ -302,7 +303,7 @@ headings."
   ;; insert text, if any
   (when text
     (message-goto-body)
-    (insert"\n")
+    (insert "\n")
     (if (bufferp text)
 	(insert-buffer-substring text)
       (insert text)))
@@ -502,13 +503,17 @@ default set of parameters."
   ;; got too much hard-coded stuff.
   (interactive "P")
   (org-back-to-heading t)
-  (let* ((backend-string
+  (let* ((bkend-var
+	  (if (boundp 'org-export--registered-backends)
+	      org-export--registered-backends
+	    org-export-registered-backends))
+	 (backend-string
 	  (org-completing-read
 	   "Export backend: "
 	   (mapcar (lambda (b)
 		     (symbol-name (org-export-backend-name b)))
-		   org-export--registered-backends)
-           nil t))
+		   bkend-var)
+	   nil t))
 	 (backend-symbol (intern backend-string))
 	 (f-or-t (org-completing-read "Export as file or text? "
 				      '("file" "text") nil t))
@@ -531,8 +536,6 @@ default set of parameters."
 		     ,@opts
 		     ,gnorb-org-email-subtree-file-parameters))))
 	 text file)
-    (setq gnorb-window-conf (current-window-configuration))
-    (move-marker gnorb-return-marker (point))
     (if (bufferp result)
 	(setq text result)
       (setq file result))

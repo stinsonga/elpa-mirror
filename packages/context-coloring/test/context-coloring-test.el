@@ -749,6 +749,28 @@ ssssssssssss0"))
 1111 cc ccccccc
     1sss11")))
 
+(context-coloring-test-deftest-emacs-lisp empty-varlist
+  (lambda ()
+    (context-coloring-test-assert-coloring "
+1111111 1 11
+1111111 111
+
+1111 1cc
+      11
+1111111 111")))
+
+(context-coloring-test-deftest-emacs-lisp varlist-spacing
+  (lambda ()
+    (context-coloring-test-assert-coloring "
+(111 (
+      (1 (222222 ()))))
+
+(111111 ( 1 1 )
+  1 1)
+
+(111111111 0 ( (1) )
+  1)")))
+
 (context-coloring-test-deftest-emacs-lisp let*
   (lambda ()
     (context-coloring-test-assert-coloring "
@@ -764,6 +786,16 @@ ssssssssssss0"))
     2222 1 1 2 2 2 000022
   1111 1 1 1 0 0 000011"))
   :fixture "let-star.el")
+
+(context-coloring-test-deftest-emacs-lisp macroexp-let2
+  (lambda ()
+    (context-coloring-test-assert-coloring "
+1111 11111
+  222222222-2222 00000000-00000000-0 2 111
+    2 11121
+
+(11111111-1111 00000000-00000000-0)
+(11111111-1111)")))
 
 (context-coloring-test-deftest-emacs-lisp cond
   (lambda ()
