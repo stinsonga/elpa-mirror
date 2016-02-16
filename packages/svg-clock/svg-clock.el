@@ -6,7 +6,7 @@
 ;; Author:      Ulf Jasper <ulf.jasper@web.de>
 ;; Created:     22. Sep. 2011
 ;; Keywords:    demo, svg, clock
-;; Version:     0.5
+;; Version:     1.0
 ;; Package-Requires: ((svg "0.1") (emacs "25.0"))
 
 ;; This file is part of GNU Emacs.
@@ -43,7 +43,7 @@
 
 ;;; News:
 
-;;  Version FIXME
+;;  Version 1.0
 ;;    New function `svg-clock-insert'.  Removed customization
 ;;    options.
 

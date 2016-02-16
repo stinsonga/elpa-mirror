@@ -7,6 +7,19 @@ Please send wisi bug reports to bug-gnu-emacs@gnu.org, with
 'wisi' in the subject. If possible, use M-x report-emacs-bug.
 
 
+* wisi 1.1.2
+20 Jan 2016
+
+** wisi-compile no longer requires semantic.
+
+** wisi-parse slightly faster
+
+** minor bug fixes
+
+** wisi-extend-action now takes two args (first last)
+
+** wisi-face-action-1 optional arg no-override is replaced by override-no-error.
+
 * wisi 1.1.1
 10 Apr 2015
 

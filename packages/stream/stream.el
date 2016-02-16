@@ -4,7 +4,7 @@
 
 ;; Author: Nicolas Petton <nicolas@petton.fr>
 ;; Keywords: stream, laziness, sequences
-;; Version: 2.0.1
+;; Version: 2.1.0
 ;; Package-Requires: ((emacs "25"))
 ;; Package: stream
 
@@ -62,7 +62,7 @@
 
 (defmacro stream-make (&rest body)
   "Return a stream built from BODY.
-BODY must return nil or a cons cell, which cdr is itself a
+BODY must return nil or a cons cell whose cdr is itself a
 stream."
   (declare (debug t))
   `(list ',stream--identifier (thunk-delay ,@body)))
@@ -98,7 +98,7 @@ SEQ can be a list, vector or string."
 
 (cl-defmethod stream ((buffer buffer) &optional pos)
   "Return a stream of the characters of the buffer BUFFER.
-BUFFER-OR-NAME may be a buffer or a string (buffer name).
+BUFFER may be a buffer or a string (buffer name).
 The sequence starts at POS if non-nil, 1 otherwise."
   (with-current-buffer buffer
     (unless pos (setq pos (point-min)))
@@ -112,6 +112,25 @@ The sequence starts at POS if non-nil, 1 otherwise."
            (goto-char pos)
            (char-after (point)))))
      (stream buffer (1+ pos)))))
+
+(declare-function iter-next "generator")
+
+(defun stream-from-iterator (iterator)
+  "Return a stream generating new elements through ITERATOR.
+ITERATOR is an iterator object in terms of the \"generator\"
+package."
+  (stream-make
+   (condition-case nil
+       (cons (iter-next iterator) (stream-from-iterator iterator))
+     (iter-end-of-sequence nil))))
+
+(defun stream-regexp (buffer regexp)
+  (stream-make
+   (let (match)
+     (with-current-buffer buffer
+       (setq match (re-search-forward regexp nil t)))
+     (when match
+       (cons (match-data) (stream-regexp buffer regexp))))))
 
 (defun stream-range (&optional start end step)
   "Return a stream of the integers from START to END, stepping by STEP.
@@ -148,19 +167,42 @@ range is infinite."
   "Return a stream of all but the first element of STREAM."
   (or (cdr (thunk-force (cadr stream)))
       (stream-empty)))
+
+(defun stream-append (&rest streams)
+  "Concatenate the STREAMS.
+Requesting elements from the resulting stream will request the
+elements in the STREAMS in order."
+  (if (null streams)
+      (stream-empty)
+    (stream-make
+     (let ((first (pop streams)))
+       (while (and (stream-empty-p first) streams)
+         (setq first (pop streams)))
+       (if (stream-empty-p first)
+           nil
+         (cons (stream-first first)
+               (if streams (apply #'stream-append (stream-rest first) streams)
+                 (stream-rest first))))))))
+
+(defmacro stream-pop (stream)
+  "Return the first element of STREAM and set the value of STREAM to its rest."
+  (unless (symbolp stream)
+    (error "STREAM must be a symbol"))
+  `(prog1
+       (stream-first ,stream)
+     (setq ,stream (stream-rest ,stream))))
 
 
 ;;; cl-generic support for streams
 
-(defvar stream--generalizer
-  (cl-generic-make-generalizer
-   11
-   (lambda (name)
-     `(when (streamp ,name)
-        'stream))
-   (lambda (tag)
-     (when (eq tag 'stream)
-       '(stream)))))
+(cl-generic-define-generalizer stream--generalizer
+  11
+  (lambda (name)
+    `(when (streamp ,name)
+       'stream))
+  (lambda (tag)
+    (when (eq tag 'stream)
+      '(stream))))
 
 (cl-defmethod cl-generic-generalizers ((_specializer (eql stream)))
   "Support for `stream' specializers."
@@ -169,7 +211,7 @@ range is infinite."
 
 ;;; Implementation of seq.el generic functions
 
-(cl-defmethod seq-p ((_stream stream))
+(cl-defmethod seqp ((_stream stream))
   t)
 
 (cl-defmethod seq-elt ((stream stream) n)
@@ -192,7 +234,7 @@ This function will eagerly consume the entire stream."
   (seq-take (seq-drop stream start) (- end start)))
 
 (cl-defmethod seq-into-sequence ((stream stream))
-  "Convert STREAM into a sequence"
+  "Convert STREAM into a sequence."
   (let ((list))
     (seq-doseq (elt stream)
       (push elt list))
@@ -245,19 +287,19 @@ This function will eagerly consume the entire stream."
            (stream-rest stream)))))
 
 (cl-defmethod seq-map (function (stream stream))
-  "Return a stream.
-The elements of the produced sequence consist of the application
-of FUNCTION to each element of STREAM."
-  (if (stream-empty-p stream)
-      stream
-    (stream-cons
-      (funcall function (stream-first stream))
-     (seq-map function (stream-rest stream)))))
+    "Return a stream representing the mapping of FUNCTION over STREAM.
+The elements of the produced stream are the results of the
+applications of FUNCTION on each element of STREAM in succession."
+  (stream-make
+   (when (not (stream-empty-p stream))
+     (cons (funcall function (stream-first stream))
+           (seq-map function (stream-rest stream))))))
 
 (cl-defmethod seq-do (function (stream stream))
   "Evaluate FUNCTION for each element of STREAM eagerly, and return nil.
 
-`seq-do' should never be used on infinite streams."
+`seq-do' should never be used on infinite streams without some
+kind of nonlocal exit."
   (while (not (stream-empty-p stream))
     (funcall function (stream-first stream))
     (setq stream (stream-rest stream))))

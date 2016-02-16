@@ -5,7 +5,7 @@
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
 ;; Maintainer: Oleh Krehel <ohwoeowho@gmail.com>
 ;; URL: https://github.com/abo-abo/hydra
-;; Version: 0.13.3
+;; Version: 0.13.4
 ;; Keywords: bindings
 ;; Package-Requires: ((cl-lib "0.5"))
 
@@ -149,12 +149,12 @@ warn: keep KEYMAP and issue a warning instead of running the command."
   (dolist (frame (frame-list))
     (with-selected-frame frame
       (when overriding-terminal-local-map
-        (internal-pop-keymap hydra-curr-map 'overriding-terminal-local-map)
-        (unless hydra--ignore
-          (when hydra-curr-on-exit
-            (let ((on-exit hydra-curr-on-exit))
-              (setq hydra-curr-on-exit nil)
-              (funcall on-exit))))))))
+        (internal-pop-keymap hydra-curr-map 'overriding-terminal-local-map))))
+  (unless hydra--ignore
+    (when hydra-curr-on-exit
+      (let ((on-exit hydra-curr-on-exit))
+        (setq hydra-curr-on-exit nil)
+        (funcall on-exit)))))
 
 (unless (fboundp 'internal-push-keymap)
   (defun internal-push-keymap (keymap symbol)
@@ -1147,6 +1147,8 @@ DOC defaults to TOGGLE-NAME split and capitalized."
                (if (>= i l)
                    0
                  i)))))
+
+(require 'ring)
 
 (defvar hydra-pause-ring (make-ring 10)
   "Ring for paused hydras.")

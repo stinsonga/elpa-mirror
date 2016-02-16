@@ -3,8 +3,8 @@
 ;; Copyright (C) 2014, 2015 Free Software Foundation, Inc
 
 ;; Author: Artur Malabarba <emacs@endlessparentheses.com>
-;; URL: http://github.com/Malabarba/aggressive-indent-mode
-;; Version: 1.4
+;; URL: https://github.com/Malabarba/aggressive-indent-mode
+;; Version: 1.5
 ;; Package-Requires: ((emacs "24.1") (cl-lib "0.5"))
 ;; Keywords: indent lisp maint tools
 ;; Prefix: aggressive-indent
@@ -79,12 +79,6 @@
 ;; GNU General Public License for more details.
 ;;
 
-;;; Change Log:
-;; 0.3.1 - 2014/10/30 - Define new delete-backward bound to backspace.
-;; 0.3   - 2014/10/23 - Implement a smarter engine for non-lisp modes.
-;; 0.2   - 2014/10/20 - Reactivate `electric-indent-mode'.
-;; 0.2   - 2014/10/19 - Add variable `aggressive-indent-dont-indent-if', so the user can prevent indentation.
-;; 0.1   - 2014/10/15 - Release.
 ;;; Code:
 
 (require 'cl-lib)
@@ -92,6 +86,7 @@
 (defgroup aggressive-indent nil
   "Customization group for aggressive-indent."
   :prefix "aggressive-indent-"
+  :group 'electricity
   :group 'indent)
 
 (defun aggressive-indent-bug-report ()
@@ -105,7 +100,7 @@ Please include this in your report!"
                (require 'lisp-mnt)
                (lm-version)))
            emacs-version)
-  (browse-url "https://github.com/Bruce-Connor/aggressive-indent-mode/issues/new"))
+  (browse-url "https://github.com/Malabarba/aggressive-indent-mode/issues/new"))
 
 (defvar aggressive-indent-mode)
 
@@ -132,6 +127,7 @@ Please include this in your report!"
     jabber-chat-mode
     haml-mode
     haskell-mode
+    haskell-interactive-mode
     image-mode
     makefile-mode
     makefile-gmake-mode
@@ -231,6 +227,10 @@ This is for internal use only.  For user customization, use
      (add-to-list 'aggressive-indent--internal-dont-indent-if
                   'multiple-cursors-mode)))
 (eval-after-load 'iedit
+  '(when (boundp 'iedit-mode)
+     (add-to-list 'aggressive-indent--internal-dont-indent-if
+                  'iedit-mode)))
+(eval-after-load 'evil
   '(when (boundp 'iedit-mode)
      (add-to-list 'aggressive-indent--internal-dont-indent-if
                   'iedit-mode)))
@@ -335,7 +335,7 @@ until nothing more happens."
                               ;; not at all, stop at the limit.
                               (< (point) point-limit))))
               (forward-line 1)
-              (skip-chars-forward "[:blank:]\n\r\xc"))))
+              (skip-chars-forward "[:blank:]\n\r\f"))))
       (goto-char p))))
 
 (defun aggressive-indent--softly-indent-region-and-on (l r &rest _)
@@ -353,18 +353,21 @@ or messages."
 (defun aggressive-indent--indent-if-changed ()
   "Indent any region that changed in the last command loop."
   (when aggressive-indent--changed-list
-    (unless (or (run-hook-wrapped 'aggressive-indent--internal-dont-indent-if #'eval)
-                (aggressive-indent--run-user-hooks))
-      (while-no-input
-        (let ((inhibit-modification-hooks t)
-              (inhibit-point-motion-hooks t)
-              (indent-function
-               (if (cl-member-if #'derived-mode-p aggressive-indent-modes-to-prefer-defun)
-                   #'aggressive-indent--softly-indent-defun #'aggressive-indent--softly-indent-region-and-on)))
-          (while aggressive-indent--changed-list
-            (apply indent-function (car aggressive-indent--changed-list))
-            (setq aggressive-indent--changed-list
-                  (cdr aggressive-indent--changed-list))))))))
+    (save-excursion
+      (save-selected-window
+        (unless (or (run-hook-wrapped 'aggressive-indent--internal-dont-indent-if #'eval)
+                    (aggressive-indent--run-user-hooks))
+          (while-no-input
+            (redisplay)
+            (let ((inhibit-modification-hooks t)
+                  (inhibit-point-motion-hooks t)
+                  (indent-function
+                   (if (cl-member-if #'derived-mode-p aggressive-indent-modes-to-prefer-defun)
+                       #'aggressive-indent--softly-indent-defun #'aggressive-indent--softly-indent-region-and-on)))
+              (while aggressive-indent--changed-list
+                (apply indent-function (car aggressive-indent--changed-list))
+                (setq aggressive-indent--changed-list
+                      (cdr aggressive-indent--changed-list))))))))))
 
 (defun aggressive-indent--keep-track-of-changes (l r &rest _)
   "Store the limits (L and R) of each change in the buffer."
@@ -375,7 +378,7 @@ or messages."
 ;;;###autoload
 (define-minor-mode aggressive-indent-mode
   nil nil " =>"
-  '(("" . aggressive-indent-indent-defun)
+  `((,(kbd "C-c C-q") . aggressive-indent-indent-defun)
     ([backspace]
      menu-item "maybe-delete-indentation" ignore :filter
      (lambda (&optional _)

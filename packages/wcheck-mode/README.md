@@ -18,7 +18,7 @@ checking text. For example, Wcheck mode can be used with spell-checker
 programs such as Ispell, Enchant and Hunspell, but actually any tool
 that can receive text from standard input stream and send text to
 standard output can be used. Wcheck mode sends parts of buffer's content
-to an external program or an Emacs Lisp function and, based on their
+to an external program or an Emacs Lisp function and, relying on their
 output, decides if some parts of text should be marked in the buffer.
 
 [Emacs]: http://www.gnu.org/software/emacs/
@@ -91,10 +91,10 @@ checker.
 Install
 -------
 
-You can install Wcheck mode through [Marmalade][] or [Melpa][] package
-archive. Alternatively you can put `wcheck-mode.el` file to some
-directory in your Emacs's `load-path` and add the following lines to
-Emacs's initialization file (`~/.emacs` or `~/.emacs.d/init.el`):
+You can install Wcheck mode through [Melpa][] package archive.
+Alternatively you can put `wcheck-mode.el` file to some directory in
+your Emacs's `load-path` and add the following lines to Emacs's
+initialization file (`~/.emacs` or `~/.emacs.d/init.el`):
 
     (autoload 'wcheck-mode "wcheck-mode"
       "Toggle wcheck-mode." t)
@@ -107,8 +107,7 @@ Emacs's initialization file (`~/.emacs` or `~/.emacs.d/init.el`):
     (autoload 'wcheck-jump-backward "wcheck-mode"
       "Move point backward to previous marked text area." t)
 
-[Marmalade]: http://marmalade-repo.org/
-[Melpa]:     http://melpa.milkbox.net/
+[Melpa]: https://melpa.org/
 
 
 Configuration and basic usage
@@ -337,7 +336,7 @@ branches and possibly merged to _master_ when they are ready.
 Copyright and license
 ---------------------
 
-Copyright (C) 2009-2014 Teemu Likonen <<tlikonen@iki.fi>>
+Copyright (C) 2009-2016 Free Software Foundation, Inc.
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the

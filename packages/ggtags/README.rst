@@ -4,7 +4,7 @@
 
 This package is part of `GNU ELPA <http://elpa.gnu.org>`_ (``M-x
 list-packages``) and is also available on `MELPA
-<http://melpa.milkbox.net/#/ggtags>`_.
+<https://melpa.org/#/ggtags>`_.
 
 The goal is to make working with GNU Global in Emacs as effortlessly
 and intuitively as possible and to integrate tightly with standard
@@ -61,10 +61,11 @@ Install Global and plugins
      ./configure --prefix=<PREFIX> --with-exuberant-ctags=/usr/local/bin/ctags
      make && make install
 
-   The executable ``ctags`` is unfortunately named because ``emacs`` also
-   includes a command of the same name. So make sure it is from
-   http://ctags.sourceforge.net. See ``plugin-factory/README`` in GNU
-   Global source for further information.
+   The executable ``ctags`` is unfortunately named because ``emacs``
+   also includes a command of the same name. So make sure it is from
+   http://ctags.sourceforge.net. See ``plugin-factory/PLUGIN_HOWTO``
+   (``plugin-factory/README`` for Global < 6.5) in GNU Global
+   source for further information.
 
 2. Install ``pygments`` plugin
 
@@ -222,7 +223,7 @@ turned on to facilitate locating the right match.
 Miscellaneous commands
 ++++++++++++++++++++++
 
-Commands are avaiable from the ``Ggtags`` menu in ``ggtags-mode``.
+Commands are available from the ``Ggtags`` menu in ``ggtags-mode``.
 
 ggtags-prev-mark
 
@@ -271,7 +272,7 @@ ggtags-explain-tags
 ggtags-browse-file-as-hypertext
 
    Use ``htags`` to generate HTML of the source tree. This allows
-   browsing the porject in a browser with cross-references.
+   browsing the project in a browser with cross-references.
 
 Integration with other packages
 +++++++++++++++++++++++++++++++
@@ -311,6 +312,14 @@ Integration with other packages
 
 NEWS
 ~~~~
+
+[2015-12-15 Tue] 0.8.11
++++++++++++++++++++++++
+
+#. ``ggtags-highlight-tag-delay`` is renamed to
+   ``ggtags-highlight-tag``.
+#. Tag highlighting can be disabled by setting
+   ``ggtags-highlight-tag`` to nil.
 
 [2015-06-12 Fri] 0.8.10
 +++++++++++++++++++++++

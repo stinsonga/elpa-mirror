@@ -1,10 +1,10 @@
-;;; bug-hunter.el --- Hunt down errors in elisp files  -*- lexical-binding: t; -*-
+;;; bug-hunter.el --- Hunt down errors by bisecting elisp files  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2015 Free Software Foundation, Inc.
 
 ;; Author: Artur Malabarba <emacs@endlessparentheses.com>
-;; URL: http://github.com/Malabarba/elisp-bug-hunter
-;; Version: 1.0
+;; URL: https://github.com/Malabarba/elisp-bug-hunter
+;; Version: 1.1
 ;; Keywords: lisp
 ;; Package-Requires: ((seq "1.3") (cl-lib "0.5"))
 
@@ -110,7 +110,7 @@ non-nil in your current (problematic) Emacs state, AND that
 returns nil on a clean Emacs instance.
 If you're unsure how to write an assertion, you can try the interactive
 hunt instead, or see some examples in the Readme:
-    https://github.com/Bruce-Connor/elisp-bug-hunter"
+    https://github.com/Malabarba/elisp-bug-hunter"
   "Printed to the user if they provide a bad assertion.")
 
 (defvar bug-hunter--current-head nil
@@ -143,7 +143,10 @@ file.")
               nil)
           (end-of-file `(bug-caught (end-of-file) ,line ,col))
           (invalid-read-syntax `(bug-caught ,er ,line ,col))
-          (error (error "Ran into an error we don't understand, please file a bug report: %S" er)))
+          (error
+           (if (string= (elt er 1) "Invalid modifier in string")
+               `(bug-caught (invalid-modifier) ,line ,col)
+             (error "Ran into an error we don't understand, please file a bug report: %S" er))))
         (nreverse out))))
 
 (defun bug-hunter--read-contents (file)
@@ -215,6 +218,9 @@ the file."
     (cl-case (car error)
       (end-of-file
        "There's a missing closing parenthesis, the expression on this line never ends.")
+      (invalid-modifier (concat "There's a string on this line with an invalid modifier."
+                                "\n  A \"modifier\" is a \\ followed by a few characters."
+                                "\n  For example, \\C-; is an invalid modifier."))
       (invalid-read-syntax
        (let ((char (cadr error)))
          (if (member char '("]" ")"))
@@ -288,7 +294,7 @@ ARGS are passed before \"-l FILE\"."
     (unwind-protect
         (bug-hunter--run-emacs file-name "-Q")
       (delete-file file-name))
-    (y-or-n-p "Did you find the problem/bug in this instance? ")))
+    (y-or-n-p "Did you find the problem/bug in this instance (if you encounter some other issue, answer `n')? ")))
 
 (defun bug-hunter--wrap-forms-for-eval (forms)
   "Return FORMS wrapped in initialization code."
@@ -416,7 +422,7 @@ If you're looking for something that's not an error, use the
 interactive hunt instead of the error hunt.  If you have some
 elisp proficiency, you can also use the assertion hunt, see this
 link for some examples:
-    https://github.com/Bruce-Connor/elisp-bug-hunter")
+    https://github.com/Malabarba/elisp-bug-hunter")
         (or assertion "")))
 
      ;; Make sure we're in a forest, not a volcano.
