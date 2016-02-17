@@ -5,6 +5,8 @@
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Package: tramp-theme
 ;; Version: 0.1
+;; Package-Requires: ((emacs "24.1"))
+
 
 ;; This file is part of GNU Emacs.
 
@@ -34,6 +36,10 @@
 ;; `tramp-theme-face-remapping-alist' for customization options.
 
 ;;; Code:
+
+;; This is needed for the customized variables.
+(require 'dired)
+(require 'em-dirs)
 
 (deftheme tramp
   "A custom theme to decorate buffers when they are remote.
