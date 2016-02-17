@@ -276,7 +276,7 @@ If this is 'rmail, use Rmail instead."
   "Face for reports that are pending.")
 
 (defface debbugs-gnu-stale '((t (:foreground "orange")))
-  "Face for reports that have not been touched for a week.")
+  "Face for reports that have not been touched for two weeks.")
 
 (defface debbugs-gnu-done '((t (:foreground "DarkGrey")))
   "Face for closed bug reports.")
