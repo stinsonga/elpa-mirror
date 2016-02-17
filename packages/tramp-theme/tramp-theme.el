@@ -151,6 +151,12 @@ Used in different hooks, in order to accelerate the redisplay."
       'tramp-theme-hook-function
       (delete 'tramp-theme-hook-function eshell-directory-change-hook)))))
 
+;;;###autoload
+(when load-file-name
+  (add-to-list
+   'custom-theme-load-path
+   (file-name-as-directory (file-name-directory load-file-name))))
+
 (provide-theme 'tramp)
 
 ;;; TODO:
