@@ -3,6 +3,8 @@
 ;; Copyright (C) 2011, 2016  Free Software Foundation, Inc.
 
 ;; Author: Ralph Amissah & Ambrose Kofi Laing
+;; Note: The "Maintainer:" field below should hold a valid email address!
+;; Maintainer: Ralph Amissah <ralph.amissah@gmail.com>
 ;; Keywords: text, syntax, processes, tools
 ;; Version:   7.1.8
 ;; URL: http://www.sisudoc.org/
@@ -110,6 +112,7 @@
 (defvar sisu-title-3 'sisu-title-3-face)
 (defvar sisu-title-4 'sisu-title-4-face)
 
+;;; FIXME: These variable should use the "sisu-" prefix.
 (defvar general-font-lock-red1 font-lock-warning-face)
 (defvar general-font-lock-red2 font-lock-comment-face)
 (defvar general-font-lock-red3 font-lock-string-face)
