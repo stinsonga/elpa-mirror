@@ -6,7 +6,7 @@
 ;; URL: https://github.com/Malabarba/speed-of-thought-lisp
 ;; Keywords: convenience, lisp
 ;; Package-Requires: ((emacs "24.1"))
-;; Version: 1.4.1
+;; Version: 1.5.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -98,7 +98,17 @@
   "Non-nil if point is at the start of a sexp.
 Specially, avoids matching inside argument lists."
   (and (eq (char-before) ?\()
-       (not (sotlisp--looking-back "(\\(defun\\s-+.*\\|lambda\\s-+\\)("))
+       (not (sotlisp--looking-back "(\\(defun\\s-+.*\\|\\(lambda\\|dolist\\|dotimes\\)\\s-+\\)("))
+       (save-excursion
+         (forward-char -1)
+         (condition-case er
+             (progn
+               (backward-up-list)
+               (forward-sexp -1)
+               (not
+                (looking-at-p (rx (* (or (syntax word) (syntax symbol) "-"))
+                                  "let" symbol-end))))
+           (error t)))
        (not (string-match (rx (syntax symbol)) (string last-command-event)))))
 
 (defun sotlisp--function-quote-p ()
@@ -252,11 +262,13 @@ The space char is not included.  Any \"$\" are also removed."
     ("dfv" . "defvar $ t\n  \"\"")
     ("dk" . "define-key ")
     ("dl" . "dolist (it $)")
+    ("dt" . "dotimes (it $)")
     ("dmp" . "derived-mode-p '")
     ("dm" . "defmacro $ ()\n  \"\"\n  ")
     ("dr" . "delete-region ")
     ("dv" . "defvar $ t\n  \"\"")
     ("e" . "error \"$\"")
+    ("ef" . "executable-find ")
     ("efn" . "expand-file-name ")
     ("eol" . "end-of-line")
     ("f" . "format \"$\"")
@@ -340,7 +352,7 @@ The space char is not included.  Any \"$\" are also removed."
     ("sf" . "search-forward $ nil 'noerror")
     ("sfr" . "search-forward-regexp $ nil 'noerror")
     ("sic" . "self-insert-command")
-    ("sl" . "string<")
+    ("sl" . "setq-local ")
     ("sm" . "string-match \"$\"")
     ("smd" . "save-match-data")
     ("sn" . "symbol-name ")
@@ -354,6 +366,8 @@ The space char is not included.  Any \"$\" are also removed."
     ("sw" . "selected-window$")
     ("syp" . "symbolp ")
     ("tap" . "thing-at-point 'symbol")
+    ("tf" . "thread-first ")
+    ("tl" . "thread-last ")
     ("u" . "unless ")
     ("ul" . "up-list")
     ("up" . "unwind-protect\n(progn $)")
