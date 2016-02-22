@@ -27,19 +27,19 @@
 ;; USAGE:
 ;; ---------------------------
 ;; arbitools.el is an interface for the pythong package "arbitools",
-;; designed to manage chess tournament reports. If you don't install the
+;; designed to manage chess tournament reports.  If you don't install the
 ;; python package you can still have the syntax colouring.
 ;;
 ;; FEATURES:
 ;; ----------------------------
-;; - Syntax colouring for the official trf FIDE files. This facilitates
+;; - Syntax colouring for the official trf FIDE files.  This facilitates
 ;; manual edition of the files.
 ;;
-;; - Updating the players ratings. By means of the function arbitools-update
+;; - Updating the players ratings.  By means of the function arbitools-update
 ;;
-;; - Adding players to an existing file. By arbitools-add
+;; - Adding players to an existing file.  By arbitools-add
 ;;
-;; - Getting standings and report files from a tournament file. By
+;; - Getting standings and report files from a tournament file.  By
 ;;   arbitools-standings.
 ;;
 ;; You will find more information in www.ourenxadrez.org/arbitools.htm
@@ -47,17 +47,33 @@
 ;;; Code:
 
 (defun arbitools-update (list)
+  "Update the players ratings."
   (interactive "slist:")
-  (shell-command (concat "arbitools-update.py" " -l " list  " -i " buffer-file-name)))
+  ;; FIXME: What if `list' is "foo; bar"?
+  ;; FIXME: Do we really need a shell here?
+  ;; Why not use just call-process, so we don't need to worry about quoting?
+  (shell-command (concat "arbitools-update.py -l " list  " -i "
+                         (shell-quote-argument buffer-file-name))))
 
 (defun arbitools-add (addfile)
+  "Add players to an existing file."
+  ;; FIXME: is `addfile' a file?  If o, then use "f" rather than "s", else
+  ;; better give it another name!
   (interactive "saddfile: ")
-  (shell-command (concat "arbitools-add.py" " -a " addfile " -i " buffer-file-name)))
+  ;; FIXME: What if `addlist' is "foo; bar"?
+  ;; FIXME: Do we really need a shell here?
+  ;; Why not use just call-process, so we don't need to worry about quoting?
+  (shell-command (concat "arbitools-add.py -a " addfile " -i "
+                         (shell-quote-argument buffer-file-name))))
 
 (defun arbitools-standings ()
+  "Get standings and report files from a tournament file."
   (interactive)
   ;; (shell-command (concat (expand-file-name "arbitools-standings.py") " -i " buffer-file-name))) ;this is to use the actual path
-  (shell-command (concat "arbitools-standings.py" " -i " buffer-file-name)))
+  ;; FIXME: Do we really need a shell here?
+  ;; Why not use just call-process, so we don't need to worry about quoting?
+  (shell-command (concat "arbitools-standings.py -i "
+                         (shell-quote-argument buffer-file-name))))
 
 (defvar arbitools-highlights
  '(("^001" . font-lock-function-name-face) ;name of the tournament
@@ -124,8 +140,8 @@
 ;;;###autoload
 (define-derived-mode arbitools-mode
   fundamental-mode
-  "arbitools-mode"
-  "Major mode for Chess Tournament Management"
+  "Arbitools"
+  "Major mode for Chess Tournament Management."
   ;(setq font-lock-defaults '(arbitools-highlights))
   (set (make-local-variable 'font-lock-defaults) '(arbitools-highlights)))
 
@@ -134,4 +150,4 @@
 
 (provide 'arbitools)
 
-;;; arbitools.el end here
+;;; arbitools.el ends here
