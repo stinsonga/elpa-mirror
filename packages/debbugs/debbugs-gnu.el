@@ -1587,7 +1587,7 @@ If given a prefix, patch in the branch directory instead."
 			  (cadr from))))))
 	  (goto-char (point-max))
 	  (end-of-line)
-	  (insert "  (tiny change"))
+	  (insert "  Copyright-paperwork-exempt: yes"))
 	(goto-char point)))))
 
 (defvar debbugs-gnu-lisp-mode-map
