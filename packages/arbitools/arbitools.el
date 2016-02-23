@@ -57,9 +57,7 @@
 
 (defun arbitools-add (addfile)
   "Add players to an existing file."
-  ;; FIXME: is `addfile' a file?  If o, then use "f" rather than "s", else
-  ;; better give it another name!
-  (interactive "saddfile: ")
+  (interactive "faddfile: ")
   ;; FIXME: What if `addlist' is "foo; bar"?
   ;; FIXME: Do we really need a shell here?
   ;; Why not use just call-process, so we don't need to worry about quoting?
@@ -76,9 +74,7 @@
                          (shell-quote-argument buffer-file-name))))
 
 (defvar arbitools-highlights
- '(("^001" . font-lock-function-name-face) ;name of the tournament
-   ;; ("\\( b \\)\\|\\( w \\)\\|\\( - \\)" . font-lock-keyword-face) ;colour
-    ;; ("\\( 1 \\)\\|\\( 0 \\)\\|\\( = \\)". font-lock-type-face) ;results
+ '(("^001" . font-lock-function-name-face) ; name of the tournament
     ("^012.*" . font-lock-comment-face)
     ("\\(^022\\|^032\\|^042\\|^052\\|^062\\|^072\\|^082\\|^092\\|^102\\|^112\\|^122\\).*" . font-lock-constant-face)
     ("^132.*" . font-lock-warning-face) ;dates
@@ -86,7 +82,7 @@
     ("\\(^013.\\{1\\}\\)\\(.\\{31\\}\\)" 2 font-lock-comment-face) ;; teams
     ;; (" [0-9]\\{6,\\} " . font-lock-variable-name-face) ;FIDE ID
     ("\\(^001.\\{11\\}\\)\\(.\\{32\\}\\)" 2 font-lock-string-face)  ;; Name of the player (by position)
-    ("\\(^001.\\{55\\}\\)\\(.\\{10\\}\\)" 2 font-lock-function-name-face) ;FIDE ID
+    ("\\(^001.\\{55\\}\\)\\(.\\{10\\}\\)" 2 font-lock-function-name-face) ;; FIDE ID
     ("\\(^001.\\{88\\}\\)\\(.\\{4\\}\\)" 2 font-lock-comment-face) ;; round 1 opponent
     ;; ("\\(^132.\\{88\\}\\)\\(.\\{8\\}\\)" 2 font-lock-string-face) ;; round 1 date line
     ("\\(^001.\\{93\\}\\)\\(.\\{1\\}\\)" 2 font-lock-string-face) ;; round 1 colour
