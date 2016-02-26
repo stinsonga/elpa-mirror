@@ -3,7 +3,7 @@
 ;; Copyright (C) 2016  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
-;; Version: 0
+;; Version: 1.0
 ;; Keywords:
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -113,6 +113,7 @@
     ))
 
 ;;;###autoload (add-to-list 'auto-mode-alist '("\\.sed\\'" . sed-mode))
+;;;###autoload (add-to-list 'interpreter-mode-alist '("sed" . sed-mode))
 
 ;;;###autoload
 (define-derived-mode sed-mode prog-mode "Sed"
