@@ -239,45 +239,43 @@ If no match if found, nil is returned."
       (when station-code
 	(cons station-code (round best-distance))))))
 
-(defun metar-convert-unit (value new-unit)
+(defun metar-convert-unit (value new-unit &optional convert-units-function)
   "Convert VALUE to NEW-UNIT.
 VALUE is a string with the value followed by the unit, like \"5 knot\"
-and NEW-UNIT should be a unit name like \"kph\" or similar."
+and NEW-UNIT should be a unit name like \"kph\" or similar.
+CONVERT-UNITS-FUNCTION designates the function actually doing the conversion.
+It must have the signature of `math-convert-units', which is the default."
   (cl-check-type value string)
-  (cl-check-type new-unit (or string symbol))
-  (cl-multiple-value-bind (value unit)
-      (split-string
-       (math-format-value
-	(math-convert-units (math-simplify (math-read-expr value))
-			    (math-read-expr
-			     (cl-etypecase new-unit
-					   (string new-unit)
-					   (symbol (symbol-name new-unit))))))
-       " ")
-    (cons (string-to-number value) (intern unit))))
+  (unless (symbolp new-unit)
+    (setq new-unit (intern new-unit)))
+  (let ((expr (math-simplify (math-read-expr value))))
+    (cl-assert (or (math-zerop expr)
+		   (not (memq (math-single-units-in-expr-p expr) '(nil wrong))))
+	       nil
+	       "Metar: Not exactly one unit in expression: %S" expr)
+    (let ((res (math-simplify-units
+		(funcall (or convert-units-function 'math-convert-units)
+			 expr
+			 (math-build-var-name new-unit)
+			 t))))
+      (cl-assert (math-realp res) nil
+		 "Metar: Not a Calc real number: %S" res)
+      (cons (string-to-number (math-format-value (if (integerp res)
+						     res
+						   (math-float res))))
+	    new-unit))))
 
 (defun metar-convert-temperature (string &optional unit)
-  (let* ((value (concat (if (= (aref string 0) ?M)
-			    (concat "-" (substring string 1))
-			  string)
-			"degC"))
-	 (expr (math-read-expr value))
-	 (old-unit (math-single-units-in-expr-p expr))
-	 (new-unit (or unit (cdr (assq 'temperature metar-units)))))
-    (if old-unit
-	(cl-multiple-value-bind (value unit)
-	    (split-string
-	     (math-format-value
-	      (math-simplify-units
-	       (math-convert-temperature
-		expr
-		(list 'var
-		      (car old-unit)
-		      (intern (concat "var-" (symbol-name (car old-unit)))))
-		(math-read-expr (cl-etypecase new-unit
-				  (string new-unit)
-				  (symbol (symbol-name new-unit))))))) " ")
-	  (cons (string-to-number value) (intern unit))))))
+  (metar-convert-unit (concat (if (= (aref string 0) ?M)
+				  (concat "-" (substring string 1))
+				string)
+			      "degC")
+		      (or unit (cdr (assq 'temperature metar-units)))
+		      (lambda (expr new-unit-var pure)
+			(math-convert-temperature expr
+						  (math-build-var-name 'degC)
+						  new-unit-var
+						  pure))))
 
 (defcustom metar-url
   "http://weather.noaa.gov/pub/data/observations/metar/stations/%s.TXT"
