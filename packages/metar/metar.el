@@ -249,6 +249,9 @@ It must have the signature of `math-convert-units', which is the default."
   (unless (symbolp new-unit)
     (setq new-unit (intern new-unit)))
   (let ((expr (math-simplify (math-read-expr value))))
+    ;; Sneakily work around bug#19582.
+    (when (eq (car-safe expr) 'neg)
+      (setq expr `(* -1 ,(cadr expr))))
     (cl-assert (or (math-zerop expr)
 		   (not (memq (math-single-units-in-expr-p expr) '(nil wrong))))
 	       nil
