@@ -282,3 +282,5 @@ G_DECLARE_FINAL_TYPE (GGpgEngineInfo, g_gpg_engine_info, G_GPG, ENGINE_INFO,
       (should (equal class '("Gpg" "Engine" "Info")))
       (should (equal parent-package nil))
       (should (equal parent-class nil)))))
+
+;;; gnome-c-tests.el ends here
