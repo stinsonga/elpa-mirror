@@ -1,6 +1,6 @@
 ;;; company-nxml.el --- company-mode completion back-end for nxml-mode
 
-;; Copyright (C) 2009-2011, 2013, 2016  Free Software Foundation, Inc.
+;; Copyright (C) 2009-2011, 2013  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 
@@ -123,10 +123,6 @@
 (defun company-nxml (command &optional arg &rest ignored)
   "`company-mode' completion back-end for `nxml-mode'."
   (interactive (list 'interactive))
-  (if (fboundp 'rng-completion-at-point)
-      ;; In recent Emacsen, nXML provides a good CAPF completion, so we can
-      ;; disable our own implementation.
-      nil
   (cl-case command
     (interactive (company-begin-backend 'company-nxml))
     (prefix (or (company-nxml-tag 'prefix)
@@ -140,7 +136,7 @@
                  ((company-nxml-attribute-value 'prefix)
                   (sort (company-nxml-attribute-value 'candidates arg)
                         'string<))))
-    (sorted t))))
+    (sorted t)))
 
 (provide 'company-nxml)
 ;;; company-nxml.el ends here
