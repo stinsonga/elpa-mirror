@@ -46,32 +46,48 @@
 
 ;;; Code:
 
-(defun arbitools-update (list)
+(defun arbitools-update (elolist)
   "Update the players ratings."
-  (interactive "slist:")
+  (interactive "selolist:")
   ;; FIXME: What if `list' is "foo; bar"?
-  ;; FIXME: Do we really need a shell here?
-  ;; Why not use just call-process, so we don't need to worry about quoting?
-  (shell-command (concat "arbitools-update.py -l " list  " -i "
-                         (shell-quote-argument buffer-file-name))))
+  (call-process "arbitools-run.py" nil nil nil "update" buffer-file-name "-l" elolist))
 
 (defun arbitools-add (addfile)
   "Add players to an existing file."
   (interactive "faddfile: ")
   ;; FIXME: What if `addlist' is "foo; bar"?
-  ;; FIXME: Do we really need a shell here?
-  ;; Why not use just call-process, so we don't need to worry about quoting?
-  (shell-command (concat "arbitools-add.py -a " addfile " -i "
-                         (shell-quote-argument buffer-file-name))))
+  (call-process "arbitools-add.py" nil nil nil "-a" addfile "-i" buffer-file-name))
 
 (defun arbitools-standings ()
   "Get standings and report files from a tournament file."
   (interactive)
   ;; (shell-command (concat (expand-file-name "arbitools-standings.py") " -i " buffer-file-name))) ;this is to use the actual path
-  ;; FIXME: Do we really need a shell here?
-  ;; Why not use just call-process, so we don't need to worry about quoting?
-  (shell-command (concat "arbitools-standings.py -i "
-                         (shell-quote-argument buffer-file-name))))
+  (call-process "arbitools-standings.py" nil nil nil "-i" buffer-file-name))
+
+(defun arbitools-it3 ()
+   "Get the IT3 tournament report."
+   (interactive)
+   (call-process "arbitools-run.py" nil nil nil "it3" buffer-file-name))
+
+(defun arbitools-fedarating ()
+   "Get the FEDA rating admin file."
+   (interactive)
+   (shell-command (concat "arbitools-run.py fedarating" buffer-file-name))
+
+(defvar arbitools-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c i") 'coffee-compile-buffer)
+    map)
+  "Keymap for Arbitools major mode.")
+
+
+(easy-menu-define arbitools-mode-menu arbitools-mode-map
+  "Menu for Arbitools mode"
+  '("Arbitools"
+    ["Get It3" arbitools-it3]
+    "---"
+    ))
+
 
 (defvar arbitools-highlights
  '(("^001" . font-lock-function-name-face) ; name of the tournament
@@ -139,6 +155,7 @@
   "Arbitools"
   "Major mode for Chess Tournament Management."
   ;(setq font-lock-defaults '(arbitools-highlights))
+  (use-local-map arbitools-mode-map)
   (set (make-local-variable 'font-lock-defaults) '(arbitools-highlights)))
 
 ;;;###autoload
