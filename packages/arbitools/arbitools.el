@@ -84,7 +84,8 @@
 (easy-menu-define arbitools-mode-menu arbitools-mode-map
   "Menu for Arbitools mode"
   '("Arbitools"
-    ["Get It3" arbitools-it3]
+    ["Get It3 form Report" arbitools-it3]
+    ["Get FEDA Ratinf file" arbitools-fedarating]
     "---"
     ))
 
