@@ -72,7 +72,7 @@
 (defun arbitools-fedarating ()
    "Get the FEDA rating admin file."
    (interactive)
-   (shell-command (concat "arbitools-run.py fedarating" buffer-file-name))
+   (call-process "arbitools-run.py" nil nil nil "fedarating" buffer-file-name))
 
 (defvar arbitools-mode-map
   (let ((map (make-sparse-keymap)))
