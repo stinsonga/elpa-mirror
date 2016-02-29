@@ -1230,6 +1230,9 @@ MERGED is the list of bugs merged with this one."
 	   (re-search-forward "#\\([0-9]+\\)" nil t)))
      (string-to-number (match-string 1)))))
 
+(defvar debbugs-gnu-send-mail-function nil
+  "A function to send control messages from debbugs.")
+
 (defun debbugs-gnu-send-control-message (message &optional reverse)
   "Send a control message for the current bug report.
 You can set the severity or add a tag, or close the report.  If
@@ -1332,7 +1335,7 @@ removed instead."
 		(format "tags %d%s %s\n"
 			id (if reverse " -" "")
 			message))))
-      (funcall send-mail-function)
+      (funcall (or debbugs-gnu-send-mail-function send-mail-function))
       (remhash id debbugs-cache-data)
       (message-goto-body)
       (message "Control message sent:\n%s"
