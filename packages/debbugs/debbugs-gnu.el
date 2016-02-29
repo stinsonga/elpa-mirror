@@ -579,7 +579,9 @@ marked as \"client-side filter\"."
      (t (apply 'debbugs-get-bugs args)))))
 
 (defun debbugs-gnu-show-reports (&optional offline)
-  "Show bug reports."
+  "Show bug reports.
+If OFFLINE is non-nil, the query is not sent to the server.  Bugs
+are taken from the cache instead."
   (let ((inhibit-read-only t)
 	(buffer-name "*Emacs Bugs*"))
     ;; The tabulated mode sets several local variables.  We must get
@@ -591,14 +593,16 @@ marked as \"client-side filter\"."
 
     ;; Print bug reports.
     (dolist (status
-	     (apply 'debbugs-get-status
-		    (if offline
-			(let ((ids nil))
-			  (maphash (lambda (key elem)
-				     (push (cdr (assq 'id elem)) ids))
-				   debbugs-cache-data)
-			  (sort ids '<))
-		      (debbugs-gnu-get-bugs debbugs-gnu-local-query))))
+	     (let ((debbugs-cache-expiry (if offline nil debbugs-cache-expiry))
+		   ids)
+	       (apply 'debbugs-get-status
+		      (if offline
+			  (progn
+			    (maphash (lambda (key _elem)
+				       (push key ids))
+				     debbugs-cache-data)
+			    (sort ids '<))
+			(debbugs-gnu-get-bugs debbugs-gnu-local-query)))))
       (let* ((id (cdr (assq 'id status)))
 	     (words
 	      (mapconcat
