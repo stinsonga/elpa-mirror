@@ -578,7 +578,7 @@ marked as \"client-side filter\"."
      ;; Otherwise, we retrieve the bugs from the server.
      (t (apply 'debbugs-get-bugs args)))))
 
-(defun debbugs-gnu-show-reports ()
+(defun debbugs-gnu-show-reports (&optional offline)
   "Show bug reports."
   (let ((inhibit-read-only t)
 	(buffer-name "*Emacs Bugs*"))
@@ -592,7 +592,13 @@ marked as \"client-side filter\"."
     ;; Print bug reports.
     (dolist (status
 	     (apply 'debbugs-get-status
-		    (debbugs-gnu-get-bugs debbugs-gnu-local-query)))
+		    (if offline
+			(let ((ids nil))
+			  (maphash (lambda (key elem)
+				     (push (cdr (assq 'id elem)) ids))
+				   debbugs-cache-data)
+			  (sort ids '<))
+		      (debbugs-gnu-get-bugs debbugs-gnu-local-query))))
       (let* ((id (cdr (assq 'id status)))
 	     (words
 	      (mapconcat
@@ -1462,7 +1468,7 @@ If given a prefix, patch in the branch directory instead."
     ;; buffer.  Determine which.
     (gnus-with-article-buffer
       (dolist (handle (mapcar 'cdr (gnus-article-mime-handles)))
-	(when (string-match "diff\\|patch" (mm-handle-media-type handle))
+	(when (string-match "diff\\|patch\\|plain" (mm-handle-media-type handle))
 	  (push (cons (mm-handle-encoding handle)
 		      (mm-handle-buffer handle))
 		patch-buffers))))
@@ -1471,7 +1477,7 @@ If given a prefix, patch in the branch directory instead."
       (article-decode-charset)
       (push (cons nil gnus-article-buffer) patch-buffers))
     (dolist (elem patch-buffers)
-      (with-temp-buffer
+      (with-current-buffer (generate-new-buffer "*debbugs input patch*")
 	(insert-buffer-substring (cdr elem))
 	(cond ((eq (car elem) 'base64)
 	       (base64-decode-region (point-min) (point-max)))
