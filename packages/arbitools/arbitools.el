@@ -64,6 +64,54 @@
   ;; (shell-command (concat (expand-file-name "arbitools-standings.py") " -i " buffer-file-name))) ;this is to use the actual path
   (call-process "arbitools-standings.py" nil nil nil "-i" buffer-file-name))
 
+(defun arbitools-delete-round (round)
+   "Delete round"
+   (interactive "sround: ")
+   (beginning-of-buffer)
+   (while (re-search-forward "^001" nil t)
+     (forward-char (+ 88 (* (- (string-to-number round) 1) 10)))
+     (delete-char 10)
+     (insert "          "))
+   (beginning-of-buffer))
+
+(defun arbitools-insert-result (round white black result)
+   "Insert a result"
+   (interactive "sround: \nswhite: \nsblack: \nsresult: ")
+   (beginning-of-buffer)
+   (while (re-search-forward "^001" nil t)
+     (forward-char 4) ;; rank number
+     ;; (print (format "%s" white))
+     (when (string= white (thing-at-point 'word))
+       ;;go to first round taking into account the cursor is in the rank number
+       (forward-char (+ 85 (* (- (string-to-number round) 1) 10)))
+       (insert "  ") ;; replace the first positions with spaces
+       (delete-char 2) ;; delete the former characters
+       ;; make room for bigger numbers
+       (cond ((= 2 (length black))
+         (backward-char 1))
+         ((= 3 (length black))
+         (backward-char 2)))
+       (insert (format "%s w %s" black result))
+       (delete-char 5) 
+       ;; adjust when numbers are longer
+       (cond ((= 2 (length black)) (delete-char 1))
+         ((= 3 (length black)) (delete-char 2))))
+     (when (string= black (thing-at-point 'word))
+       ;;go to first round taking into account the cursor is in the rank number
+       (forward-char (+ 85 (* (- (string-to-number round) 1) 10)))
+       (insert "  ") ;; replace the first positions with spaces
+       (delete-char 2) ;; delete the former characters
+       ;; make room for bigger numbers
+       (cond ((= 2 (length white)) (backward-char 1))
+         ((= 3 (length white)) (backward-char 2)))
+       (cond ((string= "1" result) (insert (format "%s b 0" white)))
+         ((string= "0" result) (insert (format "%s b 1" white))))
+       (delete-char 5) 
+       ;; adjust when numbers are longer
+       (cond ((= 2 (length white)) (delete-char 1))
+         ((= 3 (length white)) (delete-char 2)))))
+   (beginning-of-buffer))
+
 (defun arbitools-it3 ()
    "Get the IT3 tournament report."
    (interactive)
@@ -76,7 +124,7 @@
 
 (defvar arbitools-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c i") 'coffee-compile-buffer)
+    (define-key map (kbd "C-c i") 'arbitools-it3)
     map)
   "Keymap for Arbitools major mode.")
 
@@ -84,9 +132,11 @@
 (easy-menu-define arbitools-mode-menu arbitools-mode-map
   "Menu for Arbitools mode"
   '("Arbitools"
+    ["Insert Result" arbitools-insert-result]
+    ["Delete Round" arbitools-delete-round]
+    "---"
     ["Get It3 form Report" arbitools-it3]
     ["Get FEDA Ratinf file" arbitools-fedarating]
-    "---"
     ))
 
 
