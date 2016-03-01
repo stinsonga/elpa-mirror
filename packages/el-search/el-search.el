@@ -253,8 +253,27 @@ The default value is `exp'."
                                  (t                   (:background "DarkSlateGray1")))
   "Face for highlighting the other matches.")
 
+(defcustom el-search-smart-case-fold-search t
+  "Whether to use smart case folding in pattern matching.
+When an \"el-search\" pattern involves regexp matching (like for
+\"string\" or \"source\") and this option is non-nil,
+case-fold-search will be temporarily bound to t if the according
+regexp contains any upper case letter, and nil else.  This is
+done independently for every single matching operation.
+
+If nil, the value of `case-fold-search' is decisive."
+  :type 'boolean)
+
 
 ;;;; Helpers
+
+(defun el-search--smart-string-match-p (regexp string)
+  "`string-match-p' taking `el-search-smart-case-fold-search' into account."
+  (let ((case-fold-search (if el-search-smart-case-fold-search
+                              (not (let ((case-fold-search nil))
+                                     (string-match-p "[[:upper:]]" regexp)))
+                            case-fold-search)))
+    (string-match-p regexp string)))
 
 (defun el-search--print (expr)
   (let ((print-quoted t)
@@ -569,7 +588,7 @@ matches the list (1 2 3 4 5 6 7 8 9) and binds `x' to (4 5 6)."
     `(and (pred stringp)
           (pred (lambda (,string)
                   (cl-every
-                   (lambda (,regexp) (string-match-p ,regexp ,string))
+                   (lambda (,regexp) (el-search--smart-string-match-p ,regexp ,string))
                    (list ,@regexps)))))))
 
 (el-search-defpattern symbol (&rest regexps)
@@ -614,7 +633,7 @@ of any kind matched by all PATTERNs are also matched.
 (defun el-search--match-symbol-file (regexp symbol)
   (when-let ((symbol-file (and (symbolp symbol)
                                (symbol-file symbol))))
-    (string-match-p
+    (el-search--smart-string-match-p
      (if (symbolp regexp) (concat "\\`" (symbol-name regexp) "\\'") regexp)
      (file-name-sans-extension (file-name-nondirectory symbol-file)))))
 
