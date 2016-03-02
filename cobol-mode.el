@@ -38,7 +38,7 @@
 ;; following to your .emacs:
 ;; (autoload 'cobol-mode "cobol-mode" "Major mode for highlighting COBOL files." t nil)
 
-;; To automatically laod cobol-mode.el upon opening COBOL files, add this:
+;; To automatically load cobol-mode.el upon opening COBOL files, add this:
 ;; (setq auto-mode-alist
 ;;    (append
 ;;      '(("\\.cob\\'" . cobol-mode)
@@ -47,7 +47,7 @@
 ;;     auto-mode-alist))
 
 ;; Finally, I strongly suggest installing auto-complete-mode, which makes typing
-;; long keywords and variable names a thing of the past. See
+;; long keywords and variable names a thing of the past.  See
 ;; https://github.com/auto-complete/auto-complete.
 
 ;;; Code:
@@ -274,7 +274,7 @@ The next key typed is executed unless it is SPC."
     ;; "RUN" ; Unisys COBOL-74 ; Treated as keyword
     "SEEK" ; Unisys COBOL-74
     "SERVICE"
-    "SYNC"
+    "SYNC" ; <= COBOL-74
     "TRANSFORM"
     "TRY"
     "WAIT"))
@@ -473,6 +473,7 @@ The next key typed is executed unless it is SPC."
     "MESSAGE"
     "MODE"
     "MODULES"
+    "MULTIPLE"
     "NATIVE"
     "NEGATIVE"
     "NO"
@@ -484,6 +485,7 @@ The next key typed is executed unless it is SPC."
     "OF"
     "OFF"
     "OMITTED"
+    ;; "ON" ; OS/VS Statement ; Keyword <= COBOL-74
     "OPTIONAL"
     "OR"
     "ORGANIZATION"
@@ -699,7 +701,6 @@ The next key typed is executed unless it is SPC."
             "SCREEN"
             "SHARING"
             "SOURCES"
-            "SUPER"
             "SYSTEM-DEFAULT"
             "TYPEDEF"
             "UNIVERSAL"
@@ -2262,7 +2263,8 @@ Code copied from the emacs source."
   (backward-prefix-chars))
 
 (defun cobol--syntax-propertize-sequence-area (beg end)
-  "Mark text in the program name area as comments."
+  "Mark text in the program name area as comments from the lines at/after BEG up
+to END."
   (goto-char beg)
   (while (and (< (point) end)
               (re-search-forward "^.\\{1,6\\}" end t))
@@ -2274,7 +2276,7 @@ Code copied from the emacs source."
                             '(font-lock-face nil))))
 
 (defun cobol--syntax-propertize-indicator-area (beg end)
-  "Mark fixed-form comments as comments."
+  "Mark fixed-form comments as comments between points BEG and END."
   (funcall
    (syntax-propertize-rules
     (cobol--fixed-form-comment-re (1 "<"))
@@ -2282,14 +2284,15 @@ Code copied from the emacs source."
    beg end))
 
 (defun cobol--syntax-propertize-program-name-area (beg end)
-  "Mark text in the program name area as comments."
+  "Mark text in the program name area as comments from the lines at/after BEG up
+to END."
   (funcall
    (syntax-propertize-rules
     ("^.\\{72\\}\\(.\\)" (1 "<")))
    beg end))
 
 (defun cobol--syntax-propertize-page-directive (beg end)
-  "Mark text after >>PAGE as a comment."
+  "Mark text after >>PAGE as a comment between points BEG and END."
   (funcall
    (syntax-propertize-rules
     ((cobol--with-opt-whitespace-line cobol--directive-indicator-re
@@ -2298,7 +2301,8 @@ Code copied from the emacs source."
    beg end))
 
 (defun cobol--syntax-propertize-adjacent-quotes (beg end)
-  "Mark the first of adjacent quotes, e.g. \"\" or '', as an escape character."
+  "Mark the first of adjacent quotes, e.g. \"\" or '', as an escape character
+between points BEG and END."
   (goto-char beg)
   (while (and (< (point) end)
               (re-search-forward "\\(\"\"\\|''\\)" end t))
@@ -2316,7 +2320,7 @@ Code copied from the emacs source."
 
 (defun cobol--syntax-propertize-function (beg end)
   "Syntax propertize awkward COBOL features (fixed-form comments, indicators
-and ignored areas)."
+and ignored areas) between points BEG and END."
   ;; TO-DO: Propertize continuation lines.
   (when (cobol--fixed-format-p)
     (cobol--syntax-propertize-sequence-area beg end)
@@ -2567,13 +2571,13 @@ and ignored areas)."
   (cobol-format beg end))
 
 (defun cobol-format-buffer ()
-  "Formats all COBOL words in the current buffer according to
+  "Format all COBOL words in the current buffer according to
 `cobol-format-style'."
   (interactive "*")
   (cobol-format (point-min) (point-max)))
 
 (defun cobol-format (beg end)
-  "Formats COBOL code between BEG and END according to `cobol-format-style'."
+  "Format COBOL code between BEG and END according to `cobol-format-style'."
   (defconst words-to-format
     (append cobol-directives cobol-verbs cobol-keywords cobol-intrinsics
             cobol-symbolic-literals))
@@ -2591,10 +2595,10 @@ and ignored areas)."
 ;;; Fixed-form formatting
 
 (defun cobol-insert-in-sequence-area (beg end text)
-  "Inserts text in the sequence area in the lines between BEG and END."
+  "Insert, in the lines between BEG and END, TEXT in the sequence area."
   (interactive "*r\nsText: ")
   (when (> (length text) 6)
-    (error "%s is longer than six characters." text))
+    (error "%s is longer than six characters" text))
   (save-excursion
     ;; Find rectangle to insert text in.
     (let (top-left bottom-right)
@@ -2978,7 +2982,7 @@ the clauses of a non-procedural PERFORM."
           (end-of-indent (+ (cobol--code-start) indent)))
       ;; Following lines derived from source of `back-to-indentation'.
       (move-to-column (cobol--code-start))
-      (if (>= line-length (current-column))
+      (if (>= line-length (cobol--code-start) (current-column))
           (progn
             (skip-syntax-forward " " (line-end-position))
             (backward-prefix-chars))
