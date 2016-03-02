@@ -327,9 +327,10 @@ If nil, the value of `case-fold-search' is decisive."
   (or (scan-sexps (point) 1) (point-max)))
 
 (defun el-search--ensure-sexp-start ()
-  "Move point to the beginning of the next sexp if necessary.
-Don't move if already at beginning of a sexp.
-Point must not be inside a string or comment."
+  "Move point to the next sexp beginning position.
+Don't move if already at beginning of a sexp.  Point must not be
+inside a string or comment.  `read' the expression at that point
+and return it."
   (let ((not-done t) res)
     (while not-done
       (let ((stop-here nil)
