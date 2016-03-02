@@ -849,23 +849,25 @@ The following additional pattern types are currently defined:"
                                         (not (eq (symbol-value pattern) pattern))))
                            (error "Please don't forget the quote when searching for a symbol"))
                          (el-search--wrap-pattern pattern)))))
-  (setq this-command 'el-search-pattern) ;in case we come from isearch
-  (setq el-search-current-pattern pattern)
-  (let ((opoint (point)))
-    (when (and (eq this-command last-command) el-search-success)
-      (el-search--skip-expression nil t))
-    (setq el-search-success nil)
-    (when (condition-case nil
-              (el-search--search-pattern pattern)
-            (end-of-buffer (message "No match")
-                           (goto-char opoint)
-                           (el-search-hl-remove)
-                           (ding)
-                           nil))
-      (setq el-search-success t)
-      (el-search-hl-sexp)
-      (unless (eq this-command last-command)
-        (el-search-hl-other-matches pattern)))))
+  (if (not (called-interactively-p 'any))
+      (el-search--search-pattern pattern)
+    (setq this-command 'el-search-pattern) ;in case we come from isearch
+    (setq el-search-current-pattern pattern)
+    (let ((opoint (point)))
+      (when (and (eq this-command last-command) el-search-success)
+        (el-search--skip-expression nil t))
+      (setq el-search-success nil)
+      (when (condition-case nil
+                (el-search--search-pattern pattern)
+              (end-of-buffer (message "No match")
+                             (goto-char opoint)
+                             (el-search-hl-remove)
+                             (ding)
+                             nil))
+        (setq el-search-success t)
+        (el-search-hl-sexp)
+        (unless (eq this-command last-command)
+          (el-search-hl-other-matches pattern))))))
 
 (defvar el-search-search-and-replace-help-string
   "\
