@@ -2,9 +2,6 @@
 
 ;; Copyright (C) 2014 Free Software Foundation, Inc.
 
-;; Author: Artur Malabarba <bruce.connor.am@gmail.com>
-;; Maintainer: Artur Malabarba <bruce.connor.am@gmail.com>
-;; URL: http://github.com/Bruce-Connor/names
 ;; Prefix: names
 ;; Separator: -
 
@@ -62,11 +59,11 @@
 (defmacro names-print (name &rest forms)
   "Return the expanded results of (namespace NAME :global :verbose FORMS).
 Ideal for determining why a specific form isn't being parsed
-correctly."
+correctly. You may need to set `eval-expression-print-level' and
+`eval-expression-print-length' to nil in order to see your full
+expansion."
   (declare (indent (lambda (&rest x) 0)) (debug 0))
-  `(let ((eval-expression-print-level (max eval-expression-print-level 300))
-         (eval-expression-print-length (max eval-expression-print-length 300)))
-     (macroexpand '(define-namespace ,name :global :verbose ,@forms))))
+  `(define-namespace ,name :global :verbose ,@forms))
 
 (defvar names-font-lock
   '(("^:autoload\\_>" 0 'font-lock-warning-face prepend)
@@ -152,12 +149,17 @@ If KILL is non-nil, kill the temp buffer afterwards."
            (kill-buffer b))))))
 
 (defun names--top-of-namespace ()
-  ""
-  (progn
-    (beginning-of-defun)
-    (ignore-errors
-      (backward-up-list)
-      (names--looking-at-namespace))))
+  "Move to the top of current namespace, and return non-nil.
+If not inside a namespace, return nil and don't move point."
+  (let ((top (save-excursion
+               (beginning-of-defun)
+               (ignore-errors
+                 (backward-up-list))
+               (when (names--looking-at-namespace)
+                 (point)))))
+    (when top
+      (goto-char top)
+      t)))
 
 (defun names-eval-defun (edebug-it)
   "Identical to `eval-defun', except it works for forms inside namespaces.
@@ -176,7 +178,9 @@ to be edebugged."
 
 ;;; eval-last-sexp
 (defalias 'names--preceding-sexp-original
-  (symbol-function 'elisp--preceding-sexp))
+  (if (fboundp 'elisp--preceding-sexp)
+      (symbol-function 'elisp--preceding-sexp)
+    (symbol-function 'preceding-sexp)))
 
 (defun names--preceding-sexp ()
   "Like `elisp--preceding-sexp', but expand namespaces."
@@ -188,19 +192,28 @@ to be edebugged."
   "Identical to `eval-last-sexp', except it works for forms inside namespaces.
 Argument EVAL-LAST-SEXP-ARG-INTERNAL is the same as `eval-last-sexp'."
   (interactive "P")
-  (cl-letf (((symbol-function 'elisp--preceding-sexp)
-             #'names--preceding-sexp))
+  (cl-letf (((symbol-function 'elisp--preceding-sexp) #'names--preceding-sexp)
+            ((symbol-function 'preceding-sexp) #'names--preceding-sexp))
     (eval-last-sexp eval-last-sexp-arg-internal)))
 
 (defun names-eval-print-last-sexp (eval-last-sexp-arg-internal)
   "Identical to `eval-print-last-sexp', except it works for forms inside namespaces.
 Argument EVAL-LAST-SEXP-ARG-INTERNAL is the same as `eval-print-last-sexp'."
   (interactive "P")
-  (cl-letf (((symbol-function 'elisp--preceding-sexp)
-             #'names--preceding-sexp))
+  (cl-letf (((symbol-function 'elisp--preceding-sexp) #'names--preceding-sexp)
+            ((symbol-function 'preceding-sexp) #'names--preceding-sexp))
     (eval-print-last-sexp eval-last-sexp-arg-internal)))
 
-;; (pp (symbol-function 'names-eval-defun) (current-buffer))
+;; (pp (symbol-function 'names--preceding-sexp-original) (current-buffer))
+
+(defun names-pprint ()
+  "Pretty-print an expansion of the namespace around point."
+  (interactive)
+  (save-excursion
+    (when (names--top-of-namespace)
+      (let ((ns (cdr (read (current-buffer)))))
+        (pp-macroexpand-expression
+         (macroexpand (cons 'names-print ns)))))))
 
 
 ;;; Find stuff

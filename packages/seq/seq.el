@@ -4,7 +4,7 @@
 
 ;; Author: Nicolas Petton <nicolas@petton.fr>
 ;; Keywords: sequences
-;; Version: 1.3
+;; Version: 1.11
 ;; Package: seq
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -44,31 +44,59 @@
 
 (defmacro seq-doseq (spec &rest body)
   "Loop over a sequence.
-Similar to `dolist' but can be applied lists, strings and vectors.
+Similar to `dolist' but can be applied to lists, strings, and vectors.
 
 Evaluate BODY with VAR bound to each element of SEQ, in turn.
-Then evaluate RESULT to get return value, default nil.
 
-\(fn (VAR SEQ [RESULT]) BODY...)"
+\(fn (VAR SEQ) BODY...)"
   (declare (indent 1) (debug ((symbolp form &optional form) body)))
-  (let ((is-list (make-symbol "is-list"))
+  (let ((length (make-symbol "length"))
         (seq (make-symbol "seq"))
         (index (make-symbol "index")))
     `(let* ((,seq ,(cadr spec))
-            (,is-list (listp ,seq))
-            (,index (if ,is-list ,seq 0)))
-       (while (if ,is-list
-                  (consp ,index)
-                (< ,index (seq-length ,seq)))
-         (let ((,(car spec) (if ,is-list
-                                (car ,index)
-                              (seq-elt ,seq ,index))))
-           ,@body
-           (setq ,index (if ,is-list
-                            (cdr ,index)
-                          (+ ,index 1)))))
-       ,@(if (cddr spec)
-             `((setq ,(car spec) nil) ,@(cddr spec))))))
+            (,length (if (listp ,seq) nil (seq-length ,seq)))
+            (,index (if ,length 0 ,seq)))
+       (while (if ,length
+                  (< ,index ,length)
+                (consp ,index))
+         (let ((,(car spec) (if ,length
+                                (prog1 (seq-elt ,seq ,index)
+                                  (setq ,index (+ ,index 1)))
+                              (pop ,index))))
+           ,@body)))))
+
+(if (fboundp 'pcase-defmacro)
+    ;; Implementation of `seq-let' based on a `pcase'
+    ;; pattern. Requires Emacs>=25.1.
+    (progn
+      (pcase-defmacro seq (&rest args)
+        "pcase pattern matching sequence elements.
+Matches if the object is a sequence (list, string or vector), and
+binds each element of ARGS to the corresponding element of the
+sequence."
+        `(and (pred seq-p)
+              ,@(seq--make-pcase-bindings args)))
+
+      (defmacro seq-let (args seq &rest body)
+        "Bind the variables in ARGS to the elements of SEQ then evaluate BODY.
+
+ARGS can also include the `&rest' marker followed by a variable
+name to be bound to the rest of SEQ."
+        (declare (indent 2) (debug t))
+        `(pcase-let ((,(seq--make-pcase-patterns args) ,seq))
+           ,@body)))
+
+  ;; Implementation of `seq-let' compatible with Emacs<25.1.
+  (defmacro seq-let (args seq &rest body)
+    "Bind the variables in ARGS to the elements of SEQ then evaluate BODY.
+
+ARGS can also include the `&rest' marker followed by a variable
+name to be bound to the rest of SEQ."
+    (declare (indent 2) (debug t))
+    (let ((seq-var (make-symbol "seq")))
+      `(let* ((,seq-var ,seq)
+              ,@(seq--make-bindings args seq-var))
+         ,@body))))
 
 (defun seq-drop (seq n)
   "Return a subsequence of SEQ without its first N elements.
@@ -136,13 +164,27 @@ If SEQ is empty, return INITIAL-VALUE and FUNCTION is not called."
         (setq acc (funcall function acc elt)))
       acc)))
 
-(defun seq-some-p (pred seq)
-  "Return any element for which (PRED element) is non-nil in SEQ, nil otherwise."
+(defun seq-some (pred seq)
+  "Return the first value for which if (PRED element) is non-nil for in SEQ."
+  (catch 'seq--break
+    (seq-doseq (elt seq)
+      (let ((result (funcall pred elt)))
+        (when result
+          (throw 'seq--break result))))
+    nil))
+
+(defun seq-find (pred seq &optional default)
+  "Return the first element for which (PRED element) is non-nil in SEQ.
+If no element is found, return DEFAULT.
+
+Note that `seq-find' has an ambiguity if the found element is
+identical to DEFAULT, as it cannot be known if an element was
+found or not."
   (catch 'seq--break
     (seq-doseq (elt seq)
       (when (funcall pred elt)
         (throw 'seq--break elt)))
-    nil))
+    default))
 
 (defun seq-every-p (pred seq)
   "Return non-nil if (PRED element) is non-nil for all elements of the sequence SEQ."
@@ -174,19 +216,30 @@ The result is a sequence of the same type as SEQ."
     (let ((result (seq-sort pred (append seq nil))))
       (seq-into result (type-of seq)))))
 
-(defun seq-contains-p (seq elt &optional testfn)
+(defun seq-contains (seq elt &optional testfn)
   "Return the first element in SEQ that equals to ELT.
 Equality is defined by TESTFN if non-nil or by `equal' if nil."
-  (seq-some-p (lambda (e)
+  (seq-some (lambda (e)
                 (funcall (or testfn #'equal) elt e))
               seq))
+
+(defun seq-position (seq elt &optional testfn)
+  "Return the index of the first element in SEQ that is equal to ELT.
+Equality is defined by TESTFN if non-nil or by `equal' if nil."
+  (let ((index 0))
+    (catch 'seq--break
+      (seq-doseq (e seq)
+        (when (funcall (or testfn #'equal) e elt)
+          (throw 'seq--break index))
+        (setq index (1+ index)))
+      nil)))
 
 (defun seq-uniq (seq &optional testfn)
   "Return a list of the elements of SEQ with duplicates removed.
 TESTFN is used to compare elements, or `equal' if TESTFN is nil."
   (let ((result '()))
     (seq-doseq (elt seq)
-      (unless (seq-contains-p result elt testfn)
+      (unless (seq-contains result elt testfn)
         (setq result (cons elt result))))
     (nreverse result)))
 
@@ -221,7 +274,7 @@ TYPE must be one of following symbols: vector, string or list.
     (`vector (apply #'vconcat seqs))
     (`string (apply #'concat seqs))
     (`list (apply #'append (append seqs '(nil))))
-    (t (error "Not a sequence type name: %s" type))))
+    (t (error "Not a sequence type name: %S" type))))
 
 (defun seq-mapcat (function seq &optional type)
   "Concatenate the result of applying FUNCTION to each element of SEQ.
@@ -239,6 +292,26 @@ negative integer or 0, nil is returned."
         (push (seq-take seq n) result)
         (setq seq (seq-drop seq n)))
       (nreverse result))))
+
+(defun seq-intersection (seq1 seq2 &optional testfn)
+  "Return a list of the elements that appear in both SEQ1 and SEQ2.
+Equality is defined by TESTFN if non-nil or by `equal' if nil."
+  (seq-reduce (lambda (acc elt)
+                (if (seq-contains seq2 elt testfn)
+                    (cons elt acc)
+                  acc))
+              (seq-reverse seq1)
+              '()))
+
+(defun seq-difference (seq1 seq2 &optional testfn)
+  "Return a list of the elements that appear in SEQ1 but not in SEQ2.
+Equality is defined by TESTFN if non-nil or by `equal' if nil."
+  (seq-reduce (lambda (acc elt)
+                (if (not (seq-contains seq2 elt testfn))
+                    (cons elt acc)
+                  acc))
+              (seq-reverse seq1)
+              '()))
 
 (defun seq-group-by (function seq)
   "Apply FUNCTION to each element of SEQ.
@@ -275,7 +348,17 @@ TYPE can be one of the following symbols: vector, string or list."
     (`vector (vconcat seq))
     (`string (concat seq))
     (`list (append seq nil))
-    (t (error "Not a sequence type name: %s" type))))
+    (t (error "Not a sequence type name: %S" type))))
+
+(defun seq-min (seq)
+  "Return the smallest element of SEQ.
+SEQ must be a sequence of numbers or markers."
+  (apply #'min (seq-into seq 'list)))
+
+(defun seq-max (seq)
+    "Return the largest element of SEQ.
+SEQ must be a sequence of numbers or markers."
+  (apply #'max (seq-into seq 'list)))
 
 (defun seq--drop-list (list n)
   "Return a list from LIST without its first N elements.
@@ -318,12 +401,83 @@ This is an optimization for lists in `seq-take-while'."
       (setq n (+ 1 n)))
     n))
 
+(defun seq--make-pcase-bindings (args)
+  "Return a list of bindings of the variables in ARGS to the elements of a sequence."
+  (let ((bindings '())
+        (index 0)
+        (rest-marker nil))
+    (seq-doseq (name args)
+      (unless rest-marker
+        (pcase name
+          (`&rest
+           (progn (push `(app (pcase--flip seq-drop ,index)
+                              ,(seq--elt-safe args (1+ index)))
+                        bindings)
+                  (setq rest-marker t)))
+          (t
+           (push `(app (pcase--flip seq--elt-safe ,index) ,name) bindings))))
+      (setq index (1+ index)))
+    bindings))
+
+(defun seq--make-pcase-patterns (args)
+  "Return a list of `(seq ...)' pcase patterns from the argument list ARGS."
+  (cons 'seq
+        (seq-map (lambda (elt)
+                   (if (seq-p elt)
+                       (seq--make-pcase-patterns elt)
+                     elt))
+                 args)))
+
+;; Helper function for the Backward-compatible version of `seq-let'
+;; for Emacs<25.1.
+(defun seq--make-bindings (args seq &optional bindings)
+  "Return a list of bindings of the variables in ARGS to the elements of a sequence.
+if BINDINGS is non-nil, append new bindings to it, and return
+BINDINGS."
+  (let ((index 0)
+        (rest-marker nil))
+    (seq-doseq (name args)
+      (unless rest-marker
+        (pcase name
+          ((pred seq-p)
+           (setq bindings (seq--make-bindings (seq--elt-safe args index)
+                                              `(seq--elt-safe ,seq ,index)
+                                              bindings)))
+          (`&rest
+           (progn (push `(,(seq--elt-safe args (1+ index))
+                          (seq-drop ,seq ,index))
+                        bindings)
+                  (setq rest-marker t)))
+          (t
+           (push `(,name (seq--elt-safe ,seq ,index)) bindings))))
+      (setq index (1+ index)))
+    bindings))
+
+(defun seq--elt-safe (seq n)
+  "Return element of SEQ at the index N.
+If no element is found, return nil."
+  (when (or (listp seq)
+            (and (sequencep seq)
+                 (> (seq-length seq) n)))
+    (seq-elt seq n)))
+
+(defun seq--activate-font-lock-keywords ()
+  "Activate font-lock keywords for some symbols defined in seq."
+  (font-lock-add-keywords 'emacs-lisp-mode
+                          '("\\<seq-doseq\\>" "\\<seq-let\\>")))
+
 (defalias 'seq-copy #'copy-sequence)
 (defalias 'seq-elt #'elt)
 (defalias 'seq-length #'length)
 (defalias 'seq-do #'mapc)
 (defalias 'seq-each #'seq-do)
 (defalias 'seq-map #'mapcar)
+(defalias 'seq-p #'sequencep)
+
+(unless (fboundp 'elisp--font-lock-flush-elisp-buffers)
+  ;; In Emacs≥25, (via elisp--font-lock-flush-elisp-buffers and a few others)
+  ;; we automatically highlight macros.
+  (add-hook 'emacs-lisp-mode-hook #'seq--activate-font-lock-keywords))
 
 (provide 'seq)
 ;;; seq.el ends here

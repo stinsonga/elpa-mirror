@@ -1,6 +1,6 @@
 ;;; f90-interface-browser.el --- Parse and browse f90 interfaces
 
-;; Copyright (C) 2011, 2012, 2013, 2014  Free Software Foundation, Inc
+;; Copyright (C) 2011, 2012, 2013, 2014, 2015  Free Software Foundation, Inc
 
 ;; Author: Lawrence Mitchell <wence@gmx.li>
 ;; Created: 2011-07-06
@@ -165,7 +165,10 @@ unqualified filename."
   "Hash table populated with all known f90 interfaces.")
 
 (defvar f90-types (make-hash-table :test 'equal)
-  "Hash table populated with all known f90 derived types.")
+  "Hash table populated with all known f90 derived types.
+The keys are type names and the values are lists of pairs of the form
+\(NAME . REST) where NAME is the name of a slot of that type and REST
+describes that slot.")
 
 ;;; Inlineable utility functions
 (defsubst f90-specialisers (name interfaces)
@@ -201,10 +204,7 @@ level.  For example, a LEVEL of 0 counts top-level commas."
 
 (defsubst f90-get-slot-type (slot type)
   "Get the type of SLOT in TYPE."
-  (let ((fn (intern-soft (format "f90-type.%s.%s"
-                                 (f90-get-parsed-type-typename type) slot))))
-    (when fn
-      (funcall fn (f90-get-type type)))))
+  (assoc slot (f90-get-type type)))
 
 (defsubst f90-merge-into-tags-completion-table (ctable)
   "Merge completions in CTABLE into the tags completion table."
@@ -272,7 +272,8 @@ an alphanumeric character."
   (loop for file in (directory-files dir t
                                      (rx-to-string
                                       `(and "." (or ,@f90-file-extensions)
-                                            eos) t))
+                                            eos)
+                                      t))
         do (f90-parse-interfaces file f90-all-interfaces)))
 
 (defun f90-find-tag-interface (name &optional match-sublist)
@@ -283,7 +284,7 @@ the word at point.  If MATCH-SUBLIST is non-nil, only check if
 the arglist is a sublist of the specialiser's arglist.  For more
 details see `f90-approx-arglist-match' and
 `f90-browse-interface-specialisers'."
-  (interactive (let ((def (word-at-point)))
+  (interactive (let ((def (thing-at-point 'symbol)))
                  (list (completing-read
                         (format "Find interface/tag (default %s): " def)
                         (f90-lazy-completion-table)
@@ -308,7 +309,7 @@ which ARGLIST-TO-MATCH is a sublist of the specialiser's arglist.
 If INVOCATION-POINT is non-nil it should be a `point-marker'
 indicating where we were called from, for jumping back to with
 `pop-tag-mark'."
-  (interactive (let ((def (word-at-point)))
+  (interactive (let ((def (thing-at-point 'symbol)))
                  (list (completing-read
                         (format "Interface%s: "
                                 (if def
@@ -506,26 +507,16 @@ default is the type of the variable."
     (fundamental-mode)
     (erase-buffer)
     (let* ((tname (format "type(%s)" type))
-           (type-struct (f90-get-type (list nil tname)))
-           fns)
-      (when type-struct
-        (setq fns (loop for name in (funcall (intern-soft
-                                              (format "f90-type.%s.-varnames"
-                                                      tname))
-                                             type-struct)
-                        collect (intern-soft (format "f90-type.%s.%s"
-                                                     tname name)))))
-      (if (null type-struct)
+           (slots (f90-get-type (list nil tname))))
+      (if (null slots)
           (insert (format "The type %s is not a known derived type."
                           type))
         (insert (format "type %s\n" type))
-        (loop for fn in fns
-              for parsed = (funcall fn type-struct)
-              then (funcall fn type-struct)
+        (loop for slot in slots
               do
               (insert (format "  %s :: %s\n"
-                              (f90-format-parsed-slot-type parsed)
-                              (f90-get-parsed-type-varname parsed))))
+                              (f90-format-parsed-slot-type slot)
+                              (f90-get-parsed-type-varname slot))))
         (insert (format "end type %s\n" type))
         (f90-mode))
       (goto-char (point-min))
@@ -540,11 +531,11 @@ default is the type of the variable."
       "UNION-TYPE"
     ;; Ignore name
     (setq type (cdr type))
-    (mapconcat 'identity (loop for a in type
+    (mapconcat #'identity (loop for a in type
                                if (and (consp a)
                                        (string= (car a) "dimension"))
                                collect (format "dimension(%s)"
-                                               (mapconcat 'identity
+                                               (mapconcat #'identity
                                                           (make-list (cdr a)
                                                                      ":")
                                                           ","))
@@ -565,9 +556,10 @@ default is the type of the variable."
                          arglist "\n")))
     (f90-mode)
     (if (fboundp 'font-lock-ensure)
-        (font-lock-ensure) (font-lock-fontify-buffer))
+        (font-lock-ensure)
+      (with-no-warnings (font-lock-fontify-buffer)))
     (goto-char (point-min))
-    (mapconcat 'identity
+    (mapconcat #'identity
                (loop while (not (eobp))
                      collect (buffer-substring (line-beginning-position)
                                                (- (line-end-position)
@@ -827,36 +819,17 @@ needs a reference count interface, so insert one."
 
 (defun f90-parse-type-definition ()
   "Parse a type definition at (or in front of) `point'."
-  (let (type slots slot fn)
-    (goto-char (point-min))
-    (unless (re-search-forward "^[ \t]*type[ \t]+\\(.+?\\)[ \t]*$" nil t)
-      (error "Trying parse a type but no type found"))
-    (setq type (format "type(%s)" (f90-normalise-string (match-string 1))))
+  (goto-char (point-min))
+  (unless (re-search-forward "^[ \t]*type[ \t]+\\(.+?\\)[ \t]*$" nil t)
+    (error "Trying parse a type but no type found"))
+  (let ((type (format "type(%s)" (f90-normalise-string (match-string 1))))
+        (slots ()))
     (while (not (eobp))
-      (setq slot (f90-parse-single-type-declaration))
-      (when slot
-        (setf slots (nconc slot slots)))
-      (forward-line 1))
-    (eval (f90-make-type-struct type slots))
-    (setq fn (intern-soft (format "make-f90-type.%s" type)))
-    (unless fn
-      (error "Something bad went wrong parsing type definition %s" type))
-    (setf (gethash type f90-types) (funcall fn))))
-
-(defun f90-make-type-struct (type slots)
-  "Create a struct describing TYPE with SLOTS."
-  (let ((struct-name (make-symbol (format "f90-type.%s" type)))
-        (varnames (reverse (mapcar (lambda (x)
-                                     (setq x (car x))
-                                     (if (string-match "\\([^(]+\\)(" x)
-                                         (match-string 1 x)
-                                       x)) slots))))
-    `(defstruct (,struct-name
-                 (:conc-name ,(make-symbol (format "f90-type.%s." type))))
-       (-varnames ',varnames :read-only t)
-       ,@(loop for (name . rest) in slots
-               collect `(,(make-symbol name) (cons ',name ',rest)
-                         :read-only t)))))
+      (let ((slot (f90-parse-single-type-declaration)))
+        (when slot
+          (setf slots (nconc slot slots)))
+        (forward-line 1)))
+    (setf (gethash type f90-types) slots)))
 
 (defun f90-arglist-types ()
   "Return the types of the arguments to the function at `point'."
@@ -939,7 +912,7 @@ with slot B of type REAL, then A%B is returned being a REAL)."
         collect (save-excursion
                   (save-restriction
                     (when (re-search-forward
-                           (format "^[ \t]*\\([^!\n].+?\\)[ \t]*::.*\\<%s\\>"
+                           (format "^[ \t]*\\([^!\n].+?\\)[ \t]*::.*\\_<%s\\_>"
                                    arg) nil t)
                       (goto-char (match-beginning 0))
                       (let ((type (assoc arg

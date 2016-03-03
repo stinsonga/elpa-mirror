@@ -24,6 +24,8 @@
 
 ;;; Code:
 
+(require 'cl-lib)
+
 (require 'mailcap)
 (mailcap-parse-mimetypes)
 
@@ -71,6 +73,11 @@ are sent, or Org headings triggered.")
 (defvar gnorb-return-marker (make-marker)
   "Return point here after various actions, to be used together
 with `gnorb-window-conf'.")
+
+(defvar gnorb-trigger-capture-location nil
+  "Marker pointing at the location where we want to place capture
+  templates, for the capture-to-child and capture-to-sibling
+  trigger actions.")
 
 (defcustom gnorb-mail-header "X-Org-ID"
   "Name of the mail header used to store the ID of a related Org
@@ -211,38 +218,32 @@ window."
 we were in the agenda when this was called, then keep us in the
 agenda. Then let the user choose an action from the value of
 `gnorb-org-trigger-actions'."
-  (let ((agenda-p (eq major-mode 'org-agenda-mode))
-	(action (cdr (assoc
-		      (org-completing-read
-		       "Action to take: "
-		       gnorb-org-trigger-actions nil t)
-		      gnorb-org-trigger-actions)))
-	(root-marker (make-marker)))
-    ;; Place the marker for the relevant TODO heading.
-    (cond (agenda-p
-	   (setq root-marker
+  (let* ((agenda-p (eq major-mode 'org-agenda-mode))
+	 (root-marker
+	  (cond (agenda-p
 		 (copy-marker
-		  (org-get-at-bol 'org-hd-marker))))
-	  ((derived-mode-p 'org-mode)
-	   (move-marker root-marker (point-at-bol)))
-	  (id
-	   (save-excursion
-	     (org-id-goto id)
-	     (move-marker root-marker (point-at-bol)))))
+		  (org-get-at-bol 'org-hd-marker)))
+		((derived-mode-p 'org-mode)
+		 (save-excursion
+		   (org-back-to-heading)
+		   (point-marker)))
+		(id
+		 (save-excursion
+		   (org-id-goto id)
+		   (org-back-to-heading)
+		   (point-marker)))))
+	 (id (or id
+		 (org-with-point-at root-marker
+		   (org-id-get-create))))
+	 (action (cdr (assoc
+		       (org-completing-read
+			(format
+			 "Trigger action on %s: "
+			 (gnorb-pretty-outline id))
+			gnorb-org-trigger-actions nil t)
+		       gnorb-org-trigger-actions))))
     (unless agenda-p
       (org-reveal))
-    ;; Query about attaching email attachments. No matter what
-    ;; happens, clear `gnorb-gnus-capture-attachments'.
-    (unwind-protect
-	(org-with-point-at root-marker
-	  (map-y-or-n-p
-	   (lambda (a)
-	     (format "Attach %s to heading? "
-		     (file-name-nondirectory a)))
-	   (lambda (a) (org-attach-attach a nil 'mv))
-	   gnorb-gnus-capture-attachments
-	   '("file" "files" "attach")))
-      (setq gnorb-gnus-capture-attachments nil))
     (cl-labels
 	((make-entry
 	  (id)
@@ -253,51 +254,107 @@ agenda. Then let the user choose an action from the value of
 	   id
 	   (plist-get gnorb-gnus-message-info :group))))
       ;; Handle our action.
-      (cond ((eq action 'note)
+      (if (fboundp action)
+	  (org-with-point-at root-marker
+	    (make-entry (org-id-get-create))
+	    (funcall action gnorb-gnus-message-info))
+	(cl-case action
+	  (note
+	   (org-with-point-at root-marker
+	     (make-entry (org-id-get-create))
+	     (call-interactively 'org-add-note)))
+	  (todo
+	   (if agenda-p
+	       (progn
+		 (org-with-point-at root-marker
+		   (make-entry (org-id-get-create)))
+		 (call-interactively 'org-agenda-todo))
 	     (org-with-point-at root-marker
 	       (make-entry (org-id-get-create))
-	       (call-interactively 'org-add-note)))
-	    ((eq action 'todo)
-	     (if agenda-p
-		 (progn
-		   (org-with-point-at root-marker
-		    (make-entry (org-id-get-create)))
-		   (call-interactively 'org-agenda-todo))
-	       (org-with-point-at root-marker
-		 (make-entry (org-id-get-create))
-		 (call-interactively 'org-todo))))
-	    ((eq action 'no-associate)
-	     nil)
-	    ((eq action 'associate)
-	     (org-with-point-at root-marker
-	       (make-entry (org-id-get-create))))
-	    ((fboundp action)
-	     (org-with-point-at root-marker
-	       (make-entry (org-id-get-create))
-	       (funcall action gnorb-gnus-message-info)))))))
+	       (call-interactively 'org-todo))))
+	  (no-associate
+	   nil)
+	  (associate
+	   (org-with-point-at root-marker
+	     (make-entry (org-id-get-create))))
+	  ;; We're going to capture a new heading
+	  ((cap-child cap-sib)
+	   (org-with-point-at root-marker
+		(setq gnorb-trigger-capture-location (point-marker)))
+	   (let ((entry
+		  ;; Pick a template.
+		  (copy-sequence (org-capture-select-template))))
+	     ;; Do surgery on that template so that it finds its
+	     ;; location using our function.
+	     (setf (nth 3 entry)
+		   `(function
+		     ,(if (eq action 'cap-child)
+			  #'gnorb-trigger-capture-child
+			#'gnorb-trigger-capture-sibling)))
+	     ;; This will likely fail horribly for capture templates
+	     ;; that aren't entries or list items.
+	     (let ((org-capture-entry entry))
+	       ;; When org-capture-entry is let-bound, the capture
+	       ;; process will use that template instead of
+	       ;; prompting the user. Also, `gnorb-registry-capture'
+	       ;; will take care of making the registry entry for us.
+	       (call-interactively 'org-capture)))))))
+    ;; Lastly, query about attaching email attachments. No matter what
+    ;; happens, clear `gnorb-gnus-capture-attachments'.
+    (unwind-protect
+	(org-with-point-at
+	    (if (memq action '(cap-child cap-sib))
+		(point)
+	      root-marker)
+	  (map-y-or-n-p
+	   (lambda (a)
+	     (format "Attach %s to heading? "
+		     (file-name-nondirectory a)))
+	   (lambda (a)
+	     (with-demoted-errors
+		 (org-attach-attach a nil 'mv)))
+	   gnorb-gnus-capture-attachments
+	   '("file" "files" "attach")))
+      (setq gnorb-gnus-capture-attachments nil))))
+
+(defun gnorb-trigger-capture-child ()
+  ;; The capture process creates a child by default
+  (org-goto-marker-or-bmk gnorb-trigger-capture-location)
+  (org-back-to-heading))
+
+(defun gnorb-trigger-capture-sibling ()
+  ;; This only works if we're not trying to create a sibling for a
+  ;; top-level heading, there appears to be no way to do that.  But in
+  ;; that case this trigger action isn't really necessary, just
+  ;; handle it with a regular capture.
+  (org-goto-marker-or-bmk gnorb-trigger-capture-location)
+  (org-up-heading-safe))
 
 (defun gnorb-pretty-outline (id &optional kw)
   "Return pretty outline path of the Org heading indicated by ID.
 
 If the KW argument is true, add the TODO keyword into the path."
-  (org-with-point-at (org-id-find id t)
-    (let ((el (org-element-at-point)))
-      (concat
-       (if kw
-	   (format "(%s): "
-		   (org-element-property :todo-keyword el))
-	 "")
-       (org-format-outline-path
-	(append
-	 (list
-	  (file-name-nondirectory
-	   (buffer-file-name
-	    (org-base-buffer (current-buffer)))))
-	 (org-get-outline-path)
-	 (list
-	  (replace-regexp-in-string
-	   org-bracket-link-regexp
-	   "\\3" (org-element-property :raw-value el)))))))))
+  (let ((pt (org-id-find id t)))
+    (if pt
+	(org-with-point-at pt
+	  (let ((el (org-element-at-point)))
+	    (concat
+	     (if kw
+		 (format "(%s): "
+			 (org-element-property :todo-keyword el))
+	       "")
+	     (org-format-outline-path
+	      (append
+	       (list
+		(file-name-nondirectory
+		 (buffer-file-name
+		  (org-base-buffer (current-buffer)))))
+	       (org-get-outline-path)
+	       (list
+		(replace-regexp-in-string
+		 org-bracket-link-regexp
+		 "\\3" (org-element-property :raw-value el))))))))
+      "[none]")))
 
 (defun gnorb-scan-links (bound &rest types)
   "Scan from point to BOUND looking for links of type in TYPES.
@@ -382,6 +439,16 @@ child headings."
 
 ;; Common functions for extracting references and relevant headings
 ;; from the message under point. For use in gnorb-gnus.el functions.
+
+(defun gnorb-get-real-group-name (group art-no)
+  "Find the original group name of a message in a virtual or nnir
+group."
+  (cl-case (car (gnus-find-method-for-group group))
+    (nnvirtual
+     (setq group (car (nnvirtual-map-article art-no))))
+    (nnir
+     (setq group (nnir-article-group art-no))))
+  group)
 
 (defun gnorb-find-tracked-headings (headers &optional include-zombies)
   "Check HEADERS for message references and return relevant heading IDs.

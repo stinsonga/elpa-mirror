@@ -1,41 +1,46 @@
 EMACS = emacs
-DEPENDENCIES = libraries/ert-async.el libraries/js2-mode.el
+CASK = EMACS=${EMACS} cask
+DEPENDENCIES = .cask/
 
 all: uncompile compile test
 
 bench: ${DEPENDENCIES}
-	${EMACS} -Q \
+	${CASK} exec ${EMACS} -Q \
 	-L . \
-	-L libraries \
 	-l context-coloring \
-	-l benchmark/context-coloring-benchmark \
+	-l benchmark/context-coloring-benchmark.el \
 	-f context-coloring-benchmark-run
 
 compile: ${DEPENDENCIES}
-	${EMACS} -Q -batch \
+	${CASK} exec ${EMACS} -Q -batch \
 	-L . \
-	-L libraries \
-	-f batch-byte-compile *.el libraries/*.el
+	-f batch-byte-compile *.el
 
 uncompile:
-	rm -f *.elc libraries/*.elc
+	rm -f *.elc
 
 clean: uncompile
-	rm -f ${DEPENDENCIES}
+	rm -rf ${DEPENDENCIES}
 
 ${DEPENDENCIES}:
-	${EMACS} -Q -batch \
-	-l scripts/download-dependencies.el \
-	-f download-dependencies
+	${CASK}
 
 test: ${DEPENDENCIES}
-	${EMACS} -Q -batch \
+	${CASK} exec ${EMACS} -Q -batch \
 	-L . \
-	-L libraries \
 	-l ert \
-	-l ert-async \
-	-l context-coloring \
+	-l test/context-coloring-coverage.el \
+	-f context-coloring-coverage-ci-init \
 	-l test/context-coloring-test.el \
 	-f ert-run-tests-batch-and-exit
 
-.PHONY: all bench compile uncompile clean test
+cover: ${DEPENDENCIES}
+	${CASK} exec ${EMACS} -Q -batch \
+	-L . \
+	-l ert \
+	-l test/context-coloring-coverage.el \
+	-f context-coloring-coverage-local-init \
+	-l test/context-coloring-test.el \
+	-f ert-run-tests-batch-and-exit
+
+.PHONY: all bench compile uncompile clean test cover

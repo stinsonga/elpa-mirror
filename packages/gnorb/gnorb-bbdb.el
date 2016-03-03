@@ -150,8 +150,6 @@ be composed, just as in `gnus-posting-styles'.
 An example value might look like:"
   :group 'gnorb-bbdb)
 
-(defvar message-mode-hook)
-
 (when (fboundp 'bbdb-record-xfield-string)
   (fset (intern (format "bbdb-read-xfield-%s"
 			gnorb-bbdb-org-tag-field))
@@ -207,6 +205,8 @@ Org tags are stored in the `gnorb-bbdb-org-tags-field'."
 	 (insert
 	  (bbdb-indent-string (concat val "\n") indent)))))))
 
+(defvar message-mode-hook)
+
 ;;;###autoload
 (defun gnorb-bbdb-mail (records &optional subject n verbose)
   "\\<bbdb-mode-map>Acts just like `bbdb-mail', except runs
@@ -255,24 +255,34 @@ is non-nil (as in interactive calls) be verbose."
 	(unless (fboundp field)
 	  ;; what's the record's existing value for this field?
 	  (setq rec-val (bbdb-record-field r field)))
-	(when (cond
-	       ((eq field 'address)
-		(dolist (a rec-val)
-		  (unless (and label
-			       (not (string-match label (car a))))
-		    (string-match val (bbdb-format-address-default a)))))
-	       ((eq field 'phone)
-		(dolist (p rec-val)
-		  (unless (and label
-			       (not (string-match label (car p))))
-		    (string-match val (bbdb-phone-string p)))))
-	       ((consp rec-val)
-		(dolist (f rec-val)
-		  (string-match val f)))
-	       ((fboundp field)
-		(funcall field r))
-	       ((stringp rec-val)
-		(string-match val rec-val)))
+	(when (catch 'match
+		(cond
+		 ((eq field 'address)
+		  (dolist (a rec-val)
+		    (unless (and label
+				 (not (string-match label (car a))))
+		      (when
+			  (string-match-p
+			   val
+			   (bbdb-format-address-default a))
+			(throw 'match t)))))
+		 ((eq field 'phone)
+		  (dolist (p rec-val)
+		    (unless (and label
+				 (not (string-match label (car p))))
+		      (when
+			  (string-match-p val (bbdb-phone-string p))
+			(throw 'match t)))))
+		 ((consp rec-val)
+		  (dolist (f rec-val)
+		    (when (string-match-p val f)
+		      (throw 'match t))))
+		 ((fboundp field)
+		  (when (string-match-p (funcall field r))
+		    (throw 'match t)))
+		 ((stringp rec-val)
+		  (when (string-match-p val rec-val)
+		    (throw 'match t)))))
 	  ;; there are matches, run through the field setters in last
 	  ;; element of the sexp
 	  (dolist (attribute style)
@@ -392,14 +402,16 @@ both, use \"C-u\" before the \"*\"."
 	 (mapconcat
 	  'identity
 	  (delete-dups
-	   (cl-mapcan (lambda (r)
-		     (bbdb-record-xfield-split r gnorb-bbdb-org-tag-field))
-		   records))
+	   (cl-mapcan
+	    (lambda (r)
+	      (bbdb-record-xfield-split r gnorb-bbdb-org-tag-field))
+	    records))
 	  "|")))
     (if tag-string
 	;; C-u = all headings, not just todos
-	(org-tags-view (not (equal current-prefix-arg '(4)))
-                       tag-string)
+	(if (equal current-prefix-arg '(4))
+	    (org-tags-view nil tag-string)
+	  (org-tags-view t tag-string))
       (error "No org-tags field present"))))
 
 ;;;###autoload
@@ -424,9 +436,9 @@ a prefix arg and \"*\", the prefix arg must come first."
     (when (equal current-prefix-arg '(4))
       (setq search-string
 	    (read-from-minibuffer
-	     (format "%s search string: " (cl-first backend)) search-string)))
+	     (format "%s search string: " (first backend)) search-string)))
     (funcall (cl-third backend) search-string)
-    (delete-other-windows)))  
+    (delete-other-windows)))
 
 ;;;###autoload
 (defun gnorb-bbdb-cite-contact (rec)
@@ -437,9 +449,8 @@ a prefix arg and \"*\", the prefix arg must come first."
      mail-string)))
 
 ;;; Field containing links to recent messages
-
 (when (boundp 'bbdb-xfield-label-list)
-  (add-to-list 'bbdb-xfield-label-list gnorb-bbdb-messages-field nil 'eq))
+ (add-to-list 'bbdb-xfield-label-list gnorb-bbdb-messages-field nil 'eq))
 
 (defun gnorb-bbdb-display-messages (record format)
   "Show links to the messages collected in the
@@ -594,16 +605,10 @@ to a message into the record's `gnorb-bbdb-messages-field'."
 			  (parse-time-string (mail-header-date heads))))
 	     (subject (mail-header-subject heads))
 	     (id (mail-header-id heads))
-	     (group gnus-newsgroup-name)
+	     (group (gnorb-get-real-group-name
+		     gnus-newsgroup-name
+		     art-no))
 	     link)
-	;; check for both nnvirtual and nnir, and link to the real
-	;; group in those cases
-	(when (eq (car (gnus-find-method-for-group group))
-		  'nnvirtual)
-	  (setq group (car (nnvirtual-map-article art-no))))
-	(when (eq (car (gnus-find-method-for-group group))
-		  'nnir)
-	  (setq group (nnir-article-group art-no)))
 	(if (not (and date subject id group))
 	    (message "Could not save a link to this message")
 	  (setq link (make-gnorb-bbdb-link :subject subject :date date
@@ -617,7 +622,7 @@ to a message into the record's `gnorb-bbdb-messages-field'."
 			      (time-less-p
 			       (gnorb-bbdb-link-date b)
 			       (gnorb-bbdb-link-date a))))))
-	  (setq val (cl-subseq val 0 gnorb-bbdb-collect-N-messages))
+	  (setq val (cl-subseq val 0 (min (length val) gnorb-bbdb-collect-N-messages)))
 	  (bbdb-record-set-xfield record
 				  gnorb-bbdb-messages-field
 				  (delq nil val))

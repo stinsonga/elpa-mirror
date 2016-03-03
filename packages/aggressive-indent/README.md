@@ -1,6 +1,5 @@
-aggressive-indent-mode
+aggressive-indent-mode [![Melpa](http://melpa.org/packages/aggressive-indent-badge.svg)](http://melpa.org/#/aggressive-indent) [![Melpa-Stable](http://stable.melpa.org/packages/aggressive-indent-badge.svg)](http://stable.melpa.org/#/aggressive-indent)
 ======================
-(_[Wanna say thank you?](https://gratipay.com/Malabarba/)_)
 
 `electric-indent-mode` is enough to keep your code nicely aligned when
 all you do is type. However, once you start shifting blocks around,
@@ -8,7 +7,7 @@ transposing lines, or slurping and barfing sexps, indentation is bound
 to go wrong.
 
 **`aggressive-indent-mode`** is a minor mode that keeps your code **always**
-indented. It reindents after every command, making it more reliable
+indented. It reindents after every change, making it more reliable
 than `electric-indent-mode`.
 
 ### Demonstration ###
@@ -40,10 +39,8 @@ every programming mode, you can do something like:
 #### Manual Installation ####
 
 If you don't want to install from Melpa, you can download it manually,
-place it in your `load-path` along with its two dependencies:
-
-- [Names](https://github.com/Bruce-Connor/names/)
-- and `cl-lib` (which you should already have if your `emacs-version` is at least 24.3).
+place it in your `load-path` along with its dependency `cl-lib` (which
+you should already have if your `emacs-version` is at least 24.3).
 
 Then require it with:
 
@@ -62,3 +59,7 @@ following clause:
      '(and (derived-mode-p 'c++-mode)
            (null (string-match "\\([;{}]\\|\\b\\(if\\|for\\|while\\)\\b\\)"
                                (thing-at-point 'line)))))
+
+## Contribute ##
+
+[![Gratipay](https://cdn.rawgit.com/gratipay/gratipay-badge/2.1.3/dist/gratipay.png)](https://gratipay.com/Malabarba) 

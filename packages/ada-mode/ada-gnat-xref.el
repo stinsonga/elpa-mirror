@@ -1,12 +1,11 @@
-;; Ada mode cross-reference functionality provided by the 'gnat xref'
-;; tool. Includes related functions, such as gnatprep support.
+;;; ada-gnat-xref.el --- Ada mode cross-reference functionality provided by 'gnat xref'  -*- lexical-binding:t -*-
 ;;
 ;; These tools are all Ada-specific; see gpr-query for multi-language
 ;; GNAT cross-reference tools.
 ;;
 ;; GNAT is provided by AdaCore; see http://libre.adacore.com/
 ;;
-;;; Copyright (C) 2012 - 2014  Free Software Foundation, Inc.
+;;; Copyright (C) 2012 - 2015  Free Software Foundation, Inc.
 ;;
 ;; Author: Stephen Leake <stephen_leake@member.fsf.org>
 ;; Maintainer: Stephen Leake <stephen_leake@member.fsf.org>
@@ -57,7 +56,6 @@
 	 (switches (concat
                     "-a"
                     (when (ada-prj-get 'gpr_ext) (concat "--ext=" (ada-prj-get 'gpr_ext)))))
-	 status
 	 (result nil))
     (with-current-buffer (gnat-run-buffer)
       (gnat-run-gnat "find" (list switches arg))
@@ -121,18 +119,14 @@
 	    ;; error in *.gpr; ignore here.
 	    (forward-line 1)
 	  ;; else process line
-	  (let ((found-file (match-string 1))
-		(found-line (string-to-number (match-string 2)))
-		(found-col  (string-to-number (match-string 3))))
-
-	    (skip-syntax-forward "^ ")
-	    (skip-syntax-forward " ")
-	    (if (looking-at (concat "derived from .* (" ada-gnat-file-line-col-regexp ")"))
-		;; found other item
-		(setq result (list (match-string 1)
-				   (string-to-number (match-string 2))
-				   (1- (string-to-number (match-string 3)))))
-	      (forward-line 1)))
+	  (skip-syntax-forward "^ ")
+	  (skip-syntax-forward " ")
+	  (if (looking-at (concat "derived from .* (" ada-gnat-file-line-col-regexp ")"))
+	      ;; found other item
+	      (setq result (list (match-string 1)
+				 (string-to-number (match-string 2))
+				 (1- (string-to-number (match-string 3)))))
+	    (forward-line 1))
 	  )
 	(when (eobp)
 	  (error "gnat find did not return parent types"))
@@ -164,7 +158,7 @@
 
 	(compilation-start cmd
 			   'compilation-mode
-			   (lambda (mode-name) (concat mode-name "-gnatfind")))
+			   (lambda (name) (concat name "-gnatfind")))
     ))))
 
 ;;;;; setup
@@ -174,12 +168,6 @@
   (setq ada-ada-name-from-file-name 'ada-gnat-ada-name-from-file-name)
   (setq ada-make-package-body       'ada-gnat-make-package-body)
 
-  (add-hook 'ada-syntax-propertize-hook 'gnatprep-syntax-propertize)
-
-  ;; must be after indentation engine setup, because that resets the
-  ;; indent function list.
-  (add-hook 'ada-mode-hook 'ada-gnat-xref-setup t)
-
   (setq ada-xref-other-function  'ada-gnat-xref-other)
   (setq ada-xref-parent-function 'ada-gnat-xref-parents)
   (setq ada-xref-all-function    'ada-gnat-xref-all)
@@ -187,8 +175,6 @@
 
   ;; gnatmake -gnatD generates files with .dg extensions. But we don't
   ;; need to navigate between them.
-  ;;
-  ;; There is no common convention for a file extension for gnatprep files.
 
   (add-to-list 'completion-ignored-extensions ".ali") ;; gnat library files, used for cross reference
   (add-to-list 'compilation-error-regexp-alist 'gnat)
@@ -199,9 +185,6 @@
   (setq ada-ada-name-from-file-name nil)
   (setq ada-make-package-body       nil)
 
-  (setq ada-syntax-propertize-hook (delq 'gnatprep-syntax-propertize ada-syntax-propertize-hook))
-  (setq ada-mode-hook (delq 'ada-gnat-xref-setup ada-mode-hook))
-
   (setq ada-xref-other-function  nil)
   (setq ada-xref-parent-function nil)
   (setq ada-xref-all-function    nil)
@@ -209,11 +192,6 @@
 
   (setq completion-ignored-extensions (delete ".ali" completion-ignored-extensions))
   (setq compilation-error-regexp-alist (delete 'gnat compilation-error-regexp-alist))
-  )
-
-(defun ada-gnat-xref-setup ()
-  (when (boundp 'wisi-indent-calculate-functions)
-    (add-to-list 'wisi-indent-calculate-functions 'gnatprep-indent))
   )
 
 (defun ada-gnat-xref ()
@@ -224,10 +202,6 @@
   (add-to-list 'ada-deselect-prj-xref-tool '(gnat  . ada-gnat-xref-deselect-prj))
 
   ;; no parse-*-xref yet
-
-  (font-lock-add-keywords 'ada-mode
-   ;; gnatprep preprocessor line
-   (list (list "^[ \t]*\\(#.*\n\\)"  '(1 font-lock-preprocessor-face t))))
 
   (add-hook 'ada-gnat-fix-error-hook 'ada-gnat-fix-error))
 

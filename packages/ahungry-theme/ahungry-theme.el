@@ -1,11 +1,11 @@
-;;; ahungry-theme.el --- Ahungry color theme for Emacs.  Make sure to (load-theme 'ahungry).
+;;; ahungry-theme.el --- Ahungry color theme for Emacs.  Make sure to (load-theme 'ahungry).  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2015  Free Software Foundation, Inc.
+;; Copyright (C) 2015,2016  Free Software Foundation, Inc.
 
 ;; Author: Matthew Carter <m@ahungry.com>
 ;; Maintainer: Matthew Carter <m@ahungry.com>
 ;; URL: https://github.com/ahungry/color-theme-ahungry
-;; Version: 1.0.6
+;; Version: 1.1.0
 ;; Keywords: ahungry palette color theme emacs color-theme deftheme
 ;; Package-Requires: ((emacs "24"))
 
@@ -36,6 +36,29 @@
 
 ;;; News:
 
+;;;; Changes since 1.0.12:
+;; - Add erc/jabber faces to begin with
+
+;;;; Changes since 1.0.11:
+;; - Purple is too hard to read on poor contrast monitors, use a blue
+
+;;;; Changes since 1.0.10:
+;; - Add faces for powerline/spaceline setup
+;; - Reduce org-mode heading sizes slightly
+
+;;;; Changes since 1.0.9:
+;; - Add/adjust some of the org-mode faces
+
+;;;; Changes since 1.0.8:
+;; - Add even more colors for magit 2.0 face names
+
+;;;; Changes since 1.0.7:
+;; - Add colors for magit 2.0 face names
+
+;;;; Changes since 1.0.6:
+;; - Remove warning producing call to "default" background color
+;; - Add a color update for mm-uu-extract
+
 ;;;; Changes since 1.0.5:
 ;; - Add a few colors for helm (the defaults did not work well with this theme)
 
@@ -52,7 +75,7 @@
 (deftheme ahungry
   "Ahungry Theme")
 
-(let ((mainbg (if (display-graphic-p) "#222222" "default")))
+(let ((mainbg (when (display-graphic-p) "#222222")));; "default")))
   (custom-theme-set-faces
    'ahungry ;; This is the theme name
    `(default ((t (:foreground "#ffffff" :background ,mainbg
@@ -67,6 +90,13 @@
                                 :box (:line-width 1 :color nil :style released-button)))))
    '(mode-line-inactive ((t (:foreground "#444444" :background "#66ff33"))))
    '(mode-line-buffer-id ((t (:bold t :foreground "#ffffff" :background "#0055ff"))))
+   '(powerline-active1 ((t (:foreground "#ffffff" :background "#222222"))))
+   '(powerline-active2 ((t (:foreground "#ffffff" :background "#77ff00"))))
+   '(powerline-inactive1 ((t (:foreground "#ffffff" :background "#555555"))))
+   '(powerline-inactive2 ((t (:foreground "#ffffff" :background "#66ff33"))))
+   '(spaceline-flycheck-error ((t (:foreground "#ff0066" :background "#333333"))))
+   '(spaceline-flycheck-info ((t (:foreground "#ffaa00" :background "#333333"))))
+   '(spaceline-flycheck-warning ((t (:foreground "#ffaa00" :background "#333333"))))
    '(region ((t (:background "#444444"))))
    '(link ((t (:underline t :foreground "#33ff99"))))
    '(custom-link ((t (:inherit 'link))))
@@ -82,7 +112,7 @@
    '(font-lock-keyword-face ((t (:foreground "#3cff00" :bold t))))
    '(font-lock-string-face ((t (:foreground "#ff0077" :italic nil :bold nil))))
    '(font-lock-type-face ((t (:foreground "#deff00" :bold t))))
-   '(font-lock-variable-name-face ((t (:foreground "#9900ff" :bold t))))
+   '(font-lock-variable-name-face ((t (:foreground "#0033ff" :bold t))))
    '(font-lock-warning-face ((t (:bold t :foreground "#ff0000"))))
    '(font-lock-function-name-face ((t (:foreground "#ffee00" :bold t))))
    '(comint-highlight-input ((t (:italic t :bold t))))
@@ -111,21 +141,21 @@
    '(gnus-cite-face-2 ((t (:foreground "#cba559"))))
    '(gnus-cite-face-3 ((t (:foreground "#83ae92"))))
    '(gnus-cite-face-4 ((t (:foreground "#6898a7"))))
-   '(gnus-group-mail-1-empty ((t (:foreground "#00bbff"))))
-   '(gnus-group-mail-1 ((t (:bold t :foreground "#00bbff"))))
-   '(gnus-group-mail-2-empty ((t (:foreground "#00ffbb"))))
-   '(gnus-group-mail-2 ((t (:bold t :foreground "#00ffbb"))))
+   '(gnus-group-mail-1-empty ((t (:foreground "#009955"))))
+   '(gnus-group-mail-1 ((t (:bold t :foreground "#ff9900"))))
+   '(gnus-group-mail-2-empty ((t (:foreground "#009955"))))
+   '(gnus-group-mail-2 ((t (:bold t :foreground "#ffaa00"))))
    '(gnus-group-mail-3-empty ((t (:foreground "#009955"))))
-   '(gnus-group-mail-3 ((t (:bold t :foreground "#ffc800"))))
-   '(gnus-group-mail-low-empty ((t (:foreground "#005fff"))))
+   '(gnus-group-mail-3 ((t (:bold t :foreground "#ffcc00"))))
+   '(gnus-group-mail-low-empty ((t (:foreground "#009955"))))
    '(gnus-group-mail-low ((t (:bold t :foreground "#005fff"))))
-   '(gnus-group-news-1-empty ((t (:foreground "#00bbff"))))
-   '(gnus-group-news-1 ((t (:bold t :foreground "#00bbff"))))
-   '(gnus-group-news-2-empty ((t (:foreground "#00ffbb"))))
-   '(gnus-group-news-2 ((t (:bold t :foreground "#00ffbb"))))
+   '(gnus-group-news-1-empty ((t (:foreground "#009955"))))
+   '(gnus-group-news-1 ((t (:bold t :foreground "#ff9900"))))
+   '(gnus-group-news-2-empty ((t (:foreground "#009955"))))
+   '(gnus-group-news-2 ((t (:bold t :foreground "#ffaa00"))))
    '(gnus-group-news-3-empty ((t (:foreground "#009955"))))
-   '(gnus-group-news-3 ((t (:bold t :foreground "#ffc800"))))
-   '(gnus-group-news-low-empty ((t (:foreground "#005fff"))))
+   '(gnus-group-news-3 ((t (:bold t :foreground "#ffcc00"))))
+   '(gnus-group-news-low-empty ((t (:foreground "#009955"))))
    '(gnus-group-news-low ((t (:bold t :foreground "#005fff"))))
    '(gnus-header-name ((t (:bold t :foreground "#33ffbb"))))
    '(gnus-header-from ((t (:bold t :foreground "#ffc800"))))
@@ -154,9 +184,10 @@
    '(message-header-subject ((t (:foreground "#ffffff"))))
    '(message-header-to ((t (:foreground "#ffffff"))))
    '(message-header-cc ((t (:foreground "#ffffff"))))
-   '(org-hide ((t (:foreground "#009933"))))
-   '(org-level-1 ((t (:bold t :foreground "#4477ff" :height 1.5))))
-   '(org-level-2 ((t (:bold nil :foreground "#ffc800" :height 1.2))))
+   '(mm-uu-extract ((t (:foreground "#0066ff"))))
+   '(org-hide ((t (:foreground "#222222"))))
+   '(org-level-1 ((t (:bold t :foreground "#4477ff" :height 1.4))))
+   '(org-level-2 ((t (:bold nil :foreground "#ffc800" :height 1.1))))
    '(org-level-3 ((t (:bold t :foreground "#00aa33" :height 1.0))))
    '(org-level-4 ((t (:bold nil :foreground "#f68585" :height 1.0))))
    '(org-date ((t (:underline t :foreground "#ff0066"))))
@@ -167,6 +198,7 @@
    '(org-block ((t (:foreground "#999999"))))
    '(org-quote ((t (:inherit org-block :bold t :slant italic))))
    '(org-verse ((t (:inherit org-block :bold t :slant italic))))
+   '(org-table ((t (:foreground "#0055ff"))))
    '(org-todo ((t (:bold t :foreground "#ff0099"))))
    '(org-done ((t (:bold t :foreground "#00cc33"))))
    '(org-agenda-structure ((t (:weight bold :foreground "#f68585"))))
@@ -179,16 +211,35 @@
    '(org-block-end-line ((t (:foreground "#bbbbbb" :background "#333333"))))
    '(org-document-title ((t (:weight bold :foreground "#0077cc"))))
    '(org-document-info ((t (:weight normal :foreground "#0077cc"))))
+   '(org-document-info-keyword ((t (:weight normal :foreground "#aaaaaa"))))
    '(org-warning ((t (:weight normal :foreground "#ee0033"))))
-   '(magit-header ((t (:foreground "#ffc800"))))
-   '(magit-diff-add ((t (:foreground "#00ff00"))))
-   '(magit-diff-del ((t (:foreground "#ff0000"))))
-   '(magit-item-highlight ((t (:background "#111111" :slant normal :weight extra-bold :inverse-video nil))))
+   '(magit-hash ((t (:foreground "#6699aa"))))
+   '(magit-branch-local ((t (:foreground "#0066ff"))))
+   '(magit-branch-remote ((t (:foreground "#ffcc44"))))
+   '(magit-diffstat-added ((t (:foreground "#00ff66"))))
+   '(magit-diff-added-highlight ((t (:foreground "#33ff00" :weight normal))))
+   '(magit-diff-added ((t (:foreground "#44aa00" :weight normal))))
+   '(magit-diff-removed-highlight ((t (:foreground "#ff0033" :weight normal))))
+   '(magit-diff-removed ((t (:foreground "#aa0044" :weight normal))))
+   '(magit-diff-hunk-heading ((t (:foreground "#aaaa00"))))
+   '(magit-diff-hunk-heading-highlight ((t (:foreground "#ffff00"))))
+   '(magit-diffstat-removed ((t (:foreground "#ff0066"))))
+   '(magit-diff-context-highlight ((t (:foreground "#ffffff"))))
+   '(magit-section-heading ((t (:foreground "#ff0066"))))
+   '(magit-section-highlight ((t (:weight bold))));;:foreground "#ffffff"))))
    '(minibuffer-prompt ((t (:foreground "#0055ff" :bold t))))
    '(web-mode-html-tag-bracket-face ((t (:foreground "#666666"))))
    '(helm-selection ((t (:foreground "#ff0099" :italic t :bold t :background "#f2e997"))))
    '(helm-match ((t (:foreground "gold1"))))
    '(helm-visible-mark ((t (:background "#f2e997" :foreground "#ff0099" :bold nil :italic nil))))
+   '(erc-nick-default-face ((t (:foreground "#ff0099"))))
+   '(erc-current-nick-face ((t (:foreground "#0099ff"))))
+   '(erc-input-face ((t (:foreground "#0099ff"))))
+   '(erc-prompt-face ((t (:background nil :foreground "#666666" :bold t :italic t))))
+   '(erc-timestamp-face ((t (:background nil :foreground "#666666" :bold nil :italic t))))
+   '(jabber-chat-prompt-foreign ((t (:foreground "#ff0099"))))
+   '(jabber-chat-prompt-local ((t (:foreground "#0099ff"))))
+   '(jabber-rare-time-face ((t (:foreground "#666666" :bold nil :italic t))))
    )
   (custom-theme-set-variables
    'ahungry

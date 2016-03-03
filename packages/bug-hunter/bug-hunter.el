@@ -1,10 +1,10 @@
-;;; bug-hunter.el --- Hunt down errors in elisp files  -*- lexical-binding: t; -*-
+;;; bug-hunter.el --- Hunt down errors by bisecting elisp files  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2015 Free Software Foundation, Inc.
 
-;; Author: Artur Malabarba <bruce.connor.am@gmail.com>
-;; URL: http://github.com/Bruce-Connor/elisp-bug-hunter
-;; Version: 0.1
+;; Author: Artur Malabarba <emacs@endlessparentheses.com>
+;; URL: https://github.com/Malabarba/elisp-bug-hunter
+;; Version: 1.1
 ;; Keywords: lisp
 ;; Package-Requires: ((seq "1.3") (cl-lib "0.5"))
 
@@ -22,65 +22,95 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
-;; `bug-hunter' is an Emacs library that finds the source of an error or
-;; unexpected behavior inside an elisp configuration file (tipically
-;; `init.el' or `.emacs').
-;; 
-;; 
+;; An Emacs library that finds the source of an error or unexpected
+;; behavior inside an elisp configuration file (typically `init.el' or
+;; `.emacs').
+;;
 ;; Usage Examples
 ;; ==============
-;; 
+;;
+;; Automated error hunting
+;; ~~~~~~~~~~~~~~~~~~~~~~~
+;;
 ;;   If your Emacs init file signals an error during startup, but you don’t
 ;;   know why, simply issue
 ;;   ,----
-;;   | M-x bug-hunter-init-file RET RET
+;;   | M-x bug-hunter-init-file RET e
 ;;   `----
-;;   and `bug-hunter' will find it for you.
-;; 
+;;   and The Bug Hunter will find it for you. Note that your `init.el' (or
+;;   `.emacs') must be idempotent for this to work.
+;;
+;;
+;; Interactive hunt
+;; ~~~~~~~~~~~~~~~~
+;;
 ;;   If Emacs starts up without errors but something is not working as it
-;;   should, invoke the same command, but give it in an assertion.
-;;   Essentially, if you can write a snippet that detects the issue and
-;;   returns non-nil, just provide this snippet as the assertion and the
-;;   Bug Hunter will do a bisection search for you.
-;; 
+;;   should, invoke the same command, but choose the interactive option:
+;;   ,----
+;;   | M-x bug-hunter-init-file RET i
+;;   `----
+;;   The Bug Hunter will start a separate Emacs instance several times, and
+;;   then it will ask you each time whether that instance presented the
+;;   problem you have. After doing this about 5--12 times, you’ll be given
+;;   the results.
+;;
+;;
+;; Assertion hunt
+;; ~~~~~~~~~~~~~~
+;;
+;;   The Bug Hunter can also find your issue based on an assertion.
+;;   Essentially, if you can write a code snippet that returns non-nil when
+;;   it detects the issue, just provide this snippet as the assertion and
+;;   the Bug Hunter will do the rest.
+;;
 ;;   For example, let’s say there’s something in your init file that’s
 ;;   loading the `cl' library, and you don’t want that. You /know/ you’re
 ;;   not loading it yourself, but how can you figure out which external
 ;;   package is responsible for this outrage?
-;; 
+;;
 ;;   ,----
-;;   | M-x bug-hunter-init-file RET (featurep 'cl) RET
+;;   | M-x bug-hunter-init-file RET a (featurep 'cl) RET
 ;;   `----
-;; 
+;;
 ;;   *That’s it!* You’ll be given a nice buffer reporting the results:
-;; 
-;;   - Are you getting obscure errors when trying to open /“.tex”/ files?
-;;     Don’t despair! Just use `(find-file "dummy.tex")' as the assertion.
-;;   - Did `ox-html' stop working due to some arcane misconfiguration? Just
-;;     write an assertion that does an export and checks the result.
+;;
+;;   - Are you getting obscure errors when trying to open /".tex"/ files?
+;;     - Don’t despair! Just use `(find-file "dummy.tex")' as the
+;;       assertion.
+;;   - Did `ox-html' stop working due to some arcane misconfiguration?
+;;     - Just write an assertion that does an export and checks the result.
 ;;   - Does some random command suddenly bind itself to `C-j' and you can’t
-;;     figure out why? `(eq (key-binding "\n") 'unwanted-command)' is the
-;;     assertion for you!
-;; 
+;;     figure out why?
+;;     - `(eq (key-binding "\n") 'unwanted-command)' is the assertion for
+;;       you!
+;;
 ;;   Finally, you can also use `bug-hunter-file' to hunt in other files.
-;; 
-
-;; Installation
-;; ============
-;; 
-;;   Bug Hunter will be on Gelpa shortly. For now, do the following:
-;;   1. Open the `bug-hunter.el` file.
-;;   2. Issue `M-x package-install-from-buffer`.
-
+;;
+;;
+;; init.org and other literate-style configs
+;; =========================================
+;;
+;; Please see the full Readme on http://github.com/Malabarba/elisp-bug-hunter
 
 ;;; Code:
 (require 'seq)
 (require 'cl-lib)
 
-(defvar bug-hunter--assertion-reminder
+(defconst bug-hunter--interactive-explanation
+  "You have asked to do an interactive hunt, here's how it goes.
+1) I will start a new Emacs instance, which opens a new frame.
+2) You will try to reproduce your problem on the new frame.
+3) When you’re done, close that frame.
+4) I will ask you if you managed to reproduce the problem.
+5) We will repeat steps up to %s times, so hang tight!")
+
+(defconst bug-hunter--assertion-reminder
   "Remember, the assertion must be an expression that returns
 non-nil in your current (problematic) Emacs state, AND that
-returns nil on a clean Emacs instance."
+returns nil on a clean Emacs instance.
+If you're unsure how to write an assertion, you can try the interactive
+hunt instead, or see some examples in the Readme:
+    https://github.com/Malabarba/elisp-bug-hunter"
   "Printed to the user if they provide a bad assertion.")
 
 (defvar bug-hunter--current-head nil
@@ -113,7 +143,10 @@ file.")
               nil)
           (end-of-file `(bug-caught (end-of-file) ,line ,col))
           (invalid-read-syntax `(bug-caught ,er ,line ,col))
-          (error (error "Ran into an error we don't understand, please file a bug report: %S" er)))
+          (error
+           (if (string= (elt er 1) "Invalid modifier in string")
+               `(bug-caught (invalid-modifier) ,line ,col)
+             (error "Ran into an error we don't understand, please file a bug report: %S" er))))
         (nreverse out))))
 
 (defun bug-hunter--read-contents (file)
@@ -138,6 +171,7 @@ R is passed to `format' and inserted."
 R is passed to `bug-hunter--report-print'."
   (declare (indent 1))
   (apply #'bug-hunter--report-print r)
+  (redisplay)
   (apply #'message r))
 
 (defun bug-hunter--report-user-error (&rest r)
@@ -145,18 +179,22 @@ R is passed to `bug-hunter--report-print'."
 R is passed to `bug-hunter--report-print'."
   (declare (indent 1))
   (apply #'bug-hunter--report-print r)
-  (bug-hunter--report-print "\xc")
+  (bug-hunter--report-print "\xc\n")
   (apply #'user-error r))
 
 (defvar compilation-error-regexp-alist)
-(defun bug-hunter--init-report-buffer ()
-  "Create and prepare the \"*Bug-Hunter Report*\" buffer."
-  (or (get-buffer "*Bug-Hunter Report*")
-      (with-current-buffer (get-buffer-create "*Bug-Hunter Report*")
-        (compilation-mode "Bug Hunt")
-        (set (make-local-variable 'compilation-error-regexp-alist)
-             '(comma))
-        (current-buffer))))
+(defun bug-hunter--init-report-buffer (assertion steps)
+  "Create and prepare the \"*Bug-Hunter Report*\" buffer.
+Also add some descriptions depending on ASSERTION."
+  (with-current-buffer (get-buffer-create "*Bug-Hunter Report*")
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (compilation-mode "Bug Hunt")
+      (set (make-local-variable 'compilation-error-regexp-alist)
+           '(comma))
+      (pcase assertion
+        (`interactive (insert (format bug-hunter--interactive-explanation (+ 2 steps))))))
+    (current-buffer)))
 
 (defun bug-hunter--pretty-format (value padding)
   "Return a VALUE as a string with PADDING spaces on the left."
@@ -180,6 +218,9 @@ the file."
     (cl-case (car error)
       (end-of-file
        "There's a missing closing parenthesis, the expression on this line never ends.")
+      (invalid-modifier (concat "There's a string on this line with an invalid modifier."
+                                "\n  A \"modifier\" is a \\ followed by a few characters."
+                                "\n  For example, \\C-; is an invalid modifier."))
       (invalid-read-syntax
        (let ((char (cadr error)))
          (if (member char '("]" ")"))
@@ -200,7 +241,7 @@ the file."
                             "")
                  (when (> size 16)
                    (format "\n    ... %s omitted expressions ...\n\n"
-                     (- size 14)))
+                           (- size 14)))
                  (when (> size 16)
                    (mapconcat (lambda (x) (bug-hunter--pretty-format x 4))
                               (seq-drop forms (- size 7)) "")))))
@@ -208,47 +249,79 @@ the file."
        (concat "The assertion returned the following value here:\n"
                (bug-hunter--pretty-format (cadr error) 4)))
       (t (format "The following error was signaled here:\n    %S"
-           error))))
+                 error))))
   (when expression
     (bug-hunter--report "  Caused by the following expression:\n%s"
       (bug-hunter--pretty-format expression 4)))
-  (bug-hunter--report "\xc")
+  (bug-hunter--report "\xc\n")
   `[,error ,line ,column ,expression])
 
 
 ;;; Execution functions
-(defun bug-hunter--run-form (form)
-  "Run FORM with \"emacs -Q\" and return the result."
+(defun bug-hunter--print-to-temp (sexp)
+  "Print SEXP to a temp file and return the file name."
+  (let ((print-length nil)
+        (print-level nil)
+        (file (make-temp-file "bug-hunter")))
+    (with-temp-file file
+      (print sexp (current-buffer)))
+    file))
+
+(defun bug-hunter--run-emacs (file &rest args)
+  "Start an Emacs process to run FILE and return the output buffer.
+ARGS are passed before \"-l FILE\"."
   (let ((out-buf (generate-new-buffer "*Bug-Hunter Command*"))
         (exec (file-truename (expand-file-name invocation-name
-                                               invocation-directory)))
-        (file-name (make-temp-file "bug-hunter")))
+                                               invocation-directory))))
+    (apply #'call-process exec nil out-buf nil
+           (append args (list "-l" file)))
+    out-buf))
+
+(defun bug-hunter--run-form (form)
+  "Run FORM with \"emacs -Q\" and return the result."
+  (let ((file-name (bug-hunter--print-to-temp (list 'prin1 form))))
     (unwind-protect
-        (let ((print-length nil)
-              (print-level nil))
-          (with-temp-file file-name
-            (print (list 'prin1 form) (current-buffer)))
-          (call-process exec nil out-buf nil
-                        "-Q" "--batch" "-l"
-                        (shell-quote-argument file-name))
-          (with-current-buffer out-buf
-            (goto-char (point-max))
-            (forward-sexp -1)
-            (prog1 (read (current-buffer))
-              (kill-buffer (current-buffer)))))
+        (with-current-buffer (bug-hunter--run-emacs file-name "-Q" "--batch")
+          (goto-char (point-max))
+          (forward-sexp -1)
+          (prog1 (read (current-buffer))
+            (kill-buffer (current-buffer))))
       (delete-file file-name))))
+
+(defun bug-hunter--run-form-interactively (form)
+  "Run FORM in a graphical instance and ask user about the outcome."
+  (let ((file-name (bug-hunter--print-to-temp (list 'prin1 form))))
+    (unwind-protect
+        (bug-hunter--run-emacs file-name "-Q")
+      (delete-file file-name))
+    (y-or-n-p "Did you find the problem/bug in this instance (if you encounter some other issue, answer `n')? ")))
+
+(defun bug-hunter--wrap-forms-for-eval (forms)
+  "Return FORMS wrapped in initialization code."
+  `(let ((server-name (make-temp-file "bug-hunter-temp-server-file")))
+     (delete-file server-name)
+     (if site-run-file (load site-run-file t t))
+     (run-hooks 'before-init-hook)
+     ,@forms
+     (package-initialize)
+     (run-hooks 'after-init-hook)))
 
 (defun bug-hunter--run-and-test (forms assertion)
   "Execute FORMS in the background and test ASSERTION.
-See `bug-hunter' for a description on the ASSERTION."
-  (bug-hunter--run-form
-   `(condition-case er
-        (let ((server-name (make-temp-file "bug-hunter-temp-server-file")))
-          (delete-file server-name)
-          ,@forms
-          (run-hooks 'after-init-hook)
-          ,assertion)
-      (error (cons 'bug-caught er)))))
+See `bug-hunter' for a description on the ASSERTION.
+
+If ASSERTION is 'interactive, the form is run through
+`bug-hunter--run-form-interactively'.  Otherwise, a slightly
+modified version of the form combined with ASSERTION is run
+through `bug-hunter--run-form'."
+  (if (eq assertion 'interactive)
+      (bug-hunter--run-form-interactively
+       (bug-hunter--wrap-forms-for-eval forms))
+    (bug-hunter--run-form
+     `(condition-case er
+          ,(append (bug-hunter--wrap-forms-for-eval forms)
+                   (list assertion))
+        (error (cons 'bug-caught er))))))
 
 
 
@@ -263,25 +336,29 @@ ASSERTION is received by `bug-hunter--bisect-start'.
 SAFE is a list of forms confirmed to not match the ASSERTION,
 HEAD is a list of forms to be tested now, and TAIL is a list
 which will be inspected if HEAD doesn't match ASSERTION."
-  (cond
-   ((not tail)
-    (vector (length safe)
-            ;; Sometimes we already ran this, sometimes not. So it's
-            ;; easier to just run it anyway to get the return value.
-            (bug-hunter--run-and-test (append safe head) assertion)))
-   ((and (message "Testing: %s/%s"
-           (cl-incf bug-hunter--i)
-           bug-hunter--estimate)
-         (setq bug-hunter--current-head head)
-         (bug-hunter--run-and-test (append safe head) assertion))
-    (apply #'bug-hunter--bisect
-      assertion
-      safe
-      (bug-hunter--split head)))
-   (t (apply #'bug-hunter--bisect
-        assertion
-        (append safe head)
-        (bug-hunter--split tail)))))
+  (message "Testing: %s/%s" (cl-incf bug-hunter--i) bug-hunter--estimate)
+  ;; Used if the user quits.
+  (setq bug-hunter--current-head head)
+  (let ((ret-val (bug-hunter--run-and-test (append safe head) assertion)))
+    (cond
+     ((not tail)
+      (cl-assert ret-val nil)
+      (vector (length safe) ret-val))
+     ;; Issue in the head.
+     ((and ret-val (< (length head) 2))
+      (vector (length safe) ret-val))
+     (ret-val
+      (apply #'bug-hunter--bisect
+             assertion
+             safe
+             (bug-hunter--split head)))
+     ;; Issue in the tail.
+     (t (apply #'bug-hunter--bisect
+               assertion
+               (append safe head)
+               ;; If tail has length 1, we already know where the issue is,
+               ;; but we still do this to get the return value.
+               (bug-hunter--split tail))))))
 
 (defun bug-hunter--bisect-start (forms assertion)
   "Run a bisection search on list of FORMS using ASSERTION.
@@ -292,7 +369,6 @@ ASSERTION's return value.
 If ASSERTION is nil, n is the position of the first form to
 signal an error and value is (bug-caught . ERROR-SIGNALED)."
   (let ((bug-hunter--i 0)
-        (bug-hunter--estimate (ceiling (log (length forms) 2)))
         (bug-hunter--current-head nil))
     (condition-case-unless-debug nil
         (apply #'bug-hunter--bisect assertion nil (bug-hunter--split forms))
@@ -320,10 +396,16 @@ Bug hunter will refuse to hunt if (i) an error is signaled or the
 assertion is triggered while running emacs -Q, or (ii) no errors
 are signaled and the assertion is not triggered after all EXPRs
 are evaluated."
-  (pop-to-buffer (bug-hunter--init-report-buffer))
   (let ((expressions (unless (eq (car-safe rich-forms) 'bug-caught)
-                       (mapcar #'car rich-forms))))
+                       (mapcar #'car rich-forms)))
+        (bug-hunter--estimate (ceiling (log (length rich-forms) 2))))
+    ;; Prepare buffer, and make sure they've seen it.
+    (switch-to-buffer (bug-hunter--init-report-buffer assertion bug-hunter--estimate))
+    (when (eq assertion 'interactive)
+      (read-char-choice "Please read the instructions above and type 6 when ready. " '(?6)))
+
     (cond
+     ;; Check for errors when reading the init file.
      ((not expressions)
       (apply #'bug-hunter--report-error (cdr rich-forms))
       (apply #'vector (cdr rich-forms)))
@@ -335,10 +417,12 @@ are evaluated."
         (if assertion
             (concat "The assertion returned nil after loading the entire file.\n"
                     bug-hunter--assertion-reminder)
-          "No errors signaled after loading the entire file. If you're
-looking for something that's not an error, you need to provide an
-assertion. See this link for some examples:
-    https://github.com/Bruce-Connor/elisp-bug-hunter")
+          "No errors signaled after loading the entire file.
+If you're looking for something that's not an error, use the
+interactive hunt instead of the error hunt.  If you have some
+elisp proficiency, you can also use the assertion hunt, see this
+link for some examples:
+    https://github.com/Malabarba/elisp-bug-hunter")
         (or assertion "")))
 
      ;; Make sure we're in a forest, not a volcano.
@@ -370,37 +454,49 @@ There's nothing more I can do here.")
                (list 'assertion-triggered ret)
                (car linecol) (cadr linecol) expression)))))))))
 
+(defconst bug-hunter--hunt-type-prompt
+  "To bisect interactively, type i
+To use automatic error detection, type e
+To provide a lisp assertion, type a
+=> ")
+
 (defun bug-hunter--read-from-minibuffer ()
   "Read a list of expressions from the minibuffer.
-Wraps them in a progn if necessary."
-  (require 'simple)
-  (let ((exprs
-         (with-temp-buffer
-           ;; Copied from `read--expression'.
-           (let ((minibuffer-completing-symbol t))
-             (minibuffer-with-setup-hook
-                 (lambda ()
-                   ;; FIXME: call emacs-lisp-mode?
-                   (add-function :before-until (local 'eldoc-documentation-function)
-                                 #'elisp-eldoc-documentation-function)
-                   (add-hook 'completion-at-point-functions
-                             #'elisp-completion-at-point nil t)
-                   (run-hooks 'eval-expression-minibuffer-setup-hook))
-               (insert
-                (read-from-minibuffer
-                 "Expression that returns nil if all is well (optional): "
-                 nil read-expression-map nil 'read-expression-history))))
-           (goto-char (point-min))
-           (mapcar #'car (bug-hunter--read-buffer)))))
-    (if (cdr exprs)
-        (cons #'progn exprs)
-      (car exprs))))
+Wraps them in a progn if necessary to always return a single
+form.
+
+The user may decide to not provide input, in which case
+'interactive is returned.  Note, this is different from the user
+typing `RET' at an empty prompt, in which case nil is returned."
+  (pcase (read-char-choice bug-hunter--hunt-type-prompt '(?i ?e ?a))
+    (`?i 'interactive)
+    (`?e nil)
+    (_
+     (require 'simple)
+     (let ((exprs
+            (with-temp-buffer
+              ;; Copied from `read--expression'.
+              (let ((minibuffer-completing-symbol t))
+                (minibuffer-with-setup-hook
+                    (lambda ()
+                      (add-hook 'completion-at-point-functions
+                                #'elisp-completion-at-point nil t)
+                      (run-hooks 'eval-expression-minibuffer-setup-hook))
+                  (insert
+                   (read-from-minibuffer
+                    "Provide an assertion.  This is a lisp expression that returns nil if (and only if) everything is fine:\n => "
+                    nil read-expression-map nil 'read-expression-history))))
+              (goto-char (point-min))
+              (mapcar #'car (bug-hunter--read-buffer)))))
+       (if (cdr exprs)
+           (cons #'progn exprs)
+         (car exprs))))))
 
 ;;;###autoload
 (defun bug-hunter-file (file &optional assertion)
   "Bisect FILE while testing ASSERTION.
 All sexps in FILE are read and passed to `bug-hunter-hunt' as a
-list.  See `bug-hunter-hunt' for how to use assertion."
+list.  See `bug-hunter-hunt' for how to use ASSERTION."
   (interactive
    (list
     (read-file-name "File to bisect: "
@@ -416,7 +512,7 @@ list.  See `bug-hunter-hunt' for how to use assertion."
   "Test ASSERTION throughout `user-init-file'.
 All sexps inside `user-init-file' are read and passed to
 `bug-hunter-hunt' as a list.  See `bug-hunter-hunt' for how to use
-assertion."
+ASSERTION."
   (interactive (list (bug-hunter--read-from-minibuffer)))
   (bug-hunter-file user-init-file assertion))
 

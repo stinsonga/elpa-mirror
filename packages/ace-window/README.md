@@ -44,6 +44,20 @@ always be `1`.
 
 - You can delete the selected window by calling `ace-window` with a double prefix argument, i.e. <kbd>C-u C-u</kbd>.
 
+## Change the action midway
+
+You can also start by calling `ace-window` and then decide to switch the action to `delete` or `swap` etc.  By default the bindings are:
+
+- <kbd>x</kbd> - delete window
+- <kbd>m</kbd> - swap (move) window
+- <kbd>v</kbd> - split window vertically
+- <kbd>b</kbd> - split window horizontally
+- <kbd>n</kbd> - select the previous window
+- <kbd>i</kbd> - maximize window (select which window)
+- <kbd>o</kbd> - maximize current window
+
+In order for it to work, these keys *must not* be in `aw-keys` and you have to have `aw-dispatch-always` set to `t`.
+
 ## Customization
 Aside from binding `ace-window`:
 
@@ -76,3 +90,31 @@ where to look, i.e. the top-left corners of each window.
 So you can turn off the gray background with:
 
     (setq aw-background nil)
+
+### `aw-dispatch-always`
+
+When non-nil, `ace-window` will issue a `read-char` even for one window.
+This will make `ace-window` act differently from `other-window` for one
+or two windows. This is useful to change the action midway
+and execute other action other than the *jump* default.
+By default is set to `nil`
+
+### `aw-dispatch-alist`
+
+This is the list of actions that you can trigger from `ace-window` other than the
+*jump* default.
+By default is:
+
+    (defvar aw-dispatch-alist
+    '((?x aw-delete-window " Ace - Delete Window")
+        (?m aw-swap-window " Ace - Swap Window")
+        (?n aw-flip-window)
+        (?v aw-split-window-vert " Ace - Split Vert Window")
+        (?b aw-split-window-horz " Ace - Split Horz Window")
+        (?i delete-other-windows " Ace - Maximize Window")
+        (?o delete-other-windows))
+    "List of actions for `aw-dispatch-default'.")
+
+If the pair key-action is followed by a string, then `ace-window` will be
+invoked again to be able to select on which window you want to select the
+action. Otherwise the current window is selected.

@@ -1,6 +1,6 @@
-;;; user options shared by Ada mode indentation engines
+;; user options shared by Ada mode indentation engines  -*- lexical-binding:t -*-
 ;;
-;; Copyright (C) 2012, 2013  Free Software Foundation, Inc.
+;; Copyright (C) 2012, 2013, 2015  Free Software Foundation, Inc.
 ;;
 ;; Author: Stephen Leake <stephen_leake@member.fsf.org>
 ;; Contributors: Simon Wright <simon.j.wright@mac.com>
@@ -36,8 +36,7 @@ procedure Foo is
 begin
 >>>null;"
   :type 'integer
-  :group 'ada-indentation
-  :safe 'integerp)
+  :safe #'integerp)
 (make-variable-buffer-local 'ada-indent)
 
 (defvar ada-broken-indent nil)
@@ -57,18 +56,30 @@ begin
 Example :
    My_Var : My_Type :=
    >>(Field1 => Value);"
-  :type  'integer
-  :group 'ada-indentation
-  :safe  'integerp)
+  :type 'integer
+  :safe #'integerp)
 (make-variable-buffer-local 'ada-indent-broken)
 
 (defcustom ada-indent-comment-col-0 nil
   "If non-nil, comments currently starting in column 0 are left in column 0.
 Otherwise, they are indented with previous comments or code."
+  :type 'boolean
+  :safe #'booleanp)
+(make-variable-buffer-local 'ada-indent-comment-col-0)
+
+(defcustom ada-indent-comment-gnat nil
+  "If non-nil, comments are indented to meet the GNAT comment style check.
+That is, one of:
+
+- multiple of ada-indent
+- next non-blank line
+- previous non-blank line
+
+Otherwise, they are indented as a with previous comments or code."
   :type  'boolean
   :group 'ada-indentation
-  :safe  'booleanp)
-(make-variable-buffer-local 'ada-indent-comment-col-0)
+  :safe  #'booleanp)
+(make-variable-buffer-local 'ada-indent-comment-gnat)
 
 (defvar ada-label-indent nil)
 (make-obsolete-variable
@@ -95,8 +106,7 @@ Example :
    <<Label_2>>
    <<<<Foo := 0;"
   :type  'integer
-  :group 'ada-indentation
-  :safe  'integerp)
+  :safe  #'integerp)
 (make-variable-buffer-local 'ada-indent-label)
 
 (defcustom ada-indent-record-rel-type 3
@@ -105,9 +115,8 @@ Example :
 An example is:
    type A is
    >>>record"
-  :type  'integer
-  :group 'ada-indent
-  :safe  'integerp)
+  :type 'integer
+  :safe #'integerp)
 (make-variable-buffer-local 'ada-indent-record-rel-type)
 
 (defcustom ada-indent-renames 2
@@ -135,9 +144,8 @@ Examples:
    function A (B : Integer)
                return C
    >>>>>>>>>>>renames Foo;"
-  :type  'integer
-  :group 'ada-indent
-  :safe  'integerp)
+  :type 'integer
+  :safe #'integerp)
 (make-variable-buffer-local 'ada-indent-renames)
 
 (defcustom ada-indent-return 0
@@ -154,9 +162,8 @@ relative to line containing 'function'.
 An example is:
    function A (B : Integer)
    >>>>>>>>>>>return C;"
-  :type  'integer
-  :group 'ada-indent
-  :safe  'integerp)
+  :type 'integer
+  :safe #'integerp)
 (make-variable-buffer-local 'ada-indent-return)
 
 (defvar ada-use-indent nil)
@@ -176,9 +183,8 @@ An example is:
 An example is:
    use Ada.Text_IO,
    >>Ada.Numerics;"
-  :type  'integer
-  :group 'ada
-  :safe  'integerp)
+  :type 'integer
+  :safe #'integerp)
 (make-variable-buffer-local 'ada-indent-use)
 
 (defvar ada-when-indent nil)
@@ -199,8 +205,7 @@ An example is:
    case A is
    >>>when B =>"
   :type  'integer
-  :group 'ada-indent
-  :safe  'integerp)
+  :safe  #'integerp)
 (make-variable-buffer-local 'ada-indent-when)
 
 (defvar ada-with-indent nil)
@@ -220,9 +225,8 @@ An example is:
 An example is:
    with Ada.Text_IO,
    >>Ada.Numerics;"
-  :type  'integer
-  :group 'ada
-  :safe  'integerp)
+  :type 'integer
+  :safe #'integerp)
 (make-variable-buffer-local 'ada-indent-with)
 
 (provide 'ada-indent-user-options)
