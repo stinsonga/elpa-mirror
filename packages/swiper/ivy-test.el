@@ -20,6 +20,7 @@
 ;; see <http://www.gnu.org/licenses/>.
 
 (require 'ert)
+(require 'ivy)
 
 (defvar ivy-expr nil
   "Holds a test expression to evaluate with `ivy-eval'.")
@@ -44,12 +45,6 @@
 
 (ert-deftest ivy-read ()
   (should (equal
-           (ivy-read "pattern: " nil)
-           nil))
-  (should (equal
-           (ivy-read "pattern: " '("42"))
-           "42"))
-  (should (equal
            (ivy-with '(ivy-read "pattern: " '("blue" "yellow"))
                      "C-m")
            "blue"))
@@ -64,4 +59,82 @@
   (should (equal
            (ivy-with '(ivy-read "pattern: " '("blue" "yellow"))
                      "z C-m")
-           nil)))
+           "z"))
+  (should (equal
+           (ivy-with '(ivy-read "pattern: " '("blue" "yellow"))
+                     "y <backspace> C-m")
+           "blue"))
+  (should (equal
+           (ivy-with '(let ((ivy-re-builders-alist '((t . ivy--regex-fuzzy))))
+                       (ivy-read "pattern: " '("package-list-packages" "something-else")))
+                     "plp C-m")
+           "package-list-packages"))
+  (should (equal
+           (ivy-with '(ivy-read "test" '("aaab" "aaac"))
+                     "a C-n <tab> C-m")
+           "aaac"))
+  (should (equal
+           (ivy-with '(ivy-read "pattern: " '("can do" "can" "can't do"))
+                     "can C-m")
+           "can")))
+
+(ert-deftest swiper--re-builder ()
+  (setq swiper--width 4)
+  (should (string= (swiper--re-builder "^")
+                   "."))
+  (should (string= (swiper--re-builder "^a")
+                   "^ ?\\(a\\)"))
+  (should (string= (swiper--re-builder "^a b")
+                   "^ \\(a\\).*?\\(b\\)")))
+
+(ert-deftest ivy--split ()
+  (should (equal (ivy--split "King of the who?")
+                 '("King" "of" "the" "who?")))
+  (should (equal (ivy--split "The  Brittons.")
+                 '("The Brittons.")))
+  (should (equal (ivy--split "Who  are the  Brittons?")
+                 '("Who are" "the Brittons?")))
+  (should (equal (ivy--split "We're  all  Britons and   I   am your   king.")
+                 '("We're all Britons"
+                  "and  I  am"
+                   "your  king."))))
+
+(ert-deftest ivy--regex-fuzzy ()
+  (should (string= (ivy--regex-fuzzy "tmux")
+                   "\\(t\\).*\\(m\\).*\\(u\\).*\\(x\\)"))
+  (should (string= (ivy--regex-fuzzy "^tmux")
+                   "^\\(t\\).*\\(m\\).*\\(u\\).*\\(x\\)"))
+  (should (string= (ivy--regex-fuzzy "^tmux$")
+                   "^\\(t\\).*\\(m\\).*\\(u\\).*\\(x\\)$"))
+  (should (string= (ivy--regex-fuzzy "")
+                   ""))
+  (should (string= (ivy--regex-fuzzy "^")
+                   "^"))
+  (should (string= (ivy--regex-fuzzy "$")
+                   "$")))
+
+(ert-deftest ivy--format ()
+  (should (string= (let ((ivy--index 10)
+                         (ivy-format-function (lambda (x) (mapconcat (lambda (y) (car y)) x "\n")))
+                         (cands '("NAME"
+                                  "SYNOPSIS"
+                                  "DESCRIPTION"
+                                  "FUNCTION LETTERS"
+                                  "SWITCHES"
+                                  "DIAGNOSTICS"
+                                  "EXAMPLE 1"
+                                  "EXAMPLE 2"
+                                  "EXAMPLE 3"
+                                  "SEE ALSO"
+                                  "AUTHOR")))
+                     (ivy--format cands))
+                   #("\nDESCRIPTION\nFUNCTION LETTERS\nSWITCHES\nDIAGNOSTICS\nEXAMPLE 1\nEXAMPLE 2\nEXAMPLE 3\nSEE ALSO\nAUTHOR"
+                     0 90 (read-only nil)
+                     90 96 (face ivy-current-match read-only nil)))))
+
+(ert-deftest ivy--filter ()
+  (setq ivy-last (make-ivy-state))
+  (should (equal (ivy--filter "the" '("foo" "the" "The"))
+                 '("the" "The")))
+  (should (equal (ivy--filter "The" '("foo" "the" "The"))
+                 '("The"))))

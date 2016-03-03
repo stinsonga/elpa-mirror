@@ -60,9 +60,11 @@
 ./auctex/style/virtex.el
 ./auctex/tex-fold.el:    ("(C)" ("copyright"))
 ./auctex/tex-info.el:   '("copyright" nil)
+./debbugs/debbugs-gnu.el:	  (insert "  Copyright-paperwork-exempt: yes"))
 ./ergoemacs-mode/ergoemacs-advices.el:                         emacs-copyright
 ./ergoemacs-mode/ergoemacs-themes.el:                 ,(lambda () emacs-copyright)
 ./gnugo/gnugo.el:    (CP "Copyright"       game  simpletext)
+./math-symbol-lists/math-symbol-lists.el:    "columnsep" "columnseprule" "columnwidth" "contentsline" "copyright"
 ./muse/htmlize-hack.el
 ./rudel/rudel-loaddefs.el
 ./uni-confusables/gen-confusables.el:;; Copyright (C) 1991-2009, 2010 Unicode, Inc.

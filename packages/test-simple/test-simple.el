@@ -6,6 +6,7 @@
 ;; Author: Rocky Bernstein <rocky@gnu.org>
 ;; URL: http://github.com/rocky/emacs-test-simple
 ;; Keywords: unit-test
+;; Package-Requires: ((cl-lib "0"))
 ;; Version: 1.1
 
 ;; This program is free software: you can redistribute it and/or
@@ -26,7 +27,7 @@
 
 ;; test-simple.el is:
 ;;
-;; * Simple. No need for
+;; * Simple.  No need for
 ;;   - context macros,
 ;;   - enclosing specifications,
 ;;   - required test tags.
@@ -37,7 +38,7 @@
 ;;
 ;; * Accomodates both interactive and non-interactive use.
 ;;    - For interactive use, one can use `eval-last-sexp', `eval-region',
-;;      and `eval-buffer'. One can `edebug' the code.
+;;      and `eval-buffer'.  One can `edebug' the code.
 ;;    -  For non-interactive use, run:
 ;;        emacs --batch --no-site-file --no-splash --load <test-lisp-code.el>
 ;;
@@ -81,21 +82,14 @@
 
 ;;; To do:
 
+;; FIXME: Namespace is all messed up!
 ;; Main issues: more expect predicates
 
 (require 'time-date)
 
 ;;; Code:
 
-(eval-when-compile
-  (byte-compile-disable-warning 'cl-functions)
-  ;; Somehow disabling cl-functions causes the erroneous message:
-  ;;   Warning: the function `reduce' might not be defined at runtime.
-  ;; FIXME: isolate, fix and/or report back to Emacs developers a bug
-  ;; (byte-compile-disable-warning 'unresolved)
-  (require 'cl)
-  )
-(require 'cl)
+(eval-when-compile (require 'cl-lib))
 
 (defvar test-simple-debug-on-error nil
   "If non-nil raise an error on the first failure.")
@@ -103,7 +97,7 @@
 (defvar test-simple-verbosity 0
   "The greater the number the more verbose output.")
 
-(defstruct test-info
+(cl-defstruct test-info
   description                 ;; description of last group of tests
   (assert-count 0)            ;; total number of assertions run
   (failure-count 0)           ;; total number of failures seen
@@ -114,7 +108,7 @@
   "Variable to store testing information for a buffer.")
 
 (defun note (description &optional test-info)
-  "Adds a name to a group of tests."
+  "Add a name to a group of tests."
   (if (getenv "USE_TAP")
     (test-simple-msg (format "# %s" description) 't)
     (if (> test-simple-verbosity 0)
@@ -135,15 +129,13 @@
 
 ;;;###autoload
 (defun test-simple-clear (&optional test-info test-start-msg)
-  "Initializes and resets everything to run tests. You should run
-this before running any assertions. Running more than once clears
-out information from the previous run."
+  "Initialize and reset everything to run tests.
+You should run this before running any assertions.  Running more than once
+clears out information from the previous run."
 
   (interactive)
 
   (unless test-info
-    (unless test-simple-info
-      (make-variable-buffer-local (defvar test-simple-info (make-test-info))))
     (setq test-info test-simple-info))
 
   (setf (test-info-description test-info) "none set")
@@ -174,9 +166,9 @@ out information from the previous run."
 	  (list error-condition '(assert-t t)))))
 
 (defun assert-op (op expected actual &optional fail-message test-info)
-  "expectation is that ACTUAL should be equal to EXPECTED."
+  "Expectation is that ACTUAL should be equal to EXPECTED."
   (unless test-info (setq test-info test-simple-info))
-  (incf (test-info-assert-count test-info))
+  (cl-incf (test-info-assert-count test-info))
   (if (not (funcall op actual expected))
       (let* ((fail-message
 	      (if fail-message
@@ -188,26 +180,26 @@ out information from the previous run."
 	      (if (boundp 'test-info)
 		  (test-info-description test-info)
 		"unset")))
-	(add-failure (format "assert-%s" op) test-info-mess
-		     (concat fail-message expect-message)))
-    (ok-msg fail-message)))
+	(test-simple--add-failure (format "assert-%s" op) test-info-mess
+                                  (concat fail-message expect-message)))
+    (test-simple--ok-msg fail-message)))
 
 (defun assert-equal (expected actual &optional fail-message test-info)
-  "expectation is that ACTUAL should be equal to EXPECTED."
+  "Expectation is that ACTUAL should be equal to EXPECTED."
   (assert-op 'equal expected actual fail-message test-info))
 
 (defun assert-eq (expected actual &optional fail-message test-info)
-  "expectation is that ACTUAL should be EQ to EXPECTED."
+  "Expectation is that ACTUAL should be EQ to EXPECTED."
   (assert-op 'eql expected actual fail-message test-info))
 
 (defun assert-eql (expected actual &optional fail-message test-info)
-  "expectation is that ACTUAL should be EQL to EXPECTED."
+  "Expectation is that ACTUAL should be EQL to EXPECTED."
   (assert-op 'eql expected actual fail-message test-info))
 
 (defun assert-matches (expected-regexp actual &optional fail-message test-info)
-  "expectation is that ACTUAL should match EXPECTED-REGEXP."
+  "Expectation is that ACTUAL should match EXPECTED-REGEXP."
   (unless test-info (setq test-info test-simple-info))
-  (incf (test-info-assert-count test-info))
+  (cl-incf (test-info-assert-count test-info))
   (if (not (string-match expected-regexp actual))
       (let* ((fail-message
 	      (if fail-message
@@ -220,20 +212,21 @@ out information from the previous run."
 	      (if (boundp 'test-info)
 		  (test-info-description test-info)
 		"unset")))
-	(add-failure "assert-equal" test-info-mess
-		     (concat expect-message fail-message)))
+	(test-simple--add-failure "assert-equal" test-info-mess
+                                  (concat expect-message fail-message)))
     (progn (test-simple-msg ".") t)))
 
 (defun assert-t (actual &optional fail-message test-info)
-  "expectation is that ACTUAL is not nil."
+  "Expectation is that ACTUAL is not nil."
   (assert-nil (not actual) fail-message test-info "assert-t"))
 
-(defun assert-nil (actual &optional fail-message test-info assert-type)
-  "expectation is that ACTUAL is nil. FAIL-MESSAGE is an optional
-additional message to be displayed. Since several assertions
-funnel down to this one, ASSERT-TYPE is an optional type."
+(defun assert-nil (actual &optional fail-message test-info _assert-type)
+  "Expectation is that ACTUAL is nil.
+FAIL-MESSAGE is an optional additional message to be displayed.
+Since several assertions funnel down to this one, ASSERT-TYPE is an
+optional type."
   (unless test-info (setq test-info test-simple-info))
-  (incf (test-info-assert-count test-info))
+  (cl-incf (test-info-assert-count test-info))
   (if actual
       (let* ((fail-message
 	      (if fail-message
@@ -243,18 +236,19 @@ funnel down to this one, ASSERT-TYPE is an optional type."
 	      (if (boundp 'test-simple-info)
 		  (test-info-description test-simple-info)
 		"unset")))
-	(add-failure "assert-nil" test-info-mess fail-message test-info))
-    (ok-msg fail-message)))
+	(test-simple--add-failure "assert-nil" test-info-mess
+                                  fail-message test-info))
+    (test-simple--ok-msg fail-message)))
 
-(defun add-failure(type test-info-msg fail-msg &optional test-info)
+(defun test-simple--add-failure (type test-info-msg fail-msg
+                                      &optional test-info)
   (unless test-info (setq test-info test-simple-info))
-  (incf (test-info-failure-count test-info))
+  (cl-incf (test-info-failure-count test-info))
   (let ((failure-msg
 	 (format "\nDescription: %s, type %s\n%s" test-info-msg type fail-msg))
-	(old-read-only inhibit-read-only)
 	)
     (save-excursion
-      (not-ok-msg fail-msg)
+      (test-simple--not-ok-msg fail-msg)
       (test-simple-msg failure-msg 't)
       (unless noninteractive
 	(if test-simple-debug-on-error
@@ -263,7 +257,7 @@ funnel down to this one, ASSERT-TYPE is an optional type."
 	  )))))
 
 (defun end-tests (&optional test-info)
-  "Give a tally of the tests run"
+  "Give a tally of the tests run."
   (interactive)
   (unless test-info (setq test-info test-simple-info))
   (test-simple-describe-failures test-info)
@@ -281,15 +275,12 @@ funnel down to this one, ASSERT-TYPE is an optional type."
 
 (defun test-simple-msg(msg &optional newline)
   (switch-to-buffer "*test-simple*")
-  (let ((old-read-only inhibit-read-only))
-    (setq inhibit-read-only 't)
+  (let ((inhibit-read-only t))
     (insert msg)
-    (if newline (insert "\n"))
-    (setq inhibit-read-only old-read-only)
-    (switch-to-buffer nil)
-  ))
+    (if newline (insert "\n")))
+  (switch-to-buffer nil))
 
-(defun ok-msg(fail-message &optional test-info)
+(defun test-simple--ok-msg (fail-message &optional test-info)
   (unless test-info (setq test-info test-simple-info))
   (let ((msg (if (getenv "USE_TAP")
 		 (if (equal fail-message "")
@@ -301,7 +292,7 @@ funnel down to this one, ASSERT-TYPE is an optional type."
       (test-simple-msg msg))
   't)
 
-(defun not-ok-msg(fail-message &optional test-info)
+(defun test-simple--not-ok-msg (_fail-message &optional test-info)
   (unless test-info (setq test-info test-simple-info))
   (let ((msg (if (getenv "USE_TAP")
 		 (format "not ok %d\n" (test-info-assert-count test-info))

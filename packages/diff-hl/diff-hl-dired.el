@@ -1,6 +1,6 @@
 ;;; diff-hl-dired.el --- Highlight changed files in Dired -*- lexical-binding: t -*-
 
-;; Copyright (C) 2012-2014  Free Software Foundation, Inc.
+;; Copyright (C) 2012-2015  Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -33,6 +33,7 @@
 
 (require 'diff-hl)
 (require 'dired)
+(require 'vc-hooks)
 
 (defvar diff-hl-dired-process-buffer nil)
 
@@ -62,8 +63,16 @@
 
 (defcustom diff-hl-dired-extra-indicators t
   "Non-nil to indicate ignored files."
-  :group 'diff-hl
   :type 'boolean)
+
+(defcustom diff-hl-dired-ignored-backends '(RCS)
+  "VC backends to ignore.
+The directories registered to one of these backends won't have
+status indicators."
+  :type `(repeat (choice ,@(mapcar
+                            (lambda (name)
+                              `(const :tag ,(symbol-name name) ,name))
+                            vc-handled-backends))))
 
 ;;;###autoload
 (define-minor-mode diff-hl-dired-mode
@@ -83,7 +92,7 @@
         (def-dir default-directory)
         (buffer (current-buffer))
         dirs-alist files-alist)
-    (when backend
+    (when (and backend (not (memq backend diff-hl-dired-ignored-backends)))
       (diff-hl-dired-clear)
       (if (buffer-live-p diff-hl-dired-process-buffer)
           (let ((proc (get-buffer-process diff-hl-dired-process-buffer)))
@@ -126,10 +135,12 @@
                   (append dirs-alist files-alist))))))
          )))))
 
-(defun diff-hl-dired-status-files (backend dir files uf)
+(defun diff-hl-dired-status-files (backend dir files update-function)
+   "Using version control BACKEND, return list of (FILE STATE EXTRA) entries
+for DIR containing FILES. Call UPDATE-FUNCTION as entries are added."
   (if (version< "25" emacs-version)
-      (vc-call-backend backend 'dir-status-files dir files uf)
-    (vc-call-backend backend 'dir-status-files dir files nil uf)))
+      (vc-call-backend backend 'dir-status-files dir files update-function)
+    (vc-call-backend backend 'dir-status-files dir files nil update-function)))
 
 (when (version< emacs-version "24.4.51.5")
   ;; Work around http://debbugs.gnu.org/19386
@@ -161,6 +172,7 @@
 
 (defalias 'diff-hl-dired-clear 'diff-hl-remove-overlays)
 
+;;;###autoload
 (defun diff-hl-dired-mode-unless-remote ()
   (unless (file-remote-p default-directory)
     (diff-hl-dired-mode)))

@@ -49,6 +49,7 @@
 ;;; Code:
 
 (require 'gnus-registry)
+(require 'gnorb-utils)
 (require 'cl-lib)
 
 (defgroup gnorb-registry nil
@@ -85,32 +86,27 @@ to the message's registry entry, under the 'gnorb-ids key."
 	       (memq major-mode '(gnus-summary-mode gnus-article-mode)))
 	     (not org-note-abort))
     (let* ((msg-id
-	    (format "<%s>" (plist-get org-store-link-plist :message-id)))
-	   (entry (gnus-registry-get-or-make-entry msg-id))
-	   (org-ids
-	    (gnus-registry-get-id-key msg-id 'gnorb-ids))
-	   (new-org-id (org-id-get-create)))
-      (plist-put org-capture-plist :gnorb-id new-org-id)
-      (setq org-ids (cons new-org-id org-ids))
-      (setq org-ids (delete-dups org-ids))
-      (gnus-registry-set-id-key msg-id 'gnorb-ids org-ids))))
+	    (gnorb-bracket-message-id
+	     (plist-get org-store-link-plist :message-id)))
+	   (org-id (org-id-get-create)))
+      (plist-put org-capture-plist :gnorb-id org-id)
+      (gnorb-registry-make-entry msg-id nil nil org-id nil))))
 
 
 (defun gnorb-registry-capture-abort-cleanup ()
   (when (and (org-capture-get :gnorb-id)
 	     org-note-abort)
-    (condition-case nil
-	(let* ((msg-id (format "<%s>" (plist-get org-store-link-plist :message-id)))
-	       (existing-org-ids (gnus-registry-get-id-key msg-id 'gnorb-ids))
-	       (org-id (org-capture-get :gnorb-id)))
-	  (when (member org-id existing-org-ids)
-	    (gnus-registry-set-id-key msg-id 'gnorb-ids
-				      (remove org-id existing-org-ids)))
-          ;; FIXME: Yuck!  This will fail as soon as org-capture.el is compiled
-          ;; with lexical-binding.
-	  (setq abort-note 'clean))
-      (error
-       (setq abort-note 'dirty)))))
+    (with-no-warnings ; For `abort-note'
+      (condition-case error
+	  (let* ((msg-id (format "<%s>" (plist-get org-store-link-plist :message-id)))
+		 (existing-org-ids (gnus-registry-get-id-key msg-id 'gnorb-ids))
+		 (org-id (org-capture-get :gnorb-id)))
+	    (when (member org-id existing-org-ids)
+	      (gnus-registry-set-id-key msg-id 'gnorb-ids
+					(remove org-id existing-org-ids)))
+	    (setq abort-note 'clean))
+	(error
+	 (setq abort-note 'dirty))))))
 
 (defun gnorb-find-visit-candidates (ids &optional include-zombies)
   "For all message-ids in IDS (which should be a list of
@@ -150,24 +146,114 @@ the MSG-ID."
       (gnus-registry-set-id-key msg-id 'gnorb-ids
 				(remove org-id org-ids)))))
 
-(defun gnorb-delete-all-assocations (org-id)
+(defun gnorb-delete-all-associations (org-id)
   "Delete all message associations for an Org heading.
 
 The heading is identified by ORG-ID. This is suitable for use
 after an Org heading is deleted, for instance."
-  (let ((assoc-msgs (gnorb-registry-org-id-search org-id)))
+  (let ((assoc-msgs (gnorb-registry-org-id-search org-id))
+	(gnorb-id-tracker
+	 (registry-lookup-secondary gnus-registry-db 'gnorb-ids)))
     (mapcar
      (lambda (msg-id)
        (let ((org-ids
 	      (gnus-registry-get-id-key msg-id 'gnorb-ids)))
 	 (gnus-registry-set-id-key
 	  msg-id 'gnorb-ids (remove org-id org-ids))))
-     assoc-msgs)))
+     assoc-msgs)
+    (remhash org-id gnorb-id-tracker)))
+
+(defun gnorb-flush-dead-associations (&optional clean-archived)
+  "Clean the registry of associations with nonexistent headings.
+
+Gnus will not prune registry entries that appear to be associated
+with an Org heading.  If your registry is limited to a very small
+size, you may end up with a full registry.  Use this function to
+remove dead associations, and free up more entries for possible
+pruning.
+
+By default, associations are considered \"live\" if the Org
+heading exists in an Org file or in an Org archive file.  When
+optional CLEAN_ARCHIVED is non-nil, delete associations from
+archived headings as well."
+  (interactive "P")
+  (let ((gnorb-id-tracker
+	 (registry-lookup-secondary gnus-registry-db 'gnorb-ids))
+	(deleted-count 0))
+    (require 'org-id)
+    (maphash
+     (lambda (k _)
+       (let ((file (org-id-find-id-file k)))
+	 (when (or (not file)
+		   (and clean-archived
+			(string-match-p "org_archive$" file)))
+	   (gnorb-delete-all-associations k)
+	   (incf deleted-count))))
+     gnorb-id-tracker)
+    (message "Deleted %d invalid associations"
+	     deleted-count)))
 
 (defun gnorb-registry-org-id-search (id)
   "Find all messages that have the org ID in their 'gnorb-ids
 key."
   (registry-search gnus-registry-db :member `((gnorb-ids ,id))))
+
+(defun gnorb-registry-tracked-messages ()
+  "Return all message-ids that have non-empty 'gnorb-ids keys."
+  (registry-search gnus-registry-db :regex `((gnorb-ids ".+"))))
+
+(defun gnorb-registry-tracked-headings ()
+  "Return all Org heading ids that are associated with messages."
+  (hash-table-keys
+   (registry-lookup-secondary gnus-registry-db 'gnorb-ids)))
+
+(defun gnorb-report-tracking-usage ()
+  "Pop up a temporary window reporting on Gnorb usage of the Gnus
+registry to track message/heading associations.  Reports the
+number of tracked messages, the number of tracked headings, and how much of the registry is occupied."
+  (interactive)
+  (progn
+    (pop-to-buffer
+     (get-buffer-create "*Gnorb Usage*")
+     '(nil . ((window-height . 10))))
+    (gnorb-refresh-usage-status)
+    (special-mode)
+    (setq revert-buffer-function #'gnorb-refresh-usage-status)
+    (local-set-key (kbd "d") (lambda ()
+			       (interactive)
+			       (progn
+				 (gnorb-flush-dead-associations)
+				 (gnorb-refresh-usage-status))))
+    (local-set-key (kbd "D") (lambda ()
+			       (interactive)
+			       (progn
+				 (gnorb-flush-dead-associations t)
+				 (gnorb-refresh-usage-status))))))
+
+(defun gnorb-refresh-usage-status (&optional ignore-auto noconfirm)
+  "Clear and re-format the *Gnorb Usage* buffer."
+  (let ((messages (length (gnorb-registry-tracked-messages)))
+	(headings (length (gnorb-registry-tracked-headings)))
+	(reg-size (registry-size gnus-registry-db))
+	(reg-max-size (if (slot-exists-p gnus-registry-db 'max-size)
+			  (oref gnus-registry-db max-size)
+			(oref gnus-registry-db max-hard))))
+    (with-current-buffer "*Gnorb Usage*"
+      (let ((inhibit-read-only t))
+       (erase-buffer)
+       (insert
+	(format
+	 "Tracking %d Gnus messages associated with %d Org headings."
+	 messages headings))
+       (insert "\n\n")
+       (insert
+	(format
+	 "Occupying %.2f%% (%d/%d) of the registry (max %d)."
+	 (* 100 (/ (float messages) reg-size))
+	 messages reg-size reg-max-size))
+       (insert "\n\n")
+       (insert "Press 'd' to delete associations for non-existent Org headings.\n")
+       (insert "Press 'D' to delete associations for both non-existent and archived Org headings.")))))
 
 (defun gnorb-registry-transition-from-props (arg)
   "Helper function for transitioning the old tracking system to the new.

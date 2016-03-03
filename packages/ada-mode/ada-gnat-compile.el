@@ -1,12 +1,12 @@
-;; Ada mode compiling functionality provided by the 'gnat'
-;; tool.
+;; ada-gnat-compile.el --- Ada mode compiling functionality provided by 'gnat'  -*- lexical-binding:t -*-
+;; Includes related functions, such as gnatprep support.
 ;;
 ;; These tools are all Ada-specific; use Makefiles for multi-language
 ;; GNAT compilation tools.
 ;;
 ;; GNAT is provided by AdaCore; see http://libre.adacore.com/
 ;;
-;;; Copyright (C) 2012 - 2014  Free Software Foundation, Inc.
+;;; Copyright (C) 2012 - 2015  Free Software Foundation, Inc.
 ;;
 ;; Author: Stephen Leake <stephen_leake@member.fsf.org>
 ;; Maintainer: Stephen Leake <stephen_leake@member.fsf.org>
@@ -165,7 +165,7 @@ Prompt user if more than one."
       (completing-read "correct spelling: " choices))
      )))
 
-(defun ada-gnat-fix-error (msg source-buffer source-window)
+(defun ada-gnat-fix-error (_msg source-buffer _source-window)
   "For `ada-gnat-fix-error-hook'."
   (let ((start-pos (point))
 	message-column
@@ -192,8 +192,7 @@ Prompt user if more than one."
 	  ;; Then style errors.
 
 	  ((looking-at (concat ada-gnat-quoted-name-regexp " is not visible"))
-	   (let ((ident (match-string 1))
-		 (done nil)
+	   (let ((done nil)
 		 (file-line-struct (progn (beginning-of-line) (ada-get-compilation-message)))
 		 pos choices unit-name)
 	     ;; next line may contain a reference to where ident is
@@ -348,24 +347,23 @@ Prompt user if more than one."
 	       t)))
 
 	  ((looking-at (concat "expected \\(private \\)?type " ada-gnat-quoted-name-regexp))
-	   (let ((type (match-string 2)))
-	     (forward-line 1)
-	     (move-to-column message-column)
-	     (cond
-	      ((looking-at "found type access")
-	       (pop-to-buffer source-buffer)
-	       (if (looking-at "'Access")
-		   (kill-word 1)
-		 (forward-word 1)
-		 (insert ".all"))
-	       t)
-	     ((looking-at "found type .*_Access_Type")
-	       ;; assume just need '.all'
-	       (pop-to-buffer source-buffer)
+	   (forward-line 1)
+	   (move-to-column message-column)
+	   (cond
+	    ((looking-at "found type access")
+	     (pop-to-buffer source-buffer)
+	     (if (looking-at "'Access")
+		 (kill-word 1)
 	       (forward-word 1)
-	       (insert ".all")
-	       t)
-	     )))
+	       (insert ".all"))
+	     t)
+	    ((looking-at "found type .*_Access_Type")
+	     ;; assume just need '.all'
+	     (pop-to-buffer source-buffer)
+	     (forward-word 1)
+	     (insert ".all")
+	     t)
+	    ))
 
 	  ((looking-at "extra \".\" ignored")
 	   (set-buffer source-buffer)
@@ -382,7 +380,9 @@ Prompt user if more than one."
 	   ;; also 'possible missing "with Ada.Text_IO; use Ada.Text_IO"' - ignoring the 'use'
 	   (let ((package-name (match-string-no-properties 1)))
 	     (pop-to-buffer source-buffer)
-	     ;; FIXME (later): should check if prefix is already with'd, extend it
+	     ;; Could check if prefix is already with'd, extend
+	     ;; it. But no one has reported that case yet; this
+	     ;; message only occurs for predefined Ada packages.
 	     (ada-fix-add-with-clause package-name))
 	   t)
 
@@ -470,8 +470,7 @@ Prompt user if more than one."
 	   t)
 
 	  ((looking-at (concat "warning: formal parameter " ada-gnat-quoted-name-regexp " is not modified"))
-	   (let ((param (match-string 1))
-		 (mode-regexp "\"\\([in out]+\\)\"")
+	   (let ((mode-regexp "\"\\([in out]+\\)\"")
 		 new-mode
 		 old-mode)
 	     (forward-line 1)
@@ -581,12 +580,19 @@ Prompt user if more than one."
 
 (defun ada-gnat-compile-select-prj ()
   (setq ada-fix-error-hook 'ada-gnat-fix-error-hook)
-  (setq ada-prj-show-path 'gnat-prj-show-path)
+  (setq ada-prj-show-prj-path 'gnat-prj-show-prj-path)
   (add-to-list 'completion-ignored-extensions ".ali") ;; gnat library files
   (add-hook 'ada-syntax-propertize-hook 'ada-gnat-syntax-propertize)
+  (add-hook 'ada-syntax-propertize-hook 'gnatprep-syntax-propertize)
 
+  ;; There is no common convention for a file extension for gnatprep files.
+  ;;
   ;; find error locations in .gpr files
   (setq compilation-search-path (append compilation-search-path (ada-prj-get 'prj_dir)))
+
+  ;; must be after indentation engine setup, because that resets the
+  ;; indent function list.
+  (add-hook 'ada-mode-hook 'gnatprep-setup t)
 
   (add-hook 'compilation-filter-hook 'ada-gnat-compilation-filter)
 
@@ -598,9 +604,12 @@ Prompt user if more than one."
 (defun ada-gnat-compile-deselect-prj ()
   (setq ada-fix-error-hook nil)
   (setq completion-ignored-extensions (delete ".ali" completion-ignored-extensions))
+  (setq ada-syntax-propertize-hook (delq 'gnatprep-syntax-propertize ada-syntax-propertize-hook))
   (setq ada-syntax-propertize-hook (delq 'ada-gnat-syntax-propertize ada-syntax-propertize-hook))
 
   ;; don't need to delete from compilation-search-path; completely rewritten in ada-select-prj-file
+
+  (setq ada-mode-hook (delq 'gnatprep-setup ada-mode-hook))
 
   (setq compilation-filter-hook (delete 'ada-gnat-compilation-filter compilation-filter-hook))
   (setq compilation-error-regexp-alist (delete 'gnat compilation-error-regexp-alist))
@@ -615,6 +624,10 @@ Prompt user if more than one."
 
   (add-to-list 'ada-prj-parse-one-compiler   (cons 'gnat 'gnat-prj-parse-emacs-one))
   (add-to-list 'ada-prj-parse-final-compiler (cons 'gnat 'gnat-prj-parse-emacs-final))
+
+  (font-lock-add-keywords 'ada-mode
+   ;; gnatprep preprocessor line
+   (list (list "^[ \t]*\\(#.*\n\\)"  '(1 font-lock-preprocessor-face t))))
 
   (add-hook 'ada-gnat-fix-error-hook 'ada-gnat-fix-error))
 
@@ -637,7 +650,7 @@ Prompt user if more than one."
    ;;   foo.c:2 : `TRUE' undeclared here (not in a function)
    "^\\(\\(.:\\)?[^ :\n]+\\):\\([0-9]+\\)\\s-?:?\\([0-9]+\\)?" 1 3 4))
 
-(unless (default-value ada-compiler)
+(unless (default-value 'ada-compiler)
     (set-default 'ada-compiler 'gnat))
 
 ;; end of file

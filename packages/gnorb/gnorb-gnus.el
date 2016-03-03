@@ -107,6 +107,12 @@ Basically behave as if all attachments have \":gnus-attachments t\"."
   :group 'gnorb-gnus
   :type 'string)
 
+(defcustom gnorb-gnus-summary-tracked-mark "&"
+  "Default mark to insert in the summary format line of articles
+  that are already tracked by TODO headings."
+  :group 'gnorb-gnus
+  :type 'string)
+
 (defcustom gnorb-gnus-trigger-refile-targets
   '((org-agenda-files :maxlevel . 4))
   "A value to use as an equivalent of `org-refile-targets' (which
@@ -189,7 +195,7 @@ save them into `gnorb-tmp-dir'."
       (set-buffer (org-capture-get :original-buffer)))
     (unless (memq major-mode '(gnus-summary-mode gnus-article-mode))
       (error "Only works in Gnus summary or article buffers"))
-    (let ((article (gnus-summary-article-number)) 
+    (let ((article (gnus-summary-article-number))
 	  mime-handles)
       (when (or (null gnus-current-article)
 		(null gnus-article-current)
@@ -233,18 +239,20 @@ save them into `gnorb-tmp-dir'."
 
 (add-hook 'org-capture-mode-hook 'gnorb-gnus-capture-attach)
 
+(defvar org-note-abort)
+
 (defun gnorb-gnus-capture-abort-cleanup ()
-  (when (and org-note-abort
-	     (org-capture-get :gnus-attachments))
-    ;; FIXME: Yuck: setting `abort-note' will fail as soon as org-capture.el is
-    ;; compiled with lexical-binding!
-    (condition-case nil
-	(progn (org-attach-delete-all)
-	       (setq abort-note 'clean)
-	       ;; remove any gnorb-mail-header values here
-	       )
-      (error
-       (setq abort-note 'dirty)))))
+  (with-no-warnings ; For `org-note-abort'
+    (when (and org-note-abort
+	       (or gnorb-gnus-capture-always-attach
+		   (org-capture-get :gnus-attachments)))
+     (condition-case error
+	 (progn (org-attach-delete-all)
+		(setq abort-note 'clean)
+		;; remove any gnorb-mail-header values here
+		)
+       (error
+	(setq abort-note 'dirty))))))
 
 (add-hook 'org-capture-prepare-finalize-hook
 	  'gnorb-gnus-capture-abort-cleanup)
@@ -297,11 +305,11 @@ information about the outgoing message into
 	    ;; `gnorb-org-setup-message' may have put this here, but
 	    ;; if we're working from a draft, or triggering this from
 	    ;; a reply, it might not be there yet.
-	    (add-to-list 'message-exit-actions
+	    (add-to-list 'message-send-actions
 			 'gnorb-org-restore-after-send t))
 	(setq gnorb-message-org-ids nil)))))
 
-(add-hook 'message-header-hook 'gnorb-gnus-check-outgoing-headers)
+(add-hook 'message-sent-hook 'gnorb-gnus-check-outgoing-headers t)
 
 ;;;###autoload
 (defun gnorb-gnus-outgoing-do-todo (&optional arg)
@@ -379,10 +387,9 @@ work."
 	  (save-excursion
 	    (save-restriction
 	      (widen)
-	      (setq message-exit-actions
-		    (remove 'gnorb-org-restore-after-send
-			    (remove 'gnorb-gnus-outgoing-make-todo-1
-				    message-exit-actions)))
+	      (setq message-send-actions
+		    (remove 'gnorb-gnus-outgoing-make-todo-1
+			    message-send-actions))
 	      (message-narrow-to-headers-or-head)
 	      (message-remove-header
 	       gnorb-mail-header)
@@ -422,12 +429,9 @@ work."
 		;; message
 		(push h header-ids)))))
 	(goto-char compose-marker)
-	(add-to-list
-	 'message-exit-actions
-	 (if header-ids
-	     'gnorb-org-restore-after-send
-	   'gnorb-gnus-outgoing-make-todo-1)
-	 t)
+	(unless header-ids
+	  (add-to-list 'message-send-actions
+	   'gnorb-gnus-outgoing-make-todo-1 t))
 	(message
 	 (if header-ids
 	     "Message will trigger TODO state-changes after sending"
@@ -486,18 +490,21 @@ work."
 (defun gnorb-gnus-incoming-do-todo (arg &optional id)
   "Call this function from a received gnus message to store a
 link to the message, prompt for a related Org heading, visit the
-heading, and either add a note or trigger a TODO state change.
-Set `gnorb-trigger-todo-default' to 'note or 'todo (you can
-get the non-default behavior by calling this function with a
-prefix argument), or to 'prompt to always be prompted.
+heading, and trigger an action on it \(see
+`gnorb-org-trigger-actions'\).
 
-In some cases, Gnorb can guess for you which Org heading you
-probably want to trigger, which can save some time. It does this
-by looking in the References header, and seeing if any of the IDs
-there match the value of the `gnorb-org-msg-id-key' property for
-any headings. In order for this to work, you will have to have
-loaded org-id, and have the variable `org-id-track-globally' set
-to t (it is, by default)."
+If you've set up message tracking \(with
+`gnorb-tracking-initialize'\), Gnorb can guess which Org heading
+you probably want to trigger, which can save some time. It does
+this by looking in the References header, and seeing if any of
+the messages referenced there are already being tracked by any
+headings.
+
+If you mark several messages before calling this function, or
+call it with a numerical prefix arg, those messages will be
+\"bulk associated\" with the chosen Org heading: associations
+will be made, but you won't be prompted to trigger an action, and
+you'll stay in the Gnus summary buffer."
   (interactive "P")
   (when (not (memq major-mode '(gnus-summary-mode gnus-article-mode)))
     (user-error "Only works in gnus summary or article mode"))
@@ -507,15 +514,18 @@ to t (it is, by default)."
   (setq gnorb-window-conf (current-window-configuration))
   (move-marker gnorb-return-marker (point))
   (setq gnorb-gnus-message-info nil)
-  (let* ((headers (gnus-data-header
-		   (gnus-data-find
-		    (gnus-summary-article-number))))
+  (let* ((articles (gnus-summary-work-articles arg))
+	 (art-no (gnus-summary-article-number))
+	 (headers (gnus-data-header
+		   (gnus-data-find art-no)))
 	 (msg-id (mail-header-id headers))
 	 (from (mail-header-from headers))
 	 (subject (mail-header-subject headers))
 	 (date (mail-header-date headers))
 	 (to (cdr (assoc 'To (mail-header-extra headers))))
-	 (group gnus-newsgroup-name)
+	 (group (gnorb-get-real-group-name
+		 gnus-newsgroup-name
+		 art-no))
 	 (link (call-interactively 'org-store-link))
 	 (org-refile-targets gnorb-gnus-trigger-refile-targets)
 	 (ref-msg-ids (concat (mail-header-references headers) " "
@@ -532,37 +542,111 @@ to t (it is, by default)."
 		     :link ,link :date ,date :refs ,ref-msg-ids
 		     :group ,group))
     (gnorb-gnus-collect-all-attachments nil t)
-    ;; Delete other windows, users can restore with
-    ;; `gnorb-restore-layout'.
-    (delete-other-windows)
-    (if id
-	(gnorb-trigger-todo-action arg id)
-      ;; Flush out zombies (dead associations).
-      (setq related-headings
-	    (cl-remove-if
-	     (lambda (h)
-	       (when (null (org-id-find-id-file h))
-		 (when (y-or-n-p
-			(format
-			 "ID %s no longer exists, disassociate message?"
-			 h))
-		   (gnorb-delete-association msg-id h))))
-	     related-headings))
-      (if (catch 'target
-	    (dolist (h related-headings nil)
-	      (when (yes-or-no-p
-		     (format "Trigger action on %s"
-			     (gnorb-pretty-outline h)))
-		(throw 'target (setq targ h)))))
-	  (gnorb-trigger-todo-action arg targ)
-	(setq targ (org-refile-get-location
-		    "Trigger heading" nil t))
-	(find-file (nth 1 targ))
-	(goto-char (nth 3 targ))
-	(gnorb-trigger-todo-action arg)))))
+    (condition-case err
+     (if id
+	 (progn
+	   (delete-other-windows)
+	   (gnorb-trigger-todo-action nil id))
+       ;; Flush out zombies (dead associations).
+       (setq related-headings
+	     (cl-remove-if
+	      (lambda (h)
+		(when (null (org-id-find-id-file h))
+		  (when (y-or-n-p
+			 (format
+			  "ID %s no longer exists, disassociate message?"
+			  h))
+		    (gnorb-delete-association msg-id h))))
+	      related-headings))
+       ;; See if one of the related headings is chosen.
+       (unless (catch 'target
+		 (dolist (h related-headings nil)
+		   (when (yes-or-no-p
+			  (format "Trigger action on %s"
+				  (gnorb-pretty-outline h)))
+		     (throw 'target (setq targ h)))))
+	 ;; If not, use the refile interface to choose one.
+	 (setq targ (org-refile-get-location
+		     "Trigger heading" nil t))
+	 (setq targ
+	       (save-window-excursion
+		 (find-file (nth 1 targ))
+		 (goto-char (nth 3 targ))
+		 (org-id-get-create))))
+       ;; Either bulk associate multiple messages...
+       (if (> (length articles) 1)
+	   (progn
+	     (dolist (a articles)
+	       (gnorb-registry-make-entry
+		(mail-header-id
+		 (gnus-data-header
+		  (gnus-data-find a)))
+		from subject targ group)
+	       (gnus-summary-remove-process-mark a))
+	     (message "Associated %d messages with %s"
+		      (length articles) (gnorb-pretty-outline targ)))
+	 ;; ...or just trigger the one.
+	 (delete-other-windows)
+	 (gnorb-trigger-todo-action nil targ)))
+     (error
+      ;; If these are left populated after an error, it plays hell
+      ;; with future trigger processes.
+      (setq gnorb-gnus-message-info nil)
+      (setq gnorb-gnus-capture-attachments nil)
+      (signal (car err) (cdr err))))))
 
 ;;;###autoload
-(defun gnorb-gnus-search-messages (str &optional ret)
+(defun gnorb-gnus-quick-reply ()
+  "Compose a reply to the message under point, and associate both
+the original message and the reply with the selected heading.
+Take no other action.
+
+Use this when you want to compose a reply to a message on the
+spot, and track both messages, without having to go through the
+hassle of triggering an action on a heading, and then starting a
+reply."
+  (interactive)
+  (when (not (memq major-mode '(gnus-summary-mode gnus-article-mode)))
+    (user-error "Only works in gnus summary or article mode"))
+  (let* ((art-no (gnus-summary-article-number))
+	 (headers (gnus-data-header
+		   (gnus-data-find art-no)))
+	 (msg-id (mail-header-id headers))
+	 (from (mail-header-from headers))
+	 (subject (mail-header-subject headers))
+	 (group (gnorb-get-real-group-name
+		 gnus-newsgroup-name
+		 art-no))
+	 (ref-msg-ids (concat (mail-header-references headers) " "
+			      msg-id))
+	 (related-headings
+	  (when ref-msg-ids
+	    (gnorb-find-tracked-headings headers t)))
+	 (targ (car-safe related-headings)))
+    (if targ
+	(let ((ret (make-marker)))
+	  (setq gnorb-window-conf (current-window-configuration))
+	  (move-marker gnorb-return-marker (point))
+	  ;; Assume the first heading is the one we want.
+	  (gnorb-registry-make-entry
+	   msg-id from subject targ group)
+	  (gnus-summary-wide-reply-with-original 1)
+	  (move-marker ret (point))
+	  (save-restriction
+	    (widen)
+	    (message-narrow-to-headers-or-head)
+	    (goto-char (point-min))
+	    (open-line 1)
+	    (message-insert-header
+	     (intern gnorb-mail-header) targ))
+	  (goto-char ret)
+	  (message
+	   (format "Original message and reply will be associated with %s"
+		   (gnorb-pretty-outline targ))))
+      (message "No associated headings found"))))
+
+;;;###autoload
+(defun gnorb-gnus-search-messages (str persist &optional head-text ret)
   "Initiate a search for gnus message links in an org subtree.
 The arg STR can be one of two things: an Org heading id value
 \(IDs should be prefixed with \"id+\"\), in which case links will
@@ -579,31 +663,46 @@ work."
   (let ((nnir-address
 	 (or (gnus-method-to-server '(nngnorb))
 	     (user-error
-	      "Please add a \"nngnorb\" backend to your gnus installation."))))
+	      "Please add a \"nngnorb\" backend to your gnus installation.")))
+	name method spec)
     (when (version= "5.13" gnus-version-number)
       (with-no-warnings		  ; All these variables are available.
 	(setq nnir-current-query nil
 	      nnir-current-server nil
 	      nnir-current-group-marked nil
 	      nnir-artlist nil)))
-    (gnus-group-read-ephemeral-group
-     ;; in 24.4, the group name is mostly decorative. in 24.3, the
-     ;; query itself is read from there. It should look like (concat
-     ;; "nnir:" (prin1-to-string '((query str))))
-     (if (version= "5.13" gnus-version-number)
-	 (concat "nnir:" (prin1-to-string `((query ,str))))
-       (concat "gnorb-" str))
-     (if (version= "5.13" gnus-version-number)
-	 (list 'nnir nnir-address)
-       (list 'nnir "nnir"))
-     nil
-     ret
-     nil nil
-     ;; the following seems to simply be ignored under gnus 5.13
-     (list (cons 'nnir-specs (list (cons 'nnir-query-spec `((query . ,str)))
+    ;; In 24.4, the group name is mostly decorative, but in 24.3, the
+    ;; actual query is held there.
+    (setq name (if (version= "5.13" gnus-version-number)
+		   (concat "nnir:" (prin1-to-string `((query ,str))))
+		 (if persist
+		     (read-string
+		      (format "Name for group (default %s): " head-text)
+		      nil head-text t)
+		   (concat "gnorb-" str))))
+    (setq method (if (version= "5.13" gnus-version-number)
+		     (list 'nnir nnir-address)
+		   (list 'nnir "Gnorb")))
+    (setq spec
+	  (list
+	   (cons 'nnir-specs (list (cons 'nnir-query-spec `((query . ,str)))
 				   (cons 'nnir-group-spec `((,nnir-address nil)))))
 	   (cons 'nnir-artlist nil)))
-    (gnorb-summary-minor-mode)))
+    (if persist
+	(progn
+	  (switch-to-buffer gnus-group-buffer)
+	  (gnus-group-make-group name method nil spec)
+	  (gnus-group-select-group))
+     (gnus-group-read-ephemeral-group name method nil ret nil nil spec))))
+
+(defun gnorb-gnus-summary-mode-hook ()
+  "Check if we've entered a Gnorb-generated group, and activate
+  `gnorb-summary-minor-mode', if so."
+  (let ((method (gnus-find-method-for-group gnus-newsgroup-name)))
+    (when (string-match-p "Gnorb" (cadr method))
+      (gnorb-summary-minor-mode))))
+
+(add-hook 'gnus-summary-mode-hook #'gnorb-gnus-summary-mode-hook)
 
 ;;; Automatic noticing of relevant messages
 
@@ -633,8 +732,7 @@ option `gnorb-gnus-hint-relevant-article' is non-nil."
 	   (tracked-headings (gnorb-find-tracked-headings headers))
 	   (key
 	    (where-is-internal 'gnorb-gnus-incoming-do-todo
-			       nil t))
-	   rel-headings)
+			       nil t)))
       (cond (assoc-heading
 	     (message "Message is associated with %s"
 		      (gnorb-pretty-outline (car assoc-heading) t)))
@@ -652,9 +750,12 @@ option `gnorb-gnus-hint-relevant-article' is non-nil."
   (if (not (memq (car (gnus-find-method-for-group
 		       gnus-newsgroup-name))
 		 '(nnvirtual nnir)))
-      (if (gnorb-find-tracked-headings header)
-	  gnorb-gnus-summary-mark
-	" ")
+      (cond ((gnus-registry-get-id-key
+	      (mail-header-message-id header) 'gnorb-ids)
+	     gnorb-gnus-summary-tracked-mark)
+	    ((gnorb-find-tracked-headings header)
+	     gnorb-gnus-summary-mark)
+	    (t " "))
     " "))
 
 (fset (intern (concat "gnus-user-format-function-"
@@ -669,8 +770,8 @@ option `gnorb-gnus-hint-relevant-article' is non-nil."
   (let* ((headers (gnus-data-header
 		   (gnus-data-find
 		    (gnus-summary-article-number))))
-         (tracked-headings
-          (gnorb-find-tracked-headings headers)))
+	 (tracked-headings
+	  (gnorb-find-tracked-headings headers)))
     (when tracked-headings
       (setq gnorb-window-conf (current-window-configuration))
       (move-marker gnorb-return-marker (point))

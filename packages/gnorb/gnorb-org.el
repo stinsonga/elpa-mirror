@@ -43,9 +43,8 @@
     ("take note" . note)
     ("don't associate" . no-associate)
     ("only associate" . associate)
-;    ("capture to child" . cap-child)
-;    ("capture to sibling" . cap-sib)
-)
+    ("capture to child" . cap-child)
+    ("capture to sibling" . cap-sib))
   "List of potential actions that can be taken on headings.
 
 When triggering an Org heading after receiving or sending a
@@ -56,8 +55,8 @@ todo state: Associate the message, and change TODO state.
 take note: Associate the message, and take a note.
 don't associate: Do nothing at all, don't connect the message and TODO.
 only associate: Associate the message with this heading, do nothing else.
-capture to child: [not yet implemented] Associate this message with a new child heading.
-capture to sibling: [not yet implemented] Associate this message with a new sibling heading.
+capture to child: Associate this message with a new child heading.
+capture to sibling: Associate this message with a new sibling heading.
 
 You can reorder this list or remove items as suits your workflow.
 The two \"capture\" options will use the value of
@@ -165,7 +164,7 @@ we came from."
 		 :raw-value
 		 head)
 		strings)
-	  (org-element-map tree 'paragraph
+	  (org-element-map tree '(paragraph drawer)
 	    (lambda (p)
 	      (push (org-element-interpret-data p)
 		    strings))
@@ -177,9 +176,11 @@ we came from."
 	    (cond ((eq gnorb-org-mail-scan-scope 'all)
 		   strings)
 		  ((numberp gnorb-org-mail-scan-scope)
-		   (delq nil
-			 (cl-subseq
-			  strings 0 (1+ gnorb-org-mail-scan-scope))))
+		   (cl-subseq
+		    (nreverse strings)
+		    0 (min
+		       (length strings)
+		       (1+ gnorb-org-mail-scan-scope))))
 		  ;; We could provide more options here. 'tree vs
 		  ;; 'subtree, for instance.
 		  (t
@@ -271,10 +272,14 @@ headings."
     (when messages
       (insert ", "))
     (insert (mapconcat 'identity mails ", ")))
-  ;; Return us after message is sent.
-  (add-to-list 'message-exit-actions
-	       'gnorb-org-restore-after-send t)
-  ;; Set headers from MAIL_* properties (from, cc, and bcc).
+  ;; Commenting this out because
+  ;; `gnorb-gnus-check-outgoing-headers' is set unconditionally in the
+  ;; `message-send-hook, so this should be redundant.  Also, we've
+  ;; switched to using message-send-actions.
+  
+  ;; (add-to-list
+  ;; 'message-exit-actions 'gnorb-org-restore-after-send t) Set
+  ;; headers from MAIL_* properties (from, cc, and bcc).
   (cl-flet ((sh (h)
 		(when (cdr h)
 		  (funcall (intern (format "message-goto-%s" (car h))))
@@ -298,7 +303,7 @@ headings."
   ;; insert text, if any
   (when text
     (message-goto-body)
-    (insert"\n")
+    (insert "\n")
     (if (bufferp text)
 	(insert-buffer-substring text)
       (insert text)))
@@ -498,13 +503,17 @@ default set of parameters."
   ;; got too much hard-coded stuff.
   (interactive "P")
   (org-back-to-heading t)
-  (let* ((backend-string
+  (let* ((bkend-var
+	  (if (boundp 'org-export--registered-backends)
+	      org-export--registered-backends
+	    org-export-registered-backends))
+	 (backend-string
 	  (org-completing-read
 	   "Export backend: "
 	   (mapcar (lambda (b)
 		     (symbol-name (org-export-backend-name b)))
-		   org-export--registered-backends)
-           nil t))
+		   bkend-var)
+	   nil t))
 	 (backend-symbol (intern backend-string))
 	 (f-or-t (org-completing-read "Export as file or text? "
 				      '("file" "text") nil t))
@@ -527,8 +536,6 @@ default set of parameters."
 		     ,@opts
 		     ,gnorb-org-email-subtree-file-parameters))))
 	 text file)
-    (setq gnorb-window-conf (current-window-configuration))
-    (move-marker gnorb-return-marker (point))
     (if (bufferp result)
 	(setq text result)
       (setq file result))
@@ -614,7 +621,9 @@ search."
 			(let ((rec-tags (bbdb-record-xfield
 					 r gnorb-bbdb-org-tag-field)))
 			  (and rec-tags
-			       (let ((tags-list (org-split-string rec-tags ":"))
+			       (let ((tags-list (if (stringp rec-tags)
+						    (org-split-string rec-tags ":")
+						  rec-tags))
 				     (case-fold-search t)
 				     (org-trust-scanner-tags t))
 				 (eval tag-clause)))))
@@ -646,14 +655,17 @@ search."
 ;;; Groups from the gnorb gnus server backend
 
 ;;;###autoload
-(defun gnorb-org-view ()
+(defun gnorb-org-view (arg)
   "Search the subtree at point for links to gnus messages, and
-then show them in an ephemeral group, in gnus.
+then show them in an ephemeral group, in Gnus.
+
+With a prefix arg, create a search group that will persist across
+Gnus sessions, and can be refreshed.
 
 This won't work unless you've added a \"nngnorb\" server to
 your gnus select methods."
   ;; this should also work on the active region, if there is one.
-  (interactive)
+  (interactive "P")
   (require 'gnorb-gnus)
   (setq gnorb-window-conf (current-window-configuration))
   (move-marker gnorb-return-marker (point))
@@ -672,7 +684,10 @@ your gnus select methods."
       (org-back-to-heading)
       (setq id (concat "id+" (org-id-get-create)))
       (gnorb-gnus-search-messages
-       id
+       id arg
+       (replace-regexp-in-string
+	org-bracket-link-regexp "\\3"
+	(nth 4 (org-heading-components)))
        `(when (and (window-configuration-p gnorb-window-conf)
 		   gnorb-return-marker)
 	  (set-window-configuration gnorb-window-conf)

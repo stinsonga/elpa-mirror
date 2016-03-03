@@ -2,10 +2,11 @@
 
 ;; Copyright (C) 2014, 2015 Free Software Foundation, Inc.
 
-;; Author: Artur Malabarba  <bruce.connor.am@gmail.com>
+;; Author: Artur Malabarba <emacs@endlessparentheses.com>
+;; URL: https://github.com/Malabarba/speed-of-thought-lisp
 ;; Keywords: convenience, lisp
 ;; Package-Requires: ((emacs "24.1"))
-;; Version: 0
+;; Version: 1.5.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -79,7 +80,6 @@
 ;; 
 ;;   (with-temp-buffer (insert text))
 
-
 ;;; Code:
 
 ;;; Predicates
@@ -89,16 +89,42 @@
       (bound-and-true-p paredit-mode)
       (bound-and-true-p smartparens-mode)))
 
+(defun sotlisp--looking-back (regexp)
+  (string-match
+   (concat regexp "\\'")
+   (buffer-substring (line-beginning-position) (point))))
+
 (defun sotlisp--function-form-p ()
   "Non-nil if point is at the start of a sexp.
 Specially, avoids matching inside argument lists."
   (and (eq (char-before) ?\()
-       (not (looking-back "(\\(defun\\s-+.*\\|lambda\\s-+\\)("))
+       (not (sotlisp--looking-back "(\\(defun\\s-+.*\\|\\(lambda\\|dolist\\|dotimes\\)\\s-+\\)("))
+       (save-excursion
+         (forward-char -1)
+         (condition-case er
+             (progn
+               (backward-up-list)
+               (forward-sexp -1)
+               (not
+                (looking-at-p (rx (* (or (syntax word) (syntax symbol) "-"))
+                                  "let" symbol-end))))
+           (error t)))
        (not (string-match (rx (syntax symbol)) (string last-command-event)))))
 
 (defun sotlisp--function-quote-p ()
   "Non-nil if point is at a sharp-quote."
-  (looking-back "#'"))
+  (ignore-errors
+    (save-excursion
+      (forward-char -2)
+      (looking-at-p "#'"))))
+
+(defun sotlisp--code-p ()
+  (save-excursion
+    (let ((r (point)))
+      (beginning-of-defun)
+      (let ((pps (parse-partial-sexp (point) r)))
+        (not (or (elt pps 3)
+                 (elt pps 4)))))))
 
 (defun sotlisp--function-p ()
   "Non-nil if point is at reasonable place for a function name.
@@ -108,13 +134,19 @@ non-nil."
   (save-excursion
     (ignore-errors
       (skip-chars-backward (rx alnum))
-      (or (sotlisp--function-form-p)
-          (sotlisp--function-quote-p)))))
+      (and (sotlisp--code-p)
+           (or (sotlisp--function-form-p)
+               (sotlisp--function-quote-p))))))
 
 (defun sotlisp--whitespace-p ()
   "Non-nil if current `self-insert'ed char is whitespace."
+  (sotlisp--whitespace-char-p last-command-event))
+(make-obsolete 'sotlisp--whitespace-p 'sotlisp--whitespace-char-p "1.2")
+
+(defun sotlisp--whitespace-char-p (char)
+  "Non-nil if CHAR is has whitespace syntax."
   (ignore-errors
-    (string-match (rx space) (string last-command-event))))
+    (string-match (rx space) (string char))))
 
 
 ;;; Expansion logic
@@ -139,6 +171,28 @@ Point is left where the `$' char was.  Does nothing if variable
              (sotlisp--auto-paired-p))
     (forward-char 1)))
 
+(defun sotlisp--post-expansion-cleanup ()
+  "Do some processing conditioned on the expansion done.
+If the command that triggered the expansion was a whitespace
+char, perform the steps below and return t.
+
+If the expansion ended in a $, delete it and call
+`sotlisp--maybe-skip-closing-paren'.
+If it ended in a space and there's a space ahead, delete the
+space ahead."
+  ;; Inform `expand-abbrev' that `self-insert-command' should not
+  ;; trigger, by returning non-nil on SPC.
+  (when (sotlisp--whitespace-char-p last-command-event)
+    ;; And maybe move out of closing paren if expansion ends with $.
+    (if (eq (char-before) ?$)
+        (progn (delete-char -1)
+               (setq sotlisp--needs-moving nil)
+               (sotlisp--maybe-skip-closing-paren))
+      (when (and (sotlisp--whitespace-char-p (char-after))
+                 (sotlisp--whitespace-char-p (char-before)))
+        (delete-char 1)))
+    t))
+
 (defvar sotlisp--function-table (make-hash-table :test #'equal)
   "Table where function abbrev expansions are stored.")
 
@@ -149,23 +203,18 @@ See `sotlisp-define-function-abbrev'."
     (skip-chars-backward (rx alnum))
     (let* ((name (buffer-substring (point) r))
            (expansion (gethash name sotlisp--function-table)))
-      (delete-region (point) r)
-      (if (sotlisp--function-quote-p)
-          ;; After #' use the simple expansion.
-          (insert (sotlisp--simplify-function-expansion expansion))
-        ;; Inside a form, use the full expansion.
-        (insert expansion)
-        (when (string-match "\\$" expansion)
-          (setq sotlisp--needs-moving t))))
-    ;; Inform `expand-abbrev' that `self-insert-command' should not
-    ;; trigger, by returning non-nil on SPC.
-    (when (sotlisp--whitespace-p)
-      ;; And maybe move out of closing paren if expansion ends with $.
-      (when (eq (char-before) ?$)
-        (delete-char -1)
-        (setq sotlisp--needs-moving nil)
-        (sotlisp--maybe-skip-closing-paren))
-      t)))
+      (if (not expansion)
+          (progn (goto-char r) nil)
+        (delete-region (point) r)
+        (if (sotlisp--function-quote-p)
+            ;; After #' use the simple expansion.
+            (insert (sotlisp--simplify-function-expansion expansion))
+          ;; Inside a form, use the full expansion.
+          (insert expansion)
+          (when (string-match "\\$" expansion)
+            (setq sotlisp--needs-moving t)))
+        ;; Must be last.
+        (sotlisp--post-expansion-cleanup)))))
 
 (put 'sotlisp--expand-function 'no-self-insert t)
 
@@ -187,6 +236,7 @@ The space char is not included.  Any \"$\" are also removed."
     ("bc" . "forward-char -1")
     ("bfn" . "buffer-file-name")
     ("bl" . "buffer-list$")
+    ("blp" . "buffer-live-p ")
     ("bn" . "buffer-name")
     ("bod" . "beginning-of-defun")
     ("bol" . "forward-line 0$")
@@ -212,10 +262,13 @@ The space char is not included.  Any \"$\" are also removed."
     ("dfv" . "defvar $ t\n  \"\"")
     ("dk" . "define-key ")
     ("dl" . "dolist (it $)")
+    ("dt" . "dotimes (it $)")
     ("dmp" . "derived-mode-p '")
+    ("dm" . "defmacro $ ()\n  \"\"\n  ")
     ("dr" . "delete-region ")
     ("dv" . "defvar $ t\n  \"\"")
     ("e" . "error \"$\"")
+    ("ef" . "executable-find ")
     ("efn" . "expand-file-name ")
     ("eol" . "end-of-line")
     ("f" . "format \"$\"")
@@ -227,6 +280,7 @@ The space char is not included.  Any \"$\" are also removed."
     ("fp" . "functionp ")
     ("frp" . "file-readable-p ")
     ("fs" . "forward-sexp 1")
+    ("fu" . "funcall ")
     ("fw" . "forward-word 1")
     ("g" . "goto-char ")
     ("gc" . "goto-char ")
@@ -234,6 +288,7 @@ The space char is not included.  Any \"$\" are also removed."
     ("i" . "insert ")
     ("ie" . "ignore-errors ")
     ("ii" . "interactive")
+    ("il" . "if-let (($))")
     ("ir" . "indent-region ")
     ("jcl" . "justify-current-line ")
     ("jl" . "delete-indentation")
@@ -243,6 +298,7 @@ The space char is not included.  Any \"$\" are also removed."
     ("k" . "kbd \"$\"")
     ("kb" . "kill-buffer")
     ("kn" . "kill-new ")
+    ("kp" . "keywordp ")
     ("l" . "lambda ($)")
     ("la" . "looking-at \"$\"")
     ("lap" . "looking-at-p \"$\"")
@@ -253,11 +309,14 @@ The space char is not included.  Any \"$\" are also removed."
     ("lp" . "listp ")
     ("m" . "message \"$%s\"")
     ("mb" . "match-beginning 0")
+    ("mc" . "mapcar ")
+    ("mct" . "mapconcat ")
     ("me" . "match-end 0")
     ("ms" . "match-string 0")
     ("msn" . "match-string-no-properties 0")
     ("msnp" . "match-string-no-properties 0")
     ("msp" . "match-string-no-properties 0")
+    ("mt" . "mapconcat ")
     ("n" . "not ")
     ("nai" . "newline-and-indent$")
     ("nl" . "forward-line 1")
@@ -265,9 +324,11 @@ The space char is not included.  Any \"$\" are also removed."
     ("ntr" . "narrow-to-region ")
     ("ow" . "other-window 1")
     ("p" . "point$")
+    ("pm" . "point-marker$")
     ("pa" . "point-max$")
     ("pg" . "plist-get ")
     ("pi" . "point-min$")
+    ("pz" . "propertize ")
     ("r" . "require '")
     ("ra" . "use-region-p$")
     ("rap" . "use-region-p$")
@@ -280,18 +341,18 @@ The space char is not included.  Any \"$\" are also removed."
     ("rris" . "replace-regexp-in-string ")
     ("rrs" . "replace-regexp-in-string ")
     ("rs" . "while (search-forward $ nil t)\n(replace-match \"\") nil t)")
-    ("rsb" . "re-search-backward $ nil 'noerror")
-    ("rsf" . "re-search-forward $ nil 'noerror")
+    ("rsb" . "re-search-backward \"$\" nil 'noerror")
+    ("rsf" . "re-search-forward \"$\" nil 'noerror")
     ("s" . "setq ")
     ("sb" . "search-backward $ nil 'noerror")
     ("sbr" . "search-backward-regexp $ nil 'noerror")
-    ("scb" . "skip-chars-backward \"$\r\n[:blank:]\"")
-    ("scf" . "skip-chars-forward \"$\r\n[:blank:]\"")
+    ("scb" . "skip-chars-backward \"$\\r\\n[:blank:]\"")
+    ("scf" . "skip-chars-forward \"$\\r\\n[:blank:]\"")
     ("se" . "save-excursion")
     ("sf" . "search-forward $ nil 'noerror")
     ("sfr" . "search-forward-regexp $ nil 'noerror")
     ("sic" . "self-insert-command")
-    ("sl" . "string<")
+    ("sl" . "setq-local ")
     ("sm" . "string-match \"$\"")
     ("smd" . "save-match-data")
     ("sn" . "symbol-name ")
@@ -305,6 +366,8 @@ The space char is not included.  Any \"$\" are also removed."
     ("sw" . "selected-window$")
     ("syp" . "symbolp ")
     ("tap" . "thing-at-point 'symbol")
+    ("tf" . "thread-first ")
+    ("tl" . "thread-last ")
     ("u" . "unless ")
     ("ul" . "up-list")
     ("up" . "unwind-protect\n(progn $)")
@@ -313,7 +376,10 @@ The space char is not included.  Any \"$\" are also removed."
     ("wcb" . "with-current-buffer ")
     ("wf" . "write-file ")
     ("wh" . "while ")
-    ("wl" . "window-list nil 'nominibuffer")
+    ("wl" . "when-let (($))")
+    ("we" . "window-end")
+    ("ws" . "window-start")
+    ("wsw" . "with-selected-window ")
     ("wtb" . "with-temp-buffer")
     ("wtf" . "with-temp-file ")
     )
@@ -361,7 +427,7 @@ following way:
 
 
 ;;; The global minor-mode
-(defvar speed-of-thought-turn-on-hook '(sotlisp-turn-on-everywhere)
+(defvar speed-of-thought-turn-on-hook '()
   "Hook run once when `speed-of-thought-mode' is enabled.
 Note that `speed-of-thought-mode' is global, so this is not run
 on every buffer.
@@ -369,7 +435,7 @@ on every buffer.
 See `sotlisp-turn-on-everywhere' for an example of what a
 function in this hook should do.")
 
-(defvar speed-of-thought-turn-off-hook '(sotlisp-turn-off-everywhere)
+(defvar speed-of-thought-turn-off-hook '()
   "Hook run once when `speed-of-thought-mode' is disabled.
 Note that `speed-of-thought-mode' is global, so this is not run
 on every buffer.
@@ -378,14 +444,33 @@ See `sotlisp-turn-on-everywhere' for an example of what a
 function in this hook should do.")
 
 ;;;###autoload
-(define-minor-mode speed-of-thought-mode nil nil nil nil
+(define-minor-mode speed-of-thought-mode
+  nil nil nil nil
   :global t
   (run-hooks (if speed-of-thought-mode
                  'speed-of-thought-turn-on-hook
                'speed-of-thought-turn-off-hook)))
 
+;;;###autoload
+(defun speed-of-thought-hook-in (on off)
+  "Add functions ON and OFF to `speed-of-thought-mode' hooks.
+If `speed-of-thought-mode' is already on, call ON."
+  (add-hook 'speed-of-thought-turn-on-hook on)
+  (add-hook 'speed-of-thought-turn-off-hook off)
+  (when speed-of-thought-mode (funcall on)))
+
 
 ;;; The local minor-mode
+(define-minor-mode sotlisp-mode
+  nil nil " SoT"
+  `(([M-return] . sotlisp-newline-and-parentheses)
+    ([C-return] . sotlisp-downlist-newline-and-parentheses)
+    (,(kbd "C-M-;") . ,(if (fboundp 'comment-or-uncomment-sexp)
+                           #'comment-or-uncomment-sexp
+                         #'sotlisp-comment-or-uncomment-sexp))
+    ("\C-cf"    . sotlisp-find-or-define-function)
+    ("\C-cv"    . sotlisp-find-or-define-variable)))
+
 (defun sotlisp-turn-on-everywhere ()
   "Call-once function to turn on sotlisp everywhere.
 Calls `sotlisp-mode' on all `emacs-lisp-mode' buffers, and sets
@@ -396,7 +481,7 @@ up a hook and abbrevs."
           (with-current-buffer b
             (when (derived-mode-p 'emacs-lisp-mode)
               (sotlisp-mode 1))))
-    (buffer-list)))
+        (buffer-list)))
 
 (defun sotlisp-turn-off-everywhere ()
   "Call-once function to turn off sotlisp everywhere.
@@ -408,13 +493,9 @@ removes hooks and abbrevs."
           (with-current-buffer b
             (when (derived-mode-p 'emacs-lisp-mode)
               (sotlisp-mode -1))))
-    (buffer-list)))
+        (buffer-list)))
 
-(define-minor-mode sotlisp-mode nil nil " SoT"
-  '(([M-return] . sotlisp-newline-and-parentheses)
-    ([C-return] . sotlisp-downlist-newline-and-parentheses)
-    ("\C-cf"    . sotlisp-find-or-define-function)
-    ("\C-cv"    . sotlisp-find-or-define-variable)))
+(speed-of-thought-hook-in #'sotlisp-turn-on-everywhere #'sotlisp-turn-off-everywhere)
 
 
 ;;; Commands
@@ -453,8 +534,9 @@ removes hooks and abbrevs."
   "`push-mark' and move above this defun."
   (push-mark)
   (beginning-of-defun)
-  (when (looking-back "^;;;###autoload\\s-*\n")
-    (forward-line -1)))
+  (forward-line -1)
+  (unless (looking-at "^;;;###autoload\\s-*\n")
+    (forward-line 1)))
 
 (defun sotlisp--function-at-point ()
   "Return name of `function-called-at-point'."
@@ -528,6 +610,98 @@ With a prefix argument, defines a `defvar' instead of a `defcustom'."
             (insert "\n  \"\""
                     (if prefix "" "\n  :type 'boolean")
                     ")\n\n")))))))
+
+
+;;; Comment sexp
+(defun sotlisp-uncomment-sexp (&optional n)
+  "Uncomment a sexp around point."
+  (interactive "P")
+  (let* ((initial-point (point-marker))
+         (inhibit-field-text-motion t)
+         (p)
+         (end (save-excursion
+                (when (elt (syntax-ppss) 4)
+                  (re-search-backward comment-start-skip
+                                      (line-beginning-position)
+                                      t))
+                (setq p (point-marker))
+                (comment-forward (point-max))
+                (point-marker)))
+         (beg (save-excursion
+                (forward-line 0)
+                (while (and (not (bobp))
+                            (= end (save-excursion
+                                     (comment-forward (point-max))
+                                     (point))))
+                  (forward-line -1))
+                (goto-char (line-end-position))
+                (re-search-backward comment-start-skip
+                                    (line-beginning-position)
+                                    t)
+                (ignore-errors
+                  (while (looking-at comment-start-skip)
+                    (forward-char -1))
+                  (unless (looking-at "[\n\r[:blank]]")
+                    (forward-char 1)))
+                (point-marker))))
+    (unless (= beg end)
+      (uncomment-region beg end)
+      (goto-char p)
+      ;; Indentify the "top-level" sexp inside the comment.
+      (ignore-errors
+        (while (>= (point) beg)
+          (backward-prefix-chars)
+          (skip-chars-backward "\r\n[:blank:]")
+          (setq p (point-marker))
+          (backward-up-list)))
+      ;; Re-comment everything before it. 
+      (ignore-errors
+        (comment-region beg p))
+      ;; And everything after it.
+      (goto-char p)
+      (forward-sexp (or n 1))
+      (skip-chars-forward "\r\n[:blank:]")
+      (if (< (point) end)
+          (ignore-errors
+            (comment-region (point) end))
+        ;; If this is a closing delimiter, pull it up.
+        (goto-char end)
+        (skip-chars-forward "\r\n[:blank:]")
+        (when (eq 5 (car (syntax-after (point))))
+          (delete-indentation))))
+    ;; Without a prefix, it's more useful to leave point where
+    ;; it was.
+    (unless n
+      (goto-char initial-point))))
+
+(defun sotlisp--comment-sexp-raw ()
+  "Comment the sexp at point or ahead of point."
+  (pcase (or (bounds-of-thing-at-point 'sexp)
+             (save-excursion
+               (skip-chars-forward "\r\n[:blank:]")
+               (bounds-of-thing-at-point 'sexp)))
+    (`(,l . ,r)
+     (goto-char r)
+     (skip-chars-forward "\r\n[:blank:]")
+     (save-excursion
+       (comment-region l r))
+     (skip-chars-forward "\r\n[:blank:]"))))
+
+(defun sotlisp-comment-or-uncomment-sexp (&optional n)
+  "Comment the sexp at point and move past it.
+If already inside (or before) a comment, uncomment instead.
+With a prefix argument N, (un)comment that many sexps."
+  (interactive "P")
+  (if (or (elt (syntax-ppss) 4)
+          (< (save-excursion
+               (skip-chars-forward "\r\n[:blank:]")
+               (point))
+             (save-excursion
+               (comment-forward 1)
+               (point))))
+      (sotlisp-uncomment-sexp n)
+    (dotimes (_ (or n 1))
+      (sotlisp--comment-sexp-raw))))
 
 (provide 'sotlisp)
 ;;; sotlisp.el ends here

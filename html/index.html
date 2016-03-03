@@ -1,29 +1,39 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<!doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
 <head>
-  <title>GNU Emacs Lisp Package Archive - GNU Project - Free Software Foundation</title>
-  <link rel="icon" type="image/png" href="gnu-head-mini.png" />
-  <link rel="stylesheet" type="text/css" href="layout.css" />
+  <title>GNU Emacs Lisp Package Archive</title>
+  <link rel="icon" type="image/png" href="gnu-head-mini.png">
+  <link rel="stylesheet" type="text/css" href="layout.css">
 </head>
 <body>
 
 <h1>GNU Emacs Lisp Package Archive</h1>
 
 <p>
-This is the default package repository for
+This is the default package repository for 
 <a href="http://www.gnu.org/software/emacs/">GNU Emacs</a>.
 </p>
 
 <p>
-To use it, type <kbd>M-x list-packages</kbd> in Emacs.
-(This requires Emacs version 24.1 or higher.)
+To use it, type <tt>M-x list-packages</tt> in Emacs.
+(This requires Emacs version 24.1 or higher.) <br/>
+Since you'll probably want to use your installed packages, it's also
+<a href="https://www.gnu.org/software/emacs/manual/html_node/emacs/Package-Installation.html#Package-Installation">recommended</a>
+that you add <code>(package-initialize)</code> somewhere
+in your <code>~/.emacs</code> file.
 </p>
 
+<p>Or you can just browse the <a href="packages/">list of packages</a>.</p>
+
 <p>
-You can grab the <a href="emacs-packages-latest.tgz">latest package
-snapshot</a> or look at the <a href="/packages">package list</a>
-directly.
+Packages are managed through the
+<a href="http://git.savannah.gnu.org/cgit/emacs/elpa.git">GNU ELPA repository</a>
+(see the <a href="https://savannah.gnu.org/projects/emacs">GNU Emacs project page</a>
+for clone instructions).  <br>
+To contribute new packages refer to the
+<a href="http://git.savannah.gnu.org/cgit/emacs/elpa.git/plain/README">README</a>.
 </p>
+
+<!-- <p> You can grab the <a href="emacs-packages-latest.tgz">latest package snapshot</a>. -->
 </body>
 </html>

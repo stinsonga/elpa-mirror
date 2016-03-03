@@ -1,11 +1,10 @@
 ;;; websocket.el --- Emacs WebSocket client and server
 
-;; Copyright (c) 2013  Free Software Foundation, Inc.
+;; Copyright (c) 2013, 2016  Free Software Foundation, Inc.
 
-;; Author: Andrew Hyatt <ahyatt at gmail dot com>
-;; Maintainer: Andrew Hyatt <ahyatt at gmail dot com>
+;; Author: Andrew Hyatt <ahyatt@gmail.com>
 ;; Keywords: Communication, Websocket, Server
-;; Version: 1.3
+;; Version: 1.5
 ;;
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License as
@@ -45,6 +44,7 @@
 
 (require 'bindat)
 (require 'url-parse)
+(require 'url-cookie)
 (eval-when-compile (require 'cl))
 
 ;;; Code:
@@ -99,7 +99,7 @@ same for the protocols.
   accept-string
   (inflight-input nil))
 
-(defvar websocket-version "1.3"
+(defvar websocket-version "1.5"
   "Version numbers of this version of websocket.el.")
 
 (defvar websocket-debug nil
@@ -235,7 +235,11 @@ approximately 537M long."
   (if (= nbytes 8)
       (progn
         (let ((hi-32bits (lsh val -32))
-              (low-32bits (logand #xffffffff val)))
+              ;; Test for systems that don't have > 32 bits, and
+              ;; for those systems just return the value.
+              (low-32bits (if (= 0 (expt 2 32))
+                              val
+                            (logand #xffffffff val))))
           (when (or (> hi-32bits 0) (> (lsh low-32bits -29) 0))
             (signal 'websocket-frame-too-large val))
           (bindat-pack `((:val vec 2 u32))
@@ -296,35 +300,40 @@ We mask the frame or not, depending on SHOULD-MASK."
   (let* ((opcode (websocket-frame-opcode frame))
          (payload (websocket-frame-payload frame))
          (fin (websocket-frame-completep frame))
-         (payloadp (memq opcode '(continuation text binary)))
+         (payloadp (and payload
+                        (memq opcode '(continuation ping pong text binary))))
          (mask-key (when should-mask (websocket-genbytes 4))))
     (apply 'unibyte-string
-           (append (list
-                    (logior (cond ((eq opcode 'continuation) 0)
-                                  ((eq opcode 'text) 1)
-                                  ((eq opcode 'binary) 2)
-                                  ((eq opcode 'close) 8)
-                                  ((eq opcode 'ping) 9)
-                                  ((eq opcode 'pong) 10))
-                            (if fin 128 0)))
-                   (when payloadp
-                     (list
-                      (logior
-                       (if should-mask 128 0)
-                       (cond ((< (length payload) 126) (length payload))
-                             ((< (length payload) 65536) 126)
-                             (t 127)))))
-                   (when (and payloadp (>= (length payload) 126))
-                     (append (websocket-to-bytes (length payload)
-                                          (cond ((< (length payload) 126) 1)
-                                                ((< (length payload) 65536) 2)
-                                                (t 8))) nil))
-                   (when (and payloadp should-mask)
-                     (append mask-key nil))
-                   (when payloadp
-                     (append (if should-mask (websocket-mask mask-key payload)
-                               payload)
-                             nil))))))
+           (let ((val (append (list
+                            (logior (cond ((eq opcode 'continuation) 0)
+                                          ((eq opcode 'text) 1)
+                                          ((eq opcode 'binary) 2)
+                                          ((eq opcode 'close) 8)
+                                          ((eq opcode 'ping) 9)
+                                          ((eq opcode 'pong) 10))
+                                    (if fin 128 0)))
+                           (when payloadp
+                             (list
+                              (logior
+                               (if should-mask 128 0)
+                               (cond ((< (length payload) 126) (length payload))
+                                     ((< (length payload) 65536) 126)
+                                     (t 127)))))
+                           (when (and payloadp (>= (length payload) 126))
+                             (append (websocket-to-bytes
+                                      (length payload)
+                                      (cond ((< (length payload) 126) 1)
+                                            ((< (length payload) 65536) 2)
+                                            (t 8))) nil))
+                           (when (and payloadp should-mask)
+                             (append mask-key nil))
+                           (when payloadp
+                             (append (if should-mask (websocket-mask mask-key payload)
+                                       payload)
+                                     nil)))))
+             ;; We have to make sure the non-payload data is a full 32-bit frame
+             (if (= 1 (length val))
+                 (append val '(0)) val)))))
 
 (defun websocket-read-frame (s)
   "Read from string S a `websocket-frame' struct with the contents.
@@ -334,7 +343,7 @@ the frame finishes.  If the frame is not completed, return NIL."
     (websocket-ensure-length s 1)
     (let* ((opcode (websocket-get-opcode s))
            (fin (logand 128 (websocket-get-bytes s 1)))
-           (payloadp (memq opcode '(continuation text binary)))
+           (payloadp (memq opcode '(continuation text binary ping pong)))
            (payload-len (when payloadp
                           (websocket-get-payload-len (substring s 1))))
            (maskp (and
@@ -475,7 +484,10 @@ has connection termination."
                                            lex-ws lex-frame)))
             ((eq opcode 'ping)
              (lambda () (websocket-send lex-ws
-                                   (make-websocket-frame :opcode 'pong :completep t))))
+                                        (make-websocket-frame
+                                         :opcode 'pong
+                                         :payload (websocket-frame-payload lex-frame)
+                                         :completep t))))
             ((eq opcode 'close)
              (lambda () (delete-process (websocket-conn lex-ws))))
             (t (lambda ()))))))
@@ -506,10 +518,16 @@ has connection termination."
 
 (defun websocket-check (frame)
   "Check FRAME for correctness, returning true if correct."
-  (and (equal (not (memq (websocket-frame-opcode frame)
-                         '(continuation text binary)))
-              (and (not (websocket-frame-payload frame))
-                   (websocket-frame-completep frame)))))
+  (or
+   ;; Text, binary, and continuation frames need payloads
+   (and (memq (websocket-frame-opcode frame) '(text binary continuation))
+        (websocket-frame-payload frame))
+   ;; Pings and pongs may optionally have them
+   (memq (websocket-frame-opcode frame) '(ping pong))
+   ;; And close shouldn't have any payload, and should always be complete.
+   (and (eq (websocket-frame-opcode frame) 'close)
+        (not (websocket-frame-payload frame))
+        (websocket-frame-completep frame))))
 
 (defun websocket-send (websocket frame)
   "To the WEBSOCKET server, send the FRAME.
@@ -592,6 +610,11 @@ which is the list of parameter strings to use for that extension.
 The parameter strings are of the form \"key=value\" or \"value\".
 EXTENSIONS can be NIL if none are in use.  An example value would
 be '(\"deflate-stream\" . (\"mux\" \"max-channels=4\")).
+
+Cookies that are set via `url-cookie-store' will be used during
+communication with the server, and cookies received from the
+server will be stored in the same cookie storage that the
+`url-cookie' package uses.
 
 Optionally you can specify
 ON-OPEN, ON-MESSAGE and ON-CLOSE callbacks as well.
@@ -703,6 +726,14 @@ describing the problem with the frame.
     (websocket-debug websocket "Websocket opened")
     websocket))
 
+(defun websocket-process-headers (url headers)
+  "On opening URL, process the HEADERS sent from the server."
+  (when (string-match "Set-Cookie: \(.*\)\r\n" headers)
+    ;; The url-current-object is assumed to be set by
+    ;; url-cookie-handle-set-cookie.
+    (let ((url-current-object (url-generic-parse-url url)))
+      (url-cookie-handle-set-cookie (match-string 1 headers)))))
+
 (defun websocket-outer-filter (websocket output)
   "Filter the WEBSOCKET server's OUTPUT.
 This will parse headers and process frames repeatedly until there
@@ -721,7 +752,8 @@ connection is invalid, the connection will be closed."
       (condition-case err
           (progn
             (websocket-verify-response-code text)
-            (websocket-verify-headers websocket text))
+            (websocket-verify-headers websocket text)
+            (websocket-process-headers (websocket-url websocket) text))
         (error
          (websocket-close websocket)
          (signal (car err) (cdr err))))
@@ -852,30 +884,40 @@ connection, which should be kept in order to pass to
 (defun websocket-create-headers (url key protocol extensions)
   "Create connections headers for the given URL, KEY, PROTOCOL and EXTENSIONS.
 These are defined as in `websocket-open'."
-  (format (concat "Host: %s\r\n"
-                  "Upgrade: websocket\r\n"
-                  "Connection: Upgrade\r\n"
-                  "Sec-WebSocket-Key: %s\r\n"
-                  "Sec-WebSocket-Version: 13\r\n"
-                  (when protocol
-                    (concat
-                     (mapconcat (lambda (protocol)
-                                  (format "Sec-WebSocket-Protocol: %s" protocol))
-                                protocol "\r\n")
-                     "\r\n"))
-                  (when extensions
-                    (format "Sec-WebSocket-Extensions: %s\r\n"
-                            (mapconcat
-                             (lambda (ext)
-                               (concat (car ext)
-                                       (when (cdr ext) "; ")
-                                       (when (cdr ext)
-                                         (mapconcat 'identity (cdr ext) "; "))))
-                             extensions ", ")))
-                  "\r\n")
-          (url-host (url-generic-parse-url url))
-          key
-          protocol))
+  (let* ((parsed-url (url-generic-parse-url url))
+         (host-port (if (url-port-if-non-default parsed-url)
+                        (format "%s:%s" (url-host parsed-url) (url-port parsed-url))
+                      (url-host parsed-url)))
+         (cookie-header (url-cookie-generate-header-lines
+                         host-port (car (url-path-and-query parsed-url))
+                         (equal (url-type parsed-url) "wss"))))
+    (format (concat "Host: %s\r\n"
+                    "Upgrade: websocket\r\n"
+                    "Connection: Upgrade\r\n"
+                    "Sec-WebSocket-Key: %s\r\n"
+                    "Sec-WebSocket-Version: 13\r\n"
+                    (when protocol
+                      (concat
+                       (mapconcat
+                        (lambda (protocol)
+                          (format "Sec-WebSocket-Protocol: %s" protocol))
+                        protocol "\r\n")
+                       "\r\n"))
+                    (when extensions
+                      (format "Sec-WebSocket-Extensions: %s\r\n"
+                              (mapconcat
+                               (lambda (ext)
+                                 (concat
+                                  (car ext)
+                                  (when (cdr ext) "; ")
+                                  (when (cdr ext)
+                                    (mapconcat 'identity (cdr ext) "; "))))
+                               extensions ", ")))
+                    (when cookie-header cookie-header)
+                    "\r\n")
+            host-port
+            key
+            protocol)))
 
 (defun websocket-get-server-response (websocket client-protocols client-extensions)
   "Get the websocket response from client WEBSOCKET."

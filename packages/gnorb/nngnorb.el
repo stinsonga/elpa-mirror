@@ -52,7 +52,7 @@
 
 (make-variable-buffer-local 'nngnorb-attachment-file-list)
 
-(gnus-declare-backend "nngnorb" 'none)
+(gnus-declare-backend "nngnorb" 'post-mail 'virtual)
 
 (add-to-list 'nnir-method-default-engines '(nngnorb . gnorb))
 
@@ -79,14 +79,14 @@ be scanned for gnus messages, and those messages displayed."
   ;; a property, and the new registry-based system, we're going to use
   ;; both methods to collect relevant messages. This could be a little
   ;; slower, but for the time being it will be safer.
-  (save-excursion
+  (save-window-excursion
     (let ((q (cdr (assq 'query query)))
 	  (buf (get-buffer-create nnir-tmp-buffer))
 	  msg-ids org-ids links vectors)
       (with-current-buffer buf
 	(erase-buffer)
 	(setq nngnorb-attachment-file-list nil))
-      (when (equal "5.13" gnus-version-number)
+      (when (and (equal "5.13" gnus-version-number) (version< emacs-version "24.4"))
 	(setq q (car q)))
       (cond ((string-match "id\\+\\([[:alnum:]-]+\\)$" q)
 	     (with-demoted-errors "Error: %S"
@@ -142,7 +142,7 @@ be scanned for gnus messages, and those messages displayed."
       (dolist (i (delq nil org-ids))
 	(let ((rel-msg-id (gnorb-registry-org-id-search i)))
 	  (when rel-msg-id
-	    (setq msg-ids (append rel-msg-id msg-ids)))))
+	    (setq msg-ids (append (delq nil rel-msg-id) msg-ids)))))
       (when msg-ids
 	  (dolist (id msg-ids)
 	    (let ((link (gnorb-msg-id-to-link id)))
@@ -183,7 +183,7 @@ continue to provide tracking of sent messages."
 	;; this summary buffer.
 	(buffer-local-value
 	 'nngnorb-attachment-file-list
-	  (get-buffer nnir-tmp-buffer))))
+	  (get-buffer-create nnir-tmp-buffer))))
 
 (define-key gnorb-summary-minor-mode-map
   [remap gnus-summary-exit]
@@ -278,8 +278,12 @@ continue to provide tracking of sent messages."
 	(message-insert-header
 	 (intern gnorb-mail-header)
 	 org-id)
-	(add-to-list 'message-exit-actions
-		     'gnorb-org-restore-after-send t))
+	;; As with elsewhere, this should be redundant with
+	;; `gnorb-gnus-check-outgoing-headers.'  Even if not, it
+	;; should be switched to use `message-send-actions'
+	;; (add-to-list 'message-exit-actions
+	;; 'gnorb-org-restore-after-send t)
+	)
       (goto-char compose-marker))
     (when attachments
       (map-y-or-n-p
@@ -309,7 +313,7 @@ the message being included in this search."
      (gnus-summary-article-number)))
   (let* ((msg-id (gnus-fetch-original-field "message-id"))
 	 (org-ids (gnus-registry-get-id-key msg-id 'gnorb-ids))
-	 chosen)
+	 chosen multiple-alist)
     (if org-ids
 	(progn
 	  (if (= (length org-ids) 1)
@@ -317,14 +321,18 @@ the message being included in this search."
 	      (progn (gnus-registry-set-id-key msg-id 'gnorb-ids nil)
 		     (setq chosen (car org-ids)))
 	    ;; Multiple associated TODOs, prompt to choose one.
+	    (setq multiple-alist
+		  (mapcar
+		   (lambda (h)
+		     (cons (gnorb-pretty-outline h) h))
+		   org-ids))
 	    (setq chosen
 		  (cdr
-		   (org-completing-read
-		    "Choose a TODO to disassociate from: "
-		    (mapcar
-		     (lambda (h)
-		       (cons (gnorb-pretty-outline h) h))
-		     org-ids))))
+		   (assoc
+		    (org-completing-read
+		     "Choose a TODO to disassociate from: "
+		     multiple-alist)
+		    multiple-alist)))
 	    (gnus-registry-set-id-key msg-id 'gnorb-ids
 				      (remove chosen org-ids)))
 	  (message "Message disassociated from %s"

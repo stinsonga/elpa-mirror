@@ -1,11 +1,11 @@
 ;;; csv-mode.el --- Major mode for editing comma/char separated values  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2003, 2004, 2012, 2013, 2014  Free Software Foundation, Inc
+;; Copyright (C) 2003, 2004, 2012, 2013, 2014, 2015  Free Software Foundation, Inc
 
 ;; Author: Francis J. Wright <F.J.Wright at qmul.ac.uk>
 ;; Time-stamp: <23 August 2004>
 ;; URL: http://centaur.maths.qmul.ac.uk/Emacs/
-;; Version: 1.2
+;; Version: 1.5
 ;; Keywords: convenience
 
 ;; This package is free software; you can redistribute it and/or modify
@@ -249,16 +249,7 @@ Number of spaces used by `csv-align-fields' after separators."
 
 
 (defconst csv-mode-line-format
-  ;; See bindings.el for details of `mode-line-format' construction.
-  (let* ((ml (copy-sequence (default-value 'mode-line-format)))
-         (x (or (memq 'mode-line-position ml) (last 3 ml))))
-    (when x
-      (setcdr x (cons
-                 `(csv-field-index-string
-                   ("" csv-field-index-string
-                    ))
-                 (cdr x))))
-    ml)
+  '(csv-field-index-string ("" csv-field-index-string))
   "Mode line format string for CSV mode.")
 
 (defvar csv-mode-map
@@ -322,9 +313,13 @@ CSV mode provides the following specific keyboard key bindings:
   (setq
    ;; Font locking -- separator plus syntactic:
    font-lock-defaults '(csv-font-lock-keywords)
-   buffer-invisibility-spec csv-invisibility-default
-   ;; Mode line to support `csv-field-index-mode':
-   mode-line-format csv-mode-line-format)
+   buffer-invisibility-spec csv-invisibility-default)
+  ;; Mode line to support `csv-field-index-mode':
+  (set (make-local-variable 'mode-line-position)
+       (pcase mode-line-position
+         (`(,(or (pred consp) (pred stringp)) . ,_)
+          `(,@mode-line-position ,csv-mode-line-format))
+         (_ `("" ,mode-line-position ,csv-mode-line-format))))
   (set (make-local-variable 'truncate-lines) t)
   ;; Enable or disable `csv-field-index-mode' (could probably do this
   ;; a bit more efficiently):
@@ -337,24 +332,25 @@ It must be either a string or nil."
    (list (edit-and-eval-command
 	  "Comment start (string or nil): " csv-comment-start)))
   ;; Paragraph means a group of contiguous records:
-  (setq csv-comment-start string)
   (set (make-local-variable 'paragraph-separate) "[:space:]*$") ; White space.
   (set (make-local-variable 'paragraph-start) "\n");Must include \n explicitly!
-  (if string
-      (progn
-	(setq paragraph-separate (concat paragraph-separate "\\|" string)
-	      paragraph-start (concat paragraph-start "\\|" string))
-        (set (make-local-variable 'comment-start) string)
-	(modify-syntax-entry
-	 (string-to-char string) "<" csv-mode-syntax-table)
-	(modify-syntax-entry ?\n ">" csv-mode-syntax-table))
-    (with-syntax-table text-mode-syntax-table
-      (modify-syntax-entry (string-to-char string)
-			   (string (char-syntax (string-to-char string)))
-			   csv-mode-syntax-table)
-      (modify-syntax-entry ?\n
-			   (string (char-syntax ?\n))
-			   csv-mode-syntax-table))))
+  ;; Remove old comment-start/end if available
+  (with-syntax-table text-mode-syntax-table
+    (when comment-start
+      (modify-syntax-entry (string-to-char comment-start)
+			   (string (char-syntax (string-to-char comment-start)))
+			   csv-mode-syntax-table))
+    (modify-syntax-entry ?\n
+			 (string (char-syntax ?\n))
+			 csv-mode-syntax-table))
+  (when string
+    (setq paragraph-separate (concat paragraph-separate "\\|" string)
+	  paragraph-start (concat paragraph-start "\\|" string))
+    (set (make-local-variable 'comment-start) string)
+    (modify-syntax-entry
+     (string-to-char string) "<" csv-mode-syntax-table)
+    (modify-syntax-entry ?\n ">" csv-mode-syntax-table))
+  (setq csv-comment-start string))
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.[Cc][Ss][Vv]\\'" . csv-mode))
@@ -968,18 +964,17 @@ The fields yanked are those last killed by `csv-kill-fields'."
     (while (not (eobp))                   ; for each record...
       (or (csv-not-looking-at-record)
           (let ((w widths)
-                (beg (point))            ; Beginning of current field.
+                (col (current-column))
                 x)
             (while (not (eolp))
               (csv-end-of-field)
-              (setq x (- (point) beg))    ; Field width.
+              (setq x (- (current-column) col)) ; Field width.
               (if w
                   (if (> x (car w)) (setcar w x))
                 (setq w (list x)
                       widths (nconc widths w)))
               (or (eolp) (forward-char))  ; Skip separator.
-              (setq w (cdr w)
-                    beg (point)))))
+              (setq w (cdr w) col (current-column)))))
       (forward-line))
     widths))
 
@@ -1025,8 +1020,8 @@ If there is no selected region, default to the whole buffer."
                        (align-padding (if (bolp) 0 csv-align-padding))
                        (left-padding 0) (right-padding 0)
                        (field-width
-                        ;; FIXME: Don't assume length=string-width!
-                        (progn (csv-end-of-field) (- (point) beg)))
+                        (- (- (current-column)
+                              (progn (csv-end-of-field) (current-column)))))
                        (column-width (pop w))
                        (x (- column-width field-width))) ; Required padding.
                   (set-marker end (point)) ; End of current field.

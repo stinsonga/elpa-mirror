@@ -1,17 +1,31 @@
 *.elc
 *.orig
+.dir-locals?.el
 *~
 \#*\#
 ChangeLog
 core
+/emacs
 packages/*/*-autoloads.el
 packages/*/*-pkg.el
 
 # External packages with their own .git tree.
 packages/auctex
 packages/chess
+packages/dash/
 packages/dismal
 packages/ergoemacs-mode
+packages/exwm
+packages/ntlm
+packages/omn-mode/
 packages/pabbrev
+packages/python
 packages/rudel
+packages/soap-client
 packages/w3
+packages/xelb
+
+# Testing file
+/archive
+*.log
+*.buildlog

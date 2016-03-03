@@ -1,16 +1,17 @@
 ;;; sisu-mode.el --- Major mode for SiSU markup text
 
-;; Copyright (C) 2011  Free Software Foundation, Inc.
+;; Copyright (C) 2011, 2016  Free Software Foundation, Inc.
 
-;; Author: Ambrose Kofi Laing (& Ralph Amissah)
-;; Keywords: text, processes, tools
-;; Version: 3.0.3
-;; License: GPLv3
-;; Home URL: SiSU:   http://www.jus.uio.no/sisu
+;; Author: Ralph Amissah & Ambrose Kofi Laing
+;; Maintainer: Ralph Amissah <ralph.amissah@gmail.com>
+;; Keywords: text, syntax, processes, tools
+;; Version:   7.1.8
+;; URL: http://www.sisudoc.org/
 ;; originally looked at (based on) doc-mode, with kind permission of the author
 ;;   Author: SUN, Tong <suntong001@users.sf.net>, (c)2001-6, all right reserved
 ;;   Version: $Date: 2006/01/19 03:13:41 $ $Revision: 1.14 $
 ;;   Home URL: http://xpt.sourceforge.net/
+;; with contributions from Kevin Ryde and Stefan Monnier
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -110,19 +111,19 @@
 (defvar sisu-title-3 'sisu-title-3-face)
 (defvar sisu-title-4 'sisu-title-4-face)
 
-(defvar general-font-lock-red1 font-lock-warning-face)
-(defvar general-font-lock-red2 font-lock-comment-face)
-(defvar general-font-lock-red3 font-lock-string-face)
+(defvar sisu-general-font-lock-red1 font-lock-warning-face)
+(defvar sisu-general-font-lock-red2 font-lock-comment-face)
+(defvar sisu-general-font-lock-red3 font-lock-string-face)
 
-(defvar general-font-lock-green1 font-lock-type-face)
-(defvar general-font-lock-green2 font-lock-constant-face)
+(defvar sisu-general-font-lock-green1 font-lock-type-face)
+(defvar sisu-general-font-lock-green2 font-lock-constant-face)
 
-(defvar general-font-lock-blue1 font-lock-keyword-face)
-(defvar general-font-lock-blue2 font-lock-function-name-face)
-(defvar general-font-lock-blue3 font-lock-builtin-face)
+(defvar sisu-general-font-lock-blue1 font-lock-keyword-face)
+(defvar sisu-general-font-lock-blue2 font-lock-function-name-face)
+(defvar sisu-general-font-lock-blue3 font-lock-builtin-face)
 
-(defvar general-font-lock-yellow1 font-lock-variable-name-face)
-(defvar general-font-lock-yellow2 font-lock-comment-face)
+(defvar sisu-general-font-lock-yellow1 font-lock-variable-name-face)
+(defvar sisu-general-font-lock-yellow2 font-lock-comment-face)
 
 ;; == sisu-mode settings
 
@@ -136,200 +137,313 @@
 (defconst sisu-font-lock-keywords
   (eval-when-compile
     (list
+      ;;grouped text ---------
+      ;(cons "^```[ ]code\\(.\\|\n\\)+?\n```\n"      'sisu-general-font-lock-red2)
+      (cons "^```[ ]+code.*?$\\|^```$"  'sisu-general-font-lock-red2)
+      (cons "^```[ ]+table.*?$\\|^```$" 'sisu-general-font-lock-red2)
+      (cons "^```[ ]+group$\\|^```$"    'sisu-general-font-lock-red2)
+      (cons "^```[ ]+block$\\|^```$"    'sisu-general-font-lock-red2)
+      (cons "^```[ ]+poem$\\|^```$"     'sisu-general-font-lock-red2)
+      (cons "^```[ ]+alt$\\|^```$"      'sisu-general-font-lock-red2)
+      ;;grouped text ---------
+      (cons "^group{\\|^}group"       'sisu-general-font-lock-red2)
+      (cons "^block{\\|^}block"       'sisu-general-font-lock-red2)
+      (cons "^code{\\|^}code"         'sisu-general-font-lock-red2)
+      (cons "^poem{\\|^}poem"         'sisu-general-font-lock-red2)
+      (cons "^alt{\\|^}alt"           'sisu-general-font-lock-red2)
+      (cons "^table{.+\\|^}table"     'sisu-general-font-lock-red2)
+      (cons "^{table[^}]+}"           'sisu-general-font-lock-red2)
 
-     ;;grouped text
-     (cons "^group\{\\|^\}group"       'general-font-lock-red2)
-     (cons "^block\{\\|^\}block"       'general-font-lock-red2)
-     (cons "^code\{\\|^\}code"         'general-font-lock-red2)
-     (cons "^poem\{\\|^\}poem"         'general-font-lock-red2)
-     (cons "^alt\{\\|^\}alt"           'general-font-lock-red2)
-     (cons "^table\{.+\\|^\}table"     'general-font-lock-red2)
-     (cons "^\{table[^}]+\}"           'general-font-lock-red2)
+      (list
+        (concat
+          "^\`\\{3\\}[ ]+code.*?$"
+          "\\(.\\|\n\\)+?"
+          "\`\\{3\\}$"
+        )
+        '(1 sisu-general-font-lock-red2 t)
+        '(2 nil t)
+        '(3 sisu-general-font-lock-red2 t)
+      )
+      (list
+        (concat
+          "^\`\\{3\\}[ ]+table.*?$"
+          "\\(.\\|\n\\)+?"
+          "\`\\{3\\}$"
+        )
+        '(1 sisu-general-font-lock-red2 t)
+        '(2 nil t)
+        '(3 sisu-general-font-lock-red2 t)
+      )
+      (list
+        (concat
+          "^\`\\{3\\}[ ]+\\(group\\|block\\|alt\\|poem\\)$"
+          "\\(.\\|\n\\)+?"
+          "^\`\\{3\\}$"
+        )
+        '(1 sisu-general-font-lock-red2 t)
+        '(2 nil t)
+        '(3 sisu-general-font-lock-red2 t)
+      )
 
-     ;; footnote/endnote
-       ;(cons "\~\{.+?\}\~"  'general-font-lock-green1)
-     (cons "\~\{\\*\\*\\|\~\{\\*\\|\~\{\\|\}\~"   'general-font-lock-red2)
-     (cons "\~\\[\\+\\|\~\\[\\*\\|\~\\[\\|\\]\~"  'general-font-lock-red2)
+      ;; footnote/endnote ----
+      ;(cons "\~{.+?}\~"  'sisu-general-font-lock-green1)
+      (cons "\~{\\*\\*\\|\~{\\*\\|\~{\\|}\~"   'sisu-general-font-lock-red2)
+      (cons "\~\\[\\+\\|\~\\[\\*\\|\~\\[\\|\\]\~"  'sisu-general-font-lock-red2)
+      (cons "\~\\^ \\|^\\^\~ " 'sisu-general-font-lock-red2)
+      (list
+        (concat
+          "\\(\*\~\\)"
+          "\\([^ \r\t\n]+\\)"
+        )
+        '(1 sisu-general-font-lock-red1 t)
+        '(2 sisu-general-font-lock-blue2 t)
+      )
 
-     (cons "\~\\^ \\|^\\^\~ " 'general-font-lock-red2)
+      ;; emphasis (can be program configured to be bold italics or underscore)
+      (list
+        (concat
+          "\\([*]{\\)"
+          "\\([^}]+\\)"
+          "\\(}[*]\\)"
+        )
+        '(1 sisu-general-font-lock-red1 t)
+        '(2 sisu-general-font-lock-red1 t)
+        '(3 sisu-general-font-lock-red1 t)
+      )
 
-     (list (concat
-      "\\(\*\~\\)"
-      "\\([^ \r\t\n]+\\)")
-     '(1 general-font-lock-red1 t)
-     '(2 general-font-lock-blue2 t))
+      ;; bold ----------------
+      (list
+        (concat
+          "\\([!]{\\)"
+          "\\([^}]+\\)"
+          "\\(}[!]\\)"
+        )
+        '(1 sisu-general-font-lock-red1 t)
+        '(2 sisu-general-font-lock-red1 t)
+        '(3 sisu-general-font-lock-red1 t)
+      )
+      (cons "\\*[^ ]+\\*"               'sisu-general-font-lock-red1)
+      (cons "^!_ .+"                    'sisu-general-font-lock-red1)
 
-     ;; emphasis (can be program configured to be bold italics or underscore)
-     (list (concat
-      "\\([*]\{\\)"
-      "\\([^\}]+\\)"
-      "\\(\}[*]\\)")
-     '(1 general-font-lock-red1 t)
-     '(2 general-font-lock-red1 t)
-     '(3 general-font-lock-red1 t))
+      ;; italics -------------
+      (list
+        (concat
+          "\\([/]{\\)"
+          "\\([^}]+\\)"
+          "\\(}[/]\\)"
+        )
+        '(1 sisu-general-font-lock-red1 t)
+        '(2 sisu-general-font-lock-blue1 t)
+        '(3 sisu-general-font-lock-red1 t)
+      )
 
-     ;; bold
-     (list (concat
-      "\\([!]\{\\)"
-      "\\([^\}]+\\)"
-      "\\(\}[!]\\)")
-     '(1 general-font-lock-red1 t)
-     '(2 general-font-lock-red1 t)
-     '(3 general-font-lock-red1 t))
-     (cons "\\*[^ ]+\\*"               'general-font-lock-red1)
-     (cons "^!_ .+"                    'general-font-lock-red1)
+      ;; underscore ----------
+      (list
+        (concat
+          "\\([_]{\\)"
+          "\\([^}]+\\)"
+          "\\(\}[_]\\)"
+        )
+        '(1 sisu-general-font-lock-red1 t)
+        '(2 sisu-general-font-lock-red1 t)
+        '(3 sisu-general-font-lock-red1 t)
+      )
 
-     ;;; italics
-     (list (concat
-      "\\([/]\{\\)"
-      "\\([^\}]+\\)"
-      "\\(\}[/]\\)")
-     '(1 general-font-lock-red1 t)
-     '(2 general-font-lock-blue1 t)
-           '(3 general-font-lock-red1 t))
+      ;; monospace -----------
+      (list
+        (concat
+          "\\([#]{\\)"
+          "\\([^}]+\\)"
+          "\\(}[#]\\)"
+        )
+        '(1 sisu-general-font-lock-red1 t)
+        '(2 sisu-general-font-lock-red1 t)
+        '(3 sisu-general-font-lock-red1 t)
+      )
 
-     ;; underscore
-     (list (concat
-      "\\([_]\{\\)"
-      "\\([^\}]+\\)"
-      "\\(\}[_]\\)")
-     '(1 general-font-lock-red1 t)
-     '(2 general-font-lock-red1 t)
-           '(3 general-font-lock-red1 t))
+      ;; citation ------------
+      (list
+        (concat
+          "\\([\"]{\\)"
+          "\\([^}]+\\)"
+          "\\(}[\"]\\)"
+        )
+        '(1 sisu-general-font-lock-red1 t)
+        '(2 sisu-general-font-lock-red1 t)
+        '(3 sisu-general-font-lock-red1 t)
+      )
 
-     ;; monospace
-     (list (concat
-      "\\([#]\{\\)"
-      "\\([^\}]+\\)"
-      "\\(\}[#]\\)")
-     '(1 general-font-lock-red1 t)
-     '(2 general-font-lock-red1 t)
-           '(3 general-font-lock-red1 t))
+      ;; inserted text -------
+      (list
+        (concat
+          "\\([\+]{\\)"
+          "\\([^}]+\\)"
+          "\\(}[\+]\\)"
+        )
+        '(1 sisu-general-font-lock-red1 t)
+        '(2 sisu-general-font-lock-red1 t)
+        '(3 sisu-general-font-lock-red1 t)
+      )
 
-     ;; citation
-     (list (concat
-      "\\([\"]\{\\)"
-      "\\([^\}]+\\)"
-      "\\(\}[\"]\\)")
-     '(1 general-font-lock-red1 t)
-     '(2 general-font-lock-red1 t)
-           '(3 general-font-lock-red1 t))
+      ;; strike through ------
+      (list
+        (concat
+          "\\(\\-{\\)"
+          "\\([^}]+\\)"
+          "\\(}\\-\\)"
+        )
+        '(1 sisu-general-font-lock-red1 t)
+        '(2 sisu-general-font-lock-red1 t)
+        '(3 sisu-general-font-lock-red1 t)
+      )
 
-     ;; inserted text
-     (list (concat
-      "\\([\+]\{\\)"
-      "\\([^\}]+\\)"
-      "\\(\}[\+]\\)")
-     '(1 general-font-lock-red1 t)
-     '(2 general-font-lock-red1 t)
-           '(3 general-font-lock-red1 t))
+      ;; superscript ---------
+      (list
+        (concat
+          "\\(\\^{\\)"
+          "\\([^}]+\\)"
+          "\\(}\\^\\)"
+        )
+        '(1 sisu-general-font-lock-red1 t)
+        '(2 sisu-general-font-lock-red1 t)
+        '(3 sisu-general-font-lock-red1 t)
+      )
 
-     ;; strike through
-     (list (concat
-      "\\(\\-\{\\)"
-      "\\([^\}]+\\)"
-      "\\(\}\\-\\)")
-     '(1 general-font-lock-red1 t)
-     '(2 general-font-lock-red1 t)
-           '(3 general-font-lock-red1 t))
+      ;; subscript -----------
+      (list
+        (concat
+          "\\([,]{\\)"
+          "\\([^}]+\\)"
+          "\\(}[,]\\)"
+        )
+        '(1 sisu-general-font-lock-red1 t)
+        '(2 sisu-general-font-lock-red1 t)
+        '(3 sisu-general-font-lock-red1 t)
+      )
 
-     ;; superscript
-     (list (concat
-      "\\(\\^\{\\)"
-      "\\([^\}]+\\)"
-      "\\(\}\\^\\)")
-     '(1 general-font-lock-red1 t)
-     '(2 general-font-lock-red1 t)
-           '(3 general-font-lock-red1 t))
+      ;; numbered list
+      (cons "^# \\|^_# "                'sisu-general-font-lock-red1)
 
-     ;; subscript
-     (list (concat
-      "\\([,]\{\\)"
-      "\\([^\}]+\\)"
-      "\\(\}[,]\\)")
-     '(1 general-font-lock-red1 t)
-     '(2 general-font-lock-red1 t)
-           '(3 general-font-lock-red1 t))
+      ;; bullet text
+      (cons "^_\\*[1-9] \\|^_\\* "      'sisu-general-font-lock-red1)
 
-     ;;numbered list
-     (cons "^# \\|^_# "                'general-font-lock-red1)
+      ;; indented text
+      (cons "^_[1-9] "                  'sisu-general-font-lock-red1)
+      (cons "^_[1-9]! "                 'sisu-general-font-lock-red1)
 
-     ;;bullet text
-     (cons "^_\\*[1-9] \\|^_\\* "      'general-font-lock-red1)
+      ;; hanging indented text [proposed enable when implemented]
+      (cons "^__[1-9] "                'sisu-general-font-lock-red1)
+      (cons "^_[0-9]_[0-9] "           'sisu-general-font-lock-red1)
+      (cons "^__[1-9]! "               'sisu-general-font-lock-red1)
+      (cons "^_[0-9]_[0-9]! "          'sisu-general-font-lock-red1)
 
-     ;;indented text
-     (cons "^_[1-9] "                  'general-font-lock-red1)
+      ;; url
+      (cons "\\(^\\|[ ]\\)http:[/][/][^ \t\n\r<]+" 'sisu-general-font-lock-blue2)
 
-     ;;url
-     (cons "\\(^\\|[ ]\\)http:[/][/][^ \t\n\r<]+" 'general-font-lock-blue2)
+      ;; Comment Lines
+      (cons "^% .*"                     'sisu-general-font-lock-blue1)
 
-;; \\|\$
+      ;; page break
+      (cons "^\\(-\\\\\\\\-\\|=\\\\\\\\=\\|-\\.\\.-\\)" 'sisu-general-font-lock-red2)
 
-     ;; Comment Lines
-     (cons "^% .*"                     'general-font-lock-blue1)
-     ;; line break
-     (cons "<br>"                      'general-font-lock-red1)
+      ;; line break
+      (cons " \\\\\\\\ "                'sisu-general-font-lock-red1)
 
-     ;; Section titles
-     (list "^\\(\\([1-8]\\|:?[A-C]\\)\\~\\)\\(.*\\)"
-     '(1 sisu-title-1 t)
-     '(3 sisu-title-2 t))
+      ;; line break (depreciated)
+      (cons "<br>"                      'sisu-general-font-lock-red1)
 
-     ;; hyper-links
-     (list (concat
-      "\\(\{~^\\|\{\\)"
-      "\\([^\}\{]+\\)"
-      "\\(\}http:[/][/][^ \r\n\t<]+\\)")
-     '(1 general-font-lock-blue2 t)
-     '(2 general-font-lock-red1 t)
-     '(3 general-font-lock-blue2 t))
+      ;; Section titles
+      (list "^\\(\\([1-4]\\|:?[A-D]\\)\\~\\)\\(.*\\)"
+        '(1 sisu-title-1 t)
+        '(3 sisu-title-2 t)
+      )
 
-     ;; book index
-     (cons "^\=\{.+\}"                 'general-font-lock-green1)
+      ;; hyper-links
+      (list
+        (concat
+          "\\({~^\\|{\\)"
+          "\\([^}{]+\\)"
+          "\\(}http:[/][/][^ \r\n\t<]+\\)"
+        )
+        '(1 sisu-general-font-lock-blue2 t)
+        '(2 sisu-general-font-lock-red1 t)
+        '(3 sisu-general-font-lock-blue2 t)
+      )
 
-     ;; numbers
-     (cons "\\<[.0-9]+\\>"             'general-font-lock-green2)
+      ;; book index
+      (list
+        (concat
+          "^\\(\={\\)"
+          "\\([^}{]+\\)"
+          "\\(}\\)$"
+        )
+        '(1 sisu-general-font-lock-green1 t)
+        '(2 nil t)
+        '(3 sisu-general-font-lock-green1 t)
+      )
 
-     ;; bullets sisu_normal (nearly copied regexp)
-     (cons "^_\\([1-9*]\\|[1-9]\\*\\) " 'general-font-lock-blue2)
+      ;(cons "^\={.+}"                 'sisu-general-font-lock-green1)
 
-     ;; image links
-     (list (concat
-      "\\(\{\\)"
-      "\\([^\}\{]+\\)"
-      "\\(\}image\\)")
-     '(1 general-font-lock-blue2 t)
-     '(2 general-font-lock-red1 t)
-           '(3 general-font-lock-blue2 t))
+      ;; numbers
+      (cons "\\<[.0-9]+\\>"             'sisu-general-font-lock-green2)
 
-     ;; insert file links
-     (list (concat
-      "\\(<< \\)"
-      "\\([^ \r\t\n]+\\.ss\\)"
-      "\\(i\\|t\\)")
-     '(1 general-font-lock-blue2 t)
-     '(2 general-font-lock-blue2 t)
-           '(3 general-font-lock-blue2 t))
+      ;; bullets sisu_normal (nearly copied regexp)
+      (cons "^_\\([1-9*]\\|[1-9]\\*\\) " 'sisu-general-font-lock-blue2)
 
-     ;; raw keywords
-     (list (concat
-      "^\\(\\@\\("
-      "title\\|"
-      "creator\\|"
-      "date\\|"
-      "publisher\\|"
-      "rights\\|"
-      "classify\\|"
-      "original\\|"
-      "notes\\|"
-      "links\\|"
-      "make\\|"
-      "\\):\\)\\(.*\\)")
-     '(1 sisu-title-2 keep)
-     '(3 sisu-title-3 keep))
+      ;; image links
+      (list
+        (concat
+          "\\({\\)"
+          "\\([^}{]+\\)"
+          "\\(}image\\)"
+        )
+        '(1 sisu-general-font-lock-blue2 t)
+        '(2 sisu-general-font-lock-red1 t)
+        '(3 sisu-general-font-lock-blue2 t)
+      )
 
-     ))
- "Default expressions to highlight in AsciiSisu mode.")
+      ;; insert file links
+      (list
+        (concat
+          "\\(<< \\)"
+          "\\([^ \r\t\n]+\\.ss\\)"
+          "\\(i\\|t\\)"
+        )
+        '(1 sisu-general-font-lock-blue2 t)
+        '(2 sisu-general-font-lock-blue2 t)
+        '(3 sisu-general-font-lock-blue2 t)
+      )
+
+      ;; raw keywords
+      (list
+        (concat
+          "^\\(\\@\\("
+          "creator\\|"
+          "title\\|"
+          "date\\|"
+          "rights\\|"
+          "publisher\\|"
+          "classify\\|"
+          "identifier\\|"
+          "original\\|"
+          "notes\\|"
+          "links\\|"
+          "make\\|"
+          "\\):\\)\\(.*\\)"
+        )
+        '(1 sisu-title-2 keep)
+        '(3 sisu-title-3 keep)
+      )
+    )
+  )
+  "Default expressions to highlight in AsciiSisu mode."
+)
+
+;; outline mode evil "folding" if available
+;; (define-key evil-normal-state-map ",0"   'show-all)
+;; (define-key evil-normal-state-map ",-"   'hide-body)
+;; (define-key evil-normal-state-map ",+"   'show-subtree)
+;; (define-key evil-normal-state-map ",="   'show-subtree)
 
 ;;}}}
 
@@ -338,10 +452,10 @@
 ;;;###autoload
 (define-derived-mode sisu-mode text-mode "SiSU"
   "Major mode for editing SiSU files.
-SiSU (http://www.sisudoc.org/) is a document structuring and
-publishing framework.  This major mode handles SiSU markup."
+SiSU document structuring, publishing in multiple formats and search.
+URL `http://www.sisudoc.org/'"
   (modify-syntax-entry ?\'  ".")
-  ;(flyspell-mode nil)
+  ;;(flyspell-mode nil)
 
   (make-local-variable 'paragraph-start)
   (setq paragraph-start (concat "$\\|>" page-delimiter))
@@ -350,19 +464,25 @@ publishing framework.  This major mode handles SiSU markup."
   (make-local-variable 'paragraph-ignore-fill-prefix)
   (setq paragraph-ignore-fill-prefix t)
 
+  (set (make-local-variable 'outline-regexp)
+       "^\\(\\([1-4]\\|:?[A-D]\\)\\~\\|\\@[a-z]+:\\( \\|$\\)\\)")
+
   (make-local-variable 'require-final-newline)
   (setq require-final-newline t)
 
   (make-local-variable 'font-lock-defaults)
   (setq font-lock-defaults
-  '(sisu-font-lock-keywords
-    nil        ; KEYWORDS-ONLY: no
-    nil        ; CASE-FOLD: no
-    ((?_ . "w"))      ; SYNTAX-ALIST
-    ))
-  (run-hooks 'sisu-mode-hook))
+        '(sisu-font-lock-keywords
+          nil                           ; KEYWORDS-ONLY: no
+          nil                           ; CASE-FOLD: no
+          ((?_ . "w"))                  ; SYNTAX-ALIST
+          ))
+  ;; Enable outlining.
+  ;; TODO with outlining make sure linum (line numbering) is off,
+  ;; else performance penalty, sucks bigtime
+  (outline-minor-mode 1))
 
-;;;###autoload (add-to-list 'auto-mode-alist '("\\.sisu\\'" . sisu-mode))
+;;;###autoload (add-to-list 'auto-mode-alist '("\\.ss[imt]\\'" . sisu-mode))
 
 (provide 'sisu-mode)
 

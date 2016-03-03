@@ -1,13 +1,13 @@
 ;;; wcheck-mode.el --- General interface for text checkers
 
-;; Copyright (C) 2009-2014  Free Software Foundation, Inc.
+;; Copyright (C) 2009-2016  Free Software Foundation, Inc.
 
 ;; Author: Teemu Likonen <tlikonen@iki.fi>
 ;; Maintainer: Teemu Likonen <tlikonen@iki.fi>
 ;; Created: 2009-07-04
 ;; URL: https://github.com/tlikonen/wcheck-mode
 ;; Keywords: text spell check languages ispell
-;; Version: 2014.6.21
+;; Version: 2016.1.30
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -58,7 +58,7 @@
 ;; actually any tool that can receive text from standard input stream
 ;; and send text to standard output can be used.  Wcheck mode sends parts
 ;; of buffer's content to an external program or an Emacs Lisp function
-;; and, based on their output, decides if some parts of text should be
+;; and, relying on their output, decides if some parts of text should be
 ;; marked in the buffer.
 
 ;;; Code:
@@ -892,7 +892,7 @@ otherwise turn it off. If ARG is not given toggle the mode.
 
 Wcheck is a minor mode for automatically checking and marking
 strings in Emacs buffer. Wcheck sends (parts of) buffer's content
-to a text-checker back-end and, based on its output, decides if
+to a text-checker back-end and, relying on its output, decides if
 some parts of text should be marked.
 
 Wcheck can be used with external spell-checker programs such as
@@ -1388,7 +1388,10 @@ areas, including invisible ones. Otherwise skip invisible text."
 
         (when font-lock-mode
           (save-excursion
-            (jit-lock-fontify-now (min beg end) (max beg end))))
+            (funcall (if (fboundp 'font-lock-ensure)
+                         #'font-lock-ensure
+                       #'font-lock-fontify-region)
+                     (min beg end) (max beg end))))
 
         (wcheck--with-language-data
             (language (wcheck--buffer-data-get :buffer buffer :language))
@@ -1415,7 +1418,7 @@ areas, including invisible ones. Otherwise skip invisible text."
                                      (match-beginning 1) 'invisible buffer
                                      end)))
 
-                        ((and (eval face-p)
+                        ((and (funcall face-p)
                               (or (equal regexp-discard "")
                                   (not (string-match
                                         regexp-discard
@@ -1475,7 +1478,7 @@ text."
                            (goto-char (next-single-char-property-change
                                        (match-beginning 1) 'invisible buffer
                                        end)))
-                          ((eval face-p)
+                          ((funcall face-p)
                            ;; Make an overlay.
                            (wcheck--make-overlay
                             buffer ol-face ol-mouse-face ol-help-echo ol-keymap
@@ -1933,16 +1936,18 @@ expression will return a boolean."
          (mode (nth 1 face-settings))
          (faces (nthcdr 2 face-settings)))
     (cond ((not font-lock-mode)
-           t)
+           (lambda () t))
           ((eq mode 'read)
-           `(wcheck--face-found-p
-             ',faces (wcheck--collect-faces
-                      (match-beginning 1) (match-end 1))))
+           `(lambda ()
+              (wcheck--face-found-p
+               ',faces (wcheck--collect-faces
+                        (match-beginning 1) (match-end 1)))))
           ((eq mode 'skip)
-           `(not (wcheck--face-found-p
-                  ',faces (wcheck--collect-faces
-                           (match-beginning 1) (match-end 1)))))
-          (t t))))
+           `(lambda ()
+              (not (wcheck--face-found-p
+                    ',faces (wcheck--collect-faces
+                             (match-beginning 1) (match-end 1))))))
+          (t (lambda () t)))))
 
 
 ;;; Miscellaneous low-level functions
@@ -2057,8 +2062,7 @@ The returned value is a floating point number."
          (high (nth 0 idle))
          (low (nth 1 idle))
          (micros (nth 2 idle)))
-    (+ (* high
-          (expt 2 16))
+    (+ (* high 65536)
        low
        (/ micros 1000000.0))))
 
@@ -2179,12 +2183,13 @@ But only if it doesn't exist already."
 If optional TARGET-KEY is not given return all data associated
 with the matching KEY VALUE."
   (catch 'answer
-    (dolist (item wcheck--buffer-data)
-      (when (equal value (aref item (wcheck--buffer-data-key-index key)))
-        (throw 'answer (if target-key
-                           (aref item (wcheck--buffer-data-key-index
-                                       target-key))
-                         item))))))
+    (let ((index (wcheck--buffer-data-key-index key)))
+      (dolist (item wcheck--buffer-data)
+        (when (equal value (aref item index))
+          (throw 'answer (if target-key
+                             (aref item (wcheck--buffer-data-key-index
+                                         target-key))
+                           item)))))))
 
 
 (defun wcheck--buffer-data-get-all (&optional key)

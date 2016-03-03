@@ -28,15 +28,21 @@
 ;;; Commentary:
 ;;
 ;; This package extends "generator.el" with higher-level functions.
+;;
+;;
+;; TODO:
+;;
+;; - hook ilists into seq.el via `cl-defgeneric'
+
 
 ;;; Code:
 
 
-(require 'cl-lib)
+(eval-when-compile (require 'cl-lib))
 (require 'generator)
 
 
-;; Basic stuff
+;;;; Basic stuff
 
 (defmacro iterator-make (&rest body)
   "Create an anonymous iterator.
@@ -44,7 +50,7 @@ This is equivalent to (funcall (iter-lambda () BODY...))"
   `(funcall (iter-lambda () ,@body)))
 
 
-;; Special simple iterators
+;;;; Special simple iterators
 
 (defun iterator-from-elts (&rest elements)
   "Return an iterator generating the ELEMENTS."
@@ -91,8 +97,43 @@ used between the numbers and defaults to 1."
              (iter-yield (prog1 i (cl-incf i inc))))))
       (iterator-make (while t (iter-yield (prog1 i (cl-incf i))))))))
 
+(iter-defun iterator-of-directory-files-1 (directory &optional match nosort recurse follow-links)
+  "Helper for `iterator-of-directory-files'."
+  (when (file-accessible-directory-p directory)
+    (let ((files (directory-files directory t match nosort))  file)
+      (while (setq file (pop files))
+        (cond
+         ((not (file-directory-p file))
+          (iter-yield file))
+         ((member (file-name-nondirectory (directory-file-name file))
+                  '("." "..")))
+         (t
+          (iter-yield file)
+          (when (and (or follow-links (not (file-symlink-p file)))
+                     (if (functionp recurse) (funcall recurse file) recurse))
+            (iter-yield-from (iterator-of-directory-files-1
+                              file match nosort recurse follow-links)))))))))
 
-;; Operations on iterators, transducers
+(defun iterator-of-directory-files (directory &optional full match nosort recurse follow-links)
+  "Return an iterator of names of files in DIRECTORY.
+Don't include files named \".\" or \"..\".  The arguments FULL,
+MATCH and NOSORT are like in `directory-files'.
+
+Optional argument RECURSE non-nil means recurse on
+subdirectories.  If RECURSE is a function, it should be a
+predicate accepting one argument, an absolute file name of a
+directory, and return non-nil when the returned iterator should
+recurse into that directory.  Any other non-nil value means
+recurse into every readable subdirectory.
+
+Even with recurse non-nil, don't descent into directories by
+following symlinks unless FOLLOW-LINKS is non-nil."
+  (iterator-map
+   (lambda (file) (if full file (file-relative-name file directory)))
+   (iterator-of-directory-files-1 directory match nosort recurse follow-links)))
+
+
+;;;; Operations on iterators, transducers
 
 (defun iterator-filter (predicate iterator)
   "Return an iterator filtering ITERATOR with PREDICATE.
@@ -174,7 +215,7 @@ returns an iterator of the factorials."
                    iterator))))
 
 
-;; Iteration
+;;;; Iteration
 
 (defun iterator-flush (iterator)
   "Request all elements from ITERATOR, for side effects only."
@@ -183,7 +224,7 @@ returns an iterator of the factorials."
     (iter-end-of-sequence nil)))
 
 
-;; Processing elements
+;;;; Processing elements
 
 (defun iterator-reduce (function init iterator)
   "Reduce two-argument FUNCTION across ITERATOR starting with INIT.
@@ -264,7 +305,7 @@ like `mapconcat', but for iterators."
                      (iterator-map function iterator))))
 
 
-;;; ILists - "Delayed" lists via iterators
+;;;; ILists - "Delayed" lists via iterators
 
 (defconst ilist--last-link-tag 'ilist--last-link-tag)
 
@@ -371,14 +412,14 @@ argument ilists are not modified."
 
 (defun ilist-setcar (ilist object)
   "Set the first element of ILIST to OBJECT.
-Error if ILIST is empty.  Returns OBJECT."
+Error if ILIST is empty.  Return OBJECT."
   (if (ilist-empty-p ilist)
       (signal 'empty-ilist nil)
     (setcar ilist object)))
 
 (defun ilist-setcdr (ilist newcdr)
   "Set the `ilist-cdr' of ILIST to NEWCDR.
-Error if ILIST is empty.  Returns NEWCDR."
+Error if ILIST is empty.  Return NEWCDR."
   (if (ilist-empty-p ilist)
       (signal 'empty-ilist nil)
     (setcdr ilist newcdr)))

@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013-2015  Free Software Foundation, Inc.
 
 ;; Author: Leo Liu <sdl.web@gmail.com>
-;; Version: 0.8.9
+;; Version: 0.8.11
 ;; Keywords: tools, convenience
 ;; Created: 2013-01-29
 ;; URL: https://github.com/leoliu/ggtags
@@ -36,10 +36,11 @@
 ;;
 ;; All commands are available from the `Ggtags' menu in `ggtags-mode'.
 
-;;; NEWS 0.8.9 (2015-01-16):
+;;; NEWS 0.8.11 (2015-12-15):
 
-;; - `ggtags-visit-project-root' can visit past projects.
-;; - `eldoc' support enabled for emacs 24.4+.
+;; - `ggtags-highlight-tag-delay' is renamed to `ggtags-highlight-tag'
+;; - Tag highlighting can be disabled by setting
+;;   `ggtags-highlight-tag' to nil.
 ;;
 ;; See full NEWS on https://github.com/leoliu/ggtags#news
 
@@ -206,6 +207,21 @@ isn't built with sqlite3 support."
   :safe 'booleanp
   :group 'ggtags)
 
+(defcustom ggtags-sort-by-nearness nil
+  "Sort tags by nearness to current directory.
+GNU Global 6.5+ required."
+  :type 'boolean
+  :safe #'booleanp
+  :group 'ggtags)
+
+(defcustom ggtags-update-on-save t
+  "Non-nil to update tags for current buffer on saving."
+  ;; It is reported that `global --single-update' can be slow in sshfs
+  ;; directories. See https://github.com/leoliu/ggtags/issues/85.
+  :safe #'booleanp
+  :type 'boolean
+  :group 'ggtags)
+
 (defcustom ggtags-global-output-format 'grep
   "Global output format: path, ctags, ctags-x, grep or cscope."
   :type '(choice (const path)
@@ -313,13 +329,17 @@ Nil means using the value of `completing-read-function'."
                  function)
   :group 'ggtags)
 
-(defcustom ggtags-highlight-tag-delay 0.25
-  "Time in seconds before highlighting tag at point."
+(define-obsolete-variable-alias 'ggtags-highlight-tag-delay 'ggtags-highlight-tag
+  "0.8.11")
+
+(defcustom ggtags-highlight-tag 0.25
+  "If non-nil time in seconds before highlighting tag at point.
+Set to `nil' to disable tag highlighting."
   :set (lambda (sym value)
-         (when (bound-and-true-p ggtags-highlight-tag-timer)
-           (timer-set-idle-time ggtags-highlight-tag-timer value t))
+         (when (fboundp 'ggtags-setup-highlight-tag-at-point)
+           (ggtags-setup-highlight-tag-at-point value))
          (set-default sym value))
-  :type 'number
+  :type '(choice (const :tag "Disable" nil) number)
   :group 'ggtags)
 
 (defcustom ggtags-bounds-of-tag-function (lambda ()
@@ -629,7 +649,7 @@ When called with a prefix \\[universal-argument], choose from past projects."
                           (ggtags-ensure-localname
                            (directory-file-name (ggtags-current-project-root)))))
             (process-environment
-             (append (let ((process-environment process-environment))
+             (append (let ((process-environment (copy-sequence process-environment)))
                        (and ,gtagsroot (setenv "GTAGSROOT" ,gtagsroot))
                        (mapcar #'substitute-env-vars ggtags-process-environment))
                      process-environment
@@ -685,7 +705,7 @@ If file gtags.files exists in ROOT, it should be a list of source
 files to index, which can be used to speed gtags up in large
 source trees. See Info node `(global)gtags' for details."
   (interactive "DRoot directory: ")
-  (let ((process-environment process-environment))
+  (let ((process-environment (copy-sequence process-environment)))
     (when (zerop (length root)) (error "No root directory provided"))
     (setenv "GTAGSROOT" (ggtags-ensure-localname
                          (expand-file-name
@@ -720,6 +740,16 @@ source trees. See Info node `(global)gtags' for details."
     (ggtags-invalidate-buffer-project-root (file-truename root))
     (message "GTAGS generated in `%s'" root)
     root))
+
+(defun ggtags-explain-tags ()
+  "Explain how each file is indexed in current project."
+  (interactive (ignore (ggtags-check-project)
+                       (or (ggtags-process-succeed-p "gtags" "--explain" "--help")
+                           (user-error "Global 6.4+ required"))))
+  (ggtags-check-project)
+  (ggtags-with-current-project
+    (let ((default-directory (ggtags-current-project-root)))
+      (compilation-start (concat (ggtags-program-path "gtags") " --explain")))))
 
 (defun ggtags-update-tags (&optional force)
   "Update GNU Global tag database.
@@ -850,6 +880,10 @@ blocking emacs."
                 (default (substring-no-properties default))
                 (t (ggtags-read-tag type t prompt require-match default))))))
 
+(defun ggtags-sort-by-nearness-p ()
+  (and ggtags-sort-by-nearness
+       (ggtags-process-succeed-p "global" "--nearness" "--help")))
+
 (defun ggtags-global-build-command (cmd &rest args)
   ;; CMD can be definition, reference, symbol, grep, idutils
   (let ((xs (append (list (shell-quote-argument (ggtags-program-path "global"))
@@ -860,6 +894,7 @@ blocking emacs."
                                (ggtags-find-project)
                                (ggtags-project-has-color (ggtags-find-project))
                                "--color=always")
+                          (and (ggtags-sort-by-nearness-p) "--nearness")
                           (and (ggtags-find-project)
                                (ggtags-project-has-path-style (ggtags-find-project))
                                "--path-style=shorter")
@@ -896,7 +931,8 @@ blocking emacs."
   (let* ((default-directory (or directory (ggtags-current-project-root)))
          (split-window-preferred-function ggtags-split-window-function)
          (env ggtags-process-environment))
-    (unless (markerp ggtags-global-start-marker)
+    (unless (and (markerp ggtags-global-start-marker)
+                 (marker-position ggtags-global-start-marker))
       (setq ggtags-global-start-marker (point-marker)))
     ;; Record the file name for `ggtags-navigation-start-file'.
     (setq ggtags-global-start-file buffer-file-name)
@@ -921,7 +957,8 @@ blocking emacs."
 
 (defun ggtags-find-tag (cmd &rest args)
   (ggtags-check-project)
-  (ggtags-global-start (apply #'ggtags-global-build-command cmd args)))
+  (ggtags-global-start (apply #'ggtags-global-build-command cmd args)
+                       (and (ggtags-sort-by-nearness-p) default-directory)))
 
 (defun ggtags-include-file ()
   "Calculate the include file based on `ggtags-include-pattern'."
@@ -961,13 +998,16 @@ definition tags."
         (not (ggtags-project-has-refs (ggtags-find-project)))
         (not (ggtags-project-file-p buffer-file-name)))
     (ggtags-find-definition name))
-   (t (ggtags-find-tag (format "--from-here=%d:%s"
-                               (line-number-at-pos)
-                               (shell-quote-argument
-                                ;; Note `ggtags-global-start' binds
-                                ;; default-directory to project root.
-                                (ggtags-project-relative-file buffer-file-name)))
-                       (shell-quote-argument name)))))
+   (t (ggtags-find-tag
+       (format "--from-here=%d:%s"
+               (line-number-at-pos)
+               (shell-quote-argument
+                ;; Note `ggtags-find-tag' may bind `default-directory'
+                ;; to project root.
+                (funcall (if (ggtags-sort-by-nearness-p)
+                             #'file-relative-name #'ggtags-project-relative-file)
+                         buffer-file-name)))
+       (shell-quote-argument name)))))
 
 (defun ggtags-find-tag-mouse (event)
   (interactive "e")
@@ -1585,19 +1625,23 @@ commands `next-error' and `previous-error'.
                 ggtags-auto-jump-to-match-target))
     (ggtags-forward-to-line ggtags-auto-jump-to-match-target)
     (setq-local ggtags-auto-jump-to-match-target nil)
-    ;;
-    ;; Can't call `compile-goto-error' here becuase
+    (ggtags-delay-finish-functions
+      (with-display-buffer-no-window
+        (condition-case nil
+            (let ((compilation-auto-jump-to-first-error t))
+              (compilation-auto-jump (current-buffer) (point)))
+          (error (message "\
+ggtags: history match invalid, jump to first match instead")
+                 (first-error)))))
     ;; `compilation-filter' restores point and as a result commands
     ;; dependent on point such as `ggtags-navigation-next-file' and
     ;; `ggtags-navigation-previous-file' fail to work.
-    (run-with-idle-timer 0 nil (lambda (buf pt)
-                                 (and (buffer-live-p buf)
-                                      (with-current-buffer buf
-                                        (ggtags-delay-finish-functions
-                                          (let ((compilation-auto-jump-to-first-error t))
-                                            (with-display-buffer-no-window
-                                              (compilation-auto-jump buf pt)))))))
-                         (current-buffer) (point)))
+    (run-with-idle-timer
+     0 nil
+     (lambda (buf pt)
+       (and (buffer-live-p buf)
+            (with-current-buffer buf (goto-char pt))))
+     (current-buffer) (point)))
   (make-local-variable 'ggtags-global-large-output)
   (when (> ggtags-global-output-lines ggtags-global-large-output)
     (cl-incf ggtags-global-large-output 500)
@@ -1937,7 +1981,7 @@ commands `next-error' and `previous-error'.
 (defun ggtags-after-save-function ()
   (when (ggtags-find-project)
     (ggtags-project-update-mtime-maybe)
-    (and buffer-file-name
+    (and buffer-file-name ggtags-update-on-save
          (ggtags-update-tags-single buffer-file-name 'nowait))))
 
 (defun ggtags-global-output (buffer cmds callback &optional cutoff)
@@ -1985,6 +2029,7 @@ When finished invoke CALLBACK in BUFFER with process exit status."
                             (delay-mode-hooks (funcall mode))
                             (setq font-lock-mode t)
                             (funcall font-lock-function font-lock-mode)
+                            (setq jit-lock-mode nil)
                             (current-buffer))))
               (with-current-buffer (prepare-buffer)
                 (let ((inhibit-read-only t))
@@ -2161,10 +2206,7 @@ to nil disables displaying this information.")
 ;;;###autoload
 (define-minor-mode ggtags-mode nil
   :lighter (:eval (if ggtags-navigation-mode "" " GG"))
-  (unless (timerp ggtags-highlight-tag-timer)
-    (setq ggtags-highlight-tag-timer
-          (run-with-idle-timer
-           ggtags-highlight-tag-delay t #'ggtags-highlight-tag-at-point)))
+  (ggtags-setup-highlight-tag-at-point ggtags-highlight-tag)
   (if ggtags-mode
       (progn
         (add-hook 'after-save-hook 'ggtags-after-save-function nil t)
@@ -2187,9 +2229,7 @@ to nil disables displaying this information.")
     (remove-function (local 'eldoc-documentation-function) 'ggtags-eldoc-function)
     (setq mode-line-buffer-identification
           (delq 'ggtags-mode-line-project-name mode-line-buffer-identification))
-    (and (overlayp ggtags-highlight-tag-overlay)
-         (delete-overlay ggtags-highlight-tag-overlay))
-    (setq ggtags-highlight-tag-overlay nil)))
+    (ggtags-cancel-highlight-tag-at-point 'keep-timer)))
 
 (defvar ggtags-highlight-tag-map
   (let ((map (make-sparse-keymap)))
@@ -2208,6 +2248,22 @@ to nil disables displaying this information.")
 ;; (put 'ggtags-active-tag 'mouse-face 'match)
 (put 'ggtags-active-tag 'help-echo
      "S-mouse-1 for definitions\nS-mouse-3 for references")
+
+(defun ggtags-setup-highlight-tag-at-point (flag)
+  (cond ((null flag) (ggtags-cancel-highlight-tag-at-point))
+        ((not (timerp ggtags-highlight-tag-timer))
+         (setq ggtags-highlight-tag-timer
+               (run-with-idle-timer flag t #'ggtags-highlight-tag-at-point)))
+        (t (timer-set-idle-time ggtags-highlight-tag-timer flag t))))
+
+(defun ggtags-cancel-highlight-tag-at-point (&optional keep-timer)
+  (when (and (not keep-timer)
+             (timerp ggtags-highlight-tag-timer))
+    (cancel-timer ggtags-highlight-tag-timer)
+    (setq ggtags-highlight-tag-timer nil))
+  (when ggtags-highlight-tag-overlay
+    (delete-overlay ggtags-highlight-tag-overlay)
+    (setq ggtags-highlight-tag-overlay nil)))
 
 (defun ggtags-highlight-tag-at-point ()
   (when (and ggtags-mode ggtags-project-root (ggtags-find-project))
@@ -2256,7 +2312,13 @@ to nil disables displaying this information.")
                   ;; Prevent multiple runs of ggtags-show-definition
                   ;; for the same tag.
                   (setq ggtags-eldoc-cache (list tag))
-                  (ggtags-show-definition tag)
+                  (condition-case err
+                      (ggtags-show-definition tag)
+                    (file-error
+                     (remove-function (local 'eldoc-documentation-function)
+                                      'ggtags-eldoc-function)
+                     (message "\
+Function `ggtags-eldoc-function' disabled for eldoc in current buffer: %S" err)))
                   nil))))))
 
 ;;; imenu
