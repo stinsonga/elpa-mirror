@@ -4,7 +4,6 @@
 
 ;; Author: "Francis J. Wright" <F.J.Wright@qmul.ac.uk>
 ;; Time-stamp: <23 August 2004>
-;; URL: http://centaur.maths.qmul.ac.uk/Emacs/
 ;; Version: 1.5
 ;; Keywords: convenience
 
