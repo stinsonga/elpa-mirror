@@ -590,7 +590,7 @@ matches the list (1 2 3 4 5 6 7 8 9) and binds `x' to (4 5 6)."
           (pred (lambda (,string)
                   (cl-every
                    (lambda (,regexp) (el-search--smart-string-match-p ,regexp ,string))
-                   (list ,@regexps)))))))
+                   ',regexps))))))
 
 (el-search-defpattern symbol (&rest regexps)
   "Matches any symbol whose name is matched by all REGEXPS."
