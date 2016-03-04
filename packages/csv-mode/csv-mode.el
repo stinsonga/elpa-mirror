@@ -1,8 +1,8 @@
 ;;; csv-mode.el --- Major mode for editing comma/char separated values  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2003, 2004, 2012, 2013, 2014, 2015  Free Software Foundation, Inc
+;; Copyright (C) 2003, 2004, 2012-2016  Free Software Foundation, Inc
 
-;; Author: Francis J. Wright <F.J.Wright at qmul.ac.uk>
+;; Author: "Francis J. Wright" <F.J.Wright@qmul.ac.uk>
 ;; Time-stamp: <23 August 2004>
 ;; URL: http://centaur.maths.qmul.ac.uk/Emacs/
 ;; Version: 1.5
