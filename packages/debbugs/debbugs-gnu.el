@@ -1666,6 +1666,17 @@ If given a prefix, patch in the branch directory instead."
    (switch-to-buffer "*vc-diff*")
    (other-window 1))
 
+(defun debbugs-gnu-save-cache ()
+  "Save the bugs cache to a file."
+  (interactive)
+  (unless debbugs-cache-data
+    (error "No data to cache"))
+  (unless (file-exists-p "~/.emacs.d/debbugs-cache")
+    (make-directory "~/.emacs.d/debbugs-cache" t))
+  (let ((coding-system-for-write 'utf-8))
+    (with-temp-file "~/.emacs.d/debbugs-cache/list"
+      (prin1 debbugs-cache-data (current-buffer)))))
+
 (provide 'debbugs-gnu)
 
 ;;; TODO:
