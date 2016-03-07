@@ -202,10 +202,9 @@ created with `yas-new-snippet'. "
 (defvaralias 'yas/root-directory 'yas-snippet-dirs)
 
 (defcustom yas-new-snippet-default "\
-# -*- mode: snippet; require-final-newline: nil -*-
+# -*- mode: snippet -*-
 # name: $1
-# key: ${2:${1:$(yas--key-from-desc yas-text)}}${3:
-# binding: ${4:direct-keybinding}}
+# key: ${2:${1:$(yas--key-from-desc yas-text)}}
 # --
 $0"
   "Default snippet to use when creating a new snippet.
@@ -213,8 +212,7 @@ If nil, don't use any snippet."
   :type 'string
   :group 'yasnippet)
 
-(defcustom yas-prompt-functions '(yas-x-prompt
-                                  yas-dropdown-prompt
+(defcustom yas-prompt-functions '(yas-dropdown-prompt
                                   yas-completing-prompt
                                   yas-maybe-ido-prompt
                                   yas-no-prompt)
@@ -3385,7 +3383,22 @@ Move the overlay, or create it if it does not exit."
     (overlay-put yas--active-field-overlay 'insert-behind-hooks
                  '(yas--on-field-overlay-modification))))
 
-(defun yas--on-field-overlay-modification (overlay after? _beg _end &optional _length)
+(defun yas--skip-and-clear-field-p (field _beg _end &optional _length)
+  "Tell if newly modified FIELD should be cleared and skipped.
+BEG, END and LENGTH like overlay modification hooks."
+  (and (not (yas--field-modified-p field))
+       (= (point) (yas--field-start field))
+       (require 'delsel)
+       ;; `yank' sets `this-command' to t during execution.
+       (let* ((command (if (commandp this-command) this-command
+                         this-original-command))
+              (clearp (if (symbolp command) (get command 'delete-selection))))
+         (when (and (not (memq clearp '(yank supersede kill)))
+                    (functionp clearp))
+           (setq clearp (funcall clearp)))
+         clearp)))
+
+(defun yas--on-field-overlay-modification (overlay after? beg end &optional length)
   "Clears the field and updates mirrors, conditionally.
 
 Only clears the field if it hasn't been modified and point is at
@@ -3401,9 +3414,7 @@ field start.  This hook does nothing if an undo is in progress."
                (yas--field-update-display field))
              (yas--update-mirrors snippet))
             (field
-             (when (and (eq this-command 'self-insert-command)
-                        (not (yas--field-modified-p field))
-                        (= (point) (yas--field-start field)))
+             (when (yas--skip-and-clear-field-p field beg end)
                (yas--skip-and-clear field))
              (setf (yas--field-modified-p field) t))))))
 
