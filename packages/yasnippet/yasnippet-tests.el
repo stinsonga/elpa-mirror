@@ -143,6 +143,36 @@
 ;;     (should (string= (yas--buffer-contents)
 ;;                      "brother from another mother!"))))
 
+(ert-deftest dont-clear-on-partial-deletion-issue-515 ()
+  "Ensure fields are not cleared when user doesn't really mean to."
+  (with-temp-buffer
+    (yas-minor-mode 1)
+    (yas-expand-snippet "my ${1:kid brother} from another ${2:mother}")
+
+    (ert-simulate-command '(kill-word 1))
+    (ert-simulate-command '(delete-char 1))
+
+    (should (string= (yas--buffer-contents)
+                     "my brother from another mother"))
+    (should (looking-at "brother"))
+
+    (ert-simulate-command '(yas-next-field))
+    (should (looking-at "mother"))
+    (ert-simulate-command '(yas-prev-field))
+    (should (looking-at "brother"))))
+
+(ert-deftest do-clear-on-yank-issue-515 ()
+  "A yank should clear an unmodified field."
+  (with-temp-buffer
+    (yas-minor-mode 1)
+    (yas-expand-snippet "my ${1:kid brother} from another ${2:mother}")
+    (yas-mock-yank "little sibling")
+    (should (string= (yas--buffer-contents)
+                     "my little sibling from another mother"))
+    (ert-simulate-command '(yas-next-field))
+    (ert-simulate-command '(yas-prev-field))
+    (should (looking-at "little sibling"))))
+
 
 ;;; Snippet expansion and character escaping
 ;;; Thanks to @zw963 (Billy) for the testing
@@ -828,6 +858,10 @@ add the snippets associated with the given mode."
   (dotimes (i (length string))
     (let ((last-command-event (aref string i)))
       (ert-simulate-command '(self-insert-command 1)))))
+
+(defun yas-mock-yank (string)
+  (let ((interprogram-paste-function (lambda () string)))
+    (ert-simulate-command '(yank nil))))
 
 (defun yas-make-file-or-dirs (ass)
   (let ((file-or-dir-name (car ass))
