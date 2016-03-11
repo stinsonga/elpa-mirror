@@ -389,6 +389,17 @@ of the definitions is limited to \"el-search\"."
   `(setf (alist-get ',name el-search--pcase-macros)
          (lambda ,args ,@body)))
 
+(defun el-search--macroexpand-1 (pattern)
+  "Expand \"el-search\" PATTERN.
+This is like `pcase--macroexpand', but expands only patterns
+defined with `el-search-defpattern' and performs only one
+expansion step.
+
+Return PATTERN if this pattern type was not defined with
+`el-search-defpattern'."
+  (if-let ((expander (alist-get (car-safe pattern) el-search--pcase-macros)))
+      (apply expander (cdr pattern))
+    pattern))
 
 (defmacro el-search--with-additional-pcase-macros (&rest body)
   `(cl-letf ,(mapcar (pcase-lambda (`(,symbol . ,fun))
