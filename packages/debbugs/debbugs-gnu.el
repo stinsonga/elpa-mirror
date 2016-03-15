@@ -148,6 +148,7 @@
 (autoload 'diff-goto-source "diff-mode")
 (autoload 'diff-hunk-file-names "diff-mode")
 (autoload 'gnus-article-mime-handles "gnus-art")
+(autoload 'gnus-fetch-field "gnus-util")
 (autoload 'gnus-read-ephemeral-emacs-bug-group "gnus-group")
 (autoload 'gnus-summary-article-header "gnus-sum")
 (autoload 'gnus-summary-select-article "gnus-sum")

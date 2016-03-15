@@ -5,7 +5,7 @@
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, hypermedia
 ;; Package: debbugs
-;; Version: 0.9
+;; Version: 0.9.1
 ;; Package-Requires: ((async "1.6"))
 
 ;; This file is not part of GNU Emacs.
@@ -442,11 +442,12 @@ Example:
 	    (when (stringp (cdr y))
 	      (setcdr y (mapcar
 			 'string-to-number (split-string (cdr y) " " t)))))
-	  ;; "originator" may be an xsd:base64Binary value containing
-	  ;; a UTF-8-encoded string.
-	  (dolist (attribute '(originator))
+	  ;; "subject", "originator", "owner" and "summary" may be an
+	  ;; xsd:base64Binary value containing a UTF-8-encoded string.
+	  (dolist (attribute '(subject originator owner summary))
 	    (setq y (assoc attribute (cdr (assoc 'value x))))
-	    (setcdr y (debbugs-convert-soap-value-to-string (cdr y))))
+	    (when (stringp (cdr y))
+	      (setcdr y (debbugs-convert-soap-value-to-string (cdr y)))))
 	  ;; "package" is a string, containing comma separated
 	  ;; package names.  "keywords" and "tags" are strings,
 	  ;; containing blank separated package names.
