@@ -264,6 +264,27 @@ patch:
   "Return the list of bug numbers, according to AMOUNT (a number) latest bugs."
   (sort (car (soap-invoke debbugs-wsdl debbugs-port "newest_bugs" amount)) '<))
 
+(defun debbugs-convert-soap-value-to-string (string-value)
+  "If STRING-VALUE is unibyte, decode its contents as a UTF-8 string.
+If STRING-VALUE is a multibyte string, then `soap-client'
+received an xsd:string for this value, and will have decoded it
+already.
+
+If STRING-VALUE is a unibyte string, then `soap-client' received
+an xsd:base64Binary, and ran `base64-decode-string' on it to
+produce a unibyte string of bytes.
+
+For some reason, the Debbugs server code base64-encodes strings
+that contain UTF-8 characters, and returns them as
+xsd:base64Binary, instead of just returning them as xsd:string.
+Therefore, when STRING-VALUE is a unibyte string, we assume its
+bytes represent a UTF-8 string and decode them accordingly."
+  (if (stringp string-value)
+      (if (not (multibyte-string-p string-value))
+	  (decode-coding-string string-value 'utf-8)
+	string-value)
+    (error "Invalid string value")))
+
 (defun debbugs-get-status (&rest bug-numbers)
   "Return a list of status entries for the bugs identified by BUG-NUMBERS.
 
@@ -421,6 +442,11 @@ Example:
 	    (when (stringp (cdr y))
 	      (setcdr y (mapcar
 			 'string-to-number (split-string (cdr y) " " t)))))
+	  ;; "originator" may be an xsd:base64Binary value containing
+	  ;; a UTF-8-encoded string.
+	  (dolist (attribute '(originator))
+	    (setq y (assoc attribute (cdr (assoc 'value x))))
+	    (setcdr y (debbugs-convert-soap-value-to-string (cdr y))))
 	  ;; "package" is a string, containing comma separated
 	  ;; package names.  "keywords" and "tags" are strings,
 	  ;; containing blank separated package names.
