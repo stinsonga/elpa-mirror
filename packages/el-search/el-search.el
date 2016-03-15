@@ -619,13 +619,10 @@ matches the list (1 2 3 4 5 6 7 8 9) and binds `x' to (4 5 6)."
   "Matches any string that is matched by all REGEXPS."
   (el-search--check-pattern-args 'string regexps #'el-search--stringish-p
                                  "Argument not a string")
-  (let ((string (make-symbol "string"))
-        (regexp (make-symbol "regexp")))
-    `(and (pred stringp)
-          (pred (lambda (,string)
-                  (cl-every
-                   (lambda (,regexp) (el-search--smart-string-match-p ,regexp ,string))
-                   ',regexps))))))
+  `(and (pred stringp)
+        ,@(mapcar (lambda (thing) `(pred (el-search--smart-string-match-p
+                                     ,(if (symbolp thing) (symbol-name thing) thing))))
+                  regexps)))
 
 (el-search-defpattern symbol (&rest regexps)
   "Matches any symbol whose name is matched by all REGEXPS."
