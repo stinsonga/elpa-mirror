@@ -264,6 +264,26 @@ done independently for every single matching operation.
 If nil, the value of `case-fold-search' is decisive."
   :type 'boolean)
 
+(defcustom el-search-use-sloppy-strings nil
+  "Whether to allow the usage of \"sloppy strings\".
+When this option is turned on, for faster typing you are allowed
+to specify symbols instead of strings as arguments to an
+\"el-search\" pattern type that would otherwise accept only
+strings, and their names will be used as input (with other words,
+this spares you to type the string delimiters in many cases).
+
+For example,
+
+  \(source ^cl\)
+
+is then equivalent to
+
+  \(source \"^cl\"\)
+
+When this option is off, the first form would just signal an
+error."
+  :type 'boolean)
+
 
 ;;;; Helpers
 
@@ -592,9 +612,13 @@ matches the list (1 2 3 4 5 6 7 8 9) and binds `x' to (4 5 6)."
                           (,'\, ,(car more-patterns)))))))
        (t `(append ,pattern (append ,@more-patterns)))))))
 
+(defun el-search--stringish-p (thing)
+  (or (stringp thing) (and el-search-use-sloppy-strings (symbolp thing))))
+
 (el-search-defpattern string (&rest regexps)
   "Matches any string that is matched by all REGEXPS."
-  (el-search--check-pattern-args 'string regexps #'stringp)
+  (el-search--check-pattern-args 'string regexps #'el-search--stringish-p
+                                 "Argument not a string")
   (let ((string (make-symbol "string"))
         (regexp (make-symbol "regexp")))
     `(and (pred stringp)
@@ -605,7 +629,8 @@ matches the list (1 2 3 4 5 6 7 8 9) and binds `x' to (4 5 6)."
 
 (el-search-defpattern symbol (&rest regexps)
   "Matches any symbol whose name is matched by all REGEXPS."
-  (el-search--check-pattern-args 'symbol regexps #'stringp)
+  (el-search--check-pattern-args 'symbol regexps #'el-search--stringish-p
+                                 "Argument not a string")
   `(and (pred symbolp)
         (app symbol-name (string ,@regexps))))
 
@@ -662,8 +687,9 @@ REGEXP can also be a symbol, in which case
   (concat \"^\" (symbol-name regexp) \"$\")
 
 is used as regular expression."
-  (el-search--check-pattern-args 'source (list regexp) #'stringp)
-  `(pred (el-search--match-symbol-file ,regexp)))
+  (el-search--check-pattern-args 'source (list regexp) #'el-search--stringish-p
+                                 "Argument not a string")
+  `(pred (el-search--match-symbol-file ,(if (symbolp regexp) (symbol-name regexp) regexp))))
 
 (defun el-search--match-key-sequence (keys expr)
   (when-let ((expr-keys (pcase expr
