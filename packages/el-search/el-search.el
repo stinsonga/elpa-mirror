@@ -65,7 +65,7 @@
 ;;   `(defvar ,_)
 ;;
 ;; you search for all defvar forms that don't specify an init value.
-;; 
+;;
 ;; The following will search for defvar forms with a docstring whose
 ;; first line is longer than 70 characters:
 ;;
@@ -163,7 +163,7 @@
 ;;    (define-key isearch-mode-map [(control ?%)] #'el-search-replace-from-isearch)
 ;;
 ;; The bindings in `isearch-mode-map' let you conveniently switch to
-;; elisp searching from isearch.
+;; "el-search" searching from isearch.
 ;;
 ;;
 ;; Bugs, Known Limitations
@@ -185,6 +185,8 @@
 ;;
 ;; the comment will be lost.
 ;;
+;; FIXME: when we have resumable sessions, pause and warn about this case.
+;;
 ;;
 ;;  Acknowledgments
 ;;  ===============
@@ -195,8 +197,12 @@
 ;; TODO:
 ;;
 ;; - detect infloops when replacing automatically (e.g. for 1 -> '(1))
+;;   Should we just fall back to interactive mode?
 ;;
 ;; - implement backward searching
+;;
+;; - Make `el-search-pattern' accept an &optional limit, at least for
+;;   the non-interactive use case?
 ;;
 ;; - improve docstrings
 ;;
@@ -345,6 +351,7 @@ error."
 Don't move if already at beginning of a sexp.  Point must not be
 inside a string or comment.  `read' the expression at that point
 and return it."
+  ;; This doesn't catch end-of-buffer to keep the return value non-ambiguous
   (let ((not-done t) res)
     (while not-done
       (let ((stop-here nil)
@@ -680,7 +687,7 @@ of any kind matched by all PATTERNs are also matched.
    ((null (cdr patterns))
     (let ((pattern (car patterns)))
       `(app ,(apply-partially #'el-search--contains-p (el-search--matcher pattern))
-            (,'\`  (t (,'\, ,pattern))))))
+            (,'\` (t (,'\, ,pattern))))))
    (t `(and ,@(mapcar (lambda (pattern) `(contains ,pattern)) patterns)))))
 
 (el-search-defpattern not (pattern)
@@ -1003,7 +1010,7 @@ Hit any key to proceed."
                                 nil)
                             ((or ?q ?\C-g)
                              (setq done t)
-                                t)
+                             t)
                             (?? (ignore (read-char el-search-search-and-replace-help-string))
                                 nil)))))
             (unless (or done (eobp)) (el-search--skip-expression nil t)))))
