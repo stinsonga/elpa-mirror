@@ -977,7 +977,7 @@ Hit any key to proceed."
                 (funcall do-replace)
               (while (not (pcase (if replaced-this
                                      (read-char-choice "[SPC ! q]  (? for help)"
-                                                       '(?\ ?! ?q ?n ??))
+                                                       '(?\ ?! ?q ?\C-g ?n ??))
                                    (read-char-choice
                                     (concat "Replace this occurrence"
                                             (if (or (string-match-p "\n" to-insert)
@@ -986,7 +986,7 @@ Hit any key to proceed."
                                             "? "
                                             (if splice "{splice} " "")
                                             "[y SPC r ! s q]  (? for help)" )
-                                    '(?y ?n ?r ?\ ?! ?q ?s ??)))
+                                    '(?y ?n ?r ?\ ?! ?q ?\C-g ?s ??)))
                             (?r (funcall do-replace)
                                 nil)
                             (?y (funcall do-replace)
@@ -1001,7 +1001,8 @@ Hit any key to proceed."
                             (?s (cl-callf not splice)
                                 (setq to-insert (funcall get-replacement-string))
                                 nil)
-                            (?q (setq done t)
+                            ((or ?q ?\C-g)
+                             (setq done t)
                                 t)
                             (?? (ignore (read-char el-search-search-and-replace-help-string))
                                 nil)))))
