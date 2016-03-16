@@ -546,11 +546,11 @@ return nil (no error)."
 
 (defun el-search--check-pattern-args (type args predicate &optional message)
   "Check whether all ARGS fulfill PREDICATE.
-Raise an error if not.  TYPE and optional argument MESSAGE are
-used to construct the error message."
+Raise an error if not.  The string arguments TYPE and optional
+MESSAGE are used to construct the error message."
   (mapc (lambda (arg)
           (unless (funcall predicate arg)
-            (error (concat "Pattern `%S': "
+            (error (concat "Pattern `%s': "
                            (or message (format "argument doesn't fulfill %S" predicate))
                            ": %S")
                    type arg)))
@@ -617,7 +617,7 @@ matches the list (1 2 3 4 5 6 7 8 9) and binds `x' to (4 5 6)."
 
 (el-search-defpattern string (&rest regexps)
   "Matches any string that is matched by all REGEXPS."
-  (el-search--check-pattern-args 'string regexps #'el-search--stringish-p
+  (el-search--check-pattern-args "string" regexps #'el-search--stringish-p
                                  "Argument not a string")
   `(and (pred stringp)
         ,@(mapcar (lambda (thing) `(pred (el-search--smart-string-match-p
@@ -626,7 +626,7 @@ matches the list (1 2 3 4 5 6 7 8 9) and binds `x' to (4 5 6)."
 
 (el-search-defpattern symbol (&rest regexps)
   "Matches any symbol whose name is matched by all REGEXPS."
-  (el-search--check-pattern-args 'symbol regexps #'el-search--stringish-p
+  (el-search--check-pattern-args "symbol" regexps #'el-search--stringish-p
                                  "Argument not a string")
   `(and (pred symbolp)
         (app symbol-name (string ,@regexps))))
@@ -684,7 +684,7 @@ REGEXP can also be a symbol, in which case
   (concat \"^\" (symbol-name regexp) \"$\")
 
 is used as regular expression."
-  (el-search--check-pattern-args 'source (list regexp) #'el-search--stringish-p
+  (el-search--check-pattern-args "source" (list regexp) #'el-search--stringish-p
                                  "Argument not a string")
   `(pred (el-search--match-symbol-file ,(if (symbolp regexp) (symbol-name regexp) regexp))))
 
@@ -716,7 +716,7 @@ matches any of these expressions:
     [(control ?s)]"
   (when (eq (car-safe key-sequence) 'kbd)
     (setq key-sequence (kbd (cadr key-sequence))))
-  (el-search--check-pattern-args 'keys (list key-sequence) (lambda (x) (or (stringp x) (vectorp x)))
+  (el-search--check-pattern-args "keys" (list key-sequence) (lambda (x) (or (stringp x) (vectorp x)))
                                  "argument not a string or vector")
   `(pred (el-search--match-key-sequence ,key-sequence)))
 
