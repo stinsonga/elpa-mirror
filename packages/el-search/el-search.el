@@ -194,12 +194,6 @@
 ;;
 ;; TODO:
 ;;
-;; - When replacing like (progn A B C) -> A B C, the layout of the
-;; whole "group" A B C as a unit is lost.  Instead of restoring layout
-;; as we do now (via "read mappings"), we could just make a backup of
-;; the original expression as a string, and use our search machinery
-;; to find occurrences in the replacement recursively.
-;;
 ;; - detect infloops when replacing automatically (e.g. for 1 -> '(1))
 ;;
 ;; - implement backward searching
@@ -501,48 +495,78 @@ point.  Optional second argument, if non-nil, means if fail just
 return nil (no error)."
   (el-search--search-pattern-1 (el-search--matcher pattern) noerror))
 
-(defun el-search--do-subsexps (pos do-fun &optional ret-fun bound)
-  ;; In current buffer, for any expression start between POS and BOUND
-  ;; or (point-max), in order, call two argument function DO-FUN with
-  ;; the current sexp string and the ending position of the current
-  ;; sexp.  When done, with RET-FUN given, call it with no args and
-  ;; return the result; else, return nil.
-  (save-excursion
-    (goto-char pos)
-    (condition-case nil
-        (while (< (point) (or bound (point-max)))
-          (let* ((this-sexp-end (save-excursion (thing-at-point--end-of-sexp) (point)))
-                 (this-sexp-string (buffer-substring-no-properties (point) this-sexp-end)))
-            (funcall do-fun this-sexp-string this-sexp-end)
-            (el-search--skip-expression (read this-sexp-string))
-            (el-search--ensure-sexp-start)))
-      (end-of-buffer))
-    (when ret-fun (funcall ret-fun))))
-
-(defun el-search--create-read-map (&optional pos)
-  (let ((mapping '()))
-    (el-search--do-subsexps
-     (or pos (point))
-     (lambda (sexp _) (push (cons (read sexp) sexp) mapping))
-     (lambda () (nreverse mapping))
-     (save-excursion (thing-at-point--end-of-sexp) (point)))))
-
-(defun el-search--repair-replacement-layout (printed mapping)
-  (with-temp-buffer
-    (insert printed)
-    (el-search--do-subsexps
-     (point-min)
-     (lambda (sexp sexp-end)
-       (when-let ((old (cdr (assoc (read sexp) mapping))))
-         (delete-region (point) sexp-end)
-         (when (string-match-p "\n" old)
-           (unless (looking-back "^[[:space:]]*" (line-beginning-position))
-             (insert "\n"))
-           (unless (looking-at "[[:space:]\)]*$")
-             (insert "\n")
-             (backward-char)))
-         (save-excursion (insert old))))
-     (lambda () (buffer-substring (point-min) (point-max))))))
+(defun el-search--format-replacement (replacement original replace-expr-input splice)
+  ;; Return a printed representation of REPLACEMENT.  Try to reuse the
+  ;; layout of subexpressions shared with the original (replaced)
+  ;; expression and the replace expression.
+  (if (and splice (not (listp replacement)))
+      (error "Expression to splice in is an atom")
+    (let ((orig-buffer (generate-new-buffer "orig-expr")))
+      (with-current-buffer orig-buffer
+        (emacs-lisp-mode)
+        (insert original)
+        (when replace-expr-input (insert "\n\n" replace-expr-input)))
+      (unwind-protect
+          (with-temp-buffer
+            (emacs-lisp-mode)
+            (insert (if splice
+                        (mapconcat #'el-search--print replacement " ")
+                      (el-search--print replacement)))
+            (goto-char 1)
+            (let (start this-sexp end orig-match-start orig-match-end done)
+              (while (and (< (point) (point-max))
+                          (condition-case nil
+                              (progn
+                                (setq start (point)
+                                      this-sexp (read (current-buffer))
+                                      end   (point))
+                                t)
+                            (end-of-buffer nil)))
+                (setq done nil orig-match-start nil)
+                (with-current-buffer orig-buffer
+                  (goto-char 1)
+                  (if (el-search--search-pattern `',this-sexp t)
+                      (setq orig-match-start (point)
+                            orig-match-end (progn (forward-sexp) (point)))
+                    (setq done t)))
+                ;; find out whether we have a sequence of equal expressions
+                (while (and (not done)
+                            (condition-case nil
+                                (progn (setq this-sexp (read (current-buffer))) t)
+                              ((invalid-read-syntax end-of-buffer end-of-file) nil)))
+                  (if (with-current-buffer orig-buffer
+                        (condition-case nil
+                            (if (not (equal this-sexp (read (current-buffer))))
+                                nil
+                              (setq orig-match-end (point))
+                              t)
+                          ((invalid-read-syntax end-of-buffer end-of-file) nil)))
+                      (setq end (point))
+                    (setq done t)))
+                (if orig-match-start
+                    (let ((match (with-current-buffer orig-buffer
+                                   (buffer-substring-no-properties orig-match-start
+                                                                   orig-match-end))))
+                      (delete-region start end)
+                      (goto-char start)
+                      (when (string-match-p "\n" match)
+                        (unless (looking-back "^[[:space:]\(]*" (line-beginning-position))
+                          (insert "\n"))
+                        (unless (looking-at "[[:space:]\)]*$")
+                          (insert "\n")
+                          (backward-char)))
+                      (insert match))
+                  (goto-char start)
+                  (el-search--skip-expression nil t))
+                (condition-case nil
+                    (el-search--ensure-sexp-start)
+                  (end-of-buffer (goto-char (point-max))))))
+            (delete-trailing-whitespace (point-min) (point-max)) ;FIXME: this should not be necessary
+            (let ((result (buffer-substring (point-min) (point-max))))
+              (if (equal replacement (read result))
+                  result
+                (error "Error in `el-search--format-replacement' - please make a bug report"))))
+        (kill-buffer orig-buffer)))))
 
 (defun el-search--check-pattern-args (type args predicate &optional message)
   "Check whether all ARGS fulfill PREDICATE.
@@ -919,7 +943,7 @@ s         Toggle splicing mode.  When splicing mode is
 Hit any key to proceed."
   "Help string for ? in `el-search-query-replace'.")
 
-(defun el-search-search-and-replace-pattern (pattern replacement &optional mapping splice)
+(defun el-search-search-and-replace-pattern (pattern replacement &optional splice to-input-string)
   (let ((replace-all nil) (nbr-replaced 0) (nbr-skipped 0) (done nil)
         (el-search-keep-hl t) (opoint (point))
         (get-replacement (el-search--matcher pattern replacement)))
@@ -930,20 +954,13 @@ Hit any key to proceed."
             (el-search-hl-sexp)
             (unless (eq this-command last-command)
               (el-search-hl-other-matches pattern)))
-          (let* ((read-mapping (el-search--create-read-map))
-                 (region (list (point) (el-search--end-of-sexp)))
+          (let* ((region (list (point) (el-search--end-of-sexp)))
                  (substring (apply #'buffer-substring-no-properties region))
                  (expr      (read substring))
                  (replaced-this nil)
                  (new-expr  (funcall get-replacement expr))
                  (get-replacement-string
-                  (lambda () (if (and splice (not (listp new-expr)))
-                            (error "Expression to splice in is an atom")
-                          (el-search--repair-replacement-layout
-                           (if splice
-                               (mapconcat #'el-search--print new-expr " ")
-                             (el-search--print new-expr))
-                           (append mapping read-mapping)))))
+                  (lambda () (el-search--format-replacement new-expr substring to-input-string splice)))
                  (to-insert (funcall get-replacement-string))
                  (do-replace (lambda ()
                                (atomic-change-group
@@ -1001,19 +1018,16 @@ Hit any key to proceed."
   (let* ((from (el-search--read-pattern "Replace from: "))
          (to   (let ((el-search--initial-mb-contents nil))
                  (el-search--read-pattern "Replace with result of evaluation of: " from))))
-    (list (el-search--wrap-pattern (read from)) (read to)
-          (with-temp-buffer
-            (insert to)
-            (el-search--create-read-map 1)))))
+    (list (el-search--wrap-pattern (read from)) (read to) to)))
 
 ;;;###autoload
-(defun el-search-query-replace (from to &optional mapping)
+(defun el-search-query-replace (from to &optional to-input-string)
   "Replace some occurrences of FROM pattern with evaluated TO."
   (interactive (el-search-query-replace-read-args))
   (setq this-command 'el-search-query-replace) ;in case we come from isearch
   (setq el-search-current-pattern from)
   (barf-if-buffer-read-only)
-  (el-search-search-and-replace-pattern from to mapping))
+  (el-search-search-and-replace-pattern from to nil to-input-string))
 
 (defun el-search--take-over-from-isearch (&optional goto-left-end)
   (let ((other-end (and goto-left-end isearch-other-end))
