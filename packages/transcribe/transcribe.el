@@ -3,7 +3,7 @@
 ;; Copyright 2014-2015  Free Software Foundation, Inc.
 
 ;; Author: David Gonzalez Gandara <dggandara@member.fsf.org>
-;; Version: 1.3.0
+;; Version: 1.5.0
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -254,8 +254,7 @@
     (princ (format "episode: %s, duration: %s, person: %s\n" episodenumber duration personid))
     (save-excursion
       (set-buffer "Statistics Output") 
-      (insert (format "%s,%s,%s,0,0,%s,%s,%s,%s,%s,QUAN-L2,segmented,aux,level,subject,yearofclil,month\n" personid episodenumber duration role context demand asunitspersecondl2 asunitspersecondl1))
-    )
+      (insert (format "%s,%s,%s,0,0,%s,%s,%s,%s,%s,QUAN-L2,segmented,aux,level,subject,yearofclil,month\n" personid episodenumber duration role context demand asunitspersecondl2 asunitspersecondl1)))
     (princ (format "L2(Asunits/second): %s, L2(clauses/Asunit): %s, L2(errors/Asunit):%s, L1(Asunits/second): %s\n" 
           asunitspersecondl2 clausesperasunitl2 errorsperasunitl2 asunitspersecondl1))
     (princ (format "Functions/unit: Initiating: %s, Responding: %s, Control: %s, Expressive: %s, Interpersonal: %s" initiatingperasunitl2 respondingperasunitl2 controlperasunitl2 expressiveperasunitl2 interpersonalperasunitl2)))))
@@ -353,8 +352,22 @@
 
 
 (defvar transcribe-mode-map
-  (let ((map (make-sparse-keymap)))
+   (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-x C-p") 'transcribe-play-file)
     (define-key map (kbd "C-x C-a") 'transcribe-analyze)
+    (define-key map (kbd "C-x C-n") 'NewEpisode)
+    (define-key map (kbd "C-x <down>") 'emms-stop)
+    (define-key map (kbd "C-x <right>") 'emms-seek-forward)
+    (define-key map (kbd "C-x <left>") 'emms-seek-backward)
+    (define-key map (kbd "<f2>") 'transcribe-add-attribute-move)
+    (define-key map (kbd "<f3>") 'transcribe-add-attribute-function)
+    (define-key map (kbd "<f4>") 'transcribe-add-attribute)
+    (define-key map (kbd "<f5>") 'emms-pause)
+    (define-key map (kbd "<f8>") 'emms-seek)
+    (define-key map (kbd "<f9>") 'transcribe-xml-tag)
+    (define-key map (kbd "<f10>") 'transcribe-xml-tag-person)
+    (define-key map (kbd "<f11>") 'transcribe-xml-l1)
+    (define-key map (kbd "<f12>") 'transcribe-xml-l2)
     map)
   "Keymap for Transcribe minor mode.")
 
@@ -366,6 +379,15 @@
     "---"
     ["Analyze" transcribe-analyze]
     ["Analyze all" arbitools-analyze-all]
+    "---"
+    ["Add transcription header" NewEpisode]
+    ["Add move attribute" transcribe-add-attribute-move]
+    ["Add function attribute" transcribe-add-attribute-function]
+    ["Add L1 intervention" transcribe-xml-l1]
+    ["Add L2 intervention" transcribe-xml-l2]
+    ["Add move" transcribe-xml-tag-person]
+    "---"
+    ["Play audio file" transcribe-play-file]
     ))
 
 
@@ -374,24 +396,7 @@
  "Toggle transcribe-mode"
   nil
   " Trans"
-  '(([?\C-x ?\C-p] . emms-play-file)
-    ([?\C-x ?\C-a] . transcribe-analyze)
-    ([?\C-x ?\C-n] . NewEpisode)
-    ([?\C-x down] . emms-stop)
-    ([?\C-x right] . emms-seek-forward)
-    ([?\C-x left] . emms-seek-backward)
-    
-    ([f2] . transcribe-add-attribute-function)
-    ([f3] . transcribe-add-attribute-move)
-    ([f4] . transcribe-add-attribute)
-    
-    ([f5] . emms-pause)
-    ([f8] . emms-seek)
-   
-    ([f9] . transcribe-xml-tag)
-    ([f10] . transcribe-xml-tag-person)
-    ([f11] . transcribe-xml-tag-l1)
-    ([f12] . transcribe-xml-tag-l2))
+  transcribe-mode-map
   (generate-new-buffer "Statistics Output")
   (generate-new-buffer "Raw Output")
   (save-excursion
