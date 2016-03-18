@@ -196,9 +196,6 @@
 ;;
 ;; TODO:
 ;;
-;; - detect infloops when replacing automatically (e.g. for 1 -> '(1))
-;;   Should we just fall back to interactive mode?
-;;
 ;; - implement backward searching
 ;;
 ;; - Make `el-search-pattern' accept an &optional limit, at least for
@@ -953,7 +950,8 @@ Hit any key to proceed."
 (defun el-search-search-and-replace-pattern (pattern replacement &optional splice to-input-string)
   (let ((replace-all nil) (nbr-replaced 0) (nbr-skipped 0) (done nil)
         (el-search-keep-hl t) (opoint (point))
-        (get-replacement (el-search--matcher pattern replacement)))
+        (get-replacement (el-search--matcher pattern replacement))
+        (skip-matches-in-replacement 'ask))
     (unwind-protect
         (while (and (not done) (el-search--search-pattern pattern t))
           (setq opoint (point))
@@ -969,6 +967,16 @@ Hit any key to proceed."
                  (get-replacement-string
                   (lambda () (el-search--format-replacement new-expr substring to-input-string splice)))
                  (to-insert (funcall get-replacement-string))
+                 (replacement-contains-another-match
+                  (with-temp-buffer
+                    (emacs-lisp-mode)
+                    (insert to-insert)
+                    (goto-char 1)
+                    (el-search--skip-expression new-expr)
+                    (condition-case nil
+                        (progn (el-search--ensure-sexp-start)
+                               (el-search--search-pattern pattern t))
+                      (end-of-buffer nil))))
                  (do-replace (lambda ()
                                (atomic-change-group
                                  (apply #'delete-region region)
@@ -1013,7 +1021,26 @@ Hit any key to proceed."
                              t)
                             (?? (ignore (read-char el-search-search-and-replace-help-string))
                                 nil)))))
-            (unless (or done (eobp)) (el-search--skip-expression nil t)))))
+            (unless (or done (eobp))
+              (cond
+               ((not (and replaced-this replacement-contains-another-match))
+                (el-search--skip-expression nil t))
+               ((eq skip-matches-in-replacement 'ask)
+                (if (setq skip-matches-in-replacement
+                          (yes-or-no-p "Match in replacement - always skip? "))
+                    (forward-sexp)
+                  (el-search--skip-expression nil t)
+                  (when replace-all
+                    (setq replace-all nil)
+                    (message "Falling back to interactive mode")
+                    (sit-for 3.))))
+               (skip-matches-in-replacement (forward-sexp))
+               (t
+                (el-search--skip-expression nil t)
+                (message "Replacement contains another match%s"
+                         (if replace-all " - falling back to interactive mode" ""))
+                (setq replace-all nil)
+                (sit-for 3.)))))))
     (el-search-hl-remove)
     (goto-char opoint)
     (message "Replaced %d matches%s"
