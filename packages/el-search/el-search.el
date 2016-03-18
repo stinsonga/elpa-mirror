@@ -1023,19 +1023,26 @@ Hit any key to proceed."
 
 (defun el-search-query-replace-read-args ()
   (barf-if-buffer-read-only)
-  (let* ((from (el-search--read-pattern "Replace from: "))
+  (let* ((from (el-search--read-pattern "Query replace pattern: "))
          (to   (let ((el-search--initial-mb-contents nil))
                  (el-search--read-pattern "Replace with result of evaluation of: " from))))
     (list (el-search--wrap-pattern (read from)) (read to) to)))
 
 ;;;###autoload
-(defun el-search-query-replace (from to &optional to-input-string)
-  "Replace some occurrences of FROM pattern with evaluated TO."
+(defun el-search-query-replace (from-pattern to-expr &optional textual-to)
+  "Replace some matches of \"el-search\" pattern FROM-PATTERN.
+
+TO-EXPR is an Elisp expression that is evaluated repeatedly for
+each match with bindings created in FROM-PATTERN in effect to
+produce a replacement expression.
+
+As each match is found, the user must type a character saying
+what to do with it.  For directions, type ? at that time."
   (interactive (el-search-query-replace-read-args))
   (setq this-command 'el-search-query-replace) ;in case we come from isearch
-  (setq el-search-current-pattern from)
+  (setq el-search-current-pattern from-pattern)
   (barf-if-buffer-read-only)
-  (el-search-search-and-replace-pattern from to nil to-input-string))
+  (el-search-search-and-replace-pattern from-pattern to-expr nil textual-to))
 
 (defun el-search--take-over-from-isearch (&optional goto-left-end)
   (let ((other-end (and goto-left-end isearch-other-end))
