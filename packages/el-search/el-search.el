@@ -332,6 +332,9 @@ error."
     (read-from-minibuffer prompt initial-contents el-search-read-expression-map read
                           (or hist 'read-expression-history) default)))
 
+(defvar el-search-history '()
+  "List of input strings.")
+
 (defvar el-search--initial-mb-contents nil)
 
 (defun el-search--read-pattern (prompt &optional default read)
@@ -583,6 +586,10 @@ MESSAGE are used to construct the error message."
                            ": %S")
                    type arg)))
         args))
+
+(defvar el-search-current-pattern nil)
+
+(defvar el-search-success nil)
 
 
 ;;;; Additional pattern type definitions
@@ -927,12 +934,6 @@ You need `diff-hl-mode' turned on, provided by the library
 
 
 ;;;; Core functions
-
-(defvar el-search-history '()
-  "List of input strings.")
-
-(defvar el-search-success nil)
-(defvar el-search-current-pattern nil)
 
 ;;;###autoload
 (defun el-search-pattern (pattern)
