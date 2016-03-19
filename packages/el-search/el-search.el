@@ -803,6 +803,56 @@ could use this pattern:
                 lpats)
              ,@(if match-end '() '(_)))))
 
+(el-search-defpattern char-prop (property)
+  "Matches the object if completely covered with PROPERTY.
+This pattern matches the object if its representation in the
+search buffer is completely covered with the character property
+PROPERTY.
+
+This pattern always tests the complete expression in the search
+buffer, it is not possible to test subexpressions calculated in
+the search pattern."
+  `(guard (and (get-char-property (point) ',property)
+               ,(macroexp-let2 nil limit '(scan-sexps (point) 1)
+                  `(= (next-single-char-property-change
+                       (point) ',property nil ,limit)
+                      ,limit)))))
+
+(el-search-defpattern includes-prop (property)
+  "Matches the object if partly covered with PROPERTY.
+This pattern matches the object if its representation in the
+search buffer is partly covered with the character property
+PROPERTY.
+
+This pattern always tests the complete expression in the search
+buffer, it is not possible to test subexpressions calculated in
+the search pattern."
+  `(guard (or (get-char-property (point) ',property)
+              ,(macroexp-let2 nil limit '(scan-sexps (point) 1)
+                 `(not (= (next-single-char-property-change
+                           (point) ',property nil ,limit)
+                          ,limit))))))
+
+(el-search-defpattern change ()
+  "Matches the object if it is part of a change.
+This is equivalent to (char-prop diff-hl-hunk).
+
+You need `diff-hl-mode' turned on, provided by the library
+\"diff-hl\" available in Gnu Elpa."
+  (or (bound-and-true-p diff-hl-mode)
+      (error "diff-hl-mode not enabled"))
+  '(char-prop diff-hl-hunk))
+
+(el-search-defpattern changed ()
+  "Matches the object if it contains a change.
+This is equivalent to (includes-prop diff-hl-hunk).
+
+You need `diff-hl-mode' turned on, provided by the library
+\"diff-hl\" available in Gnu Elpa."
+  (or (bound-and-true-p diff-hl-mode)
+      (error "diff-hl-mode not enabled"))
+  '(includes-prop diff-hl-hunk))
+
 
 ;;;; Highlighting
 
