@@ -1112,7 +1112,8 @@ Hit any key to proceed."
 
 TO-EXPR is an Elisp expression that is evaluated repeatedly for
 each match with bindings created in FROM-PATTERN in effect to
-produce a replacement expression.
+produce a replacement expression.  Operate from point
+to (point-max).
 
 As each match is found, the user must type a character saying
 what to do with it.  For directions, type ? at that time."
