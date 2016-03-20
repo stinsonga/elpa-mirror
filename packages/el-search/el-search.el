@@ -947,7 +947,7 @@ s         Toggle splicing mode.  When splicing mode is
 Hit any key to proceed."
   "Help string for ? in `el-search-query-replace'.")
 
-(defun el-search-search-and-replace-pattern (pattern replacement &optional splice to-input-string)
+(defun el-search--search-and-replace-pattern (pattern replacement &optional splice to-input-string)
   (let ((replace-all nil) (nbr-replaced 0) (nbr-skipped 0) (done nil)
         (el-search-keep-hl t) (opoint (point))
         (get-replacement (el-search--matcher pattern replacement))
@@ -1048,7 +1048,7 @@ Hit any key to proceed."
              (if (zerop nbr-skipped)  ""
                (format "   (%d skipped)" nbr-skipped)))))
 
-(defun el-search-query-replace-read-args ()
+(defun el-search-query-replace--read-args ()
   (barf-if-buffer-read-only)
   (let* ((from (el-search--read-pattern "Query replace pattern: "))
          (to   (let ((el-search--initial-mb-contents nil))
@@ -1065,11 +1065,11 @@ produce a replacement expression.
 
 As each match is found, the user must type a character saying
 what to do with it.  For directions, type ? at that time."
-  (interactive (el-search-query-replace-read-args))
+  (interactive (el-search-query-replace--read-args))
   (setq this-command 'el-search-query-replace) ;in case we come from isearch
   (setq el-search-current-pattern from-pattern)
   (barf-if-buffer-read-only)
-  (el-search-search-and-replace-pattern from-pattern to-expr nil textual-to))
+  (el-search--search-and-replace-pattern from-pattern to-expr nil textual-to))
 
 (defun el-search--take-over-from-isearch (&optional goto-left-end)
   (let ((other-end (and goto-left-end isearch-other-end))
