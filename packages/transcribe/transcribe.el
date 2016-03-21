@@ -1,6 +1,6 @@
 ;;; transcribe.el --- Package for audio transcriptions
 
-;; Copyright 2014-2015  Free Software Foundation, Inc.
+;; Copyright 2014-2016  Free Software Foundation, Inc.
 
 ;; Author: David Gonzalez Gandara <dggandara@member.fsf.org>
 ;; Version: 1.5.0
@@ -23,7 +23,7 @@
 ;; REQUIRES:
 ;; -----------------------------
 ;; This module works without any requires, but in order to use the audio 
-;; functions, you need to install the emacs package "emms", by Joe Drew, 
+;; functions, you need to install the Emacs package "emms", by Joe Drew, 
 ;; and the external program "mpg321", by Jorgen Schafer and Ulrik Jensen,
 ;; both under GPL licenses.
 ;;
@@ -76,10 +76,12 @@
 
 ;;; Code:
 
-(if t (require 'emms-setup))
-;(require 'emms-player-mpd)
-;(setq emms-player-mpd-server-name "localhost")
-;(setq emms-player-mpd-server-port "6600")
+(require 'xml)
+
+;; (if t (require 'emms-setup))
+;; (require 'emms-player-mpd)
+;; (setq emms-player-mpd-server-name "localhost")
+;; (setq emms-player-mpd-server-port "6600")
 
 (emms-standard)
 (emms-default-players)
@@ -95,7 +97,7 @@
 (defvar transcribe-function-list '("initiating" "responding" "control" "expresive" "interpersonal"))
 (defvar transcribe-move-list '("initiation" "response" "follow-up"))
 (defvar transcribe-attribute-list '("clauses" "errors" "function" "move"))
-;(append transcribe-attribute-list transcribe-function-list transcribe-move-list)
+;; (append transcribe-attribute-list transcribe-function-list transcribe-move-list)
 
 (defun transcribe-analyze-episode (episode person)
   "This calls the external python package analyze_episodes2.py. The new 
@@ -109,25 +111,17 @@
    and the persons and the utterances only. The raw transcription will be send to buffer called
    'Raw Output'"
   (interactive)
-  (let* ((interventionsl2 '())
-     (interventionsl1 '())
-     (xml (xml-parse-region (point-min) (point-max)))
+  (let* ((xml (xml-parse-region (point-min) (point-max)))
      (results (car xml))
-     (episodes (xml-get-children results 'episode))
-     (clausesmessage nil)
-     (number nil))
+     (episodes (xml-get-children results 'episode)))
    
      (dolist (episode episodes)
-           (let* ((transcription (xml-get-children episode 'transcription))
-             (participantsnode (xml-get-children episode 'participants))
-             (participantsstring (nth 2 (car participantsnode)))
-             (participants (split-string participantsstring)))
+           (let* ((transcription (xml-get-children episode 'transcription)))
    
              (dolist (turn transcription)
                  (dolist (intervention (xml-node-children turn))
                    (when (listp intervention)
-                      (save-excursion
-                       (set-buffer "Raw Output")
+                      (with-current-buffer "Raw Output"
                        (insert (format "%s: " (car intervention)))
                        (dolist (utterance (nthcdr 2 intervention))
                          (when (listp utterance)
@@ -148,21 +142,21 @@
      (episodes (xml-get-children results 'episode))
      (asunitsl2 0.0000)
      (asunitsl1 0.0000)
-     (shifts 0.0000);; TODO implement
+     ;; (shifts 0.0000);; TODO implement
      (initiating 0.0000);; TODO implement
      (responding 0.0000);; TODO implement
      (control 0.0000);; TODO implement
      (expressive 0.0000);; TODO implement
      (interpersonal 0.0000);; TODO implement
      (clausesl1 0.0000)
-     (errorsl1 0.0000);; TODO implement
+     ;; (errorsl1 0.0000);; TODO implement
      (clausesl2 0.0000)
      (errorsl2 0.0000)
      (duration nil)
      (role nil)
      (context nil)
      (demand nil)
-     (clausesmessage nil)
+     ;; (clausesmessage nil)
      (number nil))
          
      (dolist (episode episodes)
@@ -184,8 +178,7 @@
                 (setq role (nth 2 (car rolenode)))
                 (setq context (nth 2 (car contextnode)))
                 (setq demand (nth 2 (car demandnode)))
-                ;; (save-excursion
-                   ;; (set-buffer "Statistics Output")
+                ;; (with-current-buffer "Statistics Output"
                    ;; (insert (format "role: %s; context: %s; demand: %s\n" role context demand)))
                 ))
 
@@ -214,13 +207,14 @@
                             (setq expressive (+ expressive 1)))
                           (when (string-equal function "interpersonal")
                             (setq interpersonal (+ interpersonal 1)))
-                          (when (not (equal attrs nil))
+                          (when attrs
                             (setq clausesl2 (+ clausesl2 (string-to-number 
                              clausesl2nodeinc)))
                             (setq errorsl2 (+ errorsl2 (string-to-number
                              errorsl2inc))))
-                          (when (not (equal l2 nil)) 
-                            (add-to-list 'interventionsl2 l2) 
+                          (when l2 
+                            ;; (add-to-list 'interventionsl2 l2)
+                            (cl-pushnew l2 interventionsl2 :test #'equal) 
                             (setq asunitsl2 (1+ asunitsl2)))))
                      (dolist (l1turn l1node)
                        (let*((l1 (nth 2 l1turn))
@@ -230,8 +224,9 @@
                          (when (not (equal clausesl1node nil))
                            (setq clausesl1 (+ clausesl1 (string-to-number 
                               clausesl1nodeinc))))
-                         (when (not (equal l1 nil)) 
-                           (add-to-list 'interventionsl1 l1) 
+                         (when l1 
+                           ;; (add-to-list 'interventionsl1 l1)
+                           (cl-pushnew l1 interventionsl1 :test #'equal) 
                            (setq asunitsl1 (1+ asunitsl1)))))))))))))
   (reverse interventionsl2)
   ;; (write-region (format "%s" interventionsl2) nil (format "transcribe-output-%s-%s-l2.txt" episodenumber personid))
@@ -243,7 +238,7 @@
     (clausesperasunitl2 (/ clausesl2 asunitsl2))
     (errorsperasunitl2 (/ errorsl2 asunitsl2))
     (asunitspersecondl1 (/ asunitsl1 (string-to-number duration)))
-    (clausesperasunitl1 (/ clausesl1 asunitsl1))
+    ;; (clausesperasunitl1 (/ clausesl1 asunitsl1))
     (initiatingperasunitl2 (/ initiating asunitsl2))
     (respondingperasunitl2 (/ responding asunitsl2))
     (controlperasunitl2 (/ control asunitsl2))
@@ -252,8 +247,7 @@
   
     ;; (princ clausesmessage)
     (princ (format "episode: %s, duration: %s, person: %s\n" episodenumber duration personid))
-    (save-excursion
-      (set-buffer "Statistics Output") 
+    (with-current-buffer "Statistics Output" 
       (insert (format "%s,%s,%s,0,0,%s,%s,%s,%s,%s,QUAN-L2,segmented,aux,level,subject,yearofclil,month\n" personid episodenumber duration role context demand asunitspersecondl2 asunitspersecondl1)))
     (princ (format "L2(Asunits/second): %s, L2(clauses/Asunit): %s, L2(errors/Asunit):%s, L1(Asunits/second): %s\n" 
           asunitspersecondl2 clausesperasunitl2 errorsperasunitl2 asunitspersecondl1))
@@ -264,19 +258,17 @@
    lost all previous data. The data in the buffer can be saved to a file and be
    passed to 'R' for statistical analysis."
   (interactive)
-  (let* (
-     (xml (xml-parse-region (point-min) (point-max)))
+  (let* ((xml (xml-parse-region (point-min) (point-max)))
      (results (car xml))
      (episodes (xml-get-children results 'episode)))
   
-     (save-excursion
-       (set-buffer "Statistics Output")
+     (with-current-buffer "Statistics Output"
        (erase-buffer)
        (insert "person,episode,duration,C-UNITS(L2),C-UNITS(L1),role,context,demand,QUAN-L2,QUAN-L1,QUAL-L2,segmented,aux,level,subjects,yearofCLIL,month\n"))
      (dolist (episode episodes)
        (let* ((numbernode (xml-get-children episode 'number))
          (participantsnode (xml-get-children episode 'participants))
-         (transcription (xml-get-children episode 'transcription))
+         ;; (transcription (xml-get-children episode 'transcription))
          (number (nth 2 (car numbernode)))
          (participantsstring (nth 2 (car participantsnode)))
          (participants (split-string participantsstring)))
@@ -399,8 +391,7 @@
   transcribe-mode-map
   (generate-new-buffer "Statistics Output")
   (generate-new-buffer "Raw Output")
-  (save-excursion
-    (set-buffer "Statistics Output")
+  (with-current-buffer "Statistics Output"
     ;; (insert "person,episode,duration,C-UNITS(L2),C-UNITS(L1),role,context,demand,QUAN-L2,QUAN-L1,QUAL-L2,segmented,aux,level,subjects,yearofCLIL,month\n")
   )
   ;; TODO: save the students present in transcription in list so that we can use that list for transcribe-analyze-all
