@@ -756,7 +756,7 @@ matches any of these expressions:
                                  "argument not a string or vector")
   `(pred (el-search--match-key-sequence ,key-sequence)))
 
-(defun el-search--s (expr)
+(defun el-search--transform-nontrivial-lpat (expr)
   (cond
    ((symbolp expr) `(or (symbol ,(symbol-name expr))
                         (,'\` (,'quote    (,'\, (symbol ,(symbol-name expr)))))
@@ -807,7 +807,7 @@ could use this pattern:
                     ('_ '`(,_))
                     ('_? '(or '() `(,_))) ;FIXME: useful - document? or should we provide a (? PAT)
                                           ;thing?
-                    (_ `(,'\` ((,'\, ,(el-search--s elt)))))))
+                    (_ `(,'\` ((,'\, ,(el-search--transform-nontrivial-lpat elt)))))))
                 lpats)
              ,@(if match-end '() '(_)))))
 
