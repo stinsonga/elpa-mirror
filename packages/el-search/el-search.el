@@ -356,9 +356,10 @@ and return it."
     (while not-done
       (let ((stop-here nil)
             (looking-at-from-back (lambda (regexp n)
-                                    (save-excursion
-                                      (backward-char n)
-                                      (looking-at regexp)))))
+                                    (and (> (point) n)
+                                         (save-excursion
+                                           (backward-char n)
+                                           (looking-at regexp))))))
         (while (not stop-here)
           (cond
            ((eobp) (signal 'end-of-buffer nil))
