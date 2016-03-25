@@ -937,7 +937,7 @@ You need `diff-hl-mode' turned on, provided by the library
 ;;;; Core functions
 
 ;;;###autoload
-(defun el-search-pattern (pattern)
+(defun el-search-pattern (pattern &optional no-error)
   "Start new or resume last elisp search.
 
 Search current buffer for expressions that are matched by `pcase'
@@ -964,7 +964,7 @@ The following additional pattern types are currently defined:"
                            (error "Please don't forget the quote when searching for a symbol"))
                          (el-search--wrap-pattern pattern)))))
   (if (not (called-interactively-p 'any))
-      (el-search--search-pattern pattern)
+      (el-search--search-pattern pattern no-error)
     (setq this-command 'el-search-pattern) ;in case we come from isearch
     (setq el-search-current-pattern pattern)
     (let ((opoint (point)))
