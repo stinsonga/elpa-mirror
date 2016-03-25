@@ -292,11 +292,10 @@ error."
                             case-fold-search)))
     (string-match-p regexp string)))
 
-(defun el-search--print (expr)
-  (let ((print-quoted t)
-        (print-length nil)
+(defun el-search--pp-to-string (expr)
+  (let ((print-length nil)
         (print-level nil))
-    (prin1-to-string expr)))
+    (pp-to-string expr)))
 
 (defvar el-search-read-expression-map
   (let ((map (make-sparse-keymap)))
@@ -518,8 +517,8 @@ return nil (no error)."
           (with-temp-buffer
             (emacs-lisp-mode)
             (insert (if splice
-                        (mapconcat #'el-search--print replacement " ")
-                      (el-search--print replacement)))
+                        (mapconcat #'el-search--pp-to-string replacement " ")
+                      (el-search--pp-to-string replacement)))
             (goto-char 1)
             (let (start this-sexp end orig-match-start orig-match-end done)
               (while (and (< (point) (point-max))
