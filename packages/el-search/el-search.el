@@ -309,6 +309,8 @@ error."
   "Map for reading input with `el-search-read-expression'.")
 
 (defun el-search--setup-minibuffer ()
+  (let ((inhibit-read-only t))
+    (put-text-property 1 (minibuffer-prompt-end) 'font-lock-face 'minibuffer-prompt))
   (emacs-lisp-mode)
   (use-local-map el-search-read-expression-map)
   (setq font-lock-mode t)
