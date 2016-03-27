@@ -4,6 +4,7 @@
 
 ;; Author: David Gonzalez Gandara <dggandara@member.fsf.org>
 ;; Version: 0.53
+;; Package-Requires: ((cl-lib "0.5"))
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -89,6 +90,7 @@
 
 ;;; Code:
 
+(eval-when-compile (require 'cl-lib))
 
 (defun arbitools-update (elolist)
   "Update the players ratings in a database file based on a elo list file."
@@ -105,7 +107,7 @@
 (defun arbitools-list-pairing (round)
   "Get the pairings and/or results of the given round"
   (interactive "sround: ")
-  (beginning-of-buffer)
+  (goto-char (point-min))
   (arbitools-list-players)
   (save-excursion
     (re-search-forward "^012" nil t)
@@ -123,6 +125,7 @@
              (linestring (thing-at-point 'line))
              (playerlinestring nil)
              (opponentlinestring nil)
+             opponentstring
              (rankstring (substring linestring 4 8))
              (opponent (substring linestring (+ 91 (* (- (string-to-number round) 1)10 )) 
                        (+ 95(* (- (string-to-number round) 1)10 ))))
@@ -136,18 +139,18 @@
            (insert (format "%s\n" (member "   1" paired))))
          (unless (or (member rankstring paired) (member opponent paired))
            (with-current-buffer "List of players"
-               (beginning-of-buffer)
+               (goto-char (point-min))
                (re-search-forward (concat "^" (regexp-quote  rankstring)))
                (setq playerlinestring (thing-at-point 'line))
                (setq namestring (substring playerlinestring 4 37))
-               (beginning-of-buffer)
+               (goto-char (point-min))
                (unless (or (string= opponent "0000") (string= opponent "    "))
                    (re-search-forward (concat "^" (regexp-quote opponent))))
                (setq opponentlinestring (thing-at-point 'line))
                (setq opponentstring (substring opponentlinestring 4 37))
                (when (or (string= opponent "0000")(string= opponent "    "))
                  (setq opponentstring "-"))
-               (add-to-list 'paired rankstring))
+               (cl-pushnew rankstring paired :test #'equal))
            (with-current-buffer "Pairings List"
              (cond ((string= color "w") ;; TODO: change the ranknumber with the name
                      (cond ((string= result "1")
@@ -184,7 +187,7 @@
   ;; TODO: the beautiful LaTeX
   (interactive)
   (save-excursion
-   (beginning-of-buffer)
+   (goto-char (point-min))
    (while (re-search-forward "^001" nil t)
      (let* ((linestring (thing-at-point 'line))
            (rankstring (substring linestring 5 8)))
@@ -192,8 +195,7 @@
        (with-current-buffer "List of players"
          (insert (format " %s " rankstring))))
 
-     (let* ((name (thing-at-point 'word))
-           (linestring (thing-at-point 'line))
+     (let* ((linestring (thing-at-point 'line))
            (namestring (substring linestring 14 47)))
        
        (with-current-buffer "List of players"
@@ -231,33 +233,33 @@
   ;; (insert "013 NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN  0000 0000\n")
 )
 
-(defun aribitools-number-of-rounds ()
-   "Get the number of rounds in the tournament"
+;; (defun aribitools-number-of-rounds ()
+;;   "Get the number of rounds in the tournament"
    ;; FIXME: EXPERIMENTAL
-   (let ((numberofrounds 0))
-     (save-excursion
-      (beginning-of-buffer)
-      (re-search-forward "^132" nil t)
-        (let* ((linestringrounds (thing-at-point 'line))
-            (actualround " ")
-            (beginning-of-round 91)
-            (end-of-round 99)
-            (continue t))
+;;   (let ((numberofrounds 0))
+;;     (save-excursion
+;;      (goto-char (point-min))
+;;      (re-search-forward "^132" nil t)
+;;        (let* ((linestringrounds (thing-at-point 'line))
+            ;; (actualround " ")
+;;            (beginning-of-round 91)
+;;            (end-of-round 99)
+;;            (continue t))
                     
-           (with-current-buffer "Arbitools-output" (insert (format "rounds: %s" linestringrounds)))
-           (with-current-buffer "Arbitools-output" (insert (format "length: %s" (- (length linestringrounds) 4))))
+           ;; (with-current-buffer "Arbitools-output" (insert (format "rounds: %s" linestringrounds)))
+           ;; (with-current-buffer "Arbitools-output" (insert (format "length: %s" (- (length linestringrounds) 4))))
            ;; For some reason, the length of the string is 4 characters longer than the real line
-           (while continue
-             (if (< end-of-round (length linestringrounds))
+;;           (while continue
+;;             (if (< end-of-round (length linestringrounds))
                 
-               (progn
-                  (setq actualround (substring-no-properties linestringrounds beginning-of-round end-of-round))
-                  (setq numberofrounds (+ numberofrounds 1))
-                  (setq beginning-of-round (+ beginning-of-round 10))
-                  (setq end-of-round (+ end-of-round 10)))
+;;               (progn
+                  ;; (setq actualround (substring-no-properties linestringrounds beginning-of-round end-of-round))
+;;                  (setq numberofrounds (+ numberofrounds 1))
+;;                  (setq beginning-of-round (+ beginning-of-round 10))
+;;                  (setq end-of-round (+ end-of-round 10)))
                   
-                  (setq continue nil))))))
-     (numberofrounds))
+;;                  (setq continue nil))))))
+;;     (numberofrounds))
 
 (defun arbitools-delete-player (player)
    "Delete a player. Adjust all the rank numbers accordingly."
@@ -266,23 +268,23 @@
          (elo            ""))
     
     (save-excursion
-      (beginning-of-buffer)
+      (goto-char (point-min))
       (re-search-forward "^132" nil t)
         (let* ((linestringrounds   (thing-at-point 'line))
-               (actualround        " ")
+               ;; (actualround        " ")
                (beginning-of-round 91)
                (end-of-round       99)
                (continue           t))
            (while continue
              (if (< end-of-round (length linestringrounds))
                (progn
-                  (setq actualround (substring-no-properties linestringrounds beginning-of-round end-of-round))
+                  ;; (setq actualround (substring-no-properties linestringrounds beginning-of-round end-of-round))
                   (setq numberofrounds (+ numberofrounds 1))
                   (setq beginning-of-round (+ beginning-of-round 10))
                   (setq end-of-round (+ end-of-round 10)))   
                (setq continue nil)))))
     (save-excursion
-     (beginning-of-buffer)
+     (goto-char (point-min))
      (while (re-search-forward "^001" nil t)
        (let* ((linestring (thing-at-point 'line))
               (rankstring (substring linestring 5 8)))
@@ -298,15 +300,10 @@
            (insert-char ?\s (- 4 (length (format "%s" (- (string-to-number rankstring) 1)))))
            (insert (format "%s" (- (string-to-number rankstring) 1)))
            (save-excursion
-             (beginning-of-buffer)
+             (goto-char (point-min))
              (while (re-search-forward "^001" nil t)
-               (let* ((linestring2         (thing-at-point 'line))
-                      (actualroundopponent (string-to-number (substring linestring2 91 94)))
-                      (roundcount          1)
-                      (testmessage         ""))
-                  (forward-char (+ 91 (* (- roundcount 1) 10)))
-                  (setq testmessage (thing-at-point 'word))
-                  (while (< roundcount numberofrounds)
+               (let* ((roundcount          1))
+                  (while (<= roundcount numberofrounds)
                     (beginning-of-line)
                     (forward-char (+ 95 (* (- roundcount 1) 10)))
                     (when (string= (format "%s" (string-to-number rankstring)) (thing-at-point 'word))
@@ -314,16 +311,30 @@
                       (delete-char 4) ;; remove the original opponent's number
                       (insert-char ?\s (- 4 (length (format "%s" (- (string-to-number rankstring) 1)))))
                       (insert (format "%s" (- (string-to-number rankstring) 1))))
-                    (setq roundcount (+ roundcount 1))))))))))
-     ;;(condition-case nil ;; TODO: fix teams info
-             ;;  (while (re-search-forward "^013")
-             ;;    (let* ((linestringteam (thing-at-point 'line)))
-             ;;      ;; go through team line and read the integrants
-             ;;      ;; when integrant equals rankstring rankstring -1
-             ;;    ))
-             ;;  (error "No teams information"))
+                    (setq roundcount (+ roundcount 1))))
+               ;;(condition-case nil ;; TODO: fix teams info
+                 (save-excursion 
+                   (while (re-search-forward "^013" nil t)
+                    (let* ((linestringteam (thing-at-point 'line))
+                          (actualintegrant (string-to-number (substring linestringteam 40 44)))
+                          (integrantcount 0)
+                          (members 0))
+
+                        ;; to find the end of the line, the number is length -2, for some reason
+                        (setq members (/ (- (- (length linestringteam) 2) 34) 5)) ;; calculate number of members
+
+                      (while (< integrantcount members)
+                       (beginning-of-line)
+                       (forward-char (+ 40 (* (- integrantcount 1) 5)))
+                       (when (string= (format "%s" (string-to-number rankstring)) (thing-at-point 'word))
+                         (forward-char -4)
+                         (delete-char 4)
+                         (insert-char ?\s (- 4 (length (format "%s" (- (string-to-number rankstring) 1)))))
+                         (insert (format "%s" (- (string-to-number rankstring) 1))))
+                       (setq integrantcount (+ integrantcount 1))))))))))))
+             
      (save-excursion  ;; Actually delete the player's line
-       (beginning-of-buffer)
+       (goto-char (point-min))
        (while (re-search-forward "^001  DEL" nil t)
          (beginning-of-line)
          (let ((beg (point)))
@@ -333,7 +344,7 @@
      ;; TODO change number of players and number of rated players
      (save-excursion
        (with-current-buffer "Arbitools-output" (insert (format "%s" elo)))
-       (beginning-of-buffer)
+       (goto-char (point-min))
        (re-search-forward "^062 ")
        (let* ((linestring      (thing-at-point 'line))
               (numberofplayers (substring linestring 4))) 
@@ -354,7 +365,7 @@
    "Delete a round." ;; FIXME: it breaks when round is the last
    (interactive "sround: ")
    (save-excursion
-    (beginning-of-buffer)
+    (goto-char (point-min))
     (while (re-search-forward "^001" nil t)
      (forward-char (+ 88 (* (- (string-to-number round) 1) 10)))
      (delete-char 10)
@@ -364,39 +375,55 @@
    "Replace non played games with spaces"
    (interactive)
    (save-excursion
-    (replace-string "0000 - 0" "        ")))
+    (goto-char (point-min))
+    (while (search-forward "0000 - 0" nil t)
+      (replace-match "        "))))
 
 (defun arbitools-insert-player (sex title name elo fed idfide year)
    "Insert a player"
-   ;; TODO: automatically insert the rank.
+   ;; TODO: automatically insert the player in a team
    (interactive "ssex: \nstitle: \nsname: \nselo: \nsfed: \nsidfide: \nsyear: ")
   (let ((playerlinelength nil)
         (thislinelength nil)) 
      (save-excursion
-       (beginning-of-buffer)
+       (goto-char (point-min))
        (re-search-forward "^001 ")
        (let* ((linestring (thing-at-point 'line))) 
          (setq playerlinelength (length linestring))))
-     (insert (format "001 RANK %s" sex))
-     (when (= (length sex) 0) (insert " ")) ;; add extra space if the sex string is empty
-     (insert-char ?\s (- 3 (length title)))
-     (insert (format "%s " title))
-     (insert (format "%s" name))
-     (insert-char ?\s (- 34 (length name)))
-     (insert (format "%s " elo))
-     (when (= (length elo) 0) (insert "    ")) ;; add extra space if the elo is empty
-     (when (= (length elo) 1) (insert "   ")) ;; add extra space if the elo is a "0"
-     (insert (format "%s" fed))
-     (when (= (length fed) 0) (insert "   ")) ;; add extra space if fed is empty
-     (insert-char ?\s (- 12 (length idfide)))
-     (insert (format "%s " idfide))
-     (insert (format "%s      " year))
-     (when (= (length year) 0) (insert "    ")) ;; TODO: improve this to make it support different data formats
-     (insert (format "  0.0  POS"))
-     (setq thislinelength (length (thing-at-point 'line)))
-     (insert-char ?\s (- playerlinelength thislinelength)))   
+     (save-excursion
+       (goto-char (point-min))
+       (while (re-search-forward "^001" nil t))
+       (let* ((linestring (thing-at-point 'line))
+              (rankstring (substring linestring 5 8)))
+
+         (forward-line 1)
+         (insert "\n")
+         (forward-char -1)
+         (insert (format "001 "))
+         (insert-char ?\s (- 4 (length (format "%s" (+ (string-to-number rankstring) 1)))))
+         (insert (format "%s" (+ (string-to-number rankstring) 1)))
+         (insert (format " %s" sex))
+         (when (= (length sex) 0) (insert " ")) ;; add extra space if the sex string is empty
+         (insert-char ?\s (- 3 (length title)))
+         (insert (format "%s " title))
+         (insert (format "%s" name))
+         (insert-char ?\s (- 34 (length name)))
+         (insert (format "%s " elo))
+         (when (= (length elo) 0) (insert "    ")) ;; add extra space if the elo is empty
+         (when (= (length elo) 1) (insert "   ")) ;; add extra space if the elo is a "0"
+         (insert (format "%s" fed))
+         (when (= (length fed) 0) (insert "   ")) ;; add extra space if fed is empty
+         (insert-char ?\s (- 12 (length idfide)))
+         (insert (format "%s " idfide))
+         (insert (format "%s      " year))
+         (when (= (length year) 0) (insert "    ")) ;; TODO: improve this to make it support different data formats
+         (insert (format "  0.0 "))
+         (insert-char ?\s (- 4 (length (format "%s" (+ (string-to-number rankstring) 1)))))
+         (insert (format "%s" (+ (string-to-number rankstring) 1)))
+         (setq thislinelength (length (thing-at-point 'line)))
+         (insert-char ?\s (- playerlinelength thislinelength)))))   
   (save-excursion
-    (beginning-of-buffer)
+    (goto-char (point-min))
     (re-search-forward "^062 ")
     (let* ((linestring (thing-at-point 'line))
            (numberofplayers (substring linestring 4))) 
@@ -417,7 +444,7 @@
    "Insert a result."
    (interactive "sround: \nswhite: \nsblack: \nsresult: ")
    (save-excursion
-     (beginning-of-buffer)
+     (goto-char (point-min))
      (while (re-search-forward "^001" nil t)
        (forward-char 4) ;; rank number
        (when (string= white (thing-at-point 'word))
@@ -481,6 +508,7 @@
     ["New Tournament" arbitools-new-trf]
     "---"
     ["Insert Player" arbitools-insert-player]
+    ["Delete Player" arbitools-delete-player]
     ["Insert Result" arbitools-insert-result]
     ["Delete Round" arbitools-delete-round]
     "---"
