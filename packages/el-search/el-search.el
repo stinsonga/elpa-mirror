@@ -333,14 +333,18 @@ error."
                           (or hist 'read-expression-history) default)))
 
 (defvar el-search-history '()
-  "List of input strings.")
+  "List of search input strings.")
+
+(defvar el-search-query-replace-history '()
+  "List of input strings from `el-search-query-replace'.")
 
 (defvar el-search--initial-mb-contents nil)
 
-(defun el-search--read-pattern (prompt &optional default read)
+(defun el-search--read-pattern (prompt &optional default read histvar)
+  (cl-callf or histvar 'el-search-history)
   (let ((input (el-search-read-expression
-                prompt el-search--initial-mb-contents 'el-search-history default read)))
-    (if (or read (not (string= input ""))) input (car el-search-history))))
+                prompt el-search--initial-mb-contents histvar default read)))
+    (if (or read (not (string= input ""))) input (car (symbol-value histvar)))))
 
 (defun el-search--end-of-sexp ()
   ;;Point must be at sexp beginning
@@ -1102,9 +1106,31 @@ Hit any key to proceed."
 
 (defun el-search-query-replace--read-args ()
   (barf-if-buffer-read-only)
-  (let* ((from (el-search--read-pattern "Query replace pattern: "))
-         (to   (let ((el-search--initial-mb-contents nil))
-                 (el-search--read-pattern "Replace with result of evaluation of: " from))))
+  (let ((from-input (el-search--read-pattern "Query replace pattern: " nil nil
+                                             'el-search-query-replace-history))
+        from to)
+    (with-temp-buffer
+      (emacs-lisp-mode)
+      (insert from-input)
+      (goto-char 1)
+      (forward-sexp)
+      (skip-chars-forward " \t\n")
+      ;; FIXME: maybe more sanity tests here...
+      (if (not (looking-at "->"))
+          (setq from from-input
+                to (let ((el-search--initial-mb-contents nil))
+                     (el-search--read-pattern "Replace with result of evaluation of: " from)))
+        (delete-char 2)
+        (goto-char 1)
+        (forward-sexp)
+        (setq from (buffer-substring 1 (point)))
+        (skip-chars-forward " \t\n")
+        (setq to (buffer-substring (point) (progn (forward-sexp) (point))))))
+    (unless (and el-search-query-replace-history
+                 (not (string= from from-input))
+                 (string= from-input (car el-search-query-replace-history)))
+      (push (format "%s -> %s" from to) ;FIXME: add line break when FROM or TO is multiline?
+            el-search-query-replace-history))
     (list (el-search--wrap-pattern (read from)) (read to) to)))
 
 ;;;###autoload
@@ -1117,7 +1143,15 @@ produce a replacement expression.  Operate from point
 to (point-max).
 
 As each match is found, the user must type a character saying
-what to do with it.  For directions, type ? at that time."
+what to do with it.  For directions, type ? at that time.
+
+As an alternative to enter FROM-PATTERN and TO-EXPR separately,
+you can also give an input of the form
+
+   FROM-PATTERN -> TO-EXPR
+
+to the first prompt and specify both expressions at once.  This
+format is also used for history entries."
   (interactive (el-search-query-replace--read-args))
   (setq this-command 'el-search-query-replace) ;in case we come from isearch
   (setq el-search-current-pattern from-pattern)
