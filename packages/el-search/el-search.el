@@ -1016,12 +1016,12 @@ Hit any key to proceed."
             (unless (eq this-command last-command)
               (el-search-hl-other-matches pattern)))
           (let* ((region (list (point) (el-search--end-of-sexp)))
-                 (substring (apply #'buffer-substring-no-properties region))
-                 (expr      (read substring))
+                 (original-text (apply #'buffer-substring-no-properties region))
+                 (expr      (read original-text))
                  (replaced-this nil)
                  (new-expr  (funcall get-replacement expr))
                  (get-replacement-string
-                  (lambda () (el-search--format-replacement new-expr substring to-input-string splice)))
+                  (lambda () (el-search--format-replacement new-expr original-text to-input-string splice)))
                  (to-insert (funcall get-replacement-string))
                  (replacement-contains-another-match
                   (with-temp-buffer
