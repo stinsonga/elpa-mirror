@@ -1096,7 +1096,7 @@ Hit any key to proceed."
                 (message "Replacement contains another match%s"
                          (if replace-all " - falling back to interactive mode" ""))
                 (setq replace-all nil)
-                (sit-for 3.)))))))
+                (sit-for 2.)))))))
     (el-search-hl-remove)
     (goto-char opoint)
     (message "Replaced %d matches%s"
