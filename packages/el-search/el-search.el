@@ -162,8 +162,12 @@
 ;;    (define-key isearch-mode-map [(control ?S)] #'el-search-search-from-isearch)
 ;;    (define-key isearch-mode-map [(control ?%)] #'el-search-replace-from-isearch)
 ;;
+;;    (define-key el-search-read-expression-map [(control ?S)] #'exit-minibuffer)
+;;
 ;; The bindings in `isearch-mode-map' let you conveniently switch to
-;; "el-search" searching from isearch.
+;; "el-search" searching from isearch.  The binding in
+;; `el-search-read-expression-map' allows you to hit C-S twice to
+;; start a search for the last search pattern.
 ;;
 ;;
 ;; Bugs, Known Limitations
@@ -303,8 +307,7 @@ error."
     (define-key map [(control ?g)] #'abort-recursive-edit)
     (define-key map [up]   nil)
     (define-key map [down] nil)
-    (define-key map [(control meta backspace)] #'backward-kill-sexp)
-    (define-key map [(control ?S)] #'exit-minibuffer)
+    (define-key map [(control ?j)] #'newline)
     map)
   "Map for reading input with `el-search-read-expression'.")
 
@@ -949,6 +952,12 @@ You need `diff-hl-mode' turned on, provided by the library
 Search current buffer for expressions that are matched by `pcase'
 PATTERN.  Use `read' to transform buffer contents into
 expressions.
+
+Use `emacs-lisp-mode' for reading input.  Some keys in the
+minibuffer have a special binding: to make it possible to edit
+multi line input, C-j inserts a newline, and up and down move the
+cursor vertically - see `el-search-read-expression-map' for more
+details.
 
 
 Additional `pcase' pattern types to be used with this command can
