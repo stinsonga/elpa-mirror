@@ -1117,8 +1117,12 @@ Hit any key to proceed."
 
 (defun el-search-query-replace--read-args ()
   (barf-if-buffer-read-only)
-  (let ((from-input (el-search--read-pattern "Query replace pattern: " nil nil
-                                             'el-search-query-replace-history))
+  (let ((from-input (let ((el-search--initial-mb-contents
+                           (or el-search--initial-mb-contents
+                               (and (eq last-command 'el-search-pattern)
+                                    (car el-search-history)))))
+                      (el-search--read-pattern "Query replace pattern: " nil nil
+                                               'el-search-query-replace-history)))
         from to)
     (with-temp-buffer
       (emacs-lisp-mode)
