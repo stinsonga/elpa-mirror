@@ -233,6 +233,8 @@ whether or not ENWC is in wired mode.")
 
 (defvar enwc-scan-interactive nil)
 
+(defvar enwc-mode-line-timer nil)
+
 (make-local-variable 'enwc-edit-id)
 ;; The Fonts
 
