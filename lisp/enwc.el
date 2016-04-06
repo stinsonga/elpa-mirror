@@ -3,7 +3,7 @@
 ;; Copyright (C) 2012,2013 Free Software Foundation
 
 ;; Author: Ian Dunn
-;; Keywords: enwc, network, wicd, manager, nm
+;; Keywords: external, network, wicd, manager, nm
 
 ;; This file is part of ENWC
 
@@ -36,7 +36,7 @@
 ;;
 ;; (require 'enwc-setup)
 ;; (enwc-setup)
-;; 
+;;
 ;; to your .emacs file.
 
 (require 'dbus)
@@ -51,7 +51,7 @@
 (defgroup enwc nil
   "*The Emacs Network Client"
   :prefix "ewnc-"
-  :group 'applications)
+  :group 'external)
 
 (defcustom enwc-wireless-device "wlan0"
   "The wireless device to use for ENWC."
@@ -602,7 +602,7 @@ the ENWC buffer if necessary, and scans and displays the networks."
 	      (goto-char 0)
 	      (forward-line))
 	  (enwc-scan-internal)))))
-  
+
 (defun enwc-find-network (essid &optional networks)
   "Checks through NETWORKS for the network with essid ESSID,
 and returns the network identifier.  Uses `enwc-last-scan' if

@@ -157,7 +157,7 @@ CONN is an object path to the connection."
 		    enwc-nm-dbus-connections-interface
 		    "GetSettings"
 		    :timeout 25000))
-  
+
 
 (defun enwc-nm-list-connections ()
   "List the connections."
@@ -601,7 +601,7 @@ PREFIX is an integer <= 32."
 			     (logand (lsh hex-addr -8) 255)
 			     (logand (lsh hex-addr -16) 255)
 			     (logand (lsh hex-addr -24) 255))))))
-    
+
 
 (defun enwc-nm-get-gateway (wired id)
   "Gets the Gateway of a connection profile."
