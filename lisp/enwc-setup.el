@@ -97,7 +97,7 @@
   "Sets up ENWC.
 This setups ENWC and confirms that one of the backends can be found
 on D-Bus."
-  (cl-pushnew 'enwc-display-string global-mode-string :test #'equal)
+  (add-to-list 'global-mode-string 'enwc-display-string t #'equal)
   (unless enwc-mode-line-timer
     (setq enwc-mode-line-timer (run-at-time t 1 'enwc-update-mode-line)))
   (let ((cur-back nil)
