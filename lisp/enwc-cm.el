@@ -44,9 +44,6 @@
   :group 'enwc-cm
   :type 'string)
 
-
-;; DEMAND TO SEE LIFE'S MANAGER!!
-
 (defcustom enwc-cm-dbus-manager-interface "net.connman.Manager"
   "ConnMan D-Bus Manager interface."
   :group 'enwc-cm
