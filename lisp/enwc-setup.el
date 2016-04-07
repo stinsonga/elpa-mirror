@@ -22,7 +22,6 @@
 ;; Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 ;; 02110-1301, USA.
 
-
 (require 'enwc)
 (require 'enwc-wicd)
 (require 'enwc-nm)
@@ -93,6 +92,7 @@
 	  )
     (funcall (intern (concat "enwc-" sym-name "-setup")))))
 
+;;;###autoload
 (defun enwc-setup ()
   "Sets up ENWC.
 This setups ENWC and confirms that one of the backends can be found

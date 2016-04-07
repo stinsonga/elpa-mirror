@@ -32,6 +32,9 @@ all: lisp
 lisp:
 	$(MAKE) -C $(LISPDIR)
 
+autoloads:
+	$(MAKE) -C $(LISPDIR) enwc-autoloads.el
+
 install:
 	install -m 644 $(ALLELC) $(SITELISP)
 	install -m 644 $(ALLSRC) $(SITELISP)

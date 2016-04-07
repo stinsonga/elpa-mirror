@@ -45,8 +45,7 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'cl))
+(require 'cl-lib)
 
 (defgroup enwc nil
   "*The Emacs Network Client"
@@ -262,12 +261,12 @@ whether or not ENWC is in wired mode.")
 (defun enwc-detail-to-ident (detail)
   "Converts detail DETAIL to a constant identifier."
   (case (intern detail)
-    ((essid Ssid) "essid")
-    ((bssid HwAddress) "bssid")
-    ((quality Strength) "quality")
-    ((encryption Flags) "encryption")
-    ((mode Mode) "mode")
-    ((channel Frequency) "channel")))
+        ((essid Ssid) "essid")
+        ((bssid HwAddress) "bssid")
+        ((quality Strength) "quality")
+        ((encryption Flags) "encryption")
+        ((mode Mode) "mode")
+        ((channel Frequency) "channel")))
 
 ;;;;;;;;;;;;;;;;;;;;
 ;; ENWC functions
@@ -314,7 +313,9 @@ network with id ID."
 (defun enwc-wireless-connect (id)
   "Begins a connection to wireless network with
 id ID."
-  (funcall enwc-wireless-connect-func id))
+  (funcall enwc-wireless-connect-func id)
+  ;; (run-hooks 'enwc-on-connected-hook)
+  )
 
 (defun enwc-wireless-disconnect ()
   "Disconnects the wireless."
@@ -412,7 +413,7 @@ If no network is connected, then prints 0%.
 If wired is active, then prints 100%.
 If ENWC is in the process of connecting, then prints *%.
 This is initiated during setup, and runs once every second."
- (let ((cur-id (enwc-get-current-nw-id))
+  (let ((cur-id (enwc-get-current-nw-id))
 	(conn (enwc-check-connecting-p))
 	str)
     (setq str
@@ -486,7 +487,7 @@ the scan results."
     (setq enwc-essid-width (1+ enwc-essid-width))
     (setq enwc-scan-done t)
     (if enwc-scan-interactive
-	  (enwc-display-wireless-networks enwc-last-scan))))
+        (enwc-display-wireless-networks enwc-last-scan))))
 
 (defun enwc-scan-internal-wired ()
   "The scanning routine for a wired connection.
@@ -541,7 +542,7 @@ ENT is the entry, and WIDTH is the column width."
 NETWORKS must be in the format returned by
 `enwc-scan-internal-wireless'."
   (if (not (eq major-mode 'enwc-mode))
-	   (enwc-setup-buffer))
+      (enwc-setup-buffer))
   (if (not (listp networks))
       (error "NETWORKS must be a list of association lists."))
   (let ((cur-id (enwc-get-current-nw-id))
@@ -590,6 +591,7 @@ functions, and checks whether or not ENWC is using wired."
       (enwc-display-wired-networks networks)
     (enwc-display-wireless-networks networks)))
 
+;;;###autoload
 (defun enwc-scan ()
   "The frontend of the scanning routine.  Sets up and moves to
 the ENWC buffer if necessary, and scans and displays the networks."
@@ -605,6 +607,7 @@ the ENWC buffer if necessary, and scans and displays the networks."
 	      (forward-line))
 	  (enwc-scan-internal)))))
 
+;;;###autoload
 (defun enwc-find-network (essid &optional networks)
   "Checks through NETWORKS for the network with essid ESSID,
 and returns the network identifier.  Uses `enwc-last-scan' if
@@ -651,8 +654,9 @@ and checks whether or not ENWC is using wired."
       (enwc-wireless-connect id)
       (if enwc-last-scan
 	  (setq cur-net (cdr (assoc "essid" (nth id enwc-last-scan)))))
-    cur-net)))
+      cur-net)))
 
+;;;###autoload
 (defun enwc-connect-to-network (net-id)
   "Connects the the network with network id NET-ID.
 Confirms that NET-ID is a valid network id.
@@ -667,6 +671,7 @@ This calls `enwc-connect-network' as a subroutine."
     (setq cur-net (enwc-connect-network net-id))
     (message (concat "Connecting to " cur-net))))
 
+;;;###autoload
 (defun enwc-connect-to-network-essid (essid)
   "Connects to the network with essid ESSID."
   (interactive "sNetwork ESSID: ")
@@ -704,6 +709,7 @@ This function also sets the variable `enwc-using-wired'."
     (setq enwc-using-wired (not enwc-using-wired))
     (enwc-scan)))
 
+;;;###autoload
 (defun enwc ()
   "The main front-end to ENWC.
 This sets up the buffer and scans for networks.
@@ -944,9 +950,7 @@ and redisplays the settings from the network profile
 (define-derived-mode enwc-mode tabulated-list-mode "enwc"
   "Mode for working with network connections.
 \\{enwc-mode-map}"
-  ;;(setq buffer-read-only t)
-  (add-hook 'tabulated-list-revert-hook 'enwc-scan nil t)
-  )
+  (add-hook 'tabulated-list-revert-hook 'enwc-scan nil t))
 
 (defun enwc-setup-buffer ()
   "Sets up the ENWC buffer.
@@ -954,12 +958,7 @@ This first checks to see that it exists,
 and if it doesn't, then create it."
   (if (not (get-buffer "*ENWC*"))
       (with-current-buffer (get-buffer-create "*ENWC*")
-	;;(use-local-map enwc-mode-map)
-	;;(setq major-mode 'enwc-mode
-	;;      mode-name "enwc")
-	(enwc-mode)
-	;;(setq buffer-read-only t)
-	))
+	(enwc-mode)))
   (switch-to-buffer "*ENWC*"))
 
 (provide 'enwc)

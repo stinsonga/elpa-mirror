@@ -28,8 +28,13 @@ all: $(TARGET)
 
 %.elc: %.el
 	@$(EMACS) -q --batch \
-	--eval "(add-to-list 'load-path \".\")" \
+	-L "." \
 	-f batch-byte-compile $<
+
+enwc-autoloads.el:
+	@$(EMACS) -q --batch \
+	--eval "(require 'package)" \
+	--eval "(package-generate-autoloads \"enwc\" \"$$(pwd)\")"
 
 clean:
 	-rm -f *.elc
