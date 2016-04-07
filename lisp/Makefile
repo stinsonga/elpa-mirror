@@ -17,7 +17,7 @@
 
 
 
-EMACS=emacs
+EMACS=emacs --batch
 ALLSRC=enwc.el enwc-wicd.el enwc-nm.el enwc-setup.el
 ALLELC=$(wildcard *.elc)
 EXPER=enwc-cm.el
@@ -27,13 +27,14 @@ TARGET=$(patsubst %.el,%.elc,$(SOURCE))
 all: $(TARGET)
 
 %.elc: %.el
-	@$(EMACS) -q --batch \
+	@$(EMACS) \
 	-L "." \
 	-f batch-byte-compile $<
 
 enwc-autoloads.el:
-	@$(EMACS) -q --batch \
+	@$(EMACS) \
 	--eval "(require 'package)" \
+	--eval "(setq inhibit-message t)" \
 	--eval "(package-generate-autoloads \"enwc\" \"$$(pwd)\")"
 
 clean:
