@@ -51,6 +51,7 @@
 (require 'cl-lib)
 (require 'cl-macs)
 (require 'format-spec)
+(require 'map)
 
 (defgroup enwc nil
   "*The Emacs Network Client"
@@ -92,7 +93,7 @@ networks every `enwc-auto-scan-interval' seconds."
   :group 'enwc
   :type 'integer)
 
-(defcustom enwc-mode-line-format "[%s%%]"
+(defcustom enwc-mode-line-format " [%s%%] "
   "The format for displaying the mode line.
 
 %s = The current signal strength.  If wired, then this is set to 100.
@@ -353,7 +354,7 @@ If DETAIL is not found in `enwc-last-scan', then return nil."
   (unless id
     (setq id (enwc-get-current-nw-id)))
   (when enwc-last-scan
-    (alist-get detail (alist-get id enwc-last-scan))))
+    (map-nested-elt enwc-last-scan `(,id ,detail))))
 
 (defun enwc-make-format-spec ()
   "Create a format specification for the mode line string."
@@ -507,10 +508,12 @@ ARGS is only for compatibility with the calling function."
           enwc-access-points  (enwc-get-networks))
     (when enwc-scan-interactive
       (message "Scanning... Done"))
-    (setq enwc-last-scan (mapcar
-                          (lambda (ap)
-                            `(,ap . ,(enwc-get-wireless-nw-props ap)))
-                          enwc-access-points))
+    (setq enwc-last-scan (map-into
+                          (mapcar
+                           (lambda (ap)
+                             `(,ap . ,(enwc-get-wireless-nw-props ap)))
+                           enwc-access-points)
+                          'hash-table))
     (enwc-display-wireless-networks enwc-last-scan)
     (setq enwc-scan-interactive nil)))
 
