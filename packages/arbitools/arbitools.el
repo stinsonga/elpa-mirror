@@ -3,7 +3,7 @@
 ;; Copyright 2016 Free Software Foundation, Inc.
 
 ;; Author: David Gonzalez Gandara <dggandara@member.fsf.org>
-;; Version: 0.53
+;; Version: 0.55
 ;; Package-Requires: ((cl-lib "0.5"))
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -59,6 +59,10 @@
 ;;
 ;; - Delete player. Adjust all rank numbers - Native
 ;;
+;; - Adjust points for each player, according to results of rounds - Native
+;;
+;; - Print standings - Native
+;;
 ;; TODO:
 ;; ---------------------------------
 ;;
@@ -77,20 +81,24 @@
 ;; - Add player to team. Prompt for team and player number.
 ;;
 ;; - Generate pgn file for a round or the whole tournament.
-;; 
-;; - Adjust points for each player, according to results of rounds
 ;;
 ;; - Reorder the ranking
 ;;
 ;; - Reorder the players list
 ;;
-;; - Print Stantings
-;; 
 ;; You will find more information in www.ourenxadrez.org/arbitools.htm
 
 ;;; Code:
 
 (eval-when-compile (require 'cl-lib))
+
+(defun arbitools-prepare-feda ()
+  "Prepare file to FEDA: add carriage return at the end of lines."
+  (interactive)
+  (save-excursion
+    (goto-char (point-min))
+    (while (search-forward "\n" nil t)
+      (replace-match "\r\n"))))
 
 (defun arbitools-update (elolist)
   "Update the players ratings in a database file based on a elo list file."
@@ -233,33 +241,120 @@
   ;; (insert "013 NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN  0000 0000\n")
 )
 
-;; (defun aribitools-number-of-rounds ()
-;;   "Get the number of rounds in the tournament"
-   ;; FIXME: EXPERIMENTAL
-;;   (let ((numberofrounds 0))
-;;     (save-excursion
-;;      (goto-char (point-min))
-;;      (re-search-forward "^132" nil t)
-;;        (let* ((linestringrounds (thing-at-point 'line))
+ (defun arbitools-number-of-rounds ()
+   "Get the number of rounds in the tournament. It has to be executed in the principal buffer."
+   (let* ((numberofrounds 0))
+     (save-excursion
+      (goto-char (point-min))
+      (re-search-forward "^132" nil t)
+        (let* ((linestringrounds (thing-at-point 'line))
             ;; (actualround " ")
-;;            (beginning-of-round 91)
-;;            (end-of-round 99)
-;;            (continue t))
+            (beginning-of-round 91)
+            (end-of-round 99)
+            (continue t))
                     
-           ;; (with-current-buffer "Arbitools-output" (insert (format "rounds: %s" linestringrounds)))
-           ;; (with-current-buffer "Arbitools-output" (insert (format "length: %s" (- (length linestringrounds) 4))))
+            ;; (with-current-buffer "Arbitools-output" (insert (format "rounds: %s" linestringrounds)))
+            ;; (with-current-buffer "Arbitools-output" (insert (format "length: %s" (- (length linestringrounds) 4))))
            ;; For some reason, the length of the string is 4 characters longer than the real line
-;;           (while continue
-;;             (if (< end-of-round (length linestringrounds))
+           (while continue
+             (if (< end-of-round (length linestringrounds))
                 
-;;               (progn
+               (progn
                   ;; (setq actualround (substring-no-properties linestringrounds beginning-of-round end-of-round))
-;;                  (setq numberofrounds (+ numberofrounds 1))
-;;                  (setq beginning-of-round (+ beginning-of-round 10))
-;;                  (setq end-of-round (+ end-of-round 10)))
+                  (setq numberofrounds (+ numberofrounds 1))
+                  (setq beginning-of-round (+ beginning-of-round 10))
+                  (setq end-of-round (+ end-of-round 10)))
                   
-;;                  (setq continue nil))))))
-;;     (numberofrounds))
+                  (setq continue nil)))))
+     numberofrounds))
+
+(defun arbitools-calculate-points ()
+  "Automatically calculate the points of each player"
+  (interactive)
+  (save-excursion
+    (let ( (numberofrounds (arbitools-number-of-rounds))
+           (pointsstring   "")
+           (points         0.0)
+           (pointstosum    0.0)
+           (roundcount     1))
+      (goto-char (point-min))
+      (while (re-search-forward "^001" nil t)
+        (setq points 0.0)
+        (setq roundcount 1)
+        (while (<= roundcount numberofrounds)
+          (beginning-of-line)
+	  (forward-char (+ 98 (* (- roundcount 1) 10))) ;; go to where the result is for each round
+          (setq pointsstring (thing-at-point 'symbol))
+          (cond ((string= (thing-at-point 'symbol) "1") (setq pointstosum 1.0))
+                ((string= (thing-at-point 'symbol) "+") (setq pointstosum 1.0))
+                ((string= (thing-at-point 'symbol) "=") (setq pointstosum 0.5))
+                ((string= (thing-at-point 'symbol) "0") (setq pointstosum 0.0))
+                ((string= (thing-at-point 'symbol) "-") (setq pointstosum 0.0))
+                ((string= (thing-at-point 'symbol) nil) (setq pointstosum 0.0)))
+          (setq points (+ points pointstosum))
+          (setq roundcount (+ roundcount 1)))
+        (beginning-of-line)
+        (forward-char 84)
+        (forward-char -3)
+        (delete-char 3)
+        (insert-char ?\s (- 3 (length (format "%s" points))))
+        (insert (format "%s" points))))))
+
+(defun arbitools-calculate-standings ()
+  "Write the standings in the Standings buffer"
+  (interactive)
+  (arbitools-calculate-points) ;; make sure the points of each player are correct
+  (save-excursion
+    (with-current-buffer "Standings"
+      (erase-buffer))
+    (let ((datachunk ""))
+      (goto-char (point-min))
+      (while (re-search-forward "^001" nil t)
+        (let* ((linestring (thing-at-point 'line)))
+          (beginning-of-line)
+          (forward-char 89) ;; get the POS field
+          (setq datachunk (thing-at-point 'word))
+          (with-current-buffer "Standings"
+            (insert (format "%s" datachunk))
+            (insert-char ?\s (- 3 (length datachunk)))
+            (insert " "))
+          (setq datachunk (substring-no-properties (thing-at-point 'line) 14 47)) ;; get name
+          (with-current-buffer "Standings"
+            (insert (format "%s " datachunk))
+            (insert-char ?\s (- 33 (length datachunk))))
+          (beginning-of-line)
+          (forward-char 68)
+          (setq datachunk (thing-at-point 'word)) ;; get idfide 
+          (with-current-buffer "Standings"
+            (insert (format "%s " datachunk))
+            (insert-char ?\s (- 10 (length datachunk))))
+          (setq datachunk (substring-no-properties (thing-at-point 'line) 80 84)) ;; get points
+          (with-current-buffer "Standings"
+            (insert (format "%s " datachunk))
+            (insert-char ?\s (- 4 (length datachunk))))
+          (with-current-buffer "Standings"
+            (insert "\n")
+            (sort-columns 1 49 (- (point-max) 1))))))
+    (let ((newpos 0)
+          (idfide ""))
+      (goto-char (point-min))
+      (while (re-search-forward "^001" nil t)
+        (beginning-of-line)
+        (forward-char 68)
+        (setq idfide (thing-at-point 'word))
+        (with-current-buffer "Standings"
+          (goto-char (point-min))
+          (search-forward idfide nil t)
+          (setq newpos (line-number-at-pos))) ;; the POS is in the beginning of the line in Standings
+        (with-current-buffer "Arbitools-output"
+          (insert (format "%s" newpos))
+          (insert "\n"))
+        (beginning-of-line)
+        (forward-char 89) ;; go to POS field
+        (forward-char -3)
+        (delete-char 3)
+        (insert-char ?\s (- 3 (length (format "%s" newpos))))
+        (insert (format "%s" newpos))))))
 
 (defun arbitools-delete-player (player)
    "Delete a player. Adjust all the rank numbers accordingly."
@@ -518,6 +613,8 @@
     ["Update Elo" arbitools-update]
     ["Get It3 form Report" arbitools-it3]
     ["Get FEDA Rating file" arbitools-fedarating]
+    "---"
+    ["Prepare for FEDA" arbitools-prepare-feda]
     ))
 
 
@@ -591,6 +688,7 @@
   (generate-new-buffer "Arbitools-output")
   (generate-new-buffer "List of players")
   (generate-new-buffer "Pairings List")
+  (generate-new-buffer "Standings")
   (column-number-mode)
   (set (make-local-variable 'font-lock-defaults) '(arbitools-highlights)))
 
