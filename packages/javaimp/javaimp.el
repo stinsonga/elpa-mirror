@@ -14,7 +14,6 @@
 ;;   Quick start:
 ;;
 ;; - customize `javaimp-import-group-alist'
-;;
 ;; - call `javaimp-maven-visit-project', giving it the top-level project
 ;; directory where pom.xml resides
 ;;
@@ -24,9 +23,8 @@
 ;; This module does not add all needed imports automatically!  It only helps
 ;; you to quickly add imports when stepping through compilation errors.
 ;;
-;;
 ;;   Some details:
-;; 
+;;
 ;; If Maven failed, you can see its output in the buffer named by
 ;; `javaimp-debug-buf-name' (default is "*javaimp-debug*").
 ;;
@@ -42,34 +40,32 @@
 ;;
 ;; Currently inner classes are filtered out from completion alternatives.
 ;; You can always import top-level class and use qualified name.
-;; 
+;;
 ;;
 ;;   Example of initialization:
-;; 
+;;
 ;; (require 'javaimp)
-;; 
+;;
 ;; (add-to-list 'javaimp-import-group-alist
 ;;   '("\\`\\(my\\.company\\.\\|my\\.company2\\.\\)" . 80))
-;; 
+;;
 ;; (setq javaimp-additional-source-dirs '("generated-sources/thrift"))
-;; 
+;;
 ;; (add-hook 'java-mode-hook
 ;; 	  (lambda ()
 ;; 	    (local-set-key "\C-ci" 'javaimp-add-import)
 ;; 	    (local-set-key "\C-co" 'javaimp-organize-imports)))
-;; 
-;; 
+;;
+;;
 ;; TODO:
-;;  
+;;
 ;; - use functions `cygwin-convert-file-name-from-windows' and
 ;; `cygwin-convert-file-name-to-windows' when they are available instead of
 ;; calling `cygpath'.  See https://cygwin.com/ml/cygwin/2013-03/msg00228.html.
-;;
 ;; - save/restore state
-;;
 ;; - `javaimp-add-import': without prefix arg narrow alternatives by local name;
 ;; with prefix arg include all classes in alternatives
-;; 
+;; - types for defcustom
 
 ;;; Code:
 
@@ -251,7 +247,7 @@ module file."
     (message "Loaded tree for %s" file)))
 
 
-;; Maven XML routines 
+;; Maven XML routines
 
 (defun javaimp--maven-xml-load-tree (file)
   "Invokes `mvn help:effective-pom' on FILE and using its output
@@ -499,7 +495,7 @@ the temporary buffer and returns its result"
   (message "Reading classes in file: %s" file)
   (with-temp-buffer
     (let ((coding-system-for-read (and (eq system-type 'cygwin) 'utf-8-dos)))
-      ;; On Cygwin, "jar" is a Windows program, so file path needs to be
+      ;; on cygwin, "jar" is a windows program, so file path needs to be
       ;; converted appropriately.
       (process-file javaimp-jar-program nil t nil
 		    ;; `jar' accepts commands/options as a single string
@@ -514,57 +510,65 @@ the temporary buffer and returns its result"
 	result))))
 
 
-;; Some API functions
-
-(defun javaimp-get-all-modules ()
-  (javaimp-select-nodes (lambda (module) t)))
-
-(defun javaimp-find-node (predicate)
-  (javaimp--find-in-forest javaimp-project-forest predicate))
-
-(defun javaimp-select-nodes (predicate)
-  (javaimp--select-from-forest javaimp-project-forest predicate))
-
-
 ;; Tree search routines
 
-(defun javaimp--find-in-forest (forest predicate)
+(defun javaimp--find-node (predicate)
+  (javaimp--find-node-in-forest javaimp-project-forest predicate))
+
+(defun javaimp--select-nodes (predicate)
+  (javaimp--select-nodes-from-forest javaimp-project-forest predicate))
+
+(defun javaimp--find-node-in-forest (forest predicate)
   (catch 'found
     (dolist (tree forest)
-      (javaimp--find-node tree predicate))))
+      (javaimp--find-node-in-tree tree predicate))))
 
-(defun javaimp--find-node (tree predicate)
+(defun javaimp--find-node-in-tree (tree predicate)
   (if tree
       (progn (if (funcall predicate (javaimp-node-contents tree))
 		 (throw 'found tree))
 	     (dolist (child (javaimp-node-children tree))
-	       (javaimp--find-node child predicate)))))
+	       (javaimp--find-node-in-tree child predicate)))))
 
-(defun javaimp--select-from-forest (forest predicate)
+(defun javaimp--select-nodes-from-forest (forest predicate)
   (apply #'seq-concatenate 'list
 	 (mapcar (lambda (tree)
-		   (javaimp--select-nodes tree predicate))
+		   (javaimp--select-nodes-from-tree tree predicate))
 		 forest)))
 
-(defun javaimp--select-nodes (tree predicate)
+(defun javaimp--select-nodes-from-tree (tree predicate)
   (if tree
       (append (if (funcall predicate (javaimp-node-contents tree))
 		  (list tree))
 	      (apply #'seq-concatenate 'list
 		     (mapcar (lambda (child)
-			       (javaimp--select-nodes child predicate))
+			       (javaimp--select-nodes-from-tree child predicate))
 			     (javaimp-node-children tree))))))
+
+
+;; Some API functions
+
+;; do not expose tree structure, return only modules
+
+(defun javaimp-find-module (predicate)
+  (let ((node (javaimp--find-node predicate)))
+    (and node
+	 (javaimp-node-contents node))))
+
+(defun javaimp-select-modules (predicate)
+  (mapcar #'javaimp-node-contents
+	  (javaimp--select-nodes predicate)))
 
 
 ;;; Adding imports
 
 ;;;###autoload
 (defun javaimp-add-import (classname)
-  "Imports CLASSNAME in the current file.  Interactively,
+  "Imports classname in the current file.  Interactively,
 asks for a class to import, adds import statement and calls
 `javaimp-organize-imports'.  Import statements are not
 duplicated.  Completion alternatives are constructed based on
-this module's dependencies' classes, JDK classes and top-level
+this module's dependencies' classes, jdk classes and top-level
 classes in the current module."
   (interactive
    (progn
@@ -572,7 +576,7 @@ classes in the current module."
      (let* ((file (expand-file-name
 		   (or buffer-file-name
 		       (error "Buffer is not visiting a file!"))))
-	    (node (or (javaimp-find-node
+	    (node (or (javaimp--find-node
 		       (lambda (m)
 			 (or (string-prefix-p (javaimp-module-source-dir m) file)
 			     (string-prefix-p (javaimp-module-test-source-dir m) file))))
@@ -598,15 +602,18 @@ classes in the current module."
   "Returns list of top-level classes in current module"
   (append
    (let ((build-dir (javaimp-module-build-dir module)))
+     ;; additional source dirs
      (and (seq-mapcat
 	   (lambda (rel-dir)
 	     (let ((dir (concat build-dir (file-name-as-directory rel-dir))))
 	       (and (file-accessible-directory-p dir)
 		    (javaimp--get-directory-classes dir nil))))
 	   javaimp-additional-source-dirs)))
+   ;; source dir
    (let ((dir (javaimp-module-source-dir module)))
      (and (file-accessible-directory-p dir)
 	  (javaimp--get-directory-classes dir nil)))
+   ;; test source dir
    (let ((dir (javaimp-module-test-source-dir module)))
      (and (file-accessible-directory-p dir)
 	  (javaimp--get-directory-classes dir nil)))))
@@ -622,10 +629,11 @@ classes in the current module."
    (apply #'seq-concatenate 'list
 	  (mapcar (lambda (subdir)
 		    (let ((name (car subdir)))
-		      (javaimp--get-directory-classes 
+		      (javaimp--get-directory-classes
 		       (concat dir (file-name-as-directory name)) (concat prefix name "."))))
-		  (seq-filter (lambda (file) (and (cadr file) ;only directories
-						  (null (member (car file) '("." "..")))))
+		  (seq-filter (lambda (file)
+				(and (eq (cadr file) t) ;only directories
+				     (null (member (car file) '("." "..")))))
 			      (directory-files-and-attributes dir nil nil t))))))
 
 
@@ -655,35 +663,38 @@ is `'ordinary' or `'static'.  Interactively, NEW-IMPORTS is nil."
 	   (first (car old-data))
 	   (last (cadr old-data))
 	   (all-imports (append new-imports (cddr old-data))))
-      ;; delete old imports, if any
-      (if first
+      (if all-imports
 	  (progn
-	    (goto-char last)
-	    (forward-line)
-	    (delete-region first (point))))
-      (javaimp--prepare-for-insertion first)
-      (setq all-imports
-	    (delete-duplicates all-imports
-			       :test (lambda (first second)
-				       (equal (car first) (car second)))))
-      ;; assign order
-      (let ((with-order
-	     (mapcar
-	      (lambda (import)
-		(let ((order (or (assoc-default (car import)
-						javaimp-import-group-alist
-						'string-match)
-				 javaimp-import-default-order)))
-		  (cons import order)))
-	      all-imports)))
-	(setq with-order
-	      (sort with-order
-		    (lambda (first second)
-		      ;; sort by order, name
-		      (if (= (cdr first) (cdr second))
-			  (string< (caar first) (caar second))
-			(< (cdr first) (cdr second))))))
-	(javaimp--insert-imports with-order)))))
+	    ;; delete old imports, if any
+	    (if first
+		(progn
+		  (goto-char last)
+		  (forward-line)
+		  (delete-region first (point))))
+	    (javaimp--prepare-for-insertion first)
+	    (setq all-imports
+		  (delete-duplicates all-imports
+				     :test (lambda (first second)
+					     (equal (car first) (car second)))))
+	    ;; assign order
+	    (let ((with-order
+		   (mapcar
+		    (lambda (import)
+		      (let ((order (or (assoc-default (car import)
+						      javaimp-import-group-alist
+						      'string-match)
+				       javaimp-import-default-order)))
+			(cons import order)))
+		    all-imports)))
+	      (setq with-order
+		    (sort with-order
+			  (lambda (first second)
+			    ;; sort by order, name
+			    (if (= (cdr first) (cdr second))
+				(string< (caar first) (caar second))
+			      (< (cdr first) (cdr second))))))
+	      (javaimp--insert-imports with-order)))
+      (message "Nothing to organize!")))))
 
 (defun javaimp--parse-imports ()
   (let (first last list)
