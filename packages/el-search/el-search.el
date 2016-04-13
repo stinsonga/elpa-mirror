@@ -345,11 +345,27 @@ error."
 
 (defvar el-search--initial-mb-contents nil)
 
-(defun el-search--read-pattern (prompt &optional default read histvar)
+(defun el-search--pushnew-to-history (input histvar)
+  (let ((hist-head (car (symbol-value histvar))))
+    (unless (or (string-match-p "\\`\\'" input)
+                (and (stringp hist-head)
+                     (or (string= input hist-head)
+                         (ignore-errors (equal (read input) (read hist-head))))))
+      (push (if (string-match-p "\\`.+\n" input)
+                (with-temp-buffer
+                  (emacs-lisp-mode)
+                  (insert "\n" input)
+                  (indent-region 1 (point))
+                  (buffer-string))
+              input)
+            (symbol-value histvar)))))
+
+(defun el-search--read-pattern (prompt &optional default histvar)
   (cl-callf or histvar 'el-search-history)
   (let ((input (el-search-read-expression
-                prompt el-search--initial-mb-contents histvar default read)))
-    (if (or read (not (string= input ""))) input (car (symbol-value histvar)))))
+                prompt el-search--initial-mb-contents histvar default)))
+    (el-search--pushnew-to-history input histvar)
+    (if (not (string= input "")) input (car (symbol-value histvar)))))
 
 (defun el-search--end-of-sexp ()
   ;;Point must be at sexp beginning
@@ -967,16 +983,18 @@ The following additional pattern types are currently defined:"
   (interactive (list (if (and (eq this-command last-command)
                               el-search-success)
                          el-search-current-pattern
-                       (let ((pattern
-                              (el-search--read-pattern "Find pcase pattern: "
-                                                       (car el-search-history)
-                                                       t)))
+                       (let* ((input (el-search--read-pattern "Find pcase pattern: "
+                                                              (car el-search-history)))
+                              (pattern (read input)))
                          ;; A very common mistake: input "foo" instead of "'foo"
                          (when (and (symbolp pattern)
                                     (not (eq pattern '_))
                                     (or (not (boundp pattern))
                                         (not (eq (symbol-value pattern) pattern))))
                            (error "Please don't forget the quote when searching for a symbol"))
+                         ;; Make input available also in query-replace history
+                         (el-search--pushnew-to-history input 'el-search-query-replace-history)
+                         ;; and wrap the PATTERN
                          (el-search--wrap-pattern pattern)))))
   (if (not (called-interactively-p 'any))
       (el-search--search-pattern pattern no-error)
@@ -1121,7 +1139,7 @@ Hit any key to proceed."
                            (or el-search--initial-mb-contents
                                (and (eq last-command 'el-search-pattern)
                                     (car el-search-history)))))
-                      (el-search--read-pattern "Query replace pattern: " nil nil
+                      (el-search--read-pattern "Query replace pattern: " nil
                                                'el-search-query-replace-history)))
         from to)
     (with-temp-buffer
@@ -1144,8 +1162,20 @@ Hit any key to proceed."
     (unless (and el-search-query-replace-history
                  (not (string= from from-input))
                  (string= from-input (car el-search-query-replace-history)))
-      (push (format "%s -> %s" from to) ;FIXME: add line break when FROM or TO is multiline?
+      (push (with-temp-buffer
+              (emacs-lisp-mode)
+              (insert (let ((newline-in-from (string-match-p "\n" from))
+                            (newline-in-to   (string-match-p "\n" to)))
+                        (format "%s%s%s ->%s%s"
+                                (if (and (or newline-in-from newline-in-to)
+                                         (not (string-match-p "\\`\n" from))) "\n" "")
+                                (if     newline-in-from                       "\n" "" ) from
+                                (if (and (or newline-in-from newline-in-to)
+                                         (not (string-match-p "\\`\n" to)))   "\n" " ") to)))
+              (indent-region 1 (point-max))
+              (buffer-string))
             el-search-query-replace-history))
+    (el-search--pushnew-to-history from 'el-search-history)
     (list (el-search--wrap-pattern (read from)) (read to) to)))
 
 ;;;###autoload
