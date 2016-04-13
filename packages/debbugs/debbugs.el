@@ -5,8 +5,8 @@
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, hypermedia
 ;; Package: debbugs
-;; Version: 0.9.1
-;; Package-Requires: ((async "1.6"))
+;; Version: 0.9.2
+;; Package-Requires: ((soap-client "3.1.1"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -36,10 +36,6 @@
 ;(setq soap-debug t message-log-max t)
 (require 'soap-client)
 (eval-when-compile (require 'cl))
-
-(declare-function soap-invoke-async "soap-client")
-(declare-function async-start "async")
-(declare-function async-get "async")
 
 (defgroup debbugs nil
   "Debbugs library"
@@ -122,29 +118,13 @@ This corresponds to the Debbugs server to be accessed, either
   "The object manipulated by `debbugs-soap-invoke-async'.")
 
 (defun debbugs-soap-invoke-async (operation-name &rest parameters)
-  "Invoke the SOAP connection asynchronously.
-If possible, it uses `soap-invoke-async' from soapclient 3.0.
-Otherwise, `async-start' from the async package is used."
-  (if (fboundp 'soap-invoke-async)
-      ;; This is soap-client 3.0.
-      (apply
-       'soap-invoke-async
-       (lambda (response &rest args)
-	 (setq debbugs-soap-invoke-async-object
-	       (append debbugs-soap-invoke-async-object (car response))))
-       nil
-       debbugs-wsdl debbugs-port operation-name parameters)
-    ;; Fallback with async.
-    (async-start
-     `(lambda ()
-	(load ,(locate-library "soap-client"))
-	(apply
-	 'soap-invoke
-	 (soap-load-wsdl
-	  ,(expand-file-name
-	    "Debbugs.wsdl"
-	    (file-name-directory (locate-library "debbugs"))))
-	 ,debbugs-port ,operation-name ',parameters)))))
+  "Invoke the SOAP connection asynchronously."
+  (apply
+   'soap-invoke-async
+   (lambda (response &rest args)
+     (setq debbugs-soap-invoke-async-object
+	   (append debbugs-soap-invoke-async-object (car response))))
+   nil debbugs-wsdl debbugs-port operation-name parameters))
 
 (defun debbugs-get-bugs (&rest query)
   "Return a list of bug numbers which match QUERY.
@@ -410,14 +390,8 @@ Example:
 				 debbugs-max-hits-per-request))))
 
 	(dolist (res results)
-	  (if (bufferp res)
-	      ;; This is soap-client 3.0.
-	      (while (buffer-live-p res)
-		(accept-process-output (get-buffer-process res) 0.1))
-	    ;; Fallback with async.
-	    (dolist (status (async-get res))
-	      (setq debbugs-soap-invoke-async-object
-		    (append debbugs-soap-invoke-async-object status)))))))
+	  (while (buffer-live-p res)
+	    (accept-process-output (get-buffer-process res) 0.1)))))
 
     (append
      cached-bugs
@@ -460,7 +434,7 @@ Example:
 	      (puthash
 	       (cdr (assoc 'key x))
 	       ;; Put also a time stamp.
-	       (cons (cons 'cache_time (floor (float-time)))
+	       (cons (cons 'cache_time (float-time))
 		     (cdr (assoc 'value x)))
 	       debbugs-cache-data)
 	    ;; Don't cache.
@@ -687,7 +661,7 @@ Examples:
 
   (let ((phrase (assoc :phrase query))
 	args result)
-    (if (and phrase (not (member :skip phrase)) (not (member :skip phrase)))
+    (if (and phrase (not (member :skip phrase)) (not (member :max phrase)))
 	;; We loop, until we have all results.
 	(let ((skip 0)
 	      (query (delete phrase query))
