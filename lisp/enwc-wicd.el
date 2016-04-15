@@ -30,7 +30,9 @@
 
 ;;; Code:
 
+(require 'enwc-backend)
 (require 'enwc)
+(require 'dbus)
 
 (defgroup enwc-wicd nil
   "*Wicd variables for ENWC."
@@ -289,60 +291,60 @@ so this jut returns the tracked network id."
 ;; Get Profile Info ;;
 ;;;;;;;;;;;;;;;;;;;;;;
 
-(defun enwc-wicd-get-profile-ent (id ent wired)
-  "Get profile entry ENT from the network with id ID.
-WIRED is set to indicate whether this is a wired network.
-This function is a wrapper around the *-get-(wired|wireless)-nw-prop
-functions, allowing for a single function that checks for wired."
-  (if wired
-      (enwc-wicd-get-wired-nw-prop id ent)
-    (enwc-wicd-dbus-wireless-call-method "GetWirelessProperty" id ent)))
+;; (defun enwc-wicd-get-profile-ent (id ent wired)
+;;   "Get profile entry ENT from the network with id ID.
+;; WIRED is set to indicate whether this is a wired network.
+;; This function is a wrapper around the *-get-(wired|wireless)-nw-prop
+;; functions, allowing for a single function that checks for wired."
+;;   (if wired
+;;       (enwc-wicd-get-wired-nw-prop id ent)
+;;     (enwc-wicd-dbus-wireless-call-method "GetWirelessProperty" id ent)))
 
-(defun enwc-wicd-get-profile-info (id &optional wired)
-  "Get the profile for profile ID.
-WIRED is set to indicate whether this is a wired network."
-  (let ((dns-list (enwc-wicd-get-dns id wired))
-        (sec-info (enwc-wicd-get-profile-sec-info id wired)))
-    `((addr . ,(enwc-wicd-get-ip-addr id wired))
-      (netmask . ,(enwc-wicd-get-netmask id wired))
-      (gateway . ,(enwc-wicd-get-gateway id wired))
-      (dns1 . ,(nth 0 dns-list))
-      (dns2 . ,(nth 1 dns-list))
-      ,@sec-info)))
+;; (defun enwc-wicd-get-profile-info (id &optional wired)
+;;   "Get the profile for profile ID.
+;; WIRED is set to indicate whether this is a wired network."
+;;   (let ((dns-list (enwc-wicd-get-dns id wired))
+;;         (sec-info (enwc-wicd-get-profile-sec-info id wired)))
+;;     `((addr . ,(enwc-wicd-get-ip-addr id wired))
+;;       (netmask . ,(enwc-wicd-get-netmask id wired))
+;;       (gateway . ,(enwc-wicd-get-gateway id wired))
+;;       (dns1 . ,(nth 0 dns-list))
+;;       (dns2 . ,(nth 1 dns-list))
+;;       ,@sec-info)))
 
-(defun enwc-wicd-get-profile-sec-info (id &optional wired)
-  "Get the security info for profile with id ID.
-WIRED is set to indicate whether this is a wired network."
-  (remq nil
-   (mapcar
-    (lambda (ent)
-      (let ((info (enwc-wicd-get-profile-ent wired id (symbol-name (car ent)))))
-        (if info
-            (cons (car ent) info)
-          nil)))
-    enwc-supplicant-alist)))
+;; (defun enwc-wicd-get-profile-sec-info (id &optional wired)
+;;   "Get the security info for profile with id ID.
+;; WIRED is set to indicate whether this is a wired network."
+;;   (remq nil
+;;    (mapcar
+;;     (lambda (ent)
+;;       (let ((info (enwc-wicd-get-profile-ent wired id (symbol-name (car ent)))))
+;;         (if info
+;;             (cons (car ent) info)
+;;           nil)))
+;;     enwc-supplicant-alist)))
 
-(defun enwc-wicd-get-ip-addr (id wired)
-  "Get the IP Address from the network with id ID.
-Wired is set to indicate whether this is a wired network."
-  (or (enwc-wicd-get-profile-ent id "ip" wired) ""))
+;; (defun enwc-wicd-get-ip-addr (id wired)
+;;   "Get the IP Address from the network with id ID.
+;; Wired is set to indicate whether this is a wired network."
+;;   (or (enwc-wicd-get-profile-ent id "ip" wired) ""))
 
-(defun enwc-wicd-get-netmask (id wired)
-  "Get the Netmask from the network with id ID.
-WIRED is set to indicate whether this is a wired network."
-  (or (enwc-wicd-get-profile-ent id "netmask" wired) ""))
+;; (defun enwc-wicd-get-netmask (id wired)
+;;   "Get the Netmask from the network with id ID.
+;; WIRED is set to indicate whether this is a wired network."
+;;   (or (enwc-wicd-get-profile-ent id "netmask" wired) ""))
 
-(defun enwc-wicd-get-gateway (id wired)
-  "Get the Gateway from the network with id ID.
-WIRED is set to indicate whether this is a wired network."
-  (or (enwc-wicd-get-profile-ent id "gateway" wired) ""))
+;; (defun enwc-wicd-get-gateway (id wired)
+;;   "Get the Gateway from the network with id ID.
+;; WIRED is set to indicate whether this is a wired network."
+;;   (or (enwc-wicd-get-profile-ent id "gateway" wired) ""))
 
-(defun enwc-wicd-get-dns (id wired)
-  "Get the list of DNS servers from the network with id ID.
-WIRED is set to indicate whether this is a wired network."
-  (list (or (enwc-wicd-get-profile-ent id "dns1" wired) "")
-        (or (enwc-wicd-get-profile-ent id "dns2" wired) "")
-        (or (enwc-wicd-get-profile-ent id "dns3" wired) "")))
+;; (defun enwc-wicd-get-dns (id wired)
+;;   "Get the list of DNS servers from the network with id ID.
+;; WIRED is set to indicate whether this is a wired network."
+;;   (list (or (enwc-wicd-get-profile-ent id "dns1" wired) "")
+;;         (or (enwc-wicd-get-profile-ent id "dns2" wired) "")
+;;         (or (enwc-wicd-get-profile-ent id "dns3" wired) "")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Save Network Settings ;;
@@ -414,6 +416,11 @@ WIRED indicates whether or not ID is a wired connection."
                                          (caar (nthcdr 3 info))
                                          (string-to-number (caar (nthcdr 3 info))))))))
 
+
+; ;;;;;;;;;;;;;;;;; ;
+; ;; Load/Unload ;; ;
+; ;;;;;;;;;;;;;;;;; ;
+
 (defun enwc-wicd-load ()
   "Load the Wicd backend."
   ;; Thanks to Michael Albinus for pointing out this signal.
@@ -439,6 +446,24 @@ WIRED indicates whether or not ID is a wired connection."
 Unregister all of the D-Bus signals set up during load."
   (dbus-unregister-object enwc-wicd-end-scan-signal)
   (dbus-unregister-object enwc-wicd-status-changed-signal))
+
+(defun enwc-wicd-can-load-p ()
+  (dbus-ping :system enwc-wicd-dbus-service))
+
+(enwc-register-backend
+ (make-enwc-backend
+  :key 'enwc
+  :can-load-p #'enwc-wicd-can-load-p
+  :load #'enwc-wicd-load
+  :unload #'enwc-wicd-unload
+  :network-ids #'enwc-wicd-get-networks
+  :scan #'enwc-wicd-scan
+  :connect #'enwc-wicd-connect
+  :disconnect #'enwc-wicd-disconnect
+  :current-nw-id #'enwc-wicd-get-current-nw-id
+  :is-connecting-p #'enwc-wicd-check-connecting
+  :wireless-nw-props #'enwc-wicd-get-wireless-network-props
+  :is-wired-p #'enwc-wicd-is-wired))
 
 (provide 'enwc-wicd)
 

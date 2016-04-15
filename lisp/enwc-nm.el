@@ -29,7 +29,9 @@
 ;;   This requires NetworkManager >= 0.9.6
 ;;
 
+(require 'enwc-backend)
 (require 'enwc)
+(require 'dbus)
 
 (defgroup enwc-nm nil
   "*NetworkManager variables for ENWC"
@@ -421,31 +423,31 @@ If STATE is 40, then NetworkManager is connecting to a new AP."
   (let* ((bytes (split-string addr "\\."))
          (byte-string (mapcar
                        (lambda (n) (lsh (string-to-number (nth n bytes))
-                                        (* 8 n)))
+                                   (* 8 n)))
                        (number-sequence 0 3))))
     (apply 'logior byte-string)))
 
 ;; These next two come from libnm-util/nm-utils.c in NM's source.
 
-(defun enwc-nm-netmask-to-prefix (netmask)
-  "Convert a netmask to a CIDR prefix.
-NETMASK is an ip address in network byte order."
-  (if (and netmask (integerp netmask))
-      (progn
-        (setq netmask (enwc--htonl netmask))
-        (while (cl-evenp netmask)
-          (setq netmask (lsh netmask -1)))
-        (floor (log (1+ netmask) 2)))
-    0))
+;; (defun enwc-nm-netmask-to-prefix (netmask)
+;;   "Convert a netmask to a CIDR prefix.
+;; NETMASK is an ip address in network byte order."
+;;   (if (and netmask (integerp netmask))
+;;       (progn
+;;         (setq netmask (enwc--htonl netmask))
+;;         (while (cl-evenp netmask)
+;;           (setq netmask (lsh netmask -1)))
+;;         (floor (log (1+ netmask) 2)))
+;;     0))
 
-(defun enwc-nm-prefix-to-netmask (prefix)
-  "Convert a CIDR prefix to a netmask.
-PREFIX is an integer <= 32."
-  (if (and prefix (integerp prefix))
-      (progn
-        (setq prefix (min prefix 32))
-        (enwc--htonl (lsh (1- (expt 2 prefix)) (- 32 prefix))))
-    0))
+;; (defun enwc-nm-prefix-to-netmask (prefix)
+;;   "Convert a CIDR prefix to a netmask.
+;; PREFIX is an integer <= 32."
+;;   (if (and prefix (integerp prefix))
+;;       (progn
+;;         (setq prefix (min prefix 32))
+;;         (enwc--htonl (lsh (1- (expt 2 prefix)) (- 32 prefix))))
+;;     0))
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; D-Bus Conversion ;;
@@ -537,27 +539,27 @@ representing another layer in the dictionary."
       (push `(:string (car ent) ,(enwc-nm-alist-to-dbus-dict (cadr ent))) ret)
       (push :dict-entry ret))))
 
-(defun enwc-nm-get-profile-info (ap &optional wired)
-  "Get the profile info for access point AP."
-  (let ((conn (enwc-nm--ap-to-conn ap))
-        settings)
-    (when conn
-      (setq settings (enwc-nm-get-settings conn)))
-    (when settings
-      (let* ((adr-info (caar (enwc-nm-get-dbus-dict-entry "ipv4/addresses" settings)))
-             (ip-addr (enwc-nm-convert-addr (nth 0 adr-info)))
-             (netmask (enwc-nm-convert-addr (enwc-nm-prefix-to-netmask (nth 1 adr-info))))
-             (gateway (enwc-nm-convert-addr (nth 2 adr-info)))
-             (dns-list (mapcar 'enwc-nm-convert-addr
-                               (car (enwc-nm-get-dbus-dict-entry "ipv4/dns"
-                                                                 settings))))
-             (sec-info (enwc-nm-get-sec-info settings)))
-        `((addr . ,ip-addr)
-          (netmask . ,netmask)
-          (gateway . ,gateway)
-          (dns1    . ,(nth 0 dns-list))
-          (dns2    . ,(nth 1 dns-list))
-          ,@sec-info)))))
+;; (defun enwc-nm-get-profile-info (ap &optional wired)
+;;   "Get the profile info for access point AP."
+;;   (let ((conn (enwc-nm--ap-to-conn ap))
+;;         settings)
+;;     (when conn
+;;       (setq settings (enwc-nm-get-settings conn)))
+;;     (when settings
+;;       (let* ((adr-info (caar (enwc-nm-get-dbus-dict-entry "ipv4/addresses" settings)))
+;;              (ip-addr (enwc-nm-convert-addr (nth 0 adr-info)))
+;;              (netmask (enwc-nm-convert-addr (enwc-nm-prefix-to-netmask (nth 1 adr-info))))
+;;              (gateway (enwc-nm-convert-addr (nth 2 adr-info)))
+;;              (dns-list (mapcar 'enwc-nm-convert-addr
+;;                                (car (enwc-nm-get-dbus-dict-entry "ipv4/dns"
+;;                                                                  settings))))
+;;              (sec-info (enwc-nm-get-sec-info settings)))
+;;         `((addr . ,ip-addr)
+;;           (netmask . ,netmask)
+;;           (gateway . ,gateway)
+;;           (dns1    . ,(nth 0 dns-list))
+;;           (dns2    . ,(nth 1 dns-list))
+;;           ,@sec-info)))))
 
 (defun enwc-nm-finalize-settings (settings)
   "Set up all of the D-BUS types of a settings list SETTINGS.
@@ -603,6 +605,12 @@ to put it in the form that NetworkManager will recognize."
                                 enwc-nm-dbus-settings-path
                                 enwc-nm-dbus-settings-interface
                                 (enwc-nm-setup-settings ap settings wired)))))
+
+
+                                        ; ;;;;;;;;;;;;;;;;; ;
+                                        ; ;; Load/Unload ;; ;
+                                        ; ;;;;;;;;;;;;;;;;; ;
+
 
 (defun enwc-nm-load ()
   "Setup the NetworkManager back-end."
@@ -684,6 +692,24 @@ Unregister all of the D-Bus signals set up during load."
   (dbus-unregister-object enwc-nm-properties-changed-signal)
   (dbus-unregister-object enwc-nm-wired-state-changed-signal)
   (dbus-unregister-object enwc-nm-state-changed-signal))
+
+(defun enwc-nm-can-load-p ()
+  (dbus-ping :system enwc-nm-dbus-service))
+
+(enwc-register-backend
+ (make-enwc-backend
+  :key 'nm
+  :can-load-p #'enwc-nm-can-load-p
+  :load #'enwc-nm-load
+  :unload #'enwc-nm-unload
+  :network-ids #'enwc-nm-get-networks
+  :scan #'enwc-nm-scan
+  :connect #'enwc-nm-connect
+  :disconnect #'enwc-nm-disconnect
+  :current-nw-id #'enwc-nm-get-current-nw-id
+  :is-connecting-p #'enwc-nm-check-connecting
+  :wireless-nw-props #'enwc-nm-get-wireless-nw-props
+  :is-wired-p #'enwc-nm-is-wired))
 
 (provide 'enwc-nm)
 
