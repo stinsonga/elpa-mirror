@@ -336,8 +336,8 @@ PROP from that access point.  It also sets the channel from the
       (bssid    . ,(cdr (assoc "HwAddress" props)))
       (strength . ,(cdr (assoc "Strength" props)))
       (encrypt  . ,(or (enwc-nm-get-encryption-type nw) "Unsecured"))
-      (channel  . ,(number-to-string (enwc-nm--freq-to-channel
-                                      (cdr (assoc "Frequency" props))))))))
+      (channel  . ,(enwc-nm--freq-to-channel
+                    (cdr (assoc "Frequency" props)))))))
 
 (defun enwc-nm-get-encryption-type (nw)
   "The NetworkManager get encryption type function.

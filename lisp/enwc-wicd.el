@@ -142,7 +142,7 @@ Just returns a number sequence."
   "The handler for `enwc-wicd-get-wireless-network-property'.
 This receives the value of network property PROP,
 and appends the value to `enwc-wicd-prop-values'."
-  (push `(,prop . ,(car args)) enwc-wicd-prop-values)
+  (push (cons prop (car args)) enwc-wicd-prop-values)
   (setq enwc-wicd-prop-num (1+ enwc-wicd-prop-num)))
 
 (defun enwc-wicd-prop-to-prop (prop)
@@ -175,7 +175,10 @@ from wireless network with id ID."
      (let* ((cur-prop (assoc det prop-list))
             (act-det (enwc-wicd-prop-to-prop det))
             (act-prop (when cur-prop (cdr cur-prop))))
-       `(,act-det . ,act-prop)))
+       (when (or (string-equal det "essid")
+                 (string-equal det "channel"))
+         (setq act-prop (string-to-number cur-prop)))
+       (cons act-det act-prop)))
    det-list))
 
 (defun enwc-wicd-get-wireless-nw-props (id)
