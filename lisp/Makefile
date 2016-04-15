@@ -18,9 +18,9 @@
 
 
 EMACS=emacs --batch
-ALLSRC=enwc.el enwc-wicd.el enwc-nm.el enwc-setup.el
+ALLSRC= enwc-backend.el enwc.el enwc-wicd.el enwc-nm.el
 ALLELC=$(wildcard *.elc)
-EXPER=enwc-cm.el
+EXPER=enwc-cm.el enwc-wpa.el enwc-edit.el
 SOURCE=$(ALLSRC)
 TARGET=$(patsubst %.el,%.elc,$(SOURCE))
 
