@@ -45,13 +45,15 @@
 
 ;;; Code:
 
-(require 'dbus)
-(require 'wid-edit)
+(require 'enwc-backend)
+
 (require 'tabulated-list)
 (require 'cl-lib)
 (require 'cl-macs)
 (require 'format-spec)
+
 (require 'map)
+(require 'seq)
 
 (defgroup enwc nil
   "*The Emacs Network Client"
@@ -67,13 +69,6 @@
   "The wired device to use for ENWC."
   :group 'enwc
   :type 'string)
-
-(defcustom enwc-backends '(wicd nm)
-  "The list of backends to be used by ENWC.
-These will be checked in the order designated here,
-and the first active backend found will be used."
-  :group 'enwc
-  :type 'list)
 
 (defcustom enwc-display-mode-line 't
   "Non-nil means display network information in the mode line.
@@ -114,43 +109,25 @@ connection.
 
 ;;; The function variables for the abstract layer.
 
-(defvar enwc-current-backend nil
-  "The backend that ENWC is currently using.
-
-Do not set this directly.  Instead, use `enwc-load-backend'.")
-
 (defvar enwc-display-string " [0%] "
   "The mode line display string.
 This is altered every second to display the current network strength
 in `enwc-update-mode-line'.")
 
-(defun enwc-print-strength (s)
+(defun enwc--print-strength (s)
   "Convert signal strength S to a string to dispay."
-  (concat (number-to-string s) "%"))
+  (format "%s%%" s))
 
-(defvar enwc-details-alist
-  `((strength . ((display . "Str")
-                 (width   . 0)
-                 (conv    . enwc-print-strength)))
-    (essid    . ((display . "Essid")
-                 (width   . 0)
-                 (conv    . identity)))
-    (encrypt  . ((display . "Encrypt")
-                 (width   . 0)
-                 (conv    . identity)))
-    (bssid    . ((display . "Bssid")
-                 (width   . 0)
-                 (conv    . identity)))
-    (channel  . ((display . "Chnl")
-                 (width   . 0)
-                 (conv    . identity))))
-  "Alist of the details to their information.
+(cl-defstruct enwc-column-spec ()
+  detail display width conv)
 
-The information entries themselves are an alist, with the following keys:
-
-DISPLAY is the display name.
-WIDTH is used during display to keep track of the width of each one.
-CONV is the conversion function used during display.")
+(defvar enwc-details-list
+  (list
+   (make-enwc-column-spec :detail 'strength :display "Str"     :conv #'enwc--print-strength)
+   (make-enwc-column-spec :detail 'essid    :display "Essid"   :conv #'identity)
+   (make-enwc-column-spec :detail 'encrypt  :display "Encrypt" :conv #'identity)
+   (make-enwc-column-spec :detail 'bssid    :display "Bssid"   :conv #'identity)
+   (make-enwc-column-spec :detail 'channel  :display "Channel" :conv #'identity)))
 
 (defvar enwc-last-scan nil
   "The most recent scan results.
@@ -162,7 +139,7 @@ This will be an association list of the form:
 Each ID is a backend-specific network ID.
 
 Each key in the children association lists corresponds to an entry in
-`enwc-details-alist'.")
+`enwc-details-list'.")
 
 (defvar enwc-access-points nil
   "The most recent access point list.")
@@ -196,7 +173,7 @@ This is only used internally.")
 
 ;; The Faces
 
-(defface enwc-header-face
+(defface enwc-header
   '((((class color) (background light))
      (:foreground "Blue"))
     (((class color) (background dark))
@@ -205,7 +182,7 @@ This is only used internally.")
   "The face for the headers."
   :group 'enwc)
 
-(defface enwc-connected-face
+(defface enwc-connected
   '((((class color) (background dark))
      (:foreground "Green"))
     (((class color) (background light))
@@ -214,62 +191,6 @@ This is only used internally.")
   "The face for the connected network."
   :group 'enwc)
 
-(eval-when-compile
-  (defun enwc--break-by-words (str)
-    "Break up string STR into a list of words."
-    (cl-check-type str string)
-    (split-string str "-\\|_\\| "))
-
-  (defun enwc--sym-to-str (sym &optional seps)
-    "Create a string from symbol SYM.
-SEPS is a string specifying the separator to use to combine the words,
-or \" \" if not specified."
-    (cl-check-type sym symbol)
-    (unless seps
-      (setq seps " "))
-    (cl-check-type seps string)
-    (combine-and-quote-strings (enwc--break-by-words (symbol-name sym)) seps))
-
-  (defun enwc--str-to-sym (str &optional seps)
-    "Create a symbol from the string STR.
-This will break STR into words, and then put it back together separating
-each word by SEPS, which defaults to \"-\"."
-    (cl-check-type str string)
-    (unless seps
-      (setq seps "-"))
-    (cl-check-type seps string)
-    (intern (combine-and-quote-strings (enwc--break-by-words str) seps))))
-
-(defun enwc--int-to-byte-list (n)
-  "Convert 32-bit integer N into a byte list."
-  (cl-check-type n integer)
-  (let (ret)
-    (dotimes (x 4 ret)
-      (push (logand n 255) ret)
-      (setq n (lsh n -8)))))
-
-(defun enwc--byte-list-to-int (bl)
-  "Convert byte list BL into a 32-bit integer."
-  (cl-check-type bl list)
-  (let ((ret 0))
-    (dolist (x bl ret)
-      (setq ret (logior (lsh ret 8) x)))))
-
-(defun enwc--htonl (n)
-  "Convert 32-bit integer N from hardware to network byte order."
-  (cl-check-type n integer)
-  (enwc--byte-list-to-int (nreverse (enwc--int-to-byte-list n))))
-
-(defun enwc-call-backend-function (function &optional backend &rest args)
-  "Call FUNCTION on backend BACKEND.
-FUNCTION is an ENWC function suffix string.
-If the symbol BACKEND is not specified, then it defaults to
-`enwc-current-backend'.
-ARGS are passed in to the function."
-  (unless backend
-    (setq backend enwc-current-backend))
-  (apply (intern (format "enwc-%s-%s" backend function)) args))
-
 ;;;;;;;;;;;;;;;;;;;;
 ;; ENWC functions ;;
 ;;;;;;;;;;;;;;;;;;;;
@@ -277,69 +198,55 @@ ARGS are passed in to the function."
 (defun enwc-get-networks ()
   "Get the identifiers for the access points
 from a previous scan."
-  (enwc-call-backend-function "get-networks" nil enwc-using-wired))
+  (enwc--network-ids enwc--current-backend))
 
 (defun enwc-request-scan ()
   "Request a backend scan."
   (setq enwc-scan-requested t)
-  (enwc-call-backend-function "scan"))
+  (enwc--scan enwc--current-backend))
 
 (defun enwc-connect (id)
   "Connect to network with id ID.
 
 ID is specific to the backend."
-  (enwc-call-backend-function "connect" nil id enwc-using-wired))
+  (enwc--connect enwc--current-backend id enwc-using-wired))
 
 (defun enwc-disconnect ()
   "Disconnect from the current network."
-  (enwc-call-backend-function "disconnect" nil enwc-using-wired))
+  (enwc--disconnect enwc--current-backend enwc-using-wired))
 
 (defun enwc-get-current-nw-id ()
   "Get the id of the current network id,
 or nil if there isn't one.
 
 The returned id is specific to the backend."
-  (enwc-call-backend-function "get-current-nw-id" nil enwc-using-wired))
+  (enwc--current-nw-id enwc--current-backend enwc-using-wired))
 
 (defun enwc-check-connecting-p ()
   "Check to see if there is a connection in progress.
 Returns `non-nil' if there is one, nil otherwise."
-  (enwc-call-backend-function "check-connecting"))
+  (enwc--is-connecting-p enwc--current-backend))
 
 (defun enwc-get-wireless-nw-props (id)
   "Get the network properties of the wireless network with id ID.
 This will return an associative list with the keys
-corresponding to `enwc-details-alist'.
+corresponding to `enwc-details-list'.
 
 ID is specific to the backend."
-  (enwc-call-backend-function "get-wireless-nw-props" nil id))
+  (enwc--wireless-nw-props enwc--current-backend id))
 
 (defun enwc-is-wired-p ()
   "Check whether or not ENWC is connected to a wired network.
 Note that this is NOT the same as `enwc-using-wired'.
 This checks for an active wired connection."
-  (enwc-call-backend-function "is-wired"))
-
-(defun enwc-get-profile-info (id)
-  "Get the profile information for network ID.
-
-ID is specific to the backend."
-  (enwc-call-backend-function "get-profile-info" nil id enwc-using-wired))
-
-(defun enwc-save-nw-settings (id settings)
-  "Save network settings SETTINGS to the network profile with network id ID.
-SETTINGS is an association list with entries for the IP Address, Netmask,
-Gateway, DNS Servers, and Security.  WIRED is set to indicate whether or not
-this is a wired network.
-
-ID is specific to the backend."
-  (enwc-call-backend-function "save-nw-settings" nil
-                              id settings
-                              enwc-using-wired))
+  (enwc--is-wired-p enwc--current-backend))
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Actual Functions ;;
 ;;;;;;;;;;;;;;;;;;;;;;
+
+(defun enwc-connected-to-network-p ()
+    (enwc-is-valid-nw-id-p (enwc-get-current-nw-id)))
 
 (defun enwc-is-valid-nw-id-p (id)
   "Confirm that ID is a valid network id."
@@ -351,8 +258,7 @@ If ID is specified, then it will get the entry for ID.
 Otherwise, ID is set to the current network ID.
 
 If DETAIL is not found in `enwc-last-scan', then return nil."
-  (unless id
-    (setq id (enwc-get-current-nw-id)))
+  (setq id (or id (enwc-get-current-nw-id)))
   (when enwc-last-scan
     (map-nested-elt enwc-last-scan `(,id ,detail))))
 
@@ -465,10 +371,10 @@ Set up and move to the ENWC buffer if necessary, and scan and display the
 buffer."
   (interactive)
   (unless nodisp
-    (setq enwc-scan-interactive t))
-  (when (get-buffer "*ENWC*")
-    (with-current-buffer "*ENWC*"
-      (enwc-scan-internal))))
+    (setq enwc-scan-interactive t)
+    (enwc-ensure-buffer))
+  (with-current-buffer "*ENWC*"
+    (enwc-scan-internal)))
 
 (defun enwc-scan-internal-wireless ()
   "The initial scan routine for wireless networks.
@@ -521,38 +427,25 @@ ARGS is only for compatibility with the calling function."
 ;; Display Networks ;;
 ;;;;;;;;;;;;;;;;;;;;;;
 
-(defun enwc-update-width (detail &optional val)
-  "Update the width for column DETAIL to VAL.
-This modifies the width entry in `enwc-details-alist' that corresponds to
-DETAIL.
-
-If VAL is not specified, then use the width of the display name for DETAIL."
-  (let ((det (alist-get detail enwc-details-alist)))
-    (unless val
-      (setq val (1+ (length (alist-get 'display det)))))
-    (setq val (max val (alist-get 'width det)))
-    (setcdr (assq 'width det) val)))
-
-(defun enwc-reset-widths ()
-  "Reset the column widths for display."
-  (dolist (det enwc-details-alist)
-    (enwc-update-width (car det))))
-
-(defun enwc-refresh-widths (&optional networks)
+(cl-defun enwc-refresh-widths (&optional (networks enwc-last-scan))
   "Refresh the column widths for display."
-  (unless networks
-    (setq networks enwc-last-scan))
-  (enwc-reset-widths)
-  (dolist (nw networks)
-    (dolist (props (cdr nw))
-      (enwc-update-width (car props) (length (prin1-to-string (cdr props)))))))
+  (setq enwc-details-list
+        (mapcar
+         (lambda (detail)
+           (let ((new-max (seq-max
+                           (map-apply
+                            (lambda (id nw)
+                              (length (prin1-to-string (alist-get (enwc-column-spec-detail detail) nw))))
+                            networks)))
+                 (min-width (1+ (length (enwc-column-spec-display detail)))))
+             (setf (enwc-column-spec-width detail) (max new-max min-width))
+             detail))
+         enwc-details-list)))
 
 (defun enwc-display-wired-networks (networks)
   "Display the wired networks specified in the list NETWORKS.
 NETWORKS must be in the form returned from
 `enwc-scan-internal-wired'."
-  (unless (listp networks)
-    (error "NETWORKS must be a list of networks."))
   (let ((inhibit-read-only t))
     (setq tabulated-list-format (vector '("Profile" . 1)))
     ;;TODO: actually get names of profiles, if possible.
@@ -560,44 +453,49 @@ NETWORKS must be in the form returned from
     (tabulated-list-init-header)
     (tabulated-list-print)))
 
-(defmacro enwc--propertize-entry (network-entry)
-  "Propertize network entry NETWORK-ENTRY."
-  `(mapcar
-    (lambda (det)
-      (let* ((conv     (alist-get 'conv (cdr det)))
-             (ent      (alist-get (car det) (cdr ,network-entry)))
-             (conv-ent (funcall conv ent)))
-        (if (equal cur-id (car nw))
-            (propertize conv-ent
-                        'font-lock-face
-                        'enwc-connected-face)
-          conv-ent)))
-    enwc-details-alist))
+(defun enwc--get-details (network-entry)
+  (mapcar
+   (lambda (detail)
+     (alist-get (enwc-column-spec-detail detail) network-entry))
+   enwc-details-list))
+
+(defun enwc--tabulated-list-entries ()
+  (map-apply
+   (lambda (id nw) (list id (vconcat (enwc--get-details nw))))
+   enwc-last-scan))
+
+(defun enwc--tabulated-list-printer (id cols)
+  "Print the row ID with column values COL."
+  (let ((cur-id (enwc-get-current-nw-id)))
+    (tabulated-list-print-entry
+     id
+     (vconcat
+      (seq-map-indexed
+       (lambda (col idx)
+         (let* ((detail (nth idx enwc-details-list))
+                (conv   (funcall (enwc-column-spec-conv detail) col)))
+           (if (equal cur-id id)
+               (propertize conv 'font-lock-face 'enwc-connected)
+             conv)))
+       cols)))))
 
 (defun enwc-display-wireless-networks (networks)
   "Display the networks in the list NETWORKS in the current buffer."
-  (unless (get-buffer "*ENWC*")
-    (enwc-setup-buffer t))
-  (cl-check-type networks list)
+  (enwc-ensure-buffer)
   ;; Update the display widths.
   (enwc-refresh-widths)
   (with-current-buffer (get-buffer "*ENWC*")
-    (let ((cur-id (enwc-get-current-nw-id)))
-      (setq tabulated-list-format
-            (apply 'vector
-                   (mapcar
-                    (lambda (det)
-                      `(,(alist-get 'display (cdr det))
-                        ,(alist-get 'width   (cdr det))
-                        t))
-                    enwc-details-alist)))
+    (setq tabulated-list-format
+          (vconcat
+           (mapcar
+            (lambda (detail)
+              (list (enwc-column-spec-display detail)
+                    (enwc-column-spec-width detail)
+                    (lambda (a b) (string-lessp (prin1-to-string a) (prin1-to-string b)))))
+            enwc-details-list)))
+    (setq tabulated-list-entries #'enwc--tabulated-list-entries)
+    (setq tabulated-list-printer #'enwc--tabulated-list-printer)
 
-      (setq tabulated-list-entries
-            (mapcar
-             (lambda (nw)
-               `(,(car nw)
-                 ,(apply 'vector (enwc--propertize-entry nw))))
-             networks)))
     (tabulated-list-init-header)
 
     (tabulated-list-print)))
@@ -698,382 +596,16 @@ a scan."
     (setq enwc-using-wired (not enwc-using-wired))
     (enwc-scan)))
 
-;;;###autoload
-(defun enwc ()
-  "The main front-end to ENWC.
-This sets up the buffer and scans for networks.
-In order to use this, one must have already run
-`enwc-setup'.
-
-\\{enwc-mode-map}"
-  (interactive)
-  (enwc-setup-buffer)
-  (enwc-scan))
-
-;;;;;;;;;;;;;;;;;;;;;;;;
-;; Profile Properties ;;
-;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; Settings for access point AP
-;;
-;; IPv4 Settings:
-;;   Address =
-;;   Netmask =
-;;   Gateway =
-;;
-;;   DNS 1   =
-;;   DNS 2   =
-;;
-;; Security:
-;;   Type    =
-;;
-
-(defun enwc-edit-view-entry ()
-  "View the text of the entry at point.
-This is mostly useful to view the text of the hidden entries."
-  (interactive)
-  (unless (get-buffer "*ENWC Edit*")
-    (error "Not editing a network entry."))
-  (unless (eq (current-buffer) (get-buffer "*ENWC Edit*"))
-    (switch-to-buffer "*ENWC Edit*"))
-  (unless (widget-at)
-    (error "No widget at point"))
-  (message (widget-field-value-get (widget-at))))
-
-(define-widget 'enwc-profile-props-widget 'group
-  "ENWC edit widget."
-  :convert-widget 'identity
-  :format "IPv4 Settings:\n %v"
-  :value-to-internal 'enwc-profile-props-to-widget
-  :value-to-external 'enwc-widget-to-profile-props
-  :match #'(lambda nil t)
-  :indent 1
-  :args '((string :tag "Address")
-          (string :tag "Netmask")
-          (string :tag "Gateway")
-          (string :tag "DNS1")
-          (string :tag "DNS2")))
-
-(defun enwc-profile-props-to-widget (widget props)
-  "Create a profile props widget."
-  (list
-   (alist-get 'addr props "")
-   (alist-get 'netmask props "")
-   (alist-get 'gateway props "")
-   (alist-get 'dns1 props "")
-   (alist-get 'dns2 props "")))
-
-(defun enwc-widget-to-profile-props (widget vals)
-  "Convert widget values to a profile properties alist.
-WIDGET is unused.
-VALS is the list of widget values."
-  (let ((addr (nth 0 vals))
-        (netmask (nth 1 vals))
-        (gateway (nth 2 vals))
-        (dns1 (nth 3 vals))
-        (dns2 (nth 4 vals)))
-    `((addr . ,addr)
-      (netmask . ,netmask)
-      (gateway . ,gateway)
-      (dns1 . ,dns1)
-      (dns2 . ,dns2))))
-
-;;;;;;;;;;;;;;
-;; Security ;;
-;;;;;;;;;;;;;;
-
-(eval-when-compile
-  (defmacro enwc--make-supplicant-multi (key &rest args)
-    `(cons (quote ,key)
-           (quote (checklist :tag ,(capitalize (enwc--sym-to-str key))
-                             :format "%{%t%}: %v"
-                             :sample-face bold
-                             :indent ,(+ 4 (length (enwc--sym-to-str key)))
-                             :args ,(mapcar
-                                     (lambda (arg)
-                                       `(item :tag ,(upcase arg) :value ,(downcase arg)))
-                                     args)))))
-
-  (defmacro enwc--make-supplicant-choice (key &rest args)
-    `(cons (quote ,key)
-           (quote (menu-choice :tag ,(capitalize (enwc--sym-to-str key))
-                               :format "%[%t%]: %v"
-                               :sample-face bold
-                               :args
-                               ,(mapcar
-                                 (lambda (arg)
-                                   `(item :tag ,(upcase arg) :value (downcase ,arg)))
-                                 args)))))
-
-  (defmacro enwc--make-supplicant-secret (key)
-    `(cons (quote ,key)
-           (quote (editable-field :tag ,(capitalize (enwc--sym-to-str key))
-                                  :format "%{%t%}: %v"
-                                  :sample-face bold
-                                  :keymap enwc-edit-field-map
-                                  :secret ?*))))
-
-  (defmacro enwc--make-supplicant-entry (key)
-    `(cons (quote ,key)
-           (quote (editable-field :tag ,(capitalize (enwc--sym-to-str key))
-                                  :sample-face bold
-                                  :format "%{%t%}: %v"))))
-
-  (defmacro enwc--make-supplicant-file (key)
-    `(cons (quote ,key)
-           (quote (file :tag ,(capitalize (enwc--sym-to-str key))
-                        :format "%{%t%}: %v"
-                        :sample-face bold
-                        :must-match t))))
-
-  (defmacro enwc--make-supplicant-list (key &rest args)
-    `(cons (quote ,key)
-           (quote (list :tag ,(capitalize (enwc--sym-to-str key))
-                        :format "%{%t%}: %v"
-                        :sample-face bold
-                        :indent ,(length (enwc--sym-to-str key))
-                        :args ,(mapcar (lambda (x) (cdr (eval x))) args))))))
-
-(defconst enwc-supplicant-alist
-  (list
-   (enwc--make-supplicant-multi proto "WPA" "RSN")
-   (enwc--make-supplicant-multi key-mgmt "None" "WPA-PSK" "WPA-EAP" "IEEE8021X")
-   (enwc--make-supplicant-choice auth-alg "OPEN" "SHARED" "LEAP")
-   (enwc--make-supplicant-multi pairwise "CCMP" "TKIP" "NONE")
-   (enwc--make-supplicant-multi group "CCMP" "TKIP" "WEP104" "WEP40")
-   (enwc--make-supplicant-secret psk)
-   (enwc--make-supplicant-secret wep-key0)
-   (enwc--make-supplicant-secret wep-key1)
-   (enwc--make-supplicant-secret wep-key2)
-   (enwc--make-supplicant-secret wep-key3)
-   (enwc--make-supplicant-choice wep-tx-keyidx "0" "1" "2" "3")
-   (enwc--make-supplicant-choice eap "TLS" "PEAP" "TTLS" "LEAP" "FAST")
-   (enwc--make-supplicant-entry identity)
-   (enwc--make-supplicant-entry anonymous-identity)
-   (enwc--make-supplicant-secret password)
-   (enwc--make-supplicant-file ca-cert)
-   (enwc--make-supplicant-file client-cert)
-   (enwc--make-supplicant-file private-key)
-   (enwc--make-supplicant-secret private-key-passwd)
-   (enwc--make-supplicant-file pac-file)
-   (enwc--make-supplicant-list phase1
-                               (enwc--make-supplicant-choice peapver "" "0" "1")
-                               (enwc--make-supplicant-choice peaplabel "" "0" "1")
-                               (enwc--make-supplicant-choice fast-provisioning "" "0" "1" "2" "3"))
-   (enwc--make-supplicant-list phase2
-                               (enwc--make-supplicant-choice auth "" "MD5" "MSCHAPV2" "OTP" "GTC" "TLS")
-                               (enwc--make-supplicant-choice autheap "" "MD5" "MSCHAPV2" "OTP" "GTC" "TLS")
-                               (enwc--make-supplicant-file ca-cert)
-                               (enwc--make-supplicant-file client-cert)
-                               (enwc--make-supplicant-file private-key)
-                               (enwc--make-supplicant-secret private-key-passwd)))
-  "An alist that maps supplicant entries to a widget type.
-
-For more information, see the documentation for wpa_supplicant.")
-
-(defcustom enwc-supplicant-template-alist
-  `((wep . ((key-mgmt . ("none"))
-            (wep-key0 . req)
-            (wep-tx-keyidx . "0")))
-    (wpa2 . ((proto . ("wpa" "rsn"))
-             (key-mgmt . ("wpa-psk"))
-             (pairwise . ("ccmp" "tkip"))
-             (group . ("ccmp" "tkip"))
-             (psk . req)))
-    (leap . ((eap . "leap")
-             (key-mgmt . ("ieee8021x"))
-             (auth-alg . "leap")
-             (identity . req)
-             (password . req)))
-    (eap-fast . ((proto . ("rsn" "wpa"))
-                 (pairwise . ("ccmp" "tkip"))
-                 (group . ("ccmp" "tkip"))
-                 (key-mgmt . ("wpa-eap"))
-                 (eap . "fast")
-                 (identity . req)
-                 (password . req)
-                 (phase1 . ((fast-provisioning . "1")))
-                 (pac-file . opt)))
-    (eap-tls . ((key-mgmt . ("wpa-eap"))
-                (pairwise . ("tkip"))
-                (group . ("tkip"))
-                (eap . "tls")
-                (identity . req)
-                (ca-cert . opt)
-                (client-cert . opt)
-                (private-key . req)
-                (private-key-passwd . req)))
-    (peap . ((proto . ("rsn"))
-             (key-mgmt . ("wpa-eap"))
-             (pairwise . ("ccmp"))
-             (eap . "peap")
-             (identity . req)
-             (password . req)))
-    (peap-tkip . ((proto . ("wpa"))
-                  (key-mgmt . ("wpa-eap"))
-                  (pairwise . ("tkip"))
-                  (group . ("tkip"))
-                  (eap . "peap")
-                  (identity . req)
-                  (password . req)
-                  (ca-cert . opt)
-                  (phase1 . ((peaplabel . "0")))
-                  (phase2 . ((auth . "mschapv2"))))))
-  "The alist of templates for security.
-This should be an alist of the form (KEY . ((SUPPLICANT-KEY . INITIAL-INPUT) ...))
-Each SUPPLICANT-KEY should be a key from `enwc-supplicant-alist', and INITIAL-INPUT
-should be an acceptable value for SUPPLICANT-KEY.
-
-If INITIAL-INPUT is the symbol req, then this option is required.
-The value opt means that the option is optional."
-  :group 'enwc
-  :type '(alist :key-type symbol :value-type (alist :key-type symbol)))
-
-(defun enwc--get-supplicant-entry (ent &optional sec-info)
-  "Create a widget definition from ENT.
-
-If optional parameter SEC-INFO is non-nil, then use it
-for security information."
-  (let ((init (cdr ent))
-        (wid (assq (car ent) enwc-supplicant-alist))
-        fin)
-    (unless wid
-      (error "Unknown supplicant type %s" (car ent)))
-    ;; Set the initial value for the widget.
-    (when (eq (cadr wid) 'list)
-      (let (act-init)
-        (dolist (arg (widget-get (cdr wid) :args))
-          (push (alist-get (enwc--str-to-sym (downcase (widget-get arg :tag))) init "")
-                act-init))
-        (setq init (nreverse act-init))))
-    (cons (cadr wid)
-          (append (pcase init
-                  (`req `(:required t :value ,(alist-get (car ent) sec-info "")))
-                  (`opt `(:value ,(alist-get (car ent) sec-info "")))
-                  (_ `(:value ,init)))
-                (cddr wid)))))
-
-(defun enwc-create-template-menu (&optional sec-info)
-  "Create the widget declaration for the menu of templates.
-
-If specified, SEC-INFO is passed to the templates to initialize them."
-  `(menu-choice
-    :tag "Security"
-    :indent 2
-    ,@(mapcar
-       (lambda (tm)
-         `(list
-           :tag ,(symbol-name (car tm))
-           :menu-tag ,(symbol-name (car tm))
-           ,@(mapcar
-              (lambda (ent)
-                (enwc--get-supplicant-entry ent sec-info))
-              (cdr tm))))
-       enwc-supplicant-template-alist)))
-
-(defun enwc-display-sec-widget (&optional sec-info)
-  "Create the menu of security templates.
-If specified, SEC-INFO is passed to the templates to initialize them."
-  (widget-create (enwc-create-template-menu sec-info)))
-
-(defun enwc-sec-widget-data (widget)
-  "Get the data from a security widget WIDGET."
-  (let* ((type (widget-get (widget-get widget :choice) :tag))
-         (values (widget-value widget))
-         (template (assq (intern type) enwc-supplicant-template-alist)))
-    (unless template
-      (error "Unrecognized security template \"%s\"." type))
-    (setq template (cdr template))
-    (cons
-     `(sec-type . ,(intern type))
-     (cl-mapcar
-      (lambda (val v)
-        (let ((vl v))
-          (when (or (eq (car val) 'phase1)
-                    (eq (car val) 'phase2))
-            (let ((subs
-                   (mapcar
-                    (lambda (arg)
-                      (enwc--str-to-sym (downcase (widget-get arg :tag))))
-                    (widget-get (alist-get (car val) enwc-supplicant-alist) :args))))
-              (setq vl (cl-mapcar 'cons subs v))))
-          (print vl)
-          (cons (car val) vl)))
-      template values))))
-
-(defvar enwc-network-edit-widget nil
-  "The network information widget used in the edit buffer.")
-
-(defvar enwc-security-edit-widget nil
-  "The security widget used in the edit buffer.")
-
-(defun enwc-setup-edit-buffer ()
-  "Setup the edit buffer.  This removes the old one if neccessary,
-and redisplays the settings from the network profile
- with id `enwc-edit-id', which is set in `enwc-edit-entry-at-point'."
-  (when (get-buffer "*ENWC Edit*")
-    (kill-buffer "*ENWC Edit*"))
-  (with-current-buffer (get-buffer-create "*ENWC Edit*")
-    (let ((nw-info (enwc-get-profile-info enwc-edit-id)))
-
-      (widget-insert (concat "Settings for access point "
-                             (enwc-value-from-scan 'essid enwc-edit-id)
-                             "\n"))
-      (widget-insert "\n")
-      (setq enwc-network-edit-widget
-            (widget-create 'enwc-profile-props-widget :value nw-info))
-
-      (widget-insert "\n")
-      (setq enwc-security-edit-widget (enwc-display-sec-widget nw-info))
-
-      (use-local-map enwc-edit-map)
-      (widget-setup)))
-
-  (switch-to-buffer "*ENWC Edit*"))
-
-(defun enwc-edit-save ()
-  "Save the network settings from the edit buffer."
-  (interactive)
-  (unless (get-buffer "*ENWC Edit*")
-    (error "Not editing a network entry"))
-  (unless (eq (current-buffer) (get-buffer "*ENWC Edit*"))
-    (switch-to-buffer "*ENWC Edit*"))
-
-  (enwc-save-nw-settings
-   enwc-edit-id
-   (append (widget-value enwc-network-edit-widget)
-           (enwc-sec-widget-data enwc-security-edit-widget))))
-
-(defun enwc-edit-entry-at-point ()
-  "Edit the current network entry."
-  (interactive)
-  (setq enwc-edit-id (tabulated-list-get-id))
-  ;;TODO: This is really annoying.
-  (select-window (split-window))
-  (enwc-setup-edit-buffer))
-
 (defvar enwc-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "R") 'enwc-scan)
     (define-key map (kbd "C") 'enwc-connect-to-network-essid)
     (define-key map (kbd "D") 'enwc-disconnect-network)
     (define-key map (kbd "W") 'enwc-toggle-wired)
-    (define-key map (kbd "E") 'enwc-edit-entry-at-point)
+    ;; (define-key map (kbd "E") 'enwc-edit-entry-at-point)
     (define-key map (kbd "RET") 'enwc-connect-to-network-at-point)
     map)
   "The keymap for network display in ENWC.")
-
-(defvar enwc-edit-map
-  (let ((map (copy-keymap widget-keymap)))
-    (define-key map (kbd "C-x C-s") 'enwc-edit-save)
-    map)
-  "The keymap for editing network profiles with ENWC.")
-
-(defvar enwc-edit-field-map
-  (let ((map (copy-keymap widget-field-keymap)))
-    (define-key map (kbd "C-x C-a") 'enwc-edit-view-entry)
-    map)
-  "The keymap for editable fields within the ENWC edit buffer.")
 
 (define-derived-mode enwc-mode tabulated-list-mode "enwc"
   "Mode for working with network connections.
@@ -1092,6 +624,22 @@ newly created buffer."
       (enwc-mode)))
   (unless nomove
     (switch-to-buffer "*ENWC*")))
+
+(defun enwc-ensure-buffer ()
+  (unless (get-buffer "*ENWC*")
+    (enwc-setup-buffer t)))
+
+;;;###autoload
+(defun enwc ()
+  "The main front-end to ENWC.
+This sets up the buffer and scans for networks.
+In order to use this, one must have already run
+`enwc-setup'.
+
+\\{enwc-mode-map}"
+  (interactive)
+  (enwc-setup-buffer)
+  (enwc-scan))
 
 (provide 'enwc)
 
