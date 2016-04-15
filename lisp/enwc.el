@@ -5,6 +5,7 @@
 ;; Author: Ian Dunn <dunni@gnu.org>
 ;; Keywords: external, network, wicd, manager, nm
 ;; Version: 2.0
+;; Package-Requires: ((emacs "25.1"))
 ;; Homepage: https://savannah.nongnu.org/p/enwc
 
 ;; This file is part of GNU Emacs.
@@ -34,14 +35,17 @@
 ;;
 ;; In order to use this package, add
 ;;
-;; (require 'enwc-setup)
-;; (enwc-setup)
+;; (require 'enwc)
+;; (enwc-load-default-backend)
 ;;
 ;; to your .emacs file (or other init file).
 
 ;;; TODO:
 ;;
 ;; - Add hooks for scan completion, and possibly upon network connection.
+;; - Wired uses profiles, not networks; Refer to them as such
+;; - Is an association list the best idea for scan results?  Perhaps a structure
+;;   would work better?
 
 ;;; Code:
 
@@ -118,18 +122,47 @@ in `enwc-update-mode-line'.")
   "Convert signal strength S to a string to dispay."
   (format "%s%%" s))
 
+(defmacro enwc--make-number-sorter (n)
+  `(lambda (a b)
+     (let ((act-a (aref (nth 1 a) ,n))
+           (act-b (aref (nth 1 b) ,n)))
+       (< act-a act-b))))
+
+(defalias 'enwc--str-sorter (enwc--make-number-sorter 0))
+(defalias 'enwc--chnl-sorter (enwc--make-number-sorter 4))
+
 (cl-defstruct enwc-column-spec ()
-  detail display width conv)
+  detail display sorter width conv)
 
-(defvar enwc-details-list
+(defconst enwc-details-list
   (list
-   (make-enwc-column-spec :detail 'strength :display "Str"     :conv #'enwc--print-strength)
-   (make-enwc-column-spec :detail 'essid    :display "Essid"   :conv #'identity)
-   (make-enwc-column-spec :detail 'encrypt  :display "Encrypt" :conv #'identity)
-   (make-enwc-column-spec :detail 'bssid    :display "Bssid"   :conv #'identity)
-   (make-enwc-column-spec :detail 'channel  :display "Channel" :conv #'identity)))
+   (make-enwc-column-spec
+    :detail 'strength
+    :display "Str"
+    :sorter #'enwc--str-sorter
+    :conv #'enwc--print-strength)
+   (make-enwc-column-spec
+    :detail 'essid
+    :display "Essid"
+    :sorter t
+    :conv #'identity)
+   (make-enwc-column-spec
+    :detail 'encrypt
+    :display "Encrypt"
+    :sorter t
+    :conv #'identity)
+   (make-enwc-column-spec
+    :detail 'bssid
+    :display "Bssid"
+    :sorter t
+    :conv #'identity)
+   (make-enwc-column-spec
+    :detail 'channel
+    :display "Channel"
+    :sorter #'enwc--chnl-sorter
+    :conv #'number-to-string)))
 
-(defvar enwc-last-scan nil
+(defvar enwc-last-scan (make-hash-table :test #'equal)
   "The most recent scan results.
 
 This will be an association list of the form:
@@ -404,23 +437,29 @@ This checks whether or not wired is being used, and runs the appropriate
       (enwc-scan-internal-wired)
     (enwc-scan-internal-wireless)))
 
+(defun enwc--update-scan-results ()
+  (setq enwc-last-scan (make-hash-table :test #'equal))
+  (dolist (ap (enwc-get-networks))
+    (puthash ap (enwc-get-wireless-nw-props ap) enwc-last-scan)))
+
+(defun enwc-redisplay-wireless-networks ()
+  (interactive)
+  (enwc--update-scan-results)
+  (enwc-display-wireless-networks enwc-last-scan))
+
 (defun enwc-process-scan (&rest args)
   "The scanning callback.
 After a scan has been performed, this processes and displays the scan results.
 
 ARGS is only for compatibility with the calling function."
   (unless (or enwc-using-wired (not enwc-scan-requested))
-    (setq enwc-scan-requested nil
-          enwc-access-points  (enwc-get-networks))
+    (setq enwc-scan-requested nil)
     (when enwc-scan-interactive
       (message "Scanning... Done"))
-    (setq enwc-last-scan (map-into
-                          (mapcar
-                           (lambda (ap)
-                             `(,ap . ,(enwc-get-wireless-nw-props ap)))
-                           enwc-access-points)
-                          'hash-table))
+    (enwc--update-scan-results)
     (enwc-display-wireless-networks enwc-last-scan)
+    (when enwc-scan-interactive
+      (pop-to-buffer "*ENWC*"))
     (setq enwc-scan-interactive nil)))
 
 ;;;;;;;;;;;;;;;;;;;;;;
@@ -434,6 +473,9 @@ ARGS is only for compatibility with the calling function."
          (lambda (detail)
            (let ((new-max (seq-max
                            (map-apply
+                            ;; TODO: prin1-to-string isn't the formatter.  Use
+                            ;; the actual formatter function as specified by the
+                            ;; conv.
                             (lambda (id nw)
                               (length (prin1-to-string (alist-get (enwc-column-spec-detail detail) nw))))
                             networks)))
@@ -488,10 +530,8 @@ NETWORKS must be in the form returned from
     (setq tabulated-list-format
           (vconcat
            (mapcar
-            (lambda (detail)
-              (list (enwc-column-spec-display detail)
-                    (enwc-column-spec-width detail)
-                    (lambda (a b) (string-lessp (prin1-to-string a) (prin1-to-string b)))))
+            (pcase-lambda ((cl-struct enwc-column-spec display width sorter))
+              (list display width sorter))
             enwc-details-list)))
     (setq tabulated-list-entries #'enwc--tabulated-list-entries)
     (setq tabulated-list-printer #'enwc--tabulated-list-printer)
@@ -610,7 +650,7 @@ a scan."
 (define-derived-mode enwc-mode tabulated-list-mode "enwc"
   "Mode for working with network connections.
 \\{enwc-mode-map}"
-  (add-hook 'tabulated-list-revert-hook 'enwc-scan nil t))
+  (add-hook 'tabulated-list-revert-hook 'enwc-redisplay-wireless-networks nil t))
 
 (defun enwc-setup-buffer (&optional nomove)
   "Sets up the ENWC buffer.
