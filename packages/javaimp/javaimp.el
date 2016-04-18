@@ -29,14 +29,11 @@
 ;; `javaimp-debug-buf-name' (default is "*javaimp-debug*").
 ;;
 ;; Contents of jar files and Maven project structures (pom.xml) are cached,
-;; so usually only first command should take a considerable amount of time
-;; to complete.  If a modules's pom.xml or any of its parents' pom.xml was
-;; changed (i.e. any of them was modified after information was loaded),
-;; `mvn dependency:build-classpath' is re-run on the current module.  If a
-;; jar file was changed, its contents are re-read.
-;;
-;; If you make some changes which change project hierarchy, you should
-;; re-visit the parent again with `javaimp-maven-visit-project'.
+;; so usually only the first command should take a considerable amount of
+;; time to complete.  If a module's pom.xml or any of its parents' pom.xml
+;; (within visited tree) was modified after information was loaded, `mvn
+;; dependency:build-classpath' is re-run on the current module.  If a jar
+;; file was changed, its contents are re-read.
 ;;
 ;; Currently inner classes are filtered out from completion alternatives.
 ;; You can always import top-level class and use qualified name.
@@ -61,11 +58,15 @@
 ;;
 ;; - use functions `cygwin-convert-file-name-from-windows' and
 ;; `cygwin-convert-file-name-to-windows' when they are available instead of
-;; calling `cygpath'.  See https://cygwin.com/ml/cygwin/2013-03/msg00228.html.
-;; - save/restore state
+;; calling `cygpath'.  See https://cygwin.com/ml/cygwin/2013-03/msg00228.html
+;;
+;; - save/restore state, on restore check if a root exists and delete it if
+;; not
+;;
 ;; - `javaimp-add-import': without prefix arg narrow alternatives by local name;
 ;; with prefix arg include all classes in alternatives
-;; - types for defcustom
+;;
+;; - :type for defcustom
 
 ;;; Code:
 
@@ -94,9 +95,10 @@ The order of classes which were not matched is defined by
   "Defines the order of classes which were not matched by
 `javaimp-import-group-alist'")
 
-(defcustom javaimp-jdk-home (getenv "JAVA_HOME")
-  "Path to the JDK.  It is used to find JDK jars to scan.  By
-default, it is set from the JAVA_HOME environment variable.")
+(defcustom javaimp-java-home (getenv "JAVA_HOME")
+  "Path to the JDK.  Directory jre/lib underneath this path is
+searched for JDK libraries.  By default, it is initialized from
+the JAVA_HOME environment variable.")
 
 (defcustom javaimp-additional-source-dirs nil
   "List of directories where additional (e.g. generated)
@@ -138,7 +140,7 @@ to the completion alternatives list.")
 ;; Variables and constants
 
 (defvar javaimp-project-forest nil
-  "Visited projects.")
+  "Visited projects")
 
 (defvar javaimp-cached-jars nil
   "Alist of cached jars.  Each element is of the form (FILE
@@ -189,12 +191,13 @@ to the completion alternatives list.")
   (nth 5 (file-attributes file)))
 
 (defun javaimp--get-jdk-jars ()
-  (if javaimp-jdk-home
-      (let ((jre-lib-dir
-	     (concat (file-name-as-directory javaimp-jdk-home)
-		     (file-name-as-directory "jre")
-		     (file-name-as-directory "lib"))))
-	(directory-files jre-lib-dir t "\\.jar\\'"))))
+  (and javaimp-java-home
+       (file-accessible-directory-p javaimp-java-home)
+       (let ((lib-dir
+	      (concat (file-name-as-directory javaimp-java-home)
+		      (file-name-as-directory "jre")
+		      (file-name-as-directory "lib"))))
+	 (directory-files lib-dir t "\\.jar\\'"))))
 
 (defun javaimp-cygpath-convert-maybe (path &optional mode is-really-path)
   "On Cygwin, converts PATH using cygpath according to MODE and
@@ -230,7 +233,7 @@ to which modules and other module information.
 After being processed by this command, the module tree becomes
 known to javaimp and `javaimp-add-import' maybe called inside any
 module file."
-  (interactive "DVisit maven project: ")
+  (interactive "DVisit maven project in directory: ")
   (let ((file (expand-file-name
 	       (concat (file-name-as-directory path) "pom.xml"))))
     (unless (file-readable-p file)
@@ -568,7 +571,7 @@ the temporary buffer and returns its result"
 asks for a class to import, adds import statement and calls
 `javaimp-organize-imports'.  Import statements are not
 duplicated.  Completion alternatives are constructed based on
-this module's dependencies' classes, jdk classes and top-level
+this module's dependencies' classes, JDK classes and top-level
 classes in the current module."
   (interactive
    (progn
@@ -643,12 +646,16 @@ classes in the current module."
 (defun javaimp-organize-imports (&rest new-imports)
   "Groups import statements according to the value of
 `javaimp-import-group-alist' (which see) and prints resulting
-groups leaving one blank line in between.
+groups leaving one blank line between groups.
+
+If the file already contains some import statements, this command
+rewrites them, starting with the same place.  Else, if the the
+file contains package directive, this command inserts one blank
+line below and then imports.  Otherwise, imports are inserted at
+the beginning of buffer.
 
 Classes within a single group are ordered in a lexicographic
-order.
-
-Imports not matched by any regexp in `javaimp-import-group-alist'
+order.  Imports not matched by any regexp in `javaimp-import-group-alist'
 are assigned a default order defined by
 `javaimp-import-default-order'.
 
@@ -709,8 +716,8 @@ is `'ordinary' or `'static'.  Interactively, NEW-IMPORTS is nil."
 	 ;; if there were any imports, we start inserting at the same place
 	 (goto-char start))
 	((re-search-forward "^\\s-*package\\s-" nil t)
-	 ;; if there's a package directive, move to the next line, creating it
-	 ;; if needed
+	 ;; if there's a package directive, insert one blank line below and
+	 ;; leave point after it
 	 (end-of-line)
 	 (if (eobp)
 	     (insert ?\n)
