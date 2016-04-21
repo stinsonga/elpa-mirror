@@ -4,7 +4,7 @@
 
 ;; Author: "Francis J. Wright" <F.J.Wright@qmul.ac.uk>
 ;; Time-stamp: <23 August 2004>
-;; Version: 1.5
+;; Version: 1.6
 ;; Keywords: convenience
 
 ;; This package is free software; you can redistribute it and/or modify
@@ -957,6 +957,16 @@ The fields yanked are those last killed by `csv-kill-fields'."
 ;;;  Aligning fields
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun csv--make-overlay (beg end &optional buffer front-advance rear-advance props)
+  (let ((o (make-overlay beg end buffer front-advance rear-advance)))
+    (overlay-put o 'csv t)
+    (while props
+      (overlay-put o (pop props) (pop props)))
+    o))
+
+(defun csv--delete-overlay (o)
+  (and (overlay-get o 'csv) (delete-overlay o)))
+
 (defun csv--column-widths ()
   (let ((widths '()))
     ;; Construct list of column widths:
@@ -1068,9 +1078,8 @@ If there is no selected region, default to the whole buffer."
                       ;; in Emacs 21.3, neighbouring overlays
                       ;; conflict, so use the following only
                       ;; with hard alignment:
-                      (let ((ol (make-overlay (point) (1+ (point)) nil t)))
-                        (overlay-put ol 'invisible t)
-                        (overlay-put ol 'evaporate t))
+		      (csv--make-overlay (point) (1+ (point)) nil t nil
+					 '(invisible t evaporate t))
                       (forward-char)))  ; skip separator
 
                    ;; Soft alignment...
@@ -1083,10 +1092,9 @@ If there is no selected region, default to the whole buffer."
                         (when (> left-padding 0)
                           ;; Display spaces before first field
                           ;; by overlaying first character:
-                          (overlay-put
-                           (make-overlay beg (1+ beg))
-                           'before-string
-                           (make-string left-padding ?\ )))
+			  (csv--make-overlay
+			   beg (1+ beg) nil nil nil
+			   `(before-string ,(make-string left-padding ?\ ))))
                       ;; Display separator as spaces:
                       (with-silent-modifications
                         (put-text-property
@@ -1097,7 +1105,7 @@ If there is no selected region, default to the whole buffer."
                     (setq column (+ column column-width align-padding)))
 
                    (t ;; Do not hide separators...
-                    (let ((overlay (make-overlay beg (point) nil nil t)))
+                    (let ((overlay (csv--make-overlay beg (point) nil nil t)))
                       (when (> left-padding 0) ; Pad on the left.
                         ;; Display spaces before field:
                         (overlay-put overlay 'before-string
@@ -1127,7 +1135,7 @@ If there is no selected region, default to the whole buffer."
                          (list (region-beginning) (region-end))
                        (list (point-min) (point-max)))))
   ;; Remove any soft alignment:
-  (mapc 'delete-overlay	(overlays-in beg end))
+  (mapc #'csv--delete-overlay (overlays-in beg end))
   (with-silent-modifications
     (remove-list-of-text-properties beg end '(display)))
   (when hard
@@ -1178,7 +1186,7 @@ When called non-interactively, BEG and END specify region to process."
 	    rows columns)
 	;; Remove soft alignment if necessary:
 	(when align
-	  (mapc 'delete-overlay	align)
+	  (mapc 'csv--delete-overlay align)
 	  (setq align t))
 	(while (not (eobp))
 	  (if (csv-not-looking-at-record)
