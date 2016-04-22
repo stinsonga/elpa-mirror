@@ -37,6 +37,8 @@
 ;;
 ;; (require 'enwc)
 ;; (enwc-load-default-backend)
+;; (enwc-enable-auto-scan)
+;; (enwc-enable-display-mode-line)
 ;;
 ;; to your .emacs file (or other init file).
 
@@ -134,7 +136,7 @@ in `enwc-update-mode-line'.")
 (cl-defstruct enwc-column-spec ()
   detail display sorter width conv)
 
-(defconst enwc-details-list
+(defconst enwc-column-specs
   (list
    (make-enwc-column-spec
     :detail 'strength
@@ -172,7 +174,7 @@ This will be an association list of the form:
 Each ID is a backend-specific network ID.
 
 Each key in the children association lists corresponds to an entry in
-`enwc-details-list'.")
+`enwc-column-specs'.")
 
 (defvar enwc-access-points nil
   "The most recent access point list.")
@@ -263,7 +265,7 @@ Returns `non-nil' if there is one, nil otherwise."
 (defun enwc-get-wireless-nw-props (id)
   "Get the network properties of the wireless network with id ID.
 This will return an associative list with the keys
-corresponding to `enwc-details-list'.
+corresponding to `enwc-column-specs'.
 
 ID is specific to the backend."
   (enwc--wireless-nw-props enwc--current-backend id))
@@ -468,21 +470,19 @@ ARGS is only for compatibility with the calling function."
 
 (cl-defun enwc-refresh-widths (&optional (networks enwc-last-scan))
   "Refresh the column widths for display."
-  (setq enwc-details-list
+  (setq enwc-column-specs
         (mapcar
-         (lambda (detail)
-           (let ((new-max (seq-max
-                           (map-apply
-                            ;; TODO: prin1-to-string isn't the formatter.  Use
-                            ;; the actual formatter function as specified by the
-                            ;; conv.
-                            (lambda (id nw)
-                              (length (prin1-to-string (alist-get (enwc-column-spec-detail detail) nw))))
-                            networks)))
-                 (min-width (1+ (length (enwc-column-spec-display detail)))))
-             (setf (enwc-column-spec-width detail) (max new-max min-width))
-             detail))
-         enwc-details-list)))
+         (lambda (spec)
+           (pcase-let* (((cl-struct enwc-column-spec detail display conv) spec)
+                        (new-max (seq-max
+                                  (map-apply
+                                   (lambda (id nw)
+                                     (length (funcall conv (alist-get detail nw))))
+                                   networks)))
+                        (min-width (+ (length display) 2)))
+             (setf (enwc-column-spec-width spec) (max new-max min-width)))
+           spec)
+         enwc-column-specs)))
 
 (defun enwc-display-wired-networks (networks)
   "Display the wired networks specified in the list NETWORKS.
@@ -499,7 +499,7 @@ NETWORKS must be in the form returned from
   (mapcar
    (lambda (detail)
      (alist-get (enwc-column-spec-detail detail) network-entry))
-   enwc-details-list))
+   enwc-column-specs))
 
 (defun enwc--tabulated-list-entries ()
   (map-apply
@@ -514,7 +514,7 @@ NETWORKS must be in the form returned from
      (vconcat
       (seq-map-indexed
        (lambda (col idx)
-         (let* ((detail (nth idx enwc-details-list))
+         (let* ((detail (nth idx enwc-column-specs))
                 (conv   (funcall (enwc-column-spec-conv detail) col)))
            (if (equal cur-id id)
                (propertize conv 'font-lock-face 'enwc-connected)
@@ -532,7 +532,7 @@ NETWORKS must be in the form returned from
            (mapcar
             (pcase-lambda ((cl-struct enwc-column-spec display width sorter))
               (list display width sorter))
-            enwc-details-list)))
+            enwc-column-specs)))
     (setq tabulated-list-entries #'enwc--tabulated-list-entries)
     (setq tabulated-list-printer #'enwc--tabulated-list-printer)
 
