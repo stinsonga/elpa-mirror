@@ -78,7 +78,8 @@
 ;; User options
 
 (defgroup javaimp ()
-  "Add and reorder Java import statements in Maven projects")
+  "Add and reorder Java import statements in Maven projects"
+  :group 'c)
 
 (defcustom javaimp-import-group-alist '(("\\`javax?\\." . 10))
   "Specifies how to group classes and how to order resulting
@@ -260,9 +261,10 @@ children and are also included.  Subordinate modules with no
 inheritance are not included."
   (let ((xml-tree (javaimp--maven-xml-read-effective-pom file)))
     (cond ((assq 'project xml-tree)
-	   (let ((project-elt (assq 'project xml-tree))
-		 (submodules (javaimp--xml-children
-			      (javaimp--xml-child 'modules project-elt) 'module)))
+	   (let* ((project-elt (assq 'project xml-tree))
+                  (submodules (javaimp--xml-children
+                               (javaimp--xml-child 'modules project-elt)
+                               'module)))
 	     (and submodules
 		  ;; no real children
 		  (message "Independent submodules: %s"
@@ -680,9 +682,10 @@ is `'ordinary' or `'static'.  Interactively, NEW-IMPORTS is nil."
 		  (delete-region first (point))))
 	    (javaimp--prepare-for-insertion first)
 	    (setq all-imports
-		  (delete-duplicates all-imports
-				     :test (lambda (first second)
-					     (equal (car first) (car second)))))
+		  (cl-delete-duplicates
+                   all-imports
+                   :test (lambda (first second)
+                           (equal (car first) (car second)))))
 	    ;; assign order
 	    (let ((with-order
 		   (mapcar
