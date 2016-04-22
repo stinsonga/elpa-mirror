@@ -135,7 +135,7 @@ Signals an error if a backend with KEY already exists and FORCEP is nil."
     (setq enwc--current-backend new-backend)))
 
 (defun enwc-load-default-backend ()
-  (enwc-load-backend (map-elt enwc-registered-backend-alist enwc-default-backend)))
+  (enwc-load-backend enwc-default-backend))
 
 (defun enwc-unload-current-backend ()
   "Unload the current backend."
