@@ -3,7 +3,7 @@
 ;; Copyright 2016 Free Software Foundation, Inc.
 
 ;; Author: David Gonzalez Gandara <dggandara@member.fsf.org>
-;; Version: 0.55
+;; Version: 0.70
 ;; Package-Requires: ((cl-lib "0.5"))
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -463,8 +463,8 @@
     (goto-char (point-min))
     (while (re-search-forward "^001" nil t)
      (forward-char (+ 88 (* (- (string-to-number round) 1) 10)))
-     (delete-char 10)
-     (insert "          "))))
+     (delete-char 8)
+     (insert "        "))))
 
 (defun arbitools-replace-empty ()
    "Replace non played games with spaces"
@@ -503,9 +503,9 @@
          (insert (format "%s " title))
          (insert (format "%s" name))
          (insert-char ?\s (- 34 (length name)))
-         (insert (format "%s " elo))
+         (when (= (length elo) 4) (insert (format "%s " elo)))
          (when (= (length elo) 0) (insert "    ")) ;; add extra space if the elo is empty
-         (when (= (length elo) 1) (insert "   ")) ;; add extra space if the elo is a "0"
+         (when (= (length elo) 1) (insert "   0")) ;; add extra space if the elo is a "0"
          (insert (format "%s" fed))
          (when (= (length fed) 0) (insert "   ")) ;; add extra space if fed is empty
          (insert-char ?\s (- 12 (length idfide)))
