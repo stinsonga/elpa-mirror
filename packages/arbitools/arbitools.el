@@ -504,8 +504,8 @@
          (insert (format "%s" name))
          (insert-char ?\s (- 34 (length name)))
          (when (= (length elo) 4) (insert (format "%s " elo)))
-         (when (= (length elo) 0) (insert "    ")) ;; add extra space if the elo is empty
-         (when (= (length elo) 1) (insert "   0")) ;; add extra space if the elo is a "0"
+         (when (= (length elo) 0) (insert "     ")) ;; add extra space if the elo is empty
+         (when (= (length elo) 1) (insert "   0 ")) ;; add extra space if the elo is a "0"
          (insert (format "%s" fed))
          (when (= (length fed) 0) (insert "   ")) ;; add extra space if fed is empty
          (insert-char ?\s (- 12 (length idfide)))
