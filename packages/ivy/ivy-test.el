@@ -20,7 +20,12 @@
 ;; see <http://www.gnu.org/licenses/>.
 
 (require 'ert)
+
+;; useful for #'ivy-read-remap. It must arrive before (require 'ivy)
+(define-key global-map (kbd "<S-right>") #'end-of-buffer)
+
 (require 'ivy)
+(require 'counsel)
 
 (defvar ivy-expr nil
   "Holds a test expression to evaluate with `ivy-eval'.")
@@ -74,9 +79,33 @@
                      "a C-n <tab> C-m")
            "aaac"))
   (should (equal
+           (ivy-with '(ivy-read "test" '(("foo" . "bar")))
+                     "asdf C-m")
+           "asdf"))
+  (should (equal
+           (ivy-with
+            '(with-output-to-string
+              (ivy-read "test" '(("foo" . "bar"))
+               :action (lambda (x) (prin1 x))))
+            "f C-m")
+           "\"bar\""))
+  (should (equal
+           (ivy-with
+            '(with-output-to-string
+              (ivy-read "test" '(("foo" . "bar"))
+               :action (lambda (x) (prin1 x))))
+            "asdf C-m")
+           "\"asdf\""))
+  (should (equal
            (ivy-with '(ivy-read "pattern: " '("can do" "can" "can't do"))
                      "can C-m")
            "can")))
+
+(ert-deftest ivy-read-remap ()
+  (should (equal
+           (ivy-with '(ivy-read "pattern: " '("blue" "yellow" "red"))
+                  "<S-right> C-m")
+           "red")))
 
 (ert-deftest swiper--re-builder ()
   (setq swiper--width 4)
@@ -96,8 +125,15 @@
                  '("Who are" "the Brittons?")))
   (should (equal (ivy--split "We're  all  Britons and   I   am your   king.")
                  '("We're all Britons"
-                  "and  I  am"
-                   "your  king."))))
+                   "and  I  am"
+                   "your  king.")))
+  (should (equal (ivy--split "^[^ ]") '("^[^ ]")))
+  (should (equal (ivy--split "^[^ ] bar") '("^[^ ]" "bar"))))
+
+(ert-deftest ivy--regex ()
+  (should (equal (ivy--regex
+                  "\\(?:interactive\\|swiper\\) \\(?:list\\|symbol\\)")
+                 "\\(\\(?:interactive\\|swiper\\)\\).*?\\(\\(?:list\\|symbol\\)\\)")))
 
 (ert-deftest ivy--regex-fuzzy ()
   (should (string= (ivy--regex-fuzzy "tmux")
@@ -113,9 +149,31 @@
   (should (string= (ivy--regex-fuzzy "$")
                    "$")))
 
+(ert-deftest ivy--regex-ignore-order ()
+  (should (equal (ivy--regex-ignore-order "tmux")
+                 '(("tmux" . t))))
+  (should (equal (ivy--regex-ignore-order "^tmux")
+                 '(("^tmux" . t))))
+  (should (equal (ivy--regex-ignore-order "^tmux$")
+                 '(("^tmux$" . t))))
+  (should (equal (ivy--regex-ignore-order "")
+                 ""))
+  (should (equal (ivy--regex-ignore-order "^")
+                 '(("^" . t))))
+  (should (equal (ivy--regex-ignore-order "$")
+                 '(("$" . t))))
+  (should (equal (ivy--regex-ignore-order "one two")
+                 '(("one" . t) ("two" . t))))
+  (should (equal (ivy--regex-ignore-order "one two !three")
+                 '(("one" . t) ("two" . t) ("three"))))
+  (should (equal (ivy--regex-ignore-order "one two !three four")
+                 '(("one" . t) ("two" . t) ("three") ("four"))))
+  (should (equal (ivy--regex-ignore-order "!three four")
+                 '(("" . t) (("three") ("four"))))))
+
 (ert-deftest ivy--format ()
   (should (string= (let ((ivy--index 10)
-                         (ivy-format-function (lambda (x) (mapconcat (lambda (y) (car y)) x "\n")))
+                         (ivy-format-function (lambda (x) (mapconcat #'identity x "\n")))
                          (cands '("NAME"
                                   "SYNOPSIS"
                                   "DESCRIPTION"
@@ -138,3 +196,11 @@
                  '("the" "The")))
   (should (equal (ivy--filter "The" '("foo" "the" "The"))
                  '("The"))))
+
+(ert-deftest counsel-unquote-regex-parens ()
+  (should (equal (counsel-unquote-regex-parens
+                  (ivy--regex "foo bar"))
+                 "(foo).*?(bar)"))
+  (should (equal (counsel-unquote-regex-parens
+                  (ivy--regex "(foo bar"))
+                 "(\\(foo).*?(bar)")))
