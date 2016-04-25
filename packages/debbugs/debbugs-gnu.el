@@ -337,6 +337,12 @@ be empty, in this case only the following attributes are used for
 search."))
 
 ;;;###autoload
+(defun debbugs-gnu-patches ()
+  "List the bug reports that have been marked as containing a patch."
+  (interactive)
+  (debbugs-gnu nil '("emacs") nil nil "patch"))
+
+;;;###autoload
 (defun debbugs-gnu-search ()
   "Search for Emacs bugs interactively.
 Search arguments are requested interactively.  The \"search
@@ -572,10 +578,6 @@ marked as \"client-side filter\"."
       (mapcar
        (lambda (x) (cdr (assoc "id" x)))
        (apply 'debbugs-search-est args)))
-     ;; User tags.
-     (tags
-      (setq args (mapcar (lambda (x) (if (eq x :package) :user x)) args))
-      (apply 'debbugs-get-usertag args))
      ;; Otherwise, we retrieve the bugs from the server.
      (t (apply 'debbugs-get-bugs args)))))
 
