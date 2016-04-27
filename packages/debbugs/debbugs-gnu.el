@@ -1,4 +1,4 @@
-;;; debbugs-gnu.el --- interface for the GNU bug tracker
+;;; debbugs-gnu.el --- interface for the GNU bug tracker  -*- lexical-binding:t -*-
 
 ;; Copyright (C) 2011-2016 Free Software Foundation, Inc.
 
@@ -141,8 +141,8 @@
 (require 'debbugs)
 (require 'tabulated-list)
 (require 'add-log)
-(require 'subr-x)
-(eval-when-compile (require 'cl))
+(eval-when-compile (require 'subr-x))
+(eval-when-compile (require 'cl-lib))
 
 (autoload 'article-decode-charset "gnus-art")
 (autoload 'diff-goto-source "diff-mode")
@@ -717,7 +717,8 @@ Used instead of `tabulated-list-print-entry'."
 	(submitter        (aref cols 2))
 	(submitter-length (nth 1 (aref tabulated-list-format 2)))
 	(title            (aref cols 3))
-	(title-length     (nth 1 (aref tabulated-list-format 3))))
+	;; (title-length     (nth 1 (aref tabulated-list-format 3)))
+        )
     (when (and
 	   ;; We may have a narrowing in effect.
 	   (or (not debbugs-gnu-limit)
@@ -951,7 +952,7 @@ The following commands are available:
       t)
      (t nil))))
 
-(defun debbugs-gnu-sort-title (s1 s2)
+(defun debbugs-gnu-sort-title (s1 _s2)
   (let ((owner (if (cdr (assq 'owner (car s1)))
 		   (car (mail-header-parse-address
 			 (decode-coding-string (cdr (assq 'owner (car s1)))

@@ -1,4 +1,4 @@
-;;; debbugs.el --- SOAP library to access debbugs servers
+;;; debbugs.el --- SOAP library to access debbugs servers  -*- lexical-binding:t -*-
 
 ;; Copyright (C) 2011-2016 Free Software Foundation, Inc.
 
@@ -6,7 +6,7 @@
 ;; Keywords: comm, hypermedia
 ;; Package: debbugs
 ;; Version: 0.9.3
-;; Package-Requires: ((soap-client "3.1.1"))
+;; Package-Requires: ((soap-client "3.1.1") (cl-lib "0.5"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -35,7 +35,7 @@
 
 ;(setq soap-debug t message-log-max t)
 (require 'soap-client)
-(eval-when-compile (require 'cl))
+(eval-when-compile (require 'cl-lib))
 
 (defgroup debbugs nil
   "Debbugs library"
@@ -120,8 +120,8 @@ This corresponds to the Debbugs server to be accessed, either
 (defun debbugs-soap-invoke-async (operation-name &rest parameters)
   "Invoke the SOAP connection asynchronously."
   (apply
-   'soap-invoke-async
-   (lambda (response &rest args)
+   #'soap-invoke-async
+   (lambda (response &rest _args)
      (setq debbugs-soap-invoke-async-object
 	   (append debbugs-soap-invoke-async-object (car response))))
    nil debbugs-wsdl debbugs-port operation-name parameters))
@@ -208,7 +208,7 @@ patch:
       (unless (and (keywordp kw) (stringp val))
 	(error "Wrong query: %s %s" kw val))
       (setq key (substring (symbol-name kw) 1))
-      (case kw
+      (cl-case kw
 	((:package :severity :tag :src :affects)
 	 ;; Value shall be one word.
 	 (if (string-match "\\`\\S-+\\'" val)
@@ -380,7 +380,7 @@ Example:
 		  (debbugs-soap-invoke-async
 		   "get_status"
 		   (apply
-		    'vector
+		    #'vector
 		    (butlast
 		     bug-ids (- (length bug-ids)
 				debbugs-max-hits-per-request))))))
@@ -415,7 +415,7 @@ Example:
 	    (setq y (assoc attribute (cdr (assoc 'value x))))
 	    (when (stringp (cdr y))
 	      (setcdr y (mapcar
-			 'string-to-number (split-string (cdr y) " " t)))))
+			 #'string-to-number (split-string (cdr y) " " t)))))
 	  ;; "subject", "originator", "owner" and "summary" may be an
 	  ;; xsd:base64Binary value containing a UTF-8-encoded string.
 	  (dolist (attribute '(subject originator owner summary))
@@ -481,7 +481,7 @@ Example:
       (unless (and (keywordp kw) (stringp val))
 	(error "Wrong query: %s %s" kw val))
       (setq key (substring (symbol-name kw) 1))
-      (case kw
+      (cl-case kw
 	((:user)
 	 ;; Value shall be one word.  Extract email address, if existing.
 	 (if (string-match "\\`\\S-+\\'" val)
@@ -490,12 +490,12 @@ Example:
 		 (setq val user-mail-address))
 	       (when (string-match "<\\(.+\\)>" val)
 		 (setq val (match-string 1 val)))
-	       (pushnew val user :test #'equal))
+	       (cl-pushnew val user :test #'equal))
 	   (error "Wrong %s: %s" key val)))
 	((:tag)
 	 ;; Value shall be one word.
 	 (if (string-match "\\`\\S-+\\'" val)
-	     (pushnew val tags :test #'equal)
+	     (cl-pushnew val tags :test #'equal)
 	   (error "Wrong %s: %s" key val)))
 	(t (error "Unknown key: %s" kw))))
 
@@ -669,7 +669,7 @@ Examples:
 	  (while skip
 	    (setq result1
 		  (apply
-		   'debbugs-search-est
+		   #'debbugs-search-est
 		   (append
 		    (list
 		     (append
@@ -683,6 +683,9 @@ Examples:
 
       ;; Compile search arguments.
       (dolist (elt query)
+        ;; FIXME: `vec' is used in an O(N²) way.  It should be a list instead,
+        ;; on which we push elements, and we only convert it to a vector at
+        ;; the end.
 	(let (vec kw key val
 		  phrase-cond attr-cond)
 
@@ -737,7 +740,7 @@ Examples:
 		     (unless (member x val)
 		       (setq val (append val (list x))))))
 		 (setq vec
-		       (vconcat vec (list key (mapconcat 'identity val " "))))))
+		       (vconcat vec (list key (mapconcat #'identity val " "))))))
 
 	      (:status
 	       ;; It shouldn't happen in a phrase condition.
@@ -754,7 +757,7 @@ Examples:
 		     (unless (member x val)
 		       (setq val (append val (list x))))))
 		 (setq vec
-		       (vconcat vec (list key (mapconcat 'identity val " "))))))
+		       (vconcat vec (list key (mapconcat #'identity val " "))))))
 
 	      ((:subject :package :tags :severity :@title)
 	       ;; It shouldn't happen in a phrase condition.
@@ -769,7 +772,7 @@ Examples:
 		     (unless (member x val)
 		       (setq val (append val (list x))))))
 		 (setq vec
-		       (vconcat vec (list key (mapconcat 'identity val " "))))))
+		       (vconcat vec (list key (mapconcat #'identity val " "))))))
 
 	      ((:date :@cdate)
 	       ;; It shouldn't happen in a phrase condition.
@@ -785,7 +788,7 @@ Examples:
 		       (setq val (append val (list x))))))
 		 (setq vec
 		       (vconcat
-			vec (list key (mapconcat 'number-to-string val " "))))))
+			vec (list key (mapconcat #'number-to-string val " "))))))
 
 	      ((:operator :order)
 	       ;; It shouldn't happen in a phrase condition.
@@ -818,7 +821,7 @@ BUG-OR-MESSAGE must be list element returned by either
 Example: Return the originator of last submitted bug.
 
 \(debbugs-get-attribute
-  \(car \(apply 'debbugs-get-status \(debbugs-newest-bugs 1))) 'originator)"
+  \(car \(apply #'debbugs-get-status \(debbugs-newest-bugs 1))) 'originator)"
   (cdr (assoc attribute bug-or-message)))
 
 (defun debbugs-get-message-numbers (messages)
@@ -839,7 +842,7 @@ If there is no message with MESSAGE-NUMBER, the function returns `nil'.
 
 Example: Return the first message of last submitted bug.
 
-\(let \(\(messages \(apply 'debbugs-get-bug-log \(debbugs-newest-bugs 1))))
+\(let \(\(messages \(apply #'debbugs-get-bug-log \(debbugs-newest-bugs 1))))
   \(debbugs-get-message messages
 		       \(car \(debbugs-get-message-numbers messages))))"
   (while (and messages
