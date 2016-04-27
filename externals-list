@@ -82,4 +82,5 @@
  ("websocket"		:subtree "https://github.com/ahyatt/emacs-websocket.git")
  ("xelb"		:external "https://github.com/ch11ng/xelb.git")
  ("yasnippet"		:subtree "https://github.com/capitaomorte/yasnippet.git")
+ ("ztree"		:subtree "https://github.com/fourier/ztree")
  )
