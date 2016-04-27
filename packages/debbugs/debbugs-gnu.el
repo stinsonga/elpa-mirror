@@ -1266,9 +1266,9 @@ removed instead."
 	    "usertag")
 	  nil t)
 	 current-prefix-arg))
-  (let* ((id (or debbugs-gnu-bug-number	; Set on group entry.
-		 (debbugs-gnu-guess-current-id)
-		 (debbugs-gnu-current-id)))
+  (let* ((id (or (debbugs-gnu-current-id)
+		 debbugs-gnu-bug-number	; Set on group entry.
+		 (debbugs-gnu-guess-current-id)))
 	 (version
 	  (when (member message '("close" "done"))
 	    (read-string
