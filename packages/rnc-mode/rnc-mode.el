@@ -123,6 +123,7 @@
 (defun rnc-smie-rules (kind token)
   (pcase (cons kind token)
     (`(:list-intro . "element") t)
+    (`(:elem . empty-line-token) " ; ")
     (`(:before . ,(or "include" "default" "namespace" "datatypes")) 0)
     (`(:before . "{")
      (save-excursion
