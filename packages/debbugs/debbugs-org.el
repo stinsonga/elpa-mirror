@@ -1,4 +1,4 @@
-;;; debbugs-org.el --- Org-mode interface for the GNU bug tracker
+;;; debbugs-org.el --- Org-mode interface for the GNU bug tracker  -*- lexical-binding:t -*-
 
 ;; Copyright (C) 2013-2016 Free Software Foundation, Inc.
 
@@ -100,7 +100,7 @@
 
 (require 'debbugs-gnu)
 (require 'org)
-(eval-when-compile (require 'cl))
+(eval-when-compile (require 'cl-lib))
 
 ;; Buffer-local variables.
 (defvar debbugs-gnu-local-query)
@@ -109,7 +109,7 @@
 (defconst debbugs-org-severity-priority
   (let ((priority ?A))
     (mapcar
-     (lambda (x) (prog1 (cons x (char-to-string priority)) (incf priority)))
+     (lambda (x) (prog1 (cons x (char-to-string priority)) (cl-incf priority)))
      debbugs-gnu-all-severities))
   "Mapping of debbugs severities to TODO priorities.")
 
@@ -288,10 +288,10 @@ returned."
 
 	;; Handle tags.
 	(when (string-match "^\\([0-9.]+\\); \\(.+\\)$" subject)
-	  (let ((x (match-string 1 subject))) (pushnew x tags :test #'equal))
+	  (let ((x (match-string 1 subject))) (cl-pushnew x tags :test #'equal))
 	  (setq subject (match-string 2 subject)))
 	(when archived
-          (pushnew "ARCHIVE" tags :test #'equal))
+          (cl-pushnew "ARCHIVE" tags :test #'equal))
 	(setq tags
 	      (mapcar
 	       ;; Replace all invalid TAG characters by "_".
