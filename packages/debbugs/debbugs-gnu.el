@@ -205,6 +205,12 @@
 	      (const "tagged"))
   :version "24.1")
 
+(defcustom debbugs-gnu-suppress-closed t
+  "If non-nil, don't show closed bugs."
+  :group 'debbugs-gnu
+  :type 'boolean
+  :version "25.2")
+
 (defconst debbugs-gnu-all-severities
   (mapcar 'cadr (cdr (get 'debbugs-gnu-default-severities 'custom-type)))
   "*List of all possible severities.")
@@ -362,7 +368,10 @@ marked as \"client-side filter\"."
 	    (setq phrase nil)
 	  (add-to-list 'debbugs-gnu-current-query (cons 'phrase phrase)))
 	;; We suppress closed bugs if there is no phrase.
-	(setq debbugs-gnu-current-suppress (null phrase))
+	(setq debbugs-gnu-current-suppress
+	      (if (not debbugs-gnu-suppress-closed)
+		  nil
+		(null phrase)))
 
 	;; The other queries.
 	(catch :finished
@@ -506,7 +515,8 @@ marked as \"client-side filter\"."
       (insert-file-contents debbugs-gnu-persistency-file)
       (eval (read (current-buffer)))))
   ;; Per default, we suppress retrieved unwanted bugs.
-  (when (called-interactively-p 'any)
+  (when (and (called-interactively-p 'any)
+	     debbugs-gnu-suppress-closed)
     (setq debbugs-gnu-current-suppress t))
 
   ;; Add queries.
