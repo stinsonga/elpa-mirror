@@ -4,7 +4,7 @@
 
 ;; Author: Artur Malabarba <emacs@endlessparentheses.com>
 ;; URL: https://github.com/Malabarba/elisp-bug-hunter
-;; Version: 1.3
+;; Version: 1.3.1
 ;; Keywords: lisp
 ;; Package-Requires: ((seq "1.3") (cl-lib "0.5"))
 
@@ -489,7 +489,11 @@ typing `RET' at an empty prompt, in which case nil is returned."
                 (minibuffer-with-setup-hook
                     (lambda ()
                       (add-hook 'completion-at-point-functions
-                                #'elisp-completion-at-point nil t)
+                                (if (fboundp 'elisp-completion-at-point)
+                                    #'elisp-completion-at-point
+                                  (with-no-warnings
+                                    #'lisp-completion-at-point))
+                                nil t)
                       (run-hooks 'eval-expression-minibuffer-setup-hook))
                   (insert
                    (read-from-minibuffer
