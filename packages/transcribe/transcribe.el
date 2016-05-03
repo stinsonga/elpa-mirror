@@ -366,8 +366,8 @@
     (define-key map (kbd "<f8>") 'emms-seek)
     (define-key map (kbd "<f9>") 'transcribe-xml-tag)
     (define-key map (kbd "<f10>") 'transcribe-xml-tag-person)
-    (define-key map (kbd "<f11>") 'transcribe-xml-l1)
-    (define-key map (kbd "<f12>") 'transcribe-xml-l2)
+    (define-key map (kbd "<f11>") 'transcribe-xml-tag-l1)
+    (define-key map (kbd "<f12>") 'transcribe-xml-tag-l2)
     map)
   "Keymap for Transcribe minor mode.")
 
@@ -383,8 +383,8 @@
     ["Add transcription header" NewEpisode]
     ["Add move attribute" transcribe-add-attribute-move]
     ["Add function attribute" transcribe-add-attribute-function]
-    ["Add L1 intervention" transcribe-xml-l1]
-    ["Add L2 intervention" transcribe-xml-l2]
+    ["Add L1 intervention" transcribe-xml-tag-l1]
+    ["Add L2 intervention" transcribe-xml-tag-l2]
     ["Add move" transcribe-xml-tag-person]
     "---"
     ["Play audio file" emms-play-file]
