@@ -112,21 +112,29 @@
    'Raw Output'"
   (interactive)
   (let* ((xml (xml-parse-region (point-min) (point-max)))
-     (results (car xml))
-     (episodes (xml-get-children results 'episode)))
+    (results (car xml))
+    (episodes (xml-get-children results 'episode)))
    
-     (dolist (episode episodes)
-           (let* ((transcription (xml-get-children episode 'transcription)))
+    (dolist (episode episodes)
+      (let* ((transcription (xml-get-children episode 'transcription)))
    
-             (dolist (turn transcription)
-                 (dolist (intervention (xml-node-children turn))
-                   (when (listp intervention)
-                      (with-current-buffer "Raw Output"
-                       (insert (format "%s: " (car intervention)))
-                       (dolist (utterance (nthcdr 2 intervention))
-                         (when (listp utterance)
-                           (insert (format "%s "  (nth 2 utterance)))))
-                       (insert "\n")))))))))
+        (dolist (turn transcription)
+          (dolist (intervention (xml-node-children turn))
+            (if (listp intervention)
+              (progn 
+                (with-current-buffer "Raw Output"
+                  (insert (format "%s\t" (line-number-at-pos)))
+                  (insert (format "%s:\t" (car intervention)))
+                  (dolist (utterance (nthcdr 2 intervention))
+                    (if (listp utterance)
+                       (progn
+                         (insert (format "%s "  (nth 2 utterance))))
+
+                         (insert (format "%s" utterance))))))
+                        
+                       (with-current-buffer "Raw Output"
+                         (insert (format "%s" (line-number-at-pos)))
+                         (insert (format "%s" intervention))))))))))
 
 (defun transcribe-analyze (episodenumber personid)
   "Extract from a given episode and person the number of asunits per 
@@ -340,12 +348,12 @@
 
 
 (fset 'NewEpisode
-      "<episode>\n<number>DATE-NUMBER</number>\n<duration></duration>\n<comment></comment>\n<subject>Subject (level)</subject>\n<participants><\participants>\n<task>\n\t<role>low or high</role>\n<context>low or high</context>\n<demand>low or high</demand>\r</task>\n<auxiliar>Yes/no</auxiliar>\n<transcription>\n</transcription>\n</episode>");Inserts a new episode structure
+      "<episode>\n<number>DATE-NUMBER</number>\n<duration></duration>\n<comment></comment>\n<subject>Subject (level)</subject>\n<participants></participants>\n<task>\n\t<role>low or high</role>\n<context>low or high</context>\n<demand>low or high</demand>\r</task>\n<auxiliar>Yes/no</auxiliar>\n<transcription>\n</transcription>\n</episode>");Inserts a new episode structure
 
 
 (defvar transcribe-mode-map
    (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-x C-p") 'transcribe-play-file)
+    (define-key map (kbd "C-x C-p") 'emms-play-file)
     (define-key map (kbd "C-x C-a") 'transcribe-analyze)
     (define-key map (kbd "C-x C-n") 'NewEpisode)
     (define-key map (kbd "C-x <down>") 'emms-stop)
@@ -379,7 +387,7 @@
     ["Add L2 intervention" transcribe-xml-l2]
     ["Add move" transcribe-xml-tag-person]
     "---"
-    ["Play audio file" transcribe-play-file]
+    ["Play audio file" emms-play-file]
     ))
 
 
@@ -391,6 +399,9 @@
   transcribe-mode-map
   (generate-new-buffer "Statistics Output")
   (generate-new-buffer "Raw Output")
+;;  (with-current-buffer "Raw Output"
+;;    (linum-mode t)
+;;    (setq linum-format "%d "))
   (with-current-buffer "Statistics Output"
     ;; (insert "person,episode,duration,C-UNITS(L2),C-UNITS(L1),role,context,demand,QUAN-L2,QUAN-L1,QUAL-L2,segmented,aux,level,subjects,yearofCLIL,month\n")
   )
