@@ -3,7 +3,7 @@
 ;; Copyright 2016 Free Software Foundation, Inc.
 
 ;; Author: David Gonzalez Gandara <dggandara@member.fsf.org>
-;; Version: 0.70
+;; Version: 0.71
 ;; Package-Requires: ((cl-lib "0.5"))
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -273,7 +273,6 @@
   (interactive)
   (save-excursion
     (let ( (numberofrounds (arbitools-number-of-rounds))
-           (pointsstring   "")
            (points         0.0)
            (pointstosum    0.0)
            (roundcount     1))
@@ -284,7 +283,6 @@
         (while (<= roundcount numberofrounds)
           (beginning-of-line)
 	  (forward-char (+ 98 (* (- roundcount 1) 10))) ;; go to where the result is for each round
-          (setq pointsstring (thing-at-point 'symbol))
           (cond ((string= (thing-at-point 'symbol) "1") (setq pointstosum 1.0))
                 ((string= (thing-at-point 'symbol) "+") (setq pointstosum 1.0))
                 ((string= (thing-at-point 'symbol) "=") (setq pointstosum 0.5))
@@ -310,7 +308,7 @@
     (let ((datachunk ""))
       (goto-char (point-min))
       (while (re-search-forward "^001" nil t)
-        (let* ((linestring (thing-at-point 'line)))
+        (let* ()
           (beginning-of-line)
           (forward-char 89) ;; get the POS field
           (setq datachunk (thing-at-point 'word))
@@ -411,7 +409,6 @@
                  (save-excursion 
                    (while (re-search-forward "^013" nil t)
                     (let* ((linestringteam (thing-at-point 'line))
-                          (actualintegrant (string-to-number (substring linestringteam 40 44)))
                           (integrantcount 0)
                           (members 0))
 
@@ -457,7 +454,7 @@
           (insert (concat (number-to-string numberofratedplayers) "\n")))))))
 
 (defun arbitools-delete-round (round)
-   "Delete a round." ;; FIXME: it breaks when round is the last
+   "Delete a round."
    (interactive "sround: ")
    (save-excursion
     (goto-char (point-min))
