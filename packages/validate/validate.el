@@ -5,7 +5,7 @@
 ;; Author: Artur Malabarba <emacs@endlessparentheses.com>
 ;; Keywords: lisp
 ;; Package-Requires: ((emacs "24.1") (cl-lib "0.5"))
-;; Version: 0.3
+;; Version: 0.4
 
 ;;; Commentary:
 ;;
@@ -63,6 +63,9 @@
   (if (not (= (length values) (length schemas)))
       "wrong number of elements"
     (seq-find #'identity (seq-mapn #'validate--check values schemas))))
+
+(defun validate--indent-by-2 (x)
+  (replace-regexp-in-string "^" "  " x))
 
 (defun validate--check (value schema)
   "Return nil if VALUE matches SCHEMA.
@@ -127,8 +130,8 @@ If they don't match, return an explanation."
                                    (error "`choice' needs at least one argument")
                                  (let ((gather (mapcar (lambda (x) (validate--check value x)) args)))
                                    (when (seq-every-p #'identity gather)
-                                     (concat "all of the options failed\n  "
-                                             (mapconcat #'identity gather "\n  "))))))
+                                     (concat "all of the options failed\n"
+                                             (mapconcat #'validate--indent-by-2 gather "\n"))))))
                ;; TODO: `restricted-sexp'
                (set (or (wtype 'list)
                         (let ((failed (list t)))
@@ -145,7 +148,10 @@ If they don't match, return an explanation."
         (let ((print-length 4)
               (print-level 2))
           (format "Looking for `%S' in `%S' failed because:\n%s"
-                  schema value r))))))
+                  schema value
+                  (if (string-match "\\`Looking" r)
+                      r
+                    (validate--indent-by-2 r))))))))
 
 
 ;;; Exposed API
@@ -185,7 +191,10 @@ with `validate-value'. NOERROR is passed to `validate-value'."
 (defmacro validate-setq (symbol value)
   "Like `setq', but throw an error if validation fails.
 VALUE is validated against SYMBOL's custom type."
-  `(setq ,symbol (validate-value ,value (custom-variable-type ',symbol))))
+  `(if (boundp ',symbol)
+       (setq ,symbol (validate-value ,value (custom-variable-type ',symbol)))
+     (user-error "Trying to validate a variable that's not defined yet: `%s'.\nYou need to require the package before validating"
+                 ',symbol)))
 
 (provide 'validate)
 ;;; validate.el ends here
