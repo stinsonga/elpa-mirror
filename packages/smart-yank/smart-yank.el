@@ -95,7 +95,7 @@ See `smart-yank-yank-pop' for details."
                  (const helm-show-kill-ring)
                  (function :tag "Other Function")))
 
-(defvar smart-yank-map
+(defvar smart-yank-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map [remap yank-pop] #'smart-yank-yank-pop)
     map)
@@ -180,7 +180,7 @@ Turning on this mode has the following effects:
    element is automatically \"moved to the first position\" of
    the `kill-ring' so that `yank' invoked later will again yank
    this element."
-  :global t :keymap smart-yank-map
+  :global t
   (if smart-yank-mode
       (advice-add 'yank :before #'smart-yank--before-ad)
     (advice-remove 'yank #'smart-yank--before-ad)))
