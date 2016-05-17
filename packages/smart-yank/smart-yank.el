@@ -130,9 +130,10 @@ yanked text \"to the beginning\" of the kill ring."
         (setq kill-ring (cons last-yank (delete last-yank kill-ring)))
         (smart-yank-reset-yank-pointer)))))
 
-(let ((r (smart-yank--stopwatch)))
-  (defun smart-yank-yank-pop (&optional arg)
-    "\"smart-yank\"'s private version of `yank-pop'.
+(defalias 'smart-yank-yank-pop
+  (let ((r (smart-yank--stopwatch)))
+    (lambda (&optional arg)
+      "\"smart-yank\"'s private version of `yank-pop'.
 
 When called directly after a `yank' command (including itself),
 call `yank-pop'.
@@ -145,19 +146,19 @@ yanked text; in addition call
 When not called after a yank, yank the next-to-the-last
 `kill-ring' entry; with prefix arg, call the
 `smart-yank-browse-kill-ring-command'."
-    (interactive "P")
-    (let ((diff (funcall r)))
-      (cond
-       ((not (eq last-command 'yank)) (if arg (call-interactively smart-yank-browse-kill-ring-command)
-                                        (rotate-yank-pointer 1)
-                                        (yank)))
-       ((or (not diff)
-            (> diff smart-yank-yank-pop-multikey-delay))
-                                      (call-interactively #'yank-pop))
-       (t                             (funcall (or yank-undo-function #'delete-region)
-                                               (region-beginning) (region-end))
-                                      (when smart-yank-browse-kill-ring-command
-                                        (call-interactively smart-yank-browse-kill-ring-command)))))))
+      (interactive "P")
+      (let ((diff (funcall r)))
+        (cond
+         ((not (eq last-command 'yank)) (if arg (call-interactively smart-yank-browse-kill-ring-command)
+                                          (rotate-yank-pointer 1)
+                                          (yank)))
+         ((or (not diff)
+              (> diff smart-yank-yank-pop-multikey-delay))
+          (call-interactively #'yank-pop))
+         (t                             (funcall (or yank-undo-function #'delete-region)
+                                                 (region-beginning) (region-end))
+                                        (when smart-yank-browse-kill-ring-command
+                                          (call-interactively smart-yank-browse-kill-ring-command))))))))
 
 (declare-function smart-yank-yank-pop 'smart-yank)
 
