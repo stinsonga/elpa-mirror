@@ -245,7 +245,14 @@ module file."
 			(equal (javaimp-module-file (javaimp-node-contents tree))
 			       file))
 		      javaimp-project-forest))
-    (let ((tree (javaimp--maven-xml-load-tree file)))
+    (message "Loading file %s..." file)
+    (let* ((xml-tree
+	    (javaimp--maven-call file "help:effective-pom"
+				 #'javaimp--maven-xml-effective-pom-handler))
+	   (projects (javaimp--maven-xml-extract-projects xml-tree))
+	   (modules (mapcar #'javaimp--maven-xml-parse-project projects))
+	   ;; first module is always root
+	   (tree (javaimp--maven-build-tree (car modules) nil modules file)))
       (if tree
 	  (push tree javaimp-project-forest)))
     (message "Loaded tree for %s" file)))
@@ -253,72 +260,46 @@ module file."
 
 ;; Maven XML routines
 
-(defun javaimp--maven-xml-load-tree (file)
-  "Invokes `mvn help:effective-pom' on FILE and using its output
-creates a tree of Maven projects starting from FILE.  Children
-which link to the parent via the <parent> element are inheriting
-children and are also included.  Subordinate modules with no
-inheritance are not included."
-  (let ((xml-tree (javaimp--maven-xml-read-effective-pom file)))
-    (cond ((assq 'project xml-tree)
-	   (let* ((project-elt (assq 'project xml-tree))
-                  (submodules (javaimp--xml-children
-                               (javaimp--xml-child 'modules project-elt)
-                               'module)))
-	     (and submodules
-		  ;; no real children
-		  (message "Independent submodules: %s"
-			   (mapconcat #'javaimp--xml-first-child submodules ", ")))
-	     (let ((module (javaimp--maven-xml-parse-module project-elt)))
-	       (javaimp--maven-build-tree
-		(javaimp-module-id module) nil (list module) file))))
-	  ((assq 'projects xml-tree)
-	   ;; we have are inheriting children - they and their children, if
-	   ;; any, are listed in a linear list
-	   (let* ((project-elts (javaimp--xml-children
-				 (assq 'projects xml-tree) 'project))
-		  (all-modules (mapcar #'javaimp--maven-xml-parse-module project-elts)))
-	     (message "Total modules: %d" (length all-modules))
-	     (javaimp--maven-build-tree
-	      (javaimp-module-id (car all-modules)) nil all-modules file)))
+(defun javaimp--maven-xml-effective-pom-handler ()
+  (let ((start
+	 (save-excursion
+	   (progn
+	     (goto-char (point-min))
+	     (re-search-forward "<\\?xml\\|<projects?")
+	     (match-beginning 0))))
+	(end
+	 (save-excursion
+	   (progn
+	     (goto-char (point-min))
+	     (re-search-forward "<\\(projects?\\)")
+	     ;; corresponding close tag is the end of parse region
+	     (search-forward (concat "</" (match-string 1) ">"))
+	     (match-end 0)))))
+    (xml-parse-region start end)))
+
+(defun javaimp--maven-xml-extract-projects (xml-tree)
+  "Analyzes result of `mvn help:effective-pom' and returns list
+of <project> elements"
+  (let ((project (assq 'project xml-tree))
+	(projects (assq 'projects xml-tree)))
+    (cond (project
+	   (list project))
+	  (projects
+	   (javaimp--xml-children projects 'project))
 	  (t
-	   ;; neither <project> nor <projects> - error
-	   (error "Invalid `help:effective-pom' output")))))
+	   (error "Neither <project> nor <projects> was found in pom")))))
 
-(defun javaimp--maven-xml-read-effective-pom (pom)
-  "Calls `mvn help:effective:pom and returns XML parse tree"
-  (message "Loading root pom %s..." pom)
-  (javaimp--maven-call
-   pom "help:effective-pom"
-   (lambda ()
-     (let ((xml-start-pos
-	    (save-excursion
-	      (progn
-		(goto-char (point-min))
-		(re-search-forward "<\\?xml\\|<projects?")
-		(match-beginning 0))))
-	   (xml-end-pos
-	    (save-excursion
-	      (progn
-		(goto-char (point-min))
-		(re-search-forward "<\\(projects?\\)")
-		;; corresponding closing tag is the end of parse region
-		(search-forward (concat "</" (match-string 1) ">"))
-		(match-end 0)))))
-       (xml-parse-region xml-start-pos xml-end-pos)))))
-
-(defun javaimp--maven-xml-parse-module (project-elt)
-  (let ((build-elt (javaimp--xml-child 'build project-elt)))
+(defun javaimp--maven-xml-parse-project (project)
+  (let ((build-elt (javaimp--xml-child 'build project)))
     (make-javaimp-module
-     :id (javaimp--maven-xml-extract-id project-elt)
-     :parent-id (javaimp--maven-xml-extract-id (javaimp--xml-child 'parent project-elt))
-     ;; we set `file' slot later because raw <project> element does not contain
-     ;; pom file path, so we need to construct it during tree construction
+     :id (javaimp--maven-xml-extract-id project)
+     :parent-id (javaimp--maven-xml-extract-id (javaimp--xml-child 'parent project))
+     ;; <project> element does not contain pom file path (we set :file slot later)
      :file nil
      :final-name (javaimp--xml-first-child
 		  (javaimp--xml-child 'finalName build-elt))
      :packaging (javaimp--xml-first-child
-		 (javaimp--xml-child 'packaging project-elt))
+		 (javaimp--xml-child 'packaging project))
      :source-dir (file-name-as-directory
 		  (javaimp-cygpath-convert-maybe
 		   (javaimp--xml-first-child
@@ -332,7 +313,7 @@ inheritance are not included."
 		  (javaimp--xml-first-child (javaimp--xml-child 'directory build-elt))))
      :modules (mapcar (lambda (module-elt)
 			(javaimp--xml-first-child module-elt))
-		      (javaimp--xml-children (javaimp--xml-child 'modules project-elt) 'module))
+		      (javaimp--xml-children (javaimp--xml-child 'modules project) 'module))
      :dep-jars nil		      ; dep-jars is initialized lazily on demand
      :load-ts (current-time))))
 
@@ -386,41 +367,42 @@ the temporary buffer and returns its result"
       (goto-char (point-min))
       (funcall handler))))
 
-(defun javaimp--maven-build-tree (id parent-node all-modules file)
-  (message "Building tree for project: %s" id)
-  (let ((this (or (seq-find (lambda (m) (equal (javaimp-module-id m) id))
-			    all-modules)
-		  (error "Cannot find module %s!" id)))
-	;; although each real parent has <modules> section, more reliable
-	;; way to build hirarchy is to analyze <parent> node in each child
-	(children (seq-filter (lambda (m) (equal (javaimp-module-parent-id m) id))
-			      all-modules)))
+(defun javaimp--maven-build-tree (this parent-node all file)
+  (message "Building tree for module: %s" (javaimp-module-id this))
+  (let ((children
+	 ;; reliable way to find children is to look for modules with "this" as
+	 ;; the parent
+	 (seq-filter (lambda (m) (equal (javaimp-module-parent-id m)
+					(javaimp-module-id this)))
+			      all)))
     (if (and (null children)
-	     (string= (javaimp-module-packaging this) "pom"))
-	(progn (message "Skipping empty aggregate module %s" (javaimp-module-id this))
+	     (equal (javaimp-module-packaging this) "pom"))
+	(progn (message "Skipping empty aggregate module: %s" (javaimp-module-id this))
 	       nil)
-      ;; here we can finally set the `file' slot as the path is known at
-      ;; this time
+      ;; filepath was not set before, but now we know it
       (setf (javaimp-module-file this) file)
-      ;; make node
-      (let ((this-node (make-javaimp-node
+      ;; node
+      (let* ((this-node (make-javaimp-node
 			:parent parent-node
 			:children nil
-			:contents this)))
-	(setf (javaimp-node-children this-node)
+			:contents this))
+	     ;; recursively build child nodes
+	     (child-nodes
 	      (mapcar (lambda (child)
 			(let ((child-file
+			       ;; !! this is hack
 			       (javaimp--maven-get-submodule-file
 				child file (javaimp-module-modules this))))
 			  (javaimp--maven-build-tree
-			   (javaimp-module-id child) this-node all-modules child-file)))
-		      children))
+			   child this-node all child-file)))
+		      children)))
+	(setf (javaimp-node-children this-node) child-nodes)
 	this-node))))
 
 (defun javaimp--maven-get-submodule-file (submodule parent-file rel-paths-from-parent)
-  ;; seems that the only reliable way to match a module parsed from
-  ;; <project> element with module relative path taken from <modules> is to
-  ;; visit pom and check that id and parent-id matches
+  ;; Seems that the only reliable way to match a module parsed from <project>
+  ;; element with module relative path taken from <modules> is to visit pom and
+  ;; check that id and parent-id matches
   (let* ((parent-dir (file-name-directory parent-file))
 	 (files (mapcar (lambda (rel-path)
 			  (concat parent-dir
@@ -439,40 +421,41 @@ the temporary buffer and returns its result"
 
 (defun javaimp--maven-update-module-maybe (node)
   (let (need-update)
-    ;; are deps not initialized?
     (let ((module (javaimp-node-contents node)))
-      (if (null (javaimp-module-dep-jars module))
-	  (setq need-update t)))
-    ;; were any pom.xml files updated after last load?
+      (or (javaimp-module-dep-jars module)
+	  (progn (message "Loading dependencies: %s" (javaimp-module-id module))
+		 (setq need-update t))))
+    ;; check if any pom up to the top has changed
     (let ((tmp node))
       (while (and tmp
 		  (not need-update))
 	(let ((module (javaimp-node-contents tmp)))
 	  (if (> (float-time (javaimp--get-file-ts (javaimp-module-file module)))
 		 (float-time (javaimp-module-load-ts module)))
-	      (setq need-update t)))
+	      (progn
+		(message "Reloading (%s pom changed)" (javaimp-module-id module))
+		(setq need-update t))))
 	(setq tmp (javaimp-node-parent tmp))))
     (when need-update
-      ;; update current module
-      (let ((module (javaimp-node-contents node)))
-	;; reload & update dep-jars
-	(setf (javaimp-module-dep-jars module)
-	      (javaimp--maven-fetch-dep-jars module))
-	;; update load-ts
-	(setf (javaimp-module-load-ts module) (current-time))))))
+      (let* ((module (javaimp-node-contents node))
+	     (new-dep-jars (javaimp--maven-fetch-dep-jars module))
+	     (new-load-ts (current-time)))
+	(setf (javaimp-module-dep-jars module) new-dep-jars)
+	(setf (javaimp-module-load-ts module) new-load-ts)))))
 
 (defun javaimp--maven-fetch-dep-jars (module)
-  (let ((raw-line
-	 (javaimp--maven-call
-	  (javaimp-module-file module) "dependency:build-classpath"
-	  (lambda ()
-	    (goto-char (point-min))
-	    (search-forward "Dependencies classpath:")
-	    (forward-line 1)
-	    (thing-at-point 'line))))
-	(separator-regex (concat "[" path-separator "\n" "]+")))
-    (split-string (javaimp-cygpath-convert-maybe raw-line 'unix t) separator-regex t)))
+  (let* ((path (javaimp--maven-call (javaimp-module-file module)
+				    "dependency:build-classpath"
+				    #'javaimp--maven-build-classpath-handler))
+	 (converted-path (javaimp-cygpath-convert-maybe path 'unix t))
+	 (path-separator-regex (concat "[" path-separator "\n" "]+")))
+    (split-string converted-path path-separator-regex t)))
 
+(defun javaimp--maven-build-classpath-handler ()
+  (goto-char (point-min))
+  (search-forward "Dependencies classpath:")
+  (forward-line 1)
+  (thing-at-point 'line))
 
 
 ;; Working with jar classes
