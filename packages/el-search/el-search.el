@@ -214,6 +214,14 @@
 ;;   variable).  The state in the current buffer is just (buffer
 ;;   . marker).  Or should this be abstracted into an own lib?  Could
 ;;   be named "files-session" or so.
+;;
+;; - Make `el-search--format-replacement' work non-heuristically.
+;;   Idea: When replacing, for every variable V bound by the search
+;;   pattern that directly corresponds to some text T, provide some
+;;   "match data" V -> T.  Use this when formatting the replacement.
+;;   Maybe use a special marker to "paste" in expressions, like (paste
+;;   V), whereby the `paste' flag lands in the replacement and can be
+;;   replaced textually afterwards.
 
 
 
@@ -528,6 +536,45 @@ point.  Optional second argument, if non-nil, means if fail just
 return nil (no error)."
   (el-search--search-pattern-1 (el-search--matcher pattern) noerror))
 
+(defun el-search--replace-hunk (region to-insert)
+  "Replace the text in REGION in current buffer with string TO-INSERT.
+Add line breaks before and after TO-INSERT when appropriate and
+reindent."
+  (atomic-change-group
+    (let* ((inhibit-message t)
+           (opoint (point))
+           (original-text (prog1 (apply #'buffer-substring-no-properties region)
+                            (goto-char (car region))
+                            (apply #'delete-region region)))
+           ;; care about other sexps in this line
+           (sexp-before-us (not (looking-back "\(\\|^\\s-*" (line-beginning-position))))
+           (sexp-after-us  (not (looking-at "\\s-*[;\)]\\|$")))
+           (insert-newline-before
+            (or
+             (and (string-match-p "\n" to-insert)
+                  (not (string-match-p "\n" original-text))
+                  (or (and sexp-before-us sexp-after-us)
+                      (looking-back
+                       (rx (or (syntax word) (syntax symbol))
+                           (+ blank)
+                           (or (syntax word) (syntax symbol))
+                           (* any))
+                       (line-beginning-position))))
+             ;; (and sexp-before-us
+             ;;      (> (+ (apply #'max (mapcar #'length (split-string to-insert "\n")))
+             ;;            (- (point) (line-beginning-position)))
+             ;;         fill-column))
+             ))
+           (insert-newline-after (and insert-newline-before sexp-after-us)))
+      (when insert-newline-before
+        (when (looking-back "\\s-+" (line-beginning-position))
+          (delete-region (match-beginning 0) (match-end 0)))
+        (insert "\n"))
+      (insert to-insert)
+      (when insert-newline-after
+        (insert "\n"))
+      (indent-region opoint (1+ (point))))))
+
 (defun el-search--format-replacement (replacement original replace-expr-input splice)
   ;; Return a printed representation of REPLACEMENT.  Try to reuse the
   ;; layout of subexpressions shared with the original (replaced)
@@ -576,26 +623,21 @@ return nil (no error)."
                           ((invalid-read-syntax end-of-buffer end-of-file) nil)))
                       (setq end (point))
                     (setq done t)))
+                ;; FIXME: there could be another occurrence of THIS-SEXP in ORIG-BUFFER with more
+                ;; subsequent equal expressions after it
                 (if orig-match-start
-                    (let ((match (with-current-buffer orig-buffer
-                                   (buffer-substring-no-properties orig-match-start
-                                                                   orig-match-end))))
-                      (delete-region start end)
-                      (goto-char start)
-                      (when (string-match-p "\n" match)
-                        (unless (looking-back "^[[:space:]\(]*" (line-beginning-position))
-                          (insert "\n"))
-                        (unless (looking-at "[[:space:]\)]*$")
-                          (insert "\n")
-                          (backward-char)))
-                      (insert match))
+                    (el-search--replace-hunk
+                     (list start end)
+                     (with-current-buffer orig-buffer
+                       (buffer-substring-no-properties orig-match-start orig-match-end)))
                   (goto-char start)
                   (el-search--skip-expression nil t))
                 (condition-case nil
                     (el-search--ensure-sexp-start)
                   (end-of-buffer (goto-char (point-max))))))
-            (delete-trailing-whitespace (point-min) (point-max)) ;FIXME: this should not be necessary
-            (let ((result (buffer-substring (point-min) (point-max))))
+            (goto-char 1)
+            (forward-sexp)
+            (let ((result (buffer-substring 1 (point))))
               (if (equal replacement (read result))
                   result
                 (error "Error in `el-search--format-replacement' - please make a bug report"))))
@@ -1062,17 +1104,14 @@ Hit any key to proceed."
                         (progn (el-search--ensure-sexp-start)
                                (el-search--search-pattern pattern t))
                       (end-of-buffer nil))))
-                 (do-replace (lambda ()
-                               (atomic-change-group
-                                 (apply #'delete-region region)
-                                 (let ((inhibit-message t)
-                                       (opoint (point)))
-                                   (insert to-insert)
-                                   (indent-region opoint (point))
-                                   (el-search-hl-sexp (list opoint (point)))
-                                   (goto-char opoint)))
-                               (cl-incf nbr-replaced)
-                               (setq replaced-this t))))
+                 (do-replace
+                  (lambda ()
+                    (save-excursion
+                      (el-search--replace-hunk (list (point) (el-search--end-of-sexp)) to-insert))
+                    (el-search--ensure-sexp-start) ;skip potentially newly added whitespace
+                    (el-search-hl-sexp (list opoint (point)))
+                    (cl-incf nbr-replaced)
+                    (setq replaced-this t))))
             (if replace-all
                 (funcall do-replace)
               (while (not (pcase (if replaced-this
