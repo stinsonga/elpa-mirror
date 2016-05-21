@@ -7,7 +7,7 @@
 ;; Created: 14 May 2016
 ;; Keywords: convenience
 ;; Compatibility: GNU Emacs 24
-;; Version: 0.1
+;; Version: 0.1.1
 ;; Package-Requires: ((emacs "24"))
 
 
