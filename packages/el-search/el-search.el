@@ -389,7 +389,7 @@ and return it."
     (while not-done
       (let ((stop-here nil)
             (looking-at-from-back (lambda (regexp n)
-                                    (and (> (point) n)
+                                    (and (<= n (- (point) (point-min)))
                                          (save-excursion
                                            (backward-char n)
                                            (looking-at regexp))))))
