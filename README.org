@@ -1,0 +1,102 @@
+#+TITLE: Hook Helpers
+#+AUTHOR: Ian Dunn
+#+EMAIL: dunni@gnu.org
+
+
+
+* Copying
+Copyright (C) 2016 Ian Dunn
+
+#+BEGIN_QUOTE
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#+END_QUOTE
+* Introduction
+
+Often times, I see people define a function to be used once in a hook.  If
+they don’t do this, then it will be an anonymous function.  If the anonymous
+function is modified, then the function can’t be removed.  With a function
+outside of the ~add-hook~ call, it looks messy.
+
+The ~define-hook-helper~ macro is a solution to this.  Think of it as an
+anaphoric ~add-hook~, but one that can be called many times without risking
+redundant hook functions.  It gives a cleaner look and feel to Emacs
+configuration files, and could even be used in actual libraries.
+
+* Usage
+
+Under the hood, ~define-hook-helper~ creates a new function, called
+~hook-helper--HOOK~.
+
+#+BEGIN_SRC emacs-lisp
+(define-hook-helper after-init
+  (set-scroll-bar-mode nil))
+#+END_SRC
+
+The above creates the function ‘hook-helper--after-init’.
+
+** "But doesn't that mean I can only use this once per hook?"
+
+I thought about that too, and devised a solution.  ~define-hook-helper~
+accepts several keywords: name, append, and args.  Append does exactly what it
+says on the tin: It appends the hook, passing the argument straight to
+‘add-hook’.  Name tacks a name onto the defined hook function.  For instance,
+take the previous example:
+
+#+BEGIN_SRC emacs-lisp
+(define-hook-helper after-init
+  :name env
+  (set-scroll-bar-mode nil))
+#+END_SRC
+
+This creates the function =hook-helper--after-init/env=, thus allowing
+anyone to use ~define-hook-helper~ as many times as they like, without fear
+of name clobbering.
+
+The =args= keyword allows for hook functions that require arguments.  Let's say
+you've got a hook like so:
+
+#+BEGIN_SRC emacs-lisp
+(define-hook-helper after-make-frame
+  :args (frame)
+  :suffix "functions"
+  (set-frame-parameter frame 'alpha '(90 50)))
+#+END_SRC
+
+Also note the ~suffix~ keyword.  This tells ~define-hook-helper~ to add the
+helper to the variable ~after-make-frame-functions~ instead of
+~after-make-frame-hook~.  The args keyword tells it to create a function with
+one argument, ~frame~.
+
+** Mode hooks
+
+The primary use case for ~define-hook-helper~ is mode hooks, so there is a
+specialized form for mode hooks, cleverly named ~define-mode-hook-helper~.
+This macro will take the name of a mode (sans the word 'mode'), and runs
+~define-hook-helper~.
+
+#+BEGIN_SRC emacs-lisp
+(define-mode-hook-helper text
+  (visual-line-mode 1))
+#+END_SRC
+
+As above, this creates the function ~hook-helper--text-mode~ like so:
+
+#+BEGIN_SRC emacs-lisp
+(defun defined-hooks--text-mode ()
+  (visual-line-mode 1))
+#+END_SRC
+
+All ~define-mode-hook-helper~ does is add 'mode' to the end of the mode its
+passed, then passes all other arguments to ~define-hook-helper~.  This means
+that ~define-mode-hook-helper~ also takes the name and append keywords.
