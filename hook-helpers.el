@@ -37,16 +37,14 @@
 ;; TODO:
 
 ;; - List hook helpers?  Is this useful to anyone?
-;; - Would it be more useful to specify ‘args’ as an argument, identical to the
-;;   way a normal defun is defined?  It's not used that often.
 
 ;;; Code:
 
 (defconst hook-helper--helper-prefix "hook-helper")
 
 ;;;###autoload
-(cl-defmacro define-hook-helper (hook &rest body &key name append args (suffix "hook") &allow-other-keys)
-  "Define a hook helper for the variable HOOK-hook.
+(cl-defmacro define-hook-helper (hook args &optional docstring &rest body &key name append (suffix "hook") &allow-other-keys)
+  "Define a hook helper for the variable HOOK-hook with ARGS as the argument list.
 
 This helper consists of all the code in BODY.  HOOK should not be
 quoted.  The keywords are:
@@ -58,17 +56,12 @@ quoted.  The keywords are:
 
 :append  If non-nil, append the hook helper to the hook variable.
 
-:args    Should be a list to pass as the arguments of the new
-         function.  ARGS is not a list of variables, but symbols
-         that become the names of the arguments.  As such, this
-         can be any form allowed as an argument list.
-
 :suffix  Allows a user to specify that the hook variable doesn't
          end with ‘-hook’, but instead with another suffix, such as
          ‘-function’.  SUFFIX should be a string, and defaults to ‘hook’
          if not specified.  Note that SUFFIX is not assumed to start with
          a hyphen."
-  (declare (indent 1))
+  (declare (indent defun) (doc-string 3))
   ;; From package.el - remove the keys from BODY
   (while (keywordp (car body))
     (setq body (cddr body)))
@@ -81,10 +74,8 @@ quoted.  The keywords are:
                  (function ,func-sym)
                  ,append))))
 
-(put 'define-hook-helper 'lisp-indent-function 'defun)
-
 ;;;###autoload
-(defmacro define-mode-hook-helper (mode &rest body)
+(defmacro define-mode-hook-helper (mode args &optional docstring &rest body)
   "Define hook helper for MODE.
 
 The suffix \"-mode\" is added to MODE before passing it to
@@ -92,7 +83,7 @@ The suffix \"-mode\" is added to MODE before passing it to
 
 BODY is passed verbatim to ‘define-hook-helper’, so all allowed
 keys for that macro are allowed here."
-  (declare (indent 1))
+  (declare (indent defun) (doc-string 3))
   `(define-hook-helper ,(intern (format "%s-mode" mode)) ,@body))
 
 ;; Add font lock for both macros.
@@ -100,12 +91,10 @@ keys for that macro are allowed here."
  'emacs-lisp-mode
  '(("(\\(define-hook-helper\\)\\_>[ \t]*\\(\\(?:\\sw\\|\\s_\\)+\\)?"
     (1 font-lock-keyword-face)
-    (2 font-lock-constant-face nil t))
+    (2 font-lock-function-name-face))
    ("(\\(define-mode-hook-helper\\)\\_>[ \t]*\\(\\(?:\\sw\\|\\s_\\)+\\)?"
     (1 font-lock-keyword-face)
-    (2 font-lock-constant-face nil t))))
-
-(put 'define-mode-hook-helper 'lisp-indent-function 'defun)
+    (2 font-lock-function-name-face))))
 
 (cl-defmacro remove-hook-helper (hook &key name (suffix "hook"))
   "Remove a hook helper from HOOK-hook.
@@ -115,6 +104,7 @@ be used to find the exact helper to remove."
   (declare (indent 1))
   (let ((func-sym (intern (format "%s--%s%s" hook-helper--helper-prefix (symbol-name hook) (if name (concat "/" (symbol-name name)) "")))))
     `(remove-hook (quote ,(intern (concat (symbol-name hook) "-" suffix))) (function ,func-sym))))
+
 (provide 'hook-helpers)
 
 ;;; hook-helpers.el ends here
