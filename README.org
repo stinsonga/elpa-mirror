@@ -21,6 +21,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #+END_QUOTE
 * Introduction
 
+[[https://savannah.nongnu.org/projects/hook-helpers-el/][Savannah Project]]
+
 Often times, I see people define a function to be used once in a hook.  If
 they don’t do this, then it will be an anonymous function.  If the anonymous
 function is modified, then the function can’t be removed.  With a function
@@ -30,6 +32,30 @@ The ~define-hook-helper~ macro is a solution to this.  Think of it as an
 anaphoric ~add-hook~, but one that can be called many times without risking
 redundant hook functions.  It gives a cleaner look and feel to Emacs
 configuration files, and could even be used in actual libraries.
+
+The purpose of this package is to build upon add-hook and remove-hook.  When you have something like the following:
+
+#+BEGIN_SRC emacs-lisp
+(defun my/after-init-hook ()
+  (set-scroll-bar-mode nil))
+#+END_SRC
+
+You've got to remember to actually add this to the after-init-hook variable.  Alternatively, you can use a lambda function:
+
+#+BEGIN_SRC emacs-lisp
+(add-hook 'after-init-hook (lambda () (set-scroll-bar-mode nil)))
+#+END_SRC
+
+But then if you want to modify the function, it's permanently stuck on the after-init-hook variable, and you have to deal with it.  It's not a problem for after-init-hook, which is used once, but would be a problem for a mode hook, like text-mode-hook.
+
+Instead, hook-helpers can do the following:
+
+#+BEGIN_SRC emacs-lisp
+(define-hook-helper after-init
+  (set-scroll-bar-mode nil))
+#+END_SRC
+
+Which handles everything for you.
 
 * Usage
 
