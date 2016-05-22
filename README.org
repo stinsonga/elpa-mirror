@@ -2,8 +2,6 @@
 #+AUTHOR: Ian Dunn
 #+EMAIL: dunni@gnu.org
 
-
-
 * Copying
 Copyright (C) 2016 Ian Dunn
 
@@ -50,7 +48,7 @@ The above creates the function ‘hook-helper--after-init’.
 I thought about that too, and devised a solution.  ~define-hook-helper~
 accepts several keywords: name, append, and args.  Append does exactly what it
 says on the tin: It appends the hook, passing the argument straight to
-‘add-hook’.  Name tacks a name onto the defined hook function.  For instance,
+~add-hook~.  Name tacks a name onto the defined hook function.  For instance,
 take the previous example:
 
 #+BEGIN_SRC emacs-lisp
@@ -97,6 +95,17 @@ As above, this creates the function ~hook-helper--text-mode~ like so:
   (visual-line-mode 1))
 #+END_SRC
 
-All ~define-mode-hook-helper~ does is add 'mode' to the end of the mode its
+All ~define-mode-hook-helper~ does is add "mode" to the end of the mode its
 passed, then passes all other arguments to ~define-hook-helper~.  This means
 that ~define-mode-hook-helper~ also takes the name and append keywords.
+** Removing the Function
+To remove the new function from the hook, you can use the function
+~remove-hook-helper~.  It works just as ~define-hook-helper~:
+
+#+BEGIN_SRC emacs-lisp
+(remove-hook-helper text-mode)
+(remove-hook-helper after-init
+  :name env)
+(remove-hook-helper after-make-frame
+  :suffix "functions")
+#+END_SRC
