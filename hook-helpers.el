@@ -43,7 +43,7 @@
 (defconst hook-helper--helper-prefix "hook-helper")
 
 ;;;###autoload
-(cl-defmacro define-hook-helper (hook args &rest body &key name append (suffix "hook") &allow-other-keys)
+(defmacro define-hook-helper (hook args &optional docstring &rest body)
   "Define a hook helper for the variable HOOK-hook with ARGS as the argument list.
 
 This helper consists of all the code in BODY.  HOOK should not be
@@ -61,18 +61,31 @@ quoted.  The keywords are:
          ‘-function’.  SUFFIX should be a string, and defaults to ‘hook’
          if not specified.  Note that SUFFIX is not assumed to start with
          a hyphen."
-  (declare (indent defun))
-  ;; From package.el - remove the keys from BODY
-  (while (keywordp (car body))
-    (setq body (cddr body)))
-  (let ((func-sym (intern (format "%s--%s%s" hook-helper--helper-prefix (symbol-name hook) (if name (concat "/" (symbol-name name)) "")))))
-    `(progn
-       (defun ,func-sym ,args
-         ,(format "Function to run for %s-%s" (symbol-name hook) suffix)
-         ,@body)
-       (add-hook (quote ,(intern (concat (symbol-name hook) "-" suffix)))
-                 (function ,func-sym)
-                 ,append))))
+  (declare (indent defun) (doc-string 3))
+  ;; From `define-derived-mode'
+  (when (and docstring (not (stringp docstring)))
+    ;; Some trickiness, since what appears to be the docstring may really be
+    ;; the first element of the body.
+    (push docstring body)
+    (setq docstring nil))
+  ;; Process the key words
+  (let ((name nil)
+        (append nil)
+        (suffix "hook"))
+    (while (keywordp (car body))
+      (pcase (pop body)
+	(`:name (setq name (pop body)))
+	(`:append (setq append (pop body)))
+	(`:suffix (setq suffix (pop body)))
+	(_ (pop body))))
+    (let ((func-sym (intern (format "%s--%s%s" hook-helper--helper-prefix (symbol-name hook) (if name (concat "/" (symbol-name name)) "")))))
+      `(progn
+         (defun ,func-sym ,args
+           ,(format "Function to run for %s-%s" (symbol-name hook) suffix)
+           ,@body)
+         (add-hook (quote ,(intern (concat (symbol-name hook) "-" suffix)))
+                   (function ,func-sym)
+                   ,append)))))
 
 ;;;###autoload
 (defmacro define-mode-hook-helper (mode args &rest body)
@@ -81,7 +94,7 @@ quoted.  The keywords are:
 The suffix \"-mode\" is added to MODE before passing it to
 ‘define-hook-helper’.
 
-BODY is passed verbatim to ‘define-hook-helper’, so all allowed
+ARGS and BODY are passed verbatim to ‘define-hook-helper’, so all allowed
 keys for that macro are allowed here."
   (declare (indent defun))
   `(define-hook-helper ,(intern (format "%s-mode" mode)) ,args ,@body))
@@ -101,7 +114,6 @@ keys for that macro are allowed here."
 
 NAME and SUFFIX are exactly as in ‘define-hook-helper’, and can
 be used to find the exact helper to remove."
-  (declare (indent 1))
   (let ((func-sym (intern (format "%s--%s%s" hook-helper--helper-prefix (symbol-name hook) (if name (concat "/" (symbol-name name)) "")))))
     `(remove-hook (quote ,(intern (concat (symbol-name hook) "-" suffix))) (function ,func-sym))))
 
