@@ -43,7 +43,7 @@
 (defconst hook-helper--helper-prefix "hook-helper")
 
 ;;;###autoload
-(cl-defmacro define-hook-helper (hook args &optional docstring &rest body &key name append (suffix "hook") &allow-other-keys)
+(cl-defmacro define-hook-helper (hook args &rest body &key name append (suffix "hook") &allow-other-keys)
   "Define a hook helper for the variable HOOK-hook with ARGS as the argument list.
 
 This helper consists of all the code in BODY.  HOOK should not be
@@ -61,7 +61,7 @@ quoted.  The keywords are:
          ‘-function’.  SUFFIX should be a string, and defaults to ‘hook’
          if not specified.  Note that SUFFIX is not assumed to start with
          a hyphen."
-  (declare (indent defun) (doc-string 3))
+  (declare (indent defun))
   ;; From package.el - remove the keys from BODY
   (while (keywordp (car body))
     (setq body (cddr body)))
@@ -75,7 +75,7 @@ quoted.  The keywords are:
                  ,append))))
 
 ;;;###autoload
-(defmacro define-mode-hook-helper (mode args &optional docstring &rest body)
+(defmacro define-mode-hook-helper (mode args &rest body)
   "Define hook helper for MODE.
 
 The suffix \"-mode\" is added to MODE before passing it to
@@ -83,8 +83,8 @@ The suffix \"-mode\" is added to MODE before passing it to
 
 BODY is passed verbatim to ‘define-hook-helper’, so all allowed
 keys for that macro are allowed here."
-  (declare (indent defun) (doc-string 3))
-  `(define-hook-helper ,(intern (format "%s-mode" mode)) ,@body))
+  (declare (indent defun))
+  `(define-hook-helper ,(intern (format "%s-mode" mode)) ,args ,@body))
 
 ;; Add font lock for both macros.
 (font-lock-add-keywords
