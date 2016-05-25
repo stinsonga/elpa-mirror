@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 0.2
+;; Version: 0.2.1
 ;; Package-Requires: ((emacs "25"))
 
 
@@ -908,25 +908,74 @@ the search pattern."
                            (point) ',property nil ,limit)
                           ,limit))))))
 
-(el-search-defpattern change ()
-  "Matches the object if it is part of a change.
-This is equivalent to (char-prop diff-hl-hunk).
+(defvar diff-hl-reference-revision)
+(declare-function diff-hl-changes "diff-hl")
+(defvar-local el-search--cached-changes nil)
 
-You need `diff-hl-mode' turned on, provided by the library
-\"diff-hl\" available in Gnu Elpa."
-  (or (bound-and-true-p diff-hl-mode)
-      (error "diff-hl-mode not enabled"))
-  '(char-prop diff-hl-hunk))
+(defun el-search--changes-from-diff-hl (revision)
+  "Return a list of changed regions (as conses of positions) since REVISION.
+Use variable `el-search--cached-changes' for caching."
+  (if (and (consp el-search--cached-changes)
+           (equal (car el-search--cached-changes)
+                  revision))
+      (cdr el-search--cached-changes)
+    (require 'diff-hl)
+    ;; `diff-hl-changes' returns line numbers.  We must convert them into positions.
+    (save-restriction
+      (widen)
+      (save-excursion
+        (let ((diff-hl-reference-revision revision)
+              (current-line-nbr 1) change-beg)
+          (goto-char 1)
+          (cdr (setq el-search--cached-changes
+                     (cons revision
+                           (delq nil (mapcar (pcase-lambda (`(,start-line ,nbr-lines ,kind))
+                                               (if (eq kind 'delete) nil
+                                                 (forward-line (- start-line current-line-nbr))
+                                                 (setq change-beg (point))
+                                                 (forward-line (1- nbr-lines))
+                                                 (setq current-line-nbr (+ start-line nbr-lines -1))
+                                                 (cons change-beg (line-end-position))))
+                                             (diff-hl-changes)))))))))))
 
-(el-search-defpattern changed ()
-  "Matches the object if it contains a change.
-This is equivalent to (includes-prop diff-hl-hunk).
+(defun el-search--change-p (posn &optional revision)
+  ;; Non-nil when sexp after POSN is part of a change
+  (when (buffer-modified-p)
+    (error "Buffer is modified - please save"))
+  (save-restriction
+    (widen)
+    (let ((changes (el-search--changes-from-diff-hl revision))
+          (sexp-end (scan-sexps posn 1)))
+      (while (and changes (< (cdar changes) sexp-end))
+        (pop changes))
+      (and changes
+           (<= (caar changes) posn)))))
 
-You need `diff-hl-mode' turned on, provided by the library
-\"diff-hl\" available in Gnu Elpa."
-  (or (bound-and-true-p diff-hl-mode)
-      (error "diff-hl-mode not enabled"))
-  '(includes-prop diff-hl-hunk))
+(defun el-search--changed-p (posn &optional revision)
+  ;; Non-nil when sexp after POSN contains a change
+  (when (buffer-modified-p)
+    (error "Buffer is modified - please save"))
+  (save-restriction
+    (widen)
+    (let ((changes (el-search--changes-from-diff-hl revision)))
+      (while (and changes (<= (cdar changes) posn))
+        (pop changes))
+      (and changes
+           (< (caar changes) (scan-sexps posn 1))))))
+
+(el-search-defpattern change (&optional revision)
+  "Matches the object if its text is part of a file change.
+
+Requires library \"diff-hl\".  REVISION defaults to the file's
+repository's HEAD commit."
+  `(guard (el-search--change-p (point) ,revision)))
+
+(el-search-defpattern changed (&optional revision)
+  "Matches the object if its text contains a file change.
+
+Requires library \"diff-hl\".  REVISION defaults to the file's
+repository's HEAD commit."
+  `(guard (el-search--changed-p (point) ,revision)))
 
 
 ;;;; Highlighting
