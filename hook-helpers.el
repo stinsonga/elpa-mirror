@@ -88,26 +88,35 @@ quoted.  The keywords are:
                    ,append)))))
 
 ;;;###autoload
-(defmacro define-mode-hook-helper (mode args &rest body)
-  "Define hook helper for MODE.
-
-The suffix \"-mode\" is added to MODE before passing it to
-‘define-hook-helper’.
-
-ARGS and BODY are passed verbatim to ‘define-hook-helper’, so all allowed
-keys for that macro are allowed here."
-  (declare (indent defun))
-  `(define-hook-helper ,(intern (format "%s-mode" mode)) ,args ,@body))
+(defmacro define-hook-function (function args &optional docstring &rest body)
+  "Define FUNCTION to be a function, then add it to hooks."
+  (declare (indent defun) (doc-string 3))
+  ;; From `define-derived-mode'
+  (when (and docstring (not (stringp docstring)))
+    ;; Some trickiness, since what appears to be the docstring may really be
+    ;; the first element of the body.
+    (push docstring body)
+    (setq docstring nil))
+  ;; Process the key words
+  (let ((hooks nil))
+    (while (keywordp (car body))
+      (pcase (pop body)
+        ;; Why is hooks a keyword?  It's required.
+        (`:hooks (setq hooks (pop body)))
+	(_ (pop body))))
+    `(progn
+       (defun ,function ,args
+         ,docstring
+         ,@body)
+       (dolist (h ,hooks)
+         (add-hook h (function ,function))))))
 
 ;; Add font lock for both macros.
 (font-lock-add-keywords
  'emacs-lisp-mode
  '(("(\\(define-hook-helper\\)\\_>[ \t]*\\(\\(?:\\sw\\|\\s_\\)+\\)?"
     (1 font-lock-keyword-face)
-    (2 font-lock-function-name-face))
-   ("(\\(define-mode-hook-helper\\)\\_>[ \t]*\\(\\(?:\\sw\\|\\s_\\)+\\)?"
-    (1 font-lock-keyword-face)
-    (2 font-lock-function-name-face))))
+    (2 font-lock-function-name-face nil t))))
 
 (cl-defmacro remove-hook-helper (hook &key name (suffix "hook"))
   "Remove a hook helper from HOOK-hook.
