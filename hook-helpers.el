@@ -34,10 +34,6 @@
 ;; redundant hook functions.  It gives a cleaner look and feel to Emacs
 ;; configuration files, and could even be used in actual libraries.
 
-;; TODO:
-
-;; - List hook helpers?  Is this useful to anyone?
-
 ;;; Code:
 
 (defconst hook-helper--helper-prefix "hook-helper")
@@ -87,9 +83,21 @@ quoted.  The keywords are:
                    (function ,func-sym)
                    ,append)))))
 
+(cl-defmacro remove-hook-helper (hook &key name (suffix "hook"))
+  "Remove a hook helper from HOOK-hook.
+
+NAME and SUFFIX are exactly as in ‘define-hook-helper’, and can
+be used to find the exact helper to remove."
+  (let ((func-sym (intern (format "%s--%s%s" hook-helper--helper-prefix (symbol-name hook) (if name (concat "/" (symbol-name name)) "")))))
+    `(remove-hook (quote ,(intern (concat (symbol-name hook) "-" suffix))) (function ,func-sym))))
+
 ;;;###autoload
 (defmacro define-hook-function (function args &optional docstring &rest body)
-  "Define FUNCTION to be a function, then add it to hooks."
+  "Define FUNCTION to be a function, then add it to hooks.
+
+The hooks to add are specified by the :hooks keyword.  This is a
+simple list of hooks, unquoted, and the new function is added to
+each one."
   (declare (indent defun) (doc-string 3))
   ;; From `define-derived-mode'
   (when (and docstring (not (stringp docstring)))
@@ -101,14 +109,15 @@ quoted.  The keywords are:
   (let ((hooks nil))
     (while (keywordp (car body))
       (pcase (pop body)
-        ;; Why is hooks a keyword?  It's required.
+        ;; Hooks is a keyword to allow it to be specified, without requiring the
+        ;; docstring.
         (`:hooks (setq hooks (pop body)))
 	(_ (pop body))))
     `(progn
        (defun ,function ,args
          ,docstring
          ,@body)
-       (dolist (h ,hooks)
+       (dolist (h (quote ,hooks))
          (add-hook h (function ,function))))))
 
 ;; Add font lock for both macros.
@@ -116,15 +125,10 @@ quoted.  The keywords are:
  'emacs-lisp-mode
  '(("(\\(define-hook-helper\\)\\_>[ \t]*\\(\\(?:\\sw\\|\\s_\\)+\\)?"
     (1 font-lock-keyword-face)
+    (2 font-lock-function-name-face nil t))
+   ("(\\(define-hook-function\\)\\_>[ \t]*\\(\\(?:\\sw\\|\\s_\\)+\\)?"
+    (1 font-lock-keyword-face)
     (2 font-lock-function-name-face nil t))))
-
-(cl-defmacro remove-hook-helper (hook &key name (suffix "hook"))
-  "Remove a hook helper from HOOK-hook.
-
-NAME and SUFFIX are exactly as in ‘define-hook-helper’, and can
-be used to find the exact helper to remove."
-  (let ((func-sym (intern (format "%s--%s%s" hook-helper--helper-prefix (symbol-name hook) (if name (concat "/" (symbol-name name)) "")))))
-    `(remove-hook (quote ,(intern (concat (symbol-name hook) "-" suffix))) (function ,func-sym))))
 
 (provide 'hook-helpers)
 
