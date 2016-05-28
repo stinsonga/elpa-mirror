@@ -33,20 +33,25 @@ anaphoric ~add-hook~, but one that can be called many times without risking
 redundant hook functions.  It gives a cleaner look and feel to Emacs
 configuration files, and could even be used in actual libraries.
 
-The purpose of this package is to build upon add-hook and remove-hook.  When you have something like the following:
+The purpose of this package is to build upon add-hook and remove-hook.  When you
+have something like the following:
 
 #+BEGIN_SRC emacs-lisp
 (defun my/after-init-hook ()
   (set-scroll-bar-mode nil))
 #+END_SRC
 
-You've got to remember to actually add this to the after-init-hook variable.  Alternatively, you can use a lambda function:
+You've got to remember to actually add this to the after-init-hook variable.
+Alternatively, you can use a lambda function:
 
 #+BEGIN_SRC emacs-lisp
 (add-hook 'after-init-hook (lambda () (set-scroll-bar-mode nil)))
 #+END_SRC
 
-But then if you want to modify the function, it's permanently stuck on the after-init-hook variable, and you have to deal with it.  It's not a problem for after-init-hook, which is used once, but would be a problem for a mode hook, like text-mode-hook.
+But then if you want to modify the function, it's permanently stuck on the
+after-init-hook variable, and you have to deal with it.  It's not a problem for
+after-init-hook, which is used once, but would be a problem for a mode hook,
+like text-mode-hook.
 
 Instead, hook-helpers can do the following:
 
@@ -102,28 +107,6 @@ helper to the variable ~after-make-frame-functions~ instead of
 ~after-make-frame-hook~.  The arguments tells it to create a function with
 one argument, ~frame~.
 
-** Mode hooks
-
-The primary use case for ~define-hook-helper~ is mode hooks, so there is a
-specialized form for mode hooks, cleverly named ~define-mode-hook-helper~.
-This macro will take the name of a mode (sans the word 'mode'), and runs
-~define-hook-helper~.
-
-#+BEGIN_SRC emacs-lisp
-(define-mode-hook-helper text ()
-  (visual-line-mode 1))
-#+END_SRC
-
-As above, this creates the function ~hook-helper--text-mode~ like so:
-
-#+BEGIN_SRC emacs-lisp
-(defun defined-hooks--text-mode ()
-  (visual-line-mode 1))
-#+END_SRC
-
-All ~define-mode-hook-helper~ does is add "mode" to the end of the mode its
-passed, then passes all other arguments to ~define-hook-helper~.  This means
-that ~define-mode-hook-helper~ also takes the name and append keywords.
 ** Removing the Function
 To remove the new function from the hook, you can use the function
 ~remove-hook-helper~.  It works just as ~define-hook-helper~:
