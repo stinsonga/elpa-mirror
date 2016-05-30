@@ -1,6 +1,10 @@
 EMACS = emacs
 CASK = EMACS=${EMACS} cask
 DEPENDENCIES = .cask/
+SOURCE_FILES = \
+	context-coloring.el \
+	context-coloring-javascript.el \
+	context-coloring-emacs-lisp.el
 
 all: uncompile compile test
 
@@ -8,13 +12,13 @@ bench: ${DEPENDENCIES}
 	${CASK} exec ${EMACS} -Q \
 	-L . \
 	-l context-coloring \
-	-l benchmark/context-coloring-benchmark.el \
+	-l context-coloring-benchmark \
 	-f context-coloring-benchmark-run
 
 compile: ${DEPENDENCIES}
 	${CASK} exec ${EMACS} -Q -batch \
 	-L . \
-	-f batch-byte-compile *.el
+	-f batch-byte-compile ${SOURCE_FILES}
 
 uncompile:
 	rm -f *.elc
@@ -29,18 +33,18 @@ test: ${DEPENDENCIES}
 	${CASK} exec ${EMACS} -Q -batch \
 	-L . \
 	-l ert \
-	-l test/context-coloring-coverage.el \
+	-l context-coloring-coverage \
 	-f context-coloring-coverage-ci-init \
-	-l test/context-coloring-test.el \
+	-l context-coloring-test \
 	-f ert-run-tests-batch-and-exit
 
 cover: ${DEPENDENCIES}
 	${CASK} exec ${EMACS} -Q -batch \
 	-L . \
 	-l ert \
-	-l test/context-coloring-coverage.el \
+	-l context-coloring-coverage \
 	-f context-coloring-coverage-local-init \
-	-l test/context-coloring-test.el \
+	-l context-coloring-test \
 	-f ert-run-tests-batch-and-exit
 
 .PHONY: all bench compile uncompile clean test cover
