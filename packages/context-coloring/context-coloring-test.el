@@ -1,6 +1,6 @@
-;;; context-coloring-test.el --- Tests for context coloring  -*- lexical-binding: t; -*-
+;;; context-coloring-test.el --- Tests for context coloring  -*- lexical-binding: t; no-byte-compile: t; -*-
 
-;; Copyright (C) 2014-2015  Free Software Foundation, Inc.
+;; Copyright (C) 2014-2016  Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -27,8 +27,9 @@
 
 (require 'cl-lib)
 (require 'context-coloring)
+(require 'context-coloring-javascript)
+(require 'context-coloring-emacs-lisp)
 (require 'ert)
-(require 'js2-mode)
 
 
 ;;; Test running utilities
@@ -90,9 +91,9 @@ signaled."
                                                   (name)
                                                   (t "generic"))) name)))
              (fixture (cond
-                       (fixture (format "./fixtures/%s" fixture))
-                       (,no-fixture "./fixtures/empty")
-                       (t (format ,(format "./fixtures/%%s.%s" extension) name)))))
+                       (fixture (format "./fixtures/test/%s" fixture))
+                       (,no-fixture "./fixtures/test/empty")
+                       (t (format ,(format "./fixtures/test/%%s.%s" extension) name)))))
          ,@`((let ((enable-context-coloring-mode ,enable-context-coloring-mode))
                `(ert-deftest ,test-name ()
                   (context-coloring-test-with-fixture
@@ -111,8 +112,13 @@ signaled."
   :mode #'fundamental-mode
   :no-fixture t)
 
+(defun context-coloring-test-js2-mode ()
+  "Enable js2-mode and parse synchronously."
+  (js2-mode)
+  (js2-reparse))
+
 (context-coloring-test-define-deftest javascript
-  :mode #'js2-mode
+  :mode #'context-coloring-test-js2-mode
   :extension "js"
   :enable-context-coloring-mode t
   :before-each (lambda ()
@@ -225,10 +231,10 @@ signaled."
 
 (context-coloring-test-deftest mode-startup
   (lambda ()
-    (context-coloring-define-dispatch
+    (puthash
      'mode-startup
-     :modes '(context-coloring-test-mode-startup-mode)
-     :colorizer #'ignore)
+     (list :modes '(context-coloring-test-mode-startup-mode))
+     context-coloring-dispatch-hash-table)
     (context-coloring-test-mode-startup-mode)
     (context-coloring-test-assert-causes-coloring
      (context-coloring-mode)))
@@ -239,12 +245,12 @@ signaled."
 
 (context-coloring-test-deftest change-detection
   (lambda ()
-    (context-coloring-define-dispatch
+    (puthash
      'idle-change
-     :modes '(context-coloring-test-change-detection-mode)
-     :colorizer #'ignore
-     :setup #'context-coloring-setup-idle-change-detection
-     :teardown #'context-coloring-teardown-idle-change-detection)
+     (list :modes '(context-coloring-test-change-detection-mode)
+           :setup #'context-coloring-setup-idle-change-detection
+           :teardown #'context-coloring-teardown-idle-change-detection)
+     context-coloring-dispatch-hash-table)
     (context-coloring-test-change-detection-mode)
     (context-coloring-mode)
     (context-coloring-test-assert-causes-coloring
@@ -262,14 +268,6 @@ signaled."
      "Context coloring is unavailable here"
      "*Messages*")))
 
-(context-coloring-test-deftest derived-mode
-  (lambda ()
-    (lisp-interaction-mode)
-    (context-coloring-mode)
-    (context-coloring-test-assert-not-message
-     "Context coloring is unavailable here"
-     "*Messages*")))
-
 (context-coloring-test-deftest unavailable-message-ignored
   (lambda ()
     (minibuffer-with-setup-hook
@@ -283,33 +281,17 @@ signaled."
         [?\C-u]
         [?\M-!])))))
 
-(context-coloring-test-define-derived-mode define-dispatch-error)
-
-(context-coloring-test-deftest define-dispatch-error
-  (lambda ()
-    (context-coloring-test-assert-error
-     (lambda ()
-       (context-coloring-define-dispatch
-        'define-dispatch-no-modes))
-     "No mode or predicate defined for dispatch")
-    (context-coloring-test-assert-error
-     (lambda ()
-       (context-coloring-define-dispatch
-        'define-dispatch-no-strategy
-        :modes '(context-coloring-test-define-dispatch-error-mode)))
-     "No colorizer defined for dispatch")))
-
 (context-coloring-test-define-derived-mode disable-mode)
 
 (context-coloring-test-deftest disable-mode
   (lambda ()
     (let (torn-down)
-      (context-coloring-define-dispatch
+      (puthash
        'disable-mode
-       :modes '(context-coloring-test-disable-mode-mode)
-       :colorizer #'ignore
-       :teardown (lambda ()
-                   (setq torn-down t)))
+       (list :modes '(context-coloring-test-disable-mode-mode)
+             :teardown (lambda ()
+                         (setq torn-down t)))
+       context-coloring-dispatch-hash-table)
       (context-coloring-test-disable-mode-mode)
       (context-coloring-mode)
       (context-coloring-mode -1)
@@ -335,10 +317,10 @@ signaled."
     (custom-set-faces
      '(context-coloring-level-0-face ((t :foreground "#aaaaaa"))))
     (enable-theme 'context-coloring-test-custom-theme)
-    (context-coloring-define-dispatch
+    (puthash
      'theme
-     :modes '(context-coloring-test-custom-theme-mode)
-     :colorizer #'ignore)
+     (list :modes '(context-coloring-test-custom-theme-mode))
+     context-coloring-dispatch-hash-table)
     (context-coloring-test-custom-theme-mode)
     (context-coloring-colorize)
     (context-coloring-test-assert-maximum-face 1)
@@ -899,7 +881,7 @@ nnnn nn")))
           ;; the minibuffer's contents.  The contents are implicitly submitted,
           ;; so we have to ignore the errors in the arbitrary test subject code.
           (insert "(ignore-errors (let (a) (message a free)))")
-          (context-coloring-colorize)
+          (context-coloring-mode)
           (context-coloring-test-assert-coloring "
 xxxx: 0000000-000000 1111 111 11111111 1 0000110"))
       ;; Simulate user input because `call-interactively' is blocking and

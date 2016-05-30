@@ -1,6 +1,6 @@
-;;; context-coloring-coverage.el --- Test coverage for context coloring  -*- lexical-binding: t; -*-
+;;; context-coloring-coverage.el --- Test coverage for context coloring  -*- lexical-binding: t; no-byte-compile: t; -*-
 
-;; Copyright (C) 2014-2015  Free Software Foundation, Inc.
+;; Copyright (C) 2014-2016  Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -111,14 +111,14 @@
    (mapcar
     #'context-coloring-coverage-format-source-file
     (cdr (assq 'source_files coverage-data)))
-   "\n"))
+   "\n\n"))
 
 (defun context-coloring-coverage-local-init ()
   "Initialize test coverage for local viewing."
   (make-directory context-coloring-coverage-output-directory t)
   (setq undercover-force-coverage t)
   (setenv "COVERALLS_REPO_TOKEN" "noop")
-  (undercover "context-coloring.el"
+  (undercover "*.el"
               (:report-file context-coloring-coverage-output-file)
               (:send-report nil))
   (add-hook
@@ -147,7 +147,7 @@
 
 (defun context-coloring-coverage-ci-init ()
   "Initialize test coverage for continuous integration."
-  (undercover "context-coloring.el")
+  (undercover "*.el")
   (require 'context-coloring))
 
 (provide 'context-coloring-coverage)

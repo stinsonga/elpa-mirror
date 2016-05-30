@@ -1,4 +1,6 @@
+*-autoloads.el
+*-pkg.el
 *.elc
 .cask/
-/benchmark/logs/
-/test/coverage/
+/benchmark/
+/coverage/
