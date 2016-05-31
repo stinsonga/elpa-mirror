@@ -420,25 +420,25 @@ the temporary buffer and returns its result"
 ;;; Loading dep-jars
 
 (defun javaimp--maven-update-module-maybe (node)
-  (let (need-update)
-    (let ((module (javaimp-node-contents node)))
-      (or (javaimp-module-dep-jars module)
-	  (progn (message "Loading dependencies: %s" (javaimp-module-id module))
-		 (setq need-update t))))
-    ;; check if any pom up to the top has changed
+  (let ((module (javaimp-node-contents node))
+	need-update)
+    ;; check if deps are initialized
+    (or (javaimp-module-dep-jars module)
+	(progn (message "Loading dependencies: %s" (javaimp-module-id module))
+	       (setq need-update t)))
+    ;; check if any pom up to the top one has changed
     (let ((tmp node))
       (while (and tmp
 		  (not need-update))
-	(let ((module (javaimp-node-contents tmp)))
-	  (if (> (float-time (javaimp--get-file-ts (javaimp-module-file module)))
+	(let ((checked (javaimp-node-contents tmp)))
+	  (if (> (float-time (javaimp--get-file-ts (javaimp-module-file checked)))
 		 (float-time (javaimp-module-load-ts module)))
 	      (progn
-		(message "Reloading (%s pom changed)" (javaimp-module-id module))
+		(message "Reloading %s (pom changed)" (javaimp-module-id checked))
 		(setq need-update t))))
 	(setq tmp (javaimp-node-parent tmp))))
     (when need-update
-      (let* ((module (javaimp-node-contents node))
-	     (new-dep-jars (javaimp--maven-fetch-dep-jars module))
+      (let* ((new-dep-jars (javaimp--maven-fetch-dep-jars module))
 	     (new-load-ts (current-time)))
 	(setf (javaimp-module-dep-jars module) new-dep-jars)
 	(setf (javaimp-module-load-ts module) new-load-ts)))))
