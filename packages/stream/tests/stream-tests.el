@@ -242,5 +242,28 @@
     (should (= 2 (stream-first str)))
     (should (null (stream-pop stream-empty)))))
 
+(ert-deftest stream-scan-test ()
+  (should (eq (seq-elt (stream-scan #'* 1 (stream-range 1)) 4) 24)))
+
+(ert-deftest stream-flush-test ()
+  (should (let* ((times 0)
+                 (count (lambda () (cl-incf times))))
+            (letrec ((make-test-stream (lambda () (stream-cons (progn (funcall count) nil)
+                                                          (funcall make-test-stream)))))
+              (stream-flush (seq-take (funcall make-test-stream) 5))
+              (eq times 5)))))
+
+(ert-deftest stream-iterate-function-test ()
+  (should (equal (list 0 1 2) (seq-into-sequence (seq-take (stream-iterate-function #'1+ 0) 3)))))
+
+(ert-deftest stream-concatenate-test ()
+  (should (equal (seq-into-sequence
+                  (stream-concatenate
+                   (stream (list (stream (list 1 2 3))
+                                 (stream (list))
+                                 (stream (list 4))
+                                 (stream (list 5 6 7 8 9))))))
+                 (list 1 2 3 4 5 6 7 8 9))))
+
 (provide 'stream-tests)
 ;;; stream-tests.el ends here
