@@ -333,6 +333,51 @@ calling this function."
 (cl-defmethod seq-copy ((stream stream))
   "Return a shallow copy of STREAM."
   (stream-delay stream))
+
+
+;;; More stream operations
+
+(defun stream-scan (function init stream)
+  "Return a stream of successive reduced values for STREAM.
+
+If the elements of a stream s are s_1, s_2, ..., the elements
+S_1, S_2, ... of the stream returned by \(stream-scan f init s\)
+are defined recursively by
+
+  S_1     = init
+  S_(n+1) = (funcall f S_n s_n)
+
+as long as s_n exists.
+
+Example:
+
+   (stream-scan #'* 1 (stream-range 1))
+
+returns a stream of the factorials."
+  (let ((res init))
+    (stream-cons
+     res
+     (seq-map (lambda (el) (setq res (funcall function res el)))
+              stream))))
+
+(defun stream-flush (stream)
+  "Request all elements from STREAM in order for side effects only."
+  (while (not (stream-empty-p stream))
+    (cl-callf stream-rest stream)))
+
+(defun stream-iterate-function (function value)
+  "Return a stream of repeated applications of FUNCTION to VALUE.
+The returned stream starts with VALUE.  Any successive element
+will be found by calling FUNCTION on the preceding element."
+  (stream-cons
+   value
+   (stream-iterate-function function (funcall function value))))
+
+(defun stream-concatenate (stream-of-streams)
+  "Concatenate all streams in STREAM-OF-STREAMS and return the result.
+All elements in STREAM-OF-STREAMS must be streams.  The result is
+a stream."
+  (seq-reduce #'stream-append stream-of-streams (stream-empty)))
 
 (defun stream-of-directory-files-1 (directory &optional nosort recurse follow-links)
   "Helper for `stream-of-directory-files'."
