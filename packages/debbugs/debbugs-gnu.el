@@ -678,8 +678,11 @@ are taken from the cache instead."
 		'debbugs-gnu-done)
 	       ((member "pending" (cdr (assq 'keywords status)))
 		'debbugs-gnu-pending)
-	       ((= (cdr (assq 'date status))
-		   (cdr (assq 'log_modified status)))
+	       ;; For some new bugs `date' and `log_modified' may
+	       ;; differ in 1 second.
+	       ((< (abs (- (cdr (assq 'date status))
+			   (cdr (assq 'log_modified status))))
+		   3)
 		'debbugs-gnu-new)
 	       ((< (- (float-time)
 		      (cdr (assq 'log_modified status)))
