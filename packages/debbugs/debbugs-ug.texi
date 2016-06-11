@@ -176,7 +176,7 @@ AND is used by default.
 
 Wild card searches are also supported.  It can be used for forward
 match search and backward match search.  For example, "[BW] euro"
-matches words which begin with "euro".  "[EW] shere" matches words
+matches words which begin with "euro".  "[EW] sphere" matches words
 which end with "sphere".  Moreover, regular expressions are also
 supported.  For example, "[RX] ^inter.*al$" matches words which begin
 with "inter" and end with "al".@footnote{Simplified forms, as
