@@ -379,10 +379,11 @@ marked as \"client-side filter\"."
 	    (setq key (completing-read
 		       "Enter attribute: "
 		       (if phrase
-			   '("severity" "package" "tags" "submitter" "date"
-			     "subject" "status")
-			 '("severity" "package" "archive" "src" "tag"
+			   '("severity" "package" "tags"
+			     "author" "date" "subject")
+			 '("severity" "package" "archive" "src" "status" "tag"
 			   "owner" "submitter" "maint" "correspondent"
+			   ;; Client-side queries.
 			   "date" "log_modified" "last_modified"
 			   "found_date" "fixed_date" "unarchived"
 			   "subject" "done" "forwarded" "msgid" "summary"))
@@ -413,16 +414,19 @@ marked as \"client-side filter\"."
 		(add-to-list
 		 'debbugs-gnu-current-query (cons (intern key) val1))))
 
-	     ((member key '("owner" "submitter" "maint" "correspondent"))
+	     ((member
+	       key '("author" "owner" "submitter" "maint" "correspondent"))
 	      (setq val1 (read-string "Enter email address: "))
 	      (when (not (zerop (length val1)))
 		(add-to-list
-		 'debbugs-gnu-current-query (cons (intern key) val1))))
+		 'debbugs-gnu-current-query
+		 (cons (intern (if (equal key "author") "@author" key)) val1))))
 
 	     ((equal key "status")
 	      (setq
 	       val1
-	       (completing-read "Enter status: " '("done" "forwarded" "open")))
+	       (completing-read
+		"Enter status: " '("pending" "forwarded" "fixed" "done")))
 	      (when (not (zerop (length val1)))
 		(add-to-list
 		 'debbugs-gnu-current-query (cons (intern key) val1))))

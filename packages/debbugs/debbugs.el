@@ -565,17 +565,15 @@ The following conditions are possible:
 
   ATTRIBUTE is one of the following keywords:
 
-  :status --  Status of bug.  Valid values are \"done\",
-  \"forwarded\" and \"open\".
-
   :subject, :@title -- The subject of a message or the title of
   the bug, a string.
 
   :date, :@cdate -- The submission or modification dates of a
   message, a number.
 
-  :submitter, :@author -- The email address of the submitter of a
-  bug or the author of a message belonging to this bug, a string.
+  :@author -- The email address of the author of a message
+  belonging to this bug, a string.  It may be different than
+  the email of the person submitting the bug.
   The special email address \"me\" is used as pattern, replaced
   with `user-mail-address'.
 
@@ -699,7 +697,7 @@ Examples:
 	    (setq kw (pop elt))
 	    (unless (keywordp kw)
 	      (error "Wrong keyword: %s" kw))
-	    (setq key (substring (symbol-name kw) 1))
+	    (setq key (format "'%s'" (substring (symbol-name kw) 1)))
 	    (cl-case kw
 	      ;; Phrase condition.
 	      (:phrase
@@ -724,8 +722,9 @@ Examples:
 
 	      ;; Attribute condition.
 	      ((:submitter :@author)
-	       ;; It shouldn't happen in a phrase condition.
-	       (if phrase-cond
+	       ;; It shouldn't happen.
+	       (if (or (and (eq kw :submitter) phrase-cond)
+		       (and (eq kw :@author) attr-cond))
 		   (error "Wrong keyword: %s" kw))
 	       (if (not (stringp (car elt)))
 		   (setq vec (vconcat vec (list key "")))
