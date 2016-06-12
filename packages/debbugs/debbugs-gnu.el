@@ -209,7 +209,7 @@
   "If non-nil, don't show closed bugs."
   :group 'debbugs-gnu
   :type 'boolean
-  :version "25.2")
+  :version "25.1")
 
 (defconst debbugs-gnu-all-severities
   (mapcar 'cadr (cdr (get 'debbugs-gnu-default-severities 'custom-type)))
@@ -380,7 +380,9 @@ marked as \"client-side filter\"."
 		       "Enter attribute: "
 		       (if phrase
 			   '("severity" "package" "tags"
-			     "author" "date" "subject")
+			     "author" "date" "subject"
+			     ;; Client-side queries.
+			     "status")
 			 '("severity" "package" "archive" "src" "status" "tag"
 			   "owner" "submitter" "maint" "correspondent"
 			   ;; Client-side queries.
@@ -422,16 +424,21 @@ marked as \"client-side filter\"."
 		 'debbugs-gnu-current-query
 		 (cons (intern (if (equal key "author") "@author" key)) val1))))
 
+	     ;; Client-side filters.
 	     ((equal key "status")
 	      (setq
 	       val1
 	       (completing-read
-		"Enter status: " '("pending" "forwarded" "fixed" "done")))
+		(format "Enter status%s: "
+			(if (null phrase) "" " (client-side filter)"))
+		'("pending" "forwarded" "fixed" "done")))
 	      (when (not (zerop (length val1)))
-		(add-to-list
-		 'debbugs-gnu-current-query (cons (intern key) val1))))
+		 (if (null phrase)
+		     (add-to-list
+		      'debbugs-gnu-current-query (cons (intern key) val1))
+		   (add-to-list
+		    'debbugs-gnu-current-filter (cons 'pending val1)))))
 
-	     ;; Client-side filters.
 	     ((member key '("date" "log_modified" "last_modified"
 			    "found_date" "fixed_date" "unarchived"))
 	      (setq val1
@@ -470,12 +477,13 @@ marked as \"client-side filter\"."
 		     'debbugs-gnu-current-query 'debbugs-gnu-current-filter)
 		 (cons (intern key) (cons val1 val2)))))
 
+	     ;; "subject", "done", "forwarded", "msgid", "summary".
 	     ((not (zerop (length key)))
 	      (setq val1
 		    (funcall
 		     (if phrase 'read-string 'read-regexp)
-		     (format "Enter %s%s"
-			     key (if phrase ": " " (client-side filter)"))))
+		     (format "Enter %s%s: "
+			     key (if phrase "" " (client-side filter)"))))
 	      (when (not (zerop (length val1)))
 		(add-to-list
 		 (if phrase

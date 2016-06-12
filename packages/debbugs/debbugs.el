@@ -181,8 +181,8 @@ Valid keywords are:
   the value of field `affects' in bug's status.  The returned bugs
   do not necessary belong to this package.
 
-  :status -- Status of bug.  Valid values are \"done\",
-  \"forwarded\" and \"open\".
+  :status -- Status of bug.  Valid values are \"pending\",
+  \"forwarded\", \"fixed\" and \"done\".
 
   :archive -- A keyword to filter for bugs which are already
   archived, or not.  Valid values are \"0\" (not archived),
@@ -225,8 +225,8 @@ patch:
 	       (setq vec (vconcat vec (list key val))))
 	   (error "Wrong %s: %s" key val)))
 	(:status
-	 ;; Possible values: "done", "forwarded" and "open"
-	 (if (string-match "\\`\\(done\\|forwarded\\|open\\)\\'" val)
+	 ;; Possible values: "pending", "forwarded", "fixed" and "done".
+	 (if (string-match "\\`\\(pending\\|forwarded\\|fixed\\|done\\)\\'" val)
 	     (setq vec (vconcat vec (list key val)))
 	   (error "Wrong %s: %s" key val)))
 	(:archive
@@ -282,7 +282,7 @@ Every returned entry is an association list with the following attributes:
   can be \"fixed\", \"notabug\", \"wontfix\", \"unreproducible\",
   \"moreinfo\" or \"patch\".
 
-  `pending': The string \"pending\", \"forwarded\" or \"done\".
+  `pending': The string \"pending\", \"forwarded\", \"fixed\" or \"done\".
 
   `subject': Subject/Title of the bugreport.
 
@@ -697,7 +697,7 @@ Examples:
 	    (setq kw (pop elt))
 	    (unless (keywordp kw)
 	      (error "Wrong keyword: %s" kw))
-	    (setq key (format "'%s'" (substring (symbol-name kw) 1)))
+	    (setq key (substring (symbol-name kw) 1))
 	    (cl-case kw
 	      ;; Phrase condition.
 	      (:phrase
@@ -739,7 +739,8 @@ Examples:
 		     (unless (member x val)
 		       (setq val (append val (list x))))))
 		 (setq vec
-		       (vconcat vec (list key (mapconcat #'identity val " "))))))
+		       (vconcat
+			vec (list key (mapconcat #'identity val " "))))))
 
 	      (:status
 	       ;; It shouldn't happen in a phrase condition.
@@ -748,15 +749,17 @@ Examples:
 	       (setq attr-cond t)
 	       (if (not (stringp (car elt)))
 		   (setq vec (vconcat vec (list key "")))
-		 ;; Possible values: "done", "forwarded" and "open"
+		 ;; Possible values: "pending", "forwarded", "fixed" and "done".
 		 (while  (and (stringp (car elt))
 			      (string-match
-			       "\\`\\(done\\|forwarded\\|open\\)\\'" (car elt)))
+			       "\\`\\(pending\\|forwarded\\|fixed\\|done\\)\\'"
+			       (car elt)))
 		   (let ((x (pop elt)))
 		     (unless (member x val)
 		       (setq val (append val (list x))))))
 		 (setq vec
-		       (vconcat vec (list key (mapconcat #'identity val " "))))))
+		       (vconcat
+			vec (list key (mapconcat #'identity val " "))))))
 
 	      ((:subject :package :tags :severity :@title)
 	       ;; It shouldn't happen in a phrase condition.
@@ -771,7 +774,8 @@ Examples:
 		     (unless (member x val)
 		       (setq val (append val (list x))))))
 		 (setq vec
-		       (vconcat vec (list key (mapconcat #'identity val " "))))))
+		       (vconcat
+			vec (list key (mapconcat #'identity val " "))))))
 
 	      ((:date :@cdate)
 	       ;; It shouldn't happen in a phrase condition.
@@ -787,7 +791,8 @@ Examples:
 		       (setq val (append val (list x))))))
 		 (setq vec
 		       (vconcat
-			vec (list key (mapconcat #'number-to-string val " "))))))
+			vec
+			(list key (mapconcat #'number-to-string val " "))))))
 
 	      ((:operator :order)
 	       ;; It shouldn't happen in a phrase condition.
