@@ -1,4 +1,4 @@
-This is debbugs-ug.info, produced by makeinfo version 6.0 from
+This is debbugs-ug.info, produced by makeinfo version 6.1 from
 debbugs-ug.texi.
 
 Copyright (C) 2015-2016 Free Software Foundation, Inc.
@@ -136,28 +136,38 @@ prefix.
 
      *note Layout:: for the presentation of the results.
 
+ -- Command: debbugs-gnu-patches
+ -- Command: debbugs-org-patches
+
+     The commands 'debbugs-gnu-patches' and 'debbugs-org-patches' show
+     all bugs tagged with '"patch"'.  This is useful for bug triages.
+
+     *note Layout:: for the presentation of the results.
+
 
 File: debbugs-ug.info,  Node: Searching Bugs,  Next: Layout,  Prev: Retrieving Bugs,  Up: Top
 
 2 Searching in the Debbugs Database.
 ************************************
 
-The GNU Debbugs server allows full text search in the database.  It
-uses a HyperEstraier based search engine
+The GNU Debbugs server allows text search in the database in the
+messages submitted to the bugs.  It uses a HyperEstraier based search
+engine
 (http://fallabs.com/hyperestraier/uguide-en.html#searchcond)(1).
 
  -- Command: debbugs-gnu-search
  -- Command: debbugs-org-search
 
      These both commands are completely interactive.  They ask for a
-     '"search phrase"' for the full text search.  It is just a string
-     which contains the words to be searched for, combined by
-     operators like AND, ANDNOT and OR. If there is no operator
-     between the words, AND is used by default.
+     '"search phrase"' for the text search.  It is just a string which
+     contains the words to be searched for, combined by operators like
+     AND, ANDNOT and OR.  If there is no operator between the words,
+     AND is used by default.  Only complete words, contained in a
+     message body, are searched for.
 
      Wild card searches are also supported.  It can be used for
      forward match search and backward match search.  For example,
-     "[BW] euro" matches words which begin with "euro".  "[EW] shere"
+     "[BW] euro" matches words which begin with "euro".  "[EW] sphere"
      matches words which end with "sphere".  Moreover, regular
      expressions are also supported.  For example, "[RX] ^inter.*al$"
      matches words which begin with "inter" and end with "al".(2)
@@ -182,8 +192,8 @@ uses a HyperEstraier based search engine
      'tags'
           A comma-separated list of defined user tags.
 
-     'submitter'
-          The email address of the bug submitter.
+     'author'
+          The email address of a message originator.
 
      'date'
           A time period the bug has been in which the bug has been
@@ -193,8 +203,8 @@ uses a HyperEstraier based search engine
           Word(s) the subject of the bug report contains.
 
      'status'
-          The status of the bug report.  Valid values are "done",
-          "forwarded" and "open".
+          The status of the bug report.  Valid values are "pending",
+          "forwarded", "fixed" and "done".
 
      It is also possible to apply these commands with an empty search
      phrase.  In this case, the GNU Debbugs server is searched only
@@ -214,10 +224,11 @@ uses a HyperEstraier based search engine
           this is the same as the status mentioned above.
 
      'owner'
+     'submitter'
      'maint'
      'correspondent'
-          The email address of the bug's owner, maintainer, or
-          correspondent (somebody who has participated in bug
+          The email address of the bug's owner, submitter, maintainer,
+          or correspondent (somebody who has participated in bug
           messages).
 
      'log_modified'
@@ -247,7 +258,9 @@ uses a HyperEstraier based search engine
      server via the Debbugs/SOAP backend.  In this case, the results
      of a query are discriminated on the client side, which is
      indicated by the string "(client-side filter)" in the minibuffer
-     after the attribute name.
+     after the attribute name.  Note, that client side filters perform
+     badly, because they could be applied only after all bugs have
+     been downloaded.
 
    ---------- Footnotes ----------
 
@@ -344,6 +357,9 @@ This enables the following key strokes:
                Send a control message for this bug,
                *note Control Messages::.
                
+
+   The user option 'debbugs-gnu-suppress-closed' controls, whether
+closed bugs are shown in the initial list.
 
    The user option 'debbugs-gnu-mail-backend' controls the
 presentation of email messages produced by typing '<RET>' or by
@@ -524,10 +540,12 @@ Command Index
 * debbugs-browse-mode:                   Minor Mode.         (line 12)
 * debbugs-gnu:                           Retrieving Bugs.    (line 15)
 * debbugs-gnu-bugs:                      Retrieving Bugs.    (line 69)
-* debbugs-gnu-search:                    Searching Bugs.     (line 10)
+* debbugs-gnu-patches:                   Retrieving Bugs.    (line 78)
+* debbugs-gnu-search:                    Searching Bugs.     (line 11)
 * debbugs-org:                           Retrieving Bugs.    (line 17)
 * debbugs-org-bugs:                      Retrieving Bugs.    (line 70)
-* debbugs-org-search:                    Searching Bugs.     (line 11)
+* debbugs-org-patches:                   Retrieving Bugs.    (line 79)
+* debbugs-org-search:                    Searching Bugs.     (line 12)
 
 
 File: debbugs-ug.info,  Node: Variable Index,  Next: Key Index,  Prev: Command Index,  Up: Top
@@ -544,7 +562,8 @@ Variable Index
 * debbugs-gnu-default-packages:          Retrieving Bugs.    (line 63)
 * debbugs-gnu-default-severities:        Retrieving Bugs.    (line 63)
 * debbugs-gnu-default-suppress-bugs:     Retrieving Bugs.    (line 44)
-* debbugs-gnu-mail-backend:              Tabulated Lists.    (line 71)
+* debbugs-gnu-mail-backend:              Tabulated Lists.    (line 74)
+* debbugs-gnu-suppress-closed:           Tabulated Lists.    (line 71)
 
 
 File: debbugs-ug.info,  Node: Key Index,  Prev: Variable Index,  Up: Top
@@ -555,40 +574,40 @@ Key Index
  [index ]
 * Menu:
 
-* '/':                                   Tabulated Lists.    (line 36)
-* 'B':                                   Tabulated Lists.    (line 52)
-* 'b':                                   Tabulated Lists.    (line 53)
-* 'C':                                   Tabulated Lists.    (line 66)
-* 'C-c # C':                             TODO Items.         (line 25)
-* 'C-c # d':                             TODO Items.         (line 19)
-* 'C-c # t':                             TODO Items.         (line 22)
-* 'd':                                   Tabulated Lists.    (line 33)
-* 'g':                                   Tabulated Lists.    (line 47)
-* '<mouse-1>':                           Tabulated Lists.    (line 30)
-* '<mouse-2>':                           Tabulated Lists.    (line 31)
-* 'R':                                   Tabulated Lists.    (line 40)
-* '<RET>':                               Tabulated Lists.    (line 29)
-* 's':                                   Tabulated Lists.    (line 57)
-* 't':                                   Tabulated Lists.    (line 60)
-* '<TAB>':                               TODO Items.         (line 16)
-* 'w':                                   Tabulated Lists.    (line 44)
-* 'x':                                   Tabulated Lists.    (line 63)
+* /:                                     Tabulated Lists.    (line 36)
+* B:                                     Tabulated Lists.    (line 52)
+* b:                                     Tabulated Lists.    (line 53)
+* C:                                     Tabulated Lists.    (line 66)
+* C-c # C:                               TODO Items.         (line 25)
+* C-c # d:                               TODO Items.         (line 19)
+* C-c # t:                               TODO Items.         (line 22)
+* d:                                     Tabulated Lists.    (line 33)
+* g:                                     Tabulated Lists.    (line 47)
+* <mouse-1>:                             Tabulated Lists.    (line 30)
+* <mouse-2>:                             Tabulated Lists.    (line 31)
+* R:                                     Tabulated Lists.    (line 40)
+* <RET>:                                 Tabulated Lists.    (line 29)
+* s:                                     Tabulated Lists.    (line 57)
+* t:                                     Tabulated Lists.    (line 60)
+* <TAB>:                                 TODO Items.         (line 16)
+* w:                                     Tabulated Lists.    (line 44)
+* x:                                     Tabulated Lists.    (line 63)
 
 
 
 Tag Table:
 Node: Top1097
 Node: Retrieving Bugs2635
-Node: Searching Bugs6095
-Ref: Searching Bugs-Footnote-19980
-Ref: Searching Bugs-Footnote-210068
-Node: Layout10159
-Node: Tabulated Lists10634
-Node: TODO Items13881
-Node: Control Messages14928
-Node: Minor Mode17324
-Node: Command Index18263
-Node: Variable Index18910
-Node: Key Index19558
+Node: Searching Bugs6362
+Ref: Searching Bugs-Footnote-110520
+Ref: Searching Bugs-Footnote-210608
+Node: Layout10699
+Node: Tabulated Lists11174
+Node: TODO Items14532
+Node: Control Messages15579
+Node: Minor Mode17975
+Node: Command Index18914
+Node: Variable Index19703
+Node: Key Index20422
 
 End Tag Table

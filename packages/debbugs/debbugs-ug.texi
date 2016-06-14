@@ -156,11 +156,22 @@ must be entered as comma-separated list.
 @end deffn
 
 
+@deffn  {Command} debbugs-gnu-patches
+@deffnx {Command} debbugs-org-patches
+
+The commands @code{debbugs-gnu-patches} and @code{debbugs-org-patches} show
+all bugs tagged with @code{"patch"}.  This is useful for bug triages.
+
+@ref{Layout} for the presentation of the results.
+
+@end deffn
+
+
 @node Searching Bugs
 @chapter Searching in the Debbugs Database.
 
-The GNU Debbugs server allows full text search in the database.  It
-uses a
+The GNU Debbugs server allows text search in the database in the
+messages submitted to the bugs.  It uses a
 @uref{http://fallabs.com/hyperestraier/uguide-en.html#searchcond,
 HyperEstraier based search engine}@footnote{This has been added to the
 Debbugs/SOAP backend of the GNU Debbugs server only.}.
@@ -169,10 +180,11 @@ Debbugs/SOAP backend of the GNU Debbugs server only.}.
 @deffnx {Command} debbugs-org-search
 
 These both commands are completely interactive.  They ask for a
-@code{"search phrase"} for the full text search.  It is just a string
-which contains the words to be searched for, combined by operators
-like AND, ANDNOT and OR.  If there is no operator between the words,
-AND is used by default.
+@code{"search phrase"} for the text search.  It is just a string which
+contains the words to be searched for, combined by operators like AND,
+ANDNOT and OR@.  If there is no operator between the words, AND is
+used by default.  Only complete words, contained in a message body,
+are searched for.
 
 Wild card searches are also supported.  It can be used for forward
 match search and backward match search.  For example, "[BW] euro"
@@ -202,8 +214,8 @@ server, @xref{Retrieving Bugs}.
 @item tags
 A comma-separated list of defined user tags.
 
-@item submitter
-The email address of the bug submitter.
+@item author
+The email address of a message originator.
 
 @item date
 A time period the bug has been in which the bug has been submitted or
@@ -213,8 +225,8 @@ modified.
 Word(s) the subject of the bug report contains.
 
 @item status
-The status of the bug report.  Valid values are "done", "forwarded"
-and "open".
+The status of the bug report.  Valid values are "pending",
+"forwarded", "fixed" and "done".
 @end table
 
 It is also possible to apply these commands with an empty search
@@ -234,10 +246,11 @@ An arbitrary string the bug is annotated with.  Usually, this is the
 same as the status mentioned above.
 
 @item  owner
+@itemx submitter
 @itemx maint
 @itemx correspondent
-The email address of the bug's owner, maintainer, or correspondent
-(somebody who has participated in bug messages).
+The email address of the bug's owner, submitter, maintainer, or
+correspondent (somebody who has participated in bug messages).
 
 @item  log_modified
 @itemx last_modified
@@ -265,6 +278,8 @@ Not all of these attributes could be queried on the GNU Debbugs server
 via the Debbugs/SOAP backend.  In this case, the results of a query
 are discriminated on the client side, which is indicated by the string
 "(client-side filter)" in the minibuffer after the attribute name.
+Note, that client side filters perform badly, because they could be
+applied only after all bugs have been downloaded.
 @end deffn
 
 
@@ -390,6 +405,10 @@ Toggle showing of closed bugs.
 Send a control message for this bug, @ref{Control Messages}.
 
 @end multitable
+
+@vindex debbugs-gnu-suppress-closed
+The user option @code{debbugs-gnu-suppress-closed} controls, whether
+closed bugs are shown in the initial list.
 
 @vindex debbugs-gnu-mail-backend
 The user option @code{debbugs-gnu-mail-backend} controls the

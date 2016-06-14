@@ -196,6 +196,12 @@ returned."
 	(debbugs-org severities packages))))
 
 ;;;###autoload
+(defun debbugs-org-patches ()
+  "List the bug reports that have been marked as containing a patch."
+  (interactive)
+  (debbugs-org nil debbugs-gnu-default-packages nil nil "patch"))
+
+;;;###autoload
 (defun debbugs-org (severities &optional packages archivedp suppress tags)
   "List all outstanding bugs."
   (interactive
