@@ -165,8 +165,4 @@ Used in different hooks, in order to accelerate the redisplay."
 ;;   to edit the faces.  Maybe use (widget-get custom-face-edit :args)
 ;;   for this.
 
-;; Local Variables:
-;; no-byte-compile: t
-;; End:
-
 ;;; tramp-theme.el ends here
