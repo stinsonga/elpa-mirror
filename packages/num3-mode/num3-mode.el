@@ -45,10 +45,12 @@ font-lock is on."
   :group 'text)
 
 (defcustom num3-group-size 3
-  "Number of digits to group in decimal numbers.")
+  "Number of digits to group in decimal numbers."
+  :type 'integer)
 
 (defcustom num3-threshold 5
-  "Number must be at least that long to start highlighting.")
+  "Number must be at least that long to start highlighting."
+  :type 'integer)
 
 (defface num3-face-odd
   '((t))
@@ -92,7 +94,7 @@ where) decimal point (would be) is."
         (font-lock-add-keywords nil '(num3--matcher) 'append))
     (font-lock-remove-keywords nil '(num3--matcher)))
   (if (fboundp 'font-lock-flush) (font-lock-flush)
-    (when font-lock-mode (font-lock-fontify-buffer))))
+    (when font-lock-mode (with-no-warnings (font-lock-fontify-buffer)))))
 
 ;;;###autoload
 (define-globalized-minor-mode global-num3-mode num3-mode num3-mode)
