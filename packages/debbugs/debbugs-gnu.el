@@ -343,12 +343,6 @@ be empty, in this case only the following attributes are used for
 search."))
 
 ;;;###autoload
-(defun debbugs-gnu-patches ()
-  "List the bug reports that have been marked as containing a patch."
-  (interactive)
-  (debbugs-gnu nil '("emacs") nil nil "patch"))
-
-;;;###autoload
 (defun debbugs-gnu-search ()
   "Search for Emacs bugs interactively.
 Search arguments are requested interactively.  The \"search
@@ -379,16 +373,28 @@ marked as \"client-side filter\"."
 	    (setq key (completing-read
 		       "Enter attribute: "
 		       (if phrase
-			   '("severity" "package" "tags"
-			     "author" "date" "subject"
-			     ;; Client-side queries.
-			     "status")
-			 '("severity" "package" "archive" "src" "status" "tag"
-			   "owner" "submitter" "maint" "correspondent"
-			   ;; Client-side queries.
-			   "date" "log_modified" "last_modified"
-			   "found_date" "fixed_date" "unarchived"
-			   "subject" "done" "forwarded" "msgid" "summary"))
+			   (append
+			    '("severity" "package" "tags"
+			      "author" "date" "subject")
+			     ;; Client-side filters.
+			    (mapcar
+			     (lambda (key)
+			       (propertize
+				key 'face 'debbugs-gnu-done
+				'help-echo "Client-side filter"))
+			     '("status")))
+			 (append
+			  '("severity" "package" "archive" "src" "status" "tag"
+			    "owner" "submitter" "maint" "correspondent")
+			  ;; Client-side filters.
+			  (mapcar
+			   (lambda (key)
+			     (propertize
+			      key 'face 'debbugs-gnu-done
+			      'help-echo "Client-side filter"))
+			   '("date" "log_modified" "last_modified"
+			     "found_date" "fixed_date" "unarchived"
+			     "subject" "done" "forwarded" "msgid" "summary"))))
 		       nil t))
 	    (cond
 	     ;; Server-side queries.
@@ -497,6 +503,12 @@ marked as \"client-side filter\"."
 	(debbugs-gnu severities packages archivedp))))
 
 ;;;###autoload
+(defun debbugs-gnu-patches ()
+  "List the bug reports that have been marked as containing a patch."
+  (interactive)
+  (debbugs-gnu nil debbugs-gnu-default-packages nil nil "patch"))
+
+;;;###autoload
 (defun debbugs-gnu (severities &optional packages archivedp suppress tags)
   "List all outstanding bugs."
   (interactive
@@ -563,7 +575,7 @@ marked as \"client-side filter\"."
   "Retrieve bug numbers from debbugs.gnu.org according search criteria."
   (let* ((debbugs-port "gnu.org")
 	 (bugs (assoc 'bugs query))
-	 (tags (assoc 'tag query))
+	 (tags (and (member '(severity . "tagged") query) (assoc 'tag query)))
 	 (local-tags (and (member '(severity . "tagged") query) (not tags)))
 	 (phrase (assoc 'phrase query))
 	 args)
@@ -600,6 +612,10 @@ marked as \"client-side filter\"."
       (mapcar
        (lambda (x) (cdr (assoc "id" x)))
        (apply 'debbugs-search-est args)))
+     ;; User tags.
+     (tags
+      (setq args (mapcar (lambda (x) (if (eq x :package) :user x)) args))
+      (apply 'debbugs-get-usertag args))
      ;; Otherwise, we retrieve the bugs from the server.
      (t (apply 'debbugs-get-bugs args)))))
 
