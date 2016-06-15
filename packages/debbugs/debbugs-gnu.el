@@ -236,6 +236,7 @@
 	      (const "guile")
 	      (const "guix")
 	      (const "gzip")
+	      (const "hyperbole")
 	      (const "idutils")
 	      (const "libtool")
 	      (const "mh-e")
