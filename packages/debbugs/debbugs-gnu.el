@@ -187,9 +187,6 @@
   :group 'debbugs
   :version "24.1")
 
-(defvar debbugs-gnu-blocking-report 19759
-  "The ID of the current release report used to track blocking bug reports.")
-
 (defcustom debbugs-gnu-default-severities '("serious" "important" "normal")
   "*The list severities bugs are searched for.
 \"tagged\" is not a severity but marks locally tagged bugs."
@@ -324,6 +321,22 @@ a date, value is the cons cell \(BEFORE . AFTER\).")
   "Whether bugs shall be suppressed.
 The specification which bugs shall be suppressed is taken from
   `debbugs-gnu-default-suppress-bugs'.")
+
+(defcustom debbugs-gnu-emacs-current-release "25.1"
+  "The current Emacs relase developped for."
+  :group 'debbugs-gnu
+  :type '(set (const "24.5")
+	      (const "25.1")
+	      (const "25.2"))
+  :version "25.1")
+
+(defconst debbugs-gnu-blocking-reports
+  '(("24.5" . 19758)
+    ("25.1" . 19759)
+    ("25.2" . 21966))
+  "The IDs of the Emacs report used to track blocking bug reports.
+It is a list of cons cells, each one containing the Emacs
+version (a string) and the bug report number (a number).")
 
 (defun debbugs-gnu-calendar-read (prompt acceptable &optional initial-contents)
   "Return a string read from the minibuffer.
@@ -1046,9 +1059,16 @@ The following commands are available:
 (defun debbugs-gnu-show-all-blocking-reports ()
   "Narrow the display to just the reports that are blocking a release."
   (interactive)
-  (let ((blockers (cdr (assq 'blockedby
-			     (car (debbugs-get-status
-				   debbugs-gnu-blocking-report)))))
+  (let ((blockers
+	 (cdr
+	  (assq
+	   'blockedby
+	   (car
+	    (debbugs-get-status
+	     (cdr
+	      (assoc
+	       debbugs-gnu-emacs-current-release
+	       debbugs-gnu-blocking-reports)))))))
 	(id (debbugs-gnu-current-id t))
 	(inhibit-read-only t)
 	status)
