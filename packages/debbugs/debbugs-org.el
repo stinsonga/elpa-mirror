@@ -134,125 +134,28 @@ This could be a temporary buffer, or a buffer linked with a file.")
 Search arguments are requested interactively.  The \"search
 phrase\" is used for full text search in the bugs database.
 Further key-value pairs are requested until an empty key is
-returned."
+returned.  If a key cannot be queried by a SOAP request, it is
+marked as \"client-side filter\"."
   (interactive)
-
-  (unwind-protect
-      ;; Check for the phrase.
-      (let ((phrase (read-string debbugs-gnu-phrase-prompt))
-            key val1 severities packages)
-
-	(add-to-list 'debbugs-gnu-current-query (cons 'phrase phrase))
-
-	;; The other queries.
-	(catch :finished
-	  (while t
-	    (setq key (completing-read
-		       "Enter attribute: "
-		       '("severity" "package" "tags" "submitter" "author"
-			 "subject" "status")
-		       nil t))
-	    (cond
-	     ;; Server-side queries.
-	     ((equal key "severity")
-	      (setq
-	       severities
-	       (completing-read-multiple
-		"Enter severities: " debbugs-gnu-all-severities nil t
-		(mapconcat 'identity debbugs-gnu-default-severities ","))))
-
-	     ((equal key "package")
-	      (setq
-	       packages
-	       (completing-read-multiple
-		"Enter packages: " debbugs-gnu-all-packages nil t
-		(mapconcat 'identity debbugs-gnu-default-packages ","))))
-
-	     ((member key '("tags" "subject"))
-	      (setq val1 (read-string (format "Enter %s: " key)))
-	      (when (not (zerop (length val1)))
-		(add-to-list
-		 'debbugs-gnu-current-query (cons (intern key) val1))))
-
-	     ((member key '("submitter" "author"))
-	      (when (equal key "author") (setq key "@author"))
-	      (setq val1 (read-string "Enter email address: "))
-	      (when (not (zerop (length val1)))
-		(add-to-list
-		 'debbugs-gnu-current-query (cons (intern key) val1))))
-
-	     ((equal key "status")
-	      (setq
-	       val1
-	       (completing-read "Enter status: " '("done" "forwarded" "open")))
-	      (when (not (zerop (length val1)))
-		(add-to-list
-		 'debbugs-gnu-current-query (cons (intern key) val1))))
-
-	     ;; The End.
-	     (t (throw :finished nil)))))
-
-	;; Do the search.
-	(debbugs-org severities packages))))
+  (cl-letf (((symbol-function 'debbugs-gnu-show-reports)
+	     #'debbugs-org-show-reports))
+    (call-interactively 'debbugs-gnu-search)))
 
 ;;;###autoload
 (defun debbugs-org-patches ()
   "List the bug reports that have been marked as containing a patch."
   (interactive)
-  (debbugs-org nil debbugs-gnu-default-packages nil nil "patch"))
+  (cl-letf (((symbol-function 'debbugs-gnu-show-reports)
+	     #'debbugs-org-show-reports))
+    (call-interactively 'debbugs-gnu-patches)))
 
 ;;;###autoload
-(defun debbugs-org (severities &optional packages archivedp suppress tags)
+(defun debbugs-org ()
   "List all outstanding bugs."
-  (interactive
-   (let (severities archivedp)
-     (list
-      (setq severities
-	    (completing-read-multiple
-	     "Severities: " debbugs-gnu-all-severities nil t
-	     (mapconcat 'identity debbugs-gnu-default-severities ",")))
-      ;; The next parameters are asked only when there is a prefix.
-      (if current-prefix-arg
-	  (completing-read-multiple
-	   "Packages: " debbugs-gnu-all-packages nil t
-	   (mapconcat 'identity debbugs-gnu-default-packages ","))
-	debbugs-gnu-default-packages)
-      (when current-prefix-arg
-	(setq archivedp (y-or-n-p "Show archived bugs?")))
-      (when (and current-prefix-arg (not archivedp))
-	(y-or-n-p "Suppress unwanted bugs?"))
-      ;; This one must be asked for severity "tagged".
-      (when (member "tagged" severities)
-	(split-string (read-string "User tag(s): ") "," t)))))
-
-  ;; Initialize variables.
-  (when (and (file-exists-p debbugs-gnu-persistency-file)
-	     (not debbugs-gnu-local-tags))
-    (with-temp-buffer
-      (insert-file-contents debbugs-gnu-persistency-file)
-      (eval (read (current-buffer)))))
-
-  ;; Add queries.
-  (dolist (severity (if (consp severities) severities (list severities)))
-    (when (not (zerop (length severity)))
-      (add-to-list 'debbugs-gnu-current-query (cons 'severity severity))))
-  (dolist (package (if (consp packages) packages (list packages)))
-    (when (not (zerop (length package)))
-      (add-to-list 'debbugs-gnu-current-query (cons 'package package))))
-  (when archivedp
-    (add-to-list 'debbugs-gnu-current-query '(archive . "1")))
-  (when suppress
-    (add-to-list 'debbugs-gnu-current-query '(status . "open"))
-    (add-to-list 'debbugs-gnu-current-query '(status . "forwarded")))
-  (dolist (tag (if (consp tags) tags (list tags)))
-    (when (not (zerop (length tag)))
-      (add-to-list 'debbugs-gnu-current-query (cons 'tag tag))))
-
-  ;; Show result.
-  (debbugs-org-show-reports)
-
-  ;; Reset query.
-  (setq debbugs-gnu-current-query nil))
+  (interactive)
+  (cl-letf (((symbol-function 'debbugs-gnu-show-reports)
+	     #'debbugs-org-show-reports))
+    (call-interactively 'debbugs-gnu)))
 
 (defun debbugs-org-show-reports ()
   "Show bug reports as retrieved via `debbugs-gnu-current-query'."
@@ -411,19 +314,15 @@ the corresponding buffer (e.g. by closing Emacs)."
   (debbugs-org-regenerate-status))
 
 ;;;###autoload
-(defun debbugs-org-bugs (&rest bugs)
+(defun debbugs-org-bugs ()
   "List all BUGS, a list of bug numbers."
-  (interactive
-   (mapcar 'string-to-number
-	   (completing-read-multiple "Bug numbers: " nil 'natnump)))
-  (dolist (elt bugs)
-    (unless (natnump elt) (signal 'wrong-type-argument (list 'natnump elt))))
-  (add-to-list 'debbugs-gnu-current-query (cons 'bugs bugs))
-  (debbugs-org nil))
+  (interactive)
+  (cl-letf (((symbol-function 'debbugs-gnu-show-reports)
+	     #'debbugs-org-show-reports))
+    (call-interactively 'debbugs-gnu-bugs)))
 
 ;; TODO
 
-;; - Refactor it in order to avoid code duplication with debbugs-gnu.el.
 ;; - Make headline customizable.
 ;; - Sort according to different TODO properties.
 
