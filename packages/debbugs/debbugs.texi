@@ -263,8 +263,8 @@ with the given name.  The bugs are chosen by the value of field
 belong to this package.
 
 @item :status
-Status of bug.  Valid values are @code{"done"}, @code{"forwarded"} and
-@code{"open"}.
+Status of bug.  Valid values are @code{"open"}, @code{"forwarded"} and
+@code{"done"}.
 
 @item :archive
 A keyword to filter for bugs which are already archived, or not.  Valid
@@ -331,7 +331,8 @@ same as for @code{:tags} in @code{debbugs-get-bugs} (@pxref{Requesting
 bug numbers}).
 
 @item pending
-The string @code{"pending"}, @code{"forwarded"} or @code{"done"}.
+The string @code{"pending"}, @code{"forwarded"}, @code{"fixed"} or
+@code{"done"}.
 
 @item subject
 Subject/Title of the bugreport.

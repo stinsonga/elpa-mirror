@@ -451,7 +451,7 @@ marked as \"client-side filter\"."
 	       (completing-read
 		(format "Enter status%s: "
 			(if (null phrase) "" " (client-side filter)"))
-		'("pending" "forwarded" "fixed" "done")))
+		'("open" "forwarded" "done")))
 	      (when (not (zerop (length val1)))
 		 (if (null phrase)
 		     (add-to-list

@@ -1,4 +1,4 @@
-This is debbugs.info, produced by makeinfo version 6.0 from
+This is debbugs.info, produced by makeinfo version 6.1 from
 debbugs.texi.
 
 Copyright (C) 2011-2016 Free Software Foundation, Inc.
@@ -256,8 +256,8 @@ Debbugs server the list of bug numbers that match a user's query.
           do not necessary belong to this package.
 
      ':status'
-          Status of bug.  Valid values are '"done"', '"forwarded"' and
-          '"open"'.
+          Status of bug.  Valid values are '"open"', '"forwarded"' and
+          '"done"'.
 
      ':archive'
           A keyword to filter for bugs which are already archived, or
@@ -320,7 +320,8 @@ and various aspects of relationship with other bug reports.
           (*note Requesting bug numbers::).
 
      'pending'
-          The string '"pending"', '"forwarded"' or '"done"'.
+          The string '"pending"', '"forwarded"', '"fixed"' or
+          '"done"'.
 
      'subject'
           Subject/Title of the bugreport.
@@ -551,7 +552,7 @@ Node: Installation3179
 Node: Configuration4278
 Node: Requesting bug numbers6629
 Node: Requesting bugs statuses11883
-Node: Requesting messages15934
-Node: Requesting user tags18949
+Node: Requesting messages15955
+Node: Requesting user tags18970
 
 End Tag Table
