@@ -225,8 +225,8 @@ modified.
 Word(s) the subject of the bug report contains.
 
 @item status
-The status of the bug report.  Valid values are "pending",
-"forwarded", "fixed" and "done".
+The status of the bug report.  Valid values are "open", "forwarded"
+and "done".
 @end table
 
 It is also possible to apply these commands with an empty search

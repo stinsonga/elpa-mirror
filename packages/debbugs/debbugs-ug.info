@@ -203,8 +203,8 @@ engine
           Word(s) the subject of the bug report contains.
 
      'status'
-          The status of the bug report.  Valid values are "pending",
-          "forwarded", "fixed" and "done".
+          The status of the bug report.  Valid values are "open",
+          "forwarded" and "done".
 
      It is also possible to apply these commands with an empty search
      phrase.  In this case, the GNU Debbugs server is searched only
@@ -599,15 +599,15 @@ Tag Table:
 Node: Top1097
 Node: Retrieving Bugs2635
 Node: Searching Bugs6362
-Ref: Searching Bugs-Footnote-110520
-Ref: Searching Bugs-Footnote-210608
-Node: Layout10699
-Node: Tabulated Lists11174
-Node: TODO Items14532
-Node: Control Messages15579
-Node: Minor Mode17975
-Node: Command Index18914
-Node: Variable Index19703
-Node: Key Index20422
+Ref: Searching Bugs-Footnote-110508
+Ref: Searching Bugs-Footnote-210596
+Node: Layout10687
+Node: Tabulated Lists11162
+Node: TODO Items14520
+Node: Control Messages15567
+Node: Minor Mode17963
+Node: Command Index18902
+Node: Variable Index19691
+Node: Key Index20410
 
 End Tag Table

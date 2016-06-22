@@ -181,8 +181,8 @@ Valid keywords are:
   the value of field `affects' in bug's status.  The returned bugs
   do not necessary belong to this package.
 
-  :status -- Status of bug.  Valid values are \"pending\",
-  \"forwarded\", \"fixed\" and \"done\".
+  :status -- Status of bug.  Valid values are \"open\",
+  \"forwarded\" and \"done\".
 
   :archive -- A keyword to filter for bugs which are already
   archived, or not.  Valid values are \"0\" (not archived),
@@ -225,8 +225,8 @@ patch:
 	       (setq vec (vconcat vec (list key val))))
 	   (error "Wrong %s: %s" key val)))
 	(:status
-	 ;; Possible values: "pending", "forwarded", "fixed" and "done".
-	 (if (string-match "\\`\\(pending\\|forwarded\\|fixed\\|done\\)\\'" val)
+	 ;; Possible values: "open", "forwarded" and "done".
+	 (if (string-match "\\`\\(open\\|forwarded\\|done\\)\\'" val)
 	     (setq vec (vconcat vec (list key val)))
 	   (error "Wrong %s: %s" key val)))
 	(:archive
@@ -749,11 +749,10 @@ Examples:
 	       (setq attr-cond t)
 	       (if (not (stringp (car elt)))
 		   (setq vec (vconcat vec (list key "")))
-		 ;; Possible values: "pending", "forwarded", "fixed" and "done".
-		 (while  (and (stringp (car elt))
-			      (string-match
-			       "\\`\\(pending\\|forwarded\\|fixed\\|done\\)\\'"
-			       (car elt)))
+		 ;; Possible values: "open", "forwarded" and "done".
+		 (while (and (stringp (car elt))
+			     (string-match
+			      "\\`\\(open\\|forwarded\\|done\\)\\'" (car elt)))
 		   (let ((x (pop elt)))
 		     (unless (member x val)
 		       (setq val (append val (list x))))))
