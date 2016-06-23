@@ -4522,7 +4522,7 @@ and return the directory.  Return nil if not found."
                              yas-after-exit-snippet-hook
                              yas-before-expand-snippet-hook
                              yas-buffer-local-condition
-                             yas-dont-activate-functions
+                             yas-dont-activate
 
                              ;; prompting functions
                              ;;
