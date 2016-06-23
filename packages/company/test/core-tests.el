@@ -1,6 +1,6 @@
 ;;; core-tests.el --- company-mode tests  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015  Free Software Foundation, Inc.
+;; Copyright (C) 2015, 2016  Free Software Foundation, Inc.
 
 ;; Author: Dmitry Gutov
 
@@ -151,6 +151,26 @@
     (let ((company-backend (list 'ignore primo :with secundo)))
       (should (equal "a" (company-call-backend 'prefix)))
       (should (equal '("abb" "abc" "abd" "acc" "acd")
+                     (company-call-backend 'candidates "a"))))))
+
+(ert-deftest company-multi-backend-handles-keyword-separate ()
+  (let ((one (lambda (command &optional _)
+               (cl-case command
+                 (prefix "a")
+                 (candidates '("aa" "ca" "ba")))))
+        (two (lambda (command &optional _)
+               (cl-case command
+                 (prefix "a")
+                 (candidates '("bb" "ab")))))
+        (tri (lambda (command &optional _)
+               (cl-case command
+                 (prefix "a")
+                 (sorted t)
+                 (candidates '("cc" "bc" "ac"))))))
+    (let ((company-backend (list one two tri :separate)))
+      (should (company-call-backend 'sorted))
+      (should-not (company-call-backend 'duplicates))
+      (should (equal '("aa" "ba" "ca" "ab" "bb" "cc" "bc" "ac")
                      (company-call-backend 'candidates "a"))))))
 
 (ert-deftest company-begin-backend-failure-doesnt-break-company-backends ()
@@ -398,6 +418,9 @@
   (or (and (not list1) (not list2))
       (and (ert-equal-including-properties (car list1) (car list2))
            (ct-equal-including-properties (cdr list1) (cdr list2)))))
+
+(ert-deftest company-strips-duplicates-returns-nil ()
+  (should (null (company--preprocess-candidates nil))))
 
 (ert-deftest company-strips-duplicates-within-groups ()
   (let* ((kvs '(("a" . "b")
