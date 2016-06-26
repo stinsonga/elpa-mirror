@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013, 2014, 2016 Phil Sainty
 ;; Author: Phil Sainty <psainty@orcon.net.nz>
 ;; Maintainer: Phil Sainty <psainty@orcon.net.nz>
-;; URL: http://www.emacswiki.org/emacs/DelightedModes
+;; URL: https://savannah.nongnu.org/projects/delight
 ;; Keywords: convenience
 ;; Created: 25 Jun 2013
 ;; Version: 1.05
