@@ -4,7 +4,7 @@
 
 ;; Author: Magnus Henoch <magnus.henoch@gmail.com>
 ;; Maintainer: Thomas Fitzsimmons <fitzsim@fitzsim.org>
-;; Version: 0.2
+;; Version: 0.2.1
 ;; Package-Requires: ((emacs "24.1") (cl-lib "0.5"))
 ;; Keywords: extensions
 
