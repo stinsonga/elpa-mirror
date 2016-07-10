@@ -186,9 +186,10 @@ arguments.
 	       (put fsm :name ',name)
 	       (put fsm :state nil)
 	       (put fsm :state-data nil)
-	       (put fsm :sleep ,(or sleep (lambda (secs)
-					    (accept-process-output
-					     nil secs))))
+	       (put fsm :sleep ,(or sleep '(lambda (secs)
+					     (accept-process-output
+					      nil secs))))
+
 	       (put fsm :deferred nil)
 	       (fsm-update fsm state state-data timeout)
 	       fsm)))))))
