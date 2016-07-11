@@ -152,7 +152,7 @@ PROMPT and ARGS come from `url-ntlm-auth''s caller,
 `url-get-authentication'.  Their meaning depends on the current
 implementation - this function is well and truly coupled.
 
-url-get-authentication' calls `url-ntlm-auth' once when checking
+`url-get-authentication' calls `url-ntlm-auth' once when checking
 what authentication schemes are supported (PROMPT and ARGS are
 nil), and then twice for every stage of the handshake: the first
 time PROMPT is nil, the second, t; ARGS contains the server

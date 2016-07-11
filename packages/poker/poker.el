@@ -1,4 +1,4 @@
-;;; poker.el --- Texas hold'em poker
+;;; poker.el --- Texas hold 'em poker
 
 ;; Copyright (C) 2014  Free Software Foundation, Inc.
 
@@ -22,7 +22,7 @@
 
 ;;; Commentary:
 
-;; poker.el provides texas hold'em poker gameplay for Emacs.
+;; poker.el provides Texas hold 'em poker gameplay for Emacs.
 
 ;;; Requires:
 
@@ -342,7 +342,7 @@ FCR-FN specifies a function to use when a fold-call-raise decision is required."
 	(cons 'wagered 0)
 	(cons 'pocket nil)
 	(cons 'fcr-fn fcr-fn)))
-  
+
 (defun poker-player-name (player)
   "Return the name of poker PLAYER."
   (cdr (assq 'name player)))
@@ -589,7 +589,7 @@ FCR-FN specifies a function to use when a fold-call-raise decision is required."
 	       (poker-player-name (car winners))
 	       (poker-distribute-winnings winners players))
       winners))
-   
+
    ;; pre-flop, second round of bets, no raises allowed
    ((and (null board) (cl-remove-if
 		       (lambda (player)
@@ -833,8 +833,8 @@ FCR-FN specifies a function to use when a fold-call-raise decision is required."
 
 ;;;###autoload
 (define-key menu-bar-games-menu
-  [poker] '(menu-item "Texas hold'em poker" poker
-		      :help "Play texas hold'em poker"))
+  [poker] '(menu-item "Texas hold 'em poker" poker
+		      :help "Play Texas hold 'em poker"))
 
 ;;; Tests:
 

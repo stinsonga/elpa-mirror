@@ -85,8 +85,8 @@
   "Specifies how to group classes and how to order resulting
 groups in the imports list.
 
-Each element should be of the form `(CLASSNAME-REGEXP . ORDER)'
-where `CLASSNAME-REGEXP' is a regexp matching the fully qualified
+Each element should be of the form (CLASSNAME-REGEXP . ORDER)
+where CLASSNAME-REGEXP is a regexp matching the fully qualified
 class name.  Lowest-order groups are placed earlier.
 
 The order of classes which were not matched is defined by
@@ -646,7 +646,7 @@ are assigned a default order defined by
 
 NEW-IMPORTS is a list of additional imports; each element should
 be of the form (CLASS . TYPE), where CLASS is a string and TYPE
-is `'ordinary' or `'static'.  Interactively, NEW-IMPORTS is nil."
+is `ordinary' or `static'.  Interactively, NEW-IMPORTS is nil."
   (interactive)
   (barf-if-buffer-read-only)
   (save-excursion

@@ -102,7 +102,7 @@ Tenses passive will be."
       (if (and notes-mode-complete-subjects (not notes-subject-table))
 	  (setq notes-subject-table (make-vector
 				     (- (expt
-				      8 
+				      8
 				      (length
 				       (format
 					"%o"
@@ -163,10 +163,10 @@ Returns the buffer position of a successful hit, or nil."
 
 (defun notes-index-goto-date (date &optional direction)
   "Goto the DATE in the current line of the index file, modified by DIRECTION.
-If DIRECTION is 'this, go there.
-If DIRECTION is 'next or 'prev, go to the corresponding entry.
+If DIRECTION is `this', go there.
+If DIRECTION is `next' or `prev', go to the corresponding entry.
 If the entry doesn't exist, then go to the nearest entry according
-to DIRECTION (and the next one if DIRECTION is 'this)."
+to DIRECTION (and the next one if DIRECTION is `this')."
   (cond
    ((eq direction 'prev)
     (notes-index-date-search
@@ -190,7 +190,7 @@ to DIRECTION (and the next one if DIRECTION is 'this)."
 (defun notes-index-link (link &optional tag where)
   "* Follow a notes-index LINK.
 Optionally takes a subject TAG and
-WHERE ('otherwindow or nil) to open the new file."
+WHERE (`otherwindow' or nil) to open the new file."
   (interactive "sNotes-index link: ")
   (notes-w3-url (notes-file-to-url link tag) where t))
 
@@ -203,7 +203,7 @@ WHERE ('otherwindow or nil) to open the new file."
 (defun notes-index-follow-link (pt &optional where)
   "Follow a link at PT in notes-index-mode.
 The link is taken from the location PT,
-and the new information is shown WHERE (either 'otherwindow or not)."
+and the new information is shown WHERE (either `otherwindow' or nil)."
   (interactive "d")
   (save-excursion
     (let (start date tag)

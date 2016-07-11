@@ -262,10 +262,10 @@ m[START][SEPARATOR]END[EXPR]|[FORMAT]
 * END       - integer (required)
 * EXPR      - Lisp expression: function body with argument x (defaults to x)
   Parens are optional if it's unambiguous:
-  - `(* 2 (+ x 3))'  <-> *2+x3
-  - `(exp x)'        <-> expx
+  - `(* 2 (+ x 3))'   <-> *2+x3
+  - `(exp x)'         <-> expx
   A closing paren may be added to resolve ambiguity:
-  - `(* 2 (+ x 3) x) <-> *2+x3)
+  - `(* 2 (+ x 3) x)' <-> *2+x3)
 * FORMAT    - string, `format'-style (defaults to \"%s\")
   | separator can be omitted if FORMAT starts with %.
 

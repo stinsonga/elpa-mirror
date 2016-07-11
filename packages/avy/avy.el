@@ -150,10 +150,10 @@ pressed during the dispatch, ACTION is set to replace the default
   :type 'boolean)
 
 (defcustom avy-word-punc-regexp "[!-/:-@[-`{-~]"
-  "Regexp of punctuation chars that count as word starts for `avy-goto-word-1.
+  "Regexp of punctuation chars that count as word starts for `avy-goto-word-1'.
 When nil, punctuation chars will not be matched.
 
-\"[!-/:-@[-`{-~]\" will match all printable punctuation chars."
+\"[!-/:-@[-\\=`{-~]\" will match all printable punctuation chars."
   :type 'regexp)
 
 (defcustom avy-ignored-modes '(image-mode doc-view-mode pdf-view-mode)
@@ -559,14 +559,14 @@ Use OVERLAY-FN to visualize the decision overlay."
   (avy--remove-leading-chars))
 
 (defun avy--next-visible-point ()
-  "Return the next closest point without 'invisible property."
+  "Return the next closest point without `invisible' property."
   (let ((s (point)))
     (while (and (not (= (point-max) (setq s (next-overlay-change s))))
                 (get-char-property s 'invisible)))
     s))
 
 (defun avy--next-invisible-point ()
-  "Return the next closest point with 'invisible property."
+  "Return the next closest point with `invisible' property."
   (let ((s (point)))
     (while (and (not (= (point-max) (setq s (next-overlay-change s))))
                 (not (get-char-property s 'invisible))))
@@ -1212,8 +1212,8 @@ The window scope is determined by `avy-all-windows' or
 (defun avy--read-candidates ()
   "Read as many chars as possible and return their occurences.
 At least one char must be read, and then repeatedly one next char
-may be read if it is entered before `avy-timeout-seconds'.  `DEL'
-deletes the last char entered, and `RET' exits with the currently
+may be read if it is entered before `avy-timeout-seconds'.  DEL
+deletes the last char entered, and RET exits with the currently
 read string immediately instead of waiting for another char for
 `avy-timeout-seconds'.
 The format of the result is the same as that of `avy--regex-candidates'.

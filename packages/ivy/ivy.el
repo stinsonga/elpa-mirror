@@ -201,7 +201,7 @@ are about to be displayed, not on the whole collection."
 Each static source is a function that takes no argument and
 returns a list of strings.
 
-The '(original-source) determines the position of the original
+The (original-source) determines the position of the original
 dynamic source.
 
 Extra dynamic sources aren't supported yet.
@@ -212,8 +212,8 @@ Example:
       (cl-subseq recentf-list 0 20))
 
     (ivy-set-sources
-     'counsel-locate
-     '((small-recentf)
+     \\='counsel-locate
+     \\='((small-recentf)
        (original-source)))
 "
   (setq ivy--sources-list
@@ -342,7 +342,7 @@ of `history-length'.")
   "Store the index of the current candidate.")
 
 (defvar ivy-exit nil
-  "Store 'done if the completion was successfully selected.
+  "Store `done' if the completion was successfully selected.
 Otherwise, store nil.")
 
 (defvar ivy--all-candidates nil
@@ -1597,7 +1597,7 @@ The previous string is between `ivy-completion-beg' and `ivy-completion-end'."
             (move-marker (make-marker) (point))))))
 
 (defun ivy-completion-common-length (str)
-  "Return the length of the first 'completions-common-part face in STR."
+  "Return the length of the first `completions-common-part' face in STR."
   (let ((pos 0)
         (len (length str)))
     (while (and (<= pos len)

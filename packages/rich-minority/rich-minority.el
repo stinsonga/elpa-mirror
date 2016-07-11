@@ -113,7 +113,7 @@ Has three possible values:
   minor-mode list.
 
 If you'd like to use a list of regexps, simply use something like the following:
-    (setq rm-blacklist (mapconcat 'identity list-of-regexps \"\\\\|\"))
+    (setq rm-blacklist (mapconcat \\='identity list-of-regexps \"\\\\|\"))
 
 Don't forget to start each string with a blank space, as most
 minor-mode lighters start with a space."
@@ -140,7 +140,7 @@ minor-mode lighters start with a space."
   the minor-mode list.
 
 If you'd like to use a list of regexps, simply use something like the following:
-    (setq rm-whitelist (mapconcat 'identity list-of-regexps \"\\\\|\"))
+    (setq rm-whitelist (mapconcat \\='identity list-of-regexps \"\\\\|\"))
 
 Don't forget to start each string with a blank space, as most
 minor-mode lighters start with a space."

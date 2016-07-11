@@ -229,10 +229,10 @@ read text using those faces.  By default, this should enlarge all
 function names in the minimap, given you have font locking
 enabled.  This variable can have the following values:
 
-'as-fallback (the default) -- The feature will only be activated
+`as-fallback' (the default) -- The feature will only be activated
   if information from CEDET's semantic analyzer isn't available
   (see: `minimap-display-semantic-overlays').
-'always -- Always active.
+`always' -- Always active.
 nil -- Inactive."
   :type '(choice (const :tag "Fallback if CEDET unavailable." 'as-fallback)
 		 (const :tag "Always active." 'always)
@@ -254,14 +254,14 @@ Unlike text properties, overlays are not applied automatically to
 the minimap and must be explicitly synced.  This variable
 specifies which overlay properties should be synced by
 `minimap-sync-overlays'.  Most importantly, this variable should
-include 'invisible', so that hidden text does not appear in the
+include `invisible', so that hidden text does not appear in the
 minimap buffer."
   :type '(repeat symbol)
   :group 'minimap)
 
 (defcustom minimap-major-modes '(prog-mode)
   "Major modes for which a minimap should be created.
-This can also be a parent mode like 'prog-mode.
+This can also be a parent mode like `prog-mode'.
 If nil, a minimap must be explicitly created for each buffer."
   :type '(repeat symbol)
   :group 'minimap)

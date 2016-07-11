@@ -436,7 +436,7 @@ G_DEFINE_" (if abstract "ABSTRACT_" "") "TYPE" (if code "WITH_CODE" "") " (" (gn
 					    t))
 
 (defun gnome-c-snippet-insert-constructor (package class)
-  "Insert 'constructor' vfunc of GObjectClass for PACKAGE and CLASS."
+  "Insert `constructor' vfunc of GObjectClass for PACKAGE and CLASS."
   (interactive (gnome-c-snippet--read-package-and-class nil))
   (let (arglist-start body-start)
     (insert "\
@@ -463,7 +463,7 @@ GObjectConstructParam *construct_properties)\n")
     (indent-region body-start (point))))
 
 (defun gnome-c-snippet-insert-set_property (package class)
-  "Insert 'set_property' vfunc of GObjectClass for PACKAGE and CLASS."
+  "Insert `set_property' vfunc of GObjectClass for PACKAGE and CLASS."
   (interactive (gnome-c-snippet--read-package-and-class nil))
   (let (arglist-start body-start)
     (insert "\
@@ -496,7 +496,7 @@ GParamSpec *pspec)\n")
     (indent-region body-start (point))))
 
 (defun gnome-c-snippet-insert-get_property (package class)
-  "Insert 'get_property' vfunc of GObjectClass for PACKAGE and CLASS."
+  "Insert `get_property' vfunc of GObjectClass for PACKAGE and CLASS."
   (interactive (gnome-c-snippet--read-package-and-class nil))
   (let (arglist-start body-start)
     (insert "\
@@ -529,7 +529,7 @@ GParamSpec *pspec)\n")
     (indent-region body-start (point))))
 
 (defun gnome-c-snippet-insert-dispose (package class)
-  "Insert 'dispose' vfunc of GObjectClass for PACKAGE and CLASS."
+  "Insert `dispose' vfunc of GObjectClass for PACKAGE and CLASS."
   (interactive (gnome-c-snippet--read-package-and-class nil))
   (let (body-start)
     (insert "\
@@ -546,7 +546,7 @@ static void
     (indent-region body-start (point))))
 
 (defun gnome-c-snippet-insert-finalize (package class)
-  "Insert 'finalize' vfunc of GObjectClass for PACKAGE and CLASS."
+  "Insert `finalize' vfunc of GObjectClass for PACKAGE and CLASS."
   (interactive (gnome-c-snippet--read-package-and-class nil))
   (let (body-start)
     (insert "\
@@ -563,7 +563,7 @@ static void
     (indent-region body-start (point))))
 
 (defun gnome-c-snippet-insert-dispatch_properties_changed (package class)
-  "Insert 'dispatch_properties_changed vfunc of GObjectClass for
+  "Insert `dispatch_properties_changed' vfunc of GObjectClass for
 PACKAGE and CLASS."
   (interactive (gnome-c-snippet--read-package-and-class nil))
   (let (arglist-start body-start)
@@ -591,7 +591,7 @@ GParamSpec **pspecs)\n")
     (indent-region body-start (point))))
 
 (defun gnome-c-snippet-insert-notify (package class)
-  "Insert 'notify' vfunc of GObjectClass for PACKAGE and CLASS."
+  "Insert `notify' vfunc of GObjectClass for PACKAGE and CLASS."
   (interactive (gnome-c-snippet--read-package-and-class nil))
   (let (arglist-start body-start)
     (insert "\
@@ -616,7 +616,7 @@ GParamSpec *pspec)\n")
     (indent-region body-start (point))))
 
 (defun gnome-c-snippet-insert-constructed (package class)
-  "Insert 'constructed' vfunc of GObjectClass for PACKAGE and CLASS."
+  "Insert `constructed' vfunc of GObjectClass for PACKAGE and CLASS."
   (interactive (gnome-c-snippet--read-package-and-class nil))
   (let (body-start)
     (insert "\
@@ -633,7 +633,7 @@ static void
     (indent-region body-start (point))))
 
 (defun gnome-c-snippet-insert-class-init (package class)
-  "Insert '_class_init' function for PACKAGE and CLASS."
+  "Insert `_class_init' function for PACKAGE and CLASS."
   (interactive (gnome-c-snippet--read-package-and-class nil))
   (insert "\
 static void
@@ -643,7 +643,7 @@ static void
 "))
 
 (defun gnome-c-snippet-insert-init (package class)
-  "Insert '_init' function for PACKAGE and CLASS."
+  "Insert `_init' function for PACKAGE and CLASS."
   (interactive (gnome-c-snippet--read-package-and-class nil))
   (insert "\
 static void

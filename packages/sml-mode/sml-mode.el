@@ -344,7 +344,7 @@ Regexp match data 0 points to the chars."
     (,(concat "\\_<\\(signature\\)\\s-+\\(" sml-id-re "\\)")
      (1 font-lock-keyword-face)
      (2 font-lock-interface-def-face))
-    
+
     (,sml-keywords-regexp . font-lock-keyword-face)
     ,@(sml-font-lock-symbols-keywords))
   "Regexps matching standard SML keywords.")
@@ -981,7 +981,7 @@ commands with the same file.")
 
 (defvar sml-use-command "use \"%s\""
   "Template for loading a file into the inferior SML process.
-Set to \"use \\\"%s\\\"\" for SML/NJ or Edinburgh ML; 
+Set to \"use \\\"%s\\\"\" for SML/NJ or Edinburgh ML;
 set to \"PolyML.use \\\"%s\\\"\" for Poly/ML, etc.")
 
 (defvar sml-cd-command "OS.FileSys.chDir \"%s\""
@@ -1114,7 +1114,7 @@ on which to run CMD using `remote-shell-program'.
       (current-buffer))))
 
 (defun sml-send-function (&optional and-go)
-  "Send current paragraph to the inferior SML process. 
+  "Send current paragraph to the inferior SML process.
 With a prefix argument AND-GO switch to the repl buffer as well."
   (interactive "P")
   (save-excursion
@@ -1140,7 +1140,7 @@ With a prefix argument AND-GO switch to the repl buffer as well."
   ;; always obvious to spot it).
   ;;
   ;; Sample messages:
-  ;; 
+  ;;
   ;; Data.sml:31.9-33.33 Error: right-hand-side of clause doesn't agree with function result type [tycon mismatch]
   ;;   expression:  Hstring
   ;;   result type:  Hstring * int
@@ -1475,8 +1475,8 @@ Depending on the context insert the name of function, a \"=>\" etc."
   "Alist of code templates.
 You can extend this alist to your heart's content.  For each additional
 template NAME in the list, declare a keyboard macro or function (or
-interactive command) called 'sml-form-NAME'.
-If 'sml-form-NAME' is a function it takes no arguments and should
+interactive command) called `sml-form-NAME'.
+If `sml-form-NAME' is a function it takes no arguments and should
 insert the template at point\; if this is a command it may accept any
 sensible interactive call arguments\; keyboard macros can't take
 arguments at all.
@@ -1568,7 +1568,7 @@ If a prefix argument is given insert a NEWLINE and indent first, or
 just move to the proper indentation if the line is blank\; otherwise
 insert at point (which forces indentation to current column).
 
-The default form to insert is 'whatever you inserted last time'
+The default form to insert is whatever you inserted last time
 \(just hit return when prompted\)\; otherwise the command reads with
 completion from `sml-forms-alist'."
   (interactive

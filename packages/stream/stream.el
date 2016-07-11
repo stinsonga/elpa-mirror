@@ -351,7 +351,7 @@ as long as s_n exists.
 
 Example:
 
-   (stream-scan #'* 1 (stream-range 1))
+   (stream-scan #\\='* 1 (stream-range 1))
 
 returns a stream of the factorials."
   (let ((res init))

@@ -55,7 +55,7 @@ provided a `tf-with-timeout-check'.")
 
 
 (defconst timerfunctions-introduction
-  "timerfunctions.el contains some 'enhanced' versions of a few timer.el
+  "timerfunctions.el contains some “enhanced” versions of a few timer.el
 functions.  It is also used by vel.el, idledo.el etc.
 
  Suppose you want Emacs to run an action every REDOSECS for
@@ -349,7 +349,7 @@ user as well.  Arguments are INHIBITP, TAG and TIMEDOUTVAR."
 
 Provides ability to inhibit timeout during parts of the body.
 Note that most of the time, you may not need this functionality
-at all unless you want to be very 'clean' about things---you
+at all unless you want to be very “clean” about things---you
 could get by with the regular with-timeout and not using
 sit-for's in the body.  Or with the regular with-timeout and
 using unwind-protect.
@@ -374,7 +374,7 @@ be detected.  Furthermore:
 
 During the execution of the body, we SHALL NOT time out when INHIBITP
 evals to non-nil.  Thus, for example, you might initially setq a
-variable my-var as nil, supply inhibitp as 'my-var, and then you may
+variable my-var as nil, supply inhibitp as `my-var', and then you may
 setq my-var to t or nil within the body of tf-with-timeout to enable
 or disable timeout.  The best use of this functionality is to setq
 inhibitp to t when during parts of loops where you do not want the
@@ -390,7 +390,7 @@ Here's an example:
 
 
  (let ((myinhibit t))
-  (tf-with-timeout 'myinhibit 'mytag 'mytimedoutvar
+  (tf-with-timeout \\='myinhibit \\='mytag \\='mytimedoutvar
 		   (2 2)
 		   (setq a nil)
 		   (setq b nil)
@@ -419,7 +419,7 @@ But perhaps you do not want to include (sleep-for 0.02) because that
 wastes precious cpu time.  Simple, don't include it, just after a long
 inhibited body, you can include a timeout check within the body
 instead of (sleep-for 0.02):
- (tf-with-timeout-check 'mytag 'mytimedoutvar 'myinhibitp)
+ (tf-with-timeout-check \\='mytag \\='mytimedoutvar \\='myinhibitp)
 
 Moreover, if that is the main check you rely on, you it perhaps makes
 sense to increase the value of tf-with-timeout-repeat-sec, so that

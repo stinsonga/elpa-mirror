@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014  Free Software Foundation, Inc.
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
-;; Keywords: 
+;; Keywords:
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 
 ;;; Commentary:
 
-;; 
+;;
 
 ;;; Code:
 
@@ -66,7 +66,7 @@ Setting it to the symbol seen will collect the messages most
 recently opened and viewed. The symbol received means gnorb will
 collect the most recent messages by Date header.
 
-In other words, if this variable is set to 'received, and a
+In other words, if this variable is set to `received', and a
 record's messages field is already full of recently-received
 messages, opening a five-year-old message (for instance) from
 this record will not push a link to the message into the field."
@@ -89,9 +89,9 @@ mentioned in the docstring of `format-time-string', which see."
 (defcustom gnorb-bbdb-message-link-format-one "%:count"
   "How a single message is formatted in the list of recent messages.
 This format string is used in single-line display -- note that by
-default, no user-created xfields are displayed in the 'one-line
+default, no user-created xfields are displayed in the `one-line'
 layout found in `bbdb-layout-alist'. If you want this field to
-appear there, put its name in the \"order\" list of the 'one-line
+appear there, put its name in the \"order\" list of the `one-line'
 layout.
 
 Available information for each message includes the subject, the

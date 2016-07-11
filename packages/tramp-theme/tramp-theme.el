@@ -69,7 +69,7 @@ changes the background color to \"Green\" for frames connected to
 the remote host \"bar\", and it inverses the fringe face for
 frames using the remote user \"root\":
 
-   '((nil \"^root$\" (fringe (:inherit fringe :inverse-video t)))
+    ((nil \"^root$\" (fringe (:inherit fringe :inverse-video t)))
      (\"^foo$\" nil (default (:background \"Red\")))
      (\"^bar$\" nil (default (:background \"Green\"))))
 

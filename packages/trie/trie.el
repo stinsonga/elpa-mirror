@@ -397,7 +397,7 @@ If START or END is negative, it counts from the end."
 (defun trie--position (item list)
   "Find the first occurrence of ITEM in LIST.
 Return the index of the matching item, or nil of not found.
-Comparison is done with 'equal."
+Comparison is done with `equal'."
   (let ((i 0))
     (catch 'found
       (while (progn
@@ -916,7 +916,7 @@ trie, and its associated data.
 
 Optional argument TYPE (one of the symbols vector, lisp or
 string; defaults to vector) sets the type of sequence passed to
-FUNCTION. If TYPE is 'string, it must be possible to apply the
+FUNCTION. If TYPE is `string', it must be possible to apply the
 function `string' to the individual elements of key sequences
 stored in TRIE.
 
@@ -963,7 +963,7 @@ Note that if you don't care about the order in which FUNCTION is
 applied, just that the resulting list is in the correct order,
 then
 
-  (trie-mapf function 'cons trie type (not reverse))
+  (trie-mapf function \\='cons trie type (not reverse))
 
 is more efficient.
 
@@ -1390,7 +1390,7 @@ included in the results, and does not count towards MAXNUM.
 
 RESULTFUN defines a function used to process results before
 adding them to the final result list. If specified, it should
-accept two arguments: a key and its associated data. It's return
+accept two arguments: a key and its associated data. Its return
 value is what gets added to the final result list, instead of the
 default key-data cons cell."
 
@@ -1551,7 +1551,7 @@ results, and does not count towards MAXNUM.
 
 RESULTFUN defines a function used to process results before
 adding them to the final result list. If specified, it should
-accept two arguments: a key and its associated data. It's return
+accept two arguments: a key and its associated data. Its return
 value is what gets added to the final result list, instead of the
 default key-data cons cell."
 

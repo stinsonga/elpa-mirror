@@ -161,7 +161,7 @@ All must be different from the field quote characters, `csv-field-quotes'."
 
 (defcustom csv-field-quotes '("\"")
   "Field quotes: a list of *single-character* strings.
-For example: (\"\\\"\"), the default, or (\"\\\"\" \"'\" \"`\").
+For example: (\"\\\"\"), the default, or (\"\\\"\" \"\\='\" \"\\=`\").
 A field can be delimited by a pair of any of these characters.
 All must be different from the field separators, `csv-separators'."
   :type '(repeat string)
@@ -219,7 +219,7 @@ Changing this variable does not affect any existing CSV mode buffer."
 	 (set-default 'csv-comment-start value)))
 
 (defcustom csv-align-style 'left
-  "Aligned field style: one of 'left, 'centre, 'right or 'auto.
+  "Aligned field style: one of `left', `centre', `right' or `auto'.
 Alignment style used by `csv-align-fields'.
 Auto-alignment means left align text and right align numbers."
   :type '(choice (const left) (const centre)
@@ -447,8 +447,8 @@ Assumes point is at beginning of line."
 (defun csv-interactive-args (&optional type)
   "Get arg or field(s) and region interactively, offering sensible defaults.
 Signal an error if the buffer is read-only.
-If TYPE is noarg then return a list `(beg end)'.
-Otherwise, return a list `(arg beg end)', where arg is:
+If TYPE is noarg then return a list (beg end).
+Otherwise, return a list (arg beg end), where arg is:
   the raw prefix argument by default\;
   a single field index if TYPE is single\;
   a list of field indices or index ranges if TYPE is multiple.
