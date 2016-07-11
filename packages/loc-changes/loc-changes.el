@@ -38,7 +38,7 @@
 (make-variable-buffer-local 'loc-changes-alist)
 (defvar loc-changes-alist '()
   "A buffer-local association-list (alist) of line numbers and
-their corresponding markers in the buffer. The 'key' is the line number; the value
+their corresponding markers in the buffer. The key is the line number; the value
 the marker"
   )
 

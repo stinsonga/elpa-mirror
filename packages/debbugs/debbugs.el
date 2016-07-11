@@ -108,7 +108,7 @@ This corresponds to the Debbugs server to be accessed, either
 
 (defcustom debbugs-cache-expiry (* 60 60)
   "How many seconds debbugs query results are cached.
-`t' or 0 disables caching, `nil' disables expiring."
+t or 0 disables caching, nil disables expiring."
   :group 'debbugs
   :type '(choice (const :tag "Always" t)
 		 (const :tag "Never" nil)
@@ -303,7 +303,7 @@ Every returned entry is an association list with the following attributes:
 
   `done': The email address of the worker who has closed the bug (if done).
 
-  `archived': `t' if the bug is archived, `nil' otherwise.
+  `archived': t if the bug is archived, nil otherwise.
 
   `unarchived': The date the bug has been unarchived, if ever.
 
@@ -529,7 +529,7 @@ Every message is an association list with the following attributes:
 
   `body': The message body.
 
-  `attachments' A list of possible attachments, or `nil'.  Not
+  `attachments' A list of possible attachments, or nil.  Not
   implemented yet server side."
   (car (soap-invoke debbugs-wsdl debbugs-port "get_bug_log" bug-number)))
 
@@ -632,9 +632,9 @@ same attributes as in the conditions.  Additional attributes are
 Examples:
 
   \(debbugs-search-est
-    '\(:phrase \"armstrong AND debbugs\" :skip 10 :max 2)
-    '\(:severity \"normal\" :operator \"STRINC\")
-    '\(:date :order \"NUMA\"))
+    \\='\(:phrase \"armstrong AND debbugs\" :skip 10 :max 2)
+    \\='\(:severity \"normal\" :operator \"STRINC\")
+    \\='\(:date :order \"NUMA\"))
 
   => \(\(\(msg_num . 21)
        \(date . 1229208302)
@@ -650,9 +650,9 @@ Examples:
 
   ;; Show all messages from me between 2011-08-01 and 2011-08-31.
   \(debbugs-search-est
-    '\(:max 20)
-    '\(:@author \"me\" :operator \"ISTRINC\")
-    `\(:date
+    \\='\(:max 20)
+    \\='\(:@author \"me\" :operator \"ISTRINC\")
+    \\=`\(:date
       ,\(floor \(float-time \(encode-time 0 0 0  1 8 2011)))
       ,\(floor \(float-time \(encode-time 0 0 0 31 8 2011)))
       :operator \"NUMBT\"))"
@@ -824,7 +824,7 @@ BUG-OR-MESSAGE must be list element returned by either
 Example: Return the originator of last submitted bug.
 
 \(debbugs-get-attribute
-  \(car \(apply #'debbugs-get-status \(debbugs-newest-bugs 1))) 'originator)"
+  \(car \(apply #\\='debbugs-get-status \(debbugs-newest-bugs 1))) \\='originator)"
   (cdr (assoc attribute bug-or-message)))
 
 (defun debbugs-get-message-numbers (messages)
@@ -841,11 +841,11 @@ the header lines of the message, the second element is the body
 of the message.  Further elements of the list, if any, are
 attachments of the message.
 
-If there is no message with MESSAGE-NUMBER, the function returns `nil'.
+If there is no message with MESSAGE-NUMBER, the function returns nil.
 
 Example: Return the first message of last submitted bug.
 
-\(let \(\(messages \(apply #'debbugs-get-bug-log \(debbugs-newest-bugs 1))))
+\(let \(\(messages \(apply #\\='debbugs-get-bug-log \(debbugs-newest-bugs 1))))
   \(debbugs-get-message messages
 		       \(car \(debbugs-get-message-numbers messages))))"
   (while (and messages
@@ -872,8 +872,8 @@ following symbols:
    either symbol depends on actual Debbugs server configuration.
    For gnu.org, use the former; for debian.org - the latter.
 
-FILENAME, if non-`nil', is the name of file to store mbox.  If
-FILENAME is `nil', the downloaded mbox is inserted into the
+FILENAME, if non-nil, is the name of file to store mbox.  If
+FILENAME is nil, the downloaded mbox is inserted into the
 current buffer."
   (let (url (mt "") bn)
     (unless (setq url (plist-get

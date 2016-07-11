@@ -101,7 +101,7 @@ Turning this off for large notes-index's can improve performance.")
 
 (defvar notes-bold-face 'notes-bold-face
   "* Face to use for notes-index-mode and notes-mode subjects.
-The default face is copied from 'bold.")
+The default face is copied from `bold'.")
 
 (defvar notes-font-lock-keywords
   '(("^\\* .*$" . notes-bold-face)

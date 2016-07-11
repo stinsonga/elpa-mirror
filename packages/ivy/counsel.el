@@ -1209,7 +1209,7 @@ When INITIAL-INPUT is non-nil, use it in the minibuffer during completion."
 
 ;;** `counsel-locate'
 (defcustom counsel-locate-options nil
-  "Command line options for `locate`."
+  "Command line options for `locate'."
   :group 'ivy
   :type '(repeat string))
 

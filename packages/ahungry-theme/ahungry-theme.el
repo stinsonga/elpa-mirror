@@ -87,7 +87,7 @@
 Leave this alone to retain defaults.
 
 Default value:
-  '(:family \"Terminus\" :foundry \"xos4\"
+   (:family \"Terminus\" :foundry \"xos4\"
             :slant normal :weight normal
             :height 100 :width normal)")
 

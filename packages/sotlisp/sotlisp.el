@@ -33,12 +33,12 @@
 ;;
 ;; A large number of abbrevs which expand function
 ;; initials to their name.  A few examples:
-;; 
+;;
 ;; - wcb -> with-current-buffer
 ;; - i -> insert
 ;; - r -> require '
 ;; - a -> and
-;; 
+;;
 ;; However, these are defined in a way such that they ONLY expand in a
 ;; place where you would use a function, so hitting SPC after "(r"
 ;; expands to "(require '", but hitting SPC after "(delete-region r"
@@ -52,32 +52,32 @@
 ;; thought-flow" way of writing.  The bindings are as follows, I
 ;; understand these don't fully adhere to conventions, and I'd
 ;; appreciate suggestions on better bindings.
-;; 
+;;
 ;; - M-RET :: Break line, and insert "()" with point in the middle.
 ;; - C-RET :: Do `forward-up-list', then do M-RET.
-;; 
+;;
 ;; Hitting RET followed by a `(' was one of the most common key sequences
 ;; for me while writing elisp, so giving it a quick-to-hit key was a
 ;; significant improvement.
-;; 
+;;
 ;; - C-c f :: Find function under point.  If it is not defined, create a
 ;; definition for it below the current function and leave point inside.
 ;; - C-c v :: Same, but for variable.
-;; 
+;;
 ;; With these commands, you just write your code as you think of it.  Once
 ;; you hit a "stop-point" of sorts in your tought flow, you hit `C-c f/v`
 ;; on any undefined functions/variables, write their definitions, and hit
 ;; `C-u C-SPC` to go back to the main function.
-;; 
+;;
 ;;; Small Example
 ;;
 ;; With the above (assuming you use something like paredit or
 ;; electric-pair-mode), if you write:
 ;;
 ;;   ( w t b M-RET i SPC text
-;; 
+;;
 ;; You get
-;; 
+;;
 ;;   (with-temp-buffer (insert text))
 
 ;;; Code:
@@ -388,14 +388,14 @@ The space char is not included.  Any \"$\" are also removed."
 (defun sotlisp-define-function-abbrev (name expansion)
   "Define a function abbrev expanding NAME to EXPANSION.
 This abbrev will only be expanded in places where a function name is
-sensible.  Roughly, this is right after a `(' or a `#''.
+sensible.  Roughly, this is right after a `(' or a `#\\=''.
 
 If EXPANSION is any string, it doesn't have to be the just the
 name of a function.  In particular:
   - if it contains a `$', this char will not be inserted and
     point will be moved to its position after expansion.
   - if it contains a space, only a substring of it up to the
-first space is inserted when expanding after a `#'' (this is done
+first space is inserted when expanding after a `#\\='' (this is done
 by defining two different abbrevs).
 
 For instance, if one defines
@@ -404,7 +404,7 @@ For instance, if one defines
 then triggering `expand-abbrev' after \"d\" expands in the
 following way:
    (d    => (delete-char 1
-   #'d   => #'delete-char"
+   #\\='d   => #\\='delete-char"
   (define-abbrev emacs-lisp-mode-abbrev-table
     name t #'sotlisp--expand-function
     ;; Don't override user abbrevs
@@ -657,7 +657,7 @@ With a prefix argument, defines a `defvar' instead of a `defcustom'."
           (skip-chars-backward "\r\n[:blank:]")
           (setq p (point-marker))
           (backward-up-list)))
-      ;; Re-comment everything before it. 
+      ;; Re-comment everything before it.
       (ignore-errors
         (comment-region beg p))
       ;; And everything after it.

@@ -310,7 +310,7 @@ ARGS are passed before \"-l FILE\"."
   "Execute FORMS in the background and test ASSERTION.
 See `bug-hunter' for a description on the ASSERTION.
 
-If ASSERTION is 'interactive, the form is run through
+If ASSERTION is `interactive', the form is run through
 `bug-hunter--run-form-interactively'.  Otherwise, a slightly
 modified version of the form combined with ASSERTION is run
 through `bug-hunter--run-form'."
@@ -468,8 +468,8 @@ Wraps them in a progn if necessary to always return a single
 form.
 
 The user may decide to not provide input, in which case
-'interactive is returned.  Note, this is different from the user
-typing `RET' at an empty prompt, in which case nil is returned."
+`interactive' is returned.  Note, this is different from the user
+typing RET at an empty prompt, in which case nil is returned."
   (pcase (read-char-choice (if (display-graphic-p)
                                bug-hunter--hunt-type-prompt
                              (replace-regexp-in-string "To bisect interactively,.*\n" ""

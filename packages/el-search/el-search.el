@@ -245,12 +245,9 @@
   :group 'lisp)
 
 (defcustom el-search-this-expression-identifier 'exp
-  "Identifier referring to the current expression in pattern input.
+  "Identifier ID referring to the current expression in pattern input.
 When entering a PATTERN in an interactive \"el-search\" command,
-the pattern actually used will be
-
-    `(and ,el-search-this-expression-identifier ,pattern)
-
+the pattern actually used will be (and ID PATTERN).
 The default value is `exp'."
   :type 'symbol)
 

@@ -106,9 +106,9 @@ function MATCH and the `ws-response-header' convenience
 function.
 
   (ws-start
-   '(((lambda (_) t) .
+   \\='(((lambda (_) t) .
       (lambda (proc request)
-        (ws-response-header proc 200 '(\"Content-type\" . \"text/plain\"))
+        (ws-response-header proc 200 \\='(\"Content-type\" . \"text/plain\"))
         (process-send-string proc \"hello world\")
         t)))
    8080)
@@ -562,7 +562,7 @@ supplied any subsequent data written to PROC using `ws-send' will
 be encoded appropriately including sending the appropriate data
 upon the end of transmission for chunked transfer encoding.
 
-For example with the header `(\"Content-Encoding\" . \"gzip\")',
+For example with the header (\"Content-Encoding\" . \"gzip\"),
 any data subsequently written to PROC using `ws-send' will be
 compressed using the command specified in `ws-gzip-cmd'."
   ;; update process to reflect any Content or Transfer encodings

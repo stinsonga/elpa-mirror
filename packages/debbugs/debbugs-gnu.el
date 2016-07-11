@@ -261,8 +261,8 @@ suppressed bugs is toggled by `debbugs-gnu-toggle-suppress'."
 
 (defcustom debbugs-gnu-mail-backend 'gnus
   "*The email backend to use for reading bug report email exchange.
-If this is 'gnus, the default, use Gnus.
-If this is 'rmail, use Rmail instead."
+If this is `gnus', the default, use Gnus.
+If this is `rmail', use Rmail instead."
   :group 'debbugs-gnu
   :type '(choice (const :tag "Use Gnus" 'gnus)
 		 (const :tag "Use Rmail" 'rmail))

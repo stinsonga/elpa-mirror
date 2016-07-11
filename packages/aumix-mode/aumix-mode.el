@@ -89,7 +89,7 @@ Only a few aumix options do anything for interactive use.
 \"-d\" can set a mixer device file (default /dev/mixer), for
 example
 
-    (setq aumix-mode-switches '(\"-d\" \"/dev/mixer2\"))"
+    (setq aumix-mode-switches \\='(\"-d\" \"/dev/mixer2\"))"
 
   :type  '(repeat string)
   :group 'aumix-mode)

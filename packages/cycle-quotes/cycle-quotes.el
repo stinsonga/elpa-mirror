@@ -73,8 +73,8 @@ to be recomputed.")
 
 (defun cycle-quotes--fix-escapes (beg end escape-char unescape-char)
   "Fix character escapes between BEG and END.
-Instances of ESCAPE-CHAR will be escaped by `\', while instances
-where UNESCAPE-CHAR are escaped by `\' will have their escape
+Instances of ESCAPE-CHAR will be escaped by `\\', while instances
+where UNESCAPE-CHAR are escaped by `\\' will have their escape
 character removed."
   (let ((escape-string (string escape-char))
         (unescape-string (string unescape-char)))

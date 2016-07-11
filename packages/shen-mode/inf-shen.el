@@ -294,7 +294,7 @@ Prefix argument means switch to the Shen buffer afterwards."
   (interactive "r\nP")
   (let ((before-input (marker-position (process-mark (inferior-shen-proc))))
         result)
-    
+
     (run-hook-with-args 'shen-pre-eval-hook start end)
     (comint-send-region (inferior-shen-proc) start end)
     (comint-send-string (inferior-shen-proc) "\n")
@@ -432,7 +432,7 @@ With argument, positions cursor at end of buffer."
 
 (defvar shen-prev-l/c-dir/file nil
   "Record last directory and file used in loading or compiling.
-This holds a cons cell of the form `(DIRECTORY . FILE)'
+This holds a cons cell of the form (DIRECTORY . FILE)
 describing the last `shen-load-file' or `shen-compile-file' command.")
 
 (defvar shen-source-modes '(shen-mode)

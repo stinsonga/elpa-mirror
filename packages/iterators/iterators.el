@@ -206,7 +206,7 @@ elements s_1, s_2, ... of the iterator returned by
 
 as long as i_n exists.
 
-Example: (iterator-scan #'* 1 (iterator-number-range 1))
+Example: (iterator-scan #\\='* 1 (iterator-number-range 1))
 returns an iterator of the factorials."
   (let ((res init))
     (iterator--cons

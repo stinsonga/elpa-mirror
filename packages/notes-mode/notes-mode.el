@@ -22,7 +22,7 @@
 
 
 ;;; Commentary:
-;; 
+;;
 
 ;;; Code:
 
@@ -44,7 +44,7 @@
 
 
 (defun notes-beginning-of-defun ()
-  "Go to the beginning of a notes ``section''."
+  "Go to the beginning of a notes “section”."
   (interactive)
   (let
       ((old-point (point)))
@@ -59,7 +59,7 @@
       (re-search-backward notes-beginning-of-defun-regexp nil 'to-limit))))
 
 (defun notes-end-of-defun ()
-  "Go to the end of a notes ``section''."
+  "Go to the end of a notes “section”."
   (interactive)
   (let ((regexp notes-beginning-of-defun-regexp))
     (if (looking-at regexp)
@@ -120,7 +120,7 @@ we go to the last note based upon the index file."
     ;; undoing our work).
     (if (eq start-buffer (car end-buffer-and-point))
 	(goto-char (cdr end-buffer-and-point)))))
-       
+
 
 (defun notes-follow-next-link ()
   "Go to the next link for this topic."
@@ -146,14 +146,14 @@ Currently this is just a hack."
     (if value
 	(car (cdr value))
       key)))
-  
+
 
 (defun notes-complete-subject ()
   "Complete the notes subject under point."
   (interactive)
   (let
-      ((subject (save-excursion 
-		  (beginning-of-line) 
+      ((subject (save-excursion
+		  (beginning-of-line)
 		  (notes-extract-subject t)))
        old-completion-ignore-case
        full-subject)
@@ -174,7 +174,7 @@ Currently this is just a hack."
        (t   ;; Do our own completion.
 	(setq full-subject (try-completion subject notes-subject-table)
 	      subject (completing-read "Subject: "
-				       notes-subject-table nil nil 
+				       notes-subject-table nil nil
 				       (if (stringp full-subject)
 					   full-subject
 					 subject)))
@@ -196,7 +196,7 @@ Currently this code only handles brand new entries."
       (goto-char (point-min))
       (if (re-search-forward
            (concat "^" (regexp-quote subject) ":.* \\([0-9]+\\)$")
-           (point-max) t) 
+           (point-max) t)
           (save-window-excursion
             (cond ((and (notes-w3-url
                          (notes-file-to-url (match-string 1) subject))
@@ -207,7 +207,7 @@ Currently this code only handles brand new entries."
 		     (delete-char 6)
 		     (insert this-url)
 		     (setq last-url (notes-current-url))
-		     (if (and (null pre-modified) 
+		     (if (and (null pre-modified)
 			      (>= notes-electric-prevnext 2))
 			 (save-buffer))))))))
     (if last-url
@@ -225,7 +225,7 @@ Currently this code only handles brand new entries."
 	(save-excursion
 	  (beginning-of-line)
 	  (and (not (eq cur-point (point)))  ;; normal return if at b-o-ln
-	       (notes-extract-subject t)))) 
+	       (notes-extract-subject t))))
       (progn (notes-underline-line)
 	     (if notes-electric-prevnext
 		 (notes-fix-prevnext-this-entry)))
@@ -251,19 +251,19 @@ If we're not in an entry, we leave you in the index file.
 If the current date doesn't exist, error in DIRECTION.
 Returns nil if on errors (no index; no date in DIRECTION),
 otherwise the point of the hit."
-  (interactive) 
+  (interactive)
   (let ((start-buffer (current-buffer))
 	(subject (notes-extract-subject))  ; get subject if on it
-	(date (if (null (buffer-file-name)) nil 
+	(date (if (null (buffer-file-name)) nil
 		(file-name-nondirectory (buffer-file-name)))))
     ;; Try and get the subject, either forward...
     (if (not subject)
-	(save-excursion 
+	(save-excursion
 	  (notes-beginning-of-defun)
 	  (setq subject (notes-extract-subject))))
     ;;    ...or backwards.
     (if (not subject)
-	(save-excursion 
+	(save-excursion
 	  (notes-end-of-defun)
 	  (setq subject (notes-extract-subject))))
     ;; Form and jump to the url for the index-entry.
@@ -409,7 +409,7 @@ Use the mknew cache if possible."
                    " '"
                    ;; FIXME: Use shell-quote-argument.
 		   (buffer-file-name) "'") 't)))))
-  
+
 
 ;;;
 ;;; encryption
@@ -418,7 +418,7 @@ Use the mknew cache if possible."
 ;; or mailcrypt 3.4.x or >=3.5.x
 ;;
 
-(defvar notes-encryption-library 
+(defvar notes-encryption-library
   'mailcrypt
 ;  (cond
 ;   ((fboundp 'mc-encrypt-region) 'mailcrypt)
@@ -546,10 +546,10 @@ Should have a leading 0x.")
 	  (forward-line 1)))
       (setq start (point))
       ;; sanity check
-      (if (re-search-forward "^-----BEGIN PGP MESSAGE" 
-			     (progn 
-			       (save-excursion 
-				 (notes-end-of-defun) 
+      (if (re-search-forward "^-----BEGIN PGP MESSAGE"
+			     (progn
+			       (save-excursion
+				 (notes-end-of-defun)
 				 (point))) t)
 	  (error "Note is already encrypted."))
       ;; find the end
@@ -567,10 +567,10 @@ Should have a leading 0x.")
   (save-excursion
     (if (not (looking-at notes-beginning-of-defun-regexp))
 	(notes-beginning-of-defun))
-    (if (null (re-search-forward "^-----BEGIN PGP" 
-				 (progn 
-				   (save-excursion 
-				     (notes-end-of-defun) 
+    (if (null (re-search-forward "^-----BEGIN PGP"
+				 (progn
+				   (save-excursion
+				     (notes-end-of-defun)
 				     (point))) t))
 	(error "Note is not encrypted."))
     (beginning-of-line)
@@ -667,17 +667,17 @@ Inside a notes buffer one can click on URLs and follow them to
 other notes files.
 
 See the file notes-variables.el for all customization options.
-To change options, (require 'notes-variables) in your .emacs
+To change options, (require \\='notes-variables) in your .emacs
 and then change things.
 
 Subjects in notes mode are lines beginning with an asterisk
-and underlined with dashes.  Subjects can be completed 
+and underlined with dashes.  Subjects can be completed
 with \\[notes-complete-subject] and are automatically underlined.
 
 You may wish to add this code to your .emacs file:
-    (add-to-list 'auto-mode-alist
-  	(cons \"/9[0-9][0-9][0-9][0-9][0-9].?\\\\'\" 'notes-mode))
-    (define-key global-map [?\\C-c ?n] 'notes-index-todays-link)
+    (add-to-list \\='auto-mode-alist
+      (cons \"/9[0-9][0-9][0-9][0-9][0-9].?\\\\\\='\" \\='notes-mode))
+    (define-key global-map [?\\C-c ?n] \\='notes-index-todays-link)
 to automatically enter notes mode.
 
 I have two suggestions for how to organize your notes files.

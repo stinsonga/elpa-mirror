@@ -44,8 +44,8 @@ This record is useful for debugging.")
 (defun notes-w3-url (url &optional where best-effort)
   "Open a notes-url.  Handle simple URLs here, or call notes-w3-alternate-url.
 Takes the URL as an argument.  Optionally you specify
-WHERE the information should appear (either 'otherwindow or not,
-defaults to not).
+WHERE the information should appear (either `otherwindow' or nil,
+defaults to nil).
 BEST-EFFORT causes notes-w3-url allows the tag portion of the URL to not
 match.  If there's no tag match, it looks for the nearest matching prefix.
 
@@ -54,7 +54,7 @@ URLs optionally can begin with an URL: tag, which will be ignored.
 notes-w3-url handles only <file://localhost/...> (or <file:///...>) URLs.
 Other URLs it hands off to the routine in notes-w3-alternate-url
 for processing.  If you use w3-mode, then
-    (setq notes-w3-alternate-url 'w3-follow-link)
+    (setq notes-w3-alternate-url \\='w3-follow-link)
 will have w3 handle tough URLs."
   (if (string-match "\\`[Uu][Rr][Ll]:" url)
       (setq url (substring url 4)))
@@ -91,7 +91,7 @@ will have w3 handle tough URLs."
 	t))))
 
 (defun notes-w3-url-tag-backup (tag)
-  "Strip the last ``part'' off of TAG."
+  "Strip the last “part” off of TAG."
   (let ((result)
 	(separators " /\t.:")
 	(buf (get-buffer-create " *notes-w3-url-tag-backup")))
@@ -110,7 +110,7 @@ will have w3 handle tough URLs."
   "Find the TAG in the current buffer according to MODE.
 BEST-EFFORT is either t (do prefix matching),
 nil find the tag exactly,
-or 'searching (used internally)."
+or `searching' (used internally)."
   (cond
    ((not tag) nil)
    ((and (string= tag "") (eq best-effort 'searching)) nil)
@@ -127,17 +127,17 @@ or 'searching (used internally)."
       (if (not best-effort)
 	  (error "Cannot find tag ``%s'' in %s." tag fname))
       (notes-w3-url-tag (notes-w3-url-tag-backup tag) 'searching)))))
-  
+
 
 (defun notes-w3-pass-through-alternate-url (url &optional where)
   "Pass a click event through to the old binding for notes-w3-url.
 Try this combination:
-  (add-hook 'notes-mode-load-hooks
+  (add-hook \\='notes-mode-load-hooks
             (function (lambda ()
                         (define-key notes-mode-map [mouse-2]
-                          'notes-w3-follow-link-mouse)
+                          \\='notes-w3-follow-link-mouse)
                         (setq notes-w3-alternate-url
-                          'notes-w3-my-alternate-url))))"
+                          \\='notes-w3-my-alternate-url))))"
   (let ((event last-input-event))
     (funcall (lookup-key
 	      (current-global-map)
@@ -147,7 +147,7 @@ Try this combination:
 ;;;###autoload
 (defun notes-w3-follow-link (pt &optional where)
   "* Follow the URL at the point.
-Takes a PT to look at and a WHERE to open the URL ('otherwindow or nil).
+Takes a PT to look at and a WHERE to open the URL (`otherwindow' or nil).
 This code works hard to recognize URLs based on context information.
 URLs can be quoted by whitespace, beginning and end of lines,
 or the official < and >.

@@ -73,9 +73,9 @@
 
 (defun svg-clock--create-def-elements (foreground background)
   "Return a list of SVG elements using the colors FOREGROUND and BACKGROUND.
-The elements are supposed to be added to an SVG object as 'defs'.
-The SVG may then 'use': 'clock-face, 'second-hand, 'minute-hand
-and 'hour-hand.  The clock-face has a size of 1x1."
+The elements are supposed to be added to an SVG object as `defs'.
+The SVG may then `use': `clock-face', `second-hand', `minute-hand'
+and `hour-hand'.  The clock-face has a size of 1x1."
   (list (svg-clock-symbol 'tickshort
                           (svg-clock-line .5 .02 .5 .04
                                           `(stroke . ,foreground)

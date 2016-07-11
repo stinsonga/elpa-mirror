@@ -59,8 +59,8 @@ use commonly.  To apply aliases specific to a file, set the
 Each element of this list should have the form (ALIAS . NAMESPACE),
 both strings.  For example, if you set this variable to
           ((\"fl\" . \"font-lock\"))
-then expressions like `(font-lock-add-keywords nil kwds)' will
-displayed as `(fl/add-keywords nil kwds)' instead.
+then expressions like (font-lock-add-keywords nil kwds) will be
+displayed as (fl/add-keywords nil kwds) instead.
 
 Furthermore typing `fl' followed by `\\[nameless-insert-name]' will
 automatically insert `font-lock-'."

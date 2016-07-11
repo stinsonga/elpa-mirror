@@ -301,7 +301,7 @@ you may never really understand to any degree of personal satisfaction\".
  :diamond -- the part of the subprocess name after \"gnugo\", may be \"\"
 
  :game-over -- nil until game over at which time its value is set to
-               the alist `((live GROUP ...) (dead GROUP ...))'
+               the alist ((live GROUP ...) (dead GROUP ...))
 
  :sgf-collection -- after a `loadsgf' command, entire parse tree of file,
                     a simple list of one or more gametrees, updated in
@@ -826,7 +826,7 @@ when you are sure the command cannot fail."
 Optional arg RSEL controls side effects and return value.
 If nil, display the history in the echo area as \"(N moves)\"
 followed by the space-separated list of moves.  When called
-interactively with a prefix arg (i.e., RSEL is `(4)'), display
+interactively with a prefix arg (i.e., RSEL is (4)), display
 similarly, but suffix with the mover (either \":B\" or \":W\").
 RSEL may also be a symbol that selects what to return:
  car  -- the most-recent move

@@ -336,7 +336,7 @@ The body can be accessed via `hydra-error/body'."
 \"t\":    `toggle-truncate-lines',
 \"f\":    `auto-fill-mode',
 \"a\":    `abbrev-mode',
-\"q\":    `nil'
+\"q\":    nil
 
 The body can be accessed via `hydra-toggle/body'.
 
@@ -358,7 +358,7 @@ Call the head: `toggle-truncate-lines'."
 \"t\":    `toggle-truncate-lines',
 \"f\":    `auto-fill-mode',
 \"a\":    `abbrev-mode',
-\"q\":    `nil'
+\"q\":    nil
 
 The body can be accessed via `hydra-toggle/body'.
 
@@ -379,7 +379,7 @@ Call the head: `auto-fill-mode'."
 \"t\":    `toggle-truncate-lines',
 \"f\":    `auto-fill-mode',
 \"a\":    `abbrev-mode',
-\"q\":    `nil'
+\"q\":    nil
 
 The body can be accessed via `hydra-toggle/body'.
 
@@ -400,11 +400,11 @@ Call the head: `abbrev-mode'."
 \"t\":    `toggle-truncate-lines',
 \"f\":    `auto-fill-mode',
 \"a\":    `abbrev-mode',
-\"q\":    `nil'
+\"q\":    nil
 
 The body can be accessed via `hydra-toggle/body'.
 
-Call the head: `nil'."
+Call the head: nil."
         (interactive)
         (hydra-default-pre)
         (hydra-keyboard-quit)
@@ -416,7 +416,7 @@ Call the head: `nil'."
 \"t\":    `toggle-truncate-lines',
 \"f\":    `auto-fill-mode',
 \"a\":    `abbrev-mode',
-\"q\":    `nil'
+\"q\":    nil
 
 The body can be accessed via `hydra-toggle/body'."
         (interactive)
@@ -510,7 +510,7 @@ The body can be accessed via `hydra-toggle/body'."
 
 \"j\":    `next-line',
 \"k\":    `previous-line',
-\"q\":    `nil'
+\"q\":    nil
 
 The body can be accessed via `hydra-vi/body'.
 
@@ -547,7 +547,7 @@ Call the head: `next-line'."
 
 \"j\":    `next-line',
 \"k\":    `previous-line',
-\"q\":    `nil'
+\"q\":    nil
 
 The body can be accessed via `hydra-vi/body'.
 
@@ -584,11 +584,11 @@ Call the head: `previous-line'."
 
 \"j\":    `next-line',
 \"k\":    `previous-line',
-\"q\":    `nil'
+\"q\":    nil
 
 The body can be accessed via `hydra-vi/body'.
 
-Call the head: `nil'."
+Call the head: nil."
         (interactive)
         (hydra-default-pre)
         (set-cursor-color "#e52b50")
@@ -600,7 +600,7 @@ Call the head: `nil'."
 
 \"j\":    `next-line',
 \"k\":    `previous-line',
-\"q\":    `nil'
+\"q\":    nil
 
 The body can be accessed via `hydra-vi/body'."
         (interactive)
