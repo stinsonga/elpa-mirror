@@ -1,6 +1,7 @@
 ;;; delight.el --- A dimmer switch for your lighter text.
 ;;
-;; Copyright (C) 2013, 2014, 2016 Phil Sainty
+;; Copyright (C) 2013, 2014, 2016 Free Software Foundation, Inc.
+
 ;; Author: Phil Sainty <psainty@orcon.net.nz>
 ;; Maintainer: Phil Sainty <psainty@orcon.net.nz>
 ;; URL: https://savannah.nongnu.org/projects/delight
