@@ -546,44 +546,46 @@ marked as \"client-side filter\"."
       (when (member "tagged" severities)
 	(split-string (read-string "User tag(s): ") "," t)))))
 
-  ;; Initialize variables.
-  (when (and (file-exists-p debbugs-gnu-persistency-file)
-	     (not debbugs-gnu-local-tags))
-    (with-temp-buffer
-      (insert-file-contents debbugs-gnu-persistency-file)
-      (eval (read (current-buffer)))))
-  ;; Per default, we suppress retrieved unwanted bugs.
-  (when (and (called-interactively-p 'any)
-	     debbugs-gnu-suppress-closed)
-    (setq debbugs-gnu-current-suppress t))
+  (unwind-protect
+      (progn
+	;; Initialize variables.
+	(when (and (file-exists-p debbugs-gnu-persistency-file)
+		   (not debbugs-gnu-local-tags))
+	  (with-temp-buffer
+	    (insert-file-contents debbugs-gnu-persistency-file)
+	    (eval (read (current-buffer)))))
+	;; Per default, we suppress retrieved unwanted bugs.
+	(when (and (called-interactively-p 'any)
+		   debbugs-gnu-suppress-closed)
+	  (setq debbugs-gnu-current-suppress t))
 
-  ;; Add queries.
-  (dolist (severity (if (consp severities) severities (list severities)))
-    (when (not (zerop (length severity)))
-      (when (string-equal severity "tagged")
-	(setq debbugs-gnu-current-suppress nil))
-      (add-to-list 'debbugs-gnu-current-query (cons 'severity severity))))
-  (dolist (package (if (consp packages) packages (list packages)))
-    (when (not (zerop (length package)))
-      (add-to-list 'debbugs-gnu-current-query (cons 'package package))))
-  (when archivedp
-    (setq debbugs-gnu-current-suppress nil)
-    (add-to-list 'debbugs-gnu-current-query '(archive . "1")))
-  (when suppress
-    (setq debbugs-gnu-current-suppress t)
-    (add-to-list 'debbugs-gnu-current-query '(status . "open"))
-    (add-to-list 'debbugs-gnu-current-query '(status . "forwarded")))
-  (dolist (tag (if (consp tags) tags (list tags)))
-    (when (not (zerop (length tag)))
-      (add-to-list 'debbugs-gnu-current-query (cons 'tag tag))))
+	;; Add queries.
+	(dolist (severity (if (consp severities) severities (list severities)))
+	  (when (not (zerop (length severity)))
+	    (when (string-equal severity "tagged")
+	      (setq debbugs-gnu-current-suppress nil))
+	    (add-to-list 'debbugs-gnu-current-query (cons 'severity severity))))
+	(dolist (package (if (consp packages) packages (list packages)))
+	  (when (not (zerop (length package)))
+	    (add-to-list 'debbugs-gnu-current-query (cons 'package package))))
+	(when archivedp
+	  (setq debbugs-gnu-current-suppress nil)
+	  (add-to-list 'debbugs-gnu-current-query '(archive . "1")))
+	(when suppress
+	  (setq debbugs-gnu-current-suppress t)
+	  (add-to-list 'debbugs-gnu-current-query '(status . "open"))
+	  (add-to-list 'debbugs-gnu-current-query '(status . "forwarded")))
+	(dolist (tag (if (consp tags) tags (list tags)))
+	  (when (not (zerop (length tag)))
+	    (add-to-list 'debbugs-gnu-current-query (cons 'tag tag))))
 
-  ;; Show result.
-  (debbugs-gnu-show-reports)
+	;; Show result.
+	(debbugs-gnu-show-reports))
 
-  ;; Reset query, filter and suppress.
-  (setq debbugs-gnu-current-query nil
-	debbugs-gnu-current-filter nil
-	debbugs-gnu-current-suppress nil))
+    ;; Reset query, filter and suppress.
+    (setq debbugs-gnu-current-query nil
+	  debbugs-gnu-current-filter nil
+	  debbugs-gnu-current-suppress nil)))
 
 (defun debbugs-gnu-get-bugs (query)
   "Retrieve bug numbers from debbugs.gnu.org according search criteria."
@@ -637,8 +639,15 @@ marked as \"client-side filter\"."
   "Show bug reports.
 If OFFLINE is non-nil, the query is not sent to the server.  Bugs
 are taken from the cache instead."
-  (let ((inhibit-read-only t)
-	(buffer-name "*Emacs Bugs*"))
+  (let* ((inhibit-read-only t)
+	 string
+	 (buffer-name
+	  (cond
+	   ((setq string (cdr (assq 'phrase debbugs-gnu-current-query)))
+	    (format "*%S Bugs*" string))
+	   ((setq string (cdr (assq 'package debbugs-gnu-current-query)))
+	    (format "*%s Bugs*" (capitalize string)))
+	   (t "*Bugs*"))))
     ;; The tabulated mode sets several local variables.  We must get
     ;; rid of them.
     (when (get-buffer buffer-name)
@@ -679,7 +688,10 @@ are taken from the cache instead."
 	     merged)
 	(unless (equal (cdr (assq 'pending status)) "pending")
 	  (setq words (concat words "," (cdr (assq 'pending status)))))
-	(let ((packages (delete "emacs" (cdr (assq 'package status)))))
+	(let ((packages (cdr (assq 'package status))))
+	  (dolist (elt packages)
+	    (when (member elt debbugs-gnu-default-packages)
+	      (setq packages (delete elt packages))))
 	  (when packages
 	    (setq words (concat words "," (mapconcat 'identity packages ",")))))
 	(when (setq merged (cdr (assq 'mergedwith status)))
@@ -835,6 +847,11 @@ Used instead of `tabulated-list-print-entry'."
       ;; Package "emacs" has been selected.
       (member '(package . "emacs") debbugs-gnu-local-query)))
 
+(defun debbugs-gnu-manual ()
+  "Display the Debbugs manual in Info mode."
+  (interactive)
+  (info "debbugs-ug"))
+
 (defconst debbugs-gnu-bug-triage-file
   (expand-file-name "../admin/notes/bug-triage" data-directory)
   "The \"bug-triage\" file.")
@@ -908,12 +925,16 @@ Used instead of `tabulated-list-print-entry'."
 
     (define-key-after menu-map [debbugs-gnu-separator2]
       '(menu-item "--") 'debbugs-gnu-bugs)
+    (define-key-after menu-map [debbugs-gnu-manual]
+      '(menu-item "Debbugs Manual" debbugs-gnu-manual
+		  :help "Show Debbugs Manual")
+      'debbugs-gnu-separator2)
     (define-key-after menu-map [debbugs-gnu-view-bug-triage]
       '(menu-item "Describe Bug Triage Procedure"
 		  debbugs-gnu-view-bug-triage
 		  :enable (debbugs-gnu-menu-map-bug-triage-enabled)
 		  :help "Show procedure of triaging bugs")
-      'debbugs-gnu-separator2)
+      'debbugs-gnu-manual)
     map))
 
 (defun debbugs-gnu-rescan ()
