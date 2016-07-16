@@ -4,7 +4,7 @@
 
 ;; Author: Nicolas Petton <nicolas@petton.fr>
 ;; Keywords: stream, laziness, sequences
-;; Version: 2.2.0
+;; Version: 2.2.1
 ;; Package-Requires: ((emacs "25"))
 ;; Package: stream
 
@@ -377,7 +377,17 @@ will be found by calling FUNCTION on the preceding element."
   "Concatenate all streams in STREAM-OF-STREAMS and return the result.
 All elements in STREAM-OF-STREAMS must be streams.  The result is
 a stream."
-  (seq-reduce #'stream-append stream-of-streams (stream-empty)))
+  (stream-make
+   (while (and (not (stream-empty-p stream-of-streams))
+               (stream-empty-p (stream-first stream-of-streams)))
+     (cl-callf stream-rest stream-of-streams))
+   (if (stream-empty-p stream-of-streams)
+       nil
+     (cons
+      (stream-first (stream-first stream-of-streams))
+      (stream-concatenate
+       (stream-cons (stream-rest (stream-first stream-of-streams))
+                    (stream-rest stream-of-streams)))))))
 
 (defun stream-of-directory-files-1 (directory &optional nosort recurse follow-links)
   "Helper for `stream-of-directory-files'."
