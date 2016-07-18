@@ -242,7 +242,38 @@ patch:
 
 (defun debbugs-newest-bugs (amount)
   "Return the list of bug numbers, according to AMOUNT (a number) latest bugs."
-  (sort (car (soap-invoke debbugs-wsdl debbugs-port "newest_bugs" amount)) '<))
+  (if (= amount 1)
+      ;; We cache it as bug "0" in `debbugs-cache-data'.
+      (list (cdr (assoc 'newest_bug
+        (let ((status (gethash 0 debbugs-cache-data)))
+	  (if (and
+	       status
+	       (or
+		(null debbugs-cache-expiry)
+		(and
+		 (natnump debbugs-cache-expiry)
+		 (> (cdr (assoc 'cache_time status))
+		    (- (float-time) debbugs-cache-expiry)))))
+	      ;; Take the cached value.
+	      status
+
+	    (setq
+	     status
+	     ;; Put also a time stamp.
+	     (list
+	      (cons 'cache_time (float-time))
+	      (cons 'newest_bug
+		    (caar
+		     (soap-invoke
+		      debbugs-wsdl debbugs-port "newest_bugs" amount)))))
+	    (if (and debbugs-cache-expiry (natnump debbugs-cache-expiry))
+		;; Cache it.
+		(puthash 0 status debbugs-cache-data)
+	      ;; Don't cache.
+	      status))))))
+
+    (sort
+     (car (soap-invoke debbugs-wsdl debbugs-port "newest_bugs" amount)) '<)))
 
 (defun debbugs-convert-soap-value-to-string (string-value)
   "If STRING-VALUE is unibyte, decode its contents as a UTF-8 string.
@@ -359,7 +390,7 @@ Example:
 		      (and
 		       (natnump debbugs-cache-expiry)
 		       (> (cdr (assoc 'cache_time status))
-			  (- (float-time)) debbugs-cache-expiry))))
+			  (- (float-time) debbugs-cache-expiry)))))
 		    (progn
 		      (setq cached-bugs (append cached-bugs (list status)))
 		      nil)
