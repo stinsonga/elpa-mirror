@@ -451,7 +451,7 @@ marked as \"client-side filter\"."
 	       (completing-read
 		(format "Enter status%s: "
 			(if (null phrase) "" " (client-side filter)"))
-		'("open" "forwarded" "done")))
+		'("open" "forwarded" "done") nil t))
 	      (when (not (zerop (length val1)))
 		 (if (null phrase)
 		     (add-to-list
@@ -1324,6 +1324,27 @@ MERGED is the list of bugs merged with this one."
 (defvar debbugs-gnu-send-mail-function nil
   "A function to send control messages from debbugs.")
 
+(defvar debbugs-gnu-completion-table
+  (completion-table-dynamic
+   (lambda (string)
+     (if (string-equal string "")
+	 (mapcar
+	  (lambda (x)
+	    (list (format "%d" x) x))
+	  '(1 2 3 4 5 6 7 8 9))
+       (let ((newest-bug (car (debbugs-newest-bugs 1))))
+	 (and (string-match "^[1-9][0-9]*$" string)
+	      (<= (string-to-number string) newest-bug)
+	      (append
+	       `(,string)
+	       (mapcar
+		(lambda (x)
+		  (let ((y (format "%s%d" string x)))
+		    (and (<= (string-to-number y) newest-bug)
+			 (list y x))))
+		'(0 1 2 3 4 5 6 7 8 9))))))))
+  "Dynamic completion table for reading bug numbers.")
+
 (defun debbugs-gnu-send-control-message (message &optional reverse)
   "Send a control message for the current bug report.
 You can set the severity or add a tag, or close the report.  If
@@ -1352,8 +1373,11 @@ removed instead."
   (let* ((id (or (debbugs-gnu-current-id t)
 		 debbugs-gnu-bug-number	; Set on group entry.
 		 (debbugs-gnu-guess-current-id)))
+	 (status (debbugs-gnu-current-status))
 	 (version
-	  (when (member message '("close" "done"))
+	  (when (and
+		 (member message '("close" "done"))
+		 (member "emacs" (cdr (assq 'package status))))
 	    (read-string
 	     "Version: "
 	     (cond
@@ -1369,8 +1393,7 @@ removed instead."
 	       (format "%s.%s"
 		       (match-string 1 emacs-version)
 		       (match-string 2 emacs-version)))
-	      (t emacs-version)))))
-	 (status (debbugs-gnu-current-status)))
+	      (t emacs-version))))))
     (with-temp-buffer
       (insert "To: control@debbugs.gnu.org\n"
 	      "From: " (message-make-from) "\n"
@@ -1381,8 +1404,14 @@ removed instead."
 	       ((member message '("unarchive" "unmerge" "reopen" "noowner"))
 		(format "%s %d\n" message id))
 	       ((member message '("merge" "forcemerge"))
-		(format "%s %d %s\n" message id
-			(read-string "Merge with bug #: ")))
+		(format
+		 "%s %d %s\n" message id
+		 (mapconcat
+		  'identity
+		  (completing-read-multiple
+		   (format "%s with bug(s) #: " (capitalize message))
+		   debbugs-gnu-completion-table)
+		  " ")))
 	       ((member message '("block" "unblock"))
 		(format
 		 "%s %d by %s\n" message id
@@ -1392,7 +1421,8 @@ removed instead."
 		   (format "%s with bug(s) #: " (capitalize message))
 		   (if (equal message "unblock")
 		       (mapcar 'number-to-string
-			       (cdr (assq 'blockedby status))))
+			       (cdr (assq 'blockedby status)))
+		     debbugs-gnu-completion-table)
 		   nil (and (equal message "unblock") status))
 		  " ")))
 	       ((equal message "owner")
@@ -1402,9 +1432,9 @@ removed instead."
 	       ((equal message "reassign")
 		(format "reassign %d %s\n" id (read-string "Package(s): ")))
 	       ((equal message "close")
-		(format "close %d %s\n" id version))
+		(format "close %d %s\n" id (or version "")))
 	       ((equal message "done")
-		(format "tags %d fixed\nclose %d %s\n" id id version))
+		(format "tags %d fixed\nclose %d %s\n" id id (or version "")))
 	       ((member message '("donenotabug" "donewontfix"
 				  "doneunreproducible"))
 		(format "tags %d %s\nclose %d\n" id (substring message 4) id))
@@ -1525,8 +1555,9 @@ The following commands are available:
 (defun debbugs-gnu-bugs (&rest bugs)
   "List all BUGS, a list of bug numbers."
   (interactive
-   (mapcar 'string-to-number
-	   (completing-read-multiple "Bug numbers: " nil 'natnump)))
+   (mapcar
+    'string-to-number
+    (completing-read-multiple "Bug numbers: " debbugs-gnu-completion-table)))
   (dolist (elt bugs)
     (unless (natnump elt) (signal 'wrong-type-argument (list 'natnump elt))))
   (add-to-list 'debbugs-gnu-current-query (cons 'bugs bugs))
