@@ -244,33 +244,40 @@ patch:
   "Return the list of bug numbers, according to AMOUNT (a number) latest bugs."
   (if (= amount 1)
       ;; We cache it as bug "0" in `debbugs-cache-data'.
-      (list (cdr (assoc 'newest_bug
-        (let ((status (gethash 0 debbugs-cache-data)))
-	  (if (and
-	       status
-	       (or
-		(null debbugs-cache-expiry)
-		(and
-		 (natnump debbugs-cache-expiry)
-		 (> (cdr (assoc 'cache_time status))
-		    (- (float-time) debbugs-cache-expiry)))))
-	      ;; Take the cached value.
-	      status
+      (let ((status (gethash 0 debbugs-cache-data)))
+	(unless (and
+		 status
+		 (or
+		  (null debbugs-cache-expiry)
+		  (and
+		   (natnump debbugs-cache-expiry)
+		   (> (cdr (assoc 'cache_time status))
+		      (- (float-time) debbugs-cache-expiry)))))
+	  ;; Due to `debbugs-gnu-completion-table', this function
+	  ;; could be called in rapid sequence.  We cache temporarily
+	  ;; the value nil, therefore.
+	  (when (natnump debbugs-cache-expiry)
+	    (puthash
+	     0
+	     (list (cons 'cache_time (1+ (- (float-time) debbugs-cache-expiry)))
+		   (list 'newest_bug))
+	     debbugs-cache-data))
+	  ;; Compute the value.
+	  (setq
+	   status
+	   (list
+	    (cons 'cache_time (float-time))
+	    (cons 'newest_bug
+		  (caar
+		   (soap-invoke
+		    debbugs-wsdl debbugs-port "newest_bugs" amount)))))
 
-	    (setq
-	     status
-	     ;; Put also a time stamp.
-	     (list
-	      (cons 'cache_time (float-time))
-	      (cons 'newest_bug
-		    (caar
-		     (soap-invoke
-		      debbugs-wsdl debbugs-port "newest_bugs" amount)))))
-	    (if (and debbugs-cache-expiry (natnump debbugs-cache-expiry))
-		;; Cache it.
-		(puthash 0 status debbugs-cache-data)
-	      ;; Don't cache.
-	      status))))))
+	  ;; Cache it.
+	  (when (or (null debbugs-cache-expiry) (natnump debbugs-cache-expiry))
+	    (puthash 0 status debbugs-cache-data)))
+
+	;; Return the value, as list.
+	(list (cdr (assoc 'newest_bug status))))
 
     (sort
      (car (soap-invoke debbugs-wsdl debbugs-port "newest_bugs" amount)) '<)))
@@ -461,7 +468,7 @@ Example:
 	    (when (stringp (cdr y))
 	      (setcdr y (split-string (cdr y) ",\\| " t))))
 	  ;; Cache the result, and return.
-	  (if (and debbugs-cache-expiry (natnump debbugs-cache-expiry))
+	  (if (or (null debbugs-cache-expiry) (natnump debbugs-cache-expiry))
 	      (puthash
 	       (cdr (assoc 'key x))
 	       ;; Put also a time stamp.
