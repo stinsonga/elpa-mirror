@@ -1,6 +1,6 @@
 ;;; nlinum.el --- Show line numbers in the margin  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2012, 2014, 2015  Free Software Foundation, Inc.
+;; Copyright (C) 2012, 2014, 2015, 2016  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords: convenience
@@ -26,6 +26,11 @@
 
 ;;; News:
 
+;; v1.7:
+;; - Add ability to highlight current line number.
+;; - New custom variable `nlinum-highlight-current-line' and
+;;   face `nlinum-current-line'.
+
 ;; v1.3:
 ;; - New custom variable `nlinum-format'.
 ;; - Change in calling convention of `nlinum-format-function'.
@@ -36,10 +41,32 @@
 
 ;;; Code:
 
-(require 'linum)                        ;For its face.
+(require 'linum)                        ;For its face
+
+(defgroup nlinum nil
+  "Show line numbers in the margin, (hopefully) more efficiently."
+  :group 'convenience
+  :group 'linum
+  :prefix "nlinum")
+
+(defcustom nlinum-highlight-current-line nil
+  ;; FIXME: It would be good to enable it by default, but only once we make it
+  ;; work right with multiple-windows.
+  "Whether the current line number should be highlighted.
+When non-nil, the current line number is highlighted in `nlinum-current-line'
+face."
+  :type 'boolean)
+
+(defface nlinum-current-line
+  '((t :inherit linum :weight bold))
+  "Face for displaying current line.")
 
 (defvar nlinum--width 2)
 (make-variable-buffer-local 'nlinum--width)
+
+(defvar nlinum--current-line 0
+  "Store current line number.")
+(make-variable-buffer-local 'nlinum--current-line)
 
 ;; (defvar nlinum--desc "")
 
@@ -53,9 +80,10 @@ if ARG is omitted or nil.
 Linum mode is a buffer-local minor mode."
   :lighter nil ;; (" NLinum" nlinum--desc)
   (jit-lock-unregister #'nlinum--region)
-  (remove-hook 'window-configuration-change-hook #'nlinum--setup-window t)
-  (remove-hook 'text-scale-mode-hook #'nlinum--setup-window t)
-  (remove-hook 'after-change-functions #'nlinum--after-change t)
+  (remove-hook 'window-configuration-change-hook #'nlinum--setup-window :local)
+  (remove-hook 'text-scale-mode-hook #'nlinum--setup-window :local)
+  (remove-hook 'after-change-functions #'nlinum--after-change :local)
+  (remove-hook 'post-command-hook #'nlinum--current-line-update :local)
   (kill-local-variable 'nlinum--line-number-cache)
   (remove-overlays (point-min) (point-max) 'nlinum t)
   ;; (kill-local-variable 'nlinum--ol-counter)
@@ -64,10 +92,13 @@ Linum mode is a buffer-local minor mode."
     ;; FIXME: Another approach would be to make the mode permanent-local,
     ;; which might indeed be preferable.
     (add-hook 'change-major-mode-hook (lambda () (nlinum-mode -1)))
-    (add-hook 'text-scale-mode-hook #'nlinum--setup-window nil t)
+    (add-hook 'text-scale-mode-hook #'nlinum--setup-window nil :local)
     (add-hook 'window-configuration-change-hook #'nlinum--setup-window nil t)
-    (add-hook 'after-change-functions #'nlinum--after-change nil t)
-    (jit-lock-register #'nlinum--region t))
+    (add-hook 'after-change-functions #'nlinum--after-change nil :local)
+    (if nlinum-highlight-current-line
+        (add-hook 'post-command-hook #'nlinum--current-line-update nil :local)
+      (remove-hook 'post-command-hook #'nlinum--current-line-update :local))
+    (jit-lock-register #'nlinum--region :contextual))
   (nlinum--setup-windows))
 
 (defun nlinum--face-height (face)
@@ -131,6 +162,34 @@ Linum mode is a buffer-local minor mode."
                          (point-min) (point-max) '(fontified)))))
                   (current-buffer)))
 
+(defun nlinum--current-line-update ()
+  "Update current line number."
+  (let ((last-line nlinum--current-line))
+    (setq nlinum--current-line (save-excursion
+                                 (forward-line 0)
+                                 (nlinum--line-number-at-pos)))
+
+    (let ((line-diff (- last-line nlinum--current-line))
+          beg end)
+      ;; Remove the text properties only if the current line has changed.
+      (when (not (zerop line-diff))
+        (if (natnump line-diff)
+            ;; Point is moving upward.
+            (progn
+              (setq beg (line-beginning-position))
+              (setq end (line-end-position (1+ line-diff))))
+          ;; Point is moving downward.
+          (setq beg (line-beginning-position (1+ line-diff)))
+          (setq end (line-end-position)))
+
+        ;; (message "curr-line:%d [beg/end:%d/%d] -- last-line:%d"
+        ;;          nlinum--current-line beg end last-line)
+        (with-silent-modifications
+          (remove-text-properties beg
+                                  ;; Handle the case of blank lines too.
+                                  (min (point-max) (1+ end))
+                                  '(fontified)))))))
+
 ;; (defun nlinum--ol-count ()
 ;;   (let ((i 0))
 ;;     (dolist (ol (overlays-in (point-min) (point-max)))
@@ -192,8 +251,9 @@ Linum mode is a buffer-local minor mode."
   (setq nlinum--line-number-cache nil))
 
 (defun nlinum--line-number-at-pos ()
-  "Like `line-number-at-pos' but sped up with a cache."
-  ;; (assert (bolp))
+  "Like `line-number-at-pos' but sped up with a cache.
+Only works right if point is at BOL."
+  ;; (cl-assert (bolp))
   (let ((pos
          (if (and nlinum--line-number-cache
                   (> (- (point) (point-min))
@@ -215,11 +275,17 @@ Used by the default `nlinum-format-function'."
 
 (defvar nlinum-format-function
   (lambda (line width)
-    (let ((str (format nlinum-format line)))
+    (let* ((is-current-line (= line nlinum--current-line))
+           (str (format nlinum-format line)))
       (when (< (length str) width)
         ;; Left pad to try and right-align the line-numbers.
         (setq str (concat (make-string (- width (length str)) ?\ ) str)))
-      (put-text-property 0 width 'face 'linum str)
+      (put-text-property 0 width 'face
+                         (if (and nlinum-highlight-current-line
+                                  is-current-line)
+                             'nlinum-current-line
+                           'linum)
+                         str)
       str))
   "Function to build the string representing the line number.
 Takes 2 arguments LINE and WIDTH, both of them numbers, and should return
