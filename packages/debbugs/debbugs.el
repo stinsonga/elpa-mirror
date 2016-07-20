@@ -933,9 +933,4 @@ current buffer."
 
 ;;; TODO:
 
-;; * SOAP interface extensions (wishlist).
-;;   - Server-side sorting.
-;;   - Regexp and/or wildcards search.
-;;   - Returning message attachments.
-
 ;;; debbugs.el ends here

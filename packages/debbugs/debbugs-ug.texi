@@ -492,7 +492,8 @@ of comma-separated bug numbers.
 @item close
 "close 12345 25.1"
 
-The second argument, the Emacs version, is read interactively.
+The second argument, the Emacs version, is read interactively if the
+bugs belongs to the @code{"emacs"} package.
 
 @item confirmed
 @itemx fixed
@@ -516,13 +517,14 @@ The second argument, the Emacs version, is read interactively.
 "close 12345 25.1"
 
 The second argument in the close message, the Emacs version, is read
-interactively.
+interactively if the bugs belongs to the @code{"emacs"} package.
 
 @item forcemerge
 @itemx merge
 "forcemerge|merge 12345 54321"
 
-The second bug number is read interactively.
+The second bug number is read interactively.  It could be also a list
+of comma-separated bug numbers.
 
 @item invalid
 "tags 12345 notabug" @*
@@ -570,7 +572,10 @@ address.  The tag to be set is also read interactively.
 @end table
 
 How the control messages are sent is controlled by the
-@code{debbugs-gnu-send-mail-function} variable.
+@code{debbugs-gnu-send-mail-function} variable.  If it is @code{nil}
+(the default value), the value of @code{send-mail-function} is used.
+This could be inconvenient, for example when an external interactive
+mail client is configured.
 
 
 @node Minor Mode
