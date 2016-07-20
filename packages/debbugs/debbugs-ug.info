@@ -429,7 +429,8 @@ The strings show the exact format of the control messages.
 'close'
      "close 12345 25.1"
 
-     The second argument, the Emacs version, is read interactively.
+     The second argument, the Emacs version, is read interactively if
+     the bugs belongs to the '"emacs"' package.
 
 'confirmed'
 'fixed'
@@ -453,13 +454,14 @@ The strings show the exact format of the control messages.
      "close 12345 25.1"
 
      The second argument in the close message, the Emacs version, is
-     read interactively.
+     read interactively if the bugs belongs to the '"emacs"' package.
 
 'forcemerge'
 'merge'
      "forcemerge|merge 12345 54321"
 
-     The second bug number is read interactively.
+     The second bug number is read interactively.  It could be also a
+     list of comma-separated bug numbers.
 
 'invalid'
      "tags 12345 notabug"
@@ -504,6 +506,12 @@ The strings show the exact format of the control messages.
 
      The username, read interactively, is either a package name or an
      email address.  The tag to be set is also read interactively.
+
+   How the control messages are sent is controlled by the
+'debbugs-gnu-send-mail-function' variable.  If it is 'nil' (the
+default value), the value of 'send-mail-function' is used.  This could
+be inconvenient, for example when an external interactive mail client
+is configured.
 
 
 File: debbugs-ug.info,  Node: Minor Mode,  Next: Command Index,  Prev: Layout,  Up: Top
@@ -605,9 +613,9 @@ Node: Layout10687
 Node: Tabulated Lists11162
 Node: TODO Items14520
 Node: Control Messages15567
-Node: Minor Mode17963
-Node: Command Index18902
-Node: Variable Index19691
-Node: Key Index20410
+Node: Minor Mode18399
+Node: Command Index19338
+Node: Variable Index20127
+Node: Key Index20846
 
 End Tag Table

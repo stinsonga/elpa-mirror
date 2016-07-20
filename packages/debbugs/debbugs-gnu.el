@@ -205,13 +205,15 @@
 (defcustom debbugs-gnu-send-mail-function nil
   "A function to send control messages from debbugs.
 If nil, the value of `send-mail-function' is used instead."
-  :type '(radio (function-item message-send-mail-with-sendmail)
+  :type '(radio (const :tag "Use `send-mail-function'" nil)
+		(function-item message-send-mail-with-sendmail)
 		(function-item message-smtpmail-send-it)
+		(function-item mailclient-send-it)
 		(function-item smtpmail-send-it)
 		(function-item feedmail-send-it)
-		(function-item message-send-mail-with-mailclient
-			       :tag "Use Mailclient package")
- 		(function :tag "Other"))
+		(function-item :tag "Use Mailclient package"
+			       message-send-mail-with-mailclient)
+ 		(function :tag "Other function"))
   :version "25.1")
 
 (defcustom debbugs-gnu-suppress-closed t
@@ -276,8 +278,8 @@ suppressed bugs is toggled by `debbugs-gnu-toggle-suppress'."
 If this is `gnus', the default, use Gnus.
 If this is `rmail', use Rmail instead."
   :group 'debbugs-gnu
-  :type '(choice (const :tag "Use Gnus" 'gnus)
-		 (const :tag "Use Rmail" 'rmail))
+  :type '(radio (function-item :tag "Use Gnus" gnus)
+		(function-item :tag "Use Rmail" rmail))
   :version "25.1")
 
 (defface debbugs-gnu-archived '((t (:inverse-video t)))
@@ -337,9 +339,9 @@ The specification which bugs shall be suppressed is taken from
 (defcustom debbugs-gnu-emacs-current-release "25.1"
   "The current Emacs relase developped for."
   :group 'debbugs-gnu
-  :type '(set (const "24.5")
-	      (const "25.1")
-	      (const "25.2"))
+  :type '(choice (const "24.5")
+		 (const "25.1")
+		 (const "25.2"))
   :version "25.1")
 
 (defconst debbugs-gnu-blocking-reports
@@ -1849,8 +1851,5 @@ If given a prefix, patch in the branch directory instead."
 (provide 'debbugs-gnu)
 
 ;;; TODO:
-
-;; * Another random thought - is it possible to implement some local
-;;   cache, so only changed bugs are fetched?  Glenn Morris.
 
 ;;; debbugs-gnu.el ends here
