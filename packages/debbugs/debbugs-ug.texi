@@ -569,6 +569,9 @@ The username, read interactively, is either a package name or an email
 address.  The tag to be set is also read interactively.
 @end table
 
+How the control messages are sent is controlled by the
+@code{debbugs-gnu-send-mail-function} variable.
+
 
 @node Minor Mode
 @chapter Minor Mode
