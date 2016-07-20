@@ -1696,11 +1696,12 @@ If given a prefix, patch in the branch directory instead."
 (defun debbugs-gnu-insert-changelog ()
   "Add a ChangeLog from a recently applied patch from a third party."
   (interactive)
-  (let (from subject patch-subject changelog)
+  (let (from subject patch-subject changelog
+	     patch-from)
     (gnus-with-article-buffer
       (widen)
       (goto-char (point-min))
-      (setq from (mail-extract-address-components (gnus-fetch-field "from"))
+      (setq from (gnus-fetch-field "from")
 	    subject (gnus-fetch-field "subject"))
       ;; If it's a patch formatted the right way, extract that data.
       (dolist (handle (mapcar 'cdr (gnus-article-mime-handles)))
@@ -1714,6 +1715,8 @@ If given a prefix, patch in the branch directory instead."
 		   (quoted-printable-decode-region (point-min) (point-max))))
 	    (setq patch-subject
 		  (or (gnus-fetch-field "subject") patch-subject))
+	    (setq patch-from
+		  (or (gnus-fetch-field "from") patch-from))
 	    (goto-char (point-min))
 	    (when (re-search-forward "^[*] " nil t)
 	      (let ((start (match-beginning 0)))
@@ -1722,6 +1725,7 @@ If given a prefix, patch in the branch directory instead."
 		  (forward-line 1))
 		(setq changelog (buffer-substring
 				 start (line-end-position 0)))))))))
+    (setq from (mail-extract-address-components (or patch-from from)))
     (let ((add-log-full-name (car from))
 	  (add-log-mailing-address (cadr from)))
       (add-change-log-entry-other-window)
