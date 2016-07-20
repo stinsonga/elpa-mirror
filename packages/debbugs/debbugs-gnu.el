@@ -202,6 +202,18 @@
 	      (const "tagged"))
   :version "24.1")
 
+(defcustom debbugs-gnu-send-mail-function nil
+  "A function to send control messages from debbugs.
+If nil, the value of `send-mail-function' is used instead."
+  :type '(radio (function-item message-send-mail-with-sendmail)
+		(function-item message-smtpmail-send-it)
+		(function-item smtpmail-send-it)
+		(function-item feedmail-send-it)
+		(function-item message-send-mail-with-mailclient
+			       :tag "Use Mailclient package")
+ 		(function :tag "Other"))
+  :version "25.1")
+
 (defcustom debbugs-gnu-suppress-closed t
   "If non-nil, don't show closed bugs."
   :group 'debbugs-gnu
@@ -1320,9 +1332,6 @@ MERGED is the list of bugs merged with this one."
 	   (goto-char (point-min))
 	   (re-search-forward "#\\([0-9]+\\)" nil t)))
      (string-to-number (match-string 1)))))
-
-(defvar debbugs-gnu-send-mail-function nil
-  "A function to send control messages from debbugs.")
 
 (defvar debbugs-gnu-completion-table
   (completion-table-dynamic
