@@ -1,6 +1,6 @@
 ;;; sm-c-mode.el --- Experimental C major mode based on SMIE  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2015  Free Software Foundation, Inc.
+;; Copyright (C) 2015, 2016  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Version: 0
@@ -266,6 +266,8 @@ E.g. a #define nested within 2 #ifs will be turned into \"#  define\"."
     (modify-syntax-entry ?\" "\"" st)
     (modify-syntax-entry ?\' "\"" st)
     (modify-syntax-entry ?= "." st)
+    (modify-syntax-entry ?+ "." st)
+    (modify-syntax-entry ?- "." st)
     (modify-syntax-entry ?< "." st)
     (modify-syntax-entry ?> "." st)
     st))
@@ -812,7 +814,7 @@ if INNER is non-nil, it stops at the innermost one."
 ;;; Font-lock support
 
 (defconst sm-c--comment-regexp
-  "/\\(?:/.*\n\\|\\*\\(?:[^*]+\\(?:\\*+[^/*]\\)*\\)*\\*/\\)")
+  "/\\(?:/.*\n\\|\\*[^*]*\\(?:\\*+[^/*][^*]*\\)*\\*+/\\)")
 
 (defconst sm-c--defun-regexp
   (let* ((spc0 (concat "\\(?:\n?[ \t]\\|" sm-c--comment-regexp "\\)*"))
@@ -825,9 +827,9 @@ if INNER is non-nil, it stops at the innermost one."
                                 (1 "")))))
       (concat
        "^\\(?:"
-       (repeat '* "\\*" spc0)
-       (repeat '* id (repeat 1 spc1 "\\|" spc0 "\\*" spc0))
-       "\\(" id "\\)[ \t\n]*("
+       (repeat '* "\\*" spc0)                               ;Pointer symbols.
+       (repeat '* id (repeat 1 spc1 "\\|" spc0 "\\*" spc0)) ;Type(s).
+       "\\(" id "\\)[ \t\n]*("                              ;Function name.
        "\\|"
        "[ \t]*#[ \t]*define[ \t]+\\(?1:" id "\\)("
        "\\)"))))
