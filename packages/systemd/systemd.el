@@ -74,8 +74,8 @@ on the remote host.  When not specified, the remote system bus is used."
 	   "unix:path=/run/dbus/system_bus_socket")
 	  (`:session
 	   (with-temp-buffer
-	     (let ((default-directory (concat "/scpx:" host ":/")))
-	       (shell-command "[ -e $XDG_RUNTIME_DIR/bus ] && echo -n $XDG_RUNTIME_DIR/bus" t)
+	     (let ((default-directory (concat "/scpx:" host ":")))
+	       (process-file "/bin/sh" nil t nil "-c" "[ -e $XDG_RUNTIME_DIR/bus ] && echo -n $XDG_RUNTIME_DIR/bus")
 	       (when (not (zerop (buffer-size)))
 		 (buffer-string)))))
 	  (_ bus)))
