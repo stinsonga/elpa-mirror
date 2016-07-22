@@ -61,15 +61,32 @@
 	   (string (string-to-number (match-string 1 string) 16)) t t string)))
   string)
 
-(defun systemd-remote-bus (host &optional address)
-  (unless address
-    (setq address "unix:path=/run/dbus/system_bus_socket"))
+(defun systemd-remote-bus (host &optional bus)
+  "Construct a D-Bus bus address suitable for connecting to a remote D-Bus
+instance (via ssh) running on HOST.  Optional argument BUS specifies
+the D-Bus instance to connect to on the remote host.  The keywords
+:system and :session indicate to connect to the remote system or session
+bus, respectively.  If a string is given, that particular D-Bus address is used
+on the remote host.  When not specified, the remote system bus is used."
+  (setq bus
+	(pcase bus
+	  ((or `nil `:system)
+	   "unix:path=/run/dbus/system_bus_socket")
+	  (`:session
+	   (with-temp-buffer
+	     (let ((default-directory (concat "/scpx:" host ":/")))
+	       (shell-command "[ -e $XDG_RUNTIME_DIR/bus ] && echo -n $XDG_RUNTIME_DIR/bus" t)
+	       (when (not (zerop (buffer-size)))
+		 (buffer-string)))))
+	  (_ bus)))
+  (unless bus
+    (error "Unable to determine remote session bus address."))
   (concat "unixexec:"
           "path=ssh"
           ",argv1=-xT"
           ",argv2=" (systemd-escape-dbus-address host)
           ",argv3=systemd-stdio-bridge"
-          ",argv4=" (systemd-escape-dbus-address (concat "--bus-path=" address))))
+          ",argv4=" (systemd-escape-dbus-address (concat "--bus-path=" bus))))
 
 (defconst systemd-dbus-service "org.freedesktop.systemd1")
 (defconst systemd-dbus-path "/org/freedesktop/systemd1")
