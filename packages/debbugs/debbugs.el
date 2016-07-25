@@ -606,8 +606,8 @@ The following conditions are possible:
   :subject, :@title -- The subject of a message or the title of
   the bug, a string.
 
-  :date, :@cdate -- The submission or modification dates of a
-  message, a number.
+  :date, :@cdate -- The submission date of the bug or the
+  modification date of a message, a number.
 
   :@author -- The email address of the author of a message
   belonging to this bug, a string.  It may be different than

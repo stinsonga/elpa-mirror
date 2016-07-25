@@ -51,7 +51,7 @@ Org Mode: (org)Top.).  As backend they use the 'debbugs' Emacs library
 
 * Retrieving Bugs::             How to retrieve bugs.
 * Searching Bugs::              How to search in the debbugs database.
-* Layout::                      How the results are presented.
+* Presenting Bugs::             How the results are presented.
 * Minor Mode::                  How to use browse bug URLs.
 
 * Command Index::               Debbugs commands.
@@ -125,7 +125,7 @@ prefix.
      customer options 'debbugs-gnu-default-severities' and
      'debbugs-gnu-default-packages'.
 
-     *note Layout:: for the presentation of the results.
+     *note Presenting Bugs:: for the presentation of the results.
 
  -- Command: debbugs-gnu-bugs &rest bugs
  -- Command: debbugs-org-bugs &rest bugs
@@ -134,21 +134,23 @@ prefix.
      specified by their bug number.  Interactively, the bug numbers
      must be entered as comma-separated list.
 
-     *note Layout:: for the presentation of the results.
+     *note Presenting Bugs:: for the presentation of the results.
 
  -- Command: debbugs-gnu-patches
  -- Command: debbugs-org-patches
 
      The commands 'debbugs-gnu-patches' and 'debbugs-org-patches' show
-     all bugs tagged with '"patch"'.  This is useful for bug triages.
+     all unarchived bugs of the packages declared in
+     'debbugs-gnu-default-packages', and tagged with '"patch"'.  This
+     is useful for bug triages.
 
-     *note Layout:: for the presentation of the results.
+     *note Presenting Bugs:: for the presentation of the results.
 
 
-File: debbugs-ug.info,  Node: Searching Bugs,  Next: Layout,  Prev: Retrieving Bugs,  Up: Top
+File: debbugs-ug.info,  Node: Searching Bugs,  Next: Presenting Bugs,  Prev: Retrieving Bugs,  Up: Top
 
-2 Searching in the Debbugs Database.
-************************************
+2 Searching in the Debbugs Database
+***********************************
 
 The GNU Debbugs server allows text search in the database in the
 messages submitted to the bugs.  It uses a HyperEstraier based search
@@ -271,10 +273,10 @@ Debbugs server only.
 are not supported.
 
 
-File: debbugs-ug.info,  Node: Layout,  Next: Minor Mode,  Prev: Searching Bugs,  Up: Top
+File: debbugs-ug.info,  Node: Presenting Bugs,  Next: Minor Mode,  Prev: Searching Bugs,  Up: Top
 
-3 Layout
-********
+3 Presenting Bugs
+*****************
 
 The commands described in the previous chapters generate (a) report
 buffer(s) applicable for navigation.  'debbugs-gnu-*' return a
@@ -286,9 +288,10 @@ tabulated list, and 'debbugs-org-*' return a list of TODO items in
 * Tabulated Lists::             Tabulated Lists.
 * TODO Items::                  TODO Items.
 * Control Messages::            Control Messages.
+* Applying Patches::            Applying Patches in the Emacs Repository.
 
 
-File: debbugs-ug.info,  Node: Tabulated Lists,  Next: TODO Items,  Up: Layout
+File: debbugs-ug.info,  Node: Tabulated Lists,  Next: TODO Items,  Up: Presenting Bugs
 
 3.1 Tabulated Lists
 ===================
@@ -325,11 +328,16 @@ This enables the following key strokes:
                
 '/'            'debbugs-gnu-narrow-to-status'
                Narrow the list of bugs to the bugs that match the
-               given regex in 'State', 'Submitter' or 'Title'.
+               given regex in 'State', 'Submitter' or 'Title'.  With
+               a prefix argument 'C-u', the list of bugs is narrowed
+               to a match in 'State' only.
                
 'R'            'debbugs-gnu-show-all-blocking-reports'
                Narrow the list of bug reports to the ones that are
-               blocking the current release.
+               blocking the current Emacs release, as specified in
+               'debbugs-gnu-emacs-current-release'.  With a prefix
+               argument 'C-u', the current Emacs release is read from
+               the minibuffer.
                
 'w'            'debbugs-gnu-widen'
                Restore the full list again after narrowing.
@@ -368,7 +376,7 @@ GNUS ephemeral group for that bug will be shown; if its value is
 'rmail', the command will present an Rmail folder instead.
 
 
-File: debbugs-ug.info,  Node: TODO Items,  Next: Control Messages,  Prev: Tabulated Lists,  Up: Layout
+File: debbugs-ug.info,  Node: TODO Items,  Next: Control Messages,  Prev: Tabulated Lists,  Up: Presenting Bugs
 
 3.2 TODO Items
 ==============
@@ -400,7 +408,7 @@ This enables the following key strokes:
 'Messages' which opens a GNUS ephemeral group for that bug.
 
 
-File: debbugs-ug.info,  Node: Control Messages,  Prev: TODO Items,  Up: Layout
+File: debbugs-ug.info,  Node: Control Messages,  Next: Applying Patches,  Prev: TODO Items,  Up: Presenting Bugs
 
 3.3 Control Messages
 ====================
@@ -514,7 +522,36 @@ be inconvenient, for example when an external interactive mail client
 is configured.
 
 
-File: debbugs-ug.info,  Node: Minor Mode,  Next: Command Index,  Prev: Layout,  Up: Top
+File: debbugs-ug.info,  Node: Applying Patches,  Prev: Control Messages,  Up: Presenting Bugs
+
+3.4 Applying Patches in the Emacs Repository
+============================================
+
+Several bugs carry a proposed patch in one of their messages.
+Usually, those bugs are marked with the with '"patch"' tag.  *note
+Retrieving Bugs:: how to show such bugs.
+
+   If a GNUS ephemeral group for such a bug is opened, it is possible
+to apply the patch directly to the Emacs repository.  Move the cursor
+to the message containing a patch, and hit 'M-m'.  It determines
+whether one or several patches are in the MIME attachments or just
+included in the message, applies them, runs 'make -k' in the 'lisp'
+subdirectory, and shows a '*vc-dir*' buffer of the Emacs repository
+with the changed file(s).
+
+   The Emacs repository is determined via the variables
+'debbugs-gnu-trunk-directory' or 'debbugs-gnu-branch-directory'.  The
+latter one is used, when the patch is applied with the prefixed
+command 'C-u M-m'.  If the predefined directory does not point to an
+existing path, it is read from the minibuffer.
+
+   A further 'M-m' in the corresponding '*vc-diff*' buffer opens the
+modified file.  Here you can apply 'M-m' the next time.  This creates
+a ChangeLog entry with all needed information.  A final 'M-m' in the
+'ChangeLog' buffer commits the patch via '*vc-log*'.
+
+
+File: debbugs-ug.info,  Node: Minor Mode,  Next: Command Index,  Prev: Presenting Bugs,  Up: Top
 
 4 Minor Mode
 ************
@@ -564,14 +601,18 @@ Variable Index
  [index ]
 * Menu:
 
-* debbugs-browse-function:               Minor Mode.         (line 12)
-* debbugs-gnu-all-packages:              Retrieving Bugs.    (line 36)
-* debbugs-gnu-all-severities:            Retrieving Bugs.    (line 27)
-* debbugs-gnu-default-packages:          Retrieving Bugs.    (line 63)
-* debbugs-gnu-default-severities:        Retrieving Bugs.    (line 63)
-* debbugs-gnu-default-suppress-bugs:     Retrieving Bugs.    (line 44)
-* debbugs-gnu-mail-backend:              Tabulated Lists.    (line 74)
-* debbugs-gnu-suppress-closed:           Tabulated Lists.    (line 71)
+* debbugs-browse-function:               Minor Mode.        (line  12)
+* debbugs-gnu-all-packages:              Retrieving Bugs.   (line  36)
+* debbugs-gnu-all-severities:            Retrieving Bugs.   (line  27)
+* debbugs-gnu-branch-directory:          Applying Patches.  (line  18)
+* debbugs-gnu-default-packages:          Retrieving Bugs.   (line  63)
+* debbugs-gnu-default-severities:        Retrieving Bugs.   (line  63)
+* debbugs-gnu-default-suppress-bugs:     Retrieving Bugs.   (line  44)
+* debbugs-gnu-mail-backend:              Tabulated Lists.   (line  79)
+* debbugs-gnu-send-mail-function:        Control Messages.  (line 108)
+* debbugs-gnu-suppress-closed:           Tabulated Lists.   (line  76)
+* debbugs-gnu-trunk-directory:           Applying Patches.  (line  18)
+* debbugs-org-severity-priority:         TODO Items.        (line  10)
 
 
 File: debbugs-ug.info,  Node: Key Index,  Prev: Variable Index,  Up: Top
@@ -583,39 +624,42 @@ Key Index
 * Menu:
 
 * /:                                     Tabulated Lists.    (line 36)
-* B:                                     Tabulated Lists.    (line 52)
-* b:                                     Tabulated Lists.    (line 53)
-* C:                                     Tabulated Lists.    (line 66)
+* B:                                     Tabulated Lists.    (line 57)
+* b:                                     Tabulated Lists.    (line 58)
+* C:                                     Tabulated Lists.    (line 71)
 * C-c # C:                               TODO Items.         (line 25)
 * C-c # d:                               TODO Items.         (line 19)
 * C-c # t:                               TODO Items.         (line 22)
 * d:                                     Tabulated Lists.    (line 33)
-* g:                                     Tabulated Lists.    (line 47)
+* g:                                     Tabulated Lists.    (line 52)
+* M-m:                                   Applying Patches.   (line 10)
 * <mouse-1>:                             Tabulated Lists.    (line 30)
 * <mouse-2>:                             Tabulated Lists.    (line 31)
-* R:                                     Tabulated Lists.    (line 40)
+* R:                                     Tabulated Lists.    (line 42)
 * <RET>:                                 Tabulated Lists.    (line 29)
-* s:                                     Tabulated Lists.    (line 57)
-* t:                                     Tabulated Lists.    (line 60)
+* <RET> <1>:                             Tabulated Lists.    (line 79)
+* s:                                     Tabulated Lists.    (line 62)
+* t:                                     Tabulated Lists.    (line 65)
 * <TAB>:                                 TODO Items.         (line 16)
-* w:                                     Tabulated Lists.    (line 44)
-* x:                                     Tabulated Lists.    (line 63)
+* w:                                     Tabulated Lists.    (line 49)
+* x:                                     Tabulated Lists.    (line 68)
 
 
 
 Tag Table:
 Node: Top1097
 Node: Retrieving Bugs2635
-Node: Searching Bugs6362
-Ref: Searching Bugs-Footnote-110508
-Ref: Searching Bugs-Footnote-210596
-Node: Layout10687
-Node: Tabulated Lists11162
-Node: TODO Items14520
-Node: Control Messages15567
-Node: Minor Mode18399
-Node: Command Index19338
-Node: Variable Index20127
-Node: Key Index20846
+Node: Searching Bugs6474
+Ref: Searching Bugs-Footnote-110627
+Ref: Searching Bugs-Footnote-210715
+Node: Presenting Bugs10806
+Node: Tabulated Lists11382
+Node: TODO Items15057
+Node: Control Messages16113
+Node: Applying Patches18979
+Node: Minor Mode20342
+Node: Command Index21290
+Node: Variable Index22079
+Node: Key Index23082
 
 End Tag Table

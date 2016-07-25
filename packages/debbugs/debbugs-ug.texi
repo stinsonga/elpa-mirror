@@ -62,7 +62,7 @@ Programmer's Manual, debbugs}).
 @menu
 * Retrieving Bugs::             How to retrieve bugs.
 * Searching Bugs::              How to search in the debbugs database.
-* Layout::                      How the results are presented.
+* Presenting Bugs::             How the results are presented.
 * Minor Mode::                  How to use browse bug URLs.
 
 * Command Index::               Debbugs commands.
@@ -139,7 +139,7 @@ Default values for interactive use could be configured in the customer
 options @code{debbugs-gnu-default-severities} and
 @code{debbugs-gnu-default-packages}.
 
-@ref{Layout} for the presentation of the results.
+@ref{Presenting Bugs} for the presentation of the results.
 
 @end deffn
 
@@ -151,7 +151,7 @@ The commands @code{debbugs-gnu-bugs} and @code{debbugs-org-bugs} show
 bugs specified by their bug number.  Interactively, the bug numbers
 must be entered as comma-separated list.
 
-@ref{Layout} for the presentation of the results.
+@ref{Presenting Bugs} for the presentation of the results.
 
 @end deffn
 
@@ -159,16 +159,18 @@ must be entered as comma-separated list.
 @deffn  {Command} debbugs-gnu-patches
 @deffnx {Command} debbugs-org-patches
 
-The commands @code{debbugs-gnu-patches} and @code{debbugs-org-patches} show
-all bugs tagged with @code{"patch"}.  This is useful for bug triages.
+The commands @code{debbugs-gnu-patches} and @code{debbugs-org-patches}
+show all unarchived bugs of the packages declared in
+@code{debbugs-gnu-default-packages}, and tagged with @code{"patch"}.
+This is useful for bug triages.
 
-@ref{Layout} for the presentation of the results.
+@ref{Presenting Bugs} for the presentation of the results.
 
 @end deffn
 
 
 @node Searching Bugs
-@chapter Searching in the Debbugs Database.
+@chapter Searching in the Debbugs Database
 
 The GNU Debbugs server allows text search in the database in the
 messages submitted to the bugs.  It uses a
@@ -283,8 +285,8 @@ applied only after all bugs have been downloaded.
 @end deffn
 
 
-@node Layout
-@chapter Layout
+@node Presenting Bugs
+@chapter Presenting Bugs
 
 The commands described in the previous chapters generate (a) report
 buffer(s) applicable for navigation.  @code{debbugs-gnu-*} return a
@@ -295,6 +297,7 @@ in @code{org-mode}.
 * Tabulated Lists::             Tabulated Lists.
 * TODO Items::                  TODO Items.
 * Control Messages::            Control Messages.
+* Applying Patches::            Applying Patches in the Emacs Repository.
 @end menu
 
 
@@ -348,14 +351,18 @@ Show all bug attributes.
 @kbd{/} @tab
 @code{debbugs-gnu-narrow-to-status} @*
 Narrow the list of bugs to the bugs that match the given regex in
-@code{State}, @code{Submitter} or @code{Title}.
+@code{State}, @code{Submitter} or @code{Title}.  With a prefix
+argument @kbd{C-u}, the list of bugs is narrowed to a match in
+@code{State} only.
 
 @item
 @kindex @kbd{R}
 @kbd{R} @tab
 @code{debbugs-gnu-show-all-blocking-reports} @*
 Narrow the list of bug reports to the ones that are blocking the
-current release.
+current Emacs release, as specified in
+`debbugs-gnu-emacs-current-release'.  With a prefix argument
+@kbd{C-u}, the current Emacs release is read from the minibuffer.
 
 @item
 @kindex @kbd{w}
@@ -411,6 +418,7 @@ The user option @code{debbugs-gnu-suppress-closed} controls, whether
 closed bugs are shown in the initial list.
 
 @vindex debbugs-gnu-mail-backend
+@kindex @kbd{@key{RET}}
 The user option @code{debbugs-gnu-mail-backend} controls the
 presentation of email messages produced by typing @kbd{@key{RET}} or
 by clicking the mouse on a bug: if its value is @code{gnus}, the
@@ -426,6 +434,7 @@ TODO items are offered as usual in @code{org-mode}.  The bug
 attributes are mapped onto properties of these items.  They can be
 shown by the usual navigation in @code{org-mode}.
 
+@vindex debbugs-org-severity-priority
 Bug severities are mapped onto org severities, see
 @code{debbugs-org-severity-priority}.
 
@@ -571,11 +580,44 @@ The username, read interactively, is either a package name or an email
 address.  The tag to be set is also read interactively.
 @end table
 
+@vindex debbugs-gnu-send-mail-function
 How the control messages are sent is controlled by the
 @code{debbugs-gnu-send-mail-function} variable.  If it is @code{nil}
 (the default value), the value of @code{send-mail-function} is used.
 This could be inconvenient, for example when an external interactive
 mail client is configured.
+
+
+@node Applying Patches
+@section Applying Patches in the Emacs Repository
+
+Several bugs carry a proposed patch in one of their messages.
+Usually, those bugs are marked with the with @code{"patch"} tag.
+@ref{Retrieving Bugs} how to show such bugs.
+
+@kindex @kbd{M-m}
+If a GNUS ephemeral group for such a bug is opened, it is possible to
+apply the patch directly to the Emacs repository.  Move the cursor to
+the message containing a patch, and hit @kbd{M-m}.  It determines
+whether one or several patches are in the MIME attachments or just
+included in the message, applies them, runs @command{make -k} in the
+@file{lisp} subdirectory, and shows a @samp{*vc-dir*} buffer of the
+Emacs repository with the changed file(s).
+
+@vindex debbugs-gnu-trunk-directory
+@vindex debbugs-gnu-branch-directory
+The Emacs repository is determined via the variables
+@code{debbugs-gnu-trunk-directory} or
+@code{debbugs-gnu-branch-directory}.  The latter one is used, when the
+patch is applied with the prefixed command @kbd{C-u M-m}.  If the
+predefined directory does not point to an existing path, it is read
+from the minibuffer.
+
+A further @kbd{M-m} in the corresponding @samp{*vc-diff*} buffer opens
+the modified file.  Here you can apply @kbd{M-m} the next time.  This
+creates a ChangeLog entry with all needed information.  A final
+@kbd{M-m} in the @samp{ChangeLog} buffer commits the patch via
+@samp{*vc-log*}.
 
 
 @node Minor Mode

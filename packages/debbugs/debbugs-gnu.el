@@ -336,7 +336,7 @@ a date, value is the cons cell \(BEFORE . AFTER\).")
 The specification which bugs shall be suppressed is taken from
   `debbugs-gnu-default-suppress-bugs'.")
 
-(defcustom debbugs-gnu-emacs-current-release "25.1"
+(defcustom debbugs-gnu-emacs-current-release "25.2"
   "The current Emacs relase developped for."
   :group 'debbugs-gnu
   :type '(choice (const "24.5")
@@ -344,7 +344,7 @@ The specification which bugs shall be suppressed is taken from
 		 (const "25.2"))
   :version "25.1")
 
-(defconst debbugs-gnu-blocking-reports
+(defconst debbugs-gnu-emacs-blocking-reports
   '(("24.5" . 19758)
     ("25.1" . 19759)
     ("25.2" . 21966))
@@ -1091,19 +1091,24 @@ The following commands are available:
 	(message "Bug %d is not blocking any other bug" id)
       (apply 'debbugs-gnu-bugs (cdr (assq 'blocks status))))))
 
-(defun debbugs-gnu-show-all-blocking-reports ()
-  "Narrow the display to just the reports that are blocking a release."
-  (interactive)
+(defun debbugs-gnu-show-all-blocking-reports (&optional release)
+  "Narrow the display to just the reports that are blocking an Emacs release."
+  (interactive
+   (list
+    (if current-prefix-arg
+	(completing-read
+	 "Emacs release: "
+	 (mapcar 'identity debbugs-gnu-emacs-blocking-reports)
+	 nil t debbugs-gnu-emacs-current-release)
+      debbugs-gnu-emacs-current-release)))
+
   (let ((blockers
 	 (cdr
 	  (assq
 	   'blockedby
 	   (car
 	    (debbugs-get-status
-	     (cdr
-	      (assoc
-	       debbugs-gnu-emacs-current-release
-	       debbugs-gnu-blocking-reports)))))))
+	     (cdr (assoc release debbugs-gnu-emacs-blocking-reports)))))))
 	(id (debbugs-gnu-current-id t))
 	(inhibit-read-only t)
 	status)
@@ -1582,6 +1587,9 @@ The following commands are available:
 (defvar debbugs-gnu-branch-directory "~/src/emacs/emacs-25/"
   "The directory where the previous source tree lives.")
 
+(defvar debbugs-gnu-current-directory nil
+  "The current source tree directory.")
+
 (defun debbugs-gnu-apply-patch (&optional branch)
   "Apply the patch from the current message.
 If given a prefix, patch in the branch directory instead."
@@ -1589,22 +1597,29 @@ If given a prefix, patch in the branch directory instead."
   (add-hook 'emacs-lisp-mode-hook 'debbugs-gnu-lisp-mode)
   (add-hook 'diff-mode-hook 'debbugs-gnu-diff-mode)
   (add-hook 'change-log-mode-hook 'debbugs-gnu-change-mode)
-  (let ((rej "/tmp/debbugs-gnu.rej")
+  (let ((rej (expand-file-name "debbugs-gnu.rej" temporary-file-directory))
 	(output-buffer (get-buffer-create "*debbugs patch*"))
-	(dir (if branch
-		 debbugs-gnu-branch-directory
-	       debbugs-gnu-trunk-directory))
 	(patch-buffers nil))
     (when (file-exists-p rej)
       (delete-file rej))
     (with-current-buffer output-buffer
       (erase-buffer))
+    (setq debbugs-gnu-current-directory
+	  (if branch
+	      debbugs-gnu-branch-directory
+	    debbugs-gnu-trunk-directory))
+    (unless (file-directory-p debbugs-gnu-current-directory)
+      (setq debbugs-gnu-current-directory
+	    (read-file-name
+	     "Emacs repository location: "
+	     debbugs-gnu-current-directory nil t nil 'file-directory-p)))
     (gnus-summary-select-article nil t)
     ;; The patches are either in MIME attachements or the main article
     ;; buffer.  Determine which.
     (gnus-with-article-buffer
       (dolist (handle (mapcar 'cdr (gnus-article-mime-handles)))
-	(when (string-match "diff\\|patch\\|plain" (mm-handle-media-type handle))
+	(when
+	    (string-match "diff\\|patch\\|plain" (mm-handle-media-type handle))
 	  (push (cons (mm-handle-encoding handle)
 		      (mm-handle-buffer handle))
 		patch-buffers))))
@@ -1619,12 +1634,13 @@ If given a prefix, patch in the branch directory instead."
 	       (base64-decode-region (point-min) (point-max)))
 	      ((eq (car elem) 'quoted-printable)
 	       (quoted-printable-decode-region (point-min) (point-max))))
-	(debbugs-gnu-fix-patch dir)
+	(debbugs-gnu-fix-patch debbugs-gnu-current-directory)
 	(call-process-region (point-min) (point-max)
 			     "patch" nil output-buffer nil
 			     "-r" rej "--no-backup-if-mismatch"
 			     "-l" "-f"
-			     "-d" (expand-file-name dir)
+			     "-d" (expand-file-name
+				   debbugs-gnu-current-directory)
 			     "-p1")))
     (set-buffer output-buffer)
     (when (file-exists-p rej)
@@ -1634,8 +1650,10 @@ If given a prefix, patch in the branch directory instead."
     (save-some-buffers t)
     (require 'compile)
     (mapc 'kill-process compilation-in-progress)
-    (compile (format "cd %s; make -k" (expand-file-name "lisp" dir)))
-    (vc-dir dir)
+    (compile
+     (format
+      "cd %s; make -k" (expand-file-name "lisp" debbugs-gnu-current-directory)))
+    (vc-dir debbugs-gnu-current-directory)
     (vc-dir-hide-up-to-date)
     (goto-char (point-min))
     (sit-for 1)
@@ -1691,7 +1709,7 @@ If given a prefix, patch in the branch directory instead."
   (let ((found 0)
 	(match (concat "^[0-9].*" string)))
     (dolist (file (directory-files-recursively
-		   debbugs-gnu-trunk-directory "ChangeLog\\(.[0-9]+\\)?$"))
+		   debbugs-gnu-current-directory "ChangeLog\\(.[0-9]+\\)?$"))
       (with-temp-buffer
 	(when (file-exists-p file)
 	  (insert-file-contents file))
@@ -1811,11 +1829,7 @@ If given a prefix, patch in the branch directory instead."
   (when (get-buffer "*vc-dir*")
     (kill-buffer (get-buffer "*vc-dir*")))
   (let ((patch-subject debbugs-gnu-patch-subject))
-    (let ((trunk (expand-file-name debbugs-gnu-trunk-directory)))
-      (if (equal (cl-subseq default-directory 0 (length trunk))
-		 trunk)
-	  (vc-dir debbugs-gnu-trunk-directory)
-	(vc-dir debbugs-gnu-branch-directory)))
+    (vc-dir debbugs-gnu-current-directory)
     (goto-char (point-min))
     (while (not (search-forward "edited" nil t))
       (sit-for 0.01))
@@ -1851,5 +1865,88 @@ If given a prefix, patch in the branch directory instead."
 (provide 'debbugs-gnu)
 
 ;;; TODO:
+
+;; * Extend SOAP interface to get all bugs modified in a given timeframe.
+
+;; * Add debbugs commands to commit messages.
+;;   It'd be nice if the language would be something along the lines of
+;;
+;;   bug#45 done
+;;   bug#45 tags 25.1 fixed
+;;
+;;   That is, that you could drop arbitrary debbugs commands into
+;;   commit messages.
+
+;; * The bug tracker should be aware of repositories, branches,
+;;   commits, contributors, and ticket links or mentions in commit
+;;   messages.
+;;
+;;   For me personally, if I can *see* the specific code that fixes a
+;;   ticket inside the ticket as a commit, and click my way to the
+;;   wider commit and then diff from before that commit against
+;;   today's state of that code, I've built a mental map of the code
+;;   that would otherwise take me a lot of work. That's one common
+;;   workflow. Another is to view several commits that fix a single
+;;   ticket in one place. So it's not revolutionary, just simpler and
+;;   more straightforward for the user.
+;;
+;;   Being able to close a bug just by mentioning it in a certain way
+;;   in the commit message and pushing that commit is also handy. You
+;;   don't have to switch to the bug discussion and duplicate that
+;;   info there manually.
+
+;; * Contributors should be able to tag and notify each other.
+;;
+;;   You mean to (re)assign bugs to particular persons and things like that?
+
+;;   Yes, plus ping someone or a team specifically: "hey, maybe the
+;;   @gnus team should look at this" in a comment.
+
+;; * Markdown should be well supported.
+
+;; * Inline code comments should be easy, and linked to a commit (so
+;;   an updated commit can resolve the comment). This is just the
+;;   essential stuff.
+
+;;   Rebase or amend+force push would update a branch destructively,
+;;   which in a pull request context should show you that a comment
+;;   was for a commit that's no longer in the branch. Furthermore some
+;;   trackers allow you to mark a comment as resolved (e.g. Github
+;;   recently added reactions, which can be used as ad-hoc markup).
+;;
+;;   Even if you don't rebase, but just push a new commit to the
+;;   branch upon review, IIRC both Github and Gitlab can see that the
+;;   changes that started a particular discussion are no longer there
+;;   (and collapse the comment sub-thread a no longer relevant, while
+;;   allowing the user to expand it again if they so wish).
+;;
+;;   I think I'm starting to see what you mean.  You're talking about
+;;   a tight integration where a pull-request is also itself an issue,
+;;   so the comments can be directly on the patch itself.  As opposed
+;;   to having issues and pull-request be two separate things that can
+;;   refer to each other via an indirection.
+;;
+;;   So this is particularly useful/meaningful when reviewing a
+;;   proposed patch from another developer, rather than when
+;;   interacting with an end-user trying to track down some bugs
+;;   here's experiencing (which is the kind of use-case I've had in
+;;   mind when working on BugIt).
+;;
+;;   But indeed, the two use-cases would best be served by the same
+;;   tool since after the bug is tracked a patch might show up to fix
+;;   it, after which a review process will come up.
+;;
+;;   And on the more basic level, compared to flat discussions in
+;;   mailing lists, having separate subthread for each part of the
+;;   patch the reviewer commented on, is great. You can have
+;;   discussion sub-threads in the mailing list too, but people never
+;;   split their emails in pieces that small.
+;;
+;; * The next link in the chain are CI/CD hooks. You can set up a
+;;   Github repo, for instance, to build every pull request before the
+;;   reviewer ever looks, which saves a lot of time with compiled
+;;   languages. It will run tests and so on, but most important is
+;;   that it keeps the context inside the pull request, you don't have
+;;   to go elsewhere.
 
 ;;; debbugs-gnu.el ends here
