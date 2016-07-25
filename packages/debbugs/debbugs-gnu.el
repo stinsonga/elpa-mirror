@@ -153,7 +153,6 @@
 (autoload 'gnus-summary-article-header "gnus-sum")
 (autoload 'gnus-summary-select-article "gnus-sum")
 (autoload 'gnus-summary-show-article "gnus-sum")
-(autoload 'gnus-with-article-buffer "gnus-art")
 (autoload 'log-edit-insert-changelog "log-edit")
 (autoload 'mail-header-subject "nnheader")
 (autoload 'message-goto-body "message")
@@ -1616,7 +1615,7 @@ If given a prefix, patch in the branch directory instead."
     (gnus-summary-select-article nil t)
     ;; The patches are either in MIME attachements or the main article
     ;; buffer.  Determine which.
-    (gnus-with-article-buffer
+    (with-current-buffer gnus-article-buffer
       (dolist (handle (mapcar 'cdr (gnus-article-mime-handles)))
 	(when
 	    (string-match "diff\\|patch\\|plain" (mm-handle-media-type handle))
@@ -1727,7 +1726,7 @@ If given a prefix, patch in the branch directory instead."
   (interactive)
   (let (from subject patch-subject changelog
 	     patch-from)
-    (gnus-with-article-buffer
+    (with-current-buffer gnus-article-buffer
       (widen)
       (goto-char (point-min))
       (setq from (gnus-fetch-field "from")
