@@ -7,7 +7,7 @@
 ;; Keywords: parser
 ;;  indentation
 ;;  navigation
-;; Version: 1.1.2
+;; Version: 1.1.3
 ;; package-requires: ((cl-lib "0.4") (emacs "24.2"))
 ;; URL: http://stephe-leake.org/emacs/ada-mode/emacs-ada-mode.html
 ;;
