@@ -3,7 +3,7 @@
 ;; Copyright 2014-2016  Free Software Foundation, Inc.
 
 ;; Author: David Gonzalez Gandara <dggandara@member.fsf.org>
-;; Version: 1.5.0
+;; Version: 1.5.1
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -285,10 +285,11 @@
            (transcribe-analyze number participant))))))
 
 
-(defun transcribe-xml-tag-person (xmltag)
+(defun transcribe-xml-tag-person (xmltag move)
   "This function allows the automatic insetion of a speaker xml tag and places the cursor."
-  (interactive "stag:")
-  (insert (format "<%s move=\"\"></%s>" xmltag xmltag))
+  (interactive (list(read-string "Person:")(completing-read "move:" transcribe-move-list))) 
+  ;;(interactive "stag:")
+  (insert (format "<%s move=\"%s\"></%s>" xmltag move xmltag))
   (backward-char 3)
   (backward-char (string-width xmltag)))
 
@@ -311,7 +312,7 @@
 
 (defun transcribe-add-attribute (att val)
   "Adds a xml attribute at cursor with the name and value specified (autocompletion possible)"
-  (interactive (list(completing-read "attibute name:" transcribe-attribute-list)(read-string "value:")))
+  (interactive (list(completing-read "attribute name:" transcribe-attribute-list)(read-string "value:")))
   (insert (format "%s=\"%s\"" att val)))
 
 (defun transcribe-add-attribute-function (val)
