@@ -3,7 +3,7 @@
 ;; Copyright 2014-2016  Free Software Foundation, Inc.
 
 ;; Author: David Gonzalez Gandara <dggandara@member.fsf.org>
-;; Version: 1.5.1
+;; Version: 1.5.2
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -286,10 +286,10 @@
 
 
 (defun transcribe-xml-tag-person (xmltag move)
-  "This function allows the automatic insetion of a speaker xml tag and places the cursor."
+  "This function allows the automatic insertion of a speaker xml tag and places the cursor."
   (interactive (list(read-string "Person:")(completing-read "move:" transcribe-move-list))) 
-  ;;(interactive "stag:")
-  (insert (format "<%s move=\"%s\"></%s>" xmltag move xmltag))
+  (end-of-line)
+  (insert (format "\n<%s move=\"%s\"></%s>" xmltag move xmltag))
   (backward-char 3)
   (backward-char (string-width xmltag)))
 
@@ -321,19 +321,21 @@
   (insert (format "function=\"%s\"" val)))
 
 (defun transcribe-add-attribute-move (val)
-  "Adds the xml attribute `move' at cursor with the name specified (autocompletion possible"
+  "Adds the xml attribute `move' at cursor with the name specified (autocompletion possible)"
   (interactive (list(completing-read "move name:" transcribe-move-list)))
   (insert (format "move=\"%s\"" val)))
 
 (defun transcribe-xml-tag-l1 ()
   "Inserts a l1 tag and places the cursor"
   (interactive)
+  (re-search-forward "</l.>" (line-end-position) t)
   (insert "<l1 clauses=\"1\" errors=\"0\" function=\"\"></l1>")
   (backward-char 5))
 
 (defun transcribe-xml-tag-l2 ()
   "Inserts a l2 tag and places the cursor"
   (interactive)
+  (re-search-forward "</l.>" (line-end-position) t)
   (insert "<l2 clauses=\"1\" errors=\"0\" function=\"\"></l2>")
   (backward-char 5))
 
