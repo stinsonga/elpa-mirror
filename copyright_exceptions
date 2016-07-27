@@ -64,6 +64,7 @@
 ./ergoemacs-mode/ergoemacs-advices.el:                         emacs-copyright
 ./ergoemacs-mode/ergoemacs-themes.el:                 ,(lambda () emacs-copyright)
 ./gnugo/gnugo.el:    (CP "Copyright"       game  simpletext)
+./hyperbole/hib-doc-id.el:;;  Copyright:        
 ./math-symbol-lists/math-symbol-lists.el:    "columnsep" "columnseprule" "columnwidth" "contentsline" "copyright"
 ./muse/htmlize-hack.el
 ./rudel/rudel-loaddefs.el
