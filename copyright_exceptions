@@ -2,9 +2,11 @@
 ./ada-mode/ada-skel.el:    ("copyright_license"
 ./ada-mode/ada-skel.el:  "--  Copyright (C) " (format-time-string "%Y ") user-full-name " All Rights Reserved.\n"
 ./ada-mode/ada-skel.el:  "--  Copyright (C) " (format-time-string "%Y ") user-full-name " All Rights Reserved.\n"
+./ada-mode/ada-skel.el:  "--  Copyright (C) " (format-time-string "%Y ") user-full-name " All Rights Reserved.\n"
 ./ada-mode/ada-skel.el:  "Example copyright/license skeleton, with automatic year and owner, GPLv3."
 ./ada-mode/ada-skel.el:  "Example copyright/license skeleton, with automatic year and owner."
 ./ada-mode/ada-skel.el:  "Insert a file header comment, with automatic copyright year and prompt for copyright owner/license.
+./ada-mode/ada-skel.el:  "Modified GPLv3 copyright/license skeleton, with automatic year and owner."
 ./ada-mode/ada-skel.el:  "{copyright_license}\n"
 ./ada-mode/ada-stmt.el
 ./ada-mode/ada-xref.el
