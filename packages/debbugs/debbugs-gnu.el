@@ -250,6 +250,7 @@ If nil, the value of `send-mail-function' is used instead."
 	      (const "idutils")
 	      (const "libtool")
 	      (const "mh-e")
+	      (const "oo-browser")
 	      (const "org-mode")
 	      (const "parted")
 	      (const "sed")
@@ -1673,6 +1674,7 @@ If given a prefix, patch in the branch directory instead."
     (goto-char (point-min))))
 
 (defun debbugs-gnu-fix-patch (dir)
+  (require 'diff-mode)
   (setq dir (directory-file-name (expand-file-name dir)))
   (goto-char (point-min))
   (while (re-search-forward diff-file-header-re nil t)
