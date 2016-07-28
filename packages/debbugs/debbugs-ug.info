@@ -441,6 +441,7 @@ The strings show the exact format of the control messages.
      the bugs belongs to the '"emacs"' package.
 
 'confirmed'
+'easy'
 'fixed'
 'help'
 'moreinfo'
@@ -450,9 +451,14 @@ The strings show the exact format of the control messages.
 'security'
 'unreproducible'
 'wontfix'
-     "tags 12345 confirmed|fixed|help|moreinfo|notabug"
+     "tags 12345 confirmed|easy|fixed|help|moreinfo|notabug"
 
      "tags 12345 patch|pending|security|unreproducible|wontfix"
+
+     If the command invoking the control message has been prefixed
+     with 'C-u', the respective tag is removed from the bug, like
+
+     "tags 12345 -confirmed"
 
 'done'
 'donenotabug'
@@ -609,7 +615,7 @@ Variable Index
 * debbugs-gnu-default-severities:        Retrieving Bugs.   (line  63)
 * debbugs-gnu-default-suppress-bugs:     Retrieving Bugs.   (line  44)
 * debbugs-gnu-mail-backend:              Tabulated Lists.   (line  79)
-* debbugs-gnu-send-mail-function:        Control Messages.  (line 108)
+* debbugs-gnu-send-mail-function:        Control Messages.  (line 114)
 * debbugs-gnu-suppress-closed:           Tabulated Lists.   (line  76)
 * debbugs-gnu-trunk-directory:           Applying Patches.  (line  18)
 * debbugs-org-severity-priority:         TODO Items.        (line  10)
@@ -656,10 +662,10 @@ Node: Presenting Bugs10806
 Node: Tabulated Lists11382
 Node: TODO Items15057
 Node: Control Messages16113
-Node: Applying Patches18979
-Node: Minor Mode20342
-Node: Command Index21290
-Node: Variable Index22079
-Node: Key Index23082
+Node: Applying Patches19155
+Node: Minor Mode20518
+Node: Command Index21466
+Node: Variable Index22255
+Node: Key Index23258
 
 End Tag Table

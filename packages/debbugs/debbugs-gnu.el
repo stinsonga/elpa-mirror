@@ -534,6 +534,7 @@ marked as \"client-side filter\"."
 (defun debbugs-gnu-patches ()
   "List the bug reports that have been marked as containing a patch."
   (interactive)
+  (setq debbugs-gnu-current-suppress t)
   (debbugs-gnu nil debbugs-gnu-default-packages nil nil "patch"))
 
 ;;;###autoload
@@ -1382,7 +1383,7 @@ removed instead."
 	    "reassign"
 	    "retitle"
 	    "patch" "wontfix" "moreinfo" "unreproducible" "fixed" "notabug"
-	    "pending" "help" "security" "confirmed"
+	    "pending" "help" "security" "confirmed" "easy"
 	    "usertag")
 	  nil t)
 	 current-prefix-arg))
