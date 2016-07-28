@@ -73,6 +73,7 @@ is described in @ref{Top, Debbugs User Guide, , debbugs-ug}.
 * Configuration::               Configuring @code{debbugs}.
 * Requesting bug numbers::      How to request bug report numbers.
 * Requesting bugs statuses::    How to request the status of bug reports.
+* Searching bugs::              How to search for bugs.
 * Requesting messages::         How to get messages from bug reports.
 * Requesting user tags::        How to request tags set by users.
 @end menu
@@ -223,16 +224,19 @@ Debian port: @code{"patch"}, @code{"wontfix"}, @code{"moreinfo"},
 @code{"upstream"}, @code{"pending"}, @code{"sarge"},
 @code{"sarge-ignore"}, @code{"experimental"}, @code{"d-i"},
 @code{"confirmed"}, @code{"ipv6"}, @code{"lfs"},
-@code{"fixed-in-experimental"}, @code{"fixed-upstream"}, @code{"l10n"},
-@code{"etch"}, @code{"etch-ignore"}, @code{"lenny"},
+@code{"fixed-in-experimental"}, @code{"fixed-upstream"},
+@code{"l10n"}, @code{"etch"}, @code{"etch-ignore"}, @code{"lenny"},
 @code{"lenny-ignore"}, @code{"squeeze"}, @code{"squeeze-ignore"},
-@code{"wheezy"}, @code{"wheezy-ignore"}. The actual list of tags can be
-found on @uref{http://www.debian.org/Bugs/Developer#tags}.
+@code{"wheezy"}, @code{"wheezy-ignore"}, @code{"jessie"},
+@code{"jessie-ignore"}, @code{"stretch"}, @code{"stretch-ignore"},
+@code{"buster"}, @code{"buster-ignore"}. The actual list of tags can
+be found on @uref{http://www.debian.org/Bugs/Developer#tags}.
 
 GNU port: @code{"fixed"}, @code{"notabug"}, @code{"wontfix"},
 @code{"unreproducible"}, @code{"moreinfo"}, @code{"patch"},
-@code{"pending"}, @code{"help"}, @code{"security"}, @code{"confirmed"}.
-See @url{http://debbugs.gnu.org/Developer.html#tags} for the actual list
+@code{"pending"}, @code{"help"}, @code{"security"},
+@code{"confirmed"}, @code{"easy"}.  See
+@url{http://debbugs.gnu.org/Developer.html#tags} for the actual list
 of tags.
 
 @item :owner
@@ -296,6 +300,7 @@ Example.  Get the latest six bug report numbers from Debian BTS:
 @example
 (let ((debbugs-port "debian.org"))
   (debbugs-newest-bugs 6))
+
 @result{} (633152 633153 633154 633155 633156 633157)
 @end example
 @end defun
@@ -393,6 +398,10 @@ A list of package names.
 
 @item summary
 Arbitrary text.
+
+@item cache_time
+This is not an attribute located at the debbugs server, but an
+internal value of the debbugs.el package itself.
 @end table
 
 Example.  Get the status of bug number #10 from GNU BTS:
@@ -400,19 +409,20 @@ Example.  Get the status of bug number #10 from GNU BTS:
 @example
 (let ((debbugs-port "gnu.org"))
   (debbugs-get-status 10))
-@result{}
-(((source . "unknown") (found_versions) (done) (blocks)
-  (date . 1203606305.0) (fixed) (fixed_versions) (mergedwith)
-  (found) (unarchived) (blockedby) (keywords) (summary)
-  (msgid . "<87zltuz7eh.fsf@@freemail.hu>") (id . 10)
-  (forwarded) (severity . "wishlist")
-  (owner . "Magnus Henoch <*****@@freemail.hu>")
-  (log_modified . 1310061242.0) (location . "db-h")
-  (subject . "url-gw should support HTTP CONNECT proxies")
-  (originator . "Magnus Henoch <*****@@freemail.hu>")
-  (last_modified . 1310061242.0) (pending . "pending") (affects)
-  (archived) (tags) (fixed_date) (package "emacs") (found_date)
-  (bug_num . 10)))
+
+@result{} (((cache_time . 1469716026.4981334)
+     (source . "unknown") (found_versions) (done) (blocks)
+     (date . 1203606305.0) (fixed) (fixed_versions) (mergedwith)
+     (found) (unarchived) (blockedby) (keywords) (summary)
+     (msgid . "<87zltuz7eh.fsf@@freemail.hu>") (id . 10)
+     (forwarded) (severity . "wishlist")
+     (owner . "Magnus Henoch <*****@@freemail.hu>")
+     (log_modified . 1310061242.0) (location . "db-h")
+     (subject . "url-gw should support HTTP CONNECT proxies")
+     (originator . "Magnus Henoch <*****@@freemail.hu>")
+     (last_modified . 1310061242.0) (pending . "pending") (affects)
+     (archived) (tags) (fixed_date) (package "emacs") (found_date)
+     (bug_num . 10)))
 @end example
 @end defun
 
@@ -429,7 +439,168 @@ Example.  Return the originator of the last submitted bug report:
   (debbugs-get-attribute
    (car (apply 'debbugs-get-status (debbugs-newest-bugs 1)))
    'originator))
+
 @result{} "Jack Daniels <jack@@daniels.com>"
+@end example
+@end defun
+
+@node Searching bugs
+@chapter Searching bugs
+
+The Debbugs servers include an hyperestraier search engine, which
+allows to search inside the bug database.  This is enabled only for
+the GNU port of the BTS, and aslo only the GNU port offers a
+Debbugs/SOAP interface for access.
+
+@defun debbugs-search-est &rest query
+Return the result of a full text search according to @var{query}.
+
+@var{query} is a sequence of lists of keyword-value pairs where the
+values are strings or numbers, i.e.@: @var{:keyword} @var{value}
+[@var{:keyword} @var{value}]*
+
+Every sublist of the @var{query} forms a hyperestraier condition.  A
+detailed description of hyperestraier conditions can be found at
+@url{http://fallabs.com/hyperestraier/uguide-en.html#searchcond}.
+
+The following conditions are possible:
+
+@itemize @w{}
+@item (:phrase @var{search-phrase} :skip @var{number} :max @var{number})
+
+The string @var{search-phrase} forms the search on the database.  It
+contains words to be searched for, combined by operators like AND,
+ANDNOT and OR.  If there is no operator between the words, AND is used
+by default.  The phrase keyword and value can also be omitted, this is
+useful in combination with other conditions.
+
+@code{:skip} and @code{:max} are optional.  They specify, how many
+hits are skipped, and how many maximal hits are returned.  This can be
+used for paged results.  Per default, :skip is 0 and all possible hits
+are returned according to the default maximum of the debbugs server.
+There is also an absolute maximum how many hits are returned by the
+debbugs server, which cannot be overwritten my any larger @code{:max}
+number.
+
+There must be exactly one such condition.
+
+@item (@var{attribute} @var{value}+ :operator @var{operator} :order @var{order})
+
+@var{attribute} is one of the following keywords:
+
+@table @code
+@item :subject
+@itemx :@@title
+The subject of a message or the title of the bug, a string.
+
+@item :date
+@itemx :@@cdate
+The submission date of the bug or the modification date of a message,
+a number.
+
+@item :@@author
+The email address of the author of a message belonging to this bug, a
+string.  It may be different than the email of the person submitting
+the bug.  The special email address @code{"me"} is used as pattern,
+replaced with @code{user-mail-address}.
+
+@item :package
+The value is the name of the package a bug belongs to, like
+@code{"emacs"}, @code{"coreutils"}, @code{"gnus"}, or @code{"tramp"}.
+
+@item :tags
+An arbitrary string the bug is annotated with.
+
+@item :severity
+This is the severity of the bug.  The exact set of allowed values
+depends on the Debbugs port.  Examples are @code{"normal"},
+@code{"minor"}, @code{"wishlist"} etc.
+@end table
+
+@code{:operator} defines the comparison operator to be applied to
+@var{attribute}.  For string attributes this could be @code{"STREQ"}
+(is equal to the string), @code{"STRNE"} (is not equal to the string),
+@code{"STRINC"} (includes the string), @code{"STRBW"} (begins with the
+string), @code{"STREW"} (ends with the string), @code{"STRAND"}
+(includes all tokens in the string), @code{"STROR"} (includes at least
+one token in the string), @code{"STROREQ"} (is equal to at least one
+token in the string) or @code{"STRRX"} (matches regular expressions of
+the string).  For operators with tokens, several values for
+@var{attribute} shall be used.
+
+Numbers can be compared by the operators @code{"NUMEQ"} (is equal to
+the number), @code{"NUMNE"} (is not equal to the number),
+@code{"NUMGT"} (is greater than the number), @code{"NUMGE"} (is
+greater than or equal to the number), @code{"NUMLT"} (is less than the
+number), @code{"NUMLE"} (is less than or equal to the number) or
+@code{"NUMBT"} (is between the two numbers).  In the last case, there
+must be two values for @var{attribute}.
+
+If an operator is led by @code{"!"}, the meaning is inverted.  If a
+string operator is led by @code{"I"}, the case of the value is
+ignored.
+
+The optional @code{:order} can be specified only in one condition.  It
+means, that @var{attribute} is used for sorting the results.  The
+following order operators exist: @code{"STRA"} (ascending by string),
+@code{"STRD"} (descending by string), @code{"NUMA"} (ascending by
+number) or @code{"NUMD"} (descending by number).
+
+A special case is an @code{:order}, where there is no corresponding
+attribute value and no operator.  In this case, @var{attribute} is
+not used for the search.
+
+The result of the @var{query} is a list of association lists with the
+same attributes as in the conditions.  Additional attributes are
+
+@table @code
+@item id
+The bug number.
+
+@item msg_num
+The number of the message inside the bug log.
+
+@item snippet
+The surrounding text found by the search.  For the syntax of the
+snippet, consult the hyperestraier user guide.
+@end table
+@end itemize
+
+Example.  Get two messages containing words "armstrong" and "debbugs"
+from GNU BTS.  Skip the first 10 hits:
+
+@example
+(let ((debbugs-port "gnu.org"))
+  (debbugs-search-est
+    '(:phrase "armstrong AND debbugs" :skip 10 :max 2)
+    '(:severity "normal" :operator "STRINC")
+    '(:date :order "NUMA")))
+
+@result{} ((("msg_num" . 21)
+     ("date" . 1229208302)
+     ("@@author" . "Glenn Morris <*****@@gnu.org>")
+     ("@@title" . "Re: bug#1567: Mailing an archived bug")
+     ("id" . 1567)
+     ("severity" . "normal")
+     ("@@cdate" . "Wed, 17 Dec 2008 14:34:50 -0500")
+     ("snippet" . "@dots{}")
+     ("subject" . "Mailing an archived bug")
+     ("package" . "debbugs.gnu.org"))
+ @dots{})
+@end example
+
+Example.  Show all messages for package "emacs" on GNU BTS between
+2011-08-21 and 2011-08-31.
+
+@example
+(let ((debbugs-port "gnu.org"))
+  (debbugs-search-est
+   '(:max 500)
+   '(:package "emacs" :operator "STREQ")
+   `(:@@cdate
+     ,(floor (float-time (encode-time 0 0 0 21 8 2011)))
+     ,(floor (float-time (encode-time 0 0 0 31 8 2011)))
+     :operator "NUMBT")))
 @end example
 @end defun
 
@@ -465,6 +636,7 @@ BTS:
 @example
 (let ((debbugs-port "debian.org"))
    (debbugs-get-message-numbers (debbugs-get-bug-log 456789)))
+
 @result{} (5 10 12)
 @end example
 @end defun
@@ -559,6 +731,7 @@ Example.  Get all user tags for the package @code{"emacs"}:
 @example
 (let ((debbugs-port "gnu.org"))
   (debbugs-get-usertag :user "emacs"))
+
 @result{} ("www" "solaris" "ls-lisp" "cygwin")
 @end example
 
@@ -568,6 +741,7 @@ Get all bugs tagged by package @code{"emacs"} with @code{"www"} or
 @example
 (let ((debbugs-port "gnu.org"))
   (debbugs-get-usertag :user "emacs" :tag "www" :tag "cygwin"))
+
 @result{} (807 1223 5637)
 @end example
 @end defun

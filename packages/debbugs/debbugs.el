@@ -317,8 +317,9 @@ Every returned entry is an association list with the following attributes:
   \"normal\", \"minor\" or \"wishlist\".
 
   `tags': The status of the bug report, a list of strings.  This
-  can be \"fixed\", \"notabug\", \"wontfix\", \"unreproducible\",
-  \"moreinfo\" or \"patch\".
+  can be \"confirmed\", \"fixed\", \"pending\", \"notabug\",
+  \"wontfix\", \"unreproducible\", \"moreinfo\", \"security\" or
+  \"patch\".
 
   `pending': The string \"pending\", \"forwarded\", \"fixed\" or \"done\".
 
@@ -363,12 +364,16 @@ Every returned entry is an association list with the following attributes:
 
   `summary': Arbitrary text.
 
+  `cache_time': This is not an attribute located at the debbugs
+   server, but an internal value of the debbugs.el package itself.
+
 Example:
 
   \(debbugs-get-status 10)
 
   => ;; Attributes with empty values are not shown
-     \(\(\(bug_num . 10)
+     \(\(\(cache_time . 1469716026.4981334)
+       \(bug_num . 10)
        \(source . \"unknown\")
        \(date . 1203606305.0)
        \(msgid . \"<87zltuz7eh.fsf@freemail.hu>\")
@@ -575,7 +580,7 @@ Every message is an association list with the following attributes:
   "Return the result of a full text search according to QUERY.
 
 QUERY is a sequence of lists of keyword-value pairs where the
-values are strings or numbers, i.e. :KEYWORD \"VALUE\" [:KEYWORD
+values are strings or numbers, i.e. :KEYWORD VALUE [:KEYWORD
 VALUE]*
 
 Every sublist of the QUERY forms a hyperestraier condition.  A
@@ -595,11 +600,14 @@ The following conditions are possible:
   :skip and :max are optional.  They specify, how many hits are
   skipped, and how many maximal hits are returned.  This can be
   used for paged results.  Per default, :skip is 0 and all
-  possible hits are returned.
+  possible hits are returned according to the default maximum of
+  the debbugs server.  There is also an absolute maximum how many
+  hits are returned by the debbugs server, which cannot be
+  overwritten my any larger :max number.
 
   There must be exactly one such condition.
 
-\[ATTRIBUTE VALUE+ :operation OPERATION :order ORDER\]
+\[ATTRIBUTE VALUE+ :operator OPERATOR :order ORDER\]
 
   ATTRIBUTE is one of the following keywords:
 
@@ -643,8 +651,8 @@ The following conditions are possible:
   \"NUMBT\" \(is between the two numbers).  In the last case,
   there must be two values for ATTRIBUTE.
 
-  If an operator is leaded by \"!\", the meaning is inverted.  If
-  a string operator is leaded by \"I\", the case of the value is
+  If an operator is led by \"!\", the meaning is inverted.  If a
+  string operator is led by \"I\", the case of the value is
   ignored.
 
   The optional :order can be specified only in one condition.  It

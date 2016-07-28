@@ -64,6 +64,7 @@ projects is described in *note Debbugs User Guide: (debbugs-ug)Top.
 * Configuration::               Configuring 'debbugs'.
 * Requesting bug numbers::      How to request bug report numbers.
 * Requesting bugs statuses::    How to request the status of bug reports.
+* Searching bugs::              How to search for bugs.
 * Requesting messages::         How to get messages from bug reports.
 * Requesting user tags::        How to request tags set by users.
 
@@ -215,13 +216,15 @@ Debbugs server the list of bug numbers that match a user's query.
           '"confirmed"', '"ipv6"', '"lfs"', '"fixed-in-experimental"',
           '"fixed-upstream"', '"l10n"', '"etch"', '"etch-ignore"',
           '"lenny"', '"lenny-ignore"', '"squeeze"',
-          '"squeeze-ignore"', '"wheezy"', '"wheezy-ignore"'.  The
+          '"squeeze-ignore"', '"wheezy"', '"wheezy-ignore"',
+          '"jessie"', '"jessie-ignore"', '"stretch"',
+          '"stretch-ignore"', '"buster"', '"buster-ignore"'.  The
           actual list of tags can be found on
           <http://www.debian.org/Bugs/Developer#tags>.
 
           GNU port: '"fixed"', '"notabug"', '"wontfix"',
           '"unreproducible"', '"moreinfo"', '"patch"', '"pending"',
-          '"help"', '"security"', '"confirmed"'.  See
+          '"help"', '"security"', '"confirmed"', '"easy"'.  See
           <http://debbugs.gnu.org/Developer.html#tags> for the actual
           list of tags.
 
@@ -285,10 +288,11 @@ Debbugs server the list of bug numbers that match a user's query.
 
           (let ((debbugs-port "debian.org"))
             (debbugs-newest-bugs 6))
+
           => (633152 633153 633154 633155 633156 633157)
 
 
-File: debbugs.info,  Node: Requesting bugs statuses,  Next: Requesting messages,  Prev: Requesting bug numbers,  Up: Top
+File: debbugs.info,  Node: Requesting bugs statuses,  Next: Searching bugs,  Prev: Requesting bug numbers,  Up: Top
 
 4 Requesting bugs statuses
 **************************
@@ -386,23 +390,28 @@ and various aspects of relationship with other bug reports.
      'summary'
           Arbitrary text.
 
+     'cache_time'
+          This is not an attribute located at the debbugs server, but
+          an internal value of the debbugs.el package itself.
+
      Example.  Get the status of bug number #10 from GNU BTS:
 
           (let ((debbugs-port "gnu.org"))
             (debbugs-get-status 10))
-          =>
-          (((source . "unknown") (found_versions) (done) (blocks)
-            (date . 1203606305.0) (fixed) (fixed_versions) (mergedwith)
-            (found) (unarchived) (blockedby) (keywords) (summary)
-            (msgid . "<87zltuz7eh.fsf@freemail.hu>") (id . 10)
-            (forwarded) (severity . "wishlist")
-            (owner . "Magnus Henoch <*****@freemail.hu>")
-            (log_modified . 1310061242.0) (location . "db-h")
-            (subject . "url-gw should support HTTP CONNECT proxies")
-            (originator . "Magnus Henoch <*****@freemail.hu>")
-            (last_modified . 1310061242.0) (pending . "pending") (affects)
-            (archived) (tags) (fixed_date) (package "emacs") (found_date)
-            (bug_num . 10)))
+
+          => (((cache_time . 1469716026.4981334)
+               (source . "unknown") (found_versions) (done) (blocks)
+               (date . 1203606305.0) (fixed) (fixed_versions) (mergedwith)
+               (found) (unarchived) (blockedby) (keywords) (summary)
+               (msgid . "<87zltuz7eh.fsf@freemail.hu>") (id . 10)
+               (forwarded) (severity . "wishlist")
+               (owner . "Magnus Henoch <*****@freemail.hu>")
+               (log_modified . 1310061242.0) (location . "db-h")
+               (subject . "url-gw should support HTTP CONNECT proxies")
+               (originator . "Magnus Henoch <*****@freemail.hu>")
+               (last_modified . 1310061242.0) (pending . "pending") (affects)
+               (archived) (tags) (fixed_date) (package "emacs") (found_date)
+               (bug_num . 10)))
 
  -- Function: debbugs-get-attribute bug-or-message attribute
      General accessor that returns the value of key ATTRIBUTE.
@@ -416,12 +425,171 @@ and various aspects of relationship with other bug reports.
             (debbugs-get-attribute
              (car (apply 'debbugs-get-status (debbugs-newest-bugs 1)))
              'originator))
+
           => "Jack Daniels <jack@daniels.com>"
 
 
-File: debbugs.info,  Node: Requesting messages,  Next: Requesting user tags,  Prev: Requesting bugs statuses,  Up: Top
+File: debbugs.info,  Node: Searching bugs,  Next: Requesting messages,  Prev: Requesting bugs statuses,  Up: Top
 
-5 Requesting messages
+5 Searching bugs
+****************
+
+The Debbugs servers include an hyperestraier search engine, which
+allows to search inside the bug database.  This is enabled only for
+the GNU port of the BTS, and aslo only the GNU port offers a
+Debbugs/SOAP interface for access.
+
+ -- Function: debbugs-search-est &rest query
+     Return the result of a full text search according to QUERY.
+
+     QUERY is a sequence of lists of keyword-value pairs where the
+     values are strings or numbers, i.e. :KEYWORD VALUE [:KEYWORD
+     VALUE]*
+
+     Every sublist of the QUERY forms a hyperestraier condition.  A
+     detailed description of hyperestraier conditions can be found at
+     <http://fallabs.com/hyperestraier/uguide-en.html#searchcond>.
+
+     The following conditions are possible:
+
+          (:phrase SEARCH-PHRASE :skip NUMBER :max NUMBER)
+
+          The string SEARCH-PHRASE forms the search on the database.
+          It contains words to be searched for, combined by operators
+          like AND, ANDNOT and OR. If there is no operator between the
+          words, AND is used by default.  The phrase keyword and value
+          can also be omitted, this is useful in combination with
+          other conditions.
+
+          ':skip' and ':max' are optional.  They specify, how many
+          hits are skipped, and how many maximal hits are returned.
+          This can be used for paged results.  Per default, :skip is 0
+          and all possible hits are returned according to the default
+          maximum of the debbugs server.  There is also an absolute
+          maximum how many hits are returned by the debbugs server,
+          which cannot be overwritten my any larger ':max' number.
+
+          There must be exactly one such condition.
+
+          (ATTRIBUTE VALUE+ :operator OPERATOR :order ORDER)
+
+          ATTRIBUTE is one of the following keywords:
+
+          ':subject'
+          ':@title'
+               The subject of a message or the title of the bug, a
+               string.
+
+          ':date'
+          ':@cdate'
+               The submission date of the bug or the modification date
+               of a message, a number.
+
+          ':@author'
+               The email address of the author of a message belonging
+               to this bug, a string.  It may be different than the
+               email of the person submitting the bug.  The special
+               email address '"me"' is used as pattern, replaced with
+               'user-mail-address'.
+
+          ':package'
+               The value is the name of the package a bug belongs to,
+               like '"emacs"', '"coreutils"', '"gnus"', or '"tramp"'.
+
+          ':tags'
+               An arbitrary string the bug is annotated with.
+
+          ':severity'
+               This is the severity of the bug.  The exact set of
+               allowed values depends on the Debbugs port.  Examples
+               are '"normal"', '"minor"', '"wishlist"' etc.
+
+          ':operator' defines the comparison operator to be applied to
+          ATTRIBUTE.  For string attributes this could be '"STREQ"'
+          (is equal to the string), '"STRNE"' (is not equal to the
+          string), '"STRINC"' (includes the string), '"STRBW"' (begins
+          with the string), '"STREW"' (ends with the string),
+          '"STRAND"' (includes all tokens in the string), '"STROR"'
+          (includes at least one token in the string), '"STROREQ"' (is
+          equal to at least one token in the string) or '"STRRX"'
+          (matches regular expressions of the string).  For operators
+          with tokens, several values for ATTRIBUTE shall be used.
+
+          Numbers can be compared by the operators '"NUMEQ"' (is equal
+          to the number), '"NUMNE"' (is not equal to the number),
+          '"NUMGT"' (is greater than the number), '"NUMGE"' (is
+          greater than or equal to the number), '"NUMLT"' (is less
+          than the number), '"NUMLE"' (is less than or equal to the
+          number) or '"NUMBT"' (is between the two numbers).  In the
+          last case, there must be two values for ATTRIBUTE.
+
+          If an operator is led by '"!"', the meaning is inverted.  If
+          a string operator is led by '"I"', the case of the value is
+          ignored.
+
+          The optional ':order' can be specified only in one
+          condition.  It means, that ATTRIBUTE is used for sorting the
+          results.  The following order operators exist: '"STRA"'
+          (ascending by string), '"STRD"' (descending by string),
+          '"NUMA"' (ascending by number) or '"NUMD"' (descending by
+          number).
+
+          A special case is an ':order', where there is no
+          corresponding attribute value and no operator.  In this
+          case, ATTRIBUTE is not used for the search.
+
+          The result of the QUERY is a list of association lists with
+          the same attributes as in the conditions.  Additional
+          attributes are
+
+          'id'
+               The bug number.
+
+          'msg_num'
+               The number of the message inside the bug log.
+
+          'snippet'
+               The surrounding text found by the search.  For the
+               syntax of the snippet, consult the hyperestraier user
+               guide.
+
+     Example.  Get two messages containing words "armstrong" and
+     "debbugs" from GNU BTS. Skip the first 10 hits:
+
+          (let ((debbugs-port "gnu.org"))
+            (debbugs-search-est
+              '(:phrase "armstrong AND debbugs" :skip 10 :max 2)
+              '(:severity "normal" :operator "STRINC")
+              '(:date :order "NUMA")))
+
+          => ((("msg_num" . 21)
+               ("date" . 1229208302)
+               ("@author" . "Glenn Morris <*****@gnu.org>")
+               ("@title" . "Re: bug#1567: Mailing an archived bug")
+               ("id" . 1567)
+               ("severity" . "normal")
+               ("@cdate" . "Wed, 17 Dec 2008 14:34:50 -0500")
+               ("snippet" . "...")
+               ("subject" . "Mailing an archived bug")
+               ("package" . "debbugs.gnu.org"))
+           ...)
+
+     Example.  Show all messages for package "emacs" on GNU BTS
+     between 2011-08-21 and 2011-08-31.
+
+          (let ((debbugs-port "gnu.org"))
+            (debbugs-search-est
+             '(:max 500)
+             '(:package "emacs" :operator "STREQ")
+             `(:@cdate
+               ,(floor (float-time (encode-time 0 0 0 21 8 2011)))
+               ,(floor (float-time (encode-time 0 0 0 31 8 2011)))
+               :operator "NUMBT")))
+
+
+File: debbugs.info,  Node: Requesting messages,  Next: Requesting user tags,  Prev: Searching bugs,  Up: Top
+
+6 Requesting messages
 *********************
 
  -- Function: debbugs-get-bug-log bug-number
@@ -449,6 +617,7 @@ File: debbugs.info,  Node: Requesting messages,  Next: Requesting user tags,  Pr
 
           (let ((debbugs-port "debian.org"))
              (debbugs-get-message-numbers (debbugs-get-bug-log 456789)))
+
           => (5 10 12)
 
  -- Function: debbugs-get-message messages message-number
@@ -500,7 +669,7 @@ File: debbugs.info,  Node: Requesting messages,  Next: Requesting user tags,  Pr
 
 File: debbugs.info,  Node: Requesting user tags,  Prev: Requesting messages,  Up: Top
 
-6 Requesting user tags
+7 Requesting user tags
 **********************
 
 A user tag is a string, a user has assigned to one or several bugs.
@@ -535,6 +704,7 @@ also package names as user identification.
 
           (let ((debbugs-port "gnu.org"))
             (debbugs-get-usertag :user "emacs"))
+
           => ("www" "solaris" "ls-lisp" "cygwin")
 
      Get all bugs tagged by package '"emacs"' with '"www"' or
@@ -542,17 +712,19 @@ also package names as user identification.
 
           (let ((debbugs-port "gnu.org"))
             (debbugs-get-usertag :user "emacs" :tag "www" :tag "cygwin"))
+
           => (807 1223 5637)
 
 
 
 Tag Table:
 Node: Top1094
-Node: Installation3179
-Node: Configuration4278
-Node: Requesting bug numbers6629
-Node: Requesting bugs statuses11883
-Node: Requesting messages15955
-Node: Requesting user tags18970
+Node: Installation3235
+Node: Configuration4334
+Node: Requesting bug numbers6685
+Node: Requesting bugs statuses12065
+Node: Searching bugs16357
+Node: Requesting messages23003
+Node: Requesting user tags26009
 
 End Tag Table
