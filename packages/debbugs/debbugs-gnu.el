@@ -983,7 +983,7 @@ The following commands are available:
        debbugs-gnu-current-suppress)
   (setq tabulated-list-format [("Id"         5 debbugs-gnu-sort-id)
 			       ("State"     20 debbugs-gnu-sort-state)
-			       ("Submitter" 25 t)
+			       ("Submitter" 25 debbugs-gnu-sort-submitter)
 			       ("Title"     10 debbugs-gnu-sort-title)])
   (setq tabulated-list-sort-key (cons "Id" nil))
   (setq tabulated-list-printer 'debbugs-gnu-print-entry)
@@ -999,8 +999,8 @@ The following commands are available:
   '((debbugs-gnu-new . 1)
     (debbugs-gnu-stale . 2)
     (debbugs-gnu-handled . 3)
-    (debbugs-gnu-done . 4)
-    (debbugs-gnu-pending . 5)))
+    (debbugs-gnu-pending . 4)
+    (debbugs-gnu-done . 5)))
 
 (defun debbugs-gnu-get-state-preference (face-string)
   (or (cdr (assq (get-text-property 0 'face face-string)
@@ -1025,12 +1025,12 @@ The following commands are available:
 	(id2 (cdr (assq 'id (car s2))))
 	(age2 (debbugs-gnu-get-state-preference (aref (nth 1 s2) 1))))
     (cond
-     ;; Tagged bugs go to the end.
-     ((and (not (memq id1 debbugs-gnu-local-tags))
-	   (memq id2 debbugs-gnu-local-tags))
-      t)
+     ;; Tagged bugs go to the beginning.
      ((and (memq id1 debbugs-gnu-local-tags)
 	   (not (memq id2 debbugs-gnu-local-tags)))
+      t)
+     ((and (not (memq id1 debbugs-gnu-local-tags))
+	   (memq id2 debbugs-gnu-local-tags))
       nil)
      ;; Then, we check the age of the bugs.
      ((< age1 age2)
@@ -1043,13 +1043,58 @@ The following commands are available:
       t)
      (t nil))))
 
-(defun debbugs-gnu-sort-title (s1 _s2)
-  (let ((owner (if (cdr (assq 'owner (car s1)))
-		   (car (mail-header-parse-address
-			 (decode-coding-string (cdr (assq 'owner (car s1)))
-					       'utf-8))))))
-    (and (stringp owner)
-	 (string-equal owner user-mail-address))))
+(defun debbugs-gnu-sort-submitter (s1 s2)
+  (let ((address1
+	 (mail-header-parse-address
+	  (decode-coding-string
+	   (or (cdr (assq 'originator (car s1))) "") 'utf-8)))
+	(address2
+	 (mail-header-parse-address
+	  (decode-coding-string
+	   (or (cdr (assq 'originator (car s2))) "") 'utf-8))))
+    (cond
+     ;; Bugs I'm the originator of go to the beginning.
+     ((and (string-equal user-mail-address (car address1))
+	   (not (string-equal (car address1) (car address2))))
+      t)
+     ((and (string-equal user-mail-address (car address2))
+	   (not (string-equal (car address1) (car address2))))
+      nil)
+     ;; Then, we check the originator.  Prefer the name over the address.
+     (t (if (functionp 'string-collate-lessp)
+	    (funcall 'string-collate-lessp
+		     (or (cdr address1) (car address1) "")
+		     (or (cdr address2) (car address2) "")
+		     nil t)
+	  (string-lessp
+	   (downcase (or (cdr address1) (car address1) ""))
+	   (downcase (or (cdr address2) (car address2) ""))))))))
+
+(defun debbugs-gnu-sort-title (s1 s2)
+  (let ((owner1
+	 (car (mail-header-parse-address
+	       (decode-coding-string
+		(or (cdr (assq 'owner (car s1))) "") 'utf-8))))
+	(subject1
+	 (decode-coding-string (or (cdr (assq 'subject (car s1))) "") 'utf-8))
+	(owner2
+	 (car (mail-header-parse-address
+	       (decode-coding-string
+		(or (cdr (assq 'owner (car s2))) "") 'utf-8))))
+	(subject2
+	 (decode-coding-string (or (cdr (assq 'subject (car s2))) "") 'utf-8)))
+    (cond
+     ;; Bugs I'm the owner of go to the beginning.
+     ((and (string-equal user-mail-address owner1)
+	   (not (string-equal owner1 owner2)))
+      t)
+     ((and (string-equal user-mail-address owner2)
+	   (not (string-equal owner1 owner2)))
+      nil)
+     ;; Then, we check the title.
+     (t (if (functionp 'string-collate-lessp)
+	     (funcall 'string-collate-lessp subject1 subject2 nil t)
+	   (string-lessp (downcase subject1) (downcase subject2)))))))
 
 (defun debbugs-gnu-toggle-sort ()
   "Toggle sorting by age and by state."
