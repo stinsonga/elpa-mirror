@@ -157,6 +157,10 @@ messages submitted to the bugs.  It uses a HyperEstraier based search
 engine
 (http://fallabs.com/hyperestraier/uguide-en.html#searchcond)(1).
 
+   The search engine uses an index over the bug database.  This index
+is refreshed once a day only; search hits do not include recent
+changes of the same day.
+
  -- Command: debbugs-gnu-search
  -- Command: debbugs-org-search
 
@@ -592,11 +596,11 @@ Command Index
 * debbugs-gnu:                           Retrieving Bugs.    (line 15)
 * debbugs-gnu-bugs:                      Retrieving Bugs.    (line 69)
 * debbugs-gnu-patches:                   Retrieving Bugs.    (line 78)
-* debbugs-gnu-search:                    Searching Bugs.     (line 11)
+* debbugs-gnu-search:                    Searching Bugs.     (line 15)
 * debbugs-org:                           Retrieving Bugs.    (line 17)
 * debbugs-org-bugs:                      Retrieving Bugs.    (line 70)
 * debbugs-org-patches:                   Retrieving Bugs.    (line 79)
-* debbugs-org-search:                    Searching Bugs.     (line 12)
+* debbugs-org-search:                    Searching Bugs.     (line 16)
 
 
 File: debbugs-ug.info,  Node: Variable Index,  Next: Key Index,  Prev: Command Index,  Up: Top
@@ -656,16 +660,16 @@ Tag Table:
 Node: Top1097
 Node: Retrieving Bugs2635
 Node: Searching Bugs6474
-Ref: Searching Bugs-Footnote-110627
-Ref: Searching Bugs-Footnote-210715
-Node: Presenting Bugs10806
-Node: Tabulated Lists11382
-Node: TODO Items15057
-Node: Control Messages16113
-Node: Applying Patches19155
-Node: Minor Mode20518
-Node: Command Index21466
-Node: Variable Index22255
-Node: Key Index23258
+Ref: Searching Bugs-Footnote-110787
+Ref: Searching Bugs-Footnote-210875
+Node: Presenting Bugs10966
+Node: Tabulated Lists11542
+Node: TODO Items15217
+Node: Control Messages16273
+Node: Applying Patches19315
+Node: Minor Mode20678
+Node: Command Index21626
+Node: Variable Index22415
+Node: Key Index23418
 
 End Tag Table
