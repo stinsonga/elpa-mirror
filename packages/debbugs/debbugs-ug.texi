@@ -178,6 +178,10 @@ messages submitted to the bugs.  It uses a
 HyperEstraier based search engine}@footnote{This has been added to the
 Debbugs/SOAP backend of the GNU Debbugs server only.}.
 
+The search engine uses an index over the bug database.  This index is
+refreshed once a day only; search hits do not include recent changes
+of the same day.
+
 @deffn  {Command} debbugs-gnu-search
 @deffnx {Command} debbugs-org-search
 

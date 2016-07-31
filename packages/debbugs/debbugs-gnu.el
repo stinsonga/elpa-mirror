@@ -509,7 +509,9 @@ marked as \"client-side filter\"."
 		(add-to-list
 		 (if phrase
 		     'debbugs-gnu-current-query 'debbugs-gnu-current-filter)
-		 (cons (intern key) (cons val1 val2)))))
+		 (cons (intern
+			(if (and phrase (equal key "date")) "@cdate" key))
+		       (cons val1 val2)))))
 
 	     ;; "subject", "done", "forwarded", "msgid", "summary".
 	     ((not (zerop (length key)))
@@ -623,8 +625,9 @@ marked as \"client-side filter\"."
 		   (cond
 		    ((eq (car elt) 'phrase)
 		     (list (list :phrase (cdr elt))))
-		    ((eq (car elt) 'date)
-		     (list (list :date (cddr elt) (cadr elt)
+		    ((memq (car elt) '(date @cdate))
+		     (list (list (intern (concat ":" (symbol-name (car elt))))
+				 (cddr elt) (cadr elt)
 				 :operator "NUMBT")))
 		    (t
 		     (list (list (intern (concat ":" (symbol-name (car elt))))

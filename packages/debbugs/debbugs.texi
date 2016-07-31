@@ -449,8 +449,12 @@ Example.  Return the originator of the last submitted bug report:
 
 The Debbugs servers include an hyperestraier search engine, which
 allows to search inside the bug database.  This is enabled only for
-the GNU port of the BTS, and aslo only the GNU port offers a
+the GNU port of the BTS, and also only the GNU port offers a
 Debbugs/SOAP interface for access.
+
+The search engine uses an index over the bug database.  This index is
+refreshed once a day only; search hits do not include recent changes
+of the same day.
 
 @defun debbugs-search-est &rest query
 Return the result of a full text search according to @var{query}.
