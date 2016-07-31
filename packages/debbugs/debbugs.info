@@ -436,8 +436,12 @@ File: debbugs.info,  Node: Searching bugs,  Next: Requesting messages,  Prev: Re
 
 The Debbugs servers include an hyperestraier search engine, which
 allows to search inside the bug database.  This is enabled only for
-the GNU port of the BTS, and aslo only the GNU port offers a
+the GNU port of the BTS, and also only the GNU port offers a
 Debbugs/SOAP interface for access.
+
+   The search engine uses an index over the bug database.  This index
+is refreshed once a day only; search hits do not include recent
+changes of the same day.
 
  -- Function: debbugs-search-est &rest query
      Return the result of a full text search according to QUERY.
@@ -724,7 +728,7 @@ Node: Configuration4334
 Node: Requesting bug numbers6685
 Node: Requesting bugs statuses12065
 Node: Searching bugs16357
-Node: Requesting messages23003
-Node: Requesting user tags26009
+Node: Requesting messages23163
+Node: Requesting user tags26169
 
 End Tag Table
