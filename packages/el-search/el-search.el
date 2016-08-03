@@ -659,6 +659,19 @@ MESSAGE are used to construct the error message."
 
 ;;;; Additional pattern type definitions
 
+;; Hint: we sometimes need to create (pcase) backquote forms with
+;; backquote.  I do this like in this example:
+;;
+;; (let ((y 2))
+;;   `(,'\` ((,'\, x) ,y)))
+;;   ==> `(,x 2)
+;;
+;; Note that the backslashes are mandatory, else the reader macros are
+;; interpreted as composition of the respective operations, like in
+;;
+;; `(', (+ 1 2)) ==> ('3)
+
+
 (defun el-search--split (matcher1 matcher2 list)
   "Helper for the append pattern type.
 
