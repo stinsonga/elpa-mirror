@@ -114,6 +114,9 @@
 ;; effect is limited to this package.  See C-h f `el-search-pattern'
 ;; for a list of predefined additional pattern forms.
 ;;
+;; Some additional pattern definitions can be found in the file
+;; "el-search-x.el".
+;;
 ;;
 ;; Replacing
 ;; =========
@@ -917,75 +920,6 @@ the search pattern."
                  `(not (= (next-single-char-property-change
                            (point) ',property nil ,limit)
                           ,limit))))))
-
-(defvar diff-hl-reference-revision)
-(declare-function diff-hl-changes "diff-hl")
-(defvar-local el-search--cached-changes nil)
-
-(defun el-search--changes-from-diff-hl (revision)
-  "Return a list of changed regions (as conses of positions) since REVISION.
-Use variable `el-search--cached-changes' for caching."
-  (if (and (consp el-search--cached-changes)
-           (equal (car el-search--cached-changes)
-                  revision))
-      (cdr el-search--cached-changes)
-    (require 'diff-hl)
-    ;; `diff-hl-changes' returns line numbers.  We must convert them into positions.
-    (save-restriction
-      (widen)
-      (save-excursion
-        (let ((diff-hl-reference-revision revision)
-              (current-line-nbr 1) change-beg)
-          (goto-char 1)
-          (cdr (setq el-search--cached-changes
-                     (cons revision
-                           (delq nil (mapcar (pcase-lambda (`(,start-line ,nbr-lines ,kind))
-                                               (if (eq kind 'delete) nil
-                                                 (forward-line (- start-line current-line-nbr))
-                                                 (setq change-beg (point))
-                                                 (forward-line (1- nbr-lines))
-                                                 (setq current-line-nbr (+ start-line nbr-lines -1))
-                                                 (cons change-beg (line-end-position))))
-                                             (diff-hl-changes)))))))))))
-
-(defun el-search--change-p (posn &optional revision)
-  ;; Non-nil when sexp after POSN is part of a change
-  (when (buffer-modified-p)
-    (error "Buffer is modified - please save"))
-  (save-restriction
-    (widen)
-    (let ((changes (el-search--changes-from-diff-hl revision))
-          (sexp-end (scan-sexps posn 1)))
-      (while (and changes (< (cdar changes) sexp-end))
-        (pop changes))
-      (and changes
-           (<= (caar changes) posn)))))
-
-(defun el-search--changed-p (posn &optional revision)
-  ;; Non-nil when sexp after POSN contains a change
-  (when (buffer-modified-p)
-    (error "Buffer is modified - please save"))
-  (save-restriction
-    (widen)
-    (let ((changes (el-search--changes-from-diff-hl revision)))
-      (while (and changes (<= (cdar changes) posn))
-        (pop changes))
-      (and changes
-           (< (caar changes) (scan-sexps posn 1))))))
-
-(el-search-defpattern change (&optional revision)
-  "Matches the object if its text is part of a file change.
-
-Requires library \"diff-hl\".  REVISION defaults to the file's
-repository's HEAD commit."
-  `(guard (el-search--change-p (point) ,revision)))
-
-(el-search-defpattern changed (&optional revision)
-  "Matches the object if its text contains a file change.
-
-Requires library \"diff-hl\".  REVISION defaults to the file's
-repository's HEAD commit."
-  `(guard (el-search--changed-p (point) ,revision)))
 
 
 ;;;; Highlighting
