@@ -93,15 +93,25 @@ RANK is one of `poker-ranks' and SUIT is one of `poker-suits'."
 The result is a 24 bit integer where the leftmost 4 bits (0-8) indicate the type
 of hand, and the remaining nibbles are rank values of decisive cards.
 The highest possible value is therefore #x8CBA98 and the lowest is #x053210."
-  (let* ((ranks (mapcar #'poker-card-rank hand))
-	 (rank-counts (sort (mapcar (lambda (rank) (cons (cl-count rank ranks) rank))
-				    (cl-remove-duplicates ranks))
+  (let* ((rank-counts (sort (let ((cards hand) result)
+			      (while cards
+				(let ((rank (poker-card-rank (car cards))))
+				  (unless (rassq rank result)
+				    (push (cons (let ((count 1))
+						  (dolist (card (cdr cards) count)
+						    (when (eq (poker-card-rank card)
+							      rank)
+						      (setq count (1+ count)))))
+						rank)
+					  result)))
+				(setq cards (cdr cards)))
+			      result)
 			    (lambda (lhs rhs) (or (> (car lhs) (car rhs))
 						  (and (= (car lhs) (car rhs))
 						       (> (cdr lhs) (cdr rhs)))))))
-	 (ranks-length (length rank-counts)))
-    (setq ranks (mapcar #'cdr rank-counts)
-	  rank-counts (mapcar #'car rank-counts))
+	 (ranks-length (length rank-counts))
+	 (ranks (mapcar #'cdr rank-counts)))
+    (setq rank-counts (mapcar #'car rank-counts))
     (logior (cond
 	     ((eq ranks-length 4) #x100000)
 	     ((eq ranks-length 5)
