@@ -148,8 +148,7 @@ range is infinite."
 
 (defun streamp (stream)
   "Return non-nil if STREAM is a stream, nil otherwise."
-  (and (consp stream)
-       (eq (car stream) stream--identifier)))
+  (eq (car-safe stream) stream--identifier))
 
 (defun stream-empty ()
   "Return a new empty stream."
@@ -197,10 +196,10 @@ elements in the STREAMS in order."
 
 (cl-generic-define-generalizer stream--generalizer
   11
-  (lambda (name)
+  (lambda (name &rest _)
     `(when (streamp ,name)
        'stream))
-  (lambda (tag)
+  (lambda (tag &rest _)
     (when (eq tag 'stream)
       '(stream))))
 
