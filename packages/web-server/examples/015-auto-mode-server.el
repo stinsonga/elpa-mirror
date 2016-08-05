@@ -1,9 +1,9 @@
-;;; auto-mode-server.el --- files with fontification from the `auto-mode-alist'
-;; Copyright (C) 2014  Free Software Foundation, Inc.
+;;; auto-mode-server.el --- files with fontification from the `auto-mode-alist'  -*- lexical-binding:t -*-
+;; Copyright (C) 2014, 2016  Free Software Foundation, Inc.
 
-(require 'htmlize)
+(if t (require 'htmlize))               ;Don't require during compilation.
 
-(lexical-let ((docroot default-directory))
+(let ((docroot default-directory))
   (ws-start
    (lambda (request)
      (with-slots (process headers) request
