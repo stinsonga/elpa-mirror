@@ -1,8 +1,8 @@
 ;;; sml-mode.el --- Major mode for editing (Standard) ML  -*- lexical-binding: t; coding: utf-8 -*-
 
-;; Copyright (C) 1989,1999,2000,2004,2007,2010-2015  Free Software Foundation, Inc.
+;; Copyright (C) 1989,1999,2000,2004,2007,2010-2016  Free Software Foundation, Inc.
 
-;; Maintainer: (Stefan Monnier) <monnier@iro.umontreal.ca>
+;; Maintainer: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Version: 6.7
 ;; Keywords: SML
 ;; Author:	Lars Bo Nielsen
@@ -12,6 +12,7 @@
 ;;		Matthew Morley <mjm@scs.leeds.ac.uk>
 ;;		Matthias Blume <blume@cs.princeton.edu>
 ;;		(Stefan Monnier) <monnier@iro.umontreal.ca>
+;; Package-Requires: ((emacs "24") (cl-lib "0.5"))
 
 ;; This file is part of GNU Emacs.
 
@@ -113,7 +114,7 @@
 
 ;;; Code:
 
-(eval-when-compile (require 'cl))
+(eval-when-compile (require 'cl-lib))
 (require 'smie nil 'noerror)
 (require 'electric)
 
@@ -218,8 +219,8 @@ notion of \"the end of an outline\".")
 
 
 (defconst sml-=-starter-syms
-  (list* "|" "val" "fun" "and" "datatype" "type" "abstype" "eqtype"
-	 sml-module-head-syms)
+  `("|" "val" "fun" "and" "datatype" "type" "abstype" "eqtype"
+    . ,sml-module-head-syms)
   "Symbols that can be followed by a `='.")
 (defconst sml-=-starter-re
   (concat "\\S.|\\S.\\|" (sml-syms-re (cdr sml-=-starter-syms)))
@@ -500,7 +501,7 @@ Regexp match data 0 points to the chars."
     ;;      and bar = Bar of string
     (save-excursion
       (let ((max (line-end-position 0))
-            (data (smie-backward-sexp "and"))
+            (_data (smie-backward-sexp "and"))
             (startcol (save-excursion
                         (forward-comment (- (point)))
                         (current-column)))
@@ -721,7 +722,7 @@ Assumes point is right before the | symbol."
   "The inferior-process buffer to which to send code.")
 (make-variable-buffer-local 'sml-prog-proc--buffer)
 
-(defstruct (sml-prog-proc-descriptor
+(cl-defstruct (sml-prog-proc-descriptor
             (:constructor sml-prog-proc-make)
             (:predicate nil)
             (:copier nil))
@@ -890,10 +891,10 @@ Prefix arg AND-GO also means to switch to the read-eval-loop buffer afterwards."
      ;; Look for files to determine the default command.
      (while (and (stringp dir)
                  (progn
-                   (dolist (cf (sml-prog-proc--prop compile-commands-alist))
+                   (cl-dolist (cf (sml-prog-proc--prop compile-commands-alist))
                      (when (file-exists-p (expand-file-name (cdr cf) dir))
                        (setq cmd (concat cmd "\"; " (car cf)))
-                       (return nil)))
+                       (cl-return nil)))
                    (not cmd)))
        (let ((newdir (file-name-directory (directory-file-name dir))))
 	 (setq dir (unless (equal newdir dir) newdir))
@@ -916,10 +917,10 @@ Prefix arg AND-GO also means to switch to the read-eval-loop buffer afterwards."
      ;; ;; now look for command's file to determine the directory
      ;; (setq dir default-directory)
      ;; (while (and (stringp dir)
-     ;; 	    (dolist (cf (sml-prog-proc--prop compile-commands-alist) t)
+     ;; 	    (cl-dolist (cf (sml-prog-proc--prop compile-commands-alist) t)
      ;; 	      (when (and (equal cmd (car cf))
      ;; 			 (file-exists-p (expand-file-name (cdr cf) dir)))
-     ;; 		(return nil))))
+     ;; 		(cl-return nil))))
      ;;   (let ((newdir (file-name-directory (directory-file-name dir))))
      ;;     (setq dir (unless (equal newdir dir) newdir))))
      ;; (setq dir (or dir default-directory))
@@ -1097,7 +1098,7 @@ on which to run CMD using `remote-shell-program'.
     (setq sml-host-name host)
     ;; For remote execution, use `remote-shell-program'
     (when (> (length host) 0)
-      (setq args (list* host "cd" default-directory ";" cmd args))
+      (setq args `(,host "cd" ,default-directory ";" ,cmd . ,args))
       (setq cmd remote-shell-program))
     ;; Go for it.
     (save-current-buffer
@@ -1462,7 +1463,7 @@ Depending on the context insert the name of function, a \"=>\" etc."
       (end-of-line)
       (while (and (> count 0)
 		  (setq name (sml-beginning-of-defun)))
-	(decf count)
+	(cl-decf count)
 	(setq fullname (if fullname (concat name "." fullname) name))
 	;; Skip all other declarations that we find at the same level.
 	(sml-skip-siblings))
