@@ -1,3 +1,4 @@
+;; -*- no-byte-compile:t' -*-
 (let (exp)
   (macroexp-let2 macroexp-copyable-p v exp
     v exp))

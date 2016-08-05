@@ -1,3 +1,4 @@
+;; -*- no-byte-compile:t' -*-
 (let (a
       (b a)
       (c free)
