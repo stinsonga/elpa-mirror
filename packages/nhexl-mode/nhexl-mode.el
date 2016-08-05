@@ -1,10 +1,11 @@
 ;;; nhexl-mode.el --- Minor mode to edit files via hex-dump format  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2010, 2012  Free Software Foundation, Inc.
+;; Copyright (C) 2010, 2012, 2016  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords: data
-;; Version: 0.1
+;; Version: 0.2
+;; Package-Requires: ((emacs "24") (cl-lib "0.5"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -37,7 +38,7 @@
 
 ;;; Code:
 
-(eval-when-compile (require 'cl))
+(eval-when-compile (require 'cl-lib))
 (require 'hexl)                         ;For faces.
 
 (defgroup nhexl nil
@@ -101,7 +102,7 @@
 (defun nhexl--debug-count-ols ()
   (let ((i 0))
     (dolist (ol (overlays-in (point-min) (point-max)))
-      (when (overlay-get ol 'nhexl) (incf i)))
+      (when (overlay-get ol 'nhexl) (cl-incf i)))
     i))
 
 (defun nhexl--flush-overlays (buffer)
@@ -193,7 +194,7 @@
                            'display (copy-sequence "␊"))))
     (while (< from to)
 
-      (decf nhexl--overlay-counter)
+      (cl-decf nhexl--overlay-counter)
       (when (and (= nhexl--overlay-counter 0)
                  ;; If the user enabled jit-lock-stealth fontification, then
                  ;; removing overlays is just a waste since
