@@ -1,3 +1,4 @@
+;; -*- no-byte-compile:t' -*-
 (condition-case err
     (progn err free)
   (error err free)
