@@ -446,7 +446,7 @@ The optional number of OPPONENTS defaults to 1."
 	   (nth (or opponents 1)
 		(assq (poker-starting-hand-name pocket)
 		      poker-pre-flop-starting-hands)))
-      (let ((wins 0) (iterations 1000))
+      (let ((wins 0) (iterations 300))
 	(dotimes (i iterations)
 	  (let ((deck (poker-random-deck))
 		(players (make-vector (or opponents 1) nil)))
