@@ -1,4 +1,3 @@
-;; -*- no-byte-compile:t' -*-
 (let (
       (a (lambda ()))))
 
