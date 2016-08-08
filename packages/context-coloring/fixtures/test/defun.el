@@ -1,4 +1,3 @@
-;; -*- no-byte-compile:t' -*-
 (defun abc (def ghi &optional jkl)
   (+ def ghi jkl free))
 
