@@ -1100,7 +1100,9 @@ Hit any key to proceed."
                  (do-replace
                   (lambda ()
                     (save-excursion
-                      (el-search--replace-hunk (list (point) (el-search--end-of-sexp)) to-insert))
+                      (save-restriction
+                        (widen)
+                        (el-search--replace-hunk (list (point) (el-search--end-of-sexp)) to-insert)))
                     (el-search--ensure-sexp-start) ;skip potentially newly added whitespace
                     (el-search-hl-sexp (list opoint (point)))
                     (cl-incf nbr-replaced)
