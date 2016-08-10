@@ -440,7 +440,9 @@ and return it."
 (defmacro el-search-defpattern (name args &rest body)
   "Like `pcase-defmacro', but limited to el-search patterns.
 The semantics is exactly that of `pcase-defmacro', but the scope
-of the definitions is limited to \"el-search\"."
+of the definitions is limited to \"el-search\".
+
+\(fn NAME ARGLIST &optional DOCSTRING &rest BODY)"
   (declare (indent 2) (debug defun))
   `(setf (alist-get ',name el-search--pcase-macros)
          (lambda ,args ,@body)))
