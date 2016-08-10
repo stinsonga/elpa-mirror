@@ -47,8 +47,10 @@
 Use variable `el-search--cached-changes' for caching."
   (if (and (consp el-search--cached-changes)
            (equal (car el-search--cached-changes)
-                  revision))
+                  (list revision (visited-file-modtime))))
       (cdr el-search--cached-changes)
+    (when (buffer-modified-p)
+      (error "Buffer is modified - please save"))
     (require 'diff-hl)
     ;; `diff-hl-changes' returns line numbers.  We must convert them into positions.
     (save-restriction
@@ -58,20 +60,19 @@ Use variable `el-search--cached-changes' for caching."
               (current-line-nbr 1) change-beg)
           (goto-char 1)
           (cdr (setq el-search--cached-changes
-                     (cons revision
+                     (cons (list revision (visited-file-modtime))
                            (delq nil (mapcar (pcase-lambda (`(,start-line ,nbr-lines ,kind))
                                                (if (eq kind 'delete) nil
                                                  (forward-line (- start-line current-line-nbr))
                                                  (setq change-beg (point))
                                                  (forward-line (1- nbr-lines))
                                                  (setq current-line-nbr (+ start-line nbr-lines -1))
-                                                 (cons change-beg (line-end-position))))
+                                                 (cons (copy-marker change-beg)
+                                                       (copy-marker (line-end-position)))))
                                              (diff-hl-changes)))))))))))
 
 (defun el-search--change-p (posn &optional revision)
   ;; Non-nil when sexp after POSN is part of a change
-  (when (buffer-modified-p)
-    (error "Buffer is modified - please save"))
   (save-restriction
     (widen)
     (let ((changes (el-search--changes-from-diff-hl revision))
