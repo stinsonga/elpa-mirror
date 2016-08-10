@@ -426,10 +426,11 @@ and return it."
       (insert (or (cdr ud) main))
       (mapc
        (pcase-lambda (`(,symbol . ,fun))
-         (when-let ((doc (documentation fun)))
-           (insert "\n\n\n-- ")
-           (setq doc (help-fns--signature symbol doc fun fun nil))
-           (insert "\n" (or doc "Not documented."))))
+         (unless (string-match-p "\\`-\\|--" (symbol-name symbol)) ;let's consider these "internal"
+           (when-let ((doc (documentation fun)))
+             (insert "\n\n\n-- ")
+             (setq doc (help-fns--signature symbol doc fun fun nil))
+             (insert "\n" (or doc "Not documented.")))))
        (reverse el-search--pcase-macros))
       (let ((combined-doc (buffer-string)))
         (if ud (help-add-fundoc-usage combined-doc (car ud)) combined-doc)))))
