@@ -1,10 +1,10 @@
 ;;; poker.el --- Texas hold 'em poker
 
-;; Copyright (C) 2014  Free Software Foundation, Inc.
+;; Copyright (C) 2014, 2016  Free Software Foundation, Inc.
 
 ;; Author: Mario Lang <mlang@delysid.org>
 ;; Maintainer: Mario Lang <mlang@delysid.org>
-;; Version: 0.1
+;; Version: 0.2
 ;; Keywords: games
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -23,6 +23,12 @@
 ;;; Commentary:
 
 ;; poker.el provides Texas hold 'em poker gameplay for Emacs.
+
+;;; Todo:
+
+;; * Provide a better user interface.  A buffer should be used to keep
+;;   the state and visual representation of a table/game.
+;; * Smarter AIs.
 
 ;;; Requires:
 
