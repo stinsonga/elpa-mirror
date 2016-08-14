@@ -257,8 +257,8 @@ notion of \"the end of an outline\".")
   (defconst sml-id-re "\\sw\\(?:\\sw\\|\\s_\\)*"))
 
 (defconst sml-tyvarseq-re
-  (concat "\\(?:\\(?:'+" sml-id-re "\\|(\\(?:[,']\\|" sml-id-re
-          "\\|\\s-\\)+)\\)\\s-+\\)?"))
+  (concat "\\(?:\\(?:'+" sml-id-re "\\|(\\(?:[,' \t\n]+" sml-id-re
+          "\\)+)\\)\\s-+\\)?"))
 
 ;;; Font-lock settings ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
