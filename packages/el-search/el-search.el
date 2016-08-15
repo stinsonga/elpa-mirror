@@ -665,19 +665,6 @@ MESSAGE are used to construct the error message."
 
 ;;;; Additional pattern type definitions
 
-;; Hint: we sometimes need to create (pcase) backquote forms with
-;; backquote.  I do this like in this example:
-;;
-;; (let ((y 2))
-;;   `(,'\` ((,'\, x) ,y)))
-;;   ==> `(,x 2)
-;;
-;; Note that the backslashes are mandatory, else the reader macros are
-;; interpreted as composition of the respective operations, like in
-;;
-;; `(', (+ 1 2)) ==> ('3)
-
-
 (defun el-search--split (matcher1 matcher2 list)
   "Helper for the append pattern type.
 
@@ -727,8 +714,7 @@ matches the list (1 2 3 4 5 6 7 8 9) and binds `x' to (4 5 6)."
               (app ,(apply-partially #'el-search--split
                                      (el-search--matcher pattern)
                                      (el-search--matcher (car more-patterns)))
-                   (,'\` ((,'\, ,pattern)
-                          (,'\, ,(car more-patterns)))))))
+                   `(,,pattern ,,(car more-patterns)))))
        (t `(append ,pattern (append ,@more-patterns)))))))
 
 (defun el-search--stringish-p (thing)
@@ -775,7 +761,7 @@ of any kind matched by all PATTERNs are also matched.
    ((null (cdr patterns))
     (let ((pattern (car patterns)))
       `(app ,(apply-partially #'el-search--contains-p (el-search--matcher pattern))
-            (,'\` (t (,'\, ,pattern))))))
+            `(t ,,pattern))))
    (t `(and ,@(mapcar (lambda (pattern) `(contains ,pattern)) patterns)))))
 
 (el-search-defpattern not (pattern)
@@ -842,8 +828,8 @@ matches any of these expressions:
 (defun el-search--transform-nontrivial-lpat (expr)
   (cond
    ((symbolp expr) `(or (symbol ,(symbol-name expr))
-                        (,'\` (,'quote    (,'\, (symbol ,(symbol-name expr)))))
-                        (,'\` (,'function (,'\, (symbol ,(symbol-name expr)))))))
+                        `',(symbol ,(symbol-name expr))
+                        `#',(symbol ,(symbol-name expr))))
    ((stringp expr) `(string ,expr))
    (t expr)))
 
@@ -890,7 +876,7 @@ could use this pattern:
                     ('_ '`(,_))
                     ('_? '(or '() `(,_))) ;FIXME: useful - document? or should we provide a (? PAT)
                                           ;thing?
-                    (_ `(,'\` ((,'\, ,(el-search--transform-nontrivial-lpat elt)))))))
+                    (_ ``(,,(el-search--transform-nontrivial-lpat elt)))))
                 lpats)
              ,@(if match-end '() '(_)))))
 
