@@ -826,12 +826,13 @@ matches any of these expressions:
   `(pred (el-search--match-key-sequence ,key-sequence)))
 
 (defun el-search--transform-nontrivial-lpat (expr)
-  (cond
-   ((symbolp expr) `(or (symbol ,(symbol-name expr))
-                        `',(symbol ,(symbol-name expr))
-                        `#',(symbol ,(symbol-name expr))))
-   ((stringp expr) `(string ,expr))
-   (t expr)))
+  (pcase expr
+    ((and (pred symbolp) (let symbol-name (symbol-name expr)))
+     `(or (symbol ,symbol-name)
+          `',(symbol  ,symbol-name)
+          `#',(symbol ,symbol-name)))
+    ((pred stringp) `(string ,expr))
+    (_ expr)))
 
 (el-search-defpattern l (&rest lpats)
   "Alternative pattern type for matching lists.
