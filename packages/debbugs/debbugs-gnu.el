@@ -230,7 +230,7 @@ If nil, the value of `send-mail-function' is used instead."
   ;; <http://debbugs.gnu.org/Packages.html>
   ;; <http://debbugs.gnu.org/cgi/pkgindex.cgi>
   :group 'debbugs-gnu
-  :type '(set (const "adns")
+  :type `(set (const "adns")
 	      (const "auctex")
 	      (const "automake")
 	      (const "cc-mode")
@@ -254,9 +254,13 @@ If nil, the value of `send-mail-function' is used instead."
 	      (const "org-mode")
 	      (const "parted")
 	      (const "sed")
+	      (const ,(propertize
+		      "test"
+		      'face 'debbugs-gnu-done
+		      'help-echo "This is a pseudo-package for test."))
 	      (const "vc-dwim")
 	      (const "woodchuck"))
-  :version "25.1")
+  :version "25.2")
 
 (defconst debbugs-gnu-all-packages
   (mapcar 'cadr (cdr (get 'debbugs-gnu-default-packages 'custom-type)))
