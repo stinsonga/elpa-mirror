@@ -210,6 +210,11 @@
 ;;
 ;; - improve docstrings
 ;;
+;; - Make it work in comments, too? (-> `parse-sexp-ignore-comments').
+;;   Related: should the pattern `symbol' also match strings that
+;;   contain matches for a symbol so that it's possible to replace
+;;   also occurrences of a symbol in docstrings?
+;;
 ;; - handle more reader syntaxes, e.g. #n, #n#
 ;;
 ;; - Implement sessions; add multi-file support based on iterators.  A
@@ -465,7 +470,7 @@ Return PATTERN if this pattern type was not defined with
                      el-search--pcase-macros)
      ,@body))
 
-(defun el-search--matcher (pattern &rest body)
+(defun el-search--matcher (pattern &optional result)
   (eval ;use `eval' to allow for user defined pattern types at run time
    (let ((expression (make-symbol "expression")))
      `(el-search--with-additional-pcase-macros
@@ -474,7 +479,7 @@ Return PATTERN if this pattern type was not defined with
              (pcase--dontwarn-upats (cons '_ pcase--dontwarn-upats)))
          (byte-compile (lambda (,expression)
                          (pcase ,expression
-                           (,pattern ,@(or body (list t)))
+                           (,pattern ,(or result t))
                            (_        nil)))))))))
 
 (defun el-search--match-p (matcher expression)
@@ -533,7 +538,7 @@ Return PATTERN if this pattern type was not defined with
     match-beg))
 
 (defun el-search--search-pattern (pattern &optional noerror)
-  "Search elisp buffer with `pcase' PATTERN.
+  "Search for el-search PATTERN in current buffer.
 Set point to the beginning of the occurrence found and return
 point.  Optional second argument, if non-nil, means if fail just
 return nil (no error)."
