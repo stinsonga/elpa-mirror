@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 0.2.2
+;; Version: 0.2.3
 ;; Package-Requires: ((emacs "25"))
 
 
@@ -644,9 +644,9 @@ reindent."
                     (el-search--ensure-sexp-start)
                   (end-of-buffer (goto-char (point-max))))))
             (goto-char 1)
-            (forward-sexp)
+            (forward-sexp (if splice (length replacement) 1))
             (let ((result (buffer-substring 1 (point))))
-              (if (equal replacement (read result))
+              (if (equal replacement (read (if splice (format "(%s)" result) result)))
                   result
                 (error "Error in `el-search--format-replacement' - please make a bug report"))))
         (kill-buffer orig-buffer)))))
