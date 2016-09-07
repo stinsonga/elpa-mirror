@@ -112,8 +112,14 @@
     (should (stream-empty-p (stream-rest (stream-rest rest))))))
 
 (ert-deftest stream-seq-subseq-test ()
-  ;; TODO
-  )
+  (should (equal (seq-into (seq-subseq (stream (list 0 1 2 3 4)) 1 3) 'list)
+                           (seq-subseq         (list 0 1 2 3 4)  1 3)))
+  (should (= (stream-first (seq-subseq (stream-range 0) 5))
+             5))
+  (should (= (stream-first (seq-subseq (seq-subseq (stream-range 0) 5) 5))
+             10))
+
+  (should-error (seq-subseq (stream-range 0) -1)))
 
 (ert-deftest stream-seq-into-test ()
   (should (streamp (seq-into (stream-empty) 'stream)))

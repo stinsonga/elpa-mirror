@@ -229,8 +229,19 @@ This function will eagerly consume the entire stream."
       (setq stream (stream-rest stream)))
     len))
 
-(cl-defmethod seq-subseq ((stream stream) start end)
-  (seq-take (seq-drop stream start) (- end start)))
+(cl-defmethod seq-subseq ((stream stream) start &optional end)
+  "Return a stream of elements of STREAM from START to END.
+
+END is exclusive.  If END is omitted, include all elements from
+START on.  Both START and END must be non-negative.  Since
+streams are a delayed type of sequences, don't signal an error if
+START or END are larger than the number of elements (the returned
+stream will simply be accordingly shorter, or even empty)."
+  (when (or (< start 0) (and end (< end 0)))
+    (error "seq-subseq: only non-negative indexes allowed for streams"))
+  (let ((stream-from-start (seq-drop stream start)))
+    (if end (seq-take stream-from-start (- end start))
+      stream-from-start)))
 
 (cl-defmethod seq-into-sequence ((stream stream))
   "Convert STREAM into a sequence."
