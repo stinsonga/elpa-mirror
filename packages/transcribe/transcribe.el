@@ -94,7 +94,7 @@
 (if t (require 'emms-playing-time))
 (emms-playing-time 1)
 
-(defvar transcribe-function-list '("initiating" "responding" "control" "expresive" "interpersonal"))
+(defvar transcribe-function-list '("initiating" "responding" "control" "expressive" "interpersonal"))
 (defvar transcribe-move-list '("initiation" "response" "follow-up"))
 (defvar transcribe-attribute-list '("clauses" "errors" "function" "move"))
 ;; (append transcribe-attribute-list transcribe-function-list transcribe-move-list)
@@ -150,12 +150,12 @@
      (episodes (xml-get-children results 'episode))
      (asunitsl2 0.0000)
      (asunitsl1 0.0000)
-     ;; (shifts 0.0000);; TODO implement
-     (initiating 0.0000);; TODO implement
-     (responding 0.0000);; TODO implement
-     (control 0.0000);; TODO implement
-     (expressive 0.0000);; TODO implement
-     (interpersonal 0.0000);; TODO implement
+     (shifts 0.0000);; TODO implement
+     (initiating 0.0000)
+     (responding 0.0000)
+     (control 0.0000)
+     (expressive 0.0000)
+     (interpersonal 0.0000)
      (clausesl1 0.0000)
      ;; (errorsl1 0.0000);; TODO implement
      (clausesl2 0.0000)
@@ -222,6 +222,7 @@
                              errorsl2inc))))
                           (when l2
                             ;; (add-to-list 'interventionsl2 l2)
+                            (when (string-match "@*" l2) (setq shifts (1+ shifts)))
                             (cl-pushnew l2 interventionsl2 :test #'equal)
                             (setq asunitsl2 (1+ asunitsl2)))))
                      (dolist (l1turn l1node)
@@ -234,6 +235,7 @@
                               clausesl1nodeinc))))
                          (when l1
                            ;; (add-to-list 'interventionsl1 l1)
+                           (when (string-match "@*" l1) (setq shifts (1+ shifts)))
                            (cl-pushnew l1 interventionsl1 :test #'equal)
                            (setq asunitsl1 (1+ asunitsl1)))))))))))))
   (reverse interventionsl2)
@@ -251,12 +253,22 @@
     (respondingperasunitl2 (/ responding asunitsl2))
     (controlperasunitl2 (/ control asunitsl2))
     (expressiveperasunitl2 (/ expressive asunitsl2))
-    (interpersonalperasunitl2 (/ interpersonal asunitsl2)))
+    (interpersonalperasunitl2 (/ interpersonal asunitsl2))
+    (shiftsperasunit (/ shifts (+ asunitsl1 asunitsl2))))
+    
+    ;; Get rid of divisions by zero
+    (when (= asunitsl2 0)
+      (setq initiatingperasunitl2 0.0)
+      (setq respondingperasunitl2 0.0)
+      (setq controlperasunitl2 0.0)
+      (setq expressiveperasunitl2 0.0)
+      (setq interpersonalperasunitl2 0.0)
+      (setq shiftsperasunit 0.0))
 
     ;; (princ clausesmessage)
     (princ (format "episode: %s, duration: %s, person: %s\n" episodenumber duration personid))
     (with-current-buffer "Statistics Output"
-      (insert (format "%s,%s,%s,0,0,%s,%s,%s,%s,%s,QUAN-L2,segmented,aux,level,subject,yearofclil,month\n" personid episodenumber duration role context demand asunitspersecondl2 asunitspersecondl1)))
+      (insert (format "%s,%s,%s,0,0,%s,%s,%s,%s,%s,QUAL-L2,%s,%s,%s,%s,%s,%s,aux,level,subject,yearofclil,month\n" personid episodenumber duration role context demand asunitspersecondl2 asunitspersecondl1 initiatingperasunitl2 respondingperasunitl2 controlperasunitl2 expressiveperasunitl2 interpersonalperasunitl2 shiftsperasunit)))
     (princ (format "L2(Asunits/second): %s, L2(clauses/Asunit): %s, L2(errors/Asunit):%s, L1(Asunits/second): %s\n"
           asunitspersecondl2 clausesperasunitl2 errorsperasunitl2 asunitspersecondl1))
     (princ (format "Functions/unit: Initiating: %s, Responding: %s, Control: %s, Expressive: %s, Interpersonal: %s" initiatingperasunitl2 respondingperasunitl2 controlperasunitl2 expressiveperasunitl2 interpersonalperasunitl2)))))
@@ -272,7 +284,7 @@
 
      (with-current-buffer "Statistics Output"
        (erase-buffer)
-       (insert "person,episode,duration,C-UNITS(L2),C-UNITS(L1),role,context,demand,QUAN-L2,QUAN-L1,QUAL-L2,segmented,aux,level,subjects,yearofCLIL,month\n"))
+       (insert "person,episode,duration,C-UNITS(L2),C-UNITS(L1),role,context,demand,QUAN-L2,QUAN-L1,QUAL-L2,initiating,responding,control,expressive,interpersonal,shifts,aux,level,subjects,yearofCLIL,month\n"))
      (dolist (episode episodes)
        (let* ((numbernode (xml-get-children episode 'number))
          (participantsnode (xml-get-children episode 'participants))
@@ -307,7 +319,7 @@
        (end (region-end)))
   (goto-char beginning)
   (insert (format "<%s>" xmltag))
-  (goto-char end)
+  (goto-char (+ (+ end (string-width xmltag)) 2))
   (insert (format "</%s>" xmltag))))
 
 (defun transcribe-add-attribute (att val)
@@ -325,18 +337,18 @@
   (interactive (list(completing-read "move name:" transcribe-move-list)))
   (insert (format "move=\"%s\"" val)))
 
-(defun transcribe-xml-tag-l1 ()
+(defun transcribe-xml-tag-l1 (function)
   "Inserts a l1 tag and places the cursor"
-  (interactive)
+  (interactive (list(completing-read "function:" transcribe-function-list)))
   (re-search-forward "</l.>" (line-end-position) t)
-  (insert "<l1 clauses=\"1\" errors=\"0\" function=\"\"></l1>")
+  (insert (format "<l1 clauses=\"1\" errors=\"0\" function=\"%s\"></l1>" function))
   (backward-char 5))
 
-(defun transcribe-xml-tag-l2 ()
+(defun transcribe-xml-tag-l2 (function)
   "Inserts a l2 tag and places the cursor"
-  (interactive)
+  (interactive (list(completing-read "function:" transcribe-function-list)))
   (re-search-forward "</l.>" (line-end-position) t)
-  (insert "<l2 clauses=\"1\" errors=\"0\" function=\"\"></l2>")
+  (insert  (format "<l2 clauses=\"1\" errors=\"0\" function=\"%s\"></l2>" function))
   (backward-char 5))
 
 (defun transcribe-xml-tag-break (xmltag)
@@ -381,7 +393,7 @@
     ["Raw Output" transcribe-raw-to-buffer]
     "---"
     ["Analyze" transcribe-analyze]
-    ["Analyze all" arbitools-analyze-all]
+    ["Analyze all" transcribe-analyze-all]
     "---"
     ["Add transcription header" NewEpisode]
     ["Add move attribute" transcribe-add-attribute-move]
