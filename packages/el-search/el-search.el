@@ -452,6 +452,12 @@ of the definitions is limited to \"el-search\".
   `(setf (alist-get ',name el-search--pcase-macros)
          (lambda ,args ,@body)))
 
+(defmacro el-search--with-additional-pcase-macros (&rest body)
+  `(cl-letf ,(mapcar (pcase-lambda (`(,symbol . ,fun))
+                       `((get ',symbol 'pcase-macroexpander) #',fun))
+                     el-search--pcase-macros)
+     ,@body))
+
 (defun el-search--macroexpand-1 (pattern)
   "Expand \"el-search\" PATTERN.
 This is like `pcase--macroexpand', but expands only patterns
@@ -464,11 +470,9 @@ Return PATTERN if this pattern type was not defined with
       (apply expander (cdr pattern))
     pattern))
 
-(defmacro el-search--with-additional-pcase-macros (&rest body)
-  `(cl-letf ,(mapcar (pcase-lambda (`(,symbol . ,fun))
-                       `((get ',symbol 'pcase-macroexpander) #',fun))
-                     el-search--pcase-macros)
-     ,@body))
+(defun el-search--macroexpand (pattern)
+  "Like `pcase--macroexpand' but also expanding \"el-search\" patterns."
+  (eval `(el-search--with-additional-pcase-macros (pcase--macroexpand ',pattern))))
 
 (defun el-search--matcher (pattern &optional result)
   (eval ;use `eval' to allow for user defined pattern types at run time
