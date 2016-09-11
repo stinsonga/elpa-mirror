@@ -110,7 +110,7 @@ SEQ can be a list, vector or string."
 (cl-defmethod stream ((buffer buffer) &optional pos)
   "Return a stream of the characters of the buffer BUFFER.
 BUFFER may be a buffer or a string (buffer name).
-The sequence starts at POS if non-nil, 1 otherwise."
+The sequence starts at POS if non-nil, `point-min' otherwise."
   (with-current-buffer buffer
     (unless pos (setq pos (point-min)))
     (if (>= pos (point-max))
@@ -166,11 +166,12 @@ range is infinite."
   (list stream--identifier (thunk-delay nil)))
 
 (defun stream-empty-p (stream)
-  "Return non-nil is STREAM is empty, nil otherwise."
+  "Return non-nil if STREAM is empty, nil otherwise."
   (null (thunk-force (cadr stream))))
 
 (defun stream-first (stream)
-  "Return the first element of STREAM."
+  "Return the first element of STREAM.
+Return nil if STREAM is empty."
   (car (thunk-force (cadr stream))))
 
 (defun stream-rest (stream)
