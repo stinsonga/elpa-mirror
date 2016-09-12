@@ -423,9 +423,9 @@ and return it."
 (defvar el-search--pcase-macros '()
   "List of additional \"el-search\" pcase macros.")
 
-(defun el-search--make-docstring ()
+(defun el-search--make-docstring (name)
   ;; code mainly from `pcase--make-docstring'
-  (let* ((main (documentation (symbol-function 'el-search-pattern) 'raw))
+  (let* ((main (documentation (symbol-function name) 'raw))
          (ud (help-split-fundoc main 'pcase)))
     (with-temp-buffer
       (insert (or (cdr ud) main))
@@ -440,7 +440,7 @@ and return it."
       (let ((combined-doc (buffer-string)))
         (if ud (help-add-fundoc-usage combined-doc (car ud)) combined-doc)))))
 
-(put 'el-search-pattern 'function-documentation '(el-search--make-docstring))
+(put 'el-search-pattern 'function-documentation '(el-search--make-docstring 'el-search-pattern))
 
 (defmacro el-search-defpattern (name args &rest body)
   "Like `pcase-defmacro', but limited to el-search patterns.
