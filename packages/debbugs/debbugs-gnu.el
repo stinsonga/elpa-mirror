@@ -187,7 +187,7 @@
   :version "24.1")
 
 (defcustom debbugs-gnu-default-severities '("serious" "important" "normal")
-  "*The list severities bugs are searched for.
+  "The list severities bugs are searched for.
 \"tagged\" is not a severity but marks locally tagged bugs."
   ;; <http://debbugs.gnu.org/Developer.html#severities>
   ;; /ssh:debbugs:/etc/debbugs/config @gSeverityList
@@ -223,10 +223,10 @@ If nil, the value of `send-mail-function' is used instead."
 
 (defconst debbugs-gnu-all-severities
   (mapcar 'cadr (cdr (get 'debbugs-gnu-default-severities 'custom-type)))
-  "*List of all possible severities.")
+  "List of all possible severities.")
 
 (defcustom debbugs-gnu-default-packages '("emacs")
-  "*The list of packages to be searched for."
+  "The list of packages to be searched for."
   ;; <http://debbugs.gnu.org/Packages.html>
   ;; <http://debbugs.gnu.org/cgi/pkgindex.cgi>
   :group 'debbugs-gnu
@@ -264,11 +264,11 @@ If nil, the value of `send-mail-function' is used instead."
 
 (defconst debbugs-gnu-all-packages
   (mapcar 'cadr (cdr (get 'debbugs-gnu-default-packages 'custom-type)))
-  "*List of all possible package names.")
+  "List of all possible package names.")
 
 (defcustom debbugs-gnu-default-suppress-bugs
   '((pending . "done"))
-  "*A list of specs for bugs to be suppressed.
+  "A list of specs for bugs to be suppressed.
 An element of this list is a cons cell \(KEY . REGEXP\), with key
 being returned by `debbugs-get-status', and REGEXP a regular
 expression matching the corresponding value, a string.  Showing
@@ -278,7 +278,7 @@ suppressed bugs is toggled by `debbugs-gnu-toggle-suppress'."
   :version "24.1")
 
 (defcustom debbugs-gnu-mail-backend 'gnus
-  "*The email backend to use for reading bug report email exchange.
+  "The email backend to use for reading bug report email exchange.
 If this is `gnus', the default, use Gnus.
 If this is `rmail', use Rmail instead."
   :group 'debbugs-gnu
@@ -1393,26 +1393,61 @@ MERGED is the list of bugs merged with this one."
 	   (re-search-forward "#\\([0-9]+\\)" nil t)))
      (string-to-number (match-string 1)))))
 
+(defun debbugs-gnu-proper-bug-number (id)
+  "Check that ID is a number string and in the range of existing bugs."
+  (and (string-match "^[1-9][0-9]*$" id)
+       (<= (string-to-number id) (car (debbugs-newest-bugs 1)))))
+
 (defvar debbugs-gnu-completion-table
   (completion-table-dynamic
    (lambda (string)
-     (if (string-equal string "")
+     (let* ((split (split-string string "-"))
+	    (from (and (cdr split) (car split)))
+	    (to (or (car (cdr split)) (car split))))
+       (cond
+	((> (length split) 2) nil)
+	((and (or (zerop (length from)) (debbugs-gnu-proper-bug-number from))
+	      (string-equal to ""))
+	 (mapcar
+	  (lambda (x) (concat string x))
+	  (cons (unless from "-") '("1" "2" "3" "4" "5" "6" "7" "8" "9"))))
+	((and (or (zerop (length from)) (debbugs-gnu-proper-bug-number from))
+	      (debbugs-gnu-proper-bug-number to))
 	 (mapcar
 	  (lambda (x)
-	    (list (format "%d" x) x))
-	  '(1 2 3 4 5 6 7 8 9))
-       (let ((newest-bug (car (debbugs-newest-bugs 1))))
-	 (and (string-match "^[1-9][0-9]*$" string)
-	      (<= (string-to-number string) newest-bug)
-	      (append
-	       `(,string)
-	       (mapcar
-		(lambda (x)
-		  (let ((y (format "%s%d" string x)))
-		    (and (<= (string-to-number y) newest-bug)
-			 (list y x))))
-		'(0 1 2 3 4 5 6 7 8 9))))))))
+	    (and (debbugs-gnu-proper-bug-number (concat to x))
+		 (concat string x)))
+	  '("" "0" "1" "2" "3" "4" "5" "6" "7" "8" "9")))))))
   "Dynamic completion table for reading bug numbers.")
+
+(defun debbugs-gnu-expand-bug-number-list (bug-number-list)
+  "Expand BUG-NUMBER-LIST to a list of singe bug numbers.
+BUG-NUMBER-LIST is a list of bug numbers or bug number ranges, as
+returned by `debbugs-gnu-bugs'."
+  (let (result)
+    (dolist (elt bug-number-list result)
+      (let* ((split (split-string elt "-"))
+	     (from (and (cdr split) (car split)))
+	     (to (or (car (cdr split)) (car split))))
+	(setq
+	 result
+	 (cond
+	  ((or (> (length split) 2)
+	       (zerop (length to)))
+	   (user-error "Wrong bug number or range %s" elt))
+	  ((null from)
+	   (cons to result))
+	  ((string-equal from "")
+	   (append
+	    (mapcar
+	     'number-to-string
+	     (debbugs-newest-bugs (string-to-number to)))
+	    result))
+	  (t (append
+	      (mapcar
+	       'number-to-string
+	       (number-sequence (string-to-number from) (string-to-number to)))
+	      result))))))))
 
 (defun debbugs-gnu-send-control-message (message &optional reverse)
   "Send a control message for the current bug report.
@@ -1477,22 +1512,24 @@ removed instead."
 		 "%s %d %s\n" message id
 		 (mapconcat
 		  'identity
-		  (completing-read-multiple
-		   (format "%s with bug(s) #: " (capitalize message))
-		   debbugs-gnu-completion-table)
+		  (debbugs-gnu-expand-bug-number-list
+		   (completing-read-multiple
+		    (format "%s with bug(s) #: " (capitalize message))
+		    debbugs-gnu-completion-table))
 		  " ")))
 	       ((member message '("block" "unblock"))
 		(format
 		 "%s %d by %s\n" message id
 		 (mapconcat
 		  'identity
-		  (completing-read-multiple
-		   (format "%s with bug(s) #: " (capitalize message))
-		   (if (equal message "unblock")
-		       (mapcar 'number-to-string
-			       (cdr (assq 'blockedby status)))
-		     debbugs-gnu-completion-table)
-		   nil (and (equal message "unblock") status))
+		  (debbugs-gnu-expand-bug-number-list
+		   (completing-read-multiple
+		    (format "%s with bug(s) #: " (capitalize message))
+		    (if (equal message "unblock")
+			(mapcar 'number-to-string
+				(cdr (assq 'blockedby status)))
+		      debbugs-gnu-completion-table)
+		    nil (and (equal message "unblock") status)))
 		  " ")))
 	       ((equal message "owner")
 		(format "owner %d !\n" id))
@@ -1620,13 +1657,23 @@ The following commands are available:
   (let ((args (get-text-property (line-beginning-position) 'tabulated-list-id)))
     (when args (apply 'debbugs-gnu args))))
 
+(defcustom debbugs-gnu-default-bug-number-list "-10"
+  "The default value used in interactive call of `debbugs-gnu-bugs'.
+It must be a string, containing a comma separated list of bugs or bug ranges."
+  :group 'debbugs-gnu
+  :type 'string
+  :version "25.2")
+
 ;;;###autoload
 (defun debbugs-gnu-bugs (&rest bugs)
   "List all BUGS, a list of bug numbers."
   (interactive
    (mapcar
     'string-to-number
-    (completing-read-multiple "Bug numbers: " debbugs-gnu-completion-table)))
+    (debbugs-gnu-expand-bug-number-list
+     (or
+      (completing-read-multiple "Bug numbers: " debbugs-gnu-completion-table)
+      (split-string debbugs-gnu-default-bug-number-list "," t)))))
   (dolist (elt bugs)
     (unless (natnump elt) (signal 'wrong-type-argument (list 'natnump elt))))
   (add-to-list 'debbugs-gnu-current-query (cons 'bugs bugs))
@@ -1634,14 +1681,33 @@ The following commands are available:
   (setq debbugs-gnu-current-suppress nil)
   (debbugs-gnu nil))
 
-(defvar debbugs-gnu-trunk-directory "~/src/emacs/trunk/"
-  "The directory where the main source tree lives.")
+(defcustom debbugs-gnu-trunk-directory "~/src/emacs/trunk/"
+  "The directory where the main source tree lives."
+  :group 'debbugs-gnu
+  :type 'directory
+  :version "25.2")
 
-(defvar debbugs-gnu-branch-directory "~/src/emacs/emacs-25/"
-  "The directory where the previous source tree lives.")
+(defcustom debbugs-gnu-branch-directory "~/src/emacs/emacs-25/"
+  "The directory where the previous source tree lives."
+  :group 'debbugs-gnu
+  :type 'directory
+  :version "25.2")
 
 (defvar debbugs-gnu-current-directory nil
   "The current source tree directory.")
+
+(defun debbugs-gnu-init-current-directory (&optional branch)
+"Initialize `debbugs-gnu-current-directory'."
+  (setq debbugs-gnu-current-directory
+	(or debbugs-gnu-current-directory
+	    (if branch
+		debbugs-gnu-branch-directory
+	      debbugs-gnu-trunk-directory)))
+  (unless (file-directory-p debbugs-gnu-current-directory)
+    (setq debbugs-gnu-current-directory
+	  (read-file-name
+	   "Emacs repository location: "
+	   debbugs-gnu-current-directory nil t nil 'file-directory-p))))
 
 (defun debbugs-gnu-apply-patch (&optional branch)
   "Apply the patch from the current message.
@@ -1650,6 +1716,7 @@ If given a prefix, patch in the branch directory instead."
   (add-hook 'emacs-lisp-mode-hook 'debbugs-gnu-lisp-mode)
   (add-hook 'diff-mode-hook 'debbugs-gnu-diff-mode)
   (add-hook 'change-log-mode-hook 'debbugs-gnu-change-mode)
+  (debbugs-gnu-init-current-directory branch)
   (let ((rej (expand-file-name "debbugs-gnu.rej" temporary-file-directory))
 	(output-buffer (get-buffer-create "*debbugs patch*"))
 	(patch-buffers nil))
@@ -1657,15 +1724,6 @@ If given a prefix, patch in the branch directory instead."
       (delete-file rej))
     (with-current-buffer output-buffer
       (erase-buffer))
-    (setq debbugs-gnu-current-directory
-	  (if branch
-	      debbugs-gnu-branch-directory
-	    debbugs-gnu-trunk-directory))
-    (unless (file-directory-p debbugs-gnu-current-directory)
-      (setq debbugs-gnu-current-directory
-	    (read-file-name
-	     "Emacs repository location: "
-	     debbugs-gnu-current-directory nil t nil 'file-directory-p)))
     (gnus-summary-select-article nil t)
     ;; The patches are either in MIME attachements or the main article
     ;; buffer.  Determine which.
@@ -1760,6 +1818,7 @@ If given a prefix, patch in the branch directory instead."
 (defun debbugs-gnu-find-contributor (string)
   "Search through ChangeLogs to find contributors."
   (interactive "sContributor match: ")
+  (debbugs-gnu-init-current-directory)
   (let ((found 0)
 	(match (concat "^[0-9].*" string)))
     (dolist (file (directory-files-recursively
@@ -1879,6 +1938,7 @@ If given a prefix, patch in the branch directory instead."
 (defun debbugs-gnu-change-checkin ()
   "Prepare checking in the current changes."
   (interactive)
+  (debbugs-gnu-init-current-directory)
   (save-some-buffers t)
   (when (get-buffer "*vc-dir*")
     (kill-buffer (get-buffer "*vc-dir*")))

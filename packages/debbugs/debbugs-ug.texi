@@ -117,7 +117,7 @@ archived bugs on the GNU Debbugs server.
 @var{suppress} shall also distinct between @code{nil} and
 non-@code{nil}.  When non-@code{nil}, closed bugs are suppressed from
 being retrieved from the Debbugs server.  Which bugs are regarded as
-suppressed is configured in the customer option
+suppressed is configured in the user option
 @code{debbugs-gnu-suppress-bugs}.  Per default, bugs marked as
 @code{"done"} are suppressed from being retrieved.
 
@@ -135,7 +135,7 @@ minibuffer, lists must be entered comma-separated.
 
 @vindex debbugs-gnu-default-severities
 @vindex debbugs-gnu-default-packages
-Default values for interactive use could be configured in the customer
+Default values for interactive use could be configured in the user
 options @code{debbugs-gnu-default-severities} and
 @code{debbugs-gnu-default-packages}.
 
@@ -149,7 +149,16 @@ options @code{debbugs-gnu-default-severities} and
 
 The commands @code{debbugs-gnu-bugs} and @code{debbugs-org-bugs} show
 bugs specified by their bug number.  Interactively, the bug numbers
-must be entered as comma-separated list.
+must be entered as comma-separated list of bugs or bug ranges.
+
+A bug range has either the form @samp{12345-21345} or @samp{-123}.  In
+the former case, all bugs from 12345 until 21345 are presented, and in
+the latter case the last 123 bugs are shown, counting from the highest
+bug number in the repository.
+
+@vindex debbugs-gnu-default-bug-number-list
+A default value for interactive use could be configured in the user
+option @code{debbugs-gnu-default-bug-number-list}.
 
 @ref{Presenting Bugs} for the presentation of the results.
 
@@ -616,7 +625,7 @@ Emacs repository with the changed file(s).
 
 @vindex debbugs-gnu-trunk-directory
 @vindex debbugs-gnu-branch-directory
-The Emacs repository is determined via the variables
+The Emacs repository is determined via the user options
 @code{debbugs-gnu-trunk-directory} or
 @code{debbugs-gnu-branch-directory}.  The latter one is used, when the
 patch is applied with the prefixed command @kbd{C-u M-m}.  If the
@@ -644,7 +653,7 @@ The reference to such bugs have a specialized format,
 This package adds a new minor mode @code{debbugs-browse-mode} on top
 of them.  Instead of using the default built-in Emacs browser for a
 given bug reference, it opens a corresponding bug report buffer.  The
-customer option @code{debbugs-browse-function} controls, whether
+user option @code{debbugs-browse-function} controls, whether
 @code{debbugs-gnu-bugs} or @code{debbugs-org-bugs} is called.
 
 This minor mode is applicable for all URLs, not only bug references.
