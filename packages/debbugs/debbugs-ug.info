@@ -105,8 +105,8 @@ prefix.
      SUPPRESS shall also distinct between 'nil' and non-'nil'.  When
      non-'nil', closed bugs are suppressed from being retrieved from
      the Debbugs server.  Which bugs are regarded as suppressed is
-     configured in the customer option 'debbugs-gnu-suppress-bugs'.
-     Per default, bugs marked as '"done"' are suppressed from being
+     configured in the user option 'debbugs-gnu-suppress-bugs'.  Per
+     default, bugs marked as '"done"' are suppressed from being
      retrieved.
 
      When SEVERITIES contains the severity '"tagged"', TAGS is
@@ -122,7 +122,7 @@ prefix.
      minibuffer, lists must be entered comma-separated.
 
      Default values for interactive use could be configured in the
-     customer options 'debbugs-gnu-default-severities' and
+     user options 'debbugs-gnu-default-severities' and
      'debbugs-gnu-default-packages'.
 
      *note Presenting Bugs:: for the presentation of the results.
@@ -132,7 +132,15 @@ prefix.
 
      The commands 'debbugs-gnu-bugs' and 'debbugs-org-bugs' show bugs
      specified by their bug number.  Interactively, the bug numbers
-     must be entered as comma-separated list.
+     must be entered as comma-separated list of bugs or bug ranges.
+
+     A bug range has either the form '12345-21345' or '-123'.  In the
+     former case, all bugs from 12345 until 21345 are presented, and
+     in the latter case the last 123 bugs are shown, counting from the
+     highest bug number in the repository.
+
+     A default value for interactive use could be configured in the
+     user option 'debbugs-gnu-default-bug-number-list'.
 
      *note Presenting Bugs:: for the presentation of the results.
 
@@ -549,7 +557,7 @@ included in the message, applies them, runs 'make -k' in the 'lisp'
 subdirectory, and shows a '*vc-dir*' buffer of the Emacs repository
 with the changed file(s).
 
-   The Emacs repository is determined via the variables
+   The Emacs repository is determined via the user options
 'debbugs-gnu-trunk-directory' or 'debbugs-gnu-branch-directory'.  The
 latter one is used, when the patch is applied with the prefixed
 command 'C-u M-m'.  If the predefined directory does not point to an
@@ -574,9 +582,9 @@ hyperlinks are implemented as minor modes 'bug-reference-mode' and
 
    This package adds a new minor mode 'debbugs-browse-mode' on top of
 them.  Instead of using the default built-in Emacs browser for a given
-bug reference, it opens a corresponding bug report buffer.  The
-customer option 'debbugs-browse-function' controls, whether
-'debbugs-gnu-bugs' or 'debbugs-org-bugs' is called.
+bug reference, it opens a corresponding bug report buffer.  The user
+option 'debbugs-browse-function' controls, whether 'debbugs-gnu-bugs'
+or 'debbugs-org-bugs' is called.
 
    This minor mode is applicable for all URLs, not only bug
 references.  Any URL with the format <http://debbugs.gnu.org/12345>
@@ -595,11 +603,11 @@ Command Index
 * debbugs-browse-mode:                   Minor Mode.         (line 12)
 * debbugs-gnu:                           Retrieving Bugs.    (line 15)
 * debbugs-gnu-bugs:                      Retrieving Bugs.    (line 69)
-* debbugs-gnu-patches:                   Retrieving Bugs.    (line 78)
+* debbugs-gnu-patches:                   Retrieving Bugs.    (line 86)
 * debbugs-gnu-search:                    Searching Bugs.     (line 15)
 * debbugs-org:                           Retrieving Bugs.    (line 17)
 * debbugs-org-bugs:                      Retrieving Bugs.    (line 70)
-* debbugs-org-patches:                   Retrieving Bugs.    (line 79)
+* debbugs-org-patches:                   Retrieving Bugs.    (line 87)
 * debbugs-org-search:                    Searching Bugs.     (line 16)
 
 
@@ -615,6 +623,7 @@ Variable Index
 * debbugs-gnu-all-packages:              Retrieving Bugs.   (line  36)
 * debbugs-gnu-all-severities:            Retrieving Bugs.   (line  27)
 * debbugs-gnu-branch-directory:          Applying Patches.  (line  18)
+* debbugs-gnu-default-bug-number-list:   Retrieving Bugs.   (line  81)
 * debbugs-gnu-default-packages:          Retrieving Bugs.   (line  63)
 * debbugs-gnu-default-severities:        Retrieving Bugs.   (line  63)
 * debbugs-gnu-default-suppress-bugs:     Retrieving Bugs.   (line  44)
@@ -659,17 +668,17 @@ Key Index
 Tag Table:
 Node: Top1097
 Node: Retrieving Bugs2635
-Node: Searching Bugs6474
-Ref: Searching Bugs-Footnote-110787
-Ref: Searching Bugs-Footnote-210875
-Node: Presenting Bugs10966
-Node: Tabulated Lists11542
-Node: TODO Items15217
-Node: Control Messages16273
-Node: Applying Patches19315
-Node: Minor Mode20678
-Node: Command Index21626
-Node: Variable Index22415
-Node: Key Index23418
+Node: Searching Bugs6868
+Ref: Searching Bugs-Footnote-111181
+Ref: Searching Bugs-Footnote-211269
+Node: Presenting Bugs11360
+Node: Tabulated Lists11936
+Node: TODO Items15611
+Node: Control Messages16667
+Node: Applying Patches19709
+Node: Minor Mode21075
+Node: Command Index22019
+Node: Variable Index22808
+Node: Key Index23882
 
 End Tag Table
