@@ -234,12 +234,6 @@
   (should (= (seq-length (seq-subseq (stream-range 2 10) 1 3)) 2))
   (should (= (seq-elt (seq-subseq (stream-range 2 10) 1 3) 1) 4)))
 
-(ert-deftest stream-seq-map-should-not-consume-stream-elements ()
-  (let* (consumed
-         (stream (stream-cons (setq consumed t) (stream-empty))))
-    (seq-map #'identity stream)
-    (should-not consumed)))
-
 (ert-deftest stream-pop-test ()
   (let* ((str (stream '(1 2 3)))
          (first (stream-pop str))
@@ -270,6 +264,38 @@
                                  (stream (list 4))
                                  (stream (list 5 6 7 8 9))))))
                  (list 1 2 3 4 5 6 7 8 9))))
+
+;; Tests whether calling stream processing functions ("transducers")
+;; doesn't generate elements from argument streams
+
+(defvar this-delayed-stream-function nil)
+
+(defun make-delayed-test-stream ()
+  (stream-make
+   (cons (prog1 1 (error "`%s' not completely delayed" this-delayed-stream-function))
+         (make-delayed-test-stream))))
+
+(defmacro deftest-for-delayed-evaluation (call)
+  (let ((function (car call)))
+    `(ert-deftest ,(intern (concat (symbol-name function) "-delayed-test")) ()
+       (let ((this-delayed-stream-function ',function))
+         (should (prog1 t ,call))))))
+
+(deftest-for-delayed-evaluation (streamp        (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (seqp           (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (stream-append  (make-delayed-test-stream) (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (seq-take (make-delayed-test-stream) 2))
+(deftest-for-delayed-evaluation (seq-drop (make-delayed-test-stream) 2))
+(deftest-for-delayed-evaluation (seq-take-while #'numberp (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (seq-take-until #'numberp (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (seq-map #'identity (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (seq-filter #'cl-evenp (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (stream-delay (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (seq-copy (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (seq-subseq (make-delayed-test-stream) 2))
+(deftest-for-delayed-evaluation (stream-scan #'* 1 (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (stream-concatenate (stream (list (make-delayed-test-stream)
+                                                                  (make-delayed-test-stream)))))
 
 (provide 'stream-tests)
 ;;; stream-tests.el ends here
