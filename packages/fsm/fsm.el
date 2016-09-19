@@ -4,7 +4,7 @@
 
 ;; Author: Magnus Henoch <magnus.henoch@gmail.com>
 ;; Maintainer: Thomas Fitzsimmons <fitzsim@fitzsim.org>
-;; Version: 0.2
+;; Version: 0.2.1
 ;; Package-Requires: ((emacs "24.1") (cl-lib "0.5"))
 ;; Keywords: extensions
 
@@ -186,9 +186,10 @@ arguments.
 	       (put fsm :name ',name)
 	       (put fsm :state nil)
 	       (put fsm :state-data nil)
-	       (put fsm :sleep ,(or sleep (lambda (secs)
-					    (accept-process-output
-					     nil secs))))
+	       (put fsm :sleep ,(or sleep '(lambda (secs)
+					     (accept-process-output
+					      nil secs))))
+
 	       (put fsm :deferred nil)
 	       (fsm-update fsm state state-data timeout)
 	       fsm)))))))

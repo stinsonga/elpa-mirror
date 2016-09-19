@@ -62,7 +62,7 @@ Programmer's Manual, debbugs}).
 @menu
 * Retrieving Bugs::             How to retrieve bugs.
 * Searching Bugs::              How to search in the debbugs database.
-* Layout::                      How the results are presented.
+* Presenting Bugs::             How the results are presented.
 * Minor Mode::                  How to use browse bug URLs.
 
 * Command Index::               Debbugs commands.
@@ -117,7 +117,7 @@ archived bugs on the GNU Debbugs server.
 @var{suppress} shall also distinct between @code{nil} and
 non-@code{nil}.  When non-@code{nil}, closed bugs are suppressed from
 being retrieved from the Debbugs server.  Which bugs are regarded as
-suppressed is configured in the customer option
+suppressed is configured in the user option
 @code{debbugs-gnu-suppress-bugs}.  Per default, bugs marked as
 @code{"done"} are suppressed from being retrieved.
 
@@ -135,11 +135,11 @@ minibuffer, lists must be entered comma-separated.
 
 @vindex debbugs-gnu-default-severities
 @vindex debbugs-gnu-default-packages
-Default values for interactive use could be configured in the customer
+Default values for interactive use could be configured in the user
 options @code{debbugs-gnu-default-severities} and
 @code{debbugs-gnu-default-packages}.
 
-@ref{Layout} for the presentation of the results.
+@ref{Presenting Bugs} for the presentation of the results.
 
 @end deffn
 
@@ -149,34 +149,61 @@ options @code{debbugs-gnu-default-severities} and
 
 The commands @code{debbugs-gnu-bugs} and @code{debbugs-org-bugs} show
 bugs specified by their bug number.  Interactively, the bug numbers
-must be entered as comma-separated list.
+must be entered as comma-separated list of bugs or bug ranges.
 
-@ref{Layout} for the presentation of the results.
+A bug range has either the form @samp{12345-21345} or @samp{-123}.  In
+the former case, all bugs from 12345 until 21345 are presented, and in
+the latter case the last 123 bugs are shown, counting from the highest
+bug number in the repository.
+
+@vindex debbugs-gnu-default-bug-number-list
+A default value for interactive use could be configured in the user
+option @code{debbugs-gnu-default-bug-number-list}.
+
+@ref{Presenting Bugs} for the presentation of the results.
+
+@end deffn
+
+
+@deffn  {Command} debbugs-gnu-patches
+@deffnx {Command} debbugs-org-patches
+
+The commands @code{debbugs-gnu-patches} and @code{debbugs-org-patches}
+show all unarchived bugs of the packages declared in
+@code{debbugs-gnu-default-packages}, and tagged with @code{"patch"}.
+This is useful for bug triages.
+
+@ref{Presenting Bugs} for the presentation of the results.
 
 @end deffn
 
 
 @node Searching Bugs
-@chapter Searching in the Debbugs Database.
+@chapter Searching in the Debbugs Database
 
-The GNU Debbugs server allows full text search in the database.  It
-uses a
+The GNU Debbugs server allows text search in the database in the
+messages submitted to the bugs.  It uses a
 @uref{http://fallabs.com/hyperestraier/uguide-en.html#searchcond,
 HyperEstraier based search engine}@footnote{This has been added to the
 Debbugs/SOAP backend of the GNU Debbugs server only.}.
+
+The search engine uses an index over the bug database.  This index is
+refreshed once a day only; search hits do not include recent changes
+of the same day.
 
 @deffn  {Command} debbugs-gnu-search
 @deffnx {Command} debbugs-org-search
 
 These both commands are completely interactive.  They ask for a
-@code{"search phrase"} for the full text search.  It is just a string
-which contains the words to be searched for, combined by operators
-like AND, ANDNOT and OR.  If there is no operator between the words,
-AND is used by default.
+@code{"search phrase"} for the text search.  It is just a string which
+contains the words to be searched for, combined by operators like AND,
+ANDNOT and OR@.  If there is no operator between the words, AND is
+used by default.  Only complete words, contained in a message body,
+are searched for.
 
 Wild card searches are also supported.  It can be used for forward
 match search and backward match search.  For example, "[BW] euro"
-matches words which begin with "euro".  "[EW] shere" matches words
+matches words which begin with "euro".  "[EW] sphere" matches words
 which end with "sphere".  Moreover, regular expressions are also
 supported.  For example, "[RX] ^inter.*al$" matches words which begin
 with "inter" and end with "al".@footnote{Simplified forms, as
@@ -202,8 +229,8 @@ server, @xref{Retrieving Bugs}.
 @item tags
 A comma-separated list of defined user tags.
 
-@item submitter
-The email address of the bug submitter.
+@item author
+The email address of a message originator.
 
 @item date
 A time period the bug has been in which the bug has been submitted or
@@ -213,8 +240,8 @@ modified.
 Word(s) the subject of the bug report contains.
 
 @item status
-The status of the bug report.  Valid values are "done", "forwarded"
-and "open".
+The status of the bug report.  Valid values are "open", "forwarded"
+and "done".
 @end table
 
 It is also possible to apply these commands with an empty search
@@ -234,10 +261,11 @@ An arbitrary string the bug is annotated with.  Usually, this is the
 same as the status mentioned above.
 
 @item  owner
+@itemx submitter
 @itemx maint
 @itemx correspondent
-The email address of the bug's owner, maintainer, or correspondent
-(somebody who has participated in bug messages).
+The email address of the bug's owner, submitter, maintainer, or
+correspondent (somebody who has participated in bug messages).
 
 @item  log_modified
 @itemx last_modified
@@ -265,11 +293,13 @@ Not all of these attributes could be queried on the GNU Debbugs server
 via the Debbugs/SOAP backend.  In this case, the results of a query
 are discriminated on the client side, which is indicated by the string
 "(client-side filter)" in the minibuffer after the attribute name.
+Note, that client side filters perform badly, because they could be
+applied only after all bugs have been downloaded.
 @end deffn
 
 
-@node Layout
-@chapter Layout
+@node Presenting Bugs
+@chapter Presenting Bugs
 
 The commands described in the previous chapters generate (a) report
 buffer(s) applicable for navigation.  @code{debbugs-gnu-*} return a
@@ -280,6 +310,7 @@ in @code{org-mode}.
 * Tabulated Lists::             Tabulated Lists.
 * TODO Items::                  TODO Items.
 * Control Messages::            Control Messages.
+* Applying Patches::            Applying Patches in the Emacs Repository.
 @end menu
 
 
@@ -333,14 +364,18 @@ Show all bug attributes.
 @kbd{/} @tab
 @code{debbugs-gnu-narrow-to-status} @*
 Narrow the list of bugs to the bugs that match the given regex in
-@code{State}, @code{Submitter} or @code{Title}.
+@code{State}, @code{Submitter} or @code{Title}.  With a prefix
+argument @kbd{C-u}, the list of bugs is narrowed to a match in
+@code{State} only.
 
 @item
 @kindex @kbd{R}
 @kbd{R} @tab
 @code{debbugs-gnu-show-all-blocking-reports} @*
 Narrow the list of bug reports to the ones that are blocking the
-current release.
+current Emacs release, as specified in
+`debbugs-gnu-emacs-current-release'.  With a prefix argument
+@kbd{C-u}, the current Emacs release is read from the minibuffer.
 
 @item
 @kindex @kbd{w}
@@ -391,7 +426,12 @@ Send a control message for this bug, @ref{Control Messages}.
 
 @end multitable
 
+@vindex debbugs-gnu-suppress-closed
+The user option @code{debbugs-gnu-suppress-closed} controls, whether
+closed bugs are shown in the initial list.
+
 @vindex debbugs-gnu-mail-backend
+@kindex @kbd{@key{RET}}
 The user option @code{debbugs-gnu-mail-backend} controls the
 presentation of email messages produced by typing @kbd{@key{RET}} or
 by clicking the mouse on a bug: if its value is @code{gnus}, the
@@ -407,6 +447,7 @@ TODO items are offered as usual in @code{org-mode}.  The bug
 attributes are mapped onto properties of these items.  They can be
 shown by the usual navigation in @code{org-mode}.
 
+@vindex debbugs-org-severity-priority
 Bug severities are mapped onto org severities, see
 @code{debbugs-org-severity-priority}.
 
@@ -473,9 +514,11 @@ of comma-separated bug numbers.
 @item close
 "close 12345 25.1"
 
-The second argument, the Emacs version, is read interactively.
+The second argument, the Emacs version, is read interactively if the
+bugs belongs to the @code{"emacs"} package.
 
 @item confirmed
+@itemx easy
 @itemx fixed
 @itemx help
 @itemx moreinfo
@@ -485,9 +528,14 @@ The second argument, the Emacs version, is read interactively.
 @itemx security
 @itemx unreproducible
 @itemx wontfix
-"tags 12345 confirmed|fixed|help|moreinfo|notabug"
+"tags 12345 confirmed|easy|fixed|help|moreinfo|notabug"
 
 "tags 12345 patch|pending|security|unreproducible|wontfix"
+
+If the command invoking the control message has been prefixed with
+@kbd{C-u}, the respective tag is removed from the bug, like
+
+"tags 12345 -confirmed"
 
 @item done
 @itemx donenotabug
@@ -497,13 +545,14 @@ The second argument, the Emacs version, is read interactively.
 "close 12345 25.1"
 
 The second argument in the close message, the Emacs version, is read
-interactively.
+interactively if the bugs belongs to the @code{"emacs"} package.
 
 @item forcemerge
 @itemx merge
 "forcemerge|merge 12345 54321"
 
-The second bug number is read interactively.
+The second bug number is read interactively.  It could be also a list
+of comma-separated bug numbers.
 
 @item invalid
 "tags 12345 notabug" @*
@@ -550,6 +599,45 @@ The username, read interactively, is either a package name or an email
 address.  The tag to be set is also read interactively.
 @end table
 
+@vindex debbugs-gnu-send-mail-function
+How the control messages are sent is controlled by the
+@code{debbugs-gnu-send-mail-function} variable.  If it is @code{nil}
+(the default value), the value of @code{send-mail-function} is used.
+This could be inconvenient, for example when an external interactive
+mail client is configured.
+
+
+@node Applying Patches
+@section Applying Patches in the Emacs Repository
+
+Several bugs carry a proposed patch in one of their messages.
+Usually, those bugs are marked with the with @code{"patch"} tag.
+@ref{Retrieving Bugs} how to show such bugs.
+
+@kindex @kbd{M-m}
+If a GNUS ephemeral group for such a bug is opened, it is possible to
+apply the patch directly to the Emacs repository.  Move the cursor to
+the message containing a patch, and hit @kbd{M-m}.  It determines
+whether one or several patches are in the MIME attachments or just
+included in the message, applies them, runs @command{make -k} in the
+@file{lisp} subdirectory, and shows a @samp{*vc-dir*} buffer of the
+Emacs repository with the changed file(s).
+
+@vindex debbugs-gnu-trunk-directory
+@vindex debbugs-gnu-branch-directory
+The Emacs repository is determined via the user options
+@code{debbugs-gnu-trunk-directory} or
+@code{debbugs-gnu-branch-directory}.  The latter one is used, when the
+patch is applied with the prefixed command @kbd{C-u M-m}.  If the
+predefined directory does not point to an existing path, it is read
+from the minibuffer.
+
+A further @kbd{M-m} in the corresponding @samp{*vc-diff*} buffer opens
+the modified file.  Here you can apply @kbd{M-m} the next time.  This
+creates a ChangeLog entry with all needed information.  A final
+@kbd{M-m} in the @samp{ChangeLog} buffer commits the patch via
+@samp{*vc-log*}.
+
 
 @node Minor Mode
 @chapter Minor Mode
@@ -565,7 +653,7 @@ The reference to such bugs have a specialized format,
 This package adds a new minor mode @code{debbugs-browse-mode} on top
 of them.  Instead of using the default built-in Emacs browser for a
 given bug reference, it opens a corresponding bug report buffer.  The
-customer option @code{debbugs-browse-function} controls, whether
+user option @code{debbugs-browse-function} controls, whether
 @code{debbugs-gnu-bugs} or @code{debbugs-org-bugs} is called.
 
 This minor mode is applicable for all URLs, not only bug references.

@@ -269,20 +269,20 @@ point at which that max was spawned.")
 (defun wisi-parsers-active (parser-states active-count)
   "Return the type of parser cycle to execute.
 PARSER-STATES[*].active is the last action a parser took. If it
-was 'shift, that parser used the input token, and should not be
+was `shift', that parser used the input token, and should not be
 executed again until another input token is available, after all
 parsers have shifted the current token or terminated.
 
 Returns one of:
 
-'accept : all PARSER-STATES have active set to nil or 'accept -
+`accept' : all PARSER-STATES have active set to nil or `accept' -
 done parsing
 
-'shift : all PARSER-STATES have active set to nil, 'accept, or
-'shift - get a new token, execute 'shift parsers.
+`shift' : all PARSER-STATES have active set to nil, `accept', or
+`shift' - get a new token, execute `shift' parsers.
 
-'reduce : some PARSER-STATES have active set to 'reduce - no new
-token, execute 'reduce parsers."
+`reduce' : some PARSER-STATES have active set to `reduce' - no new
+token, execute `reduce' parsers."
   (let ((result nil)
 	(i 0)
 	(shift-count 0)
@@ -336,7 +336,7 @@ token, execute 'reduce parsers."
 (defun wisi-parse-elim-identical (parser-states active-parser-count)
   "Check for parsers in PARSER-STATES that have reached identical states eliminate one.
 Return new ACTIVE-PARSER-COUNT. Assumes all parsers have active
-nil, 'shift, or 'accept."
+nil, `shift', or `accept'."
   ;; parser-states passed by reference; active-parser-count by copy
   ;; see test/ada_mode-slices.adb for example
   (dotimes (parser-i (1- (length parser-states)))

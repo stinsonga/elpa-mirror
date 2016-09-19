@@ -166,7 +166,7 @@ cursor and `scroll-restore-cursor-color' to change its color."
 (defcustom scroll-restore-cursor-type 'box
   "Type of cursor when original position is off-screen.
 Applied if and only if `scroll-restore-handle-cursor' is either
-'type or t.
+`type' or t.
 
 Be careful when another application uses that type.  Otherwise,
 you might get unexpected results when Scroll Restore mode resets
@@ -188,7 +188,7 @@ the value of scroll-restore-cursor-type."
 (defcustom scroll-restore-cursor-color "DarkCyan"
   "Background color of cursor when original position is off-screen.
 Applied if and only if `scroll-restore-handle-cursor' is either
-'color or t.
+`color' or t.
 
 Observe that when Emacs changes the color of the cursor, the
 change applies to all windows on the associated frame.
@@ -238,7 +238,7 @@ drags."
 
 (defface scroll-restore-region
   '((t :inherit region))
-  "Face for Scroll Restore region when `scroll-restore-handle-region' is 
+  "Face for Scroll Restore region when `scroll-restore-handle-region' is
 non-nil.")
 
 ;; Note: We can't use `point-before-scroll' for our purposes because

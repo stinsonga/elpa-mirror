@@ -1,6 +1,6 @@
 ;;; loc-changes.el --- keep track of positions even after buffer changes
 
-;; Copyright (C) 2015 Free Software Foundation, Inc
+;; Copyright (C) 2015, 2016 Free Software Foundation, Inc
 
 ;; Author: Rocky Bernstein <rocky@gnu.org>
 ;; Version: 1.2
@@ -35,17 +35,19 @@
 
 ;;; Code:
 
+(eval-when-compile (require 'cl))
+
 (make-variable-buffer-local 'loc-changes-alist)
 (defvar loc-changes-alist '()
   "A buffer-local association-list (alist) of line numbers and
-their corresponding markers in the buffer. The 'key' is the line number; the value
-the marker"
-  )
+their corresponding markers in the buffer. The key is the line
+number; the a list of value the marker and the initial 10
+characters after that mark" )
 
 (defun loc-changes:follow-mark(event)
   (interactive "e")
   (let* ((pos (posn-point (event-end event)))
-	 (mark (get-text-property pos 'mark)))
+	 (mark (car (get-text-property pos 'mark))))
     (switch-to-buffer-other-window  (marker-buffer mark))
     (goto-char (marker-position mark))
     ))
@@ -68,17 +70,17 @@ internal buffer called *Describe*."
     (dolist (assoc alist)
 	  (put-text-property
 	   (insert-text-button
-	    (format "line %d: %s\n" (car assoc) (cdr assoc))
+	    (format "line %d: %s" (car assoc) (cadr assoc))
 	    'action 'loc-changes:follow-mark
 	    'help-echo "mouse-2: go to this location")
 	   (point)
 	   'mark (cdr assoc)
 	    )
+	  (insert (format ":\t%s\n" (cl-caddr assoc)))
 	  )
     (setq buffer-read-only 't)
     ))
 
-;;;###autoload
 (defun loc-changes-goto-line (line-number &optional column-number)
   "Position `point' at LINE-NUMBER of the current buffer. If
 COLUMN-NUMBER is given, position `point' at that column just
@@ -87,7 +89,7 @@ the line starts at column 0, so the column number display will be one less
 than COLUMN-NUMBER. For example COLUMN-NUMBER 1 will set before the first
 column on the line and show 0.
 
-The Emacs `goto-line' docstring says it is the wrong to use that
+The Emacs `goto-line' docstring says it is wrong to use that
 function in a Lisp program. So here is something that I proclaim
 is okay to use in a Lisp program."
   (interactive
@@ -155,9 +157,9 @@ is okay to use in a Lisp program."
   "Add an element `loc-changes-alist'. The car will be POS and a
 marker for it will be created at the point."
   (setq loc-changes-alist
-	(cons (cons pos (point-marker)) loc-changes-alist)))
+	(cons (cons pos (list (point-marker) (buffer-substring (point) (point-at-eol))))
+		    loc-changes-alist)))
 
-;;;###autoload
 (defun loc-changes-add-and-goto (line-number &optional opt-buffer)
   "Add a marker at LINE-NUMBER and record LINE-NUMBER and its
 marker association in `loc-changes-alist'."
@@ -194,7 +196,6 @@ marker association in `loc-changes-alist'."
       ))
   )
 
-;;;###autoload
 (defun loc-changes-clear-buffer (&optional opt-buffer)
   "Remove all location-tracking associations in BUFFER."
   (interactive "bbuffer: ")
@@ -205,7 +206,6 @@ marker association in `loc-changes-alist'."
       ))
   )
 
-;;;###autoload
 (defun loc-changes-reset-position (&optional opt-buffer no-insert)
   "Update `loc-changes-alist' so that the line number of point is
 used to when aline number is requested.
@@ -223,7 +223,8 @@ so that its positions are will be reflected."
 	  )
       (with-current-buffer buffer
 	(if elt
-	    (setcdr elt (point))
+	    (setcdr elt
+		    (list (point-marker) (buffer-substring (point) (point-at-eol))))
 	  (unless no-insert
 	    (loc-changes-add-elt line-number)
 	    )
@@ -232,23 +233,24 @@ so that its positions are will be reflected."
     ))
 
 
-(defun loc-changes-goto (position &optional opt-buffer no-update)
-  "Go to the position inside BUFFER taking into account the
-previous location marks. Normally if the position hasn't been
-seen before, we will add a new mark for this position. However if
+(defun loc-changes-goto (line-number &optional opt-buffer no-update)
+  "Go to the LINE-NUMBER inside OPT-BUFFER taking into account the
+previous line-number marks. Normally if the line-number hasn't been
+seen before, we will add a new mark for this line-number. However if
 NO-UPDATE is set, no mark is added."
-  (unless (wholenump position)
+  ;;; FIXME: opt-buffer is not used
+  (unless (wholenump line-number)
     (error "Expecting line-number parameter `%s' to be a whole number"
-	   position))
-  (let ((elt (assq position loc-changes-alist)))
+	   line-number))
+  (let ((elt (assq line-number loc-changes-alist)))
     (if elt
-	(let ((marker (cdr elt)))
+	(let ((marker (cadr elt)))
 	  (unless (markerp marker)
 	    (error "Internal error: loc-changes-alist is not a marker"))
 	  (goto-char (marker-position marker)))
       (if no-update
-	  (loc-changes-goto-line position)
-	(loc-changes-add-and-goto position))
+	  (loc-changes-goto-line line-number)
+	(loc-changes-add-and-goto line-number))
       )
     )
   )

@@ -112,8 +112,14 @@
     (should (stream-empty-p (stream-rest (stream-rest rest))))))
 
 (ert-deftest stream-seq-subseq-test ()
-  ;; TODO
-  )
+  (should (equal (seq-into (seq-subseq (stream (list 0 1 2 3 4)) 1 3) 'list)
+                           (seq-subseq         (list 0 1 2 3 4)  1 3)))
+  (should (= (stream-first (seq-subseq (stream-range 0) 5))
+             5))
+  (should (= (stream-first (seq-subseq (seq-subseq (stream-range 0) 5) 5))
+             10))
+
+  (should-error (seq-subseq (stream-range 0) -1)))
 
 (ert-deftest stream-seq-into-test ()
   (should (streamp (seq-into (stream-empty) 'stream)))
@@ -171,10 +177,40 @@
   (should (= 3 (stream-first (stream-rest (seq-filter #'cl-oddp (stream-range 0 4))))))
   (should (stream-empty-p (stream-rest (stream-rest (seq-filter #'cl-oddp (stream-range 0 4)))))))
 
+(ert-deftest stream-delay-test ()
+  (should (streamp (stream-delay (stream-range))))
+  (should (= 0 (stream-first (stream-delay (stream-range)))))
+  (should (= 1 (stream-first (stream-rest (stream-delay (stream-range))))))
+  (should (let ((stream (stream-range 3 7)))
+            (equal (seq-into (stream-delay stream) 'list)
+                   (seq-into               stream  'list))))
+  (should (null (seq-into (stream-delay (stream-empty)) 'list)))
+  (should (let* ((evaluated nil)
+                 (one-plus (lambda (el)
+                             (setq evaluated t)
+                             (1+ el)))
+                 (stream (seq-map one-plus (stream '(1)))))
+            (equal '(nil 2 t)
+                   (list evaluated (stream-first stream) evaluated))))
+  (should (let* ((a 0)
+                 (set-a (lambda (x) (setq a x)))
+                 (s (stream-delay (stream (list a))))
+                 res1 res2)
+            (funcall set-a 5)
+            (setq res1 (stream-first s))
+            (funcall set-a 11)
+            (setq res2 (stream-first s))
+            (and (equal res1 5)
+                 (equal res2 5)))))
+
 (ert-deftest stream-seq-copy-test ()
   (should (streamp (seq-copy (stream-range))))
   (should (= 0 (stream-first (seq-copy (stream-range)))))
-  (should (= 1 (stream-first (stream-rest (seq-copy (stream-range)))))))
+  (should (= 1 (stream-first (stream-rest (seq-copy (stream-range))))))
+  (should (let ((stream (stream-range 3 7)))
+            (equal (seq-into (seq-copy stream) 'list)
+                   (seq-into stream 'list))))
+  (should (null (seq-into (seq-copy (stream-empty)) 'list))))
 
 (ert-deftest stream-range-test ()
   (should (stream-empty-p (stream-range 0 0)))
@@ -198,12 +234,6 @@
   (should (= (seq-length (seq-subseq (stream-range 2 10) 1 3)) 2))
   (should (= (seq-elt (seq-subseq (stream-range 2 10) 1 3) 1) 4)))
 
-(ert-deftest stream-seq-map-should-not-consume-stream-elements ()
-  (let* (consumed
-         (stream (stream-cons (setq consumed t) (stream-empty))))
-    (seq-map #'identity stream)
-    (should-not consumed)))
-
 (ert-deftest stream-pop-test ()
   (let* ((str (stream '(1 2 3)))
          (first (stream-pop str))
@@ -211,6 +241,61 @@
     (should (= 1 first))
     (should (= 2 (stream-first str)))
     (should (null (stream-pop stream-empty)))))
+
+(ert-deftest stream-scan-test ()
+  (should (eq (seq-elt (stream-scan #'* 1 (stream-range 1)) 4) 24)))
+
+(ert-deftest stream-flush-test ()
+  (should (let* ((times 0)
+                 (count (lambda () (cl-incf times))))
+            (letrec ((make-test-stream (lambda () (stream-cons (progn (funcall count) nil)
+                                                          (funcall make-test-stream)))))
+              (stream-flush (seq-take (funcall make-test-stream) 5))
+              (eq times 5)))))
+
+(ert-deftest stream-iterate-function-test ()
+  (should (equal (list 0 1 2) (seq-into-sequence (seq-take (stream-iterate-function #'1+ 0) 3)))))
+
+(ert-deftest stream-concatenate-test ()
+  (should (equal (seq-into-sequence
+                  (stream-concatenate
+                   (stream (list (stream (list 1 2 3))
+                                 (stream (list))
+                                 (stream (list 4))
+                                 (stream (list 5 6 7 8 9))))))
+                 (list 1 2 3 4 5 6 7 8 9))))
+
+;; Tests whether calling stream processing functions ("transducers")
+;; doesn't generate elements from argument streams
+
+(defvar this-delayed-stream-function nil)
+
+(defun make-delayed-test-stream ()
+  (stream-make
+   (cons (prog1 1 (error "`%s' not completely delayed" this-delayed-stream-function))
+         (make-delayed-test-stream))))
+
+(defmacro deftest-for-delayed-evaluation (call)
+  (let ((function (car call)))
+    `(ert-deftest ,(intern (concat (symbol-name function) "-delayed-test")) ()
+       (let ((this-delayed-stream-function ',function))
+         (should (prog1 t ,call))))))
+
+(deftest-for-delayed-evaluation (streamp        (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (seqp           (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (stream-append  (make-delayed-test-stream) (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (seq-take (make-delayed-test-stream) 2))
+(deftest-for-delayed-evaluation (seq-drop (make-delayed-test-stream) 2))
+(deftest-for-delayed-evaluation (seq-take-while #'numberp (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (seq-take-until #'numberp (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (seq-map #'identity (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (seq-filter #'cl-evenp (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (stream-delay (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (seq-copy (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (seq-subseq (make-delayed-test-stream) 2))
+(deftest-for-delayed-evaluation (stream-scan #'* 1 (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (stream-concatenate (stream (list (make-delayed-test-stream)
+                                                                  (make-delayed-test-stream)))))
 
 (provide 'stream-tests)
 ;;; stream-tests.el ends here

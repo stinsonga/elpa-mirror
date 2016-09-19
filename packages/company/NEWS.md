@@ -1,5 +1,52 @@
 # History of user-visible changes
 
+## 2016-06-23 (0.9.0)
+
+* Group of backends can now contain keyword `:separate`, which makes candidates
+  from different backends sorted separately in the combined list.
+* New frontend `company-pseudo-tooltip-unless-just-one-frontend-with-delay`.
+* New transformer `company-sort-prefer-same-case-prefix`.
+* The value of `company-dabbrev-ignore-buffers` can also be a function.
+* `company-files` has been moved to right after `company-capf` in
+  `company-backends`
+  ([#463](https://github.com/company-mode/company-mode/issues/463)).
+* `company-semantic-insert-arguments`: New option. Like in `company-clang`.
+* `company-semantic-begin-after-member-access`: New option. Similar to the one
+  in `company-clang`.
+* `company-capf` accepts `:company-prefix-length` property value.
+* New face `company-tooltip-annotation-selection`, used for the annotation in
+  the selected tooltip line.
+* `company-clang-objc-templatify` has been renamed to
+  `company-template-objc-templatify`.
+* New user option `company-etags-everywhere`.
+* `company-yasnippet` supports `yas-key-syntaxes` better. But we use them in the
+  reverse order, preferring the longest key prefix that matches anything. And we
+  only consider trigger key prefixes that are at least as long as the symbol at
+  point, which effectively means skipping the `"w"` element
+  ([#422](https://github.com/company-mode/company-mode/issues/422)).
+* New user option `company-search-regexp-function`.
+* Completion is not started automatically when a keyboard macro is being
+  recorded ([#374](https://github.com/company-mode/company-mode/issues/374)).
+* New command `company-indent-or-complete-common`.
+* Backend command `doc-buffer` now can also return a cons of buffer and window
+  start position.
+* Backend command `ignore-case` has been documented.
+* `company-template-c-like-templatify` does not replace the default argument
+  values with `argN` anymore
+  ([#336](https://github.com/company-mode/company-mode/issues/336)). This
+  affects `company-clang` and all third-party backends that use this function.
+* Likewise for `company-clang-objc-templatify`.
+* `company-template-add-field` calling convention has changed.
+* New user option `company-dabbrev-ignore-invisible`.
+* `company-ropemacs` was removed. `ropemacs` supports completion via
+  `completion-at-point-functions` starting with version 0.8.
+* `company-pysmell` was removed.
+* `company-select-next`, `company-select-previous`,
+  `company-select-next-or-abort`, `company-select-previous-or-abort` and
+  `company-complete-common-or-cycle` accept a numeric argument.
+* The documentation buffer window can be scrolled with the mouse wheel.
+* New command `company-diag`. Use it in bug reports.
+
 ## 2015-02-02 (0.8.10)
 
 * New variable `company-lighter-base`.

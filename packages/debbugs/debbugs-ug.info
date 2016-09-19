@@ -1,4 +1,4 @@
-This is debbugs-ug.info, produced by makeinfo version 6.0 from
+This is debbugs-ug.info, produced by makeinfo version 6.1 from
 debbugs-ug.texi.
 
 Copyright (C) 2015-2016 Free Software Foundation, Inc.
@@ -51,7 +51,7 @@ Org Mode: (org)Top.).  As backend they use the 'debbugs' Emacs library
 
 * Retrieving Bugs::             How to retrieve bugs.
 * Searching Bugs::              How to search in the debbugs database.
-* Layout::                      How the results are presented.
+* Presenting Bugs::             How the results are presented.
 * Minor Mode::                  How to use browse bug URLs.
 
 * Command Index::               Debbugs commands.
@@ -105,8 +105,8 @@ prefix.
      SUPPRESS shall also distinct between 'nil' and non-'nil'.  When
      non-'nil', closed bugs are suppressed from being retrieved from
      the Debbugs server.  Which bugs are regarded as suppressed is
-     configured in the customer option 'debbugs-gnu-suppress-bugs'.
-     Per default, bugs marked as '"done"' are suppressed from being
+     configured in the user option 'debbugs-gnu-suppress-bugs'.  Per
+     default, bugs marked as '"done"' are suppressed from being
      retrieved.
 
      When SEVERITIES contains the severity '"tagged"', TAGS is
@@ -122,42 +122,66 @@ prefix.
      minibuffer, lists must be entered comma-separated.
 
      Default values for interactive use could be configured in the
-     customer options 'debbugs-gnu-default-severities' and
+     user options 'debbugs-gnu-default-severities' and
      'debbugs-gnu-default-packages'.
 
-     *note Layout:: for the presentation of the results.
+     *note Presenting Bugs:: for the presentation of the results.
 
  -- Command: debbugs-gnu-bugs &rest bugs
  -- Command: debbugs-org-bugs &rest bugs
 
      The commands 'debbugs-gnu-bugs' and 'debbugs-org-bugs' show bugs
      specified by their bug number.  Interactively, the bug numbers
-     must be entered as comma-separated list.
+     must be entered as comma-separated list of bugs or bug ranges.
 
-     *note Layout:: for the presentation of the results.
+     A bug range has either the form '12345-21345' or '-123'.  In the
+     former case, all bugs from 12345 until 21345 are presented, and
+     in the latter case the last 123 bugs are shown, counting from the
+     highest bug number in the repository.
+
+     A default value for interactive use could be configured in the
+     user option 'debbugs-gnu-default-bug-number-list'.
+
+     *note Presenting Bugs:: for the presentation of the results.
+
+ -- Command: debbugs-gnu-patches
+ -- Command: debbugs-org-patches
+
+     The commands 'debbugs-gnu-patches' and 'debbugs-org-patches' show
+     all unarchived bugs of the packages declared in
+     'debbugs-gnu-default-packages', and tagged with '"patch"'.  This
+     is useful for bug triages.
+
+     *note Presenting Bugs:: for the presentation of the results.
 
 
-File: debbugs-ug.info,  Node: Searching Bugs,  Next: Layout,  Prev: Retrieving Bugs,  Up: Top
+File: debbugs-ug.info,  Node: Searching Bugs,  Next: Presenting Bugs,  Prev: Retrieving Bugs,  Up: Top
 
-2 Searching in the Debbugs Database.
-************************************
+2 Searching in the Debbugs Database
+***********************************
 
-The GNU Debbugs server allows full text search in the database.  It
-uses a HyperEstraier based search engine
+The GNU Debbugs server allows text search in the database in the
+messages submitted to the bugs.  It uses a HyperEstraier based search
+engine
 (http://fallabs.com/hyperestraier/uguide-en.html#searchcond)(1).
+
+   The search engine uses an index over the bug database.  This index
+is refreshed once a day only; search hits do not include recent
+changes of the same day.
 
  -- Command: debbugs-gnu-search
  -- Command: debbugs-org-search
 
      These both commands are completely interactive.  They ask for a
-     '"search phrase"' for the full text search.  It is just a string
-     which contains the words to be searched for, combined by
-     operators like AND, ANDNOT and OR. If there is no operator
-     between the words, AND is used by default.
+     '"search phrase"' for the text search.  It is just a string which
+     contains the words to be searched for, combined by operators like
+     AND, ANDNOT and OR.  If there is no operator between the words,
+     AND is used by default.  Only complete words, contained in a
+     message body, are searched for.
 
      Wild card searches are also supported.  It can be used for
      forward match search and backward match search.  For example,
-     "[BW] euro" matches words which begin with "euro".  "[EW] shere"
+     "[BW] euro" matches words which begin with "euro".  "[EW] sphere"
      matches words which end with "sphere".  Moreover, regular
      expressions are also supported.  For example, "[RX] ^inter.*al$"
      matches words which begin with "inter" and end with "al".(2)
@@ -182,8 +206,8 @@ uses a HyperEstraier based search engine
      'tags'
           A comma-separated list of defined user tags.
 
-     'submitter'
-          The email address of the bug submitter.
+     'author'
+          The email address of a message originator.
 
      'date'
           A time period the bug has been in which the bug has been
@@ -193,8 +217,8 @@ uses a HyperEstraier based search engine
           Word(s) the subject of the bug report contains.
 
      'status'
-          The status of the bug report.  Valid values are "done",
-          "forwarded" and "open".
+          The status of the bug report.  Valid values are "open",
+          "forwarded" and "done".
 
      It is also possible to apply these commands with an empty search
      phrase.  In this case, the GNU Debbugs server is searched only
@@ -214,10 +238,11 @@ uses a HyperEstraier based search engine
           this is the same as the status mentioned above.
 
      'owner'
+     'submitter'
      'maint'
      'correspondent'
-          The email address of the bug's owner, maintainer, or
-          correspondent (somebody who has participated in bug
+          The email address of the bug's owner, submitter, maintainer,
+          or correspondent (somebody who has participated in bug
           messages).
 
      'log_modified'
@@ -247,7 +272,9 @@ uses a HyperEstraier based search engine
      server via the Debbugs/SOAP backend.  In this case, the results
      of a query are discriminated on the client side, which is
      indicated by the string "(client-side filter)" in the minibuffer
-     after the attribute name.
+     after the attribute name.  Note, that client side filters perform
+     badly, because they could be applied only after all bugs have
+     been downloaded.
 
    ---------- Footnotes ----------
 
@@ -258,10 +285,10 @@ Debbugs server only.
 are not supported.
 
 
-File: debbugs-ug.info,  Node: Layout,  Next: Minor Mode,  Prev: Searching Bugs,  Up: Top
+File: debbugs-ug.info,  Node: Presenting Bugs,  Next: Minor Mode,  Prev: Searching Bugs,  Up: Top
 
-3 Layout
-********
+3 Presenting Bugs
+*****************
 
 The commands described in the previous chapters generate (a) report
 buffer(s) applicable for navigation.  'debbugs-gnu-*' return a
@@ -273,9 +300,10 @@ tabulated list, and 'debbugs-org-*' return a list of TODO items in
 * Tabulated Lists::             Tabulated Lists.
 * TODO Items::                  TODO Items.
 * Control Messages::            Control Messages.
+* Applying Patches::            Applying Patches in the Emacs Repository.
 
 
-File: debbugs-ug.info,  Node: Tabulated Lists,  Next: TODO Items,  Up: Layout
+File: debbugs-ug.info,  Node: Tabulated Lists,  Next: TODO Items,  Up: Presenting Bugs
 
 3.1 Tabulated Lists
 ===================
@@ -312,11 +340,16 @@ This enables the following key strokes:
                
 '/'            'debbugs-gnu-narrow-to-status'
                Narrow the list of bugs to the bugs that match the
-               given regex in 'State', 'Submitter' or 'Title'.
+               given regex in 'State', 'Submitter' or 'Title'.  With
+               a prefix argument 'C-u', the list of bugs is narrowed
+               to a match in 'State' only.
                
 'R'            'debbugs-gnu-show-all-blocking-reports'
                Narrow the list of bug reports to the ones that are
-               blocking the current release.
+               blocking the current Emacs release, as specified in
+               'debbugs-gnu-emacs-current-release'.  With a prefix
+               argument 'C-u', the current Emacs release is read from
+               the minibuffer.
                
 'w'            'debbugs-gnu-widen'
                Restore the full list again after narrowing.
@@ -345,6 +378,9 @@ This enables the following key strokes:
                *note Control Messages::.
                
 
+   The user option 'debbugs-gnu-suppress-closed' controls, whether
+closed bugs are shown in the initial list.
+
    The user option 'debbugs-gnu-mail-backend' controls the
 presentation of email messages produced by typing '<RET>' or by
 clicking the mouse on a bug: if its value is 'gnus', the default, a
@@ -352,7 +388,7 @@ GNUS ephemeral group for that bug will be shown; if its value is
 'rmail', the command will present an Rmail folder instead.
 
 
-File: debbugs-ug.info,  Node: TODO Items,  Next: Control Messages,  Prev: Tabulated Lists,  Up: Layout
+File: debbugs-ug.info,  Node: TODO Items,  Next: Control Messages,  Prev: Tabulated Lists,  Up: Presenting Bugs
 
 3.2 TODO Items
 ==============
@@ -384,7 +420,7 @@ This enables the following key strokes:
 'Messages' which opens a GNUS ephemeral group for that bug.
 
 
-File: debbugs-ug.info,  Node: Control Messages,  Prev: TODO Items,  Up: Layout
+File: debbugs-ug.info,  Node: Control Messages,  Next: Applying Patches,  Prev: TODO Items,  Up: Presenting Bugs
 
 3.3 Control Messages
 ====================
@@ -413,9 +449,11 @@ The strings show the exact format of the control messages.
 'close'
      "close 12345 25.1"
 
-     The second argument, the Emacs version, is read interactively.
+     The second argument, the Emacs version, is read interactively if
+     the bugs belongs to the '"emacs"' package.
 
 'confirmed'
+'easy'
 'fixed'
 'help'
 'moreinfo'
@@ -425,9 +463,14 @@ The strings show the exact format of the control messages.
 'security'
 'unreproducible'
 'wontfix'
-     "tags 12345 confirmed|fixed|help|moreinfo|notabug"
+     "tags 12345 confirmed|easy|fixed|help|moreinfo|notabug"
 
      "tags 12345 patch|pending|security|unreproducible|wontfix"
+
+     If the command invoking the control message has been prefixed
+     with 'C-u', the respective tag is removed from the bug, like
+
+     "tags 12345 -confirmed"
 
 'done'
 'donenotabug'
@@ -437,13 +480,14 @@ The strings show the exact format of the control messages.
      "close 12345 25.1"
 
      The second argument in the close message, the Emacs version, is
-     read interactively.
+     read interactively if the bugs belongs to the '"emacs"' package.
 
 'forcemerge'
 'merge'
      "forcemerge|merge 12345 54321"
 
-     The second bug number is read interactively.
+     The second bug number is read interactively.  It could be also a
+     list of comma-separated bug numbers.
 
 'invalid'
      "tags 12345 notabug"
@@ -489,8 +533,43 @@ The strings show the exact format of the control messages.
      The username, read interactively, is either a package name or an
      email address.  The tag to be set is also read interactively.
 
+   How the control messages are sent is controlled by the
+'debbugs-gnu-send-mail-function' variable.  If it is 'nil' (the
+default value), the value of 'send-mail-function' is used.  This could
+be inconvenient, for example when an external interactive mail client
+is configured.
+
 
-File: debbugs-ug.info,  Node: Minor Mode,  Next: Command Index,  Prev: Layout,  Up: Top
+File: debbugs-ug.info,  Node: Applying Patches,  Prev: Control Messages,  Up: Presenting Bugs
+
+3.4 Applying Patches in the Emacs Repository
+============================================
+
+Several bugs carry a proposed patch in one of their messages.
+Usually, those bugs are marked with the with '"patch"' tag.  *note
+Retrieving Bugs:: how to show such bugs.
+
+   If a GNUS ephemeral group for such a bug is opened, it is possible
+to apply the patch directly to the Emacs repository.  Move the cursor
+to the message containing a patch, and hit 'M-m'.  It determines
+whether one or several patches are in the MIME attachments or just
+included in the message, applies them, runs 'make -k' in the 'lisp'
+subdirectory, and shows a '*vc-dir*' buffer of the Emacs repository
+with the changed file(s).
+
+   The Emacs repository is determined via the user options
+'debbugs-gnu-trunk-directory' or 'debbugs-gnu-branch-directory'.  The
+latter one is used, when the patch is applied with the prefixed
+command 'C-u M-m'.  If the predefined directory does not point to an
+existing path, it is read from the minibuffer.
+
+   A further 'M-m' in the corresponding '*vc-diff*' buffer opens the
+modified file.  Here you can apply 'M-m' the next time.  This creates
+a ChangeLog entry with all needed information.  A final 'M-m' in the
+'ChangeLog' buffer commits the patch via '*vc-log*'.
+
+
+File: debbugs-ug.info,  Node: Minor Mode,  Next: Command Index,  Prev: Presenting Bugs,  Up: Top
 
 4 Minor Mode
 ************
@@ -503,9 +582,9 @@ hyperlinks are implemented as minor modes 'bug-reference-mode' and
 
    This package adds a new minor mode 'debbugs-browse-mode' on top of
 them.  Instead of using the default built-in Emacs browser for a given
-bug reference, it opens a corresponding bug report buffer.  The
-customer option 'debbugs-browse-function' controls, whether
-'debbugs-gnu-bugs' or 'debbugs-org-bugs' is called.
+bug reference, it opens a corresponding bug report buffer.  The user
+option 'debbugs-browse-function' controls, whether 'debbugs-gnu-bugs'
+or 'debbugs-org-bugs' is called.
 
    This minor mode is applicable for all URLs, not only bug
 references.  Any URL with the format <http://debbugs.gnu.org/12345>
@@ -524,10 +603,12 @@ Command Index
 * debbugs-browse-mode:                   Minor Mode.         (line 12)
 * debbugs-gnu:                           Retrieving Bugs.    (line 15)
 * debbugs-gnu-bugs:                      Retrieving Bugs.    (line 69)
-* debbugs-gnu-search:                    Searching Bugs.     (line 10)
+* debbugs-gnu-patches:                   Retrieving Bugs.    (line 86)
+* debbugs-gnu-search:                    Searching Bugs.     (line 15)
 * debbugs-org:                           Retrieving Bugs.    (line 17)
 * debbugs-org-bugs:                      Retrieving Bugs.    (line 70)
-* debbugs-org-search:                    Searching Bugs.     (line 11)
+* debbugs-org-patches:                   Retrieving Bugs.    (line 87)
+* debbugs-org-search:                    Searching Bugs.     (line 16)
 
 
 File: debbugs-ug.info,  Node: Variable Index,  Next: Key Index,  Prev: Command Index,  Up: Top
@@ -538,13 +619,19 @@ Variable Index
  [index ]
 * Menu:
 
-* debbugs-browse-function:               Minor Mode.         (line 12)
-* debbugs-gnu-all-packages:              Retrieving Bugs.    (line 36)
-* debbugs-gnu-all-severities:            Retrieving Bugs.    (line 27)
-* debbugs-gnu-default-packages:          Retrieving Bugs.    (line 63)
-* debbugs-gnu-default-severities:        Retrieving Bugs.    (line 63)
-* debbugs-gnu-default-suppress-bugs:     Retrieving Bugs.    (line 44)
-* debbugs-gnu-mail-backend:              Tabulated Lists.    (line 71)
+* debbugs-browse-function:               Minor Mode.        (line  12)
+* debbugs-gnu-all-packages:              Retrieving Bugs.   (line  36)
+* debbugs-gnu-all-severities:            Retrieving Bugs.   (line  27)
+* debbugs-gnu-branch-directory:          Applying Patches.  (line  18)
+* debbugs-gnu-default-bug-number-list:   Retrieving Bugs.   (line  81)
+* debbugs-gnu-default-packages:          Retrieving Bugs.   (line  63)
+* debbugs-gnu-default-severities:        Retrieving Bugs.   (line  63)
+* debbugs-gnu-default-suppress-bugs:     Retrieving Bugs.   (line  44)
+* debbugs-gnu-mail-backend:              Tabulated Lists.   (line  79)
+* debbugs-gnu-send-mail-function:        Control Messages.  (line 114)
+* debbugs-gnu-suppress-closed:           Tabulated Lists.   (line  76)
+* debbugs-gnu-trunk-directory:           Applying Patches.  (line  18)
+* debbugs-org-severity-priority:         TODO Items.        (line  10)
 
 
 File: debbugs-ug.info,  Node: Key Index,  Prev: Variable Index,  Up: Top
@@ -555,40 +642,43 @@ Key Index
  [index ]
 * Menu:
 
-* '/':                                   Tabulated Lists.    (line 36)
-* 'B':                                   Tabulated Lists.    (line 52)
-* 'b':                                   Tabulated Lists.    (line 53)
-* 'C':                                   Tabulated Lists.    (line 66)
-* 'C-c # C':                             TODO Items.         (line 25)
-* 'C-c # d':                             TODO Items.         (line 19)
-* 'C-c # t':                             TODO Items.         (line 22)
-* 'd':                                   Tabulated Lists.    (line 33)
-* 'g':                                   Tabulated Lists.    (line 47)
-* '<mouse-1>':                           Tabulated Lists.    (line 30)
-* '<mouse-2>':                           Tabulated Lists.    (line 31)
-* 'R':                                   Tabulated Lists.    (line 40)
-* '<RET>':                               Tabulated Lists.    (line 29)
-* 's':                                   Tabulated Lists.    (line 57)
-* 't':                                   Tabulated Lists.    (line 60)
-* '<TAB>':                               TODO Items.         (line 16)
-* 'w':                                   Tabulated Lists.    (line 44)
-* 'x':                                   Tabulated Lists.    (line 63)
+* /:                                     Tabulated Lists.    (line 36)
+* B:                                     Tabulated Lists.    (line 57)
+* b:                                     Tabulated Lists.    (line 58)
+* C:                                     Tabulated Lists.    (line 71)
+* C-c # C:                               TODO Items.         (line 25)
+* C-c # d:                               TODO Items.         (line 19)
+* C-c # t:                               TODO Items.         (line 22)
+* d:                                     Tabulated Lists.    (line 33)
+* g:                                     Tabulated Lists.    (line 52)
+* M-m:                                   Applying Patches.   (line 10)
+* <mouse-1>:                             Tabulated Lists.    (line 30)
+* <mouse-2>:                             Tabulated Lists.    (line 31)
+* R:                                     Tabulated Lists.    (line 42)
+* <RET>:                                 Tabulated Lists.    (line 29)
+* <RET> <1>:                             Tabulated Lists.    (line 79)
+* s:                                     Tabulated Lists.    (line 62)
+* t:                                     Tabulated Lists.    (line 65)
+* <TAB>:                                 TODO Items.         (line 16)
+* w:                                     Tabulated Lists.    (line 49)
+* x:                                     Tabulated Lists.    (line 68)
 
 
 
 Tag Table:
 Node: Top1097
 Node: Retrieving Bugs2635
-Node: Searching Bugs6095
-Ref: Searching Bugs-Footnote-19980
-Ref: Searching Bugs-Footnote-210068
-Node: Layout10159
-Node: Tabulated Lists10634
-Node: TODO Items13881
-Node: Control Messages14928
-Node: Minor Mode17324
-Node: Command Index18263
-Node: Variable Index18910
-Node: Key Index19558
+Node: Searching Bugs6868
+Ref: Searching Bugs-Footnote-111181
+Ref: Searching Bugs-Footnote-211269
+Node: Presenting Bugs11360
+Node: Tabulated Lists11936
+Node: TODO Items15611
+Node: Control Messages16667
+Node: Applying Patches19709
+Node: Minor Mode21075
+Node: Command Index22019
+Node: Variable Index22808
+Node: Key Index23882
 
 End Tag Table

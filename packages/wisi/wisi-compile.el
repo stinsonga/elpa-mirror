@@ -21,7 +21,7 @@
 ;;
 
 ;;; Commentary:
-;; 
+;;
 
 ;;;; History: first experimental version Jan 2013
 ;;
@@ -144,18 +144,18 @@ sides; nonterm is the left hand side.
 ACTIONS is an array indexed by parser state, of alists indexed by
 terminal tokens. The value of each item in the alists is one of:
 
-'error
+`error'
 
-'accept
+`accept'
 
 integer - shift; gives new state
 
-'(nonterm . index) - reduce by nonterm production index.
+(nonterm . index) - reduce by nonterm production index.
 
-'(integer (nonterm . index)) - a shift/reduce conflict
-'((nonterm . index) (nonterm . index)) - a reduce/reduce conflict
+(integer (nonterm . index)) - a shift/reduce conflict
+((nonterm . index) (nonterm . index)) - a reduce/reduce conflict
 
-The first item in the alist must have the key 'default (not a
+The first item in the alist must have the key `default' (not a
 terminal token); it is used when no other item matches the
 current token.
 

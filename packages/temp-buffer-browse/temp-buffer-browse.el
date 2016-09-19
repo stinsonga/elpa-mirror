@@ -1,9 +1,10 @@
 ;;; temp-buffer-browse.el --- temp buffer browse mode  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2013-2014  Free Software Foundation, Inc.
+;; Copyright (C) 2013-2016  Free Software Foundation, Inc.
 
 ;; Author: Leo Liu <sdl.web@gmail.com>
-;; Version: 1.4
+;; Version: 1.5
+;; Package-Requires: ((emacs "24"))
 ;; Keywords: convenience
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -96,6 +97,9 @@
     (define-key map [backspace] down)
     map))
 
+(defvar temp-buffer-browse--last-exit #'ignore
+  "The \"exit-function\" of the last call to `set-transient-map'.")
+
 ;;;###autoload
 (defun temp-buffer-browse-activate ()
   "Activate temporary key bindings for current window.
@@ -133,17 +137,24 @@ scroll down and close the temp buffer window, respectively."
       ;; negative priority.
       (unless (bound-and-true-p adaptive-wrap-prefix-mode)
         (overlay-put o 'wrap-prefix (overlay-get o 'line-prefix)))
-      (set-transient-map
-       temp-buffer-browse-map
-       (lambda ()
-         ;; When any error happens the keymap is active forever.
-         (with-demoted-errors
-           (or (and (window-live-p temp-buffer-browse--window)
-                    (not (member (this-command-keys) '("\C-m" [return])))
-                    (eq this-command (lookup-key temp-buffer-browse-map
-                                                 (this-command-keys))))
-               (ignore (overlay-put o 'line-prefix nil)
-                       (overlay-put o 'wrap-prefix nil)))))))))
+      ;; Workaround for bug http://debbugs.gnu.org/24149.
+      (funcall temp-buffer-browse--last-exit)
+      (setq temp-buffer-browse--last-exit
+            (set-transient-map
+             temp-buffer-browse-map
+             (lambda ()
+               ;; If uncaught any error will make the keymap active
+               ;; forever.
+               (condition-case err
+                   (or (and (window-live-p temp-buffer-browse--window)
+                            (not (member (this-command-keys) '("\C-m" [return])))
+                            (eq this-command (lookup-key temp-buffer-browse-map
+                                                         (this-command-keys))))
+                       (ignore (setq temp-buffer-browse--last-exit #'ignore)
+                               (overlay-put o 'line-prefix nil)
+                               (overlay-put o 'wrap-prefix nil)))
+                 (error (message "%s:%s" this-command (error-message-string err))
+                        nil))))))))
 
 ;;;###autoload
 (define-minor-mode temp-buffer-browse-mode nil

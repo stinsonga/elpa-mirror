@@ -537,20 +537,20 @@ defaults to \"lexical\" comparison of the keys, ignoring the data
 \(which is not very useful, since an unranked `dictree-complete'
 query already does this much more efficiently\).
 
-CACHE-POLICY should be a symbol ('time, 'length, or 'both), which
-determines which query operations are cached. The 'time setting
+CACHE-POLICY should be a symbol (`time', `length', or `both'), which
+determines which query operations are cached. The `time' setting
 caches queries that take longer (in seconds) than the
-corresponding CACHE-THRESHOLD value. The 'length setting caches
+corresponding CACHE-THRESHOLD value. The `length' setting caches
 lookups of key sequences that are longer than
 LOOKUP-CACHE-THRESHOLD value (since those are likely to be the
 slower ones), and caches completions of prefixes that are shorter
 than the corresponding CACHE-THRESHOLD (since those are likely to
-be the slower ones in that case). The setting 'both requires both
+be the slower ones in that case). The setting `both' requires both
 conditions to be satisfied simultaneously. In this case,
 CACHE-THRESHOLD must be a plist with properties :time and :length
 specifying the corresponding cache thresholds.
 
-CACHE-UPDATE-POLICY should be a symbol ('synchronize or 'delete),
+CACHE-UPDATE-POLICY should be a symbol (`synchronize' or `delete'),
 which determines how the caches are updated when data is inserted
 or deleted. The former updates tainted cache entries, which makes
 queries faster but insertion and deletion slower, whereas the
@@ -1615,13 +1615,13 @@ set. (See also `dictree-member-p' for testing existence alone.)"
 for side-effects only.
 
 FUNCTION will be passed two arguments: a key of type
-TYPE ('string, 'vector, or 'list, defaulting to 'vector) from the
+TYPE (`string', `vector', or `list', defaulting to `vector') from the
 dictionary, and the data associated with that key. The dictionary
 entries will be traversed in \"lexical\" order, i.e. the order
 defined by the dictionary's comparison function (cf.
 `dictree-create').
 
-If TYPE is 'string, it must be possible to apply the function
+If TYPE is `string', it must be possible to apply the function
 `string' to the elements of sequences stored in DICT.
 
 FUNCTION is applied in ascending order, or descending order if
@@ -1676,9 +1676,9 @@ and combine the results using COMBINATOR.
 FUNCTION should take two arguments: a key sequence from the
 dictionary and its associated data.
 
-Optional argument TYPE (one of the symbols vector, lisp or
-string; defaults to vector) sets the type of sequence passed to
-FUNCTION. If TYPE is 'string, it must be possible to apply the
+Optional argument TYPE (one of the symbols `vector', `lisp' or
+`string'; defaults to `vector') sets the type of sequence passed to
+FUNCTION. If TYPE is `string', it must be possible to apply the
 function `string' to the individual elements of key sequences
 stored in DICT.
 
@@ -1725,9 +1725,9 @@ and make a list of the results.
 FUNCTION should take two arguments: a key sequence from the
 dictionary and its associated data.
 
-Optional argument TYPE (one of the symbols vector, lisp or
-string; defaults to vector) sets the type of sequence passed to
-FUNCTION. If TYPE is 'string, it must be possible to apply the
+Optional argument TYPE (one of the symbols `vector', `lisp' or
+`string'; defaults to `vector') sets the type of sequence passed to
+FUNCTION. If TYPE is `string', it must be possible to apply the
 function `string' to the individual elements of key sequences
 stored in DICT.
 
@@ -1740,7 +1740,7 @@ Note that if you don't care about the order in which FUNCTION is
 applied, just that the resulting list is in the correct order,
 then
 
-  (trie-mapf function 'cons trie type (not reverse))
+  (trie-mapf function \\='cons trie type (not reverse))
 
 is more efficient.
 
@@ -2268,7 +2268,7 @@ results, and doesn't count towards MAXNUM.
 
 RESULTFUN defines a function used to process results before
 adding them to the final result list. If specified, it should
-accept two arguments: a key and its associated data. It's return
+accept two arguments: a key and its associated data. Its return
 value is what gets added to the final result list, instead of the
 default key-data cons cell."
   ;; run completion query
@@ -2403,7 +2403,7 @@ default key-data cons cell."
 ;;                    Persistent storage
 
 (defun dictree-save (dict &optional compilation)
-  "Save dictionary DICT to it's associated file.
+  "Save dictionary DICT to its associated file.
 Use `dictree-write' to save to a different file.
 
 Optional argument COMPILATION determines whether to save the
@@ -2450,9 +2450,9 @@ preference to the uncomplied version, as it loads
 faster. However, only the uncompiled version is portable between
 different Emacs versions.
 
-If optional argument COMPILATION is the symbol 'compiled, only
+If optional argument COMPILATION is the symbol `compiled', only
 the compiled version will be created, whereas if it is the symbol
-'uncompiled, only the uncompiled version will be created.
+`uncompiled', only the uncompiled version will be created.
 
 Interactively, DICT and FILENAME are read from the mini-buffer,
 and OVERWRITE is the prefix argument."
@@ -3169,15 +3169,15 @@ appended to the end of it. Otherwise, a new buffer will be
 created. If BUFFER is omitted, the current buffer is used.
 
 TYPE determines the type of sequence to use to represent the
-keys, and should be one of 'string, 'vector or 'list. The default
-is 'vector.
+keys, and should be one of `string', `vector' or `list'. The default
+is `vector'.
 
 Note that if the data does not have a read syntax, the dumped
 data can not be used to recreate the dictionary using
 `dictree-populate-from-file'.
 
 Interactively, DICT and BUFFER are read from the mini-buffer,
-TYPE is always 'string."
+TYPE is always `string'."
   (interactive (list (read-dict "Dictionary: ")
 		     (read-buffer
 		      "Buffer to dump to (defaults to current): "
@@ -3240,15 +3240,15 @@ as that used by `dictree-populate-from-file'. Prompts to overwrite
 FILENAME if it already exists, unless OVERWRITE is non-nil.
 
 TYPE determines the type of sequence to use to represent the
-keys, and should be one of 'string, 'vector or 'list. The default
-is 'vector.
+keys, and should be one of `string', `vector' or `list'. The default
+is `vector'.
 
 Note that if the data does not have a read syntax and no , the dumped
 data can not be used to recreate the dictionary using
 `dictree-populate-from-file'.
 
 Interactively, DICT and FILE are read from the mini-buffer,
-OVERWRITE is the prefix argument, and TYPE is always 'string."
+OVERWRITE is the prefix argument, and TYPE is always `string'."
   (interactive (list (read-dict "Dictionary: ")
 		     (read-file-name "File to dump to: " nil "")))
   (when (and (called-interactively-p 'any) (symbolp dict))

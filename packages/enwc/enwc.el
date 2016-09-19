@@ -1,8 +1,8 @@
 ;;; enwc.el --- The Emacs Network Client
 
-;; Copyright (C) 2012,2013 Free Software Foundation, Inc.
+;; Copyright (C) 2012,2013,2016 Free Software Foundation, Inc.
 
-;; Author: Ian Dunn
+;; Author: Ian Dunn <dunni@gnu.org>
 ;; Keywords: enwc, network, wicd, manager, nm
 ;; Version: 1.0
 
@@ -37,7 +37,7 @@
 ;;
 ;; (require 'enwc-setup)
 ;; (enwc-setup)
-;; 
+;;
 ;; to your .emacs file.
 
 (require 'dbus)
@@ -283,7 +283,7 @@ from a previous scan."
 
 (defun enwc-get-current-nw-id ()
   "Gets the id of the current network id,
-or `nil' if there isn't one."
+or nil if there isn't one."
   (funcall enwc-get-current-nw-id-func enwc-using-wired))
 
 (defun enwc-check-connecting-p ()
@@ -641,7 +641,7 @@ the ENWC buffer if necessary, and scans and displays the networks."
 	(goto-char 0)
 	(forward-line))
     (enwc-scan-internal)))
-  
+
 (defun enwc-find-network (essid &optional networks)
   "Checks through NETWORKS for the network with essid ESSID,
 and returns the network identifier.  Uses `enwc-last-scan' if

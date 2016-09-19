@@ -179,8 +179,8 @@ with allout-mode."
 (defcustom multishell-command-key "\M- "
   "The key to use if `multishell-activate-command-key' is true.
 
-You can instead manually bind `multishell-pop-to-shell` using emacs
-lisp, eg: (global-set-key \"\\M- \" 'multishell-pop-to-shell)."
+You can instead manually bind `multishell-pop-to-shell' using emacs
+lisp, eg: (global-set-key \"\\M- \" \\='multishell-pop-to-shell)."
   :type 'key-sequence)
 
 (defvar multishell--responsible-for-command-key nil
@@ -210,8 +210,8 @@ If optional UNBIND is true, globally unbind the key.
 (defcustom multishell-activate-command-key nil
   "Set this to impose the `multishell-command-key' binding.
 
-You can instead manually bind `multishell-pop-to-shell` using emacs
-lisp, eg: (global-set-key \"\\M- \" 'multishell-pop-to-shell)."
+You can instead manually bind `multishell-pop-to-shell' using emacs
+lisp, eg: (global-set-key \"\\M- \" \\='multishell-pop-to-shell)."
   :type 'boolean
   :set 'multishell-activate-command-key-setter)
 
@@ -364,7 +364,7 @@ prefixing your \\[multishell-pop-to-shell] invocation with single or double
 
  - With a single universal argument, prompt for the buffer name
    to use (without the asterisks that shell mode will put around
-   the name), defaulting to 'shell'.
+   the name), defaulting to `shell'.
 
    Completion is available.
 
@@ -389,21 +389,21 @@ prefixing your \\[multishell-pop-to-shell] invocation with single or double
 The shell buffer name you give to the prompt for a universal arg
 can include an appended path. That will be used for the startup
 directory. You can use tramp remote syntax to specify a remote
-shell. If there is an element after a final '/', that's used for
+shell. If there is an element after a final `/', that's used for
 the buffer name. Otherwise, the host, domain, or path is used.
 
 For example:
 
-* '#root/sudo:root@localhost:/etc' for a buffer named \"*#root*\" with a
+* `#root/sudo:root@localhost:/etc' for a buffer named \"*#root*\" with a
   root shell starting in /etc.
 
-* '/ssh:example.net:' for a shell buffer in your homedir on example.net. 
+* `/ssh:example.net:' for a shell buffer in your homedir on example.net.
   The buffer will be named \"*example.net*\".
 
-* '#ex/ssh:example.net|sudo:root@example.net:/var/log' for a root shell
+* `#ex/ssh:example.net|sudo:root@example.net:/var/log' for a root shell
   starting in /var/log on example.net named \"*#ex*\".
 
-* 'interior/ssh:gateway.corp.com|ssh:interior.corp.com:' to go
+* `interior/ssh:gateway.corp.com|ssh:interior.corp.com:' to go
   via gateway.corp.com to your homedir on interior.corp.com.  The
   buffer will be named \"*interior*\". You could append a sudo
   hop to the path, combining the previous example, and so on.
@@ -480,7 +480,7 @@ customize the savehist group to activate savehist."
 
     ;; Situate:
 
-    (cond 
+    (cond
 
      ((and (or curr-buff-proc from-buffer-is-shell)
            (not arg)
@@ -652,7 +652,7 @@ Return what's provided, if anything, else nil."
 (defun multishell-resolve-target-name-and-path (shell-spec)
   "Given name/tramp-style address shell spec, resolve buffer name and directory.
 
-The name is the part of the string up to the first '/' slash, if
+The name is the part of the string up to the first `/' slash, if
 any. Missing pieces are filled in from remote path elements, if
 any, and multishell history. Given a tramp-style remote address
 and no name part, either the user@host is used for the buffer

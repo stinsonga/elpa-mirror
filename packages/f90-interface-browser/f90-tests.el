@@ -28,7 +28,7 @@
 (defvar *test-running-tests* nil)
 (defmacro deftest (name parameters &rest body)
   "Define a test function. Within a test function we can call
-   other test functions or use 'check' to run individual test
+   other test functions or use `check' to run individual test
    cases."
   `(prog1 ',name
      (setf (gethash ',name *test-tests*)
@@ -37,7 +37,7 @@
                ,@body)))))
 
 (defmacro test-check (&rest forms)
-  "Run each expression in 'forms' as a test case."
+  "Run each expression in FORMS as a test case."
   `(test-combine-results
     ,@(cl-loop for (expr res) in forms
                collect `(test-report-result (equal (condition-case _
@@ -47,14 +47,14 @@
                                             ',expr ',res))))
 
 (defmacro test-combine-results (&rest forms)
-  "Combine the results (as booleans) of evaluating 'forms' in order."
+  "Combine the results (as booleans) of evaluating FORMS in order."
   (let ((result (make-symbol "result")))
     `(let ((,result t))
        ,@(cl-loop for f in forms collect `(unless ,f (setf ,result nil)))
        ,result)))
 
 (defun test-report-result (result res req)
-  "Report the results of a single test case. Called by 'check'."
+  "Report the results of a single test case. Called by `check'."
   (if result
       (insert (format "%s ... %S: %S\n"
                      (propertize "pass"
@@ -112,7 +112,7 @@
    ((f90-split-arglist "foo, dimension(1, size(a, b))")
     ("foo" "dimension(1, size(a, b))"))
    ((f90-parse-names-list "a=1, B=>null()") ("a" "b"))))
-   
+
 (deftest all ()
   (test-combine-results
    (test-run-test 'type-modifiers)

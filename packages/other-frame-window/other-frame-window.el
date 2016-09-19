@@ -120,7 +120,7 @@
             #'ofw--preserve-state))
 
 (defun ofw-delete-from-overriding ()
-  "Remove ourselves from 'display-buffer-overriding-action' action list, if present."
+  "Remove ourselves from `display-buffer-overriding-action' action list, if present."
   (let ((functions (car display-buffer-overriding-action))
         (attrs (cdr display-buffer-overriding-action)))
     (setq functions (remq #'ofw-display-buffer-other-frame
@@ -142,7 +142,7 @@
   "Show BUFFER in another window in the current frame,
 creating new window if needed and allowed.
 If successful, return window; else return nil.
-Intended for 'display-buffer-overriding-action'."
+Intended for `display-buffer-overriding-action'."
   ;; Reset for next display-buffer call.  Normally, this is taken care
   ;; of by ofw--reset-prefix, but we do it here in case the user does
   ;; two ofw prefixed commands consecutively.
@@ -161,7 +161,7 @@ Intended for 'display-buffer-overriding-action'."
 (defun ofw-display-buffer-other-frame (buffer alist)
   "Show BUFFER in another frame, creating a new frame if needed.
 If successful, return window; else return nil.
-Intended for 'display-buffer-overriding-action'."
+Intended for `display-buffer-overriding-action'."
   ;; Reset for next display-buffer call.
   (ofw-delete-from-overriding)
 
@@ -179,7 +179,7 @@ This allows `switch-to-buffer' to respect `ofw-other-window',
     (funcall orig-fun buffer norecord force-same-window)))
 
 (defun ofw--suspend-and-restore (orig-func &rest args)
-  "Call ORIG-FUNC without any ofw actions on 'display-buffer-overriding-action'."
+  "Call ORIG-FUNC without any ofw actions on `display-buffer-overriding-action'."
   (let ((display-buffer-overriding-action display-buffer-overriding-action))
     (ofw-delete-from-overriding)
     (apply orig-func args)))

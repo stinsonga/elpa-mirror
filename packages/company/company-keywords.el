@@ -1,6 +1,6 @@
-;;; company-keywords.el --- A company back-end for programming language keywords
+;;; company-keywords.el --- A company backend for programming language keywords
 
-;; Copyright (C) 2009-2011  Free Software Foundation, Inc.
+;; Copyright (C) 2009-2011, 2016  Free Software Foundation, Inc.
 
 ;; Author: Nikolaj Schumacher
 
@@ -35,13 +35,16 @@
 (defvar company-keywords-alist
   ;; Please contribute corrections or additions.
   `((c++-mode
-     "asm" "auto" "bool" "break" "case" "catch" "char" "class" "const"
-     "const_cast" "continue" "default" "delete" "do" "double" "dynamic_cast"
-     "else" "enum" "explicit" "export" "extern" "false" "float" "for" "friend"
-     "goto" "if" "inline" "int" "long" "mutable" "namespace" "new"
-     "operator" "private" "protected" "public" "register" "reinterpret_cast"
-     "return" "short" "signed" "sizeof" "static" "static_cast" "struct" "switch"
-     "template" "this" "throw" "true" "try" "typedef" "typeid" "typename"
+     "alignas" "alignof" "asm" "auto" "bool" "break" "case" "catch" "char"
+     "char16_t" "char32_t" "class" "const" "const_cast" "constexpr" "continue"
+     "decltype" "default" "delete" "do" "double" "dynamic_cast" "else" "enum"
+     "explicit" "export" "extern" "false" "final" "float" "for" "friend"
+     "goto" "if" "inline" "int" "long" "mutable" "namespace" "new" "noexcept"
+     "nullptr" "operator" "override"
+     "private" "protected" "public" "register" "reinterpret_cast"
+     "return" "short" "signed" "sizeof" "static" "static_assert"
+     "static_cast" "struct" "switch" "template" "this" "thread_local"
+     "throw" "true" "try" "typedef" "typeid" "typename"
      "union" "unsigned" "using" "virtual" "void" "volatile" "wchar_t" "while")
     (c-mode
      "auto" "break" "case" "char" "const" "continue" "default" "do"
@@ -207,17 +210,31 @@
      "do" "else" "elsif"  "end" "ensure" "false" "for" "if" "in" "module"
      "next" "nil" "not" "or" "redo" "rescue" "retry" "return" "self" "super"
      "then" "true" "undef" "unless" "until" "when" "while" "yield")
+    (scala-mode
+     "abstract" "case" "catch" "class" "def" "do" "else" "extends" "false"
+     "final" "finally" "for" "forSome" "if" "implicit" "import" "lazy" "match"
+     "new" "null" "object" "override" "package" "private" "protected"
+     "return" "sealed" "super" "this" "throw" "trait" "true" "try" "type" "val"
+     "var" "while" "with" "yield")
+    (julia-mode
+     "abstract" "break" "case" "catch" "const" "continue" "do" "else" "elseif"
+     "end" "eval" "export" "false" "finally" "for" "function" "global" "if"
+     "ifelse" "immutable" "import" "importall" "in" "let" "macro" "module"
+     "otherwise" "quote" "return" "switch" "throw" "true" "try" "type"
+     "typealias" "using" "while"
+     )
     ;; aliases
     (js2-mode . javascript-mode)
     (espresso-mode . javascript-mode)
     (js-mode . javascript-mode)
     (cperl-mode . perl-mode)
-    (jde-mode . java-mode))
+    (jde-mode . java-mode)
+    (ess-julia-mode . julia-mode))
   "Alist mapping major-modes to sorted keywords for `company-keywords'.")
 
 ;;;###autoload
 (defun company-keywords (command &optional arg &rest ignored)
-  "`company-mode' back-end for programming language keywords."
+  "`company-mode' backend for programming language keywords."
   (interactive (list 'interactive))
   (cl-case command
     (interactive (company-begin-backend 'company-keywords))

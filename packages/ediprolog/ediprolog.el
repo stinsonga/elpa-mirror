@@ -101,7 +101,7 @@
 
 (defcustom ediprolog-program-switches nil
   "List of switches passed to the Prolog process. Example:
-'(\"-G128M\" \"-O\")"
+(\"-G128M\" \"-O\")"
   :group 'ediprolog
   :type '(repeat string))
 
@@ -246,7 +246,7 @@ default Prolog prompt.")
       (erase-buffer)
       (insert str)
       (goto-char (point-min))
-      ;; remove normal consult status lines, which start with "%" 
+      ;; remove normal consult status lines, which start with "%"
       (while (re-search-forward "^[\t ]*%.*\n" nil t)
         (delete-region (match-beginning 0) (match-end 0))))
     (setq str (buffer-string)))

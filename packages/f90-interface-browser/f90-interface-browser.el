@@ -243,7 +243,7 @@ If NAME is like type(TYPENAME) return TYPENAME, otherwise just NAME."
 
 Recurse over all (non-hidden) directories below DIR and parse
 interfaces found within them using `f90-parse-interfaces-in-dir',
-a directory is considered hidden if it's name doesn't start with
+a directory is considered hidden if its name doesn't start with
 an alphanumeric character."
   (interactive "DParse files in tree: ")
   (let (dirs
@@ -664,7 +664,7 @@ see `f90-insert-fluidity-refcount'."
 (defun f90-insert-fluidity-refcount (file fname)
   "Insert a Fluidity reference count template for FILE.
 
-If FNAME matches \\\\`Reference_count_.*\\\\.F90 then this file
+If FNAME matches \\\\=`Reference_count_\\([^\\.]+\\)\\.F90 then this file
 needs a reference count interface, so insert one."
   (when (string-match "\\`Reference_count_\\([^\\.]+\\)\\.F90" fname)
     (insert-file-contents-literally
