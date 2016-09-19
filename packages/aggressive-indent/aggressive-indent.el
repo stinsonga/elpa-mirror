@@ -1,10 +1,10 @@
 ;;; aggressive-indent.el --- Minor mode to aggressively keep your code always indented  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2014, 2015 Free Software Foundation, Inc
+;; Copyright (C) 2014, 2015, 2016 Free Software Foundation, Inc
 
 ;; Author: Artur Malabarba <emacs@endlessparentheses.com>
 ;; URL: https://github.com/Malabarba/aggressive-indent-mode
-;; Version: 1.5
+;; Version: 1.8.1
 ;; Package-Requires: ((emacs "24.1") (cl-lib "0.5"))
 ;; Keywords: indent lisp maint tools
 ;; Prefix: aggressive-indent
@@ -129,6 +129,7 @@ Please include this in your report!"
     haskell-mode
     haskell-interactive-mode
     image-mode
+    inf-ruby-mode
     makefile-mode
     makefile-gmake-mode
     minibuffer-inactive-mode
@@ -190,14 +191,13 @@ change."
     (null (buffer-modified-p))
     (and (boundp 'smerge-mode) smerge-mode)
     (let ((line (thing-at-point 'line)))
-      (when (stringp line)
-        (or (string-match "\\`[[:blank:]]*\n?\\'" line)
-            ;; If the user is starting to type a comment.
-            (and (stringp comment-start)
-                 (string-match (concat "\\`[[:blank:]]*"
-                                       (substring comment-start 0 1)
-                                       "[[:blank:]]*$")
-                               line)))))
+      (and (stringp line)
+           ;; If the user is starting to type a comment.
+           (stringp comment-start)
+           (string-match (concat "\\`[[:blank:]]*"
+                                 (substring comment-start 0 1)
+                                 "[[:blank:]]*$")
+                         line)))
     (let ((sp (syntax-ppss)))
       ;; Comments.
       (or (and (not aggressive-indent-comments-too) (elt sp 4))
@@ -301,8 +301,7 @@ messages.  L and R passed to `aggressive-indent-indent-defun'."
 Call `indent-region' between L and R, and then keep indenting
 until nothing more happens."
   (interactive "r")
-  (let ((p (point-marker))
-        was-begining-of-line)
+  (let ((p (point-marker)))
     (set-marker-insertion-type p t)
     (unwind-protect
         (progn
@@ -350,6 +349,23 @@ or messages."
   "List of (left right) limit of regions changed in the last command loop.")
 (make-variable-buffer-local 'aggressive-indent--changed-list)
 
+(defun aggressive-indent--proccess-changed-list-and-indent ()
+  "Indent the regions in `aggressive-indent--changed-list'."
+  (let ((inhibit-modification-hooks t)
+        (inhibit-point-motion-hooks t)
+        (indent-function
+         (if (cl-member-if #'derived-mode-p aggressive-indent-modes-to-prefer-defun)
+             #'aggressive-indent--softly-indent-defun #'aggressive-indent--softly-indent-region-and-on)))
+    ;; Take the 10 most recent changes.
+    (let ((cell (nthcdr 10 aggressive-indent--changed-list)))
+      (when cell (setcdr cell nil)))
+    ;; (message "----------")
+    (while aggressive-indent--changed-list
+      ;; (message "%S" (car aggressive-indent--changed-list))
+      (apply indent-function (car aggressive-indent--changed-list))
+      (setq aggressive-indent--changed-list
+            (cdr aggressive-indent--changed-list)))))
+
 (defun aggressive-indent--indent-if-changed ()
   "Indent any region that changed in the last command loop."
   (when aggressive-indent--changed-list
@@ -359,15 +375,7 @@ or messages."
                     (aggressive-indent--run-user-hooks))
           (while-no-input
             (redisplay)
-            (let ((inhibit-modification-hooks t)
-                  (inhibit-point-motion-hooks t)
-                  (indent-function
-                   (if (cl-member-if #'derived-mode-p aggressive-indent-modes-to-prefer-defun)
-                       #'aggressive-indent--softly-indent-defun #'aggressive-indent--softly-indent-region-and-on)))
-              (while aggressive-indent--changed-list
-                (apply indent-function (car aggressive-indent--changed-list))
-                (setq aggressive-indent--changed-list
-                      (cdr aggressive-indent--changed-list))))))))))
+            (aggressive-indent--proccess-changed-list-and-indent)))))))
 
 (defun aggressive-indent--keep-track-of-changes (l r &rest _)
   "Store the limits (L and R) of each change in the buffer."
@@ -394,15 +402,17 @@ or messages."
                    (memq major-mode '(text-mode fundamental-mode))
                    buffer-read-only))
           (aggressive-indent-mode -1)
-        ;; Should electric indent be ON or OFF?        
+        ;; Should electric indent be ON or OFF?
         (if (or (eq aggressive-indent-dont-electric-modes t)
                 (cl-member-if #'derived-mode-p aggressive-indent-dont-electric-modes))
             (aggressive-indent--local-electric nil)
           (aggressive-indent--local-electric t))
         (add-hook 'after-change-functions #'aggressive-indent--keep-track-of-changes nil 'local)
+        (add-hook 'before-save-hook #'aggressive-indent--proccess-changed-list-and-indent nil 'local)
         (add-hook 'post-command-hook #'aggressive-indent--indent-if-changed nil 'local))
     ;; Clean the hooks
     (remove-hook 'after-change-functions #'aggressive-indent--keep-track-of-changes 'local)
+    (remove-hook 'before-save-hook #'aggressive-indent--proccess-changed-list-and-indent 'local)
     (remove-hook 'post-command-hook #'aggressive-indent--indent-if-changed 'local)
     (remove-hook 'post-command-hook #'aggressive-indent--softly-indent-defun 'local)))
 

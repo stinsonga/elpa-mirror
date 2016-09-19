@@ -7,6 +7,10 @@ Please send wisi bug reports to bug-gnu-emacs@gnu.org, with
 'wisi' in the subject. If possible, use M-x report-emacs-bug.
 
 
+* wisi 1.1.3
+
+** improve use of quotes in doc strings.
+
 * wisi 1.1.2
 20 Jan 2016
 

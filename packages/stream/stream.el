@@ -1,10 +1,10 @@
 ;;; stream.el --- Implementation of streams  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015 Free Software Foundation, Inc.
+;; Copyright (C) 2016 Free Software Foundation, Inc.
 
 ;; Author: Nicolas Petton <nicolas@petton.fr>
 ;; Keywords: stream, laziness, sequences
-;; Version: 2.1.0
+;; Version: 2.2.2
 ;; Package-Requires: ((emacs "25"))
 ;; Package: stream
 
@@ -49,6 +49,17 @@
 ;; (defun fib (a b)
 ;;  (stream-cons a (fib b (+ a b))))
 ;; (fib 0 1)
+;;
+;; A note for developers: Please make sure to implement functions that
+;; process streams (build new streams out of given streams) in a way
+;; that no new elements in any argument stream are generated.  This is
+;; most likely an error since it changes the argument stream.  For
+;; example, a common error is to call `stream-empty-p' on an input
+;; stream and build the stream to return depending on the result.
+;; Instead, delay such tests until elements are requested from the
+;; resulting stream.  A way to achieve this is to wrap such tests into
+;; `stream-make' or `stream-delay'.  See the implementations of
+;; `stream-append' or `seq-drop-while' for example.
 
 ;;; Code:
 
@@ -148,11 +159,10 @@ range is infinite."
 
 (defun streamp (stream)
   "Return non-nil if STREAM is a stream, nil otherwise."
-  (and (consp stream)
-       (eq (car stream) stream--identifier)))
+  (eq (car-safe stream) stream--identifier))
 
 (defun stream-empty ()
-  "Return an empty stream."
+  "Return a new empty stream."
   (list stream--identifier (thunk-delay nil)))
 
 (defun stream-empty-p (stream)
@@ -197,10 +207,10 @@ elements in the STREAMS in order."
 
 (cl-generic-define-generalizer stream--generalizer
   11
-  (lambda (name)
+  (lambda (name &rest _)
     `(when (streamp ,name)
        'stream))
-  (lambda (tag)
+  (lambda (tag &rest _)
     (when (eq tag 'stream)
       '(stream))))
 
@@ -230,8 +240,19 @@ This function will eagerly consume the entire stream."
       (setq stream (stream-rest stream)))
     len))
 
-(cl-defmethod seq-subseq ((stream stream) start end)
-  (seq-take (seq-drop stream start) (- end start)))
+(cl-defmethod seq-subseq ((stream stream) start &optional end)
+  "Return a stream of elements of STREAM from START to END.
+
+END is exclusive.  If END is omitted, include all elements from
+START on.  Both START and END must be non-negative.  Since
+streams are a delayed type of sequences, don't signal an error if
+START or END are larger than the number of elements (the returned
+stream will simply be accordingly shorter, or even empty)."
+  (when (or (< start 0) (and end (< end 0)))
+    (error "seq-subseq: only non-negative indexes allowed for streams"))
+  (let ((stream-from-start (seq-drop stream start)))
+    (if end (seq-take stream-from-start (- end start))
+      stream-from-start)))
 
 (cl-defmethod seq-into-sequence ((stream stream))
   "Convert STREAM into a sequence."
@@ -317,10 +338,124 @@ kind of nonlocal exit."
        (cons (stream-first stream)
              (seq-filter pred (stream-rest stream)))))))
 
+(defmacro stream-delay (expr)
+  "Return a new stream to be obtained by evaluating EXPR.
+EXPR will be evaluated once when an element of the resulting
+stream is requested for the first time, and must return a stream.
+EXPR will be evaluated in the lexical environment present when
+calling this function."
+  (let ((stream (make-symbol "stream")))
+    `(stream-make (let ((,stream ,expr))
+                    (if (stream-empty-p ,stream)
+                        nil
+                      (cons (stream-first ,stream)
+                            (stream-rest ,stream)))))))
+
 (cl-defmethod seq-copy ((stream stream))
   "Return a shallow copy of STREAM."
-  (stream-cons (stream-first stream)
-               (stream-rest stream)))
+  (stream-delay stream))
+
+
+;;; More stream operations
+
+(defun stream-scan (function init stream)
+  "Return a stream of successive reduced values for STREAM.
+
+If the elements of a stream s are s_1, s_2, ..., the elements
+S_1, S_2, ... of the stream returned by \(stream-scan f init s\)
+are defined recursively by
+
+  S_1     = init
+  S_(n+1) = (funcall f S_n s_n)
+
+as long as s_n exists.
+
+Example:
+
+   (stream-scan #\\='* 1 (stream-range 1))
+
+returns a stream of the factorials."
+  (let ((res init))
+    (stream-cons
+     res
+     (seq-map (lambda (el) (setq res (funcall function res el)))
+              stream))))
+
+(defun stream-flush (stream)
+  "Request all elements from STREAM in order for side effects only."
+  (while (not (stream-empty-p stream))
+    (cl-callf stream-rest stream)))
+
+(defun stream-iterate-function (function value)
+  "Return a stream of repeated applications of FUNCTION to VALUE.
+The returned stream starts with VALUE.  Any successive element
+will be found by calling FUNCTION on the preceding element."
+  (stream-cons
+   value
+   (stream-iterate-function function (funcall function value))))
+
+(defun stream-concatenate (stream-of-streams)
+  "Concatenate all streams in STREAM-OF-STREAMS and return the result.
+All elements in STREAM-OF-STREAMS must be streams.  The result is
+a stream."
+  (stream-make
+   (while (and (not (stream-empty-p stream-of-streams))
+               (stream-empty-p (stream-first stream-of-streams)))
+     (cl-callf stream-rest stream-of-streams))
+   (if (stream-empty-p stream-of-streams)
+       nil
+     (cons
+      (stream-first (stream-first stream-of-streams))
+      (stream-concatenate
+       (stream-cons (stream-rest (stream-first stream-of-streams))
+                    (stream-rest stream-of-streams)))))))
+
+(defun stream-of-directory-files-1 (directory &optional nosort recurse follow-links)
+  "Helper for `stream-of-directory-files'."
+  (stream-delay
+   (if (file-accessible-directory-p directory)
+       (let (files dirs (reverse-fun (if nosort #'identity #'nreverse)))
+         (dolist (file (directory-files directory t nil nosort))
+           (let ((is-dir (file-directory-p file)))
+             (unless (and is-dir
+                          (member (file-name-nondirectory (directory-file-name file))
+                                  '("." "..")))
+               (push file files)
+               (when (and is-dir
+                          (or follow-links (not (file-symlink-p file)))
+                          (if (functionp recurse) (funcall recurse file) recurse))
+                 (push file dirs)))))
+         (apply #'stream-append
+                (stream (funcall reverse-fun files))
+                (mapcar
+                 (lambda (dir) (stream-of-directory-files-1 dir nosort recurse follow-links))
+                 (funcall reverse-fun dirs))))
+     (stream-empty))))
+
+(defun stream-of-directory-files (directory &optional full nosort recurse follow-links filter)
+  "Return a stream of names of files in DIRECTORY.
+Call `directory-files' to list file names in DIRECTORY and make
+the result a stream.  Don't include files named \".\" or \"..\".
+The arguments FULL and NOSORT are directly passed to
+`directory-files'.
+
+Third optional argument RECURSE non-nil means recurse on
+subdirectories.  If RECURSE is a function, it should be a
+predicate accepting one argument, an absolute file name of a
+directory, and return non-nil when the returned stream should
+recurse into that directory.  Any other non-nil value means
+recurse into every readable subdirectory.
+
+Even with recurse non-nil, don't descent into directories by
+following symlinks unless FOLLOW-LINKS is non-nil.
+
+If FILTER is non-nil, it should be a predicate accepting one
+argument, an absolute file name.  It is used to limit the
+resulting stream to the files fulfilling this predicate."
+  (let* ((stream (stream-of-directory-files-1 directory nosort recurse follow-links))
+         (filtered-stream (if filter (seq-filter filter stream) stream)))
+    (if full filtered-stream
+      (seq-map (lambda (file) (file-relative-name file directory)) filtered-stream))))
 
 (provide 'stream)
 ;;; stream.el ends here

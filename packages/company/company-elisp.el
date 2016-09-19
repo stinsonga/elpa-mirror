@@ -1,4 +1,4 @@
-;;; company-elisp.el --- company-mode completion back-end for Emacs Lisp -*- lexical-binding: t -*-
+;;; company-elisp.el --- company-mode completion backend for Emacs Lisp -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2009, 2011-2013  Free Software Foundation, Inc.
 
@@ -31,12 +31,12 @@
 (require 'find-func)
 
 (defgroup company-elisp nil
-  "Completion back-end for Emacs Lisp."
+  "Completion backend for Emacs Lisp."
   :group 'company)
 
 (defcustom company-elisp-detect-function-context t
   "If enabled, offer Lisp functions only in appropriate contexts.
-Functions are offered for completion only after ' and \(."
+Functions are offered for completion only after \\=' and \(."
   :type '(choice (const :tag "Off" nil)
                  (const :tag "On" t)))
 
@@ -193,7 +193,7 @@ first in the candidates list."
 
 ;;;###autoload
 (defun company-elisp (command &optional arg &rest ignored)
-  "`company-mode' completion back-end for Emacs Lisp."
+  "`company-mode' completion backend for Emacs Lisp."
   (interactive (list 'interactive))
   (cl-case command
     (interactive (company-begin-backend 'company-elisp))

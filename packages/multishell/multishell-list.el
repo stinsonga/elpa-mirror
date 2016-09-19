@@ -231,9 +231,9 @@ Provide for concluding minibuffer interaction if we're in completing mode."
 
 Initial sort is from most to least recently used:
 
-- First active shells, flagged with '+' a plus sign
-- Then, inactive shells, flagged with '.' a period
-- Then historical shells that currently have no buffer, flagged with 'x' an ex
+- First active shells, flagged with `+' a plus sign
+- Then, inactive shells, flagged with `.' a period
+- Then historical shells that currently have no buffer, flagged with `x' an ex
 
 \\{multishell-list-mode-map\}"
   (setq tabulated-list-format
@@ -271,7 +271,7 @@ For duplicates, we prefer the ones that have paths."
   "Edit your current and historic list of shell buffers.
 
 If optional COMPLETING is nil, we present the full
-`multishell-history' list in a popped buffer named '*Shells*'.
+`multishell-history' list in a popped buffer named `*Shells*'.
 
 In the buffer, hit ? or h for a list of commands.
 

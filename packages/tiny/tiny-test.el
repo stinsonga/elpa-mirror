@@ -25,7 +25,7 @@
 (require 'tiny nil t)
 
 (defun with-text-value (txt fn &rest args)
-  "Return the result of (apply 'FN ARGS), in a temp buffer with TXT,
+  "Return the result of (apply FN ARGS), in a temp buffer with TXT,
 with point at the end of TXT."
   (with-temp-buffer
     (insert txt)

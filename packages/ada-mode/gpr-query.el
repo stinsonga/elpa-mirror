@@ -3,7 +3,7 @@
 ;; gpr-query supports Ada and any gcc language that supports the
 ;; AdaCore -fdump-xref switch (which includes C, C++).
 ;;
-;; Copyright (C) 2013 - 2015  Free Software Foundation, Inc.
+;; Copyright (C) 2013 - 2016  Free Software Foundation, Inc.
 
 ;; Author: Stephen Leake <stephen_leake@member.fsf.org>
 ;; Maintainer: Stephen Leake <stephen_leake@member.fsf.org>
@@ -195,7 +195,7 @@ Return buffer that holds output."
 
 (defun gpr-query-get-src-dirs (src-dirs)
   "Append list of source dirs in current gpr project to SRC-DIRS.
-Uses 'gpr_query'. Returns new list."
+Uses `gpr_query'. Returns new list."
 
   (with-current-buffer (gpr-query--session-buffer (gpr-query-cached-session))
     (gpr-query-session-send "source_dirs" t)
@@ -210,7 +210,7 @@ Uses 'gpr_query'. Returns new list."
 
 (defun gpr-query-get-prj-dirs (prj-dirs)
   "Append list of project dirs in current gpr project to PRJ-DIRS.
-Uses 'gpr_query'. Returns new list."
+Uses `gpr_query'. Returns new list."
 
   (with-current-buffer (gpr-query--session-buffer (gpr-query-cached-session))
     (gpr-query-session-send "project_path" t)
@@ -432,6 +432,9 @@ Enable mode if ARG is positive."
   "For `ada-xref-refresh-function', using gpr_query."
   (interactive)
   ;; need to kill session to get changed env vars etc
+  ;;
+  ;; sometimes need to delete database, if the compiler version
+  ;; changed; that's beyond the scope of this package.
   (let ((session (gpr-query-cached-session)))
     (gpr-query-kill-session session)
     (gpr-query--start-process session)))
@@ -634,14 +637,9 @@ Enable mode if ARG is positive."
   )
 
 (provide 'gpr-query)
-(provide 'ada-xref-tool)
 
 (add-to-list 'compilation-error-regexp-alist-alist
-	     (cons 'gpr-query-ident-file       gpr-query-ident-file-regexp-alist))
-
-(unless (and (boundp 'ada-xref-tool)
-	     (default-value 'ada-xref-tool))
-  (setq ada-xref-tool 'gpr_query))
+	     (cons 'gpr-query-ident-file gpr-query-ident-file-regexp-alist))
 
 (ada-gpr-query)
 

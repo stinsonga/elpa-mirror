@@ -5,7 +5,7 @@
 ;; Author: Matthew Carter <m@ahungry.com>
 ;; Maintainer: Matthew Carter <m@ahungry.com>
 ;; URL: https://github.com/ahungry/color-theme-ahungry
-;; Version: 1.1.0
+;; Version: 1.3.0
 ;; Keywords: ahungry palette color theme emacs color-theme deftheme
 ;; Package-Requires: ((emacs "24"))
 
@@ -35,6 +35,15 @@
 ;; to a dark background.
 
 ;;; News:
+
+;;;; Changes since 1.2.0:
+;; - Few new faces related to helm-grep search results (poor contrast previously)
+;; - Merge in GNU Elpa changes (avoid message clobbering in color-theme-mode)
+;; - Add lexical binding to the top of the file
+
+;;;; Changes since 1.1.0:
+;; - New variable ahungry-theme-font-settings to avoid overriding user font sizes
+;; - Add info-mode faces
 
 ;;;; Changes since 1.0.12:
 ;; - Add erc/jabber faces to begin with
@@ -75,18 +84,29 @@
 (deftheme ahungry
   "Ahungry Theme")
 
+(defvar ahungry-theme-font-settings
+  '(:family "Terminus" :foundry "xos4"
+            :slant normal :weight normal
+            :height 100 :width normal)
+  "If set to nil, will avoid overriding the user font settings.
+Leave this alone to retain defaults.
+
+Default value:
+   (:family \"Terminus\" :foundry \"xos4\"
+            :slant normal :weight normal
+            :height 100 :width normal)")
+
 (let ((mainbg (when (display-graphic-p) "#222222")));; "default")))
   (custom-theme-set-faces
    'ahungry ;; This is the theme name
    `(default ((t (:foreground "#ffffff" :background ,mainbg
-                              :family "Terminus" :foundry "xos4"
-                              :slant normal :weight normal
-                              :height 100 :width normal))))
+                              ,@ahungry-theme-font-settings))))
    '(cursor ((t (:background "#fce94f" :foreground "#ffffff"))))
    '(highlight ((t (:background "brown4" :foreground nil))))
    '(border ((t (:background "#888a85"))))
    '(fringe ((t (:background "#333333"))))
-   '(mode-line ((t (:foreground "#0022ff" :bold t :background "#77ff00"
+   '(error ((t (:foreground "Red1" :bold t))))
+   '(mode-line ((t (:foreground "#0022aa" :bold t :background "#77ff00"
                                 :box (:line-width 1 :color nil :style released-button)))))
    '(mode-line-inactive ((t (:foreground "#444444" :background "#66ff33"))))
    '(mode-line-buffer-id ((t (:bold t :foreground "#ffffff" :background "#0055ff"))))
@@ -129,8 +149,6 @@
    '(isearch-lazy-highlight-face ((t (:foreground "#2e3436" :background "#ff6600"))))
    '(show-paren-match-face ((t (:background "#ff6600" :foreground "#2e3436"))))
    '(show-paren-mismatch-face ((t (:background "#999999" :foreground "#ff6600"))))
-   '(info-xref ((t (:foreground "#33ffbb"))))
-   '(info-xref-visited ((t (:foreground "#999999"))))
    '(diary ((t (:bold t :foreground "#ff0000"))))
    '(message-cited-text ((t (:foreground "#ffc800"))))
    '(gnus-cite-1 ((t (:foreground "#999999"))))
@@ -192,7 +210,7 @@
    '(org-level-4 ((t (:bold nil :foreground "#f68585" :height 1.0))))
    '(org-date ((t (:underline t :foreground "#ff0066"))))
    '(org-footnote  ((t (:underline t :foreground "#ff0066"))))
-   '(org-link ((t (:foreground "skyblue2" :background "#2e3436"))))
+   '(org-link ((t (:foreground "#111111" :background "#ff0099"))))
    '(org-special-keyword ((t (:foreground "#cc0033"))))
    '(org-verbatim ((t (:foreground "#cc6600" :underline t :slant italic))))
    '(org-block ((t (:foreground "#999999"))))
@@ -206,6 +224,7 @@
    '(org-agenda-date-weekend ((t (:weight normal :foreground "#005fff"))))
    '(org-agenda-date-today ((t (:weight bold :foreground "#ffc800"))))
    '(org-agenda-done ((t (:weight normal :foreground "#00aa33"))))
+   '(org-agenda-clocking ((t (:background "#333333" :weight bold))))
    '(org-block-begin-line ((t (:foreground "#bbbbbb" :background "#333333"))))
    '(org-block-background ((t (:background "#333333"))))
    '(org-block-end-line ((t (:foreground "#bbbbbb" :background "#333333"))))
@@ -229,6 +248,8 @@
    '(magit-section-highlight ((t (:weight bold))));;:foreground "#ffffff"))))
    '(minibuffer-prompt ((t (:foreground "#0055ff" :bold t))))
    '(web-mode-html-tag-bracket-face ((t (:foreground "#666666"))))
+   '(helm-grep-cmd-line ((t (:foreground "#0022aa"))))
+   '(helm-grep-finish ((t (:foreground "#0022aa"))))
    '(helm-selection ((t (:foreground "#ff0099" :italic t :bold t :background "#f2e997"))))
    '(helm-match ((t (:foreground "gold1"))))
    '(helm-visible-mark ((t (:background "#f2e997" :foreground "#ff0099" :bold nil :italic nil))))
@@ -240,6 +261,16 @@
    '(jabber-chat-prompt-foreign ((t (:foreground "#ff0099"))))
    '(jabber-chat-prompt-local ((t (:foreground "#0099ff"))))
    '(jabber-rare-time-face ((t (:foreground "#666666" :bold nil :italic t))))
+   '(eshell-prompt ((t (:foreground "#0099ff"))))
+   '(info-menu-header ((t (:foreground "#0099ff" :bold t :underline t))))
+   '(info-header-xref ((t (:foreground "#0099ff"))))
+   '(info-header-node ((t (:foreground "#ff0099" :bold t :italic t))))
+   '(info-menu-star ((t (:foreground "#0099ff" :bold t))))
+   '(info-xref-visited ((t (:foreground "#999999"))))
+   '(info-xref ((t (:foreground "#0099ff"))))
+   '(info-node ((t (:foreground "#ff0099"))))
+   '(info-title-1 ((t (:foreground "yellow" :bold t))))
+   '(info-title-2 ((t (:foreground "#ff0099"))))
    )
   (custom-theme-set-variables
    'ahungry

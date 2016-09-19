@@ -1,13 +1,13 @@
 ;;; el-search.el --- Expression based incremental search for emacs-lisp-mode -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015 Free Software Foundation, Inc
+;; Copyright (C) 2015, 2016 Free Software Foundation, Inc
 
 ;; Author: Michael Heerdegen <michael_heerdegen@web.de>
 ;; Maintainer: Michael Heerdegen <michael_heerdegen@web.de>
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 0.1.3
+;; Version: 0.2.3
 ;; Package-Requires: ((emacs "25"))
 
 
@@ -65,7 +65,7 @@
 ;;   `(defvar ,_)
 ;;
 ;; you search for all defvar forms that don't specify an init value.
-;; 
+;;
 ;; The following will search for defvar forms with a docstring whose
 ;; first line is longer than 70 characters:
 ;;
@@ -113,6 +113,9 @@
 ;; `el-search-defpattern'.  It is just like `pcase-defmacro', but the
 ;; effect is limited to this package.  See C-h f `el-search-pattern'
 ;; for a list of predefined additional pattern forms.
+;;
+;; Some additional pattern definitions can be found in the file
+;; "el-search-x.el".
 ;;
 ;;
 ;; Replacing
@@ -162,8 +165,12 @@
 ;;    (define-key isearch-mode-map [(control ?S)] #'el-search-search-from-isearch)
 ;;    (define-key isearch-mode-map [(control ?%)] #'el-search-replace-from-isearch)
 ;;
+;;    (define-key el-search-read-expression-map [(control ?S)] #'exit-minibuffer)
+;;
 ;; The bindings in `isearch-mode-map' let you conveniently switch to
-;; elisp searching from isearch.
+;; "el-search" searching from isearch.  The binding in
+;; `el-search-read-expression-map' allows you to hit C-S twice to
+;; start a search for the last search pattern.
 ;;
 ;;
 ;; Bugs, Known Limitations
@@ -185,6 +192,8 @@
 ;;
 ;; the comment will be lost.
 ;;
+;; FIXME: when we have resumable sessions, pause and warn about this case.
+;;
 ;;
 ;;  Acknowledgments
 ;;  ===============
@@ -194,17 +203,17 @@
 ;;
 ;; TODO:
 ;;
-;; - When replacing like (progn A B C) -> A B C, the layout of the
-;; whole "group" A B C as a unit is lost.  Instead of restoring layout
-;; as we do now (via "read mappings"), we could just make a backup of
-;; the original expression as a string, and use our search machinery
-;; to find occurrences in the replacement recursively.
-;;
-;; - detect infloops when replacing automatically (e.g. for 1 -> '(1))
-;;
 ;; - implement backward searching
 ;;
+;; - Make `el-search-pattern' accept an &optional limit, at least for
+;;   the non-interactive use case?
+;;
 ;; - improve docstrings
+;;
+;; - Make it work in comments, too? (-> `parse-sexp-ignore-comments').
+;;   Related: should the pattern `symbol' also match strings that
+;;   contain matches for a symbol so that it's possible to replace
+;;   also occurrences of a symbol in docstrings?
 ;;
 ;; - handle more reader syntaxes, e.g. #n, #n#
 ;;
@@ -213,6 +222,14 @@
 ;;   variable).  The state in the current buffer is just (buffer
 ;;   . marker).  Or should this be abstracted into an own lib?  Could
 ;;   be named "files-session" or so.
+;;
+;; - Make `el-search--format-replacement' work non-heuristically.
+;;   Idea: When replacing, for every variable V bound by the search
+;;   pattern that directly corresponds to some text T, provide some
+;;   "match data" V -> T.  Use this when formatting the replacement.
+;;   Maybe use a special marker to "paste" in expressions, like (paste
+;;   V), whereby the `paste' flag lands in the replacement and can be
+;;   replaced textually afterwards.
 
 
 
@@ -236,12 +253,9 @@
   :group 'lisp)
 
 (defcustom el-search-this-expression-identifier 'exp
-  "Identifier referring to the current expression in pattern input.
+  "Identifier ID referring to the current expression in pattern input.
 When entering a PATTERN in an interactive \"el-search\" command,
-the pattern actually used will be
-
-    `(and ,el-search-this-expression-identifier ,pattern)
-
+the pattern actually used will be (and ID PATTERN).
 The default value is `exp'."
   :type 'symbol)
 
@@ -253,14 +267,52 @@ The default value is `exp'."
                                  (t                   (:background "DarkSlateGray1")))
   "Face for highlighting the other matches.")
 
+(defcustom el-search-smart-case-fold-search t
+  "Whether to use smart case folding in pattern matching.
+When an \"el-search\" pattern involves regexp matching (like for
+\"string\" or \"source\") and this option is non-nil,
+case-fold-search will be temporarily bound to t if the according
+regexp contains any upper case letter, and nil else.  This is
+done independently for every single matching operation.
+
+If nil, the value of `case-fold-search' is decisive."
+  :type 'boolean)
+
+(defcustom el-search-use-sloppy-strings nil
+  "Whether to allow the usage of \"sloppy strings\".
+When this option is turned on, for faster typing you are allowed
+to specify symbols instead of strings as arguments to an
+\"el-search\" pattern type that would otherwise accept only
+strings, and their names will be used as input (with other words,
+this spares you to type the string delimiters in many cases).
+
+For example,
+
+  \(source ^cl\)
+
+is then equivalent to
+
+  \(source \"^cl\"\)
+
+When this option is off, the first form would just signal an
+error."
+  :type 'boolean)
+
 
 ;;;; Helpers
 
-(defun el-search--print (expr)
-  (let ((print-quoted t)
-        (print-length nil)
+(defun el-search--smart-string-match-p (regexp string)
+  "`string-match-p' taking `el-search-smart-case-fold-search' into account."
+  (let ((case-fold-search (if el-search-smart-case-fold-search
+                              (not (let ((case-fold-search nil))
+                                     (string-match-p "[[:upper:]]" regexp)))
+                            case-fold-search)))
+    (string-match-p regexp string)))
+
+(defun el-search--pp-to-string (expr)
+  (let ((print-length nil)
         (print-level nil))
-    (prin1-to-string expr)))
+    (pp-to-string expr)))
 
 (defvar el-search-read-expression-map
   (let ((map (make-sparse-keymap)))
@@ -268,18 +320,20 @@ The default value is `exp'."
     (define-key map [(control ?g)] #'abort-recursive-edit)
     (define-key map [up]   nil)
     (define-key map [down] nil)
-    (define-key map [(control meta backspace)] #'backward-kill-sexp)
-    (define-key map [(control ?S)] #'exit-minibuffer)
+    (define-key map [(control ?j)] #'newline)
     map)
   "Map for reading input with `el-search-read-expression'.")
 
 (defun el-search--setup-minibuffer ()
+  (let ((inhibit-read-only t))
+    (put-text-property 1 (minibuffer-prompt-end) 'font-lock-face 'minibuffer-prompt))
   (emacs-lisp-mode)
   (use-local-map el-search-read-expression-map)
   (setq font-lock-mode t)
   (funcall font-lock-function 1)
-  (backward-sexp)
-  (indent-sexp)
+  (goto-char (minibuffer-prompt-end))
+  (when (looking-at ".*\n")
+    (indent-sexp))
   (goto-char (point-max))
   (when-let ((this-sexp (with-current-buffer (window-buffer (minibuffer-selected-window))
                           (thing-at-point 'sexp))))
@@ -296,28 +350,54 @@ The default value is `exp'."
     (read-from-minibuffer prompt initial-contents el-search-read-expression-map read
                           (or hist 'read-expression-history) default)))
 
+(defvar el-search-history '()
+  "List of search input strings.")
+
+(defvar el-search-query-replace-history '()
+  "List of input strings from `el-search-query-replace'.")
+
 (defvar el-search--initial-mb-contents nil)
 
-(defun el-search--read-pattern (prompt &optional default read)
+(defun el-search--pushnew-to-history (input histvar)
+  (let ((hist-head (car (symbol-value histvar))))
+    (unless (or (string-match-p "\\`\\'" input)
+                (and (stringp hist-head)
+                     (or (string= input hist-head)
+                         (ignore-errors (equal (read input) (read hist-head))))))
+      (push (if (string-match-p "\\`.+\n" input)
+                (with-temp-buffer
+                  (emacs-lisp-mode)
+                  (insert "\n" input)
+                  (indent-region 1 (point))
+                  (buffer-string))
+              input)
+            (symbol-value histvar)))))
+
+(defun el-search--read-pattern (prompt &optional default histvar)
+  (cl-callf or histvar 'el-search-history)
   (let ((input (el-search-read-expression
-                prompt el-search--initial-mb-contents 'el-search-history default read)))
-    (if (or read (not (string= input ""))) input (car el-search-history))))
+                prompt el-search--initial-mb-contents histvar default)))
+    (el-search--pushnew-to-history input histvar)
+    (if (not (string= input "")) input (car (symbol-value histvar)))))
 
 (defun el-search--end-of-sexp ()
   ;;Point must be at sexp beginning
   (or (scan-sexps (point) 1) (point-max)))
 
 (defun el-search--ensure-sexp-start ()
-  "Move point to the beginning of the next sexp if necessary.
-Don't move if already at beginning of a sexp.
-Point must not be inside a string or comment."
+  "Move point to the next sexp beginning position.
+Don't move if already at beginning of a sexp.  Point must not be
+inside a string or comment.  `read' the expression at that point
+and return it."
+  ;; This doesn't catch end-of-buffer to keep the return value non-ambiguous
   (let ((not-done t) res)
     (while not-done
       (let ((stop-here nil)
             (looking-at-from-back (lambda (regexp n)
-                                    (save-excursion
-                                      (backward-char n)
-                                      (looking-at regexp)))))
+                                    (and (<= n (- (point) (point-min)))
+                                         (save-excursion
+                                           (backward-char n)
+                                           (looking-at regexp))))))
         (while (not stop-here)
           (cond
            ((eobp) (signal 'end-of-buffer nil))
@@ -343,32 +423,34 @@ Point must not be inside a string or comment."
 (defvar el-search--pcase-macros '()
   "List of additional \"el-search\" pcase macros.")
 
-(defun el-search--make-docstring ()
+(defun el-search--make-docstring (name)
   ;; code mainly from `pcase--make-docstring'
-  (let* ((main (documentation (symbol-function 'el-search-pattern) 'raw))
+  (let* ((main (documentation (symbol-function name) 'raw))
          (ud (help-split-fundoc main 'pcase)))
     (with-temp-buffer
       (insert (or (cdr ud) main))
       (mapc
        (pcase-lambda (`(,symbol . ,fun))
-         (when-let ((doc (documentation fun)))
-           (insert "\n\n\n-- ")
-           (setq doc (help-fns--signature symbol doc fun fun nil))
-           (insert "\n" (or doc "Not documented."))))
+         (unless (string-match-p "\\`-\\|--" (symbol-name symbol)) ;let's consider these "internal"
+           (when-let ((doc (documentation fun)))
+             (insert "\n\n\n-- ")
+             (setq doc (help-fns--signature symbol doc fun fun nil))
+             (insert "\n" (or doc "Not documented.")))))
        (reverse el-search--pcase-macros))
       (let ((combined-doc (buffer-string)))
         (if ud (help-add-fundoc-usage combined-doc (car ud)) combined-doc)))))
 
-(put 'el-search-pattern 'function-documentation '(el-search--make-docstring))
+(put 'el-search-pattern 'function-documentation '(el-search--make-docstring 'el-search-pattern))
 
 (defmacro el-search-defpattern (name args &rest body)
   "Like `pcase-defmacro', but limited to el-search patterns.
 The semantics is exactly that of `pcase-defmacro', but the scope
-of the definitions is limited to \"el-search\"."
+of the definitions is limited to \"el-search\".
+
+\(fn NAME ARGLIST &optional DOCSTRING &rest BODY)"
   (declare (indent 2) (debug defun))
   `(setf (alist-get ',name el-search--pcase-macros)
          (lambda ,args ,@body)))
-
 
 (defmacro el-search--with-additional-pcase-macros (&rest body)
   `(cl-letf ,(mapcar (pcase-lambda (`(,symbol . ,fun))
@@ -376,7 +458,23 @@ of the definitions is limited to \"el-search\"."
                      el-search--pcase-macros)
      ,@body))
 
-(defun el-search--matcher (pattern &rest body)
+(defun el-search--macroexpand-1 (pattern)
+  "Expand \"el-search\" PATTERN.
+This is like `pcase--macroexpand', but expands only patterns
+defined with `el-search-defpattern' and performs only one
+expansion step.
+
+Return PATTERN if this pattern type was not defined with
+`el-search-defpattern'."
+  (if-let ((expander (alist-get (car-safe pattern) el-search--pcase-macros)))
+      (apply expander (cdr pattern))
+    pattern))
+
+(defun el-search--macroexpand (pattern)
+  "Like `pcase--macroexpand' but also expanding \"el-search\" patterns."
+  (eval `(el-search--with-additional-pcase-macros (pcase--macroexpand ',pattern))))
+
+(defun el-search--matcher (pattern &optional result)
   (eval ;use `eval' to allow for user defined pattern types at run time
    (let ((expression (make-symbol "expression")))
      `(el-search--with-additional-pcase-macros
@@ -385,7 +483,7 @@ of the definitions is limited to \"el-search\"."
              (pcase--dontwarn-upats (cons '_ pcase--dontwarn-upats)))
          (byte-compile (lambda (,expression)
                          (pcase ,expression
-                           (,pattern ,@(or body (list t)))
+                           (,pattern ,(or result t))
                            (_        nil)))))))))
 
 (defun el-search--match-p (matcher expression)
@@ -444,66 +542,134 @@ of the definitions is limited to \"el-search\"."
     match-beg))
 
 (defun el-search--search-pattern (pattern &optional noerror)
-  "Search elisp buffer with `pcase' PATTERN.
+  "Search for el-search PATTERN in current buffer.
 Set point to the beginning of the occurrence found and return
 point.  Optional second argument, if non-nil, means if fail just
 return nil (no error)."
   (el-search--search-pattern-1 (el-search--matcher pattern) noerror))
 
-(defun el-search--do-subsexps (pos do-fun &optional ret-fun bound)
-  ;; In current buffer, for any expression start between POS and BOUND
-  ;; or (point-max), in order, call two argument function DO-FUN with
-  ;; the current sexp string and the ending position of the current
-  ;; sexp.  When done, with RET-FUN given, call it with no args and
-  ;; return the result; else, return nil.
-  (save-excursion
-    (goto-char pos)
-    (condition-case nil
-        (while (< (point) (or bound (point-max)))
-          (let* ((this-sexp-end (save-excursion (thing-at-point--end-of-sexp) (point)))
-                 (this-sexp-string (buffer-substring-no-properties (point) this-sexp-end)))
-            (funcall do-fun this-sexp-string this-sexp-end)
-            (el-search--skip-expression (read this-sexp-string))
-            (el-search--ensure-sexp-start)))
-      (end-of-buffer))
-    (when ret-fun (funcall ret-fun))))
+(defun el-search--replace-hunk (region to-insert)
+  "Replace the text in REGION in current buffer with string TO-INSERT.
+Add line breaks before and after TO-INSERT when appropriate and
+reindent."
+  (atomic-change-group
+    (let* ((inhibit-message t)
+           (opoint (point))
+           (original-text (prog1 (apply #'buffer-substring-no-properties region)
+                            (goto-char (car region))
+                            (apply #'delete-region region)))
+           ;; care about other sexps in this line
+           (sexp-before-us (not (looking-back "\(\\|^\\s-*" (line-beginning-position))))
+           (sexp-after-us  (not (looking-at "\\s-*[;\)]\\|$")))
+           (insert-newline-before
+            (or
+             (and (string-match-p "\n" to-insert)
+                  (not (string-match-p "\n" original-text))
+                  (or (and sexp-before-us sexp-after-us)
+                      (looking-back
+                       (rx (or (syntax word) (syntax symbol))
+                           (+ blank)
+                           (or (syntax word) (syntax symbol))
+                           (* any))
+                       (line-beginning-position))))
+             ;; (and sexp-before-us
+             ;;      (> (+ (apply #'max (mapcar #'length (split-string to-insert "\n")))
+             ;;            (- (point) (line-beginning-position)))
+             ;;         fill-column))
+             ))
+           (insert-newline-after (and insert-newline-before sexp-after-us)))
+      (when insert-newline-before
+        (when (looking-back "\\s-+" (line-beginning-position))
+          (delete-region (match-beginning 0) (match-end 0)))
+        (insert "\n"))
+      (insert to-insert)
+      (when insert-newline-after
+        (insert "\n"))
+      (indent-region opoint (1+ (point))))))
 
-(defun el-search--create-read-map (&optional pos)
-  (let ((mapping '()))
-    (el-search--do-subsexps
-     (or pos (point))
-     (lambda (sexp _) (push (cons (read sexp) sexp) mapping))
-     (lambda () (nreverse mapping))
-     (save-excursion (thing-at-point--end-of-sexp) (point)))))
-
-(defun el-search--repair-replacement-layout (printed mapping)
-  (with-temp-buffer
-    (insert printed)
-    (el-search--do-subsexps
-     (point-min)
-     (lambda (sexp sexp-end)
-       (when-let ((old (cdr (assoc (read sexp) mapping))))
-         (delete-region (point) sexp-end)
-         (when (string-match-p "\n" old)
-           (unless (looking-back "^[[:space:]]*" (line-beginning-position))
-             (insert "\n"))
-           (unless (looking-at "[[:space:]\)]*$")
-             (insert "\n")
-             (backward-char)))
-         (save-excursion (insert old))))
-     (lambda () (buffer-substring (point-min) (point-max))))))
+(defun el-search--format-replacement (replacement original replace-expr-input splice)
+  ;; Return a printed representation of REPLACEMENT.  Try to reuse the
+  ;; layout of subexpressions shared with the original (replaced)
+  ;; expression and the replace expression.
+  (if (and splice (not (listp replacement)))
+      (error "Expression to splice in is an atom")
+    (let ((orig-buffer (generate-new-buffer "orig-expr")))
+      (with-current-buffer orig-buffer
+        (emacs-lisp-mode)
+        (insert original)
+        (when replace-expr-input (insert "\n\n" replace-expr-input)))
+      (unwind-protect
+          (with-temp-buffer
+            (emacs-lisp-mode)
+            (insert (if splice
+                        (mapconcat #'el-search--pp-to-string replacement " ")
+                      (el-search--pp-to-string replacement)))
+            (goto-char 1)
+            (let (start this-sexp end orig-match-start orig-match-end done)
+              (while (and (< (point) (point-max))
+                          (condition-case nil
+                              (progn
+                                (setq start (point)
+                                      this-sexp (read (current-buffer))
+                                      end   (point))
+                                t)
+                            (end-of-buffer nil)))
+                (setq done nil orig-match-start nil)
+                (with-current-buffer orig-buffer
+                  (goto-char 1)
+                  (if (el-search--search-pattern `',this-sexp t)
+                      (setq orig-match-start (point)
+                            orig-match-end (progn (forward-sexp) (point)))
+                    (setq done t)))
+                ;; find out whether we have a sequence of equal expressions
+                (while (and (not done)
+                            (condition-case nil
+                                (progn (setq this-sexp (read (current-buffer))) t)
+                              ((invalid-read-syntax end-of-buffer end-of-file) nil)))
+                  (if (with-current-buffer orig-buffer
+                        (condition-case nil
+                            (if (not (equal this-sexp (read (current-buffer))))
+                                nil
+                              (setq orig-match-end (point))
+                              t)
+                          ((invalid-read-syntax end-of-buffer end-of-file) nil)))
+                      (setq end (point))
+                    (setq done t)))
+                ;; FIXME: there could be another occurrence of THIS-SEXP in ORIG-BUFFER with more
+                ;; subsequent equal expressions after it
+                (if orig-match-start
+                    (el-search--replace-hunk
+                     (list start end)
+                     (with-current-buffer orig-buffer
+                       (buffer-substring-no-properties orig-match-start orig-match-end)))
+                  (goto-char start)
+                  (el-search--skip-expression nil t))
+                (condition-case nil
+                    (el-search--ensure-sexp-start)
+                  (end-of-buffer (goto-char (point-max))))))
+            (goto-char 1)
+            (forward-sexp (if splice (length replacement) 1))
+            (let ((result (buffer-substring 1 (point))))
+              (if (equal replacement (read (if splice (format "(%s)" result) result)))
+                  result
+                (error "Error in `el-search--format-replacement' - please make a bug report"))))
+        (kill-buffer orig-buffer)))))
 
 (defun el-search--check-pattern-args (type args predicate &optional message)
   "Check whether all ARGS fulfill PREDICATE.
-Raise an error if not.  TYPE and optional argument MESSAGE are
-used to construct the error message."
+Raise an error if not.  The string arguments TYPE and optional
+MESSAGE are used to construct the error message."
   (mapc (lambda (arg)
           (unless (funcall predicate arg)
-            (error (concat "Pattern `%S': "
+            (error (concat "Pattern `%s': "
                            (or message (format "argument doesn't fulfill %S" predicate))
                            ": %S")
                    type arg)))
         args))
+
+(defvar el-search-current-pattern nil)
+
+(defvar el-search-success nil)
 
 
 ;;;; Additional pattern type definitions
@@ -557,24 +723,25 @@ matches the list (1 2 3 4 5 6 7 8 9) and binds `x' to (4 5 6)."
               (app ,(apply-partially #'el-search--split
                                      (el-search--matcher pattern)
                                      (el-search--matcher (car more-patterns)))
-                   (,'\` ((,'\, ,pattern)
-                          (,'\, ,(car more-patterns)))))))
+                   `(,,pattern ,,(car more-patterns)))))
        (t `(append ,pattern (append ,@more-patterns)))))))
+
+(defun el-search--stringish-p (thing)
+  (or (stringp thing) (and el-search-use-sloppy-strings (symbolp thing))))
 
 (el-search-defpattern string (&rest regexps)
   "Matches any string that is matched by all REGEXPS."
-  (el-search--check-pattern-args 'string regexps #'stringp)
-  (let ((string (make-symbol "string"))
-        (regexp (make-symbol "regexp")))
-    `(and (pred stringp)
-          (pred (lambda (,string)
-                  (cl-every
-                   (lambda (,regexp) (string-match-p ,regexp ,string))
-                   (list ,@regexps)))))))
+  (el-search--check-pattern-args "string" regexps #'el-search--stringish-p
+                                 "Argument not a string")
+  `(and (pred stringp)
+        ,@(mapcar (lambda (thing) `(pred (el-search--smart-string-match-p
+                                     ,(if (symbolp thing) (symbol-name thing) thing))))
+                  regexps)))
 
 (el-search-defpattern symbol (&rest regexps)
   "Matches any symbol whose name is matched by all REGEXPS."
-  (el-search--check-pattern-args 'symbol regexps #'stringp)
+  (el-search--check-pattern-args "symbol" regexps #'el-search--stringish-p
+                                 "Argument not a string")
   `(and (pred symbolp)
         (app symbol-name (string ,@regexps))))
 
@@ -603,7 +770,7 @@ of any kind matched by all PATTERNs are also matched.
    ((null (cdr patterns))
     (let ((pattern (car patterns)))
       `(app ,(apply-partially #'el-search--contains-p (el-search--matcher pattern))
-            (,'\`  (t (,'\, ,pattern))))))
+            `(t ,,pattern))))
    (t `(and ,@(mapcar (lambda (pattern) `(contains ,pattern)) patterns)))))
 
 (el-search-defpattern not (pattern)
@@ -614,7 +781,7 @@ of any kind matched by all PATTERNs are also matched.
 (defun el-search--match-symbol-file (regexp symbol)
   (when-let ((symbol-file (and (symbolp symbol)
                                (symbol-file symbol))))
-    (string-match-p
+    (el-search--smart-string-match-p
      (if (symbolp regexp) (concat "\\`" (symbol-name regexp) "\\'") regexp)
      (file-name-sans-extension (file-name-nondirectory symbol-file)))))
 
@@ -631,8 +798,9 @@ REGEXP can also be a symbol, in which case
   (concat \"^\" (symbol-name regexp) \"$\")
 
 is used as regular expression."
-  (el-search--check-pattern-args 'source (list regexp) #'stringp)
-  `(pred (el-search--match-symbol-file ,regexp)))
+  (el-search--check-pattern-args "source" (list regexp) #'el-search--stringish-p
+                                 "Argument not a string")
+  `(pred (el-search--match-symbol-file ,(if (symbolp regexp) (symbol-name regexp) regexp))))
 
 (defun el-search--match-key-sequence (keys expr)
   (when-let ((expr-keys (pcase expr
@@ -662,17 +830,18 @@ matches any of these expressions:
     [(control ?s)]"
   (when (eq (car-safe key-sequence) 'kbd)
     (setq key-sequence (kbd (cadr key-sequence))))
-  (el-search--check-pattern-args 'keys (list key-sequence) (lambda (x) (or (stringp x) (vectorp x)))
+  (el-search--check-pattern-args "keys" (list key-sequence) (lambda (x) (or (stringp x) (vectorp x)))
                                  "argument not a string or vector")
   `(pred (el-search--match-key-sequence ,key-sequence)))
 
-(defun el-search--s (expr)
-  (cond
-   ((symbolp expr) `(or (symbol ,(symbol-name expr))
-                        (,'\` (,'quote    (,'\, (symbol ,(symbol-name expr)))))
-                        (,'\` (,'function (,'\, (symbol ,(symbol-name expr)))))))
-   ((stringp expr) `(string ,expr))
-   (t expr)))
+(defun el-search--transform-nontrivial-lpat (expr)
+  (pcase expr
+    ((and (pred symbolp) (let symbol-name (symbol-name expr)))
+     `(or (symbol ,symbol-name)
+          `',(symbol  ,symbol-name)
+          `#',(symbol ,symbol-name)))
+    ((pred stringp) `(string ,expr))
+    (_ expr)))
 
 (el-search-defpattern l (&rest lpats)
   "Alternative pattern type for matching lists.
@@ -717,9 +886,39 @@ could use this pattern:
                     ('_ '`(,_))
                     ('_? '(or '() `(,_))) ;FIXME: useful - document? or should we provide a (? PAT)
                                           ;thing?
-                    (_ `(,'\` ((,'\, ,(el-search--s elt)))))))
+                    (_ ``(,,(el-search--transform-nontrivial-lpat elt)))))
                 lpats)
              ,@(if match-end '() '(_)))))
+
+(el-search-defpattern char-prop (property)
+  "Matches the object if completely covered with PROPERTY.
+This pattern matches the object if its representation in the
+search buffer is completely covered with the character property
+PROPERTY.
+
+This pattern always tests the complete expression in the search
+buffer, it is not possible to test subexpressions calculated in
+the search pattern."
+  `(guard (and (get-char-property (point) ',property)
+               ,(macroexp-let2 nil limit '(scan-sexps (point) 1)
+                  `(= (next-single-char-property-change
+                       (point) ',property nil ,limit)
+                      ,limit)))))
+
+(el-search-defpattern includes-prop (property)
+  "Matches the object if partly covered with PROPERTY.
+This pattern matches the object if its representation in the
+search buffer is partly covered with the character property
+PROPERTY.
+
+This pattern always tests the complete expression in the search
+buffer, it is not possible to test subexpressions calculated in
+the search pattern."
+  `(guard (or (get-char-property (point) ',property)
+              ,(macroexp-let2 nil limit '(scan-sexps (point) 1)
+                 `(not (= (next-single-char-property-change
+                           (point) ',property nil ,limit)
+                          ,limit))))))
 
 
 ;;;; Highlighting
@@ -796,19 +995,19 @@ could use this pattern:
 
 ;;;; Core functions
 
-(defvar el-search-history '()
-  "List of input strings.")
-
-(defvar el-search-success nil)
-(defvar el-search-current-pattern nil)
-
 ;;;###autoload
-(defun el-search-pattern (pattern)
+(defun el-search-pattern (pattern &optional no-error)
   "Start new or resume last elisp search.
 
 Search current buffer for expressions that are matched by `pcase'
 PATTERN.  Use `read' to transform buffer contents into
 expressions.
+
+Use `emacs-lisp-mode' for reading input.  Some keys in the
+minibuffer have a special binding: to make it possible to edit
+multi line input, C-j inserts a newline, and up and down move the
+cursor vertically - see `el-search-read-expression-map' for more
+details.
 
 
 Additional `pcase' pattern types to be used with this command can
@@ -818,34 +1017,38 @@ The following additional pattern types are currently defined:"
   (interactive (list (if (and (eq this-command last-command)
                               el-search-success)
                          el-search-current-pattern
-                       (let ((pattern
-                              (el-search--read-pattern "Find pcase pattern: "
-                                                       (car el-search-history)
-                                                       t)))
+                       (let* ((input (el-search--read-pattern "Find pcase pattern: "
+                                                              (car el-search-history)))
+                              (pattern (read input)))
                          ;; A very common mistake: input "foo" instead of "'foo"
                          (when (and (symbolp pattern)
                                     (not (eq pattern '_))
                                     (or (not (boundp pattern))
                                         (not (eq (symbol-value pattern) pattern))))
                            (error "Please don't forget the quote when searching for a symbol"))
+                         ;; Make input available also in query-replace history
+                         (el-search--pushnew-to-history input 'el-search-query-replace-history)
+                         ;; and wrap the PATTERN
                          (el-search--wrap-pattern pattern)))))
-  (setq this-command 'el-search-pattern) ;in case we come from isearch
-  (setq el-search-current-pattern pattern)
-  (let ((opoint (point)))
-    (when (and (eq this-command last-command) el-search-success)
-      (el-search--skip-expression nil t))
-    (setq el-search-success nil)
-    (when (condition-case nil
-              (el-search--search-pattern pattern)
-            (end-of-buffer (message "No match")
-                           (goto-char opoint)
-                           (el-search-hl-remove)
-                           (ding)
-                           nil))
-      (setq el-search-success t)
-      (el-search-hl-sexp)
-      (unless (eq this-command last-command)
-        (el-search-hl-other-matches pattern)))))
+  (if (not (called-interactively-p 'any))
+      (el-search--search-pattern pattern no-error)
+    (setq this-command 'el-search-pattern) ;in case we come from isearch
+    (setq el-search-current-pattern pattern)
+    (let ((opoint (point)))
+      (when (and (eq this-command last-command) el-search-success)
+        (el-search--skip-expression nil t))
+      (setq el-search-success nil)
+      (when (condition-case nil
+                (el-search--search-pattern pattern)
+              (end-of-buffer (message "No match")
+                             (goto-char opoint)
+                             (el-search-hl-remove)
+                             (ding)
+                             nil))
+        (setq el-search-success t)
+        (el-search-hl-sexp)
+        (unless (eq this-command last-command)
+          (el-search-hl-other-matches pattern))))))
 
 (defvar el-search-search-and-replace-help-string
   "\
@@ -863,10 +1066,11 @@ s         Toggle splicing mode.  When splicing mode is
 Hit any key to proceed."
   "Help string for ? in `el-search-query-replace'.")
 
-(defun el-search-search-and-replace-pattern (pattern replacement &optional mapping splice)
+(defun el-search--search-and-replace-pattern (pattern replacement &optional splice to-input-string)
   (let ((replace-all nil) (nbr-replaced 0) (nbr-skipped 0) (done nil)
         (el-search-keep-hl t) (opoint (point))
-        (get-replacement (el-search--matcher pattern replacement)))
+        (get-replacement (el-search--matcher pattern replacement))
+        (skip-matches-in-replacement 'ask))
     (unwind-protect
         (while (and (not done) (el-search--search-pattern pattern t))
           (setq opoint (point))
@@ -874,37 +1078,39 @@ Hit any key to proceed."
             (el-search-hl-sexp)
             (unless (eq this-command last-command)
               (el-search-hl-other-matches pattern)))
-          (let* ((read-mapping (el-search--create-read-map))
-                 (region (list (point) (el-search--end-of-sexp)))
-                 (substring (apply #'buffer-substring-no-properties region))
-                 (expr      (read substring))
+          (let* ((region (list (point) (el-search--end-of-sexp)))
+                 (original-text (apply #'buffer-substring-no-properties region))
+                 (expr      (read original-text))
                  (replaced-this nil)
                  (new-expr  (funcall get-replacement expr))
                  (get-replacement-string
-                  (lambda () (if (and splice (not (listp new-expr)))
-                            (error "Expression to splice in is an atom")
-                          (el-search--repair-replacement-layout
-                           (if splice
-                               (mapconcat #'el-search--print new-expr " ")
-                             (el-search--print new-expr))
-                           (append mapping read-mapping)))))
+                  (lambda () (el-search--format-replacement new-expr original-text to-input-string splice)))
                  (to-insert (funcall get-replacement-string))
-                 (do-replace (lambda ()
-                               (atomic-change-group
-                                 (apply #'delete-region region)
-                                 (let ((inhibit-message t)
-                                       (opoint (point)))
-                                   (insert to-insert)
-                                   (indent-region opoint (point))
-                                   (el-search-hl-sexp (list opoint (point)))
-                                   (goto-char opoint)))
-                               (cl-incf nbr-replaced)
-                               (setq replaced-this t))))
+                 (replacement-contains-another-match
+                  (with-temp-buffer
+                    (emacs-lisp-mode)
+                    (insert to-insert)
+                    (goto-char 1)
+                    (el-search--skip-expression new-expr)
+                    (condition-case nil
+                        (progn (el-search--ensure-sexp-start)
+                               (el-search--search-pattern pattern t))
+                      (end-of-buffer nil))))
+                 (do-replace
+                  (lambda ()
+                    (save-excursion
+                      (save-restriction
+                        (widen)
+                        (el-search--replace-hunk (list (point) (el-search--end-of-sexp)) to-insert)))
+                    (el-search--ensure-sexp-start) ;skip potentially newly added whitespace
+                    (el-search-hl-sexp (list opoint (point)))
+                    (cl-incf nbr-replaced)
+                    (setq replaced-this t))))
             (if replace-all
                 (funcall do-replace)
               (while (not (pcase (if replaced-this
                                      (read-char-choice "[SPC ! q]  (? for help)"
-                                                       '(?\ ?! ?q ?n ??))
+                                                       '(?\ ?! ?q ?\C-g ?n ??))
                                    (read-char-choice
                                     (concat "Replace this occurrence"
                                             (if (or (string-match-p "\n" to-insert)
@@ -913,7 +1119,7 @@ Hit any key to proceed."
                                             "? "
                                             (if splice "{splice} " "")
                                             "[y SPC r ! s q]  (? for help)" )
-                                    '(?y ?n ?r ?\ ?! ?q ?s ??)))
+                                    '(?y ?n ?r ?\ ?! ?q ?\C-g ?s ??)))
                             (?r (funcall do-replace)
                                 nil)
                             (?y (funcall do-replace)
@@ -928,11 +1134,31 @@ Hit any key to proceed."
                             (?s (cl-callf not splice)
                                 (setq to-insert (funcall get-replacement-string))
                                 nil)
-                            (?q (setq done t)
-                                t)
+                            ((or ?q ?\C-g)
+                             (setq done t)
+                             t)
                             (?? (ignore (read-char el-search-search-and-replace-help-string))
                                 nil)))))
-            (unless (or done (eobp)) (el-search--skip-expression nil t)))))
+            (unless (or done (eobp))
+              (cond
+               ((not (and replaced-this replacement-contains-another-match))
+                (el-search--skip-expression nil t))
+               ((eq skip-matches-in-replacement 'ask)
+                (if (setq skip-matches-in-replacement
+                          (yes-or-no-p "Match in replacement - always skip? "))
+                    (forward-sexp)
+                  (el-search--skip-expression nil t)
+                  (when replace-all
+                    (setq replace-all nil)
+                    (message "Falling back to interactive mode")
+                    (sit-for 3.))))
+               (skip-matches-in-replacement (forward-sexp))
+               (t
+                (el-search--skip-expression nil t)
+                (message "Replacement contains another match%s"
+                         (if replace-all " - falling back to interactive mode" ""))
+                (setq replace-all nil)
+                (sit-for 2.)))))))
     (el-search-hl-remove)
     (goto-char opoint)
     (message "Replaced %d matches%s"
@@ -940,24 +1166,75 @@ Hit any key to proceed."
              (if (zerop nbr-skipped)  ""
                (format "   (%d skipped)" nbr-skipped)))))
 
-(defun el-search-query-replace-read-args ()
+(defun el-search-query-replace--read-args ()
   (barf-if-buffer-read-only)
-  (let* ((from (el-search--read-pattern "Replace from: "))
-         (to   (let ((el-search--initial-mb-contents nil))
-                 (el-search--read-pattern "Replace with result of evaluation of: " from))))
-    (list (el-search--wrap-pattern (read from)) (read to)
-          (with-temp-buffer
-            (insert to)
-            (el-search--create-read-map 1)))))
+  (let ((from-input (let ((el-search--initial-mb-contents
+                           (or el-search--initial-mb-contents
+                               (and (eq last-command 'el-search-pattern)
+                                    (car el-search-history)))))
+                      (el-search--read-pattern "Query replace pattern: " nil
+                                               'el-search-query-replace-history)))
+        from to)
+    (with-temp-buffer
+      (emacs-lisp-mode)
+      (insert from-input)
+      (goto-char 1)
+      (forward-sexp)
+      (skip-chars-forward " \t\n")
+      ;; FIXME: maybe more sanity tests here...
+      (if (not (looking-at "->"))
+          (setq from from-input
+                to (let ((el-search--initial-mb-contents nil))
+                     (el-search--read-pattern "Replace with result of evaluation of: " from)))
+        (delete-char 2)
+        (goto-char 1)
+        (forward-sexp)
+        (setq from (buffer-substring 1 (point)))
+        (skip-chars-forward " \t\n")
+        (setq to (buffer-substring (point) (progn (forward-sexp) (point))))))
+    (unless (and el-search-query-replace-history
+                 (not (string= from from-input))
+                 (string= from-input (car el-search-query-replace-history)))
+      (push (with-temp-buffer
+              (emacs-lisp-mode)
+              (insert (let ((newline-in-from (string-match-p "\n" from))
+                            (newline-in-to   (string-match-p "\n" to)))
+                        (format "%s%s%s ->%s%s"
+                                (if (and (or newline-in-from newline-in-to)
+                                         (not (string-match-p "\\`\n" from))) "\n" "")
+                                (if     newline-in-from                       "\n" "" ) from
+                                (if (and (or newline-in-from newline-in-to)
+                                         (not (string-match-p "\\`\n" to)))   "\n" " ") to)))
+              (indent-region 1 (point-max))
+              (buffer-string))
+            el-search-query-replace-history))
+    (el-search--pushnew-to-history from 'el-search-history)
+    (list (el-search--wrap-pattern (read from)) (read to) to)))
 
 ;;;###autoload
-(defun el-search-query-replace (from to &optional mapping)
-  "Replace some occurrences of FROM pattern with evaluated TO."
-  (interactive (el-search-query-replace-read-args))
+(defun el-search-query-replace (from-pattern to-expr &optional textual-to)
+  "Replace some matches of \"el-search\" pattern FROM-PATTERN.
+
+TO-EXPR is an Elisp expression that is evaluated repeatedly for
+each match with bindings created in FROM-PATTERN in effect to
+produce a replacement expression.  Operate from point
+to (point-max).
+
+As each match is found, the user must type a character saying
+what to do with it.  For directions, type ? at that time.
+
+As an alternative to enter FROM-PATTERN and TO-EXPR separately,
+you can also give an input of the form
+
+   FROM-PATTERN -> TO-EXPR
+
+to the first prompt and specify both expressions at once.  This
+format is also used for history entries."
+  (interactive (el-search-query-replace--read-args))
   (setq this-command 'el-search-query-replace) ;in case we come from isearch
-  (setq el-search-current-pattern from)
+  (setq el-search-current-pattern from-pattern)
   (barf-if-buffer-read-only)
-  (el-search-search-and-replace-pattern from to mapping))
+  (el-search--search-and-replace-pattern from-pattern to-expr nil textual-to))
 
 (defun el-search--take-over-from-isearch (&optional goto-left-end)
   (let ((other-end (and goto-left-end isearch-other-end))

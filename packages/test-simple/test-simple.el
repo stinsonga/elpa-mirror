@@ -1,13 +1,13 @@
-;;; test-simple.el --- Simple Unit Test Framework for Emacs Lisp
+;;; test-simple.el --- Simple Unit Test Framework for Emacs Lisp -*- lexical-binding: t -*-
 ;; Rewritten from Phil Hagelberg's behave.el by rocky
 
-;; Copyright (C) 2015 Free Software Foundation, Inc
+;; Copyright (C) 2015, 2016 Free Software Foundation, Inc
 
 ;; Author: Rocky Bernstein <rocky@gnu.org>
 ;; URL: http://github.com/rocky/emacs-test-simple
 ;; Keywords: unit-test
 ;; Package-Requires: ((cl-lib "0"))
-;; Version: 1.1
+;; Version: 1.2.0
 
 ;; This program is free software: you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License as
@@ -36,7 +36,7 @@
 ;;   add customized assert failure messages, or add summary messages
 ;;   before a group of tests.
 ;;
-;; * Accomodates both interactive and non-interactive use.
+;; * Accommodates both interactive and non-interactive use.
 ;;    - For interactive use, one can use `eval-last-sexp', `eval-region',
 ;;      and `eval-buffer'.  One can `edebug' the code.
 ;;    -  For non-interactive use, run:
@@ -64,17 +64,17 @@
 ;;   (assert-equal 8 (gcd 8 32) "gcd(8,32)")
 ;;   (end-tests) ;; Stop the clock and print a summary
 ;;
-;; Edit (with Emacs of course) test-gcd.el and run M-x eval-current-buffer
+;; Edit (with Emacs of course) gcd-tests.el and run M-x eval-current-buffer
 ;;
 ;; You should see in buffer *test-simple*:
 ;;
-;;    test-gcd.el
+;;    gcd-tests.el
 ;;    ......
 ;;    0 failures in 6 assertions (0.002646 seconds)
 ;;
 ;; Now let us try from a command line:
 ;;
-;;    $ emacs --batch --no-site-file --no-splash --load test-gcd.el
+;;    $ emacs --batch --no-site-file --no-splash --load gcd-tests.el
 ;;    Loading /src/external-vcs/emacs-test-simple/example/gcd.el (source)...
 ;;    *scratch*
 ;;    ......
@@ -90,6 +90,26 @@
 ;;; Code:
 
 (eval-when-compile (require 'cl-lib))
+
+(defgroup test-simple nil
+  "Simple Unit Test Framework for Emacs Lisp"
+  :group 'lisp)
+
+(defcustom test-simple-runner-interface (if (fboundp 'bpr-spawn)
+                                            'bpr-spawn
+                                          'compile)
+  "Function with one string argument when running tests non-interactively.
+Command line started with `emacs --batch' is passed as the argument.
+
+`bpr-spawn', which is in bpr package, is preferable because of no window popup.
+If bpr is not installed, fall back to `compile'."
+  :type 'function
+  :group 'test-simple)
+
+(defcustom test-simple-runner-key "C-x C-z"
+  "Key to run non-interactive test after defining command line by `test-simple-run'."
+  :type 'string
+  :group 'test-simple)
 
 (defvar test-simple-debug-on-error nil
   "If non-nil raise an error on the first failure.")
@@ -156,13 +176,13 @@ clears out information from the previous run."
 ;; Assertion tests
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmacro assert-raises (error-condition body &optional fail-message test-info)
+(defmacro assert-raises (error-condition body &optional fail-message)
   (let ((fail-message (or fail-message
 			  (format "assert-raises did not get expected %s"
 				  error-condition))))
     (list 'condition-case nil
 	  (list 'progn body
-		(list 'assert-t nil fail-message test-info))
+		(list 'assert-t nil fail-message))
 	  (list error-condition '(assert-t t)))))
 
 (defun assert-op (op expected actual &optional fail-message test-info)
@@ -175,7 +195,7 @@ clears out information from the previous run."
 		  (format "Message: %s" fail-message)
 		""))
 	     (expect-message
-	      (format "\n  Expected: %s\n  Got: %s" expected actual))
+	      (format "\n  Expected: %S\n  Got: %S" expected actual))
 	     (test-info-mess
 	      (if (boundp 'test-info)
 		  (test-info-description test-info)
@@ -217,14 +237,12 @@ clears out information from the previous run."
     (progn (test-simple-msg ".") t)))
 
 (defun assert-t (actual &optional fail-message test-info)
-  "Expectation is that ACTUAL is not nil."
-  (assert-nil (not actual) fail-message test-info "assert-t"))
+  "expectation is that ACTUAL is not nil."
+  (assert-nil (not actual) fail-message test-info))
 
-(defun assert-nil (actual &optional fail-message test-info _assert-type)
-  "Expectation is that ACTUAL is nil.
-FAIL-MESSAGE is an optional additional message to be displayed.
-Since several assertions funnel down to this one, ASSERT-TYPE is an
-optional type."
+(defun assert-nil (actual &optional fail-message test-info)
+  "expectation is that ACTUAL is nil. FAIL-MESSAGE is an optional
+additional message to be displayed."
   (unless test-info (setq test-info test-simple-info))
   (cl-incf (test-info-assert-count test-info))
   (if actual
@@ -320,6 +338,38 @@ optional type."
   (unless test-info (setq test-info test-simple-info))
   (goto-char (point-max))
   (test-simple-msg (test-simple-summary-line test-info)))
+
+;;;###autoload
+(defun test-simple-run (&rest command-line-formats)
+  "Register command line to run tests non-interactively and bind key to run test.
+After calling this function, you can run test by key specified by `test-simple-runner-key'.
+
+It is preferable to write at the first line of test files as a comment, e.g,
+;;;; (test-simple-run \"emacs -batch -L %s -l %s\" (file-name-directory (locate-library \"test-simple.elc\")) buffer-file-name)
+
+Calling this function interactively, COMMAND-LINE-FORMATS is set above."
+  (interactive)
+  (setq command-line-formats
+        (or command-line-formats
+            (list "emacs -batch -L %s -l %s"
+                  (file-name-directory (locate-library "test-simple.elc"))
+                  buffer-file-name)))
+  (let ((func (lambda ()
+                (interactive)
+                (funcall test-simple-runner-interface
+                         (apply 'format command-line-formats)))))
+    (global-set-key (kbd test-simple-runner-key) func)
+    (funcall func)))
+
+(defun test-simple-noninteractive-kill-emacs-hook ()
+  "Emacs exits abnormally when noninteractive test fails."
+  (when (and noninteractive test-simple-info
+             (<= 1 (test-info-failure-count test-simple-info)))
+    (let (kill-emacs-hook)
+     (kill-emacs 1))))
+(when noninteractive
+  (add-hook 'kill-emacs-hook 'test-simple-noninteractive-kill-emacs-hook))
+
 
 (provide 'test-simple)
 ;;; test-simple.el ends here

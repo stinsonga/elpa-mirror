@@ -7,7 +7,7 @@
 ;; Keywords: parser
 ;;  indentation
 ;;  navigation
-;; Version: 1.1.2
+;; Version: 1.1.3
 ;; package-requires: ((cl-lib "0.4") (emacs "24.2"))
 ;; URL: http://stephe-leake.org/emacs/ada-mode/emacs-ada-mode.html
 ;;
@@ -197,7 +197,7 @@
 (defvar-local wisi-string-quote-escape-doubled nil
   "Non-nil if a string delimiter is escaped by doubling it (as in Ada).")
 (defvar-local wisi-string-quote-escape nil
-  "Cons '(delim . character) where 'character' escapes quotes in strings delimited by 'delim'.")
+  "Cons (delim . character) where `character' escapes quotes in strings delimited by `delim'.")
 (defvar-local wisi-string-single-term nil) ;; string delimited by single quotes
 (defvar-local wisi-symbol-term nil)
 (defvar-local wisi-number-term nil)
@@ -787,7 +787,7 @@ PAIRS is a vector of the form [TOKEN-NUMBER CLASS TOKEN-NUMBER
 CLASS ...] where TOKEN-NUMBER is the (1 indexed) token number in
 the production, CLASS is the wisi class of that token. Use in a
 grammar action as:
-  (wisi-statement-action [1 'statement-start 7 'statement-end])"
+  (wisi-statement-action [1 \\='statement-start 7 \\='statement-end])"
   (save-excursion
     (let ((first-item t)
 	  first-keyword-mark

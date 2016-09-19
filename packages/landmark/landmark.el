@@ -1,11 +1,11 @@
 ;;; landmark.el --- Neural-network robot that learns landmarks  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1996-1997, 2000-2015 Free Software Foundation, Inc.
+;; Copyright (C) 1996-1997, 2000-2016 Free Software Foundation, Inc.
 
 ;; Author: Terrence Brannon (was: <brannon@rana.usc.edu>)
 ;; Created: December 16, 1996 - first release to usenet
 ;; Keywords: games, neural network, adaptive search, chemotaxis
-;; Maintainer: No maintainer - help wanted.
+;; Maintainer: emacs-devel@gnu.org
 ;; Version: 1.0
 
 ;; This file is part of GNU Emacs.
@@ -864,7 +864,7 @@ If the game is finished, this command requests for another game."
   (move-to-column (+ landmark-x-offset (* landmark-square-width (1- x)))))
 
 (defun landmark-plot-square (square value)
-  "Draw 'X', 'O' or '.' on SQUARE depending on VALUE, leave point there."
+  "Draw `X', `O' or `.' on SQUARE depending on VALUE, leave point there."
   (or (= value 1)
       (landmark-goto-square square))
   (let ((inhibit-read-only t))

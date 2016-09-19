@@ -5,7 +5,7 @@
 ;; Author: Artur Malabarba <emacs@endlessparentheses.com>
 ;; URL: https://github.com/Malabarba/nameless
 ;; Keywords: convenience, lisp
-;; Version: 0.5.1
+;; Version: 1.0.1
 ;; Package-Requires: ((emacs "24.4"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -59,8 +59,8 @@ use commonly.  To apply aliases specific to a file, set the
 Each element of this list should have the form (ALIAS . NAMESPACE),
 both strings.  For example, if you set this variable to
           ((\"fl\" . \"font-lock\"))
-then expressions like `(font-lock-add-keywords nil kwds)' will
-displayed as `(fl/add-keywords nil kwds)' instead.
+then expressions like (font-lock-add-keywords nil kwds) will be
+displayed as (fl/add-keywords nil kwds) instead.
 
 Furthermore typing `fl' followed by `\\[nameless-insert-name]' will
 automatically insert `font-lock-'."
@@ -256,6 +256,15 @@ Return S."
     (remove-text-properties 0 length '(composition nil display nil) s)
     s))
 
+(defun nameless--after-hack-local-variables ()
+  "Set font-lock-keywords after `hack-local-variables-hook'."
+  (nameless--remove-keywords)
+  (apply #'nameless--add-keywords
+         `(,@(when nameless-current-name
+               `((nil . ,nameless-current-name)))
+           ,@nameless-global-aliases
+           ,@nameless-aliases)))
+
 
 ;;; Minor mode
 ;;;###autoload
@@ -267,25 +276,22 @@ Return S."
                    nameless-discover-current-name
                    (ignore-errors (string-match "\\.el\\'" (lm-get-package-name))))
           (setq nameless-current-name
-                (replace-regexp-in-string "\\(-mode\\)?\\.[^.]*\\'" "" (lm-get-package-name))))
+                (replace-regexp-in-string "\\(-mode\\)?\\(-tests?\\)?\\.[^.]*\\'" "" (lm-get-package-name))))
         (add-function :filter-return (local 'filter-buffer-substring-function)
                       #'nameless--filter-string)
-        (apply #'nameless--add-keywords
-               `(,@(when nameless-current-name
-                     `((nil . ,nameless-current-name)))
-                 ,@nameless-global-aliases
-                 ,@nameless-aliases)))
+        (nameless--after-hack-local-variables)
+        (add-hook 'hack-local-variables-hook
+                  #'nameless--after-hack-local-variables
+                  nil 'local))
     (remove-function (local 'filter-buffer-substring-function)
                      #'nameless--filter-string)
-    (setq nameless-current-name nil)
+    (remove-hook 'hack-local-variables-hook
+                 #'nameless--after-hack-local-variables
+                 'local)
     (nameless--remove-keywords)))
 
 ;;;###autoload
-(defun nameless-mode-from-hook ()
-  "Turn on `nameless-mode'.
-Designed to be added to `emacs-lisp-mode-hook'.
-Interactively, just invoke `nameless-mode' directly."
-  (add-hook 'find-file-hook #'nameless-mode nil 'local))
+(define-obsolete-function-alias 'nameless-mode-from-hook 'nameless-mode "1.0.0")
 
 (provide 'nameless)
 ;;; nameless.el ends here

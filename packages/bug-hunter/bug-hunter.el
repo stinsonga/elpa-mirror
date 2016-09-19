@@ -4,7 +4,7 @@
 
 ;; Author: Artur Malabarba <emacs@endlessparentheses.com>
 ;; URL: https://github.com/Malabarba/elisp-bug-hunter
-;; Version: 1.1
+;; Version: 1.3.1
 ;; Keywords: lisp
 ;; Package-Requires: ((seq "1.3") (cl-lib "0.5"))
 
@@ -310,7 +310,7 @@ ARGS are passed before \"-l FILE\"."
   "Execute FORMS in the background and test ASSERTION.
 See `bug-hunter' for a description on the ASSERTION.
 
-If ASSERTION is 'interactive, the form is run through
+If ASSERTION is `interactive', the form is run through
 `bug-hunter--run-form-interactively'.  Otherwise, a slightly
 modified version of the form combined with ASSERTION is run
 through `bug-hunter--run-form'."
@@ -431,9 +431,11 @@ link for some examples:
         (if assertion
             (concat "Assertion returned non-nil even on emacs -Q:"
                     bug-hunter--assertion-reminder)
-          "Detected a signaled error even on emacs -Q. I'm sorry, but there
-is something seriously wrong with your Emacs installation.
-There's nothing more I can do here.")
+          "Detected a signaled error even on emacs -Q. This could mean three
+things things:
+1. The problem happens inside `package-initialize'.
+2. You wrote the assertion wrong.
+3. There's something seriously wrong with your Emacs installation.")
         (or assertion "")))
 
      (t
@@ -466,10 +468,17 @@ Wraps them in a progn if necessary to always return a single
 form.
 
 The user may decide to not provide input, in which case
-'interactive is returned.  Note, this is different from the user
-typing `RET' at an empty prompt, in which case nil is returned."
-  (pcase (read-char-choice bug-hunter--hunt-type-prompt '(?i ?e ?a))
-    (`?i 'interactive)
+`interactive' is returned.  Note, this is different from the user
+typing RET at an empty prompt, in which case nil is returned."
+  (pcase (read-char-choice (if (display-graphic-p)
+                               bug-hunter--hunt-type-prompt
+                             (replace-regexp-in-string "To bisect interactively,.*\n" ""
+                                                       bug-hunter--hunt-type-prompt))
+                           '(?i ?e ?a))
+    (`?i
+     (unless (display-graphic-p)
+       (user-error "Sorry, but `interactive' bisection needs a graphical frame"))
+     'interactive)
     (`?e nil)
     (_
      (require 'simple)
@@ -480,7 +489,11 @@ typing `RET' at an empty prompt, in which case nil is returned."
                 (minibuffer-with-setup-hook
                     (lambda ()
                       (add-hook 'completion-at-point-functions
-                                #'elisp-completion-at-point nil t)
+                                (if (fboundp 'elisp-completion-at-point)
+                                    #'elisp-completion-at-point
+                                  (with-no-warnings
+                                    #'lisp-completion-at-point))
+                                nil t)
                       (run-hooks 'eval-expression-minibuffer-setup-hook))
                   (insert
                    (read-from-minibuffer

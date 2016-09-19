@@ -1,6 +1,6 @@
 ;;; tests/externs.el --- Some tests for js2-mode.
 
-;; Copyright (C) 2009, 2011-2013  Free Software Foundation, Inc.
+;; Copyright (C) 2009, 2011-2014, 2016  Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -41,6 +41,13 @@
     (js2-mode)
     (should (equal (js2-get-jslint-globals)
                    '("quux" "tee" "$")))))
+
+(ert-deftest js2-finds-jslint-globals-with-space ()
+  (with-temp-buffer
+    (insert "/* global foo, bar:false, baz:true")
+    (js2-mode)
+    (should (equal (js2-get-jslint-globals)
+                   '("foo" "bar" "baz")))))
 
 ;;;TODO
 ;; ensure that any symbols bound with the import syntax are added to the extern list

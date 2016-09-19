@@ -343,7 +343,7 @@ Comparison is done with 'eq."
 (defun auto-o-position (item list)
   "Find the first occurrence of ITEM in LIST.
 Return the index of the matching item, or nil of not found.
-Comparison is done with 'equal."
+Comparison is done with `equal'."
   (let (el (i 0))
     (catch 'found
       (while (setq el (nth i list))
@@ -406,7 +406,7 @@ DEFINITION should be a list of the form:
   (CLASS @optional :id DEFINITION-ID @rest REGEXP1 REGEXP2 ... )
 
 CLASS is a symbol specifying the auto-overlay class. The standard
-classes are 'word, 'line, 'self, 'flat and 'nested. The :id
+classes are `word', `line', `self', `flat' and `nested'. The :id
 property is optional. It should be a symbol that can be used to
 uniquely identify DEFINITION (see
 `auto-overlay-unload-definition').
@@ -425,8 +425,8 @@ form (NAME . VALUE) where NAME is an overlay property name (a
 symbol) and VALUE is its value.
 
 The properties :edge and :id are optional. The :edge property
-EDGE should be one of the symbols 'start or 'end. If it is not
-specified, :edge is assumed to be 'start. The :id property is a
+EDGE should be one of the symbols `start' or `end'. If it is not
+specified, :edge is assumed to be `start'. The :id property is a
 symbol that can be used to uniquely identify REGEXP (see
 `auto-overlay-unload-regexp')."
 
@@ -503,8 +503,8 @@ form (NAME . VALUE) where NAME is an overlay property name (a
 symbol) and VALUE is its value.
 
 The properties :edge and :id are optional. The :edge property
-EDGE should be one of the symbols 'start or 'end. If it is not
-specified, :edge is assumed to be 'start. The :id property is a
+EDGE should be one of the symbols `start' or `end'. If it is not
+specified, :edge is assumed to be `start'. The :id property is a
 symbol that can be used to uniquely identify REGEXP (see
 `auto-overlay-unload-regexp')."
 
@@ -1431,13 +1431,13 @@ If START or END are numbers or markers, move that edge to the
 buffer location specified by the number or marker and make it
 unmatched.  If START or END are non-nil but neither of the above,
 make that edge unmatched.  If START or END are null, don't change
-that edge. However, if END is null, and START is an 'end overlay,
+that edge. However, if END is null, and START is an `end' overlay,
 match end of OVERLAY rather than start.
 
 If NO-PARSE is non-nil, block re-parsing due to exclusive overlay
 changes. If NO-PROPS is non-nil, block updating of overlay's
 properties. If PROTECT-MATCH is non-nil, don't modify any match
-overlays associated with OVERLAY (i.e. don't modify their 'parent
+overlays associated with OVERLAY (i.e. don't modify their `parent'
 properties)."
 
   (let ((old-start (overlay-start overlay))
@@ -1593,7 +1593,7 @@ properties)."
   "Delete OVERLAY from buffer.
 
 If PROTECT-MATCH is non-nil, don't modify any match overlays
-associated with OVERLAY (i.e. leave their 'parent properties
+associated with OVERLAY (i.e. leave their `parent' properties
 alone). If NO-PARSE is non-nil, block re-parsing due to exclusive
 overlay changes."
 

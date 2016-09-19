@@ -626,7 +626,7 @@ XML is either a string which defines the interface of the D-Bus
 proxy, or a Lisp form which returns a string.  The format of the
 string must comply with the standard D-Bus introspection data
 format as described in:
-`http://dbus.freedesktop.org/doc/dbus-specification.html#introspection-format>'.
+`http://dbus.freedesktop.org/doc/dbus-specification.html#introspection-format'.
 
 INTERFACE is a name of interface which is represented by this
 proxy.
@@ -828,7 +828,7 @@ XML is either a string which defines the interface of the D-Bus
 skeleton, or a Lisp form which returns a string.  The format of the
 string must comply with the standard D-Bus introspection data
 format as described in:
-`http://dbus.freedesktop.org/doc/dbus-specification.html#introspection-format>'.
+`http://dbus.freedesktop.org/doc/dbus-specification.html#introspection-format'.
 
 INTERFACE is a name of interface which is represented by this
 skeleton.

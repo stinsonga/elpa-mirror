@@ -1,12 +1,12 @@
-;;; debbugs.el --- SOAP library to access debbugs servers
+;;; debbugs.el --- SOAP library to access debbugs servers  -*- lexical-binding:t -*-
 
 ;; Copyright (C) 2011-2016 Free Software Foundation, Inc.
 
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, hypermedia
 ;; Package: debbugs
-;; Version: 0.9
-;; Package-Requires: ((async "1.6"))
+;; Version: 0.10
+;; Package-Requires: ((soap-client "3.1.1") (cl-lib "0.5"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -35,11 +35,7 @@
 
 ;(setq soap-debug t message-log-max t)
 (require 'soap-client)
-(eval-when-compile (require 'cl))
-
-(declare-function soap-invoke-async "soap-client")
-(declare-function async-start "async")
-(declare-function async-get "async")
+(eval-when-compile (require 'cl-lib))
 
 (defgroup debbugs nil
   "Debbugs library"
@@ -112,7 +108,7 @@ This corresponds to the Debbugs server to be accessed, either
 
 (defcustom debbugs-cache-expiry (* 60 60)
   "How many seconds debbugs query results are cached.
-`t' or 0 disables caching, `nil' disables expiring."
+t or 0 disables caching, nil disables expiring."
   :group 'debbugs
   :type '(choice (const :tag "Always" t)
 		 (const :tag "Never" nil)
@@ -122,29 +118,13 @@ This corresponds to the Debbugs server to be accessed, either
   "The object manipulated by `debbugs-soap-invoke-async'.")
 
 (defun debbugs-soap-invoke-async (operation-name &rest parameters)
-  "Invoke the SOAP connection asynchronously.
-If possible, it uses `soap-invoke-async' from soapclient 3.0.
-Otherwise, `async-start' from the async package is used."
-  (if (fboundp 'soap-invoke-async)
-      ;; This is soap-client 3.0.
-      (apply
-       'soap-invoke-async
-       (lambda (response &rest args)
-	 (setq debbugs-soap-invoke-async-object
-	       (append debbugs-soap-invoke-async-object (car response))))
-       nil
-       debbugs-wsdl debbugs-port operation-name parameters)
-    ;; Fallback with async.
-    (async-start
-     `(lambda ()
-	(load ,(locate-library "soap-client"))
-	(apply
-	 'soap-invoke
-	 (soap-load-wsdl
-	  ,(expand-file-name
-	    "Debbugs.wsdl"
-	    (file-name-directory (locate-library "debbugs"))))
-	 ,debbugs-port ,operation-name ',parameters)))))
+  "Invoke the SOAP connection asynchronously."
+  (apply
+   #'soap-invoke-async
+   (lambda (response &rest _args)
+     (setq debbugs-soap-invoke-async-object
+	   (append debbugs-soap-invoke-async-object (car response))))
+   nil debbugs-wsdl debbugs-port operation-name parameters))
 
 (defun debbugs-get-bugs (&rest query)
   "Return a list of bug numbers which match QUERY.
@@ -201,8 +181,8 @@ Valid keywords are:
   the value of field `affects' in bug's status.  The returned bugs
   do not necessary belong to this package.
 
-  :status -- Status of bug.  Valid values are \"done\",
-  \"forwarded\" and \"open\".
+  :status -- Status of bug.  Valid values are \"open\",
+  \"forwarded\" and \"done\".
 
   :archive -- A keyword to filter for bugs which are already
   archived, or not.  Valid values are \"0\" (not archived),
@@ -228,7 +208,7 @@ patch:
       (unless (and (keywordp kw) (stringp val))
 	(error "Wrong query: %s %s" kw val))
       (setq key (substring (symbol-name kw) 1))
-      (case kw
+      (cl-case kw
 	((:package :severity :tag :src :affects)
 	 ;; Value shall be one word.
 	 (if (string-match "\\`\\S-+\\'" val)
@@ -245,8 +225,8 @@ patch:
 	       (setq vec (vconcat vec (list key val))))
 	   (error "Wrong %s: %s" key val)))
 	(:status
-	 ;; Possible values: "done", "forwarded" and "open"
-	 (if (string-match "\\`\\(done\\|forwarded\\|open\\)\\'" val)
+	 ;; Possible values: "open", "forwarded" and "done".
+	 (if (string-match "\\`\\(open\\|forwarded\\|done\\)\\'" val)
 	     (setq vec (vconcat vec (list key val)))
 	   (error "Wrong %s: %s" key val)))
 	(:archive
@@ -262,7 +242,66 @@ patch:
 
 (defun debbugs-newest-bugs (amount)
   "Return the list of bug numbers, according to AMOUNT (a number) latest bugs."
-  (sort (car (soap-invoke debbugs-wsdl debbugs-port "newest_bugs" amount)) '<))
+  (if (= amount 1)
+      ;; We cache it as bug "0" in `debbugs-cache-data'.
+      (let ((status (gethash 0 debbugs-cache-data)))
+	(unless (and
+		 status
+		 (or
+		  (null debbugs-cache-expiry)
+		  (and
+		   (natnump debbugs-cache-expiry)
+		   (> (cdr (assoc 'cache_time status))
+		      (- (float-time) debbugs-cache-expiry)))))
+	  ;; Due to `debbugs-gnu-completion-table', this function
+	  ;; could be called in rapid sequence.  We cache temporarily
+	  ;; the value nil, therefore.
+	  (when (natnump debbugs-cache-expiry)
+	    (puthash
+	     0
+	     (list (cons 'cache_time (1+ (- (float-time) debbugs-cache-expiry)))
+		   (list 'newest_bug))
+	     debbugs-cache-data))
+	  ;; Compute the value.
+	  (setq
+	   status
+	   (list
+	    (cons 'cache_time (float-time))
+	    (cons 'newest_bug
+		  (caar
+		   (soap-invoke
+		    debbugs-wsdl debbugs-port "newest_bugs" amount)))))
+
+	  ;; Cache it.
+	  (when (or (null debbugs-cache-expiry) (natnump debbugs-cache-expiry))
+	    (puthash 0 status debbugs-cache-data)))
+
+	;; Return the value, as list.
+	(list (cdr (assoc 'newest_bug status))))
+
+    (sort
+     (car (soap-invoke debbugs-wsdl debbugs-port "newest_bugs" amount)) '<)))
+
+(defun debbugs-convert-soap-value-to-string (string-value)
+  "If STRING-VALUE is unibyte, decode its contents as a UTF-8 string.
+If STRING-VALUE is a multibyte string, then `soap-client'
+received an xsd:string for this value, and will have decoded it
+already.
+
+If STRING-VALUE is a unibyte string, then `soap-client' received
+an xsd:base64Binary, and ran `base64-decode-string' on it to
+produce a unibyte string of bytes.
+
+For some reason, the Debbugs server code base64-encodes strings
+that contain UTF-8 characters, and returns them as
+xsd:base64Binary, instead of just returning them as xsd:string.
+Therefore, when STRING-VALUE is a unibyte string, we assume its
+bytes represent a UTF-8 string and decode them accordingly."
+  (if (stringp string-value)
+      (if (not (multibyte-string-p string-value))
+	  (decode-coding-string string-value 'utf-8)
+	string-value)
+    (error "Invalid string value")))
 
 (defun debbugs-get-status (&rest bug-numbers)
   "Return a list of status entries for the bugs identified by BUG-NUMBERS.
@@ -278,10 +317,11 @@ Every returned entry is an association list with the following attributes:
   \"normal\", \"minor\" or \"wishlist\".
 
   `tags': The status of the bug report, a list of strings.  This
-  can be \"fixed\", \"notabug\", \"wontfix\", \"unreproducible\",
-  \"moreinfo\" or \"patch\".
+  can be \"confirmed\", \"fixed\", \"pending\", \"notabug\",
+  \"wontfix\", \"unreproducible\", \"moreinfo\", \"security\" or
+  \"patch\".
 
-  `pending': The string \"pending\", \"forwarded\" or \"done\".
+  `pending': The string \"pending\", \"forwarded\", \"fixed\" or \"done\".
 
   `subject': Subject/Title of the bugreport.
 
@@ -302,7 +342,7 @@ Every returned entry is an association list with the following attributes:
 
   `done': The email address of the worker who has closed the bug (if done).
 
-  `archived': `t' if the bug is archived, `nil' otherwise.
+  `archived': t if the bug is archived, nil otherwise.
 
   `unarchived': The date the bug has been unarchived, if ever.
 
@@ -324,12 +364,16 @@ Every returned entry is an association list with the following attributes:
 
   `summary': Arbitrary text.
 
+  `cache_time': This is not an attribute located at the debbugs
+   server, but an internal value of the debbugs.el package itself.
+
 Example:
 
   \(debbugs-get-status 10)
 
   => ;; Attributes with empty values are not shown
-     \(\(\(bug_num . 10)
+     \(\(\(cache_time . 1469716026.4981334)
+       \(bug_num . 10)
        \(source . \"unknown\")
        \(date . 1203606305.0)
        \(msgid . \"<87zltuz7eh.fsf@freemail.hu>\")
@@ -358,7 +402,7 @@ Example:
 		      (and
 		       (natnump debbugs-cache-expiry)
 		       (> (cdr (assoc 'cache_time status))
-			  (- (float-time)) debbugs-cache-expiry))))
+			  (- (float-time) debbugs-cache-expiry)))))
 		    (progn
 		      (setq cached-bugs (append cached-bugs (list status)))
 		      nil)
@@ -379,7 +423,7 @@ Example:
 		  (debbugs-soap-invoke-async
 		   "get_status"
 		   (apply
-		    'vector
+		    #'vector
 		    (butlast
 		     bug-ids (- (length bug-ids)
 				debbugs-max-hits-per-request))))))
@@ -389,14 +433,8 @@ Example:
 				 debbugs-max-hits-per-request))))
 
 	(dolist (res results)
-	  (if (bufferp res)
-	      ;; This is soap-client 3.0.
-	      (while (buffer-live-p res)
-		(accept-process-output (get-buffer-process res) 0.1))
-	    ;; Fallback with async.
-	    (dolist (status (async-get res))
-	      (setq debbugs-soap-invoke-async-object
-		    (append debbugs-soap-invoke-async-object status)))))))
+	  (while (buffer-live-p res)
+	    (accept-process-output (get-buffer-process res) 0.1)))))
 
     (append
      cached-bugs
@@ -420,7 +458,13 @@ Example:
 	    (setq y (assoc attribute (cdr (assoc 'value x))))
 	    (when (stringp (cdr y))
 	      (setcdr y (mapcar
-			 'string-to-number (split-string (cdr y) " " t)))))
+			 #'string-to-number (split-string (cdr y) " " t)))))
+	  ;; "subject", "originator", "owner" and "summary" may be an
+	  ;; xsd:base64Binary value containing a UTF-8-encoded string.
+	  (dolist (attribute '(subject originator owner summary))
+	    (setq y (assoc attribute (cdr (assoc 'value x))))
+	    (when (stringp (cdr y))
+	      (setcdr y (debbugs-convert-soap-value-to-string (cdr y)))))
 	  ;; "package" is a string, containing comma separated
 	  ;; package names.  "keywords" and "tags" are strings,
 	  ;; containing blank separated package names.
@@ -429,11 +473,11 @@ Example:
 	    (when (stringp (cdr y))
 	      (setcdr y (split-string (cdr y) ",\\| " t))))
 	  ;; Cache the result, and return.
-	  (if (and debbugs-cache-expiry (natnump debbugs-cache-expiry))
+	  (if (or (null debbugs-cache-expiry) (natnump debbugs-cache-expiry))
 	      (puthash
 	       (cdr (assoc 'key x))
 	       ;; Put also a time stamp.
-	       (cons (cons 'cache_time (floor (float-time)))
+	       (cons (cons 'cache_time (float-time))
 		     (cdr (assoc 'value x)))
 	       debbugs-cache-data)
 	    ;; Don't cache.
@@ -480,7 +524,7 @@ Example:
       (unless (and (keywordp kw) (stringp val))
 	(error "Wrong query: %s %s" kw val))
       (setq key (substring (symbol-name kw) 1))
-      (case kw
+      (cl-case kw
 	((:user)
 	 ;; Value shall be one word.  Extract email address, if existing.
 	 (if (string-match "\\`\\S-+\\'" val)
@@ -489,12 +533,12 @@ Example:
 		 (setq val user-mail-address))
 	       (when (string-match "<\\(.+\\)>" val)
 		 (setq val (match-string 1 val)))
-	       (pushnew val user :test #'equal))
+	       (cl-pushnew val user :test #'equal))
 	   (error "Wrong %s: %s" key val)))
 	((:tag)
 	 ;; Value shall be one word.
 	 (if (string-match "\\`\\S-+\\'" val)
-	     (pushnew val tags :test #'equal)
+	     (cl-pushnew val tags :test #'equal)
 	   (error "Wrong %s: %s" key val)))
 	(t (error "Unknown key: %s" kw))))
 
@@ -528,7 +572,7 @@ Every message is an association list with the following attributes:
 
   `body': The message body.
 
-  `attachments' A list of possible attachments, or `nil'.  Not
+  `attachments' A list of possible attachments, or nil.  Not
   implemented yet server side."
   (car (soap-invoke debbugs-wsdl debbugs-port "get_bug_log" bug-number)))
 
@@ -536,7 +580,7 @@ Every message is an association list with the following attributes:
   "Return the result of a full text search according to QUERY.
 
 QUERY is a sequence of lists of keyword-value pairs where the
-values are strings or numbers, i.e. :KEYWORD \"VALUE\" [:KEYWORD
+values are strings or numbers, i.e. :KEYWORD VALUE [:KEYWORD
 VALUE]*
 
 Every sublist of the QUERY forms a hyperestraier condition.  A
@@ -556,25 +600,26 @@ The following conditions are possible:
   :skip and :max are optional.  They specify, how many hits are
   skipped, and how many maximal hits are returned.  This can be
   used for paged results.  Per default, :skip is 0 and all
-  possible hits are returned.
+  possible hits are returned according to the default maximum of
+  the debbugs server.  There is also an absolute maximum how many
+  hits are returned by the debbugs server, which cannot be
+  overwritten my any larger :max number.
 
   There must be exactly one such condition.
 
-\[ATTRIBUTE VALUE+ :operation OPERATION :order ORDER\]
+\[ATTRIBUTE VALUE+ :operator OPERATOR :order ORDER\]
 
   ATTRIBUTE is one of the following keywords:
-
-  :status --  Status of bug.  Valid values are \"done\",
-  \"forwarded\" and \"open\".
 
   :subject, :@title -- The subject of a message or the title of
   the bug, a string.
 
-  :date, :@cdate -- The submission or modification dates of a
-  message, a number.
+  :date, :@cdate -- The submission date of the bug or the
+  modification date of a message, a number.
 
-  :submitter, :@author -- The email address of the submitter of a
-  bug or the author of a message belonging to this bug, a string.
+  :@author -- The email address of the author of a message
+  belonging to this bug, a string.  It may be different than
+  the email of the person submitting the bug.
   The special email address \"me\" is used as pattern, replaced
   with `user-mail-address'.
 
@@ -606,8 +651,8 @@ The following conditions are possible:
   \"NUMBT\" \(is between the two numbers).  In the last case,
   there must be two values for ATTRIBUTE.
 
-  If an operator is leaded by \"!\", the meaning is inverted.  If
-  a string operator is leaded by \"I\", the case of the value is
+  If an operator is led by \"!\", the meaning is inverted.  If a
+  string operator is led by \"I\", the case of the value is
   ignored.
 
   The optional :order can be specified only in one condition.  It
@@ -633,9 +678,9 @@ same attributes as in the conditions.  Additional attributes are
 Examples:
 
   \(debbugs-search-est
-    '\(:phrase \"armstrong AND debbugs\" :skip 10 :max 2)
-    '\(:severity \"normal\" :operator \"STRINC\")
-    '\(:date :order \"NUMA\"))
+    \\='\(:phrase \"armstrong AND debbugs\" :skip 10 :max 2)
+    \\='\(:severity \"normal\" :operator \"STRINC\")
+    \\='\(:date :order \"NUMA\"))
 
   => \(\(\(msg_num . 21)
        \(date . 1229208302)
@@ -651,16 +696,16 @@ Examples:
 
   ;; Show all messages from me between 2011-08-01 and 2011-08-31.
   \(debbugs-search-est
-    '\(:max 20)
-    '\(:@author \"me\" :operator \"ISTRINC\")
-    `\(:date
+    \\='\(:max 20)
+    \\='\(:@author \"me\" :operator \"ISTRINC\")
+    \\=`\(:date
       ,\(floor \(float-time \(encode-time 0 0 0  1 8 2011)))
       ,\(floor \(float-time \(encode-time 0 0 0 31 8 2011)))
       :operator \"NUMBT\"))"
 
   (let ((phrase (assoc :phrase query))
 	args result)
-    (if (and phrase (not (member :skip phrase)) (not (member :skip phrase)))
+    (if (and phrase (not (member :skip phrase)) (not (member :max phrase)))
 	;; We loop, until we have all results.
 	(let ((skip 0)
 	      (query (delete phrase query))
@@ -668,7 +713,7 @@ Examples:
 	  (while skip
 	    (setq result1
 		  (apply
-		   'debbugs-search-est
+		   #'debbugs-search-est
 		   (append
 		    (list
 		     (append
@@ -682,6 +727,9 @@ Examples:
 
       ;; Compile search arguments.
       (dolist (elt query)
+        ;; FIXME: `vec' is used in an O(N²) way.  It should be a list instead,
+        ;; on which we push elements, and we only convert it to a vector at
+        ;; the end.
 	(let (vec kw key val
 		  phrase-cond attr-cond)
 
@@ -720,8 +768,9 @@ Examples:
 
 	      ;; Attribute condition.
 	      ((:submitter :@author)
-	       ;; It shouldn't happen in a phrase condition.
-	       (if phrase-cond
+	       ;; It shouldn't happen.
+	       (if (or (and (eq kw :submitter) phrase-cond)
+		       (and (eq kw :@author) attr-cond))
 		   (error "Wrong keyword: %s" kw))
 	       (if (not (stringp (car elt)))
 		   (setq vec (vconcat vec (list key "")))
@@ -736,7 +785,8 @@ Examples:
 		     (unless (member x val)
 		       (setq val (append val (list x))))))
 		 (setq vec
-		       (vconcat vec (list key (mapconcat 'identity val " "))))))
+		       (vconcat
+			vec (list key (mapconcat #'identity val " "))))))
 
 	      (:status
 	       ;; It shouldn't happen in a phrase condition.
@@ -745,15 +795,16 @@ Examples:
 	       (setq attr-cond t)
 	       (if (not (stringp (car elt)))
 		   (setq vec (vconcat vec (list key "")))
-		 ;; Possible values: "done", "forwarded" and "open"
-		 (while  (and (stringp (car elt))
-			      (string-match
-			       "\\`\\(done\\|forwarded\\|open\\)\\'" (car elt)))
+		 ;; Possible values: "open", "forwarded" and "done".
+		 (while (and (stringp (car elt))
+			     (string-match
+			      "\\`\\(open\\|forwarded\\|done\\)\\'" (car elt)))
 		   (let ((x (pop elt)))
 		     (unless (member x val)
 		       (setq val (append val (list x))))))
 		 (setq vec
-		       (vconcat vec (list key (mapconcat 'identity val " "))))))
+		       (vconcat
+			vec (list key (mapconcat #'identity val " "))))))
 
 	      ((:subject :package :tags :severity :@title)
 	       ;; It shouldn't happen in a phrase condition.
@@ -768,7 +819,8 @@ Examples:
 		     (unless (member x val)
 		       (setq val (append val (list x))))))
 		 (setq vec
-		       (vconcat vec (list key (mapconcat 'identity val " "))))))
+		       (vconcat
+			vec (list key (mapconcat #'identity val " "))))))
 
 	      ((:date :@cdate)
 	       ;; It shouldn't happen in a phrase condition.
@@ -784,7 +836,8 @@ Examples:
 		       (setq val (append val (list x))))))
 		 (setq vec
 		       (vconcat
-			vec (list key (mapconcat 'number-to-string val " "))))))
+			vec
+			(list key (mapconcat #'number-to-string val " "))))))
 
 	      ((:operator :order)
 	       ;; It shouldn't happen in a phrase condition.
@@ -817,7 +870,7 @@ BUG-OR-MESSAGE must be list element returned by either
 Example: Return the originator of last submitted bug.
 
 \(debbugs-get-attribute
-  \(car \(apply 'debbugs-get-status \(debbugs-newest-bugs 1))) 'originator)"
+  \(car \(apply #\\='debbugs-get-status \(debbugs-newest-bugs 1))) \\='originator)"
   (cdr (assoc attribute bug-or-message)))
 
 (defun debbugs-get-message-numbers (messages)
@@ -834,11 +887,11 @@ the header lines of the message, the second element is the body
 of the message.  Further elements of the list, if any, are
 attachments of the message.
 
-If there is no message with MESSAGE-NUMBER, the function returns `nil'.
+If there is no message with MESSAGE-NUMBER, the function returns nil.
 
 Example: Return the first message of last submitted bug.
 
-\(let \(\(messages \(apply 'debbugs-get-bug-log \(debbugs-newest-bugs 1))))
+\(let \(\(messages \(apply #\\='debbugs-get-bug-log \(debbugs-newest-bugs 1))))
   \(debbugs-get-message messages
 		       \(car \(debbugs-get-message-numbers messages))))"
   (while (and messages
@@ -865,8 +918,8 @@ following symbols:
    either symbol depends on actual Debbugs server configuration.
    For gnu.org, use the former; for debian.org - the latter.
 
-FILENAME, if non-`nil', is the name of file to store mbox.  If
-FILENAME is `nil', the downloaded mbox is inserted into the
+FILENAME, if non-nil, is the name of file to store mbox.  If
+FILENAME is nil, the downloaded mbox is inserted into the
 current buffer."
   (let (url (mt "") bn)
     (unless (setq url (plist-get
@@ -887,10 +940,5 @@ current buffer."
 (provide 'debbugs)
 
 ;;; TODO:
-
-;; * SOAP interface extensions (wishlist).
-;;   - Server-side sorting.
-;;   - Regexp and/or wildcards search.
-;;   - Returning message attachments.
 
 ;;; debbugs.el ends here

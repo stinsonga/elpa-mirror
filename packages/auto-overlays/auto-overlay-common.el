@@ -58,7 +58,7 @@ If INACTIVE is non-nil, both active and inactive overlays are
 returned (usually inactive ones are ignored).
 
 Note that this function returns any overlay. If you want to
-restrict it to auto overlays, include '(identity auto-overlay) in
+restrict it to auto overlays, include (identity auto-overlay) in
 PROP-TEST."
   (when (null point) (setq point (point)))
 
@@ -112,7 +112,7 @@ are returned. If INACTIVE is non-nil, both active and inactive
 overlays are returned (usually inactive ones are ignored).
 
 Note that this function returns any overlay. If you want to
-restrict it to auto overlays, include '(identity auto-overlay) in
+restrict it to auto overlays, include (identity auto-overlay) in
 PROP-TEST."
 
   ;; make sure prop-test is a list of lists, even if there's only one, and

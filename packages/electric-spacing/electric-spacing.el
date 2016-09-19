@@ -42,7 +42,7 @@
 ;;; electric-spacing minor mode
 
 (defcustom electric-spacing-double-space-docs t
-  "Enable double spacing of . in document lines - e,g, type '.' => get '.  '."
+  "Enable double spacing of . in document lines - e.g., type `.' => get `.  '."
   :type 'boolean
   :group 'electricity)
 
@@ -86,8 +86,8 @@ positive, and disable it otherwise.  If called from Lisp, enable
 the mode if ARG is omitted or nil.
 
 This is a local minor mode.  When enabled, typing an operator automatically
-inserts surrounding spaces.  e.g., `=' becomes ` = ',`+=' becomes ` += '.  This
-is very handy for many programming languages."
+inserts surrounding spaces.  e.g., `=' becomes ` = ', `+=' becomes ` += '.
+This is very handy for many programming languages."
   :global nil
   :group 'electricity
   :lighter " _+_")

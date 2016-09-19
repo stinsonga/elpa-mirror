@@ -4,7 +4,7 @@
 
 ;; Author: Andrew Hyatt <ahyatt@gmail.com>
 ;; Keywords: Communication, Websocket, Server
-;; Version: 1.5
+;; Version: 1.6
 ;;
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License as
@@ -62,8 +62,8 @@ the additional helper APIs are not visible to the caller.
 
 A websocket struct is created with `websocket-open'.
 
-`ready-state' contains one of 'connecting, 'open, or
-'closed, depending on the state of the websocket.
+`ready-state' contains one of `connecting', `open', or
+`closed', depending on the state of the websocket.
 
 The W3C API \"bufferedAmount\" call is not currently implemented,
 since there is no elisp API to get the buffered amount from the
@@ -450,10 +450,11 @@ ERR should be a cons of error symbol and error data."
 The only acceptable one to websocket is responce code 101.
 A t value will be returned on success, and an error thrown
 if not."
-  (string-match "HTTP/1.1 \\([[:digit:]]+\\)" output)
+  (unless (string-match "^HTTP/1.1 \\([[:digit:]]+\\)" output)
+    (signal 'websocket-invalid-header "Invalid HTTP status line"))
   (unless (equal "101" (match-string 1 output))
-       (signal 'websocket-received-error-http-response
-               (string-to-number (match-string 1 output))))
+    (signal 'websocket-received-error-http-response
+	    (string-to-number (match-string 1 output))))
   t)
 
 (defun websocket-parse-repeated-field (output field)
@@ -609,7 +610,7 @@ the car of which is a string naming the extension, and the cdr of
 which is the list of parameter strings to use for that extension.
 The parameter strings are of the form \"key=value\" or \"value\".
 EXTENSIONS can be NIL if none are in use.  An example value would
-be '(\"deflate-stream\" . (\"mux\" \"max-channels=4\")).
+be (\"deflate-stream\" . (\"mux\" \"max-channels=4\")).
 
 Cookies that are set via `url-cookie-store' will be used during
 communication with the server, and cookies received from the
@@ -639,7 +640,7 @@ or `on-close', and the error as the third argument. Do NOT
 rethrow the error, or else you may miss some websocket messages.
 You similarly must not generate any other errors in this method.
 If you want to debug errors, set
-`websocket-callback-debug-on-error' to `t', but this also can be
+`websocket-callback-debug-on-error' to t, but this also can be
 dangerous is the debugger is quit out of.  If not specified,
 `websocket-default-error-handler' is used.
 
@@ -746,19 +747,21 @@ connection is invalid, the connection will be closed."
     (setf (websocket-inflight-input websocket) nil)
     ;; If we've received the complete header, check to see if we've
     ;; received the desired handshake.
-    (when (and (eq 'connecting (websocket-ready-state websocket))
-               (setq header-end-pos (string-match "\r\n\r\n" text))
+    (when (and (eq 'connecting (websocket-ready-state websocket)))
+      (if (and (setq header-end-pos (string-match "\r\n\r\n" text))
                (setq start-point (+ 4 header-end-pos)))
-      (condition-case err
           (progn
-            (websocket-verify-response-code text)
-            (websocket-verify-headers websocket text)
-            (websocket-process-headers (websocket-url websocket) text))
-        (error
-         (websocket-close websocket)
-         (signal (car err) (cdr err))))
-      (setf (websocket-ready-state websocket) 'open)
-      (websocket-try-callback 'websocket-on-open 'on-open websocket))
+            (condition-case err
+                (progn
+                  (websocket-verify-response-code text)
+                  (websocket-verify-headers websocket text)
+                  (websocket-process-headers (websocket-url websocket) text))
+              (error
+               (websocket-close websocket)
+               (signal (car err) (cdr err))))
+            (setf (websocket-ready-state websocket) 'open)
+            (websocket-try-callback 'websocket-on-open 'on-open websocket))
+        (setf (websocket-inflight-input websocket) text)))
     (when (eq 'open (websocket-ready-state websocket))
       (websocket-process-input-on-open-ws
        websocket (substring text (or start-point 0))))))
@@ -820,6 +823,11 @@ of populating the list of server extensions to WEBSOCKET."
 
 (defun* websocket-server (port &rest plist)
   "Open a websocket server on PORT.
+If the plist contains a `:host' HOST pair, this value will be
+used to configure the addresses the socket listens on. The symbol
+`local' specifies the local host. If unspecified or nil, the
+socket will listen on all addresses.
+
 This also takes a plist of callbacks: `:on-open', `:on-message',
 `:on-close' and `:on-error', which operate exactly as documented
 in the websocket client function `websocket-open'.  Returns the
@@ -833,6 +841,7 @@ connection, which should be kept in order to pass to
                 :log 'websocket-server-accept
                 :filter-multibyte nil
                 :plist plist
+                :host (plist-get plist :host)
                 :service port)))
     conn))
 
@@ -849,7 +858,7 @@ connection, which should be kept in order to pass to
       (setq websocket-server-websockets (remove ws websocket-server-websockets))))
   (delete-process conn))
 
-(defun websocket-server-accept (server client message)
+(defun websocket-server-accept (server client _message)
   "Accept a new websocket connection from a client."
   (let ((ws (websocket-inner-create
              :server-conn server

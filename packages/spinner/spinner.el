@@ -3,7 +3,7 @@
 ;; Copyright (C) 2015 Free Software Foundation, Inc.
 
 ;; Author: Artur Malabarba <emacs@endlessparentheses.com>
-;; Version: 1.7
+;; Version: 1.7.1
 ;; URL: https://github.com/Malabarba/spinner.el
 ;; Keywords: processes mode-line
 
@@ -131,9 +131,8 @@ CHAR is the character to use for the moving bar (defaults to =)."
   (let ((whole-string (concat (make-string (1- width) ?\s)
                               (make-string 4 (or char ?=))
                               (make-string width ?\s))))
-    (thread-last (mapcar (lambda (n) (substring whole-string n (+ n width)))
-                         (number-sequence (+ width 3) 0 -1))
-      (apply #'vector))))
+    (apply #'vector (mapcar (lambda (n) (substring whole-string n (+ n width)))
+                            (number-sequence (+ width 3) 0 -1)))))
 
 (defvar spinner-current nil
   "Spinner curently being displayed on the `mode-line-process'.")
@@ -159,7 +158,7 @@ below).
 If TYPE is nil, the frames of this spinner are given by the first
 element of `spinner-types'.
 If TYPE is a symbol, it specifies an element of `spinner-types'.
-If TYPE is 'random, use a random element of `spinner-types'.
+If TYPE is `random', use a random element of `spinner-types'.
 If TYPE is a list, it should be a list of symbols, and a random
 one is chosen as the spinner type.
 If TYPE is a vector, it should be a vector of strings and these
@@ -276,7 +275,7 @@ stop the SPINNER's timer."
 If TYPE-OR-OBJECT is an object created with `make-spinner',
 simply activate it.  This method is designed for minor modes, so
 they can use the spinner as part of their lighter by doing:
-    '(:eval (spinner-print THE-SPINNER))
+    \\='(:eval (spinner-print THE-SPINNER))
 To stop this spinner, call `spinner-stop' on it.
 
 If TYPE-OR-OBJECT is anything else, a buffer-local spinner is

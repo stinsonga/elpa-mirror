@@ -1,4 +1,4 @@
-;; Copyright (C) 2015 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2016 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -58,7 +58,8 @@
 		  '(:array (:dict-entry :string :int32))
 		  '(("a" . 1) ("b" . 2) ("c" . 3))))))
 
-(defconst dbus-codegen-tests-introspection-data "\
+(eval-when-compile
+  (defconst dbus-codegen-tests-introspection-data "\
 <node>
   <interface name='org.gtk.GDBus.PeerTestInterface'>
     <method name='HelloPeer'>
@@ -79,7 +80,7 @@
                   value='false'/>
     </property>
   </interface>
-</node>")
+</node>"))
 
 (ert-deftest dbus-codegen-define-proxy ()
   (dbus-codegen-define-proxy test-proxy
