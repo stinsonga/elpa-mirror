@@ -1421,7 +1421,7 @@ MERGED is the list of bugs merged with this one."
   "Dynamic completion table for reading bug numbers.")
 
 (defun debbugs-gnu-expand-bug-number-list (bug-number-list)
-  "Expand BUG-NUMBER-LIST to a list of singe bug numbers.
+  "Expand BUG-NUMBER-LIST to a list of single bug numbers.
 BUG-NUMBER-LIST is a list of bug numbers or bug number ranges, as
 returned by `debbugs-gnu-bugs'."
   (let (result)
@@ -1659,20 +1659,25 @@ The following commands are available:
 
 (defcustom debbugs-gnu-default-bug-number-list "-10"
   "The default value used in interactive call of `debbugs-gnu-bugs'.
-It must be a string, containing a comma separated list of bugs or bug ranges."
+It must be a string, containing a comma separated list of bugs or bug ranges.
+A negative value, -N, means the newest N bugs."
   :group 'debbugs-gnu
   :type 'string
   :version "25.2")
 
 ;;;###autoload
 (defun debbugs-gnu-bugs (&rest bugs)
-  "List all BUGS, a list of bug numbers."
+  "List all BUGS, a list of bug numbers.
+In interactive calls, prompt for a comma separated list of bugs
+or bug ranges, with default to `debbugs-gnu-default-bug-number-list'."
   (interactive
    (mapcar
     'string-to-number
     (debbugs-gnu-expand-bug-number-list
      (or
-      (completing-read-multiple "Bug numbers: " debbugs-gnu-completion-table)
+      (completing-read-multiple
+       (format "Bug numbers (%s): " debbugs-gnu-default-bug-number-list)
+       debbugs-gnu-completion-table)
       (split-string debbugs-gnu-default-bug-number-list "," t)))))
   (dolist (elt bugs)
     (unless (natnump elt) (signal 'wrong-type-argument (list 'natnump elt))))
