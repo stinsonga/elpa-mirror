@@ -32,6 +32,7 @@
 ;;
 ;;   (autoload 'debbugs-org "debbugs-org" "" 'interactive)
 ;;   (autoload 'debbugs-org-search "debbugs-org" "" 'interactive)
+;;   (autoload 'debbugs-org-patches "debbugs-org" "" 'interactive)
 ;;   (autoload 'debbugs-org-bugs "debbugs-org" "" 'interactive)
 
 ;; The bug tracker is called interactively by
@@ -89,12 +90,24 @@
 ;; opened presenting all related messages for this bug.  Here you
 ;; could also send debbugs control messages by keystroke "C".
 
+;; A special command to show bugs containing patches is
+;;
+;;   M-x debbugs-org-patches
+
+;; This command shows all unarchived bugs of the packages declared in
+;; `debbugs-gnu-default-packages', and tagged with "patch".  This is
+;; useful for bug triages.
+
 ;; Finally, if you simply want to list some bugs with known bug
 ;; numbers, call the command
 ;;
 ;;   M-x debbugs-org-bugs
 
-;; The bug numbers to be shown shall be entered as comma separated list.
+;; The bug numbers to be shown shall be entered as comma separated
+;; list.  A bug number can also be a range of bugs like "123-456" or
+;; "-10".  In the former case, all bugs from 123 until 456 are
+;; presented, and in the latter case the last 10 bugs are shown,
+;; counting from the highest bug number in the repository.
 
 ;;; Code:
 
@@ -315,7 +328,9 @@ the corresponding buffer (e.g. by closing Emacs)."
 
 ;;;###autoload
 (defun debbugs-org-bugs ()
-  "List all BUGS, a list of bug numbers."
+  "List all BUGS, a list of bug numbers.
+In interactive calls, prompt for a comma separated list of bugs
+or bug ranges, with default to `debbugs-gnu-default-bug-number-list'."
   (interactive)
   (cl-letf (((symbol-function 'debbugs-gnu-show-reports)
 	     #'debbugs-org-show-reports))
