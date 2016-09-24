@@ -35,6 +35,7 @@
 ;;   (autoload 'debbugs-gnu "debbugs-gnu" "" 'interactive)
 ;;   (autoload 'debbugs-gnu-search "debbugs-gnu" "" 'interactive)
 ;;   (autoload 'debbugs-gnu-usertags "debbugs-gnu" "" 'interactive)
+;;   (autoload 'debbugs-gnu-patches "debbugs-gnu" "" 'interactive)
 ;;   (autoload 'debbugs-gnu-bugs "debbugs-gnu" "" 'interactive)
 
 ;; The bug tracker is called interactively by
@@ -129,12 +130,24 @@
 ;; all users who have tagged bugs.  This list can be retrieved via
 ;; <http://debbugs.gnu.org/cgi/pkgindex.cgi?indexon=users>.
 
+;; A special command to show bugs containing patches is
+;;
+;;   M-x debbugs-gnu-patches
+
+;; This command shows all unarchived bugs of the packages declared in
+;; `debbugs-gnu-default-packages', and tagged with "patch".  This is
+;; useful for bug triages.
+
 ;; Finally, if you simply want to list some bugs with known bug
 ;; numbers, call the command
 ;;
 ;;   M-x debbugs-gnu-bugs
 
-;; The bug numbers to be shown shall be entered as comma separated list.
+;; The bug numbers to be shown shall be entered as comma separated
+;; list.  A bug number can also be a range of bugs like "123-456" or
+;; "-10".  In the former case, all bugs from 123 until 456 are
+;; presented, and in the latter case the last 10 bugs are shown,
+;; counting from the highest bug number in the repository.
 
 ;;; Code:
 
@@ -1657,7 +1670,8 @@ The following commands are available:
   (let ((args (get-text-property (line-beginning-position) 'tabulated-list-id)))
     (when args (apply 'debbugs-gnu args))))
 
-(defcustom debbugs-gnu-default-bug-number-list "-10"
+(defcustom debbugs-gnu-default-bug-number-list
+  (propertize "-10" 'help-echo "The 10 most recent bugs.")
   "The default value used in interactive call of `debbugs-gnu-bugs'.
 It must be a string, containing a comma separated list of bugs or bug ranges.
 A negative value, -N, means the newest N bugs."
@@ -1676,7 +1690,7 @@ or bug ranges, with default to `debbugs-gnu-default-bug-number-list'."
     (debbugs-gnu-expand-bug-number-list
      (or
       (completing-read-multiple
-       (format "Bug numbers (%s): " debbugs-gnu-default-bug-number-list)
+       (format "Bug numbers (default %s): " debbugs-gnu-default-bug-number-list)
        debbugs-gnu-completion-table)
       (split-string debbugs-gnu-default-bug-number-list "," t)))))
   (dolist (elt bugs)
