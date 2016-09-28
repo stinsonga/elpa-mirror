@@ -506,6 +506,8 @@ Return PATTERN if this pattern type was not defined with
   ;; point instead.
   (when read (setq expression (save-excursion (read (current-buffer)))))
   (cond
+   ((eq '@ expression) ;bug#24542
+    (forward-char))
    ((or (null expression)
         (equal [] expression)
         (not (or (listp expression) (vectorp expression))))
