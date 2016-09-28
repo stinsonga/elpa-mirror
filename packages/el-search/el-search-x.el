@@ -109,6 +109,51 @@ repository's HEAD commit."
   `(guard (el-search--changed-p (point) ,revision)))
 
 
+;;; Patterns for stylistic rewriting
+
+;;;; Iffy `if's
+
+(defun el-search--nested-if-1 (expr)
+  ;; EXPR is a (potentially nested) `if' expression.  Return a list L so
+  ;; that (cond . L) is semantically equivalent to EXPR.  For example,
+  ;; when EXPR == (if x 1 (if y 2 3)), return ((x 1) (y 2) (t 3))
+  (pcase-exhaustive expr
+    (`(if ,condition ,then ,(and `(if . ,_) inner-if))
+     `((,condition ,then)  ,@(el-search--nested-if-1 inner-if)))
+    (`(if ,condition ,then)
+     `((,condition ,then)))
+    (`(if ,condition ,then . ,else)
+     `((,condition ,then)
+       (t . ,else)))))
+
+(el-search-defpattern -nested-if (&optional var)
+  (let ((test-pattern '`(if ,_ ,_ (if ,_ ,_ ,_ . ,_))))
+    (if (not var)  test-pattern
+      (let ((cases (make-symbol "cases")))
+        `(and ,test-pattern
+              (app el-search--nested-if-1 ,cases)
+              (let ,var `(cond . ,,cases)))))))
+
+(el-search-defpattern iffy-if (&optional var)
+  "Matches `if'-clauses that could be replaced with a more suitable form.
+
+Match `if' clauses that would fit better into either `cond',
+`when' or `unless'.  With symbol VAR given, bind that to such a
+semantically equivalent expression suitable to replace the
+current match."
+  (cl-callf or var '_)
+  (let ((condition (make-symbol "condition"))
+        (then      (make-symbol "then"))
+        (clauses   (make-symbol "clauses")))
+    `(or (-nested-if ,var)
+         (and `(if (not ,,condition) ,,then)
+              (let ,var `(unless ,,condition ,,then)))
+         (and `(if ,,condition ,,then)
+              (let ,var `(when   ,,condition ,,then)))
+         (and `(if ,,condition ,,then (cond . ,,clauses))
+              (let ,var `(cond (,,condition ,,then) . ,,clauses))))))
+
+
 (provide 'el-search-x)
 
 ;;; el-search-x.el ends here
