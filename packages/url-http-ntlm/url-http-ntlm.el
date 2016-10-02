@@ -148,16 +148,9 @@ request to the host in URL's server slot."
 
 (defun url-http-ntlm--get-stage (args)
   "Determine what stage of the NTLM handshake we are at.
-PROMPT and ARGS come from `url-ntlm-auth''s caller,
-`url-get-authentication'.  Their meaning depends on the current
-implementation - this function is well and truly coupled.
-
-`url-get-authentication' calls `url-ntlm-auth' once when checking
-what authentication schemes are supported (PROMPT and ARGS are
-nil), and then twice for every stage of the handshake: the first
-time PROMPT is nil, the second, t; ARGS contains the server
-response's \"WWW-Authenticate\" header, munged by
-`url-parse-args'."
+ARGS comes from `url-ntlm-auth''s caller,
+`url-get-authentication'.  Its meaning depends on the current
+implementation -- this function is well and truly coupled."
   (cl-declare (special url-http-extra-headers))
   (let* ((response-rxp	   "^NTLM TlRMTVNTUAADAAA")
 	 (challenge-rxp	   "^TLRMTVNTUAACAAA")
@@ -275,36 +268,47 @@ two-step process, this function expects to be called twice, first
 to generate the NTLM type 1 message (request), then to respond to
 the server's type 2 message (challenge) with a suitable response.
 
-PROMPT, OVERWRITE, and REALM are ignored.
+url-get-authentication' calls `url-ntlm-auth' once when checking
+what authentication schemes are supported (PROMPT and ARGS are
+nil), and then twice for every stage of the handshake: the first
+time PROMPT is nil, the second, t; ARGS contains the server
+response's \"WWW-Authenticate\" header, munged by
+`url-parse-args'.
+
+If PROMPT is not t then this function just returns nil.  This is
+to avoid calculating responses twice.
+
+OVERWRITE and REALM are ignored.
 
 ARGS is expected to contain the WWW-Authentication header from
 the server's last response.  These are used by
 `url-http-get-stage' to determine what stage we are at."
-  (url-http-ntlm--ensure-keepalive)
-  (let* ((user-url (url-http-ntlm--ensure-user url))
-	 (stage (url-http-ntlm--get-stage args)))
-    (url-debug 'url-http-ntlm "Stage: %s" stage)
-    (cl-case stage
-      ;; NTLM Type 1 message: the request
-      (:request
-       (url-http-ntlm--detect-loop user-url)
-       (cl-destructuring-bind (&optional key hash)
-	   (url-http-ntlm--authorization user-url nil realm)
-	 (when (cl-third key)
-	   (url-http-ntlm--string
-	    (ntlm-build-auth-request (cl-second key) (cl-third key))))))
-      ;; NTLM Type 3 message: the response
-      (:response
-       (url-http-ntlm--detect-loop user-url)
-       (let ((challenge (url-http-ntlm--get-challenge)))
-	 (cl-destructuring-bind (key hash)
+  (when (eq prompt t)
+    (url-http-ntlm--ensure-keepalive)
+    (let* ((user-url (url-http-ntlm--ensure-user url))
+	   (stage (url-http-ntlm--get-stage args)))
+      (url-debug 'url-http-ntlm "Stage: %s" stage)
+      (cl-case stage
+	;; NTLM Type 1 message: the request
+	(:request
+	 (url-http-ntlm--detect-loop user-url)
+	 (cl-destructuring-bind (&optional key hash)
 	     (url-http-ntlm--authorization user-url nil realm)
-	   (url-http-ntlm--string
-	    (ntlm-build-auth-response challenge
-				      (cl-second key)
-				      hash)))))
-      (:error
-       (url-http-ntlm--authorization user-url :clear)))))
+	   (when (cl-third key)
+	     (url-http-ntlm--string
+	    (ntlm-build-auth-request (cl-second key) (cl-third key))))))
+	;; NTLM Type 3 message: the response
+	(:response
+	 (url-http-ntlm--detect-loop user-url)
+	 (let ((challenge (url-http-ntlm--get-challenge)))
+	   (cl-destructuring-bind (key hash)
+	       (url-http-ntlm--authorization user-url nil realm)
+	     (url-http-ntlm--string
+	      (ntlm-build-auth-response challenge
+					(cl-second key)
+					hash)))))
+	(:error
+	 (url-http-ntlm--authorization user-url :clear))))))
 
 
 ;;; Register `url-ntlm-auth' HTTP authentication method.
