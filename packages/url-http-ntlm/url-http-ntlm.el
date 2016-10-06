@@ -296,7 +296,9 @@ the server's last response.  These are used by
 	     (url-http-ntlm--authorization user-url nil realm)
 	   (when (cl-third key)
 	     (url-http-ntlm--string
-	    (ntlm-build-auth-request (cl-second key) (cl-third key))))))
+	      ;; Match Mozilla behavior by omitting user and domain
+	      ;; from Type 1 message.
+	      (ntlm-build-auth-request nil)))))
 	;; NTLM Type 3 message: the response
 	(:response
 	 (url-http-ntlm--detect-loop user-url)
