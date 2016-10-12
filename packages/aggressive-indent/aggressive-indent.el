@@ -4,7 +4,7 @@
 
 ;; Author: Artur Malabarba <emacs@endlessparentheses.com>
 ;; URL: https://github.com/Malabarba/aggressive-indent-mode
-;; Version: 1.8.1
+;; Version: 1.8.2
 ;; Package-Requires: ((emacs "24.1") (cl-lib "0.5"))
 ;; Keywords: indent lisp maint tools
 ;; Prefix: aggressive-indent
@@ -105,7 +105,7 @@ Please include this in your report!"
 (defvar aggressive-indent-mode)
 
 ;;; Configuring indentarion
-(defcustom aggressive-indent-dont-electric-modes '(ruby-mode)
+(defcustom aggressive-indent-dont-electric-modes nil
   "List of major-modes where `electric-indent' should be disabled."
   :type '(choice
           (const :tag "Never use `electric-indent-mode'." t)
@@ -124,6 +124,9 @@ Please include this in your report!"
     doc-view-mode
     dos-mode
     erc-mode
+    feature-mode
+    fortran-mode
+    f90-mode
     jabber-chat-mode
     haml-mode
     haskell-mode
@@ -136,6 +139,7 @@ Please include this in your report!"
     netcmd-mode
     python-mode
     sass-mode
+    scala-mode
     slim-mode
     special-mode
     shell-mode
@@ -366,6 +370,12 @@ or messages."
       (setq aggressive-indent--changed-list
             (cdr aggressive-indent--changed-list)))))
 
+(defcustom aggressive-indent-sit-for-time 0.05
+  "Time, in seconds, to wait before indenting.
+If you feel aggressive-indent is causing Emacs to hang while
+typing, try tweaking this number."
+  :type 'float)
+
 (defun aggressive-indent--indent-if-changed ()
   "Indent any region that changed in the last command loop."
   (when aggressive-indent--changed-list
@@ -374,6 +384,7 @@ or messages."
         (unless (or (run-hook-wrapped 'aggressive-indent--internal-dont-indent-if #'eval)
                     (aggressive-indent--run-user-hooks))
           (while-no-input
+            (sit-for aggressive-indent-sit-for-time t)
             (redisplay)
             (aggressive-indent--proccess-changed-list-and-indent)))))))
 
