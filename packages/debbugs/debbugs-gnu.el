@@ -358,13 +358,15 @@ The specification which bugs shall be suppressed is taken from
   :group 'debbugs-gnu
   :type '(choice (const "24.5")
 		 (const "25.1")
-		 (const "25.2"))
-  :version "25.1")
+		 (const "25.2")
+		 (const "26.1"))
+  :version "25.2")
 
 (defconst debbugs-gnu-emacs-blocking-reports
   '(("24.5" . 19758)
     ("25.1" . 19759)
-    ("25.2" . 21966))
+    ("25.2" . 21966)
+    ("26.1" . 24655))
   "The IDs of the Emacs report used to track blocking bug reports.
 It is a list of cons cells, each one containing the Emacs
 version (a string) and the bug report number (a number).")
