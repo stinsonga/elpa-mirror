@@ -4,7 +4,7 @@
 
 ;; Author: Artur Malabarba <emacs@endlessparentheses.com>
 ;; URL: https://github.com/Malabarba/aggressive-indent-mode
-;; Version: 1.8.2
+;; Version: 1.8.3
 ;; Package-Requires: ((emacs "24.1") (cl-lib "0.5"))
 ;; Keywords: indent lisp maint tools
 ;; Prefix: aggressive-indent
@@ -187,7 +187,7 @@ change."
   :package-version '(aggressive-indent . "0.3"))
 
 ;;; Preventing indentation
-(defvar aggressive-indent--internal-dont-indent-if
+(defconst aggressive-indent--internal-dont-indent-if
   '((memq this-command aggressive-indent-protected-commands)
     (region-active-p)
     buffer-read-only
@@ -243,6 +243,12 @@ This is for internal use only.  For user customization, use
                 '(and (derived-mode-p 'coq-mode)
                       (not (string-match "\\.[[:space:]]*$"
                                          (thing-at-point 'line))))))
+(eval-after-load 'ruby-mode
+  '(add-to-list 'aggressive-indent--internal-dont-indent-if
+                '(when (derived-mode-p 'ruby-mode)
+                   (let ((line (thing-at-point 'line)))
+                     (and (stringp line)
+                          (string-match "\\b\\(if\\|case\\|do\\|begin\\) *$" line))))))
 
 (defcustom aggressive-indent-dont-indent-if '()
   "List of variables and functions to prevent aggressive indenting.
