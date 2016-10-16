@@ -1183,23 +1183,28 @@ the form \(buffer-or-file-name . match-position)."
 With prefix arg, prompt for a prior search to resume, and make
 that the current search."
   (when previous-search
-    (setq el-search--current-search
-          (car (ring-ref
-                el-search-history
-                (string-to-number
-                 (let ((completion-extra-properties
-                        `(:annotation-function
-                          ,(lambda (elt)
-                             (format "  Search in %S for %S"
-                                     (el-search-head-buffer
-                                      (el-search-object-head
-                                       (car (ring-ref el-search-history (string-to-number elt)))))
-                                     (cadr (ring-ref el-search-history (string-to-number elt))))))))
-                   (completing-read
-                    "Resume previous search: "
-                    (mapcar #'prin1-to-string (number-sequence 0 (1- (ring-length el-search-history))))))))))
+    (let ((entry (ring-ref
+                  el-search-history
+                  (string-to-number
+                   (let ((completion-extra-properties
+                          `(:annotation-function
+                            ,(lambda (elt)
+                               (format "  Search in %S for %S"
+                                       (el-search-head-buffer
+                                        (el-search-object-head
+                                         (car (ring-ref el-search-history (string-to-number elt)))))
+                                       (cadr (ring-ref el-search-history (string-to-number elt))))))))
+                     (completing-read
+                      "Resume previous search: "
+                      (mapcar #'prin1-to-string
+                              (number-sequence 0 (1- (ring-length el-search-history))))))))))
+      (setq el-search--current-search  (car entry))
+      (setq el-search--current-pattern (cadr entry)))
     (setq el-search--current-matcher
-          (el-search-head-matcher (el-search-object-head el-search--current-search))))
+          (el-search-head-matcher (el-search-object-head el-search--current-search)))
+    (el-search--pushnew-to-history
+     (el-search--pp-to-string el-search--current-pattern)
+     'el-search-pattern-history))
   (if-let ((search el-search--current-search)
            (current-head (el-search-object-head search))
            (current-search-buffer (el-search-head-buffer current-head)))
