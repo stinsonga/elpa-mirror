@@ -574,7 +574,7 @@ directory searches like `el-search-directory' or
     (setq this-command 'el-search-pattern) ;in case we come from isearch
     ;; Make input available also in query-replace history
     (el-search--pushnew-to-history input 'el-search-query-replace-history)
-    (el-search--wrap-pattern pattern)))
+    pattern))
 
 
 (defun el-search--end-of-sexp ()
@@ -893,7 +893,7 @@ With optional FROM-HERE non-nil, the first buffer in STREAM
 should be the current buffer, and searching will start at the
 current buffer's point instead of its beginning."
   (setq el-search--success nil)
-  (let ((matcher (el-search--matcher pattern)))
+  (let ((matcher (el-search--matcher (el-search--wrap-pattern pattern))))
     (setq el-search--current-search (el-search-make-search matcher stream))
     (setq el-search--current-matcher matcher))
   (setq el-search--current-pattern pattern)
@@ -1523,7 +1523,8 @@ Hit any key to proceed."
         (el-search-keep-hl t) (opoint (point))
         (get-replacement (el-search--matcher pattern replacement))
         (skip-matches-in-replacement 'ask)
-        (matcher (setq el-search--current-matcher (el-search--matcher pattern))))
+        (matcher (setq el-search--current-matcher
+                       (el-search--matcher (el-search--wrap-pattern pattern)))))
     (unwind-protect
         (progn
 
@@ -1679,7 +1680,7 @@ Hit any key to proceed."
     (when (and (symbolp read-to)
                (not (el-search--contains-p (el-search--matcher `',read-to) read-from)))
       (el-search--maybe-warn-about-unquoted-symbol read-to))
-    (list (el-search--wrap-pattern read-from) read-to to)))
+    (list read-from read-to to)))
 
 ;;;###autoload
 (defun el-search-query-replace (from-pattern to-expr &optional textual-to)
