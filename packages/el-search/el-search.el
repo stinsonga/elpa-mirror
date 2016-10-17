@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.0
+;; Version: 1.0.1
 ;; Package-Requires: ((emacs "25") (stream "2.2.3"))
 
 
@@ -221,7 +221,7 @@
 ;;
 ;; There is currently nothing like `occur' for el-search.  However,
 ;; you can get a list of matches in the form
-;; (buffer-or-file-name . match-position) with
+;; (file-name-or-buffer . match-position) with
 ;;
 ;;    (el-search-all-matches
 ;;      (el-search-make-search (el-search--matcher pattern) stream))
@@ -539,6 +539,8 @@ directory searches like `el-search-directory' or
 (defvar el-search--initial-mb-contents nil)
 
 (defun el-search--pushnew-to-history (input histvar)
+  ;; Push INPUT to history in HISTVAR unless it's already "the same" as
+  ;; the history's head element
   (let ((hist-head (car (symbol-value histvar))))
     (unless (or (string-match-p "\\`\\'" input)
                 (and (stringp hist-head)
@@ -1171,7 +1173,7 @@ local binding of `window-scroll-functions'."
 
 SEARCH is an `el-search-object'.  Execute SEARCH
 non-interactively until finished and return a list of matches in
-the form \(buffer-or-file-name . match-position)."
+the form \(file-name-or-buffer . match-position)."
   (mapcar
    (pcase-lambda (`(,buffer ,position ,file))
      (cons (if (buffer-live-p buffer) buffer file) position))
@@ -1216,7 +1218,8 @@ that the current search."
         (let ((last-match (el-search-object-last-match search)))
           (if (not (and last-match
                         (eq (marker-buffer last-match) (current-buffer))))
-              (goto-char (el-search-head-position current-head)) ;this should normally not happpen
+              ;; this should only happen for bad search patterns
+              (goto-char (el-search-head-position current-head))
             (goto-char last-match)
             (el-search-hl-sexp)
             (el-search-hl-other-matches el-search--current-matcher)
@@ -1224,7 +1227,12 @@ that the current search."
     (error "Last search finished")))
 
 (defun el-search-continue-search (&optional from-here)
-  "Continue the current search."
+  "Continue or resume the current search.
+
+With prefix arg FROM-HERE given, the current search buffer should
+be the current buffer, and the search will be resumed from point
+instead of the position where the search would normally be
+continued."
   (interactive "P")
   (setq this-command 'el-search-pattern)
   (setq el-search--current-matcher
@@ -1234,13 +1242,13 @@ that the current search."
       (let* ((head (el-search-object-head el-search--current-search))
              (current-search-buffer
               (or (el-search-head-buffer head)
-                  (el-search--next-buffer el-search--current-search)))) ; search not yet started
+                  (el-search--next-buffer el-search--current-search))))
         (cond
          ((eq (current-buffer) current-search-buffer)
           (setf (el-search-head-position head) (copy-marker (point))))
          ((and current-search-buffer (buffer-live-p current-search-buffer))
           (error "Please resume from buffer %s" (buffer-name current-search-buffer)))
-         (t (error "Invalid search head")))))
+         (t (error "Invalid search head: buffer killed")))))
     (unwind-protect
         (let ((stream-of-matches (el-search-object-matches el-search--current-search)))
           (if (not (stream-empty-p stream-of-matches))
@@ -1264,18 +1272,19 @@ that the current search."
 (defun el-search-skip-directory (directory)
   "Skip all subsequent matches in files located under DIRECTORY."
   (interactive
-   (list (read-directory-name "Skip all files under directory: " nil
-                              (if-let ((search el-search--current-search)
-                                       (current-head (el-search-object-head search))
-                                       (current-file (el-search-head-file current-head)))
-                                  (file-name-directory current-file)
-                                default-directory)
-                              t)))
+   (list (expand-file-name
+          (read-directory-name "Skip all files under directory: " nil
+                               (if-let ((search el-search--current-search)
+                                        (current-head (el-search-object-head search))
+                                        (current-file (el-search-head-file current-head)))
+                                   (file-name-directory current-file)
+                                 default-directory)
+                               t))))
   (el-search--skip-to-next-buffer
    (lambda (buffer-or-file-name)
      (or (bufferp buffer-or-file-name)
          ;; `file-in-directory-p' would be perfect here, but it calls
-         ;; file-truename on both args, so we use this:
+         ;; file-truename on both args what we don't want, so we use this:
          (string-match-p "\\`\\.\\." (file-relative-name buffer-or-file-name directory))))))
 
 ;;;###autoload
@@ -1286,11 +1295,15 @@ Search current buffer for expressions that are matched by `pcase'
 PATTERN.  Use `read' to transform buffer contents into
 expressions.
 
-Uses `emacs-lisp-mode' for reading input.  Some keys in the
-minibuffer have a special binding: to make it possible to edit
-multi line input, C-j inserts a newline, and up and down move the
-cursor vertically - see `el-search-read-expression-map' for more
-details.
+When called from the current search's current search buffer,
+continue that search from point.  Otherwise or when a new PATTERN
+is given, start a new single-buffer search from point.
+
+Use `emacs-lisp-mode' for reading the input pattern.  Some keys
+in the minibuffer have a special binding: to make it possible to
+edit multi line input, C-j inserts a newline, and up and down
+move the cursor vertically - see `el-search-read-expression-map'
+for details.
 
 
 Additional `pcase' pattern types to be used with this command can
@@ -1322,8 +1335,9 @@ The following additional pattern types are currently defined:"
   ;; alternatively), so let's use this for now...
   (interactive)
   (if (not (el-search-head-buffer (el-search-object-head el-search--current-search)))
-      ;; This case is hard; the user would expect that when he hits C-S
-      ;; then, the search is restored with the old matches merged
+      ;; FIXME: This case is tricky; the user would expect that when he hits
+      ;; C-S afterwards, the search is restored with the old matches
+      ;; "merged".  So for now, we raise this:
       (error "Last search completed, please start a new search")
     (setq this-command 'el-search-pattern)
     (let ((last-match-beg (el-search-object-last-match el-search--current-search)))
@@ -1352,17 +1366,18 @@ The following additional pattern types are currently defined:"
     (stream (buffer-list)))))
 
 ;;;###autoload
-(defun el-search-directory (pattern directory &optional search-recursively)
+(defun el-search-directory (pattern directory &optional recursively)
   "Search all elisp files in DIRECTORY for PATTERN.
-With prefix arg SEARCH-RECURSIVELY non-nil, search subdirectories recursively."
+With prefix arg RECURSIVELY non-nil, search subdirectories recursively."
   (interactive (list (el-search--read-pattern-for-interactive)
-                     (read-directory-name (format "el-search directory%s: "
-                                                  (if current-prefix-arg " recursively" ""))
-                                          nil default-directory t)
+                     (expand-file-name
+                      (read-directory-name (format "el-search directory%s: "
+                                                   (if current-prefix-arg " recursively" ""))
+                                           nil default-directory t))
                      current-prefix-arg))
   (el-search-setup-search
    pattern
-   (el-search-stream-of-directory-files directory search-recursively)))
+   (el-search-stream-of-directory-files directory recursively)))
 
 ;;;###autoload
 (defun el-search-emacs-elisp-sources (pattern)
@@ -1726,7 +1741,8 @@ used for history entries."
 
 ;;;###autoload
 (defun el-search-search-from-isearch ()
-  "Switch from isearch to an el-search session."
+  "Switch to an el-search session from isearch.
+Reuse already given input."
   (interactive)
   (let ((el-search--initial-mb-contents (concat "'" (el-search--take-over-from-isearch))))
     ;; use `call-interactively' so we get recorded in `extended-command-history'
