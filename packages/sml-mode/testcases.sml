@@ -1,4 +1,4 @@
-(* Copyright 1999,2004,2007,2010-2012,2014 Stefan Monnier <monnier@gnu.org> *)
+(* Copyright 1999,2004,2007,2010-2016 Stefan Monnier <monnier@gnu.org> *)
 
 (* sml-mode here treats the second `=' as an equal op because it
  * thinks it's seeing something like "... type t = (s.t = ...)".  FIXME!  *)
@@ -70,6 +70,11 @@ open Wrap
 type node' = node
 type obj = t
 end
+
+fun test1 None =
+    4
+  | test1 (Some x) =
+    5
 
 datatype exp_node
   = Let of varpat_t list * rhs_t * exp_t
