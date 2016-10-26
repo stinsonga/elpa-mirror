@@ -476,6 +476,10 @@ directory searches like `el-search-directory' or
   ;; search with all matches before current buffer cut off
   )
 
+(defun el-search--message-no-log (format-string &rest args)
+  "Like `message' but with `message-log-max' bound to nil."
+  (let ((message-log-max nil))
+    (apply #'message format-string args)))
 
 (defun el-search--string-match-p (eregexp string)
   "Non-nil when extended regexp EREGEXP matches the STRING."
@@ -860,9 +864,9 @@ search."
                                     (save-excursion
                                       ;; Widening already happens in `el-search-continue-search'
                                       (goto-char (el-search-head-position head))
-                                      (message "Searching in %s"
-                                               (or (el-search-head-file head)
-                                                   (el-search-head-buffer head)))
+                                      (el-search--message-no-log "Searching in %s"
+                                                                 (or (el-search-head-file head)
+                                                                     (el-search-head-buffer head)))
                                       (if-let ((match (el-search--search-pattern-1
                                                        (el-search-head-matcher head) t)))
                                           (progn
@@ -1350,7 +1354,7 @@ The following additional pattern types are currently defined:"
               (setq go-there (cadr (stream-first matches)))
               (stream-pop matches)))
           (if (not go-there)
-              (message "[Beginning of this buffer's recorded matches]")
+              (el-search--message-no-log "[Beginning of this buffer's recorded matches]")
             (goto-char go-there)
             (el-search-hl-sexp)
             (set-transient-map el-search-map)))))))
