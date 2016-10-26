@@ -225,14 +225,14 @@ Use variable `el-search--cached-changes' for caching."
 
 Requires library \"diff-hl\".  REVISION defaults to the file's
 repository's HEAD commit."
-  `(guard (el-search--change-p (point) ,revision)))
+  `(guard (el-search--change-p (point) ,(or revision "HEAD"))))
 
 (el-search-defpattern changed (&optional revision)
   "Matches the object if its text contains a file change.
 
 Requires library \"diff-hl\".  REVISION defaults to the file's
 repository's HEAD commit."
-  `(guard (el-search--changed-p (point) ,revision)))
+  `(guard (el-search--changed-p (point) ,(or revision "HEAD"))))
 
 
 ;;;; `keys'
