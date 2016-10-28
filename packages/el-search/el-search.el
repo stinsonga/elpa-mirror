@@ -1395,6 +1395,18 @@ This command recursively searches all elisp files under
     (expand-file-name "lisp/" source-directory)
     t)))
 
+;;;###autoload
+(defun el-search-load-path (pattern)
+  "Search PATTERN in the elisp files in all directories of `load-path'.
+nil elements in `load-path' (standing for `default-directory')
+are ignored."
+  (interactive (list (el-search--read-pattern-for-interactive)))
+  (el-search-setup-search
+   pattern
+   (stream-concatenate
+    (seq-map (lambda (path) (el-search-stream-of-directory-files path nil))
+             (stream (delq nil load-path))))))
+
 (declare-function dired-get-marked-files "dired")
 
 ;;;###autoload
