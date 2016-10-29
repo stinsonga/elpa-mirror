@@ -128,6 +128,19 @@ have at least one mandatory, but also optional arguments, you
 could use this pattern:
 
     (l ^ 'defun hl (l _ &optional))"
+  (declare
+   (heuristical-matcher
+    (lambda (&rest lpats)
+      (lambda (atoms)
+        (cl-every
+         (lambda (lpat)
+           (pcase lpat
+             ((or '__ '_ '_? '^ '$) t)
+             ((pred symbolp)
+              (funcall (el-search-heuristical-matcher `(symbol ,(symbol-name lpat))) atoms))
+             (_ (funcall (el-search-heuristical-matcher (el-search--transform-nontrivial-lpat lpat))
+                         atoms))))
+         lpats)))))
   (let ((match-start nil) (match-end nil))
     (when (eq (car-safe lpats) '^)
       (setq match-start t)
