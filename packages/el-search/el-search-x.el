@@ -246,7 +246,7 @@ Use variable `el-search--cached-changes' for caching."
 
 Requires library \"diff-hl\".  REVISION defaults to the file's
 repository's HEAD commit and is a git revision string.  Customize
-`el-search-change-revision-transformer-function' to modify how
+`el-search-change-revision-transformer-function' to control how
 REVISION is interpreted."
   `(guard (el-search--change-p (point) ,(or revision "HEAD"))))
 
@@ -255,7 +255,7 @@ REVISION is interpreted."
 
 Requires library \"diff-hl\".  REVISION defaults to the file's
 repository's HEAD commit and is a git revision string.  Customize
-`el-search-change-revision-transformer-function' to modify how
+`el-search-change-revision-transformer-function' to control how
 REVISION is interpreted."
   `(guard (el-search--changed-p (point) ,(or revision "HEAD"))))
 

@@ -226,7 +226,11 @@
 ;;  (el-search-all-matches (el-search-make-search pattern stream))
 ;;
 ;; where PATTERN is the search pattern and STREAM is a stream of
-;; buffers or files.  For example,
+;; buffers or files (typical ways to construct such a STREAM are to
+;; call the `stream' function on a list of buffers, or to use
+;; `el-search-stream-of-directory-files').
+;;
+;; For example,
 ;;
 ;;   (el-search-all-matches
 ;;    (el-search-make-search
@@ -685,10 +689,12 @@ Keys are pattern names (i.e. symbols), and values the associated
 heuristical matcher functions.")
 
 (defmacro el-search-defpattern (name args &rest body)
-  "Like `pcase-defmacro', but limited to el-search patterns.
+  "Like `pcase-defmacro', but for defining el-search patterns.
+
 The semantics is exactly that of `pcase-defmacro', but the scope
 of the definitions is limited to \"el-search\", using a separate
-name space.
+name space.  The expansion is allowed to use any defined `pcase'
+pattern as well as any defined el-search pattern.
 
 The docstring may be followed by a `defun' style declaration list
 DECL.  There is only one respected specification, it has the form
@@ -718,16 +724,19 @@ match.
 
 \(fn NAME ARGLIST &optional DOCSTRING DECL &rest BODY)"
   (declare (indent 2) (debug defun))
-  (let ((set-heuristical-matcher ()))
-    (pcase body
-      (`(,(and (pred stringp) doc) (declare (heuristical-matcher ,heuristical-matcher)) . ,real-body)
+  (let ((doc nil) (set-heuristical-matcher ()))
+    (when (stringp (car body))
+      (setq doc       (car body)
+            body (cdr body)))
+    (pcase (car body)
+      (`(declare (heuristical-matcher ,heuristical-matcher))
        (setq set-heuristical-matcher
              `((setf (alist-get ',name el-search--heuristical-matchers) ,heuristical-matcher)))
-       (setq body (cons doc real-body))))
+       (setq body (cdr body))))
     `(progn
        ,@set-heuristical-matcher
        (setf (alist-get ',name el-search--pcase-macros)
-             (lambda ,args ,@body)))))
+             (lambda ,args ,doc ,@body)))))
 
 (defmacro el-search--with-additional-pcase-macros (&rest body)
   `(cl-letf ,(mapcar (pcase-lambda (`(,symbol . ,fun)) `((get ',symbol 'pcase-macroexpander) #',fun))
@@ -1431,7 +1440,8 @@ continued."
           (setf (el-search-head-position head) (copy-marker (point))))
          ((and current-search-buffer (buffer-live-p current-search-buffer))
           (error "Please resume from buffer %s" (buffer-name current-search-buffer)))
-         (t (error "Invalid search head: buffer killed")))))
+         (current-search-buffer
+          (error "Invalid search head: buffer killed")))))
     (unwind-protect
         (let ((stream-of-matches (el-search-object-matches el-search--current-search)))
           (if (not (stream-empty-p stream-of-matches))
