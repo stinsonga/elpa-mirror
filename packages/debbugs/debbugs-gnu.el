@@ -128,7 +128,7 @@
 
 ;; Unfortunately, it is not possible with the SOAP interface to show
 ;; all users who have tagged bugs.  This list can be retrieved via
-;; <http://debbugs.gnu.org/cgi/pkgindex.cgi?indexon=users>.
+;; <https://debbugs.gnu.org/cgi/pkgindex.cgi?indexon=users>.
 
 ;; A special command to show bugs containing patches is
 ;;
@@ -202,7 +202,7 @@
 (defcustom debbugs-gnu-default-severities '("serious" "important" "normal")
   "The list severities bugs are searched for.
 \"tagged\" is not a severity but marks locally tagged bugs."
-  ;; <http://debbugs.gnu.org/Developer.html#severities>
+  ;; <https://debbugs.gnu.org/Developer.html#severities>
   ;; /ssh:debbugs:/etc/debbugs/config @gSeverityList
   ;; We don't use "critical" and "grave".
   :group 'debbugs-gnu
@@ -240,8 +240,8 @@ If nil, the value of `send-mail-function' is used instead."
 
 (defcustom debbugs-gnu-default-packages '("emacs")
   "The list of packages to be searched for."
-  ;; <http://debbugs.gnu.org/Packages.html>
-  ;; <http://debbugs.gnu.org/cgi/pkgindex.cgi>
+  ;; <https://debbugs.gnu.org/Packages.html>
+  ;; <https://debbugs.gnu.org/cgi/pkgindex.cgi>
   :group 'debbugs-gnu
   :type `(set (const "adns")
 	      (const "auctex")

@@ -491,7 +491,7 @@ When the bug attributes are shown by @code{org-cycle}, there is a link
 
 Debbugs control messages are sent by email to the GNU Debbugs control
 server.  Their format is described in
-@uref{http://debbugs.gnu.org/server-control.html}.
+@uref{https://debbugs.gnu.org/server-control.html}.
 
 A control message can be initiated in the tabulated list of bugs, in
 the list of org TODO items, or in the GNUS ephemeral group or Rmail
@@ -657,7 +657,7 @@ user option @code{debbugs-browse-function} controls, whether
 @code{debbugs-gnu-bugs} or @code{debbugs-org-bugs} is called.
 
 This minor mode is applicable for all URLs, not only bug references.
-Any URL with the format @uref{http://debbugs.gnu.org/12345} will be
+Any URL with the format @uref{https://debbugs.gnu.org/12345} will be
 shown in a bug report buffer, when @code{debbugs-browse-mode} is
 enabled.
 
@@ -679,7 +679,7 @@ enabled.
 @bye
 
 @c Local Variables:
-@c bug-reference-url-format: "http://debbugs.gnu.org/%s"
+@c bug-reference-url-format: "https://debbugs.gnu.org/%s"
 @c eval: (bug-reference-mode)
 @c eval: (debbugs-browse-mode)
 @c End:

@@ -29,7 +29,7 @@
 ;; server (see <http://wiki.debian.org/DebbugsSoapInterface>).
 
 ;; The function "get_versions" is not implemented (yet).  "search_est"
-;; is an extension on <http://debbugs.gnu.org>.
+;; is an extension on <https://debbugs.gnu.org>.
 
 ;;; Code:
 
@@ -43,11 +43,11 @@
 
 (defcustom debbugs-servers
   '(("gnu.org"
-     :wsdl "http://debbugs.gnu.org/cgi/soap.cgi?WSDL"
-     :bugreport-url "http://debbugs.gnu.org/cgi/bugreport.cgi")
+     :wsdl "https://debbugs.gnu.org/cgi/soap.cgi?WSDL"
+     :bugreport-url "https://debbugs.gnu.org/cgi/bugreport.cgi")
     ("debian.org"
-     :wsdl "http://bugs.debian.org/cgi-bin/soap.cgi?WSDL"
-     :bugreport-url "http://bugs.debian.org/cgi-bin/bugreport.cgi"))
+     :wsdl "https://bugs.debian.org/cgi-bin/soap.cgi?WSDL"
+     :bugreport-url "https://bugs.debian.org/cgi-bin/bugreport.cgi"))
   "*List of Debbugs server specifiers.
 Each entry is a list that contains a string identifying the port
 name and the server parameters in keyword-value form. Allowed

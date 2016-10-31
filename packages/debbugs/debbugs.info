@@ -110,8 +110,8 @@ File: debbugs.info,  Node: Configuration,  Next: Requesting bug numbers,  Prev: 
 ***************
 
 'debbugs' is already configured to work with two main ports of Debbugs
-BTS: <http://bugs.debian.org> and <http://debbugs.gnu.org>.  So if you
-intend to use one of these ports, you don't need to configure
+BTS: <https://bugs.debian.org> and <https://debbugs.gnu.org>.  So if
+you intend to use one of these ports, you don't need to configure
 'debbugs'.  If you want to interact with a Debbugs port other than
 those listed, you have to configure 'debbugs' by adding a new server
 specifier to the 'debbugs-servers' variable.  The actual port can be
@@ -142,8 +142,8 @@ selected by the 'debbugs-port' variable.
           (add-to-list
            'debbugs-servers
            '("foobars.net"
-             :wsdl "http://bugs.foobars.net/cgi/soap.cgi?WSDL"
-             :bugreport-url "http://bugs.foobars.net/cgi/bugreport.cgi"))
+             :wsdl "https://bugs.foobars.net/cgi/soap.cgi?WSDL"
+             :bugreport-url "https://bugs.foobars.net/cgi/bugreport.cgi"))
 
  -- Variable: debbugs-port
      This variable holds the name of the currently used port.  The
@@ -225,7 +225,7 @@ Debbugs server the list of bug numbers that match a user's query.
           GNU port: '"fixed"', '"notabug"', '"wontfix"',
           '"unreproducible"', '"moreinfo"', '"patch"', '"pending"',
           '"help"', '"security"', '"confirmed"', '"easy"'.  See
-          <http://debbugs.gnu.org/Developer.html#tags> for the actual
+          <https://debbugs.gnu.org/Developer.html#tags> for the actual
           list of tags.
 
      ':owner'
@@ -725,10 +725,10 @@ Tag Table:
 Node: Top1094
 Node: Installation3235
 Node: Configuration4334
-Node: Requesting bug numbers6685
-Node: Requesting bugs statuses12065
-Node: Searching bugs16357
-Node: Requesting messages23163
-Node: Requesting user tags26169
+Node: Requesting bug numbers6689
+Node: Requesting bugs statuses12070
+Node: Searching bugs16362
+Node: Requesting messages23168
+Node: Requesting user tags26174
 
 End Tag Table

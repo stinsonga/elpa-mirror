@@ -427,7 +427,7 @@ File: debbugs-ug.info,  Node: Control Messages,  Next: Applying Patches,  Prev: 
 
 Debbugs control messages are sent by email to the GNU Debbugs control
 server.  Their format is described in
-<http://debbugs.gnu.org/server-control.html>.
+<https://debbugs.gnu.org/server-control.html>.
 
    A control message can be initiated in the tabulated list of bugs,
 in the list of org TODO items, or in the GNUS ephemeral group or Rmail
@@ -587,7 +587,7 @@ option 'debbugs-browse-function' controls, whether 'debbugs-gnu-bugs'
 or 'debbugs-org-bugs' is called.
 
    This minor mode is applicable for all URLs, not only bug
-references.  Any URL with the format <http://debbugs.gnu.org/12345>
+references.  Any URL with the format <https://debbugs.gnu.org/12345>
 will be shown in a bug report buffer, when 'debbugs-browse-mode' is
 enabled.
 
@@ -675,10 +675,10 @@ Node: Presenting Bugs11360
 Node: Tabulated Lists11936
 Node: TODO Items15611
 Node: Control Messages16667
-Node: Applying Patches19709
-Node: Minor Mode21075
-Node: Command Index22019
-Node: Variable Index22808
-Node: Key Index23882
+Node: Applying Patches19710
+Node: Minor Mode21076
+Node: Command Index22021
+Node: Variable Index22810
+Node: Key Index23884
 
 End Tag Table
