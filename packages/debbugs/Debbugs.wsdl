@@ -331,10 +331,10 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>. -->
 
   <wsdl:service name="Debbugs/SOAP/SERVICE">
     <wsdl:port binding="tns:Debbugs/SOAP/BINDING" name="gnu.org">
-      <wsdlsoap:address location="http://debbugs.gnu.org/cgi/soap.cgi"/>
+      <wsdlsoap:address location="https://debbugs.gnu.org/cgi/soap.cgi"/>
     </wsdl:port>
     <wsdl:port binding="tns:Debbugs/SOAP/BINDING" name="debian.org">
-      <wsdlsoap:address location="http://bugs.debian.org/cgi-bin/soap.cgi"/>
+      <wsdlsoap:address location="https://bugs.debian.org/cgi-bin/soap.cgi"/>
     </wsdl:port>
   </wsdl:service>
 </wsdl:definitions>
