@@ -116,8 +116,8 @@ libraries than needed for installation on Emacs 22/23.
 @chapter Configuration
 
 @code{debbugs} is already configured to work with two main ports of
-Debbugs BTS: @uref{http://bugs.debian.org} and
-@uref{http://debbugs.gnu.org}.  So if you intend to use one of these
+Debbugs BTS: @uref{https://bugs.debian.org} and
+@uref{https://debbugs.gnu.org}.  So if you intend to use one of these
 ports, you don't need to configure @code{debbugs}.  If you want to
 interact with a Debbugs port other than those listed, you have to
 configure @code{debbugs} by adding a new server specifier to the
@@ -150,8 +150,8 @@ Example.  Add a new Debbugs port with name "foobars.net":
 (add-to-list
  'debbugs-servers
  '("foobars.net"
-   :wsdl "http://bugs.foobars.net/cgi/soap.cgi?WSDL"
-   :bugreport-url "http://bugs.foobars.net/cgi/bugreport.cgi"))
+   :wsdl "https://bugs.foobars.net/cgi/soap.cgi?WSDL"
+   :bugreport-url "https://bugs.foobars.net/cgi/bugreport.cgi"))
 @end example
 @end defvar
 
@@ -236,7 +236,7 @@ GNU port: @code{"fixed"}, @code{"notabug"}, @code{"wontfix"},
 @code{"unreproducible"}, @code{"moreinfo"}, @code{"patch"},
 @code{"pending"}, @code{"help"}, @code{"security"},
 @code{"confirmed"}, @code{"easy"}.  See
-@url{http://debbugs.gnu.org/Developer.html#tags} for the actual list
+@url{https://debbugs.gnu.org/Developer.html#tags} for the actual list
 of tags.
 
 @item :owner
