@@ -7,9 +7,9 @@
 ;; Keywords: parser
 ;;  indentation
 ;;  navigation
-;; Version: 1.1.3
+;; Version: 1.1.4
 ;; package-requires: ((cl-lib "0.4") (emacs "24.2"))
-;; URL: http://stephe-leake.org/emacs/ada-mode/emacs-ada-mode.html
+;; URL: http://www.nongnu.org/ada-mode/wisi/wisi.html
 ;;
 ;; This file is part of GNU Emacs.
 ;;
@@ -680,7 +680,7 @@ If accessing cache at a marker for a token as set by `wisi-cache-tokens', POS mu
 (defvar wisi-post-parse-succeed-hook nil
   "Hook run after parse succeeds.")
 
-(defun wisi-validate-cache (pos)
+(defun wisi-validate-cache (pos &optional error-on-fail)
   "Ensure cached data is valid at least up to POS in current buffer."
   (let ((msg (when (> wisi-debug 0) (format "wisi: parsing %s:%d ..." (buffer-name) (line-number-at-pos pos)))))
     ;; If wisi-cache-max = pos, then there is no cache at pos; need parse
@@ -722,14 +722,18 @@ If accessing cache at a marker for a token as set by `wisi-cache-tokens', POS mu
 	  ))
       (if wisi-parse-error-msg
 	  ;; error
-	  (when (> wisi-debug 0)
+	  (cond
+	   ((> wisi-debug 0)
 	    (message "%s error" msg)
 	    (wisi-goto-error)
-	    (error wisi-parse-error-msg))
+	    (error wisi-parse-error-msg)))
 	;; no msg; success
 	(when (> wisi-debug 0)
 	  (message "%s done" msg)))
-      )))
+      )
+    (when (and error-on-fail (not (>= wisi-cache-max pos)))
+      (error "parse failed"))
+    ))
 
 (defun wisi-fontify-region (_begin end)
   "For `jit-lock-functions'."
@@ -1265,7 +1269,7 @@ If LIMIT (a buffer position) is reached, throw an error."
   "If not at a cached token, move forward to next
 cache. Otherwise move to cache-next, or next cache if nil.
 Return cache found."
-  (wisi-validate-cache (point-max)) ;; ensure there is a next cache to move to
+  (wisi-validate-cache (point-max) t) ;; ensure there is a next cache to move to
   (let ((cache (wisi-get-cache (point))))
     (if cache
 	(let ((next (wisi-cache-next cache)))
@@ -1281,7 +1285,7 @@ Return cache found."
 (defun wisi-backward-statement-keyword ()
   "If not at a cached token, move backward to prev
 cache. Otherwise move to cache-prev, or prev cache if nil."
-  (wisi-validate-cache (point))
+  (wisi-validate-cache (point) t)
   (let ((cache (wisi-get-cache (point))))
     (if cache
 	(let ((prev (wisi-cache-prev cache)))
@@ -1331,7 +1335,7 @@ Return start cache."
   "Move point to token at start of statement point is in or after.
 Return start cache."
   (interactive)
-  (wisi-validate-cache (point))
+  (wisi-validate-cache (point) t)
   (let ((cache (wisi-get-cache (point))))
     (unless cache
       (setq cache (wisi-backward-cache)))
@@ -1340,7 +1344,7 @@ Return start cache."
 (defun wisi-goto-statement-end ()
   "Move point to token at end of statement point is in or before."
   (interactive)
-  (wisi-validate-cache (point))
+  (wisi-validate-cache (point) t)
   (let ((cache (or (wisi-get-cache (point))
 		   (wisi-forward-cache))))
     (when (wisi-cache-end cache)
@@ -1409,7 +1413,7 @@ of CACHE with class statement-start or block-start."
 
 (defun wisi-indent-statement ()
   "Indent region given by `wisi-goto-start' on cache at or before point, then wisi-cache-end."
-  (wisi-validate-cache (point))
+  (wisi-validate-cache (point) t)
 
   (save-excursion
     (let ((cache (or (wisi-get-cache (point))
@@ -1493,7 +1497,7 @@ correct. Must leave point at indentation of current line.")
   (interactive)
   (syntax-propertize (point-max))
   (wisi-invalidate-cache)
-  (wisi-validate-cache (point-max)))
+  (wisi-validate-cache (point-max)) t)
 
 (defun wisi-lex-buffer ()
   (interactive)
