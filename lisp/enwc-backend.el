@@ -115,11 +115,12 @@ Signals an error if a backend with KEY already exists and FORCEP is nil."
 
 ;; Handle loading/unloading
 
-(defun enwc-load-backend (backend)
+(defun enwc-load-backend (backend &optional force)
   "Load BACKEND, which is a symbol denoting the backend to use."
   (interactive
    (list
-    (intern (completing-read "Backend: " enwc-registered-backend-alist nil t))))
+    (intern (completing-read "Backend: " enwc-registered-backend-alist nil t))
+    current-prefix-arg))
   (when (and enwc--current-backend
              (not (eq (enwc-backend-key enwc--current-backend) backend)))
     (enwc-unload-current-backend))
@@ -128,14 +129,13 @@ Signals an error if a backend with KEY already exists and FORCEP is nil."
     (unless new-backend
       (error "No registered backend %s" backend))
 
-    (unless (enwc--can-load-p new-backend)
-      (error "Backend %s is not usable." backend))
-
+    (if (not (or force (enwc--can-load-p new-backend)))
+      (warn "Backend %s is not usable." backend)
     (enwc--load new-backend)
-    (setq enwc--current-backend new-backend)))
+    (setq enwc--current-backend new-backend))))
 
-(defun enwc-load-default-backend ()
-  (enwc-load-backend enwc-default-backend))
+(defun enwc-load-default-backend (&optional force)
+  (enwc-load-backend enwc-default-backend force))
 
 (defun enwc-unload-current-backend ()
   "Unload the current backend."
