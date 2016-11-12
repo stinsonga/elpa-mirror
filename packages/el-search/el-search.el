@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.1.1
+;; Version: 1.1.2
 ;; Package-Requires: ((emacs "25") (stream "2.2.3"))
 
 
@@ -938,7 +938,7 @@ buffer can't contain a match for PATTERN, and non-nil else."
       (if (bufferp file-name-or-buffer)
           (and (buffer-live-p file-name-or-buffer)
                (funcall heuristic-matcher (el-search-atom-list (current-buffer))))
-        (with-current-buffer (generate-new-buffer " *temp*")
+        (with-temp-buffer
           (insert-file-contents file-name-or-buffer)
           (funcall heuristic-matcher (el-search-atom-list (current-buffer))))))))
 
