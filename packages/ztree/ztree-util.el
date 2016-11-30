@@ -65,6 +65,20 @@ Used since `car-safe' returns nil for atoms"
     (insert text)
     (put-text-property start (point) 'face face)))
 
+(defun ztree-untrampify-filename (file)
+  "Return FILE as the local file name."
+  (or (file-remote-p file 'localname) file))
+
+(defun ztree-quotify-string (str)
+  "Surround STR with quotes."
+  (concat "\"" str "\""))
+
+(defun ztree-same-host-p (file1 file2)
+  "Return t if FILE1 and FILE2 are on the same host."
+  (let ((file1-remote (file-remote-p file1))
+        (file2-remote (file-remote-p file2)))
+    (string-equal file1-remote file2-remote)))
+
 (provide 'ztree-util)
 
 ;;; ztree-util.el ends here

@@ -83,7 +83,7 @@
 			     (const :tag "Degree Kelvin" degK)
 			     (const :tag "Degree Fahrenheit" degF)))))
 
-(defcustom metar-stations-info-url "http://weather.noaa.gov/data/nsd_bbsss.txt"
+(defcustom metar-stations-info-url "http://tgftp.nws.noaa.gov/data/nsd_cccc.txt"
   "URL to use for retrieving station meta information."
   :group 'metar
   :type 'string)
@@ -117,23 +117,21 @@ If this variable is nil, the information is retrieved from the Internet."
 			      (split-string entry ";"))
 			    (split-string (buffer-string) "\n")))))
 	(setq metar-stations nil)
-	(while data
-	  (when (and (nth 7 (car data)) (nth 8 (car data))
-		     (not (string= (nth 2 (car data)) "----")))
+	(dolist (entry data)
+	  (when (and (nth 7 entry) (nth 8 entry)
+		     (not (string= (nth 0 entry) "----")))
 	    (setq metar-stations
 		  (append
-		   (let ((item (car data)))
-		     (list
-		      (list (cons 'code (nth 2 item))
-			    (cons 'name (nth 3 item))
-			    (cons 'country (nth 5 item))
-			    (cons 'latitude
-				  (metar-station-convert-dms-to-deg (nth 7 item)))
-			    (cons 'longitude
-				  (metar-station-convert-dms-to-deg (nth 8 item)))
-			    (cons 'altitude (string-to-number (nth 12 item))))))
-		   metar-stations)))
-	  (setq data (cdr data)))
+		   (list
+                    (list (cons 'code (nth 0 entry))
+                          (cons 'name (nth 3 entry))
+                          (cons 'country (nth 5 entry))
+                          (cons 'latitude
+                                (metar-station-convert-dms-to-deg (nth 7 entry)))
+                          (cons 'longitude
+                                (metar-station-convert-dms-to-deg (nth 8 entry)))
+                          (cons 'altitude (string-to-number (nth 11 entry)))))
+		   metar-stations))))
 	;; (unless metar-timer
 	;;   (setq metar-timer
 	;; 	(run-with-timer 600 nil (lambda () (setq metar-stations nil)))))
@@ -281,7 +279,7 @@ It must have the signature of `math-convert-units', which is the default."
 						  pure))))
 
 (defcustom metar-url
-  "http://weather.noaa.gov/pub/data/observations/metar/stations/%s.TXT"
+  "http://tgftp.nws.noaa.gov/data/observations/metar/stations/%s.TXT"
   "URL used to fetch station specific information.
 %s is replaced with the 4 letter station code."
   :group 'metar

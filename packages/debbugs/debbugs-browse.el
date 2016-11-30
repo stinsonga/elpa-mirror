@@ -41,7 +41,7 @@ This can be either `debbugs-gnu-bugs' or `debbugs-org-bugs'."
 	     (string-match
 	      (format
 	       "^%s\\(%s\\)?\\([[:digit:]]+\\)$"
-	       (regexp-quote "http://debbugs.gnu.org/")
+	       "https?://debbugs\\.gnu\\.org/"
 	       (regexp-quote "cgi/bugreport.cgi?bug="))
 	      url))
     (funcall debbugs-browse-function (string-to-number (match-string 2 url)))

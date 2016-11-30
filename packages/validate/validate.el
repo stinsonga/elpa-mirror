@@ -4,8 +4,8 @@
 
 ;; Author: Artur Malabarba <emacs@endlessparentheses.com>
 ;; Keywords: lisp
-;; Package-Requires: ((emacs "24.1") (cl-lib "0.5"))
-;; Version: 0.5
+;; Package-Requires: ((emacs "24.1") (cl-lib "0.5") (seq "2.16"))
+;; Version: 1.0.2
 
 ;;; Commentary:
 ;;
@@ -96,7 +96,7 @@ If they don't match, return an explanation."
                         ((wtype 'list))
                         (t (let ((subschema (car args)))
                              (seq-some (lambda (v) (validate--check v subschema)) value)))))
-               ((const function-item variable-item) (unless (eq value (car args))
+               ((const function-item variable-item) (unless (equal value (car args))
                                                       "not the expected value"))
                (file (cond ((wtype 'string))
                            ((file-exists-p value) nil)
@@ -165,7 +165,7 @@ indicate a failure."
   (let ((report (validate--check value schema)))
     (if report
         (unless noerror
-          (user-error report))
+          (user-error "%s" report))
       value)))
 
 ;;;###autoload

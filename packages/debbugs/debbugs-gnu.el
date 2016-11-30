@@ -35,6 +35,7 @@
 ;;   (autoload 'debbugs-gnu "debbugs-gnu" "" 'interactive)
 ;;   (autoload 'debbugs-gnu-search "debbugs-gnu" "" 'interactive)
 ;;   (autoload 'debbugs-gnu-usertags "debbugs-gnu" "" 'interactive)
+;;   (autoload 'debbugs-gnu-patches "debbugs-gnu" "" 'interactive)
 ;;   (autoload 'debbugs-gnu-bugs "debbugs-gnu" "" 'interactive)
 
 ;; The bug tracker is called interactively by
@@ -127,14 +128,26 @@
 
 ;; Unfortunately, it is not possible with the SOAP interface to show
 ;; all users who have tagged bugs.  This list can be retrieved via
-;; <http://debbugs.gnu.org/cgi/pkgindex.cgi?indexon=users>.
+;; <https://debbugs.gnu.org/cgi/pkgindex.cgi?indexon=users>.
+
+;; A special command to show bugs containing patches is
+;;
+;;   M-x debbugs-gnu-patches
+
+;; This command shows all unarchived bugs of the packages declared in
+;; `debbugs-gnu-default-packages', and tagged with "patch".  This is
+;; useful for bug triages.
 
 ;; Finally, if you simply want to list some bugs with known bug
 ;; numbers, call the command
 ;;
 ;;   M-x debbugs-gnu-bugs
 
-;; The bug numbers to be shown shall be entered as comma separated list.
+;; The bug numbers to be shown shall be entered as comma separated
+;; list.  A bug number can also be a range of bugs like "123-456" or
+;; "-10".  In the former case, all bugs from 123 until 456 are
+;; presented, and in the latter case the last 10 bugs are shown,
+;; counting from the highest bug number in the repository.
 
 ;;; Code:
 
@@ -189,7 +202,7 @@
 (defcustom debbugs-gnu-default-severities '("serious" "important" "normal")
   "The list severities bugs are searched for.
 \"tagged\" is not a severity but marks locally tagged bugs."
-  ;; <http://debbugs.gnu.org/Developer.html#severities>
+  ;; <https://debbugs.gnu.org/Developer.html#severities>
   ;; /ssh:debbugs:/etc/debbugs/config @gSeverityList
   ;; We don't use "critical" and "grave".
   :group 'debbugs-gnu
@@ -227,8 +240,8 @@ If nil, the value of `send-mail-function' is used instead."
 
 (defcustom debbugs-gnu-default-packages '("emacs")
   "The list of packages to be searched for."
-  ;; <http://debbugs.gnu.org/Packages.html>
-  ;; <http://debbugs.gnu.org/cgi/pkgindex.cgi>
+  ;; <https://debbugs.gnu.org/Packages.html>
+  ;; <https://debbugs.gnu.org/cgi/pkgindex.cgi>
   :group 'debbugs-gnu
   :type `(set (const "adns")
 	      (const "auctex")
@@ -345,13 +358,15 @@ The specification which bugs shall be suppressed is taken from
   :group 'debbugs-gnu
   :type '(choice (const "24.5")
 		 (const "25.1")
-		 (const "25.2"))
-  :version "25.1")
+		 (const "25.2")
+		 (const "26.1"))
+  :version "25.2")
 
 (defconst debbugs-gnu-emacs-blocking-reports
   '(("24.5" . 19758)
     ("25.1" . 19759)
-    ("25.2" . 21966))
+    ("25.2" . 21966)
+    ("26.1" . 24655))
   "The IDs of the Emacs report used to track blocking bug reports.
 It is a list of cons cells, each one containing the Emacs
 version (a string) and the bug report number (a number).")
@@ -1421,7 +1436,7 @@ MERGED is the list of bugs merged with this one."
   "Dynamic completion table for reading bug numbers.")
 
 (defun debbugs-gnu-expand-bug-number-list (bug-number-list)
-  "Expand BUG-NUMBER-LIST to a list of singe bug numbers.
+  "Expand BUG-NUMBER-LIST to a list of single bug numbers.
 BUG-NUMBER-LIST is a list of bug numbers or bug number ranges, as
 returned by `debbugs-gnu-bugs'."
   (let (result)
@@ -1657,22 +1672,28 @@ The following commands are available:
   (let ((args (get-text-property (line-beginning-position) 'tabulated-list-id)))
     (when args (apply 'debbugs-gnu args))))
 
-(defcustom debbugs-gnu-default-bug-number-list "-10"
+(defcustom debbugs-gnu-default-bug-number-list
+  (propertize "-10" 'help-echo "The 10 most recent bugs.")
   "The default value used in interactive call of `debbugs-gnu-bugs'.
-It must be a string, containing a comma separated list of bugs or bug ranges."
+It must be a string, containing a comma separated list of bugs or bug ranges.
+A negative value, -N, means the newest N bugs."
   :group 'debbugs-gnu
   :type 'string
   :version "25.2")
 
 ;;;###autoload
 (defun debbugs-gnu-bugs (&rest bugs)
-  "List all BUGS, a list of bug numbers."
+  "List all BUGS, a list of bug numbers.
+In interactive calls, prompt for a comma separated list of bugs
+or bug ranges, with default to `debbugs-gnu-default-bug-number-list'."
   (interactive
    (mapcar
     'string-to-number
     (debbugs-gnu-expand-bug-number-list
      (or
-      (completing-read-multiple "Bug numbers: " debbugs-gnu-completion-table)
+      (completing-read-multiple
+       (format "Bug numbers (default %s): " debbugs-gnu-default-bug-number-list)
+       debbugs-gnu-completion-table)
       (split-string debbugs-gnu-default-bug-number-list "," t)))))
   (dolist (elt bugs)
     (unless (natnump elt) (signal 'wrong-type-argument (list 'natnump elt))))

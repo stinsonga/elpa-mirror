@@ -556,7 +556,6 @@ Regexp match data 0 points to the chars."
     (`(:before . "withtype") 0)
     (`(:before . "d=")
      (cond
-      ((smie-rule-parent-p "fun") 2)
       ((smie-rule-parent-p "datatype") (if (smie-rule-bolp) 2))
       ((smie-rule-parent-p "structure" "signature" "functor") 0)))
     ;; Indent an expression starting with "local" as if it were starting

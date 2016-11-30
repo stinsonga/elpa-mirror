@@ -4,7 +4,7 @@
 
 ;; Author: Nicolas Petton <nicolas@petton.fr>
 ;; Keywords: stream, laziness, sequences
-;; Version: 2.2.2
+;; Version: 2.2.3
 ;; Package-Requires: ((emacs "25"))
 ;; Package: stream
 
@@ -110,7 +110,7 @@ SEQ can be a list, vector or string."
 (cl-defmethod stream ((buffer buffer) &optional pos)
   "Return a stream of the characters of the buffer BUFFER.
 BUFFER may be a buffer or a string (buffer name).
-The sequence starts at POS if non-nil, 1 otherwise."
+The sequence starts at POS if non-nil, `point-min' otherwise."
   (with-current-buffer buffer
     (unless pos (setq pos (point-min)))
     (if (>= pos (point-max))
@@ -166,11 +166,12 @@ range is infinite."
   (list stream--identifier (thunk-delay nil)))
 
 (defun stream-empty-p (stream)
-  "Return non-nil is STREAM is empty, nil otherwise."
+  "Return non-nil if STREAM is empty, nil otherwise."
   (null (thunk-force (cadr stream))))
 
 (defun stream-first (stream)
-  "Return the first element of STREAM."
+  "Return the first element of STREAM.
+Return nil if STREAM is empty."
   (car (thunk-force (cadr stream))))
 
 (defun stream-rest (stream)
@@ -273,12 +274,13 @@ stream will simply be accordingly shorter, or even empty)."
 
 (cl-defmethod seq-take ((stream stream) n)
   "Return a stream of the first N elements of STREAM."
-  (if (or (zerop n)
-          (stream-empty-p stream))
-      (stream-empty)
-    (stream-cons
-     (stream-first stream)
-     (seq-take (stream-rest stream) (1- n)))))
+  (stream-make
+   (if (or (zerop n)
+           (stream-empty-p stream))
+       nil
+     (cons
+      (stream-first stream)
+      (seq-take (stream-rest stream) (1- n))))))
 
 (cl-defmethod seq-drop ((stream stream) n)
   "Return a stream of STREAM without its first N elements."
@@ -327,16 +329,14 @@ kind of nonlocal exit."
 
 (cl-defmethod seq-filter (pred (stream stream))
   "Return a stream of the elements for which (PRED element) is non-nil in STREAM."
-  (if (stream-empty-p stream)
-      stream
-    (stream-make
-     (while (not (or (stream-empty-p stream)
-                     (funcall pred (stream-first stream))))
-       (setq stream (stream-rest stream)))
-     (if (stream-empty-p stream)
-         nil
-       (cons (stream-first stream)
-             (seq-filter pred (stream-rest stream)))))))
+  (stream-make
+   (while (not (or (stream-empty-p stream)
+                   (funcall pred (stream-first stream))))
+     (setq stream (stream-rest stream)))
+   (if (stream-empty-p stream)
+       nil
+     (cons (stream-first stream)
+           (seq-filter pred (stream-rest stream))))))
 
 (defmacro stream-delay (expr)
   "Return a new stream to be obtained by evaluating EXPR.
