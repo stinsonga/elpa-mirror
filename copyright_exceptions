@@ -18,7 +18,6 @@
 ./ada-mode/gpr-skel.el:  "Insert a file header comment, with automatic copyright year and prompt for copyright owner/license.
 ./ada-mode/gpr-skel.el:  "{copyright_license}\n"
 ./auctex/latex.el:   "pounds" "copyright"
-./auctex/multi-prompt.el
 ./auctex/plain-tex.el:   "copyright"
 ./auctex/style/amsart.el
 ./auctex/style/amsbook.el

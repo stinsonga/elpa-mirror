@@ -5,10 +5,10 @@
 ;; Author: Thomas Fitzsimmons <fitzsim@fitzsim.org>
 ;; Maintainer: Thomas Fitzsimmons <fitzsim@fitzsim.org>
 ;; Created: 2014-09-19
-;; Version: 0.7.5
+;; Version: 0.7.6
 ;; Keywords: calendar
 ;; Homepage: https://www.fitzsim.org/blog/
-;; Package-Requires: ((emacs "24.1") (fsm "0.2") (soap-client "3.1.1") (url-http-ntlm "2.0.2"))
+;; Package-Requires: ((emacs "24.1") (fsm "0.2") (soap-client "3.1.1") (url-http-ntlm "2.0.3"))
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -98,6 +98,9 @@
 
 ;; Erik Hetzner <egh@e6h.org> tested on Office 365 and helped debug
 ;; Office 365 support.
+
+;; Fabio Leimgruber <fabio.leimgruber@web.de> tested NTLM
+;; authentication against a challenging server configuration.
 
 ;;; Code:
 

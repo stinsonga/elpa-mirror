@@ -6,7 +6,7 @@
 ;; URL: https://github.com/Malabarba/speed-of-thought-lisp
 ;; Keywords: convenience, lisp
 ;; Package-Requires: ((emacs "24.1"))
-;; Version: 1.5.2
+;; Version: 1.6.2
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -81,6 +81,7 @@
 ;;   (with-temp-buffer (insert text))
 
 ;;; Code:
+(require 'skeleton)
 
 ;;; Predicates
 (defun sotlisp--auto-paired-p ()
@@ -101,7 +102,7 @@ Specially, avoids matching inside argument lists."
        (not (sotlisp--looking-back "(\\(defun\\s-+.*\\|\\(lambda\\|dolist\\|dotimes\\)\\s-+\\)("))
        (save-excursion
          (forward-char -1)
-         (condition-case er
+         (condition-case nil
              (progn
                (backward-up-list)
                (forward-sexp -1)
@@ -203,8 +204,14 @@ See `sotlisp-define-function-abbrev'."
     (skip-chars-backward (rx alnum))
     (let* ((name (buffer-substring (point) r))
            (expansion (gethash name sotlisp--function-table)))
-      (if (not expansion)
-          (progn (goto-char r) nil)
+      (cond
+       ((not expansion) (progn (goto-char r) nil))
+       ((consp expansion)
+        (delete-region (point) r)
+        (let ((skeleton-end-newline nil))
+          (skeleton-insert (cons "" expansion)))
+        t)
+       ((stringp expansion)
         (delete-region (point) r)
         (if (sotlisp--function-quote-p)
             ;; After #' use the simple expansion.
@@ -214,7 +221,7 @@ See `sotlisp-define-function-abbrev'."
           (when (string-match "\\$" expansion)
             (setq sotlisp--needs-moving t)))
         ;; Must be last.
-        (sotlisp--post-expansion-cleanup)))))
+        (sotlisp--post-expansion-cleanup))))))
 
 (put 'sotlisp--expand-function 'no-self-insert t)
 
@@ -295,12 +302,12 @@ The space char is not included.  Any \"$\" are also removed."
     ("jos" . "just-one-space")
     ("jr" . "json-read$")
     ("jtr" . "jump-to-register ")
-    ("k" . "kbd \"$\"")
+    ("k" . ("kbd " (format "%S" (key-description (read-key-sequence-vector "Key: ")))))
     ("kb" . "kill-buffer")
     ("kn" . "kill-new ")
     ("kp" . "keywordp ")
     ("l" . "lambda ($)")
-    ("la" . "looking-at \"$\"")
+    ("la" . ("looking-at \"" - "\""))
     ("lap" . "looking-at-p \"$\"")
     ("lb" . "looking-back \"$\"")
     ("lbp" . "line-beginning-position")

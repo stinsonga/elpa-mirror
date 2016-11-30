@@ -350,5 +350,20 @@ Evaluate BODY for each created sequence.
     (should (equal (seq-sort-by #'seq-length #'> seq)
                    ["xxx" "xx" "x"]))))
 
+(ert-deftest test-seq-random-elt-take-all ()
+  (let ((seq '(a b c d e))
+        (elts '()))
+    (should (= 0 (length elts)))
+    (dotimes (_ 1000)
+      (let ((random-elt (seq-random-elt seq)))
+        (add-to-list 'elts
+                     random-elt)))
+    (should (= 5 (length elts)))))
+
+(ert-deftest test-seq-random-elt-signal-on-empty ()
+  (should-error (seq-random-elt nil))
+  (should-error (seq-random-elt []))
+  (should-error (seq-random-elt "")))
+
 (provide 'seq-tests)
 ;;; seq-tests.el ends here
