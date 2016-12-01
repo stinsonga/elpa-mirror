@@ -63,7 +63,7 @@ html, body {
   margin: 0 auto -50px; /* the bottom margin is the negative value of the footer's height */
 }
 .footer, .push {
-  height: 50px; /* .push must be the same height as .footer */
+  height: 90px; /* .push must be the same height as .footer */
 }
 
 h1 {
