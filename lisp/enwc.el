@@ -460,8 +460,6 @@ ARGS is only for compatibility with the calling function."
       (message "Scanning... Done"))
     (enwc--update-scan-results)
     (enwc-display-wireless-networks enwc-last-scan)
-    (when enwc-scan-interactive
-      (pop-to-buffer "*ENWC*"))
     (setq enwc-scan-interactive nil)))
 
 ;;;;;;;;;;;;;;;;;;;;;;
