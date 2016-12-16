@@ -81,20 +81,28 @@
 (defvar json-mode-font-lock-keywords
   `(;; Constants
     (,(concat "\\<" (regexp-opt json-keywords) "\\>")
-     (0 font-lock-constant-face))
-    ;; Object names
-    ("\\(\"[^\"]*\"\\)[[:blank:]]*:"
-     (1 'json-mode-object-name-face))
-    ;; Strings
-    ("\"\\(\\\\.\\|[^\"]\\)*\""
-     (0 font-lock-string-face))))
+     (0 font-lock-constant-face))))
+
+(defun json-mode--string-is-object-name-p (startpos)
+  "Return t if STARTPOS is at the beginning of an object name."
+  (save-excursion
+    (goto-char startpos)
+    (and (eq (char-after) ?\")
+         (condition-case nil
+             (progn (forward-sexp 1) t)
+           (scan-error nil))
+         (looking-at "[[:blank:]]*:"))))
 
 (defun json-font-lock-syntactic-face-function (state)
-  "Highlight comments only.
-Strings are handled by `json-mode-font-lock-keywords', since we
-want to highlight object name strings differently from ordinary
-strings."
-  (when (nth 4 state) font-lock-comment-face))
+  "Determine which face to use for strings and comments.
+Object names receive the face `json-mode-object-name-face' to
+distinguish them from other strings."
+  (cond
+   ((nth 4 state) font-lock-comment-face)
+   ((and (nth 3 state)
+         (json-mode--string-is-object-name-p (nth 8 state)))
+    'json-mode-object-name-face)
+   (t font-lock-string-face)))
 
 (defconst json-mode--smie-grammar
   (smie-prec2->grammar
