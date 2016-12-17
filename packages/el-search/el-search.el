@@ -827,7 +827,7 @@ MESSAGE are used to construct the error message."
              type arg))))
 
 (defun el-search--elisp-file-name-p (file)
-  (and (string-match-p "\\.el\\'" file)
+  (and (string-match-p "\\.el\\(\\.\\(gz\\|Z\\)\\)?\\'" file)
        (file-exists-p file)
        (not (file-directory-p file))))
 
@@ -948,7 +948,8 @@ non-nil else."
                  (its-usable (equal (nth 5 (file-attributes file-name)) (car hash-entry))))
             (cdr hash-entry)
           (let ((atom-list (with-temp-buffer
-                             (insert-file-contents file-name-or-buffer)
+                             (let ((inhibit-message t))
+                               (insert-file-contents file-name-or-buffer))
                              (funcall get-atoms))))
             (puthash file-name
                      (cons (nth 5 (file-attributes file-name)) atom-list)
@@ -1017,7 +1018,9 @@ non-nil else."
         (if (bufferp next)
             (setq buffer next)
           (setf (el-search-head-file head) next)
-          (setq buffer (let ((warning-minimum-level :error)) (find-file-noselect next))))
+          (setq buffer (let ((warning-minimum-level :error)
+                             (inhibit-message t))
+                         (find-file-noselect next))))
         (unless (memq buffer buffer-list-before)
           (with-current-buffer buffer
             (setq-local el-search--temp-buffer-flag t)))
