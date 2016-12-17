@@ -41,6 +41,7 @@
 ;;   (define-key global-map          [(control ?J)] #'el-search-jump-to-search-head)
 ;;   (define-key global-map          [(control ?N)] #'el-search-continue-in-next-buffer)
 ;;   (define-key global-map          [(control ?O)] #'el-search-overview)
+;;   (define-key global-map          [(control ?A)] #'el-search-from-beginning)
 ;;
 ;;   (define-key el-search-read-expression-map [(control ?S)] #'exit-minibuffer)
 ;;
@@ -244,10 +245,6 @@
 ;; `el-search-jump-to-search-head' with a prefix argument.  That let's
 ;; you select an older search to resume and switches to the buffer and
 ;; position where this search had been suspended.
-;;
-;; There is no special command to restart a prior search from the
-;; beginning.  I suggest to use the pattern input history or
-;; `repeat-complex-command'.
 ;;
 ;;
 ;; Writing replacement rules for semi-automatic code rewriting
@@ -1642,6 +1639,18 @@ additional pattern types are currently defined:"
      'from-here))))
 
 (put 'el-search-pattern 'function-documentation '(el-search--make-docstring 'el-search-pattern))
+
+(defun el-search-from-beginning (&optional restart-search)
+  "Go to the first of the current search's recorded matches in this buffer.
+With prefix arg, restart the current search."
+  (interactive "P")
+  (if (not restart-search)
+      (setf (el-search-object-matches el-search--current-search) el-search--this-buffer-matches)
+    (cl-callf el-search-reset-search el-search--current-search)
+    (setq el-search--success nil)
+    (el-search--message-no-log "[Wrapped search]")
+    (sit-for .7))
+  (el-search-continue-search))
 
 (defun el-search-previous-match ()
   "Revisit found matches in the current buffer in reverse order."
