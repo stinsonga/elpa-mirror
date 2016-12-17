@@ -950,6 +950,7 @@ non-nil else."
           (let ((atom-list (with-temp-buffer
                              (let ((inhibit-message t))
                                (insert-file-contents file-name-or-buffer))
+                             (set-syntax-table emacs-lisp-mode-syntax-table)
                              (funcall get-atoms))))
             (puthash file-name
                      (cons (nth 5 (file-attributes file-name)) atom-list)
