@@ -1507,7 +1507,8 @@ that the current search."
   (if-let ((search el-search--current-search)
            (current-head (el-search-object-head search))
            (current-search-buffer (el-search-head-buffer current-head)))
-      (progn
+      (if (not (buffer-live-p current-search-buffer))
+          (error "Search head points to a killed buffer")
         (setq this-command 'el-search-pattern)
         (let ((win (display-buffer current-search-buffer el-search-display-buffer-action)))
           (select-frame-set-input-focus (window-frame win))
