@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.2
+;; Version: 1.2.1
 ;; Package-Requires: ((emacs "25") (stream "2.2.3"))
 
 
@@ -1067,7 +1067,7 @@ non-nil else."
                                        (el-search--skip-expression nil t)
                                        (setf (el-search-head-position head)
                                              (copy-marker (point)))
-                                       (cons
+                                       (cons ;Return the cons defining the build recipe of the stream
                                         (list (el-search-head-buffer head)
                                               match
                                               (el-search-head-file head))
