@@ -958,19 +958,25 @@ non-nil else."
             atom-list))))))
 
 (defun el-search--flatten-tree (tree)
-  (let ((elements ()))
+  (let ((elements ())
+        (walked-objects ;to avoid infinite recursion for circular TREEs
+         (make-hash-table :test #'eq))
+        (gc-cons-percentage 0.8)) ;Why is binding it here more effective than binding it more top-level?
     (cl-labels ((walker (object)
                         (if (or (not (sequencep object)) (stringp object) (null object)
                                 (char-table-p object) (bool-vector-p object))
                             (push object elements)
-                          (if (consp object)
-                              (progn
-                                (while (consp object)
-                                  (walker (car object))
-                                  (setq object (cdr object)))
-                                (when object ;dotted list
-                                  (walker object)))
-                            (cl-loop for elt being the elements of object do (walker elt))))))
+                          (unless (gethash object walked-objects)
+                            (puthash object t walked-objects)
+                            (if (consp object)
+                                (progn
+                                  (while (consp object)
+                                    (walker (car object))
+                                    (setq object (cdr object))
+                                    (when (gethash object walked-objects) (setq object nil)))
+                                  (when object ;dotted list
+                                    (walker object)))
+                              (cl-loop for elt being the elements of object do (walker elt)))))))
       (walker tree)
       elements)))
 
