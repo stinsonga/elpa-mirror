@@ -1681,7 +1681,8 @@ With prefix arg, restart the current search."
 (defun el-search--occur (search)
   ;; This is a poorly written stub!
   (cl-letf ((occur-buffer (generate-new-buffer "*El Occur*"))
-            (last nil) (matches nil) (overall-matches 0)
+            (last nil) (matches nil)
+            (matching-files 0) (matching-buffers 0) (overall-matches 0)
             (el-search-keep-hl t)
             ((symbol-function 'el-search-hl-remove) #'ignore))
     (setq this-command 'el-search-pattern)
@@ -1700,10 +1701,18 @@ With prefix arg, restart the current search."
                    (when matches (insert (format "%3d matches in %S\n" matches (or (cadr last) (car last)))))
                    (redisplay)
                    (setq last (list buffer file))
-                   (setq matches 1)))
+                   (setq matches 1)
+                   (if file (cl-incf matching-files) (when buffer (cl-incf matching-buffers)))))
                (stream-append (el-search-object-matches (el-search-reset-search search))
                               (stream (list (list nil nil nil)))))
-              (insert (format "\n\n%d matches in total." overall-matches))
+              (insert
+               (if (zerop overall-matches)
+                   "No matches"
+                 (concat
+                  (format "\n\n%d matches in " overall-matches)
+                  (unless (zerop matching-files) (format "%d files" matching-files))
+                  (unless (or (zerop matching-files) (zerop matching-buffers)) " and ")
+                  (unless (zerop matching-buffers)  (format "%d buffers" matching-buffers)))))
               (setq done t))
           (unless done (insert "\n\nAborted."))
           (el-search--message-no-log ""))))))
