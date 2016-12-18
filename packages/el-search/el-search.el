@@ -32,9 +32,10 @@
 ;; Suggested key bindings
 ;; ======================
 ;;
-;; After loading this file, you can eval the following key definitions
-;; to try things out while reading this introduction.  These are the
-;; bindings I use personally:
+;; After loading this file, you can eval
+;; (el-search-install-shift-bindings) to try things out while reading
+;; this introduction.  This will install the following bindings - all
+;; are of the form Control-Shift-Letter:
 ;;
 ;;   (define-key emacs-lisp-mode-map [(control ?S)] #'el-search-pattern)
 ;;   (define-key emacs-lisp-mode-map [(control ?%)] #'el-search-query-replace)
@@ -42,18 +43,29 @@
 ;;   (define-key global-map          [(control ?N)] #'el-search-continue-in-next-buffer)
 ;;   (define-key global-map          [(control ?O)] #'el-search-overview)
 ;;   (define-key global-map          [(control ?A)] #'el-search-from-beginning)
+;;   (define-key emacs-lisp-mode-map [(control ?R)] #'el-search-previous-match)
 ;;
 ;;   (define-key el-search-read-expression-map [(control ?S)] #'exit-minibuffer)
 ;;
+;;   (define-key el-search-map [(control ?D)] #'el-search-skip-directory)
+;;   (define-key el-search-map [(control ?N)] #'el-search-continue-in-next-buffer)
+;;
 ;;   (define-key isearch-mode-map [(control ?S)] #'el-search-search-from-isearch)
 ;;   (define-key isearch-mode-map [(control ?%)] #'el-search-replace-from-isearch)
+;;
+;;   (define-key global-map [(control ?E)] #'el-search-emacs-elisp-sources)
+;;   (define-key global-map [(control ?L)] #'el-search-load-path)
+;;   (define-key global-map [(control ?B)] #'el-search-buffers)
 ;;
 ;;   (with-eval-after-load 'dired
 ;;     (define-key dired-mode-map [(control ?S)] #'el-search-dired-marked-files))
 ;;
 ;; These bindings may not work in a console (if you have an idea for
 ;; official bindings that fit better into the Emacs ecosystem, please
-;; mail me).
+;; mail me).  You can either just copy
+;; (el-search-install-shift-bindings) to your init file to use these
+;; bindings automatically in the future, or use its definition for a
+;; template for your own key bindings.
 ;;
 ;; The bindings in `isearch-mode-map' let you switch to "el-search"
 ;; commands from isearch reusing already given input.  The binding in
@@ -428,13 +440,8 @@ directory searches like `el-search-directory' or
   :type '(choice (repeat :tag "Regexps for ignored directories" regexp)
 		 (const  :tag "No ignored directories" nil)))
 
-(defvar el-search-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map [(control ?D)] #'el-search-skip-directory)
-    (define-key map [(control ?N)] #'el-search-continue-in-next-buffer)
-    (define-key map [(control ?R)] #'el-search-previous-match)
-    map)
-  "Used by search commands as transient-map.")
+(defvar el-search-map (make-sparse-keymap)
+  "Used by search commands as transient map.")
 
 (defvar el-search-read-expression-map
   (let ((map (make-sparse-keymap)))
@@ -1151,6 +1158,34 @@ non-nil unless their name is matched by one of the
           (not (cl-some (lambda (regexp) (string-match-p regexp dir-name))
                         el-search-ignored-directory-regexps))))
    t #'el-search--elisp-file-name-p))
+
+;;;###autoload
+(defun el-search-install-shift-bindings ()
+  (interactive)
+  (define-key emacs-lisp-mode-map [(control ?S)] #'el-search-pattern)
+  (define-key emacs-lisp-mode-map [(control ?%)] #'el-search-query-replace)
+  (define-key global-map          [(control ?J)] #'el-search-jump-to-search-head)
+  (define-key global-map          [(control ?N)] #'el-search-continue-in-next-buffer)
+  (define-key global-map          [(control ?O)] #'el-search-overview)
+  (define-key global-map          [(control ?A)] #'el-search-from-beginning)
+  (define-key emacs-lisp-mode-map [(control ?R)] #'el-search-previous-match)
+
+  (define-key el-search-read-expression-map [(control ?S)] #'exit-minibuffer)
+
+  (define-key el-search-map [(control ?D)] #'el-search-skip-directory)
+  (define-key el-search-map [(control ?N)] #'el-search-continue-in-next-buffer)
+
+  (define-key isearch-mode-map [(control ?S)] #'el-search-search-from-isearch)
+  (define-key isearch-mode-map [(control ?%)] #'el-search-replace-from-isearch)
+
+  (define-key global-map [(control ?E)] #'el-search-emacs-elisp-sources)
+  (define-key global-map [(control ?L)] #'el-search-load-path)
+  (define-key global-map [(control ?B)] #'el-search-buffers)
+
+  (defvar dired-mode-map)
+
+  (with-eval-after-load 'dired
+    (define-key dired-mode-map [(control ?S)] #'el-search-dired-marked-files)))
 
 
 ;;;; Additional pattern type definitions
