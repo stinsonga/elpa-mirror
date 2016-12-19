@@ -568,7 +568,7 @@ matches the (only) argument (that should be a string)."
   (when (and (symbolp pattern)
              (not (eq pattern '_))
              (not (keywordp pattern)))
-    (error "Free symbol: `%S' (missing a quote?)" pattern)))
+    (user-error "Error: free variable `%S' (missing a quote?)" pattern)))
 
 (defun el-search--read-pattern (prompt &optional default histvar)
   (cl-callf or histvar 'el-search-pattern-history)
@@ -821,10 +821,10 @@ Raise an error if not.  The string arguments TYPE and optional
 MESSAGE are used to construct the error message."
   (dolist (arg args)
     (unless (funcall predicate arg)
-      (error (concat "Pattern `%s': "
-                     (or message (format "argument doesn't fulfill %S" predicate))
-                     ": %S")
-             type arg))))
+      (user-error (concat "Pattern `%s': "
+                          (or message (format "argument doesn't fulfill %S" predicate))
+                          ": %S")
+                  type arg))))
 
 (defun el-search--elisp-file-name-p (file)
   (and (string-match-p (concat "\\.el" (regexp-opt jka-compr-load-suffixes) "?\\'") file)
@@ -1337,7 +1337,8 @@ expression, the absolute FILE-NAME is tested."
                              ('nil)
                              ((pred stringp) (apply-partially #'string-match-p regexp-or-predicate))
                              ((pred functionp) regexp-or-predicate)
-                             (_ (error "Pattern `file': illegal argument: %S" regexp-or-predicate)))))
+                             (_ (user-error "Pattern `file': illegal argument: %S"
+                                            regexp-or-predicate)))))
     (if (not regexp-or-predicate)
         (lambda (file-name-or-buffer _) (funcall get-file-name file-name-or-buffer))
       (let ((test-file-name-or-buffer
@@ -1508,7 +1509,7 @@ that the current search."
            (current-head (el-search-object-head search))
            (current-search-buffer (el-search-head-buffer current-head)))
       (if (not (buffer-live-p current-search-buffer))
-          (error "Search head points to a killed buffer")
+          (user-error "Search head points to a killed buffer")
         (setq this-command 'el-search-pattern)
         (let ((win (display-buffer current-search-buffer el-search-display-buffer-action)))
           (select-frame-set-input-focus (window-frame win))
@@ -1547,9 +1548,9 @@ continued."
          ((eq (current-buffer) current-search-buffer)
           (setf (el-search-head-position head) (copy-marker (point))))
          ((and current-search-buffer (buffer-live-p current-search-buffer))
-          (error "Please resume from buffer %s" (buffer-name current-search-buffer)))
+          (user-error "Please resume from buffer %s" (buffer-name current-search-buffer)))
          (current-search-buffer
-          (error "Search head points to a killed buffer")))))
+          (user-error "Search head points to a killed buffer")))))
     (unwind-protect
         (let ((stream-of-matches (el-search-object-matches el-search--current-search)))
           (if (not (stream-empty-p stream-of-matches))
@@ -1639,7 +1640,7 @@ additional pattern types are currently defined:"
       ;; FIXME: This case is tricky; the user would expect that when he hits
       ;; C-S afterwards, the search is restored with the old matches
       ;; "merged".  So for now, we raise this:
-      (error "Last search completed, please start a new search")
+      (user-error "Last search completed, please restart the search")
     (setq this-command 'el-search-pattern)
     (let ((last-match-beg (el-search-object-last-match el-search--current-search)))
       (if (< last-match-beg (point))
@@ -1813,7 +1814,7 @@ reindent."
   ;; layout of subexpressions shared with the original (replaced)
   ;; expression and the replace expression.
   (if (and splice (not (listp replacement)))
-      (error "Expression to splice in is an atom")
+      (error "Expression to splice in is not a list")
     (let ((orig-buffer (generate-new-buffer "orig-expr")))
       (with-current-buffer orig-buffer
         (emacs-lisp-mode)
