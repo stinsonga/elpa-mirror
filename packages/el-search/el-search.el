@@ -827,7 +827,10 @@ MESSAGE are used to construct the error message."
              type arg))))
 
 (defun el-search--elisp-file-name-p (file)
-  (and (string-match-p "\\.el\\(\\.\\(gz\\|Z\\)\\)?\\'" file)
+  (and (string-match-p (concat "\\.el\\("
+                               (mapconcat #'identity jka-compr-load-suffixes "\\|")
+                               "\\)?\\'")
+                       file)
        (file-exists-p file)
        (not (file-directory-p file))))
 
