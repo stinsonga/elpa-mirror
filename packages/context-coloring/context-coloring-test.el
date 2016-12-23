@@ -1,4 +1,4 @@
-;;; context-coloring-test.el --- Tests for context coloring  -*- lexical-binding: t; no-byte-compile: t; -*-
+;;; context-coloring-test.el --- Tests for context coloring  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2014-2016  Free Software Foundation, Inc.
 
@@ -344,6 +344,41 @@ signaled."
             '(context-coloring-level-0-face nil))
            (disable-theme 'context-coloring-test-custom-theme)))
 
+(when (fboundp 'prettify-symbols-mode)
+
+  (defun context-coloring-test-assert-prettify-symbols-coloring ()
+    (context-coloring-test-assert-coloring "
+(111111 () (222222 ()))"))
+
+  (defun context-coloring-test-assert-prettify-symbols-text-properties ()
+    (unless (cond
+             ((version< emacs-version "25.0")
+              (get-text-property 2 'composition))
+             (t
+              (and (get-text-property 2 'prettify-symbols-start)
+                   (get-text-property 2 'prettify-symbols-end))))
+      (ert-fail "Expected buffer to have it's symbols prettified, but it didn't.")))
+
+  (context-coloring-test-deftest prettify-symbols-enabled-before
+                                 (lambda ()
+                                   (context-coloring-test-with-fixture
+                                    "./fixtures/test/prettify-symbols.el"
+                                    (emacs-lisp-mode)
+                                    (prettify-symbols-mode)
+                                    (context-coloring-mode)
+                                    (context-coloring-test-assert-prettify-symbols-text-properties)
+                                    (context-coloring-test-assert-prettify-symbols-coloring))))
+
+  (context-coloring-test-deftest prettify-symbols-enabled-after
+                                 (lambda ()
+                                   (context-coloring-test-with-fixture
+                                    "./fixtures/test/prettify-symbols.el"
+                                    (emacs-lisp-mode)
+                                    (context-coloring-mode)
+                                    (prettify-symbols-mode)
+                                    (context-coloring-test-assert-prettify-symbols-text-properties)
+                                    (context-coloring-test-assert-prettify-symbols-coloring)))))
+
 
 ;;; Coloring tests
 
@@ -482,15 +517,6 @@ other non-letters are guaranteed to always be discarded."
   (lambda ()
     (context-coloring-test-assert-coloring "
 (xxxxxxxx () {
-    11 111 2
-        222 12
-        222 22
-        22222 12
-    2
-}());
-
-(xxxxxxxx () {
-    'xxx xxxxxx';
     11 111 2
         222 12
         222 22
@@ -636,6 +662,15 @@ ssssssssssss0"))
         (context-coloring-test-setup-top-level-scope indicator)
         (context-coloring-test-assert-javascript-global-level))))
   :fixture "initial-level.js")
+
+(context-coloring-test-deftest-javascript narrow-to-region
+  (lambda ()
+    (context-coloring-test-assert-coloring "
+1111111 0 11 11
+11111111 0 11 11
+11111111 0 11 1"))
+  :before (lambda ()
+            (narrow-to-region (+ (point-min) 1) (- (point-max) 2))))
 
 (context-coloring-test-deftest-emacs-lisp defun
   (lambda ()
