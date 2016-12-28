@@ -934,8 +934,13 @@ non-nil else."
                                   (condition-case err
                                       (while t (push (read (current-buffer)) forms))
                                     (end-of-file forms)
-                                    (error "Unexpected error whilst reading %s position %s: %s"
-                                           buffer (point) err))))))))
+                                    (error
+                                     (message "%s in %S\nat position %d - skipping"
+                                              (error-message-string err)
+                                              file-name-or-buffer
+                                              (point))
+                                     (sit-for 3.)
+                                     '()))))))))
         (buffer (if (bufferp file-name-or-buffer)
                     file-name-or-buffer
                   (get-file-buffer file-name-or-buffer))))
@@ -952,9 +957,10 @@ non-nil else."
                                (insert-file-contents file-name-or-buffer))
                              (set-syntax-table emacs-lisp-mode-syntax-table)
                              (funcall get-atoms))))
-            (puthash file-name
-                     (cons (nth 5 (file-attributes file-name)) atom-list)
-                     el-search--atom-list-cache)
+            (when atom-list ;empty in case of error
+              (puthash file-name
+                       (cons (nth 5 (file-attributes file-name)) atom-list)
+                       el-search--atom-list-cache))
             atom-list))))))
 
 (defun el-search--flatten-tree (tree)
