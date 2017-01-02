@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.2.2
+;; Version: 1.2.3
 ;; Package-Requires: ((emacs "25") (stream "2.2.3"))
 
 
@@ -604,8 +604,8 @@ matches the (only) argument (that should be a string)."
   ;; point instead.
   (when read (setq expression (save-excursion (read (current-buffer)))))
   (cond
-   ((eq '@ expression) ;bug#24542
-    (forward-char))
+   ((and (symbolp expression)) (string-match-p "\\`@+\\'" (symbol-name expression)) ;bug#24542
+    (forward-char (length (symbol-name expression))))
    ((or (null expression)
         (equal [] expression)
         (not (or (listp expression) (vectorp expression))))
