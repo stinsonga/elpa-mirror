@@ -592,8 +592,13 @@ matches the (only) argument (that should be a string)."
 
 
 (defun el-search--end-of-sexp ()
-  ;; Assumes point is at sexp beginning
-  (or (scan-sexps (point) 1) (point-max)))
+  "Return the value of point at the end of this sexp.
+Assumes point is at a sexp beginning."
+  (if (eql (char-after) ?@) ;bug#24542
+      (save-excursion
+        (ignore (read (current-buffer)))
+        (point))
+    (or (scan-sexps (point) 1) (point-max))))
 
 (defun el-search--skip-expression (expression &optional read)
   ;; Move forward at least one character.  Don't move into a string or
@@ -608,8 +613,6 @@ matches the (only) argument (that should be a string)."
   ;; point instead.
   (when read (setq expression (save-excursion (read (current-buffer)))))
   (cond
-   ((and (symbolp expression)) (string-match-p "\\`@+\\'" (symbol-name expression)) ;bug#24542
-    (forward-char (length (symbol-name expression))))
    ((or (null expression)
         (equal [] expression)
         (not (or (listp expression) (vectorp expression))))
