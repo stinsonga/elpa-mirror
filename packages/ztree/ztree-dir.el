@@ -45,7 +45,7 @@
 
 (require 'ztree-util)
 (require 'ztree-view)
-(eval-when-compile (require 'cl-lib))
+(require 'cl-lib)
 
 ;;
 ;; Constants
@@ -60,8 +60,7 @@ By default all filest starting with dot `.', including . and ..")
 ;;
 
 (defvar ztree-dir-move-focus nil
-  "If set to true moves the focus to opened window when the
-user press RETURN on file ")
+  "Defines if move focus to opened window on hard-action command (RETURN) on a file.")
 
 (defvar-local ztree-dir-filter-list (list ztree-hidden-files-regexp)
   "List of regexp file names to filter out.
@@ -96,7 +95,9 @@ One could add own filters in the following way:
   " Dir"
   ;; The minor mode keymap
   `(
-    (,(kbd "H") . ztree-dir-toggle-show-filtered-files)))
+    (,(kbd "H") . ztree-dir-toggle-show-filtered-files)
+    (,(kbd ">") . ztree-dir-narrow-to-dir)
+    (,(kbd "<") . ztree-dir-widen-to-parent)))
 
 
 
@@ -146,12 +147,37 @@ Otherwise, the ztree window is used to find the file."
 
 
 (defun ztree-dir-directory-files (path)
-  "Returns the list of files/directories for the given PATH"
+  "Return the list of files/directories for the given PATH."
   ;; remove . and .. from the list of files to avoid infinite
   ;; recursion
-  (remove-if (lambda (x) (string-match-p "/\\.\\.?$" x))
-             (directory-files path 'full)))
+  (cl-remove-if (lambda (x) (string-match-p "/\\.\\.?$" x))
+                (directory-files path 'full)))
 
+
+(defun ztree-dir-narrow-to-dir ()
+  "Interactive command to narrow the current directory buffer.
+The buffer is narrowed to the directory under the cursor.
+If the cursor is on a file, the buffer is narrowed to the parent directory."
+  (interactive)
+  (let* ((line (line-number-at-pos))
+         (node (ztree-find-node-in-line line))
+         (parent (ztree-get-parent-for-line line)))
+    (if (file-directory-p node)
+        (ztree-change-start-node node)
+      (when parent
+        (ztree-change-start-node (ztree-find-node-in-line parent))))))
+
+
+(defun ztree-dir-widen-to-parent ()
+  "Interactive command to widen the current directory buffer to parent.
+The buffer is widened to the parent of the directory of the current buffer.
+This allows to jump to the parent directory if this directory is one level
+up of the opened."
+  (interactive)
+  (let* ((node ztree-start-node)
+         (parent (file-name-directory (directory-file-name node))))
+    (when parent
+      (ztree-change-start-node parent))))
 
 
 ;;;###autoload
