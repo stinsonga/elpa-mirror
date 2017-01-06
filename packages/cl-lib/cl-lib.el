@@ -4,8 +4,8 @@
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; vcomment: Emacs-24.3's version is 1.0 so this has to stay below.
-;; Version: 0.6
-;; Package-Requires: ((emacs "21"))
+;; Version: 0.6.1
+;; Y-Package-Requires: ((emacs "21")) ¡`emacs' package only exists in Emacs≥24!
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
