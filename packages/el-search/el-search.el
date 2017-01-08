@@ -1815,22 +1815,23 @@ are ignored."
 (declare-function dired-get-marked-files "dired")
 
 ;;;###autoload
-(defun el-search-dired-marked-files (pattern &optional recursively)
+(defun el-search-dired-marked-files (pattern files &optional recursively)
   "El-search marked files and directories in dired.
 With RECURSIVELY given (the prefix arg in an interactive call),
 search directories recursively."
-  (interactive (list (el-search--read-pattern-for-interactive) current-prefix-arg))
+  (interactive (list (el-search--read-pattern-for-interactive)
+                     (dired-get-marked-files)
+                     current-prefix-arg))
   (el-search-setup-search
    pattern
-   (let ((files (dired-get-marked-files)))
-     (lambda ()
-       (stream-concatenate
-        (seq-map
-         (lambda (file)
-           (if (file-directory-p file)
-               (el-search-stream-of-directory-files file recursively)
-             (stream (list file))))
-         (stream files)))))))
+   (lambda ()
+     (stream-concatenate
+      (seq-map
+       (lambda (file)
+         (if (file-directory-p file)
+             (el-search-stream-of-directory-files file recursively)
+           (stream (list file))))
+       (stream files))))))
 
 
 ;;;; Query-replace
