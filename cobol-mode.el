@@ -1,10 +1,10 @@
 ;;; cobol-mode.el --- Mode for editing COBOL code -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2013-2015 Edward Hart
+;; Copyright (C) 2013-2017 Edward Hart
 
 ;; Author: Edward Hart <edward.dan.hart@gmail.com>
 ;; Maintainer: Edward Hart
-;; Version: 0
+;; Version: 1.0.0
 ;; Created: 9 November 2013
 ;; Keywords: languages
 
@@ -49,6 +49,24 @@
 ;; Finally, I strongly suggest installing auto-complete-mode, which makes typing
 ;; long keywords and variable names a thing of the past.  See
 ;; https://github.com/auto-complete/auto-complete.
+
+;;; Known bugs:
+
+;; * Switching source formats requires M-x customize settings to be changed,
+;;   saved and cobol-mode to be unloaded then reloaded.
+;; * Copying-and-pasting content in fixed-format sometimes results in content
+;;   being pasted in column 1 and spaces inserted in the middle of it.
+;; * The indentation code leaves a lot of trailing whitespace.
+;; * Periods on their own line are sometimes indented strangely.
+;; * String continuation does not work.
+
+;;; Missing features:
+
+;; * Switch between dialect's reserved word lists via M-x customize (without
+;;   unloading cobol-mode).
+;; * Allow users to modify easily reserved word lists.
+;; * Expand copybooks within a buffer.
+;; * String continuation (see above).
 
 ;;; Code:
 
@@ -2288,6 +2306,7 @@ to END."
 to END."
   (funcall
    (syntax-propertize-rules
+    ;; TODO: Override open strings
     ("^.\\{72\\}\\(.\\)" (1 "<")))
    beg end))
 
@@ -2337,6 +2356,8 @@ and ignored areas) between points BEG and END."
                 "\\(" (regexp-opt cobol-directives) "\\>\\)")
        . font-lock-preprocessor-face)
      ( ,cobol--mf-compiler-directive-re . font-lock-preprocessor-face)
+
+     ;; TO-DO: Highlight reserved words in directives as reserved words
 
      ;; Standard language features.
      ( ,(regexp-opt cobol-verbs 'words) . 'cobol-verb)
@@ -2830,7 +2851,7 @@ lines."
 
           (t
            (cobol--indent (cobol--indent-of-open-statement
-                          (cobol--statements-with-phrase str)))))))
+                           (cobol--statements-with-phrase str)))))))
 
 (defun cobol--get-current-division ()
   "Return the division containing the point as a symbol."
