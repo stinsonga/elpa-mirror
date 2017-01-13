@@ -663,7 +663,7 @@ a string or comment."
       (insert (or (cdr ud) main))
       (mapc
        (pcase-lambda (`(,symbol . ,fun))
-         (unless (string-match-p "\\`-\\|--" (symbol-name symbol)) ;let's consider these "internal"
+         (unless (string-match-p "\\`[-_]\\|--" (symbol-name symbol)) ;let's consider these "internal"
            (when-let ((doc (documentation fun)))
              (insert "\n\n\n-- ")
              (setq doc (help-fns--signature symbol doc fun fun nil))
