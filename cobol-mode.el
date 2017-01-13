@@ -67,6 +67,7 @@
 ;; * Allow users to modify easily reserved word lists.
 ;; * Expand copybooks within a buffer.
 ;; * String continuation (see above).
+;; * Allow users to modify start of program-name area.
 
 ;;; Code:
 
