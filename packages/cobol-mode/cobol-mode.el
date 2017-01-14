@@ -80,13 +80,14 @@
   :prefix 'cobol-
   :group 'languages)
 
+(eval-and-compile
 (defun cobol--radio-of-list (list)
   "Return radio with the elements of LIST as its arguments."
   (cons 'radio (mapcar #'(lambda (elt) (list 'const elt)) list)))
 
 (defun cobol--val-in-list-p (list)
   "Return a predicate to check whether a value is in the LIST."
-  #'(lambda (value) (memq value list)))
+  #'(lambda (value) (memq value list))))
 
 (defcustom cobol-declaration-clause-indent 40
   "Column to indent data division declaration clauses to."
@@ -94,6 +95,7 @@
   :safe 'integerp
   :group 'cobol)
 
+(eval-and-compile
 (defconst cobol-formats
   '(fixed-85 fixed-2002 free)
   "The accepted values for `cobol-source-format'.")
@@ -102,7 +104,7 @@
   "Source format of COBOL source code."
   :type (cobol--radio-of-list cobol-formats)
   :safe (cobol--val-in-list-p cobol-formats)
-  :group 'cobol)
+  :group 'cobol))
 
 ;; Ruler
 ;; Code derived from the Emacs fortran.el, rulers from IBM Rational Developer.
@@ -1959,6 +1961,7 @@ The next key typed is executed unless it is SPC."
   "^.\\{1,6\\}"
   "Regexp matching the fixed-form sequence area.")
 
+(eval-and-compile
 (defconst cobol--complete-sequence-area-re
   "^.\\{6\\}"
   "Regexp matching a complete sequence area.")
@@ -1986,7 +1989,7 @@ The next key typed is executed unless it is SPC."
 (defconst cobol--fixed-non-comment-sequence-area-re
   (concat cobol--complete-sequence-area-re
           cobol--non-fixed-comment-indicators-re)
-  "Regexp matching the sequence area of a non-comment fixed-form line.")
+  "Regexp matching the sequence area of a non-comment fixed-form line."))
 
 (defconst cobol--fixed-non-comment-grouped-sequence-area-re
   (concat "\\(" cobol--fixed-form-sequence-area-re "\\)")
@@ -2012,6 +2015,7 @@ lines.")
   "\\*>.*"
   "Regexp matching a free-form source comment.")
 
+(eval-and-compile
 (defconst cobol--optional-whitespace-re
   "[ 	]*" ; Space and tab
   "Regexp matching optional whitespace. \\w isn't used to avoid matching
@@ -2026,7 +2030,7 @@ newlines.")
 
 (defun cobol--with-opt-whitespace-line (&rest strs)
   "Return STRS concatenated after `cobol--optional-leading-whitespace-line-re'."
-  (apply #'concat (cons cobol--optional-leading-whitespace-line-re strs)))
+  (apply #'concat (cons cobol--optional-leading-whitespace-line-re strs))))
 
 (defconst cobol--free-form-comment-line-re
   (cobol--with-opt-whitespace-line cobol--free-form-comment-re)
@@ -2055,9 +2059,10 @@ newlines.")
   (cobol--with-opt-whitespace-line "78" cobol--identifier-re)
   "Regexp matching constants declared as specified by Micro Focus.")
 
+(eval-and-compile
 (defconst cobol--directive-indicator-re
   ">> ?"
-  "Regexp matching a valid directive indicator.")
+  "Regexp matching a valid directive indicator."))
 
 (defconst cobol--define-directive-re
   (cobol--with-opt-whitespace-line cobol--directive-indicator-re
@@ -2328,7 +2333,7 @@ between points BEG and END."
               (re-search-forward "\\(\"\"\\|''\\)" end t))
     ;; Move to first quote.
     (backward-char 2)
-    (if (in-string-p)
+    (if (in-string-p)                   ;FIXME: Use (nth 3 (syntax-ppss))?
         (progn
           (put-text-property (point) (1+ (point))
                              'syntax-table (string-to-syntax "\\"))
@@ -2479,7 +2484,7 @@ and ignored areas) between points BEG and END."
   "Create a WHEN clause skeleton with provided PROMPT and NUM-ALSO ALSOs."
   `(,prompt "WHEN " str
     ,@(let ((clauses nil))
-        (dotimes 'num-also
+        (dotimes (_ num-also)
           (setf clauses (append clauses `(" ALSO " (skeleton-read ,prompt)))))
         clauses)
     > \n > _ \n))
@@ -2609,8 +2614,7 @@ and ignored areas) between points BEG and END."
       (let ((ref-point (point-min)))
         (goto-char beg)
         (while (search-forward-regexp (concat "\\<" word "\\>") end t)
-          (when (not (progn
-                       (setf state (parse-partial-sexp ref-point (point)))
+          (when (not (let ((state (parse-partial-sexp ref-point (point))))
                        (or (nth 3 state) (nth 4 state))))
             (replace-match (cobol-format-word word) t)))))))
 
@@ -2646,6 +2650,9 @@ and ignored areas) between points BEG and END."
   (if (eq cobol-source-format 'free)
       0
     7))
+
+;;; Misc
+(defvar cobol-tab-width 4 "Width of a tab for `cobol-mode'.")
 
 (cl-defun cobol--indent (indent &optional (times 1))
   "Increment INDENT."
@@ -2992,10 +2999,11 @@ the clauses of a non-procedural PERFORM."
 
 (defun cobol--indent-point-to-col (col)
   "Indent the point to COL."
+  ;; FIXME: Use indent-line-to?
   (cond ((< (current-column) col)
          (indent-to col))
         ((> (current-column) col)
-         (delete-backward-char (- (current-column) col)))))
+         (delete-char (- col (current-column))))))
 
 (defun cobol--set-line-indent (indent)
   "Set the indent of the current line to INDENT."
@@ -3040,8 +3048,7 @@ start of area A, if fixed-format)."
       (when (< (cobol--current-indentation) (- (current-column) (cobol--code-start)))
         (cobol--indent-point)))))
 
-;;; Misc
-(defvar cobol-tab-width 4 "Width of a tab for `cobol-mode'.")
+(defvar ac-ignore-case)
 
 ;;;###autoload
 (define-derived-mode cobol-mode prog-mode "COBOL"
@@ -3060,6 +3067,8 @@ start of area A, if fixed-format)."
   (set (make-local-variable 'comment-start) "*>")
   (set (make-local-variable 'comment-end) "")
 
+  ;; FIXME: `back-to-indentation' is not a variable!?  Maybe you want
+  ;; to add a [remap back-to-indentation] binding in the keymap instead?
   (set (make-local-variable 'back-to-indentation) #'cobol-back-to-indentation)
   (set (make-local-variable 'syntax-propertize-function)
        #'cobol--syntax-propertize-function)
