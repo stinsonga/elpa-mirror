@@ -1,25 +1,25 @@
 ;;; cobol-mode.el --- Mode for editing COBOL code -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2013-2017 Edward Hart
+;; Copyright (C) 2013-2017  Free Software Foundation, Inc.
 
 ;; Author: Edward Hart <edward.dan.hart@gmail.com>
-;; Maintainer: Edward Hart
+;; Maintainer: Edward Hart <edward.dan.hart@gmail.com>
 ;; Version: 1.0.0
 ;; Created: 9 November 2013
 ;; Keywords: languages
 
-;;; This program is free software: you can redistribute it and/or modify
-;;; it under the terms of the GNU General Public License as published by
-;;; the Free Software Foundation, either version 3 of the License, or
-;;; (at your option) any later version.
-;;;
-;;; This program is distributed in the hope that it will be useful,
-;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;;; GNU General Public License for more details.
-;;;
-;;; You should have received a copy of the GNU General Public License
-;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; This program is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+;;
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -32,7 +32,7 @@
 ;; Highlighting changes with the code format, which can be specified using the
 ;; M-x customize menu.
 
-;;; Installation:
+;;;; Installation:
 
 ;; To install cobol-mode.el, save it to your .emacs.d/ directory and add the
 ;; following to your .emacs:
@@ -50,7 +50,7 @@
 ;; long keywords and variable names a thing of the past.  See
 ;; https://github.com/auto-complete/auto-complete.
 
-;;; Known bugs:
+;;;; Known bugs:
 
 ;; * Switching source formats requires M-x customize settings to be changed,
 ;;   saved and cobol-mode to be unloaded then reloaded.
@@ -60,7 +60,7 @@
 ;; * Periods on their own line are sometimes indented strangely.
 ;; * String continuation does not work.
 
-;;; Missing features:
+;;;; Missing features:
 
 ;; * Switch between dialect's reserved word lists via M-x customize (without
 ;;   unloading cobol-mode).
@@ -3044,7 +3044,7 @@ start of area A, if fixed-format)."
 (defvar cobol-tab-width 4 "Width of a tab for `cobol-mode'.")
 
 ;;;###autoload
-(define-derived-mode cobol-mode prog-mode "COBOL" ()
+(define-derived-mode cobol-mode prog-mode "COBOL"
   "COBOL mode is a major mode for handling COBOL files."
   :group 'cobol
 
