@@ -5,6 +5,10 @@ NB: "RCS: X..Y " means that the particular release includes
     changes in the RCS repo, revision 1.X through 1.Y (inclusive).
 
 
+- 3.0.1 | 2017-01-15
+  - cleaner quoting in docstrings
+  - portabilty fixes (Emacs 25.1)
+
 - 3.0.0 | 2014-07-22
   - bugfixes
     - on write, use ‘\’ to escape certain chars
