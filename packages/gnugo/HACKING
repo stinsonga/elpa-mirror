@@ -53,6 +53,7 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 * tested with (newest first)
   | Emacs     | GNU Go |
   |-----------+--------|
+  | 26.0.50.6 | 3.8    |
   | 24.3.50.3 | 3.8    |
   | ?         | 3.6    |
   | ?         | 3.4    |
