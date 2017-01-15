@@ -2145,9 +2145,8 @@ In this mode, keys do not self insert."
   (setq font-lock-defaults '(gnugo-font-lock-keywords t)
         truncate-lines t)
   (add-hook 'kill-buffer-hook 'gnugo-cleanup nil t)
-  (set (make-local-variable 'gnugo-state)
-       (gnugo--mkht :size (1- 42)))
-  (set (make-local-variable 'gnugo-btw) nil)
+  (setq-local gnugo-state (gnugo--mkht :size (1- 42)))
+  (setq-local gnugo-btw nil)
   (add-to-list 'minor-mode-alist '(gnugo-btw gnugo-btw))
   (gnugo-put :highlight-last-move-spec
     (gnugo-put :default-highlight-last-move-spec '("(" -1 nil)))
