@@ -2145,6 +2145,8 @@ In this mode, keys do not self insert."
   (setq font-lock-defaults '(gnugo-font-lock-keywords t)
         truncate-lines t)
   (add-hook 'kill-buffer-hook 'gnugo-cleanup nil t)
+  ;; GNU Emacs 25.1 looks askance at ‘intangible’, sigh.
+  (setq-local inhibit-point-motion-hooks nil)
   (setq-local gnugo-state (gnugo--mkht :size (1- 42)))
   (setq-local gnugo-btw nil)
   (add-to-list 'minor-mode-alist '(gnugo-btw gnugo-btw))
