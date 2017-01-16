@@ -1249,34 +1249,40 @@ its move."
         (setq cur gnugo-mode-line)
         (gnugo-put :mode-line cur)
         (gnugo-put :mode-line-form
-          (cond ((stringp cur)
-                 (setq cur (copy-sequence cur))
-                 (let (acc cut c)
-                   (while (setq cut (string-match "~[bwpmtu]" cur))
-                     (aset cur cut ?%)
-                     (setq c (aref cur (cl-incf cut)))
-                     (aset cur cut ?s)
-                     (push
-                      `(,(intern (format "squig-%c" c))
-                        ,(cl-case c
-                           (?b '(or (gnugo-get :black-captures) 0))
-                           (?w '(or (gnugo-get :white-captures) 0))
-                           (?p '(gnugo-current-player))
-                           (?t '(let ((ws (gnugo-get :waiting-start)))
+          (if (consp cur)
+              cur
+            (let (v refs varlist)
+              (cl-flet
+                  ((R (re rep)
+                      (setq cur (replace-regexp-in-string
+                                 re rep cur t t))))
+                (R "%" "%%")            ; hygiene
+                (R "~[bwpmtu]"
+                   (lambda (match)
+                     (prog1 "%s"
+                       (push (setq v (intern match))
+                             refs)
+                       (pushnew
+                        (list
+                         v
+                         (cl-case v
+                           (~b '(or (gnugo-get :black-captures) 0))
+                           (~w '(or (gnugo-get :white-captures) 0))
+                           (~p '(gnugo-current-player))
+                           (~t '(let ((ws (gnugo-get :waiting-start)))
                                   (if ws
                                       (cadr (time-since ws))
                                     "-")))
-                           (?u '(or (gnugo-get :last-waiting) "-"))
-                           (?m '(let ((tree (gnugo-get :sgf-gametree))
+                           (~u '(or (gnugo-get :last-waiting) "-"))
+                           (~m '(let ((tree (gnugo-get :sgf-gametree))
                                       (monkey (gnugo-get :monkey)))
                                   (gethash (car (aref monkey 0))
                                            (gnugo--tree-mnum tree)
                                            ;; should be unnecessary
                                            "?")))))
-                      acc))
-                   `(let ,(delete-dups (copy-sequence acc))
-                      (format ,cur ,@(reverse (mapcar 'car acc))))))
-                (t cur))))
+                        varlist :key 'car)))))
+              `(let ,varlist
+                 (format ,cur ,@(nreverse refs)))))))
       (let ((form (gnugo-get :mode-line-form)))
         (setq mode-line-process
               (and form
