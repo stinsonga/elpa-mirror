@@ -1261,7 +1261,7 @@ its move."
                      (prog1 "%s"
                        (push (setq v (intern match))
                              refs)
-                       (pushnew
+                       (cl-pushnew
                         (list
                          v
                          (cl-case v
