@@ -897,9 +897,16 @@ For all other values of RSEL, do nothing and return nil."
    with fruit
    while plist
    do (setf
-       fruit (list (cons                ; DWR: LtR OoE assumed.
-                    (pop plist)
-                    (pop plist)))
+       fruit (list
+              ;; Albeit elegant, this assumes LtR OoE, unfortunately.
+              ;;- (cons
+              ;;   (pop plist)
+              ;;   (pop plist))
+              ;; Instead, we use ‘let*’ for explicit sequencing.
+              ;; Let the Scheme-based Emacs hacking proceed apace!
+              (let* ((k (pop plist))
+                     (v (pop plist)))
+                (cons k v)))
        (cdr tp) fruit
        tp       fruit)))
 
