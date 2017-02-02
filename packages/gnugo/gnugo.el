@@ -2055,7 +2055,7 @@ If COMMENT is nil or the empty string, remove the property entirely."
                             ;; walk to the west, fly to the east,
                             ;; talk and then rest, cry and then feast.
                             ;;   99 beers down thirsty throats sloshed?
-                            ;;   500 years under pink mountains squashed?
+                            ;;   500 years 'neath pink mountains squashed?
                             ;; balk with the best, child now re-creased!
                             (if updn
                                 (push color karma)
