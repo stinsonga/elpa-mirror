@@ -40,26 +40,29 @@
                           (beg x)
                           (end x))
                      (when (oldp)
-                       (cl-loop while (oldp)
-                                do (backward-char cpp)
-                                do (cl-decf beg)
-                                finally do (cl-incf beg))
+                       (cl-loop
+                        while (oldp)
+                        do (backward-char cpp)
+                        do (cl-decf beg)
+                        finally do (cl-incf beg))
                        (goto-char p)
-                       (cl-loop while (oldp)
-                                do (forward-char cpp)
-                                do (cl-incf end)
-                                finally do (cl-decf end))
+                       (cl-loop
+                        while (oldp)
+                        do (forward-char cpp)
+                        do (cl-incf end)
+                        finally do (cl-decf end))
                        (cons beg end)))))
         (setq bye (let ((p (pos x y)))
                     (buffer-substring-no-properties
                      p (+ p cpp))))
         (queue-enqueue q (cons x y))
-        (cl-loop until (queue-empty q)
-              do (let* ((coord (queue-dequeue q))
-                        (ext (extent coord)))
-                   (when ext
-                     (xpm-put-points px ext y)
-                     ;; todo: expansion and queuing of y-1 and y+1
-                     )))))))
+        (cl-loop
+         until (queue-empty q)
+         do (let* ((coord (queue-dequeue q))
+                   (ext (extent coord)))
+              (when ext
+                (xpm-put-points px ext y)
+                ;; todo: expansion and queuing of y-1 and y+1
+                )))))))
 
 ;;; xpm-ops.el ends here

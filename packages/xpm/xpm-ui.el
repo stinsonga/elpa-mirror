@@ -46,14 +46,15 @@
           (name (format "*%s Palette*" (buffer-name)))
           normal none)
       ;; normalize and extract "None" if necessary
-      (cl-loop for (px . alist) in (xpm--palette-alist cpp pinfo)
-               ;; todo: handle case where there is no ‘c’
-               do (let ((color (cdr (assq 'c alist))))
-                    (if (member color '("none" "None"))
-                        (setq none px)
-                      (push (cons px color)
-                            normal)))
-               finally do (setq normal (nreverse normal)))
+      (cl-loop
+       for (px . alist) in (xpm--palette-alist cpp pinfo)
+       ;; todo: handle case where there is no ‘c’
+       do (let ((color (cdr (assq 'c alist))))
+            (if (member color '("none" "None"))
+                (setq none px)
+              (push (cons px color)
+                    normal)))
+       finally do (setq normal (nreverse normal)))
       (list-colors-display (mapcar 'cdr normal) name
                            (xpm-set-pen-func (current-buffer)
                                              normal

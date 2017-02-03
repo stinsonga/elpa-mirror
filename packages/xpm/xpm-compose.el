@@ -29,14 +29,15 @@
   (xpm--w/gg (w h origin flags) xpm--gg
     (save-excursion
       (goto-char origin)
-      (cl-loop with skip = (if (memq 'intangible-sides flags)
-                               1
-                             4)
-               repeat h
-               collect (let ((p (point)))
-                         (forward-char w)
-                         (prog1 (buffer-substring-no-properties p (point))
-                           (forward-char skip)))))))
+      (cl-loop
+       with skip = (if (memq 'intangible-sides flags)
+                       1
+                     4)
+       repeat h
+       collect (let ((p (point)))
+                 (forward-char w)
+                 (prog1 (buffer-substring-no-properties p (point))
+                   (forward-char skip)))))))
 
 (defun xpm--clone (src)
   (insert-buffer-substring src)
@@ -78,22 +79,23 @@ This copies all pixels from TWO that are not PX."
                     (= (* cpp w) (length (car lines)))))
         ;; do it
         (goto-char origin)
-        (cl-loop with skip = (if (memq 'intangible-sides flags)
-                                 1
-                               4)
-                 for line in lines
-                 do (cl-loop
-                     ;; this is slow and stupid
-                     ;; todo: use ‘compare-strings’
-                     for x below w
-                     do (let* ((i (* x cpp))
-                               (el (substring line i (+ i cpp))))
-                          (if (string= px el)
-                              (forward-char cpp)
-                            (insert el)
-                            (delete-char cpp))))
-                 do (when (< (point) (point-max))
-                      (forward-char skip)))
+        (cl-loop
+         with skip = (if (memq 'intangible-sides flags)
+                         1
+                       4)
+         for line in lines
+         do (cl-loop
+             ;; this is slow and stupid
+             ;; todo: use ‘compare-strings’
+             for x below w
+             do (let* ((i (* x cpp))
+                       (el (substring line i (+ i cpp))))
+                  (if (string= px el)
+                      (forward-char cpp)
+                    (insert el)
+                    (delete-char cpp))))
+         do (when (< (point) (point-max))
+              (forward-char skip)))
         (current-buffer)))))
 
 (defun xpm-fill (px)
@@ -101,9 +103,10 @@ This copies all pixels from TWO that are not PX."
   (interactive "sPX: ")
   (xpm--w/gg (w h) (xpm--gate)
     (save-excursion
-      (cl-loop with x = (cons 0 (1- w))
-               for y below h
-               do (xpm-put-points px x y)))))
+      (cl-loop
+       with x = (cons 0 (1- w))
+       for y below h
+       do (xpm-put-points px x y)))))
 
 (provide 'xpm-compose)
 
@@ -125,8 +128,9 @@ This copies all pixels from TWO that are not PX."
         (xpm-fill ?-)
         (cl-flet
             ((vec () (let ((v (make-vector 42 nil)))
-                       (cl-loop for i below 42
-                                do (aset v i (random 10)))
+                       (cl-loop
+                        for i below 42
+                        do (aset v i (random 10)))
                        v)))
           (xpm-put-points ?\s (vec) (vec))))
       (cl-assert (and (bufferp one)
