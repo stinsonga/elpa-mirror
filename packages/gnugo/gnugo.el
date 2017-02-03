@@ -898,15 +898,12 @@ For all other values of RSEL, do nothing and return nil."
    while plist
    do (setf
        fruit (list
-              ;; Albeit elegant, this assumes LtR OoE, unfortunately.
-              ;;- (cons
-              ;;   (pop plist)
-              ;;   (pop plist))
-              ;; Instead, we use ‘let*’ for explicit sequencing.
-              ;; Let the Scheme-based Emacs hacking proceed apace!
-              (let* ((k (pop plist))
-                     (v (pop plist)))
-                (cons k v)))
+              ;; No OoE worries, here.  "The first step in evaluating a
+              ;; function call is to evaluate the remaining elements of the
+              ;; list from left to right."  (info "(elisp) Function Forms")
+              (cons
+               (pop plist)
+               (pop plist)))
        (cdr tp) fruit
        tp       fruit)))
 
