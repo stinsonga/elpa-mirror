@@ -46,6 +46,9 @@ This file is both a guide for newcomers and a todo list for oldstayers.
 *** perf
 ***** ??? use ‘binary’ coding system
 ***** make ‘xpm-raster’ do [vh]-line expansion
+* copyright policy
+*** update every year, unconditionally
+*** (if (< 2 (- END BEGIN)) RANGE INDIVIDUAL)
 * etc
 #+odd
 
