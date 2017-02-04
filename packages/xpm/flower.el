@@ -32,20 +32,24 @@
 (require 'xpm-m2z)
 (require 'cl-lib)
 
+(defvar flower-size 99
+  "Number of pixels in the flower image (a square).
+For best results, this should be at least 99 and odd.")
+
 (defun flower (&optional again)
   "Stress `xpm-raster' in various ways."
   (interactive "P")
   (let ((buf (get-buffer "flower")))
     (when buf (kill-buffer buf)))
   (switch-to-buffer
-   (xpm-generate-buffer "flower" 99 99 2
+   (xpm-generate-buffer "flower" flower-size flower-size 2
                         '(("  " . "green")
                           (".." . "yellow")
                           ("OO" . "red")
                           ("--" . "black"))))
   (setq truncate-lines t)
   (let* ((τ (* 4 2 (atan 1)))
-         (half (/ 99 2.0))
+         (half (/ flower-size 2.0))
          (mag-fns (vector (lambda (θ) (ignore θ) 1)
                           (lambda (θ) (sin θ))
                           (lambda (θ) (cos θ))
@@ -69,11 +73,13 @@
                                 (two (form 'xpm-m2z-ellipse (random 42))))
                             (append one two))
                         (cl-loop
+                         with bias = (* 0.42 half)
+                         with mm = (+ bias (random (truncate bias)))
                          for θ below τ by 0.003
                          collect
                          (cl-flet
                              ((at (f mfn)
-                                  (truncate (+ half (* 42 (funcall mfn θ)
+                                  (truncate (+ half (* mm (funcall mfn θ)
                                                        (funcall f θ))))))
                            (cons (at 'cos x-mag-fn)
                                  (at 'sin y-mag-fn)))))))))
