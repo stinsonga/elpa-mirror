@@ -4,7 +4,7 @@
 
 ;; Author: Thien-Thi Nguyen <ttn@gnu.org>
 ;; Maintainer: Thien-Thi Nguyen <ttn@gnu.org>
-;; Version: 3.0.1
+;; Version: 3.0.2
 ;; Package-Requires: ((ascii-art-to-unicode "1.5") (xpm "1.0.1") (cl-lib "0.5"))
 ;; Keywords: games, processes
 ;; URL: http://www.gnuvola.org/software/gnugo/
@@ -92,7 +92,7 @@
 ;;;---------------------------------------------------------------------------
 ;;; Political arts
 
-(defconst gnugo-version "3.0.1"
+(defconst gnugo-version "3.0.2"
   "Version of gnugo.el currently loaded.
 This follows a MAJOR.MINOR.PATCH scheme.")
 
