@@ -5,6 +5,11 @@ NB: "RCS: X..Y " means that the particular release includes
     changes in the RCS repo, revision 1.X through 1.Y (inclusive).
 
 
+- 3.0.2 | 2017-02-05
+  - portability fix (Emacs 25.1): use Cursor Intangible mode, if available
+  - verse meter fix (for those who read source code)
+  - new THANKS file
+
 - 3.0.1 | 2017-01-15
   - cleaner quoting in docstrings
   - portabilty fixes (Emacs 25.1)
