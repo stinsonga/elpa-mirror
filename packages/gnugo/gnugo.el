@@ -636,6 +636,11 @@ when you are sure the command cannot fail."
               :nogrid)
      (save-excursion (gnugo-refresh)))))
 
+(defconst gnugo--intangible (if (fboundp 'cursor-intangible-mode)
+                                'cursor-intangible
+                              'intangible)
+  "Text property that controls intangibility.")
+
 (defun gnugo-propertize-board-buffer ()
   (erase-buffer)
   (insert (substring (gnugo--q "showboard") 3))
@@ -703,7 +708,7 @@ when you are sure the command cannot fail."
                                    (gnugo-position gnugo-yin))))
           (unless (= (1- other-edge) p)
             (add-text-properties (1+ p) (+ 2 p) ispc-props)
-            (put-text-property p (+ 2 p) 'intangible ival)))
+            (put-text-property p (+ 2 p) gnugo--intangible ival)))
         (add-text-properties (1+ other-edge) right-empty grid-props)
         (goto-char right-empty)
         (when (looking-at "\\s-+\\(WH\\|BL\\).*capt.* \\([0-9]+\\).*$")
@@ -794,10 +799,13 @@ when you are sure the command cannot fail."
                                  category
                                  ,(gnugo-yy yin yang))))
         (delete-char 1)
-        ;; do this last to avoid complications w/ font lock
-        ;; (this also means we cannot include `intangible' in `front-sticky')
-        (when (setq very-strange (get-text-property (1+ cut) 'intangible))
-          (put-text-property cut (1+ cut) 'intangible very-strange))))))
+        ;; Do this last to avoid complications w/ font lock and overlays
+        ;; (this also means we cannot include `intangible' in `front-sticky').
+        ;; This is necessary even for ‘cursor-intangible’; if we omit it, the
+        ;; cursor can (incorrectly) enter the text displayed by ‘:paren-ov’.
+        ;; TODO: Revisit later to see if that still holds.
+        (when (setq very-strange (get-text-property (1+ cut) gnugo--intangible))
+          (put-text-property cut (1+ cut) gnugo--intangible very-strange))))))
 
 (defsubst gnugo--move-prop (node)
   (or (assq :B node)
@@ -2154,8 +2162,10 @@ In this mode, keys do not self insert."
   (setq font-lock-defaults '(gnugo-font-lock-keywords t)
         truncate-lines t)
   (add-hook 'kill-buffer-hook 'gnugo-cleanup nil t)
-  ;; GNU Emacs 25.1 looks askance at ‘intangible’, sigh.
-  (setq-local inhibit-point-motion-hooks nil)
+  (if (eq gnugo--intangible 'cursor-intangible)
+      (cursor-intangible-mode 1)
+    ;; Make sure ‘intangible’ DTRT in this buffer.
+    (setq-local inhibit-point-motion-hooks nil))
   (setq-local gnugo-state (gnugo--mkht :size (1- 42)))
   (setq-local gnugo-btw nil)
   (add-to-list 'minor-mode-alist '(gnugo-btw gnugo-btw))
