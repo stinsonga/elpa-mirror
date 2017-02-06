@@ -2688,7 +2688,7 @@ A collection is a list of gametrees, each a vector of four elements:
                              ((?\[ ?\] ?\\) (format "\\%c" c))
                              (?: (concat (if composed "\\" "") ":"))
                              (t (string c))))
-                         ;; ‘list-to-string’ unnecessary; ‘mapconcat’ DTRT
+                         ;; ‘string-to-list’ unnecessary; ‘mapconcat’ DTRT
                          (if (stringp val)
                              val
                            (format "%s" val))
