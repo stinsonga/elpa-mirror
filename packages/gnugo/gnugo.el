@@ -2158,6 +2158,8 @@ NOTE: At this time, GTP command handling specification is still
   "Major mode for playing GNU Go.
 Entering this mode runs the normal hook `gnugo-board-mode-hook'.
 In this mode, keys do not self insert."
+  :syntax-table nil
+  :abbrev-table nil
   (buffer-disable-undo)                 ; todo: undo undo undoing
   (setq font-lock-defaults '(gnugo-font-lock-keywords t)
         truncate-lines t)
