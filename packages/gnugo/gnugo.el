@@ -2015,17 +2015,20 @@ If there a stone at that position, also display its move number."
 
 (defun gnugo-comment (node comment)
   "Add to NODE a COMMENT (string) property.
-Called interactively, NODE is the one corresponding to the
-stone at point, and any previous comment is inserted as the
-initial-input (see `read-string').
+Interactively, NODE is the one corresponding to the stone at point,
+or the root node if there is no played stone at point, and any
+previous comment is inserted as the initial-input (see `read-string').
 
 If COMMENT is nil or the empty string, remove the property entirely."
   (interactive
    (let* ((pos (gnugo-position))
-          (node (gnugo--node-with-played-stone pos)))
+          (node (or (gnugo--node-with-played-stone pos t)
+                    (gnugo--root-node))))
      (list node
            (read-string (format "Comment for %s: "
-                                (gnugo-describe-position))
+                                (if (eq node (gnugo--root-node))
+                                    "root node"
+                                  (gnugo-describe-position)))
                         (cdr (assq :C node))))))
   (setq node (delq (assq :C node) node))
   (unless (zerop (length comment))
