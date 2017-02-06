@@ -2680,7 +2680,7 @@ A collection is a list of gametrees, each a vector of four elements:
                        gnugo/sgf-*r4-properties*))
         p name v spec)
     (cl-labels
-        ((esc (composed fmt arg)
+        ((esc (composed val)
               (mapconcat (lambda (c)
                            (cl-case c
                              ;; ‘?\[’ is not strictly required
@@ -2688,13 +2688,15 @@ A collection is a list of gametrees, each a vector of four elements:
                              ((?\[ ?\] ?\\) (format "\\%c" c))
                              (?: (concat (if composed "\\" "") ":"))
                              (t (string c))))
-                         (string-to-list (format fmt arg))
+                         ;; ‘list-to-string’ unnecessary; ‘mapconcat’ DTRT
+                         (if (stringp val)
+                             val
+                           (format "%s" val))
                          ""))
-         (>>one (v) (insert "[" (esc nil "%s" v) "]"))
-         (>>two (v) (insert "["
-                            (esc t "%s" (car v))
-                            ":"
-                            (esc t "%s" (cdr v))
+         (>>one (v) (insert "[" (esc nil v)
+                            "]"))
+         (>>two (v) (insert "[" (esc t (car v))
+                            ":" (esc t (cdr v))
                             "]"))
          (>>nl () (cond ((memq name aft-newline-appreciated)
                          (insert "\n"))
