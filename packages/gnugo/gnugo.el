@@ -1663,7 +1663,8 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
         (aset ends (aref monkey 1) (aref monkey 0)))
       (when ulastp
         (let ((g (gnugo-get :gnugo-color)))
-          (cl-flet ((turn () (gnugo--turn-the-wheel t)))
+          (cl-flet
+              ((turn () (gnugo--turn-the-wheel t)))
             (cl-case (or reaction gnugo-undo-reaction)
               (play (turn))
               (play! (let ((wheel (gnugo-get :wheel)))
@@ -1730,7 +1731,8 @@ Prefix arg means to redo all the undone moves."
              (end (aref ends bidx))
              (ucolor (gnugo-get :user-color))
              (uprop (gnugo--prop<-color ucolor)))
-        (cl-flet ((mvno (node) (gethash node mnum)))
+        (cl-flet
+            ((mvno (node) (gethash node mnum)))
           (cl-loop
            with ok = (if full
                          (mvno (car end))
@@ -1870,10 +1872,11 @@ to the last move, as a comment."
            (insert blurb)
            (when (search-backward "\n\nGame start:" nil t)
              (delete-region (point) (point-max)))
-           (cl-flet ((rep (old new)
-                          (goto-char (point-min))
-                          (while (search-forward old nil t)
-                            (replace-match new))))
+           (cl-flet
+               ((rep (old new)
+                     (goto-char (point-min))
+                     (while (search-forward old nil t)
+                       (replace-match new))))
              (rep "The game is over.  " "")
              (rep "territory" "T")
              (rep "captures"  "C")
