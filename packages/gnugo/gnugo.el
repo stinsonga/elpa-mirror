@@ -1449,7 +1449,7 @@ To start a game try M-x gnugo."
     (switch-to-buffer buffer-name)
     (erase-buffer)
     (insert data))
-  (message "Computing %s ... done." command))
+  (message "Computing %s ... done" command))
 
 (defun gnugo-worm-stones ()
   "In the GNUGO Board buffer, animate \"worm\" at current position.
@@ -2088,7 +2088,7 @@ NOTE: At this time, GTP command handling specification is still
                   (t (switch-to-buffer "*gnugo command output*")
                      (erase-buffer)
                      (insert ans)
-                     (message "Doing %s ... done." command)))
+                     (message "Doing %s ... done" command)))
             (let ((thunk (plist-get spec :post-thunk)))
               (when thunk (funcall thunk)))))))))
 
