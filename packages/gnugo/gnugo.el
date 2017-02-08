@@ -107,71 +107,6 @@ This program must accept command line args:
 For more information on GTP and GNU Go, please visit:
 <http://www.gnu.org/software/gnugo>")
 
-(defvar gnugo-board-mode-map
-  ;; Re <http://lists.gnu.org/archive/html/emacs-devel/2014-04/msg00123.html>,
-  ;; ideally we could ‘defvar’ here w/o value and also ‘defvar’ below
-  ;; in "load-time actions" w/ value and docstring, to avoid this ugly
-  ;; (from the forward references) block early in the file.  Unfortunately,
-  ;; byte-compiling such a split formulation results in the initial ‘defvar’
-  ;; being replaced by:
-  ;;   (defvar VAR (make-sparse-keymap))
-  ;; and the second ‘defvar’ is ignored on load.  At least, this is the case
-  ;; for Emacs built from repo (trunk) 2014-05-27.  --ttn
-  (let ((map (make-sparse-keymap)))
-    (suppress-keymap map)
-    (mapc (lambda (pair)
-            (define-key map (car pair) (cdr pair)))
-          '(("?"        . describe-mode)
-            ("S"        . gnugo-request-suggestion)
-            ("\C-m"     . gnugo-move)
-            (" "        . gnugo-move)
-            ("P"        . gnugo-pass)
-            ("R"        . gnugo-resign)
-            ("q"        . gnugo-quit)
-            ("Q"        . gnugo-leave-me-alone)
-            ("U"        . gnugo-fancy-undo)
-            ("\M-u"     . gnugo-undo-one-move)
-            ("u"        . gnugo-undo-two-moves)
-            ("\C-?"     . gnugo-undo-two-moves)
-            ("o"        . gnugo-oops)
-            ("O"        . gnugo-okay)
-            ("\C-l"     . gnugo-refresh)
-            ("\M-_"     . gnugo-boss-is-near)
-            ("_"        . gnugo-boss-is-near)
-            ("h"        . gnugo-move-history)
-            ("L"        . gnugo-frolic-in-the-leaves)
-            ("\C-c\C-l" . gnugo-frolic-in-the-leaves)
-            ("i"        . gnugo-image-display-mode)
-            ("w"        . gnugo-worm-stones)
-            ("W"        . gnugo-worm-data)
-            ("d"        . gnugo-dragon-stones)
-            ("D"        . gnugo-dragon-data)
-            ("g"        . gnugo-grid-mode)
-            ("!"        . gnugo-estimate-score)
-            (":"        . gnugo-command)
-            (";"        . gnugo-command)
-            ("="        . gnugo-describe-position)
-            ("s"        . gnugo-write-sgf-file)
-            ("\C-x\C-s" . gnugo-write-sgf-file)
-            ("\C-x\C-w" . gnugo-write-sgf-file)
-            ("l"        . gnugo-read-sgf-file)
-            ("F"        . gnugo-display-final-score)
-            ("A"        . gnugo-switch-to-another)
-            ("C"        . gnugo-comment)
-            ("\C-c\C-a" . gnugo-assist-mode)
-            ("\C-c\C-z" . gnugo-zombie-mode)
-            ;; mouse
-            ([(down-mouse-1)] . gnugo-mouse-move)
-            ([(down-mouse-2)] . gnugo-mouse-move) ; mitigate accidents
-            ([(down-mouse-3)] . gnugo-mouse-pass)
-            ;; delving into the curiosities
-            ("\C-c\C-p" . gnugo-describe-internal-properties)))
-    map)
-  "Keymap for GNUGO Board mode.")
-
-(defvar gnugo-board-mode-hook nil
-  "Hook run when entering GNUGO Board mode.")
-
 (defvar gnugo-start-game-hook nil
   "Normal hook run immediately before the first move of the game.
 To find out who is to move first, use `gnugo-current-player'.
@@ -2160,7 +2095,7 @@ NOTE: At this time, GTP command handling specification is still
 (define-derived-mode gnugo-board-mode special-mode "GNUGO Board"
   "Major mode for playing GNU Go.
 Entering this mode runs the normal hook `gnugo-board-mode-hook'.
-In this mode, keys do not self insert."
+In this mode, keys do not self insert (see `gnugo-board-mode-map')."
   :syntax-table nil
   :abbrev-table nil
   (buffer-disable-undo)                 ; todo: undo undo undoing
@@ -2423,6 +2358,59 @@ See `gnugo-board-mode' for a full list of commands."
            (cond ((not sel) 1)
                  ((cl-plusp (setq n (string-to-number (car sel)))) n)
                  (t (validpos (car sel) t)))))))))
+
+;; Respect user customizations; try not to clobber the keymap on reload.
+;; hacker override:        (define-key gnugo-board-mode-map "?" nil)
+(unless (eq 'describe-mode (lookup-key gnugo-board-mode-map "?"))
+  (cl-loop
+   for (key        binding         . _)
+   on '("?"        describe-mode
+        "S"        gnugo-request-suggestion
+        "\C-m"     gnugo-move
+        " "        gnugo-move
+        "P"        gnugo-pass
+        "R"        gnugo-resign
+        "q"        gnugo-quit
+        "Q"        gnugo-leave-me-alone
+        "U"        gnugo-fancy-undo
+        "\M-u"     gnugo-undo-one-move
+        "u"        gnugo-undo-two-moves
+        "\C-?"     gnugo-undo-two-moves
+        "o"        gnugo-oops
+        "O"        gnugo-okay
+        "\C-l"     gnugo-refresh
+        "\M-_"     gnugo-boss-is-near
+        "_"        gnugo-boss-is-near
+        "h"        gnugo-move-history
+        "L"        gnugo-frolic-in-the-leaves
+        "\C-c\C-l" gnugo-frolic-in-the-leaves
+        "i"        gnugo-image-display-mode
+        "w"        gnugo-worm-stones
+        "W"        gnugo-worm-data
+        "d"        gnugo-dragon-stones
+        "D"        gnugo-dragon-data
+        "g"        gnugo-grid-mode
+        "!"        gnugo-estimate-score
+        ":"        gnugo-command
+        ";"        gnugo-command
+        "="        gnugo-describe-position
+        "s"        gnugo-write-sgf-file
+        "\C-x\C-s" gnugo-write-sgf-file
+        "\C-x\C-w" gnugo-write-sgf-file
+        "l"        gnugo-read-sgf-file
+        "F"        gnugo-display-final-score
+        "A"        gnugo-switch-to-another
+        "C"        gnugo-comment
+        "\C-c\C-a" gnugo-assist-mode
+        "\C-c\C-z" gnugo-zombie-mode
+        ;; mouse
+        [(down-mouse-1)] gnugo-mouse-move
+        [(down-mouse-2)] gnugo-mouse-move ; mitigate accidents
+        [(down-mouse-3)] gnugo-mouse-pass
+        ;; delving into the curiosities
+        "\C-c\C-p" gnugo-describe-internal-properties)
+   by #'cddr
+   do (define-key gnugo-board-mode-map key binding)))
 
 (provide 'gnugo)
 
