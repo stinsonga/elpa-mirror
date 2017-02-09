@@ -336,9 +336,16 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
     (erase-buffer)
     (emacs-lisp-mode)
     (setq truncate-lines t)
+    (insert ";;; " (message "%d properties" (length acc)))
     (save-excursion
-      (pp acc
-          (current-buffer))
+      (cl-loop
+       with standard-output = (current-buffer)
+       for (key . val) in acc
+       do (progn
+            (unless (bolp)
+              (newline))
+            (print key)
+            (pp val)))
       (goto-char (point-min))
       (let ((rx (format "overlay from \\([0-9]+\\).+\n%s\\s-+"
                         (if (string= "" d)
@@ -348,8 +355,7 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
           (let ((pos (get-text-property (string-to-number (match-string 1))
                                         'gnugo-position buf)))
             (delete-region (+ 2 (match-beginning 0)) (point))
-            (insert (format " %S" pos))))))
-    (message "%d properties" (length acc))))
+            (insert (format " %S" pos))))))))
 
 (defun gnugo-board-buffer-p (&optional buffer)
   "Return non-nil if BUFFER is a GNUGO Board buffer."
