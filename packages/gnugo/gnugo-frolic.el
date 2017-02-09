@@ -214,7 +214,7 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
                   (ok (when node
                         (= bx (on node))))
                   (comment (when ok
-                             (cdr (assq :C node))))
+                             (gnugo-aqr :C node)))
                   (s (cond ((not node) "")
                            ((not (setq move (gnugo--move-prop node))) "-")
                            (t (funcall as-pos (cdr move))))))
@@ -312,7 +312,7 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
          (ends (gnugo--tree-ends tree))
          (width (length ends))
          (monkey (gnugo-get :monkey))
-         (line (cl-case (cdr (assq 'line how))
+         (line (cl-case (gnugo-aqr 'line how)
                  (numeric
                   (count-lines (point-min) (line-beginning-position)))
                  (move-string
@@ -331,7 +331,7 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
       (unless a
         (user-error "No branch here")))
     (cl-loop
-     with omit = (cdr (assq 'omit how))
+     with omit = (gnugo-aqr 'omit how)
      for (name . value) in `((line   . ,line)
                              (bidx   . ,(aref monkey 1))
                              (monkey . ,monkey)
@@ -346,7 +346,7 @@ are dimmed.  Type \\[describe-mode] in that buffer for details."
   (declare (indent 1))
   `(cl-destructuring-bind
        ,(cl-loop
-         with omit = (cdr (assq 'omit how))
+         with omit = (gnugo-aqr 'omit how)
          with ls   = (list 'a)
          for name in '(line bidx monkey
                             width ends

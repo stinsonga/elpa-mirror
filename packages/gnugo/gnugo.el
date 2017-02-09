@@ -213,6 +213,16 @@ list of forms.")
 ;;;---------------------------------------------------------------------------
 ;;; Support functions
 
+(defsubst gnugo-aqr (key alist)
+  "Essentially: (cdr (assq KEY ALIST))
+This is like Scheme ‘assq-ref’ but with reversed arguments.
+The name was chosen to occupy the same space as \"cdr (assq\":
+  (cdr (assq KEY ALIST))
+  (gnugo-aqr KEY ALIST)
+to minimize reindentation noise.  [Surely Emacs must
+provide something like this, somewhere, by now?  --ttn]"
+  (cdr (assq key alist)))
+
 (defsubst gnugo--mkht (&rest etc)
   (apply 'make-hash-table :test 'eq etc))
 
@@ -479,7 +489,7 @@ when you are sure the command cannot fail."
   (length (apply 'gnugo-lsquery fmt args)))
 
 (defsubst gnugo--root-prop (prop &optional tree)
-  (cdr (assq prop (gnugo--root-node tree))))
+  (gnugo-aqr prop (gnugo--root-node tree)))
 
 (defun gnugo--set-root-prop (prop value &optional tree)
   (let* ((root (gnugo--root-node tree))
@@ -511,10 +521,10 @@ Return final buffer position (i.e., point)."
           (gnugo-get :obarray)))
 
 (defun gnugo-yang (c)
-  (cdr (assq c '((?+ . hoshi)
+  (gnugo-aqr c '((?+ . hoshi)
                  (?. . empty)
                  (?X . (bmoku . bpmoku))
-                 (?O . (wmoku . wpmoku))))))
+                 (?O . (wmoku . wpmoku)))))
 
 (defun gnugo-yy (yin yang &optional momentaryp)
   (gnugo-f (format "%d-%s"
@@ -559,7 +569,7 @@ Return final buffer position (i.e., point)."
             0 delete-overlay)
         (gnugo-get :default-highlight-last-move-spec)))
     ;; a kludge to be reworked another time perhaps by another gnugo.el lover
-    (dolist (group (cdr (assq 'dead (gnugo-get :game-over))))
+    (dolist (group (gnugo-aqr 'dead (gnugo-get :game-over)))
       (mapc 'delete-overlay (cdar group))
       (setcdr (car group) nil))
     (gnugo-put :mul (if new
@@ -1100,8 +1110,8 @@ its move."
                                      (gnugo-current-player)))))
     ;; pall of death
     (when game-over
-      (let ((live (cdr (assq 'live game-over)))
-            (dead (cdr (assq 'dead game-over)))
+      (let ((live (gnugo-aqr 'live game-over))
+            (dead (gnugo-aqr 'dead game-over))
             p pall)
         (dolist (group live)
           (when (setq pall (cdar group))
@@ -1795,8 +1805,8 @@ to the last move, as a comment."
                              "+Resign"))
       (message "Computing final score ...")
       (let* ((g-over (gnugo-get :game-over))
-             (live   (cdr (assq 'live g-over)))
-             (dead   (cdr (assq 'dead g-over)))
+             (live   (gnugo-aqr 'live g-over))
+             (dead   (gnugo-aqr 'dead g-over))
              (seed   (gnugo-get :scoring-seed))
              (terr-q (format "final_status_list %%s_territory %d" seed))
              (terr   "territory")
@@ -1966,7 +1976,7 @@ If COMMENT is nil or the empty string, remove the property entirely."
                                 (if (eq node (gnugo--root-node))
                                     "root node"
                                   (gnugo-describe-position)))
-                        (cdr (assq :C node))))))
+                        (gnugo-aqr :C node)))))
   (setq node (delq (assq :C node) node))
   (unless (zerop (length comment))
     (gnugo--decorate node :C comment)))
@@ -2594,10 +2604,10 @@ A collection is a list of gametrees, each a vector of four elements:
                     (sw) (short 'property)
                     (when (looking-at "[A-Z]")
                       (setq name (read (current-buffer))
-                            spec (cdr (assq name specs)))
+                            spec (gnugo-aqr name specs))
                       (sw)
                       (cons
-                       (cdr (assq name keywords))
+                       (gnugo-aqr name keywords)
                        (prog1 (if (= 1 (length spec))
                                   (val (car spec))
                                 (unless (memq (setq ltype (car spec))
@@ -2704,7 +2714,7 @@ A collection is a list of gametrees, each a vector of four elements:
                  (insert (substring (symbol-name name) 1))
                  (cond ((not v))
                        ((and (consp v)
-                             (setq spec (cdr (assq name specs)))
+                             (setq spec (gnugo-aqr name specs))
                              (memq (car spec)
                                    '(list elist)))
                         (>>nl)
