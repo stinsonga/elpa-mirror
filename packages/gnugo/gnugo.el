@@ -1110,20 +1110,25 @@ its move."
                                      (gnugo-current-player)))))
     ;; pall of death
     (when game-over
-      (let ((live (gnugo-aqr 'live game-over))
-            (dead (gnugo-aqr 'dead game-over))
-            p pall)
-        (dolist (group live)
-          (when (setq pall (cdar group))
-            (mapc 'delete-overlay pall)
-            (setcdr (car group) nil)))
-        (dolist (group dead)
-          (unless (cdar group)
-            (let (ov pall c (color (caar group)))
-              (setq c (if (gnugo--blackp color) "x" "o"))
-              (dolist (pos (cdr group))
-                (setq p (gnugo-goto-pos pos)
-                      ov (make-overlay p (1+ p)))
+      (cl-destructuring-bind (live dead)
+          (mapcar (lambda (sel)
+                    (gnugo-aqr sel game-over))
+                  '(live dead))
+        (dolist (head (mapcar #'car live))
+          (mapc 'delete-overlay (cdr head))
+          (setcdr head nil))
+        (cl-loop
+         for (head . positions) in dead
+         unless (cdr head)
+         do (setcdr
+             head
+             (cl-loop
+              with c = (if (gnugo--blackp (car head))
+                           "x"
+                         "o")
+              for p in (mapcar #'gnugo-goto-pos positions)
+              collect
+              (let ((ov (make-overlay p (1+ p))))
                 (overlay-put
                  ov 'display
                  (if (gnugo-get :display-using-images)
@@ -1132,8 +1137,7 @@ its move."
                      (gnugo-venerate (get-text-property p 'gnugo-yin)
                                      (gnugo-yang (aref (upcase c) 0)))
                    (propertize c 'face 'font-lock-warning-face)))
-                (push ov pall))
-              (setcdr (car group) pall))))))
+                ov))))))
     ;; window update
     (when (setq window (get-buffer-window (current-buffer)))
       (let* ((gridp (not (memq :nogrid buffer-invisibility-spec)))
