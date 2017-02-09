@@ -490,7 +490,8 @@ when you are sure the command cannot fail."
             (cdr (last root))))))
 
 (defun gnugo-goto-pos (pos)
-  "Move point to board position POS, a letter-number string."
+  "Move point to board position POS, a letter-number string.
+Return final buffer position (i.e., point)."
   (goto-char (point-min))
   (forward-line (- (1+ (gnugo-get :SZ))
                    (string-to-number (substring pos 1))))
@@ -500,7 +501,8 @@ when you are sure the command cannot fail."
                              (if (> ?I letter)
                                  letter
                                (1- letter)))
-                           ?A)))))
+                           ?A))))
+  (point))
 
 (defun gnugo-f (id)
   (intern (if (symbolp id)
@@ -1072,8 +1074,7 @@ its move."
       (cl-destructuring-bind (l-ov . r-ov) (gnugo-get :paren-ov)
         (if (member move '("PASS" "resign"))
             (mapc 'delete-overlay (list l-ov r-ov))
-          (gnugo-goto-pos move)
-          (let* ((p (point))
+          (let* ((p (gnugo-goto-pos move))
                  (hspec (gnugo-get :highlight-last-move-spec))
                  (display-value (nth 0 hspec))
                  (l-offset (nth 1 hspec))
@@ -1105,8 +1106,7 @@ its move."
         (unless (eq game-over (get-text-property 1 'game-over))
           (dolist (group (append live dead))
             (dolist (pos (cdr group))
-              (gnugo-goto-pos pos)
-              (setq p (point))
+              (setq p (gnugo-goto-pos pos))
               (put-text-property p (1+ p) 'group group)))
           (put-text-property 1 2 'game-over game-over))
         (dolist (group live)
@@ -1118,8 +1118,8 @@ its move."
             (let (ov pall c (color (caar group)))
               (setq c (if (gnugo--blackp color) "x" "o"))
               (dolist (pos (cdr group))
-                (gnugo-goto-pos pos)
-                (setq p (point) ov (make-overlay p (1+ p)))
+                (setq p (gnugo-goto-pos pos)
+                      ov (make-overlay p (1+ p)))
                 (overlay-put
                  ov 'display
                  (if (gnugo-get :display-using-images)
@@ -1431,8 +1431,7 @@ To start a game try M-x gnugo."
            (cell (list spec))
            (ovs (save-excursion
                   (mapcar (lambda (pos)
-                            (gnugo-goto-pos pos)
-                            (let* ((p (point))
+                            (let* ((p (gnugo-goto-pos pos))
                                    (ov (make-overlay p (1+ p))))
                               (overlay-put ov 'category (gnugo-f 'anim))
                               (overlay-put ov 'priority most-positive-fixnum)
