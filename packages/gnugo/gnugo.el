@@ -1424,7 +1424,7 @@ To start a game try M-x gnugo."
       (user-error "No stone at %s" pos))
     (setq blurb (message "Computing %s stones ..." w/d)
           stones (gnugo-lsquery "%s_stones %s" w/d pos))
-    (message "%s %s in group." blurb (length stones))
+    (message "%s %s in group" blurb (length stones))
     (setplist (gnugo-f 'anim) nil)
     (let* ((spec (if (gnugo-get :display-using-images)
                      (cl-loop
