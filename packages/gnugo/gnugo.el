@@ -272,14 +272,14 @@ you may never really understand to any degree of personal satisfaction\".
                     than they are worth!)
 
  :display-using-images -- XPMs, to be precise; see functions `gnugo-yy',
-                          `gnugo-toggle-image-display' and `gnugo-refresh',
+                          `gnugo-image-display-mode' and `gnugo-refresh',
                           as well as gnugo-xpms.el (available elsewhere)
 
  :all-yy -- list of 46 symbols used as the `category' text property
             (so that their plists, typically w/ property `display' or
             `do-not-display') are consulted by the Emacs display engine;
             46 = 9 places * (4 moku + 1 empty) + 1 hoshi; see functions
-            `gnugo-toggle-image-display', `gnugo-yy' and `gnugo-yang'
+            `gnugo-image-display-mode', `gnugo-yy' and `gnugo-yang'
 
  :paren-ov -- a pair (left and right) of overlays shuffled about to indicate
               the last move; only one is used when displaying using images
@@ -531,51 +531,6 @@ Return final buffer position (i.e., point)."
                    yin (cond ((symbolp yang) yang)
                              (momentaryp (cdr yang))
                              (t (car yang))))))
-
-(defun gnugo-toggle-image-display ()
-  (unless (display-images-p)
-    (user-error "Display does not support images, sorry"))
-  (let ((fresh (if (functionp gnugo-xpms)
-                   (funcall gnugo-xpms (gnugo-get :SZ))
-                 gnugo-xpms)))
-    (unless fresh
-      (user-error "Sorry, `gnugo-xpms' unset"))
-    (unless (eq fresh (gnugo-get :xpms))
-      (gnugo-put :xpms fresh)
-      (gnugo--forget :all-yy)))
-  (let* ((new (not (gnugo-get :display-using-images)))
-         (act (if new 'display 'do-not-display)))
-    (mapc (lambda (yy)
-            (setcar (symbol-plist yy) act))
-          (or (gnugo-get :all-yy)
-              (gnugo-put :all-yy
-                (prog1 (mapcar (lambda (ent)
-                                 (let* ((k (car ent))
-                                        (yy (gnugo-yy (cdr k) (car k))))
-                                   (setplist yy `(not-yet ,(cdr ent)))
-                                   yy))
-                               (gnugo-get :xpms))
-                  (gnugo-put :imul
-                    (image-size (get (gnugo-yy 5 (gnugo-yang ?+))
-                                     'not-yet)))))))
-    (setplist (gnugo-f 'ispc) (and new '(display (space :width 0))))
-    (gnugo-put :highlight-last-move-spec
-      (if new
-          `(,(lambda (p)
-               (get (gnugo-yy (get-text-property p 'gnugo-yin)
-                              (get-text-property p 'gnugo-yang)
-                              t)
-                    'display))
-            0 delete-overlay)
-        (gnugo-get :default-highlight-last-move-spec)))
-    ;; a kludge to be reworked another time perhaps by another gnugo.el lover
-    (dolist (group (gnugo-aqr 'dead (gnugo-get :game-over)))
-      (mapc 'delete-overlay (cdar group))
-      (setcdr (car group) nil))
-    (gnugo-put :mul (if new
-                        (gnugo-get :imul)
-                      '(1 . 1)))
-    (gnugo-put :display-using-images new)))
 
 (define-minor-mode gnugo-grid-mode
   "If enabled, display grid around the board."
@@ -1932,7 +1887,50 @@ See function `display-images-p' and variable `gnugo-xpms'."
    .
    (lambda (bool)
      (unless (eq bool (gnugo-get :display-using-images))
-       (gnugo-toggle-image-display)
+       (unless (display-images-p)
+         (user-error "Display does not support images, sorry"))
+       (let ((fresh (if (functionp gnugo-xpms)
+                        (funcall gnugo-xpms (gnugo-get :SZ))
+                      gnugo-xpms)))
+         (unless fresh
+           (user-error "Sorry, `gnugo-xpms' unset"))
+         (unless (eq fresh (gnugo-get :xpms))
+           (gnugo-put :xpms fresh)
+           (gnugo--forget :all-yy)))
+       (mapc (let ((act (if bool
+                            'display
+                          'do-not-display)))
+               (lambda (yy)
+                 (setcar (symbol-plist yy) act)))
+             (or (gnugo-get :all-yy)
+                 (gnugo-put :all-yy
+                   (prog1 (mapcar (lambda (ent)
+                                    (let* ((k (car ent))
+                                           (yy (gnugo-yy (cdr k) (car k))))
+                                      (setplist yy `(not-yet ,(cdr ent)))
+                                      yy))
+                                  (gnugo-get :xpms))
+                     (gnugo-put :imul
+                       (image-size (get (gnugo-yy 5 (gnugo-yang ?+))
+                                        'not-yet)))))))
+       (setplist (gnugo-f 'ispc) (and bool '(display (space :width 0))))
+       (gnugo-put :highlight-last-move-spec
+         (if bool
+             `(,(lambda (p)
+                  (get (gnugo-yy (get-text-property p 'gnugo-yin)
+                                 (get-text-property p 'gnugo-yang)
+                                 t)
+                       'display))
+               0 delete-overlay)
+           (gnugo-get :default-highlight-last-move-spec)))
+       (gnugo-put :mul (if bool
+                           (gnugo-get :imul)
+                         '(1 . 1)))
+       (gnugo-put :display-using-images bool)
+       ;; a kludge to be reworked another time perhaps by another gnugo.el lover
+       (dolist (group (gnugo-aqr 'dead (gnugo-get :game-over)))
+         (mapc 'delete-overlay (cdar group))
+         (setcdr (car group) nil))
        (save-excursion (gnugo-refresh))))))
 
 (defsubst gnugo--node-with-played-stone (pos &optional noerror)
