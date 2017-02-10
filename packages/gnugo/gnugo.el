@@ -1888,7 +1888,7 @@ See function `display-images-p' and variable `gnugo-xpms'."
    (lambda (bool)
      (unless (eq bool (gnugo-get :display-using-images))
        (unless (display-images-p)
-         (user-error "Display does not support images, sorry"))
+         (user-error "Sorry, display does not support images"))
        (let ((fresh (if (functionp gnugo-xpms)
                         (funcall gnugo-xpms (gnugo-get :SZ))
                       gnugo-xpms)))
