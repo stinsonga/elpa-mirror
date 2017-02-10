@@ -1033,6 +1033,10 @@ its move."
          (inhibit-read-only t)
          window last)
     (when (and nocache (not (gnugo-get :waiting)))
+      ;; (search-forward "pall of death")
+      (dolist (group (gnugo-aqr 'dead game-over))
+        (mapc 'delete-overlay (cdar group))
+        (setcdr (car group) nil))
       (gnugo-propertize-board-buffer))
     ;; last move
     (when move
@@ -1927,11 +1931,7 @@ See function `display-images-p' and variable `gnugo-xpms'."
                            (gnugo-get :imul)
                          '(1 . 1)))
        (gnugo-put :display-using-images bool)
-       ;; a kludge to be reworked another time perhaps by another gnugo.el lover
-       (dolist (group (gnugo-aqr 'dead (gnugo-get :game-over)))
-         (mapc 'delete-overlay (cdar group))
-         (setcdr (car group) nil))
-       (save-excursion (gnugo-refresh))))))
+       (save-excursion (gnugo-refresh t))))))
 
 (defsubst gnugo--node-with-played-stone (pos &optional noerror)
   (car (gnugo--mem-with-played-stone pos noerror)))
