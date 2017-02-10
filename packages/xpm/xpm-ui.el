@@ -28,6 +28,7 @@
 
 (eval-when-compile (require 'cl-lib))
 (require 'xpm)
+(require 'xpm-palette)
 
 (defun xpm-set-pen-func (parent normal _none)
   (lambda (color)
