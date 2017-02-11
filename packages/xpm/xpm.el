@@ -77,10 +77,10 @@ shape to `xpm-raster', then you can ignore this variable.")
                (:conc-name xpm--)
                (:constructor xpm--make-gg)
                (:copier xpm--copy-gg))
-  (w :read-only t) (h :read-only t) (cpp :read-only t)
+  (w nil :read-only t) (h nil :read-only t) (cpp nil :read-only t)
   pinfo                                 ; (MARKER . HASH-TABLE)
-  (origin :read-only t)
-  (y-mult :read-only t)
+  (origin nil :read-only t)
+  (y-mult nil :read-only t)
   flags)
 
 (defvar xpm--gg nil
