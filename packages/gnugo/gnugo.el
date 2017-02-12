@@ -1015,6 +1015,9 @@ For all other values of RSEL, do nothing and return nil."
                              (list :color-symbols
                                    c-symbs)))))
 
+(defsubst gnugo--zonk-ovs (ovs)
+  (mapc 'delete-overlay ovs))
+
 (defun gnugo-refresh (&optional nocache)
   "Update GNUGO Board buffer display.
 While a game is in progress, parenthesize the last-played stone (no parens
@@ -1035,14 +1038,14 @@ its move."
     (when (and nocache (not (gnugo-get :waiting)))
       ;; (search-forward "pall of death")
       (dolist (group (gnugo-aqr 'dead game-over))
-        (mapc 'delete-overlay (cdar group))
+        (gnugo--zonk-ovs (cdar group))
         (setcdr (car group) nil))
       (gnugo-propertize-board-buffer))
     ;; last move
     (when move
       (cl-destructuring-bind (l-ov . r-ov) (gnugo-get :paren-ov)
         (if (member move '("PASS" "resign"))
-            (mapc 'delete-overlay (list l-ov r-ov))
+            (gnugo--zonk-ovs (list l-ov r-ov))
           (let* ((p (gnugo-goto-pos move))
                  (hspec (gnugo-get :highlight-last-move-spec))
                  (display-value (nth 0 hspec))
@@ -1074,7 +1077,7 @@ its move."
                     (gnugo-aqr sel game-over))
                   '(live dead))
         (dolist (head (mapcar #'car live))
-          (mapc 'delete-overlay (cdr head))
+          (gnugo--zonk-ovs (cdr head))
           (setcdr head nil))
         (cl-loop
          for (head . positions) in dead
@@ -1411,7 +1414,7 @@ To start a game try M-x gnugo."
         ;; Force redisplay of overlays.
         (set-buffer-modified-p orig-b-m-p))
       (sit-for 5)
-      (mapc 'delete-overlay ovs)
+      (gnugo--zonk-ovs ovs)
       t)))
 
 (defun gnugo-display-group-data (command buffer-name)
