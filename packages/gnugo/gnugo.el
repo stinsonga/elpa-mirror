@@ -1058,7 +1058,7 @@ its move."
          window last)
     (when (and nocache (not (gnugo-get :waiting)))
       ;; (search-forward "pall of death")
-      (dolist (group (gnugo-aqr 'dead game-over))
+      (dolist (group (apply #'append (mapcar #'cdr game-over)))
         (gnugo--zonk-ovs (cdar group))
         (setcdr (car group) nil))
       (gnugo-propertize-board-buffer))
@@ -1093,41 +1093,45 @@ its move."
                                      (gnugo-current-player)))))
     ;; pall of death
     (when game-over
-      (cl-destructuring-bind (live dead)
+      (cl-destructuring-bind (live seki dead)
           (mapcar (lambda (sel)
                     (gnugo-aqr sel game-over))
-                  '(live dead))
+                  '(live seki dead))
         (dolist (head (mapcar #'car live))
           (gnugo--zonk-ovs (cdr head))
           (setcdr head nil))
-        (cl-loop
-         for (head . positions) in dead
-         unless (cdr head)
-         do (setcdr
-             head
-             (cl-loop
-              with cprop = (car head)
-              with shown = (if using-images
-                               (gnugo-yang (if (gnugo--prop-blackp cprop)
-                                               ?X
-                                             ?O))
-                             (propertize (if (gnugo--prop-blackp cprop)
-                                             "x"
-                                           "o")
-                                         'face
-                                         'font-lock-warning-face))
-              for p in (mapcar #'gnugo-goto-pos positions)
-              collect
-              (let ((ov (make-overlay p (1+ p))))
-                (overlay-put
-                 ov 'display
-                 (if using-images
-                     ;; respect the dead individually; it takes more time
-                     ;; but that's not a problem (for them)
-                     (gnugo-venerate (get-text-property p 'gnugo-yin)
-                                     shown)
-                   shown))
-                ov))))))
+        (cl-flet
+            ((P (groups face respect)
+                (cl-loop
+                 for (head . positions) in groups
+                 unless (cdr head)
+                 do (setcdr
+                     head
+                     (cl-loop
+                      with b/w = (gnugo--prop-blackp (car head))
+                      with yang = (if using-images
+                                      (gnugo-yang (if b/w ?X ?O))
+                                    (propertize (if b/w "x" "o")
+                                                'face face))
+                      for pos in (mapcar #'gnugo-goto-pos positions)
+                      collect
+                      (let ((ov (make-overlay pos (1+ pos))))
+                        (overlay-put
+                         ov 'display
+                         (if using-images
+                             ;; respect the dead individually; it takes more
+                             ;; time but that's not a problem (for them)
+                             (funcall respect (get-text-property
+                                               pos 'gnugo-yin)
+                                      yang)
+                           yang))
+                        ov))))))
+          (P seki 'font-lock-type-face
+             (lambda (yin yang)
+               (get (gnugo-yy yin yang t)
+                    'display)))
+          (P dead 'font-lock-warning-face
+             #'gnugo-venerate))))
     ;; window update
     (when (setq window (get-buffer-window (current-buffer)))
       (let* ((gridp (not (memq :nogrid buffer-invisibility-spec)))
