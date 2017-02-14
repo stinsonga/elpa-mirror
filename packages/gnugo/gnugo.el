@@ -245,8 +245,8 @@ you may never really understand to any degree of personal satisfaction\".
 
  :diamond -- the part of the subprocess name after \"gnugo\", may be \"\"
 
- :game-over -- nil until game over at which time its value is set to
-               the alist ((live GROUP ...) (dead GROUP ...))
+ :game-over -- nil until game over at which time its value is set to the
+               alist ((live GROUP ...) (seki GROUP ...) (dead GROUP ...))
 
  :sgf-collection -- after a `loadsgf' command, entire parse tree of file,
                     a simple list of one or more gametrees, updated in
@@ -855,24 +855,31 @@ For all other values of RSEL, do nothing and return nil."
                                        "\n"))))
                       (append (ls "black")
                               (ls "white"))))
+            (seki)
             (dead))
         (cl-loop
+         with flat-seki = (gnugo-lsquery "final_status_list seki")
          with dd = (gnugo-query "dragon_data")
          with start = 0
-         with (live dead)
+         with (live seki dead)
          while (string-match "\\(.+\\):\n[^ ]+[ ]+\\(black\\|white\\)\n"
                              dd start)
-         do (let ((ent (group (match-string 2 dd)
-                              (gnugo-lsquery "dragon_stones %s"
-                                             (match-string 1 dd)))))
+         do (let* ((mem (match-string 1 dd))
+                   (ent (group (match-string 2 dd)
+                               (gnugo-lsquery "dragon_stones %s"
+                                              mem))))
               (string-match "\nstatus[ ]+\\(\\(ALIVE\\)\\|[A-Z]+\\)\n"
                             dd start)
-              (if (match-string 2 dd)
-                  (push ent live)
-                (push ent dead))
+              (cond ((member mem flat-seki)
+                     (push ent seki))
+                    ((match-string 2 dd)
+                     (push ent live))
+                    (t
+                     (push ent dead)))
               (setq start (match-end 0)))
          finally return
          `((live ,@live)
+           (seki ,@seki)
            (dead ,@dead)))))))
 
 (defun gnugo--unclose-game ()
