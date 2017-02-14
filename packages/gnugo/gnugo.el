@@ -1033,6 +1033,7 @@ its move."
   (interactive "P")
   (let* ((move (gnugo-move-history 'car))
          (game-over (gnugo-get :game-over))
+         (using-images (gnugo-get :display-using-images))
          (inhibit-read-only t)
          window last)
     (when (and nocache (not (gnugo-get :waiting)))
@@ -1085,20 +1086,27 @@ its move."
          do (setcdr
              head
              (cl-loop
-              with c = (if (gnugo--blackp (car head))
-                           "x"
-                         "o")
+              with color = (car head)
+              with shown = (if using-images
+                               (gnugo-yang (if (gnugo--blackp color)
+                                               ?X
+                                             ?O))
+                             (propertize (if (gnugo--blackp color)
+                                             "x"
+                                           "o")
+                                         'face
+                                         'font-lock-warning-face))
               for p in (mapcar #'gnugo-goto-pos positions)
               collect
               (let ((ov (make-overlay p (1+ p))))
                 (overlay-put
                  ov 'display
-                 (if (gnugo-get :display-using-images)
+                 (if using-images
                      ;; respect the dead individually; it takes more time
                      ;; but that's not a problem (for them)
                      (gnugo-venerate (get-text-property p 'gnugo-yin)
-                                     (gnugo-yang (aref (upcase c) 0)))
-                   (propertize c 'face 'font-lock-warning-face)))
+                                     shown)
+                   shown))
                 ov))))))
     ;; window update
     (when (setq window (get-buffer-window (current-buffer)))
