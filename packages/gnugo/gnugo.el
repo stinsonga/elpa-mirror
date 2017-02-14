@@ -379,6 +379,9 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
   (with-current-buffer (or buffer (current-buffer))
     (and gnugo-state (not (gnugo-get :waiting)))))
 
+(defsubst gnugo--prop-blackp (object)
+  (eq :B object))
+
 (defsubst gnugo--blackp (string)
   (string= "black" string))
 
@@ -829,38 +832,48 @@ For all other values of RSEL, do nothing and return nil."
     (gnugo-put :scoring-seed (logior (ash (logand (car now) 255) 16)
                                      (cadr now))))
   (gnugo-put :game-over
-    (if (or (eq t resign)
-            (and (stringp resign)
-                 (string-match "[BW][+][Rr]esign" resign)))
-        (cl-flet
-            ((ls (color) (mapcar
-                          (lambda (x)
-                            (cons (list color)
-                                  (split-string x)))
-                          (split-string
-                           (gnugo-query "worm_stones %s" color)
-                           "\n"))))
-          (let ((live (append (ls "black") (ls "white"))))
-            `((live ,@live)
-              (dead))))
-      (let ((dd (gnugo-query "dragon_data"))
-            (start 0) mem color ent live dead)
-        (while (string-match "\\(.+\\):\n[^ ]+[ ]+\\(black\\|white\\)\n"
+    (cl-flet
+        ;; Q: What form does a game-over "group" take?
+        ;; A: GROUP = (GHEAD POSITION[...])
+        ;;    GHEAD = (CPROP [OVERLAY[...]])
+        ;;    CPROP = ‘:B’ or ‘:W’
+        ((group (color positions)
+                (cl-assert positions)   ; one or more
+                (cons (list (gnugo--prop<-color color))
+                      (sort positions #'string<))))
+      (if (or (eq t resign)
+              (and (stringp resign)
+                   (string-match "[BW][+][Rr]esign" resign)))
+          ;; Hmmm, treating resignation specially seems kind of pointless.
+          ;; TODO: Choose one: (a) rationalize; (b) decruft.
+          `((live ,@(cl-flet
+                        ((ls (color) (mapcar
+                                      (lambda (x)
+                                        (group color (split-string x)))
+                                      (split-string
+                                       (gnugo-query "worm_stones %s" color)
+                                       "\n"))))
+                      (append (ls "black")
+                              (ls "white"))))
+            (dead))
+        (cl-loop
+         with dd = (gnugo-query "dragon_data")
+         with start = 0
+         with (live dead)
+         while (string-match "\\(.+\\):\n[^ ]+[ ]+\\(black\\|white\\)\n"
                              dd start)
-          (setq mem (match-string 1 dd)
-                color (match-string 2 dd)
-                start (match-end 0)
-                ent (cons (list color)
-                          (sort (gnugo-lsquery "dragon_stones %s" mem)
-                                'string<)))
-          (string-match "\nstatus[ ]+\\(\\(ALIVE\\)\\|[A-Z]+\\)\n"
-                        dd start)
-          (if (match-string 2 dd)
-              (push ent live)
-            (push ent dead))
-          (setq start (match-end 0)))
-        `((live ,@live)
-          (dead ,@dead))))))
+         do (let ((ent (group (match-string 2 dd)
+                              (gnugo-lsquery "dragon_stones %s"
+                                             (match-string 1 dd)))))
+              (string-match "\nstatus[ ]+\\(\\(ALIVE\\)\\|[A-Z]+\\)\n"
+                            dd start)
+              (if (match-string 2 dd)
+                  (push ent live)
+                (push ent dead))
+              (setq start (match-end 0)))
+         finally return
+         `((live ,@live)
+           (dead ,@dead)))))))
 
 (defun gnugo--unclose-game ()
   (gnugo--forget :game-over             ; all those in -close-game
@@ -1086,12 +1099,12 @@ its move."
          do (setcdr
              head
              (cl-loop
-              with color = (car head)
+              with cprop = (car head)
               with shown = (if using-images
-                               (gnugo-yang (if (gnugo--blackp color)
+                               (gnugo-yang (if (gnugo--prop-blackp cprop)
                                                ?X
                                              ?O))
-                             (propertize (if (gnugo--blackp color)
+                             (propertize (if (gnugo--prop-blackp cprop)
                                              "x"
                                            "o")
                                          'face
@@ -1794,12 +1807,12 @@ to the last move, as a comment."
               result (gnugo-query "final_score %d" seed))
         (cond ((string= "Chinese" (gnugo--root-prop :RU))
                (dolist (group live)
-                 (cl-incf (if (gnugo--blackp (caar group))
+                 (cl-incf (if (gnugo--prop-blackp (caar group))
                               b-terr
                             w-terr)
                           (length (cdr group))))
                (dolist (group dead)
-                 (cl-incf (if (gnugo--blackp (caar group))
+                 (cl-incf (if (gnugo--prop-blackp (caar group))
                               w-terr
                             b-terr)
                           (length (cdr group))))
@@ -1809,7 +1822,7 @@ to the last move, as a comment."
                      blurb))
               (t
                (dolist (group dead)
-                 (cl-incf (if (gnugo--blackp (caar group))
+                 (cl-incf (if (gnugo--prop-blackp (caar group))
                               w-terr
                             b-terr)
                           (* 2 (length (cdr group)))))
