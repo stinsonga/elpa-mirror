@@ -1791,6 +1791,7 @@ to the last move, as a comment."
         (w=  "   White = ")
         (res (when (gnugo--resignp (gnugo-move-history 'car))
                (gnugo-get :last-mover)))
+        (seed (gnugo-get :scoring-seed))
         blurb result)
     (if res
         (setq blurb (list
@@ -1805,7 +1806,6 @@ to the last move, as a comment."
       (let* ((g-over (gnugo-get :game-over))
              (live   (gnugo-aqr 'live g-over))
              (dead   (gnugo-aqr 'dead g-over))
-             (seed   (gnugo-get :scoring-seed))
              (terr-q (format "final_status_list %%s_territory %d" seed))
              (terr   "territory")
              (capt   "captures")
@@ -1872,6 +1872,18 @@ to the last move, as a comment."
     (gnugo--set-root-prop :RE result)
     (when comment
       (let ((node (car (aref (gnugo-get :monkey) 0))))
+        (cl-loop
+         for (prop . what) in '((:TB . black_territory)
+                                (:TW . white_territory)
+                                (:MA . seki)
+                                (:DD . dead))
+         do (let ((ls (gnugo-lsquery "final_status_list %s %s"
+                                     what seed)))
+              (delq (assq prop node) node)
+              (when ls
+                (gnugo--decorate
+                 node prop (mapcar (gnugo--as-cc-func)
+                                   ls)))))
         (gnugo--decorate
          (delq (assq :C node) node)
          :C
