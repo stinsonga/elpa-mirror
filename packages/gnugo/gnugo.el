@@ -2157,6 +2157,7 @@ NOTE: At this time, GTP command handling specification is still
   "Major mode for playing GNU Go.
 Entering this mode runs the normal hook `gnugo-board-mode-hook'.
 In this mode, keys do not self insert (see `gnugo-board-mode-map')."
+  ;; hint: (search-forward "define-key gnugo-board-mode-map")
   :syntax-table nil
   :abbrev-table nil
   (buffer-disable-undo)                 ; todo: undo undo undoing
@@ -2421,6 +2422,10 @@ See `gnugo-board-mode' for a full list of commands."
                  (t (validpos (car sel) t)))))))))
 
 ;; Respect user customizations; try not to clobber the keymap on reload.
+;; This (top-level, conditionalized, late-in-file) form is not "idiomatic",
+;; but it does avoid forward references [which are ugly, IMHO --ttn].
+;; TODO: Link to emacs-devel thread, here.
+;;
 ;; hacker override:        (define-key gnugo-board-mode-map "?" nil)
 (unless (eq 'describe-mode (lookup-key gnugo-board-mode-map "?"))
   (cl-loop
