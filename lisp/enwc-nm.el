@@ -258,10 +258,29 @@ This gets the connection path from NW, and connects to it."
     (enwc-nm-wireless-connect nw)))
 
 (defun enwc-nm-wireless-connect (nw)
-  (enwc-nm-dbus-default-call-method "ActivateConnection"
-                                    :object-path nw
-                                    :object-path enwc-nm-wireless-dev
-                                    :object-path nw))
+  (let ((ap-ssid (dbus-byte-array-to-string
+                  (dbus-get-property :system
+                                     enwc-nm-dbus-service
+                                     nw
+                                     "org.freedesktop.NetworkManager.AccessPoint"
+                                     "Ssid")))
+        (profile-table (make-hash-table :test #'equal)))
+    ;; Create a hash table of connections, indexed by ssid
+    ;; TODO: Store this somewhere else
+    (dolist (conn (enwc-nm-list-connections))
+      (let ((settings (dbus-call-method :system
+                                        enwc-nm-dbus-service
+                                        conn
+                                        "org.freedesktop.NetworkManager.Settings.Connection"
+                                        "GetSettings")))
+        (map-put profile-table
+                 (dbus-byte-array-to-string (caadr (assoc-string "ssid" (cadr (assoc-string "802-11-wireless" settings)))))
+                 conn)))
+    (when-let (conn (map-elt profile-table ap-ssid))
+      (enwc-nm-dbus-default-call-method "ActivateConnection"
+                                        :object-path conn
+                                        :object-path enwc-nm-wireless-dev
+                                        :object-path conn))))
 
 (defun enwc-nm-wired-connect (nw)
   (enwc-nm-dbus-default-call-method "ActivateConnection"
