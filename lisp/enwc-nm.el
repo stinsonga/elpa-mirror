@@ -32,6 +32,7 @@
 (require 'enwc-backend)
 (require 'enwc)
 (require 'dbus)
+(require 'subr-x)
 
 (defgroup enwc-nm nil
   "*NetworkManager variables for ENWC"
