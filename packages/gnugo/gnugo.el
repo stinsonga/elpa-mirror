@@ -1767,9 +1767,14 @@ Prefix arg means to redo all the undone moves."
   "Display final score and other info in another buffer (when game over).
 If the game is still ongoing, Emacs asks if you wish to stop play (by
 making sure two \"pass\" moves are played consecutively, if necessary).
-Also, add the `:RE' SGF property to the root node of the game tree.
-Prefix arg COMMENT means to also attach the text (slightly compacted)
-to the last move, as a comment."
+Also, add the `RE' (Result) SGF property to the root node of the game tree.
+Prefix arg means to attach to the last move the SGF properties:
+ TB -- Black Territory
+ TW -- White Territory
+ MA -- Mark (to indicate seki stones)
+ DD -- Dim Points (to indicate dead stones)
+each of which is a non-empty list of positions, as well as the final
+score text (slightly compacted) as a comment."
   (interactive "P")
   (let ((game-over (gnugo-get :game-over)))
     (unless (or game-over
