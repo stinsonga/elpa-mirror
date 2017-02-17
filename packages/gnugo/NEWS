@@ -5,6 +5,27 @@ NB: "RCS: X..Y " means that the particular release includes
     changes in the RCS repo, revision 1.X through 1.Y (inclusive).
 
 
+- 3.1.0 | 2017-02-17
+  - THANKS file includes pre-ELPA people
+  - bugfix: refresh no longer clobbers dead-group indication
+  - echo area messages (normal and error) more conventional
+  - ‘C’ (gnugo-comment) defaults to root node if no played stone at point
+  - ‘C-c C-p’ (gnugo-describe-internal-properties) output more spacious
+  - ‘C-u F’ (gnugo-display-final-score) stores additional SGF properties
+    - ‘TB’ -- Black Territory
+    - ‘TW’ -- White Territory
+    - ‘MA’ -- Mark (to indicate seki stones)
+    - ‘DD’ -- Dim Points (to indicate dead stones)
+  - game-over seki groups (if any) indicated on board
+  - changes to programming interface
+    - dropped data structures (unused => NOT backward-incompatible)
+      - ‘gnugo-board-mode-syntax-table’
+      - ‘gnugo-board-mode-abbrev-table’
+    - game-over "group" formalized: ‘((CPROP [OVERLAY[...]]) POS[...])’
+    - game-over data includes seki groups
+    - ‘gnugo-goto-pos’ returns buffer position
+    - new abstraction: ‘gnugo-aqr’
+
 - 3.0.2 | 2017-02-05
   - portability fix (Emacs 25.1): use Cursor Intangible mode, if available
   - verse meter fix (for those who read source code)
