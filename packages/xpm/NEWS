@@ -2,6 +2,10 @@ NEWS for xpm.el (et al)
 See the end for copying conditions.
 
 
+- 1.0.4 | 2017-02-17
+  - fixed syntax error in ‘defstruct’ usage (how did it work before?!)
+  - new THANKS file
+
 - 1.0.3 | 2014-06-13
   - improved docstrings
 
