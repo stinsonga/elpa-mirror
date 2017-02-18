@@ -1,6 +1,6 @@
 ;;; debbugs-gnu.el --- interface for the GNU bug tracker  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2011-2016 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2017 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;;         Michael Albinus <michael.albinus@gmx.org>
@@ -1501,14 +1501,20 @@ removed instead."
 	     "Version: "
 	     (cond
 	      ;; Emacs development versions.
-	      ((string-match
-		"^\\([0-9]+\\)\\.\\([0-9]+\\)\\.\\([0-9]+\\)\\." emacs-version)
+	      ((if (boundp 'emacs-build-number)
+		   (string-match
+		    "^\\([0-9]+\\)\\.\\([0-9]+\\)\\.\\([0-9]+\\)" emacs-version)
+		 (string-match
+		  "^\\([0-9]+\\)\\.\\([0-9]+\\)\\.\\([0-9]+\\)\\." emacs-version))
 	       (format "%s.%d"
 		       (match-string 1 emacs-version)
 		       (1+ (string-to-number (match-string 2 emacs-version)))))
 	      ;; Emacs release versions.
-	      ((string-match
-		"^\\([0-9]+\\)\\.\\([0-9]+\\)\\.\\([0-9]+\\)$" emacs-version)
+	      ((if (boundp 'emacs-build-number)
+		   (string-match
+		    "^\\([0-9]+\\)\\.\\([0-9]+\\)$" emacs-version)
+		 (string-match
+		  "^\\([0-9]+\\)\\.\\([0-9]+\\)\\.\\([0-9]+\\)$" emacs-version))
 	       (format "%s.%s"
 		       (match-string 1 emacs-version)
 		       (match-string 2 emacs-version)))
