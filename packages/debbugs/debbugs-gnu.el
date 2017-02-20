@@ -1350,6 +1350,7 @@ MERGED is the list of bugs merged with this one."
 (defun debbugs-gnu-select-report ()
   "Select the report on the current line."
   (interactive)
+  (when (mouse-event-p last-input-event) (mouse-set-point last-input-event))
   ;; We open the report messages.
   (let* ((status (debbugs-gnu-current-status))
 	 (id (cdr (assq 'id status)))
@@ -1673,6 +1674,7 @@ The following commands are available:
 (defun debbugs-gnu-select-usertag ()
   "Select the user tag on the current line."
   (interactive)
+  (when (mouse-event-p last-input-event) (mouse-set-point last-input-event))
   ;; We open the bug reports.
   (let ((args (get-text-property (line-beginning-position) 'tabulated-list-id)))
     (when args (apply 'debbugs-gnu args))))
