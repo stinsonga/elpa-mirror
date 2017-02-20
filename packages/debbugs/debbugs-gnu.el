@@ -910,7 +910,6 @@ Used instead of `tabulated-list-print-entry'."
 	(menu-map (make-sparse-keymap)))
     (set-keymap-parent map tabulated-list-mode-map)
     (define-key map "\r" 'debbugs-gnu-select-report)
-    (define-key map [mouse-1] 'debbugs-gnu-select-report)
     (define-key map [mouse-2] 'debbugs-gnu-select-report)
     (define-key map "g" 'debbugs-gnu-rescan)
     (define-key map "R" 'debbugs-gnu-show-all-blocking-reports)
@@ -1594,7 +1593,6 @@ removed instead."
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map tabulated-list-mode-map)
     (define-key map "\r" 'debbugs-gnu-select-usertag)
-    (define-key map [mouse-1] 'debbugs-gnu-select-usertag)
     (define-key map [mouse-2] 'debbugs-gnu-select-usertag)
     map))
 
