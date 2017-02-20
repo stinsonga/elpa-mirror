@@ -258,6 +258,7 @@ If nil, the value of `send-mail-function' is used instead."
 	      (const "grep")
 	      (const "guile")
 	      (const "guix")
+	      (const "guix-patches")
 	      (const "gzip")
 	      (const "hyperbole")
 	      (const "idutils")
