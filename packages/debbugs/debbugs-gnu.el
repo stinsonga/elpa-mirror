@@ -2010,6 +2010,9 @@ If given a prefix, patch in the branch directory instead."
 
 ;; * Extend SOAP interface to get all bugs modified in a given timeframe.
 
+;; * Extend SOAP interface to get existing package names on the
+;;  server, in order not to hardcode them.
+
 ;; * Add debbugs commands to commit messages.
 ;;   It'd be nice if the language would be something along the lines of
 ;;
