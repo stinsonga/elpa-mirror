@@ -714,7 +714,9 @@ Unregister all of the D-Bus signals set up during load."
   (dbus-unregister-object enwc-nm-state-changed-signal))
 
 (defun enwc-nm-can-load-p ()
-  (dbus-ping :system enwc-nm-dbus-service))
+  ;; (dbus-ping :system enwc-nm-dbus-service)
+  ;; NetworkManager doesn't allow Ping, so we have to use an alternative.
+  (dbus-introspect :system enwc-nm-dbus-service enwc-nm-dbus-path))
 
 (enwc-register-backend
  (make-enwc-backend
