@@ -1,10 +1,10 @@
 ;;; wconf.el --- Minimal window layout manager   -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2014-2015  Free Software Foundation, Inc.
+;; Copyright (C) 2014-2017  Free Software Foundation, Inc.
 
 ;; Author: Ingo Lohmar <i.lohmar@gmail.com>
 ;; URL: https://github.com/ilohmar/wconf
-;; Version: 0.2.0
+;; Version: 0.2.1
 ;; Keywords: windows, frames, layout
 ;; Package-Requires: ((emacs "24.4"))
 
@@ -35,24 +35,29 @@
 
 (defcustom wconf-change-config-function #'wconf-change-config-default
   "Function called with current config whenever it is set."
-  :group 'wconf)
+  :group 'wconf
+  :type 'function)
 
 (defcustom wconf-file (expand-file-name "wconf-window-configs.el"
                                         user-emacs-directory)
   "File used to save and load window configurations."
-  :group 'wconf)
+  :group 'wconf
+  :type 'file)
 
 (defcustom wconf-fallback-buffer-name "*scratch*"
   "Name of the buffer to substitute for buffers which are not available."
-  :group 'wconf)
+  :group 'wconf
+  :type 'string)
 
 (defcustom wconf-no-configs-string "-----"
   "String to use if there are no configurations at all."
-  :group 'wconf)
+  :group 'wconf
+  :type 'string)
 
 (defcustom wconf-no-config-name "---"
   "String to use for the empty window configuration."
-  :group 'wconf)
+  :group 'wconf
+  :type 'string)
 
 ;; internal variables and helper functions
 
@@ -77,6 +82,10 @@ this can be nil although wconf--configs is not empty.")
 (defsubst wconf--ensure-index (&optional index)
   (unless (<= 0 index (1- (length wconf--configs)))
     (error "wconf: No window configuration index %s" index)))
+
+(defsubst wconf--not-from-minibuffer ()
+  (when (minibuffer-window-active-p (frame-selected-window))
+    (error "wconf: Cannot change window configs when minibuffer is active")))
 
 (defun wconf--current-config ()
   (window-state-get (frame-root-window (selected-frame))
@@ -123,7 +132,7 @@ this can be nil although wconf--configs is not empty.")
 
 ;; global stuff
 
-(defun wconf-change-config-default (index config)
+(defun wconf-change-config-default (index _config)
   "Update `wconf-string' to represent configuration CONFIG at
 position INDEX."
   (setq wconf-string (if wconf--configs
@@ -190,6 +199,7 @@ With optional prefix argument NEW, or if there are no
 configurations yet, create a new configuration from the current
 window config."
   (interactive "P")
+  (wconf--not-from-minibuffer)
   (wconf--update-active-config)
   (setq wconf--configs
         (append wconf--configs
@@ -214,6 +224,7 @@ window config."
   "Kill current configuration."
   (interactive)
   (wconf--ensure-configs 'current)
+  (wconf--not-from-minibuffer)
   (let ((old-string (wconf--to-string wconf--index)))
     (setq wconf--configs
           (append (butlast wconf--configs
@@ -233,6 +244,7 @@ window config."
   (interactive
    (progn
      (wconf--ensure-configs 'current)   ;interactive?  then want current config
+     (wconf--not-from-minibuffer)
      (list
       wconf--index
       (read-number "Swap current config with index: "))))
@@ -294,6 +306,7 @@ window config."
   "Restore stored configuration."
   (interactive)
   (wconf--ensure-configs 'current)
+  (wconf--not-from-minibuffer)
   (wconf--restore (wconf- wconf--index))
   (wconf--use-config wconf--index)
   (message "wconf: Restored configuration %s" (wconf--to-string wconf--index)))
@@ -312,6 +325,7 @@ window config."
   "Change to current config INDEX."
   (interactive "P")
   (wconf--ensure-configs)
+  (wconf--not-from-minibuffer)
   (let ((index (or index
                    (read-number "Switch to config number: "))))
     (wconf--ensure-index index)
