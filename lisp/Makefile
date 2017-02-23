@@ -1,6 +1,6 @@
 # This is part of ENWC
 #
-#  Copyright (C) 2012 Ian Dunn.
+#  Copyright (C) 2012-2017 Ian Dunn.
 #
 #  This program is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -15,12 +15,9 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-
 EMACS=emacs --batch
 ALLSRC= enwc-backend.el enwc.el enwc-wicd.el enwc-nm.el
 ALLELC=$(wildcard *.elc)
-EXPER=enwc-cm.el enwc-wpa.el enwc-edit.el
 SOURCE=$(ALLSRC)
 TARGET=$(patsubst %.el,%.elc,$(SOURCE))
 
@@ -31,7 +28,7 @@ all: $(TARGET)
 	-L "." \
 	-f batch-byte-compile $<
 
-enwc-autoloads.el:
+enwc-autoloads.el: $(SOURCE)
 	@$(EMACS) \
 	--eval "(require 'package)" \
 	--eval "(setq inhibit-message t)" \
