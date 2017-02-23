@@ -1,5 +1,7 @@
 ;;; enwc-edit.el --- Support for editing wireless network profiles
 
+;; Copyright (C) 2012-2017 Free Software Foundation, Inc.
+
 ;; Author: Ian Dunn <dunni@gnu.org>
 ;; Keywords: external, network, wicd, manager, nm
 ;; Version: 2.0
@@ -23,6 +25,8 @@
 ;; 02110-1301, USA.
 
 ;;; Commentary:
+
+;; THIS IS EXPERIMENTAL
 
 ;;; Code:
 

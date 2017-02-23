@@ -1,6 +1,6 @@
 ;;; enwc.el --- The Emacs Network Client
 
-;; Copyright (C) 2012-2014 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2017 Free Software Foundation, Inc.
 
 ;; Author: Ian Dunn <dunni@gnu.org>
 ;; Keywords: external, network, wicd, manager, nm

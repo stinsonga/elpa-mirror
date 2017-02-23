@@ -1,9 +1,9 @@
 ;; enwc-cm.el --- The ConnMan back-end to ENWC.
 
-;; Copyright (C) 2012,2013,2014 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2017 Free Software Foundation, Inc.
 
 ;; Author: Ian Dunn <dunni@gnu.org>
-;; Keywords: network, wicd, manager, nm
+;; Keywords: external, network, wicd, manager, nm
 ;; Version: 2.0
 ;; Homepage: https://savannah.nongnu.org/p/enwc
 
