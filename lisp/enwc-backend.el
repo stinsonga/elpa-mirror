@@ -66,8 +66,14 @@ an enwc-backend struct.")
   :type 'symbol
   :group 'enwc)
 
+(defcustom enwc-force-backend-loading nil
+  "Non-nil if backends should be loaded even if they claim they cannot."
+  :type 'boolean
+  :group 'enwc)
+
 (defvar enwc--current-backend nil)
 
+;;;###autoload
 (defun enwc-register-backend (definition &optional forcep)
   "Register the backend KEY with DEFINITION.
 
@@ -124,6 +130,9 @@ Signals an error if a backend with KEY already exists and FORCEP is nil."
   (when (and enwc--current-backend
              (not (eq (enwc-backend-key enwc--current-backend) backend)))
     (enwc-unload-current-backend))
+
+  (unless (require (intern (format "enwc-%s" backend)) nil t)
+    (error "Cannot find enwc feature for backend %s" backend))
 
   (let ((new-backend (map-elt enwc-registered-backend-alist backend)))
     (unless new-backend

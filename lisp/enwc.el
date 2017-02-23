@@ -35,12 +35,11 @@
 ;;
 ;; In order to use this package, add
 ;;
-;; (require 'enwc)
-;; (enwc-load-default-backend)
-;; (enwc-enable-auto-scan)
-;; (enwc-enable-display-mode-line)
+;; (setq enwc-default-backend 'backend-symbol)
 ;;
 ;; to your .emacs file (or other init file).
+;;
+;; Then you can just run `enwc' to start everything.
 
 ;;; TODO:
 ;;
@@ -76,13 +75,13 @@
   :group 'enwc
   :type 'string)
 
-(defcustom enwc-display-mode-line 't
+(defcustom enwc-display-mode-line t
   "Non-nil means display network information in the mode line.
 The specific information can be set using `enwc-mode-line-format'."
   :group 'enwc
   :type 'boolean)
 
-(defcustom enwc-auto-scan 't
+(defcustom enwc-auto-scan nil
   "Whether or not to have ENWC automatically scan.
 If non-nil, then ENWC will automatically scan for
 networks every `enwc-auto-scan-interval' seconds."
@@ -667,6 +666,31 @@ newly created buffer."
   (unless (get-buffer "*ENWC*")
     (enwc-setup-buffer t)))
 
+(defvar enwc--setup-done nil
+  "Non-nil if enwc has already been set up.")
+
+(defun enwc-setup ()
+  "Set up ENWC.
+
+If `enwc-display-mode-line' is non-nil, enable the mode line.
+
+If `enwc-auto-scan' is non-nil, start the auto-scan timer.
+
+Finally, the default backend is loaded."
+  (unless enwc--setup-done
+    (enwc-load-default-backend enwc-force-backend-loading)
+
+    (when enwc-display-mode-line
+      (enwc-enable-display-mode-line))
+
+    (when (and enwc-auto-scan
+               (> enwc-auto-scan-interval 0)
+               (not enwc-scan-timer))
+      (setq enwc-scan-timer
+            (run-at-time t enwc-auto-scan-interval 'enwc-scan t)))
+
+    (setq enwc--setup-done t)))
+
 ;;;###autoload
 (defun enwc ()
   "The main front-end to ENWC.
@@ -676,6 +700,7 @@ In order to use this, one must have already run
 
 \\{enwc-mode-map}"
   (interactive)
+  (enwc-setup)
   (enwc-setup-buffer)
   (enwc-scan))
 
