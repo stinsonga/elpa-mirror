@@ -1,10 +1,10 @@
 ;;; windresize.el --- Resize windows interactively
 ;;
-;; Copyright (C) 2011-2014  Free Software Foundation, Inc.
+;; Copyright (C) 2011-2017  Free Software Foundation, Inc.
 ;;
 ;; Filename: windresize.el
-;; Author: Bastien <bzg AT altern DOT org>
-;; Maintainer: Bastien <bzg AT altern DOT org>
+;; Author: Bastien <bzg@altern.org>
+;; Maintainer: Bastien <bzg@altern.org>
 ;; Keywords: window
 ;; Description: Set window configuration with keystrokes
 ;; Version: 0.1
@@ -156,9 +156,9 @@ conflicts between keybindings."
 
 (defvar windresize-map
   (let ((map (make-sparse-keymap)))
-    (define-key map [remap self-insert-command] 'windresize-other-char)
-    (define-key map (kbd "M-x") 'windresize-other-char)
-    (define-key map (kbd "C-h") 'windresize-other-char)
+    (define-key map [remap self-insert-command] 'undefined)
+    (define-key map (kbd "M-x") 'undefined)
+    (define-key map (kbd "C-h") 'windresize-help)
     ;; move borders outwards or shrink/enlarge
     (define-key map [left] 'windresize-left)
     (define-key map [right] 'windresize-right)
@@ -240,20 +240,6 @@ conflicts between keybindings."
     map)
   "Keymap for `windresize'.")
 
-(defun windresize-other-char ()
-  "Show a message instead of processing `self-insert-command'."
-  (interactive)
-  (let* ((key (if current-prefix-arg
-		  (substring (this-command-keys)
-			     universal-argument-num-events)
-		(this-command-keys))))
-    (cond ((vectorp key) (ding))
-	  ((stringp key)
-	   ;; send warning for only no warning for complex keys and
-	   ;; mouse events
-	   (setq windresize-msg
-		 (cons (format "[`%s' not bound]" key) 1))))))
-
 ;;; Aliases:
 
 (defun windresize-other-window ()
@@ -304,6 +290,7 @@ conflicts between keybindings."
 
 (defun windresize-balance-windows ()
   "Balance windows."
+  ;; FIXME: How 'bout balance-windows-area?
   (interactive)
   (balance-windows)
   (setq windresize-msg (cons "Windows balanced" 2)))
@@ -347,9 +334,9 @@ will set the new window configuration and exit.
   (interactive "P")
   (if windresize-resizing
       (windresize-exit)
-    ;; FIXME shall we exit we calling again `windresize'?
-;;       (progn (windresize-message '("[Already resizing]" . 0))
-;; 	     (sit-for 2))
+    ;; FIXME shall we exit when calling again `windresize'?
+    ;;(progn (windresize-message '("[Already resizing]" . 0))
+    ;;       (sit-for 2))
     (setq windresize-overriding-terminal-local-map-0
 	  overriding-terminal-local-map)
     (setq windresize-overriding-menu-flag-0
@@ -370,8 +357,8 @@ will set the new window configuration and exit.
     ;; set the initial message
     (setq windresize-msg
 	  (if (one-window-p)
-	      (setq windresize-msg (cons "Split window with [23]" 2))
-	    (setq windresize-msg (cons "" 0))))
+              (cons "Split window with [23]" 2)
+            (cons "" 0)))
     (setq windresize-resizing t)
     (windresize-message)))
 
@@ -665,7 +652,6 @@ are movable, move the window down and preserve its height."
 	 (up-w (windmove-find-other-window 'up))
 	 (i (if n (prefix-numeric-value n) windresize-increment))
 	 (shrink-ok (> (- (window-width) i) window-min-width))
-	 (wcf (current-window-configuration))
 	 (w (selected-window)))
     (if (not windresize-move-borders)
 	(if (or (and (window-minibuffer-p down-w) (not up-w))
@@ -727,7 +713,6 @@ are movable, move the window down and preserve its height."
   "Move the upper border down by N lines."
   (interactive "P")
   (let ((i (if n (prefix-numeric-value n) windresize-increment))
-	(wcf (current-window-configuration))
 	(up-w (windmove-find-other-window 'up)))
     (condition-case nil
 	(if up-w (adjust-window-trailing-edge up-w i nil)
@@ -738,36 +723,28 @@ are movable, move the window down and preserve its height."
 ;;; Arrow keys temoporarily negating the increment value:
 
 (defun windresize-down-minus ()
-  "Same as `windresize-left' but negate `windresize-increment'."
+  "Same as `windresize-down' but negate `windresize-increment'."
   (interactive)
-  (let ((i windresize-increment))
-    (windresize-decrease-increment t)
-    (windresize-down)
-    (windresize-increase-increment t)))
+  (let ((windresize-increment (- windresize-increment)))
+    (windresize-down)))
 
 (defun windresize-right-minus ()
-  "Same as `windresize-left' but negate `windresize-increment'."
+  "Same as `windresize-right' but negate `windresize-increment'."
   (interactive)
-  (let ((i windresize-increment))
-    (windresize-decrease-increment t)
-    (windresize-right)
-    (windresize-increase-increment t)))
+  (let ((windresize-increment (- windresize-increment)))
+    (windresize-right)))
 
 (defun windresize-up-minus ()
-  "Same as `windresize-left' but negate `windresize-increment'."
+  "Same as `windresize-up' but negate `windresize-increment'."
   (interactive)
-  (let ((i windresize-increment))
-    (windresize-decrease-increment t)
-    (windresize-up)
-    (windresize-increase-increment t)))
+  (let ((windresize-increment (- windresize-increment)))
+    (windresize-up)))
 
 (defun windresize-left-minus ()
   "Same as `windresize-left' but negate `windresize-increment'."
   (interactive)
-  (let ((i windresize-increment))
-    (windresize-decrease-increment t)
-    (windresize-left)
-    (windresize-increase-increment t)))
+  (let ((windresize-increment (- windresize-increment)))
+    (windresize-left)))
 
 ;;; Let's left/up borders have priority over right/bottom borders:
 
@@ -897,15 +874,15 @@ horizontally and vertically."
   (interactive)
   (let ((pop-up-frames nil) ; otherwise we exit the loop
 	(temp-buffer-show-hook
-	 '(lambda ()
-	    (fit-window-to-buffer)
-	    (shrink-window-if-larger-than-buffer)
-	    (goto-char (point-min))
-	    (save-excursion
-	      (while (re-search-forward
-		      "^[ M][^\n:]+:\\|[0123~=oq]:\\|RET:" nil t)
-		(add-text-properties (match-beginning 0)
-				     (match-end 0) '(face bold))))))
+	 (lambda ()
+           (fit-window-to-buffer)
+           (shrink-window-if-larger-than-buffer)
+           (goto-char (point-min))
+           (save-excursion
+             (while (re-search-forward
+                     "^[ M][^\n:]+:\\|[0123~=oq]:\\|RET:" nil t)
+               (add-text-properties (match-beginning 0)
+                                    (match-end 0) '(face bold))))))
 	(help
 "Use the arrow keys to move a border into the arrow direction.
 Right and bottom borders have priority over left and up borders.
