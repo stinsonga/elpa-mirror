@@ -3,8 +3,8 @@
 ;; Copyright (C) 2011-2017  Free Software Foundation, Inc.
 ;;
 ;; Filename: windresize.el
-;; Author: Bastien <bzg@altern.org>
-;; Maintainer: Bastien <bzg@altern.org>
+;; Author: Bastien <bzg@gnu.org>
+;; Maintainer: Bastien <bzg@gnu.org>
 ;; Keywords: window
 ;; Description: Set window configuration with keystrokes
 ;; Version: 0.1
