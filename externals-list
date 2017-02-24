@@ -37,6 +37,7 @@
  ;;FIXME:("cedet"	:external "??")
  ("chess"		:external nil) ;; Was https://github.com/jwiegley/emacs-chess.git
  ;; ("cobol-mode"          :subtree "https://gist.github.com/Edward-H/6768e7dc53ea3dd2adca")
+ ("cl-print"		:core "lisp/emacs-lisp/cl-print.el")
  ("coffee-mode"		:subtree "https://github.com/defunkt/coffee-mode")
  ("compact-docstrings"  :subtree "https://github.com/cpitclaudel/compact-docstrings")
  ("company"		:subtree "https://github.com/company-mode/company-mode.git")
@@ -63,7 +64,7 @@
  ("hyperbole"           :external "http://git.savannah.gnu.org/r/hyperbole.git")
  ("ioccur"		:subtree "https://github.com/thierryvolpiatto/ioccur.git")
  ("js2-mode"		:subtree "https://github.com/mooz/js2-mode.git")
- ("let-alist" :core "lisp/emacs-lisp/let-alist.el")
+ ("let-alist"		:core "lisp/emacs-lisp/let-alist.el")
  ("math-symbol-lists" 	:subtree "https://github.com/vspinu/math-symbol-lists.git")
  ("nameless" :subtree "https://github.com/Malabarba/Nameless")
  ("names" :subtree "http://github.com/Malabarba/names")
@@ -76,7 +77,7 @@
  ("psgml"               :external "https://github.com/lenst/psgml.git")
  ("python"		:core "lisp/progmodes/python.el")
  ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
- ("rich-minority" :subtree "https://github.com/Malabarba/rich-minority")
+ ("rich-minority"	:subtree "https://github.com/Malabarba/rich-minority")
  ("rudel"		:external nil) ;; Was bzr::bzr://rudel.bzr.sourceforge.net/bzrroot/rudel/trunk
  ("soap-client"		:core ("lisp/net/soap-client.el" "lisp/net/soap-inspect.el"))
  ("sotlisp" :subtree "https://github.com/Malabarba/speed-of-thought-lisp")
