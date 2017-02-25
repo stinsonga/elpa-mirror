@@ -35,11 +35,16 @@
 ;;
 ;; In order to use this package, add
 ;;
-;; (setq enwc-default-backend 'backend-symbol)
+;; (setq enwc-default-backend BACKEND-SYMBOL)
 ;;
-;; to your .emacs file (or other init file).
+;; where BACKEND-SYMBOL is either 'wicd or 'nm, to your .emacs file (or other init
+;; file).
 ;;
 ;; Then you can just run `enwc' to start everything.
+;;
+;; Example:
+;;
+;; (setq enwc-default-backend 'nm)
 
 ;;; TODO:
 ;;
