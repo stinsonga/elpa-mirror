@@ -81,7 +81,8 @@
 #        1.5  -- make staging operations less brittle
 #        1.6  -- support ‘--help’, ‘--version’
 #        1.7  -- fix DANGEROUS bug; make less noisy; name bash explicitly
-version='1.7'
+#        1.8  -- revert "name bash explicitly"
+version='1.8'
 # If $0 is a symlink, `dirname $0`/hv.sh might not be available,
 # and even if it IS available, how can we be sure it's bonafide?
 test -L $0 || { hv=`dirname $0`/hv.sh ; test -r $hv && . $hv ; }
