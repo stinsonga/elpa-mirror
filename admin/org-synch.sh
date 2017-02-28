@@ -20,7 +20,8 @@
 #        0.x  -- release from the previous VCS
 #        1.0  -- initial release from this VCS (Git)
 #        1.1  -- support ‘--help’, ‘--version’
-version='1.1'
+#        1.2  -- no longer require curl; performance tweak
+version='1.2'
 # If $0 is a symlink, `dirname $0`/hv.sh might not be available,
 # and even if it IS available, how can we be sure it's bonafide?
 test -L $0 || { hv=`dirname $0`/hv.sh ; test -r $hv && . $hv ; }
