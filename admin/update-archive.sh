@@ -1,6 +1,5 @@
-#!/bin/sh -x
+#!/bin/sh
 # TODO: (line 1) s/sh/bash/
-# TODO: (line 1) Rework ‘-x’ to ‘set -x’ following hv/arg checks.
 # TODO: Author
 # TODO: License
 ##
@@ -88,6 +87,8 @@ version='1.6'
 test -L $0 || { hv=`dirname $0`/hv.sh ; test -r $hv && . $hv ; }
 
 # TODO: (here) Validate args.
+
+set -x
 
 makelog=""
 buildir="$(pwd)"
