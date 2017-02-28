@@ -1,5 +1,4 @@
-#!/bin/sh
-# TODO: (line 1) s/sh/bash/
+#!/bin/bash
 # TODO: Author
 # TODO: License
 ##
