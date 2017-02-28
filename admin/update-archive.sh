@@ -209,7 +209,7 @@ latest="emacs-packages-latest.tgz"
      esac
  done
  mv $buildir/archive/"$latest" staging/
- rm -rf $buildid/archive)  ;# FIXME: TYPO (UNDETECTED, DANGEROUS!)
+ rm -rf $buildir/archive)
 
 # Make the HTML and readme.txt files.
 (cd ../staging/packages
