@@ -29,7 +29,7 @@ test -L $0 || { hv=`dirname $0`/hv.sh ; test -r $hv && . $hv ; }
 
 PATH="/bin:/usr/bin:/usr/local/bin:${PATH}"
 
-pkgname=`wget -q http://orgmode.org/elpa/ -O-|perl -ne 'push @f, $1 if m/(org-\d{8}\.tar)/; END { @f = sort @f; print "$f[-1]\n"}'`
+pkgname=`wget -q http://orgmode.org/elpa/ -O-|perl -ne '$n = $1 if (m/(org-\d{8}\.tar)/ && $1 gt $n); END { print "$n" }'`
 
 cd $1
 wget -q http://orgmode.org/elpa/${pkgname} -O ${pkgname}-tmp
