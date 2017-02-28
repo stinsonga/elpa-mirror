@@ -11,7 +11,7 @@
 # ADMIN-DIR/org-sync.el (func ‘org-sync’) to finish the job.
 #
 # Preconditions:
-# - Installed software: curl, perl, wget, emacs.
+# - Installed software: perl, wget, emacs.
 # - Internet connection (i.e., can access orgmode.org over HTTP).
 # - DOWNLOAD-DIR exists and rw.
 # - ADMIN-DIR exists and readable.
@@ -29,7 +29,7 @@ test -L $0 || { hv=`dirname $0`/hv.sh ; test -r $hv && . $hv ; }
 
 PATH="/bin:/usr/bin:/usr/local/bin:${PATH}"
 
-pkgname=`curl -s http://orgmode.org/elpa/|perl -ne 'push @f, $1 if m/(org-\d{8}\.tar)/; END { @f = sort @f; print "$f[-1]\n"}'`
+pkgname=`wget -q http://orgmode.org/elpa/ -O-|perl -ne 'push @f, $1 if m/(org-\d{8}\.tar)/; END { @f = sort @f; print "$f[-1]\n"}'`
 
 cd $1
 wget -q http://orgmode.org/elpa/${pkgname} -O ${pkgname}-tmp
