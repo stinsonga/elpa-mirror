@@ -120,8 +120,6 @@ connection.
   :group 'enwc
   :type 'string)
 
-;;; The function variables for the abstract layer.
-
 (defvar enwc-display-string " [0%] "
   "The mode line display string.
 This is altered every second to display the current network strength
@@ -171,7 +169,7 @@ in `enwc-update-mode-line'.")
     :sorter #'enwc--chnl-sorter
     :conv #'number-to-string)))
 
-(defvar enwc-last-scan (make-hash-table :test #'equal)
+(defvar enwc--last-scan-results (make-hash-table :test #'equal)
   "The most recent scan results.
 
 This will be an association list of the form:
@@ -295,21 +293,21 @@ This checks for an active wired connection."
   (and id (not (eq id 'wired))))
 
 (defun enwc-value-from-scan (detail &optional id)
-  "Retrieve a value for DETAIL from `enwc-last-scan'.
+  "Retrieve a value for DETAIL from `enwc--last-scan-results'.
 If ID is specified, then it will get the entry for ID.
 Otherwise, ID is set to the current network ID.
 
-If DETAIL is not found in `enwc-last-scan', then return nil."
+If DETAIL is not found in `enwc--last-scan-results', then return nil."
   (setq id (or id (enwc-get-current-nw-id)))
-  (when enwc-last-scan
-    (map-nested-elt enwc-last-scan `(,id ,detail))))
+  (when enwc--last-scan-results
+    (map-nested-elt enwc--last-scan-results `(,id ,detail))))
 
 (defun enwc-make-format-spec ()
   "Create a format specification for the mode line string."
   ;; Variables here are cached to avoid latencies when communicating with D-Bus.
   (let* ((cur-id (enwc-get-current-nw-id))
          (wiredp (enwc-is-wired-p))
-         (no-last (not enwc-last-scan))
+         (no-last (not enwc--last-scan-results))
          (invalid-id (not (enwc-is-valid-nw-id-p cur-id)))
          (connectingp (enwc-check-connecting-p)))
     (format-spec-make ?s (cond
@@ -440,8 +438,8 @@ This gets the list of wired network profiles."
   (message "Updating Profiles...")
   (let ((profs (enwc-get-networks)))
     (message "Updating Profiles... Done")
-    (setq enwc-access-points profs
-          enwc-last-scan     profs)
+    (setq enwc-access-points      profs
+          enwc--last-scan-results profs)
     (enwc-display-wired-networks profs)))
 
 (defun enwc-scan-internal ()
@@ -453,14 +451,14 @@ This checks whether or not wired is being used, and runs the appropriate
     (enwc-scan-internal-wireless)))
 
 (defun enwc--update-scan-results ()
-  (setq enwc-last-scan (make-hash-table :test #'equal))
+  (setq enwc--last-scan-results (make-hash-table :test #'equal))
   (dolist (ap (enwc-get-networks))
-    (puthash ap (enwc-get-wireless-nw-props ap) enwc-last-scan)))
+    (puthash ap (enwc-get-wireless-nw-props ap) enwc--last-scan-results)))
 
 (defun enwc-redisplay-wireless-networks ()
   (interactive)
   (enwc--update-scan-results)
-  (enwc-display-wireless-networks enwc-last-scan))
+  (enwc-display-wireless-networks enwc--last-scan-results))
 
 (defun enwc-process-scan (&rest args)
   "The scanning callback.
@@ -472,14 +470,14 @@ ARGS is only for compatibility with the calling function."
     (when enwc-scan-interactive
       (message "Scanning... Done"))
     (enwc--update-scan-results)
-    (enwc-display-wireless-networks enwc-last-scan)
+    (enwc-display-wireless-networks enwc--last-scan-results)
     (setq enwc-scan-interactive nil)))
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Display Networks ;;
 ;;;;;;;;;;;;;;;;;;;;;;
 
-(cl-defun enwc-refresh-widths (&optional (networks enwc-last-scan))
+(cl-defun enwc-refresh-widths (&optional (networks enwc--last-scan-results))
   "Refresh the column widths for display."
   (setq enwc-column-specs
         (mapcar
@@ -515,7 +513,7 @@ NETWORKS must be in the form returned from
 (defun enwc--tabulated-list-entries ()
   (map-apply
    (lambda (id nw) (list id (vconcat (enwc--get-details nw))))
-   enwc-last-scan))
+   enwc--last-scan-results))
 
 (defun enwc--tabulated-list-printer (id cols)
   "Print the row ID with column values COL."
@@ -564,16 +562,16 @@ This is an entry to the display functions, and checks whether or not ENWC is
 
 (defun enwc-find-network (essid &optional networks)
   "Checks through NETWORKS for the network with essid ESSID,
-and returns the network identifier.  Uses `enwc-last-scan' if
+and returns the network identifier.  Uses `enwc--last-scan-results' if
 NETWORKS is nil.  If the network is not found, then it returns nil.
 
    When called interactively, this only prints out what it finds.
 Otherwise, it actually returns it."
   (interactive "sNetwork ESSID: ")
-  (unless (or networks enwc-last-scan)
+  (unless (or networks enwc--last-scan-results)
     (setq enwc-scan-interactive nil)
     (enwc-scan-internal))
-  (let ((nets (or networks enwc-last-scan))
+  (let ((nets (or networks enwc--last-scan-results))
         need-break cur-net)
     (while (and nets (not cur-net))
       (setq cur-net (pop nets))
@@ -598,7 +596,7 @@ and checks whether or not ENWC is using wired."
   (enwc-connect id)
   (if enwc-using-wired
       id
-    (when enwc-last-scan
+    (when enwc--last-scan-results
       (enwc-value-from-scan 'essid id))))
 
 (defun enwc-connect-to-network (net-id)
