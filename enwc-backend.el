@@ -67,7 +67,7 @@ an enwc-backend struct.")
   :group 'enwc)
 
 (defcustom enwc-force-backend-loading nil
-  "Non-nil if backends should be loaded even if they claim they cannot."
+  "Non-nil if backends should be loaded during `enwc-setup' even if they claim they cannot."
   :type 'boolean
   :group 'enwc)
 
