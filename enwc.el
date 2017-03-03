@@ -94,7 +94,10 @@ networks every `enwc-auto-scan-interval' seconds."
   :type 'boolean)
 
 (defcustom enwc-auto-scan-interval 20
-  "The interval between automatic scans."
+  "The interval between automatic scans.
+
+To make any changes to this variable take effect, use
+`enwc-restart-auto-scan'."
   :group 'enwc
   :type 'integer)
 
@@ -398,6 +401,12 @@ This will use the current value of `enwc-auto-scan-interval'."
   (if enwc-auto-scan
       (enwc-disable-auto-scan)
     (enwc-enable-auto-scan)))
+
+(defun enwc-restart-auto-scan ()
+  "Restart automatic scanning."
+  (interactive)
+  (enwc-disable-auto-scan)
+  (enwc-enable-auto-scan))
 
 ;;;;;;;;;;;;;;;;;;;
 ;; Scan internal ;;
