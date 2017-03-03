@@ -70,12 +70,12 @@
   :prefix "enwc-"
   :group 'external)
 
-(defcustom enwc-wireless-device "wlan0"
+(defcustom enwc-wireless-device ""
   "The wireless device to use for ENWC."
   :group 'enwc
   :type 'string)
 
-(defcustom enwc-wired-device "eth0"
+(defcustom enwc-wired-device ""
   "The wired device to use for ENWC."
   :group 'enwc
   :type 'string)
@@ -638,6 +638,57 @@ a scan."
     (setq enwc-using-wired (not enwc-using-wired))
     (enwc-scan)))
 
+
+
+(defcustom enwc-interface-list-function 'enwc--ip-interface-list
+  "Function to use to collect network interfaces.
+
+ENWC comes with two functions for this purpose:
+
+  - enwc--ip-interface-list: Use ip to determine the network interfaces
+
+  - enwc--ifconfig-interface-list: Use ifconfig to determine the network interfaces
+
+This must be a function of no arguments that returns a list of
+strings.  Each element of the returned list should be a network
+interface, i.e. lo or eth0."
+  :group 'enwc
+  :type 'function)
+
+(defun enwc--ip-interface-list ()
+  "Use `ip' to get a list of network interfaces."
+  (let ((interfaces))
+    (with-temp-buffer
+      (call-process "ip" nil t nil "link")
+      (goto-char (point-min))
+      (while (re-search-forward "^[0-9]+:\s-*\\([[:alnum:]]+\\):" nil t)
+        (push (match-string 1) interfaces)))
+    (nreverse interfaces)))
+
+(defun enwc--ifconfig-interface-list ()
+  "Use `ifconfig' to get a list of network interfaces."
+  (let ((interfaces))
+    (with-temp-buffer
+      (call-process "ifconfig" nil t nil "-a")
+      (goto-char (point-min))
+      (while (re-search-forward "^\\([[:alnum:]]+\\):" nil t)
+        (push (match-string 1) interfaces)))
+    (nreverse interfaces)))
+
+(defun enwc--select-interfaces ()
+  "Collect a list of network interfaces and prompt the user to select two.
+
+One interface will be used for wireless, and the other for wired.
+
+There is no need to call this function manually; that should be
+left to `enwc-setup'.  Instead, set `enwc-wireless-device' and
+`enwc-wired-device'."
+  (let ((interfaces (funcall enwc-interface-list-function)))
+    (when (string-empty-p enwc-wired-device)
+      (setq enwc-wired-device (completing-read "Wired Interface: " interfaces)))
+    (when (string-empty-p enwc-wireless-device)
+      (setq enwc-wireless-device (completing-read "Wireless Interface: " interfaces)))))
+
 (defvar enwc-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "R") 'enwc-scan)
@@ -677,12 +728,20 @@ newly created buffer."
 (defun enwc-setup ()
   "Set up ENWC.
 
+If `enwc-wired-device' or `enwc-wireless-device' is empty, prompt
+the user to set them from a list of interfaces.
+
+Load the default backend, forcing it if
+`enwc-force-backend-loading' is non-nil.
+
 If `enwc-display-mode-line' is non-nil, enable the mode line.
 
-If `enwc-auto-scan' is non-nil, start the auto-scan timer.
-
-Finally, the default backend is loaded."
+If `enwc-auto-scan' is non-nil, start the auto-scan timer."
   (unless enwc--setup-done
+    (when (or (string-empty-p enwc-wired-device)
+              (string-empty-p enwc-wireless-device))
+      (enwc--select-interfaces))
+
     (enwc-load-default-backend enwc-force-backend-loading)
 
     (when enwc-display-mode-line
