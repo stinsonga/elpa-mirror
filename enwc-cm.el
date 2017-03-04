@@ -365,4 +365,8 @@ METHOD is assumed to be the camel-case D-Bus method."
 
 (provide 'enwc-cm)
 
+;; Local Variables:
+;; no-byte-compile: t
+;; no-update-autoloads: t
+;; End:
 ;;; enwc-cm.el ends here
