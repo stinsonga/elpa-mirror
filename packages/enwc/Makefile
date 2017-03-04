@@ -23,16 +23,16 @@ SITELISP=$(PREFIX)/share/emacs/site-lisp/enwc
 
 EMACS=emacs --batch
 ALLSRC= enwc-backend.el enwc.el enwc-wicd.el enwc-nm.el
-ALLELC=$(wildcard *.elc)
+ALLELC=$(patsubst %.el,%.elc,$(SOURCE))
 
 SOURCE=$(ALLSRC)
-TARGET=$(patsubst %.el,%.elc,$(SOURCE))
+TARGET=$(ALLELC)
 
 .PHONY: all install lisp clean
 .PRECIOUS: %.elc
 all: lisp
 
-lisp: $(ALLELC)
+lisp: $(TARGET)
 
 %.elc: %.el
 	@$(EMACS) \
