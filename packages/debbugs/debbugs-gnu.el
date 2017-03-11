@@ -3,7 +3,7 @@
 ;; Copyright (C) 2011-2017 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
-;;         Michael Albinus <michael.albinus@gmx.org>
+;;         Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, hypermedia, maint
 ;; Package: debbugs
 

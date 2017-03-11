@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2013-2017 Free Software Foundation, Inc.
 
-;; Author: Michael Albinus <michael.albinus@gmx.org>
+;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, hypermedia, maint, outlines
 ;; Package: debbugs
 
