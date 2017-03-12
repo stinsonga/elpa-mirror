@@ -78,16 +78,27 @@ a square position on the board.  A value less than 8 is taken as 8.")
   (interactive)
   (clrhash gnugo-imgen-cache))
 
+(defun gnugo-imgen--fit (board-size ignored-grid-lines)
+  (cl-destructuring-bind (L top R bot)
+      (window-inside-absolute-pixel-edges)
+    (ignore L R)
+    (/ (float (- bot top (* (frame-char-height)
+                            ignored-grid-lines)))
+       board-size)))
+
 (defun gnugo-imgen-fit-window-height (board-size)
   "Return the dimension (in pixels) of a square for BOARD-SIZE.
 This uses the TOP and BOTTOM components as returned by
 `window-inside-absolute-pixel-edges' and subtracts twice
 the `frame-char-height' (to leave space for the grid)."
-  (cl-destructuring-bind (L top R bot)
-      (window-inside-absolute-pixel-edges)
-    (ignore L R)
-    (/ (float (- bot top (* 2 (frame-char-height))))
-       board-size)))
+  (gnugo-imgen--fit board-size 2))
+
+(defun gnugo-imgen-fit-window-height/no-grid-bottom (board-size)
+  "Return the dimension (in pixels) of a square for BOARD-SIZE.
+This uses the TOP and BOTTOM components as returned by
+`window-inside-absolute-pixel-edges' and subtracts the
+`frame-char-height' (to leave top-line space for the grid)."
+  (gnugo-imgen--fit board-size 1))
 
 (defconst gnugo-imgen-palette '((32 . :background)
                                 (?. . :grid-lines)
