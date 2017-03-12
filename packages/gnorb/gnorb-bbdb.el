@@ -1,4 +1,4 @@
-;;; gnorb-bbdb.el --- The BBDB-centric functions of gnorb
+;;; gnorb-bbdb.el --- The BBDB-centric functions of gnorb  -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2014  Free Software Foundation, Inc.
 
@@ -20,11 +20,16 @@
 
 ;;; Commentary:
 
-;;
+;; The Gnorb package has no hard dependency on BBDB, so you'll have to
+;; install it manually.  Gnorb is compatible with whichever version of
+;; BBDB is current in the Emacs package manager.  I believe it comes
+;; from Melpa.
 
 ;;; Code:
 
-(require 'bbdb nil t)
+(require 'bbdb)
+(require 'bbdb-com)
+(require 'bbdb-mua)
 (require 'gnorb-utils)
 (require 'cl-lib)
 
@@ -102,7 +107,7 @@ mentioned in the docstring of `format-time-string', which see."
   :group 'gnorb-bbdb
   :type 'string)
 
-(defface gnorb-bbdb-link (org-compatible-face 'org-link nil)
+(defface gnorb-bbdb-link 'org-link
   "Custom face for displaying message links in the *BBDB* buffer.
   Defaults to org-link."
   :group 'gnorb-bbdb)
@@ -145,10 +150,10 @@ returns either t or nil. In this case, the second element of the
 list is disregarded.
 
 All following elements should be field setters for the message to
-be composed, just as in `gnus-posting-styles'.
+be composed, just as in `gnus-posting-styles'."
 
-An example value might look like:"
-  :group 'gnorb-bbdb)
+  :group 'gnorb-bbdb
+  :type 'list)
 
 (when (fboundp 'bbdb-record-xfield-string)
   (fset (intern (format "bbdb-read-xfield-%s"
@@ -158,8 +163,8 @@ An example value might look like:"
 
   (fset (intern (format "bbdb-display-%s-multi-line"
 			gnorb-bbdb-org-tag-field))
-	(lambda (record)
-	  (gnorb-bbdb-display-org-tags record))))
+	(lambda (record indent)
+	  (gnorb-bbdb-display-org-tags record indent))))
 
 (defun gnorb-bbdb-read-org-tags (&optional init)
   "Read Org mode tags, with `completing-read-multiple'."
@@ -171,12 +176,12 @@ An example value might look like:"
 		     "[ \t\n]*"))
 	    (crm-local-completion-map bbdb-crm-local-completion-map)
 	    (table (cl-mapcar #'car
-			   (org-global-tags-completion-table
-			    (org-agenda-files))))
+			      (org-global-tags-completion-table
+			       (org-agenda-files))))
 	    (init (if (consp init)
-		      (bbdb-join init
-				 (nth 2 (assq gnorb-bbdb-org-tag-field
-					      bbdb-separator-alist)))
+		      (apply #'bbdb-concat (nth 2 (assq gnorb-bbdb-org-tag-field
+							bbdb-separator-alist))
+			     init)
 		    init)))
 	(completing-read-multiple
 	 "Tags: " table
@@ -184,7 +189,7 @@ An example value might look like:"
     (bbdb-split gnorb-bbdb-org-tag-field
 		(bbdb-read-string "Tags: " init))))
 
-(defun gnorb-bbdb-display-org-tags (record)
+(defun gnorb-bbdb-display-org-tags (record indent)
   "Display the Org tags associated with the record.
 
 Org tags are stored in the `gnorb-bbdb-org-tags-field'."
@@ -194,16 +199,14 @@ Org tags are stored in the `gnorb-bbdb-org-tags-field'."
 	      record
 	      gnorb-bbdb-org-tag-field)))
     (when val
-      ;; We already know that `fmt' and `indent' are dynamically
-      ;; bound, shut up about it.
-      (with-no-warnings
-       (bbdb-display-text (format fmt gnorb-bbdb-org-tag-field)
-			  `(xfields ,full-field field-label)
-			  'bbdb-field-name)
-       (if (consp val)
-	   (bbdb-display-list val gnorb-bbdb-org-tag-field "\n")
-	 (insert
-	  (bbdb-indent-string (concat val "\n") indent)))))))
+      (bbdb-display-text (format (format " %%%ds: " (- indent 3))
+				 gnorb-bbdb-org-tag-field)
+			 `(xfields ,full-field field-label)
+			 'bbdb-field-name)
+      (if (consp val)
+	  (bbdb-display-list val gnorb-bbdb-org-tag-field "\n")
+	(insert
+	 (bbdb-indent-string (concat val "\n") indent))))))
 
 (defvar message-mode-hook)
 
@@ -244,7 +247,7 @@ is non-nil (as in interactive calls) be verbose."
 (defun gnorb-bbdb-configure-posting-styles (recs)
   ;; My most magnificent work of copy pasta!
   (dolist (r recs)
-    (let (field val label rec-val element filep
+    (let (field val label rec-val filep
 		element v value results name address)
       (dolist (style gnorb-bbdb-posting-styles)
 	(setq field (pop style)
@@ -333,7 +336,6 @@ is non-nil (as in interactive calls) be verbose."
       (setq name (assq 'name results)
 	    address (assq 'address results))
       (setq results (delq name (delq address results)))
-      (gnus-make-local-hook 'message-setup-hook)
       (setq results (sort results (lambda (x y)
 				    (string-lessp (car x) (car y)))))
       (dolist (result results)
@@ -442,7 +444,7 @@ a prefix arg and \"*\", the prefix arg must come first."
 
 ;;;###autoload
 (defun gnorb-bbdb-cite-contact (rec)
-  (interactive (list (gnorb-prompt-for-bbdb-record)))
+  (interactive (list (bbdb-completing-read-record "Record: ")))
   (let ((mail-string (bbdb-dwim-mail rec)))
    (if (called-interactively-p 'any)
        (insert mail-string)
@@ -452,7 +454,7 @@ a prefix arg and \"*\", the prefix arg must come first."
 (when (boundp 'bbdb-xfield-label-list)
  (add-to-list 'bbdb-xfield-label-list gnorb-bbdb-messages-field nil 'eq))
 
-(defun gnorb-bbdb-display-messages (record format)
+(defun gnorb-bbdb-display-messages (record format &optional indent)
   "Show links to the messages collected in the
 `gnorb-bbdb-messages-field' field of a BBDB record. Each link
 will be formatted using the format string in
@@ -468,14 +470,13 @@ layout type."
     (define-key map (kbd "<RET>") 'gnorb-bbdb-RET-open-link)
     (when val
       (when (eq format 'multi)
-	(with-no-warnings ; For `fmt'
-	  (bbdb-display-text (format fmt gnorb-bbdb-messages-field)
-			     `(xfields ,full-field field-label)
-			     'bbdb-field-name)))
+	(bbdb-display-text (format (format " %%%ds: " (- indent 3))
+				   gnorb-bbdb-messages-field)
+			   `(xfields ,full-field field-label)
+			   'bbdb-field-name))
       (insert (cond ((and (stringp val)
 			  (eq format 'multi))
-		     (with-no-warnings ; For `indent'
-		       (bbdb-indent-string (concat val "\n") indent)))
+		     (bbdb-indent-string (concat val "\n") indent))
 		    ((listp val)
 		     ;; Why aren't I using `bbdb-display-list' with a
 		     ;; preformatted list of messages?
@@ -510,8 +511,8 @@ layout type."
 
 (fset (intern (format "bbdb-display-%s-multi-line"
 		      gnorb-bbdb-messages-field))
-      (lambda (record)
-	(gnorb-bbdb-display-messages record 'multi)))
+      (lambda (record indent)
+	(gnorb-bbdb-display-messages record 'multi indent)))
 
 (fset (intern (format "bbdb-display-%s-one-line"
 		      gnorb-bbdb-messages-field))
@@ -522,7 +523,7 @@ layout type."
 
 (fset (intern (format "bbdb-read-xfield-%s"
 		      gnorb-bbdb-messages-field))
-      (lambda (&optional init)
+      (lambda (&optional _init)
 	(user-error "This field shouldn't be edited manually")))
 
 ;; Open links from the *BBDB* buffer.
@@ -545,8 +546,7 @@ that contact will start collecting links to messages."
 		current-prefix-arg))
   (unless (fboundp 'bbdb-record-xfield-string)
     (user-error "This function only works with the git version of BBDB"))
-  (let* ((record (bbdb-current-record))
-	 msg-list target-msg)
+  (let (msg-list target-msg)
     (if (not (memq gnorb-bbdb-messages-field
 		   (mapcar 'car (bbdb-record-xfields record))))
 	(when (y-or-n-p
