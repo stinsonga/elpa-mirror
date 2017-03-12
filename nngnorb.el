@@ -1,4 +1,4 @@
-;;; nngnorb.el --- Gnorb backend for Gnus
+;;; nngnorb.el --- Gnorb backend for Gnus -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2014  Free Software Foundation, Inc.
 
@@ -59,7 +59,7 @@
 (add-to-list 'nnir-engines
 	     '(gnorb nnir-run-gnorb))
 
-(defun nnir-run-gnorb (query server &optional group)
+(defun nnir-run-gnorb (query _server &optional _group)
   "Run the actual search for messages to display. See nnir.el for
 some details of how this gets called.
 
@@ -144,26 +144,33 @@ be scanned for gnus messages, and those messages displayed."
 	  (when rel-msg-id
 	    (setq msg-ids (append (delq nil rel-msg-id) msg-ids)))))
       (when msg-ids
-	  (dolist (id msg-ids)
-	    (let ((link (gnorb-msg-id-to-link id)))
-	      (when link
-		(push link links)))))
-      (setq links (delete-dups links))
+	(dolist (id msg-ids)
+	  (let ((link (gnorb-msg-id-to-link id)))
+	    (when link
+	      (push link links)))))
+      (setq links (sort (delete-dups links) 'string<))
       (unless (gnus-alive-p)
 	(gnus))
       (dolist (m links (when vectors
-			 (nreverse vectors)))
-	(let (server-group msg-id result artno)
+			 (reverse vectors)))
+	(let (server-group msg-id artno check)
 	  (setq m (org-link-unescape m))
 	  (when (string-match "\\`\\([^#]+\\)\\(#\\(.*\\)\\)?" m)
 	    (setq server-group (match-string 1 m)
 		  msg-id (gnorb-bracket-message-id
 			  (match-string 3 m))
-		  result (ignore-errors (gnus-request-head msg-id server-group)))
-	    (when result
-	     (setq artno (cdr result))
-	     (when (and (integerp artno) (> artno 0))
-	       (push (vector server-group artno 100) vectors)))))))))
+		  artno (or (car (gnus-registry-get-id-key msg-id 'artno))
+			    (when (setq check
+					(cdr (ignore-errors
+					       (gnus-request-head
+						msg-id server-group))))
+			      (gnus-registry-set-id-key
+			       msg-id 'artno
+			       (list check))
+			      check)))
+	    (when artno
+	      (when (and (integerp artno) (> artno 0))
+		(push (vector server-group artno 100) vectors)))))))))
 
 (defvar gnorb-summary-minor-mode-map (make-sparse-keymap)
   "Keymap for use in Gnorb's *Summary* minor mode.")
@@ -259,10 +266,17 @@ continue to provide tracking of sent messages."
   (gnus-summary-mail-forward n t)
   (gnorb-summary-reply-hook))
 
-(defun gnorb-summary-reply-hook (&rest args)
+(defun gnorb-summary-reply-hook (&rest _args)
   "Function that runs after any command that creates a reply."
   ;; Not actually a "hook"
-  (let* ((msg-id (aref message-reply-headers 4))
+  (let* ((msg-id (if message-reply-headers
+		     (aref message-reply-headers 4)
+		   ;; When forwarding messages,
+		   ;; `message-reply-headers' is nil.
+		   (save-excursion
+		     (let ((case-fold-search t))
+		       (when (re-search-forward "message-id: +\\(.*\\)$" (point-max) t)
+			 (match-string 1))))))
 	 (org-id (car-safe (gnus-registry-get-id-key msg-id 'gnorb-ids)))
 	 (compose-marker (make-marker))
 	 (attachments (buffer-local-value
@@ -341,31 +355,31 @@ the message being included in this search."
 
 (defvar nngnorb-status-string "")
 
-(defun nngnorb-retrieve-headers (articles &optional group server fetch-old)
+(defun nngnorb-retrieve-headers (_articles &optional _group _server _fetch-old)
   (with-current-buffer nntp-server-buffer
     (erase-buffer))
   'nov)
 
-(defun nngnorb-open-server (server &optional definitions)
+(defun nngnorb-open-server (_server &optional _definitions)
   t)
 
-(defun nngnorb-close-server (&optional server)
+(defun nngnorb-close-server (&optional _server)
   t)
 
 (defun nngnorb-request-close ()
   t)
 
-(defun nngnorb-server-opened (&optional server)
+(defun nngnorb-server-opened (&optional _server)
   t)
 
-(defun nngnorb-status-message (&optional server)
+(defun nngnorb-status-message (&optional _server)
   nngnorb-status-string)
 
-(defun nngnorb-request-article (article &optional group server to-buffer)
+(defun nngnorb-request-article (_article &optional _group _server _to-buffer)
   (setq nngnorb-status-string "No such group")
   nil)
 
-(defun nngnorb-request-group (group &optional server fast info)
+(defun nngnorb-request-group (_group &optional _server _fast _info)
   (let (deactivate-mark)
     (with-current-buffer nntp-server-buffer
       (erase-buffer)
@@ -373,15 +387,15 @@ the message being included in this search."
   (setq nngnorb-status-string "No such group")
   nil)
 
-(defun nngnorb-close-group (group &optional server)
+(defun nngnorb-close-group (_group &optional _server)
   t)
 
-(defun nngnorb-request-list (&optional server)
+(defun nngnorb-request-list (&optional _server)
   (with-current-buffer nntp-server-buffer
     (erase-buffer))
   t)
 
-(defun nngnorb-request-post (&optional server)
+(defun nngnorb-request-post (&optional _server)
   (setq nngnorb-status-string "Read-only server")
   nil)
 

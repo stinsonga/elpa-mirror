@@ -1,4 +1,4 @@
-;;; gnorb-utils.el --- Common utilities for all gnorb stuff.
+;;; gnorb-utils.el --- Common utilities for all gnorb stuff -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2014  Free Software Foundation, Inc.
 
@@ -24,35 +24,25 @@
 
 ;;; Code:
 
-(require 'cl-lib)
+(eval-when-compile (require 'cl-lib))
+(require 'pcase)
+(require 'org)
+(require 'org-agenda)
+(require 'org-element)
 
 (require 'mailcap)
 (mailcap-parse-mimetypes)
 
 (defgroup gnorb nil
   "Glue code between Gnus, Org, and BBDB."
-  :tag "Gnorb")
+  :tag "Gnorb"
+  :group 'mail)
 
 (make-obsolete-variable
  'gnorb-trigger-todo-default
  "This variable has been superseded by
 `gnorb-org-trigger-actions'"
  "September 8, 2014" 'set)
-
-(defun gnorb-prompt-for-bbdb-record ()
-  "Prompt the user for a BBDB record."
-  (let ((recs (bbdb-records))
-	name)
-    (while (> (length recs) 1)
-      (setq name
-	    (completing-read
-	     (format "Filter records by regexp (%d remaining): "
-		     (length recs))
-	     (mapcar 'bbdb-record-name recs)))
-      (setq recs (bbdb-search recs name name name nil nil)))
-    (if recs
-	(car recs)
-      (error "No matching records"))))
 
 (defvar gnorb-tmp-dir (make-temp-file "emacs-gnorb" t)
   "Temporary directory where attachments etc are saved.")
@@ -175,6 +165,8 @@ link.
 
 3. Otherwise just follow the link as usual, in the current
 window."
+  (unless (gnus-alive-p)
+    (gnus))
   (let* ((sum-buffer (gnus-summary-buffer-name group))
 	 (target-buffer
 	  (cond
@@ -204,16 +196,118 @@ window."
   ;; We've probably already bracketed the id, but just in case this is
   ;; called from elsewhere...
   (let* ((id (gnorb-bracket-message-id id))
-	 (art-no (cdr (gnus-request-head id group)))
 	 (arts (gnus-group-unread group))
-	 success)
+	 artno success)
+    (or (setq artno (car (gnus-registry-get-id-key id 'artno)))
+	(progn
+	  (setq artno (cdr (gnus-request-head id group)))
+	  (gnus-registry-set-id-key id 'artno (list artno))))
     (gnus-activate-group group)
     (setq success (gnus-group-read-group arts t group))
     (if success
-	(gnus-summary-goto-article (or art-no id) nil t)
+	(gnus-summary-goto-article artno nil t)
       (signal 'error "Group could not be opened."))))
 
-(defun gnorb-trigger-todo-action (arg &optional id)
+;; I'd like to suggest this as a general addition to Emacs.  *Very*
+;; tired of abusing `completing-read' for this purpose.
+(defconst gnorb-select-valid-chars
+  (append (number-sequence 97 122)
+	  (number-sequence 65 90))
+  "A list of characters that are suitable for using as selection
+  keys.")
+
+(defvar gnorb-select-choice-buffer "*Selections*"
+  "The name of the buffer used to pop up selections.")
+
+(defun gnorb-select-from-list (prompt collection &optional key-func)
+  "Prompt the user to select something from COLLECTION.
+
+Selection can happen in a few different ways, depending on the
+nature of COLLECTION.  Its elements can be:
+
+1. A plain string.  Simply default to `completing-read'.
+
+2. (string object).  The function uses `completing-read' on the
+   strings, returning the selected object.
+
+3. (number object).  As above, but the user enters a number.
+
+4. (character string object).  As #3, but \"string\" is displayed
+   as a string label for object.
+
+5. (number string object).  As above, with numbers.
+
+COLLECTION can be passed in ready-made.  Alternately, KEY-FUNC
+can be provided.  The collection will be constructed by mapping
+this function over the list of objects, and then appending each
+object to the corresponding result.  In other words, KEY-FUNC
+should return one of the types above, minus the final \"object\"
+element.
+
+Alternately, KEY-FUNC can be the symbol 'char, in which case the
+elements of COLLECTION will automatically be keyed to ascending
+characters (52 or fewer), or 'number, which does the same with
+numbers (no upper bound)."
+  (interactive)
+  (let ((len (length collection)))
+    (cl-labels ((pop-up-selections
+		 (collection &optional charp)
+		 (pop-to-buffer gnorb-select-choice-buffer
+				'(display-buffer-in-side-window ((side . bottom))) t)
+		 (dolist (c collection)
+		   (insert (format "%s: %s\n"
+				   (if charp
+				       (char-to-string (car c))
+				     (car c))
+				   (nth 1 c))))))
+      (setq collection
+	    (pcase key-func
+	      ((pred null)
+	       collection)
+	      ('char
+	       (if (> len 52)
+		   (error "Use the char option with fewer than 52 items")
+		 ;; These distinctions between char/string
+		 ;; and number/char are totally manufactured.
+		 (seq-mapn #'list gnorb-select-valid-chars collection)))
+	      ('number
+	       (seq-mapn #'list (number-sequence 1 len) collection))
+	      ((and func (pred functionp))
+	       (seq-map (lambda (el)
+			  (let ((res (funcall func el)))
+			    (if (atom res)
+				(list res el)
+			      (append res
+				      (list el)))))
+			collection))
+	      (_ (error "Invalid key-func: %s" key-func))))
+      ;; We only test the car of collection to see what type it is.  If
+      ;; elements are mismatched, it's not our problem.
+      (unwind-protect
+	  (pcase (car collection)
+	    ((pred stringp)
+	     (completing-read prompt collection nil t))
+	    ((pred symbolp)
+	     (intern-soft (completing-read prompt collection nil t)))
+	    (`(,(pred stringp) ,_)
+	     (nth 1 (assoc (completing-read prompt collection nil t)
+			   collection)))
+	    ;; Looks like pcase might be the wrong tool for this job.
+	    ((or `(,(and c (pred numberp) (guard (memq c gnorb-select-valid-chars))) ,_)
+		 `(,(and c (pred numberp) (guard (memq c gnorb-select-valid-chars))) ,_ ,_))
+	     (pop-up-selections collection t)
+	     (car (last (assq (read-char
+			       (propertize prompt 'face 'minibuffer-prompt))
+			      collection))))
+	    ((or `(,(pred numberp) ,_)
+		 `(,(pred numberp) ,_ ,_))
+	     (pop-up-selections collection)
+	     (car (last (assq (read-number prompt)
+			      collection)))))
+	(when-let ((win (get-buffer-window gnorb-select-choice-buffer)))
+	  (quit-window win))))))
+
+(defun gnorb-trigger-todo-action (_arg &optional id)
   "Do the actual restore action. Two main things here. First: if
 we were in the agenda when this was called, then keep us in the
 agenda. Then let the user choose an action from the value of
@@ -235,13 +329,11 @@ agenda. Then let the user choose an action from the value of
 	 (id (or id
 		 (org-with-point-at root-marker
 		   (org-id-get-create))))
-	 (action (cdr (assoc
-		       (org-completing-read
-			(format
-			 "Trigger action on %s: "
-			 (gnorb-pretty-outline id))
-			gnorb-org-trigger-actions nil t)
-		       gnorb-org-trigger-actions))))
+	 (action (gnorb-select-from-list
+		  (format
+		   "Trigger action on %s: "
+		   (gnorb-pretty-outline id))
+		  gnorb-org-trigger-actions)))
     (unless agenda-p
       (org-reveal))
     (cl-labels
@@ -401,24 +493,28 @@ message."
 So far we're checking the registry, then the groups in
 `gnorb-gnus-sent-groups'. Use search engines? Other clever
 methods?"
-  (let (candidates server-group)
+  (let (candidates server-group check)
     (setq msg-id (gnorb-bracket-message-id msg-id))
     (catch 'found
       (when gnorb-tracking-enabled
-	;; Make a big list of all the groups where this message might
-	;; conceivably be.
-	(setq candidates
-	      (append (gnus-registry-get-id-key msg-id 'group)
-		      gnorb-gnus-sent-groups))
-	(while (setq server-group (pop candidates))
-	  (when (and (stringp server-group)
-		     (not
-		      (string-match-p
-		       "\\(nnir\\|nnvirtual\\|UNKNOWN\\)"
-		       server-group))
-		     (ignore-errors
-		       (gnus-request-head msg-id server-group)))
-		(throw 'found server-group))))
+	(setq candidates (gnus-registry-get-id-key msg-id 'group))
+	(if (= 1 (length candidates))
+	    (throw 'found (car candidates))
+	  (setq candidates (append candidates gnorb-gnus-sent-groups))
+	  (while (setq server-group (pop candidates))
+	    (when (and (stringp server-group)
+		       (string-match-p "+" server-group)
+		       (not
+			(string-match-p
+			 "\\(nnir\\|nnvirtual\\|UNKNOWN\\)"
+			 server-group)))
+	      (setq check
+		    (ignore-errors
+		      (gnus-request-head msg-id server-group)))
+	      (when check
+		(gnus-registry-set-id-key msg-id 'group (list server-group))
+		(gnus-registry-set-id-key msg-id 'artno (list (cdr check)))
+		(throw 'found (car check)))))))
       nil)))
 
 (defun gnorb-collect-ids (&optional id)
@@ -499,10 +595,16 @@ registry be in use, and should be called after the call to
   (require 'gnorb-registry)
   (with-eval-after-load 'gnus-registry
     (add-to-list 'gnus-registry-extra-entries-precious 'gnorb-ids)
+    (add-to-list 'gnus-registry-extra-entries-precious 'artno)
     (add-to-list 'gnus-registry-track-extra 'gnorb-ids))
   (add-hook
    'gnus-started-hook
    (lambda ()
+     ;; The require may be necessary in order to get
+     ;; `gnus-user-format-function-g' defined before it's used.  That
+     ;; function is likely the first hit on gnorb-gnus, and there's no
+     ;; way to autoload it, as it is dynamically defined.
+     (require 'gnorb-gnus)
      (unless (gnus-registry-install-p)
        (user-error "Gnorb tracking requires that the Gnus registry be installed."))
      (add-hook 'org-capture-mode-hook 'gnorb-registry-capture)

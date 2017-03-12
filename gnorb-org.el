@@ -1,4 +1,4 @@
-;;; gnorb-org.el --- The Org-centric functions of gnorb
+;;; gnorb-org.el --- The Org-centric functions of gnorb -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2014  Free Software Foundation, Inc.
 
@@ -25,7 +25,25 @@
 ;;; Code:
 
 (require 'gnorb-utils)
-(require 'cl-lib)
+(eval-when-compile (require 'cl-lib))
+
+(defvar gnorb-bbdb-posting-styles)
+(defvar gnorb-bbdb-org-tag-field)
+(defvar bbdb-buffer-name)
+(defvar message-alternative-emails)
+
+;; This many autoloads means either we should require bbdb outright,
+;; or something needs refactoring.
+(autoload 'gnorb-bbdb-configure-posting-styles "gnorb-bbdb")
+(autoload 'gnorb-registry-org-id-search "gnorb-registry")
+(autoload 'bbdb-completing-read-record "bbdb")
+(autoload 'bbdb-record-name "bbdb")
+(autoload 'bbdb-message-search "bbdb")
+(autoload 'bbdb-mail-address "bbdb")
+(autoload 'bbdb-record-xfield "bbdb")
+(autoload 'bbdb-records "bbdb")
+(autoload 'bbdb-search "bbdb")
+(autoload 'bbdb-display-records "bbdb")
 
 (defgroup gnorb-org nil
   "The Org bits of Gnorb."
@@ -39,12 +57,12 @@
   :type 'hook)
 
 (defcustom gnorb-org-trigger-actions
-  '(("todo state" . todo)
-    ("take note" . note)
-    ("don't associate" . no-associate)
-    ("only associate" . associate)
-    ("capture to child" . cap-child)
-    ("capture to sibling" . cap-sib))
+  '((?t "todo state" todo)
+    (?n "take note" note)
+    (?d "don't associate" no-associate)
+    (?o "only associate" associate)
+    (?c "capture to child" cap-child)
+    (?s "capture to sibling" cap-sib))
   "List of potential actions that can be taken on headings.
 
 When triggering an Org heading after receiving or sending a
@@ -64,12 +82,11 @@ The two \"capture\" options will use the value of
 template.
 
 You can also add custom actions to the list. Actions should be a
-cons of a string tag and a symbol indicating a custom function.
-This function will be called on the heading in question, and
-passed a plist containing information about the message from
-which we're triggering."
-  :group 'gnorb-org
-  :type 'list)
+list of three elements: a character key, a string tag and a
+symbol indicating a custom function.  The custom function will be
+called on the heading in question, and passed a plist containing
+information about the message from which we're triggering."
+:group 'gnorb-org :type 'list :version "1.1.3")
 
 (defcustom gnorb-org-msg-id-key "GNORB_MSG_ID"
   "The name of the org property used to store the Message-IDs
@@ -81,6 +98,8 @@ which we're triggering."
 (defcustom gnorb-org-mail-scan-scope 2
   "Number of paragraphs to scan for mail-related links.
 
+Or set to 'all to scan the whole subtree.
+
 When handling a TODO heading with `gnorb-org-handle-mail', Gnorb
 will typically reply to the most recent message associated with
 this heading. If there are no such messages, or message tracking
@@ -88,7 +107,10 @@ is disabled entirely, or `gnorb-org-handle-mail' has been called
 with a prefix arg, the heading and body text of the subtree under
 point will instead be scanned for gnus:, mailto:, and bbdb:
 links. This option controls how many paragraphs of body text to
-scan. Set to 0 to only look in the heading.")
+scan. Set to 0 to only look in the heading."
+  :group 'gnorb-org
+  :type '(choice (const :tag "Whole subtree" all)
+		 (integer :tag "Number of paragraphs")))
 
 (make-obsolete-variable
  'gnorb-org-mail-scan-strategies
@@ -123,7 +145,7 @@ There's really no reason to use this instead of regular old
 `org-insert-link' with BBDB completion. But there might be in the
 future!"
   ;; this needs to handle an active region.
-  (interactive (list (gnorb-prompt-for-bbdb-record)))
+  (interactive (list (bbdb-completing-read-record "Record: ")))
   (let* ((name (bbdb-record-name rec))
 	 (link (concat "bbdb:" (org-link-escape name))))
     (org-store-link-props :type "bbdb" :name name
@@ -146,7 +168,7 @@ we came from."
   (setq gnorb-message-org-ids nil)
   (gnorb-restore-layout))
 
-(defun gnorb-org-extract-links (&optional arg region)
+(defun gnorb-org-extract-links (&optional _arg region)
   "See if there are viable links in the subtree under point."
   ;; We're not currently using the arg. What could we do with it?
   (let (strings)
@@ -177,7 +199,7 @@ we came from."
 		   strings)
 		  ((numberp gnorb-org-mail-scan-scope)
 		   (cl-subseq
-		    (nreverse strings)
+		    (reverse strings)
 		    0 (min
 		       (length strings)
 		       (1+ gnorb-org-mail-scan-scope))))
@@ -208,6 +230,17 @@ See the docstring of `gnorb-org-handle-mail' for details."
 	     (gnorb-collect-ids)))))
       (gnorb-org-extract-mail-tracking assoc-msg-ids arg region))))
 
+(defun gnorb-user-address-match-p (addr)
+  "Return t if ADDR seems to match the user's email address."
+  (cond
+   ((stringp message-alternative-emails)
+    (string-match-p message-alternative-emails
+		    addr))
+   ((functionp message-alternative-emails)
+    (funcall message-alternative-emails addr))
+   (user-mail-address
+    (string-match-p user-mail-address addr))))
+
 (defun gnorb-org-extract-mail-tracking (assoc-msg-ids &optional arg region)
 
   (let* ((all-links (gnorb-org-extract-links nil region))
@@ -220,11 +253,8 @@ See the docstring of `gnorb-org-handle-mail' for details."
 	      (cl-remove-if
 	       (lambda (m)
 		 (let ((from (car (gnus-registry-get-id-key m 'sender))))
-		   (or (null from)
-		       (string-match-p
-			user-mail-address from)
-		       (string-match-p
-			message-alternative-emails from))))
+		   (and from
+			(null (gnorb-user-address-match-p from)))))
 	       assoc-msg-ids)
 	      (lambda (r l)
 		(time-less-p
@@ -480,7 +510,9 @@ async, subtreep, visible-only, and body-only."
   "Correspondence between export backends and their
 respective (usual) file extensions. Ugly way to do it, but what
 the hey..."
-  :group 'gnorb-org)
+  :group 'gnorb-org
+  :type '(repeat
+	  (list symbol string)))
 
 (defvar org-export-show-temporary-export-buffer)
 
@@ -545,7 +577,8 @@ default set of parameters."
   "Should the capture process store a link to the gnus message or
   BBDB record under point, even if it's not part of the template?
   You'll probably end up needing it, anyway."
-  :group 'gnorb-org)
+  :group 'gnorb-org
+  :type 'boolean)
 
 (defun gnorb-org-capture-collect-link ()
   (when gnorb-org-capture-collect-link-p
@@ -568,7 +601,8 @@ default set of parameters."
 Records are considered matching if they have an `org-tags' field
 matching the current Agenda search. The name of that field can be
 customized with `gnorb-bbdb-org-tag-field'."
-  :group 'gnorb-org)
+  :group 'gnorb-org
+  :type 'boolean)
 
 (defcustom gnorb-org-bbdb-popup-layout 'pop-up-multi-line
   "Default BBDB buffer layout for automatic Org Agenda display."
@@ -597,7 +631,7 @@ search."
 		 (eq org-agenda-type 'tags))
 	    (or (called-interactively-p 'any)
 		gnorb-org-agenda-popup-bbdb))
-	   (let ((todo-only nil)
+	   (let ((org--matcher-tags-todo-only nil)
 		 (str (or str org-agenda-query-string))
 		 (re "^&?\\([-+:]\\)?\\({[^}]+}\\|LEVEL\\([<=>]\\{1,2\\}\\)\\([0-9]+\\)\\|\\(\\(?:[[:alnum:]_]+\\(?:\\\\-\\)*\\)+\\)\\([<>=]\\{1,2\\}\\)\\({[^}]+}\\|\"[^\"]*\"\\|-?[.0-9]+\\(?:[eE][-+]?[0-9]+\\)?\\)\\|[[:alnum:]_@#%]+\\)")
 		 or-terms term rest out-or acc tag-clause)
@@ -626,6 +660,7 @@ search."
 						  rec-tags))
 				     (case-fold-search t)
 				     (org-trust-scanner-tags t))
+				 ;; This is bad, we're lexically bound, now.
 				 (eval tag-clause)))))
 		      (bbdb-records))))))
 	  ((eq major-mode 'org-mode)
