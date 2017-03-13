@@ -444,7 +444,7 @@ around that link before you call this message."
 	       (message-mode-hook (copy-sequence message-mode-hook))
 	       mails)
 	  (when file
-	    (cons file attachments))
+	    (setq attachments (cons file attachments)))
 	  (when recs
 	    (setq recs
 		  (delq nil
@@ -563,13 +563,22 @@ default set of parameters."
 		       "*Gnorb Export*"
 		       ,@opts
 		       ,gnorb-org-email-subtree-text-parameters))
-	    (apply 'org-export-to-file
-		   `(,backend-symbol
-		     ,(org-export-output-file-name
-		       (cl-second (assoc backend-symbol gnorb-org-export-extensions))
-		       t gnorb-tmp-dir)
-		     ,@opts
-		     ,gnorb-org-email-subtree-file-parameters))))
+	    (if (eq backend-symbol 'odt)
+		;; Need to special-case odt output, as it does too
+		;; many clever things.  The only downside to this is
+		;; it's impossible to put the exported file in the
+		;; /tmp/ directory -- it will go wherever it would
+		;; have gone with manual export.
+		(apply #'org-odt-export-to-odt
+		       (append (cl-subseq gnorb-org-email-subtree-file-options 0 3)
+			       (list gnorb-org-email-subtree-file-parameters)))
+	     (apply 'org-export-to-file
+		    `(,backend-symbol
+		      ,(org-export-output-file-name
+			(cl-second (assoc backend-symbol gnorb-org-export-extensions))
+			t gnorb-tmp-dir)
+		      ,@opts
+		      ,gnorb-org-email-subtree-file-parameters)))))
 	 text file)
     (if (bufferp result)
 	(setq text result)
