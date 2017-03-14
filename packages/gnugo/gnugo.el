@@ -2169,10 +2169,16 @@ In this mode, keys do not self insert (see `gnugo-board-mode-map')."
   (setq font-lock-defaults '(gnugo-font-lock-keywords t)
         truncate-lines t)
   (add-hook 'kill-buffer-hook 'gnugo-cleanup nil t)
-  (if (eq gnugo--intangible 'cursor-intangible)
+
+  ;; Previously, we used ‘(eq gnugo--intangible 'cursor-intangible)’
+  ;; here, but (a) this is a bit quicker; and (b) we want to placate
+  ;; Emacs 24, which blurts out a "not known to be defined" warning.
+  ;; (Apparently it cannot infer equivalence of the two conditions.)
+  (if (fboundp 'cursor-intangible-mode)
       (cursor-intangible-mode 1)
     ;; Make sure ‘intangible’ DTRT in this buffer.
     (setq-local inhibit-point-motion-hooks nil))
+
   (setq-local gnugo-state (gnugo--mkht :size (1- 42)))
   (setq-local gnugo-btw nil)
   (add-to-list 'minor-mode-alist '(gnugo-btw gnugo-btw))
