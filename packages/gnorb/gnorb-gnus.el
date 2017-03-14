@@ -669,40 +669,30 @@ server. There must be an active \"nngnorb\" server for this to
 work."
   (interactive)
   (require 'nnir)
-  (let ((nnir-address
-	 (or (gnus-method-to-server '(nngnorb))
-	     (user-error
-	      "Please add a \"nngnorb\" backend to your gnus installation.")))
-	name method spec)
-    (when (version= "5.13" gnus-version-number)
-      (with-no-warnings		  ; All these variables are available.
-	(setq nnir-current-query nil
-	      nnir-current-server nil
-	      nnir-current-group-marked nil
-	      nnir-artlist nil)))
-    ;; In 24.4, the group name is mostly decorative, but in 24.3, the
-    ;; actual query is held there.
-    (setq name (if (version= "5.13" gnus-version-number)
-		   (concat "nnir:" (prin1-to-string `((query ,str))))
-		 (if persist
-		     (read-string
-		      (format "Name for group (default %s): " head-text)
-		      nil head-text t)
-		   (concat "gnorb-" str))))
-    (setq method (if (version= "5.13" gnus-version-number)
-		     (list 'nnir nnir-address)
-		   (list 'nnir "Gnorb")))
-    (setq spec
-	  (list
-	   (cons 'nnir-specs (list (cons 'nnir-query-spec `((query . ,str)))
-				   (cons 'nnir-group-spec `((,nnir-address nil)))))
-	   (cons 'nnir-artlist nil)))
+  (let* ((nnir-address
+	  (or (catch 'found
+		(dolist (s gnus-server-method-cache)
+		  (when (eq 'nngnorb (cadr s))
+		    (throw 'found (car s)))))
+	      (user-error
+	       "Please add a \"nngnorb\" backend to your gnus installation.")))
+	 (name (if persist
+		   (read-string
+		    (format "Name for group (default %s): " head-text)
+		    nil nil head-text)
+		 (concat "gnorb-" str)))
+	 (method (list 'nnir nnir-address))
+	 (spec (list
+		(cons 'nnir-specs (list (cons 'nnir-query-spec `((query . ,str)))
+					(cons 'nnir-group-spec `((,nnir-address ,(list name))))))
+		(cons 'nnir-artlist nil)))
+	 nnir-current-query nnir-current-server nnir-current-group-marked nnir-artlist)
     (if persist
 	(progn
 	  (switch-to-buffer gnus-group-buffer)
 	  (gnus-group-make-group name method nil spec)
 	  (gnus-group-select-group))
-     (gnus-group-read-ephemeral-group name method nil ret nil nil spec))))
+      (gnus-group-read-ephemeral-group name method nil ret nil nil spec))))
 
 (defun gnorb-gnus-summary-mode-hook ()
   "Check if we've entered a Gnorb-generated group, and activate
