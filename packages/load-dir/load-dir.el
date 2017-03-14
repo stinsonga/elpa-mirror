@@ -1,11 +1,11 @@
 ;;; load-dir.el --- Load all Emacs Lisp files in a given directory
 
-;; Copyright (C) 2011 Free Software Foundation, Inc
+;; Copyright (C) 2011, 2017 Free Software Foundation, Inc
 
 ;; Authors: Teodor Zlatanov <tzz@lifelogs.com>,
 ;;          Ben Key <bkey76@gmail.com>
 ;; With-Help-From: Evans Winner <ego111@gmail.com>, PJ Weisberg <pj@irregularexpressions.net>
-;; Version: 0.0.3
+;; Version: 0.0.4
 ;; Keywords: lisp, files, convenience
 
 ;; This file is part of GNU Emacs.
@@ -62,6 +62,13 @@
   :group 'load-dir
   :type 'boolean)
 
+(defcustom load-dir-ignored '("\\.dir-locals")
+  "This list of regular expressions tells load-dir to ignore some filenames.
+The match is a substring check against the whole filename."
+  :group 'load-dir
+  :tag "Ignore these regexps while loading a directory"
+  :type '(repeat :tag "Filename regexp" string))
+
 (defcustom load-dirs nil
   "This variable allows you to define which directories should be loaded.
 
@@ -107,18 +114,22 @@ Clears the list of loaded files and just calls `load-dir-load'."
 Recurses into subdirectories if `load-dir-recursive' is t."
   (load-dir-debug "Loading Emacs Lisp code from %s" dir)
   (let ((suffixes (get-load-suffixes)))
-    (dolist (f (and (file-exists-p dir)
-                    (file-directory-p dir)
-                    (directory-files dir t)))
-      (when (and (not (file-directory-p f))
-                 (member (file-name-extension f t) suffixes))
-        (setq f (file-name-sans-extension f))
-        (if (member f load-dir-loaded)
-            (load-dir-debug "Skipping %s, it's already loaded." f)
+    (dolist (full (and (file-exists-p dir)
+                       (file-directory-p dir)
+                       (directory-files dir t)))
+      (when (and (not (file-directory-p full))
+                 (member (file-name-extension full t) suffixes))
+        (setq f (file-name-sans-extension full))
+        (cond
+         ((member f load-dir-loaded)
+          (load-dir-debug "Skipping %s, it's already loaded." f))
+         ((cl-some (lambda (regexp) (string-match-p regexp full)) load-dir-ignored)
+          (load-dir-debug "Ignoring %s as per `load-dir-ignored'." full))
+         (t
           (if load-dir-ignore-errors
               (with-demoted-errors (load f))
             (load f))
-          (add-to-list 'load-dir-loaded f))))
+          (add-to-list 'load-dir-loaded f)))))
 
     (when load-dir-recursive
       (dolist (f (directory-files dir t directory-files-no-dot-files-regexp))
