@@ -685,8 +685,7 @@ work."
 	 (spec (list
 		(cons 'nnir-specs (list (cons 'nnir-query-spec `((query . ,str)))
 					(cons 'nnir-group-spec `((,nnir-address ,(list name))))))
-		(cons 'nnir-artlist nil)))
-	 nnir-current-query nnir-current-server nnir-current-group-marked nnir-artlist)
+		(cons 'nnir-artlist nil))))
     (if persist
 	(progn
 	  (switch-to-buffer gnus-group-buffer)
