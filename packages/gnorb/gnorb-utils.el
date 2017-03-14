@@ -611,5 +611,48 @@ registry be in use, and should be called after the call to
      (add-hook 'org-capture-prepare-finalize-hook 'gnorb-registry-capture-abort-cleanup)
      (setq gnorb-tracking-enabled t))))
 
+;;;###autoload
+(defun gnorb-install-defaults ()
+  "Set up sane Gnorb customizations and keybindings."
+  (interactive)
+  (global-set-key (kbd "C-c A") 'gnorb-restore-layout)
+  (eval-after-load "gnorb-bbdb"
+    '(progn
+       (define-key bbdb-mode-map (kbd "C-c S") #'gnorb-bbdb-mail-search)
+       (define-key bbdb-mode-map (kbd "C-c l") #'gnorb-bbdb-open-link)
+       (define-key bbdb-mode-map [remap bbdb-mail] #'gnorb-bbdb-mail)
+       (eval-after-load "gnorb-org"
+	 (org-defkey org-mode-map (kbd "C-c C") #'gnorb-org-contact-link))))
+  (eval-after-load "gnorb-org"
+    '(progn
+       (org-defkey org-mode-map (kbd "C-c t") #'gnorb-org-handle-mail)
+       (org-defkey org-mode-map (kbd "C-c v") #'gnorb-org-view)
+       (org-defkey org-mode-map (kbd "C-c E") #'gnorb-org-email-subtree)
+       (setq gnorb-org-agenda-popup-bbdb t)
+       (eval-after-load "org-agenda"
+         '(progn (org-defkey org-agenda-mode-map (kbd "C-c t") #'gnorb-org-handle-mail)
+                 (org-defkey org-agenda-mode-map (kbd "C-c v") #'gnorb-org-view)))))
+  (eval-after-load "gnorb-gnus"
+    '(progn
+       (define-key gnus-summary-mime-map "a" #'gnorb-gnus-article-org-attach)
+       (define-key gnus-summary-mode-map (kbd "C-c t") #'gnorb-gnus-incoming-do-todo)
+       (define-key gnus-summary-mode-map (kbd "C-c v") #'gnorb-gnus-view)
+       (setq gnorb-gnus-capture-always-attach t)
+       (push '("attach to org heading" . gnorb-gnus-mime-org-attach)
+             gnus-mime-action-alist)
+       ;; The only way to add mime button command keys is by redefining
+       ;; gnus-mime-button-map, possibly not ideal. Ideal would be a
+       ;; setter function in gnus itself.
+       (push '(gnorb-gnus-mime-org-attach "a" "Attach to Org heading")
+             gnus-mime-button-commands)
+       (setq gnus-mime-button-map
+             (let ((map (make-sparse-keymap)))
+               (dolist (c gnus-mime-button-commands)
+                 (define-key map (cadr c) (car c)))
+               map))))
+  (eval-after-load "message"
+    '(progn
+       (define-key message-mode-map (kbd "C-c t") #'gnorb-gnus-outgoing-do-todo))))
+
 (provide 'gnorb-utils)
 ;;; gnorb-utils.el ends here
