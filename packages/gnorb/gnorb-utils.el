@@ -507,14 +507,13 @@ methods?"
 		       (not
 			(string-match-p
 			 "\\(nnir\\|nnvirtual\\|UNKNOWN\\)"
-			 server-group)))
-	      (setq check
-		    (ignore-errors
-		      (gnus-request-head msg-id server-group)))
-	      (when check
-		(gnus-registry-set-id-key msg-id 'group (list server-group))
-		(gnus-registry-set-id-key msg-id 'artno (list (cdr check)))
-		(throw 'found (car check)))))))
+			 server-group))
+		       (setq check
+			     (ignore-errors
+			       (gnus-request-head msg-id server-group))))
+
+	      (gnus-registry-set-id-key msg-id 'group (list server-group))
+	      (throw 'found (car check))))))
       nil)))
 
 (defun gnorb-collect-ids (&optional id)

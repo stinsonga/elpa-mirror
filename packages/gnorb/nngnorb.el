@@ -75,14 +75,10 @@ are displayed in an ephemeral group.
 Otherwise, the query string can be a tags match string, a la the
 Org agenda tags search. All headings matched by this string will
 be scanned for gnus messages, and those messages displayed."
-  ;; During the transition period between using message-ids stored in
-  ;; a property, and the new registry-based system, we're going to use
-  ;; both methods to collect relevant messages. This could be a little
-  ;; slower, but for the time being it will be safer.
   (save-window-excursion
     (let ((q (cdr (assq 'query query)))
 	  (buf (get-buffer-create nnir-tmp-buffer))
-	  msg-ids org-ids links vectors)
+	  msg-ids org-ids links messages vectors)
       (with-current-buffer buf
 	(erase-buffer)
 	(setq nngnorb-attachment-file-list nil))
@@ -130,47 +126,47 @@ be scanned for gnus messages, and those messages displayed."
 		'agenda)))
       (with-current-buffer buf
 	(goto-char (point-min))
-	(setq links (plist-get (gnorb-scan-links (point-max) 'gnus)
-			       :gnus))
-	(goto-char (point-min))
-	(while (re-search-forward
-		(concat ":" gnorb-org-msg-id-key ": \\([^\n]+\\)")
-		(point-max) t)
-	  (setq msg-ids (append (split-string (match-string 1)) msg-ids))))
-      ;; Here's where we maybe do some duplicate work using the
-      ;; registry. Take our org ids and find all relevant message ids.
-      (dolist (i (delq nil org-ids))
-	(let ((rel-msg-id (gnorb-registry-org-id-search i)))
-	  (when rel-msg-id
-	    (setq msg-ids (append (delq nil rel-msg-id) msg-ids)))))
+	(setq links (append (plist-get (gnorb-scan-links (point-max) 'gnus)
+				       :gnus)
+			    links))
+
+	(goto-char (point-min)))
+      ;; First add all links to messages (elements of messages should
+      ;; look like (group-name message-id)).
+      (dolist (l links)
+	(push (list (car (split-string link "#"))
+		    (org-link-unescape
+		     (nth 1 (split-string link "#"))))
+	      messages))
+
+      ;; Then use the registry to turn list of org-ids into list of
+      ;; msg-ids.
+      (dolist (i (delq nil (delete-dups org-ids)))
+	(when-let ((rel-msg-id (gnorb-registry-org-id-search i)))
+	  (setq msg-ids (append (delq nil rel-msg-id) msg-ids))))
+
+      ;; Then find the group for each msg-id, and add the results to
+      ;; messages.
       (when msg-ids
-	(dolist (id msg-ids)
-	  (let ((link (gnorb-msg-id-to-link id)))
-	    (when link
-	      (push link links)))))
-      (setq links (sort (delete-dups links) 'string<))
+	(dolist (id (delete-dups msg-ids))
+	  (when-let ((group (gnorb-msg-id-to-group id)))
+	    (push (list group id) messages))))
+
+      (setq messages (sort messages (lambda (l r)
+				      (string< (car l) (car r)))))
+
       (unless (gnus-alive-p)
 	(gnus))
-      (dolist (m links (when vectors
-			 (reverse vectors)))
-	(let (server-group msg-id artno check)
-	  (setq m (org-link-unescape m))
-	  (when (string-match "\\`\\([^#]+\\)\\(#\\(.*\\)\\)?" m)
-	    (setq server-group (match-string 1 m)
-		  msg-id (gnorb-bracket-message-id
-			  (match-string 3 m))
-		  artno (or (car (gnus-registry-get-id-key msg-id 'artno))
-			    (when (setq check
-					(cdr (ignore-errors
-					       (gnus-request-head
-						msg-id server-group))))
-			      (gnus-registry-set-id-key
-			       msg-id 'artno
-			       (list check))
-			      check)))
-	    (when artno
-	      (when (and (integerp artno) (> artno 0))
-		(push (vector server-group artno 100) vectors)))))))))
+
+      (dolist (m messages (when vectors
+			    (reverse vectors)))
+	(let ((artno
+	       (cdr-safe (ignore-errors
+			   (gnus-request-head
+			    (nth 1 m) (car m))))))
+
+	  (when (and artno (integerp artno) (> artno 0))
+	    (push (vector (car m) artno 100) vectors)))))))
 
 (defvar gnorb-summary-minor-mode-map (make-sparse-keymap)
   "Keymap for use in Gnorb's *Summary* minor mode.")
