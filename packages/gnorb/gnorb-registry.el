@@ -212,25 +212,24 @@ key."
 registry to track message/heading associations.  Reports the
 number of tracked messages, the number of tracked headings, and how much of the registry is occupied."
   (interactive)
-  (progn
-    (pop-to-buffer
-     (get-buffer-create "*Gnorb Usage*")
-     '(nil . ((window-height . 10))))
-    (gnorb-refresh-usage-status)
-    (special-mode)
-    (setq revert-buffer-function #'gnorb-refresh-usage-status)
-    (local-set-key (kbd "d") (lambda ()
-			       (interactive)
-			       (progn
-				 (gnorb-flush-dead-associations)
-				 (gnorb-refresh-usage-status))))
-    (local-set-key (kbd "D") (lambda ()
-			       (interactive)
-			       (progn
-				 (gnorb-flush-dead-associations t)
-				 (gnorb-refresh-usage-status))))))
+  (pop-to-buffer
+   (get-buffer-create "*Gnorb Usage*")
+   '(nil . ((window-height . 10))))
+  (gnorb-refresh-usage-status)
+  (special-mode)
+  (setq revert-buffer-function #'gnorb-refresh-usage-status)
+  (local-set-key (kbd "d") (lambda ()
+			     (interactive)
+			     (progn
+			       (gnorb-flush-dead-associations)
+			       (gnorb-refresh-usage-status))))
+  (local-set-key (kbd "D") (lambda ()
+			     (interactive)
+			     (progn
+			       (gnorb-flush-dead-associations t)
+			       (gnorb-refresh-usage-status)))))
 
-(defun gnorb-refresh-usage-status ()
+(defun gnorb-refresh-usage-status (&optional _ignore-auto _noconfirm)
   "Clear and re-format the *Gnorb Usage* buffer."
   (let ((messages (length (gnorb-registry-tracked-messages)))
 	(headings (length (gnorb-registry-tracked-headings)))
