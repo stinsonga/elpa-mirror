@@ -27,9 +27,19 @@
 
 ;;; Code:
 
-(require 'bbdb)
-(require 'bbdb-com)
-(require 'bbdb-mua)
+;; Don't explicity require BBDB libraries.  BBDB is the "weakest leg"
+;; of the Gnorb tripod: it has the least functionality, and many
+;; people are using Gnorb without BBDB. So don't require, only
+;; autoload.
+
+;; (require 'bbdb)
+;; (require 'bbdb-com)
+;; (require 'bbdb-mua)
+
+(autoload 'bbdb-do-records "bbdb-com")
+(autoload 'bbdb-completing-read-record "bbdb-com")
+(autoload 'bbdb-current-record "bbdb")
+
 (require 'gnorb-utils)
 (require 'cl-lib)
 

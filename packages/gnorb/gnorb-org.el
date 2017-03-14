@@ -32,17 +32,15 @@
 (defvar bbdb-buffer-name)
 (defvar message-alternative-emails)
 
-;; This many autoloads means either we should require bbdb outright,
-;; or something needs refactoring.
 (autoload 'gnorb-bbdb-configure-posting-styles "gnorb-bbdb")
 (autoload 'gnorb-registry-org-id-search "gnorb-registry")
-(autoload 'bbdb-completing-read-record "bbdb")
+(autoload 'bbdb-completing-read-record "bbdb-com")
 (autoload 'bbdb-record-name "bbdb")
-(autoload 'bbdb-message-search "bbdb")
-(autoload 'bbdb-mail-address "bbdb")
+(autoload 'bbdb-message-search "bbdb-com")
+(autoload 'bbdb-mail-address "bbdb-com")
 (autoload 'bbdb-record-xfield "bbdb")
 (autoload 'bbdb-records "bbdb")
-(autoload 'bbdb-search "bbdb")
+(autoload 'bbdb-search "bbdb-com")
 (autoload 'bbdb-display-records "bbdb")
 
 (defgroup gnorb-org nil
