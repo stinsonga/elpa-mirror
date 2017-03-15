@@ -523,7 +523,8 @@ you'll stay in the Gnus summary buffer."
   (setq gnorb-window-conf (current-window-configuration))
   (move-marker gnorb-return-marker (point))
   (setq gnorb-gnus-message-info nil)
-  (let* ((articles (gnus-summary-work-articles arg))
+  (let* ((buf (current-buffer))
+	 (articles (gnus-summary-work-articles arg))
 	 (art-no (gnus-summary-article-number))
 	 (headers (gnus-data-header
 		   (gnus-data-find art-no)))
@@ -596,7 +597,10 @@ you'll stay in the Gnus summary buffer."
 		      (length articles) (gnorb-pretty-outline targ)))
 	 ;; ...or just trigger the one.
 	 (delete-other-windows)
-	 (gnorb-trigger-todo-action nil targ)))
+	 (gnorb-trigger-todo-action nil targ))
+       (with-current-buffer buf
+	 (dolist (a articles)
+	   (gnus-summary-update-article a))))
      (error
       ;; If these are left populated after an error, it plays hell
       ;; with future trigger processes.
