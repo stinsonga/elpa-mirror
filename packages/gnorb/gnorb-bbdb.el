@@ -491,30 +491,29 @@ layout type."
 		     ;; Why aren't I using `bbdb-display-list' with a
 		     ;; preformatted list of messages?
 		     (concat
-		      (with-no-warnings ; For `indent' again
-			(bbdb-indent-string
-			 (mapconcat
-			  (lambda (m)
-			    (prog1
-				(org-propertize
-				 (concat
-				  (format-time-string
-				   (replace-regexp-in-string
-				    "%:subject" (gnorb-bbdb-link-subject m)
-				    (replace-regexp-in-string
-				     "%:count" (number-to-string count)
-				     (if (eq format 'multi)
-					 gnorb-bbdb-message-link-format-multi
-				       gnorb-bbdb-message-link-format-one)))
-				   (gnorb-bbdb-link-date m)))
-				 'face 'gnorb-bbdb-link
-				 'mouse-face 'highlight
-				 'gnorb-bbdb-link-count count
-				 'keymap map)
-			      (incf count)))
-			  val (if (eq format 'multi)
-				  "\n" ", "))
-			 indent))
+		      (bbdb-indent-string
+		       (mapconcat
+			(lambda (m)
+			  (prog1
+			      (org-propertize
+			       (concat
+				(format-time-string
+				 (replace-regexp-in-string
+				  "%:subject" (gnorb-bbdb-link-subject m)
+				  (replace-regexp-in-string
+				   "%:count" (number-to-string count)
+				   (if (eq format 'multi)
+				       gnorb-bbdb-message-link-format-multi
+				     gnorb-bbdb-message-link-format-one)))
+				 (gnorb-bbdb-link-date m)))
+			       'face 'gnorb-bbdb-link
+			       'mouse-face 'highlight
+			       'gnorb-bbdb-link-count count
+			       'keymap map)
+			    (incf count)))
+			val (if (eq format 'multi)
+				"\n" ", "))
+		       indent)
 		      (if (eq format 'multi) "\n" "")))
 		    (t
 		     ""))))))
