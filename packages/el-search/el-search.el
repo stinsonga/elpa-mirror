@@ -1184,6 +1184,17 @@ position of the beginning of the match."
                      nil)))))
         get-stream)))))
 
+(defun el-search--set-head-pattern (head pattern)
+  (setf (el-search-head-matcher head)
+        (el-search--matcher pattern))
+  (setf (el-search-head-heuristic-buffer-matcher head)
+        (el-search-heuristic-buffer-matcher pattern))
+  head)
+
+(defun el-search-compile-pattern-in-search (search)
+  (el-search--set-head-pattern (el-search-object-head    search)
+                               (el-search-object-pattern search)))
+
 (defun el-search-make-search (pattern get-buffer-stream)
   "Create and return a new `el-search-object' instance.
 PATTERN is the pattern to search, and GET-BUFFER-STREAM a
@@ -1195,10 +1206,10 @@ in, in order, when called with no arguments."
            :pattern pattern
            :head (make-el-search-head
                   :get-buffer-stream get-buffer-stream
-                  :matcher (el-search--matcher pattern)
-                  :buffers (funcall get-buffer-stream)
-                  :heuristic-buffer-matcher (el-search-heuristic-buffer-matcher pattern))
-           :get-matches (lambda () (el-search--all-matches self))))))
+                  :buffers (funcall get-buffer-stream))
+           :get-matches (lambda () (el-search--all-matches self))))
+    (el-search-compile-pattern-in-search search)
+    self))
 
 (defun el-search-reset-search (search)
   "Return a reset copy of SEARCH."
@@ -1210,6 +1221,7 @@ in, in order, when called with no arguments."
     (setf (el-search-head-file head)     nil)
     (setf (el-search-head-position head) nil)
     (setf (el-search-object-last-match copy) nil)
+    (el-search-compile-pattern-in-search copy)
     copy))
 
 (defun el-search-setup-search-1 (pattern get-buffer-stream  &optional from-here)
@@ -1717,6 +1729,7 @@ that the current search."
       (setq el-search--current-search entry)
       (setq el-search--success t)
       (el-search--set-wrap-flag nil)))
+  (el-search-compile-pattern-in-search el-search--current-search)
   (if-let ((search el-search--current-search)
            (current-head (el-search-object-head search))
            (current-search-buffer (el-search-head-buffer current-head)))
@@ -1746,6 +1759,7 @@ instead of the position where the search would normally be
 continued."
   (interactive "P")
   (setq this-command 'el-search-pattern)
+  (el-search-compile-pattern-in-search el-search--current-search)
   (unwind-protect
       (let* ((old-current-buffer (current-buffer))
              (head (el-search-object-head el-search--current-search))
@@ -1873,9 +1887,7 @@ additional pattern types are currently defined:"
    ((and (equal pattern (el-search--current-pattern))
          (eq (current-buffer)
              (el-search-head-buffer (el-search-object-head el-search--current-search))))
-    ;; FIXME: We don't want to create a new search here, but when a
-    ;; pattern definition has changed, this uses the old definition.
-     (el-search-continue-search 'from-here))
+    (el-search-continue-search 'from-here))
    (t ;create a new search single-buffer search
     (el-search-setup-search
      pattern
@@ -1903,7 +1915,8 @@ With prefix arg, restart the current search."
                               (or el-search--success el-search--wrap-flag))
                          (el-search--current-pattern)
                        (el-search--read-pattern-for-interactive))))
-  (unless (eq pattern (el-search--current-pattern))
+  (if (eq pattern (el-search--current-pattern))
+      (el-search-compile-pattern-in-search el-search--current-search)
     (el-search-setup-search-1
      pattern
      (let ((current-buffer (current-buffer)))
