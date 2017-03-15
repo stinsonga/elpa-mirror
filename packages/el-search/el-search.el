@@ -1653,7 +1653,6 @@ local binding of `window-scroll-functions'."
 (defun el-search-hl-post-command-fun ()
   (unless (or (eq this-command 'el-search-query-replace)
               (eq this-command 'el-search-pattern))
-    (setq el-search--wrap-flag nil)
     (if el-search-keep-hl
         (when (eq el-search-keep-hl 'once)
           (setq el-search-keep-hl nil))
@@ -1661,6 +1660,17 @@ local binding of `window-scroll-functions'."
       (remove-hook 'post-command-hook 'el-search-hl-post-command-fun t)
       (setq el-search--temp-buffer-flag nil)
       (el-search-kill-left-over-search-buffers))))
+
+(defun el-search--reset-wrap-flag ()
+  (unless (or (eq this-command 'el-search-query-replace)
+              (eq this-command 'el-search-pattern))
+    (remove-hook 'post-command-hook 'el-search--reset-wrap-flag t)
+    (setq el-search--wrap-flag nil)))
+
+(defun el-search--set-wrap-flag (value)
+  (when value
+    (add-hook 'post-command-hook #'el-search--reset-wrap-flag t t))
+  (setq el-search--wrap-flag value))
 
 
 ;;;; Core functions
@@ -1706,7 +1716,7 @@ that the current search."
                               (number-sequence 0 (1- (ring-length el-search-history))))))))))
       (setq el-search--current-search entry)
       (setq el-search--success t)
-      (setq el-search--wrap-flag nil)))
+      (el-search--set-wrap-flag nil)))
   (if-let ((search el-search--current-search)
            (current-head (el-search-object-head search))
            (current-search-buffer (el-search-head-buffer current-head)))
@@ -1768,7 +1778,7 @@ continued."
                     (progn
                       (el-search--message-no-log "No matches")
                       (sit-for .7))
-                  (setq el-search--wrap-flag 'forward)
+                  (el-search--set-wrap-flag 'forward)
                   (let ((keys (car (where-is-internal 'el-search-pattern))))
                     (el-search--message-no-log
                      (if keys
@@ -1851,7 +1861,7 @@ additional pattern types are currently defined:"
   (cond
    ((eq el-search--wrap-flag 'forward)
     (progn
-      (setq el-search--wrap-flag nil)
+      (el-search--set-wrap-flag nil)
       (el-search--message-no-log "[Wrapped search]")
       (sit-for .7)
       (el-search-from-beginning 'restart)))
@@ -1904,7 +1914,7 @@ With prefix arg, restart the current search."
     (el-search--next-buffer el-search--current-search))
   (setq this-command 'el-search-pattern)
   (when (eq el-search--wrap-flag 'backward)
-    (setq el-search--wrap-flag nil)
+    (el-search--set-wrap-flag nil)
     (el-search--message-no-log "[Wrapped backward search]")
     (sit-for .7)
     (goto-char (point-max)))
@@ -1951,7 +1961,7 @@ With prefix arg, restart the current search."
                      "No (more) match")))
                 (sit-for .7)
                 (goto-char original-point)
-                (setq el-search--wrap-flag 'backward)))
+                (el-search--set-wrap-flag 'backward)))
           (setq outer-loop-done t)
           (goto-char last-match)
           (setf (el-search-head-position (el-search-object-head el-search--current-search))
