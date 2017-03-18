@@ -119,17 +119,17 @@ Recurses into subdirectories if `load-dir-recursive' is t."
                        (directory-files dir t)))
       (when (and (not (file-directory-p full))
                  (member (file-name-extension full t) suffixes))
-        (setq f (file-name-sans-extension full))
-        (cond
-         ((member f load-dir-loaded)
-          (load-dir-debug "Skipping %s, it's already loaded." f))
-         ((cl-some (lambda (regexp) (string-match-p regexp full)) load-dir-ignored)
-          (load-dir-debug "Ignoring %s as per `load-dir-ignored'." full))
-         (t
-          (if load-dir-ignore-errors
-              (with-demoted-errors (load f))
-            (load f))
-          (add-to-list 'load-dir-loaded f)))))
+        (let ((f (file-name-sans-extension full)))
+          (cond
+           ((member f load-dir-loaded)
+            (load-dir-debug "Skipping %s, it's already loaded." f))
+           ((cl-some (lambda (regexp) (string-match-p regexp full)) load-dir-ignored)
+            (load-dir-debug "Ignoring %s as per `load-dir-ignored'." full))
+           (t
+            (if load-dir-ignore-errors
+                (with-demoted-errors (load f))
+              (load f))
+            (add-to-list 'load-dir-loaded f))))))
 
     (when load-dir-recursive
       (dolist (f (directory-files dir t directory-files-no-dot-files-regexp))
