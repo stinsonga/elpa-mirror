@@ -297,7 +297,7 @@ your Org files."
 	    ;; and set that value on the registry entry if it can find
 	    ;; it.
 	    (unless (gnus-registry-get-id-key p 'group)
-	      (gnorb-msg-id-to-group p))
+	      (gnorb-msg-id-request-head p))
 	    (cl-incf count)))))
      gnorb-org-find-candidates-match
      'agenda 'archive 'comment)
