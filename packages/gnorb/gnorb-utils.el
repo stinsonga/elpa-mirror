@@ -488,14 +488,14 @@ and `gnus'."
 (defun gnorb-msg-id-to-link (msg-id)
   "Given a message id, try to create a full org link to the
 message."
-  (let ((server-group (gnorb-msg-id-to-group msg-id)))
+  (let ((server-group (car (gnorb-msg-id-request-head msg-id))))
     (when server-group
       (org-link-escape
        (concat server-group "#"
 	       (gnorb-unbracket-message-id msg-id))))))
 
-(defun gnorb-msg-id-to-group (msg-id)
-  "Given a message id, try to find the group it's in.
+(defun gnorb-msg-id-request-head (msg-id)
+  "Given a message id, try to find its group and article number.
 
 So far we're checking the registry, then the groups in
 `gnorb-gnus-sent-groups'. Use search engines? Other clever
@@ -504,23 +504,22 @@ methods?"
     (setq msg-id (gnorb-bracket-message-id msg-id))
     (catch 'found
       (when gnorb-tracking-enabled
-	(setq candidates (gnus-registry-get-id-key msg-id 'group))
-	(if (= 1 (length candidates))
-	    (throw 'found (car candidates))
-	  (setq candidates (append candidates gnorb-gnus-sent-groups))
-	  (while (setq server-group (pop candidates))
-	    (when (and (stringp server-group)
-		       (string-match-p "+" server-group)
-		       (not
-			(string-match-p
-			 "\\(nnir\\|nnvirtual\\|UNKNOWN\\)"
-			 server-group))
-		       (setq check
-			     (ignore-errors
-			       (gnus-request-head msg-id server-group))))
+	(setq candidates (append (gnus-registry-get-id-key msg-id 'group)
+				 gnorb-gnus-sent-groups))
+	(while (setq server-group (pop candidates))
+	  (when (and (stringp server-group)
+		     (string-match-p "+" server-group)
+		     (not
+		      (string-match-p
+		       "\\(nnir\\|nnvirtual\\|UNKNOWN\\)"
+		       server-group))
+		     (gnus-activate-group server-group)
+		     (setq check
+			   (ignore-errors
+			     (gnus-request-head msg-id server-group))))
 
-	      (gnus-registry-set-id-key msg-id 'group (list server-group))
-	      (throw 'found (car check))))))
+	    (gnus-registry-set-id-key msg-id 'group (list server-group))
+	    (throw 'found (cons server-group (cdr check))))))
       nil)))
 
 (defun gnorb-collect-ids (&optional id)

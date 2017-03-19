@@ -78,7 +78,7 @@ be scanned for gnus messages, and those messages displayed."
   (save-window-excursion
     (let ((q (cdr (assq 'query query)))
 	  (buf (get-buffer-create nnir-tmp-buffer))
-	  msg-ids org-ids links messages vectors)
+	  msg-ids org-ids links vectors)
       (with-current-buffer buf
 	(erase-buffer)
 	(setq nngnorb-attachment-file-list nil))
@@ -139,34 +139,23 @@ be scanned for gnus messages, and those messages displayed."
 		     (nth 1 (split-string link "#"))))
 	      messages))
 
+      (unless (gnus-alive-p)
+	(gnus))
+
       ;; Then use the registry to turn list of org-ids into list of
       ;; msg-ids.
       (dolist (i (delq nil (delete-dups org-ids)))
 	(when-let ((rel-msg-id (gnorb-registry-org-id-search i)))
 	  (setq msg-ids (append (delq nil rel-msg-id) msg-ids))))
 
-      ;; Then find the group for each msg-id, and add the results to
-      ;; messages.
+      ;; Then find the group and article number for each msg-id, and
+      ;; push that onto our return value "vectors".
       (when msg-ids
-	(dolist (id (delete-dups msg-ids))
-	  (when-let ((group (gnorb-msg-id-to-group id)))
-	    (push (list group id) messages))))
-
-      (setq messages (sort messages (lambda (l r)
-				      (string< (car l) (car r)))))
-
-      (unless (gnus-alive-p)
-	(gnus))
-
-      (dolist (m messages (when vectors
-			    (reverse vectors)))
-	(let ((artno
-	       (cdr-safe (ignore-errors
-			   (gnus-request-head
-			    (nth 1 m) (car m))))))
-
-	  (when (and artno (integerp artno) (> artno 0))
-	    (push (vector (car m) artno 100) vectors)))))))
+	(dolist (id (delete-dups msg-ids) (when vectors
+					    (nreverse vectors)))
+	  (pcase-let ((`(,group . ,artno) (gnorb-msg-id-request-head id)))
+	    (when (and artno (integerp artno) (> artno 0))
+	      (push (vector group artno 100) vectors))))))))
 
 (defvar gnorb-summary-minor-mode-map (make-sparse-keymap)
   "Keymap for use in Gnorb's *Summary* minor mode.")
