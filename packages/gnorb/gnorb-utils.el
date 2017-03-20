@@ -76,6 +76,13 @@ with `gnorb-window-conf'.")
   :group 'gnorb
   :type 'string)
 
+(defun gnorb-version ()
+  "Return the version of currently-installed Gnorb.
+
+Only works for Gnorb installed via the package manager."
+  (interactive)
+  (pkg-info-package-version "gnorb"))
+
 ;;; this is just ghastly, but the value of this var is single regexp
 ;;; group containing various header names, and we want our value
 ;;; inside that group.
