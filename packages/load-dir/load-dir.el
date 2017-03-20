@@ -113,8 +113,7 @@ Clears the list of loaded files and just calls `load-dir-load'."
   "Load all Emacs Lisp files in DIR.
 Recurses into subdirectories if `load-dir-recursive' is t."
   (load-dir-debug "Loading Emacs Lisp code from %s" dir)
-  (let ((suffixes (get-load-suffixes))
-        f)
+  (let ((suffixes (get-load-suffixes)))
     (dolist (full (and (file-exists-p dir)
                        (file-directory-p dir)
                        (directory-files dir t)))
