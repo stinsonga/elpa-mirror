@@ -49,9 +49,6 @@
 ;;; TODO:
 ;;
 ;; - Add hooks for scan completion, and possibly upon network connection.
-;; - Wired uses profiles, not networks; Refer to them as such
-;; - Is an association list the best idea for scan results?  Perhaps a structure
-;;   would work better?
 
 ;;; Code:
 
@@ -141,7 +138,7 @@ in `enwc-update-mode-line'.")
 (cl-defstruct enwc-column-spec ()
   detail display sorter width conv)
 
-(defconst enwc-column-specs
+(defvar enwc-wireless-column-specs
   (list
    (make-enwc-column-spec
     :detail 'strength
@@ -169,12 +166,31 @@ in `enwc-update-mode-line'.")
     :sorter #'enwc--chnl-sorter
     :conv #'number-to-string)))
 
+(defvar enwc-wired-column-specs
+  (list
+   (make-enwc-column-spec
+    :detail 'name
+    :display "Profile"
+    :sorter t
+    :conv #'identity)))
+
+(defvar enwc-column-specs enwc-wireless-column-specs
+  "Specifications for each column in the display.
+
+This should always be set to the value of either
+`enwc-wireless-column-specs' or `enwc-wired-column-specs'.")
+
 (defvar enwc--last-scan-results (make-hash-table :test #'equal)
   "The most recent scan results.
 
 This will be an association list of the form:
 
 ((ID . ((strength . STRENGTH) (essid . ESSID) ...)) ...)
+
+The form will be different when wired is enabled (see
+`enwc-using-wired').  This will have the form:
+
+((ID . ((name . PROFILE-NAME))) ...)
 
 Each ID is a backend-specific network ID.
 
@@ -187,8 +203,8 @@ Each key in the children association lists corresponds to an entry in
 (defvar enwc-using-wired nil
   "Non-nil means ENWC is using wired connections.
 
-Note that this is NOT the same as `enwc-is-wired'.  This checks
-whether or not ENWC is in wired mode.")
+Note that this is NOT the same as `enwc-is-wired-p'.  This
+variable indicates whether ENWC itself is in wired mode.")
 
 (defvar enwc-edit-id nil
   "This is the network id of the network being edited.")
@@ -238,7 +254,7 @@ This is only used internally.")
 (defun enwc-get-networks ()
   "Get the identifiers for the access points
 from a previous scan."
-  (enwc--network-ids enwc--current-backend))
+  (enwc--network-ids enwc--current-backend enwc-using-wired))
 
 (defun enwc-request-scan ()
   "Request a backend scan."
@@ -267,13 +283,13 @@ The returned id is specific to the backend."
 Returns `non-nil' if there is one, nil otherwise."
   (enwc--is-connecting-p enwc--current-backend))
 
-(defun enwc-get-wireless-nw-props (id)
+(defun enwc-get-nw-props (id)
   "Get the network properties of the wireless network with id ID.
 This will return an associative list with the keys
 corresponding to `enwc-column-specs'.
 
 ID is specific to the backend."
-  (enwc--wireless-nw-props enwc--current-backend id))
+  (enwc--nw-props enwc--current-backend id enwc-using-wired))
 
 (defun enwc-is-wired-p ()
   "Check whether or not ENWC is connected to a wired network.
@@ -422,55 +438,43 @@ buffer."
   (with-current-buffer "*ENWC*"
     (enwc-scan-internal)))
 
-(defun enwc-scan-internal-wireless ()
-  "The initial scan routine for wireless networks.
-This initiates a scan using D-Bus, then exits, waiting for the callback.
-
-All back-ends must call `enwc-process-scan' in some way upon completion of a
- scan."
-  (when enwc-scan-interactive
-    (message "Scanning..."))
-  (enwc-request-scan))
-
-(defun enwc-scan-internal-wired ()
-  "The scanning routine for a wired connection.
-This gets the list of wired network profiles."
-  (message "Updating Profiles...")
-  (let ((profs (enwc-get-networks)))
-    (message "Updating Profiles... Done")
-    (setq enwc-access-points      profs
-          enwc--last-scan-results profs)
-    (enwc-display-wired-networks profs)))
-
 (defun enwc-scan-internal ()
   "The entry point for the internal scan routines.
 This checks whether or not wired is being used, and runs the appropriate
- function."
+function.
+
+If wireless is used, a scan is requested.  All back-ends must
+call `enwc-process-scan' in some way upon completion of a
+wireless scan.
+
+A wired scan displays the available wired profiles."
+  (when enwc-scan-interactive
+    (message "Scanning..."))
+
   (if enwc-using-wired
-      (enwc-scan-internal-wired)
-    (enwc-scan-internal-wireless)))
+      (enwc-process-scan)
+    (enwc-request-scan)))
 
 (defun enwc--update-scan-results ()
   (setq enwc--last-scan-results (make-hash-table :test #'equal))
   (dolist (ap (enwc-get-networks))
-    (puthash ap (enwc-get-wireless-nw-props ap) enwc--last-scan-results)))
+    (puthash ap (enwc-get-nw-props ap) enwc--last-scan-results)))
 
-(defun enwc-redisplay-wireless-networks ()
+(defun enwc-redisplay-networks ()
   (interactive)
   (enwc--update-scan-results)
-  (enwc-display-wireless-networks enwc--last-scan-results))
+  (enwc-display-networks enwc--last-scan-results))
 
 (defun enwc-process-scan (&rest args)
   "The scanning callback.
 After a scan has been performed, this processes and displays the scan results.
 
 ARGS is only for compatibility with the calling function."
-  (unless (or enwc-using-wired (not enwc-scan-requested))
+  (when enwc-scan-requested
     (setq enwc-scan-requested nil)
     (when enwc-scan-interactive
       (message "Scanning... Done"))
-    (enwc--update-scan-results)
-    (enwc-display-wireless-networks enwc--last-scan-results)
+    (enwc-redisplay-networks)
     (setq enwc-scan-interactive nil)))
 
 ;;;;;;;;;;;;;;;;;;;;;;
@@ -492,17 +496,6 @@ ARGS is only for compatibility with the calling function."
              (setf (enwc-column-spec-width spec) (max new-max min-width)))
            spec)
          enwc-column-specs)))
-
-(defun enwc-display-wired-networks (networks)
-  "Display the wired networks specified in the list NETWORKS.
-NETWORKS must be in the form returned from
-`enwc-scan-internal-wired'."
-  (let ((inhibit-read-only t))
-    (setq tabulated-list-format (vector '("Profile" . 1)))
-    ;;TODO: actually get names of profiles, if possible.
-    (setq tabulated-list-entries (mapcar (lambda (prop) (cons prop prop)) networks))
-    (tabulated-list-init-header)
-    (tabulated-list-print)))
 
 (defun enwc--get-details (network-entry)
   (mapcar
@@ -530,8 +523,10 @@ NETWORKS must be in the form returned from
              conv)))
        cols)))))
 
-(defun enwc-display-wireless-networks (networks)
-  "Display the networks in the list NETWORKS in the current buffer."
+(defun enwc-display-networks (networks)
+  "Displays the network in NETWORKS.
+This is an entry to the display functions, and checks whether or not ENWC is
+ using wired."
   (enwc-ensure-buffer)
   ;; Update the display widths.
   (enwc-refresh-widths)
@@ -546,19 +541,7 @@ NETWORKS must be in the form returned from
     (setq tabulated-list-printer #'enwc--tabulated-list-printer)
 
     (tabulated-list-init-header)
-
     (tabulated-list-print)))
-
-(defun enwc-display-networks (networks)
-  "Displays the network in NETWORKS.
-This is an entry to the display functions, and checks whether or not ENWC is
- using wired."
-  (unless (eq major-mode 'enwc-mode)
-    (enwc-setup-buffer))
-  (cl-check-type networks list)
-  (if enwc-using-wired
-      (enwc-display-wired-networks networks)
-    (enwc-display-wireless-networks networks)))
 
 (defun enwc-find-network (essid &optional networks)
   "Checks through NETWORKS for the network with essid ESSID,
@@ -568,6 +551,9 @@ NETWORKS is nil.  If the network is not found, then it returns nil.
    When called interactively, this only prints out what it finds.
 Otherwise, it actually returns it."
   (interactive "sNetwork ESSID: ")
+  ;; TODO: Fix this for wired networks
+  (when enwc-using-wired
+    (error "Can't find wireless networks while on wired."))
   (unless (or networks enwc--last-scan-results)
     (setq enwc-scan-interactive nil)
     (enwc-scan-internal))
@@ -594,10 +580,9 @@ Otherwise, it actually returns it."
 This is an entry point for the internal connection functions,
 and checks whether or not ENWC is using wired."
   (enwc-connect id)
-  (if enwc-using-wired
-      id
+  (let ((name-sym (if enwc-using-wired 'name 'essid)))
     (when enwc--last-scan-results
-      (enwc-value-from-scan 'essid id))))
+      (enwc-value-from-scan name-sym id))))
 
 (defun enwc-connect-to-network (net-id)
   "Connect the the network with network id NET-ID.
@@ -624,7 +609,6 @@ Moves to the enwc buffer if necessary."
   (interactive)
   (unless (eq major-mode 'enwc-mode)
     (enwc-setup-buffer))
-  ;;TODO: Fix this for wired (which doesn't have tabulated list)
   (enwc-connect-to-network (tabulated-list-get-id)))
 
 (defun enwc-disconnect-network ()
@@ -633,16 +617,32 @@ Moves to the enwc buffer if necessary."
   (message "Disconnecting")
   (enwc-disconnect))
 
+
+
+(defun enwc-enable-wired ()
+  (setq enwc-using-wired t)
+  (setq enwc-column-specs enwc-wired-column-specs))
+
+(defun enwc-enable-wireless ()
+  (setq enwc-using-wired nil)
+  (setq enwc-column-specs enwc-wireless-column-specs))
+
 (defun enwc-toggle-wired ()
   "Toggle the display and mode between wireless and wired.
-This has the side-effect of setting the variable `enwc-using-wired', and calling
-a scan."
+This has the side-effect of setting the variable
+`enwc-using-wired', and calling a scan.
+
+In lisp code, calling `enwc-enable-wired' or
+`enwc-enable-wireless' will directly set the wired state, rather
+than just toggling it."
   (interactive)
   (unless (eq major-mode 'enwc-mode)
     (enwc-setup-buffer))
   (let ((inhibit-read-only t))
     (erase-buffer)
-    (setq enwc-using-wired (not enwc-using-wired))
+    (if enwc-using-wired
+        (enwc-enable-wireless)
+      (enwc-enable-wired))
     (enwc-scan)))
 
 
@@ -710,7 +710,7 @@ left to `enwc-setup'.  Instead, set `enwc-wireless-device' and
 (define-derived-mode enwc-mode tabulated-list-mode "enwc"
   "Mode for working with network connections.
 \\{enwc-mode-map}"
-  (add-hook 'tabulated-list-revert-hook 'enwc-redisplay-wireless-networks nil t))
+  (add-hook 'tabulated-list-revert-hook 'enwc-redisplay-networks nil t))
 
 (defun enwc-setup-buffer (&optional nomove)
   "Sets up the ENWC buffer.
