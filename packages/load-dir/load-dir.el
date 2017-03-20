@@ -5,7 +5,7 @@
 ;; Authors: Teodor Zlatanov <tzz@lifelogs.com>,
 ;;          Ben Key <bkey76@gmail.com>
 ;; With-Help-From: Evans Winner <ego111@gmail.com>, PJ Weisberg <pj@irregularexpressions.net>
-;; Version: 0.0.4
+;; Version: 0.0.5
 ;; Keywords: lisp, files, convenience
 
 ;; This file is part of GNU Emacs.
@@ -41,7 +41,7 @@
 
 ;;; Code:
 
-(eval-when-compile (require 'cl))
+(eval-when-compile (require 'cl-extra))
 
 (defgroup load-dir nil
   "Automatically load all Emacs Lisp files in given directories."
@@ -113,7 +113,8 @@ Clears the list of loaded files and just calls `load-dir-load'."
   "Load all Emacs Lisp files in DIR.
 Recurses into subdirectories if `load-dir-recursive' is t."
   (load-dir-debug "Loading Emacs Lisp code from %s" dir)
-  (let ((suffixes (get-load-suffixes)))
+  (let ((suffixes (get-load-suffixes))
+        f)
     (dolist (full (and (file-exists-p dir)
                        (file-directory-p dir)
                        (directory-files dir t)))
