@@ -1,10 +1,10 @@
 ;;; lmc.el --- Little Man Computer in Elisp  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2011, 2013, 2014, 2016  Free Software Foundation, Inc.
+;; Copyright (C) 2011-2017  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Version: 1.4
-;; Package-Requires ((emacs "24") (cl-lib "0.5"))
+;; Package-Requires: ((emacs "24") (cl-lib "0.5"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
