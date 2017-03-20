@@ -4,7 +4,9 @@
 
 ;; Authors: Teodor Zlatanov <tzz@lifelogs.com>,
 ;;          Ben Key <bkey76@gmail.com>
-;; With-Help-From: Evans Winner <ego111@gmail.com>, PJ Weisberg <pj@irregularexpressions.net>
+;; With-Help-From: Evans Winner <ego111@gmail.com>,
+;;          PJ Weisberg <pj@irregularexpressions.net>
+;; Maintainer: Teodor Zlatanov <tzz@lifelogs.com>
 ;; Version: 0.0.5
 ;; Keywords: lisp, files, convenience
 
