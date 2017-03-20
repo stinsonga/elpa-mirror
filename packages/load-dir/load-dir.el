@@ -9,6 +9,7 @@
 ;; Maintainer: Teodor Zlatanov <tzz@lifelogs.com>
 ;; Version: 0.0.5
 ;; Keywords: lisp, files, convenience
+;; Package-Requires: ((cl-lib "0.5"))
 
 ;; This file is part of GNU Emacs.
 
@@ -43,7 +44,7 @@
 
 ;;; Code:
 
-(eval-when-compile (require 'cl-extra))
+(require 'cl-lib)
 
 (defgroup load-dir nil
   "Automatically load all Emacs Lisp files in given directories."
