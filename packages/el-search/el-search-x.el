@@ -29,13 +29,7 @@
 ;; This file contains additional definitions of el-search patterns.
 ;; You can just `require' this file, but doing so is not mandatory for
 ;; using el-search.
-;;
-;; TODO:
-;;
-;; - (l (and s) __ (and s)) should match (x y x 1) but
-;;   doesn't.  This seems to happen because `el-search--split'
-;;   considers only _one_ matching split, but we must consider
-;;   _all_.  And (l (and s) __ (pred (eq s))) even errors.
+
 
 
 ;;; Code:
@@ -129,12 +123,15 @@ STRING  Matches any string matched by STRING interpreted as a
         regexp
 _       Matches any list element
 __      Matches any number of list elements (including zero)
-^       Matches zero elements, but only at the beginning of a list
-$       Matches zero elements, but only at the end of a list
-PAT     Anything else is interpreted as a normal pcase pattern, and
-        matches one list element matched by it
-
-^ is only valid as the first, $ as the last of the LPATS.
+^       Matches zero elements, but only at the beginning of a list.
+        Only allowed as the first of the LPATS.
+$       Matches zero elements, but only at the end of a list.
+        Only allowed as the last of the LPATS.
+PAT     Anything else is interpreted as a standard pattern, and
+        matches one list element matched by it.  Note: If matching
+        PAT binds any symbols, occurrences in any following PATs
+        are not turned into equivalence tests; the scope of symbol
+        bindings is limited to the PAT itself.
 
 Example: To match defuns that contain \"hl\" in their name and
 have at least one mandatory, but also optional arguments, you
@@ -144,16 +141,16 @@ could use this pattern:
   (declare
    (heuristic-matcher
     (lambda (&rest lpats)
-      (lambda (file-name-or-buffer atom-thunk)
+      (lambda (file-name-or-buffer atoms-thunk)
         (cl-every
          (lambda (lpat)
            (pcase lpat
              ((or '__ '_ '_? '^ '$) t)
              ((pred symbolp)
               (funcall (el-search-heuristic-matcher `(symbol ,(symbol-name lpat)))
-                       file-name-or-buffer atom-thunk))
+                       file-name-or-buffer atoms-thunk))
              (_ (funcall (el-search-heuristic-matcher (el-search--transform-nontrivial-lpat lpat))
-                         file-name-or-buffer atom-thunk))))
+                         file-name-or-buffer atoms-thunk))))
          lpats)))))
   (let ((match-start nil) (match-end nil))
     (when (eq (car-safe lpats) '^)
