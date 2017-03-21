@@ -10,8 +10,6 @@
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Keywords: mail org gnus bbdb todo task
 
-;; URL: https://github.com/girzel/gnorb
-
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation, either version 3 of the License, or
