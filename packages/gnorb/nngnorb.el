@@ -134,10 +134,9 @@ be scanned for gnus messages, and those messages displayed."
       ;; First add all links to messages (elements of messages should
       ;; look like (group-name message-id)).
       (dolist (l links)
-	(push (list (car (split-string link "#"))
-		    (org-link-unescape
-		     (nth 1 (split-string link "#"))))
-	      messages))
+	(push (org-link-unescape
+	       (nth 1 (split-string l "#")))
+	      msg-ids))
 
       (unless (gnus-alive-p)
 	(gnus))
