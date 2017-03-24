@@ -273,16 +273,18 @@ Use variable `el-search--cached-changes' for caching."
            (= 1 (vc-call-backend backend 'diff (list file) rev nil (current-buffer)))))))))
 
 (defun el-search-change--heuristic-matcher (&optional revision)
-  (lambda (file-name-or-buffer _)
-    (require 'vc)
-    (when-let ((file (if (stringp file-name-or-buffer)
-                         file-name-or-buffer
-                       (buffer-file-name file-name-or-buffer))))
-      (let ((default-directory (file-name-directory file)))
-        (el-search--file-changed-p
-         file
-         (funcall el-search-change-revision-transformer-function
-                  (or revision "HEAD") file))))))
+  (let ((test (el-search-with-short-term-memory
+               (lambda (file-name-or-buffer)
+                 (require 'vc)
+                 (when-let ((file (if (stringp file-name-or-buffer)
+                                      file-name-or-buffer
+                                    (buffer-file-name file-name-or-buffer))))
+                   (let ((default-directory (file-name-directory file)))
+                     (el-search--file-changed-p
+                      file
+                      (funcall el-search-change-revision-transformer-function
+                               (or revision "HEAD") file))))))))
+    (lambda (file-name-or-buffer _) (funcall test file-name-or-buffer))))
 
 (el-search-defpattern change (&optional revision)
   "Matches the object if its text is part of a file change.

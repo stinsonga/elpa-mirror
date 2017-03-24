@@ -791,8 +791,10 @@ expansion step.  If no entry for this pattern type exists in
   (funcall matcher expression))
 
 
-(defun el-search--search-pattern-1 (matcher &optional noerror bound)
-  "Like `el-search-forward' but accepts a matcher as first argument."
+(defun el-search--search-pattern-1 (matcher &optional noerror bound heuristic-matcher)
+  "Like `el-search-forward' but accepts a matcher as first argument.
+In addition, a HEURISTIC-MATCHER corresponding to the MATCHER can
+be specified as third optional argument."
   (if (not (derived-mode-p 'emacs-lisp-mode))
       (if noerror nil (error "Buffer not in emacs-lisp-mode: %s" (buffer-name)))
     (let ((match-beg nil) (opoint (point)) current-expr)
@@ -814,10 +816,22 @@ expansion step.  If no entry for this pattern type exists in
                 (end-of-buffer
                  (goto-char opoint)
                  (throw 'no-match t)))
-              (if (el-search--match-p matcher current-expr)
-                  (setq match-beg (point)
-                        opoint (point))
-                (el-search--skip-expression current-expr))))
+              (let (end-of-defun)
+                (if (and el-search-optimized-search
+                         heuristic-matcher
+                         (looking-at "^(")
+                         (not (funcall heuristic-matcher
+                                       (current-buffer)
+                                       (thunk-delay
+                                        (el-search--flatten-tree
+                                         (save-excursion
+                                           (prog1 (read (current-buffer))
+                                             (setq end-of-defun (point)))))))))
+                    (goto-char end-of-defun)
+                  (if (el-search--match-p matcher current-expr)
+                      (setq match-beg (point)
+                            opoint (point))
+                    (el-search--skip-expression current-expr))))))
           (if noerror nil (signal 'search-failed nil))
         (if (and bound match-beg)
             (and (<= (scan-sexps match-beg 1) bound)
@@ -835,7 +849,8 @@ the buffer.
 
 Optional third argument NOERROR, if non-nil, means if fail just
 return nil (no error)."
-  (el-search--search-pattern-1 (el-search--matcher pattern) noerror bound))
+  (el-search--search-pattern-1 (el-search--matcher pattern) noerror bound
+                               (el-search-heuristic-matcher pattern)))
 
 
 ;; FIXME: make this also a declaration spec?
@@ -877,10 +892,15 @@ optional MESSAGE are used to construct the error message."
   (and el-search--current-search
        (el-search-head-matcher (el-search-object-head el-search--current-search))))
 
+(defun el-search--current-heuristic-matcher ()
+  (and el-search--current-search
+       (el-search-head-heuristic-matcher (el-search-object-head el-search--current-search))))
+
 (cl-defstruct el-search-head
   get-buffer-stream        ;a function of zero args returning a stream of files and/or buffers to search
   matcher                  ;for the search pattern
   heuristic-buffer-matcher ;for the search pattern
+  heuristic-matcher        ;for the search pattern
   buffer                   ;currently searched buffer, or nil meaning "continue in next buffer"
   position                 ;where to continue searching this buffer
   file                     ;name of currently searched file, or nil
@@ -904,43 +924,43 @@ optional MESSAGE are used to construct the error message."
 (defun el-search-heuristic-matcher (pattern)
   "Return a heuristic matcher for PATTERN.
 
-This is a predicate accepting two arguments.  The first argument
-is a file name or buffer.  The second argument is a thunk (see
-\"thunk.el\") of a list of all of this file's or buffer's atoms.
-The predicate returns nil when we can be sure that this file or
-buffer can't contain a match for the PATTERN, and must return
-non-nil else.
+A heuristic matcher is a predicate accepting two arguments.  The
+first argument is a file name or buffer.  The second argument is
+a thunk (see \"thunk.el\") of a list of all of this file's or
+buffer's atoms, or of the atoms of a defun (i.e. top-level
+expression) in this file or buffer.  The predicate returns nil
+when we can be sure that this file or buffer or defun can't
+contain a match for the PATTERN, and must return non-nil else.
 
-The idea behind heuristic matching is to speed up multi buffer
-searching without altering the matching behavior by discarding
-files and buffers that can't contain a match.  Most search
+The idea behind heuristic matching is to speed up searching
+without altering the matching behavior by discarding files or
+buffers or defuns that can't contain a match.  Most search
 patterns contain non-ambiguous information about properties of
-atoms that must be present in a buffer containing matches, and
-getting a list of atoms in a buffer is negligibly fast compared
-to searching that buffer directly.  Thus we spare expensively
-searching all buffers we can sort out, which is a majority of all
-buffers to search in most cases.
+atoms that must be present in a buffer or defun containing a
+match, and computing a list of atoms is negligibly fast compared
+to searching that buffer or defun directly.  Thus we spare
+expensively searching all buffers and defuns we can sort out that
+way.
 
 When specified in an `el-search-defpattern' declaration, a
 MATCHER-FUNCTION should be a function accepting the same
-arguments as the defined pattern.  When called with arguments
-ARGS, this function should return either nil (meaning that for
-these specific arguments no heuristic matching should be
-performed and normal matching should be used) or a (fast!)
-function that accepts two arguments: a file-name or buffer, and a
-thunk of a complete list of atoms in that file or buffer, that
-returns non-nil when this file or buffer could contain a match
+arguments ARGS as the defined pattern.  When called with ARGS,
+this function should return either nil (meaning that for these
+specific arguments no heuristic matching should be performed and
+normal matching should be used) or a (fast!) function, the
+\"heuristic matcher\" for this pattern, that accepts two
+arguments: a file-name or buffer, and a thunk of a complete list
+of atoms in that file or buffer or of a defun in it, that returns
+non-nil when this file or buffer or defun could contain a match
 for the pattern (NAME . ARGS), and nil when we can be sure that
 it doesn't contain a match.  \"Atom\" here means anything whose
 parts aren't searched by el-searching, like integers or strings,
-but unlike arrays.  When in doubt, this returned function must
-return non-nil.
+but unlike arrays.  When in doubt, the heuristic matcher function
+must return non-nil.
 
 When el-searching is started with a certain PATTERN, a heuristic
 matcher function is constructed by recursively destructuring the
-PATTERN and combining the heuristic matchers of the subpatterns.
-The resulting function is then used to dismiss any buffer that
-can't contain any match."
+PATTERN and combining the heuristic matchers of the subpatterns."
   (pcase pattern
     ((pred symbolp) #'el-search-true)
     ((pred pcase--self-quoting-p) (lambda (_ atoms-thunk) (member pattern (thunk-force atoms-thunk))))
@@ -1163,7 +1183,8 @@ position of the beginning of the match."
                                                       (or (el-search-head-file head)
                                                           (el-search-head-buffer head)))
                            (if-let ((match (el-search--search-pattern-1
-                                            (el-search-head-matcher head) t)))
+                                            (el-search-head-matcher head)
+                                            t nil (el-search-head-heuristic-matcher head))))
                                (progn
                                  (setf (el-search-object-last-match search)
                                        (copy-marker (point)))
@@ -1187,6 +1208,8 @@ position of the beginning of the match."
 (defun el-search--set-head-pattern (head pattern)
   (setf (el-search-head-matcher head)
         (el-search--matcher pattern))
+  (setf (el-search-head-heuristic-matcher head)
+        (el-search-heuristic-matcher pattern))
   (setf (el-search-head-heuristic-buffer-matcher head)
         (el-search-heuristic-buffer-matcher pattern))
   head)
@@ -1432,13 +1455,23 @@ matched by \(contains 1\)."
             `(t ,,pattern)))) ; Match again to establish bindings PATTERN should create
    (t `(and ,@(mapcar (lambda (pattern) `(contains ,pattern)) patterns)))))
 
+(defun el-search--in-buffer-matcher (&rest atoms)
+  ;; We only allow atoms here because this works with heuristic matching
+  ;; and allowing arbitrary patterns would produce false positives
+  (let* ((hms (mapcar #'el-search-heuristic-buffer-matcher atoms))
+         (test-buffer (el-search-with-short-term-memory
+                       (lambda (file-name-or-buffer)
+                         (let ((inhibit-message t))
+                           (cl-every (lambda (hm) (funcall hm file-name-or-buffer)) hms))))))
+    (lambda (file-name-or-buffer _) (funcall test-buffer file-name-or-buffer))))
+
 (el-search-defpattern in-buffer (&rest atoms)
   "Matches anything in buffers containing all ATOMS.
 
 This pattern matches anything, but only in files or buffers that
 contain all of the ATOMS.  In all other files and buffers it
 never matches."
-  (declare (heuristic-matcher (alist-get 'contains el-search--heuristic-matchers)))
+  (declare (heuristic-matcher #'el-search--in-buffer-matcher))
   (el-search-defpattern--check-args
    "in-buffer" atoms
    (lambda (arg)
@@ -1446,14 +1479,15 @@ never matches."
        (pcase arg
          ((or (pred atom-or-string-p) `',(pred atom-or-string-p) ``,(pred atom-or-string-p)) t))))
    "argument not an atom or string")
-  (ignore atoms)
-  (unless el-search-optimized-search
-    (user-error "Pattern `in-buffer' can't be used with `el-search-optimized-search' turned off"))
-  '_)
+  (let ((in-buffer-matcher (apply #'el-search--in-buffer-matcher atoms)))
+    `(guard (funcall ',in-buffer-matcher (current-buffer) nil))))
 
 (el-search-defpattern in-file (&rest atoms)
-  "This is synonymous with `in-buffer'."
-  `(in-buffer ,@atoms))
+  "Synonymous with `in-buffer' for buffers with an associated file.
+
+This is like `in-buffer' but only matches in buffers with an
+associated `buffer-file-name'."
+  `(and (filename) (in-buffer ,@atoms)))
 
 (el-search-defpattern not (pattern)
   "Matches anything that is not matched by PATTERN."
@@ -1775,12 +1809,13 @@ continued."
            (current-search-buffer
             (user-error "Search head points to a killed buffer"))))
         (let ((match nil)
-              (matcher (el-search--current-matcher)))
+              (matcher (el-search--current-matcher))
+              (heuristic-matcher (el-search--current-heuristic-matcher)))
           (while (and (el-search-head-buffer head)
                       (not (setq match (with-current-buffer (el-search-head-buffer head)
                                          (save-excursion
                                            (goto-char (el-search-head-position head))
-                                           (el-search--search-pattern-1 matcher t))))))
+                                           (el-search--search-pattern-1 matcher t nil heuristic-matcher))))))
             (el-search--next-buffer el-search--current-search))
           (if (not match)
               (progn
@@ -1788,7 +1823,7 @@ continued."
                              (and from-here
                                   (save-excursion
                                     (goto-char (point-min))
-                                    (el-search--search-pattern-1 matcher t)))))
+                                    (el-search--search-pattern-1 matcher t nil heuristic-matcher)))))
                     (progn
                       (el-search--message-no-log "No matches")
                       (sit-for .7))
@@ -1933,7 +1968,8 @@ With prefix arg, restart the current search."
     (goto-char (point-max)))
   (let ((outer-loop-done nil)
         (original-point (point))
-        (matcher (el-search--current-matcher)))
+        (matcher (el-search--current-matcher))
+        (heuristic-matcher (el-search--current-heuristic-matcher)))
     ;; Strategy: search forwards (inner loop) for PATTERN, starting from
     ;; this toplevel expression's beginning up to point, then if no match
     ;; is found, search the top level expression before this one up to its
@@ -1962,7 +1998,7 @@ With prefix arg, restart the current search."
               (if (not (or el-search--success
                            (save-excursion
                              (goto-char (point-min))
-                             (el-search--search-pattern-1 matcher t))))
+                             (el-search--search-pattern-1 matcher t nil heuristic-matcher))))
                   (progn
                     (ding)
                     (el-search--message-no-log "No matches")
@@ -2461,7 +2497,8 @@ Hit any key to proceed."
         (el-search-keep-hl t) (opoint (point))
         (get-replacement (el-search--matcher pattern replacement))
         (skip-matches-in-replacement 'ask)
-        (matcher (el-search--matcher pattern)))
+        (matcher (el-search--matcher pattern))
+        (heuristic-matcher (el-search--current-heuristic-matcher)))
     (unwind-protect
         (progn
 
@@ -2469,7 +2506,7 @@ Hit any key to proceed."
           (el-search-hl-other-matches matcher)
           (add-hook 'window-scroll-functions #'el-search--after-scroll t t)
 
-          (while (and (not done) (el-search--search-pattern-1 matcher t))
+          (while (and (not done) (el-search--search-pattern-1 matcher t nil heuristic-matcher))
             (setq opoint (point))
             (unless replace-all
               (el-search-hl-sexp))
