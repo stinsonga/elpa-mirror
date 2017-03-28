@@ -543,8 +543,9 @@ Example:
 
 (defun el-search--pp-to-string (expr)
   (let ((print-length nil)
-        (print-level nil))
-    (pp-to-string expr)))
+        (print-level nil)
+        (print-circle nil))
+    (string-trim-right (pp-to-string expr))))
 
 (defun el-search--setup-minibuffer ()
   (let ((inhibit-read-only t))
