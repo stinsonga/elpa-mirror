@@ -2478,7 +2478,9 @@ reindent."
             (goto-char 1)
             (forward-sexp (if splice (length replacement) 1))
             (let ((result (buffer-substring 1 (point))))
-              (if (equal replacement (read (if splice (format "(%s)" result) result)))
+              (if (condition-case nil
+                      (equal replacement (read (if splice (format "(%s)" result) result)))
+                    ((debug error) nil))
                   result
                 (error "Error in `el-search--format-replacement' - please make a bug report"))))
         (kill-buffer orig-buffer)))))
