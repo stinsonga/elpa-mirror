@@ -251,7 +251,7 @@ See the docstring of `gnorb-org-handle-mail' for details."
 	  (when assoc-msg-ids
 	    (car
 	     (sort
-	      (cl-remove-if
+	      (cl-remove-if-not
 	       (lambda (m)
 		 (let ((from (car (gnus-registry-get-id-key m 'sender))))
 		   (and from
