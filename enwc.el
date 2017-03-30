@@ -122,6 +122,11 @@ connection.
   :group 'enwc
   :type 'boolean)
 
+(defcustom enwc-ask-to-save-interfaces t
+  "Whether to ask about saving changes to the network interfaces during `enwc-setup'."
+  :group 'enwc
+  :type 'boolean)
+
 (defvar enwc-display-string " [0%] "
   "The mode line display string.
 This is altered every second to display the current network strength
@@ -695,11 +700,19 @@ One interface will be used for wireless, and the other for wired.
 There is no need to call this function manually; that should be
 left to `enwc-setup'.  Instead, set `enwc-wireless-device' and
 `enwc-wired-device'."
-  (let ((interfaces (funcall enwc-interface-list-function)))
+  (let ((interfaces (funcall enwc-interface-list-function))
+        changed)
     (when (string-empty-p enwc-wired-device)
-      (setq enwc-wired-device (completing-read "Wired Interface: " interfaces)))
+      (setq enwc-wired-device (completing-read "Wired Interface: " interfaces))
+      (setq changed t))
     (when (string-empty-p enwc-wireless-device)
-      (setq enwc-wireless-device (completing-read "Wireless Interface: " interfaces)))))
+      (setq enwc-wireless-device (completing-read "Wireless Interface: " interfaces))
+      (setq changed t))
+    (when (and changed
+               enwc-ask-to-save-interfaces
+               (y-or-n-p "Network Interfaces changed.  Save for future sessions? "))
+      (customize-save-variable 'enwc-wired-device enwc-wired-device)
+      (customize-save-variable 'enwc-wireless-device enwc-wireless-device))))
 
 (defvar enwc-mode-map
   (let ((map (make-sparse-keymap)))
