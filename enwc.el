@@ -117,6 +117,11 @@ connection.
   :group 'enwc
   :type 'string)
 
+(defcustom enwc-warn-if-already-setup t
+  "Whether to warn the user if ENWC is already setup when calling `enwc-setup'."
+  :group 'enwc
+  :type 'boolean)
+
 (defvar enwc-display-string " [0%] "
   "The mode line display string.
 This is altered every second to display the current network strength
@@ -744,7 +749,11 @@ Load the default backend, forcing it if
 If `enwc-display-mode-line' is non-nil, enable the mode line.
 
 If `enwc-auto-scan' is non-nil, start the auto-scan timer."
-  (unless enwc--setup-done
+  (cond
+   ((and enwc--setup-done enwc-warn-if-already-setup)
+    (user-error "ENWC is already setup."))
+   (enwc--setup-done t)
+   (t
     (when (or (string-empty-p enwc-wired-device)
               (string-empty-p enwc-wireless-device))
       (enwc--select-interfaces))
@@ -760,7 +769,7 @@ If `enwc-auto-scan' is non-nil, start the auto-scan timer."
       (setq enwc-scan-timer
             (run-at-time t enwc-auto-scan-interval 'enwc-scan t)))
 
-    (setq enwc--setup-done t)))
+    (setq enwc--setup-done t))))
 
 ;;;###autoload
 (defun enwc ()
