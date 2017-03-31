@@ -631,11 +631,13 @@ Moves to the enwc buffer if necessary."
 
 (defun enwc-enable-wired ()
   (setq enwc-using-wired t)
-  (setq enwc-column-specs enwc-wired-column-specs))
+  (setq enwc-column-specs enwc-wired-column-specs)
+  (setq tabulated-list-sort-key nil))
 
 (defun enwc-enable-wireless ()
   (setq enwc-using-wired nil)
-  (setq enwc-column-specs enwc-wireless-column-specs))
+  (setq enwc-column-specs enwc-wireless-column-specs)
+  (setq tabulated-list-sort-key nil))
 
 (defun enwc-toggle-wired ()
   "Toggle the display and mode between wireless and wired.
