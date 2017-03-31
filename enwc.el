@@ -764,7 +764,7 @@ If `enwc-display-mode-line' is non-nil, enable the mode line.
 If `enwc-auto-scan' is non-nil, start the auto-scan timer."
   (cond
    ((and enwc--setup-done enwc-warn-if-already-setup)
-    (user-error "ENWC is already setup."))
+    (message "ENWC is already setup."))
    (enwc--setup-done t)
    (t
     (when (or (string-empty-p enwc-wired-device)
