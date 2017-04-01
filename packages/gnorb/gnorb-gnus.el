@@ -749,15 +749,20 @@ option `gnorb-gnus-hint-relevant-article' is non-nil."
 (add-hook 'gnus-select-article-hook 'gnorb-gnus-hint-relevant-message)
 
 (defun gnorb-gnus-insert-format-letter-maybe (header)
-  (if (not (memq (car (gnus-find-method-for-group
-		       gnus-newsgroup-name))
-		 '(nnvirtual nnir)))
-      (cond ((gnus-registry-get-id-key
-	      (mail-header-message-id header) 'gnorb-ids)
-	     gnorb-gnus-summary-tracked-mark)
-	    ((gnorb-find-tracked-headings header)
-	     gnorb-gnus-summary-mark)
-	    (t " "))
+  (if (not (or (gnus-ephemeral-group-p gnus-newsgroup-name)
+	       (gnus-virtual-group-p gnus-newsgroup-name)))
+      (let* ((id (mail-header-message-id header))
+	     ;; Use lower-level accessor to avoid creating an entry
+	     ;; where there wasn't one.  This function doesn't respect
+	     ;; ignored registry groups.
+	     (entry (nth 1 (assoc id (registry-lookup
+				      gnus-registry-db
+				      (list id))))))
+	(cond ((cdr-safe (assq 'gnorb-ids entry))
+	       gnorb-gnus-summary-tracked-mark)
+	      ((gnorb-find-tracked-headings header)
+	       gnorb-gnus-summary-mark)
+	      (t " ")))
     " "))
 
 (fset (intern (concat "gnus-user-format-function-"
