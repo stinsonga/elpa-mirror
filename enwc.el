@@ -749,6 +749,29 @@ newly created buffer."
   (unless (get-buffer "*ENWC*")
     (enwc-setup-buffer t)))
 
+;; Setup is broken into four functions to ease testing.  This allows developers
+;; to test each one individually without worrying about the side effects of
+;; others
+
+(defun enwc--setup-select-interfaces ()
+  (when (or (string-empty-p enwc-wired-device)
+            (string-empty-p enwc-wireless-device))
+    (enwc--select-interfaces)))
+
+(defun enwc--setup-load-default-backend ()
+  (enwc-load-default-backend enwc-force-backend-loading))
+
+(defun enwc--setup-display-mode-line ()
+  (when enwc-display-mode-line
+    (enwc-enable-display-mode-line)))
+
+(defun enwc--setup-auto-scan ()
+  (when (and enwc-auto-scan
+             (> enwc-auto-scan-interval 0)
+             (not enwc-scan-timer))
+    (setq enwc-scan-timer
+          (run-at-time t enwc-auto-scan-interval 'enwc-scan t))))
+
 (defvar enwc--setup-done nil
   "Non-nil if enwc has already been set up.")
 
@@ -769,20 +792,10 @@ If `enwc-auto-scan' is non-nil, start the auto-scan timer."
     (message "ENWC is already setup."))
    (enwc--setup-done t)
    (t
-    (when (or (string-empty-p enwc-wired-device)
-              (string-empty-p enwc-wireless-device))
-      (enwc--select-interfaces))
-
-    (enwc-load-default-backend enwc-force-backend-loading)
-
-    (when enwc-display-mode-line
-      (enwc-enable-display-mode-line))
-
-    (when (and enwc-auto-scan
-               (> enwc-auto-scan-interval 0)
-               (not enwc-scan-timer))
-      (setq enwc-scan-timer
-            (run-at-time t enwc-auto-scan-interval 'enwc-scan t)))
+    (enwc--setup-select-interfaces)
+    (enwc--setup-load-default-backend)
+    (enwc--setup-display-mode-line)
+    (enwc--setup-auto-scan)
 
     (setq enwc--setup-done t))))
 
