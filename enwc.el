@@ -497,11 +497,13 @@ ARGS is only for compatibility with the calling function."
         (mapcar
          (lambda (spec)
            (pcase-let* (((cl-struct enwc-column-spec detail display conv) spec)
-                        (new-max (seq-max
-                                  (map-apply
-                                   (lambda (id nw)
-                                     (length (funcall conv (alist-get detail nw))))
-                                   networks)))
+                        (new-max (if (mapp networks)
+                                     (seq-max
+                                      (map-apply
+                                       (lambda (id nw)
+                                         (length (funcall conv (alist-get detail nw))))
+                                       networks))
+                                   0))
                         (min-width (+ (length display) 2)))
              (setf (enwc-column-spec-width spec) (max new-max min-width)))
            spec)
