@@ -41,13 +41,18 @@ Set =CUSTOM_ID= property to name each heading. For example, =worf='s
 
 Keep one empty line before each source block for proper Texinfo
 exports.
+
+** Exporting to texinfo
+
+ivy.texi is generated from ivy.org. To update the .texi file, eval
+ivy-ox.el then ~C-c C-e i t~ in the ivy.org bufer.
 * Copying
 :PROPERTIES:
 :COPYING:  t
 :CUSTOM_ID: copying
 :END:
 #+TEXINFO: @ifnottex
-Ivy manual, version 0.7.0
+Ivy manual, version 0.8.0
 
 Ivy is an interactive interface for completion in Emacs. Emacs uses
 completion mechanism in a variety of contexts: code, menus, commands,
@@ -105,13 +110,14 @@ discoverability.
      Customizability is about being able to use different methods and
      interfaces of completion to tailor the selection process. For
      example, adding a custom display function that points to a
-     selected candidate with =->=, instead of highlighting the
-     selected candidate with the =ivy-current-match= face. Or take the
-     customization of actions, say after the candidate function is
-     selected. ~RET~ uses =counsel-describe-function= to describe the
-     function, whereas ~M-o d~ jumps to that function's definition in
-     the code. The ~M-o~ prefix can be uniformly used with characters
-     like ~d~ to group similar actions.
+     selected candidate with =>=, instead of highlighting the selected
+     candidate with the =ivy-current-match= face (see
+     =ivy-format-function=). Or take the customization of actions, say
+     after the candidate function is selected. ~RET~ uses
+     =counsel-describe-function= to describe the function, whereas
+     ~M-o d~ jumps to that function's definition in the code. The
+     ~M-o~ prefix can be uniformly used with characters like ~d~ to
+     group similar actions.
 
 - Discoverability ::
      Ivy displays easily discoverable commands through the hydra
@@ -139,15 +145,16 @@ oldest version that runs Ivy with fancy faces display.
 :CUSTOM_ID: installing-from-emacs-package-manager
 :END:
 
-~M-x~ =package-install= ~RET~ =swiper= ~RET~
+~M-x~ =package-install= ~RET~ =ivy= ~RET~
 
-Ivy is installed as part of =swiper= package. =swiper= is available
-from two different package archives, GNU ELPA and MELPA. For the
-latest stable version, use the GNU ELPA archives using the above M-x
-command.
+Ivy is installed as part of =ivy= package, which is available from two
+different package archives, GNU ELPA and MELPA. For the latest stable
+version, use the GNU ELPA archives using the above M-x command.
 
-For current hourly builds, use the MELPA archives. See the code below
-for adding MELPA to the list of package archives:
+For current hourly builds, use the MELPA archives. In MELPA, Ivy is
+split into three packages: =ivy=, =swiper= and =counsel=; you can simply
+install =counsel= which will bring in the other two as dependencies.
+See the code below for adding MELPA to the list of package archives:
 
 #+begin_src elisp
 (require 'package)
@@ -155,8 +162,8 @@ for adding MELPA to the list of package archives:
              '("melpa" . "http://melpa.org/packages/"))
 #+end_src
 
-After this do ~M-x~ =package-refresh-contents= ~RET~, followed by
-~M-x~ =package-install= ~RET~ =swiper= ~RET~.
+After this do ~M-x~ =package-refresh-contents= ~RET~, followed by ~M-x~
+=package-install= ~RET~ =counsel= ~RET~.
 
 For package manager details, see [[info:emacs#Packages]].
 
@@ -213,7 +220,6 @@ Here are some basic settings particularly useful for new Ivy users:
 
 #+begin_src elisp
 (setq ivy-use-virtual-buffers t)
-(setq ivy-height 10)
 (setq ivy-count-format "(%d/%d) ")
 #+end_src
 
@@ -243,7 +249,7 @@ The recommended key bindings are:
      (global-set-key (kbd "C-x C-f") 'counsel-find-file)
      (global-set-key (kbd "<f1> f") 'counsel-describe-function)
      (global-set-key (kbd "<f1> v") 'counsel-describe-variable)
-     (global-set-key (kbd "<f1> l") 'counsel-load-library)
+     (global-set-key (kbd "<f1> l") 'counsel-find-library)
      (global-set-key (kbd "<f2> i") 'counsel-info-lookup-symbol)
      (global-set-key (kbd "<f2> u") 'counsel-unicode-char)
      #+end_src
@@ -402,7 +408,7 @@ actions.
      line.
 
      Comes in handy when opening multiple files from
-     =counsel-find-file=, =counsel-git-grep=, =counsel-ag=, or
+     =counsel-find-file=, =counsel-git-grep=, =counsel-ag=, =counsel-rg=, or
      =counsel-locate= lists. Just hold ~C-M-n~ for rapid-fire default
      action on each successive element of the list.
 
@@ -673,7 +679,6 @@ installed.
 
 ~C-o m~ toggles the current regexp builder.
 
-
 * Customization
 :PROPERTIES:
 :CUSTOM_ID: customization
@@ -929,7 +934,7 @@ To examine each action with each candidate in a key-efficient way, try:
      =completing-read-function= (which =ivy-mode= sets). Try refiling
      headings with similar names to appreciate =ivy-mode=.
 - =magit= ::
-     Magit requries this setting for ivy completion:
+     Magit requires this setting for ivy completion:
 
      #+begin_src elisp
      (setq magit-completing-read-function 'ivy-completing-read)
@@ -937,13 +942,13 @@ To examine each action with each candidate in a key-efficient way, try:
 - =find-file-in-project= ::
      It uses ivy by default if Ivy is installed.
 - =projectile= ::
-     Projectile requires this seeting for ivy completion:
+     Projectile requires this setting for ivy completion:
 
      #+begin_src elisp
      (setq projectile-completion-system 'ivy)
      #+end_src
 - =helm-make= ::
-     Helm-make requires this seeting for ivy completion.
+     Helm-make requires this setting for ivy completion.
 
      #+begin_src elisp
      (setq helm-make-completion-method 'ivy)
@@ -957,7 +962,7 @@ To examine each action with each candidate in a key-efficient way, try:
 :PROPERTIES:
 :CUSTOM_ID: file-name-completion
 :END:
-Since file name completion is ubiquitious, Ivy provides extra
+Since file name completion is ubiquitous, Ivy provides extra
 bindings that work here:
 
 
@@ -1001,6 +1006,10 @@ bindings that work here:
 
      ~C-i~ works in a similar way to the default completion.
 
+     You can also get sudo access for the current directory by
+     inputting =/sudo::= ~RET~. Using =/sudo:= (i.e. single colon instead of
+     double) will result in a completion session for the desired user.
+
 - History ::
      File history works the same with ~M-p~, ~M-n~, and ~C-r~, but
      uses a custom code for file name completion that cycles through
@@ -1019,7 +1028,7 @@ bindings that work here:
      #+begin_src elisp
      (setq ivy-use-virtual-buffers t)
      #+end_src
-     will add additional virual buffers to the buffers list for recent
+     will add additional virtual buffers to the buffers list for recent
      files. Selecting such virtual buffers, which are highlighted with
      =ivy-virtual= face, will open the corresponding file.
 
@@ -1118,7 +1127,7 @@ features such as multi-actions, non-exiting actions, =ivy-occur= and
 - =matcher= ::
      Is a function that takes a regex string and a list of strings and
      returns a list of strings matching the regex. Any ordinary Emacs
-     matching function will suffice, yet finely tuned mathing
+     matching function will suffice, yet finely tuned matching
      functions can be used. See =counsel-find-file= for an example
      usage.
 - =dynamic-collection= ::
@@ -1271,6 +1280,38 @@ that they appear:
   we want to kill the running process created by
   =counsel--async-command=.
 - =caller= argument identifies this command for easier customization.
+** Example - =ivy-read-with-extra-properties=
+:PROPERTIES:
+:CUSTOM_ID: example---ivy-read-with-extra-properties
+:END:
+This is another example to show how to associate additional values to each
+displayed strings.
+
+#+BEGIN_SRC elisp
+(defun find-candidates-function (str pred _)
+  (let ((props '(1 2))
+        (strs '("foo" "foo2")))
+    (cl-mapcar (lambda (s p) (propertize s 'property p))
+               strs
+               props)))
+
+(defun find-candidates ()
+  (interactive)
+  (ivy-read "Find symbols: "
+            #'find-candidates-function
+            :action (lambda (x)
+                      (message "Value: %s" (get-text-property 0 'property x)
+                       ))))
+#+END_SRC
+
+Here are the interesting features of the above function:
+
+- =find-candidates-function= builds up a list of strings and associates "foo" with
+  the value 1 and "foo2" with 2.
+- =find-candidates= is an interactive function.
+- =#'find-candidates= is passed as the =collection= argument.
+- =action= gets passed the selected string with the associated value. It
+  then retrieves that value and displays it.
 
 * Variable Index
 :PROPERTIES:

@@ -1,11 +1,11 @@
 ;;; counsel.el --- Various completion functions using Ivy -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015  Free Software Foundation, Inc.
+;; Copyright (C) 2015-2017  Free Software Foundation, Inc.
 
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
 ;; URL: https://github.com/abo-abo/swiper
-;; Version: 0.8.0
-;; Package-Requires: ((emacs "24.1") (swiper "0.8.0"))
+;; Version: 0.9.0
+;; Package-Requires: ((emacs "24.3") (swiper "0.9.0"))
 ;; Keywords: completion, matching
 
 ;; This file is part of GNU Emacs.
@@ -28,7 +28,15 @@
 ;; Just call one of the interactive functions in this file to complete
 ;; the corresponding thing using `ivy'.
 ;;
-;; Currently available: Elisp symbols, Clojure symbols, Git files.
+;; Currently available:
+;; - Symbol completion for Elisp, Common Lisp, Python and Clojure.
+;; - Describe fuctions for Elisp: function, variable, library, command,
+;;   bindings, theme.
+;; - Navigation functions: imenu, ace-line, semantic, outline
+;; - Git utilities: git-files, git-grep, git-log, git-stash.
+;; - Grep utitilies: grep, ag, pt, recoll.
+;; - System utilities: process list, rhythmbox, linux-app.
+;; - Many more.
 
 ;;; Code:
 
@@ -69,7 +77,7 @@
            (directory-file-name dir)) "/"))
 
 (defun counsel-string-compose (prefix str)
-  "Make PREFIX the display prefix of STR though text properties."
+  "Make PREFIX the display prefix of STR through text properties."
   (let ((str (copy-sequence str)))
     (put-text-property
      0 1 'display
@@ -152,9 +160,10 @@ Or the time of the last minibuffer update.")
              (unless (stringp re)
                (setq re (caar re)))
              (if (null ivy--old-cands)
-                 (unless (setq ivy--index (ivy--preselect-index
-                                           (ivy-state-preselect ivy-last)
-                                           ivy--all-candidates))
+                 (unless (ivy-set-index
+                          (ivy--preselect-index
+                           (ivy-state-preselect ivy-last)
+                           ivy--all-candidates))
                    (ivy--recompute-index
                     ivy-text re ivy--all-candidates))
                (ivy--recompute-index
@@ -203,9 +212,15 @@ Update the minibuffer with the amount of lines collected every
     (function :tag "Custom"))
   :group 'ivy)
 
-(defun counsel-prompt-function-default (prompt)
-  "Return PROMPT appended with a semicolon."
-  (format "%s: " prompt))
+(make-obsolete-variable
+ 'counsel-prompt-function
+ "Use `ivy-set-prompt' instead"
+ "0.8.0 <2016-06-20 Mon>")
+
+(defun counsel-prompt-function-default ()
+  "Return prompt appended with a semicolon."
+  (ivy-add-prompt-count
+   (format "%s: " (ivy-state-prompt ivy-last))))
 
 (defun counsel-delete-process ()
   (let ((process (get-process " *counsel*")))
@@ -343,25 +358,27 @@ Update the minibuffer with the amount of lines collected every
   "History for `counsel-unicode-char'.")
 
 ;;;###autoload
-(defun counsel-unicode-char ()
+(defun counsel-unicode-char (&optional count)
   "Insert a Unicode character at point."
-  (interactive)
-  (let ((minibuffer-allow-text-properties t))
+  (interactive "p")
+  (let ((minibuffer-allow-text-properties t)
+        (ivy-sort-max-size (expt 256 6)))
     (setq ivy-completion-beg (point))
     (setq ivy-completion-end (point))
     (ivy-read "Unicode name: "
               (mapcar (lambda (x)
                         (propertize
-                         (format "% -6X% -60s%c" (cdr x) (car x) (cdr x))
+                         (format "%06X % -60s%c" (cdr x) (car x) (cdr x))
                          'result (cdr x)))
                       (ucs-names))
               :action (lambda (char)
                         (with-ivy-window
                           (delete-region ivy-completion-beg ivy-completion-end)
                           (setq ivy-completion-beg (point))
-                          (insert-char (get-text-property 0 'result char))
+                          (insert-char (get-text-property 0 'result char) count)
                           (setq ivy-completion-end (point))))
-              :history 'counsel-unicode-char-history)))
+              :history 'counsel-unicode-char-history
+              :sort t)))
 
 ;;* Elisp symbols
 ;;** `counsel-describe-variable'
@@ -412,7 +429,7 @@ Update the minibuffer with the amount of lines collected every
                  (find-library
                   (prin1-to-string sym)))
                 (t
-                 (error "Couldn't fild definition of %s"
+                 (error "Couldn't find definition of %s"
                         sym))))))))
 
 (define-obsolete-function-alias 'counsel-symbol-at-point
@@ -474,6 +491,88 @@ Update the minibuffer with the amount of lines collected every
                          (intern x)))
               :caller 'counsel-describe-function)))
 
+;;** `counsel-set-variable'
+(defvar counsel-set-variable-history nil
+  "Store history for `counsel-set-variable'.")
+
+(defun counsel-read-setq-expression (sym)
+  "Read and eval a setq expression for SYM."
+  (setq this-command 'eval-expression)
+  (let* ((minibuffer-completing-symbol t)
+         (sym-value (symbol-value sym))
+         (expr (minibuffer-with-setup-hook
+                   (lambda ()
+                     (add-function :before-until (local 'eldoc-documentation-function)
+                                   #'elisp-eldoc-documentation-function)
+                     (add-hook 'completion-at-point-functions #'elisp-completion-at-point nil t)
+                     (run-hooks 'eval-expression-minibuffer-setup-hook)
+                     (goto-char (minibuffer-prompt-end))
+                     (forward-char 6)
+                     (insert (format "%S " sym)))
+                 (read-from-minibuffer "Eval: "
+                                       (format
+                                        (if (and sym-value (consp sym-value))
+                                            "(setq '%S)"
+                                          "(setq %S)")
+                                        sym-value)
+                                       read-expression-map t
+                                       'read-expression-history))))
+    (eval-expression expr)))
+
+(defun counsel--setq-doconst (x)
+  "Return a cons of description and value for X.
+X is an item of a radio- or choice-type defcustom."
+  (let (y)
+    (when (and (listp x)
+               (consp (setq y (last x))))
+      (setq x (car y))
+      (cons (prin1-to-string x)
+            (if (symbolp x)
+                (list 'quote x)
+              x)))))
+
+;;;###autoload
+(defun counsel-set-variable ()
+  "Set a variable, with completion.
+
+When the selected variable is a `defcustom' with the type boolean
+or radio, offer completion of all possible values.
+
+Otherwise, offer a variant of `eval-expression', with the initial
+input corresponding to the chosen variable."
+  (interactive)
+  (let ((sym (intern
+              (ivy-read "Variable: "
+                        (counsel-variable-list)
+                        :preselect (ivy-thing-at-point)
+                        :history 'counsel-set-variable-history)))
+        sym-type
+        cands)
+    (if (and (boundp sym)
+             (setq sym-type (get sym 'custom-type))
+             (cond
+               ((and (consp sym-type)
+                     (memq (car sym-type) '(choice radio)))
+                (setq cands (delq nil (mapcar #'counsel--setq-doconst (cdr sym-type)))))
+               ((eq sym-type 'boolean)
+                (setq cands '(("nil" . nil) ("t" . t))))
+               (t nil)))
+        (let* ((sym-val (symbol-value sym))
+               ;; Escape '%' chars if present
+               (sym-val-str (replace-regexp-in-string "%" "%%" (format "%s" sym-val)))
+               (res (ivy-read (format "Set (%S <%s>): " sym sym-val-str)
+                              cands
+                              :preselect (prin1-to-string sym-val))))
+          (when res
+            (setq res
+                  (if (assoc res cands)
+                      (cdr (assoc res cands))
+                    (read res)))
+            (eval `(setq ,sym ,res))))
+      (unless (boundp sym)
+        (set sym nil))
+      (counsel-read-setq-expression sym))))
+
 ;;** `counsel-info-lookup-symbol'
 (defvar info-lookup-mode)
 (declare-function info-lookup->completions "info-look")
@@ -484,7 +583,7 @@ Update the minibuffer with the amount of lines collected every
 
 ;;;###autoload
 (defun counsel-info-lookup-symbol (symbol &optional mode)
-  "Forward to (`info-describe-symbol' SYMBOL MODE) with ivy completion."
+  "Forward to (`info-lookup-symbol' SYMBOL MODE) with ivy completion."
   (interactive
    (progn
      (require 'info-look)
@@ -500,6 +599,7 @@ Update the minibuffer with the amount of lines collected every
             (value (ivy-read
                     "Describe symbol: "
                     (mapcar #'car completions)
+                    :preselect (ivy-thing-at-point)
                     :sort t)))
        (list value info-lookup-mode))))
   (require 'info-look)
@@ -514,6 +614,42 @@ Update the minibuffer with the amount of lines collected every
 (ivy-set-display-transformer
  'counsel-M-x
  'counsel-M-x-transformer)
+
+(declare-function bookmark-all-names "bookmark")
+(declare-function bookmark-location "bookmark")
+
+(defcustom counsel-bookmark-avoid-dired nil
+  "If non-nil, choosing a directory in `counsel-bookmark'
+forwards the choice to `counsel-find-file' instead of opening a
+dired buffer."
+  :type 'boolean
+  :group 'ivy)
+
+;;;###autoload
+(defun counsel-bookmark ()
+  "Forward to `bookmark-jump' or `bookmark-set' if bookmark doesn't exist."
+  (interactive)
+  (require 'bookmark)
+  (ivy-read "Create or jump to bookmark: "
+            (bookmark-all-names)
+            :action (lambda (x)
+                      (cond ((and counsel-bookmark-avoid-dired
+                                  (member x (bookmark-all-names))
+                                  (file-directory-p (bookmark-location x)))
+                             (with-ivy-window
+                               (let ((default-directory (bookmark-location x)))
+                                 (counsel-find-file))))
+                            ((member x (bookmark-all-names))
+                             (with-ivy-window
+                               (bookmark-jump x)))
+                            (t
+                             (bookmark-set x))))
+            :caller 'counsel-bookmark))
+
+(ivy-set-actions
+ 'counsel-bookmark
+ '(("d" bookmark-delete "delete")
+   ("e" bookmark-rename "edit")))
 
 (defun counsel-M-x-transformer (cmd)
   "Return CMD appended with the corresponding binding in the current window."
@@ -564,6 +700,12 @@ Optional INITIAL-INPUT is the initial input in the minibuffer."
       (setq cands smex-ido-cache)
       (setq pred nil)
       (setq sort nil))
+    ;; When `counsel-M-x' returns, `last-command' would be set to
+    ;; `counsel-M-x' because :action hasn't been invoked yet.
+    ;; Instead, preserve the old value of `this-command'.
+    (setq this-command last-command)
+    (setq real-this-command real-last-command)
+
     (ivy-read (counsel--M-x-prompt) cands
               :predicate pred
               :require-match t
@@ -572,8 +714,9 @@ Optional INITIAL-INPUT is the initial input in the minibuffer."
               (lambda (cmd)
                 (when (featurep 'smex)
                   (smex-rank (intern cmd)))
-                (let ((prefix-arg current-prefix-arg)
-                      (this-command (intern cmd)))
+                (let ((prefix-arg current-prefix-arg))
+                  (setq real-this-command
+                        (setq this-command (intern cmd)))
                   (command-execute (intern cmd) 'record)))
               :sort sort
               :keymap counsel-describe-map
@@ -581,10 +724,8 @@ Optional INITIAL-INPUT is the initial input in the minibuffer."
               :caller 'counsel-M-x)))
 
 ;;** `counsel-load-library'
-;;;###autoload
-(defun counsel-load-library ()
-  "Load a selected the Emacs Lisp library.
-The libraries are offered from `load-path'."
+(defun counsel-library-candidates ()
+  "Return a list of completion candidates for `counsel-load-library'."
   (interactive)
   (let ((dirs load-path)
         (suffix (concat (regexp-opt '(".el" ".el.gz") t) "\\'"))
@@ -623,10 +764,33 @@ The libraries are offered from `load-path'."
                                 'full-name (expand-file-name file dir))
                                dir) cands)))))))
     (maphash (lambda (_k v) (push (car v) res)) cands)
-    (ivy-read "Load library: " (nreverse res)
+    (nreverse res)))
+
+;;;###autoload
+(defun counsel-load-library ()
+  "Load a selected the Emacs Lisp library.
+The libraries are offered from `load-path'."
+  (interactive)
+  (let ((cands (counsel-library-candidates)))
+    (ivy-read "Load library: " cands
               :action (lambda (x)
                         (load-library
                          (get-text-property 0 'full-name x)))
+              :keymap counsel-describe-map)))
+
+(ivy-set-actions
+ 'counsel-load-library
+ '(("d" counsel--find-symbol "definition")))
+
+;;** `counsel-find-library'
+;;;###autoload
+(defun counsel-find-library ()
+  "Visit a selected the Emacs Lisp library.
+The libraries are offered from `load-path'."
+  (interactive)
+  (let ((cands (counsel-library-candidates)))
+    (ivy-read "Find library: " cands
+              :action #'counsel--find-symbol
               :keymap counsel-describe-map)))
 
 ;;** `counsel-load-theme'
@@ -637,7 +801,7 @@ The libraries are offered from `load-path'."
   (condition-case nil
       (progn
         (mapc #'disable-theme custom-enabled-themes)
-        (load-theme (intern x))
+        (load-theme (intern x) t)
         (when (fboundp 'powerline-reset)
           (powerline-reset)))
     (error "Problem loading theme %s" x)))
@@ -698,15 +862,15 @@ Usable with `ivy-resume', `ivy-next-line-and-call' and
     (nreverse res)))
 
 (defun counsel-descbinds-action-describe (x)
-  (let ((cmd (cdr x)))
+  (let ((cmd (cddr x)))
     (describe-function cmd)))
 
 (defun counsel-descbinds-action-find (x)
-  (let ((cmd (cdr x)))
+  (let ((cmd (cddr x)))
     (counsel--find-symbol (symbol-name cmd))))
 
 (defun counsel-descbinds-action-info (x)
-  (let ((cmd (cdr x)))
+  (let ((cmd (cddr x)))
     (counsel-info-lookup-symbol (symbol-name cmd))))
 
 ;;;###autoload
@@ -718,33 +882,50 @@ Describe the selected candidate."
             :action #'counsel-descbinds-action-describe
             :history 'counsel-descbinds-history
             :caller 'counsel-descbinds))
+;;** `counsel-describe-face'
+(defun counsel-describe-face ()
+  "Completion for `describe-face'."
+  (interactive)
+  (let (cands)
+    (mapatoms
+     (lambda (s)
+       (if (facep s)
+           (push (symbol-name s) cands))))
+    (ivy-read "Face: " cands
+              :preselect (symbol-name (face-at-point t))
+              :action #'describe-face)))
 ;;* Git
 ;;** `counsel-git'
+(defvar counsel-git-cmd "git ls-files --full-name --"
+  "Command for `counsel-git'.")
+
 (defvar counsel--git-dir nil
   "Store the base git directory.")
 
 (ivy-set-actions
  'counsel-git
- '(("j"
-    find-file-other-window
-    "other")))
+ '(("j" find-file-other-window "other window")
+   ("x" counsel-find-file-extern "open externally")))
 
 ;;;###autoload
 (defun counsel-git ()
   "Find file in the current Git repository."
   (interactive)
-  (setq counsel--git-dir (expand-file-name
-                          (locate-dominating-file
-                           default-directory ".git")))
-  (let* ((default-directory counsel--git-dir)
-         (cands (split-string
-                 (shell-command-to-string
-                  "git ls-files --full-name --")
-                 "\n"
-                 t)))
-    (ivy-read (funcall counsel-prompt-function "Find file")
-              cands
-              :action #'counsel-git-action)))
+  (setq counsel--git-dir (locate-dominating-file
+                          default-directory ".git"))
+  (ivy-set-prompt 'counsel-git counsel-prompt-function)
+  (if (null counsel--git-dir)
+      (error "Not in a git repository")
+    (setq counsel--git-dir (expand-file-name
+                            counsel--git-dir))
+    (let* ((default-directory counsel--git-dir)
+           (cands (split-string
+                   (shell-command-to-string counsel-git-cmd)
+                   "\n"
+                   t)))
+      (ivy-read "Find file" cands
+                :action #'counsel-git-action
+                :caller 'counsel-git))))
 
 (defun counsel-git-action (x)
   (with-ivy-window
@@ -762,7 +943,10 @@ Describe the selected candidate."
 (ivy-set-occur 'counsel-git-grep 'counsel-git-grep-occur)
 (ivy-set-display-transformer 'counsel-git-grep 'counsel-git-grep-transformer)
 
-(defvar counsel-git-grep-cmd "git --no-pager grep --full-name -n --no-color -i -e %S"
+(defvar counsel-git-grep-cmd-default "git --no-pager grep --full-name -n --no-color -i -e '%s'"
+  "Initial command for `counsel-git-grep'.")
+
+(defvar counsel-git-grep-cmd nil
   "Store the command for `counsel-git-grep'.")
 
 (defvar counsel--git-grep-dir nil
@@ -775,20 +959,27 @@ Describe the selected candidate."
   "History for `counsel-git-grep'.")
 
 (defvar counsel-git-grep-cmd-history
-  '("git --no-pager grep --full-name -n --no-color -i -e %S")
+  (list counsel-git-grep-cmd-default)
   "History for `counsel-git-grep' shell commands.")
 
-(defun counsel-prompt-function-dir (prompt)
-  "Return PROMPT appended with the parent directory."
-  (let ((directory counsel--git-grep-dir))
-    (format "%s [%s]: "
-            prompt
-            (let ((dir-list (eshell-split-path directory)))
-              (if (> (length dir-list) 3)
-                  (apply #'concat
-                         (append '("...")
-                                 (cl-subseq dir-list (- (length dir-list) 3))))
-                directory)))))
+(defcustom counsel-grep-post-action-hook nil
+  "Hook that runs after the point moves to the next candidate.
+Typical value: '(recenter)."
+  :type 'hook
+  :group 'ivy)
+
+(defun counsel-prompt-function-dir ()
+  "Return prompt appended with the parent directory."
+  (ivy-add-prompt-count
+   (let ((directory counsel--git-grep-dir))
+     (format "%s [%s]: "
+             (ivy-state-prompt ivy-last)
+             (let ((dir-list (eshell-split-path directory)))
+               (if (> (length dir-list) 3)
+                   (apply #'concat
+                          (append '("...")
+                                  (cl-subseq dir-list (- (length dir-list) 3))))
+                 directory))))))
 
 (defun counsel-git-grep-function (string &optional _pred &rest _unused)
   "Grep in the current git repository for STRING."
@@ -812,6 +1003,8 @@ Describe the selected candidate."
         (goto-char (point-min))
         (forward-line (1- (string-to-number line-number)))
         (re-search-forward (ivy--regex ivy-text t) (line-end-position) t)
+        (swiper--ensure-visible)
+        (run-hooks 'counsel-grep-post-action-hook)
         (unless (eq ivy-exit 'done)
           (swiper--cleanup)
           (swiper--add-overlays (ivy--regex ivy-text)))))))
@@ -853,6 +1046,11 @@ Describe the selected candidate."
                          str))
   str)
 
+(defvar counsel-git-grep-projects-alist nil
+  "An alist of project directory to \"git-grep\" command.
+Allows to automatically use a custom \"git-grep\" command for all
+files in a project.")
+
 ;;;###autoload
 (defun counsel-git-grep (&optional cmd initial-input)
   "Grep for a string in the current git repository.
@@ -860,33 +1058,57 @@ When CMD is a string, use it as a \"git grep\" command.
 When CMD is non-nil, prompt for a specific \"git grep\" command.
 INITIAL-INPUT can be given as the initial minibuffer input."
   (interactive "P")
-  (cond
-    ((stringp cmd)
-     (setq counsel-git-grep-cmd cmd))
-    (cmd
-     (setq counsel-git-grep-cmd
-           (ivy-read "cmd: " counsel-git-grep-cmd-history
-                     :history 'counsel-git-grep-cmd-history))
-     (setq counsel-git-grep-cmd-history
-           (delete-dups counsel-git-grep-cmd-history)))
-    (t
-     (setq counsel-git-grep-cmd "git --no-pager grep --full-name -n --no-color -i -e %S")))
-  (setq counsel--git-grep-dir
-        (locate-dominating-file default-directory ".git"))
-  (if (null counsel--git-grep-dir)
-      (error "Not in a git repository")
-    (setq counsel--git-grep-count (counsel--gg-count "" t))
-    (ivy-read
-     (funcall counsel-prompt-function "git grep")
-     'counsel-git-grep-function
-     :initial-input initial-input
-     :matcher #'counsel-git-grep-matcher
-     :dynamic-collection (> counsel--git-grep-count 20000)
-     :keymap counsel-git-grep-map
-     :action #'counsel-git-grep-action
-     :unwind #'swiper--cleanup
-     :history 'counsel-git-grep-history
-     :caller 'counsel-git-grep)))
+  (ivy-set-prompt 'counsel-git-grep counsel-prompt-function)
+  (let ((dd (expand-file-name default-directory))
+        proj)
+    (cond
+      ((stringp cmd)
+       (setq counsel-git-grep-cmd cmd))
+      (cmd
+       (if (setq proj
+                 (cl-find-if
+                  (lambda (x)
+                    (string-match (car x) dd))
+                  counsel-git-grep-projects-alist))
+           (setq counsel-git-grep-cmd (cdr proj))
+         (setq counsel-git-grep-cmd
+               (ivy-read "cmd: " counsel-git-grep-cmd-history
+                         :history 'counsel-git-grep-cmd-history
+                         :re-builder #'ivy--regex))
+         (setq counsel-git-grep-cmd-history
+               (delete-dups counsel-git-grep-cmd-history))))
+      (t
+       (setq counsel-git-grep-cmd counsel-git-grep-cmd-default)))
+    (setq counsel--git-grep-dir
+          (if proj
+              (car proj)
+            (locate-dominating-file default-directory ".git")))
+    (if (null counsel--git-grep-dir)
+        (error "Not in a git repository")
+      (unless proj
+        (setq counsel--git-grep-count
+              (if (eq system-type 'windows-nt)
+                  0
+                (counsel--gg-count "" t))))
+      (ivy-read "git grep" (if proj
+                               'counsel-git-grep-proj-function
+                             'counsel-git-grep-function)
+                :initial-input initial-input
+                :matcher #'counsel-git-grep-matcher
+                :dynamic-collection (or proj (> counsel--git-grep-count 20000))
+                :keymap counsel-git-grep-map
+                :action #'counsel-git-grep-action
+                :unwind #'swiper--cleanup
+                :history 'counsel-git-grep-history
+                :caller 'counsel-git-grep))))
+
+(defun counsel-git-grep-proj-function (str)
+  (if (< (length str) 3)
+      (counsel-more-chars 3)
+    (let ((regex (setq ivy--old-re
+                       (ivy--regex str t))))
+      (counsel--async-command (format counsel-git-grep-cmd regex))
+      nil)))
 
 (defun counsel-git-grep-switch-cmd ()
   "Set `counsel-git-grep-cmd' to a different value."
@@ -926,7 +1148,8 @@ INITIAL-INPUT can be given as the initial minibuffer input."
      #'counsel--gg-sentinel)))
 
 (defun counsel--gg-sentinel (process event)
-  (if (string= event "finished\n")
+  (if (member event '("finished\n"
+                      "exited abnormally with code 141\n"))
       (progn
         (with-current-buffer (process-buffer process)
           (setq ivy--all-candidates
@@ -984,6 +1207,9 @@ When REVERT is non-nil, regenerate the current *ivy-occur* buffer."
   (unless (eq major-mode 'ivy-occur-grep-mode)
     (ivy-occur-grep-mode)
     (setq default-directory counsel--git-grep-dir))
+  (setq ivy-text
+        (and (string-match "\"\\(.*\\)\"" (buffer-name))
+             (match-string 1 (buffer-name))))
   (let ((cands (split-string
                 (shell-command-to-string
                  (format counsel-git-grep-cmd
@@ -1025,7 +1251,7 @@ When REVERT is non-nil, regenerate the current *ivy-occur* buffer."
 (defun counsel-git-grep-recenter ()
   (interactive)
   (with-ivy-window
-    (counsel-git-grep-action ivy--current)
+    (counsel-git-grep-action (ivy-state-current ivy-last))
     (recenter-top-bottom)))
 
 ;;** `counsel-git-stash'
@@ -1049,6 +1275,9 @@ done") "\n" t)))
                   :action 'counsel-git-stash-kill-action
                   :caller 'counsel-git-stash)))))
 ;;** `counsel-git-log'
+(defvar counsel-git-log-cmd "GIT_PAGER=cat git log --grep '%s'"
+  "Command used for \"git log\".")
+
 (defun counsel-git-log-function (input)
   (if (< (length input) 3)
       (counsel-more-chars 3)
@@ -1057,10 +1286,8 @@ done") "\n" t)))
     (counsel--async-command
      ;; "git log --grep" likes to have groups quoted e.g. \(foo\).
      ;; But it doesn't like the non-greedy ".*?".
-     (format "GIT_PAGER=cat git log --grep '%s'"
-             (replace-regexp-in-string
-              "\\.\\*\\?" ".*"
-              ivy--old-re)))
+     (format counsel-git-log-cmd
+             (replace-regexp-in-string "\\.\\*\\?" ".*" ivy--old-re)))
     nil))
 
 (defun counsel-git-log-action (x)
@@ -1095,9 +1322,45 @@ done") "\n" t)))
 
 (add-to-list 'ivy-ffap-url-functions 'counsel-github-url-p)
 (add-to-list 'ivy-ffap-url-functions 'counsel-emacs-url-p)
+(defun counsel-find-file-cd-bookmark-action (_)
+  "Reset `counsel-find-file' from selected directory."
+  (ivy-read "cd: "
+            (progn
+              (ivy--virtual-buffers)
+              (delete-dups
+               (mapcar (lambda (x) (file-name-directory (cdr x)))
+                       ivy--virtual-buffers)))
+            :action (lambda (x)
+                      (let ((default-directory (file-name-directory x)))
+                        (counsel-find-file)))))
+
+(defcustom counsel-root-command "sudo"
+  "Command to gain root privileges."
+  :type 'string
+  :group 'ivy)
+
+(defun counsel-find-file-as-root (x)
+  "Find file with root privileges."
+  (let* ((host (file-remote-p x 'host))
+         (file-name (format "/%s:%s:%s"
+                            counsel-root-command
+                            (or host "")
+                            (expand-file-name
+                             (if host
+                                 (file-remote-p x 'localname)
+                               x)))))
+    ;; If the current buffer visits the same file we are about to open,
+    ;; replace the current buffer with the new one.
+    (if (eq (current-buffer) (get-file-buffer x))
+        (find-alternate-file file-name)
+      (find-file file-name))))
+
 (ivy-set-actions
  'counsel-find-file
- '(("f" find-file-other-window "other window")))
+ '(("j" find-file-other-window "other window")
+   ("b" counsel-find-file-cd-bookmark-action "cd bookmark")
+   ("x" counsel-find-file-extern "open externally")
+   ("r" counsel-find-file-as-root "open as root")))
 
 (defcustom counsel-find-file-at-point nil
   "When non-nil, add file-at-point to the list of candidates."
@@ -1140,6 +1403,9 @@ Skip some dotfiles unless `ivy-text' requires them."
 
 (declare-function ffap-guesser "ffap")
 
+(defvar counsel-find-file-speedup-remote t
+  "Speed up opening remote files by disabling `find-file-hook' for them.")
+
 ;;;###autoload
 (defun counsel-find-file (&optional initial-input)
   "Forward to `find-file'.
@@ -1151,7 +1417,12 @@ When INITIAL-INPUT is non-nil, use it in the minibuffer during completion."
             :action
             (lambda (x)
               (with-ivy-window
-                (find-file (expand-file-name x ivy--directory))))
+                (let ((find-file-hook (if (and
+                                           counsel-find-file-speedup-remote
+                                           (file-remote-p ivy--directory))
+                                          nil
+                                        find-file-hook)))
+                  (find-file (expand-file-name x ivy--directory)))))
             :preselect (when counsel-find-file-at-point
                          (require 'ffap)
                          (let ((f (ffap-guesser)))
@@ -1171,11 +1442,13 @@ When INITIAL-INPUT is non-nil, use it in the minibuffer during completion."
           (file-name-as-directory (file-name-nondirectory dir-file-name)))))
 
 (defun counsel-at-git-issue-p ()
-  "Whe point is at an issue in a Git-versioned file, return the issue string."
+  "When point is at an issue in a Git-versioned file, return the issue string."
   (and (looking-at "#[0-9]+")
        (or
         (eq (vc-backend (buffer-file-name)) 'Git)
-        (memq major-mode '(magit-commit-mode)))
+        (or
+         (memq major-mode '(magit-commit-mode))
+         (bound-and-true-p magit-commit-mode)))
        (match-string-no-properties 0)))
 
 (defun counsel-github-url-p ()
@@ -1213,8 +1486,27 @@ When INITIAL-INPUT is non-nil, use it in the minibuffer during completion."
   :group 'ivy
   :type '(repeat string))
 
-(make-obsolete-variable 'counsel-locate-options 'counsel-locate-cmd "0.7.0")
+;;** `counsel-recentf'
+(defvar recentf-list)
+(declare-function recentf-mode "recentf")
 
+;;;###autoload
+(defun counsel-recentf ()
+  "Find a file on `recentf-list'."
+  (interactive)
+  (require 'recentf)
+  (recentf-mode)
+  (ivy-read "Recentf: " (mapcar #'substring-no-properties recentf-list)
+            :action (lambda (f)
+                      (with-ivy-window
+                       (find-file f)))
+            :caller 'counsel-recentf))
+(ivy-set-actions
+ 'counsel-recentf
+ '(("j" find-file-other-window "other window")
+   ("x" counsel-find-file-extern "open externally")))
+
+;;** `counsel-locate'
 (defcustom counsel-locate-cmd (cond ((eq system-type 'darwin)
                                      'counsel-locate-cmd-noregex)
                                     ((and (eq system-type 'windows-nt)
@@ -1244,15 +1536,21 @@ string - the full shell command to run."
   "History for `counsel-locate'.")
 
 (defun counsel-locate-action-extern (x)
-  "Use xdg-open shell command on X."
-  (call-process shell-file-name nil
-                nil nil
-                shell-command-switch
-                (format "%s %s"
-                        (if (eq system-type 'darwin)
-                            "open"
-                          "xdg-open")
-                        (shell-quote-argument x))))
+  "Use xdg-open shell command, or corresponding system command, on X."
+  (interactive (list (read-file-name "File: ")))
+  (if (and (eq system-type 'windows-nt)
+           (fboundp 'w32-shell-execute))
+      (w32-shell-execute "open" x)
+    (call-process shell-file-name nil
+                  nil nil
+                  shell-command-switch
+                  (format "%s %s"
+                          (cl-case system-type
+                            (darwin "open")
+                            (t "xdg-open"))
+                          (shell-quote-argument x)))))
+
+(defalias 'counsel-find-file-extern 'counsel-locate-action-extern)
 
 (declare-function dired-jump "dired-x")
 
@@ -1303,6 +1601,96 @@ INITIAL-INPUT can be given as the initial minibuffer input."
             :unwind #'counsel-delete-process
             :caller 'counsel-locate))
 
+;;** `counsel-dpkg'
+;;;###autoload
+(defun counsel-dpkg ()
+  "Call the \"dpkg\" shell command."
+  (interactive)
+  (let ((cands (mapcar
+                (lambda (x)
+                  (let ((y (split-string x "  +")))
+                    (cons (format "%-40s   %s"
+                                  (ivy--truncate-string
+                                   (nth 1 y) 40)
+                                  (nth 4 y))
+                          (mapconcat #'identity y " "))))
+                (split-string
+                 (shell-command-to-string "dpkg -l | tail -n+6") "\n" t))))
+    (ivy-read "dpkg: " cands
+              :action (lambda (x)
+                        (message (cdr x)))
+              :caller 'counsel-dpkg)))
+
+;;** `counsel-rpm'
+;;;###autoload
+(defun counsel-rpm ()
+  "Call the \"rpm\" shell command."
+  (interactive)
+  (let ((cands (mapcar
+                (lambda (x)
+                  (let ((y (split-string x "|")))
+                    (cons (format "%-40s   %s"
+                                  (ivy--truncate-string
+                                   (nth 0 y) 40)
+                                  (nth 1 y))
+                          (mapconcat #'identity y " "))))
+                (split-string
+                 (shell-command-to-string "rpm -qa --qf \"%{NAME}|%{SUMMARY}\\n\"") "\n" t))))
+    (ivy-read "rpm: " cands
+              :action (lambda (x)
+                        (message (cdr x)))
+              :caller 'counsel-rpm)))
+
+;;** File Jump and Dired Jump
+
+;;;###autoload
+(defun counsel-file-jump (&optional initial-input initial-directory)
+  "Jump to a file from a list of all files directories
+below the current one.  INITIAL-INPUT can be given as the initial
+minibuffer input.  INITIAL-DIRECTORY, if non-nil, is used as the
+root directory for search."
+  (interactive
+   (list nil
+         (when current-prefix-arg
+           (read-directory-name "From directory: "))))
+  (let* ((default-directory (or initial-directory default-directory)))
+    (ivy-read "Find file: "
+              (split-string
+               (shell-command-to-string "find * -type f -not -path '*\/.git*'")
+               "\n" t)
+              :matcher #'counsel--find-file-matcher
+              :initial-input initial-input
+              :action (lambda (x)
+                        (with-ivy-window
+                          (find-file (expand-file-name x ivy--directory))))
+              :preselect (when counsel-find-file-at-point
+                           (require 'ffap)
+                           (let ((f (ffap-guesser)))
+                             (when f (expand-file-name f))))
+              :require-match 'confirm-after-completion
+              :history 'file-name-history
+              :keymap counsel-find-file-map
+              :caller 'counsel-file-jump)))
+
+;;;###autoload
+(defun counsel-dired-jump (&optional initial-input initial-directory)
+  "Jump to a directory (in dired) from a list of all directories
+below the current one.  INITIAL-INPUT can be given as the initial
+minibuffer input.  INITIAL-DIRECTORY, if non-nil, is used as the
+root directory for search."
+  (interactive
+   (list nil
+         (when current-prefix-arg
+           (read-directory-name "From directory: "))))
+  (let* ((default-directory (or initial-directory default-directory)))
+    (ivy-read "Directory: "
+              (split-string
+               (shell-command-to-string "find * -type d -not -path '*\/.git*'")
+               "\n" t)
+              :initial-input initial-input
+              :action (lambda (d) (dired-jump nil (expand-file-name d)))
+              :caller 'counsel-dired-jump)))
+
 ;;* Grep
 ;;** `counsel-ag'
 (defvar counsel-ag-map
@@ -1311,10 +1699,10 @@ INITIAL-INPUT can be given as the initial minibuffer input."
     (define-key map (kbd "M-q") 'counsel-git-grep-query-replace)
     map))
 
-(defcustom counsel-ag-base-command "ag --nocolor --nogroup %s -- ."
-  "Format string to use in `cousel-ag-function' to construct the
-command. %S will be replaced by the regex string. The default is
-\"ag --nocolor --nogroup %s -- .\"."
+(defcustom counsel-ag-base-command "ag --nocolor --nogroup %s"
+  "Format string to use in `counsel-ag-function' to construct the
+command. The %s will be replaced by optional extra ag arguments followed by the
+regex string. The default is \"ag --nocolor --nogroup %s\"."
   :type 'string
   :group 'ivy)
 
@@ -1322,32 +1710,60 @@ command. %S will be replaced by the regex string. The default is
 (ivy-set-occur 'counsel-ag 'counsel-ag-occur)
 (ivy-set-display-transformer 'counsel-ag 'counsel-git-grep-transformer)
 
-(defun counsel-ag-function (string)
-  "Grep in the current directory for STRING."
+(defun counsel-ag-function (string base-cmd extra-ag-args)
+  "Grep in the current directory for STRING.
+If non-nil, EXTRA-AG-ARGS string is appended to BASE-CMD."
+  (when (null extra-ag-args)
+    (setq extra-ag-args ""))
   (if (< (length string) 3)
       (counsel-more-chars 3)
     (let ((default-directory counsel--git-grep-dir)
           (regex (counsel-unquote-regex-parens
                   (setq ivy--old-re
                         (ivy--regex string)))))
-      (counsel--async-command
-       (format counsel-ag-base-command (shell-quote-argument regex)))
-      nil)))
+      (let* ((args-end (string-match " -- " extra-ag-args))
+             (file (if args-end
+                       (substring-no-properties extra-ag-args (+ args-end 3))
+                     ""))
+             (extra-ag-args (if args-end
+                                (substring-no-properties extra-ag-args 0 args-end)
+                              extra-ag-args))
+             (ag-cmd (format base-cmd
+                             (concat extra-ag-args
+                                     " -- "
+                                     (shell-quote-argument regex)
+                                     file))))
+        (if (file-remote-p default-directory)
+            (split-string (shell-command-to-string ag-cmd) "\n" t)
+          (counsel--async-command ag-cmd)
+          nil)))))
 
 ;;;###autoload
-(defun counsel-ag (&optional initial-input initial-directory)
+(defun counsel-ag (&optional initial-input initial-directory extra-ag-args ag-prompt)
   "Grep for a string in the current directory using ag.
-INITIAL-INPUT can be given as the initial minibuffer input."
-  (interactive
-   (list nil
-         (when current-prefix-arg
-           (read-directory-name (concat
-                                 (car (split-string counsel-ag-base-command))
-                                 " in directory: ")))))
+  INITIAL-INPUT can be given as the initial minibuffer input.
+  INITIAL-DIRECTORY, if non-nil, is used as the root directory for search.
+  EXTRA-AG-ARGS string, if non-nil, is appended to `counsel-ag-base-command'.
+  AG-PROMPT, if non-nil, is passed as `ivy-read' prompt argument. "
+  (interactive)
+  (when current-prefix-arg
+    (setq initial-directory
+          (or initial-directory
+              (read-directory-name (concat
+                                    (car (split-string counsel-ag-base-command))
+                                    " in directory: "))))
+    (setq extra-ag-args
+          (or extra-ag-args
+              (let* ((pos (cl-position ?  counsel-ag-base-command))
+                     (command (substring-no-properties counsel-ag-base-command 0 pos))
+                     (ag-args (replace-regexp-in-string
+                               "%s" "" (substring-no-properties counsel-ag-base-command pos))))
+                (read-string (format "(%s) args:" command) ag-args)))))
+  (ivy-set-prompt 'counsel-ag counsel-prompt-function)
   (setq counsel--git-grep-dir (or initial-directory default-directory))
-  (ivy-read (funcall counsel-prompt-function
-                     (car (split-string counsel-ag-base-command)))
-            'counsel-ag-function
+  (ivy-read (or ag-prompt (car (split-string counsel-ag-base-command)))
+            (lambda (string)
+              (counsel-ag-function string counsel-ag-base-command extra-ag-args))
             :initial-input initial-input
             :dynamic-collection t
             :keymap counsel-ag-map
@@ -1383,23 +1799,86 @@ INITIAL-INPUT can be given as the initial minibuffer input."
       cands))))
 
 ;;** `counsel-pt'
-(defcustom counsel-pt-base-command "pt --nocolor --nogroup -e %s -- ."
+(defcustom counsel-pt-base-command "pt --nocolor --nogroup -e %s"
   "Used to in place of `counsel-ag-base-command' to search with
 pt using `counsel-ag'."
   :type 'string
   :group 'ivy)
 
 ;;;###autoload
-(defun counsel-pt ()
+(defun counsel-pt (&optional initial-input)
   "Grep for a string in the current directory using pt.
 This uses `counsel-ag' with `counsel-pt-base-command' replacing
 `counsel-ag-base-command'."
   (interactive)
   (let ((counsel-ag-base-command counsel-pt-base-command))
-    (call-interactively 'counsel-ag)))
+    (counsel-ag initial-input)))
+
+;;** `counsel-rg'
+(defcustom counsel-rg-base-command "rg -i --no-heading --line-number %s ."
+  "Used to in place of `counsel-rg-base-command' to search with
+ripgrep using `counsel-rg'."
+  :type 'string
+  :group 'ivy)
+
+(counsel-set-async-exit-code 'counsel-rg 1 "No matches found")
+(ivy-set-occur 'counsel-rg 'counsel-rg-occur)
+(ivy-set-display-transformer 'counsel-rg 'counsel-git-grep-transformer)
+
+;;;###autoload
+(defun counsel-rg (&optional initial-input initial-directory extra-rg-args rg-prompt)
+  "Grep for a string in the current directory using rg.
+INITIAL-INPUT can be given as the initial minibuffer input.
+INITIAL-DIRECTORY, if non-nil, is used as the root directory for search.
+EXTRA-RG-ARGS string, if non-nil, is appended to `counsel-rg-base-command'.
+RG-PROMPT, if non-nil, is passed as `ivy-read' prompt argument. "
+  (interactive
+   (list nil
+         (when current-prefix-arg
+           (read-directory-name (concat
+                                 (car (split-string counsel-rg-base-command))
+                                 " in directory: ")))))
+  (ivy-set-prompt 'counsel-rg counsel-prompt-function)
+  (setq counsel--git-grep-dir (or initial-directory default-directory))
+  (ivy-read (or rg-prompt (car (split-string counsel-rg-base-command)))
+            (lambda (string)
+              (counsel-ag-function string counsel-rg-base-command extra-rg-args))
+            :initial-input initial-input
+            :dynamic-collection t
+            :keymap counsel-ag-map
+            :history 'counsel-git-grep-history
+            :action #'counsel-git-grep-action
+            :unwind (lambda ()
+                      (counsel-delete-process)
+                      (swiper--cleanup))
+            :caller 'counsel-rg))
+
+(defun counsel-rg-occur ()
+  "Generate a custom occur buffer for `counsel-rg'."
+  (unless (eq major-mode 'ivy-occur-grep-mode)
+    (ivy-occur-grep-mode))
+  (setq default-directory counsel--git-grep-dir)
+  (let* ((regex (counsel-unquote-regex-parens
+                 (setq ivy--old-re
+                       (ivy--regex
+                        (progn (string-match "\"\\(.*\\)\"" (buffer-name))
+                               (match-string 1 (buffer-name)))))))
+         (cands (split-string
+                 (shell-command-to-string
+                  (format counsel-rg-base-command (shell-quote-argument regex)))
+                 "\n"
+                 t)))
+    ;; Need precise number of header lines for `wgrep' to work.
+    (insert (format "-*- mode:grep; default-directory: %S -*-\n\n\n"
+                    default-directory))
+    (insert (format "%d candidates:\n" (length cands)))
+    (ivy--occur-insert-lines
+     (mapcar
+      (lambda (cand) (concat "./" cand))
+      cands))))
 
 ;;** `counsel-grep'
-(defcustom counsel-grep-base-command "grep -nE \"%s\" %s"
+(defcustom counsel-grep-base-command "grep -nE '%s' %s"
   "Format string to use in `cousel-grep-function' to construct
 the command."
   :type 'string
@@ -1413,7 +1892,8 @@ the command."
                   (setq ivy--old-re
                         (ivy--regex string)))))
       (counsel--async-command
-       (format counsel-grep-base-command regex counsel--git-grep-dir))
+       (format counsel-grep-base-command regex
+               (shell-quote-argument counsel--git-grep-dir)))
       nil)))
 
 (defun counsel-grep-action (x)
@@ -1437,6 +1917,7 @@ the command."
           (forward-line (- line-number counsel-grep-last-line))
           (setq counsel-grep-last-line line-number))
         (re-search-forward (ivy--regex ivy-text t) (line-end-position) t)
+        (run-hooks 'counsel-grep-post-action-hook)
         (if (eq ivy-exit 'done)
             (swiper--ensure-visible)
           (isearch-range-invisible (line-beginning-position)
@@ -1456,7 +1937,7 @@ the command."
                           (ivy--regex
                            (progn (string-match "\"\\(.*\\)\"" (buffer-name))
                                   (match-string 1 (buffer-name))) t)))
-                   counsel--git-grep-dir))
+                   (shell-quote-argument counsel--git-grep-dir)))
           "\n" t))
         (file (file-name-nondirectory counsel--git-grep-dir)))
     ;; Need precise number of header lines for `wgrep' to work.
@@ -1484,12 +1965,14 @@ the command."
                              :dynamic-collection t
                              :preselect (format "%d:%s"
                                                 (line-number-at-pos)
-                                                (buffer-substring-no-properties
-                                                 (line-beginning-position)
-                                                 (line-end-position)))
+                                                (regexp-quote
+                                                 (buffer-substring-no-properties
+                                                  (line-beginning-position)
+                                                  (line-end-position))))
                              :history 'counsel-git-grep-history
                              :update-fn (lambda ()
-                                          (counsel-grep-action ivy--current))
+                                          (counsel-grep-action (ivy-state-current ivy-last)))
+                             :re-builder #'ivy--regex
                              :action #'counsel-grep-action
                              :unwind (lambda ()
                                        (counsel-delete-process)
@@ -1504,6 +1987,12 @@ the command."
   :type 'integer
   :group 'ivy)
 
+(defvar counsel-compressed-file-regex
+  (progn
+    (require 'jka-compr nil t)
+    (jka-compr-build-file-regexp))
+  "Store the regex for compressed file names.")
+
 ;;;###autoload
 (defun counsel-grep-or-swiper ()
   "Call `swiper' for small buffers and `counsel-grep' for large ones."
@@ -1512,6 +2001,9 @@ the command."
            (not (buffer-narrowed-p))
            (not (ignore-errors
                   (file-remote-p (buffer-file-name))))
+           (not (string-match
+                 counsel-compressed-file-regex
+                 (buffer-file-name)))
            (> (buffer-size)
               (if (eq major-mode 'org-mode)
                   (/ counsel-grep-swiper-limit 4)
@@ -1523,11 +2015,12 @@ the command."
 
 ;;** `counsel-recoll'
 (defun counsel-recoll-function (string)
-  "Grep in the current directory for STRING."
+  "Run recoll for STRING."
   (if (< (length string) 3)
       (counsel-more-chars 3)
     (counsel--async-command
-     (format "recoll -t -b '%s'" string))
+     (format "recoll -t -b %s"
+             (shell-quote-argument string)))
     nil))
 
 ;; This command uses the recollq command line tool that comes together
@@ -1647,7 +2140,8 @@ INITIAL-INPUT can be given as the initial minibuffer input."
                        (counsel-org--set-tags))))))
            (counsel-org--set-tags)))
         ((eq this-command 'ivy-call)
-         (delete-minibuffer-contents))))
+         (with-selected-window (active-minibuffer-window)
+           (delete-minibuffer-contents)))))
 
 (defun counsel-org-tag-prompt ()
   (format "Tags (%s): "
@@ -1712,6 +2206,106 @@ INITIAL-INPUT can be given as the initial minibuffer input."
            (org-agenda-set-tags nil nil))
       (fset 'org-set-tags store))))
 
+;;** `counsel-mark-ring'
+(defun counsel--pad (string length)
+  "Pad string to length with spaces."
+  (let ((padding (max 0 (- length (length string)))))
+    (concat string (make-string padding ?\s))))
+
+(defun counsel-mark-ring ()
+  "Browse `mark-ring' interactively."
+  (interactive)
+  (let ((candidates
+         (with-current-buffer (current-buffer)
+           (let ((padding (length (format "%s: " (line-number-at-pos (eobp))))))
+             (save-mark-and-excursion
+              (goto-char (point-min))
+              (mapcar (lambda (mark)
+                        (let* ((position (marker-position mark))
+                               (line-number (line-number-at-pos position))
+                               (line-marker (counsel--pad (format "%s:" line-number) padding))
+                               (bol (point-at-bol line-number))
+                               (eol (point-at-eol line-number))
+                               (line (buffer-substring bol eol)))
+                          (cons (format "%s%s" line-marker line) position)))
+                      (cl-remove-duplicates mark-ring :test #'equal)))))))
+    (ivy-read "Marks: " candidates
+              :action (lambda (elem)
+                        (goto-char (cdr elem))))))
+
+;;** `counsel-package'
+(defvar package--initialized)
+(defvar package-archive-contents)
+(declare-function package-installed-p "package")
+(declare-function package-delete "package")
+
+(defun counsel-package ()
+  "Install or delete packages.
+
+Packages not currently installed have a \"+\"
+prepended. Selecting one of these will try to install
+it. Currently installed packages have a \"-\" prepended, and
+selecting one of these will delete the package.
+
+Additional Actions:
+
+  \\<ivy-minibuffer-map>\\[ivy-dispatching-done] d: describe package"
+  (interactive)
+  (unless package--initialized
+    (package-initialize t))
+  (unless package-archive-contents
+    (package-refresh-contents))
+  (let ((cands (mapcar #'counsel-package-make-package-cell
+                       package-archive-contents)))
+    (ivy-read "Packages (install +pkg or delete -pkg): "
+              (cl-sort cands #'counsel--package-sort)
+              :action #'counsel-package-action
+              :initial-input "^+ "
+              :require-match t
+              :caller 'counsel-package)))
+
+(defun counsel-package-make-package-cell (pkg)
+  (let* ((pkg-sym (car pkg))
+         (pkg-name (symbol-name pkg-sym)))
+    (cons (format "%s%s"
+                  (if (package-installed-p pkg-sym) "-" "+")
+                  pkg-name)
+          pkg)))
+
+(defun counsel-package-action (pkg-cons)
+  (let ((pkg (cadr pkg-cons)))
+    (if (package-installed-p pkg)
+        (package-delete pkg)
+      (package-install pkg))))
+
+(defun counsel-package-action-describe (pkg-cons)
+  "Call `describe-package' for package in PKG-CONS."
+  (describe-package (cadr pkg-cons)))
+
+(declare-function package-desc-extras "package")
+
+(defun counsel-package-action-homepage (pkg-cons)
+  "Open homepage for package in PKG-CONS."
+  (let* ((desc-list (cddr pkg-cons))
+         (desc (if (listp desc-list) (car desc-list) desc-list))
+         (url (cdr (assoc :url (package-desc-extras desc)))))
+    (when url
+      (require 'browse-url)
+      (browse-url url))))
+
+(defun counsel--package-sort (a b)
+  "Sort function for `counsel-package'."
+  (let* ((a (car a))
+         (b (car b))
+         (a-inst (equal (substring a 0 1) "+"))
+         (b-inst (equal (substring b 0 1) "+")))
+    (or (and a-inst (not b-inst))
+        (and (eq a-inst b-inst) (string-lessp a b)))))
+
+(ivy-set-actions 'counsel-package
+                 '(("d" counsel-package-action-describe "describe package")
+                   ("h" counsel-package-action-homepage "open package homepage")))
+
 ;;** `counsel-tmm'
 (defvar tmm-km-list nil)
 (declare-function tmm-get-keymap "tmm")
@@ -1773,6 +2367,11 @@ INITIAL-INPUT can be given as the initial minibuffer input."
           (mapconcat #'identity seq "\n")))
     (error str)))
 
+(defcustom counsel-yank-pop-separator "\n"
+  "Separator for the kill ring strings in `counsel-yank-pop'."
+  :group 'ivy
+  :type 'string)
+
 (defun counsel--yank-pop-format-function (cand-pairs)
   (ivy--format-function-generic
    (lambda (str)
@@ -1785,7 +2384,7 @@ INITIAL-INPUT can be given as the initial minibuffer input."
    (lambda (str)
      (counsel--yank-pop-truncate str))
    cand-pairs
-   "\n"))
+   counsel-yank-pop-separator))
 
 (defun counsel-yank-pop-action (s)
   "Insert S into the buffer, overwriting the previous yank."
@@ -1808,11 +2407,13 @@ INITIAL-INPUT can be given as the initial minibuffer input."
                 (point))))
     (setq ivy-completion-beg (point))
     (setq ivy-completion-end (point)))
-  (let ((candidates (cl-remove-if
-                     (lambda (s)
-                       (or (< (length s) 3)
-                           (string-match "\\`[\n[:blank:]]+\\'" s)))
-                     (delete-dups kill-ring))))
+  (let ((candidates
+         (mapcar #'ivy-cleanup-string
+                 (cl-remove-if
+                  (lambda (s)
+                    (or (< (length s) 3)
+                        (string-match "\\`[\n[:blank:]]+\\'" s)))
+                  (delete-dups kill-ring)))))
     (let ((ivy-format-function #'counsel--yank-pop-format-function)
           (ivy-height 5))
       (ivy-read "kill-ring: " candidates
@@ -1821,6 +2422,7 @@ INITIAL-INPUT can be given as the initial minibuffer input."
 
 ;;** `counsel-imenu'
 (defvar imenu-auto-rescan)
+(defvar imenu-auto-rescan-maxout)
 (declare-function imenu--subalist-p "imenu")
 (declare-function imenu--make-index-alist "imenu")
 
@@ -1834,7 +2436,12 @@ PREFIX is used to create the key."
                          (cons e (if (integerp v) (copy-marker v) v)))
                     ;; pass the prefix to next recursive call
                     (concat prefix (if prefix ".") (car elm)))
-                 (let ((key (concat prefix (if prefix ".") (car elm))))
+                 (let ((key (concat
+                             (when prefix
+                               (concat
+                                (propertize prefix 'face 'compilation-info)
+                                ": "))
+                             (car elm))))
                    (list (cons key
                                ;; create a imenu candidate here
                                (cons key (if (overlayp (cdr elm))
@@ -1849,6 +2456,9 @@ PREFIX is used to create the key."
   (unless (featurep 'imenu)
     (require 'imenu nil t))
   (let* ((imenu-auto-rescan t)
+         (imenu-auto-rescan-maxout (if current-prefix-arg
+                                       (buffer-size)
+                                     imenu-auto-rescan-maxout))
          (items (imenu--make-index-alist t))
          (items (delete (assoc "*Rescan*" items) items)))
     (ivy-read "imenu items:" (counsel-imenu-get-candidates-from items)
@@ -1858,7 +2468,7 @@ PREFIX is used to create the key."
                         (with-ivy-window
                           ;; In org-mode, (imenu candidate) will expand child node
                           ;; after jump to the candidate position
-                          (imenu candidate)))
+                          (imenu (cdr candidate))))
               :caller 'counsel-imenu)))
 
 ;;** `counsel-list-processes'
@@ -1916,7 +2526,7 @@ An extra action allows to switch to the process buffer."
     (if (null collection)
         (error "%S is not supported" major-mode)
       (ivy-read "Ace-Link: " (funcall collection)
-                :action action
+                :action (lambda (x) (funcall action (cdr x)))
                 :require-match t
                 :caller 'counsel-ace-link))))
 ;;** `counsel-expression-history'
@@ -1929,6 +2539,14 @@ And insert it into the minibuffer. Useful during
   (let ((enable-recursive-minibuffers t))
     (ivy-read "Expr: " (delete-dups read-expression-history)
               :action #'insert)))
+
+;;** `counsel-shell-command-history'
+;;;###autoload
+(defun counsel-shell-command-history ()
+  (interactive)
+  (ivy-read "cmd: " shell-command-history
+            :action #'insert
+            :caller 'counsel-shell-command-history))
 
 ;;** `counsel-esh-history'
 (defun counsel--browse-history (elements)
@@ -1958,14 +2576,90 @@ And insert it into the minibuffer. Useful during
   (require 'comint)
   (counsel--browse-history comint-input-ring))
 
+;;** `counsel-hydra-heads'
+(defvar hydra-curr-body-fn)
+(declare-function hydra-keyboard-quit "ext:hydra")
+
+(defun counsel-hydra-heads ()
+  "Call a head of the current/last hydra."
+  (interactive)
+  (let* ((base (substring
+                (prin1-to-string hydra-curr-body-fn)
+                0 -4))
+         (heads (eval (intern (concat base "heads"))))
+         (keymap (eval (intern (concat base "keymap"))))
+         (head-names
+          (mapcar (lambda (x)
+                    (cons
+                     (if (nth 2 x)
+                         (format "[%s] %S (%s)" (nth 0 x) (nth 1 x) (nth 2 x))
+                       (format "[%s] %S" (nth 0 x) (nth 1 x)))
+                     (lookup-key keymap (kbd (nth 0 x)))))
+                  heads)))
+    (ivy-read "head: " head-names
+              :action (lambda (x) (call-interactively (cdr x))))
+    (hydra-keyboard-quit)))
+;;** `counsel-semantic'
+(declare-function semantic-tag-start "tag")
+(declare-function semantic-tag-of-class-p "tag")
+(declare-function semantic-fetch-tags "semantic")
+
+(defun counsel-semantic-action (tag)
+  (with-ivy-window
+    (goto-char (semantic-tag-start tag))))
+
+(defun counsel-semantic ()
+  "Jump to a semantic tag in the current buffer."
+  (interactive)
+  (let ((tags
+         (mapcar
+          (lambda (tag)
+            (if (semantic-tag-of-class-p tag 'function)
+                (cons
+                 (propertize
+                  (car tag)
+                  'face 'font-lock-function-name-face)
+                 (cdr tag))
+              tag))
+          (semantic-fetch-tags))))
+    (ivy-read "tag: " tags
+              :action 'counsel-semantic-action)))
+
+;;** `counsel-outline'
+(defun counsel-outline-candidates ()
+  (let (cands)
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward outline-regexp nil t)
+        (skip-chars-forward " ")
+        (push (cons (buffer-substring-no-properties
+                     (point) (line-end-position))
+                    (line-beginning-position))
+              cands))
+      (nreverse cands))))
+
+(defun counsel-outline-action (x)
+  (with-ivy-window
+    (goto-char (cdr x))))
+
+(defun counsel-outline ()
+  "Jump to outline with completion."
+  (interactive)
+  (ivy-read "outline: " (counsel-outline-candidates)
+            :action #'counsel-outline-action))
+
 ;;* Misc OS
 ;;** `counsel-rhythmbox'
-(defvar helm-rhythmbox-library)
-(declare-function helm-rhythmbox-load-library "ext:helm-rhythmbox")
 (declare-function dbus-call-method "dbus")
 (declare-function dbus-get-property "dbus")
-(declare-function helm-rhythmbox-song-uri "ext:helm-rhythmbox")
-(declare-function helm-rhythmbox-candidates "ext:helm-rhythmbox")
+
+(defun counsel-rhythmbox-play-song (song)
+  "Let Rhythmbox play SONG."
+  (let ((service "org.gnome.Rhythmbox3")
+        (path "/org/mpris/MediaPlayer2")
+        (interface "org.mpris.MediaPlayer2.Player"))
+    (dbus-call-method :session service path interface
+                      "OpenUri" (cdr song))))
 
 (defun counsel-rhythmbox-enqueue-song (song)
   "Let Rhythmbox enqueue SONG."
@@ -1973,10 +2667,12 @@ And insert it into the minibuffer. Useful during
         (path "/org/gnome/Rhythmbox3/PlayQueue")
         (interface "org.gnome.Rhythmbox3.PlayQueue"))
     (dbus-call-method :session service path interface
-                      "AddToQueue" (helm-rhythmbox-song-uri song))))
+                      "AddToQueue" (cdr song))))
 
 (defvar counsel-rhythmbox-history nil
   "History for `counsel-rhythmbox'.")
+
+(defvar counsel-rhythmbox-songs nil)
 
 (defun counsel-rhythmbox-current-song ()
   "Return the currently playing song title."
@@ -1996,21 +2692,36 @@ And insert it into the minibuffer. Useful during
 (defun counsel-rhythmbox ()
   "Choose a song from the Rhythmbox library to play or enqueue."
   (interactive)
-  (unless (require 'helm-rhythmbox nil t)
-    (error "Please install `helm-rhythmbox'"))
-  (unless helm-rhythmbox-library
-    (helm-rhythmbox-load-library)
-    (while (null helm-rhythmbox-library)
-      (sit-for 0.1)))
-  (ivy-read "Rhythmbox: "
-            (helm-rhythmbox-candidates)
+  (require 'dbus)
+  (unless counsel-rhythmbox-songs
+    (let* ((service "org.gnome.Rhythmbox3")
+           (path "/org/gnome/UPnP/MediaServer2/Library/all")
+           (interface "org.gnome.UPnP.MediaContainer2")
+           (nb-songs (dbus-get-property
+                      :session service path interface "ChildCount")))
+      (if (not nb-songs)
+          (error "Couldn't connect to Rhythmbox")
+        (setq counsel-rhythmbox-songs
+              (mapcar (lambda (x)
+                        (cons
+                         (format
+                          "%s - %s - %s"
+                          (cl-caadr (assoc "Artist" x))
+                          (cl-caadr (assoc "Album" x))
+                          (cl-caadr (assoc "DisplayName" x)))
+                         (cl-caaadr (assoc "URLs" x))))
+                      (dbus-call-method
+                       :session service path interface "ListChildren"
+                       0 nb-songs '("*")))))))
+  (ivy-read "Rhythmbox: " counsel-rhythmbox-songs
             :history 'counsel-rhythmbox-history
             :preselect (counsel-rhythmbox-current-song)
             :action
             '(1
-              ("p" helm-rhythmbox-play-song "Play song")
+              ("p" counsel-rhythmbox-play-song "Play song")
               ("e" counsel-rhythmbox-enqueue-song "Enqueue song"))
             :caller 'counsel-rhythmbox))
+
 ;;** `counsel-linux-app'
 (defvar counsel-linux-apps-alist nil
   "List of data located in /usr/share/applications.")
@@ -2018,47 +2729,57 @@ And insert it into the minibuffer. Useful during
 (defvar counsel-linux-apps-faulty nil
   "List of faulty data located in /usr/share/applications.")
 
+(defcustom counsel-linux-apps-directories
+  '("/usr/local/share/applications/" "/usr/share/applications/")
+  "Directories in which to search for applications (.desktop files)."
+  :group 'counsel
+  :type '(list directory))
+
 (defun counsel-linux-apps-list ()
-  (let ((files
-         (delete
-          ".." (delete
-                "." (file-expand-wildcards "/usr/share/applications/*.desktop")))))
+  (let ((files (apply 'append
+                      (mapcar
+                       (lambda (dir)
+                         (when (file-exists-p dir)
+                           (directory-files dir t ".*\\.desktop$")))
+                       counsel-linux-apps-directories))))
     (dolist (file (cl-set-difference files (append (mapcar 'car counsel-linux-apps-alist)
                                                    counsel-linux-apps-faulty)
                                      :test 'equal))
       (with-temp-buffer
-        (insert-file-contents (expand-file-name file "/usr/share/applications"))
+        (insert-file-contents file)
         (let (name comment exec)
           (goto-char (point-min))
-          (if (re-search-forward "^Name *= *\\(.*\\)$" nil t)
-              (setq name (match-string 1))
-            (error "File %s has no Name" file))
-          (goto-char (point-min))
-          (when (re-search-forward "^Comment *= *\\(.*\\)$" nil t)
-            (setq comment (match-string 1)))
-          (goto-char (point-min))
-          (when (re-search-forward "^Exec *= *\\(.*\\)$" nil t)
-            (setq exec (match-string 1)))
-          (if (and exec (not (equal exec "")))
-              (add-to-list
-               'counsel-linux-apps-alist
-               (cons (format "% -45s: %s%s"
-                             (propertize exec 'face 'font-lock-builtin-face)
-                             name
-                             (if comment
-                                 (concat " - " comment)
-                               ""))
-                     file))
-            (add-to-list 'counsel-linux-apps-faulty file))))))
+          (if (null (re-search-forward "^Name *= *\\(.*\\)$" nil t))
+              (message "Warning: File %s has no Name" file)
+            (setq name (match-string 1))
+            (goto-char (point-min))
+            (when (re-search-forward "^Comment *= *\\(.*\\)$" nil t)
+              (setq comment (match-string 1)))
+            (goto-char (point-min))
+            (when (re-search-forward "^Exec *= *\\(.*\\)$" nil t)
+              (setq exec (match-string 1)))
+            (if (and exec (not (equal exec "")))
+                (add-to-list
+                 'counsel-linux-apps-alist
+                 (cons (format "% -45s: %s%s"
+                               (propertize exec 'face 'font-lock-builtin-face)
+                               name
+                               (if comment
+                                   (concat " - " comment)
+                                 ""))
+                       file))
+              (add-to-list 'counsel-linux-apps-faulty file)))))))
   counsel-linux-apps-alist)
 
 (defun counsel-linux-app-action-default (desktop-shortcut)
   "Launch DESKTOP-SHORTCUT."
+  (setq desktop-shortcut (cdr desktop-shortcut))
   (call-process-shell-command
    (format "gtk-launch %s" (file-name-nondirectory desktop-shortcut))))
 
 (defun counsel-linux-app-action-file (desktop-shortcut)
   "Launch DESKTOP-SHORTCUT with a selected file."
+  (setq desktop-shortcut (cdr desktop-shortcut))
   (let* ((entry (rassoc desktop-shortcut counsel-linux-apps-alist))
          (short-name (and entry
                           (string-match "\\([^ ]*\\) " (car entry))
@@ -2068,7 +2789,7 @@ And insert it into the minibuffer. Useful during
                      (format "Run %s on: " short-name)))))
     (if file
         (call-process-shell-command
-         (format "gtk-launch %s %s"
+         (format "gtk-launch %s \"%s\""
                  (file-name-nondirectory desktop-shortcut)
                  file))
       (user-error "cancelled"))))
@@ -2085,6 +2806,502 @@ And insert it into the minibuffer. Useful during
             :action #'counsel-linux-app-action-default
             :caller 'counsel-linux-app))
 
+(defvar company-candidates)
+(defvar company-point)
+(defvar company-common)
+(declare-function company-complete "ext:company")
+(declare-function company-mode "ext:company")
+(declare-function company-complete-common "ext:company")
+
+;;;###autoload
+(defun counsel-company ()
+  "Complete using `company-candidates'."
+  (interactive)
+  (company-mode 1)
+  (unless company-candidates
+    (company-complete))
+  (when company-point
+    (company-complete-common)
+    (when (looking-back company-common (line-beginning-position))
+      (setq ivy-completion-beg (match-beginning 0))
+      (setq ivy-completion-end (match-end 0)))
+    (ivy-read "company cand: " company-candidates
+              :action #'ivy-completion-in-region-action)))
+
+;;;** `counsel-colors'
+(defun counsel-colors--best-contrast-color (color)
+  "Choose the best-contrast foreground color for a background color COLOR.
+
+Use the relative luminance formula to improve the perceived contrast.
+If the relative luminance is beyond a given threshold, in this case a
+midpoint, then the chosen color is black, otherwise is white.  This
+helps to improve the contrast and readability of a text regardless of
+the background color."
+  (let ((rgb (color-name-to-rgb color)))
+    (if rgb
+        (if (>
+             (+ (* (nth 0 rgb) 0.299)
+                (* (nth 1 rgb) 0.587)
+                (* (nth 2 rgb) 0.114))
+             0.5)
+            "#000000"
+          "#FFFFFF")
+      color)))
+
+(defun counsel-colors--update-highlight (cand)
+  "Update the highlight face for the current candidate CAND.
+
+This is necessary because the default `ivy-current-match' face
+background mask most of the colors and you can not see the current
+candidate color when is selected, which is counter-intuitive and not
+user friendly.  The default Emacs command `list-colors-display' have
+the same problem."
+  (when (> (length cand) 0)
+    (let ((color (substring-no-properties cand 26 33)))
+      (face-remap-add-relative
+       'ivy-current-match
+       :background color
+       ;; Another alternatives like use the attribute
+       ;; `distant-foreground' or the function `color-complement-hex'
+       ;; do not work well here because they use the absolute
+       ;; luminance difference between the colors, when the human eye
+       ;; does not perceive all the colors with the same brightness.
+       :foreground (counsel-colors--best-contrast-color color)))))
+
+(defun counsel-colors-action-insert-name (x)
+  "Insert the X color name."
+  (let ((color (car (split-string (substring x 0 25)))))
+    (insert color)))
+
+(defun counsel-colors-action-insert-hex (x)
+  "Insert the X color hexadecimal rgb value."
+  (let ((rgb (substring x 26 33)))
+    (insert rgb)))
+
+(defun counsel-colors-action-kill-name (x)
+  "Kill the X color name."
+  (let ((color (car (split-string (substring x 0 25)))))
+    (kill-new color)))
+
+(defun counsel-colors-action-kill-hex (x)
+  "Kill the X color hexadecimal rgb value."
+  (let ((rgb (substring x 26 33)))
+    (kill-new rgb)))
+
+;;** `counsel-colors-emacs'
+(ivy-set-actions
+ 'counsel-colors-emacs
+ '(("n" counsel-colors-action-insert-name "insert color name")
+   ("h" counsel-colors-action-insert-hex "insert color hexadecimal value")
+   ("N" counsel-colors-action-kill-name "kill color name")
+   ("H" counsel-colors-action-kill-hex "kill color hexadecimal value")))
+
+(defvar counsel-colors-emacs-history nil
+  "History for `counsel-colors-emacs'.")
+
+(defun counsel-colors--name-to-hex (color)
+  "Return hexadecimal rgb value of a color from his name COLOR."
+  (apply 'color-rgb-to-hex (color-name-to-rgb color)))
+
+;;;###autoload
+(defun counsel-colors-emacs ()
+  "Show a list of all supported colors for a particular frame.
+
+You can insert or kill the name or the hexadecimal rgb value of the
+selected candidate."
+  (interactive)
+  (let ((minibuffer-allow-text-properties t))
+    (ivy-read "%d Emacs color: "
+              (mapcar (lambda (x)
+                        (concat
+                         (propertize
+                          (format "%-25s" (car x))
+                          'result (car x))
+                         (propertize
+                          (format "%8s  "
+                                  (counsel-colors--name-to-hex (car x)))
+                          'face (list :foreground (car x)))
+                         (propertize
+                          (format "%10s" " ")
+                          'face (list :background (car x)))
+                         (propertize
+                          (format "  %-s" (mapconcat #'identity (cdr x) ", "))
+                          'face (list :foreground (car x)))))
+                      (list-colors-duplicates))
+              :require-match t
+              :update-fn (lambda ()
+                           (counsel-colors--update-highlight (ivy-state-current ivy-last)))
+              :action #'counsel-colors-action-insert-name
+              :history 'counsel-colors-emacs-history
+              :caller 'counsel-colors-emacs
+              :sort nil)))
+
+;;** `counsel-colors-web'
+(defvar counsel-colors--web-colors-alist
+  '(("aliceblue"            .  "#f0f8ff")
+    ("antiquewhite"         .  "#faebd7")
+    ("aqua"                 .  "#00ffff")
+    ("aquamarine"           .  "#7fffd4")
+    ("azure"                .  "#f0ffff")
+    ("beige"                .  "#f5f5dc")
+    ("bisque"               .  "#ffe4c4")
+    ("black"                .  "#000000")
+    ("blanchedalmond"       .  "#ffebcd")
+    ("blue"                 .  "#0000ff")
+    ("blueviolet"           .  "#8a2be2")
+    ("brown"                .  "#a52a2a")
+    ("burlywood"            .  "#deb887")
+    ("cadetblue"            .  "#5f9ea0")
+    ("chartreuse"           .  "#7fff00")
+    ("chocolate"            .  "#d2691e")
+    ("coral"                .  "#ff7f50")
+    ("cornflowerblue"       .  "#6495ed")
+    ("cornsilk"             .  "#fff8dc")
+    ("crimson"              .  "#dc143c")
+    ("cyan"                 .  "#00ffff")
+    ("darkblue"             .  "#00008b")
+    ("darkcyan"             .  "#008b8b")
+    ("darkgoldenrod"        .  "#b8860b")
+    ("darkgray"             .  "#a9a9a9")
+    ("darkgreen"            .  "#006400")
+    ("darkkhaki"            .  "#bdb76b")
+    ("darkmagenta"          .  "#8b008b")
+    ("darkolivegreen"       .  "#556b2f")
+    ("darkorange"           .  "#ff8c00")
+    ("darkorchid"           .  "#9932cc")
+    ("darkred"              .  "#8b0000")
+    ("darksalmon"           .  "#e9967a")
+    ("darkseagreen"         .  "#8fbc8f")
+    ("darkslateblue"        .  "#483d8b")
+    ("darkslategray"        .  "#2f4f4f")
+    ("darkturquoise"        .  "#00ced1")
+    ("darkviolet"           .  "#9400d3")
+    ("deeppink"             .  "#ff1493")
+    ("deepskyblue"          .  "#00bfff")
+    ("dimgray"              .  "#696969")
+    ("dodgerblue"           .  "#1e90ff")
+    ("firebrick"            .  "#b22222")
+    ("floralwhite"          .  "#fffaf0")
+    ("forestgreen"          .  "#228b22")
+    ("fuchsia"              .  "#ff00ff")
+    ("gainsboro"            .  "#dcdcdc")
+    ("ghostwhite"           .  "#f8f8ff")
+    ("goldenrod"            .  "#daa520")
+    ("gold"                 .  "#ffd700")
+    ("gray"                 .  "#808080")
+    ("green"                .  "#008000")
+    ("greenyellow"          .  "#adff2f")
+    ("honeydew"             .  "#f0fff0")
+    ("hotpink"              .  "#ff69b4")
+    ("indianred"            .  "#cd5c5c")
+    ("indigo"               .  "#4b0082")
+    ("ivory"                .  "#fffff0")
+    ("khaki"                .  "#f0e68c")
+    ("lavenderblush"        .  "#fff0f5")
+    ("lavender"             .  "#e6e6fa")
+    ("lawngreen"            .  "#7cfc00")
+    ("lemonchiffon"         .  "#fffacd")
+    ("lightblue"            .  "#add8e6")
+    ("lightcoral"           .  "#f08080")
+    ("lightcyan"            .  "#e0ffff")
+    ("lightgoldenrodyellow" .  "#fafad2")
+    ("lightgreen"           .  "#90ee90")
+    ("lightgrey"            .  "#d3d3d3")
+    ("lightpink"            .  "#ffb6c1")
+    ("lightsalmon"          .  "#ffa07a")
+    ("lightseagreen"        .  "#20b2aa")
+    ("lightskyblue"         .  "#87cefa")
+    ("lightslategray"       .  "#778899")
+    ("lightsteelblue"       .  "#b0c4de")
+    ("lightyellow"          .  "#ffffe0")
+    ("lime"                 .  "#00ff00")
+    ("limegreen"            .  "#32cd32")
+    ("linen"                .  "#faf0e6")
+    ("magenta"              .  "#ff00ff")
+    ("maroon"               .  "#800000")
+    ("mediumaquamarine"     .  "#66cdaa")
+    ("mediumblue"           .  "#0000cd")
+    ("mediumorchid"         .  "#ba55d3")
+    ("mediumpurple"         .  "#9370d8")
+    ("mediumseagreen"       .  "#3cb371")
+    ("mediumslateblue"      .  "#7b68ee")
+    ("mediumspringgreen"    .  "#00fa9a")
+    ("mediumturquoise"      .  "#48d1cc")
+    ("mediumvioletred"      .  "#c71585")
+    ("midnightblue"         .  "#191970")
+    ("mintcream"            .  "#f5fffa")
+    ("mistyrose"            .  "#ffe4e1")
+    ("moccasin"             .  "#ffe4b5")
+    ("navajowhite"          .  "#ffdead")
+    ("navy"                 .  "#000080")
+    ("oldlace"              .  "#fdf5e6")
+    ("olive"                .  "#808000")
+    ("olivedrab"            .  "#6b8e23")
+    ("orange"               .  "#ffa500")
+    ("orangered"            .  "#ff4500")
+    ("orchid"               .  "#da70d6")
+    ("palegoldenrod"        .  "#eee8aa")
+    ("palegreen"            .  "#98fb98")
+    ("paleturquoise"        .  "#afeeee")
+    ("palevioletred"        .  "#d87093")
+    ("papayawhip"           .  "#ffefd5")
+    ("peachpuff"            .  "#ffdab9")
+    ("peru"                 .  "#cd853f")
+    ("pink"                 .  "#ffc0cb")
+    ("plum"                 .  "#dda0dd")
+    ("powderblue"           .  "#b0e0e6")
+    ("purple"               .  "#800080")
+    ("rebeccapurple"        .  "#663399")
+    ("red"                  .  "#ff0000")
+    ("rosybrown"            .  "#bc8f8f")
+    ("royalblue"            .  "#4169e1")
+    ("saddlebrown"          .  "#8b4513")
+    ("salmon"               .  "#fa8072")
+    ("sandybrown"           .  "#f4a460")
+    ("seagreen"             .  "#2e8b57")
+    ("seashell"             .  "#fff5ee")
+    ("sienna"               .  "#a0522d")
+    ("silver"               .  "#c0c0c0")
+    ("skyblue"              .  "#87ceeb")
+    ("slateblue"            .  "#6a5acd")
+    ("slategray"            .  "#708090")
+    ("snow"                 .  "#fffafa")
+    ("springgreen"          .  "#00ff7f")
+    ("steelblue"            .  "#4682b4")
+    ("tan"                  .  "#d2b48c")
+    ("teal"                 .  "#008080")
+    ("thistle"              .  "#d8bfd8")
+    ("tomato"               .  "#ff6347")
+    ("turquoise"            .  "#40e0d0")
+    ("violet"               .  "#ee82ee")
+    ("wheat"                .  "#f5deb3")
+    ("white"                .  "#ffffff")
+    ("whitesmoke"           .  "#f5f5f5")
+    ("yellow"               .  "#ffff00")
+    ("yellowgreen"          .  "#9acd32"))
+  "These are the colors defined by the W3C consortium to use in CSS sheets.
+
+All of these colors are compatible with any common browser.  The
+colors gray, green, maroon and purple have alternative values as
+defined by the X11 standard, here they follow the W3C one.")
+
+(ivy-set-actions
+ 'counsel-colors-web
+ '(("n" counsel-colors-action-insert-name "insert name")
+   ("h" counsel-colors-action-insert-hex "insert hex")
+   ("N" counsel-colors-action-kill-name "kill rgb")
+   ("H" counsel-colors-action-kill-hex "kill hex")))
+
+(defvar counsel-colors-web-history nil
+  "History for `counsel-colors-web'.")
+
+;;;###autoload
+(defun counsel-colors-web ()
+  "Show a list of all W3C web colors for use in CSS.
+
+You can insert or kill the name or the hexadecimal rgb value of the
+selected candidate."
+  (interactive)
+  (let ((minibuffer-allow-text-properties t))
+    (ivy-read "%d Web color: "
+              (mapcar (lambda (x)
+                        (concat
+                         (propertize
+                          (format "%-25s" (car x)))
+                         (propertize
+                          (format "%8s  " (cdr x))
+                          'face (list :foreground (car x)))
+                         (propertize
+                          (format "%10s" " ")
+                          'face (list :background (cdr x)))))
+                      counsel-colors--web-colors-alist)
+              :require-match t
+              :action #'counsel-colors-action-insert-name
+              :update-fn (lambda ()
+                           (counsel-colors--update-highlight (ivy-state-current ivy-last)))
+              :history 'counsel-colors-web-history
+              :caller 'counsel-colors-web
+              :sort t)))
+
+
+;;** `counsel-faces'
+(defun counsel-faces-action-describe (x)
+  "Describe the face X."
+  (describe-face (intern x)))
+
+(defun counsel-faces-action-customize (x)
+  "Customize the face X."
+  (customize-face (intern x)))
+
+(ivy-set-actions
+ 'counsel-faces
+ '(("d" counsel-faces-action-describe "describe face")
+   ("c" counsel-faces-action-customize "customize face")
+   ("i" insert "insert face name")
+   ("k" kill-new "kill face name")))
+
+(defvar counsel-faces-history nil
+  "History for `counsel-faces'.")
+
+(defvar counsel-faces--sample-text
+  "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789"
+  "Text string to display as the sample text for `counsel-faces'.")
+
+(defvar counsel--faces-fmt nil)
+
+(defun counsel--faces-format-function (cands)
+  (ivy--format-function-generic
+   (lambda (str)
+     (concat
+      (format counsel--faces-fmt
+              (ivy--add-face str 'ivy-current-match))
+      (propertize counsel-faces--sample-text 'face (intern str))))
+   (lambda (str)
+     (concat
+      (format counsel--faces-fmt
+              str)
+      (propertize counsel-faces--sample-text 'face (intern str))))
+   cands
+   "\n"))
+
+(defun counsel-faces ()
+  "Show a list of all defined faces.
+
+You can describe, customize, insert or kill the name or selected
+candidate."
+  (interactive)
+  (let* ((minibuffer-allow-text-properties t)
+         (max-length
+          (apply #'max
+                 (mapcar
+                  (lambda (x)
+                    (length (symbol-name x)))
+                  (face-list))))
+         (counsel--faces-fmt (format "%%-%ds  " max-length))
+         (ivy-format-function #'counsel--faces-format-function))
+    (ivy-read "%d Face: " (face-list)
+              :require-match t
+              :action #'counsel-faces-action-describe
+              :history 'counsel-faces-history
+              :caller 'counsel-faces
+              :sort t)))
+
+;;** `counsel-command-history'
+(defun counsel-command-history-action-eval (cmd)
+  "Eval the command CMD."
+    (eval (read cmd)))
+
+(defun counsel-command-history-action-edit-and-eval (cmd)
+  "Edit and eval the command CMD."
+    (edit-and-eval-command "Eval: " (read cmd)))
+
+(ivy-set-actions
+ 'counsel-command-history
+ '(("r" counsel-command-history-action-eval           "eval command")
+   ("e" counsel-command-history-action-edit-and-eval  "edit and eval command")))
+
+(defun counsel-command-history ()
+  "Show the history of commands."
+  (interactive)
+  (ivy-read "%d Command: " (mapcar #'prin1-to-string command-history)
+          :require-match t
+          :action #'counsel-command-history-action-eval
+          :caller 'counsel-command-history))
+
+;;** `counsel-org-agenda-headlines'
+(defvar org-odd-levels-only)
+(declare-function org-set-startup-visibility "org")
+(declare-function org-show-entry "org")
+(declare-function org-map-entries "org")
+(declare-function org-heading-components "org")
+
+(defun counsel-org-agenda-headlines-action-goto (headline)
+  "Go to the `org-mode' agenda HEADLINE."
+  (find-file (nth 1 headline))
+  (org-set-startup-visibility)
+  (goto-char (nth 2 headline))
+  (org-show-entry))
+
+(ivy-set-actions
+ 'counsel-org-agenda-headlines
+ '(("g" counsel-org-agenda-headlines-action-goto "goto headline")))
+
+(defvar counsel-org-agenda-headlines-history nil
+  "History for `counsel-org-agenda-headlines'.")
+
+(defun counsel-org-agenda-headlines--candidates ()
+  "Return a list of completion candidates for `counsel-org-agenda-headlines'."
+  (org-map-entries
+   (lambda ()
+     (let* ((components (org-heading-components))
+            (level (make-string
+                    (if org-odd-levels-only
+                        (nth 1 components)
+                      (nth 0 components))
+                    ?*))
+            (todo (nth 2 components))
+            (priority (nth 3 components))
+            (text (nth 4 components))
+            (tags (nth 5 components)))
+       (list
+        (mapconcat
+         'identity
+         (cl-remove-if 'null
+                       (list
+                        level
+                        todo
+                        (if priority (format "[#%c]" priority))
+                        text
+                        tags))
+         " ")
+        (buffer-file-name) (point))))
+   nil
+   'agenda))
+
+;;;###autoload
+(defun counsel-org-agenda-headlines ()
+  "Choose from headers of `org-mode' files in the agenda."
+  (interactive)
+  (let ((minibuffer-allow-text-properties t))
+    (ivy-read "Org headline: "
+              (counsel-org-agenda-headlines--candidates)
+              :action #'counsel-org-agenda-headlines-action-goto
+              :history 'counsel-org-agenda-headlines-history
+              :caller 'counsel-org-agenda-headlines)))
+
+;;** `counsel-irony'
+;;;###autoload
+(defun counsel-irony ()
+  "Inline C/C++ completion using Irony."
+  (interactive)
+  (irony-completion-candidates-async 'counsel-irony-callback))
+
+(defun counsel-irony-callback ()
+  (interactive)
+  (let ((coll (irony-completion-at-point)))
+    (when coll
+      (setq ivy-completion-beg (nth 0 coll))
+      (setq ivy-completion-end (nth 1 coll))
+      (ivy-read "code: " (mapcar #'counsel-irony-annotate
+                                 (nth 2 coll))
+                :caller 'counsel-irony
+                :action 'ivy-completion-in-region-action))))
+
+(defun counsel-irony-annotate (x)
+  (cons
+   (condition-case nil
+       (concat
+        x " "
+        (irony-completion--at-point-annotate x))
+     (error x))
+   x))
+
+(add-to-list 'ivy-display-functions-alist '(counsel-irony . ivy-display-function-overlay))
+
+(declare-function irony-completion-candidates-async "ext:irony-completion")
+(declare-function irony-completion-at-point "ext:irony-completion")
+(declare-function irony-completion--at-point-annotate "ext:irony-completion")
+
 ;;** `counsel-mode'
 (defvar counsel-mode-map
   (let ((map (make-sparse-keymap)))
@@ -2094,10 +3311,13 @@ And insert it into the minibuffer. Useful during
                 (describe-function . counsel-describe-function)
                 (describe-variable . counsel-describe-variable)
                 (find-file . counsel-find-file)
+                (find-library . counsel-find-library)
                 (imenu . counsel-imenu)
                 (load-library . counsel-load-library)
                 (load-theme . counsel-load-theme)
-                (yank-pop . counsel-yank-pop)))
+                (yank-pop . counsel-yank-pop)
+                (info-lookup-symbol . counsel-info-lookup-symbol)
+                (pop-mark . counsel-mark-ring)))
       (define-key map (vector 'remap (car binding)) (cdr binding)))
     map)
   "Map for `counsel-mode'. Remaps built-in functions to counsel
@@ -2120,9 +3340,14 @@ replacements. "
   :keymap counsel-mode-map
   :lighter " counsel"
   (if counsel-mode
-      (when (and (fboundp 'advice-add)
-                 counsel-mode-override-describe-bindings)
-        (advice-add #'describe-bindings :override #'counsel-descbinds))
+      (progn
+        (when (and (fboundp 'advice-add)
+                   counsel-mode-override-describe-bindings)
+          (advice-add #'describe-bindings :override #'counsel-descbinds))
+        (define-key minibuffer-local-shell-command-map (kbd "C-r")
+          'counsel-shell-command-history)
+        (define-key read-expression-map (kbd "C-r")
+          'counsel-expression-history))
     (when (fboundp 'advice-remove)
       (advice-remove #'describe-bindings #'counsel-descbinds))))
 
