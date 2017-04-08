@@ -600,7 +600,6 @@ registry be in use, and should be called after the call to
   (require 'gnorb-registry)
   (with-eval-after-load 'gnus-registry
     (add-to-list 'gnus-registry-extra-entries-precious 'gnorb-ids)
-    (add-to-list 'gnus-registry-extra-entries-precious 'artno)
     (add-to-list 'gnus-registry-track-extra 'gnorb-ids))
   (add-hook
    'gnus-started-hook
