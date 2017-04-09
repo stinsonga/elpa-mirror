@@ -1480,12 +1480,6 @@ When INITIAL-INPUT is non-nil, use it in the minibuffer during completion."
           (format "http://debbugs.gnu.org/cgi/bugreport.cgi?bug=%s"
                   (substring url 1)))))))
 
-;;** `counsel-locate'
-(defcustom counsel-locate-options nil
-  "Command line options for `locate'."
-  :group 'ivy
-  :type '(repeat string))
-
 ;;** `counsel-recentf'
 (defvar recentf-list)
 (declare-function recentf-mode "recentf")
