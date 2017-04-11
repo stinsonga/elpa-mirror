@@ -83,12 +83,23 @@ The specific information can be set using `enwc-mode-line-format'."
   :group 'enwc
   :type 'boolean)
 
-(defcustom enwc-auto-scan nil
-  "Whether or not to have ENWC automatically scan.
+(defcustom enwc-enable-auto-scan-on-startup nil
+  "Whether to enable auto-scan during `enwc-setup'.
+
 If non-nil, then ENWC will automatically scan for
-networks every `enwc-auto-scan-interval' seconds."
+networks every `enwc-auto-scan-interval' seconds.
+
+To enable auto-scan after startup, use `enwc-enable-auto-scan'."
   :group 'enwc
-  :type 'boolean)
+  :group 'boolean)
+
+(defvar enwc--auto-scan nil
+  "Current state of auto-scan.
+
+To enable auto-scan, use `enwc-enable-auto-scan'.
+
+To enable auto-scan at startup, set
+`enwc-enable-auto-scan-on-startup'.")
 
 (defcustom enwc-auto-scan-interval 20
   "The interval between automatic scans.
@@ -408,21 +419,21 @@ This is initiated during setup, and runs once every second."
   (unless enwc-scan-timer
     (setq enwc-scan-timer
           (run-at-time t enwc-auto-scan-interval 'enwc-scan t)))
-  (setq enwc-auto-scan t)
+  (setq enwc--auto-scan t)
   (message "Auto-scan enabled"))
 
 (defun enwc-disable-auto-scan ()
   "Disable auto scanning."
   (interactive)
   (when enwc-scan-timer (cancel-timer enwc-scan-timer))
-  (setq enwc-auto-scan nil)
+  (setq enwc--auto-scan nil)
   (message "Auto scan disabled"))
 
 (defun enwc-toggle-auto-scan ()
   "Toggles automatic scanning.
 This will use the current value of `enwc-auto-scan-interval'."
   (interactive)
-  (if enwc-auto-scan
+  (if enwc--auto-scan
       (enwc-disable-auto-scan)
     (enwc-enable-auto-scan)))
 
@@ -768,7 +779,7 @@ newly created buffer."
     (enwc-enable-display-mode-line)))
 
 (defun enwc--setup-auto-scan ()
-  (when (and enwc-auto-scan
+  (when (and enwc-enable-auto-scan-on-startup
              (> enwc-auto-scan-interval 0)
              (not enwc-scan-timer))
     (setq enwc-scan-timer
@@ -788,7 +799,8 @@ Load the default backend, forcing it if
 
 If `enwc-display-mode-line' is non-nil, enable the mode line.
 
-If `enwc-auto-scan' is non-nil, start the auto-scan timer."
+If `enwc-enable-auto-scan-on-startup' is non-nil, start the
+auto-scan timer."
   (cond
    ((and enwc--setup-done enwc-warn-if-already-setup)
     (message "ENWC is already setup."))
