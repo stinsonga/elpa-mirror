@@ -150,8 +150,20 @@ no difference."
                    (with-syntax-table sm-c--cpp-syntax-table
                      (nth 4 (parse-partial-sexp (1+ (nth 8 ppss)) (point)))))))
       (when found
-        (put-text-property (1- (point)) (point)
-                           'syntax-table (string-to-syntax "> c"))))))
+        (let* ((ppss-in
+                (save-excursion
+                  (parse-partial-sexp (1+ (nth 8 ppss)) (1- (point)))))
+               ;; Put the end before a closing //...\n comment so as to avoid
+               ;; a bug in back_comment.  The problem is that back_comment
+               ;; otherwise will see "// <...> <...> \n" and will consider the
+               ;; CPP pseudo-comments as nested within the //...\n comment.
+               (end (if (and (nth 4 ppss-in)        ;Inside a comment.
+                             (null (nth 7 ppss-in)) ;A style `a' comment.
+                             (memq (char-before (nth 8 ppss-in)) '(?\s ?\t)))
+                        (nth 8 ppss-in)
+                      (point))))
+          (put-text-property (1- end) end
+                             'syntax-table (string-to-syntax "> c")))))))
 
 ;;;; Indenting CPP directives.
 
@@ -661,6 +673,7 @@ if INNER is non-nil, it stops at the innermost one."
                             (equal ")" (car (smie-indent-backward-token))))
                    (up-list -1)
                    `(column . ,(sm-c--smie-virtual)))))
+              ((>= (point) pos) nil)
               (t `(column . ,(smie-indent-virtual))))))))
       ((smie-rule-hanging-p)
        (cond
