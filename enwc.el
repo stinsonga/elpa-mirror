@@ -91,7 +91,7 @@ networks every `enwc-auto-scan-interval' seconds.
 
 To enable auto-scan after startup, use `enwc-enable-auto-scan'."
   :group 'enwc
-  :group 'boolean)
+  :type 'boolean)
 
 (defvar enwc--auto-scan nil
   "Current state of auto-scan.
