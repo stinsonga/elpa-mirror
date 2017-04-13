@@ -68,12 +68,18 @@
   :group 'external)
 
 (defcustom enwc-wireless-device ""
-  "The wireless device to use for ENWC."
+  "The wireless device/interface to use for ENWC.
+
+If this is unset when `enwc-setup' is called, the user will be
+prompted for an interface."
   :group 'enwc
   :type 'string)
 
 (defcustom enwc-wired-device ""
-  "The wired device to use for ENWC."
+  "The wired device/interface to use for ENWC.
+
+If this is unset when `enwc-setup' is called, the user will be
+prompted for an interface."
   :group 'enwc
   :type 'string)
 
@@ -86,8 +92,8 @@ The specific information can be set using `enwc-mode-line-format'."
 (defcustom enwc-enable-auto-scan-on-startup nil
   "Whether to enable auto-scan during `enwc-setup'.
 
-If non-nil, then ENWC will automatically scan for
-networks every `enwc-auto-scan-interval' seconds.
+If non-nil, ENWC will automatically scan for networks every
+`enwc-auto-scan-interval' seconds.
 
 To enable auto-scan after startup, use `enwc-enable-auto-scan'."
   :group 'enwc
@@ -104,25 +110,31 @@ To enable auto-scan at startup, set
 (defcustom enwc-auto-scan-interval 20
   "The interval between automatic scans.
 
-To make any changes to this variable take effect, use
-`enwc-restart-auto-scan'."
+To make any changes to this variable take effect outside of the
+customization interface, use `enwc-restart-auto-scan'."
   :group 'enwc
   :type 'integer)
 
 (defcustom enwc-mode-line-format " [%s%%] "
-  "The format for displaying the mode line.
+  "The format for displaying information in the mode line.
 
-%s = The current signal strength.  If wired, then this is set to 100.
+The following format specifiers display information about the
+current wireless connection:
 
-%e = The essid of the current network.  If wired, then this set to 'Wired'
+%s = signal strength
 
-%b = The bssid of the current network.  If using a wired connection, then this
-is set to 'Wired'.
+%e = essid
 
-%n = The encryption type of the current network, or 'Wired' if using a wired
-connection.
+%b = bssid
 
-%c = The channel of the current network, or 'Wired' if using a wired connection.
+%n = encryption type
+
+%c = channel
+
+When a wired connection is active, signal strength is 100, essid
+and bssid are \"Wired\", and encryption and channel are \"None\".
+
+The following format specifiers are also significant:
 
 %% = A Normal '%'"
   :group 'enwc
@@ -140,8 +152,8 @@ connection.
 
 (defvar enwc-display-string " [0%] "
   "The mode line display string.
-This is altered every second to display the current network strength
-in `enwc-update-mode-line'.")
+
+This is updated after every scan using `enwc-update-mode-line'.")
 
 (defun enwc--print-strength (s)
   "Convert signal strength S to a string to dispay."
@@ -238,13 +250,8 @@ This is used so as to avoid multiple updates of the scan data.")
   "This is non-nil that a scan was interactively requested.
 This is only used internally.")
 
-(defvar enwc-display-mode-line-timer nil
-  "The timer that updates the mode line display.")
-
 (defvar enwc-scan-timer nil
   "The timer for automatic scanning.")
-
-(defvar enwc-mode-line-timer nil)
 
 (make-local-variable 'enwc-edit-id)
 
@@ -380,8 +387,9 @@ See the documentation for it for more details."
   "Update the mode line display.
 This uses the format specified by `enwc-mode-line-format'.
 This is initiated during setup, and runs once every second."
-  (setq enwc-display-string (enwc-format-mode-line-string))
-  (force-mode-line-update))
+  (when enwc-display-mode-line
+    (setq enwc-display-string (enwc-format-mode-line-string))
+    (force-mode-line-update)))
 
 (defun enwc-enable-display-mode-line ()
   "Enable the mode line display."
@@ -390,9 +398,6 @@ This is initiated during setup, and runs once every second."
   (setq enwc-display-mode-line t)
   (unless (member 'enwc-display-string global-mode-string)
     (setq global-mode-string (append global-mode-string '(enwc-display-string))))
-  (unless enwc-display-mode-line-timer
-    (setq enwc-display-mode-line-timer
-          (run-at-time t 1 'enwc-update-mode-line)))
   (message "ENWC mode line enabled"))
 
 (defun enwc-disable-display-mode-line ()
@@ -401,9 +406,6 @@ This is initiated during setup, and runs once every second."
   (or global-mode-string (setq global-mode-string '("")))
   (setq enwc-display-mode-line nil)
   (setq global-mode-string (remove 'enwc-display-string global-mode-string))
-  (when enwc-display-mode-line-timer
-    (cancel-timer enwc-display-mode-line-timer))
-  (setq enwc-display-mode-line-timer nil)
   (message "ENWC mode line disabled"))
 
 (defun enwc-toggle-display-mode-line ()
@@ -416,11 +418,15 @@ This is initiated during setup, and runs once every second."
 (defun enwc-enable-auto-scan ()
   "Enable auto scanning."
   (interactive)
-  (unless enwc-scan-timer
-    (setq enwc-scan-timer
-          (run-at-time t enwc-auto-scan-interval 'enwc-scan t)))
-  (setq enwc--auto-scan t)
-  (message "Auto-scan enabled"))
+  (if (or (not (numberp enwc-auto-scan-interval))
+          (< enwc-auto-scan-interval 0))
+      (message "Unable to start ENWC auto-scan with invalid scan \
+interval - Got %s, but need positive number" enwc-auto-scan-interval)
+    (unless enwc-scan-timer
+      (setq enwc-scan-timer
+            (run-at-time t enwc-auto-scan-interval 'enwc-scan t)))
+    (setq enwc--auto-scan t)
+    (message "Auto-scan enabled")))
 
 (defun enwc-disable-auto-scan ()
   "Disable auto scanning."
@@ -484,7 +490,8 @@ A wired scan displays the available wired profiles."
 (defun enwc-redisplay-networks ()
   (interactive)
   (enwc--update-scan-results)
-  (enwc-display-networks enwc--last-scan-results))
+  (enwc-display-networks enwc--last-scan-results)
+  (enwc-update-mode-line))
 
 (defun enwc-process-scan (&rest args)
   "The scanning callback.
@@ -779,11 +786,8 @@ newly created buffer."
     (enwc-enable-display-mode-line)))
 
 (defun enwc--setup-auto-scan ()
-  (when (and enwc-enable-auto-scan-on-startup
-             (> enwc-auto-scan-interval 0)
-             (not enwc-scan-timer))
-    (setq enwc-scan-timer
-          (run-at-time t enwc-auto-scan-interval 'enwc-scan t))))
+  (when enwc-enable-auto-scan-on-startup
+    (enwc-enable-auto-scan)))
 
 (defvar enwc--setup-done nil
   "Non-nil if enwc has already been set up.")
