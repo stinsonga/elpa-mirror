@@ -197,30 +197,33 @@
 (defun enwc-nm-get-device-by-name (name)
   (enwc-nm-dbus-default-call-method "GetDeviceByIpIface" :string name))
 
-(defun enwc-nm--ap-to-conn (ap)
-  "Get the connection that corresponds to AP."
-  (let ((ssid (dbus-byte-array-to-string (enwc-nm-get-wireless-network-property
-                                          ap "Ssid")))
-        (conns (enwc-nm-list-connections))
-        conn)
-    (while (and conns (not conn))
-      (setq conn (pop conns))
+(defun enwc-nm--ap-to-conn (nw)
+  "Get the connection that corresponds to NW."
+  (let ((ap-ssid (dbus-byte-array-to-string
+                  (enwc-nm-get-wireless-network-property nw "Ssid")))
+        (profile-table (make-hash-table :test #'equal)))
+    ;; Create a hash table of connections, indexed by ssid
+    ;; TODO: Store this somewhere else
+    (dolist (conn (enwc-nm-list-connections))
       (let ((settings (enwc-nm-get-settings conn)))
-        (if settings
-            (let ((this-ssid (enwc-nm-get-dbus-dict-entry "802-11-wireless/ssid"
-                                                          settings)))
-              (unless (and this-ssid
-                           (string-equal (dbus-byte-array-to-string this-ssid)
-                                         ssid))
-                (setq conn nil)))
-          (setq conn nil))))
-    conn))
+        (map-put profile-table
+                 (dbus-byte-array-to-string (enwc-nm-get-dbus-dict-entry
+                                             "802-11-wireless/ssid"
+                                             settings))
+                 conn)))
+    (map-elt profile-table ap-ssid)))
 
 (defun enwc-nm-connection-p (conn)
   "Return non-nil if CONN is a connection object."
   (and conn
        (stringp conn)
        (string-match "^/org/freedesktop/NetworkManager/Settings/[0-9]+$" conn)))
+
+(defun enwc-nm--profile-wired-p (conn)
+  "Return non-nil if CONN is a wired profile."
+  (let ((props (enwc-nm-get-settings conn)))
+    (string= (enwc-nm-get-dbus-dict-entry "connection/type" props)
+             "802-3-ethernet")))
 
 ;;;;;;;;;;;;;;;;;;
 ;; Get networks ;;
@@ -238,19 +241,12 @@ This returns a list of D-Bus paths to the access points."
 
 (defun enwc-nm-get-wired-profiles ()
   (let ((profs-list (enwc-nm-list-connections)))
-    (mapcar
-     (lambda (x)
-       (let ((props (enwc-nm-get-settings x)))
-         (when (string= (enwc-nm-get-dbus-dict-entry "connection/type" props)
-                        "802-3-ethernet")
-           (enwc-nm-get-dbus-dict-entry "connection/id" props))))
-     profs-list)))
+    (cl-remove-if-not #'enwc-nm--profile-wired-p profs-list)))
 
 ;;;;;;;;;;;;;
 ;; Connect ;;
 ;;;;;;;;;;;;;
 
-;; Default
 (defun enwc-nm-connect (nw &optional wired)
   "The NetworkManager connect function.
 This gets the connection path from NW, and connects to it."
@@ -259,29 +255,11 @@ This gets the connection path from NW, and connects to it."
     (enwc-nm-wireless-connect nw)))
 
 (defun enwc-nm-wireless-connect (nw)
-  (let ((ap-ssid (dbus-byte-array-to-string
-                  (dbus-get-property :system
-                                     enwc-nm-dbus-service
-                                     nw
-                                     "org.freedesktop.NetworkManager.AccessPoint"
-                                     "Ssid")))
-        (profile-table (make-hash-table :test #'equal)))
-    ;; Create a hash table of connections, indexed by ssid
-    ;; TODO: Store this somewhere else
-    (dolist (conn (enwc-nm-list-connections))
-      (let ((settings (dbus-call-method :system
-                                        enwc-nm-dbus-service
-                                        conn
-                                        "org.freedesktop.NetworkManager.Settings.Connection"
-                                        "GetSettings")))
-        (map-put profile-table
-                 (dbus-byte-array-to-string (caadr (assoc-string "ssid" (cadr (assoc-string "802-11-wireless" settings)))))
-                 conn)))
-    (when-let (conn (map-elt profile-table ap-ssid))
-      (enwc-nm-dbus-default-call-method "ActivateConnection"
-                                        :object-path conn
-                                        :object-path enwc-nm-wireless-dev
-                                        :object-path conn))))
+  (when-let ((conn (enwc-nm--ap-to-conn nw)))
+    (enwc-nm-dbus-default-call-method "ActivateConnection"
+                                      :object-path conn
+                                      :object-path enwc-nm-wireless-dev
+                                      :object-path conn)))
 
 (defun enwc-nm-wired-connect (nw)
   (enwc-nm-dbus-default-call-method "ActivateConnection"
@@ -368,6 +346,15 @@ If both are 0, then it returns WEP, otherwise WPA."
     (if (and (= wpa-flags 0) (= rsn-flags 0))
         "WEP"
       "WPA")))
+
+(defun enwc-nm-get-wired-nw-props (nw)
+  (let ((settings (enwc-nm-get-settings nw)))
+    `((name . ,(enwc-nm-get-dbus-dict-entry "connection/id" settings)))))
+
+(defun enwc-nm-get-nw-props (nw &optional wired-p)
+  (if wired-p
+      (enwc-nm-get-wired-nw-props nw)
+    (enwc-nm-get-wireless-nw-props nw)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Get Current network id ;;
@@ -488,7 +475,7 @@ representing another layer in the dictionary."
       (setq cur-ent (assoc cur-str cur-ent))
       (when cur-ent
         (setq cur-ent (cadr cur-ent))))
-    cur-ent))
+    (when cur-ent (car cur-ent))))
 
 (defun enwc-nm--recurse-dbus-entry (dict value entries)
   "Look in DICT for ENTRIES, and set the final one to VALUE."
@@ -730,7 +717,7 @@ Unregister all of the D-Bus signals set up during load."
   :disconnect #'enwc-nm-disconnect
   :current-nw-id #'enwc-nm-get-current-nw-id
   :is-connecting-p #'enwc-nm-check-connecting
-  :wireless-nw-props #'enwc-nm-get-wireless-nw-props
+  :nw-props #'enwc-nm-get-nw-props
   :is-wired-p #'enwc-nm-is-wired))
 
 (provide 'enwc-nm)
