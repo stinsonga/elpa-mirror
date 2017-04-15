@@ -218,6 +218,16 @@ property from wireless network with id ID."
   "Get property DET from the wired network with id ID."
   (enwc-wicd-dbus-wired-call-method "GetWiredProperty" id det))
 
+(defun enwc-wicd-get-wired-nw-props (id)
+  ;; TODO Do wicd wired profiles have names?
+  (ignore id)
+  `((name . "Wired Profile")))
+
+(defun enwc-wicd-get-network-props (id &optional wired)
+  (if wired
+      (enwc-wicd-get-wired-nw-props id)
+    (enwc-wicd-get-wireless-network-props id)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;
 ;; Connect Functions ;;
 ;;;;;;;;;;;;;;;;;;;;;;;
@@ -465,7 +475,7 @@ Unregister all of the D-Bus signals set up during load."
   :disconnect #'enwc-wicd-disconnect
   :current-nw-id #'enwc-wicd-get-current-nw-id
   :is-connecting-p #'enwc-wicd-check-connecting
-  :wireless-nw-props #'enwc-wicd-get-wireless-network-props
+  :nw-props #'enwc-wicd-get-network-props
   :is-wired-p #'enwc-wicd-is-wired))
 
 (provide 'enwc-wicd)

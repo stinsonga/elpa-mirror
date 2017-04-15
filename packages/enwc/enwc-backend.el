@@ -39,7 +39,7 @@
   ;; Scan interface
   network-ids
   scan
-  wireless-nw-props
+  nw-props
   ;; Connect/disconnect
   connect
   disconnect
@@ -98,11 +98,11 @@ Signals an error if a backend with KEY already exists and FORCEP is nil."
 (defun enwc--scan (backend)
   (funcall (enwc-backend-scan backend)))
 
-(defun enwc--network-ids (backend)
-  (funcall (enwc-backend-network-ids backend)))
+(defun enwc--network-ids (backend &optional wired-p)
+  (funcall (enwc-backend-network-ids backend) wired-p))
 
-(defun enwc--wireless-nw-props (backend id)
-  (funcall (enwc-backend-wireless-nw-props backend) id))
+(defun enwc--nw-props (backend id &optional wired-p)
+  (funcall (enwc-backend-nw-props backend) id wired-p))
 
 (defun enwc--connect (backend id &optional wired-p)
   (funcall (enwc-backend-connect backend) id wired-p))
