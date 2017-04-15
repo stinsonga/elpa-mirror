@@ -4,7 +4,7 @@
 
 ;; Author: Ian Dunn <dunni@gnu.org>
 ;; Keywords: external, network, wicd, manager, nm
-;; Version: 2.0beta2
+;; Version: 2.0
 ;; Package-Requires: ((emacs "25.1"))
 ;; Homepage: https://savannah.nongnu.org/p/enwc
 
