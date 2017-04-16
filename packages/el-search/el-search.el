@@ -89,6 +89,10 @@
 ;;     Resume the last search from the position of the last visited
 ;;     match, or (with prefix arg) prompt for an old search to resume.
 ;;
+;;   C-H (el-search-this-sexp)
+;;     Grab the symbol or sexp under point and initiate an el-search
+;;     for other occurrences.
+;;
 ;;
 ;; These bindings may not work in a console (if you have a good idea
 ;; for nice alternative bindings please mail me).
@@ -1303,6 +1307,7 @@ that contain a file named \".nosearch\" are excluded as well."
   (define-key emacs-lisp-mode-map [(control ?S)] #'el-search-pattern)
   (define-key emacs-lisp-mode-map [(control ?R)] #'el-search-pattern-backwards)
   (define-key emacs-lisp-mode-map [(control ?%)] #'el-search-query-replace)
+  (define-key emacs-lisp-mode-map [(control ?H)] #'el-search-this-sexp) ;H like in "highlight" or "here"
   (define-key global-map          [(control ?J)] #'el-search-jump-to-search-head)
   (define-key global-map          [(control ?A)] #'el-search-from-beginning)
   (define-key global-map          [(control ?D)] #'el-search-skip-directory)
@@ -2029,6 +2034,40 @@ With prefix arg, restart the current search."
           (setq el-search--success t))))))
 
 (define-obsolete-function-alias 'el-search-previous-match 'el-search-pattern-backwards)
+
+(defun el-search-this-sexp (sexp)
+  "Prepare to el-search the `sexp-at-point'.
+
+Grab the `sexp-at-point' SEXP and prepare to el-search the
+current buffer for other matches of 'SEXP.
+
+Use the normal search commands to seize the search."
+  (interactive (list (if (not (derived-mode-p 'emacs-lisp-mode))
+                         (user-error "Current buffer not in `emacs-lisp-mode'")
+                       (let ((symbol-at-point-text (thing-at-point 'symbol))
+                             symbol-at-point)
+                         (if (and symbol-at-point-text
+                                  ;; That should ideally be always true but isn't
+                                  (condition-case nil
+                                      (symbolp (setq symbol-at-point (read symbol-at-point-text)))
+                                    (invalid-read-syntax nil)))
+                             symbol-at-point
+                           (if (thing-at-point 'sexp)
+                               (sexp-at-point)
+                             (user-error "No sexp at point")))))))
+  (let ((printed-sexp (el-search--pp-to-string sexp)))
+    (el-search--pushnew-to-history (concat "'" printed-sexp) 'el-search-pattern-history)
+    (el-search-setup-search-1
+     `',sexp
+     (let ((current-buffer (current-buffer)))
+       (lambda () (stream (list current-buffer))))
+     'from-here)
+    (el-search--next-buffer el-search--current-search)
+    (setq this-command 'el-search-pattern
+          el-search--success t)
+    (el-search-hl-other-matches (el-search--current-matcher))
+    (add-hook 'post-command-hook #'el-search-hl-post-command-fun t t)
+    (el-search--message-no-log "%s" printed-sexp)))
 
 
 ;;;; El-Occur
