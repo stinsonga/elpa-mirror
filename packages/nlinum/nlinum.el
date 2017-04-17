@@ -119,7 +119,7 @@ Linum mode is a buffer-local minor mode."
   (nlinum--setup-windows))
 
 (defun nlinum--face-height (face)
-  (aref (font-info (face-font face)) 2))
+  (aref (font-info (face-font face)) 3))
 
 (defun nlinum--face-width (face)        ;New info only in Emacs>=25.
   (let ((fi (font-info (face-font face))))
