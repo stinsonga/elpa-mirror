@@ -40,7 +40,9 @@
                  '((c++-mode-hook) (org-mode-hook . t))))
   (should (equal (hkhlp-normalize-hook-spec '((c++-mode-hook . t)
                                               (org-mode-hook . t)))
-                 '((c++-mode-hook . t) (org-mode-hook . t)))))
+                 '((c++-mode-hook . t) (org-mode-hook . t))))
+  (should (equal (hkhlp-normalize-hook-spec '((c++-mode-hook . t)))
+                 '((c++-mode-hook . t)))))
 
 (ert-deftest hkhlp-create-hook-helper-test ()
   (let ((test-hook nil))

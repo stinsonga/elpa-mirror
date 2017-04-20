@@ -39,3 +39,19 @@ hook-helpers-autoloads.el:
 
 clean:
 	-rm -f *.elc
+
+check:
+	@$(EMACS) \
+	-L "." \
+	--load "ert" \
+	--load "hook-helpers-tests.el" \
+	-f ert-run-tests-batch-and-exit
+
+help:
+	$(info )
+	$(info make all       - Default)
+	$(info make compile   - Compile Emacs Lisp Files)
+	$(info make autoloads - Generate Autoloads)
+	$(info make clean     - Remove generated .elc files)
+	$(info make check     - Run Tests)
+	@echo ""

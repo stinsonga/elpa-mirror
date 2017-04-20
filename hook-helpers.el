@@ -42,7 +42,7 @@
 (cl-defstruct hook-helper
   id function hooks source-file)
 
-(defun hkhlp-normalize-hook-spec (hook-spec)
+(defun hkhlp-normalize-hook-spec (hook-spec &optional recursed)
   "Turns HOOK-SPEC into a list of cons-cells, each one (HOOK . APPEND)
 
 HOOK is the name of the full variable to use
@@ -52,12 +52,13 @@ APPEND is a Boolean"
     ;; HOOK
     (list (cons hook-spec nil)))
    ((and (consp hook-spec)
+         (symbolp (car hook-spec))
          (booleanp (cdr hook-spec)))
     ;; (HOOK . APPEND)
     (list hook-spec))
-   ((listp hook-spec)
+   ((and (listp hook-spec) (not recursed))
     ;; List of specs
-    (apply 'append (mapcar (lambda (spec) (hkhlp-normalize-hook-spec spec)) hook-spec)))
+    (mapcar (lambda (spec) (car (hkhlp-normalize-hook-spec spec t))) hook-spec))
    (t
     (warn "Unrecognized hook-spec %s" hook-spec))))
 
