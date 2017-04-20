@@ -192,10 +192,25 @@ The default value is nil."
   :type '(choice (const :tag "No transformer" nil)
                  (function :tag "User specified function")))
 
+(defalias 'el-search--file-truename
+  ;; We call `file-truename' very often and it's quite slow
+  (el-search-with-short-term-memory #'file-truename))
+
+(defun el-search--changed-files-in-repo (repo-root-dir &optional commit)
+  "Return a list of files that changed relative to COMMIT.
+COMMIT defaults to HEAD."
+  (cl-callf or commit "HEAD")
+  (let ((default-directory repo-root-dir))
+    (mapcar #'expand-file-name
+            (split-string
+             (shell-command-to-string
+              (format "git diff -z --name-only %s --" (shell-quote-argument commit)))
+             "\0" t))))
+
 (defun el-search--changes-from-diff-hl (revision)
   "Return a list of changed regions (as conses of positions) since REVISION.
 Use variable `el-search--cached-changes' for caching."
-  (let ((buffer-file-name (file-truename buffer-file-name))) ;shouldn't be necessary, but it is...
+  (let ((buffer-file-name (el-search--file-truename buffer-file-name))) ;shouldn't be necessary, but it is...
     (if (and (consp el-search--cached-changes)
              (equal (car el-search--cached-changes)
                     (list revision (visited-file-modtime))))
@@ -258,7 +273,7 @@ Use variable `el-search--cached-changes' for caching."
 (defun el-search--file-changed-p (file rev)
   ;; FIXME: it would be better to calculate once a list of all changed
   ;; files in the repository
-  (cl-callf file-truename file)
+  (cl-callf el-search--file-truename file)
   (when-let ((backend (vc-backend file)))
     (ignore-errors
       (let ((default-directory (file-name-directory file))
@@ -270,18 +285,33 @@ Use variable `el-search--cached-changes' for caching."
            (= 1 (vc-call-backend backend 'diff (list file) rev nil (current-buffer)))))))))
 
 (defun el-search-change--heuristic-matcher (&optional revision)
-  (let ((test (el-search-with-short-term-memory
-               (lambda (file-name-or-buffer)
-                 (require 'vc)
-                 (when-let ((file (if (stringp file-name-or-buffer)
-                                      file-name-or-buffer
-                                    (buffer-file-name file-name-or-buffer))))
-                   (let ((default-directory (file-name-directory file)))
-                     (el-search--file-changed-p
-                      file
-                      (funcall el-search-change-revision-transformer-function
-                               (or revision "HEAD") file))))))))
-    (lambda (file-name-or-buffer _) (funcall test file-name-or-buffer))))
+  (let* ((get-changed-files-in-repo
+          (el-search-with-short-term-memory #'el-search--changed-files-in-repo))
+         (file-changed-p (el-search-with-short-term-memory
+                          (lambda (file-name-or-buffer)
+                            (require 'vc)
+                            (when-let ((file (if (stringp file-name-or-buffer)
+                                                 file-name-or-buffer
+                                               (buffer-file-name file-name-or-buffer))))
+                              (cl-callf el-search--file-truename file)
+                              (let ((default-directory (file-name-directory file)))
+                                (when-let ((backend (vc-backend file))
+                                           (root-dir
+                                            (condition-case err
+                                                (vc-call-backend backend 'root default-directory)
+                                              (vc-not-supported
+                                               (unless (eq (cadr err) 'root)
+                                                 (signal (car err) (cdr err)))
+                                               nil))))
+                                  (cl-some
+                                   (apply-partially #'file-equal-p file)
+                                   (funcall get-changed-files-in-repo
+                                            root-dir
+                                            (funcall (or el-search-change-revision-transformer-function
+                                                         (lambda (rev _) rev))
+                                                     (or revision "HEAD")
+                                                     file))))))))))
+    (lambda (file-name-or-buffer _) (funcall file-changed-p file-name-or-buffer))))
 
 (el-search-defpattern change (&optional revision)
   "Matches the object if its text is part of a file change.
@@ -289,7 +319,10 @@ Use variable `el-search--cached-changes' for caching."
 Requires library \"diff-hl\".  REVISION defaults to the file's
 repository's HEAD commit and is a revision string.  Customize
 `el-search-change-revision-transformer-function' to control how
-REVISION is interpreted."
+REVISION is interpreted.
+
+This pattern-type does currently only work for git versioned
+files."
   (declare (heuristic-matcher #'el-search-change--heuristic-matcher))
   `(guard (el-search--change-p (point) ,(or revision "HEAD"))))
 
@@ -299,7 +332,10 @@ REVISION is interpreted."
 Requires library \"diff-hl\".  REVISION defaults to the file's
 repository's HEAD commit and is a revision string.  Customize
 `el-search-change-revision-transformer-function' to control how
-REVISION is interpreted."
+REVISION is interpreted.
+
+This pattern-type does currently only work for git versioned
+files."
   (declare (heuristic-matcher #'el-search-change--heuristic-matcher))
   `(guard (el-search--changed-p (point) ,(or revision "HEAD"))))
 
