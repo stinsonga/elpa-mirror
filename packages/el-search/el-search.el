@@ -889,13 +889,17 @@ optional MESSAGE are used to construct the error message."
   pattern     ;the search pattern
   head        ;an `el-search-head' instance, modified ("moved") while searching
   last-match  ;position of last match found
-  command     ;nil or invoking command + args
   get-matches ;method returning a stream of all matches
+  properties  ;An alist of additional properties.  Meaningful properties
+              ;are:
+              ; - is-single-buffer   Indicates a single-buffer search
+              ; - description        When specified, a string describing the search
   )
 
 (defun copy-el-search-object (search)
   (let ((copy (copy-el-search-object--1 search)))
     (cl-callf copy-el-search-head (el-search-object-head copy))
+    (cl-callf copy-alist (el-search-object-properties copy))
     copy))
 
 (defun el-search--current-pattern ()
@@ -920,6 +924,22 @@ optional MESSAGE are used to construct the error message."
   file                     ;name of currently searched file, or nil
   buffers                  ;stream of buffers and/or files yet to search
   )
+
+(defun el-search--get-search-description-string (search &optional verbose)
+  (concat
+   (or (alist-get 'description (el-search-object-properties search))
+       "Search")
+   (when verbose
+     (format " [%s, %s]"
+             (if (alist-get 'is-single-buffer (el-search-object-properties search))
+                 "single-buffer" "paused")
+             (if-let ((buffer (el-search-head-buffer (el-search-object-head search))))
+                 (if (buffer-live-p buffer) (buffer-name buffer) "a killed buffer")
+               "completed")))
+   " for"
+   (let ((printed-pattern (el-search--pp-to-string (el-search-object-pattern search))))
+     (format (if (string-match-p "\n" printed-pattern) ":\n%s" " %s")
+             (propertize printed-pattern 'face 'shadow)))))
 
 
 (defun el-search-kill-left-over-search-buffers (&optional not-current-buffer)
@@ -1262,18 +1282,15 @@ in, in order, when called with no arguments."
     (el-search-compile-pattern-in-search copy)
     copy))
 
-(defun el-search-setup-search-1 (pattern get-buffer-stream  &optional from-here)
+(defun el-search-setup-search-1 (pattern get-buffer-stream  &optional from-here setup-function)
   (setq el-search--success nil)
   (setq el-search--current-search
         (el-search-make-search pattern get-buffer-stream))
-  (let ((call
-         ;; (car command-history) ;FIXME: this is not always what we want!
-         nil))
-    (ring-insert el-search-history el-search--current-search)
-    (setf (el-search-object-command el-search--current-search) call))
+  (when setup-function (funcall setup-function el-search--current-search))
+  (ring-insert el-search-history el-search--current-search)
   (when from-here (setq el-search--temp-buffer-flag nil)))
 
-(defun el-search-setup-search (pattern get-buffer-stream &optional from-here)
+(defun el-search-setup-search (pattern get-buffer-stream &optional setup-function from-here)
   "Create and start a new el-search.
 PATTERN is the search pattern.  GET-BUFFER-STREAM is a function
 of no arguments that should return a stream of buffers and/or
@@ -1282,7 +1299,7 @@ files (i.e. file names) to search in.
 With optional FROM-HERE non-nil, the first buffer in this stream
 should be the current buffer, and searching will start at the
 current buffer's point instead of its beginning."
-  (el-search-setup-search-1 pattern get-buffer-stream)
+  (el-search-setup-search-1 pattern get-buffer-stream nil setup-function)
   (if (not el-search-occur-flag)
       (el-search-continue-search from-here)
     (setq el-search-occur-flag nil)
@@ -1755,22 +1772,11 @@ that the current search."
                    (let ((completion-extra-properties
                           `(:annotation-function
                             ,(lambda (elt)
-                               (let ((search (ring-ref el-search-history (string-to-number elt))))
-                                 (concat
-                                  " "
-                                  (if-let ((command (el-search-object-command search)))
-                                      (concat "`" (prin1-to-string (car command)) "'")
-                                    "Search")
-                                  (if-let ((buffer
-                                            (el-search-head-buffer
-                                             (el-search-object-head
-                                              search))))
-                                      (format " [paused in %s]"
-                                              (if (buffer-live-p buffer)
-                                                  (concat "buffer " (buffer-name buffer))
-                                                "a killed buffer"))
-                                    " [completed]")
-                                  "\n" (pp-to-string (el-search-object-pattern search))))))))
+                               (concat
+                                " "
+                                (el-search--get-search-description-string
+                                 (ring-ref el-search-history (string-to-number elt))
+                                 t))))))
                      (completing-read
                       "Resume previous search: "
                       (mapcar #'prin1-to-string
@@ -1947,6 +1953,7 @@ additional pattern types are currently defined:"
      pattern
      (let ((current-buffer (current-buffer)))
        (lambda () (stream (list current-buffer))))
+     (lambda (search) (setf (alist-get 'is-single-buffer (el-search-object-properties search)) t))
      'from-here))))
 
 (put 'el-search-pattern 'function-documentation '(el-search--make-docstring 'el-search-pattern))
@@ -1975,7 +1982,8 @@ With prefix arg, restart the current search."
      pattern
      (let ((current-buffer (current-buffer)))
        (lambda () (stream (list current-buffer))))
-     'from-here)
+     'from-here
+     (lambda (search) (setf (alist-get 'is-single-buffer (el-search-object-properties search)) t)))
     ;; Make this buffer the current search buffer so that a following C-S
     ;; doesn't delete highlighting
     (el-search--next-buffer el-search--current-search))
@@ -2112,6 +2120,7 @@ Use the normal search commands to seize the search."
            pattern
            (let ((current-buffer (current-buffer)))
              (lambda () (stream (list current-buffer))))
+           (lambda (search) (setf (alist-get 'is-single-buffer (el-search-object-properties search)) t))
            'from-here)
           (setq-local el-search-keep-hl 'once))))))
 
@@ -2161,11 +2170,7 @@ Use the normal search commands to seize the search."
           (setq el-search-occur-search-object search))
         (insert (format ";;; * %s   -*- mode: el-search-occur -*-\n\n;; %s\n\n"
                         (current-time-string)
-                        (if-let ((command-or-pattern
-                                  (or (el-search-object-command el-search-occur-search-object)
-                                      (el-search-object-pattern el-search-occur-search-object))))
-                            (el-search--pp-to-string command-or-pattern)
-                          "")))
+                        (el-search--get-search-description-string search)))
         (condition-case-unless-debug err
             (let ((stream-of-matches
                    (el-search--stream-partition
@@ -2349,7 +2354,9 @@ use of `hs-minor-mode' and `orgstruct-mode'."
      (seq-filter
       (lambda (buffer) (with-current-buffer buffer (and (derived-mode-p 'emacs-lisp-mode)
                                                    (not (eq major-mode 'el-search-occur-mode)))))
-      (stream (buffer-list))))))
+      (stream (buffer-list))))
+   (lambda (search) (setf (alist-get 'description (el-search-object-properties search))
+                     "el-search-buffers"))))
 
 ;;;###autoload
 (defun el-search-directory (pattern directory &optional recursively)
@@ -2363,7 +2370,11 @@ With prefix arg RECURSIVELY non-nil, search subdirectories recursively."
                      current-prefix-arg))
   (el-search-setup-search
    pattern
-   (lambda () (el-search-stream-of-directory-files directory recursively))))
+   (lambda () (el-search-stream-of-directory-files directory recursively))
+   (lambda (search) (setf (alist-get 'description (el-search-object-properties search))
+                     (concat (if recursively "Recursive directory search in "
+                               "Directory search in ")
+                             directory)))))
 
 ;;;###autoload
 (defun el-search-emacs-elisp-sources (pattern)
@@ -2376,7 +2387,9 @@ This command recursively searches all elisp files under
    (lambda ()
      (el-search-stream-of-directory-files
       (expand-file-name "lisp/" source-directory)
-      t))))
+      t))
+   (lambda (search) (setf (alist-get 'description (el-search-object-properties search))
+                     "Search the Emacs Elisp sources"))))
 
 ;;;###autoload
 (defun el-search-load-path (pattern)
@@ -2389,7 +2402,9 @@ are ignored."
    (lambda ()
      (stream-concatenate
       (seq-map (lambda (path) (el-search-stream-of-directory-files path nil))
-               (stream (delq nil load-path)))))))
+               (stream (delq nil load-path)))))
+   (lambda (search) (setf (alist-get 'description (el-search-object-properties search))
+                     "Search `load-path'"))))
 
 (declare-function dired-get-marked-files "dired")
 
@@ -2414,7 +2429,9 @@ related user options."
          (if (file-directory-p file)
              (el-search-stream-of-directory-files file recursively)
            (stream (list file))))
-       (stream files))))))
+       (stream files))))
+   (lambda (search) (setf (alist-get 'description (el-search-object-properties search))
+                     "el-search-dired-marked-files"))))
 
 
 ;;;; Query-replace
@@ -2538,7 +2555,13 @@ reindent."
     (el-search-setup-search-1 pattern
                               (let ((current-buffer (current-buffer)))
                                 (lambda () (stream (list current-buffer))))
-                              t))
+                              t
+                              (lambda (search)
+                                (setf (alist-get 'is-single-buffer
+                                                 (el-search-object-properties search))
+                                      t)
+                                (setf (alist-get 'description (el-search-object-properties search))
+                                      "Search created by `el-search-query-replace'"))))
   (let ((replace-all nil) (replace-all-and-following nil)
         nbr-replaced nbr-skipped (done nil) (nbr-replaced-multi 0) (nbr-changed-buffers 0)
         (el-search-keep-hl t) (opoint (point))
@@ -2813,14 +2836,21 @@ used for history entries."
   (barf-if-buffer-read-only)
   (el-search--search-and-replace-pattern
    from-pattern to-expr nil textual-to
-   (and el-search--current-search
-        (eq last-command 'el-search-pattern)
-        (let ((buffer-stream (funcall
-                              (el-search-head-get-buffer-stream
-                               (el-search-object-head el-search--current-search)))))
-          (or (not (eq (stream-first buffer-stream) (current-buffer)))
-              (stream-first (stream-rest buffer-stream))))
-        (y-or-n-p "Multi-buffer query-replace all remaining matches of the current search? "))))
+   (let ((search-head (and el-search--current-search
+                           (el-search-object-head el-search--current-search))))
+     (and
+      search-head
+      (eq (el-search-head-buffer search-head) (current-buffer))
+      (equal from-pattern (el-search-object-pattern el-search--current-search))
+      (or (eq last-command 'el-search-pattern)
+          (and (not (alist-get 'is-single-buffer
+                               (el-search-object-properties el-search--current-search)))
+               (y-or-n-p "Use the last search to steer query-replace? ")
+               (prog1 t
+                 (unless (equal (point) (el-search-head-position search-head))
+                   (if (y-or-n-p "Continue from search head (y) or from here (n)? ")
+                       (el-search-jump-to-search-head)
+                     (setf (el-search-head-position search-head) (copy-marker (point))))))))))))
 
 (defun el-search--take-over-from-isearch (&optional goto-left-end)
   (let ((other-end (and goto-left-end isearch-other-end))
