@@ -200,7 +200,9 @@ each one."
   (let* ((func (hook-helper-function helper))
          (pp-string (pp-to-string func))
          (id (hook-helper-id helper))
-         (indent-first (min (- indent (length (symbol-name id))) 1))
+         (id-name (symbol-name id))
+         (indent (max (+ (length id-name) 1) indent))
+         (indent-first (- indent (length id-name)))
          (pp-lines (split-string pp-string "\n" t)))
     (concat (symbol-name id) (make-string indent-first ?\ ) (car pp-lines) "\n"
             (mapconcat
@@ -209,7 +211,7 @@ each one."
                        str))
              (cdr pp-lines)
              "\n")
-            "\n")))
+            "\n\n")))
 
 (defun describe-hook-helpers ()
   "Describe the currently defined hook helpers."
