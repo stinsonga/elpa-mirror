@@ -180,7 +180,7 @@ quoted.  The keywords are:
            (hook (intern hook-name)))
       `(create-hook-helper ,func-sym ,args
          ,docstring
-         :hooks ((,hook . ,append))
+         :hooks (,hook . ,append)
          ,@body))))
 
 ;;;###autoload
