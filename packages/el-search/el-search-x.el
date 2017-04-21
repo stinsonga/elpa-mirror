@@ -120,14 +120,14 @@ SYMBOL  Matches any symbol S matched by SYMBOL's name interpreted
 'SYMBOL Matches SYMBOL, 'SYMBOL and #'SYMBOL (so it's like the above
         without regexp matching).
 STRING  Matches any string matched by STRING interpreted as a
-        regexp
-_       Matches any list element
-__      Matches any number of list elements (including zero)
+        regexp.
+_       Matches any list element.
+__      Matches any number of list elements (including zero).
 ^       Matches zero elements, but only at the beginning of a list.
         Only allowed as the first of the LPATS.
 $       Matches zero elements, but only at the end of a list.
         Only allowed as the last of the LPATS.
-PAT     Anything else is interpreted as a standard pattern, and
+PAT     Anything else is interpreted as a standard pattern and
         matches one list element matched by it.  Note: If matching
         PAT binds any symbols, occurrences in any following PATs
         are not turned into equivalence tests; the scope of symbol
@@ -182,17 +182,17 @@ could use this pattern:
 (defcustom el-search-change-revision-transformer-function nil
   "Transformer function for the REVISION argument of `change' and `changed'.
 
-When specified, this function is called with two arguments: the
-REVISION argument passed to `change' or `changed', and the
-current file name, and the returned value is used instead of
-REVISION.
+When specified, this function is called with two arguments - the
+REVISION argument passed to `change' or `changed' and the current
+file name - and the return value is used as REVISION argument for
+these patterns.
 
 The default value is nil."
   :group 'el-search
   :type '(choice (const :tag "No transformer" nil)
                  (function :tag "User specified function")))
 
-(defalias 'el-search--file-truename
+(defalias 'el-search--file-truename-wstm
   ;; We call `file-truename' very often and it's quite slow
   (el-search-with-short-term-memory #'file-truename))
 
@@ -207,10 +207,27 @@ COMMIT defaults to HEAD."
               (format "git diff -z --name-only %s --" (shell-quote-argument commit)))
              "\0" t))))
 
+(defvar vc-git-diff-switches)
+(defun el-search--file-changed-p (file revision)
+  "Return non-nil when FILE has changed relative to REVISION."
+  (cl-callf el-search--file-truename-wstm file)
+  (when-let ((backend (vc-backend file)))
+    (ignore-errors
+      (let ((default-directory (file-name-directory file))
+            (vc-git-diff-switches nil)) ;FIXME: necessary e.g. for my init file -- why?
+        (and
+         (with-temp-buffer
+           (= 1 (vc-call-backend backend 'diff (list file) nil revision (current-buffer))))
+         (with-temp-buffer
+           (= 1 (vc-call-backend backend 'diff (list file) revision nil (current-buffer)))))))))
+
 (defun el-search--changes-from-diff-hl (revision)
-  "Return a list of changed regions (as conses of positions) since REVISION.
-Use variable `el-search--cached-changes' for caching."
-  (let ((buffer-file-name (el-search--file-truename buffer-file-name))) ;shouldn't be necessary, but it is...
+  "Return the changed regions in the current buffer's file.
+The return value is a list of conses (START . END) of all changes
+relative to REVISION.
+
+Uses variable `el-search--cached-changes' for caching."
+  (let ((buffer-file-name (el-search--file-truename-wstm buffer-file-name))) ;shouldn't be necessary, but it is...
     (if (and (consp el-search--cached-changes)
              (equal (car el-search--cached-changes)
                     (list revision (visited-file-modtime))))
@@ -246,8 +263,10 @@ Use variable `el-search--cached-changes' for caching."
                                                       (let ((default-directory (file-name-directory buffer-file-name)))
                                                         (diff-hl-changes)))))))))))))))
 
-(defun el-search--change-p (posn &optional revision)
+(defun el-search--change-p (posn revision)
   ;; Non-nil when sexp after POSN is part of a change
+  (when (buffer-modified-p)
+    (user-error "Buffer is modified - please save"))
   (save-restriction
     (widen)
     (let ((changes (el-search--changes-from-diff-hl revision))
@@ -266,7 +285,7 @@ Use variable `el-search--cached-changes' for caching."
                        (and (thunk-force atomic?)
                             (<= (caar changes) sexp-end)))))))
 
-(defun el-search--changed-p (posn &optional revision)
+(defun el-search--changed-p (posn revision)
   ;; Non-nil when sexp after POSN contains a change
   (when (buffer-modified-p)
     (user-error "Buffer is modified - please save"))
@@ -278,23 +297,9 @@ Use variable `el-search--cached-changes' for caching."
       (and changes
            (< (caar changes) (scan-sexps posn 1))))))
 
-(defvar vc-git-diff-switches)
-(defun el-search--file-changed-p (file rev)
-  ;; FIXME: it would be better to calculate once a list of all changed
-  ;; files in the repository
-  (cl-callf el-search--file-truename file)
-  (when-let ((backend (vc-backend file)))
-    (ignore-errors
-      (let ((default-directory (file-name-directory file))
-            (vc-git-diff-switches nil)) ;FIXME: necessary e.g. for my init file -- why?
-        (and
-         (with-temp-buffer
-           (= 1 (vc-call-backend backend 'diff (list file) nil rev (current-buffer))))
-         (with-temp-buffer
-           (= 1 (vc-call-backend backend 'diff (list file) rev nil (current-buffer)))))))))
-
 (defun el-search-change--heuristic-matcher (&optional revision)
-  (let* ((get-changed-files-in-repo
+  (let* ((revision (or revision "HEAD"))
+         (get-changed-files-in-repo
           (el-search-with-short-term-memory #'el-search--changed-files-in-repo))
          (file-changed-p (el-search-with-short-term-memory
                           (lambda (file-name-or-buffer)
@@ -302,12 +307,13 @@ Use variable `el-search--cached-changes' for caching."
                             (when-let ((file (if (stringp file-name-or-buffer)
                                                  file-name-or-buffer
                                                (buffer-file-name file-name-or-buffer))))
-                              (cl-callf el-search--file-truename file)
+                              (cl-callf el-search--file-truename-wstm file)
                               (let ((default-directory (file-name-directory file)))
                                 (when-let ((backend (vc-backend file))
                                            (root-dir
                                             (condition-case err
                                                 (vc-call-backend backend 'root default-directory)
+                                              ;; Same handler as in `vc-root-dir'
                                               (vc-not-supported
                                                (unless (eq (cadr err) 'root)
                                                  (signal (car err) (cdr err)))
@@ -318,8 +324,7 @@ Use variable `el-search--cached-changes' for caching."
                                             root-dir
                                             (funcall (or el-search-change-revision-transformer-function
                                                          (lambda (rev _) rev))
-                                                     (or revision "HEAD")
-                                                     file))))))))))
+                                                     revision file))))))))))
     (lambda (file-name-or-buffer _) (funcall file-changed-p file-name-or-buffer))))
 
 (el-search-defpattern change (&optional revision)
