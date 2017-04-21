@@ -35,8 +35,8 @@
 ;;; Code:
 
 (eval-when-compile
-  (require 'subr-x)
-  (require 'thunk))
+  (require 'subr-x))
+(require 'thunk)
 (require 'el-search)
 
 
@@ -251,11 +251,20 @@ Use variable `el-search--cached-changes' for caching."
   (save-restriction
     (widen)
     (let ((changes (el-search--changes-from-diff-hl revision))
-          (sexp-end (scan-sexps posn 1)))
-      (while (and changes (< (cdar changes) sexp-end))
+          (sexp-end (scan-sexps posn 1))
+          (atomic? (thunk-delay (el-search--atomic-p
+                                 (save-excursion (goto-char posn)
+                                                 (read (current-buffer)))))))
+      (while (and changes (or (< (cdar changes) posn)
+                              (and
+                               ;; a string spanning multiple lines is a change even when not all
+                               ;; lines are changed
+                               (< (cdar changes) sexp-end)
+                               (not (thunk-force atomic?)))))
         (pop changes))
-      (and changes
-           (<= (caar changes) posn)))))
+      (and changes (or (<= (caar changes) posn)
+                       (and (thunk-force atomic?)
+                            (<= (caar changes) sexp-end)))))))
 
 (defun el-search--changed-p (posn &optional revision)
   ;; Non-nil when sexp after POSN contains a change

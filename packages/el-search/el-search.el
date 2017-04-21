@@ -989,8 +989,8 @@ non-nil when this file or buffer or defun could contain a match
 for the pattern (NAME . ARGS), and nil when we can be sure that
 it doesn't contain a match.  \"Atom\" here means anything whose
 parts aren't searched by el-searching, like integers or strings,
-but unlike arrays.  When in doubt, the heuristic matcher function
-must return non-nil.
+but unlike arrays (see `el-search--atomic-p').  When in doubt,
+the heuristic matcher function must return non-nil.
 
 When el-searching is started with a certain PATTERN, a heuristic
 matcher function is constructed by recursively destructuring the
@@ -1090,14 +1090,17 @@ PATTERN and combining the heuristic matchers of the subpatterns."
                        el-search--atom-list-cache))
             atom-list))))))
 
+(defun el-search--atomic-p (object)
+  (or (not (sequencep object)) (stringp object) (null object)
+      (char-table-p object) (bool-vector-p object)))
+
 (defun el-search--flatten-tree (tree)
   (let ((elements ())
         (walked-objects ;to avoid infinite recursion for circular TREEs
          (make-hash-table :test #'eq))
         (gc-cons-percentage 0.8)) ;Why is binding it here more effective than binding it more top-level?
     (cl-labels ((walker (object)
-                        (if (or (not (sequencep object)) (stringp object) (null object)
-                                (char-table-p object) (bool-vector-p object))
+                        (if (el-search--atomic-p object)
                             (push object elements)
                           (unless (gethash object walked-objects)
                             (puthash object t walked-objects)
