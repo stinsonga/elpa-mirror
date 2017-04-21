@@ -414,9 +414,12 @@ tested.  "
 (defcustom el-search-replace-auto-save-buffers 'ask
   "Whether to automatically save modified buffers.
 When non-nil, save modified file buffers when query-replace is
-finished there.  If the non-nil value is the symbol ask, ask for
-confirmation for each buffer.  You can still let all following
-buffers automatically be saved or left modified from the prompt.
+finished there.
+
+If the non-nil value is the symbol ask, ask for confirmation for
+each buffer.  You can still let all following buffers
+automatically be saved or left unsaved from the prompt.
+
 Save automatically for any other non-nil value.
 
 The default value is ask."
@@ -773,14 +776,20 @@ for details.
                      el-search--pcase-macros)
      ,@body))
 
-(defun el-search--macroexpand-1 (pattern)
+(defun el-search--macroexpand-1 (pattern &optional n)
   "Expand el-search PATTERN.
 This is like `pcase--macroexpand' but expands only patterns
 defined with `el-search-defpattern' and performs only one
 expansion step.  If no entry for this pattern type exists in
-`el-search--pcase-macros', PATTERN is returned."
+`el-search--pcase-macros', PATTERN is returned.
+
+With optional integer argument N given, successively macroexpand
+N times."
+  (cl-callf or n 1)
   (if-let ((expander (alist-get (car-safe pattern) el-search--pcase-macros)))
-      (apply expander (cdr pattern))
+      (let ((expanded (apply expander (cdr pattern))))
+        (if (<= n 1) expanded
+          (el-search--macroexpand-1 expanded (1- n))))
     pattern))
 
 (defun el-search--macroexpand (pattern)
@@ -841,7 +850,9 @@ be specified as third optional argument."
                                      (save-excursion
                                        (prog1 (read (current-buffer))
                                          (setq end-of-defun (point)))))))))
-                (goto-char (or end-of-defun (scan-lists (point) 1 0))))
+                (goto-char (or end-of-defun
+                               ;; The thunk hasn't been forced
+                               (scan-lists (point) 1 0))))
                ((el-search--match-p matcher current-expr)
                 (setq match-beg (point)
                       opoint (point)))
@@ -1365,7 +1376,7 @@ that contain a file named \".nosearch\" are excluded as well."
 
 ;;;; Additional pattern type definitions
 
-(defun el-search-regexp-like (thing)
+(defun el-search-regexp-like-p (thing)
   "Return non-nil when THING is regexp like.
 
 In el-search, a regexp-like is either a normal regexp (i.e. a
@@ -1391,7 +1402,7 @@ currently enabled."
 (defun el-search--string-matcher (regexp-like)
   "Return a compiled match predicate for REGEXP-LIKE.
 That's a predicate returning non-nil when the
-`el-search-regexp-like' REGEXP-LIKE matches the (only)
+`el-search-regexp-like-p' REGEXP-LIKE matches the (only)
 argument (that should be a string)."
   (let ((match-bindings ()) regexp)
     (pcase regexp-like
@@ -1409,7 +1420,7 @@ argument (that should be a string)."
 
 (el-search-defpattern string (&rest regexps)
   "Matches any string that is matched by all REGEXPS.
-Any of the REGEXPS is an `el-search-regexp-like'."
+Any of the REGEXPS is `el-search-regexp-like-p'."
   (declare (heuristic-matcher
             (lambda (&rest regexps)
               (let ((matchers (mapcar #'el-search--string-matcher regexps)))
@@ -1419,14 +1430,14 @@ Any of the REGEXPS is an `el-search-regexp-like'."
                      (and (stringp atom)
                           (cl-every (lambda (matcher) (funcall matcher atom)) matchers)))
                    (thunk-force atoms-thunk)))))))
-  (el-search-defpattern--check-args "string" regexps #'el-search-regexp-like)
+  (el-search-defpattern--check-args "string" regexps #'el-search-regexp-like-p)
   `(and (pred stringp)
         ,@(mapcar (lambda (regexp) `(pred ,(el-search--string-matcher regexp)))
                   regexps)))
 
 (el-search-defpattern symbol (&rest regexps)
   "Matches any symbol whose name is matched by all REGEXPS.
-Any of the REGEXPS is an `el-search-regexp-like'."
+Any of the REGEXPS is `el-search-regexp-like-p'."
   (declare (heuristic-matcher
             (lambda (&rest regexps)
               (let ((matchers (mapcar #'el-search--string-matcher regexps)))
@@ -1436,7 +1447,7 @@ Any of the REGEXPS is an `el-search-regexp-like'."
                      (when-let ((symbol-name (and (symbolp atom) (symbol-name atom))))
                        (cl-every (lambda (matcher) (funcall matcher symbol-name)) matchers)))
                    (thunk-force atoms-thunk)))))))
-  (el-search-defpattern--check-args "symbol" regexps #'el-search-regexp-like)
+  (el-search-defpattern--check-args "symbol" regexps #'el-search-regexp-like-p)
   `(and (pred symbolp) (app symbol-name (string ,@regexps))))
 
 (defun el-search--contains-p (matcher expr)
@@ -1511,10 +1522,10 @@ never matches."
   (el-search-defpattern--check-args
    "in-buffer" atoms
    (lambda (arg)
-     (cl-flet ((atom-or-string-p (arg) (or (atom arg) (stringp arg))))
-       (pcase arg
-         ((or (pred atom-or-string-p) `',(pred atom-or-string-p) ``,(pred atom-or-string-p)) t))))
-   "argument not an atom or string")
+     (pcase arg
+       ((or (pred el-search--atomic-p) `',(pred el-search--atomic-p) ``,(pred el-search--atomic-p))
+        t)))
+   "argument not atomic")
   (let ((in-buffer-matcher (apply #'el-search--in-buffer-matcher atoms)))
     `(guard (funcall ',in-buffer-matcher (current-buffer) nil))))
 
@@ -1575,7 +1586,7 @@ This pattern type matches when the object is a symbol for that
 
    (file-name-sans-extension (file-name-nondirectory FILENAME)))
 
-is matched by the `el-search-regexp-like' REGEXP."
+is matched by the `el-search-regexp-like-p' REGEXP."
   (declare
    (heuristic-matcher
     (lambda (regexp)
@@ -1584,7 +1595,7 @@ is matched by the `el-search-regexp-like' REGEXP."
                   (copy-sequence load-history)
                   regexp)
                  (thunk-force atoms-thunk))))))
-  (el-search-defpattern--check-args "symbol-file" (list regexp) #'el-search-regexp-like)
+  (el-search-defpattern--check-args "symbol-file" (list regexp) #'el-search-regexp-like-p)
   (let ((this (make-symbol "this")))
     `(and ,this
           (guard (funcall (el-search--symbol-file-matcher (copy-sequence load-history)
@@ -1595,7 +1606,7 @@ is matched by the `el-search-regexp-like' REGEXP."
   ;; Return a file name matcher for the REGEXPS.  This is a predicate
   ;; accepting two arguments that returns non-nil when the first
   ;; argument is a file name (i.e. a string) that is matched by all
-  ;; `el-search-regexp-like' REGEXPS, or a buffer whose associated file
+  ;; `el-search-regexp-like-p' REGEXPS, or a buffer whose associated file
   ;; name matches accordingly.  It ignores the second argument.
   (let ((get-file-name (lambda (file-name-or-buffer)
                          (if (bufferp file-name-or-buffer)
@@ -1614,13 +1625,13 @@ is matched by the `el-search-regexp-like' REGEXP."
 (el-search-defpattern filename (&rest regexps)
   "Matches anything when the searched buffer has an associated file.
 
-With any `el-search-regexp-like' REGEXPS given, the file's
+With any `el-search-regexp-like-p' REGEXPS given, the file's
 absolute name must be matched by all of them."
   ;;FIXME: should we also allow to match the f-n-nondirectory and
   ;;f-n-sans-extension?  Maybe it could become a new pattern type named `feature'?
   (declare (heuristic-matcher #'el-search--filename-matcher)
            (inverse-heuristic-matcher t))
-  (el-search-defpattern--check-args "filename" regexps #'el-search-regexp-like)
+  (el-search-defpattern--check-args "filename" regexps #'el-search-regexp-like-p)
   (let ((file-name-matcher (apply #'el-search--filename-matcher regexps)))
     ;; We can't expand to just t because this would not work with `not'.
     ;; `el-search--filename-matcher' caches the result, so this is still a
@@ -1660,23 +1671,25 @@ removal only once.")
       (unless (pos-visible-in-window-p
                (save-excursion (goto-char (cadr bounds))
                                (line-end-position (max +3 (/ wheight 25)))))
-        (scroll-up (min
-                    (max
-                     ;; make at least sexp end + a small margin visible
-                     (- (line-number-at-pos (cadr bounds))
-                        (line-number-at-pos (window-end))
-                        (- (max 2 (/ wheight 4))))
-                     ;; also try to center current sexp
-                     (- (/ ( + (line-number-at-pos (car bounds))
-                               (line-number-at-pos (cadr bounds)))
-                           2)
-                        (/ (+ (line-number-at-pos (window-start))
-                              (line-number-at-pos (window-end)))
-                           2)))
-                    ;; but also ensure at least a small margin is left between point and window start
-                    (- (line-number-at-pos (car  bounds))
-                       (line-number-at-pos (window-start))
-                       3))))))
+        (condition-case nil
+            (scroll-up (min
+                        (max
+                         ;; make at least sexp end + a small margin visible
+                         (- (line-number-at-pos (cadr bounds))
+                            (line-number-at-pos (window-end))
+                            (- (max 2 (/ wheight 4))))
+                         ;; also try to center current sexp
+                         (- (/ ( + (line-number-at-pos (car bounds))
+                                   (line-number-at-pos (cadr bounds)))
+                               2)
+                            (/ (+ (line-number-at-pos (window-start))
+                                  (line-number-at-pos (window-end)))
+                               2)))
+                        ;; but also ensure at least a small margin is left between point and window start
+                        (- (line-number-at-pos (car  bounds))
+                           (line-number-at-pos (window-start))
+                           3)))
+          ((beginning-of-buffer end-of-buffer) nil)))))
 
   (add-hook 'post-command-hook #'el-search-hl-post-command-fun t t))
 
@@ -1788,6 +1801,8 @@ that the current search."
       (setq el-search--success t)
       (el-search--set-wrap-flag nil)))
   (el-search-compile-pattern-in-search el-search--current-search)
+  (el-search--message-no-log
+   "%s" (el-search--get-search-description-string el-search--current-search))
   (if-let ((search el-search--current-search)
            (current-head (el-search-object-head search))
            (current-search-buffer (el-search-head-buffer current-head)))
@@ -1906,6 +1921,15 @@ continued."
          ;; file-truename on both args what we don't want, so we use this:
          (string-match-p "\\`\\.\\." (file-relative-name buffer-or-file-name directory))))))
 
+(defun el-search-pattern--interactive ()
+  (list (if (or
+             ;;Hack to make a pop-up buffer search from occur "stay active"
+             (memq #'el-search-hl-post-command-fun post-command-hook)
+             (and (eq this-command last-command)
+                  (or el-search--success el-search--wrap-flag)))
+            (el-search--current-pattern)
+          (el-search--read-pattern-for-interactive))))
+
 ;;;###autoload
 (defun el-search-pattern (pattern)
   "Start new or resume last elisp buffer search.
@@ -1927,14 +1951,7 @@ PATTERN is an \"el-search\" pattern - which means, either a
 types defined with `el-search-defpattern'.  The following
 additional pattern types are currently defined:"
   (declare (interactive-only el-search-forward))
-  (interactive (list (if (or
-                           ;FIXME: ugh!  Needed for a pop-up buffer from occur
-                          (memq #'el-search-hl-post-command-fun post-command-hook)
-
-                          (and (eq this-command last-command)
-                               (or el-search--success el-search--wrap-flag)))
-                         (el-search--current-pattern)
-                       (el-search--read-pattern-for-interactive))))
+  (interactive (el-search-pattern--interactive))
   (cond
    ((eq el-search--wrap-flag 'forward)
     (progn
@@ -1975,10 +1992,7 @@ With prefix arg, restart the current search."
 (defun el-search-pattern-backwards (pattern)
   "Search the current buffer backwards for matches of PATTERN."
   (declare (interactive-only t))
-  (interactive (list (if (and (eq last-command 'el-search-pattern)
-                              (or el-search--success el-search--wrap-flag))
-                         (el-search--current-pattern)
-                       (el-search--read-pattern-for-interactive))))
+  (interactive (el-search-pattern--interactive))
   (if (eq pattern (el-search--current-pattern))
       (el-search-compile-pattern-in-search el-search--current-search)
     (el-search-setup-search-1
@@ -2155,163 +2169,177 @@ Use the normal search commands to seize the search."
 
 (put 'el-search-occur-mode 'mode-class 'special)
 
-
+(declare-function which-func-ff-hook which-func)
 (defun el-search--occur (search &optional buffer)
-  (let ((occur-buffer (or buffer (generate-new-buffer "*El Occur*"))))
-    (setq this-command 'el-search-pattern)
-    (setq-local el-search--temp-buffer-flag nil)
-    (with-selected-window (if buffer (selected-window)
-                            (display-buffer
-                             occur-buffer
-                             '((display-buffer-pop-up-window display-buffer-use-some-window))))
-      (let ((inhibit-read-only t))
-        (if el-search-occur-search-object
-            (progn
-              (erase-buffer)
-              (delete-all-overlays))
-          (el-search-occur-mode)
-          (setq el-search-occur-search-object search))
-        (insert (format ";;; * %s   -*- mode: el-search-occur -*-\n\n;; %s\n\n"
-                        (current-time-string)
-                        (el-search--get-search-description-string search)))
-        (condition-case-unless-debug err
-            (let ((stream-of-matches
-                   (el-search--stream-partition
-                    (funcall (el-search-object-get-matches search))
-                    (lambda (this prev) (and (eq (car this) (car prev)) (equal (nth 2 this) (nth 2 prev))))))
-                  stream-of-buffer-matches  buffer-matches
-                  (matching-files 0) (matching-buffers 0) (overall-matches 0))
-              (while (setq stream-of-buffer-matches (stream-pop stream-of-matches))
-                (setq buffer-matches (seq-length stream-of-buffer-matches))
-                (cl-incf overall-matches buffer-matches)
-                (pcase-let ((`(,buffer ,_ ,file) (stream-first stream-of-buffer-matches)))
-                  (if file (cl-incf matching-files) (cl-incf matching-buffers))
-                  (insert "\n;;; ** ")
-                  (insert-button
-                   (or file (format "%S" buffer))
-                   'action
-                   (let ((pattern (el-search--current-pattern)))
-                     (lambda (_)
-                       (pop-to-buffer
-                        (if file (find-file-noselect file) buffer)
-                        el-search-display-buffer-popup-action)
-                       (widen)
-                       (goto-char (point-min))
-                       (let ((el-search-history (ring-copy el-search-history)))
-                         (funcall-interactively #'el-search-pattern pattern))
-                       (el-search--message-no-log "This is the first match in %S" (or file buffer)))))
-                  (insert (format "  (%d matches)\n" buffer-matches))
-                  (let* ((get-context
-                          (lambda (match-beg)
-                            (let ((context-beg nil)
-                                  (need-more-context-p
-                                   (lambda (start)
-                                     (let (end)
-                                       (pcase (save-excursion
-                                                (goto-char start)
-                                                (prog1 (read (current-buffer))
-                                                  (setq end (point))))
-                                         ((or (pred atom) `(,(pred atom))) t)
-                                         ((guard (< (- end start) 100))     t)))))
-                                  (try-go-upwards (lambda (pos) (condition-case nil (scan-lists pos -1 1)
-                                                             (scan-error)))))
-                              (with-current-buffer buffer
-                                (when (funcall need-more-context-p match-beg)
-                                  (setq context-beg (funcall try-go-upwards match-beg))
-                                  (when (and context-beg (funcall need-more-context-p context-beg))
-                                    (setq context-beg (or (funcall try-go-upwards context-beg)
-                                                          context-beg))))
-                                (cons (or context-beg match-beg)
-                                      (if context-beg (scan-lists context-beg 1 0)
-                                        (scan-sexps match-beg 1)))))))
-                         (buffer-matches+contexts
-                          (seq-map (pcase-lambda ((and match `(,_ ,match-beg ,_)))
-                                     (cons match (funcall get-context match-beg)))
-                                   stream-of-buffer-matches)))
-                    (while (not (stream-empty-p buffer-matches+contexts))
-                      (pcase-let ((`((,_ ,match-beg ,_) . (,context-beg . ,context-end))
-                                   (stream-first buffer-matches+contexts)))
-                        (let ((insertion-point (point)) matches
-                              (end-of-defun (with-current-buffer buffer
-                                              (goto-char match-beg)
-                                              (let ((paren-depth (car (syntax-ppss))))
-                                                (if (< 0 paren-depth)
-                                                    (scan-lists match-beg 1 paren-depth)
-                                                  (el-search--end-of-sexp))))))
-                          (let ((rest buffer-matches+contexts)
-                                (remaining-buffer-matches-+contexts buffer-matches+contexts))
-                            (with-current-buffer buffer
-                              (while (pcase (stream-first rest)
-                                       (`(,_ . (,(and cbeg (pred (> end-of-defun))) . ,_))
-                                        (prog1 t
-                                          (stream-pop rest)
-                                          (when (< cbeg context-end)
-                                            (setq remaining-buffer-matches-+contexts rest)
-                                            (when (< cbeg context-beg)
-                                              (setq context-beg cbeg)
-                                              (setq context-end
-                                                    (or (scan-sexps cbeg 1) context-end)))))))))
-                            (setq matches
-                                  (car (el-search--stream-divide
-                                        buffer-matches+contexts
-                                        (lambda (_ rest)
-                                          (not (eq rest remaining-buffer-matches-+contexts))))))
-                            (setq buffer-matches+contexts remaining-buffer-matches-+contexts))
-                          (cl-flet ((insert-match-and-advance
-                                     (match-beg)
-                                     (let ((insertion-point (point)))
-                                       (insert (propertize
-                                                (with-current-buffer buffer
-                                                  (buffer-substring-no-properties
-                                                   (goto-char match-beg)
-                                                   (goto-char (scan-sexps (point) 1))))
-                                                'match-data `(,buffer ,match-beg ,file)))
-                                       (let ((ov (make-overlay insertion-point (point) nil t)))
-                                         (overlay-put ov 'face 'el-search-match))
-                                       (with-current-buffer buffer (point)))))
-                            (let ((working-position context-beg))
-                              (while (not (stream-empty-p matches))
-                                (pcase-let ((`((,_ ,match-beg ,_) . ,_) (stream-pop matches)))
-                                  (insert-buffer-substring buffer working-position match-beg)
-                                  (setq working-position (insert-match-and-advance match-beg))
-                                  ;; Drop any matches inside the printed area.
-                                  ;; FIXME: Should we highlight matches inside matches specially?
-                                  ;; Should we display the number of matches included in a context?
-                                  (while (pcase (stream-first matches)
-                                           (`((,_ ,(pred (> working-position)) ,_) . ,_) t))
-                                    (stream-pop matches))))
-                              (insert
-                               (with-current-buffer buffer
-                                 (buffer-substring-no-properties (point) (scan-sexps context-beg 1))))))
+  (unwind-protect
+      (let ((occur-buffer (or buffer (generate-new-buffer "*El Occur*"))))
+        (setq this-command 'el-search-pattern)
+        (setq-local el-search--temp-buffer-flag nil)
+        (with-selected-window (if buffer (selected-window)
+                                (display-buffer
+                                 occur-buffer
+                                 '((display-buffer-pop-up-window display-buffer-use-some-window))))
+          (let ((inhibit-read-only t))
+            (if el-search-occur-search-object
+                (progn
+                  (erase-buffer)
+                  (delete-all-overlays))
+              (el-search-occur-mode)
+              (setq el-search-occur-search-object search))
+            (insert (format ";;; * %s   -*- mode: el-search-occur -*-\n\n;; %s\n\n"
+                            (current-time-string)
+                            (el-search--get-search-description-string search)))
+            (condition-case-unless-debug err
+                (let ((stream-of-matches
+                       (el-search--stream-partition
+                        (funcall (el-search-object-get-matches search))
+                        (lambda (this prev) (and (eq (car this) (car prev)) (equal (nth 2 this) (nth 2 prev))))))
+                      stream-of-buffer-matches  buffer-matches
+                      (matching-files 0) (matching-buffers 0) (overall-matches 0))
+                  (while (setq stream-of-buffer-matches (stream-pop stream-of-matches))
+                    (setq buffer-matches (seq-length stream-of-buffer-matches))
+                    (cl-incf overall-matches buffer-matches)
+                    (pcase-let ((`(,buffer ,_ ,file) (stream-first stream-of-buffer-matches)))
+                      (if file (cl-incf matching-files) (cl-incf matching-buffers))
+                      (insert "\n;;; ** ")
+                      (insert-button
+                       (or file (format "%S" buffer))
+                       'action
+                       (let ((pattern (el-search--current-pattern)))
+                         (lambda (_)
+                           (pop-to-buffer
+                            (if file (find-file-noselect file) buffer)
+                            el-search-display-buffer-popup-action)
+                           (widen)
+                           (goto-char (point-min))
+                           (el-search-setup-search-1
+                            pattern
+                            (let ((buf (current-buffer)))
+                              (lambda () (stream (list buf))))
+                            'from-here)
+                           (el-search--next-buffer el-search--current-search)
+                           (setq this-command 'el-search-pattern
+                                 el-search--success t)
+                           (el-search-hl-other-matches (el-search--current-matcher))
+                           (add-hook 'post-command-hook #'el-search-hl-post-command-fun t t)
+                           (el-search--message-no-log
+                            (substitute-command-keys "Hit \\[el-search-pattern] for local search")))))
+                      (insert (format "  (%d match%s)\n"
+                                      buffer-matches
+                                      (if (> buffer-matches 1) "es" "")))
+                      (let* ((get-context
+                              (lambda (match-beg)
+                                (let ((context-beg nil)
+                                      (need-more-context-p
+                                       (lambda (start)
+                                         (let (end)
+                                           (pcase (save-excursion
+                                                    (goto-char start)
+                                                    (prog1 (read (current-buffer))
+                                                      (setq end (point))))
+                                             ((or (pred atom) `(,(pred atom))) t)
+                                             ((guard (< (- end start) 100))     t)))))
+                                      (try-go-upwards (lambda (pos) (condition-case nil (scan-lists pos -1 1)
+                                                                 (scan-error)))))
+                                  (with-current-buffer buffer
+                                    (when (funcall need-more-context-p match-beg)
+                                      (setq context-beg (funcall try-go-upwards match-beg))
+                                      (when (and context-beg (funcall need-more-context-p context-beg))
+                                        (setq context-beg (or (funcall try-go-upwards context-beg)
+                                                              context-beg))))
+                                    (cons (or context-beg match-beg)
+                                          (if context-beg (scan-lists context-beg 1 0)
+                                            (scan-sexps match-beg 1)))))))
+                             (buffer-matches+contexts
+                              (seq-map (pcase-lambda ((and match `(,_ ,match-beg ,_)))
+                                         (cons match (funcall get-context match-beg)))
+                                       stream-of-buffer-matches)))
+                        (while (not (stream-empty-p buffer-matches+contexts))
+                          (pcase-let ((`((,_ ,match-beg ,_) . (,context-beg . ,context-end))
+                                       (stream-first buffer-matches+contexts)))
+                            (let ((insertion-point (point)) matches
+                                  (end-of-defun (with-current-buffer buffer
+                                                  (goto-char match-beg)
+                                                  (let ((paren-depth (car (syntax-ppss))))
+                                                    (if (< 0 paren-depth)
+                                                        (scan-lists match-beg 1 paren-depth)
+                                                      (el-search--end-of-sexp))))))
+                              (let ((rest buffer-matches+contexts)
+                                    (remaining-buffer-matches-+contexts buffer-matches+contexts))
+                                (with-current-buffer buffer
+                                  (while (pcase (stream-first rest)
+                                           (`(,_ . (,(and cbeg (pred (> end-of-defun))) . ,_))
+                                            (prog1 t
+                                              (stream-pop rest)
+                                              (when (< cbeg context-end)
+                                                (setq remaining-buffer-matches-+contexts rest)
+                                                (when (< cbeg context-beg)
+                                                  (setq context-beg cbeg)
+                                                  (setq context-end
+                                                        (or (scan-sexps cbeg 1) context-end)))))))))
+                                (setq matches
+                                      (car (el-search--stream-divide
+                                            buffer-matches+contexts
+                                            (lambda (_ rest)
+                                              (not (eq rest remaining-buffer-matches-+contexts))))))
+                                (setq buffer-matches+contexts remaining-buffer-matches-+contexts))
+                              (cl-flet ((insert-match-and-advance
+                                         (match-beg)
+                                         (let ((insertion-point (point)))
+                                           (insert (propertize
+                                                    (with-current-buffer buffer
+                                                      (buffer-substring-no-properties
+                                                       (goto-char match-beg)
+                                                       (goto-char (scan-sexps (point) 1))))
+                                                    'match-data `(,buffer ,match-beg ,file)))
+                                           (let ((ov (make-overlay insertion-point (point) nil t)))
+                                             (overlay-put ov 'face 'el-search-match))
+                                           (with-current-buffer buffer (point)))))
+                                (let ((working-position context-beg))
+                                  (while (not (stream-empty-p matches))
+                                    (pcase-let ((`((,_ ,match-beg ,_) . ,_) (stream-pop matches)))
+                                      (insert-buffer-substring buffer working-position match-beg)
+                                      (setq working-position (insert-match-and-advance match-beg))
+                                      ;; Drop any matches inside the printed area.
+                                      ;; FIXME: Should we highlight matches inside matches specially?
+                                      ;; Should we display the number of matches included in a context?
+                                      (while (pcase (stream-first matches)
+                                               (`((,_ ,(pred (> working-position)) ,_) . ,_) t))
+                                        (stream-pop matches))))
+                                  (insert
+                                   (with-current-buffer buffer
+                                     (buffer-substring-no-properties (point) (scan-sexps context-beg 1))))))
 
-                          (let ((inhibit-message t) (message-log-max nil))
-                            (indent-region insertion-point (point))
-                            (save-excursion
-                              (goto-char insertion-point)
-                              (ignore-errors
-                                ;; This can error...
-                                (if nil ;if need-context
-                                    (hs-hide-level 1)
-                                  (hs-hide-block)))))
-                          (insert "\n")))))))
+                              (let ((inhibit-message t) (message-log-max nil))
+                                (indent-region insertion-point (point))
+                                (save-excursion
+                                  (goto-char insertion-point)
+                                  (ignore-errors
+                                    ;; This can error...
+                                    (if nil ;if need-context
+                                        (hs-hide-level 1)
+                                      (hs-hide-block)))))
+                              (insert "\n")))))))
 
-              (insert
-               (if (zerop overall-matches)
-                   ";;; * No matches"
-                 (concat
-                  (format "\n\n;;; * %d matches in " overall-matches)
-                  (unless (zerop matching-files) (format "%d files" matching-files))
-                  (unless (or (zerop matching-files) (zerop matching-buffers)) " and ")
-                  (unless (zerop matching-buffers)  (format "%d buffers" matching-buffers))
-                  ".")))
-              (goto-char (point-min)))
-          (quit  (insert "\n\n;;; * Aborted"))
-          (error (insert "\n\n;;; * Error: " (error-message-string err)
-                         "\n;;; Please make a bug report to the maintainer.  Yes, really.
+                  (insert
+                   (if (zerop overall-matches)
+                       ";;; * No matches"
+                     (concat
+                      (format "\n\n;;; * %d matches in " overall-matches)
+                      (unless (zerop matching-files) (format "%d files" matching-files))
+                      (unless (or (zerop matching-files) (zerop matching-buffers)) " and ")
+                      (unless (zerop matching-buffers)  (format "%d buffers" matching-buffers))
+                      ".")))
+                  (goto-char (point-min))
+                  (when (bound-and-true-p which-function-mode)
+                    (which-func-ff-hook)))
+              (quit  (insert "\n\n;;; * Aborted"))
+              (error (insert "\n\n;;; * Error: " (error-message-string err)
+                             "\n;;; Please make a bug report to the maintainer.
 ;;; Thanks in advance!")))
-        (el-search--message-no-log "")
-        (set-buffer-modified-p nil))))
-  (el-search-kill-left-over-search-buffers))
+            (el-search--message-no-log "")
+            (set-buffer-modified-p nil))))
+    (el-search-kill-left-over-search-buffers)))
 
 (defun el-search-occur ()
   "Display an occur-like overview of matches of the current search.
@@ -2566,7 +2594,7 @@ reindent."
                                 (setf (alist-get 'description (el-search-object-properties search))
                                       "Search created by `el-search-query-replace'"))))
   (let ((replace-all nil) (replace-all-and-following nil)
-        nbr-replaced nbr-skipped (done nil) (nbr-replaced-multi 0) (nbr-changed-buffers 0)
+        nbr-replaced nbr-skipped (done nil) (nbr-replaced-total 0) (nbr-changed-buffers 0)
         (el-search-keep-hl t) (opoint (point))
         (get-replacement (el-search--matcher pattern replacement))
         (skip-matches-in-replacement 'ask)
@@ -2621,7 +2649,7 @@ reindent."
                                (el-search--ensure-sexp-start) ;skip potentially newly added whitespace
                                (unless replace-all (el-search-hl-sexp (list opoint (point))))
                                (cl-incf nbr-replaced)
-                               (cl-incf nbr-replaced-multi)
+                               (cl-incf nbr-replaced-total)
                                (setq replaced-this t)))
                             (query
                              (lambda ()
@@ -2758,7 +2786,7 @@ Quit.  To resume, use e.g. `repeat-complex-command'."))))))))
                        (and el-search--success (not el-search--wrap-flag))))
           (funcall replace-in-current-buffer)
           (unless replace-all-and-following (setq replace-all nil)))
-        (message "Done.  Replaced %d matches in %d buffers." nbr-replaced-multi nbr-changed-buffers)))))
+        (message "Done.  Replaced %d matches in %d buffers." nbr-replaced-total nbr-changed-buffers)))))
 
 (defun el-search-query-replace--read-args ()
   (barf-if-buffer-read-only)
