@@ -36,6 +36,8 @@
 
 ;;; Code:
 
+(require 'subr-x)
+
 (defvar hkhlp--helpers-map nil
   "Map of IDs to helpers.")
 
