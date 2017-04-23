@@ -2067,6 +2067,18 @@ Use the normal search commands to seize the search."
 (defun el-search-occur-revert-function (&rest _)
   (el-search--occur el-search-occur-search-object t))
 
+(defun el-search-edit-occur-pattern (new-pattern)
+  "Change the search pattern associated with this occur buffer.
+Prompt for a new pattern and revert the occur buffer."
+  (interactive (list (let ((el-search--initial-mb-contents
+                            (el-search--pp-to-string
+                             (el-search-object-pattern el-search-occur-search-object))))
+                       (el-search--read-pattern-for-interactive))))
+  (setf (el-search-object-pattern el-search-occur-search-object)
+        new-pattern)
+  (el-search-compile-pattern-in-search el-search-occur-search-object)
+  (revert-buffer))
+
 (defun el-search-occur-jump-to-match ()
   (interactive)
   (if (button-at (point))
@@ -2092,6 +2104,32 @@ Use the normal search commands to seize the search."
            'from-here)
           (setq-local el-search-keep-hl 'once))))))
 
+(defun el-search-occur--next-match (&optional backwards)
+  (let ((done nil) (pos (point)))
+    (when-let ((this-ov (cl-some (lambda (ov) (and (overlay-get ov 'el-search-match) ov))
+                                 (overlays-at pos))))
+      (setq pos (funcall (if backwards #'overlay-start #'overlay-end) this-ov)))
+    (while (and (not done) (setq pos (funcall (if backwards #'previous-single-char-property-change
+                                                #'next-single-char-property-change)
+                                              pos 'el-search-match)))
+      (setq done (or (memq pos (list (point-min) (point-max)))
+                     (cl-some (lambda (ov) (overlay-get ov 'el-search-match))
+                              (overlays-at pos)))))
+    (if (memq pos (list (point-min) (point-max)))
+        (el-search--message-no-log "No match %s this position" (if backwards "before" "after"))
+      (goto-char pos)
+      (save-excursion (hs-show-block)))))
+
+(defun el-search-occur-next-match ()
+  "Move point to the next match."
+  (interactive)
+  (el-search-occur--next-match))
+
+(defun el-search-occur-previous-match ()
+  "Move point to the previous match."
+  (interactive)
+  (el-search-occur--next-match 'backwards))
+
 (declare-function orgstruct-hijacker-org-shifttab-2 'org)
 (defun el-search-occur-cycle ()
   (interactive)
@@ -2106,6 +2144,9 @@ Use the normal search commands to seize the search."
     (define-key map "\r"            #'el-search-occur-jump-to-match)
     (define-key map [S-iso-lefttab] #'el-search-occur-cycle)
     (define-key map [(shift tab)]   #'el-search-occur-cycle)
+    (define-key map [?p]            #'el-search-occur-previous-match)
+    (define-key map [?n]            #'el-search-occur-next-match)
+    (define-key map [?e]            #'el-search-edit-occur-pattern)
     (set-keymap-parent map (make-composed-keymap special-mode-map emacs-lisp-mode-map))
     map))
 
@@ -2244,7 +2285,8 @@ Use the normal search commands to seize the search."
                                                        (goto-char (scan-sexps (point) 1))))
                                                     'match-data `(,buffer ,match-beg ,file)))
                                            (let ((ov (make-overlay insertion-point (point) nil t)))
-                                             (overlay-put ov 'face 'el-search-match))
+                                             (overlay-put ov 'face 'el-search-match)
+                                             (overlay-put ov 'el-search-match t))
                                            (with-current-buffer buffer (point)))))
                                 (let ((working-position context-beg))
                                   (while (not (stream-empty-p matches))
