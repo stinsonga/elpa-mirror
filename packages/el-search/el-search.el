@@ -8,7 +8,7 @@
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
 ;; Version: 1.3.2
-;; Package-Requires: ((emacs "25") (stream "2.2.3"))
+;; Package-Requires: ((emacs "25") (stream "2.2.4"))
 
 
 ;; This file is not part of GNU Emacs.
@@ -360,6 +360,7 @@
 (require 'thingatpt)
 (require 'thunk)
 (require 'stream)
+(require 'stream-x)
 (require 'help-fns) ;el-search--make-docstring
 (require 'ring)     ;el-search-history
 (require 'hideshow) ;folding in *El Occur*
@@ -500,56 +501,6 @@ The non-nil value should be one of the symbols `forward' and
       (pcase cached
         (`(,(pred (equal args)) . ,result) result)
         (_ (cdr (setq cached (cons args (apply function args)))))))))
-
-;; FIXME: the next two should go to stream.el
-(defun el-search--stream-divide (stream fun)
-  "Divide STREAM after the first ELT for that (FUN ELT REST) returns nil.
-The return value is a list of two streams.
-Example:
-
-  (mapcar #'seq-into-sequence
-          (stream-divide
-           (stream (list 1 2 3 5 6 7 9 10 11 23))
-           (lambda (this rest) (< (- (stream-first rest) this) 2))))
-==> ((1 2 3)
-     (5 6 7 9 10 11 23))"
-  (if (stream-empty-p stream)
-      (list stream (stream-empty))
-    (let ((this (stream-pop stream)))
-      (letrec ((take-while
-                (lambda () (stream-make
-                       (cons this
-                             (if (or (stream-empty-p stream) (not (funcall fun this stream)))
-                                 nil
-                               (setq this (stream-pop stream))
-                               (funcall take-while)))))))
-        (let ((first-part (funcall take-while)))
-          (list first-part (stream-delay (progn (stream-flush first-part) stream))))))))
-
-(defun el-search--stream-partition (stream fun)
-  "Partition STREAM into bunches where FUN returns true for subsequent elements.
-The return value is a stream of streams.
-
-Example:
-
-  (seq-into-sequence
-   (seq-map #'seq-into-sequence
-            (stream-partition
-             (stream (list 1 2 3 5 6 7 9 10 15 23))
-                (lambda (x y) (< (- y x) 2)))))
-   ==> ((1 2 3)
-        (5 6 7)
-        (9 10)
-        (15)
-        (23))"
-  (stream-make
-   (if (stream-empty-p stream)
-       nil
-     (let ((divided (el-search--stream-divide stream
-                                              (lambda (x rest) (and (not (stream-empty-p rest))
-                                                               (funcall fun x (stream-first rest)))))))
-       (cons (car divided)
-             (el-search--stream-partition (cadr divided) fun))))))
 
 (defun el-search--message-no-log (format-string &rest args)
   "Like `message' but with `message-log-max' bound to nil."
@@ -2191,9 +2142,10 @@ Use the normal search commands to seize the search."
                             (el-search--get-search-description-string search)))
             (condition-case-unless-debug err
                 (let ((stream-of-matches
-                       (el-search--stream-partition
+                       (stream-partition
                         (funcall (el-search-object-get-matches search))
-                        (lambda (this prev) (and (eq (car this) (car prev)) (equal (nth 2 this) (nth 2 prev))))))
+                        (lambda (this prev)
+                          (and (eq (car this) (car prev)) (equal (nth 2 this) (nth 2 prev))))))
                       stream-of-buffer-matches  buffer-matches
                       (matching-files 0) (matching-buffers 0) (overall-matches 0))
                   (while (setq stream-of-buffer-matches (stream-pop stream-of-matches))
@@ -2278,10 +2230,9 @@ Use the normal search commands to seize the search."
                                                   (setq context-end
                                                         (or (scan-sexps cbeg 1) context-end)))))))))
                                 (setq matches
-                                      (car (el-search--stream-divide
+                                      (car (stream-divide-with-get-rest-fun
                                             buffer-matches+contexts
-                                            (lambda (_ rest)
-                                              (not (eq rest remaining-buffer-matches-+contexts))))))
+                                            (lambda (_) remaining-buffer-matches-+contexts))))
                                 (setq buffer-matches+contexts remaining-buffer-matches-+contexts))
                               (cl-flet ((insert-match-and-advance
                                          (match-beg)
