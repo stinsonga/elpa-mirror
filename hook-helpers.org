@@ -3,7 +3,8 @@
 #+EMAIL: dunni@gnu.org
 
 * Copying
-Copyright (C) 2016-2017 Ian Dunn
+Copyright (C) 2016 Ian Dunn
+Copyright (C) 2017 Free Software Foundation, Inc.
 
 #+BEGIN_QUOTE
 This program is free software: you can redistribute it and/or modify
@@ -34,15 +35,38 @@ This combines the two commonly used methods mentioned above.  The functions
 don't exist, so they don't get in the way of ~C-h f~, but they can be removed or
 modified as needed.
 
-Let's look at an example:
+* Installation
+
+Hook Helpers requires Emacs 25.1 or later.
+
+To install hook helpers, you can clone from the git repo:
+
+#+BEGIN_SRC shell
+git clone https://git.savannah.gnu.org/git/hook-helpers-el hook-helpers
+make -C hook-helpers compile autoloads
+#+END_SRC
+
+After that, setup is easy.  Just add the following to your .emacs file (or
+equivalent):
+
+#+BEGIN_SRC emacs-lisp
+(add-to-list 'load-path "/path/to/hook-helpers")
+(load "/path/to/hook-helpers/hook-helpers-autoloads.el")
+#+END_SRC
+
+* Examples
+Let's look at some examples.
+
+Without using a hook helper, one must do the following:
 
 #+BEGIN_SRC emacs-lisp
 (defun my/after-init-hook ()
   (set-scroll-bar-mode nil))
+(add-hook 'after-init-hook 'my/after-init-hook)
 #+END_SRC
 
-You've got to remember to actually add this to the after-init-hook variable.
-Alternatively, you can use a lambda function:
+If you forget the ~add-hook~ call, then this doesn't do any good.  Alternatively,
+you can use a lambda function:
 
 #+BEGIN_SRC emacs-lisp
 (add-hook 'after-init-hook (lambda () (set-scroll-bar-mode nil)))
@@ -53,7 +77,7 @@ after-init-hook variable, and you have to deal with it.  It's not a problem for
 after-init-hook, which is used once, but would be a problem for a mode hook,
 like text-mode-hook.
 
-Instead, hook-helpers can do the following:
+With a hook helper, this is reduced to the following:
 
 #+BEGIN_SRC emacs-lisp
 (define-hook-helper after-init ()
@@ -62,8 +86,7 @@ Instead, hook-helpers can do the following:
 
 Which handles everything for you.
 
-* Usage
-
+* In-Depth Usage
 There are two macros in hook helpers: ~define-hook-helper~ and ~create-hook-helper~.
 
 The former is a basic case; it creates and adds a helper for a single hook.

@@ -1,6 +1,7 @@
 # This is part of Hook Helpers
 #
-#  Copyright (C) 2016 Ian Dunn.
+#  Copyright (C) 2016 Ian Dunn
+#  Copyright (C) 2017 Free Software Foundation, Inc.
 #
 #  This program is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -40,7 +41,7 @@ hook-helpers-autoloads.el:
 clean:
 	-rm -f *.elc
 
-check:
+check: compile
 	@$(EMACS) \
 	-L "." \
 	--load "ert" \

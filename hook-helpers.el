@@ -1,13 +1,16 @@
-;;; hook-helpers.el --- Anonymous, modifiable hook functions
+;;; hook-helpers.el --- Anonymous, modifiable hook functions -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2016 Ian Dunn
+;; Copyright (C) 2017 Free Software Foundation, Inc.
 
 ;; Author: Ian Dunn <dunni@gnu.org>
+;; Maintainer: Ian Dunn <dunni@gnu.org>
 ;; Keywords: development, hooks
+;; Package-Requires: ((emacs "25.1"))
 ;; URL: https://savannah.nongnu.org/projects/hook-helpers-el/
-;; Version: 1.1alpha1
+;; Version: 1.1beta1
 ;; Created: 06 May 2016
-;; Modified: 21 May 2016
+;; Modified: 23 Apr 2017
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -27,12 +30,13 @@
 ;; Often times, I see people define a function to be used once in a hook.  If
 ;; they don’t do this, then it will be an anonymous function.  If the anonymous
 ;; function is modified, then the function can’t be removed.  With a function
-;; outside of the ‘add-hook’ call, it looks messy.
+;; outside of the `add-hook' call, it looks messy.
 
-;; The ‘define-hook-helper’ macro is a solution to this.  Think of it as an
-;; anaphoric ‘add-hook’, but one that can be called many times without risking
-;; redundant hook functions.  It gives a cleaner look and feel to Emacs
-;; configuration files.
+;; Hook Helpers are a solution to this.  A "hook helper" is an anonymous,
+;; modifiable function created for the sole purpose of being attached to a hook.
+;; This combines the two commonly used methods mentioned above.  The functions
+;; don't exist, so they don't get in the way of `describe-function', but they
+;; can be removed or modified as needed.
 
 ;;; Code:
 
@@ -104,6 +108,7 @@ For each hook HOOK in the original:
           ;; Delete the helper from the hooks
           (cl-delete old-func (symbol-value hook) :test 'equal)))))))
 
+;;;###autoload
 (defmacro create-hook-helper (id args &optional docstring &rest body)
   "Creates a new hook helper ID for the hooks in HOOKS.
 
