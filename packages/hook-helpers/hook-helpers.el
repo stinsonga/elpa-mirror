@@ -8,7 +8,7 @@
 ;; Keywords: development, hooks
 ;; Package-Requires: ((emacs "25.1"))
 ;; URL: https://savannah.nongnu.org/projects/hook-helpers-el/
-;; Version: 1.1beta1
+;; Version: 1.1
 ;; Created: 06 May 2016
 ;; Modified: 23 Apr 2017
 
