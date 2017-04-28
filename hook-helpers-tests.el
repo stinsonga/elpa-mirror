@@ -1,7 +1,6 @@
 ;;; hook-helpers-tests.el --- Tests for hook helpers
 
-;; Copyright (C) 2016 Ian Dunn
-;; Copyright (C) 2017 Free Software Foundation, Inc.
+;; Copyright (C) 2016-2017 Free Software Foundation, Inc.
 
 ;; Author: Ian Dunn <dunni@gnu.org>
 ;; Keywords: development, hooks
