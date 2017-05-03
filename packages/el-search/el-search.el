@@ -44,22 +44,42 @@
 ;; patterns and your own multi-search commands.
 ;;
 ;;
-;; Suggested key bindings
-;; ======================
+;; Key bindings
+;; ============
 ;;
-;; After loading this file, you can eval
-;; (el-search-install-shift-bindings) to install a set of key bindings
-;; to try things out (no other setup is needed).  Here is an overview
-;; of the most important bindings that this function will establish -
-;; most are of the form Control-Shift-Letter:
+;; Loading this file doesn't install any key bindings - but you
+;; probably want some.  There are two predefined sets of key bindings.
+;; The first set installs bindings mostly of the form
+;; "Control-Shift-Letter", e.g. C-S, C-R, C-% etc.  These can be
+;; installed by calling (el-search-install-shift-bindings) - typically
+;; in your init file.  For console users (and others), the function
+;; `el-search-install-bindings-under-prefix' installs bindings of the
+;; form PREFIX LETTER.  If you e.g. call
 ;;
-;;   C-S (el-search-pattern)
+;;   (el-search-install-bindings-under-prefix [(meta ?s) ?e])
+;;
+;; you install bindings M-s e s, M-s e r, M-s e % etc.  When using
+;; this function to install key bindings, the bindings are
+;; "repeatable" where it makes sense, so that you can for example hit
+;; M-s e j s s s a % to reactive the last search, go to the next match
+;; three times, then go back to the first match in the current buffer,
+;; and finally invoke query-replace.
+;;
+;; Here is a complete list of key bindings installed when
+;; you call
+;;   (el-search-install-shift-bindings)
+;; or
+;;   (el-search-install-bindings-under-prefix [(meta ?s) ?e])
+;;
+;; respectively:
+;;
+;;   C-S, M-s e s (el-search-pattern)
 ;;     Start a search in the current buffer/go to the next match.
 ;;
-;;   C-R (el-search-pattern-backwards)
+;;   C-R, M-s e r (el-search-pattern-backwards)
 ;;     Search backwards.
 ;;
-;;   C-% (el-search-query-replace)
+;;   C-%, M-s e % (el-search-query-replace)
 ;;     Do a query-replace.
 ;;
 ;;   M-x el-search-directory
@@ -67,44 +87,39 @@
 ;;     Emacs-Lisp files in that directory.  With prefix arg,
 ;;     recursively search files in subdirectories.
 ;;
-;;   C-S in Dired (el-search-dired-marked-files)
+;;   C-S, M-s e s in Dired (el-search-dired-marked-files)
 ;;     Like above but uses the marked files and directories.
 ;;
-;;   C-O (el-search-occur)
+;;   C-O, M-s e o (el-search-occur)
 ;;     Pop up an occur buffer for the current search.
 ;;
-;;   C-O (from a search pattern prompt)
+;;   C-O or M-RET (from a search pattern prompt)
 ;;     Execute this search command as occur.
 ;;
-;;   C-N (el-search-continue-in-next-buffer)
+;;   C-N, M-s e n (el-search-continue-in-next-buffer)
 ;;     Skip over current buffer or file.
 ;;
-;;   C-D (el-search-skip-directory)
+;;   C-D, M-s e d (el-search-skip-directory)
 ;;     Prompt for a directory name and skip all subsequent files
 ;;     located under this directory.
 ;;
-;;   C-A (el-search-from-beginning) Go back to the first match in this
-;;     buffer or (with prefix arg) completely restart the current
-;;     search from the first file or buffer.
+;;   C-A, M-s e a (el-search-from-beginning)
+;;     Go back to the first match in this buffer or (with prefix arg)
+;;     completely restart the current search from the first file or
+;;     buffer.
 ;;
-;;   C-J (el-search-jump-to-search-head)
+;;   C-J, M-s e j (el-search-jump-to-search-head)
 ;;     Resume the last search from the position of the last visited
 ;;     match, or (with prefix arg) prompt for an old search to resume.
 ;;
-;;   C-H (el-search-this-sexp)
+;;   C-H, M-s e h (el-search-this-sexp)
 ;;     Grab the symbol or sexp under point and initiate an el-search
 ;;     for other occurrences.
 ;;
 ;;
-;; These bindings may not work in a console (if you have a good idea
-;; for nice alternative bindings please mail me).
-;;
 ;; The setup you'll need for your init file is trivial: just define
 ;; the key bindings you want to use (all important commands are
-;; autoloaded) and you are done.  You can either just copy
-;; (el-search-install-shift-bindings) to your init file to use the
-;; above bindings or use its definition as a template for your own key
-;; binding definitions.
+;; autoloaded) and you are done.
 ;;
 ;;
 ;; Usage
@@ -280,8 +295,8 @@
 ;; query-replace is driven by a search, call
 ;; `el-search-jump-to-search-head' (maybe with a prefix arg) to make
 ;; that search current, and invoke `el-search-query-replace' (with the
-;; default bindings, this would be C-J C-%).  This will continue the
-;; query-replace session from where you left.
+;; default bindings, this would be C-J C-% or C-x o j %).  This will
+;; continue the query-replace session from where you left.
 ;;
 ;;
 ;; Advanced usage: Replacement rules for semi-automatic code rewriting
@@ -361,8 +376,6 @@
 ;;
 ;;
 ;; TODO:
-;;
-;; - The default keys are not available in the terminal
 ;;
 ;; - Make searching work in comments, too? (->
 ;;   `parse-sexp-ignore-comments').  Related: should the pattern
@@ -476,6 +489,34 @@ The default value is ask-multi."
                  (const :tag "Ask" ask)
                  (const :tag "Ask when multibuffer" ask-multi)))
 
+(defvar el-search-use-transient-map nil
+  "Whether el-search should make commands repeatable."
+  ;; I originally wanted to make commands repeatable by looking at the
+  ;; command keys.  But that got overly complicated: It interfered with
+  ;; user interaction: we must remember in a flag if the current command
+  ;; invocation was repeatable.  Obviously, we must reset that flag in
+  ;; post-command-hook.  But we must avoid resetting in
+  ;; post-command-hook when the command itself required user input, etc.
+  ;; And it can't even work when we use a button or a register to resume
+  ;; a search.  So let's simply use this flag.
+  )
+
+(defvar el-search-keep-transient-map-commands
+  '(el-search-pattern
+    el-search-pattern-backwards
+    el-search-jump-to-search-head
+    el-search-from-beginning
+    el-search-skip-directory
+    el-search-continue-in-next-buffer
+    universal-argument universal-argument-more
+    digit-argument negative-argument)
+  "List of commands that don't end repeatability of el-search commands.
+
+When `el-search-use-transient-map' is non-nil, when any
+\"repeatable\" el-search command had been invoked, executing any
+of these commands will keep the
+`el-search-prefix-key-transient-map' further in effect.")
+
 (defvar el-search-read-expression-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map read-expression-map)
@@ -483,6 +524,8 @@ The default value is ask-multi."
     (define-key map [up]   nil)
     (define-key map [down] nil)
     (define-key map [(control ?j)] #'newline)
+    (define-key map [(meta return)] #'el-search-set-occur-flag-exit-minibuffer)
+    (define-key map (kbd "M-RET")   #'el-search-set-occur-flag-exit-minibuffer)
     map)
   "Keymap for reading input with `el-search-read-expression'.")
 
@@ -1413,38 +1456,75 @@ in, in order, when called with no arguments."
 
 
 ;;;###autoload
+(defun el-search-loop-over-bindings (function)
+  (cl-flet ((keybind (apply-partially #'funcall function)))
+
+    (keybind emacs-lisp-mode-map           ?s #'el-search-pattern)
+    (keybind emacs-lisp-mode-map           ?r #'el-search-pattern-backwards)
+    (keybind emacs-lisp-mode-map           ?% #'el-search-query-replace)
+    (keybind emacs-lisp-mode-map           ?h #'el-search-this-sexp) ;h like in "highlight" or "here"
+    (keybind global-map                    ?j #'el-search-jump-to-search-head)
+    (keybind global-map                    ?a #'el-search-from-beginning)
+    (keybind global-map                    ?d #'el-search-skip-directory)
+    (keybind global-map                    ?n #'el-search-continue-in-next-buffer)
+
+    (keybind global-map                    ?o #'el-search-occur)
+
+    (keybind el-search-read-expression-map ?s #'exit-minibuffer)
+    (keybind el-search-read-expression-map ?r #'exit-minibuffer)
+    (keybind el-search-read-expression-map ?o #'el-search-set-occur-flag-exit-minibuffer)
+
+    (keybind isearch-mode-map              ?s #'el-search-search-from-isearch)
+    (keybind isearch-mode-map              ?r #'el-search-search-backwards-from-isearch)
+    (keybind isearch-mode-map              ?% #'el-search-replace-from-isearch)
+    (keybind isearch-mode-map              ?o #'el-search-occur-from-isearch)
+
+    (keybind global-map                    ?e #'el-search-emacs-elisp-sources)
+    (keybind global-map                    ?l #'el-search-load-path)
+    (keybind global-map                    ?b #'el-search-buffers)
+
+    (defvar dired-mode-map)
+
+    (with-eval-after-load 'dired
+      (keybind dired-mode-map ?s #'el-search-dired-marked-files))))
+
+(defvar el-search-prefix-key-transient-map
+  (let ((transient-map (make-sparse-keymap)))
+    (el-search-loop-over-bindings
+     (lambda (_map key command)
+       (when (memq command '(el-search-pattern
+                             el-search-pattern-backwards
+                             el-search-query-replace
+                             el-search-from-beginning
+                             el-search-skip-directory
+                             el-search-continue-in-next-buffer
+                             el-search-occur))
+         (define-key transient-map (vector key) command))))
+    transient-map))
+
+(defun el-search-prefix-key-maybe-set-transient-map ()
+  (when el-search-use-transient-map
+    (set-transient-map el-search-prefix-key-transient-map
+                       (lambda () (memq this-command el-search-keep-transient-map-commands)))))
+
+(defun el-search-shift-bindings-bind-function (map key command)
+  (define-key map `[(control ,@(if (<= ?a key ?z) `(shift ,key) `(,key)))] command))
+
+;;;###autoload
 (defun el-search-install-shift-bindings ()
   (interactive)
+  (el-search-loop-over-bindings #'el-search-shift-bindings-bind-function))
 
-  (define-key emacs-lisp-mode-map [(control ?S)] #'el-search-pattern)
-  (define-key emacs-lisp-mode-map [(control ?R)] #'el-search-pattern-backwards)
-  (define-key emacs-lisp-mode-map [(control ?%)] #'el-search-query-replace)
-  (define-key emacs-lisp-mode-map [(control ?H)] #'el-search-this-sexp) ;H like in "highlight" or "here"
-  (define-key global-map          [(control ?J)] #'el-search-jump-to-search-head)
-  (define-key global-map          [(control ?A)] #'el-search-from-beginning)
-  (define-key global-map          [(control ?D)] #'el-search-skip-directory)
-  (define-key global-map          [(control ?N)] #'el-search-continue-in-next-buffer)
+(defun el-search-bind-under-prefix-key-function (prefix)
+  (lambda (map key command)
+    (unless (memq map (list el-search-read-expression-map isearch-mode-map))
+      (define-key map `[,@(seq-into prefix 'list) ,key] command))))
 
-  (define-key global-map          [(control ?O)] #'el-search-occur)
-
-  (define-key el-search-read-expression-map [(control ?S)] #'exit-minibuffer)
-  (define-key el-search-read-expression-map [(control ?R)] #'exit-minibuffer)
-  (define-key el-search-read-expression-map [(control ?O)]
-    #'el-search-set-occur-flag-exit-minibuffer)
-
-  (define-key isearch-mode-map [(control ?S)] #'el-search-search-from-isearch)
-  (define-key isearch-mode-map [(control ?R)] #'el-search-search-backwards-from-isearch)
-  (define-key isearch-mode-map [(control ?%)] #'el-search-replace-from-isearch)
-  (define-key isearch-mode-map [(control ?O)] #'el-search-occur-from-isearch)
-
-  (define-key global-map [(control ?E)] #'el-search-emacs-elisp-sources)
-  (define-key global-map [(control ?L)] #'el-search-load-path)
-  (define-key global-map [(control ?B)] #'el-search-buffers)
-
-  (defvar dired-mode-map)
-
-  (with-eval-after-load 'dired
-    (define-key dired-mode-map [(control ?S)] #'el-search-dired-marked-files)))
+;;;###autoload
+(defun el-search-install-bindings-under-prefix (prefix-key)
+  (el-search-loop-over-bindings
+   (el-search-bind-under-prefix-key-function prefix-key))
+  (setq el-search-use-transient-map t))
 
 (defun el-search-setup-search-1 (pattern get-buffer-stream  &optional from-here setup-function)
   (setq el-search--success nil)
@@ -1452,7 +1532,8 @@ in, in order, when called with no arguments."
         (el-search-make-search pattern get-buffer-stream))
   (when setup-function (funcall setup-function el-search--current-search))
   (ring-insert el-search-history el-search--current-search)
-  (when from-here (setq el-search--temp-buffer-flag nil)))
+  (when from-here (setq el-search--temp-buffer-flag nil))
+  (el-search-prefix-key-maybe-set-transient-map))
 
 (defun el-search-setup-search (pattern get-buffer-stream &optional setup-function from-here)
   "Create and start a new el-search.
@@ -1769,10 +1850,7 @@ absolute name must be matched by all of them."
 (defvar-local el-search-hl-other-overlays '())
 
 (defvar el-search-keep-hl nil
-  "Non-nil indicates we should not remove any highlighting.
-
-If the non-nil value is the symbol `once', inhibit highlight
-removal only once.")
+  "Non-nil indicates we should not remove any highlighting.")
 
 (defun el-search-hl-sexp (&optional bounds)
   (let ((bounds (or bounds (list (point) (el-search--end-of-sexp)))))
@@ -1951,9 +2029,7 @@ local binding of `window-scroll-functions'."
   (pcase this-command
     ('el-search-query-replace)
     ('el-search-pattern (el-search-display-match-count))
-    (_ (if el-search-keep-hl
-           (when (eq el-search-keep-hl 'once)
-             (setq el-search-keep-hl nil))
+    (_ (unless el-search-keep-hl
          (el-search-hl-remove)
          (remove-hook 'post-command-hook 'el-search-hl-post-command-fun t)
          (setq el-search--temp-buffer-flag nil)
@@ -2065,7 +2141,8 @@ current."
               (setf (el-search-object-last-match el-search--current-search)
                     (copy-marker (point)))
               (el-search-hl-sexp)
-              (el-search-hl-other-matches (el-search--current-matcher))))))
+              (el-search-hl-other-matches (el-search--current-matcher))
+              (el-search-prefix-key-maybe-set-transient-map)))))
     (el-search--message-no-log "[Search completed - restarting]")
     (sit-for 1.5)
     (el-search-reset-search el-search--current-search)
@@ -2149,7 +2226,8 @@ continued."
                           el-search--success
                           (eq (current-buffer) old-current-buffer))
                (el-search-hl-other-matches matcher))
-             (setq el-search--success t))))
+             (setq el-search--success t)))
+         (el-search-prefix-key-maybe-set-transient-map))
      (el-search-kill-left-over-search-buffers))))
 
 (defun el-search-skip-directory (directory)
@@ -2241,7 +2319,9 @@ With prefix arg, restart the current search."
   (declare (interactive-only t))
   (interactive (el-search-pattern--interactive))
   (if (eq pattern (el-search--current-pattern))
-      (el-search-compile-pattern-in-search el-search--current-search)
+      (progn
+        (el-search-compile-pattern-in-search el-search--current-search)
+        (el-search-prefix-key-maybe-set-transient-map))
     (el-search-setup-search-1
      pattern
      (let ((current-buffer (current-buffer)))
@@ -2449,7 +2529,6 @@ Prompt for a new pattern and revert."
         (el-search-display-match-count))
       (el-search-hl-other-matches (el-search--current-matcher))
       (add-hook 'post-command-hook #'el-search-hl-post-command-fun t t)
-      (setq-local el-search-keep-hl 'once)
       (when do-fun (funcall do-fun)))))
 
 (defun el-search-occur--next-match (&optional backwards)
