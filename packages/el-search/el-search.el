@@ -1915,10 +1915,6 @@ additional pattern types are currently defined:"
     (progn
       (el-search--skip-expression nil t)
       (el-search-continue-search 'from-here)))
-   ((and (equal pattern (el-search--current-pattern))
-         (eq (current-buffer)
-             (el-search-head-buffer (el-search-object-head el-search--current-search))))
-    (el-search-continue-search 'from-here))
    (t ;create a new search single-buffer search
     (el-search-setup-search
      pattern
