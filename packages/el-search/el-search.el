@@ -1166,7 +1166,7 @@ The elements of the returned stream will have the form
 where BUFFER or FILE is the buffer or file where a match has been
 found (exactly one of the two will be nil), and MATCH-BEG is the
 position of the beginning of the match."
-  (let* ((search (el-search-reset-search search))
+  (let* ((search (el-search-reset-search (copy-el-search-object search)))
          (head (el-search-object-head search)))
     (seq-filter
      #'identity ;we use `nil' as a "skip" tag
@@ -1235,17 +1235,16 @@ in, in order, when called with no arguments."
     search))
 
 (defun el-search-reset-search (search)
-  "Return a reset copy of SEARCH."
-  (let* ((copy (copy-el-search-object search))
-         (head (el-search-object-head copy)))
+  "Reset SEARCH."
+  (let ((head (el-search-object-head search)))
     (setf (el-search-head-buffers head)
           (funcall (el-search-head-get-buffer-stream head)))
     (setf (el-search-head-buffer head)   nil)
     (setf (el-search-head-file head)     nil)
     (setf (el-search-head-position head) nil)
-    (setf (el-search-object-last-match copy) nil)
-    (el-search-compile-pattern-in-search copy)
-    copy))
+    (setf (el-search-object-last-match search) nil)
+    (el-search-compile-pattern-in-search search)
+    search))
 
 (defun el-search-setup-search-1 (pattern get-buffer-stream  &optional from-here setup-function)
   (setq el-search--success nil)
@@ -1771,7 +1770,7 @@ that the current search."
             (el-search-hl-other-matches (el-search--current-matcher)))))
     (el-search--message-no-log "[Search completed - restarting]")
     (sit-for 1.5)
-    (cl-callf el-search-reset-search el-search--current-search)
+    (el-search-reset-search el-search--current-search)
     (el-search-continue-search)))
 
 (defun el-search-continue-search (&optional from-here)
@@ -1932,7 +1931,7 @@ With prefix arg, restart the current search."
   (if (not restart-search)
       (setf (el-search-head-position (el-search-object-head el-search--current-search))
             (point-min))
-    (cl-callf el-search-reset-search el-search--current-search)
+    (el-search-reset-search el-search--current-search)
     (setq el-search--success nil))
   (el-search-continue-search))
 
