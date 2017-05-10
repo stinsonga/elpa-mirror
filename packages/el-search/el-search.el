@@ -502,6 +502,17 @@ The non-nil value should be one of the symbols `forward' and
         (`(,(pred (equal args)) . ,result) result)
         (_ (cdr (setq cached (cons args (apply function args)))))))))
 
+(defmacro el-search-when-unwind (body-form &rest unwindforms)
+  "Like `unwind-protect' but eval the UNWINDFORMS only if unwinding."
+  (declare (indent 1))
+  (let ((done (make-symbol "done")))
+    `(let ((,done nil))
+       (unwind-protect
+           (prog1 ,body-form
+             (setq ,done t))
+         (unless ,done
+           ,@unwindforms)))))
+
 (defun el-search--message-no-log (format-string &rest args)
   "Like `message' but with `message-log-max' bound to nil."
   (let ((message-log-max nil))
@@ -886,6 +897,12 @@ optional MESSAGE are used to construct the error message."
   file                     ;name of currently searched file, or nil
   buffers                  ;stream of buffers and/or files yet to search
   )
+
+(defmacro el-search-protect-search-head (&rest body)
+  "Reset current search's head when BODY exits non-locally."
+  (macroexp-let2 nil head-copy '(copy-el-search-head (el-search-object-head el-search--current-search))
+    `(el-search-when-unwind (progn ,@body)
+                            (setf (el-search-object-head el-search--current-search) ,head-copy))))
 
 (defun el-search--get-search-description-string (search &optional verbose)
   (concat
@@ -1783,75 +1800,76 @@ continued."
   (interactive "P")
   (setq this-command 'el-search-pattern)
   (el-search-compile-pattern-in-search el-search--current-search)
-  (unwind-protect
-      (let* ((old-current-buffer (current-buffer))
-             (head (el-search-object-head el-search--current-search))
-             (current-search-buffer
-              (or (el-search-head-buffer head)
-                  (el-search--next-buffer el-search--current-search))))
-        (when from-here
-          (cond
-           ((eq (current-buffer) current-search-buffer)
-            (setf (el-search-head-position head) (copy-marker (point))))
-           ((and current-search-buffer (buffer-live-p current-search-buffer))
-            (user-error "Please resume from buffer %s" (buffer-name current-search-buffer)))
-           (current-search-buffer
-            (user-error "Search head points to a killed buffer"))))
-        (let ((match nil)
-              (matcher (el-search--current-matcher))
-              (heuristic-matcher (el-search--current-heuristic-matcher)))
-          (while (and (el-search-head-buffer head)
-                      (not (setq match (with-current-buffer (el-search-head-buffer head)
-                                         (save-excursion
-                                           (goto-char (el-search-head-position head))
-                                           (el-search--search-pattern-1
-                                            matcher t nil heuristic-matcher))))))
-            (el-search--next-buffer el-search--current-search))
-          (if (not match)
-              (progn
-                (if (not (or el-search--success
-                             (and from-here
-                                  (save-excursion
-                                    (goto-char (point-min))
-                                    (el-search--search-pattern-1 matcher t nil heuristic-matcher)))))
-                    (progn
-                      (el-search--message-no-log "No matches")
-                      (sit-for .7))
-                  (el-search--set-wrap-flag 'forward)
-                  (let ((keys (car (where-is-internal 'el-search-pattern))))
-                    (el-search--message-no-log
-                     (if keys
-                         (format "No (more) matches - Hit %s to wrap search"
-                                 (key-description keys))
-                       "No (more) matches")))))
-            (let (match-start)
-              ;; If (el-search-head-buffer head) is only a worker buffer, replace it
-              ;; with a buffer created with `find-file-noselect'
-              (with-current-buffer (el-search-head-buffer head)
-                (goto-char match)
-                (setq match-start (point))
-                (when el-search--temp-file-buffer-flag
-                  (let ((file-name buffer-file-name))
-                    (setq buffer-file-name nil) ;prevent f-f-ns to find this buffer
-                    (let ((buffer-list-before (buffer-list))
-                          (new-buffer (find-file-noselect file-name)))
-                      (setf (el-search-head-buffer head) new-buffer)
-                      (unless (memq new-buffer buffer-list-before)
-                        (with-current-buffer new-buffer
-                          (setq-local el-search--temp-buffer-flag t)))))))
-              (pop-to-buffer (el-search-head-buffer head) el-search-display-next-buffer-action)
-              (goto-char match-start))
-            (setf (el-search-object-last-match el-search--current-search)
-                  (copy-marker (point)))
-            (setf (el-search-head-position head)
-                  (copy-marker (point)))
-            (el-search-hl-sexp)
-            (unless (and (eq this-command last-command)
-                         el-search--success
-                         (eq (current-buffer) old-current-buffer))
-              (el-search-hl-other-matches matcher))
-            (setq el-search--success t))))
-    (el-search-kill-left-over-search-buffers)))
+  (el-search-protect-search-head
+   (unwind-protect
+       (let* ((old-current-buffer (current-buffer))
+              (head (el-search-object-head el-search--current-search))
+              (current-search-buffer
+               (or (el-search-head-buffer head)
+                   (el-search--next-buffer el-search--current-search))))
+         (when from-here
+           (cond
+            ((eq (current-buffer) current-search-buffer)
+             (setf (el-search-head-position head) (copy-marker (point))))
+            ((and current-search-buffer (buffer-live-p current-search-buffer))
+             (user-error "Please resume from buffer %s" (buffer-name current-search-buffer)))
+            (current-search-buffer
+             (user-error "Search head points to a killed buffer"))))
+         (let ((match nil)
+               (matcher (el-search--current-matcher))
+               (heuristic-matcher (el-search--current-heuristic-matcher)))
+           (while (and (el-search-head-buffer head)
+                       (not (setq match (with-current-buffer (el-search-head-buffer head)
+                                          (save-excursion
+                                            (goto-char (el-search-head-position head))
+                                            (el-search--search-pattern-1
+                                             matcher t nil heuristic-matcher))))))
+             (el-search--next-buffer el-search--current-search))
+           (if (not match)
+               (progn
+                 (if (not (or el-search--success
+                              (and from-here
+                                   (save-excursion
+                                     (goto-char (point-min))
+                                     (el-search--search-pattern-1 matcher t nil heuristic-matcher)))))
+                     (progn
+                       (el-search--message-no-log "No matches")
+                       (sit-for .7))
+                   (el-search--set-wrap-flag 'forward)
+                   (let ((keys (car (where-is-internal 'el-search-pattern))))
+                     (el-search--message-no-log
+                      (if keys
+                          (format "No (more) matches - Hit %s to wrap search"
+                                  (key-description keys))
+                        "No (more) matches")))))
+             (let (match-start)
+               ;; If (el-search-head-buffer head) is only a worker buffer, replace it
+               ;; with a buffer created with `find-file-noselect'
+               (with-current-buffer (el-search-head-buffer head)
+                 (goto-char match)
+                 (setq match-start (point))
+                 (when el-search--temp-file-buffer-flag
+                   (let ((file-name buffer-file-name))
+                     (setq buffer-file-name nil) ;prevent f-f-ns to find this buffer
+                     (let ((buffer-list-before (buffer-list))
+                           (new-buffer (find-file-noselect file-name)))
+                       (setf (el-search-head-buffer head) new-buffer)
+                       (unless (memq new-buffer buffer-list-before)
+                         (with-current-buffer new-buffer
+                           (setq-local el-search--temp-buffer-flag t)))))))
+               (pop-to-buffer (el-search-head-buffer head) el-search-display-next-buffer-action)
+               (goto-char match-start))
+             (setf (el-search-object-last-match el-search--current-search)
+                   (copy-marker (point)))
+             (setf (el-search-head-position head)
+                   (copy-marker (point)))
+             (el-search-hl-sexp)
+             (unless (and (eq this-command last-command)
+                          el-search--success
+                          (eq (current-buffer) old-current-buffer))
+               (el-search-hl-other-matches matcher))
+             (setq el-search--success t))))
+     (el-search-kill-left-over-search-buffers))))
 
 (defun el-search-skip-directory (directory)
   "Skip all subsequent matches in files located under DIRECTORY."
