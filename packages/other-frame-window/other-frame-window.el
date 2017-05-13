@@ -1,11 +1,11 @@
 ;;; other-frame-window.el --- Minor mode to enable global prefix keys for other frame/window buffer placement  -*- lexical-binding: t -*-
 ;;
-;; Copyright (C) 2015  Free Software Foundation, Inc.
+;; Copyright (C) 2015, 2017  Free Software Foundation, Inc.
 ;;
 ;; Author: Stephen Leake <stephen_leake@member.fsf.org>
 ;; Maintainer: Stephen Leake <stephen_leake@member.fsf.org>
 ;; Keywords: frame window
-;; Version: 1.0.2
+;; Version: 1.0.3
 ;; Package-Requires: ((emacs "24.4"))
 ;;
 ;; This file is part of GNU Emacs.
@@ -226,7 +226,49 @@ Point stays in moved buffer."
 ;;;###autoload
 (define-minor-mode other-frame-window-mode
   "Minor mode for other frame/window buffer placement.
-Enable mode if ARG is positive."
+Enable mode if ARG is positive.
+
+\\[ofw-other-window] <command> causes a buffer displayed by <command>
+to appear in another window in the same frame; a window
+is created if necessary.
+
+\\[ofw-other-frame] <command> causes a buffer displayed by <command>
+to appear in another frame; a frame is created if necessary.
+
+\\[ofw-other-window] 0 deletes the current window.
+
+\\[ofw-other-frame] 0 deletes the current frame.
+
+\\[ofw-move-to-other-window] moves the current buffer to another
+window in the same frame.
+
+\\[ofw-move-to-other-frame] moves the current buffer to another
+frame.
+
+In addition, \\[ofw-other-window] and \\[ofw-other-frame] can be followed by these keys:
+
+1 - deletes the other windows/frames.
+
+2 - shows another view of the current buffer in a new
+    window/frame.
+
+a - creates a commit log entry for the current defun in
+    another window/frame.
+
+b - switches to another buffer in another window/frame.
+
+d - start dired in another window/frame.
+
+f - find-file in another window/frame.
+
+m - compose mail in another window/frame.
+
+o - move to another window/frame.
+
+r - find-file-read-only in another window/frame.
+
+To extend this list, add key bindings to ‘ofw-transient-map’.
+"
   :global t
 
   (remove-hook 'pre-command-hook #'ofw--reset-prefix)
