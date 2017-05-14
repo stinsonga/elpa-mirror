@@ -244,7 +244,8 @@
 ;;
 ;; Type y to replace a match and go to the next one, r to replace
 ;; without moving, SPC or n to go to the next match and ! to replace
-;; all remaining matches automatically.  q quits.
+;; all remaining matches automatically.  q quits.  And ? shows a quick
+;; help summarizing all of these keys.
 ;;
 ;; It is possible to replace a match with more than one expression
 ;; using "splicing mode".  When it is active, the replacement
@@ -252,13 +253,21 @@
 ;; for any match.  Use s from the prompt to toggle splicing mode in an
 ;; `el-search-query-replace' session.
 ;;
-;; There are no special multi-file query-replace commands currently
-;; implemented; I don't know if it would be that useful anyway.  If
-;; you want to query-replace in multiple buffers or files, just call
-;; an appropriate multi-search command, and every time a first match
-;; is found in any buffer, start an ordinary
-;; `el-search-query-replace'; after finishing, check that everything
-;; is ok, save etc, and resume the multi search.
+;;
+;; Multi query-replace
+;; ===================
+;;
+;; To query-replace in multiple files or buffers at once, call
+;; `el-search-query-replace' directly after starting a search whose
+;; search domain is the set of files and buffers you want to treat.
+;; Answer "yes" to the prompt asking whether you want the started
+;; search drive the query-replace.  The user interface is
+;; self-explanatory.
+;;
+;; You can resume an aborted search-driven query-replace in the
+;; obvious way: call `el-search-jump-to-search-head' followed by
+;; `el-search-query-replace' (C-J C-%).  This will continue the
+;; query-replace session from where you left.
 ;;
 ;;
 ;; Advanced usage: Replacement rules for semi-automatic code rewriting
@@ -412,7 +421,7 @@ tested.  "
   :type '(choice (repeat :tag "Regexps for ignored directories" regexp)
 		 (const  :tag "No ignored directories" nil)))
 
-(defcustom el-search-replace-auto-save-buffers 'ask
+(defcustom el-search-auto-save-buffers 'ask
   "Whether to automatically save modified buffers.
 When non-nil, save modified file buffers when query-replace is
 finished there.
@@ -2606,12 +2615,13 @@ reindent."
         (skip-matches-in-replacement 'ask)
         (matcher (el-search--matcher pattern))
         (heuristic-matcher (el-search--current-heuristic-matcher))
-        (save-all-answered nil))
+        (save-all-answered nil)
+        (user-quit nil))
     (let ((replace-in-current-buffer
            (lambda ()
              (setq nbr-replaced 0)
              (setq nbr-skipped  0)
-             (unwind-protect
+             (condition-case nil
                  (progn
 
                    ;; Try to avoid to call time consuming `el-search-hl-other-matches' in the loop
@@ -2678,17 +2688,19 @@ reindent."
                                         (and (not replaced-this)
                                              '(?r "replace" "Replace this match but don't move"))
                                         '(?! "all" "Replace all remaining matches in this buffer")
+                                        '(?i "skip" "Skip this buffer and any remaining matches in it")
+                                        (and buffer-file-name
+                                             '(?d "skip dir" "Skip a parent directory of current file"))
                                         (and multiple
                                              '(?A "All" "Replace all remaining matches in all buffers"))
                                         (and (not replaced-this)
                                              (list ?s (concat "splicing " (if splice "off" "on"))
                                                    "\
 Toggle splicing mode.  When splicing mode is on (default off),
-the replacement expression must evaluate to a list, and the
-result is spliced into the buffer, instead of just inserted."))
-                                        '(?h "show" "Show replacement in a buffer")
-                                        '(?q "quit" "\
-Quit.  To resume, use e.g. `repeat-complex-command'."))))))))
+the replacement expression must evaluate to a list, and all of
+the list's elements are inserted."))
+                                        '(?o "show" "Show replacement in a buffer")
+                                        '(?q "quit"))))))))
                        (if replace-all
                            (funcall do-replace)
                          (while (not (pcase (funcall query)
@@ -2708,10 +2720,17 @@ Quit.  To resume, use e.g. `repeat-complex-command'."))))))))
                                            (setq replace-all t)
                                            (setq replace-all-and-following t)
                                            t)
+                                       (?i (goto-char (point-max))
+                                           (message "Skipping this buffer")
+                                           (sit-for 1)
+                                           ;; FIXME: add #skipped matches to nbr-skipped?
+                                           t)
+                                       (?d (call-interactively #'el-search-skip-directory)
+                                           t)
                                        (?s (cl-callf not splice)
                                            (setq to-insert (funcall get-replacement-string))
                                            nil)
-                                       (?h
+                                       (?o
                                         (let* ((buffer (get-buffer-create
                                                         (generate-new-buffer-name "*Replacement*")))
                                                (window (display-buffer-pop-up-window buffer ())))
@@ -2723,9 +2742,7 @@ Quit.  To resume, use e.g. `repeat-complex-command'."))))))))
                                           (delete-window window)
                                           (kill-buffer buffer)
                                           nil))
-                                       ((or ?q ?\C-g)
-                                        (setq done t)
-                                        t)))))
+                                       ((or ?q ?\C-g) (signal 'quit t))))))
                        (when replacement-contains-another-match
                          (el-search-hl-other-matches matcher))
                        (unless (or done (eobp))
@@ -2751,39 +2768,42 @@ Quit.  To resume, use e.g. `repeat-complex-command'."))))))))
                                 (message "Falling back to interactive mode")
                                 (sit-for 2.)))))
                           (t (forward-sexp)))))))
-               (el-search-hl-remove)
+               (quit (setq user-quit t)
+                     (setq done t)))
+             (el-search-hl-remove)
+             (unless user-quit
                (setf (el-search-head-position (el-search-object-head el-search--current-search))
-                     (point-max))
-               (goto-char opoint)
-               (if (> nbr-replaced 0)
-                   (progn
-                     (cl-incf nbr-changed-buffers)
-                     (when (pcase el-search-replace-auto-save-buffers
-                             ((or 'nil (guard (not buffer-file-name))) nil)
-                             ('ask
-                              (if save-all-answered
-                                  (cdr save-all-answered)
-                                (pcase (car (read-multiple-choice
-                                             (format
-                                              "Replaced %d matches%s - save this buffer? "
-                                              nbr-replaced
-                                              (if (zerop nbr-skipped)  ""
-                                                (format "   (%d skipped)" nbr-skipped)))
-                                             '((?y "yes")
-                                               (?n "no")
-                                               (?Y "Yes to all")
-                                               (?N "No to all"))))
-                                  (?y t)
-                                  (?n nil)
-                                  (?Y (cdr (setq save-all-answered (cons t t))))
-                                  (?N (cdr (setq save-all-answered (cons t nil)))))))
-                             (_ t))
-                       (save-buffer)))
-                 (unless multiple
-                   (message "Replaced %d matches%s"
-                            nbr-replaced
-                            (if (zerop nbr-skipped)  ""
-                              (format "   (%d skipped)" nbr-skipped)))))))))
+                     (point-max)))
+             (goto-char opoint)
+             (if (> nbr-replaced 0)
+                 (progn
+                   (cl-incf nbr-changed-buffers)
+                   (when (pcase el-search-auto-save-buffers
+                           ((or 'nil (guard (not buffer-file-name))) nil)
+                           ('ask
+                            (if save-all-answered
+                                (cdr save-all-answered)
+                              (pcase (car (read-multiple-choice
+                                           (format
+                                            "Replaced %d matches%s - save this buffer? "
+                                            nbr-replaced
+                                            (if (zerop nbr-skipped)  ""
+                                              (format "   (%d skipped)" nbr-skipped)))
+                                           '((?y "yes")
+                                             (?n "no")
+                                             (?Y "Yes to all")
+                                             (?N "No to all"))))
+                                (?y t)
+                                (?n nil)
+                                (?Y (cdr (setq save-all-answered (cons t t))))
+                                (?N (cdr (setq save-all-answered (cons t nil)))))))
+                           (_ t))
+                     (save-buffer)))
+               (unless multiple
+                 (message "Replaced %d matches%s"
+                          nbr-replaced
+                          (if (zerop nbr-skipped)  ""
+                            (format "   (%d skipped)" nbr-skipped))))))))
       (if (not multiple)
           (funcall replace-in-current-buffer)
         (while (and
@@ -2879,15 +2899,8 @@ used for history entries."
       search-head
       (eq (el-search-head-buffer search-head) (current-buffer))
       (equal from-pattern (el-search-object-pattern el-search--current-search))
-      (or (eq last-command 'el-search-pattern)
-          (and (not (alist-get 'is-single-buffer
-                               (el-search-object-properties el-search--current-search)))
-               (y-or-n-p "Use the last search to steer query-replace? ")
-               (prog1 t
-                 (unless (equal (point) (el-search-head-position search-head))
-                   (if (y-or-n-p "Continue from search head (y) or from here (n)? ")
-                       (el-search-jump-to-search-head)
-                     (setf (el-search-head-position search-head) (copy-marker (point))))))))))))
+      (and (eq last-command 'el-search-pattern)
+           (y-or-n-p "Use the current search to drive query-replace? "))))))
 
 (defun el-search--take-over-from-isearch (&optional goto-left-end)
   (let ((other-end (and goto-left-end isearch-other-end))
