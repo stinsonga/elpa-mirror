@@ -2216,7 +2216,7 @@ Prompt for a new pattern and revert the occur buffer."
                     (cl-incf overall-matches buffer-matches)
                     (pcase-let ((`(,buffer ,_ ,file) (stream-first stream-of-buffer-matches)))
                       (if file (cl-incf matching-files) (cl-incf matching-buffers))
-                      (insert "\n;;; ** ")
+                      (insert "\n\n;;; ** ")
                       (insert-button
                        (or file (format "%S" buffer))
                        'action
@@ -2310,6 +2310,10 @@ Prompt for a new pattern and revert the occur buffer."
                                              (overlay-put ov 'face 'el-search-match)
                                              (overlay-put ov 'el-search-match t))
                                            (with-current-buffer buffer (point)))))
+                                (insert (format "\n;;;; Line %d\n"
+                                                (with-current-buffer buffer
+                                                  (line-number-at-pos context-beg))))
+                                (setq insertion-point (point))
                                 (let ((working-position context-beg))
                                   (while (not (stream-empty-p matches))
                                     (pcase-let ((`((,_ ,match-beg ,_) . ,_) (stream-pop matches)))
