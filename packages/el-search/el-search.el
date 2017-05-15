@@ -2176,6 +2176,10 @@ Prompt for a new pattern and revert the occur buffer."
     (define-key map [?p]            #'el-search-occur-previous-match)
     (define-key map [?n]            #'el-search-occur-next-match)
     (define-key map [?e]            #'el-search-edit-occur-pattern)
+    (define-key map [?c ?n]         #'el-search-occur-no-context)
+    (define-key map [?c ?d]         #'el-search-occur-defun-context)
+    (define-key map [?c ?a]         #'el-search-occur-defun-context)
+    (define-key map [?c ?s]         #'el-search-occur-some-context)
     (set-keymap-parent map (make-composed-keymap special-mode-map emacs-lisp-mode-map))
     map))
 
@@ -2189,6 +2193,55 @@ Prompt for a new pattern and revert the occur buffer."
   (orgstruct-mode +1))
 
 (put 'el-search-occur-mode 'mode-class 'special)
+
+(defun el-search-occur-get-some-context (match-beg)
+  (let ((context-beg nil)
+        (need-more-context-p
+         (lambda (start)
+           (let (end)
+             (pcase (save-excursion
+                      (goto-char start)
+                      (prog1 (read (current-buffer))
+                        (setq end (point))))
+               ((or (pred atom) `(,(pred atom))) t)
+               ((guard (< (- end start) 100))     t)))))
+        (try-go-upwards (lambda (pos) (condition-case nil (scan-lists pos -1 1)
+                                   (scan-error)))))
+    (when (funcall need-more-context-p match-beg)
+      (setq context-beg (funcall try-go-upwards match-beg))
+      (when (and context-beg (funcall need-more-context-p context-beg))
+        (setq context-beg (or (funcall try-go-upwards context-beg)
+                              context-beg))))
+    (cons (or context-beg match-beg)
+          (if context-beg (scan-lists context-beg 1 0)
+            (scan-sexps match-beg 1)))))
+
+(defun el-search-occur-get-defun-context (match-beg)
+  (el-search--bounds-of-defun match-beg))
+
+(defun el-search-occur-get-null-context (match-beg)
+  (cons match-beg (scan-sexps match-beg 1)))
+
+(defvar el-search-get-occur-context-function #'el-search-occur-get-some-context
+  "Function determining amount of context shown in *El Occur* buffers.")
+
+(defun el-search-occur-defun-context ()
+  "Show complete top-level expressions in *El Occur*."
+  (interactive)
+  (setq el-search-get-occur-context-function #'el-search-occur-get-defun-context)
+  (revert-buffer))
+
+(defun el-search-occur-no-context ()
+  "Show no context around matches in *El Occur*."
+  (interactive)
+  (setq el-search-get-occur-context-function #'el-search-occur-get-null-context)
+  (revert-buffer))
+
+(defun el-search-occur-some-context ()
+  "Show some context around matches in *El Occur*."
+  (interactive)
+  (setq el-search-get-occur-context-function #'el-search-occur-get-some-context)
+  (revert-buffer))
 
 (declare-function which-func-ff-hook which-func)
 (defun el-search--occur (search &optional buffer)
@@ -2249,33 +2302,15 @@ Prompt for a new pattern and revert the occur buffer."
                       (insert (format "  (%d match%s)\n"
                                       buffer-matches
                                       (if (> buffer-matches 1) "es" "")))
-                      (let* ((get-context
-                              (lambda (match-beg)
-                                (let ((context-beg nil)
-                                      (need-more-context-p
-                                       (lambda (start)
-                                         (let (end)
-                                           (pcase (save-excursion
-                                                    (goto-char start)
-                                                    (prog1 (read (current-buffer))
-                                                      (setq end (point))))
-                                             ((or (pred atom) `(,(pred atom))) t)
-                                             ((guard (< (- end start) 100))     t)))))
-                                      (try-go-upwards (lambda (pos) (condition-case nil (scan-lists pos -1 1)
-                                                                 (scan-error)))))
-                                  (with-current-buffer buffer
-                                    (when (funcall need-more-context-p match-beg)
-                                      (setq context-beg (funcall try-go-upwards match-beg))
-                                      (when (and context-beg (funcall need-more-context-p context-beg))
-                                        (setq context-beg (or (funcall try-go-upwards context-beg)
-                                                              context-beg))))
-                                    (cons (or context-beg match-beg)
-                                          (if context-beg (scan-lists context-beg 1 0)
-                                            (scan-sexps match-beg 1)))))))
-                             (buffer-matches+contexts
-                              (seq-map (pcase-lambda ((and match `(,_ ,match-beg ,_)))
-                                         (cons match (funcall get-context match-beg)))
-                                       stream-of-buffer-matches)))
+                      (let ((buffer-matches+contexts
+                             (seq-map (pcase-lambda ((and match `(,_ ,match-beg ,_)))
+                                        (with-current-buffer buffer
+                                          (cons match
+                                                (let ((open-paren-in-column-0-is-defun-start nil))
+                                                  (save-excursion
+                                                    (funcall el-search-get-occur-context-function
+                                                             match-beg))))))
+                                      stream-of-buffer-matches)))
                         (while (not (stream-empty-p buffer-matches+contexts))
                           (pcase-let ((`((,_ ,match-beg ,_) . (,context-beg . ,context-end))
                                        (stream-first buffer-matches+contexts)))
@@ -2357,7 +2392,9 @@ Prompt for a new pattern and revert the occur buffer."
                       (unless (zerop matching-buffers)  (format "%d buffers" matching-buffers))
                       ".")))
                   (goto-char (point-min))
-                  (when (bound-and-true-p which-function-mode)
+                  (when (and (bound-and-true-p which-function-mode)
+                             (eq el-search-get-occur-context-function
+                                 #'el-search-occur-get-defun-context))
                     (which-func-ff-hook)))
               (quit  (insert "\n\n;;; * Aborted"))
               (error (insert "\n\n;;; * Error: " (error-message-string err)
