@@ -4,7 +4,7 @@
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords: xml relaxng
-;; Version: 0.1
+;; Version: 0.2
 
 ;; This file is part of GNU Emacs.
 
@@ -106,7 +106,12 @@
                (forward-comment -1)
                (= (point) start)))
         " ; "
-      (smie-default-forward-token))))
+      (if (looking-at "\\s.")
+      	  (buffer-substring-no-properties
+      	   (point)
+      	   (progn (forward-char 1)
+      		  (point)))
+	(smie-default-forward-token)))))
 
 (defun rnc-smie-backward-token ()
   (let ((start (point)))
@@ -118,7 +123,12 @@
                    (looking-at "\\(?:\\s_\\|\\sw\\)+[ \t\n]*[|&]?=")
                  (goto-char pos))))
         " ; "
-      (smie-default-backward-token))))
+      (if (looking-back "\\s." (1- (point)))
+      	  (buffer-substring-no-properties
+      	   (point)
+      	   (progn (forward-char -1)
+      		  (point)))
+	(smie-default-backward-token)))))
 
 (defun rnc-smie-rules (kind token)
   (pcase (cons kind token)
