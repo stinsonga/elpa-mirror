@@ -1736,6 +1736,86 @@ removal only once.")
             (goto-char this-match-end)
             (when (>= (point) to) (setq done t))))))))
 
+(defvar-local el-search--buffer-match-count-data nil
+  "Holds information for displaying a match count.
+The value is a list of elements
+
+   \(SEARCH BUFFER-CHARS-MOD-TICK BUFFER-MATCHES\)
+
+BUFFER-MATCHES is a stream of matches in this buffer.  SEARCH is
+the active search and BUFFER-CHARS-MOD-TICK the return value of
+`buffer-chars-modified-tick' from when this stream had been
+created.")
+
+(defun el-search-display-match-count ()
+  "Display an x/y-style match count in the echo area."
+  (when (and el-search--success (not el-search--wrap-flag))
+    (while-no-input
+
+      ;; Check whether cached stream of buffer matches is still valid
+      (pcase el-search--buffer-match-count-data
+        (`(,(pred (eq el-search--current-search))  ,(pred (eq (buffer-chars-modified-tick)))  . ,_))
+        (_
+         ;; (message "Refreshing match count data") (sit-for 1)
+         (redisplay) ;don't delay highlighting
+         (setq-local el-search--buffer-match-count-data
+                     (let ((stream-of-buffer-matches
+                            (seq-map #'cadr
+                                     (el-search--all-matches
+                                      (el-search-make-search
+                                       (el-search--current-pattern)
+                                       (let ((current-buffer (current-buffer)))
+                                         (lambda () (stream (list current-buffer)))))))))
+                       (list
+                        el-search--current-search
+                        (buffer-chars-modified-tick)
+                        stream-of-buffer-matches)))))
+
+      (let ((nbr-this-match 1) total-matches (pos-here (point))
+            (defun-bounds (or (el-search--bounds-of-defun) (cons (point) (point))))
+            (nbr-this-match-in-defun 1) (total-matches-in-defun 0)
+            (largest-match-start-not-after-pos-here nil))
+        (pcase-let ((`(,_ ,_ ,matches) el-search--buffer-match-count-data))
+          (setq total-matches (let ((inhibit-message t)) (seq-length matches)))
+          (while (and (not (stream-empty-p matches)) (< (stream-first matches) (cdr defun-bounds)))
+            (when (<= (stream-first matches) pos-here)
+              (setq largest-match-start-not-after-pos-here (stream-first matches))
+              (unless (= (stream-first matches) pos-here)
+                (cl-incf nbr-this-match)))
+            (when (<= (car defun-bounds) (stream-first matches))
+              (cl-incf total-matches-in-defun)
+              (when (< (stream-first matches) pos-here)
+                (cl-incf nbr-this-match-in-defun)))
+            (stream-pop matches))
+          (if (zerop total-matches) ;this can happen for el-search-this-sexp
+              (el-search--message-no-log "No matches")
+            (let* ((at-a-match-but-not-at-match-beginning
+                    (and largest-match-start-not-after-pos-here
+                         (and (< largest-match-start-not-after-pos-here pos-here)
+                              (save-excursion
+                                (goto-char largest-match-start-not-after-pos-here)
+                                (<= pos-here (el-search--end-of-sexp))))))
+                   (at-a-match
+                    (and largest-match-start-not-after-pos-here
+                         (or (= pos-here largest-match-start-not-after-pos-here)
+                             at-a-match-but-not-at-match-beginning))))
+              (when at-a-match-but-not-at-match-beginning
+                (cl-decf nbr-this-match)
+                (cl-decf nbr-this-match-in-defun))
+              (if at-a-match
+                  (el-search--message-no-log
+                   "%s  %d/%d    %s"
+                   (let ((head (el-search-object-head el-search--current-search)))
+                     (or (el-search-head-file head)
+                         (buffer-name (el-search-head-buffer head))))
+                   nbr-this-match
+                   total-matches
+                   (if (<= total-matches-in-defun 1)
+                       ""
+                     (propertize (format "(%d/%d)" nbr-this-match-in-defun total-matches-in-defun)
+                                 'face 'shadow)))
+                (el-search--message-no-log "[Not at a match]")))))))))
+
 (defun el-search-hl-other-matches (matcher)
   "Highlight all visible matches.
 
@@ -1767,15 +1847,16 @@ local binding of `window-scroll-functions'."
   (setq el-search-hl-other-overlays '()))
 
 (defun el-search-hl-post-command-fun ()
-  (unless (or (eq this-command 'el-search-query-replace)
-              (eq this-command 'el-search-pattern))
-    (if el-search-keep-hl
-        (when (eq el-search-keep-hl 'once)
-          (setq el-search-keep-hl nil))
-      (el-search-hl-remove)
-      (remove-hook 'post-command-hook 'el-search-hl-post-command-fun t)
-      (setq el-search--temp-buffer-flag nil)
-      (el-search-kill-left-over-search-buffers))))
+  (pcase this-command
+    ('el-search-query-replace)
+    ('el-search-pattern (el-search-display-match-count))
+    (_ (if el-search-keep-hl
+           (when (eq el-search-keep-hl 'once)
+             (setq el-search-keep-hl nil))
+         (el-search-hl-remove)
+         (remove-hook 'post-command-hook 'el-search-hl-post-command-fun t)
+         (setq el-search--temp-buffer-flag nil)
+         (el-search-kill-left-over-search-buffers)))))
 
 (defun el-search--pending-search-p ()
   (memq #'el-search-hl-post-command-fun post-command-hook))
@@ -1826,8 +1907,6 @@ that the current search."
       (setq el-search--success t)
       (el-search--set-wrap-flag nil)))
   (el-search-compile-pattern-in-search el-search--current-search)
-  (el-search--message-no-log
-   "%s" (el-search--get-search-description-string el-search--current-search))
   (if-let ((search el-search--current-search)
            (current-head (el-search-object-head search))
            (current-search-buffer (el-search-head-buffer current-head)))
@@ -2218,7 +2297,9 @@ Prompt for a new pattern and revert the occur buffer."
       (el-search--next-buffer el-search--current-search)
       (setq this-command 'el-search-pattern
             el-search--success t)
-      (when pos (el-search-hl-sexp))
+      (when pos
+        (el-search-hl-sexp)
+        (el-search-display-match-count))
       (el-search-hl-other-matches (el-search--current-matcher))
       (add-hook 'post-command-hook #'el-search-hl-post-command-fun t t)
       (setq-local el-search-keep-hl 'once)
