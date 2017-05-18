@@ -1777,6 +1777,9 @@ local binding of `window-scroll-functions'."
       (setq el-search--temp-buffer-flag nil)
       (el-search-kill-left-over-search-buffers))))
 
+(defun el-search--pending-search-p ()
+  (memq #'el-search-hl-post-command-fun post-command-hook))
+
 (defun el-search--reset-wrap-flag ()
   (unless (or (eq this-command 'el-search-query-replace)
               (eq this-command 'el-search-pattern))
@@ -1947,7 +1950,7 @@ continued."
 (defun el-search-pattern--interactive ()
   (list (if (or
              ;;Hack to make a pop-up buffer search from occur "stay active"
-             (memq #'el-search-hl-post-command-fun post-command-hook)
+             (el-search--pending-search-p)
              (and (eq this-command last-command)
                   (or el-search--success el-search--wrap-flag)))
             (el-search--current-pattern)
@@ -1983,8 +1986,10 @@ See `el-search-defined-patterns' for a list of defined patterns."
       (el-search--message-no-log "[Wrapped search]")
       (sit-for .7)
       (el-search-from-beginning 'restart)))
-   ((and (eq this-command last-command)
-         (eq pattern (el-search--current-pattern)))
+   ((or
+     (el-search--pending-search-p)
+     (and (eq this-command last-command)
+          (eq pattern (el-search--current-pattern))))
     (progn
       (el-search--skip-expression nil t)
       (el-search-continue-search 'from-here)))
@@ -2150,26 +2155,74 @@ Prompt for a new pattern and revert the occur buffer."
   (interactive)
   (if (button-at (point))
       (push-button)
-    (when-let ((data (get-text-property (point) 'match-data))
-               (pattern (el-search-object-pattern el-search-occur-search-object)))
-      (pcase-let ((`(,buffer ,position ,file) data))
-        (with-selected-window
-            (display-buffer (if file (find-file-noselect file) buffer)
-                            '((display-buffer-pop-up-window)))
-          (when (and (buffer-narrowed-p)
-                     (or (< position (point-min))
-                         (> position (point-max)))
-                     (not (and (y-or-n-p "Widen buffer? ")
-                               (progn (widen) t))))
-            (user-error "Can't jump to match"))
-          (goto-char position)
-          (el-search-setup-search
-           pattern
-           (let ((current-buffer (current-buffer)))
-             (lambda () (stream (list current-buffer))))
-           (lambda (search) (setf (alist-get 'is-single-buffer (el-search-object-properties search)) t))
-           'from-here)
-          (setq-local el-search-keep-hl 'once))))))
+    (if-let ((params  (get-char-property (point) 'el-search-match)))
+        (apply #'el-search--occur-button-action params)
+      ;; User clicked not directly on a match
+      (catch 'nothing-here
+        (let ((clicked-pos (point)) (done nil) some-match-pos)
+          (save-excursion
+            (pcase (el-search--bounds-of-defun)
+              ('nil
+               (throw 'nothing-here t))
+              (`(,defun-beg . ,defun-end)
+               (unless (< defun-end (point)) (goto-char defun-beg))))
+            ;; Try to find corresponding position in source buffer
+            (setq some-match-pos (point))
+            (while (and (not done) (setq some-match-pos (funcall #'next-single-char-property-change
+                                                                 some-match-pos 'el-search-match)))
+              (setq done (or (memq some-match-pos (list (point-min) (point-max)))
+                             (cl-some (lambda (ov) (overlay-get ov 'el-search-match))
+                                      (overlays-at some-match-pos))))))
+          (let ((delta-lines (count-lines clicked-pos some-match-pos)))
+            (when (save-excursion
+                    (goto-char (max clicked-pos some-match-pos))
+                    (not (bolp)))
+              (cl-decf delta-lines))
+            (when (< clicked-pos some-match-pos)
+              (cl-callf - delta-lines))
+            (pcase-let ((`(,file-name-or-buffer ,pos)
+                         (get-char-property some-match-pos 'el-search-match)))
+              (el-search--occur-button-action
+               file-name-or-buffer nil
+               (lambda ()
+                 (goto-char pos)
+                 (beginning-of-line)
+                 (forward-line delta-lines))
+               '((display-buffer-pop-up-window))))))))))
+
+(defun el-search--occur-button-action (filename-or-buffer &optional pos do-fun display-buffer-action)
+  (let ((buffer (if (bufferp filename-or-buffer)
+                    filename-or-buffer
+                  (find-file-noselect filename-or-buffer) ))
+        (pattern (el-search-object-pattern el-search-occur-search-object)))
+    (with-selected-window (display-buffer buffer
+                                          (or display-buffer-action
+                                              (if pos
+                                                  '((display-buffer-pop-up-window))
+                                                el-search-display-buffer-popup-action)))
+      (when pos
+        (when (and (buffer-narrowed-p)
+                   (or (< pos (point-min))
+                       (> pos (point-max)))
+                   (not (and (y-or-n-p "Widen buffer? ")
+                             (progn (widen) t))))
+          (user-error "Can't jump to match"))
+        (goto-char pos))
+      (el-search-setup-search-1
+       pattern
+       (lambda () (stream (list buffer)))
+       'from-here
+       (lambda (search)
+         (setf (alist-get 'is-single-buffer (el-search-object-properties search))
+               t)))
+      (el-search--next-buffer el-search--current-search)
+      (setq this-command 'el-search-pattern
+            el-search--success t)
+      (when pos (el-search-hl-sexp))
+      (el-search-hl-other-matches (el-search--current-matcher))
+      (add-hook 'post-command-hook #'el-search-hl-post-command-fun t t)
+      (setq-local el-search-keep-hl 'once)
+      (when do-fun (funcall do-fun)))))
 
 (defun el-search-occur--next-match (&optional backwards)
   (let ((done nil) (pos (point)))
@@ -2317,26 +2370,7 @@ Prompt for a new pattern and revert the occur buffer."
                       (insert "\n\n;;; ** ")
                       (insert-button
                        (or file (format "%S" buffer))
-                       'action
-                       (let ((pattern (el-search--current-pattern)))
-                         (lambda (_)
-                           (pop-to-buffer
-                            (if file (find-file-noselect file) buffer)
-                            el-search-display-buffer-popup-action)
-                           (widen)
-                           (goto-char (point-min))
-                           (el-search-setup-search-1
-                            pattern
-                            (let ((buf (current-buffer)))
-                              (lambda () (stream (list buf))))
-                            'from-here)
-                           (el-search--next-buffer el-search--current-search)
-                           (setq this-command 'el-search-pattern
-                                 el-search--success t)
-                           (el-search-hl-other-matches (el-search--current-matcher))
-                           (add-hook 'post-command-hook #'el-search-hl-post-command-fun t t)
-                           (el-search--message-no-log
-                            (substitute-command-keys "Hit \\[el-search-pattern] for local search")))))
+                       'action (lambda (_) (el-search--occur-button-action (or file buffer))))
                       (insert (format "  (%d match%s)\n"
                                       buffer-matches
                                       (if (> buffer-matches 1) "es" "")))
@@ -2388,7 +2422,8 @@ Prompt for a new pattern and revert the occur buffer."
                                                     'match-data `(,buffer ,match-beg ,file)))
                                            (let ((ov (make-overlay insertion-point (point) nil t)))
                                              (overlay-put ov 'face 'el-search-match)
-                                             (overlay-put ov 'el-search-match t))
+                                             (overlay-put
+                                              ov 'el-search-match (list (or file buffer) match-beg)))
                                            (with-current-buffer buffer (point)))))
                                 (insert (format "\n;;;; Line %d\n"
                                                 (with-current-buffer buffer
