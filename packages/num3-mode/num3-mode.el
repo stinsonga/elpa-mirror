@@ -40,8 +40,7 @@
 
 (defgroup num3 nil
   "Num3 is a minor mode that makes long numbers more readable by
-highlighting groups of decimal digits or 4 hex digits when
-font-lock is on."
+highlighting groups of digits in a number."
   :group 'text)
 
 (defcustom num3-group-size 3
@@ -70,24 +69,29 @@ addition to any other font-lock highlighting."
 (define-minor-mode num3-mode
   "Toggle num3 minor mode in the current buffer.
 Num3 minor mode makes long numbers more readable by highlighting
-groups of digits when font-lock mode is on.
+groups of digits when font-lock mode is enabled.
 
 If a number is longer than `num3-threshold', the mode will split
 it into a group of `num3-group-size' (if number is decimal) or
-4 (if number is hexadecimal) digits.  Hexadecimal number is
-detected as one starting with 0x, 0X or #.
+four (if number is hexadecimal or binary) digits.
 
-With decimal numbers, fractions are recognised as well and
-grouped from the beginning rathar then from end.  For instance,
-with group size of 3, a number \"12345.12345\" will be split into
-groups as follows: \"12|345.123|45\".  Fractions without integer
-part are also recognised, eg. \".12345\".
+Hexadecimal numbers are recognised by \"0x\" or \"#x\"
+prefix (case insensitive) and binary numbers by \"0b\" or \"#b\"
+prefix.  (There is no special handling for octal numbers –
+starting with \"0o\" or \"#o\" – and instead they are handled
+like decimal numbers).
 
-The groups are highlighted alternately using `num3-face-odd' and
+Decimal fractions are recognised as well and grouped from the
+beginning rathar then the end.  For instance, with group size of
+three, a number \"12345.12345\" will be split into groups as
+follows: \"12|345.123|45\".  Fractions without integer part are
+also recognised, eg. \".12345\".
+
+Groups are highlighted alternately using `num3-face-odd' and
 `num3-face-even' faces.  `num3-face-odd' face (which is empty by
-default) is the one used for the group closest to the decimal point,
-ie. groups are counted starting with one outwards from the (place
-where) decimal point (would be) is."
+default) is the one used for the group closest to the decimal
+point, i.e. groups are counted starting with one outwards from
+the (place where) decimal point (would be) is."
   nil " num3" nil
   (if num3-mode
       (unless (assoc 'num3--matcher font-lock-keywords)
@@ -100,11 +104,16 @@ where) decimal point (would be) is."
 (define-globalized-minor-mode global-num3-mode num3-mode num3-mode)
 
 (defconst num3--number-re
+  ;; Hexadecimal and binary are both using the first capture group because we
+  ;; group them both in four-digit groups.  There’s no explicit support for
+  ;; octal numbers because we just use logic for a decimal number, i.e. the same
+  ;; grouping.
   (concat "[0#][xX]\\([[:xdigit:]]+\\)"       ; 1 = hexadecimal
-        "\\|\\(?1:\\b\\(?:[0-9]+[a-fA-F]\\|"  ; 1 = hexadecimal
+       "\\|[0#][bB]\\(?1:[01]+\\)"            ; 1 = binary
+       "\\|\\(?1:\\b\\(?:[0-9]+[a-fA-F]\\|"   ; 1 = hexadecimal w/o prefix
                  "[a-fA-F]+[0-9]\\)[[:xdigit:]]*\\b\\)"
-        "\\|\\([0-9]+\\)"                     ; 2 = decimal
-        "\\|\\.\\([0-9]+\\)"))                ; 3 = fraction
+       "\\|\\([0-9]+\\)"                      ; 2 = decimal
+       "\\|\\.\\([0-9]+\\)"))                 ; 3 = fraction
 
 (defun num3--matcher (lim)
   "Function used as a font-lock-keywoard handler used in `num3-mode'.
