@@ -84,6 +84,7 @@
  ("spinner" :subtree "https://github.com/Malabarba/spinner.el")
  ("temp-buffer-browse"  :subtree "https://github.com/leoliu/temp-buffer-browse")
  ("test-simple"         :subtree "https://github.com/rocky/emacs-test-simple")
+ ("vdiff"               :subtree "https://github.com/justbur/emacs-vdiff")
  ;;FIXME:("vlf"		:subtree ??)
  ("w3"			:external nil)
  ("wcheck-mode"		:subtree "https://github.com/tlikonen/wcheck-mode.git")
