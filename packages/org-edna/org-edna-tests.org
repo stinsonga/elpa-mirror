@@ -1,0 +1,82 @@
+#+STARTUP: nologdone
+#+PROPERTY: EFFORT_ALL 0:01 0:02 0:03
+
+* COMMENT Copying
+Copyright (C) 2017 Ian Dunn
+
+#+BEGIN_QUOTE
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#+END_QUOTE
+* Test Pool
+** TODO Tagged Heading 1                                            :1:test:
+** TODO Tagged Heading 2                                            :1:test:
+** TODO ID Heading 1
+:PROPERTIES:
+:ID:       0d491588-7da3-43c5-b51a-87fbd34f79f7
+:LOGGING:  nil
+:END:
+** TODO ID Heading 2
+:PROPERTIES:
+:ID:       b010cbad-60dc-46ef-a164-eb155e62cbb2
+:LOGGING:  nil
+:END:
+** TODO ID Heading 3
+SCHEDULED: <2000-01-15 Sat 00:00>
+:PROPERTIES:
+:ID:       97e6b0f0-40c4-464f-b760-6e5ca9744eb5
+:END:
+** DONE ID Heading 4
+:PROPERTIES:
+:ID:       7d4d564b-18b2-445c-a0c8-b1b3fb9ad29e
+:END:
+** Scheduled Headings
+*** TODO Scheduled Heading 1
+SCHEDULED: <2017-01-01 Sun>
+:PROPERTIES:
+:ID:       caf27724-0887-4565-9765-ed2f1edcfb16
+:END:
+*** TODO Scheduled Heading 2
+SCHEDULED: <2017-01-01 Sun>
+:PROPERTIES:
+:ID:       5594d4f1-b1bb-400f-9f3d-e2f9b43e82c3
+:END:
+** Sibling Headings
+:PROPERTIES:
+:ID:       21b8f1f5-14e8-4677-873d-69e0389fdc9e
+:END:
+*** Sibling 1
+:PROPERTIES:
+:ID:       82a4ac3d-9565-4f94-bc84-2bbfd8d7d96c
+:END:
+*** Sibling 2
+:PROPERTIES:
+:ID:       72534efa-e932-460b-ae2d-f044a0074815
+:END:
+*** Sibling 3
+:PROPERTIES:
+:ID:       06aca55e-ce09-46df-80d7-5b52e55d6505
+:END:
+** Archive
+*** TODO Archive One
+:PROPERTIES:
+:ID:       d7668277-f959-43ba-8e85-8a3c76996862
+:END:
+* Finder Tests
+** Match
+*** TODO Blocking Test
+:PROPERTIES:
+:BLOCKER:  match("test&1")
+:ID:       caccd0a6-d400-410a-9018-b0635b07a37e
+:LOGGING:  nil
+:END:
