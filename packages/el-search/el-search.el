@@ -338,8 +338,6 @@
 ;;
 ;; - The default keys are not available in the terminal
 ;;
-;; - Handle buffers killed/files closed when resuming a search
-;;
 ;; - Make searching work in comments, too? (->
 ;;   `parse-sexp-ignore-comments').  Related: should the pattern
 ;;   `symbol' also match strings that contain matches for a symbol so
@@ -1911,7 +1909,30 @@ that the current search."
            (current-head (el-search-object-head search))
            (current-search-buffer (el-search-head-buffer current-head)))
       (if (not (buffer-live-p current-search-buffer))
-          (user-error "Search head points to a killed buffer")
+          (let* ((head-file-name (el-search-head-file current-head))
+                 (search (el-search-reset-search search))
+                 (buffer-stream (el-search-head-buffers (el-search-object-head search)))
+                 (buffer-stream-from-head-file
+                  (let ((inhibit-message t))
+                    (and head-file-name
+                         (cadr (stream-divide-with-get-rest-fun
+                                buffer-stream
+                                (lambda (s)
+                                  (while (and (not (stream-empty-p s))
+                                              (or (not (stringp (stream-first s)))
+                                                  (not (file-equal-p (stream-first s) head-file-name))))
+                                    (stream-pop s))
+                                  s)))))))
+            (message "Search head points to a killed buffer...")
+            (sit-for 1)
+            (if (or (not head-file-name)
+                    (stream-empty-p buffer-stream-from-head-file))
+                (el-search--message-no-log "Restarting search...")
+              (setf (el-search-head-buffers (el-search-object-head search))
+                    buffer-stream-from-head-file)
+              (message "Restarting from %s..." (file-name-nondirectory head-file-name)))
+            (sit-for 2)
+            (el-search-continue-search))
         (setq this-command 'el-search-pattern)
         (pop-to-buffer current-search-buffer el-search-display-buffer-popup-action)
         (let ((last-match (el-search-object-last-match search)))
