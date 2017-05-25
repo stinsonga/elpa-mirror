@@ -6,7 +6,7 @@
 ;; URL: http://github.com/rocky/emacs-load-relative
 ;; Compatibility: GNU Emacs 23.x
 
-;; Copyright (C) 2015 Free Software Foundation, Inc
+;; Copyright (C) 2015, 2016 Free Software Foundation, Inc
 
 ;; This program is free software: you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License as
@@ -102,7 +102,6 @@
 ;; This is easier if you care about the contents of the file, rather than
 ;; a buffer.
 
-
 ;;; Code:
 
 ;;;###autoload
@@ -134,8 +133,8 @@ methods work we will use the file-name value find via
   ;; persists after loading or evaluating a file. So it would be
   ;; suitable if __FILE__ were called from inside a function.
 
-
   (cond
+
    ;; lread.c's readevalloop sets (car current-load-list)
    ;; via macro LOADHIST_ATTACH of lisp.h. At least in Emacs
    ;; 23.0.91 and this code goes back to '93.
@@ -161,8 +160,8 @@ methods work we will use the file-name value find via
    ;; FIXME: `bytecomp-filename' doesn't exist any more (since Emacs-24.1).
    ((boundp 'bytecomp-filename) bytecomp-filename)
 
-   (t (symbol-file symbol)) ;; last resort
-   ))
+   (t (symbol-file symbol) ;; last resort
+      )))
 
 (defun autoload-relative (function-or-list
                           file &optional docstring interactive type
