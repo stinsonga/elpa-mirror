@@ -3,7 +3,7 @@ lisp_LISP = $(lisp_files)
 
 PHONY=check check-short clean dist distclean test
 
-EXTRA_DIST = $(lisp_files) $(test_files) README.md THANKS COPYING
+EXTRA_DIST = $(lisp_files) $(test_files) README.md
 GIT2CL ?= git2cl
 
 #: Run all tests
@@ -12,7 +12,7 @@ check: $(test-files)
 
 #: Run all tests with minimum verbosity
 check-short:
-	$(MAKE) -C test check 2>&1  | ruby make-check-filter.rb
+	$(MAKE) -C test check 2>&1  | ruby test/make-check-filter.rb
 
 
 #: same as check
