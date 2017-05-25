@@ -1,13 +1,13 @@
 ;;; test-simple.el --- Simple Unit Test Framework for Emacs Lisp -*- lexical-binding: t -*-
 ;; Rewritten from Phil Hagelberg's behave.el by rocky
 
-;; Copyright (C) 2015, 2016 Free Software Foundation, Inc
+;; Copyright (C) 2015, 2016, 2017 Free Software Foundation, Inc
 
 ;; Author: Rocky Bernstein <rocky@gnu.org>
 ;; URL: http://github.com/rocky/emacs-test-simple
 ;; Keywords: unit-test
 ;; Package-Requires: ((cl-lib "0"))
-;; Version: 1.2.0
+;; Version: 1.3.0
 
 ;; This program is free software: you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License as
@@ -89,7 +89,13 @@
 
 ;;; Code:
 
-(eval-when-compile (require 'cl-lib))
+;; Press C-x C-e at the end of the next line configure the program in GNU emacs
+;; for building via "make" to get set up.
+;; (compile (format "EMACSLOADPATH=:%s ./autogen.sh" "."))
+;; After that you can run:
+;; (compile "make check")
+
+(require 'cl-lib)
 
 (defgroup test-simple nil
   "Simple Unit Test Framework for Emacs Lisp"
@@ -279,13 +285,17 @@ additional message to be displayed."
   (interactive)
   (unless test-info (setq test-info test-simple-info))
   (test-simple-describe-failures test-info)
-  (if noninteractive
-      (progn
-	(switch-to-buffer "*test-simple*")
-	(message "%s" (buffer-substring (point-min) (point-max)))
-	)
-    (switch-to-buffer-other-window "*test-simple*")
-    ))
+  (cond (noninteractive
+         (set-buffer "*test-simple*")
+         (cond ((getenv "USE_TAP")
+                (princ (format "%s\n" (buffer-string)))
+                )
+               (t ;; non-TAP goes to stderr (backwards compatibility)
+              	(message "%s" (buffer-substring (point-min) (point-max)))
+                )))
+        (t ;; interactive
+         (switch-to-buffer-other-window "*test-simple*")
+         )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Reporting
@@ -295,8 +305,9 @@ additional message to be displayed."
   (switch-to-buffer "*test-simple*")
   (let ((inhibit-read-only t))
     (insert msg)
-    (if newline (insert "\n")))
-  (switch-to-buffer nil))
+    (if newline (insert "\n"))
+    (switch-to-buffer nil)
+  ))
 
 (defun test-simple--ok-msg (fail-message &optional test-info)
   (unless test-info (setq test-info test-simple-info))
