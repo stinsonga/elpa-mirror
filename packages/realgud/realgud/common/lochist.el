@@ -42,7 +42,7 @@
   "Format LOC-HIST values inside buffer *Describe*"
   (switch-to-buffer (get-buffer-create "*Describe*"))
   (org-mode)
-  (insert "** Source Positions Stopped At\n")
+  (insert "** Source Positions Stopped at (loc-hist)\n")
   (mapc 'insert
 	(list
 	 (format "  -  buffer size  :: %d\n" realgud-loc-hist-size)
@@ -63,8 +63,7 @@
   "Get the current item stored at POSITION of the ring
 component in LOC-HIST"
   (lexical-let ((ring (realgud-loc-hist-ring loc-hist)))
-    (if (ring-empty-p ring)
-	nil
+    (unless (ring-empty-p ring)
       (ring-ref ring position))))
 
 (defun realgud-loc-hist-item(loc-hist)

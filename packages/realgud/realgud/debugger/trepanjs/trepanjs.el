@@ -1,4 +1,4 @@
-;; Copyright (C) 2015 Free Software Foundation, Inc
+;; Copyright (C) 2015-2016 Free Software Foundation, Inc
 
 ;; Author: Rocky Bernstein <rocky@gnu.org>
 
@@ -20,12 +20,12 @@
 (require 'load-relative)
 (require-relative-list '("../../common/helper") "realgud-")
 (require-relative-list '("../../common/run")    "realgud:")
+(require-relative-list '("../../common/utils")    "realgud-")
 (require-relative-list '("core" "track-mode") "realgud:trepanjs-")
 (require-relative-list '("../../lang/js") "realgud-lang-")
 
 (declare-function realgud:trepanjs-query-cmdline  'realgud:trepanjs-core)
 (declare-function realgud:trepanjs-parse-cmd-args 'realgud:trepanjs-core)
-(declare-function realgud:js-remove-ansi-schmutz 'realgud-lang-js)
 (declare-function realgud:run-debugger 'realgud:run)
 
 ;; This is needed, or at least the docstring part of it is needed to
@@ -71,13 +71,14 @@ fringe and marginal icons.
 			       'realgud:trepanjs-parse-cmd-args
 			       'realgud:trepanjs-minibuffer-history
 			       opt-cmd-line no-reset)))
-    (if cmd-buf
-	(with-current-buffer cmd-buf
-	  ;; FIXME should allow customization whether to do or not
-	  ;; and also only do if hook is not already there.
-	  (realgud:js-remove-ansi-schmutz)
-	  )
-      )))
+    ;; (if cmd-buf
+    ;; 	(with-current-buffer cmd-buf
+    ;; 	  ;; FIXME should allow customization whether to do or not
+    ;; 	  ;; and also only do if hook is not already there.
+    ;; 	  (realgud:remove-ansi-schmutz)
+    ;; 	  )
+    ;;   )
+    ))
 
 (defalias 'trepanjs 'realgud:trepanjs)
 (provide-me "realgud-")

@@ -1,4 +1,4 @@
-;;; Copyright (C) 2010, 2012-2015 Free Software Foundation, Inc
+;;; Copyright (C) 2010, 2012-2015, 2017 Free Software Foundation, Inc
 
 ;; Author: Rocky Bernstein <rocky@gnu.org>
 
@@ -38,7 +38,7 @@
 (declare-function realgud-get-srcbuf           'helper)
 (declare-function realgud-short-key-mode-setup 'realgud-shortkey)
 
-(defstruct realgud-srcbuf-info
+(cl-defstruct realgud-srcbuf-info
   "debugger object/structure specific to a (top-level) source program
 to be debugged."
   cmdproc        ;; buffer of the associated debugger process
@@ -167,7 +167,7 @@ in it with those from CMDPROC-BUFFER"
 
 (defun realgud-srcbuf-bp-list(&optional buffer)
   "Return a list of breakpoint loc structures that reside in
-BUFFER which should be an initialized source buffer."
+BUFFER. BUFFER should be an initialized source buffer."
   (let ((src-buffer (realgud-get-srcbuf buffer)))
     (if src-buffer
 	(with-current-buffer src-buffer

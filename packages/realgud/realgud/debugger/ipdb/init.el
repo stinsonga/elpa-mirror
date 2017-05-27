@@ -36,7 +36,7 @@ realgud-loc-pat struct")
 
 (declare-function make-realgud-loc "realgud-loc" (a b c d e f))
 
-;; Regular expression that describes a ipdb location generally shown
+;; realgud-loc-pat that describes a ipdb location generally shown
 ;; before a command prompt.
 ;;
 ;; Program-location lines look like this:
@@ -54,15 +54,19 @@ realgud-loc-pat struct")
        :regexp   "^ipdb[>] "
        ))
 
-;;  Regular expression that describes a Python backtrace line.
+;;  realgud-loc-pat that describes a Python backtrace line.
 (setf (gethash "lang-backtrace" realgud:ipdb-pat-hash)
       realgud-python-backtrace-loc-pat)
 
-;;  Regular expression that describes location in a pytest error
+;;  realgud-loc-pat that describes location in a pytest error
 (setf (gethash "pytest-error" realgud:ipdb-pat-hash)
       realgud-pytest-error-loc-pat)
 
-;;  Regular expression that describes a "breakpoint set" line. For example:
+;;  Regular expression that describes location in a flake8 message
+(setf (gethash "flake8-msg" realgud:ipdb-pat-hash)
+      realgud-flake8-msg-loc-pat)
+
+;;  realgud-loc-pat that describes a "breakpoint set" line. For example:
 ;;     Breakpoint 1 at /usr/bin/ipdb:7
 (setf (gethash "brkpt-set" realgud:ipdb-pat-hash)
       (make-realgud-loc-pat
@@ -71,7 +75,7 @@ realgud-loc-pat struct")
        :file-group 2
        :line-group 3))
 
-;; Regular expression that describes a "delete breakpoint" line
+;; realgud-loc-pat that describes a "delete breakpoint" line
 ;; Python 3 includes a file name and line number; Python 2 doesn't
 (setf (gethash "brkpt-del" realgud:ipdb-pat-hash)
       (make-realgud-loc-pat
@@ -114,17 +118,16 @@ realgud-loc-pat struct")
   "Hash key is command name like 'finish' and the value is
 the ipdb command to use, like 'return'")
 
-(setf (gethash "pdb" realgud-command-hash) realgud:ipdb-command-hash)
+(setf (gethash "ipdb" realgud-command-hash) realgud:ipdb-command-hash)
 
-;; Mappings between PDB-specific names and GUD names
+;; Mappings between ipdb-specific names and GUD names
 (setf (gethash "finish" realgud:ipdb-command-hash) "return")
 (setf (gethash "kill" realgud:ipdb-command-hash) "quit")
 (setf (gethash "backtrace" realgud:ipdb-command-hash) "where")
 ;; Clear in Python does both the usual “delete” and “clear”
 (setf (gethash "delete" realgud:ipdb-command-hash) "clear %p")
 (setf (gethash "clear" realgud:ipdb-command-hash) "clear %X:%l")
-;; Use ‘!’ instead of ‘p’, since ‘p’ only works for expressions, not statements
-(setf (gethash "eval" realgud:ipdb-command-hash) "!%s")
+(setf (gethash "eval" realgud:ipdb-command-hash) "pp %s")
 
 ;; Unsupported features:
 (setf (gethash "shell" realgud:ipdb-command-hash) "*not-implemented*")
