@@ -1,4 +1,4 @@
-;; Copyright (C) 2015-2016 Free Software Foundation, Inc
+;; Copyright (C) 2017 Free Software Foundation, Inc
 
 ;; Author: Rocky Bernstein <rocky@gnu.org>
 
@@ -15,27 +15,33 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+;;; Common Java constants and regular expressions.
 (require 'load-relative)
 (require-relative-list '("../common/regexp" "../common/loc" "../common/track")
 		       "realgud-")
 
-(defconst realgud:js-term-escape "[[0-9]+[GKJ]"
-  "Escape sequence regular expression pattern trepanjs often puts
-  in around prompts")
-
 (declare-function realgud-goto-line-for-pt 'realgud-track)
 
-;;  Regular expression that describes a Perl Carp backtrace line.
-;;  at /tmp/foo.pl line 7
-;; 	main::__ANON__('Illegal division by zero at /tmp/foo.pl line 4.\x{a}') called at /tmp/foo.pl line 4
-;; 	main::foo(3) called at /tmp/foo.pl line 8
-(defconst realgud:js-backtrace-loc-pat
+(defun realgud-java-populate-command-keys (&optional map)
+  "Bind the debugger function key layout used by many debuggers.
+
+\\{realgud-example-map-standard}"
+  (define-key map (kbd "C-c !m") 'realgud:goto-maven-errmsg-line)
+  )
+
+
+(defconst realgud-maven-error-loc-pat
   (make-realgud-loc-pat
-   :regexp (format "^\\(?:[\t ]+at \\)?\\([^:]+\\) (\\(.*\\):%s:%s)"
-		   realgud:regexp-captured-num realgud:regexp-captured-num)
-   :file-group 2
-   :line-group 3
-   :char-offset-group 4)
-  "A realgud-loc-pat struct that describes a V8 backtrace location")
+   :regexp "^\\[\\(?:ERROR\\|WARNING\\)\\] \\(.*\\):\\[\\([0-9][0-9]*\\),\\([0-9][0-9]*\\)\\]"
+   :file-group 1
+   :line-group 2
+   :char-offset-group 3)
+  "A realgud-loc-pat struct that describes a maven error or warning line"
+  )
+
+(defun realgud:goto-maven-errmsg-line (pt)
+  "Display the location mentioned by the maven error at PT."
+  (interactive "d")
+  (realgud-goto-line-for-pt pt "maven-error"))
 
 (provide-me "realgud-lang-")

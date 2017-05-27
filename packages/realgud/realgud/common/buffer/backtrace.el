@@ -2,7 +2,7 @@
 
 ;; Author: Rocky Bernstein <rocky@gnu.org>
 
-;; Copyright (C) 2015-2016 Free Software Foundation, Inc
+;; Copyright (C) 2015-2017 Free Software Foundation, Inc
 
 ;; This program is free software: you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License as
@@ -38,7 +38,7 @@
 (declare-function realgud:file-loc-from-line 'realgud-file)
 (declare-function realgud:loc-describe 'realgud-loc)
 
-(defstruct realgud-backtrace-info
+(cl-defstruct realgud-backtrace-info
   "debugger object/structure specific to a (top-level) program to be debugged."
   (cmdbuf    nil)  ;; buffer of the associated debugger process
   (cur-pos   0)    ;; Frame we are at
@@ -144,7 +144,7 @@
 			   frame-pat cmdbuf divert-string indicator-re))
 			 (string-with-props
 			  (ansi-color-filter-apply (car triple)))
-			 (frame-num-pos-list (caddr triple))
+			 (frame-num-pos-list (cl-caddr triple))
 			 )
 		    (setq selected-frame-num (cadr triple))
 		    (insert string-with-props)
@@ -431,7 +431,7 @@ filename, line number, whether the frame is selected as text properties."
 	    (setq frame-num-str
 		    (substring stripped-string (match-beginning 0)
 			       (match-end 0)))
-	    (setq frame-num (incf alt-frame-num))
+	    (setq frame-num (cl-incf alt-frame-num))
 	    (setq frame-num-pos (match-beginning 0))
 	    (add-to-list 'frame-num-pos-list frame-num-pos t)
 	    (add-text-properties (match-beginning 0) (match-end 0)

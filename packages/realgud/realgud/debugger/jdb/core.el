@@ -20,8 +20,6 @@
                        "realgud-")
 (require-relative-list '("init") "realgud:jdb-")
 
-(declare-function gud-find-source            'gud)
-
 (declare-function realgud:strip              'realgud-utils)
 (declare-function realgud:expand-file-name-if-exists 'realgud-core)
 (declare-function realgud-parse-command-arg  'realgud-core)
@@ -161,7 +159,7 @@ Note that the script name path has been expanded via `expand-file-name'.
 
 (defun jdb-suggest-invocation (debugger-name)
   "Suggest a jdb command invocation via `realgud-suggest-invocaton'"
-  (realgud-suggest-invocation realgud:jdb-command-name
+  (realgud-suggest-invocation (or debugger-name realgud:jdb-command-name)
 			      realgud:jdb-minibuffer-history
 			      "java" "\\.java$" "jdb"))
 

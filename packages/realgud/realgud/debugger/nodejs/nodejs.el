@@ -14,7 +14,6 @@
 (require-relative-list '("core" "track-mode")   "realgud:nodejs-")
 (require-relative-list '("../../lang/js") "realgud-lang-")
 
-(declare-function realgud:js-remove-ansi-schmutz 'realgud-lang-js)
 (declare-function realgud:run-debugger 'realgud:run)
 
 ;; This is needed, or at least the docstring part of it is needed to
@@ -68,13 +67,14 @@ fringe and marginal icons.
 			       'nodejs-query-cmdline 'nodejs-parse-cmd-args
 			       'realgud:nodejs-minibuffer-history
 			       opt-cmd-line no-reset)))
-    (if cmd-buf
-	(with-current-buffer cmd-buf
-	  ;; FIXME should allow customization whether to do or not
-	  ;; and also only do if hook is not already there.
-	  (realgud:js-remove-ansi-schmutz)
-	  )
-      )))
+    ;; (if cmd-buf
+    ;; 	(with-current-buffer cmd-buf
+    ;; 	  ;; FIXME should allow customization whether to do or not
+    ;; 	  ;; and also only do if hook is not already there.
+    ;; 	  (realgud:remove-ansi-schmutz)
+    ;; 	  )
+    ;;   )
+    ))
 
 ;; There is already a nodejs command in `nodejs-repl'.
 ;; (defalias 'nodejs 'realgud:nodejs)

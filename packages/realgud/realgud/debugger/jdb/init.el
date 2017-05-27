@@ -1,4 +1,4 @@
-;; Copyright (C) 2014-2016 Free Software Foundation, Inc
+;; Copyright (C) 2014-2017 Free Software Foundation, Inc
 
 ;; Author: Rocky Bernstein <rocky@gnu.org>
 
@@ -15,7 +15,7 @@
 			 "../../common/init")
 		       "realgud-")
 
-;; (require-relative-list '("../../lang/java") "realgud-lang-")
+(require-relative-list '("../../lang/java") "realgud-lang-")
 
 (defvar realgud-pat-hash)
 (declare-function make-realgud-loc-pat (realgud-loc))
@@ -126,6 +126,10 @@ backtrace listing.")
    :file-group 1
    :line-group 2))
 
+;;  Regular expression that describes location in a maven error
+(setf (gethash "maven-error" realgud:jdb-pat-hash)
+      realgud-maven-error-loc-pat)
+
 (setf (gethash "font-lock-keywords" realgud:jdb-pat-hash)
       '(
 	;; The frame number and first type name, if present.
@@ -191,6 +195,10 @@ backtrace listing.")
 ;; 	;; (jdb-frames-match-current-line
 ;; 	;;  (0 jdb-frames-current-frame-face append))
 ;; 	))
+
+;; realgud-loc-pat for a termination message.
+(setf (gethash "termination" realgud:jdb-pat-hash)
+       "^The application exited\n")
 
 (setf (gethash realgud:jdb-debugger-name realgud-pat-hash) realgud:jdb-pat-hash)
 

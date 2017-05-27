@@ -1,4 +1,4 @@
-;; Copyright (C) 2014-2016 Free Software Foundation, Inc
+;; Copyright (C) 2014-2017 Free Software Foundation, Inc
 
 ;; Author: Rocky Bernstein <rocky@gnu.org>
 
@@ -90,9 +90,15 @@ fringe and marginal icons.
 	 (script-name (car script-args))
 	 (parsed-cmd-args
 	  (cl-remove-if 'nil (realgud:flatten parsed-args)))
+	 (cmd-buf (realgud:run-process "jdb" script-name parsed-cmd-args
+			 'realgud:jdb-track-mode-hook no-reset))
 	 )
-    (realgud:run-process "jdb" script-name parsed-cmd-args
-			 'realgud:jdb-track-mode-hook no-reset)
+    (if cmd-buf
+	(with-current-buffer cmd-buf
+	  (set (make-local-variable 'realgud:jdb-file-remap)
+	       (make-hash-table :test 'equal))
+	  )
+      )
     )
   )
 

@@ -1,5 +1,5 @@
 dnl FIXME: pick up from realgud.el
-AC_INIT(emacs-realgud, 1.4.0,)
+AC_INIT(emacs-realgud, 1.4.3,)
 AC_CONFIG_SRCDIR(realgud.el)
 AM_INIT_AUTOMAKE([foreign])
 AM_MAINTAINER_MODE
@@ -42,10 +42,9 @@ AM_MISSING_PROG(GIT2CL, git2cl, $missing_dir)
 # Check whether --with-lispdir was given.
 if test "${with_lispdir+set}" = set; then :
 else
-  my_lispdir=$(EMACS_PROG=$EMACS $SH_PROG $(dirname $0)/compute-lispdir.sh)
+  my_lispdir="${datadir}/emacs/site-lisp"
   if test "${my_lispdir+set}" = set; then :
     with_lispdir=$my_lispdir
-    echo "'compute-lispdir.sh' lispdir install directory override: '$with_lispdir'"
   fi
 fi
 
