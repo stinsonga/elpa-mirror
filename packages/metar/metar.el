@@ -3,7 +3,7 @@
 ;; Copyright (C) 2007, 2014-2016  Free Software Foundation, Inc.
 
 ;; Author: Mario Lang <mlang@delysid.org>
-;; Version: 0.2
+;; Version: 0.3
 ;; Package-Requires: ((cl-lib "0.5"))
 ;; Keywords: comm
 
