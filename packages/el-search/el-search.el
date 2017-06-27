@@ -682,12 +682,20 @@ not be inside a string or comment."
 Keys are pattern names (i.e. symbols) and values the associated
 expander functions.")
 
+(defun el-search-defined-patterns ()
+  "Return a list of defined el-search patterns."
+  (mapcar #'car el-search--pcase-macros))
+
+(put 'el-search-defined-patterns 'function-documentation
+     '(el-search--make-docstring 'el-search-defined-patterns))
+
 (defun el-search--make-docstring (name)
   ;; Code mainly from `pcase--make-docstring'
   (let* ((main (documentation (symbol-function name) 'raw))
          (ud (help-split-fundoc main name)))
     (with-temp-buffer
-      (insert (or (cdr ud) main))
+      (insert (or (cdr ud) main)
+              "\n\nThe following additional pattern types are currently defined:")
       (mapc
        (pcase-lambda (`(,symbol . ,fun))
          (unless (string-match-p "\\`[-_]\\|--" (symbol-name symbol)) ;Let's consider these "internal"
@@ -1925,8 +1933,9 @@ details.
 
 PATTERN is an \"el-search\" pattern - which means, either a
 `pcase' pattern or complying with one of the additional pattern
-types defined with `el-search-defpattern'.  The following
-additional pattern types are currently defined:"
+types defined with `el-search-defpattern'.
+
+See `el-search-defined-patterns' for a list of defined patterns."
   (declare (interactive-only el-search-forward))
   (interactive (el-search-pattern--interactive))
   (cond
@@ -1948,8 +1957,6 @@ additional pattern types are currently defined:"
        (lambda () (stream (list current-buffer))))
      (lambda (search) (setf (alist-get 'is-single-buffer (el-search-object-properties search)) t))
      'from-here))))
-
-(put 'el-search-pattern 'function-documentation '(el-search--make-docstring 'el-search-pattern))
 
 (defun el-search-from-beginning (&optional restart-search)
   "Go to the first of this buffer's matches.
