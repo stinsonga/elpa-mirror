@@ -5,7 +5,7 @@
 ;; Author: Stephen Leake <stephen_leake@member.fsf.org>
 ;; Maintainer: Stephen Leake <stephen_leake@member.fsf.org>
 ;; Keywords: frame window
-;; Version: 1.0.3
+;; Version: 1.0.4
 ;; Package-Requires: ((emacs "24.4"))
 ;;
 ;; This file is part of GNU Emacs.
@@ -56,7 +56,7 @@
 ;;
 ;; m - compose mail in another window/frame.
 ;;
-;; o - move to another window/frame.
+;; o - select another window/frame.
 ;;
 ;; r - find-file-read-only in another window/frame.
 ;;
@@ -293,7 +293,7 @@ f - find-file in another window/frame.
 
 m - compose mail in another window/frame.
 
-o - move to another window/frame.
+o - select another window/frame.
 
 r - find-file-read-only in another window/frame.
 
