@@ -1,6 +1,6 @@
 ;;; sokoban.el --- Implementation of Sokoban for Emacs.
 
-;; Copyright (C) 1998, 2013 Free Software Foundation, Inc.
+;; Copyright (C) 1998, 2013, 2017 Free Software Foundation, Inc.
 
 ;; Author: Glynn Clements <glynn.clements@xemacs.org>
 ;; Version: 1.4
@@ -512,18 +512,17 @@ static char * player_xpm[] = {
 	(gamegrid-set-cell x y c)))))
 
 (defun sokoban-draw-score ()
-  (let ((strings (vector (format "Moves:  %05d" sokoban-moves)
-			 (format "Pushes: %05d" sokoban-pushes)
-			 (format "Done:   %d/%d"
-				 sokoban-done
-				 sokoban-targets))))
-    (dotimes (y 2)
-      (let* ((string (aref strings y))
-	     (len (length string)))
-	(dotimes (x len)
+  (let ((y sokoban-score-y))
+    (dolist (string (list (format "Moves:  %05d" sokoban-moves)
+			  (format "Pushes: %05d" sokoban-pushes)
+			  (format "Done:   %d/%d"
+				  sokoban-done
+				  sokoban-targets)))
+      (let* ((len (length string)))
+        (dotimes (x len)
 	  (gamegrid-set-cell (+ sokoban-score-x x)
-			     (+ sokoban-score-y y)
-			     (aref string x))))))
+			     y (aref string x))))
+      (incf y)))
   (setq mode-line-format
 	(format "Sokoban:   Level: %3d   Moves: %05d   Pushes: %05d   Done: %d/%d"
 		sokoban-level sokoban-moves sokoban-pushes
