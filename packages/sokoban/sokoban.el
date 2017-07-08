@@ -3,6 +3,7 @@
 ;; Copyright (C) 1998, 2013, 2017 Free Software Foundation, Inc.
 
 ;; Author: Glynn Clements <glynn.clements@xemacs.org>
+;; Maintainer: Dieter Deyke <dieter.deyke@gmail.com>
 ;; Version: 1.4
 ;; Created: 1997-09-11
 ;; Keywords: games
@@ -41,6 +42,8 @@
 ;; Modified: 1998-06-04, added `undo' feature
 ;;   added number of blocks done/total to score and modeline
 ;; Modified: 2003-06-14, update email address, remove URL
+;; Modified: 2017-05-27, save sokoban-level when a level is completed,
+;;   restore sokoban-level when game is started
 
 ;; Tested with XEmacs 20.3/4/5 and Emacs 19.34
 
@@ -93,6 +96,8 @@
 (defvar sokoban-score-y 17)
 
 (defvar sokoban-level-data nil)
+
+(defconst sokoban-state-filename (locate-user-emacs-file "sokoban-state"))
 
 ;; ;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -613,6 +618,9 @@ static char * player_xpm[] = {
 			(incf sokoban-done))
 		    (sokoban-add-push dx dy)
 		    (cond ((= sokoban-done sokoban-targets)
+                           (let ((level sokoban-level))
+                             (with-temp-file sokoban-state-filename
+                               (print level (current-buffer))))
 			   (sit-for 3)
 			   (sokoban-next-level))))))))))
 
@@ -771,7 +779,14 @@ sokoban-mode keybindings:
   (switch-to-buffer sokoban-buffer-name)
   (gamegrid-kill-timer)
   (sokoban-mode)
-  (sokoban-start-game))
+  (setq sokoban-level 0)
+  (if (file-exists-p sokoban-state-filename)
+    (setq sokoban-level
+          (with-temp-buffer
+            (insert-file-contents sokoban-state-filename)
+            (goto-char (point-min))
+            (read (current-buffer)))))
+  (sokoban-next-level))
 
 ;;;###autoload
 (unless (featurep 'xemacs)
