@@ -4,7 +4,7 @@
 
 ;; Author: Glynn Clements <glynn.clements@xemacs.org>
 ;; Maintainer: Dieter Deyke <dieter.deyke@gmail.com>
-;; Version: 1.4
+;; Version: 1.4.1
 ;; Created: 1997-09-11
 ;; Keywords: games
 ;; Package-Type: multi
@@ -44,6 +44,8 @@
 ;; Modified: 2003-06-14, update email address, remove URL
 ;; Modified: 2017-05-27, save sokoban-level when a level is completed,
 ;;   restore sokoban-level when game is started
+;; Modified: 2017-05-27, allow for player to start on a target,
+;;   allow for wider and higher levels
 
 ;; Tested with XEmacs 20.3/4/5 and Emacs 19.34
 
@@ -86,14 +88,14 @@
               (and (file-exists-p file) file))
 	(expand-file-name "sokoban.levels" data-directory))))
 
-(defvar sokoban-width 20)
-(defvar sokoban-height 16)
+(defvar sokoban-width 27)
+(defvar sokoban-height 20)
 
-(defvar sokoban-buffer-width 20)
-(defvar sokoban-buffer-height 20)
+(defvar sokoban-buffer-width sokoban-width)
+(defvar sokoban-buffer-height (+ 4 sokoban-height))
 
 (defvar sokoban-score-x 0)
-(defvar sokoban-score-y 17)
+(defvar sokoban-score-y (1+ sokoban-height))
 
 (defvar sokoban-level-data nil)
 
@@ -308,13 +310,14 @@ static char * player_xpm[] = {
 };
 ")
 
-(defconst sokoban-floor ?\+)
+(defconst sokoban-floor ?\&)
 ;; note - space character in level file is also allowed to indicate floor
 (defconst sokoban-target ?\.)
 (defconst sokoban-wall ?\#)
 (defconst sokoban-block ?\$)
 (defconst sokoban-player ?\@)
 (defconst sokoban-block-on-target ?\*)
+(defconst sokoban-player-on-target ?\+)
 
 ;; ;;;;;;;;;;;;; display options ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -487,7 +490,8 @@ static char * player_xpm[] = {
     (dotimes (x sokoban-width)
       (let ((c (aref (aref sokoban-level-map y) x)))
 	(cond
-	 ((= c sokoban-target)
+	 ((or (= c sokoban-target)
+	      (= c sokoban-player-on-target))
 	  (incf sokoban-targets))
 	 ((= c sokoban-block-on-target)
 	  (incf sokoban-targets)
@@ -498,7 +502,8 @@ static char * player_xpm[] = {
 (defun sokoban-get-floor (x y)
   (let ((c (aref (aref sokoban-level-map y) x)))
     (if (or (= c sokoban-target)
-	    (= c sokoban-block-on-target))
+	    (= c sokoban-block-on-target)
+	    (= c sokoban-player-on-target))
 	sokoban-target
       sokoban-floor)))
 
@@ -512,6 +517,10 @@ static char * player_xpm[] = {
 	(if (= c sokoban-player)
 	    (setq sokoban-x x
 		  sokoban-y y))
+	(if (= c sokoban-player-on-target)
+	    (setq sokoban-x x
+                  sokoban-y y
+                  c sokoban-player))
 	(if (= c sokoban-block-on-target)
 	    (setq c sokoban-block))
 	(gamegrid-set-cell x y c)))))
