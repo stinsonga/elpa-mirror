@@ -1,6 +1,6 @@
 ;; wisi-compile.el --- Grammar compiler for the wisi parser, integrating Wisi OpenToken output.  -*- lexical-binding:t -*-
 ;;
-;; Copyright (C) 2012, 2013, 2015, 2016 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2013, 2015-2017 Free Software Foundation, Inc.
 ;;
 ;; Author: Stephen Leake <stephen_leake@member.fsf.org>
 ;;
@@ -128,7 +128,8 @@ It returns nil; it is called for the semantic side-effects only."
     (fset action-symbol
 	  `(lambda ($nterm wisi-tokens)
 	     ,form
-	     nil))))
+	     nil))
+    (byte-compile action-symbol)))
 
 (defun wisi-compile-grammar (grammar)
   "Compile the LALR(1) GRAMMAR; return the automaton for wisi-parse.
@@ -190,16 +191,10 @@ names have the format nonterm:index."
   ;;
   ;; FIXME: eliminate use of semantic-lex-* in *-wy.el. Similarly
   ;; requires decoupling from OpenToken
-  ;;
-  ;; FIXME: can eliminate obarray? We don't need the obarray to
-  ;; avoid garbage collection of the symbols; they are all referenced in the compiled grammar.
-  ;; But each semantic action function has to be defined (and byte-compiled?) somewhere?
-  ;;     currently actions are _not_ byte-compiled; wisi-compile-grammar is run at load time
-  ;;     need 'eval-when-compile' to byte-compile them?
-  ;;     can't byte-compile obarray?
 
   (let ((defs (nth 1 grammar))
 	(symbol-obarray (make-vector 13 0));; for parse actions
+        (byte-compile-warnings '(not free-vars)) ;; for "wisi-test-success" in test/wisi/*
 	def nonterm rhs-list rule
 	semantic-action index)
 

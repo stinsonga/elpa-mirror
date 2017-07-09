@@ -7,6 +7,21 @@ Please send wisi bug reports to bug-gnu-emacs@gnu.org, with
 'wisi' in the subject. If possible, use M-x report-emacs-bug.
 
 
+* wisi 1.1.5
+9 Jul 2017
+
+** wisi-indent-fallback allows setting the indent engine to use when
+   the wisi engine fails.
+
+** wisi-comment-indent now uses comment-column for comments following
+   code on the same line.
+
+** wisi-forward-statement-keyword tolerates end of buffer, and uses
+   either cache-next or cache-end.
+
+** forward-sexp-function is set to wisi-forward-sexp, which handles
+   parens, strings, and statements.
+
 * wisi 1.1.4
 31 Oct 2016
 
