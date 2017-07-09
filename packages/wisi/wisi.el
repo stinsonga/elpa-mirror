@@ -1,13 +1,13 @@
 ;;; wisi.el --- Utilities for implementing an indentation/navigation engine using a generalized LALR parser -*- lexical-binding:t -*-
 ;;
-;; Copyright (C) 2012 - 2016  Free Software Foundation, Inc.
+;; Copyright (C) 2012 - 2017  Free Software Foundation, Inc.
 ;;
 ;; Author: Stephen Leake <stephen_leake@member.fsf.org>
 ;; Maintainer: Stephen Leake <stephen_leake@member.fsf.org>
 ;; Keywords: parser
 ;;  indentation
 ;;  navigation
-;; Version: 1.1.4
+;; Version: 1.1.5
 ;; package-requires: ((cl-lib "0.4") (emacs "24.2"))
 ;; URL: http://www.nongnu.org/ada-mode/wisi/wisi.html
 ;;
@@ -742,9 +742,10 @@ If accessing cache at a marker for a token as set by `wisi-cache-tokens', POS mu
 
 (defun wisi-get-containing-cache (cache)
   "Return cache from (wisi-cache-containing CACHE)."
-  (let ((containing (wisi-cache-containing cache)))
-    (and containing
-	 (wisi-get-cache (1- containing)))))
+  (when cache
+    (let ((containing (wisi-cache-containing cache)))
+      (and containing
+	   (wisi-get-cache (1- containing))))))
 
 (defun wisi-cache-region (cache)
   "Return region designated by cache.
@@ -1267,20 +1268,23 @@ If LIMIT (a buffer position) is reached, throw an error."
 
 (defun wisi-forward-statement-keyword ()
   "If not at a cached token, move forward to next
-cache. Otherwise move to cache-next, or next cache if nil.
-Return cache found."
-  (wisi-validate-cache (point-max) t) ;; ensure there is a next cache to move to
-  (let ((cache (wisi-get-cache (point))))
-    (if cache
-	(let ((next (wisi-cache-next cache)))
-	  (if next
-	      (goto-char (1- next))
-	    (wisi-forward-token)
-	    (wisi-forward-cache)))
-      (wisi-forward-cache))
-    )
-  (wisi-get-cache (point))
-  )
+cache. Otherwise move to cache-next, or cache-end, or next cache
+if both nil.  Return cache found."
+  (unless (eobp)
+    (wisi-validate-cache (point-max) t) ;; ensure there is a next cache to move to
+    (let ((cache (wisi-get-cache (point))))
+      (if (and cache
+	       (not (eq (wisi-cache-class cache) 'statement-end)))
+	  (let ((next (or (wisi-cache-next cache)
+			  (wisi-cache-end cache))))
+	    (if next
+		(goto-char (1- next))
+	      (wisi-forward-token)
+	      (wisi-forward-cache)))
+	(wisi-forward-cache))
+      )
+    (wisi-get-cache (point))
+    ))
 
 (defun wisi-backward-statement-keyword ()
   "If not at a cached token, move backward to prev
@@ -1294,6 +1298,34 @@ cache. Otherwise move to cache-prev, or prev cache if nil."
 	    (wisi-backward-cache)))
       (wisi-backward-cache))
   ))
+
+(defun wisi-forward-sexp (&optional arg)
+  "For `forward-sexp-function'."
+  (interactive "^p")
+  (or arg (setq arg 1))
+  (cond
+   ((and (> arg 0) (= 4 (syntax-class (syntax-after (point)))))  ;; on open paren
+    (let ((forward-sexp-function nil))
+      (forward-sexp arg)))
+
+   ((and (< arg 0) (= 5 (syntax-class (syntax-after (1- (point)))))) ;; after close paren
+    (let ((forward-sexp-function nil))
+      (forward-sexp arg)))
+
+   ((and (> arg 0) (= 7 (syntax-class (syntax-after (point)))))  ;; on (open) string quote
+    (let ((forward-sexp-function nil))
+      (forward-sexp arg)))
+
+   ((and (< arg 0) (= 7 (syntax-class (syntax-after (1- (point)))))) ;; after (close) string quote
+    (let ((forward-sexp-function nil))
+      (forward-sexp arg)))
+
+   (t
+    (dotimes (_i (abs arg))
+      (if (> arg 0)
+	  (wisi-forward-statement-keyword)
+	(wisi-backward-statement-keyword))))
+   ))
 
 (defun wisi-goto-containing (cache &optional error)
   "Move point to containing token for CACHE, return cache at that point.
@@ -1360,7 +1392,7 @@ Return start cache."
   (wisi-get-cache (point)))
 
 (defun wisi-prev-statement-cache (cache)
-  "Move point to CACHE-next, return cache; error if nil."
+  "Move point to CACHE-prev, return cache; error if nil."
   (when (not (markerp (wisi-cache-prev cache)))
     (error "no prev statement cache"))
   (goto-char (1- (wisi-cache-prev cache)))
@@ -1371,27 +1403,33 @@ Return start cache."
 (defun wisi-comment-indent ()
   "For `comment-indent-function'. Indent single line comment to
 the comment on the previous line."
+  ;; Called from `comment-indent', either to insert a new comment, or
+  ;; to indent the first line of an existing one.  In either case, the
+  ;; comment may be after code on the same line.  For an existing
+  ;; comment, point is at the start of the starting delimiter.
   (or
    (save-excursion
-     (forward-comment -1)
-     (when (looking-at comment-start)
-       ;; There is a preceding comment line.
-       (current-column)))
+     ;; Check for a preceding comment line; fail if comment follows code.
+     (when (forward-comment -1)
+       ;; For the case:
+       ;;
+       ;; code;-- comment
+       ;;
+       ;; point is on '--', and 'forward-comment' does not move point,
+       ;; returns nil.
+       (when (looking-at comment-start)
+         (current-column))))
 
-   ;; Probably called from `comment-indent'; either to insert a new
-   ;; comment, or to indent the first line of an existing one.  In
-   ;; either case, the comment may be after code on the same line.
    (save-excursion
-     (let ((start-col (current-column)))
-       (back-to-indentation)
-       (if (looking-at comment-start)
-	   ;; An existing comment alone on a line. Return nil, so
-	   ;; `comment-indent' will call `indent-according-to-mode'
-	   nil
+     (back-to-indentation)
+     (if (looking-at comment-start)
+         ;; An existing comment, no code preceding comment, and
+         ;; no comment on preceding line. Return nil, so
+         ;; `comment-indent' will call `indent-according-to-mode'
+         nil
 
-	 ;; A comment after code on the same line; point was at the
-	 ;; comment start, so assume it is already correct.
-	 start-col)))
+       ;; A comment after code on the same line.
+       comment-column))
    ))
 
 (defun wisi-indent-current (offset)
@@ -1446,6 +1484,17 @@ correct. Must leave point at indentation of current line.")
 (defvar-local wisi-indent-failed nil
   "Non-nil when wisi-indent-line fails due to parse failing; cleared when indent succeeds.")
 
+(defvar-local wisi-indent-fallback 'wisi-indent-fallback-default
+  "Function to compute indent for current line when wisi parse fails.")
+
+(defun wisi-indent-fallback-default ()
+  ;; no indent info at point. Assume user is
+  ;; editing; indent to previous line, fix it
+  ;; after parse succeeds
+  (forward-line -1);; safe at bob
+  (back-to-indentation)
+  (current-column))
+
 (defun wisi-indent-line ()
   "Indent current line using the wisi indentation engine."
   (interactive)
@@ -1460,15 +1509,9 @@ correct. Must leave point at indentation of current line.")
 	(wisi-validate-cache (line-end-position))) ;; include at lease the first token on this line
 
       (if (> (point) wisi-cache-max)
-	  ;; parse failed
 	  (progn
-	    ;; no indent info at point. Assume user is
-	    ;; editing; indent to previous line, fix it
-	    ;; after parse succeeds
-	    (setq wisi-indent-failed t)
-	    (forward-line -1);; safe at bob
-	    (back-to-indentation)
-	    (setq indent (current-column)))
+	      (setq wisi-indent-failed t)
+	      (setq indent (funcall wisi-indent-fallback)))
 
 	;; parse succeeded
 	(when wisi-indent-failed
@@ -1566,8 +1609,10 @@ correct. Must leave point at indentation of current line.")
   (setq wisi-keyword-table keyword-table)
   (setq wisi-parse-table parse-table)
 
-  (setq wisi-indent-calculate-functions indent-calculate)
+  ;; file local variables may have added opentoken, gnatprep
+  (setq wisi-indent-calculate-functions (append wisi-indent-calculate-functions indent-calculate))
   (set (make-local-variable 'indent-line-function) 'wisi-indent-line)
+  (set (make-local-variable 'forward-sexp-function) #'wisi-forward-sexp)
 
   (setq wisi-post-parse-fail-hook post-parse-fail)
   (setq wisi-indent-failed nil)
@@ -1575,8 +1620,7 @@ correct. Must leave point at indentation of current line.")
   (add-hook 'before-change-functions 'wisi-before-change nil t)
   (add-hook 'after-change-functions 'wisi-after-change nil t)
 
-  (when (functionp 'jit-lock-register)
-      (jit-lock-register 'wisi-fontify-region))
+  (jit-lock-register 'wisi-fontify-region)
 
   ;; see comments on "lexer" above re syntax-propertize
   (syntax-propertize (point-max))
