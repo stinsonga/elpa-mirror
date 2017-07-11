@@ -4,7 +4,7 @@
 
 ;; Author: Glynn Clements <glynn.clements@xemacs.org>
 ;; Maintainer: Dieter Deyke <dieter.deyke@gmail.com>
-;; Version: 1.4.1
+;; Version: 1.4.2
 ;; Created: 1997-09-11
 ;; Keywords: games
 ;; Package-Type: multi
@@ -42,10 +42,6 @@
 ;; Modified: 1998-06-04, added `undo' feature
 ;;   added number of blocks done/total to score and modeline
 ;; Modified: 2003-06-14, update email address, remove URL
-;; Modified: 2017-05-27, save sokoban-level when a level is completed,
-;;   restore sokoban-level when game is started
-;; Modified: 2017-05-27, allow for player to start on a target,
-;;   allow for wider and higher levels
 
 ;; Tested with XEmacs 20.3/4/5 and Emacs 19.34
 
@@ -149,7 +145,7 @@ static char * target_xpm[] = {
 \"32 32 3 1\",
 \"  c None\",
 \". c black\",
-\"X c yellow\",
+\"X c green\",
 \"                                \",
 \"                                \",
 \"                                \",
@@ -268,6 +264,48 @@ static char * block_xpm[] = {
 };
 ")
 
+(defconst sokoban-block-on-target-xpm "\
+/* XPM */
+static char * block_on_target_xpm[] = {
+\"32 32 3 1\",
+\"  c None\",
+\". c black\",
+\"X c green\",
+\".............................   \",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.   \",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX..  \",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX..  \",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.X. \",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.X. \",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.XX.\",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.XX.\",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.XX.\",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.XX.\",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.XX.\",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.XX.\",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.XX.\",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.XX.\",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.XX.\",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.XX.\",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.XX.\",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.XX.\",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.XX.\",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.XX.\",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.XX.\",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.XX.\",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.XX.\",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.XX.\",
+\".............................XX.\",
+\".XXXXXXXXXXXXXXXXXXXXXXXXXXX.XX.\",
+\" .XXXXXXXXXXXXXXXXXXXXXXXXXXX.X.\",
+\" .XXXXXXXXXXXXXXXXXXXXXXXXXXX.X.\",
+\"  .XXXXXXXXXXXXXXXXXXXXXXXXXXX..\",
+\"  .XXXXXXXXXXXXXXXXXXXXXXXXXXX..\",
+\"   .XXXXXXXXXXXXXXXXXXXXXXXXXXX.\",
+\"   .............................\",
+};
+")
+
 (defconst sokoban-player-xpm "\
 /* XPM */
 static char * player_xpm[] = {
@@ -301,6 +339,49 @@ static char * player_xpm[] = {
 \"         o............o         \",
 \"          o..........o          \",
 \"           o........o           \",
+\"          o.o.oooo.o.o          \",
+\"         o.....oo.....o         \",
+\"        o......oo......o        \",
+\"       o.......oo.......o       \",
+\"      o..o..o..oo.oo..o..o      \",
+\"      oooooooooooooooooooo      \",
+};
+")
+
+(defconst sokoban-player-on-target-xpm "\
+/* XPM */
+static char * player_on_target_xpm[] = {
+\"32 32 4 1\",
+\"  c None\",
+\"o c white\",
+\". c black\",
+\"X c green\",
+\"                                \",
+\"                                \",
+\"                                \",
+\"            oooooooo            \",
+\"            o......o            \",
+\"           o.oooooo.o           \",
+\"          .o.oooooo.o.          \",
+\"          o.oooooooo.o          \",
+\"          o.o..oo..o.o          \",
+\"          o.oooooooo.o          \",
+\"      ..  oo.o....o.oo  ..      \",
+\"      .X.oo..oo..oo..oo.X.      \",
+\"      .XXo....o..o....oXX.      \",
+\"      .XXo.o..o..o..o.oXX.      \",
+\"      .XXo.o...oo...o.oXX.      \",
+\"      .Xo.oo........oo.oX.      \",
+\"      .Xo.oo........oo.oX.      \",
+\"      .o.ooo........ooo.o.      \",
+\"      .o.ooo........ooo.o.      \",
+\"      .o.ooo........ooo.o.      \",
+\"      .Xo.oo........oo.oX.      \",
+\"      ..o.oo........oo.o..      \",
+\"        o.o..........o.o        \",
+\"         o............o         \",
+\"          o..........o          \",
+\"          .o........o.          \",
 \"          o.o.oooo.o.o          \",
 \"         o.....oo.....o         \",
 \"        o......oo......o        \",
@@ -365,9 +446,30 @@ static char * player_xpm[] = {
     (((glyph color-x) [1 0 0])
      (color-tty "red"))))
 
+(defvar sokoban-block-on-target-options
+  `(((glyph
+      [xpm :data ,sokoban-block-on-target-xpm])
+     ((mono-x mono-tty emacs-tty) ?\O)
+     (t ?\040))
+    ((color-x color-x)
+     (mono-x grid-x)
+     (color-tty color-tty))
+    (((glyph color-x) [1 0 0])
+     (color-tty "red"))))
+
 (defvar sokoban-player-options
   `(((glyph
       [xpm :data ,sokoban-player-xpm])
+     (t ?\*))
+    ((color-x color-x)
+     (mono-x grid-x)
+     (color-tty color-tty))
+    (((glyph color-x) [0 1 0])
+     (color-tty "green"))))
+
+(defvar sokoban-player-on-target-options
+  `(((glyph
+      [xpm :data ,sokoban-player-on-target-xpm])
      (t ?\*))
     ((color-x color-x)
      (mono-x grid-x)
@@ -477,8 +579,12 @@ static char * player_xpm[] = {
 		   sokoban-wall-options)
                   ((= c sokoban-block)
 		   sokoban-block-options)
+                  ((= c sokoban-block-on-target)
+		   sokoban-block-on-target-options)
                   ((= c sokoban-player)
 		   sokoban-player-options)
+                  ((= c sokoban-player-on-target)
+		   sokoban-player-on-target-options)
                   (t
 		   '(nil nil nil)))))
     options))
@@ -490,22 +596,14 @@ static char * player_xpm[] = {
     (dotimes (x sokoban-width)
       (let ((c (aref (aref sokoban-level-map y) x)))
 	(cond
-	 ((or (= c sokoban-target)
-	      (= c sokoban-player-on-target))
+	 ((or (eq c sokoban-target)
+	      (eq c sokoban-player-on-target))
 	  (incf sokoban-targets))
-	 ((= c sokoban-block-on-target)
+	 ((eq c sokoban-block-on-target)
 	  (incf sokoban-targets)
 	  (incf sokoban-done))
 	 ((= c ?\040) ;; treat space characters in level file as floor
 	  (aset (aref sokoban-level-map y) x sokoban-floor)))))))
-
-(defun sokoban-get-floor (x y)
-  (let ((c (aref (aref sokoban-level-map y) x)))
-    (if (or (= c sokoban-target)
-	    (= c sokoban-block-on-target)
-	    (= c sokoban-player-on-target))
-	sokoban-target
-      sokoban-floor)))
 
 (defun sokoban-init-buffer ()
   (gamegrid-init-buffer sokoban-buffer-width
@@ -514,15 +612,10 @@ static char * player_xpm[] = {
   (dotimes (y sokoban-height)
     (dotimes (x sokoban-width)
       (let ((c (aref (aref sokoban-level-map y) x)))
-	(if (= c sokoban-player)
+	(if (or (eq c sokoban-player)
+	        (eq c sokoban-player-on-target))
 	    (setq sokoban-x x
 		  sokoban-y y))
-	(if (= c sokoban-player-on-target)
-	    (setq sokoban-x x
-                  sokoban-y y
-                  c sokoban-player))
-	(if (= c sokoban-block-on-target)
-	    (setq c sokoban-block))
 	(gamegrid-set-cell x y c)))))
 
 (defun sokoban-draw-score ()
@@ -554,6 +647,30 @@ static char * player_xpm[] = {
   (incf sokoban-pushes)
   (sokoban-draw-score))
 
+(defun sokoban-targetp (x y)
+  (let ((c (aref (aref sokoban-level-map y) x)))
+    (or (eq c sokoban-target)
+	(eq c sokoban-block-on-target)
+	(eq c sokoban-player-on-target))))
+
+(defun sokoban-set-floor (x y)
+  (gamegrid-set-cell x y
+                     (if (sokoban-targetp x y)
+                         sokoban-target
+                       sokoban-floor)))
+
+(defun sokoban-set-player (x y)
+  (gamegrid-set-cell x y
+                     (if (sokoban-targetp x y)
+                         sokoban-player-on-target
+                       sokoban-player)))
+
+(defun sokoban-set-block (x y)
+  (gamegrid-set-cell x y
+                     (if (sokoban-targetp x y)
+                         sokoban-block-on-target
+                       sokoban-block)))
+
 (defun sokoban-undo ()
   "Undo previous Sokoban change."
   (interactive)
@@ -566,26 +683,23 @@ static char * player_xpm[] = {
 	   (dy (nth 2 entry)))
       (cond ((eq type 'push)
 	     (let* ((x (+ sokoban-x dx))
-		    (y (+ sokoban-y dy))
-		    (c (sokoban-get-floor x y)))
-	       (gamegrid-set-cell x y c)
-	       (if (eq c sokoban-target)
+		    (y (+ sokoban-y dy)))
+	       (sokoban-set-floor x y)
+	       (if (sokoban-targetp x y)
 		   (decf sokoban-done))
-	       (gamegrid-set-cell sokoban-x sokoban-y sokoban-block)
-	       (setq c (sokoban-get-floor sokoban-x sokoban-y))
-	       (if (eq c sokoban-target)
+	       (sokoban-set-block sokoban-x sokoban-y)
+	       (if (sokoban-targetp sokoban-x sokoban-y)
 		   (incf sokoban-done)))
 	     (setq sokoban-x (- sokoban-x dx))
 	     (setq sokoban-y (- sokoban-y dy))
-	     (gamegrid-set-cell sokoban-x sokoban-y sokoban-player)
+	     (sokoban-set-player sokoban-x sokoban-y)
 	     (decf sokoban-pushes)
 	     (decf sokoban-moves))
 	    ((eq type 'move)
-	     (let ((c (sokoban-get-floor sokoban-x sokoban-y)))
-	       (gamegrid-set-cell sokoban-x sokoban-y c))
+	     (sokoban-set-floor sokoban-x sokoban-y)
 	     (setq sokoban-x (- sokoban-x dx))
 	     (setq sokoban-y (- sokoban-y dy))
-	     (gamegrid-set-cell sokoban-x sokoban-y sokoban-player)
+	     (sokoban-set-player sokoban-x sokoban-y)
 	     (decf sokoban-moves))
 	    (t
 	     (message "Invalid entry in sokoban-undo-list")))
@@ -597,33 +711,26 @@ static char * player_xpm[] = {
 	 (c (gamegrid-get-cell x y)))
     (cond ((or (eq c sokoban-floor)
 	       (eq c sokoban-target))
-	   (gamegrid-set-cell sokoban-x
-			      sokoban-y
-			      (sokoban-get-floor sokoban-x
-						 sokoban-y))
+           (sokoban-set-floor sokoban-x sokoban-y)
 	   (setq sokoban-x x
 		 sokoban-y y)
-	   (gamegrid-set-cell sokoban-x
-			      sokoban-y
-			      sokoban-player)
+           (sokoban-set-player sokoban-x sokoban-y)
 	   (sokoban-add-move dx dy))
-	  ((eq c sokoban-block)
+	  ((or (eq c sokoban-block)
+	       (eq c sokoban-block-on-target))
 	   (let* ((xx (+ x dx))
 		  (yy (+ y dy))
 		  (cc (gamegrid-get-cell xx yy)))
 	     (cond ((or (eq cc sokoban-floor)
 			(eq cc sokoban-target))
-		    (if (eq (sokoban-get-floor x y) sokoban-target)
+		    (if (sokoban-targetp x y)
 			(decf sokoban-done))
-		    (gamegrid-set-cell xx yy sokoban-block)
-		    (gamegrid-set-cell x y sokoban-player)
-		    (gamegrid-set-cell sokoban-x
-				       sokoban-y
-				       (sokoban-get-floor sokoban-x
-							  sokoban-y))
+                    (sokoban-set-block xx yy)
+		    (sokoban-set-player x y)
+		    (sokoban-set-floor sokoban-x sokoban-y)
 		    (setq sokoban-x x
 			  sokoban-y y)
-		    (if (eq (sokoban-get-floor xx yy) sokoban-target)
+		    (if (sokoban-targetp xx yy)
 			(incf sokoban-done))
 		    (sokoban-add-push dx dy)
 		    (cond ((= sokoban-done sokoban-targets)
