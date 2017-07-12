@@ -1,7 +1,6 @@
 ;;; auto-overlays.el --- Automatic regexp-delimited overlays
 
-
-;; Copyright (C) 2005-2015  Free Software Foundation, Inc
+;; Copyright (C) 2005-2017  Free Software Foundation, Inc
 
 ;; Version: 0.10.9
 ;; Author: Toby Cubitt <toby-predictive@dr-qubit.org>
@@ -146,7 +145,7 @@
 
 (defmacro auto-o-insert-regexp (set-id pos entry)
   ;; Insert regexp ENTRY in SET-ID's regexps at POS.
-  `(setcdr (nthcdr (1- pos) (auto-o-get-regexps ,set-id))
+  `(setcdr (nthcdr (1- ,pos) (auto-o-get-regexps ,set-id))
 	   (nconc (list ,entry) (nthcdr pos (auto-o-get-regexps ,set-id)))))
 
 
@@ -579,7 +578,7 @@ symbol that can be used to uniquely identify REGEXP (see
   "Unload auto-overlay definition DEFINITION-ID in set SET-ID
 from the current buffer. Returns the deleted definition."
 
-  (save-excursion
+  (save-current-buffer
     ;; call suicide function for corresponding overlays in all buffers in
     ;; which the set is enabled
     (dolist (buff (auto-o-get-buffer-list set-id))
@@ -622,7 +621,7 @@ from the current buffer. Returns the deleted definition."
 definition DEFINITION-ID in set SET-ID of the current buffer.
 Returns the deleted regexp."
 
-  (save-excursion
+  (save-current-buffer
     ;; call suicide function for corresponding overlays in all buffers in
     ;; which the set is enabled
     (dolist (buff (auto-o-get-buffer-list set-id))
@@ -694,7 +693,7 @@ argument NO-REGEXP-CHECK is non-nil, the file of saved overlays
 will be used, but no check will be made to ensure regexp
 refinitions are the same as when the overlays were saved."
 
-  (save-excursion
+  (save-current-buffer
     (when buffer (set-buffer buffer))
     ;; run initialisation hooks
     (run-hooks 'auto-overlay-load-hook)
@@ -750,7 +749,7 @@ If LEAVE-OVERLAYS is non-nil, don't bother deleting the overlays
 from the buffer \(this is generally a bad idea, unless the buffer
 is about to be killed in which case it speeds things up a bit\)."
 
-  (save-excursion
+  (save-current-buffer
     (when buffer (set-buffer buffer))
     ;; disable overlay set
     (auto-o-disable-set set-id (current-buffer))
@@ -803,7 +802,7 @@ filename, an error occurs.
 The overlays can be loaded again later using
 `auto-overlay-load-overlays'."
 
-  (save-excursion
+  (save-current-buffer
     (when buffer (set-buffer buffer))
 
     ;; construct filename
@@ -883,7 +882,7 @@ definitions will be skipped; the saved overlays will be loaded
 even if different regexp definitions were active when the
 overlays were saved."
 
-  (save-excursion
+  (save-current-buffer
     (when buffer (set-buffer buffer))
 
     ;; construct filename
@@ -1027,7 +1026,7 @@ overlays were saved."
 
 
 
-(defun auto-o-schedule-update (start &optional end unused set-id)
+(defun auto-o-schedule-update (start &optional end _unused _set-id)
   ;; Schedule `auto-overlay-update' of lines between positions START and END
   ;; (including lines containing START and END), optionally restricted to
   ;; SET-ID. If END is not supplied, schedule update for just line containing
@@ -1093,7 +1092,7 @@ overlays were saved."
 
 
 
-(defun auto-o-schedule-suicide (o-self &optional modified &rest unused)
+(defun auto-o-schedule-suicide (o-self &optional modified &rest _unused)
   ;; Schedule `auto-o-suicide' to run after buffer modification is
   ;; complete. It will be run by `auto-o-run-after-change-functions'. Assigned
   ;; to overlay modification and insert in-front/behind hooks.
@@ -1101,7 +1100,7 @@ overlays were saved."
 
 
 
-(defun auto-overlay-update (&optional start end set-id)
+(defun auto-overlay-update (&optional start end _set-id)
   ;; Parse lines from line number START to line number END. If only START is
   ;; supplied, just parse that line. If neither are supplied, parse line
   ;; containing the point. If SET-ID is specified, only look for matches in
@@ -1109,7 +1108,7 @@ overlays were saved."
 
   (save-restriction
     (widen)
-    (let (regexp-entry definition-id class regexp group priority set-id
+    (let (definition-id regexp group priority set-id
 		       regexp-id o-match o-overlap o-new)
       (unless start (setq start (line-number-at-pos)))
       (save-excursion
@@ -1135,7 +1134,7 @@ overlays were saved."
 		;; check each auto-overlay definition in regexp set
 		(dolist (regexp-entry (auto-o-get-regexps set-id))
 		  (setq definition-id (pop regexp-entry))
-		  (setq class (pop regexp-entry))
+                  (pop regexp-entry)
 
 		  ;; check all regexps for current definition
 		  (dotimes (rank (length regexp-entry))
