@@ -1,7 +1,7 @@
 ;;; auto-overlay-self.el --- self-delimited automatic overlays
 
 
-;; Copyright (C) 2005-2015  Free Software Foundation, Inc
+;; Copyright (C) 2005-2017  Free Software Foundation, Inc
 
 ;; Author: Toby Cubitt <toby-predictive@dr-qubit.org>
 ;; Maintainer: Toby Cubitt <toby-predictive@dr-qubit.org>
@@ -191,7 +191,7 @@
 
 
 
-(defun auto-o-perform-self-cascades (beg end)
+(defun auto-o-perform-self-cascades (_beg end)
   ;; Perform any necessary self-overlay cascading before the text in the
   ;; buffer is modified. Called from `before-change-functions'.
 
