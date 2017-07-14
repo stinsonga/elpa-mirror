@@ -7,6 +7,7 @@
 ;; Version: 1.0.0
 ;; Created: 9 November 2013
 ;; Keywords: languages
+;; Package-Requires: ((cl-lib "0.5"))
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -40,11 +41,11 @@
 
 ;; To automatically load cobol-mode.el upon opening COBOL files, add this:
 ;; (setq auto-mode-alist
-;;    (append
-;;      '(("\\.cob\\'" . cobol-mode)
-;;        ("\\.cbl\\'" . cobol-mode)
-;;        ("\\.cpy\\'" . cobol-mode))
-;;     auto-mode-alist))
+;;       (append
+;;        '(("\\.cob\\'" . cobol-mode)
+;;          ("\\.cbl\\'" . cobol-mode)
+;;          ("\\.cpy\\'" . cobol-mode))
+;;        auto-mode-alist))
 
 ;; Finally, I strongly suggest installing auto-complete-mode, which makes typing
 ;; long keywords and variable names a thing of the past.  See
@@ -71,8 +72,7 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'cl))
+(eval-when-compile (require 'cl-lib))
 
 (defgroup cobol nil
   "Major mode for editing COBOL code."
@@ -2261,8 +2261,7 @@ Note that this matches DECLARATIVES.")
 
 (defun cobol--fixed-format-p ()
   "Return whether the current source format is fixed."
-  (or (eq cobol-source-format 'fixed-85)
-      (eq cobol-source-format 'fixed-2002)))
+  (memq cobol-source-format '(fixed-85 'fixed-2002)))
 
 ;; This is required for indentation to function, because the initial sequence
 ;; area is marked as a comment, not whitespace.
@@ -2278,78 +2277,78 @@ Code copied from the Emacs source."
   ;; Move back over chars that have whitespace syntax but have the p flag.
   (backward-prefix-chars))
 
-(defun cobol--syntax-propertize-sequence-area (beg end)
-  "Mark text in the program name area as comments from the lines at/after BEG up
-to END."
-  (goto-char beg)
-  (while (and (< (point) end)
-              (re-search-forward "^.\\{1,6\\}" end t))
-    (add-text-properties (line-beginning-position) (point)
-                         '(font-lock-face
-                           font-lock-comment-face))
-    ;; Remove face from text previously in sequence area.
-    (remove-text-properties (point) (line-end-position)
-                            '(font-lock-face nil))))
+(defun cobol--font-lock-sequence-area (end)
+  "Mark text in the sequence area as comments from point up to END."
+  (when (cobol--fixed-format-p)
+    (while (and (< (point) end)
+                (re-search-forward "^.\\{1,6\\}" end t))
+      (put-text-property (match-beginning 0) (point)
+                         'face font-lock-comment-face)))
+  nil)
 
-(defun cobol--syntax-propertize-indicator-area (beg end)
-  "Mark fixed-form comments as comments between points BEG and END."
-  (funcall
-   (syntax-propertize-rules
-    (cobol--fixed-form-comment-re (1 "<"))
-    (cobol--continuation-or-debugging-indicator-re (1 ".")))
-   beg end))
+(eval-when-compile
+  (defconst cobol--syntax-propertize-indicator-area
+    (syntax-propertize-precompile-rules
+     (cobol--fixed-form-comment-re (1 "<"))
+     (cobol--continuation-or-debugging-indicator-re (1 ".")))
+    "Syntax rules to mark fixed-form comments as comments.")
 
-(defun cobol--syntax-propertize-program-name-area (beg end)
-  "Mark text in the program name area as comments from the lines at/after BEG up
-to END."
-  (funcall
-   (syntax-propertize-rules
-    ;; TODO: Override open strings
-    ("^.\\{72\\}\\(.\\)" (1 "<")))
-   beg end))
+  (defconst cobol--syntax-propertize-program-name-area
+    (syntax-propertize-precompile-rules
+     ;; TODO: Override open strings
+     ("^.\\{72\\}\\(.\\)" (1 "<")))
+    "Syntax rule to mark text in the program name area as comments.")
 
-(defun cobol--syntax-propertize-page-directive (beg end)
-  "Mark text after >>PAGE as a comment between points BEG and END."
-  (funcall
-   (syntax-propertize-rules
-    ((cobol--with-opt-whitespace-line cobol--directive-indicator-re
-                                     "PAGE\\([ 	]\\)")
-     (1 "<")))
-   beg end))
+  (defconst cobol--syntax-propertize-page-directive
+    (syntax-propertize-precompile-rules
+     ((cobol--with-opt-whitespace-line cobol--directive-indicator-re
+                                       "PAGE\\([ 	]\\)")
+      (1 "<")))
+    "Syntax rule to mark text after >>PAGE as a comment.")
 
-(defun cobol--syntax-propertize-adjacent-quotes (beg end)
-  "Mark the first of adjacent quotes, e.g. \"\" or '', as an escape character
-between points BEG and END."
-  (goto-char beg)
-  (while (and (< (point) end)
-              (re-search-forward "\\(\"\"\\|''\\)" end t))
-    ;; Move to first quote.
-    (backward-char 2)
-    (if (in-string-p)                   ;FIXME: Use (nth 3 (syntax-ppss))?
-        (progn
-          (put-text-property (point) (1+ (point))
-                             'syntax-table (string-to-syntax "\\"))
-          ;; Move back to past the escaped quotes.
-          (forward-char 2))
-      ;; If the first quote began a string, then the next quote may be the
-      ;; first character in another escaped quote sequence.
-      (forward-char 1))))
+  (defconst cobol--syntax-propertize-adjacent-quotes
+    (syntax-propertize-precompile-rules
+     ("\"\"\\|''"
+      (0 (ignore
+          ;; Move to first quote.
+          (backward-char 2)
+          (if (nth 3 (syntax-ppss))
+              (progn
+                (put-text-property (point) (1+ (point))
+                                   'syntax-table (string-to-syntax "\\"))
+                ;; Move back to past the escaped quotes.
+                (forward-char 2))
+            ;; If the first quote began a string, then the next quote may be the
+            ;; first character in another escaped quote sequence.
+            (forward-char 1))))))
+    "Syntax rule to mark the first of adjacent quotes, e.g. \"\" or '', as an escape character."))
 
 (defun cobol--syntax-propertize-function (beg end)
   "Syntax propertize awkward COBOL features (fixed-form comments, indicators
 and ignored areas) between points BEG and END."
   ;; TO-DO: Propertize continuation lines.
-  (when (cobol--fixed-format-p)
-    (cobol--syntax-propertize-sequence-area beg end)
-    (cobol--syntax-propertize-indicator-area beg end))
-  (when (eq cobol-source-format 'fixed-85)
-    (cobol--syntax-propertize-program-name-area beg end))
-  (cobol--syntax-propertize-page-directive beg end)
-  (cobol--syntax-propertize-adjacent-quotes beg end))
+  (funcall
+   (pcase cobol-source-format
+     (`fixed-85 (syntax-propertize-rules
+                 cobol--syntax-propertize-indicator-area
+                 cobol--syntax-propertize-program-name-area
+                 cobol--syntax-propertize-page-directive
+                 cobol--syntax-propertize-adjacent-quotes))
+     (`fixed-2002 (syntax-propertize-rules
+                   cobol--syntax-propertize-indicator-area
+                   cobol--syntax-propertize-page-directive
+                   cobol--syntax-propertize-adjacent-quotes))
+     (_ (syntax-propertize-rules
+         cobol--syntax-propertize-page-directive
+         cobol--syntax-propertize-adjacent-quotes)))
+   beg end))
 
-;; Chnage to defconst so it reloads on something?
+;; Change to defconst so it reloads on something?
 (defvar cobol-font-lock-defaults
-  `((;; Directives
+  `((;; Sequence area
+     (cobol--font-lock-sequence-area)
+
+     ;; Directives
      ( ,(concat cobol--directive-indicator-re
                 "\\(" (regexp-opt cobol-directives) "\\>\\)")
        . font-lock-preprocessor-face)
@@ -2669,7 +2668,7 @@ sequence area."
   "Go back a line at a time, calling FN each time.
 If the car of the return value is non-nil, return the cdr."
   (save-excursion
-    (do ((ret nil (funcall fn)))
+    (cl-do ((ret nil (funcall fn)))
         ((car ret) (cdr ret))
       (forward-line -1))))
 
@@ -2876,18 +2875,17 @@ lines."
                        (bobp))
                    (cons t nil)))))))
 
-(defmacro cobol--no-instances-of (&rest clauses)
-  "CLAUSES must be in the form 're AFTER re-2 IN division' where AFTER and IN
-are symbols. Return whether there are no instances of things matched by re
-between point and the previous instance of re-2. Return nil if point is
-not in division or if nothing is found."
-  (assert (and (eq (length clauses) 5)
-               (eq (nth 1 clauses) 'after)
-               (eq (nth 3 clauses) 'in))
-          nil
-          "Clauses should be in the form 're AFTER re-2 IN division'.")
-  `(cobol--no-instances-of-after-in-division ,(first clauses) ,(nth 2 clauses)
-                                            ,(nth 4 clauses)))
+(defmacro cobol--no-instances-of (re after re2 in division)
+  "Return non-nil if there are no instances of things matched by RE
+between point and the previous instance of RE2.
+Return nil if point is not in DIVISION or if nothing is found.
+Arguments must be in the form 'RE after RE2 in DIVISION' where
+`after' and `in' stand for themselves."
+  (cl-assert (and (eq after 'after)
+                  (eq in 'in))
+             nil
+             "Clauses should be in the form 're AFTER re-2 IN division'.")
+  `(cobol--no-instances-of-after-in-division ,re ,re2 ,division))
 
 (defun cobol--in-file-control-p ()
   "Return whether point is in the FILE-CONTROL paragraph."
