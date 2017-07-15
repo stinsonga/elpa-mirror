@@ -1,5 +1,12 @@
 # History of user-visible changes
 
+## 2017-07-15 (0.9.4)
+
+* Compatibility with native line numbers display in Emacs 26.
+* `company-files` allows completion after `=`.
+* `company-template` has a new shortcut (`C-d`) for deleting an unmodified
+  template field while cursor is on it.
+
 ## 2017-03-29 (0.9.3)
 
 * New variable `company-echo-truncate-lines`.
