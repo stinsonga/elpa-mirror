@@ -4,7 +4,7 @@
 
 ;; Author: Glynn Clements <glynn.clements@xemacs.org>
 ;; Maintainer: Dieter Deyke <dieter.deyke@gmail.com>
-;; Version: 1.4.2
+;; Version: 1.4.3
 ;; Created: 1997-09-11
 ;; Keywords: games
 ;; Package-Type: multi
@@ -71,8 +71,6 @@
 
 (defvar sokoban-buffer-name "*Sokoban*")
 
-(defvar sokoban-temp-buffer-name " Sokoban-tmp")
-
 (defvar sokoban-level-file
   (if (fboundp 'locate-data-file)
       (locate-data-file "sokoban.levels")
@@ -84,14 +82,14 @@
               (and (file-exists-p file) file))
 	(expand-file-name "sokoban.levels" data-directory))))
 
-(defvar sokoban-width 27)
-(defvar sokoban-height 20)
+(defvar sokoban-width)
+(defvar sokoban-height)
 
-(defvar sokoban-buffer-width sokoban-width)
-(defvar sokoban-buffer-height (+ 4 sokoban-height))
+(defvar sokoban-buffer-width)
+(defvar sokoban-buffer-height)
 
-(defvar sokoban-score-x 0)
-(defvar sokoban-score-y (1+ sokoban-height))
+(defvar sokoban-score-x)
+(defvar sokoban-score-y)
 
 (defvar sokoban-level-data nil)
 
@@ -542,6 +540,28 @@ static char * player_on_target_xpm[] = {
     (if (fboundp 'read-only-mode)
         (read-only-mode 1)
       (setq buffer-read-only t))
+
+    (setq sokoban-width 1
+          sokoban-height 1)
+    (goto-char (point-min))
+    (re-search-forward sokoban-level-regexp nil t)
+    (forward-char)
+    (let (r)
+      (while (not (eobp))
+        (while (looking-at sokoban-comment-regexp)
+	  (forward-line))
+        (setq r 0)
+        (while (not (or (eobp)
+		        (looking-at sokoban-comment-regexp)))
+          (incf r)
+          (setq sokoban-height (max sokoban-height r)
+                sokoban-width (max sokoban-width (- (line-end-position) (line-beginning-position))))
+	  (forward-line))))
+    (setq sokoban-buffer-width sokoban-width
+          sokoban-buffer-height (+ 4 sokoban-height)
+          sokoban-score-x 0
+          sokoban-score-y (1+ sokoban-height))
+
     (goto-char (point-min))
     (re-search-forward sokoban-level-regexp nil t)
     (forward-char)
@@ -823,8 +843,7 @@ static char * player_on_target_xpm[] = {
   (sokoban-draw-score))
 
 (defun sokoban-next-level ()
-  (incf sokoban-level)
-  (sokoban-restart-level))
+  (sokoban-goto-level (1+ sokoban-level)))
 
 (defun sokoban-goto-level (level)
   "Jump to a specified LEVEL."
@@ -832,8 +851,9 @@ static char * player_on_target_xpm[] = {
   (when (or (< level 1)
             (> level (length sokoban-level-data)))
     (signal 'args-out-of-range
-            (list "No such level number"
-                  level 1 (> level (length sokoban-level-data)))))
+            (list
+             (format "No such level number %d, should be 1..%d"
+                     level (length sokoban-level-data)))))
   (setq sokoban-level level)
   (sokoban-restart-level))
 
@@ -915,4 +935,3 @@ sokoban-mode keybindings:
 (provide 'sokoban)
 
 ;;; sokoban.el ends here
-
