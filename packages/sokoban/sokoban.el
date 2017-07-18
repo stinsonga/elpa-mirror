@@ -4,7 +4,7 @@
 
 ;; Author: Glynn Clements <glynn.clements@xemacs.org>
 ;; Maintainer: Dieter Deyke <dieter.deyke@gmail.com>
-;; Version: 1.4.3
+;; Version: 1.4.4
 ;; Created: 1997-09-11
 ;; Keywords: games
 ;; Package-Type: multi
@@ -541,7 +541,7 @@ static char * player_on_target_xpm[] = {
         (read-only-mode 1)
       (setq buffer-read-only t))
 
-    (setq sokoban-width 1
+    (setq sokoban-width 15 ; need at least 15 for score display
           sokoban-height 1)
     (goto-char (point-min))
     (re-search-forward sokoban-level-regexp nil t)
