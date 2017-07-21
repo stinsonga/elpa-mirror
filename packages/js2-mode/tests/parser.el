@@ -1,6 +1,6 @@
 ;;; tests/parser.el --- Some tests for js2-mode.
 
-;; Copyright (C) 2009, 2011-2016  Free Software Foundation, Inc.
+;; Copyright (C) 2009, 2011-2017  Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -300,6 +300,10 @@ the test."
 (js2-deftest-parse function-with-rest-after-default-parameter
   "function foo(a = 1, ...rest) {\n}")
 
+(js2-deftest-parse function-with-trailing-comma-in-param-list
+  "function foo(a, b,) {\n}"
+  :reference "function foo(a, b) {\n}")
+
 ;;; Strict mode errors
 
 (js2-deftest-parse function-bad-strict-parameters
@@ -456,6 +460,9 @@ the test."
 
 (js2-deftest-parse harmony-generator-yield-star "(function*(a) {  yield* a;\n});")
 
+(js2-deftest-parse harmony-generator-yield-assign-expr
+  "(function*() {  return {a: yield a, b: yield b, c: yield c};\n});")
+
 ;;; Comprehensions
 
 (js2-deftest-parse parse-legacy-array-comp-loop-with-filter
@@ -493,6 +500,9 @@ the test."
 
 (js2-deftest-parse async-arrow-function-expression
   "a = async (b) => {  b;\n};")
+
+(js2-deftest-parse async-arrow-function-without-parens
+  "a = async b => 3;" :reference "a = async (b) => {3};")
 
 (js2-deftest-parse async-method-in-object-literal
   "({async f() {}});")
@@ -582,7 +592,7 @@ the test."
   (js2-init-scanner)
   (should (js2-match-token js2-LC))
   (let ((imports (js2-parse-export-bindings)))
-    (should (not (equal nil imports)))
+    (should (not (null imports)))
     (should (= 2 (length imports)))
     (let ((first (nth 0 imports))
           (second (nth 1 imports)))
@@ -610,7 +620,7 @@ the test."
   (js2-init-scanner)
   (should (js2-match-token js2-MUL))
   (let ((namespace-import (js2-parse-namespace-import)))
-    (should (not (equal nil namespace-import)))
+    (should (not (null namespace-import)))
     (should (js2-namespace-import-node-p namespace-import))
     (should (= 1 (js2-node-pos namespace-import)))
     (should (equal 8 (js2-node-len namespace-import)))
@@ -621,7 +631,7 @@ the test."
 (js2-deftest parse-from-clause "from 'foo/bar';"
   (js2-init-scanner)
   (let ((from (js2-parse-from-clause)))
-    (should (not (equal nil from)))
+    (should (not (null from)))
     (should (= 1 (js2-node-pos from)))
     (should (= 14 (js2-node-len from)))
     (should (equal "foo/bar" (js2-from-clause-node-module-id from)))))
@@ -630,25 +640,25 @@ the test."
   (js2-init-scanner)
   (should (js2-match-token js2-IMPORT))
   (let ((import (js2-parse-import)))
-    (should (not (equal nil import)))
+    (should (not (null import)))
     (should (= 1 (js2-node-pos import)))
     (should (= 16 (js2-node-len import)))
-    (should (equal nil (js2-import-node-import import)))
-    (should (equal nil (js2-import-node-from import)))))
+    (should (null (js2-import-node-import import)))
+    (should (null (js2-import-node-from import)))))
 
 (js2-deftest parse-imported-default-binding "import theDefault from 'src/lib'"
   (js2-push-scope (make-js2-scope :pos 0))
   (js2-init-scanner)
   (should (js2-match-token js2-IMPORT))
   (let ((import-node (js2-parse-import)))
-    (should (not (equal nil import-node)))
+    (should (not (null import-node)))
     (should (equal "src/lib" (js2-import-node-module-id import-node)))
     (let ((import (js2-import-node-import import-node)))
-      (should (not (equal nil import)))
-      (should (equal nil (js2-import-clause-node-namespace-import import)))
-      (should (equal nil (js2-import-clause-node-named-imports import)))
+      (should (not (null import)))
+      (should (null (js2-import-clause-node-namespace-import import)))
+      (should (null (js2-import-clause-node-named-imports import)))
       (let ((default (js2-import-clause-node-default-binding import)))
-        (should (not (equal nil default)))
+        (should (not (null default)))
         (should (js2-export-binding-node-p default))
         (should (equal "theDefault" (js2-name-node-name (js2-export-binding-node-extern-name default)))))))
   (should (js2-scope-get-symbol js2-current-scope "theDefault")))
@@ -658,14 +668,14 @@ the test."
   (js2-init-scanner)
   (should (js2-match-token js2-IMPORT))
   (let ((import-node (js2-parse-import)))
-    (should (not (equal nil import-node)))
+    (should (not (null import-node)))
     (should (equal "src/lib" (js2-import-node-module-id import-node)))
     (let ((import (js2-import-node-import import-node)))
-      (should (not (equal nil import)))
-      (should (equal nil (js2-import-clause-node-default-binding import)))
-      (should (equal nil (js2-import-clause-node-named-imports import)))
+      (should (not (null import)))
+      (should (null (js2-import-clause-node-default-binding import)))
+      (should (null (js2-import-clause-node-named-imports import)))
       (let ((ns-import (js2-import-clause-node-namespace-import import)))
-        (should (not (equal nil ns-import)))
+        (should (not (null ns-import)))
         (should (js2-namespace-import-node-p ns-import))
         (should (equal "lib" (js2-name-node-name (js2-namespace-import-node-name ns-import)))))))
   (should (js2-scope-get-symbol js2-current-scope "lib")))
@@ -675,14 +685,14 @@ the test."
   (js2-init-scanner)
   (should (js2-match-token js2-IMPORT))
   (let ((import-node (js2-parse-import)))
-    (should (not (equal nil import-node)))
+    (should (not (null import-node)))
     (should (equal "src/lib" (js2-import-node-module-id import-node)))
     (let ((import (js2-import-node-import import-node)))
-      (should (not (equal nil import)))
-      (should (equal nil (js2-import-clause-node-default-binding import)))
-      (should (equal nil (js2-import-clause-node-namespace-import import)))
+      (should (not (null import)))
+      (should (null (js2-import-clause-node-default-binding import)))
+      (should (null (js2-import-clause-node-namespace-import import)))
       (let ((named-imports (js2-import-clause-node-named-imports import)))
-        (should (not (equal nil named-imports)))
+        (should (not (null named-imports)))
         (should (listp named-imports))
         (should (= 2 (length named-imports)))
         (let ((first (nth 0 named-imports))
@@ -697,16 +707,16 @@ the test."
   (js2-init-scanner)
   (should (js2-match-token js2-IMPORT))
   (let ((import-node (js2-parse-import)))
-    (should (not (equal nil import-node)))
+    (should (not (null import-node)))
     (should (equal "src/lib" (js2-import-node-module-id import-node)))
     (let ((import (js2-import-node-import import-node)))
-      (should (not (equal nil import)))
-      (should (equal nil (js2-import-clause-node-named-imports import)))
+      (should (not (null import)))
+      (should (null (js2-import-clause-node-named-imports import)))
       (let ((default (js2-import-clause-node-default-binding import))
             (ns-import (js2-import-clause-node-namespace-import import)))
-        (should (not (equal nil default)))
+        (should (not (null default)))
         (should (equal "stuff" (js2-name-node-name (js2-export-binding-node-local-name default))))
-        (should (not (equal nil ns-import)))
+        (should (not (null ns-import)))
         (should (js2-namespace-import-node-p ns-import))
         (should (equal "lib" (js2-name-node-name (js2-namespace-import-node-name ns-import)))))))
   (should (js2-scope-get-symbol js2-current-scope "stuff"))
@@ -718,16 +728,16 @@ the test."
   (js2-init-scanner)
   (should (js2-match-token js2-IMPORT))
   (let ((import-node (js2-parse-import)))
-    (should (not (equal nil import-node)))
+    (should (not (null import-node)))
     (should (equal "src/lib" (js2-import-node-module-id import-node)))
     (let ((import (js2-import-node-import import-node)))
-      (should (not (equal nil import)))
-      (should (not (equal nil (js2-import-clause-node-named-imports import))))
+      (should (not (null import)))
+      (should (not (null (js2-import-clause-node-named-imports import))))
       (let ((default (js2-import-clause-node-default-binding import))
             (named-imports (js2-import-clause-node-named-imports import)))
-        (should (not (equal nil default)))
+        (should (not (null default)))
         (should (equal "bob" (js2-name-node-name (js2-export-binding-node-local-name default))))
-        (should (not (equal nil named-imports)))
+        (should (not (null named-imports)))
         (should (= 2 (length named-imports))))))
   (should (js2-scope-get-symbol js2-current-scope "bob"))
   (should (js2-scope-get-symbol js2-current-scope "cookies"))
@@ -839,20 +849,20 @@ the test."
 
 (js2-deftest export-function-no-semicolon "export default function foo() {}"
   (js2-mode--and-parse)
-  (should (equal nil js2-parsed-warnings)))
+  (should (null js2-parsed-warnings)))
 (js2-deftest export-default-function-no-semicolon "export function foo() {}"
   (js2-mode--and-parse)
-  (should (equal nil js2-parsed-warnings)))
+  (should (null js2-parsed-warnings)))
 (js2-deftest export-anything-else-does-require-a-semicolon "export var obj = {}"
   (js2-mode--and-parse)
-  (should (not (equal nil js2-parsed-warnings))))
+  (should (not (null js2-parsed-warnings))))
 
 (js2-deftest export-default-async-function-no-semicolon "export default async function foo() {}"
   (js2-mode--and-parse)
-  (should (equal nil js2-parsed-warnings)))
+  (should (null js2-parsed-warnings)))
 (js2-deftest export-async-function-no-semicolon "export async function foo() {}"
   (js2-mode--and-parse)
-  (should (equal nil js2-parsed-warnings)))
+  (should (null js2-parsed-warnings)))
 
 (js2-deftest-parse parse-export-rexport "export * from 'other/lib';")
 (js2-deftest-parse parse-export-export-named-list "export {foo, bar as bang};")
@@ -942,6 +952,16 @@ the test."
 
 (js2-deftest-parse exponentiation-prohibits-unary-op
   "var a = -b ** c" :syntax-error "b")
+
+(js2-deftest-parse parse-class-public-field-with-init
+  "class C {\n  x = 42;\n  y = 24;\n  \"z\" = 1\n  456 = 789\n}"
+  :reference "class C {\n  x = 42\n  y = 24\n  \"z\" = 1\n  456 = 789\n}")
+
+(js2-deftest-parse parse-class-public-field-no-init
+  "class C {\n  x\n  y\n  \"z\"\n  456\n}")
+
+(js2-deftest-parse parse-class-public-field-computed
+  "class C {\n  [a + b] = c\n}")
 
 ;;; Scopes
 
@@ -1234,3 +1254,49 @@ the test."
 (js2-deftest-classify-variables destructure-object-mixed
   "function foo() { let {a, b, c = 3} = {a: 1, b: 2}; }"
   '("foo@10:U" "a@23:U" "b@26:U" "c@29:U"))
+
+(js2-deftest-classify-variables destructure-object-missing
+  "function foo() { let {foo: missing = 10} = {}; }"
+  '("foo@10:U" "missing@28:U"))
+
+;; Side effects
+
+(js2-deftest no-side-effects-at-top-level
+  "var x; x.foo;"
+  (js2-mode--and-parse)
+  (should (null js2-parsed-warnings)))
+
+(js2-deftest getprop-has-no-side-effects
+  "function f() { this.x; }"
+  (js2-mode--and-parse)
+  (should (equal "msg.no.side.effects"
+                 (car (caar js2-parsed-warnings)))))
+
+(js2-deftest getprop-has-side-effects-option
+  "function f() { this.x; }"
+  (let ((js2-getprop-has-side-effects t))
+    (js2-mode--and-parse)
+    (should (null js2-parsed-warnings))))
+
+(js2-deftest arithmetic-has-no-side-effects
+  "function f() { 1 + 2; }"
+  (js2-mode--and-parse)
+  (should (equal "msg.no.side.effects"
+                 (car (caar js2-parsed-warnings)))))
+
+(js2-deftest instanceof-has-no-side-effects
+  "function f() { this instanceof f; }"
+  (js2-mode--and-parse)
+  (should (equal "msg.no.side.effects"
+                 (car (caar js2-parsed-warnings)))))
+
+(js2-deftest instanceof-has-side-effects-option
+  "function f() { this instanceof f; }"
+  (let ((js2-instanceof-has-side-effects t))
+    (js2-mode--and-parse)
+    (should (null js2-parsed-warnings))))
+
+(js2-deftest await-has-side-effects
+  "const p = new Promise();\nasync function f() { await p; return null; }"
+  (js2-mode--and-parse)
+  (should (null js2-parsed-warnings)))
