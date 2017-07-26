@@ -4,7 +4,7 @@
 
 ;; Author: Glynn Clements <glynn.clements@xemacs.org>
 ;; Maintainer: Dieter Deyke <dieter.deyke@gmail.com>
-;; Version: 1.4.4
+;; Version: 1.4.5
 ;; Created: 1997-09-11
 ;; Keywords: games
 ;; Package-Type: multi
@@ -43,8 +43,6 @@
 ;;   added number of blocks done/total to score and modeline
 ;; Modified: 2003-06-14, update email address, remove URL
 
-;; Tested with XEmacs 20.3/4/5 and Emacs 19.34
-
 ;; The game is based upon XSokoban, by
 ;; Michael Bischoff <mbi@mo.math.nat.tu-bs.de>
 
@@ -57,6 +55,7 @@
   (require 'cl))
 
 (require 'gamegrid)
+(require 'xml)
 
 ;; ;;;;;;;;;;;;; customization variables ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -503,20 +502,16 @@ static char * player_on_target_xpm[] = {
 ;; ;;;;;;;;;;;;; keymaps ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defvar sokoban-mode-map
-  (let ((map (make-sparse-keymap
-	      (when (featurep 'xemacs) 'sokoban-mode-map))))
+  (let ((map (make-sparse-keymap)))
     (define-key map "n"	'sokoban-start-game)
     (define-key map "r"	'sokoban-restart-level)
     (define-key map "g"	'sokoban-goto-level)
+    (define-key map "F"	'fit-frame-to-buffer)
 
     (define-key map [left]	'sokoban-move-left)
     (define-key map [right]	'sokoban-move-right)
     (define-key map [up]	'sokoban-move-up)
     (define-key map [down]	'sokoban-move-down)
-
-    (when (featurep 'xemacs)
-      (define-key map [button2]	  'sokoban-mouse-event-start)
-      (define-key map [button2up] 'sokoban-mouse-event-end))
 
     (define-key map [down-mouse-2] 'sokoban-mouse-event-start)
     (define-key map [mouse-2]      'sokoban-mouse-event-end)
@@ -534,16 +529,28 @@ static char * player_on_target_xpm[] = {
 
 (defconst sokoban-comment-regexp "^;")
 
-(defun sokoban-init-level-data ()
-  (setq sokoban-level-data nil)
-  (with-current-buffer (find-file-noselect sokoban-level-file)
-    (if (fboundp 'read-only-mode)
-        (read-only-mode 1)
-      (setq buffer-read-only t))
+(defun sokoban-convert-xml-to-plain-text ()
+  (let ((n 0) (tree (xml-parse-region)))
+    (erase-buffer)
+    (dolist (SokobanLevels tree)
+      (dolist (LevelCollection (xml-get-children SokobanLevels 'LevelCollection))
+        (dolist (Level (xml-get-children LevelCollection 'Level))
+          (incf n)
+          (insert (format ";LEVEL %d\n" n))
+          (dolist (L (xml-get-children Level 'L))
+            (insert (car (xml-node-children L)))
+            (insert "\n"))))))
+  (goto-char (point-min)))
 
-    (setq sokoban-width 15 ; need at least 15 for score display
-          sokoban-height 1)
+(defun sokoban-init-level-data ()
+  (setq sokoban-level-data nil
+        sokoban-width 15 ; need at least 15 for score display
+        sokoban-height 1)
+  (with-temp-buffer
+    (insert-file-contents sokoban-level-file)
     (goto-char (point-min))
+    (if (looking-at "<\\?xml version=")
+        (sokoban-convert-xml-to-plain-text))
     (re-search-forward sokoban-level-regexp nil t)
     (forward-char)
     (let (r)
@@ -567,21 +574,21 @@ static char * player_on_target_xpm[] = {
     (forward-char)
     (while (not (eobp))
       (while (looking-at sokoban-comment-regexp)
-	(forward-line))
+        (forward-line))
       (let ((data (make-vector sokoban-height nil))
 	    (fmt (format "%%-%ds" sokoban-width)))
-	(dotimes (y sokoban-height)
+        (dotimes (y sokoban-height)
 	  (cond ((or (eobp)
 		     (looking-at sokoban-comment-regexp))
-		 (aset data y (format fmt "")))
-		(t
-		 (let ((start (point))
+	         (aset data y (format fmt "")))
+	        (t
+	         (let ((start (point))
                        (end (line-end-position)))
                    (aset data
                          y
                          (format fmt (buffer-substring start end)))
                    (goto-char (1+ end))))))
-	(push data sokoban-level-data)))
+        (push data sokoban-level-data)))
     (kill-buffer (current-buffer))
     (setq sokoban-level-data (nreverse sokoban-level-data))))
 
@@ -651,8 +658,8 @@ static char * player_on_target_xpm[] = {
 			     y (aref string x))))
       (incf y)))
   (setq mode-line-format
-	(format "Sokoban:   Level: %3d   Moves: %05d   Pushes: %05d   Done: %d/%d"
-		sokoban-level sokoban-moves sokoban-pushes
+	(format "Sokoban:   Level: %d/%d   Moves: %05d   Pushes: %05d   Done: %d/%d"
+		sokoban-level (length sokoban-level-data) sokoban-moves sokoban-pushes
 		sokoban-done sokoban-targets))
   (force-mode-line-update))
 
@@ -762,16 +769,12 @@ static char * player_on_target_xpm[] = {
 
 (defun sokoban-event-x (event)
   (let ((x (gamegrid-event-x event)))
-    (if (featurep 'xemacs)
-        x
-      ;; 32.0 is the pixel width of the xpm image
-      (floor x (/ 32.0 (frame-char-width))))))
+    ;; 32.0 is the pixel width of the xpm image
+    (floor x (/ 32.0 (frame-char-width)))))
 
 (defun sokoban-event-y (event)
   (let ((y (gamegrid-event-y event)))
-    (if (featurep 'xemacs)
-        y
-      (floor y (/ 32.0 (frame-char-height))))))
+    (floor y (/ 32.0 (frame-char-height)))))
 
 (defun sokoban-mouse-event-start (event)
   "Record the beginning of a mouse click."
@@ -865,26 +868,19 @@ static char * player_on_target_xpm[] = {
 
 (put 'sokoban-mode 'mode-class 'special)
 
-(unless (featurep 'xemacs)
-  (easy-menu-define sokoban-popup-menu nil "Popup menu for Sokoban mode."
-    '("Sokoban Commands"
-      ["Restart this level" sokoban-restart-level]
-      ["Start new game" sokoban-start-game]
-      ["Go to specific level" sokoban-goto-level]))
-  (define-key sokoban-mode-map [down-mouse-3] sokoban-popup-menu))
+(easy-menu-define sokoban-popup-menu nil "Popup menu for Sokoban mode."
+  '("Sokoban Commands"
+    ["Restart this level" sokoban-restart-level]
+    ["Start new game" sokoban-start-game]
+    ["Go to specific level" sokoban-goto-level]
+    ["Fit frame to buffer" fit-frame-to-buffer]))
+(define-key sokoban-mode-map [down-mouse-3] sokoban-popup-menu)
 
 (define-derived-mode sokoban-mode special-mode "Sokoban"
   "A mode for playing Sokoban.
 
 sokoban-mode keybindings:
    \\{sokoban-mode-map}"
-
-  (when (featurep 'xemacs)
-    (setq mode-popup-menu
-          '("Sokoban Commands"
-            ["Restart this level" sokoban-restart-level]
-            ["Start new game" sokoban-start-game]
-            ["Go to specific level" sokoban-goto-level])))
 
   (set (make-local-variable 'gamegrid-use-glyphs) sokoban-use-glyphs)
   (set (make-local-variable 'gamegrid-use-color) sokoban-use-color)
@@ -925,12 +921,11 @@ sokoban-mode keybindings:
   (sokoban-next-level))
 
 ;;;###autoload
-(unless (featurep 'xemacs)
-  (define-key-after			; install a menu entry
-    (lookup-key global-map [menu-bar tools games])
-    [sokoban]
-    '(menu-item "Sokoban" sokoban)
-    'snake))
+(define-key-after			; install a menu entry
+  (lookup-key global-map [menu-bar tools games])
+  [sokoban]
+  '(menu-item "Sokoban" sokoban)
+  'snake)
 
 (provide 'sokoban)
 
