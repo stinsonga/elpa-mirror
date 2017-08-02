@@ -97,11 +97,7 @@ matches the list (1 2 3 4 5 6 7 8 9) and binds `x' to (4 5 6)."
 (defun el-search--transform-nontrivial-lpat (expr)
   (pcase expr
     ((and (pred symbolp) (let symbol-name (symbol-name expr)))
-     `(or (symbol ,symbol-name)
-          `',(symbol  ,symbol-name)
-          `#',(symbol ,symbol-name)))
-    (`',(and (pred symbolp) symbol)
-     `(or ',symbol '',symbol '#',symbol))
+     `(symbol ,symbol-name))
     ((pred stringp) `(string ,expr))
     (_ expr)))
 
@@ -116,9 +112,8 @@ with very brief input by using a specialized syntax.
 An LPAT can take the following forms:
 
 SYMBOL  Matches any symbol S matched by SYMBOL's name interpreted
-        as a regexp.  Matches also 'S and #'S for any such S.
-'SYMBOL Matches SYMBOL, 'SYMBOL and #'SYMBOL (so it's like the above
-        without regexp matching).
+        as a regexp.
+'SYMBOL Matches the SYMBOL.
 STRING  Matches any string matched by STRING interpreted as a
         regexp.
 _       Matches any list element.
