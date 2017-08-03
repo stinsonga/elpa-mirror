@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.3.2
+;; Version: 1.4
 ;; Package-Requires: ((emacs "25") (stream "2.2.4"))
 
 
