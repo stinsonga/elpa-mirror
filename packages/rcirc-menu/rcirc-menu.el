@@ -66,6 +66,8 @@
     (define-key map (kbd "M-s a C-s")   'Buffer-menu-isearch-buffers)
     (define-key map (kbd "M-s a M-C-s") 'Buffer-menu-isearch-buffers-regexp)
     (define-key map (kbd "M-s a C-o") 'Buffer-menu-multi-occur)
+    (define-key map "c" 'rcirc-menu-catchup)
+    (define-key map "C" 'rcirc-menu-catchup-all)
 
     (define-key map [mouse-2] 'Buffer-menu-mouse-select)
     (define-key map [follow-link] 'mouse-face)
@@ -78,6 +80,13 @@
       '(menu-item "Refresh" revert-buffer
 		 :help "Refresh the *Rcirc Menu* buffer contents"))
     (bindings--define-key menu-map [s0] menu-bar-separator)
+    (bindings--define-key menu-map [cata]
+      '(menu-item "Catch up All" rcirc-menu-catchup-all
+		 :help "Mark all buffers as read"))
+    (bindings--define-key menu-map [cat]
+      '(menu-item "Catch up" rcirc-menu-catchup
+		 :help "Mark this buffer as read"))
+    (bindings--define-key menu-map [s1] menu-bar-separator)
     (bindings--define-key menu-map [sel]
       '(menu-item "Select Marked" Buffer-menu-select
 		 :help "Select this line's buffer; also display buffers marked with `>'"))
@@ -216,5 +225,32 @@ elements of ‘tabulated-list-entries’."
 			       (t 4))))
 		     args))
   (apply '< args))
+
+(defun rcirc-menu-catchup ()
+  "Mark the current buffer as read, i.e. no activity."
+  (interactive)
+  (rcirc-clear-activity (Buffer-menu-buffer t))
+  (run-hooks 'tabulated-list-revert-hook)
+  (tabulated-list-print))
+
+(defun rcirc-menu-catchup-all ()
+  "Mark all the buffers as read, i.e. no activity."
+  (interactive)
+  (dolist (buf (buffer-list))
+    (with-current-buffer buf
+      (when rcirc-activity-types
+	(rcirc-clear-activity buf))))
+  (run-hooks 'tabulated-list-revert-hook)
+  ;; don't move point
+  (tabulated-list-print))
+
+(add-hook 'rcirc-update-activity-string-hook
+	  'rcirc-menu-update)
+
+(defun rcirc-menu-update ()
+  "Update the Rcirc Menu buffer, if any."
+  (with-current-buffer (get-buffer-create "*Rcirc Menu*")
+    ;; this will move point
+    (tabulated-list-revert)))
 
 ;;; rcirc-menu.el ends here
