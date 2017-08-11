@@ -249,8 +249,13 @@ elements of ‘tabulated-list-entries’."
 
 (defun rcirc-menu-update ()
   "Update the Rcirc Menu buffer, if any."
-  (with-current-buffer (get-buffer-create "*Rcirc Menu*")
-    ;; this will move point
-    (tabulated-list-revert)))
+  (let ((buf (get-buffer "*Rcirc Menu*")))
+    (when buf
+      (with-current-buffer buf
+	(when (derived-mode-p 'tabulated-list-mode)
+	  ;; this will move point
+	  (tabulated-list-revert))))))
+
+(provide 'rcirc-menu)
 
 ;;; rcirc-menu.el ends here
