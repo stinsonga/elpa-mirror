@@ -191,7 +191,9 @@ In Rcirc Menu mode, the following commands are defined:
 			 (cond ((memq buf hipri) "↑")
 			       ((memq buf lopri) "↓")
 			       (t " ")) ;; "P"
-			 (or rcirc-target "") ;; "Target"
+			 (or rcirc-target
+			     (car (split-string
+				   (buffer-name) "@"))) ;; "Target"
 			 (with-current-buffer rcirc-server-buffer
 			   rcirc-server-name) ;; "Server"
 			 (rcirc-menu-activity))) ;; "Activity"
