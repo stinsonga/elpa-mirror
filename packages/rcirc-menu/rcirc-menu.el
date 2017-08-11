@@ -139,6 +139,10 @@
   "Major mode for Rcirc Menu buffers.
 The Rcirc Menu is invoked by the command \\[rcirc-menu].
 
+Columns:
+  T - this buffer has a target, a live connection
+  P - buffer priority
+
 In Rcirc Menu mode, the following commands are defined:
 \\<rcirc-menu-mode-map>
 \\[quit-window]    Remove the Buffer Menu from the display.
