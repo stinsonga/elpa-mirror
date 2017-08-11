@@ -227,9 +227,14 @@ elements of ‘tabulated-list-entries’."
   (apply '< args))
 
 (defun rcirc-menu-catchup ()
-  "Mark the current buffer as read, i.e. no activity."
+  "Mark the current buffer or the marked buffers as read.
+This resets their activity."
   (interactive)
-  (rcirc-clear-activity (Buffer-menu-buffer t))
+  (let* ((this-buffer (list (Buffer-menu-buffer t)))
+	 (marked-buffers (Buffer-menu-marked-buffers))
+	 (buffers (or marked-buffers this-buffer)))
+    (dolist (buf buffers)
+      (rcirc-clear-activity buf)))
   (run-hooks 'tabulated-list-revert-hook)
   (tabulated-list-print))
 
