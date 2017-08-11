@@ -194,9 +194,7 @@ In Rcirc Menu mode, the following commands are defined:
 			 (or rcirc-target "") ;; "Target"
 			 (with-current-buffer rcirc-server-buffer
 			   rcirc-server-name) ;; "Server"
-			 (mapconcat (lambda (s) (if s (symbol-name s) "yes"))
-				    rcirc-activity-types
-				    ", "))) ;; "Activity"
+			 (rcirc-menu-activity))) ;; "Activity"
 			entries))))
       (setq tabulated-list-entries (nreverse entries)))
     (tabulated-list-init-header))
@@ -216,15 +214,42 @@ elements of ‘tabulated-list-entries’."
 (defun rcirc-menu-sort-activity (&rest args)
   "Sort by activity.
 ARGS is a list of two elements having the same form as the
-elements of ‘tabulated-list-entries’."
+elements of ‘tabulated-list-entries’. At this point, we only have
+the comma-separated string produced by `rcirc-menu-activity' in
+the vector. The alternative is to simply visit the buffers and
+examine `rcirc-activity-types'."
   (setq args (mapcar (lambda (v)
-		       (let ((s (aref (cadr v) 4)))
-			 (cond ((string-match "nick" s) 1)
-			       ((string-match "key" s) 2)
-			       ((string-match "yes" s) 3)
-			       (t 4))))
+		       (let ((buf (car v)))
+			 (with-current-buffer buf
+			   (cond ((memq 'nick rcirc-activity-types) 1)
+				 ((memq 'keyword  rcirc-activity-types) 2)
+				 (rcirc-activity-types 3)
+				 (t 4)))))
 		     args))
   (apply '< args))
+
+(defun rcirc-menu-sort-activity-symbols (&rest args)
+  "Sort by activity symbols.
+ARGS are symbols from `rcirc-activity-types'."
+  (setq args (mapcar (lambda (v)
+		       (cond ((eq v 'nick) 1)
+			     ((eq v 'keyword) 2)
+			     ((not v) 3)
+			     (t 4)))
+		     args))
+  (apply '< args))
+
+(defun rcirc-menu-activity ()
+  "Return string describing activity in the current buffer."
+  (mapconcat (lambda (s)
+	       (cond ((eq s 'nick)
+		      (rcirc-facify "nick" 'rcirc-track-nick))
+		     ((eq s 'keyword)
+		      (rcirc-facify "keyword" 'rcirc-track-keyword))
+		     (t "yes")))
+	     (sort (copy-sequence rcirc-activity-types)
+		   'rcirc-menu-sort-activity-symbols)
+	     ", "))
 
 (defun rcirc-menu-catchup ()
   "Mark the current buffer or the marked buffers as read.
