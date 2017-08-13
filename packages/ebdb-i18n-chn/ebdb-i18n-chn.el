@@ -83,7 +83,7 @@
 ;; This isn't all of them, but it seems like a reasonable subset.  See
 ;; https://en.wikipedia.org/wiki/Chinese_compound_surname for a fuller
 ;; list.
-(defvar ebdb-china-compound-surnames
+(defvar ebdb-i18n-chn-compound-surnames
   '("慕容" "上官" "司马" "欧阳" "司徒" "司空" "西门" "爱新觉罗")
   "A list of Chinese surnames that are longer than one
   character.")
@@ -93,7 +93,9 @@
 			       (_script (eql han))
 			       &optional _slots)
   (let (surname given-names)
-    (if (string-match (format "\\`\\(%s\\)\\(.*\\)\\'" (regexp-opt ebdb-china-compound-surnames)) string)
+    (if (string-match (format "\\`\\(%s\\)\\(.*\\)\\'"
+			      (regexp-opt ebdb-i18n-chn-compound-surnames))
+		      string)
 	(setq surname (match-string 1 string)
 	      given-names (match-string 2 string))
       (setq surname (substring string 0 1)
