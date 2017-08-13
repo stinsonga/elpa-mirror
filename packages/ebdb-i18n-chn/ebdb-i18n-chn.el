@@ -66,6 +66,20 @@
 			     (string-to-number (match-string 1 num-str)))))
     (apply #'make-instance class slots)))
 
+(cl-defmethod ebdb-string-i18n ((adr ebdb-field-address)
+				(_cc (eql chn)))
+  (if (eql (aref char-script-table (aref (car streets) 0)) 'han)
+      (with-slots (streets locality region postcode) adr
+	(concat
+	 ;; There are four municipalities, we don't need to repeat
+	 ;; city-plus-province for them.
+	 (unless (string-match-p "北京\\|重庆\\|上海\\|天津" region)
+	   region)
+	 locality
+	 (mapconcat #'identity streets "")
+	 ", " postcode))
+    (ebdb-format-address address 2)))
+
 ;; This isn't all of them, but it seems like a reasonable subset.  See
 ;; https://en.wikipedia.org/wiki/Chinese_compound_surname for a fuller
 ;; list.
