@@ -3,6 +3,7 @@
 ;; Copyright (C) 2016-2017  Free Software Foundation, Inc.
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
+;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Version: 1
 ;; Package-Requires: ((gnorb "1.1.0") (ebdb "0.2"))
 
@@ -31,16 +32,10 @@
 (require 'gnorb-org)
 (require 'gnorb-gnus)
 
-;; Probably we shouldn't use this, EBDB should not have a dependency
-;; on Org.
-
-;; Actually the real problem is that this is Gnus specific, we should
-;; have equivalent methods for all the MUAs, something like
-;; `ebdb-mua-find-messages'.
 (autoload 'org-gnus-follow-link "org-gnus")
 (autoload 'article-lapsed-string "gnus-art")
 
-(defgroup gnorb-ebdb nil
+(defgroup ebdb-gnorb nil
   "Customizations for Gnorb-specific functionality."
   :group 'ebdb)
 
@@ -48,7 +43,7 @@
   "For records with a `ebdb-gnorb-messages-field',
 collect links to a maximum of this many messages."
 
-  :group 'gnorb-ebdb
+  :group 'ebdb-gnorb
   :type 'integer)
 
 (defcustom gnorb-ebdb-define-recent 'seen
@@ -63,7 +58,7 @@ record's messages field is already full of recently-received
 messages, opening a five-year-old message (for instance) from
 this record will not push a link to the message into the field."
 
-  :group 'gnorb-ebdb
+  :group 'ebdb-gnorb
   :type '(choice (const :tag "Most recently seen" 'seen)
                  (const :tag "Most recently received" 'received)))
 
@@ -76,7 +71,7 @@ to t; if it is nil, this option will be ignored.
 This also affects how links are followed: when t, following a
 link will display the whole thread."
 
-  :group 'gnorb-ebdb
+  :group 'ebdb-gnorb
   :type 'boolean)
 
 (defcustom gnorb-ebdb-message-format "%:lapsed days: %:subject"
@@ -91,13 +86,13 @@ mentioned in the docstring of `format-time-string', which see, or
 the escape %:lapsed, which inserts the number of days ago the
 message was received."
 
-  :group 'gnorb-ebdb
+  :group 'ebdb-gnorb
   :type 'string)
 
 (defface gnorb-ebdb-link '((t :inherit org-link))
   "Custom face for displaying message links in the *BBDB* buffer.
   Defaults to org-link."
-  :group 'gnorb-ebdb)
+  :group 'ebdb-gnorb)
 
 (cl-defstruct gnorb-ebdb-link
   subject date group id)
@@ -236,3 +231,4 @@ to a message into the record's `gnorb-ebdb-messages-field'."
  "Gnorb field holding links to Gnus messages.")
 
 (provide 'ebdb-gnorb)
+;;; ebdb-gnorb.el ends here

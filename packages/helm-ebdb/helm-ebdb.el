@@ -3,6 +3,7 @@
 ;; Copyright (C) 2017  Free Software Foundation, Inc.
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
+;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Keywords: mail, convenience
 ;; Version: 1
 ;; Package-Requires: ((helm "1.0") (ebdb "0.2"))
@@ -22,7 +23,7 @@
 
 ;;; Commentary:
 
-;; Helm integration for EBDB.
+;; Helm integration for EBDB.  Provides the command `helm-ebdb'.
 
 ;;; Code:
 

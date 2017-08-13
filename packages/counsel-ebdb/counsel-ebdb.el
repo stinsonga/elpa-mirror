@@ -3,6 +3,7 @@
 ;; Copyright (C) 2017  Free Software Foundation, Inc.
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
+;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Version: 1
 ;; Package-Requires: ((ivy "0.8.0") (ebdb "0.2"))
 
@@ -21,13 +22,14 @@
 
 ;;; Commentary:
 
-;; Counsel (actually ivy) integration for EBDB.
+;; Counselivy/ integration for EBDB.
 
 ;;; Code:
 
 (require 'ebdb)
 (require 'ivy)
 
+;;;###autoload
 (defun counsel-ebdb ()
   "Select EBDB contacts using the ivy/counsel interface."
   (interactive)
