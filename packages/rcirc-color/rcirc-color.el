@@ -1,6 +1,6 @@
 ;;; rcirc-color.el --- color nicks
 
-;; Copyright (C) 2005-2017 Alex Schroeder
+;; Copyright (C) 2005-2017  Free Software Foundation, Inc.
 
 ;; Author: Alex Schroeder <alex@gnu.org>
 ;; Maintainer: Alex Schroeder <alex@gnu.org>
