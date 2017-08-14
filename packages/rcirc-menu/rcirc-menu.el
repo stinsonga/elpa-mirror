@@ -1,6 +1,6 @@
 ;;; rcirc-menu --- a menu of all your rcirc connections
 
-;; Copyright (C) 2017  Alex Schroeder <alex@gnu.org>
+;; Copyright (C) 2017  Free Software Foundation, Inc.
 
 ;; Author: Alex Schroeder <alex@gnu.org>
 ;; Maintainer: Alex Schroeder <alex@gnu.org>
