@@ -3,6 +3,7 @@
 ;; Copyright (C) 2016-2017  Free Software Foundation, Inc.
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
+;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Version: 1
 ;; Package-Requires: ((pyim "1.6.0") (ebdb "0.2))
 
@@ -26,6 +27,9 @@
 ;; of phones and addresses.  Be aware that using this library will
 ;; incur a non-neglible slowdown at load time.  It shouldn't have any
 ;; real impact on search and completion times.
+
+;; Generic methods don't play nice with autoloads: you'll need to
+;; require this package after installing it.
 
 ;;; Code:
 
