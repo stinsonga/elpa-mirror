@@ -4,7 +4,7 @@
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
-;; Version: 1
+;; Version: 1.0.1
 ;; Package-Requires: ((pyim "1.6.0") (ebdb "0.2"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -185,5 +185,5 @@ searchs via pinyin will find the record."
 				      _unload)
   (ebdb-china-handle-name field record 'del))
 
-(provide 'ebdb-chn)
-;;; ebdb-chn.el ends here
+(provide 'ebdb-i18n-chn)
+;;; ebdb-i18n-chn.el ends here
