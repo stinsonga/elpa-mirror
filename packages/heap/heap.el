@@ -1,9 +1,10 @@
+;; -*- lexical-binding: t; -*-
 ;;; heap.el --- Heap (a.k.a. priority queue) data structure
 
-;; Copyright (C) 2004-2006, 2008, 2012  Free Software Foundation, Inc
+;; Copyright (C) 2004-2006, 2008, 2012-2013, 2017  Free Software Foundation, Inc
 
 ;; Author: Toby Cubitt <toby-predictive@dr-qubit.org>
-;; Version: 0.3
+;; Version: 0.5
 ;; Keywords: extensions, data structures, heap, priority queue
 ;; URL: http://www.dr-qubit.org/emacs.php
 ;; Repository: http://www.dr-qubit.org/git/predictive.git
@@ -45,8 +46,8 @@
 ;; advance. Although the heap will grow dynamically if it becomes full, this
 ;; requires copying the entire heap, so insertion has worst-case complexity
 ;; O(n) instead of O(log n), though the amortized complexity is still
-;; O(n). (For applications where the maximum size of the heap is not known in
-;; advance, an implementation based on binary trees might be more suitable,
+;; O(log n). (For applications where the maximum size of the heap is not known
+;; in advance, an implementation based on binary trees might be more suitable,
 ;; but is not currently implemented in this package.)
 ;;
 ;; You create a heap using `make-heap', add elements to it using `heap-add',
@@ -57,50 +58,14 @@
 ;; should never be used outside this package.
 
 
-;;; Change Log:
-;;
-;; Version 0.3
-;; * converted heap data structures into defstructs
-;; * increased default resize-factor to 2
-;; * added `heap-build' function for efficiently building a heap out of a
-;;   vector
-;; * added `heap-merge' function for merging heaps (not very efficient for
-;;   binary -- or ternary -- heaps, only O(n))
-;;
-;; Version 0.2.2
-;; * fixed bug in `heap-copy'
-;;
-;; Version 0.2.1
-;; * modified Commentary
-;;
-;; Version 0.2
-;; * fixed efficiency issue: vectors are no longer copied all the time (thanks
-;;   to Stefan Monnier for pointing this out)
-;;
-;; Version 0.1.5
-;; * renamed `vswap' to `heap--vswap'
-;; * removed cl dependency
-;;
-;; Version 0.1.4
-;; * fixed internal function and macro names
-;;
-;; Version 0.1.3
-;; * added more commentary
-;;
-;; Version 0.1.2
-;; * moved defmacros before their first use so byte-compilation works
-;;
-;; Version 0.1.1
-;; * added cl dependency
-;;
-;; version 0.1
-;; * initial release
-
-
-
 ;;; Code:
 
 (eval-when-compile (require 'cl))
+
+(defmacro heap--when-generators (then)
+  "Evaluate THEN if `generator' library is available."
+  (declare (debug t))
+  (if (require 'generator nil 'noerror) then))
 
 
 ;;; ================================================================
@@ -137,11 +102,11 @@
 	      j (+ 3 k)))))))
 
 
-(defmacro heap--vswap (vect i j)   ; INTERNAL USE ONLY
+(defsubst heap--vswap (vect i j)   ; INTERNAL USE ONLY
   ;; Swap elements I and J of vector VECT.
-  `(let ((tmp (aref ,vect ,i)))
-     (aset ,vect ,i (aref ,vect ,j))
-     (aset ,vect ,j tmp) ,vect))
+  (let ((tmp (aref vect i)))
+    (aset vect i (aref vect j))
+    (aset vect j tmp) vect))
 
 
 (defun heap--sift-up (heap n)   ; INTERNAL USE ONLY
@@ -205,7 +170,7 @@ defaulting to 2."
  "Return a copy of heap HEAP."
  (let ((newheap (heap--create (heap--cmpfun heap) (heap--size heap)
 			      (heap--resize heap))))
-   (setf (heap--vect newheap) (vconcat (heap--vect heap) [])
+   (setf (heap--vect newheap) (vconcat (heap--vect heap))
 	 (heap--count newheap) (heap--count heap))
    newheap))
 
@@ -316,8 +281,8 @@ RESIZE-FACTOR sets the factor by which the heap's size is
 increased if it runs out of space, defaulting to 2."
   (or resize-factor (setq resize-factor 2))
   (let ((heap (heap--create compare-function (length vec) resize-factor))
-	(i (ceiling (1- (expt 3
-	     (ceiling (1- (log (1+ (* 2 (length vec))) 3))))) 2)))
+	(i (ceiling
+	    (1- (expt 3 (ceiling (1- (log (1+ (* 2 (length vec))) 3))))) 2)))
     (setf (heap--vect heap) vec
 	  (heap--count heap) (length vec))
     (while (>= (decf i) 0) (heap--sift-down heap i))
@@ -332,11 +297,36 @@ of the first HEAP argument.
 
 \(Note that in this heap implementation, the merge operation is
 not very efficient, taking O(n) time for combined heap size n\)."
-  (setq heaps (mapcar 'heap--vect heaps))
+  (setq heaps (mapcar #'heap--vect heaps))
   (heap-build (heap--cmpfun heap)
-	      (apply 'vconcat (heap--vect heap) heaps)
+	      (apply #'vconcat (heap--vect heap) heaps)
 	      (heap--resize heap)))
 
+
+(defun heap-clear (heap)
+  "Remove all entries from HEAP.
+
+Return number of entries removed."
+  (prog1
+      (heap--count heap)
+    (setf (heap--vect heap) (make-vector (length (heap--vect heap)) nil)
+          (heap--count heap) 0)))
+
+
+(heap--when-generators
+ (iter-defun heap-iter (heap)
+   "Return a heap iterator object.
+
+Calling `iter-next' on this object will retrieve the next element
+from the heap. The heap itself is not modified.
+
+\(Note that in this heap implementation, constructing a heap
+iterator is not very efficient, taking O(n) time for a heap of
+size n. Each call to `iter-next' on the other hand *is*
+efficient, taking O(log n) time.\)"
+   (let ((heap (heap-copy heap)))
+     (while (not (heap-empty heap))
+       (iter-yield (heap-delete-root heap))))))
 
 
 (provide 'heap)
