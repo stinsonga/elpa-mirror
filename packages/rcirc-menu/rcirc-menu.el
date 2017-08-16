@@ -1,4 +1,4 @@
-;;; rcirc-menu --- a menu of all your rcirc connections
+;;; rcirc-menu --- A menu of all your rcirc connections
 
 ;; Copyright (C) 2017  Free Software Foundation, Inc.
 
@@ -8,6 +8,8 @@
 ;; Version: 1.0
 ;; Keywords: comm
 
+;; This file is part of GNU Emacs.
+;;
 ;; This program is free software: you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by the Free
 ;; Software Foundation, either version 3 of the License, or (at your option)
@@ -169,7 +171,7 @@ In Rcirc Menu mode, the following commands are defined:
 \\[Buffer-menu-backup-unmark]  Back up a line and remove marks.
 \\[revert-buffer]    Update the list of buffers.
 \\[Buffer-menu-bury]    Bury the buffer listed on this line."
-  (add-hook 'tabulated-list-revert-hook 'rcirc-menu-refresh))
+  (add-hook 'tabulated-list-revert-hook 'rcirc-menu-refresh nil t))
 
 (defun rcirc-menu-refresh ()
   "Refresh the list of buffers."
