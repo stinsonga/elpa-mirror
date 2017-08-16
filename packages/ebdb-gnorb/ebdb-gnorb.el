@@ -4,7 +4,7 @@
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
-;; Version: 1
+;; Version: 1.0.1
 ;; Package-Requires: ((gnorb "1.1.0") (ebdb "0.2"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -97,6 +97,7 @@ message was received."
 (cl-defstruct gnorb-ebdb-link
   subject date group id)
 
+;;;###autoload
 (defclass gnorb-ebdb-field-messages (ebdb-field-user)
   ((messages
     :type (list-of gnorb-ebdb-link)
@@ -223,12 +224,6 @@ to a message into the record's `gnorb-ebdb-messages-field'."
 	 record field
 	 (make-instance 'gnorb-ebdb-field-messages
 			:messages links))))))
-
-(eieio-defclass-autoload
- 'gnorb-ebdb-field-messages
- 'ebdb-field-user
- "ebdb-gnorb"
- "Gnorb field holding links to Gnus messages.")
 
 (provide 'ebdb-gnorb)
 ;;; ebdb-gnorb.el ends here
