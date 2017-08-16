@@ -72,8 +72,8 @@
 
 (cl-defmethod ebdb-string-i18n ((adr ebdb-field-address)
 				(_cc (eql chn)))
-  (if (eql (aref char-script-table (aref (car streets) 0)) 'han)
-      (with-slots (streets locality region postcode) adr
+  (with-slots (streets locality region postcode) adr
+    (if (eql (aref char-script-table (aref (car streets) 0)) 'han)
 	(concat
 	 ;; There are four municipalities, we don't need to repeat
 	 ;; city-plus-province for them.
@@ -81,8 +81,8 @@
 	   region)
 	 locality
 	 (mapconcat #'identity streets "")
-	 ", " postcode))
-    (ebdb-format-address address 2)))
+	 ", " postcode)
+      (ebdb-format-address adr 2))))
 
 ;; This isn't all of them, but it seems like a reasonable subset.  See
 ;; https://en.wikipedia.org/wiki/Chinese_compound_surname for a fuller
