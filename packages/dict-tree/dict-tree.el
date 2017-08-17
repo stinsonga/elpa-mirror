@@ -6,7 +6,7 @@
 ;; Version: 0.14
 ;; Keywords: extensions, matching, data structures
 ;;           trie, tree, dictionary, completion, regexp
-;; Package-Requires: ((trie "0.3) (tNFA "0.1.1") (heap "0.3"))
+;; Package-Requires: ((trie "0.3") (tNFA "0.1.1") (heap "0.3"))
 ;; URL: http://www.dr-qubit.org/emacs.php
 
 ;; This file is part of Emacs.
