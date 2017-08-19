@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014  Free Software Foundation, Inc.
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
-;; Keywords: 
+;; Keywords:
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 
 ;;; Commentary:
 
-;; 
+;;
 
 ;;; Code:
 
@@ -92,6 +92,17 @@ Basically behave as if all attachments have \":gnus-attachments t\"."
   from an outgoing message."
   :group 'gnorb-gnus
   :type 'string)
+
+(defcustom gnorb-gnus-copy-message-text nil
+  "When capturing or triggering a TODO from a Gnus message,
+should the text of the message be saved?
+
+If t, the body text of the message is pushed onto the kill ring.
+If a char value, the text is saved into the corresponding
+register."
+  :group 'gnorb-gnus
+  :type '(choice boolean
+		 character))
 
 (defcustom gnorb-gnus-hint-relevant-article t
   "When opening a gnus message, should gnorb let you know if the
@@ -246,7 +257,27 @@ save them into `gnorb-tmp-dir'."
      '("file" "files" "attach"))
     (setq gnorb-gnus-capture-attachments nil)))
 
+(defun gnorb-gnus-capture-save-text ()
+  (when (and gnorb-gnus-copy-message-text
+	     (with-current-buffer
+		 (org-capture-get :original-buffer)
+	       (memq major-mode '(gnus-summary-mode gnus-article-mode))))
+    (save-window-excursion
+      (set-buffer (org-capture-get :original-buffer))
+      (gnus-with-article-buffer
+	(article-goto-body)
+	(if (numberp gnorb-gnus-copy-message-text)
+	    (progn
+	      (copy-to-register
+	       gnorb-gnus-copy-message-text
+	       (point) (point-max))
+	      (message "Message text copied to register %c"
+		       gnorb-gnus-copy-message-text))
+	  (kill-new (buffer-substring (point) (point-max)))
+	  (message "Message text copied to kill ring"))))))
+
 (add-hook 'org-capture-mode-hook 'gnorb-gnus-capture-attach)
+(add-hook 'org-capture-mode-hook 'gnorb-gnus-capture-save-text)
 
 (defvar org-note-abort)
 
@@ -536,6 +567,10 @@ you'll stay in the Gnus summary buffer."
 	 (group (gnorb-get-real-group-name
 		 gnus-newsgroup-name
 		 art-no))
+	 (text (gnus-with-article-buffer
+		 (article-goto-body)
+		 (buffer-substring-no-properties
+		  (point) (point-max))))
 	 (link (call-interactively 'org-store-link))
 	 (org-refile-targets gnorb-gnus-trigger-refile-targets)
 	 (ref-msg-ids (concat (mail-header-references headers) " "
@@ -553,60 +588,71 @@ you'll stay in the Gnus summary buffer."
 		     :group ,group))
     (gnorb-gnus-collect-all-attachments nil t)
     (condition-case err
-     (if id
-	 (progn
-	   (delete-other-windows)
-	   (gnorb-trigger-todo-action nil id))
-       ;; Flush out zombies (dead associations).
-       (setq related-headings
-	     (cl-remove-if
-	      (lambda (h)
-		(when (null (org-id-find-id-file h))
-		  (when (y-or-n-p
-			 (format
-			  "ID %s no longer exists, disassociate message?"
-			  h))
-		    (gnorb-delete-association msg-id h))))
-	      related-headings))
-       ;; See if one of the related headings is chosen.
-       (unless (catch 'target
-		 (dolist (h related-headings nil)
-		   (when (yes-or-no-p
-			  (format "Trigger action on %s"
-				  (gnorb-pretty-outline h)))
-		     (throw 'target (setq targ h)))))
-	 ;; If not, use the refile interface to choose one.
-	 (setq targ (org-refile-get-location
-		     "Trigger heading" nil t))
-	 (setq targ
-	       (save-window-excursion
-		 (find-file (nth 1 targ))
-		 (goto-char (nth 3 targ))
-		 (org-id-get-create))))
-       ;; Either bulk associate multiple messages...
-       (if (> (length articles) 1)
-	   (progn
-	     (dolist (a articles)
-	       (gnorb-registry-make-entry
-		(mail-header-id
-		 (gnus-data-header
-		  (gnus-data-find a)))
-		from subject targ group)
-	       (gnus-summary-remove-process-mark a))
-	     (message "Associated %d messages with %s"
-		      (length articles) (gnorb-pretty-outline targ)))
-	 ;; ...or just trigger the one.
-	 (delete-other-windows)
-	 (gnorb-trigger-todo-action nil targ))
-       (with-current-buffer buf
-	 (dolist (a articles)
-	   (gnus-summary-update-article a))))
-     (error
-      ;; If these are left populated after an error, it plays hell
-      ;; with future trigger processes.
-      (setq gnorb-gnus-message-info nil)
-      (setq gnorb-gnus-capture-attachments nil)
-      (signal (car err) (cdr err))))))
+	(if id
+	    (progn
+	      (delete-other-windows)
+	      (gnorb-trigger-todo-action nil id))
+	  ;; Flush out zombies (dead associations).
+	  (setq related-headings
+		(cl-remove-if
+		 (lambda (h)
+		   (when (null (org-id-find-id-file h))
+		     (when (y-or-n-p
+			    (format
+			     "ID %s no longer exists, disassociate message?"
+			     h))
+		       (gnorb-delete-association msg-id h))))
+		 related-headings))
+	  ;; See if one of the related headings is chosen.
+	  (unless (catch 'target
+		    (dolist (h related-headings nil)
+		      (when (yes-or-no-p
+			     (format "Trigger action on %s"
+				     (gnorb-pretty-outline h)))
+			(throw 'target (setq targ h)))))
+	    ;; If not, use the refile interface to choose one.
+	    (setq targ (org-refile-get-location
+			"Trigger heading" nil t))
+	    (setq targ
+		  (save-window-excursion
+		    (find-file (nth 1 targ))
+		    (goto-char (nth 3 targ))
+		    (org-id-get-create))))
+	  ;; Either bulk associate multiple messages...
+	  (if (> (length articles) 1)
+	      (progn
+		(dolist (a articles)
+		  (gnorb-registry-make-entry
+		   (mail-header-id
+		    (gnus-data-header
+		     (gnus-data-find a)))
+		   from subject targ group)
+		  (gnus-summary-remove-process-mark a))
+		(message "Associated %d messages with %s"
+			 (length articles) (gnorb-pretty-outline targ)))
+	    ;; ...or just trigger the one.
+	    (delete-other-windows)
+	    (gnorb-trigger-todo-action nil targ)
+	    (when gnorb-gnus-copy-message-text
+	      (if (numberp gnorb-gnus-copy-message-text)
+		  (with-temp-buffer
+		    (insert text)
+		    (copy-to-register
+		     gnorb-gnus-copy-message-text
+		     (point-min) (point-max))
+		    (message "Message text copied to register %c"
+			     gnorb-gnus-copy-message-text))
+		(kill-new text)
+		(message "Message text copied to kill ring"))))
+	  (with-current-buffer buf
+	    (dolist (a articles)
+	      (gnus-summary-update-article a))))
+      (error
+       ;; If these are left populated after an error, it plays hell
+       ;; with future trigger processes.
+       (setq gnorb-gnus-message-info nil)
+       (setq gnorb-gnus-capture-attachments nil)
+       (signal (car err) (cdr err))))))
 
 ;;;###autoload
 (defun gnorb-gnus-quick-reply ()
