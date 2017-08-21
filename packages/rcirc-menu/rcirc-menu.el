@@ -5,7 +5,7 @@
 ;; Author: Alex Schroeder <alex@gnu.org>
 ;; Maintainer: Alex Schroeder <alex@gnu.org>
 ;; Created: 2017-08-10
-;; Version: 1.0
+;; Version: 1.1
 ;; Keywords: comm
 
 ;; This file is part of GNU Emacs.
@@ -268,8 +268,7 @@ This resets their activity."
 	 (buffers (or marked-buffers this-buffer)))
     (dolist (buf buffers)
       (rcirc-clear-activity buf)))
-  (run-hooks 'tabulated-list-revert-hook)
-  (tabulated-list-print))
+  (rcirc-menu-catchup-finish))
 
 (defun rcirc-menu-catchup-all ()
   "Mark all the buffers as read, i.e. no activity."
@@ -278,8 +277,17 @@ This resets their activity."
     (with-current-buffer buf
       (when rcirc-activity-types
 	(rcirc-clear-activity buf))))
+  (rcirc-menu-catchup-finish))
+
+(defun rcirc-menu-catchup-finish ()
+  "Update buffer and activity string after catching up."
+  ;; Don't call rcirc-menu-update which reverts the tabulated list.
+  (let ((rcirc-update-activity-string-hook
+	 (delete 'rcirc-menu-update rcirc-update-activity-string-hook)))
+    (rcirc-update-activity-string))
+  ;; These two are from `tabulated-list-revert' but we don't want to
+  ;; move point.
   (run-hooks 'tabulated-list-revert-hook)
-  ;; don't move point
   (tabulated-list-print))
 
 (add-hook 'rcirc-update-activity-string-hook
