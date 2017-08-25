@@ -229,7 +229,8 @@ examine `rcirc-activity-types'."
   (setq args (mapcar (lambda (v)
 		       (let ((buf (car v)))
 			 (with-current-buffer buf
-			   (cond ((memq 'nick rcirc-activity-types) 1)
+			   (cond ((null rcirc-target) 5)
+			         ((memq 'nick rcirc-activity-types) 1)
 				 ((memq 'keyword  rcirc-activity-types) 2)
 				 (rcirc-activity-types 3)
 				 (t 4)))))
