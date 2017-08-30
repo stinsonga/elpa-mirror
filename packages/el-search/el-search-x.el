@@ -133,6 +133,8 @@ have at least one mandatory, but also optional arguments, you
 could use this pattern:
 
     (l ^ 'defun hl (l _ &optional))"
+  ;; We don't allow PATs in `l' to create bindings because to make this
+  ;; work as expected we would need backtracking
   (declare
    (heuristic-matcher
     (lambda (&rest lpats)
