@@ -4,7 +4,7 @@
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
-;; Version: 1.0.1
+;; Version: 1.1
 ;; Package-Requires: ((pyim "1.6.0") (ebdb "0.2"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -184,6 +184,11 @@ searchs via pinyin will find the record."
 				      (_script (eql han))
 				      _unload)
   (ebdb-china-handle-name field record 'del))
+
+(eval-after-load 'ebdb-snarf
+  '(push (format "%s\\cc\\{1,2\\}\\|\\cc\\{2,3\\}"
+		 (regexp-opt ebdb-i18n-chn-compound-surnames))
+	 ebdb-snarf-name-re))
 
 (provide 'ebdb-i18n-chn)
 ;;; ebdb-i18n-chn.el ends here
