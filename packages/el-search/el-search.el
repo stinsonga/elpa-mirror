@@ -3110,7 +3110,13 @@ you can also give an input of the form
 
 \(\">\" and \"=>\" are also allowed as a separator) to the first
 prompt and specify both expressions at once.  This format is also
-used for history entries."
+used for history entries.
+
+When called directly after a search command, use the current
+search to drive query-replace (like in isearch).  You get a
+multi-buffer query-replace this way when the current search is
+multi-buffer.  When not called after a search command,
+query-replace all matches following point in the current buffer."
   (interactive (el-search-query-replace--read-args)) ;this binds the optional argument
   (setq this-command 'el-search-query-replace) ;in case we come from isearch
   (barf-if-buffer-read-only)
@@ -3122,8 +3128,10 @@ used for history entries."
       search-head
       (eq (el-search-head-buffer search-head) (current-buffer))
       (equal from-pattern (el-search-object-pattern el-search--current-search))
-      (and (eq last-command 'el-search-pattern)
-           (y-or-n-p "Use the current search to drive query-replace? "))))))
+      (eq last-command 'el-search-pattern)
+      (prog1 t
+        (el-search--message-no-log "Using the current search to drive query-replace")
+        (sit-for 2))))))
 
 (defun el-search--take-over-from-isearch (&optional goto-left-end)
   (let ((other-end (and goto-left-end isearch-other-end))
