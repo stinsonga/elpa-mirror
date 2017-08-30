@@ -152,6 +152,14 @@
 ;;            s
 ;;            (guard (< 70 (length (car (split-string s "\n")))))))
 ;;
+;; Put simply, el-search is a tool to match representations of
+;; symbolic expressions written in a buffer or file.  Most of the
+;; time, but not necessarily, this is Elisp code.  El-search has no
+;; semantic understanding of the meaning of these s-exps as a program.
+;; For example, if you define a macro `my-defvar' that expands to
+;; `defvar' forms, the pattern `(defvar ,_) will not match any
+;; equivalent `my-defvar' form, it just matches any lists of two
+;; elements with the first element being the symbol `defvar'.
 ;;
 ;; You can define your own pattern types with `el-search-defpattern'
 ;; which is analogue to `defmacro'.  See C-h f `el-search-pattern' for
@@ -616,7 +624,9 @@ nil."
       (push (if (string-match-p "\\`.+\n" input)
                 (with-temp-buffer
                   (emacs-lisp-mode)
-                  (insert "\n" input)
+                  (unless (string-match-p "\\`\n" input)
+                    (insert "\n"))
+                  (insert input)
                   (indent-region 1 (point))
                   (buffer-string))
               input)
@@ -626,7 +636,8 @@ nil."
   (when (and (symbolp pattern)
              (not (eq pattern '_))
              (not (keywordp pattern)))
-    (user-error "Error: free variable `%S' (missing a quote?)" pattern)))
+    (message "Free variable `%S' (missing a quote?)" pattern)
+    (sit-for 2.)))
 
 (defun el-search--read-pattern (prompt &optional default histvar)
   (cl-callf or histvar 'el-search-pattern-history)
@@ -970,7 +981,7 @@ optional MESSAGE are used to construct the error message."
                "completed")))
    " for"
    (let ((printed-pattern (el-search--pp-to-string (el-search-object-pattern search))))
-     (format (if (string-match-p "\n" printed-pattern) ":\n%s" " %s")
+     (format (if (string-match-p "\n" printed-pattern) "\n%s" " %s")
              (propertize printed-pattern 'face 'shadow)))))
 
 
@@ -2290,26 +2301,27 @@ Prompt for a new pattern and revert the occur buffer."
                  (forward-line delta-lines))
                '((display-buffer-pop-up-window))))))))))
 
-(defun el-search--occur-button-action (filename-or-buffer &optional pos do-fun display-buffer-action)
+(defun el-search--occur-button-action
+    (filename-or-buffer &optional match-pos do-fun display-buffer-action)
   (let ((buffer (if (bufferp filename-or-buffer)
                     filename-or-buffer
-                  (find-file-noselect filename-or-buffer) ))
-        (pattern (el-search-object-pattern el-search-occur-search-object)))
+                  (find-file-noselect filename-or-buffer)))
+        (search-pattern (el-search-object-pattern el-search-occur-search-object)))
     (with-selected-window (display-buffer buffer
                                           (or display-buffer-action
-                                              (if pos
+                                              (if match-pos
                                                   '((display-buffer-pop-up-window))
                                                 el-search-display-buffer-popup-action)))
-      (when pos
+      (when match-pos
         (when (and (buffer-narrowed-p)
-                   (or (< pos (point-min))
-                       (> pos (point-max)))
+                   (or (< match-pos (point-min))
+                       (> match-pos (point-max)))
                    (not (and (y-or-n-p "Widen buffer? ")
                              (progn (widen) t))))
           (user-error "Can't jump to match"))
-        (goto-char pos))
+        (goto-char match-pos))
       (el-search-setup-search-1
-       pattern
+       search-pattern
        (lambda () (stream (list buffer)))
        'from-here
        (lambda (search)
@@ -2318,7 +2330,7 @@ Prompt for a new pattern and revert the occur buffer."
       (el-search--next-buffer el-search--current-search)
       (setq this-command 'el-search-pattern
             el-search--success t)
-      (when pos
+      (when match-pos
         (el-search-hl-sexp)
         (el-search-display-match-count))
       (el-search-hl-other-matches (el-search--current-matcher))
@@ -2397,9 +2409,9 @@ Prompt for a new pattern and revert the occur buffer."
                       (prog1 (read (current-buffer))
                         (setq end (point))))
                ((or (pred atom) `(,(pred atom))) t)
-               ((guard (< (- end start) 100))     t)))))
+               ((guard (< (- end start) 100))    t)))))
         (try-go-upwards (lambda (pos) (condition-case nil (scan-lists pos -1 1)
-                                   (scan-error)))))
+                                   (scan-error nil)))))
     (when (funcall need-more-context-p match-beg)
       (setq context-beg (funcall try-go-upwards match-beg))
       (when (and context-beg (funcall need-more-context-p context-beg))
@@ -2437,15 +2449,13 @@ Prompt for a new pattern and revert the occur buffer."
   (revert-buffer))
 
 (declare-function which-func-ff-hook which-func)
+
 (defun el-search--occur (search &optional buffer)
   (unwind-protect
       (let ((occur-buffer (or buffer (generate-new-buffer "*El Occur*"))))
         (setq this-command 'el-search-pattern)
         (setq-local el-search--temp-buffer-flag nil)
-        (with-selected-window (if buffer (selected-window)
-                                (display-buffer
-                                 occur-buffer
-                                 '((display-buffer-pop-up-window display-buffer-use-some-window))))
+        (with-selected-window (if buffer (selected-window) (display-buffer occur-buffer))
           (let ((inhibit-read-only t))
             (if el-search-occur-search-object
                 (progn
@@ -2457,7 +2467,8 @@ Prompt for a new pattern and revert the occur buffer."
                             (current-time-string)
                             (el-search--get-search-description-string search)))
             (condition-case-unless-debug err
-                (let ((stream-of-matches
+                (let ((insert-summary-position (point))
+                      (stream-of-matches
                        (stream-partition
                         (funcall (el-search-object-get-matches search))
                         (lambda (this prev)
@@ -2557,15 +2568,17 @@ Prompt for a new pattern and revert the occur buffer."
                                       (hs-hide-block)))))
                               (insert "\n")))))))
 
-                  (insert
-                   (if (zerop overall-matches)
-                       ";;; * No matches"
-                     (concat
-                      (format "\n\n;;; * %d matches in " overall-matches)
-                      (unless (zerop matching-files) (format "%d files" matching-files))
-                      (unless (or (zerop matching-files) (zerop matching-buffers)) " and ")
-                      (unless (zerop matching-buffers)  (format "%d buffers" matching-buffers))
-                      ".")))
+                  (save-excursion
+                    (goto-char insert-summary-position)
+                    (insert
+                     (if (zerop overall-matches)
+                         ";;; * No matches"
+                       (concat
+                        (format ";;; Found %d matches in " overall-matches)
+                        (unless (zerop matching-files) (format "%d files" matching-files))
+                        (unless (or (zerop matching-files) (zerop matching-buffers)) " and ")
+                        (unless (zerop matching-buffers)  (format "%d buffers" matching-buffers))
+                        (unless (zerop overall-matches) ":\n\n")))))
                   (goto-char (point-min))
                   (when (and (bound-and-true-p which-function-mode)
                              (eq el-search-get-occur-context-function
@@ -2752,7 +2765,7 @@ reindent."
   ;; layout of subexpressions shared with the original (replaced)
   ;; expression and the replace expression.
   (if (and splice (not (listp replacement)))
-      (error "Expression to splice in is not a list")
+      (error "Expression to splice in is not a list: %S" replacement)
     (let ((orig-buffer (generate-new-buffer "orig-expr")))
       (with-current-buffer orig-buffer
         (emacs-lisp-mode)
@@ -2894,13 +2907,7 @@ reindent."
                              (lambda ()
                                (car
                                 (read-multiple-choice
-                                 (if replaced-this ""
-                                   (concat "Replace"
-                                           (if (or (string-match-p "\n" to-insert)
-                                                   (< 40 (length to-insert)))
-                                               "" (format " with `%s'" to-insert))
-                                           "? "
-                                           (if splice "{splice} " "")))
+                                 (if replaced-this "" "Replace?")
                                  (delq nil
                                        (list
                                         (and (not replaced-this)
@@ -2911,13 +2918,14 @@ reindent."
                                         (and (not replaced-this)
                                              '(?r "replace" "Replace this match but don't move"))
                                         '(?! "all" "Replace all remaining matches in this buffer")
-                                        '(?i "skip" "Skip this buffer and any remaining matches in it")
+                                        '(?b "skip buffer"
+                                             "Skip this buffer and any remaining matches in it")
                                         (and buffer-file-name
                                              '(?d "skip dir" "Skip a parent directory of current file"))
                                         (and multiple
                                              '(?A "All" "Replace all remaining matches in all buffers"))
                                         (and (not replaced-this)
-                                             (list ?s (concat "splicing " (if splice "off" "on"))
+                                             (list ?s (concat "turn splicing " (if splice "off" "on"))
                                                    "\
 Toggle splicing mode.  When splicing mode is on (default off),
 the replacement expression must evaluate to a list, and all of
@@ -2943,7 +2951,7 @@ the list's elements are inserted."))
                                            (setq replace-all t)
                                            (setq replace-all-and-following t)
                                            t)
-                                       (?i (goto-char (point-max))
+                                       (?b (goto-char (point-max))
                                            (message "Skipping this buffer")
                                            (sit-for 1)
                                            ;; FIXME: add #skipped matches to nbr-skipped?
@@ -2957,11 +2965,15 @@ the list's elements are inserted."))
                                         (let* ((buffer (get-buffer-create
                                                         (generate-new-buffer-name "*Replacement*")))
                                                (window (display-buffer-pop-up-window buffer ())))
-                                          (with-current-buffer buffer
+                                          (with-selected-window window
                                             (emacs-lisp-mode)
                                             (save-excursion
-                                              (insert (funcall get-replacement-string))))
-                                          (read-char "Hit any key to proceed")
+                                              (insert
+                                               "\
+;; This buffer shows the replacement for the current match.
+;; Please hit any key to proceed.\n\n"
+                                               (funcall get-replacement-string)))
+                                            (read-char " "))
                                           (delete-window window)
                                           (kill-buffer buffer)
                                           nil))
@@ -2975,11 +2987,14 @@ the list's elements are inserted."))
                                      skip-matches-in-replacement))
                            (el-search--skip-expression nil t))
                           ((eq skip-matches-in-replacement 'ask)
-                           (pcase (car (read-multiple-choice "Skip the match(es) in this replacement? "
-                                                             '((?y "yes")
-                                                               (?n "no")
-                                                               (?Y "always Yes")
-                                                               (?N "always No"))))
+                           (ding) ;Or should we even change the keys so that the user can't repeat
+                                  ;y by accident?
+                           (pcase (car (read-multiple-choice
+                                        "There are matches in this replacement - skip them? "
+                                        '((?y "yes")
+                                          (?n "no")
+                                          (?Y "always Yes")
+                                          (?N "always No"))))
                              ((and (or ?y ?Y) answer)
                               (when (= answer ?Y) (setq skip-matches-in-replacement t))
                               (forward-sexp))
@@ -3034,8 +3049,8 @@ the list's elements are inserted."))
                 (progn (el-search-continue-search)
                        (and el-search--success (not el-search--wrap-flag))))
           (funcall replace-in-current-buffer)
-          (unless replace-all-and-following (setq replace-all nil)))
-        (message "Done.  Replaced %d matches in %d buffers." nbr-replaced-total nbr-changed-buffers)))))
+          (unless replace-all-and-following (setq replace-all nil))))
+      (message "Replaced %d matches in %d buffers" nbr-replaced-total nbr-changed-buffers))))
 
 (defun el-search-query-replace--read-args ()
   (barf-if-buffer-read-only)
@@ -3087,7 +3102,9 @@ the list's elements are inserted."))
     (setq read-to   (read to))
     (el-search--maybe-warn-about-unquoted-symbol read-from)
     (when (and (symbolp read-to)
-               (not (el-search--contains-p (el-search--matcher `',read-to) read-from)))
+               (not (el-search--contains-p (el-search--matcher `',read-to) read-from))
+               (not (eq read-to t))
+               (not (eq read-to nil)))
       (el-search--maybe-warn-about-unquoted-symbol read-to))
     (list read-from read-to to)))
 
@@ -3130,8 +3147,8 @@ query-replace all matches following point in the current buffer."
       (equal from-pattern (el-search-object-pattern el-search--current-search))
       (eq last-command 'el-search-pattern)
       (prog1 t
-        (el-search--message-no-log "Using the current search to drive query-replace")
-        (sit-for 2))))))
+        (el-search--message-no-log "Using the current search to drive query-replace...")
+        (sit-for 1.))))))
 
 (defun el-search--take-over-from-isearch (&optional goto-left-end)
   (let ((other-end (and goto-left-end isearch-other-end))
