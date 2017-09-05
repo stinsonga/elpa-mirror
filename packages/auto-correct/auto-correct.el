@@ -53,12 +53,13 @@
 ;; 1. Create a function that calls `auto-correct--add-or-update-correction' with
 ;; the old text and the corrected text from your package.
 
-;; 2. Write two functions: an activation function and a deactivation function.
-;; These will be called by `auto-correct-mode' to activate and deactivate
-;; support.
+;; 2. Write a function to activate and deactivate support for your package.  It
+;; should take a single argument, which is a boolean indicating whether to
+;; activate or deactivate support.
 
-;; 3. Call `auto-correct--add-support' with your activation and deactivation
-;; functions.
+;; 3. Call `auto-correct-handle-support', passing t as the first argument and
+;; your function as the second.  To disable support, pass nil as the first
+;; argument instead.
 
 ;; 4. You're done.
 
@@ -115,18 +116,6 @@ locally.  If nil, the correction will be made whenever
     (write-abbrev-file)
     (message "\"%s\" now expands to \"%s\"" bef aft)))
 
-;; Extension Support
-
-(defvar auto-correct-activate-functions nil
-  "Functions to run to activate auto-correct support in various packages.
-
-These are called by `auto-correct-mode' when it is enabled.")
-
-(defvar auto-correct-deactivate-functions nil
-  "Functions to run to deactivate auto-correct support in various packages.
-
-These are called by `auto-correct-mode' when it is disabled.")
-
 ;; The mode
 
 ;;;###autoload
@@ -151,10 +140,7 @@ the command `auto-correct-toggle-ispell-local'.
   :group 'auto-correct
   :global t
   :init-value nil
-  :lighter " Auto-Correct"
-  (if auto-correct-mode
-      (run-hooks 'auto-correct-activate-functions)
-    (run-hooks 'auto-correct-deactivate-functions)))
+  :lighter " Auto-Correct")
 
 ;; Only enable the abbrev list when auto-correct-mode is active.
 (add-to-list 'abbrev-minor-mode-table-alist
@@ -162,35 +148,18 @@ the command `auto-correct-toggle-ispell-local'.
              'append
              #'equal)
 
-(defun auto-correct--add-support (activate-fun deactivate-fun)
-  "Add auto-correct support for a spelling package.
-
-Support will be activated by ACTIVATE-FUN and deactivated by DEACTIVATE-FUN."
-  (add-hook 'auto-correct-activate-functions activate-fun)
-  (add-hook 'auto-correct-deactivate-functions deactivate-fun)
-  ;; If `auto-correct-mode' is enabled, activate this package's support.
-  (when auto-correct-mode
-    (funcall activate-fun)))
-
-(defun auto-correct--remove-support (activate-fun deactivate-fun)
-  "Remove support for a spelling package.
-
-Support will be activated by ACTIVATE-FUN and deactivated by DEACTIVATE-FUN."
-  (remove-hook 'auto-correct-activate-functions activate-fun)
-  (remove-hook 'auto-correct-deactivate-functions deactivate-fun)
-  ;; If `auto-correct-mode' is enabled, deactivate this package's support.
-  (when auto-correct-mode
-    (funcall deactivate-fun)))
-
-(defun auto-correct--handle-support (add activate-fun deactivate-fun)
+(defun auto-correct-handle-support (activate support-fun)
   "Helper function to add or remove auto-correct support for a package.
 
-If ADD is non-nil, add support, otherwise remove it.
-ACTIVATE-FUN and DEACTIVATE-FUN are exactly as they are in
-`auto-correct--add-support'."
-  (if add
-      (auto-correct--add-support activate-fun deactivate-fun)
-    (auto-correct--remove-support activate-fun deactivate-fun)))
+If ACTIVATE is non-nil, add support, otherwise remove it.
+SUPPORT-FUN is a function that takes a single argument: a boolean
+indicating whether to activate or deactivate support."
+  (if activate
+      (add-hook 'auto-correct-hook support-fun)
+    (remove-hook 'auto-correct-hook support-fun))
+  ;; If `auto-correct-mode' is enabled, activate or deactivate support.
+  (when auto-correct-mode
+    (funcall support-fun activate)))
 
 ;; Flyspell Support
 
@@ -209,19 +178,20 @@ When `auto-correct-mode' is enabled, this function is set as
   (let ((old-word flyspell-auto-correct-word)
         (new-word word)
         (local (not flyspell-use-global-abbrev-table-p)))
-    (auto-correct--add-or-update-correction old-word new-word local)
-    (insert word)))
+    (auto-correct--add-or-update-correction old-word new-word local)))
 
-(defun auto-correct--flyspell-activate ()
-  "Activate flyspell auto-correct support.
+(defun auto-correct--activate-flyspell-support (activate)
+  "Activate or deactivate auto-correct support for flyspell.
 
-Sets `flyspell-insert-function' to `auto-correct-flyspell-insert'."
-  ;; Add flyspell corrections as auto-corrections
-  (setq flyspell-insert-function 'auto-correct-flyspell-insert))
+If ACTIVATE is non-nil, activate support for flyspell.
+Otherwise, deactivate it.
 
-(defun auto-correct--flyspell-deactivate ()
-  "Deactivate flyspell auto-correct support."
-  (setq flyspell-insert-function 'insert))
+Activation means adding `auto-correct-flyspell-insert' to
+`flyspell-insert-function'."
+  (if activate
+      (add-function :before flyspell-insert-function
+                    #'auto-correct-flyspell-insert)
+    (remove-function flyspell-insert-function #'auto-correct-flyspell-insert)))
 
 (defcustom auto-correct-enable-flyspell-support t
   "Whether to automatically correct corrections made in flyspell."
@@ -229,10 +199,9 @@ Sets `flyspell-insert-function' to `auto-correct-flyspell-insert'."
   :type 'boolean
   :set (lambda (sym val)
          (set sym val)
-         (auto-correct--handle-support
+         (auto-correct-handle-support
           val
-          'auto-correct--flyspell-activate
-          'auto-correct--flyspell-deactivate)))
+          'auto-correct--activate-flyspell-support)))
 
 ;; Ispell support
 
@@ -267,21 +236,21 @@ This is intended to be added as advice to `ispell-command-loop'."
                     (eq correction 'quit))) ;; Session was exited
              (not (equal word-before correction))) ;; Word was corrected
         (auto-correct--add-or-update-correction word-before correction
-                                          auto-correct--ispell-use-local-table)))
+                                                auto-correct--ispell-use-local-table)))
   ispell-result)
 
-(defun auto-correct--ispell-activate ()
-  "Activate Ispell auto-correct support.
+(defun auto-correct--activate-ispell-support (activate)
+  "Activate or deactivate Ispell auto-correct support.
 
-Adds advice to `ispell-command-loop' that adds the result as a
-correction."
-  ;; Add corrections from ispell as auto-corrections
-  (advice-add 'ispell-command-loop :filter-return
-              #'auto-correct--ispell-handler))
+If ACTIVATE is non-nil, activate support for Ispell.  Otherwise,
+deactivate it.
 
-(defun auto-correct--ispell-deactivate ()
-  "Deactivate Ispell auto-correct support."
-  (advice-remove 'ispell-command-loop #'auto-correct--ispell-handler))
+Activating means adding advice to `ispell-command-loop' that adds
+the result as a correction."
+  (if activate
+      (advice-add 'ispell-command-loop :filter-return
+                  #'auto-correct--ispell-handler)
+    (advice-remove 'ispell-command-loop #'auto-correct--ispell-handler)))
 
 (defcustom auto-correct-enable-ispell-support t
   "Whether to automatically correct corrections made in Ispell."
@@ -289,10 +258,9 @@ correction."
   :type 'boolean
   :set (lambda (sym val)
          (set sym val)
-         (auto-correct--handle-support
+         (auto-correct-handle-support
           val
-          'auto-correct--ispell-activate
-          'auto-correct--ispell-deactivate)))
+          'auto-correct--activate-ispell-support)))
 
 ;; Standalone (piggybacks on Ispell)
 
