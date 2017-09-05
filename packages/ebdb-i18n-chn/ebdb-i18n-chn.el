@@ -33,7 +33,7 @@
 
 ;;; Code:
 
-(require 'pyim)
+(when t (require 'pyim))
 (require 'ebdb-i18n)
 
 (cl-defmethod ebdb-string-i18n ((phone ebdb-field-phone)

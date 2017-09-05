@@ -28,7 +28,7 @@
 ;;; Code:
 
 (require 'ebdb)
-(require 'helm)
+(when t (require 'helm))
 
 (declare-function ebdb-display-records "ext:ebdb-com"
 		  (records &optional fmt append select pop buf))
