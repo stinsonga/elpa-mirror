@@ -22,12 +22,12 @@
 
 ;;; Commentary:
 
-;; Counselivy/ integration for EBDB.
+;; Counsel/ivy integration for EBDB.
 
 ;;; Code:
 
 (require 'ebdb)
-(require 'ivy)
+(when t (require 'ivy))
 
 ;;;###autoload
 (defun counsel-ebdb ()
