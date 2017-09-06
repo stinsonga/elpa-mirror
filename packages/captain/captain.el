@@ -5,7 +5,7 @@
 ;; Author: Ian Dunn <dunni@gnu.org>
 ;; Maintainer: Ian Dunn <dunni@gnu.org>
 ;; Keywords: editing
-;; Version: 1.0
+;; Version: 1.0.1
 
 ;; This file is part of GNU Emacs.
 
@@ -53,14 +53,16 @@
 (eval-when-compile (require 'subr-x))
 (require 'thingatpt)
 
-(defvar-local captain-predicate nil
+(defvar-local captain-predicate (lambda () t)
   "Predicate to check for whether auto-capitalization should be handled.
 
 Should be a function of no arguments, and return non-nil if
 auto-capitalization should be performed at the current point.
 
 For example, this could be a function to check if point is in a
-comment.")
+comment.
+
+By default, this is a function that returns t.")
 
 (defun captain-should-capitalize-p ()
   "Return non-nil if the captain should auto-capitalize your work."
