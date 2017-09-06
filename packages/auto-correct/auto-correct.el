@@ -5,7 +5,7 @@
 ;; Author: Ian Dunn <dunni@gnu.org>
 ;; Maintainer: Ian Dunn <dunni@gnu.org>
 ;; Keywords: editing
-;; Version: 1.0
+;; Version: 1.1
 
 ;; This file is part of GNU Emacs.
 
@@ -75,11 +75,13 @@
 
 ;; Core Functionality
 
-(defvar-local auto-correct-predicate nil
+(defvar-local auto-correct-predicate (lambda () t)
   "Predicate to check whether automatic corrections should be made.
 
 This should be a function of no arguments that returns non-nil if
-auto-correct should operate on the current text.")
+auto-correct should operate on the current text.
+
+By default, this is a function that returns t.")
 
 (defun auto-correct-expand-p ()
   "Return non-nil if auto-correct should operate on the current point.
