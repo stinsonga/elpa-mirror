@@ -53,7 +53,7 @@
 (eval-when-compile (require 'subr-x))
 (require 'thingatpt)
 
-(defvar-local captain-predicate (lambda () t)
+(defvar-local captain-predicate nil
   "Predicate to check for whether auto-capitalization should be handled.
 
 Should be a function of no arguments, and return non-nil if
@@ -62,7 +62,9 @@ auto-capitalization should be performed at the current point.
 For example, this could be a function to check if point is in a
 comment.
 
-By default, this is a function that returns t.")
+This is nil by default to avoid automatic capitalization
+happening everywhere, so to start using captain, set it to a
+function of your choosing.")
 
 (defun captain-should-capitalize-p ()
   "Return non-nil if the captain should auto-capitalize your work."
