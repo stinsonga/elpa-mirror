@@ -4,7 +4,8 @@
 
 ;; Author: Glynn Clements <glynn.clements@xemacs.org>
 ;; Maintainer: Dieter Deyke <dieter.deyke@gmail.com>
-;; Version: 1.4.5
+;; Version: 1.4.6
+;; Package-Requires: ((emacs "23.1"))
 ;; Created: 1997-09-11
 ;; Keywords: games
 ;; Package-Type: multi
@@ -902,6 +903,7 @@ sokoban-mode keybindings:
 \\[sokoban-start-game]	Starts a new game of Sokoban
 \\[sokoban-restart-level]	Restarts the current level
 \\[sokoban-goto-level]	Jumps to a specified level
+\\[fit-frame-to-buffer]	Fit frame to buffer
 \\[sokoban-move-left]	Move one square to the left
 \\[sokoban-move-right]	Move one square to the right
 \\[sokoban-move-up]	Move one square up
