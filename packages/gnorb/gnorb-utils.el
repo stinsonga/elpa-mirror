@@ -24,7 +24,9 @@
 
 ;;; Code:
 
-(eval-when-compile (require 'cl-lib))
+(eval-when-compile
+  (require 'cl-lib)
+  (require 'nnheader))
 (require 'pcase)
 (require 'org)
 (require 'org-agenda)
