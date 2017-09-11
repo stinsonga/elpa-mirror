@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2014  Free Software Foundation, Inc.
 
-;; Version: 1.2.3
+;; Version: 1.2.4
 ;; Package-Requires: ((cl-lib "0.5"))
 
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
