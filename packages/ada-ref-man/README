@@ -8,4 +8,7 @@ in the ada-france monotone repository; access information is given at
 http://stephe-leake.org/ada/arm.html. ELPA git copy in
 packages/ada-ref-man/progs.
 
+packages/ada-ref-man/build/Makefile will compile the program and
+produce the .info files.
+
 
