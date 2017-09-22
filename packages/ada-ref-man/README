@@ -1,3 +1,11 @@
 Emacs info version of Ada Reference Manual 2012 TC1
 
+The upstream source for the ARM is http://www.ada-auth.org/arm-files/;
+ELPA git copy in packages/ada-ref-man/source_2012.
+
+The upstream source for the Ada code that processes the ARM source is
+in the ada-france monotone repository; access information is given at
+http://stephe-leake.org/ada/arm.html. ELPA git copy in
+packages/ada-ref-man/progs.
+
 
