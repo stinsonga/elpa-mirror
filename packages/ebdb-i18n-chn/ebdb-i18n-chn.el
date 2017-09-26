@@ -4,7 +4,7 @@
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
-;; Version: 1.1
+;; Version: 1.2
 ;; Package-Requires: ((pyim "1.6.0") (ebdb "0.2"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -73,7 +73,7 @@
 (cl-defmethod ebdb-string-i18n ((adr ebdb-field-address)
 				(_cc (eql chn)))
   (with-slots (streets locality region postcode) adr
-    (if (eql (aref char-script-table (aref (car streets) 0)) 'han)
+    (if (eql (aref char-script-table (aref locality 0)) 'han)
 	(concat
 	 ;; There are four municipalities, we don't need to repeat
 	 ;; city-plus-province for them.
