@@ -82,7 +82,7 @@
 	 locality
 	 (mapconcat #'identity streets "")
 	 ", " postcode)
-      (ebdb-format-address adr 2))))
+      (ebdb-format-address-default adr))))
 
 ;; This isn't all of them, but it seems like a reasonable subset.  See
 ;; https://en.wikipedia.org/wiki/Chinese_compound_surname for a fuller
