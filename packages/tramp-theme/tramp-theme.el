@@ -1,11 +1,11 @@
 ;;; tramp-theme.el --- Custom theme for remote buffers
 
-;; Copyright (C) 2016 Free Software Foundation, Inc.
+;; Copyright (C) 2016-2017 Free Software Foundation, Inc.
 
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: convenience, faces
 ;; Package: tramp-theme
-;; Version: 0.1.1
+;; Version: 0.2
 ;; Package-Requires: ((emacs "24.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -71,7 +71,10 @@ frames using the remote user \"root\":
 
     ((nil \"^root$\" (fringe (:inherit fringe :inverse-video t)))
      (\"^foo$\" nil (default (:background \"Red\")))
-     (\"^bar$\" nil (default (:background \"Green\"))))
+     (\"^foo$\" nil (dired-directory (:background \"Red\")))
+     (\"^foo$\" nil (eshell-prompt (:foreground \"White\")))
+     (\"^bar$\" nil (default (:background \"Green\")))
+     (\"^bar$\" nil (dired-directory (:background \"Green\"))))
 
 Per default, `mode-line-buffer-identification' is displayed
 inverse for buffers which are editable with \"root\" permissions."
@@ -87,20 +90,28 @@ inverse for buffers which are editable with \"root\" permissions."
     (or (cdr (car (delete (assoc 'tramp theme-value) theme-value)))
 	(get variable 'tramp-theme-original-value))))
 
+(defvar-local tramp-theme-face-remapping-cookies nil
+  "Cookies store of local face remapping settings.")
+
 (defun tramp-theme-mode-line-buffer-identification ()
   "Return a list suitable for `mode-line-buffer-identification'.
-It indicates the remote host being used, if any."
+It indicates the remote host being used, if any.
+
+Per side effect, it enables also face remapping in the current buffer."
+  ;; Clear previous face remappings.
+  (mapc 'face-remap-remove-relative tramp-theme-face-remapping-cookies)
+  (setq tramp-theme-face-remapping-cookies nil)
+
   (append
    (when (custom-theme-enabled-p 'tramp)
      (let ((host (file-remote-p default-directory 'host))
-	   (user (file-remote-p default-directory 'user))
-	    remapping-alist)
+	   (user (file-remote-p default-directory 'user)))
        ;; Apply `tramp-theme-face-remapping-alist'.
        (dolist (elt tramp-theme-face-remapping-alist)
 	 (when (and (string-match (or (nth 0 elt) "") (or host ""))
 		    (string-match (or (nth 1 elt) "") (or user "")))
-	   (setq remapping-alist (cons (nth 2 elt) remapping-alist))))
-       (setq-local face-remapping-alist (nreverse remapping-alist))
+	   (push (face-remap-add-relative (car (nth 2 elt)) (cdr (nth 2 elt)))
+		 tramp-theme-face-remapping-cookies)))
 
        ;; The extended string.
        (when host
