@@ -811,7 +811,7 @@ N times."
   "Like `pcase--macroexpand' but also expanding \"el-search\" patterns."
   (eval `(el-search--with-additional-pcase-macros (pcase--macroexpand ',pattern))))
 
-(defun el-search--matcher (pattern &optional result)
+(cl-defun el-search--matcher (pattern &optional (result nil result-specified))
   (eval ;use `eval' to allow for user defined pattern types at run time
    (let ((expression (make-symbol "expression")))
      `(el-search--with-additional-pcase-macros
@@ -820,7 +820,7 @@ N times."
              (pcase--dontwarn-upats (cons '_ pcase--dontwarn-upats)))
          (byte-compile (lambda (,expression)
                          (pcase ,expression
-                           (,pattern ,(or result t))
+                           (,pattern ,(if result-specified result t))
                            (_        nil)))))))))
 
 (defun el-search--match-p (matcher expression)
