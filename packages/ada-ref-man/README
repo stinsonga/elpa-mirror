@@ -1,31 +1,3 @@
 Emacs info version of Ada Reference Manual 2012 TC1
 
-The upstream source for the ARM is http://www.ada-auth.org/arm-files/;
-ELPA git copy in packages/ada-ref-man/source_2012. Those files are
-copyright various companies/organisations (not including the FSF),
-with the following license (see title.mss, Version=[5], or
-arm2012.info, Front Matter):
 
-   This document may be copied, in whole or in part, in any form or by
-   any means, as is, or with alterations, provided that (1)
-   alterations are clearly marked as alterations and (2) this
-   copyright notice is included unmodified in any copy. Any other use
-   or distribution of this document is prohibited without the prior
-   express permission of AXE.
-
-   You use this document on the condition that you indemnify and hold
-   harmless AXE, its board, officers, agents, and employees, from any
-   and all liability or damages to yourself or your hardware or
-   software, or third parties, including attorneys' fees, court costs,
-   and other related costs and expenses, arising out of your use of
-   this document irrespective of the cause of said liability.
-
-The upstream source for the Ada code that processes the ARM source is
-in the ada-france monotone repository; access information is given at
-http://stephe-leake.org/ada/arm.html. ELPA git copy in
-packages/ada-ref-man/progs. Those files are copyright AXE Consultants
-or Stephen Leake, with GPL 3+ license.
-
-packages/ada-ref-man/build/Makefile will compile the program and
-produce the .info files; command line is 'make all'. It assumes you
-have an Ada compiler and texinfo tools installed.

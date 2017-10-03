@@ -7,6 +7,15 @@ Please send wisi bug reports to bug-gnu-emacs@gnu.org, with
 'wisi' in the subject. If possible, use M-x report-emacs-bug.
 
 
+* wisi 1.1.6
+3 Oct 2017
+
+** wisi-forward-find-cache-token - new function.
+
+** New minor-mode parse_table-mode helps navigating parse table
+   listings output by 'wisi-generate -v 1'; useful when debugging
+   grammars.
+
 * wisi 1.1.5
 9 Jul 2017
 
