@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.4.0.1
+;; Version: 1.4.0.2
 ;; Package-Requires: ((emacs "25") (stream "2.2.4"))
 
 
@@ -1233,6 +1233,38 @@ PATTERN and combining the heuristic matchers of the subpatterns."
   ;; Find next buffer fulfilling the PREDICATE and continue search there
   (el-search--next-buffer el-search--current-search predicate)
   (el-search-continue-search))
+
+;;;###autoload
+(defun el-search-count-matches (pattern &optional rstart rend interactive)
+  "Like `count-matches' but accepting an el-search PATTERN instead of a regexp.
+
+Unlike `count-matches' matches \"inside\" other matches also count."
+  (interactive (list (el-search--read-pattern-for-interactive "How many matches for pattern: ")
+                     nil nil t))
+  ;; Code is mainly adopted from `count-matches'
+  (save-excursion
+    (if rstart
+        (if rend
+            (progn
+              (goto-char (min rstart rend))
+              (setq rend (max rstart rend)))
+          (goto-char rstart)
+          (setq rend (point-max)))
+      (if (and interactive (use-region-p))
+	  (setq rstart (region-beginning)
+		rend (region-end))
+	(setq rstart (point)
+	      rend (point-max)))
+      (goto-char rstart))
+    (let ((count 0)
+          (matcher  (el-search--matcher          pattern))
+          (hmatcher (el-search-heuristic-matcher pattern)))
+      (while (and (< (point) rend)
+		  (el-search--search-pattern-1 matcher t rend hmatcher))
+	(cl-incf count)
+	(el-search--skip-expression nil t))
+      (when interactive (message "%d occurrence%s" count (if (= count 1) "" "s")))
+      count)))
 
 (defun el-search--all-matches (search)
   "Return a stream of all matches of SEARCH.
