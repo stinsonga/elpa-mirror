@@ -503,6 +503,42 @@ The non-nil value should be one of the symbols `forward' and
   "Ignore the arguments and return t."
   t)
 
+(defun el-search--bounds-of-defun (&optional pos)
+  "Return (BEG . END) of the top level s-exp covering POS.
+POS defaults to point.  If no sexp is covering POS, return
+nil."
+  (cl-callf or pos (point))
+  (save-restriction
+    (widen)
+    (let (defun-beg defun-end)
+      (cl-flet ((top-level-paren-start
+                 (pos)
+                 (save-excursion
+                   (let ((syntax-at-pos (syntax-ppss pos)))
+                     (and (not (zerop (nth 0 syntax-at-pos)))
+                          (syntax-ppss-toplevel-pos syntax-at-pos))))))
+        (if (setq defun-beg
+                  (or
+                   ;; Iff inside a top-level paren group, this returns the defun beginning
+                   (top-level-paren-start pos)
+                   ;; Iff at the beginning top-level paren group, this succeeds and returns point
+                   (and (not (eobp)) (top-level-paren-start (1+ pos)))))
+            (cons defun-beg (scan-sexps defun-beg 1))
+          ;; This corner case (not inside any s-exp or current top level s-exp
+          ;; not a list) is a bit hairy to do with syntax stuff, so let's just
+          ;; use el-search:
+          (save-excursion
+            (goto-char (point-min))
+            (setq defun-beg (point-min))
+            (setq defun-end (point-min))
+            (while (and (<= defun-end pos)
+                        (el-search-forward '_ nil t))
+              (setq defun-beg (point))
+              (goto-char (setq defun-end (el-search--end-of-sexp))))
+            (if (<= defun-beg pos defun-end)
+                (cons defun-beg defun-end)
+              nil)))))))
+
 (defun el-search-with-short-term-memory (function)
   "Wrap FUNCTION to cache the last arguments/result pair."
   (let ((cached nil))
