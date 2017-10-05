@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.4.0.2
+;; Version: 1.4.0.3
 ;; Package-Requires: ((emacs "25") (stream "2.2.4"))
 
 
@@ -2944,7 +2944,13 @@ reindent."
                              (lambda ()
                                (car
                                 (read-multiple-choice
-                                 (if replaced-this "" "Replace?")
+                                 (concat
+                                  (let ((nbr-done  (+ nbr-replaced nbr-skipped))
+                                        (nbr-to-do (el-search-count-matches pattern)))
+                                    (format "[%d/%d] "
+                                            (if replaced-this nbr-done (1+ nbr-done))
+                                            (+ nbr-done nbr-to-do)))
+                                  (if replaced-this "" "Replace?"))
                                  (delq nil
                                        (list
                                         (and (not replaced-this)
