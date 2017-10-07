@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.4.0.3
+;; Version: 1.4.0.4
 ;; Package-Requires: ((emacs "25") (stream "2.2.4"))
 
 
@@ -1984,9 +1984,20 @@ that the current search."
                         (eq (marker-buffer last-match) (current-buffer))))
               ;; this should only happen for bad search patterns
               (goto-char (el-search-head-position current-head))
-            (goto-char last-match)
-            (el-search-hl-sexp)
-            (el-search-hl-other-matches (el-search--current-matcher)))))
+            (goto-char last-match))
+          (let ((match-pos (save-excursion (el-search-forward (el-search--current-pattern) nil t))))
+            (unless (eq (point) match-pos)
+              (message "No match at search head any more - going to the next match")
+              (sit-for 1.5))
+            (if (not match-pos)
+                (el-search-continue-search)
+              (goto-char match-pos)
+              (setf (el-search-head-position current-head)
+                    (copy-marker (point)))
+              (setf (el-search-object-last-match el-search--current-search)
+                    (copy-marker (point)))
+              (el-search-hl-sexp)
+              (el-search-hl-other-matches (el-search--current-matcher))))))
     (el-search--message-no-log "[Search completed - restarting]")
     (sit-for 1.5)
     (el-search-reset-search el-search--current-search)
