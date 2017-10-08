@@ -153,8 +153,12 @@ him you want capitalized with `captain-capitalize-word'.
 ;; Support for capitalizing individual words automatically
 
 (define-abbrev-table 'captain-mode-abbrev-table nil
-  "Abbrev table where words that should be automatically capitalized are stored."
-  :enable-function #'captain-should-capitalize-p)
+  "Abbrev table where words that should be automatically capitalized are stored.
+
+This is case sensitive by default so `expand-region-abbrevs'
+won't keep trying to expand \"Name\" to \"Name\"."
+  :enable-function #'captain-should-capitalize-p
+  :case-fixed t)
 
 ;; Only enable the abbrev table when captain-mode is active
 (add-to-list 'abbrev-minor-mode-table-alist
