@@ -53,7 +53,13 @@
 (eval-when-compile (require 'subr-x))
 (require 'thingatpt)
 
-(defvar-local captain-predicate nil
+(defun captain--default-predicate ()
+  "The default predicate for determining whether the captain should work.
+
+He does nothing by default."
+  nil)
+
+(defvar-local captain-predicate #'captain--default-predicate
   "Predicate to check for whether auto-capitalization should be handled.
 
 Should be a function of no arguments, and return non-nil if
@@ -68,8 +74,7 @@ function of your choosing.")
 
 (defun captain-should-capitalize-p ()
   "Return non-nil if the captain should auto-capitalize your work."
-  (when captain-predicate
-    (funcall captain-predicate)))
+  (funcall captain-predicate))
 
 (defun captain--default-sentence-start ()
   "Default value of `captain-sentence-start-function'.
