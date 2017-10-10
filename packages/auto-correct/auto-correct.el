@@ -36,10 +36,33 @@
 ;; from then on.
 
 ;; Corrections are only made when `auto-correct-mode' is enabled.  Expansion is
-;; case-insensitive, so trying to fix alice as Alice won't work.
+;; case-insensitive, so trying to fix alice as Alice won't work.  Use the
+;; captain package for this instead.
 
-;; For more fine-grained control over when corrections are made, set the
-;; buffer-local variable `auto-correct-predicate'.
+;; Auto-correct is controlled further by `auto-correct-predicate'.  In order to
+;; enable auto-correct in a given buffer, the function to which
+;; `auto-correct-predicate' is set must return true at the current point.
+
+;; For example, the following will tell auto-correct to only correct mistakes in
+;; a programming mode buffer that fall within a comment:
+
+;; (add-hook 'prog-mode-hook
+;;    (lambda ()
+;;      (setq auto-correct-predicate (lambda () (nth 8 (syntax-ppss (point)))))))
+
+;; Or for text modes, work all the time:
+
+;; (add-hook 'text-mode-hook
+;;           (lambda ()
+;;             (setq auto-correct-predicate (lambda () t))))
+
+;; Or don't work in source blocks in Org mode:
+
+;; (add-hook
+;;  'org-mode-hook
+;;  (lambda ()
+;;    (setq auto-correct-predicate
+;;          (lambda () (not (org-in-src-block-p))))))
 
 ;; Behind the scenes, auto-correct uses an abbrev table, so in order to clean
 ;; out or modify any fixes auto-correct has learned, use `list-abbrevs'.  This
@@ -75,19 +98,30 @@
 
 ;; Core Functionality
 
-(defvar-local auto-correct-predicate nil
+(defun auto-correct--default-predicate ()
+  "The default predicate for determining whether auto-correct should run.
+
+Disabled by default."
+  nil)
+
+(defvar-local auto-correct-predicate #'auto-correct--default-predicate
   "Predicate to check whether automatic corrections should be made.
 
 This should be a function of no arguments that returns non-nil if
 auto-correct should operate on the current text.
 
-This is nil by default so auto-correct must be explicitly enabled.")
+This is buffer-local so it can be set to a value that works best
+with each different mode.
+
+This is `auto-correct--default-predicate' by default, which keeps
+auto-correct disabled.  This is to prevent auto-correct from
+happening all the time.")
 
 (defun auto-correct-expand-p ()
   "Return non-nil if auto-correct should operate on the current point.
 
 To customize this behavior, set `auto-correct-predicate'."
-  (when auto-correct-predicate (funcall auto-correct-predicate)))
+  (funcall auto-correct-predicate))
 
 (define-abbrev-table 'auto-correct-abbrev-table nil
   "Abbrev table where automatic corrections are stored."
