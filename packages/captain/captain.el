@@ -37,13 +37,35 @@
 ;; `captain-sentence-start-function'.  For example, you can set it to find the
 ;; start of a list or heading in `org-mode'.
 
-;; Further control can be obtained by modifying the local variable
-;; `captain-predicate', which tells the captain when to work and when to relax.
+;; In order to get the captain to start working, `captain-predicate' must be
+;; set.  Otherwise, the slacker will just lie around all day doing nothing.
+
+;; The following will tell the captain to only work on comments in programming
+;; modes:
+
+;; (add-hook 'prog-mode-hook
+;;    (lambda ()
+;;      (setq captain-predicate (lambda () (nth 8 (syntax-ppss (point)))))))
+
+;; Or for text modes, work all the time:
+
+;; (add-hook 'text-mode-hook
+;;           (lambda ()
+;;             (setq captain-predicate (lambda () t))))
+
+;; Or don't work in source blocks in Org mode:
+
+;; (add-hook
+;;  'org-mode-hook
+;;  (lambda ()
+;;    (setq captain-predicate
+;;          (lambda () (not (org-in-src-block-p))))))
 
 ;; It's also possible to automatically capitalize individual words using the
 ;; command `captain-capitalize-word'.  This will capitalize the word at point
 ;; and tell the captain about it, so he knows that you want it capitalized from
-;; then on.
+;; then on.  For a package that handles this for any automatic correction, see
+;; the auto-correct package.
 
 ;; This solves a similar problem to that of Kevin Rodgers's auto-capitalize
 ;; package, but using more modern Emacs features.
