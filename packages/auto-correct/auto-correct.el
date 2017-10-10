@@ -5,7 +5,7 @@
 ;; Author: Ian Dunn <dunni@gnu.org>
 ;; Maintainer: Ian Dunn <dunni@gnu.org>
 ;; Keywords: editing
-;; Version: 1.1
+;; Version: 1.1.1
 
 ;; This file is part of GNU Emacs.
 
