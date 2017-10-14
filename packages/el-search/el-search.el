@@ -361,7 +361,9 @@
 
 ;;;; Requirements
 
-(require 'subr-x) ;read-multiple-choice
+(eval-when-compile (require 'subr-x))
+(unless (require 'rmc nil t) ;read-multiple-choice
+  (require 'subr-x))
 
 (require 'cl-lib)
 (require 'pcase)    ;we want to bind `pcase--dontwarn-upats' before pcase is autoloaded
