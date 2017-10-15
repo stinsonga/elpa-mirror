@@ -69,6 +69,10 @@ face."
   "Store current line number.")
 (make-variable-buffer-local 'nlinum--current-line)
 
+(defcustom nlinum-use-right-margin nil
+  "Use the left (nil) or right (t) margin."
+  :type 'boolean)
+
 ;; (defvar nlinum--desc "")
 
 ;;;###autoload
@@ -128,7 +132,7 @@ Linum mode is a buffer-local minor mode."
                             (frame-char-height)))))
                   nlinum--width))
          (cur-margins (window-margins))
-         (cur-margin (car cur-margins))
+         (cur-margin (if nlinum-use-right-margin (cdr cur-margins) (car cur-margins)))
          ;; (EXT . OURS) keeps track of the size of the margin, where EXT is the
          ;; size chosen by external code and OURS is the size we last set.
          ;; OURS is used to detect when someone else modifies the margin.
@@ -142,8 +146,11 @@ Linum mode is a buffer-local minor mode."
     (and (car margin-settings) width
          (setq width (max width (car margin-settings))))
     (setcdr margin-settings width)
-    (set-window-margins nil (if nlinum-mode width (car margin-settings))
-                        (cdr cur-margins))))
+    ;; even more changes!
+    (if nlinum-use-right-margin
+        (set-window-margins nil (car cur-margins) (if nlinum-mode width (car margin-settings)))
+      (set-window-margins nil (if nlinum-mode width (car margin-settings))
+                          (cdr cur-margins)))))
 
 (defun nlinum--setup-windows ()
   (dolist (win (get-buffer-window-list nil nil t))
@@ -315,7 +322,8 @@ it may cause the margin to be resized and line numbers to be recomputed.")
                    (overlay-put ol 'evaporate t)
                    (overlay-put ol 'before-string
                                 (propertize " " 'display
-                                            `((margin left-margin) ,str)))
+                                            `((margin ,(if nlinum-use-right-margin 'right-margin 'left-margin)) ,str)))
+                                            ;;`((margin right-margin) ,str)))
                    ;; (setq nlinum--ol-counter (1- nlinum--ol-counter))
                    ;; (when (= nlinum--ol-counter 0)
                    ;;   (run-with-idle-timer 0.5 nil #'nlinum--flush-overlays
