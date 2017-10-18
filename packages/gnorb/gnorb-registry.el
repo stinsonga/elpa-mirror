@@ -287,7 +287,7 @@ your Org files."
 	  (setq links (gnorb-scan-links
 		       (org-element-property :end (org-element-at-point))
 		       'gnus))
-	  (dolist (l (plist-get links :gnus))
+	  (dolist (l (alist-get 'gnus links))
 	    (gnorb-registry-make-entry
 	     (cl-second (split-string l "#")) nil nil
 	     id (cl-first (split-string l "#"))))

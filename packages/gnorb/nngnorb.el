@@ -126,9 +126,9 @@ be scanned for gnus messages, and those messages displayed."
 		'agenda)))
       (with-current-buffer buf
 	(goto-char (point-min))
-	(setq links (append (plist-get (gnorb-scan-links (point-max) 'gnus)
-				       :gnus)
-			    links))
+	(setq links (append
+		     (alist-get 'gnus (gnorb-scan-links (point-max) 'gnus))
+		     links))
 
 	(goto-char (point-min)))
       ;; First add all links to messages (elements of messages should

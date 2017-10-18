@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014  Free Software Foundation, Inc.
 
 ;; Author: Eric Abrahamsen  <eric@ericabrahamsen.net>
-;; Keywords: 
+;; Keywords:
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 
 ;;; Commentary:
 
-;; 
+;;
 
 ;;; Code:
 
@@ -213,7 +213,7 @@ we came from."
 	  (insert s)
 	  (insert "\n"))
 	(goto-char (point-min))
-	(gnorb-scan-links (point-max) 'gnus 'mail 'bbdb)))))
+	(gnorb-scan-links (point-max) 'gnus 'mail 'bbdb 'ebdb)))))
 
 (defun gnorb-org-extract-mail-stuff (&optional arg region)
   "Decide how to hande the Org heading under point as an email task.
@@ -274,7 +274,7 @@ See the docstring of `gnorb-org-handle-mail' for details."
      ;; Otherwise ignore the other links in the subtree, and return
      ;; the latest message.
      (msg-id-link
-      `(:gnus ,(list msg-id-link))))))
+      `(gnus ,msg-id-link)))))
 
 (defvar message-beginning-of-line)
 
@@ -307,7 +307,7 @@ headings."
   ;; `gnorb-gnus-check-outgoing-headers' is set unconditionally in the
   ;; `message-send-hook, so this should be redundant.  Also, we've
   ;; switched to using message-send-actions.
-  
+
   ;; (add-to-list
   ;; 'message-exit-actions 'gnorb-org-restore-after-send t) Set
   ;; headers from MAIL_* properties (from, cc, and bcc).
@@ -377,11 +377,10 @@ current heading, or the heading indicated by optional argument ID."
 (defvar message-mode-hook)
 
 ;;;###autoload
-(defun gnorb-org-handle-mail (&optional arg text file)
+(defun gnorb-org-handle-mail (arg &optional text file)
   "Handle current headline as a mail TODO.
-
 How this function behaves depends on whether you're using Gnorb
-for email tracking, also on the prefix arg, and on the active
+for email tracking, also on the prefix ARG, and on the active
 region.
 
 If tracking is enabled and there is no prefix arg, Gnorb will
@@ -406,7 +405,10 @@ automatically tracked, as well.
 
 If tracking is not enabled and you want to use a specific link in
 the subtree as a basis for the email action, then put the region
-around that link before you call this message."
+around that link before you call this message.
+
+TEXT is text to insert into the body of the message being
+composed.  FILE is a file to attach to the message."
   (interactive "P")
   (setq gnorb-window-conf (current-window-configuration))
   (move-marker gnorb-return-marker (point))
@@ -423,7 +425,7 @@ around that link before you call this message."
       (goto-char pos)))
   (let ((region
 	 (when (use-region-p)
-	   (cons (region-beginning) (region-end)))))
+	   (region-bounds))))
     (deactivate-mark)
     (save-excursion
       (unless (org-back-to-heading t)
@@ -438,32 +440,33 @@ around that link before you call this message."
 	       (cc (mp "MAIL_CC"))
 	       (bcc (mp "MAIL_BCC"))
 	       (org-id (org-id-get-create))
-	       (recs (plist-get links :bbdb))
+	       (b-recs (alist-get 'bbdb links))
+	       (e-recs (alist-get 'ebdb links))
 	       (message-mode-hook (copy-sequence message-mode-hook))
 	       mails)
 	  (when file
 	    (setq attachments (cons file attachments)))
-	  (when recs
-	    (setq recs
-		  (delq nil
-			(mapcar
-			 (lambda (r)
-			   (car (bbdb-message-search
-				 (org-link-unescape r)
-				 nil)))
-			 recs))))
-	  (when recs
-	    (dolist (r recs)
-	      (push (bbdb-mail-address r) mails)))
-	  (when (and recs
+	  (when (fboundp 'ebdb-org-retrieve)
+	    (dolist (e (alist-get 'ebdb links))
+	      (dolist (r (ebdb-org-retrieve e))
+		(let ((m (ebdb-dwim-mail r)))
+		  (when m
+		    (push m mails))))))
+	  (dolist (b (alist-get 'bbdb links))
+	    (let ((m (ebdb-mail-address
+		      (car (bbdb-message-search
+			    (org-link-unescape r))))))
+	      (when m
+		(push m mails))))
+	  (when (and b-recs
 		     gnorb-bbdb-posting-styles)
 	    (add-hook 'message-mode-hook
 		      (lambda ()
-			(gnorb-bbdb-configure-posting-styles (cdr recs))
-			(gnorb-bbdb-configure-posting-styles (list (car recs))))))
+			(gnorb-bbdb-configure-posting-styles (cdr b-recs))
+			(gnorb-bbdb-configure-posting-styles (list (car b-recs))))))
 	  (gnorb-org-setup-message
-	   (plist-get links :gnus)
-	   (append mails (plist-get links :mail))
+	   (alist-get 'gnus links)
+	   (append mails (alist-get 'mail links))
 	   from cc bcc
 	   attachments text org-id))))))
 

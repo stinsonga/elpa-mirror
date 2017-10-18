@@ -459,37 +459,29 @@ If the KW argument is true, add the TODO keyword into the path."
 
 (defun gnorb-scan-links (bound &rest types)
   "Scan from point to BOUND looking for links of type in TYPES.
+TYPES is a list of symbols; we search for all links corresponding
+to those symbols."
+  ;; It may be excessive to examine *all* links, rather than just
+  ;; creating a specialized regexp for the links we want, but it's
+  ;; nice to be lazy and use `org-bracket-link-analytic-regexp', that
+  ;; seems safer.
 
-TYPES is a list of symbols, possible values include `bbdb', `mail',
-and `gnus'."
-  ;; this function could be refactored somewhat -- lots of code
-  ;; repetition. It also should be a little faster for when we're
-  ;; scanning for gnus links only, that's a little slow. We should
-  ;; probably use a different regexp based on the value of TYPES.
-  ;;
   ;; This function should also *not* be responsible for unescaping
   ;; links -- we don't know what they're going to be used for, and
   ;; unescaped is safer.
   (unless (= (point) bound)
-    (let (addr gnus mail bbdb)
-      (while (re-search-forward org-any-link-re bound t)
-	(setq addr (or (match-string-no-properties 2)
-		       (match-string-no-properties 0)))
-	(cond
-	 ((and (memq 'gnus types)
-	       (string-match "^<?gnus:" addr))
-	  (push (substring addr (match-end 0)) gnus))
-	 ((and (memq 'mail types)
-	       (string-match "^<?mailto:" addr))
-	  (push (substring addr (match-end 0)) mail))
-	 ((and (memq 'bbdb types)
-	       (string-match "^<?bbdb:" addr))
-	  (push (substring addr (match-end 0)) bbdb))))
-      `(:gnus ,(reverse gnus) :mail ,(reverse mail) :bbdb ,(reverse bbdb)))))
+    (let ((alist (mapcar #'list (copy-sequence types))))
+      (while (re-search-forward org-bracket-link-analytic-regexp bound t)
+	(let* ((type (match-string-no-properties 2))
+	       (link (match-string-no-properties 3))
+	       (sym (intern-soft type)))
+	  (when (memq sym types)
+	    (push link (alist-get sym alist)))))
+      alist)))
 
 (defun gnorb-msg-id-to-link (msg-id)
-  "Given a message id, try to create a full org link to the
-message."
+  "Create a full Org link to the message MSG-ID.
+The main work is figuring out which group the message is in."
   (let ((server-group (car (gnorb-msg-id-request-head msg-id))))
     (when server-group
       (org-link-escape
