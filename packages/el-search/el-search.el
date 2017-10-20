@@ -2662,14 +2662,14 @@ With prefix arg RECURSIVELY non-nil, search subdirectories recursively."
 (defun el-search-emacs-elisp-sources (pattern)
   "Search Emacs elisp sources for PATTERN.
 This command recursively searches all elisp files under
-\(expand-file-name \"lisp/\" source-directory\)."
+`source-directory'."
   (interactive (list (el-search--read-pattern-for-interactive)))
   (el-search-setup-search
    pattern
    (lambda ()
-     (el-search-stream-of-directory-files
-      (expand-file-name "lisp/" source-directory)
-      t))
+     (seq-filter
+      #'el-search--elisp-file-p
+      (el-search-stream-of-directory-files source-directory t)))
    (lambda (search) (setf (alist-get 'description (el-search-object-properties search))
                      "Search the Emacs Elisp sources"))))
 
