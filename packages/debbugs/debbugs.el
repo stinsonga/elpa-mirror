@@ -452,10 +452,12 @@ Example:
 	    (setcdr y (mapcar
 		       (lambda (z) (if (numberp z) (number-to-string z) z))
 		       (cdr y))))
-	  ;; "mergedwith", "blocks" and "blockedby are strings,
-	  ;; containing blank separated bug numbers.
+	  ;; "mergedwith", "blocks" and "blockedby" are either numbers
+	  ;; or strings, containing blank separated bug numbers.
 	  (dolist (attribute '(mergedwith blocks blockedby))
 	    (setq y (assoc attribute (cdr (assoc 'value x))))
+	    (when (numberp (cdr y))
+	      (setcdr y (list (cdr y))))
 	    (when (stringp (cdr y))
 	      (setcdr y (mapcar
 			 #'string-to-number (split-string (cdr y) " " t)))))
