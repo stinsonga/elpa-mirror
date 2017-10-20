@@ -2274,6 +2274,8 @@ Use the normal search commands to seize the search."
        (lambda () (stream (list current-buffer))))
      'from-here)
     (el-search--next-buffer el-search--current-search)
+    (setf (el-search-head-position (el-search-object-head el-search--current-search))
+          (copy-marker (point)))
     (setq this-command 'el-search-pattern
           el-search--success t)
     (el-search-hl-other-matches (el-search--current-matcher))
@@ -3201,6 +3203,8 @@ query-replace all matches following point in the current buffer."
       (eq (el-search-head-buffer search-head) (current-buffer))
       (equal from-pattern (el-search-object-pattern el-search--current-search))
       (eq last-command 'el-search-pattern)
+      ;; A `el-search-this-sexp' that wasn't activated doesn't count
+      (el-search-object-last-match el-search--current-search)
       (prog1 t
         (el-search--message-no-log "Using the current search to drive query-replace...")
         (sit-for 1.))))))
