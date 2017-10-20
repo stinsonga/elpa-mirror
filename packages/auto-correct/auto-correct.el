@@ -5,7 +5,7 @@
 ;; Author: Ian Dunn <dunni@gnu.org>
 ;; Maintainer: Ian Dunn <dunni@gnu.org>
 ;; Keywords: editing
-;; Version: 1.1.1
+;; Version: 1.1.2
 
 ;; This file is part of GNU Emacs.
 
@@ -184,6 +184,11 @@ the command `auto-correct-toggle-ispell-local'.
              'append
              #'equal)
 
+(defsubst auto-correct--support-function (base-function)
+  "Return a function that calls BASE-FUNCTION with `auto-correct-mode' as its argument."
+  `(lambda ()
+     (funcall (quote ,base-function) auto-correct-mode)))
+
 (defun auto-correct-handle-support (activate support-fun)
   "Helper function to add or remove auto-correct support for a package.
 
@@ -191,8 +196,8 @@ If ACTIVATE is non-nil, add support, otherwise remove it.
 SUPPORT-FUN is a function that takes a single argument: a boolean
 indicating whether to activate or deactivate support."
   (if activate
-      (add-hook 'auto-correct-hook support-fun)
-    (remove-hook 'auto-correct-hook support-fun))
+      (add-hook 'auto-correct-mode-hook (auto-correct--support-function support-fun))
+    (remove-hook 'auto-correct-mode-hook (auto-correct--support-function support-fun)))
   ;; If `auto-correct-mode' is enabled, activate or deactivate support.
   (when auto-correct-mode
     (funcall support-fun activate)))
