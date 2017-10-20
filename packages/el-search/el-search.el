@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.4.0.4
+;; Version: 1.4.0.5
 ;; Package-Requires: ((emacs "25") (stream "2.2.4"))
 
 
@@ -2435,6 +2435,7 @@ Prompt for a new pattern and revert the occur buffer."
 (define-derived-mode el-search-occur-mode emacs-lisp-mode "El-Occur"
   (setq-local revert-buffer-function #'el-search-occur-revert-function)
   (setq buffer-read-only t)
+  (setq-local hs-hide-comments-when-hiding-all nil)
   (hs-minor-mode +1)
   (hs-hide-all)
   (setq orgstruct-heading-prefix-regexp ";;; ")
@@ -2507,7 +2508,7 @@ Prompt for a new pattern and revert the occur buffer."
                   (delete-all-overlays))
               (el-search-occur-mode)
               (setq el-search-occur-search-object search))
-            (insert (format ";;; * %s   -*- mode: el-search-occur -*-\n\n;; %s\n\n"
+            (insert (format ";;; * %s   -*- mode: el-search-occur -*-\n\n;;; ** %s\n\n"
                             (current-time-string)
                             (el-search--get-search-description-string search)))
             (condition-case-unless-debug err
@@ -2524,7 +2525,7 @@ Prompt for a new pattern and revert the occur buffer."
                     (cl-incf overall-matches buffer-matches)
                     (pcase-let ((`(,buffer ,_ ,file) (stream-first stream-of-buffer-matches)))
                       (if file (cl-incf matching-files) (cl-incf matching-buffers))
-                      (insert "\n\n;;; ** ")
+                      (insert "\n\n;;; *** ")
                       (insert-button
                        (or file (format "%S" buffer))
                        'action (lambda (_) (el-search--occur-button-action (or file buffer))))
@@ -2618,7 +2619,7 @@ Prompt for a new pattern and revert the occur buffer."
                      (if (zerop overall-matches)
                          ";;; * No matches"
                        (concat
-                        (format ";;; Found %d matches in " overall-matches)
+                        (format ";;; ** Found %d matches in " overall-matches)
                         (unless (zerop matching-files) (format "%d files" matching-files))
                         (unless (or (zerop matching-files) (zerop matching-buffers)) " and ")
                         (unless (zerop matching-buffers)  (format "%d buffers" matching-buffers))
