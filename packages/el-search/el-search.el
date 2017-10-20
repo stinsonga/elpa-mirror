@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.4.0.5
+;; Version: 1.4.0.6
 ;; Package-Requires: ((emacs "25") (stream "2.2.4"))
 
 
@@ -2396,9 +2396,31 @@ Prompt for a new pattern and revert the occur buffer."
                      (cl-some (lambda (ov) (overlay-get ov 'el-search-match))
                               (overlays-at pos)))))
     (if (memq pos (list (point-min) (point-max)))
-        (el-search--message-no-log "No match %s this position" (if backwards "before" "after"))
+        (progn
+          (el-search--message-no-log "No match %s this position" (if backwards "before" "after"))
+          (sit-for 1.5))
       (goto-char pos)
-      (save-excursion (hs-show-block)))))
+      (save-excursion (hs-show-block))))
+  (el-search-occur--show-match-count))
+
+(defvar el-search-occur--total-matches nil)
+
+(defun el-search-occur--show-match-count ()
+  (while-no-input
+    (let ((nbr-match 0)
+          (pos (point))
+          (match-here-p (lambda () (get-char-property (point) 'el-search-match))))
+      (when (funcall match-here-p)
+        (save-excursion
+          (save-restriction
+            (widen)
+            (goto-char (point-min))
+            (while (< (point) pos)
+              (goto-char (next-single-char-property-change (point) 'el-search-match))
+              (when (funcall match-here-p)
+                (cl-incf nbr-match)))
+            (el-search--message-no-log
+             "Match %d/%d" nbr-match el-search-occur--total-matches)))))))
 
 (defun el-search-occur-next-match ()
   "Move point to the next match."
@@ -2617,6 +2639,7 @@ Prompt for a new pattern and revert the occur buffer."
 
                   (save-excursion
                     (goto-char insert-summary-position)
+                    (setq el-search-occur--total-matches overall-matches)
                     (insert
                      (if (zerop overall-matches)
                          ";;; * No matches"
