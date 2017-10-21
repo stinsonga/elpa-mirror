@@ -447,15 +447,15 @@ composed.  FILE is a file to attach to the message."
 	  (when file
 	    (setq attachments (cons file attachments)))
 	  (when (fboundp 'ebdb-org-retrieve)
-	    (dolist (e (alist-get 'ebdb links))
+	    (dolist (e e-recs)
 	      (dolist (r (ebdb-org-retrieve e))
 		(let ((m (ebdb-dwim-mail r)))
 		  (when m
 		    (push m mails))))))
-	  (dolist (b (alist-get 'bbdb links))
+	  (dolist (b b-recs)
 	    (let ((m (ebdb-mail-address
 		      (car (bbdb-message-search
-			    (org-link-unescape r))))))
+			    (org-link-unescape b))))))
 	      (when m
 		(push m mails))))
 	  (when (and b-recs
