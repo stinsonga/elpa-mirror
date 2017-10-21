@@ -5,7 +5,7 @@
 ;; Author: Ian Dunn <dunni@gnu.org>
 ;; Maintainer: Ian Dunn <dunni@gnu.org>
 ;; Keywords: editing
-;; Version: 1.1.2
+;; Version: 1.1.3
 
 ;; This file is part of GNU Emacs.
 
@@ -234,15 +234,32 @@ Activation means adding `auto-correct-flyspell-insert' to
                     #'auto-correct-flyspell-insert)
     (remove-function flyspell-insert-function #'auto-correct-flyspell-insert)))
 
+;; Silence the byte-compiler; this will be enabled shortly
+(defvar auto-correct-enable-flyspell-support)
+
+(defun auto-correct-defer-flyspell-support ()
+  ;; Don't fully activate flyspell support until after it's loaded.
+  (with-eval-after-load 'flyspell
+    (auto-correct-handle-support
+     auto-correct-enable-flyspell-support
+     'auto-correct--activate-flyspell-support)))
+
+(defun auto-correct-set-enable-flyspell-support (sym val)
+  (set sym val)
+  (auto-correct-defer-flyspell-support))
+
 (defcustom auto-correct-enable-flyspell-support t
-  "Whether to automatically correct corrections made in flyspell."
+  "Whether to automatically correct corrections made in flyspell.
+
+Support will not be enabled until after flyspell has been loaded.
+
+Use the following to set this manually to NEW-VALUE:
+
+(setq auto-correct-enable-flyspell-support NEW-VALUE)
+(auto-correct-defer-flyspell-support)"
   :group 'auto-correct
   :type 'boolean
-  :set (lambda (sym val)
-         (set sym val)
-         (auto-correct-handle-support
-          val
-          'auto-correct--activate-flyspell-support)))
+  :set 'auto-correct-set-enable-flyspell-support)
 
 ;; Ispell support
 
@@ -292,6 +309,9 @@ the result as a correction."
       (advice-add 'ispell-command-loop :filter-return
                   #'auto-correct--ispell-handler)
     (advice-remove 'ispell-command-loop #'auto-correct--ispell-handler)))
+
+;; We don't defer ispell support because adding advice will work even if the
+;; feature hasn't been loaded yet.
 
 (defcustom auto-correct-enable-ispell-support t
   "Whether to automatically correct corrections made in Ispell."
