@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.4
+;; Version: 1.4.0.1
 ;; Package-Requires: ((emacs "25") (stream "2.2.4"))
 
 
@@ -645,8 +645,9 @@ nil."
     (el-search--pushnew-to-history input histvar)
     (if (not (string= input "")) input (car (symbol-value histvar)))))
 
-(defun el-search--read-pattern-for-interactive ()
-  (let* ((input (el-search--read-pattern "El-search pattern: " (car el-search-pattern-history)))
+(defun el-search--read-pattern-for-interactive (&optional prompt)
+  (let* ((input (el-search--read-pattern (or prompt "El-search pattern: ")
+                                         (car el-search-pattern-history)))
          (pattern (read input)))
     ;; A very common mistake: input "foo" instead of "'foo"
     (el-search--maybe-warn-about-unquoted-symbol pattern)
@@ -2256,7 +2257,7 @@ Prompt for a new pattern and revert the occur buffer."
   (interactive (list (let ((el-search--initial-mb-contents
                             (el-search--pp-to-string
                              (el-search-object-pattern el-search-occur-search-object))))
-                       (el-search--read-pattern-for-interactive))))
+                       (el-search--read-pattern-for-interactive "New pattern: "))))
   (setf (el-search-object-pattern el-search-occur-search-object)
         new-pattern)
   (el-search-compile-pattern-in-search el-search-occur-search-object)
@@ -2629,7 +2630,8 @@ use of `hs-minor-mode' and `orgstruct-mode'."
 ;;;###autoload
 (defun el-search-buffers (pattern)
   "Search all live elisp buffers for PATTERN."
-  (interactive (list (el-search--read-pattern-for-interactive)))
+  (interactive
+   (list (el-search--read-pattern-for-interactive "Search elisp buffers for pattern: ")))
   (el-search-setup-search
    pattern
    (lambda ()
@@ -2644,7 +2646,7 @@ use of `hs-minor-mode' and `orgstruct-mode'."
 (defun el-search-directory (pattern directory &optional recursively)
   "Search all elisp files in DIRECTORY for PATTERN.
 With prefix arg RECURSIVELY non-nil, search subdirectories recursively."
-  (interactive (list (el-search--read-pattern-for-interactive)
+  (interactive (list (el-search--read-pattern-for-interactive "Search dir for pattern: ")
                      (expand-file-name
                       (read-directory-name (format "el-search directory%s: "
                                                    (if current-prefix-arg " recursively" ""))
@@ -2663,7 +2665,8 @@ With prefix arg RECURSIVELY non-nil, search subdirectories recursively."
   "Search Emacs elisp sources for PATTERN.
 This command recursively searches all elisp files under
 `source-directory'."
-  (interactive (list (el-search--read-pattern-for-interactive)))
+  (interactive (list (el-search--read-pattern-for-interactive
+                      "Search Elisp sources for pattern: ")))
   (el-search-setup-search
    pattern
    (lambda ()
@@ -2678,7 +2681,8 @@ This command recursively searches all elisp files under
   "Search PATTERN in all elisp files in all directories in `load-path'.
 nil elements in `load-path' (standing for `default-directory')
 are ignored."
-  (interactive (list (el-search--read-pattern-for-interactive)))
+  (interactive (list (el-search--read-pattern-for-interactive
+                      "Search load path for pattern: ")))
   (el-search-setup-search
    pattern
    (lambda ()
@@ -2699,7 +2703,8 @@ search directories recursively.
 This function uses `el-search-stream-of-directory-files' to
 compute a the file stream - see there for a description of
 related user options."
-  (interactive (list (el-search--read-pattern-for-interactive)
+  (interactive (list (el-search--read-pattern-for-interactive
+                      "Search marked files for pattern: ")
                      (dired-get-marked-files)
                      current-prefix-arg))
   (el-search-setup-search
