@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.4.0.6
+;; Version: 1.4.0.7
 ;; Package-Requires: ((emacs "25") (stream "2.2.4"))
 
 
@@ -3122,14 +3122,12 @@ the list's elements are inserted."))
                           nbr-replaced
                           (if (zerop nbr-skipped)  ""
                             (format "   (%d skipped)" nbr-skipped))))))))
-      (if (not multiple)
-          (funcall replace-in-current-buffer)
-        (while (and
-                (not done)
-                (progn (el-search-continue-search)
-                       (and el-search--success (not el-search--wrap-flag))))
-          (funcall replace-in-current-buffer)
-          (unless replace-all-and-following (setq replace-all nil))))
+      (while (and
+              (not done)
+              (progn (el-search-continue-search)
+                     (and el-search--success (not el-search--wrap-flag))))
+        (funcall replace-in-current-buffer)
+        (unless replace-all-and-following (setq replace-all nil)))
       (message "Replaced %d matches in %d buffers" nbr-replaced-total nbr-changed-buffers))))
 
 (defun el-search-query-replace--read-args ()
@@ -3226,8 +3224,6 @@ query-replace all matches following point in the current buffer."
       (eq (el-search-head-buffer search-head) (current-buffer))
       (equal from-pattern (el-search-object-pattern el-search--current-search))
       (eq last-command 'el-search-pattern)
-      ;; A `el-search-this-sexp' that wasn't activated doesn't count
-      (el-search-object-last-match el-search--current-search)
       (prog1 t
         (el-search--message-no-log "Using the current search to drive query-replace...")
         (sit-for 1.))))))
