@@ -2981,35 +2981,31 @@ reindent."
                              (lambda ()
                                (car
                                 (read-multiple-choice
-                                 (concat
-                                  (let ((nbr-done  (+ nbr-replaced nbr-skipped))
-                                        (nbr-to-do (el-search-count-matches pattern)))
-                                    (format "[%d/%d] "
-                                            (if replaced-this nbr-done (1+ nbr-done))
-                                            (+ nbr-done nbr-to-do)))
-                                  (if replaced-this "" "Replace?"))
+                                 (let ((nbr-done  (+ nbr-replaced nbr-skipped))
+                                       (nbr-to-do (el-search-count-matches pattern)))
+                                   (format "[%d/%d]"
+                                           (if replaced-this nbr-done (1+ nbr-done))
+                                           (+ nbr-done nbr-to-do)))
                                  (delq nil
                                        (list
                                         (and (not replaced-this)
-                                             '(?y "yes" "Replace this match and move to the next"))
+                                             '(?y "y" "Replace this match and move to the next"))
                                         (list ?n
-                                              (if replaced-this "next" "no")
+                                              (if replaced-this "next" "n")
                                               "Go to the next match")
                                         (and (not replaced-this)
-                                             '(?r "replace" "Replace this match but don't move"))
+                                             '(?r "r" "Replace this match but don't move"))
                                         '(?! "all" "Replace all remaining matches in this buffer")
-                                        '(?b "skip buffer"
+                                        (and multiple
+                                             '(?A "All" "Replace all remaining matches in all buffers"))
+                                        '(?b "skip buf"
                                              "Skip this buffer and any remaining matches in it")
                                         (and buffer-file-name
                                              '(?d "skip dir" "Skip a parent directory of current file"))
-                                        (and multiple
-                                             '(?A "All" "Replace all remaining matches in all buffers"))
                                         (and (not replaced-this)
-                                             (list ?s (concat "turn splicing " (if splice "off" "on"))
-                                                   "\
-Toggle splicing mode.  When splicing mode is on (default off),
-the replacement expression must evaluate to a list, and all of
-the list's elements are inserted."))
+                                             (list ?s (concat (if splice "disable" "enable") " splice")
+                                                   (substitute-command-keys "\
+Toggle splicing mode (\\[describe-function] el-search-query-replace for details).")))
                                         '(?o "show" "Show replacement in a buffer")
                                         '(?q "quit"))))))))
                        (if replace-all
@@ -3211,7 +3207,14 @@ When called directly after a search command, use the current
 search to drive query-replace (like in isearch).  You get a
 multi-buffer query-replace this way when the current search is
 multi-buffer.  When not called after a search command,
-query-replace all matches following point in the current buffer."
+query-replace all matches following point in the current buffer.
+
+It is also possible to replace matches with any number of expressions
+(even with zero expressions, effectively deleting matches) by using the
+\"splicing\" submode that can be toggled from the prompt with \"s\".
+When splicing mode is on (default off), the replacement
+expression must evaluate to a list, and all of the list's
+elements are inserted in order."
   (interactive (el-search-query-replace--read-args)) ;this binds the optional argument
   (setq this-command 'el-search-query-replace) ;in case we come from isearch
   (barf-if-buffer-read-only)
