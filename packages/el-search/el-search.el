@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.4.0.10
+;; Version: 1.4.0.11
 ;; Package-Requires: ((emacs "25") (stream "2.2.4"))
 
 
@@ -2008,7 +2008,10 @@ that the current search."
                     (el-search--current-matcher) t nil (el-search--current-heuristic-matcher)))))
             (unless (eq (point) match-pos)
               (message "No match at search head any more - going to the next match")
-              (sit-for 1.5))
+              (redisplay)
+              ;; Don't just `sit-for' here: `pop-to-buffer' may have generated frame
+              ;; focus events
+              (sleep-for 3))
             (if (not match-pos)
                 (el-search-continue-search)
               (goto-char match-pos)
@@ -2366,19 +2369,20 @@ Prompt for a new pattern and revert."
                  (goto-char pos)
                  (beginning-of-line)
                  (forward-line delta-lines))
-               '((display-buffer-pop-up-window))))))))))
+               '()))))))))
 
-(defun el-search--occur-button-action
-    (filename-or-buffer &optional match-pos do-fun display-buffer-action)
+(cl-defun el-search--occur-button-action
+    (filename-or-buffer &optional match-pos do-fun (display-buffer-action nil action-specified))
   (let ((buffer (if (bufferp filename-or-buffer)
                     filename-or-buffer
                   (find-file-noselect filename-or-buffer)))
         (search-pattern (el-search-object-pattern el-search-occur-search-object)))
-    (with-selected-window (display-buffer buffer
-                                          (or display-buffer-action
-                                              (if match-pos
-                                                  '((display-buffer-pop-up-window))
-                                                el-search-display-buffer-popup-action)))
+    (with-selected-window (display-buffer
+                           buffer
+                           (cond
+                            (action-specified display-buffer-action)
+                            (match-pos        '((display-buffer-pop-up-window)))
+                            (t                el-search-display-buffer-popup-action)))
       (when match-pos
         (when (and (buffer-narrowed-p)
                    (or (< match-pos (point-min))
@@ -3069,7 +3073,7 @@ Toggle splicing mode (\\[describe-function] el-search-query-replace for details)
                                         ;; FIXME: Should we allow to edit the replacement?
                                         (let* ((buffer (get-buffer-create
                                                         (generate-new-buffer-name "*Replacement*")))
-                                               (window (display-buffer-pop-up-window buffer ())))
+                                               (window (display-buffer buffer)))
                                           (with-selected-window window
                                             (emacs-lisp-mode)
                                             (save-excursion
@@ -3081,6 +3085,7 @@ Toggle splicing mode (\\[describe-function] el-search-query-replace for details)
                                             (read-char " "))
                                           (delete-window window)
                                           (kill-buffer buffer)
+                                          (el-search--after-scroll (selected-window) (window-start))
                                           nil))
                                        ((or ?q ?\C-g) (signal 'quit t))))))
                        (when replacement-contains-another-match
