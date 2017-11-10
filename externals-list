@@ -33,6 +33,7 @@
 (("ack"			:subtree "https://github.com/leoliu/ack-el")
  ("aggressive-indent" :subtree "https://github.com/Malabarba/aggressive-indent-mode")
  ("auctex"		:external "git://git.sv.gnu.org/auctex.git")
+ ("bbdb"		:external "git://git.savannah.nongnu.org/bbdb.git")
  ("bug-hunter" :subtree "https://github.com/Malabarba/elisp-bug-hunter")
  ;;FIXME:("cedet"	:external "??")
  ("chess"		:external nil) ;; Was https://github.com/jwiegley/emacs-chess.git
