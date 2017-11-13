@@ -20,8 +20,8 @@ test:
 	@$(EMACS) \
 	$(EMACSFLAGS) \
 	-L "." \
-	--load "ert" \
-	--load "paced-tests.el" \
+	-l "ert" \
+	-l "paced-tests.el" \
 	-f ert-run-tests-batch-and-exit
 
 include Makefile

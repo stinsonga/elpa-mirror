@@ -151,6 +151,7 @@ When nil, \"This\" will be the same as \"this\" in `usage-hash'.")
                 :initform 'paced--default-dictionary-sort-func
                 :type function
                 :label "Sort Method"
+                :custom function
                 :documentation "Method by which this dictionary should sort its usage table.
 
 This should be a function of one argument, the usage-hash slot,
@@ -166,23 +167,23 @@ Do not edit this list manually.  Use `paced-make-dictionary'
 instead.")
 
 (defsubst paced-named-dictionary (key)
-  (map-elt paced--registered-dictionaries key nil))
+  (map-elt paced--registered-dictionaries key nil 'equal))
 
 (defsubst paced-dictionary-names ()
   (map-keys paced--registered-dictionaries))
 
 (defsubst paced-read-dictionary ()
-  (intern (completing-read "Dictionary: " (map-keys paced--registered-dictionaries))))
+  (completing-read "Dictionary: " (map-keys paced--registered-dictionaries)))
 
 (defsubst paced-dictionary-registered-p (key)
-  (map-contains-key paced--registered-dictionaries key))
+  (map-contains-key paced--registered-dictionaries key 'equal))
 
 (defsubst paced-ensure-registered (key)
   (unless (paced-dictionary-registered-p key)
     (error "No paced dictionary called '%s' has been registered." key)))
 
 (defsubst paced-register-dictionary (key dict)
-  (map-put paced--registered-dictionaries key dict))
+  (map-put paced--registered-dictionaries key dict 'equal))
 
 (defsubst paced--ensure-dictionary-directory ()
   (make-directory paced-dictionary-directory t))
@@ -211,7 +212,7 @@ FILE is the file in which to store the new dictionary.
 Once named, the dictionary can be edited through the EIEIO
 customization interface."
   (declare (interactive-only paced-make-dictionary))
-  (interactive (list (intern (read-string "Name: "))
+  (interactive (list (read-string "Name: ")
                      (read-file-name "Storage File: " paced-dictionary-directory)))
   (let ((new-dict (paced-dictionary :object-name name
                                     :file file)))
@@ -343,7 +344,6 @@ be skipped."
       (paced-load-dictionary-from-file dict-file))))
 
 (cl-defmethod eieio-done-customizing ((dict paced-dictionary))
-  ;; TODO validate options
   (paced-register-dictionary (paced-dictionary-name dict) dict)
   (paced--ensure-dictionary-directory)
   (paced-save-dictionary dict))
