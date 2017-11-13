@@ -17,7 +17,7 @@
 
 emacs \
     --batch \
-    -l ede/proj -l ede/proj-elisp -l ede/proj-misc \
+    -l ede/proj -l ede/proj-elisp -l ede/proj-misc -l ede/proj-aux \
     --eval "(progn (global-ede-mode) \
                    (setq ede-project-directories t) \
                    (find-file \"Project.ede\") \
