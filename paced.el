@@ -131,7 +131,7 @@ PROPS is a list of variables to let-bind when populating.  Each
 entry should be of the form (VAR VALUE).")
    (file-header-line :type string
 		     :allocation :class
-		     :initform ";; Paced Dictoinary"
+		     :initform ";; Paced Dictionary"
 		     :documentation
 		     "Header line for the save file.
 This is used with the `object-write' method.")
@@ -833,7 +833,7 @@ must be set with `paced-edit-named-dictionary' or
     (error "No paced dictionary called '%s' has been registered." name)))
 
 (defun paced-edit-current-dictionary ()
-  "Edit the current paced dictoinary."
+  "Edit the current paced dictionary."
   (interactive)
   (if-let* ((dict (paced-current-dictionary)))
       (customize-object dict)
