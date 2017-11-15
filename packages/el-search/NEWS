@@ -1,5 +1,11 @@
 Some of the user visible news were:
 
+
+Version: 1.5.1
+
+  The new command `el-search-ibuffer-marked-buffers' el-searches the
+  marked buffers in *Ibuffer*.
+
 Version: 1.5
 
   The new function `el-search-install-bindings-under-prefix' can be
