@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.5
+;; Version: 1.5.1
 ;; Package-Requires: ((emacs "25") (stream "2.2.4"))
 
 
@@ -89,6 +89,9 @@
 ;;
 ;;   C-S, M-s e s in Dired (el-search-dired-marked-files)
 ;;     Like above but uses the marked files and directories.
+;;
+;;   C-S, M-s e s in Ibuffer (el-search-ibuffer-marked-buffers)
+;;     Search marked buffers in *Ibuffer*.
 ;;
 ;;   C-O, M-s e o (el-search-occur)
 ;;     Pop up an occur buffer for the current search.
@@ -1484,9 +1487,12 @@ in, in order, when called with no arguments."
     (keybind global-map                    ?b #'el-search-buffers)
 
     (defvar dired-mode-map)
+    (defvar ibuffer-mode-map)
 
     (with-eval-after-load 'dired
-      (keybind dired-mode-map ?s #'el-search-dired-marked-files))))
+      (keybind dired-mode-map   ?s #'el-search-dired-marked-files))
+    (with-eval-after-load 'ibuffer
+      (keybind ibuffer-mode-map ?s #'el-search-ibuffer-marked-buffers))))
 
 (defvar el-search-prefix-key-transient-map
   (let ((transient-map (make-sparse-keymap)))
@@ -2951,6 +2957,23 @@ related user options."
        (stream files))))
    (lambda (search) (setf (alist-get 'description (el-search-object-properties search))
                      "el-search-dired-marked-files"))))
+
+(declare-function ibuffer-get-marked-buffers 'ibuffer)
+
+;;;###autoload
+(defun el-search-ibuffer-marked-buffers (pattern buffer-names)
+  "El-search the buffers marked in *Ibuffer*."
+  (interactive
+   (list (el-search-read-pattern-for-interactive
+          "Search marked files for pattern: ")
+         ;; Return a list of buffer names here so that `repeat-complex-command'
+         ;; works ok
+         (mapcar #'buffer-name (ibuffer-get-marked-buffers))))
+  (el-search-setup-search
+   pattern
+   (lambda () (stream (delq nil (mapcar #'get-buffer buffer-names))))
+   (lambda (search) (setf (alist-get 'description (el-search-object-properties search))
+                     "el-search-ibuffer-marked-files"))))
 
 
 ;;;; Query-replace
