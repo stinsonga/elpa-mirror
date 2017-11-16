@@ -82,6 +82,27 @@ the user whether to save dictionaries here."
   :group 'paced
   :type 'directory)
 
+(defcustom paced-dictionary-directory-whitelist-regexp ".*"
+  "Regexp to match when reading from the dictionary directory.
+
+Any files that match this regexp will be loaded by
+`paced-load-all-dictionaries'."
+  :group 'paced
+  :type 'regexp)
+
+(defcustom paced-dictionary-directory-blacklist-regexp "$^"
+  "Regexp to match for files NOT to load with `paced-load-all-dictionaries'.
+
+This is the string \"$^\" by default, which matches nothing, thus
+allowing all files."
+  :group 'paced
+  :type 'regexp)
+
+(defcustom paced-load-all-dictionaries-recursively nil
+  "Whether to recursively load all files with `paced-load-all-dictionaries'."
+  :group 'paced
+  :type 'boolean)
+
 (defcustom paced-repopulate-saves-dictionary t
   "Whether to save a dictionary after repopulation."
   :group 'paced
@@ -339,9 +360,16 @@ be skipped."
   (interactive)
   (message "Loading all dictionaries from %s" paced-dictionary-directory)
   (paced--ensure-dictionary-directory)
-  (dolist (dict-file (directory-files paced-dictionary-directory t))
-    (when (file-regular-p dict-file)
-      (paced-load-dictionary-from-file dict-file))))
+  (let ((files-to-load
+         (if paced-load-all-dictionaries-recursively
+             (directory-files-recursively paced-dictionary-directory
+                                          paced-dictionary-directory-whitelist-regexp)
+           (directory-files paced-dictionary-directory t
+                            paced-dictionary-directory-whitelist-regexp))))
+    (dolist (dict-file files-to-load)
+      (when (and (file-regular-p dict-file)
+                 (not (string-match-p paced-dictionary-directory-blacklist-regexp dict-file)))
+        (paced-load-dictionary-from-file dict-file)))))
 
 (cl-defmethod eieio-done-customizing ((dict paced-dictionary))
   (paced-register-dictionary (paced-dictionary-name dict) dict)
