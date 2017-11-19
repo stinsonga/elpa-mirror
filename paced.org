@@ -455,7 +455,7 @@ To contribute with bazaar, you can do the following:
 #+begin_src shell
 # Hack away and make your changes
 $ bzr commit -m "Changes I've made"
-$ bzr send . -o file-name.txt
+$ bzr send -o file-name.txt
 #+end_src
 
 Then, use ~paced-submit-bug-report~ and attach "file-name.txt".  We can then merge
