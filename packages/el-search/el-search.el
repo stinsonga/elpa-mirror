@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.4.0.12
+;; Version: 1.4.0.13
 ;; Package-Requires: ((emacs "25") (stream "2.2.4"))
 
 
@@ -1497,7 +1497,7 @@ argument (that should be a string)."
           (byte-compile regexp-like))
       (byte-compile
        (let ((string (make-symbol "string")))
-         `(lambda (,string) (let ,match-bindings (string-match-p ,regexp ,string))))))))
+         `(lambda (,string) (let ,match-bindings (string-match ,regexp ,string))))))))
 
 (el-search-defpattern string (&rest regexps)
   "Matches any string that is matched by all REGEXPS.
@@ -1518,7 +1518,14 @@ Any of the REGEXPS is `el-search-regexp-like-p'."
 
 (el-search-defpattern symbol (&rest regexps)
   "Matches any symbol whose name is matched by all REGEXPS.
-Any of the REGEXPS is `el-search-regexp-like-p'."
+Any of the REGEXPS is `el-search-regexp-like-p'.
+
+Example: to replace all symbols with names starting with \"foo-\"
+to start with \"bar-\" instead, you would use
+`el-search-query-replace' with a rule like this:
+
+  (and (symbol \"\\\\`foo-\\\\(.*\\\\)\") s) >
+  (intern (concat \"bar-\" (match-string 1 (symbol-name s))))"
   (declare (heuristic-matcher
             (lambda (&rest regexps)
               (let ((matchers (mapcar #'el-search--string-matcher regexps)))
