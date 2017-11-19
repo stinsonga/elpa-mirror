@@ -877,6 +877,22 @@ must be set with `paced-edit-named-dictionary' or
       (customize-object dict)
     (user-error "No dictionary found for current buffer")))
 
+
+
+(declare-function lm-report-bug "lisp-mnt" (topic))
+
+(defun paced-submit-bug-report (topic)
+  (interactive "sTopic: ")
+  (require 'lisp-mnt)
+  (let* ((src-file (locate-library "paced.el" t))
+         (src-buf-live (find-buffer-visiting src-file))
+         (src-buf (find-file-noselect src-file)))
+    (with-current-buffer src-buf
+      (lm-report-bug topic))
+    ;; Kill the buffer if it wasn't live
+    (unless src-buf-live
+      (kill-buffer src-buf))))
+
 (provide 'paced)
 
 ;;; paced.el ends here
