@@ -700,7 +700,8 @@ Return non-nil if setup was successful and population can continue.")
          :type string
          :label "File"
          :custom (file :tag "File")
-         :documentation "File from which to populate.")))
+         :documentation "File from which to populate."))
+  "Populates a dictionary from all words in a single file.")
 
 (cl-defmethod paced-population-command-source-list ((cmd paced-file-population-command))
   (list (oref cmd file)))
@@ -714,7 +715,10 @@ Return non-nil if setup was successful and population can continue.")
            :type string
            :label "Buffer"
            :custom (string :tag "Buffer")
-           :documentation "Name of the buffer from which to populate.")))
+           :documentation "Name of the buffer from which to populate."))
+  "Populates a dictionary from all words in a given buffer.
+
+That buffer must be a string, and must exist during population.")
 
 (cl-defmethod paced-population-command-source-list ((cmd paced-buffer-population-command))
   (list (oref cmd buffer)))
@@ -742,7 +746,12 @@ Return non-nil if setup was successful and population can continue.")
                :type function
                :label "Setup Function"
                :custom (function :tag "Setup Function")
-               :documentation "Additional setup function.")))
+               :documentation "Additional setup function."))
+  "Populate from a given file, using a setup function.
+
+That function is called with no arguments, with a temporary
+buffer containing the file's contents, and must return non-nil if
+population may continue.")
 
 (cl-defmethod paced-population-command-source-list ((cmd paced-file-function-population-command))
   (list (oref cmd file)))
@@ -788,7 +797,8 @@ match a regular expression.")
               :type function
               :label "Generator"
               :custom (function :tag "Generator")
-              :documentation "Function of no arguments that returns a list of files.")))
+              :documentation "Function of no arguments that returns a list of files."))
+  "Populate a dictionary from a list of files.")
 
 (cl-defmethod paced-population-command-source-list ((cmd paced-file-list-population-command))
   (funcall (oref cmd generator)))
