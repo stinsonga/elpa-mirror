@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.4.0.7
+;; Version: 1.4.0.8
 ;; Package-Requires: ((emacs "25") (stream "2.2.4"))
 
 
@@ -1905,12 +1905,12 @@ local binding of `window-scroll-functions'."
 (defun el-search--reset-wrap-flag ()
   (unless (or (eq this-command 'el-search-query-replace)
               (eq this-command 'el-search-pattern))
-    (remove-hook 'post-command-hook 'el-search--reset-wrap-flag t)
+    (remove-hook 'post-command-hook 'el-search--reset-wrap-flag)
     (setq el-search--wrap-flag nil)))
 
 (defun el-search--set-wrap-flag (value)
   (when value
-    (add-hook 'post-command-hook #'el-search--reset-wrap-flag t t))
+    (add-hook 'post-command-hook #'el-search--reset-wrap-flag t))
   (setq el-search--wrap-flag value))
 
 
