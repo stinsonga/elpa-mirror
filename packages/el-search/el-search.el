@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.4.0.14
+;; Version: 1.4.0.15
 ;; Package-Requires: ((emacs "25") (stream "2.2.4"))
 
 
@@ -376,7 +376,11 @@
 ;;
 ;; - There could be something much better than pp to format the
 ;;   replacement, or pp should be improved.
-
+;;
+;;
+;; NEWS:
+;;
+;; Please see the NEWS file in this directory.
 
 
 
@@ -448,21 +452,25 @@ tested.  "
   :type '(choice (repeat :tag "Regexps for ignored directories" regexp)
 		 (const  :tag "No ignored directories" nil)))
 
-(defcustom el-search-auto-save-buffers 'ask
+(defcustom el-search-auto-save-buffers 'ask-multi
   "Whether to automatically save modified buffers.
 When non-nil, save modified file buffers when query-replace is
 finished there.
 
 If the non-nil value is the symbol ask, ask for confirmation for
-each buffer.  You can still let all following buffers
-automatically be saved or left unsaved from the prompt.
+each modified file buffer.  You can still let all following
+buffers automatically be saved or left unsaved from the prompt.
+
+ask-multi is like ask, but don't ask and don't save for
+single-buffer sessions.
 
 Save automatically for any other non-nil value.
 
-The default value is ask."
+The default value is ask-multi."
   :type '(choice (const :tag "Off" nil)
                  (const :tag "On"  t)
-                 (const :tag "Ask" ask)))
+                 (const :tag "Ask" ask)
+                 (const :tag "Ask when multibuffer" ask-multi)))
 
 (defvar el-search-read-expression-map
   (let ((map (make-sparse-keymap)))
@@ -3147,8 +3155,15 @@ Toggle splicing mode (\\[describe-function] el-search-query-replace for details)
                  (progn
                    (cl-incf nbr-changed-buffers)
                    (when (pcase el-search-auto-save-buffers
-                           ((or 'nil (guard (not buffer-file-name))) nil)
-                           ('ask
+                           ((or 'nil
+                                (guard (not buffer-file-name)))
+                            nil)
+                           ((and 'ask-multi
+                                 (guard (alist-get 'is-single-buffer
+                                                   (el-search-object-properties
+                                                    el-search--current-search))))
+                            nil)
+                           ((or 'ask 'ask-multi)
                             (if save-all-answered
                                 (cdr save-all-answered)
                               (pcase (car (read-multiple-choice
