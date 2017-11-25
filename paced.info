@@ -2,7 +2,7 @@ This is paced.info, produced by makeinfo version 6.5 from paced.texi.
 
 INFO-DIR-SECTION Emacs
 START-INFO-DIR-ENTRY
-* paced.                Predictive Abbreviation Completion and Expansion using Dictionaries.
+* Paced: (paced).       Predictive Abbreviation Completion and Expansion using Dictionaries.
 END-INFO-DIR-ENTRY
 
 

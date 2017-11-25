@@ -10,7 +10,7 @@
 #+OPTIONS: *:t <:t d:nil todo:nil pri:nil tags:not-in-toc
 
 #+TEXINFO_DIR_CATEGORY: Emacs
-#+TEXINFO_DIR_TITLE: paced
+#+TEXINFO_DIR_TITLE: Paced: (paced)
 #+TEXINFO_DIR_DESC: Predictive Abbreviation Completion and Expansion using Dictionaries
 
 * Copying
