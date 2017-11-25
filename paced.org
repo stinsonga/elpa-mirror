@@ -31,6 +31,9 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #+END_QUOTE
 * Introduction
+:PROPERTIES:
+:DESCRIPTION: Brief Introduction to paced
+:END:
 Paced (Predictive Abbreviation Completion and Expansion using Dictionaries)
 provides a completion backend based on what a user has already written.
 
@@ -53,12 +56,18 @@ No completion frontend is provided, but a function for
 ~completion-at-point-functions~ is given.
 
 ** Terminology
+:PROPERTIES:
+:DESCRIPTION: To avoid confusion
+:END:
 
 - Dictionary :: A collection of words and their usage counts.
 
 - Population Command :: A method of loading data into a dictionary.
 
 ** Similar Packages
+:PROPERTIES:
+:DESCRIPTION: Packages with similar goals
+:END:
 There are a few Emacs packages that have similar goals to paced, and provided
 some of the inspiration and motivation behind it.
 *** pabbrev
@@ -96,6 +105,9 @@ from dictionary population.  The safety precaution predictive has where it only
 adds a word to a dictionary if it already exists was tedious, since I didn't
 need it to do that.
 ** Installation
+:PROPERTIES:
+:DESCRIPTION: How to install paced
+:END:
 
 *Requirements*
 
@@ -118,7 +130,13 @@ After that, add the following to your init file (typically .emacs):
 (require 'paced)
 #+END_SRC
 * Dictionaries
+:PROPERTIES:
+:DESCRIPTION: Paced's bread and butter
+:END:
 ** Creating a Dictionary
+:PROPERTIES:
+:DESCRIPTION: First steps
+:END:
 
 Now that you've got paced installed, it's time to create a new dictionary.
 
@@ -141,13 +159,19 @@ when paced is loaded.
 After you've run the above command, you will be taken to the customization
 buffer.  This is where you can set population commands.
 ** Editing a Dictionary
+:PROPERTIES:
+:DESCRIPTION: How to edit your new dictionary
+:END:
 In order to edit a dictionary, paced provides ~paced-edit-named-dictionary~ and
 ~paced-edit-current-dictionary~.
 
 The edit buffer provides the options to change the population commands, case
 sensitivity, dictionary storage name, and sort method.  Each of these is
 documented in the edit buffer.
-** Enable Certain Dictionaries in Certain Places
+** Selective Dictionaries
+:PROPERTIES:
+:DESCRIPTION: Enabling certain dictionaries under certain conditions
+:END:
 
 Paced provides a mechanism called the "enable list", that allows a user to
 enable certain dictionaries given certain conditions.
@@ -181,7 +205,10 @@ Remember that paced-mode must be active for completion to occur.  Neither list
 will activate it, just determine which dictionary is active.
 
 The key is the dictionary name you set during dictionary creation.
-** Loading and Saving the Dictionaries
+** Dictionary Files
+:PROPERTIES:
+:DESCRIPTION: Loading and Saving the Dictionaries
+:END:
 
 Paced provides ~paced-load-all-dictionaries~ to load all dictionaries in
 ~paced-dictionary-directory~.  Paced determines which dictionaries to load based
@@ -213,6 +240,9 @@ Dictionaries may also be automatically saved whenever changed by setting
 section.
 
 * Population Commands
+:PROPERTIES:
+:DESCRIPTION: The good stuff
+:END:
 
 Part of the beauty of paced is the ease of reconstructing a dictionary.  When
 you've got a bunch of files from which you want to populate your dictionary,
@@ -230,6 +260,9 @@ M-x paced-repopulate-named-dictionary RET DICTIONARY-NAME RET
 #+end_example
 
 ** Built-in Commands
+:PROPERTIES:
+:DESCRIPTION: Basics
+:END:
 
 There are five built-in population commands:
 
@@ -245,6 +278,9 @@ There are five built-in population commands:
 - file-list :: Populates from all files returned by a generator function.
 
 ** Properties
+:PROPERTIES:
+:DESCRIPTION: Tweaking the defaults
+:END:
 
 When setting the population commands of a dictionary, one may also set certain
 properties.  Each property is a variable binding, bound while the population
@@ -258,6 +294,9 @@ Two variables are of note here:
      works.  Typically set to either 'symbol or 'word.
 
 ** Custom Commands
+:PROPERTIES:
+:DESCRIPTION: Defining new population commands
+:END:
 Since the population commands all derive from paced-population-command, it's
 possible to add additional commands.
 
@@ -324,6 +363,9 @@ The even easier way to do this would've been to use
 in this case.
 
 ** Asynchronous Population
+:PROPERTIES:
+:DESCRIPTION: Populating without blocking
+:END:
 A common problem is that population can take a long time.  Some of us populate
 dictionaries from org agenda files, which can get pretty big.
 
@@ -346,6 +388,9 @@ A few things to note about this:
    - paced-async-load-file
 
 * Example Setups
+:PROPERTIES:
+:DESCRIPTION: Some examples
+:END:
 ** Org Agenda Files
 As some of us record everything about our lives in our agenda files, it might be
 helpful to have a dictionary tuned to ourselves.

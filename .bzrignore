@@ -4,3 +4,5 @@ paced-autoloads.el
 Makefile
 .deps
 test-files/paced-dictionary-case-sensitive
+paced.html
+paced.texi
