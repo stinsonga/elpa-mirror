@@ -80,10 +80,14 @@ with `gnorb-window-conf'.")
 
 (defun gnorb-version ()
   "Return the version of currently-installed Gnorb.
-
 Only works for Gnorb installed via the package manager."
   (interactive)
+  (if (memq 'gnorb package-activated-list)
+      (let ((pkg (nth 1 (assq 'gnorb package-alist))))
+	(message (package-desc-full-name pkg)))
+    (message "Gnorb not installed via package manager."))
   (pkg-info-package-version "gnorb"))
+
 
 ;;; this is just ghastly, but the value of this var is single regexp
 ;;; group containing various header names, and we want our value
