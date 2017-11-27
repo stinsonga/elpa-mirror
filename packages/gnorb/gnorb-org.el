@@ -274,7 +274,7 @@ See the docstring of `gnorb-org-handle-mail' for details."
      ;; Otherwise ignore the other links in the subtree, and return
      ;; the latest message.
      (msg-id-link
-      `(gnus ,msg-id-link)))))
+      `((gnus ,msg-id-link))))))
 
 (defvar message-beginning-of-line)
 
