@@ -17,7 +17,7 @@ gsave
         adsf
         adsf
     end sub
-
+    
     total = 56
     median = total/2
     
@@ -25,7 +25,12 @@ gsave
         mylength = sfg
         asfdg
     next x
-    
+    begin graph
+        print "graph"
+    end graph
+    while
+        d
+    next
     if x = 3 then
         print "there"
     else
