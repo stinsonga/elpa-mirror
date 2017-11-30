@@ -663,6 +663,10 @@ File: gnorb.info,  Node: User Options 2,  Up: Misc Gnus
      Treat all capture templates as if they had the :gnus-attachments
      key set to “t”.  This only has any effect if you’re capturing from
      a Gnus summary or article buffer.
+‘gnorb-gnus-tick-all-tracked-messages’
+     When non-nil, always add the tick mark to messages when they are
+     first associated with an Org heading.  The mark can be safely
+     deleted afterwards.
 ‘gnorb-trigger-todo-default’
      Set to either ’note or ’todo to tell ‘gnorb-gnus-incoming-do-todo’
      what to do by default.  You can reach the non-default behavior by
@@ -775,9 +779,9 @@ Node: User Options22106
 Node: Misc Org23629
 Node: Inserting BBDB links23804
 Node: User Options 124060
-Node: Misc Gnus26958
-Node: User Options 227120
-Node: Default Keybindings30057
+Node: Misc Gnus26774
+Node: User Options 226936
+Node: Default Keybindings30078
 
 End Tag Table
 

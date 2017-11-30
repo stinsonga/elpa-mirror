@@ -110,6 +110,13 @@ register."
   :group 'gnorb-gnus
   :type 'boolean)
 
+(defcustom gnorb-gnus-tick-all-tracked-messages nil
+  "When non-nil, add the tick mark to all tracked messages.
+This happens only once, at the time the association is created.
+Ticks can be safely removed later."
+  :group 'gnorb-gnus
+  :type 'boolean)
+
 (defcustom gnorb-gnus-summary-mark-format-letter "g"
   "Format letter to be used as part of your
   `gnus-summary-line-format', to indicate in the *Summary* buffer
@@ -528,14 +535,14 @@ work."
 
 ;;;###autoload
 (defun gnorb-gnus-incoming-do-todo (arg &optional id)
-  "Call this function from a received gnus message to store a
-link to the message, prompt for a related Org heading, visit the
-heading, and trigger an action on it \(see
-`gnorb-org-trigger-actions'\).
+  "Use the message under point to trigger an action on an Org heading.
+This function stores a link to the message, prompts for a related
+Org heading, visits the heading, and triggers an action on
+it (see `gnorb-org-trigger-actions').
 
-If you've set up message tracking \(with
-`gnorb-tracking-initialize'\), Gnorb can guess which Org heading
-you probably want to trigger, which can save some time. It does
+If you've set up message tracking (with
+`gnorb-tracking-initialize'), Gnorb can guess which Org heading
+you probably want to trigger, which can save some time.  It does
 this by looking in the References header, and seeing if any of
 the messages referenced there are already being tracked by any
 headings.
@@ -646,6 +653,8 @@ you'll stay in the Gnus summary buffer."
 		(message "Message text copied to kill ring"))))
 	  (with-current-buffer buf
 	    (dolist (a articles)
+	      (when gnorb-gnus-tick-all-tracked-messages
+		(gnus-summary-mark-article a gnus-ticked-mark))
 	      (gnus-summary-update-article a))))
       (error
        ;; If these are left populated after an error, it plays hell
@@ -686,6 +695,9 @@ reply."
 	(let ((ret (make-marker)))
 	  (setq gnorb-window-conf (current-window-configuration))
 	  (move-marker gnorb-return-marker (point))
+	  (when gnorb-gnus-tick-all-tracked-messages
+	    (gnus-summary-mark-article art-no gnus-ticked-mark))
+	  (gnus-summary-update-article art-no)
 	  ;; Assume the first heading is the one we want.
 	  (gnorb-registry-make-entry
 	   msg-id from subject targ group)
