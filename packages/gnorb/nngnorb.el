@@ -87,13 +87,12 @@ be scanned for gnus messages, and those messages displayed."
       (cond ((string-match "id\\+\\([[:alnum:]-]+\\)$" q)
 	     (with-demoted-errors "Error: %S"
 	       (org-id-goto (match-string 1 q))
-	       (append-to-buffer
-		buf
-		(point)
-		(org-element-property
-		 :end (org-element-at-point)))
 	       (save-restriction
 		 (org-narrow-to-subtree)
+		 (append-to-buffer
+		  buf
+		  (point-min)
+		  (point-max))
 		 (setq org-ids
 		       (append
 			(gnorb-collect-ids)
