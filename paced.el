@@ -291,13 +291,17 @@ Has the same form as and takes priority over
   (append paced-local-dict-enable-alist
           paced-global-dict-enable-alist))
 
+(defun paced-mode-symbol-p (sym)
+  "Return non-nil if SYM is a mode symbol."
+  (string-match-p (rx "-mode" string-end) (symbol-name sym)))
+
 (defun paced-test-dict-enable-condition (condition)
   "Determines if CONDITION passes in the current buffer.
 
 See `paced-global-dict-enable-alist' for an explanation."
   (pcase condition
     ((and (pred symbolp)
-          (app symbol-name (rx "-mode" string-end)))
+          (pred paced-mode-symbol-p))
      (derived-mode-p condition))
     ((and (pred symbolp)
           (pred boundp))
