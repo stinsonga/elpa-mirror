@@ -252,8 +252,17 @@ See the docstring of `gnorb-org-handle-mail' for details."
    (user-mail-address
     (string-match-p user-mail-address addr))))
 
+;; FIXME: Why did I break this off from
+;; `gnorb-org-extract-mail-stuff'?  It's only called from there, and
+;; it's confusing to have them separate.
 (defun gnorb-org-extract-mail-tracking (assoc-msg-ids &optional arg region)
-
+  "Return tracked mail links for the current Org subtree.
+ASSOC-MSG-IDS is a list of message-ids that have already been
+determined to be tracked by the subtree.  Return the most recent
+of these, as a candidate for composing a reply.  If there are no
+tracked messages, or if ARG (a prefix arg from earlier) is
+non-nil, ignore these tracked ids and instead scan the
+subtree (or REGION) for links, and use those instead."
   (let* ((all-links (gnorb-org-extract-links nil region))
 	 ;; The latest (by the creation-time registry key) of all the
 	 ;; tracked messages that were not sent by our user.
@@ -264,8 +273,7 @@ See the docstring of `gnorb-org-handle-mail' for details."
 	      (cl-remove-if-not
 	       (lambda (m)
 		 (let ((from (car (gnus-registry-get-id-key m 'sender))))
-		   (or (null from)
-		       (null (gnorb-user-address-match-p from)))))
+		   (not (and from (gnorb-user-address-match-p from)))))
 	       assoc-msg-ids)
 	      (lambda (r l)
 		(time-less-p
