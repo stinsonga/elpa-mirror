@@ -71,7 +71,7 @@ No completion frontend is provided, but a function for
 There are a few Emacs packages that have similar goals to paced, and provided
 some of the inspiration and motivation behind it.
 *** pabbrev
-The [[http://github.com/phillord/pabbrev][pabbrev]] package by Phillip Lord scans text of the current buffer while Emacs
+The [[https://github.com/phillord/pabbrev][pabbrev]] package by Phillip Lord scans text of the current buffer while Emacs
 is idle and presents the user with the most common completions.
 
 One of the major downsides to pabbrev is that the data it collects doesn't
@@ -89,7 +89,7 @@ hashes of all buffers of the same mode, and scanning, or "scavenging", blends
 seamlessly into the background.  Completion is just a hash table lookup, so it
 can handle completion in microseconds.
 *** predictive
-The [[http://www.dr-qubit.org/git/predictive.git][predictive]] package by Toby Cubitt scans text of the current buffer on user
+The [[https://www.dr-qubit.org/predictive.html][predictive]] package by Toby Cubitt scans text of the current buffer on user
 command.  The usage data is stored in a dictionary, which can then be saved to a
 disk.  Extensions are provided to ~completion-at-point~, or predictive's built-in
 frontend can be used.  It has a safety precaution where it only adds existing
