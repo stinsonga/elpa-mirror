@@ -653,6 +653,10 @@ Treat all capture templates as
 if they had the :gnus-attachments key set to ``t''. This only has
 any effect if you're capturing from a Gnus summary or article
 buffer.
+@item `gnorb-gnus-tick-all-tracked-messages'
+When non-nil, always add
+the tick mark to messages when they are first associated with an
+Org heading. The mark can be safely deleted afterwards.
 @item `gnorb-trigger-todo-default'
 Set to either 'note or 'todo to tell
 `gnorb-gnus-incoming-do-todo' what to do by default. You can
