@@ -731,20 +731,31 @@ reply."
 (defun gnorb-gnus-search-messages (str persist &optional head-text ret)
   "Initiate a search for gnus message links in an org subtree.
 The arg STR can be one of two things: an Org heading id value
-\(IDs should be prefixed with \"id+\"\), in which case links will
+\(IDs should be prefixed with \"id+\"), in which case links will
 be collected from that heading, or a string corresponding to an
 Org tags search, in which case links will be collected from all
 matching headings.
 
 In either case, once a collection of links have been made, they
 will all be displayed in an ephemeral group on the \"nngnorb\"
-server. There must be an active \"nngnorb\" server for this to
-work."
+server.  There must be an active \"nngnorb\" server for this to
+work.
+
+If PERSIST is non-nil, make a permanent group, and offer
+HEAD-TEXT, if present, as its name.  Otherwise create an
+ephemeral one, with RET as the value of its quit-config."
   (interactive)
   (require 'nnir)
   (let* ((nnir-address
 	  (or (catch 'found
-		(dolist (s gnus-server-method-cache)
+		;; Try very hard to find the server.
+		(when (assoc 'nngnorb gnus-secondary-select-methods)
+		  (throw 'found
+			 (format
+			  "nngnorb:%s"
+			  (nth 1 (assoc 'nngnorb
+					gnus-seconard-select-methods)))))
+		(dolist (s (append gnus-server-alist gnus-server-method-cache))
 		  (when (eq 'nngnorb (cadr s))
 		    (throw 'found (car s)))))
 	      (user-error
@@ -756,8 +767,10 @@ work."
 		 (concat "gnorb-" str)))
 	 (method (list 'nnir nnir-address))
 	 (spec (list
-		(cons 'nnir-specs (list (cons 'nnir-query-spec `((query . ,str)))
-					(cons 'nnir-group-spec `((,nnir-address ,(list name))))))
+		(cons 'nnir-specs (list (cons 'nnir-query-spec
+					      `((query . ,str)))
+					(cons 'nnir-group-spec
+					      `((,nnir-address ,(list name))))))
 		(cons 'nnir-artlist nil))))
     (if persist
 	(progn
