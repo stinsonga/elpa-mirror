@@ -53,6 +53,12 @@ Example Setups
 * Org Agenda Files::
 * Project Files::
 
+Contributing
+
+* Bugs::
+* Development::
+* Documentation::
+
 
 
 File: paced.info,  Node: Copying,  Next: Introduction,  Prev: Top,  Up: Top
@@ -144,9 +150,9 @@ File: paced.info,  Node: pabbrev,  Next: predictive,  Up: Similar Packages
 pabbrev
 -------
 
-The pabbrev (http://github.com/phillord/pabbrev) package by Phillip Lord
-scans text of the current buffer while Emacs is idle and presents the
-user with the most common completions.
+The pabbrev (https://github.com/phillord/pabbrev) package by Phillip
+Lord scans text of the current buffer while Emacs is idle and presents
+the user with the most common completions.
 
    One of the major downsides to pabbrev is that the data it collects
 doesn’t persist between Emacs sessions.  For a few files that are always
@@ -169,7 +175,7 @@ File: paced.info,  Node: predictive,  Prev: pabbrev,  Up: Similar Packages
 predictive
 ----------
 
-The predictive (http://www.dr-qubit.org/git/predictive.git) package by
+The predictive (https://www.dr-qubit.org/predictive.html) package by
 Toby Cubitt scans text of the current buffer on user command.  The usage
 data is stored in a dictionary, which can then be saved to a disk.
 Extensions are provided to ‘completion-at-point’, or predictive’s
@@ -604,19 +610,37 @@ We are all happy for any help you may provide.
   1. Open any file from paced
   2. Run ‘C-c . C’ or ‘M-x ede-compile-project’
 
-   *Bugs*
+* Menu:
 
-   There are two ways to submit bug reports:
+* Bugs::
+* Development::
+* Documentation::
+
+
+File: paced.info,  Node: Bugs,  Next: Development,  Up: Contributing
+
+Bugs
+====
+
+There are two ways to submit bug reports:
 
   1. Using the bug tracker at Savannah
   2. Sending an email using ‘paced-submit-bug-report’
 
-   *Development*
+   When submitting a bug report, be sure to include a description of the
+dictionary or population command that caused the problem, with as much
+detail as possible.
 
-   If you’re new to bazaar, we recommend using Emacs’s built-in VC
-package.  It eases the overhead of dealing with a brand new VCS with a
-few standard commands.  For more information, see the info page on it
-(In Emacs, this is C-h r m Introduction to VC RET).
+
+File: paced.info,  Node: Development,  Next: Documentation,  Prev: Bugs,  Up: Contributing
+
+Development
+===========
+
+If you’re new to bazaar, we recommend using Emacs’s built-in VC package.
+It eases the overhead of dealing with a brand new VCS with a few
+standard commands.  For more information, see the info page on it (In
+Emacs, this is C-h r m Introduction to VC RET).
 
    To contribute with bazaar, you can do the following:
 
@@ -634,31 +658,48 @@ can then merge that into the main development branch.
    • Run ’make check’ to verify that your mods don’t break anything
    • Avoid additional or altered dependencies if at all possible
 
+
+File: paced.info,  Node: Documentation,  Prev: Development,  Up: Contributing
+
+Documentation
+=============
+
+Documentation is always helpful to us.  Please be sure to do the
+following after making any changes:
+
+  1. Update the info page in the repository with ‘C-c C-e i i’
+  2. If you’re updating the HTML documentation, switch to a theme that
+     can easily be read on a white background; we recommend the
+     “adwaita” theme
+
 
 
 Tag Table:
 Node: Top228
-Node: Copying1433
-Node: Introduction2225
-Node: Terminology3450
-Node: Similar Packages3691
-Node: pabbrev3997
-Node: predictive5070
-Node: Installation6120
-Node: Dictionaries6614
-Node: Creating a Dictionary7018
-Node: Editing a Dictionary8058
-Node: Selective Dictionaries8536
-Node: Dictionary Files10135
-Node: Population Commands11226
-Node: Built-in Commands12162
-Node: Properties12959
-Node: Custom Commands13581
-Node: Asynchronous Population16308
-Node: Example Setups17501
-Node: Org Agenda Files17683
-Node: Project Files18939
-Node: Contributing20052
+Node: Copying1491
+Node: Introduction2283
+Node: Terminology3508
+Node: Similar Packages3749
+Node: pabbrev4055
+Node: predictive5129
+Node: Installation6177
+Node: Dictionaries6671
+Node: Creating a Dictionary7075
+Node: Editing a Dictionary8115
+Node: Selective Dictionaries8593
+Node: Dictionary Files10192
+Node: Population Commands11283
+Node: Built-in Commands12219
+Node: Properties13016
+Node: Custom Commands13638
+Node: Asynchronous Population16365
+Node: Example Setups17558
+Node: Org Agenda Files17740
+Node: Project Files18996
+Node: Contributing20109
+Node: Bugs20593
+Node: Development20982
+Node: Documentation21949
 
 End Tag Table
 
