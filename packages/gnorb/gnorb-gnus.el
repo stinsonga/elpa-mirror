@@ -244,47 +244,58 @@ save them into `gnorb-tmp-dir'."
 	    (when (or capture-p store)
 	      (push filename gnorb-gnus-capture-attachments))))))))
 
-;;; Make the above work in the capture process
+(defun gnorb-gnus-after-capture-function ()
+  "Do various things after starting the capture process.
+Currently includes:
 
-(defun gnorb-gnus-capture-attach ()
-  (when (and (or gnorb-gnus-capture-always-attach
-		 (org-capture-get :gnus-attachments))
-	     (with-current-buffer
-		 (org-capture-get :original-buffer)
-	       (memq major-mode '(gnus-summary-mode gnus-article-mode))))
-    (require 'org-attach)
-    (setq gnorb-gnus-capture-attachments nil)
-    (gnorb-gnus-collect-all-attachments t)
-    (map-y-or-n-p
-     (lambda (a)
-       (format "Attach %s to capture heading? "
-	       (file-name-nondirectory a)))
-     (lambda (a) (org-attach-attach a nil 'mv))
-     gnorb-gnus-capture-attachments
-     '("file" "files" "attach"))
-    (setq gnorb-gnus-capture-attachments nil)))
+1. Offering to move all the attachments from the message we
+captured from onto the Org heading being captured.
 
-(defun gnorb-gnus-capture-save-text ()
-  (when (and gnorb-gnus-copy-message-text
-	     (with-current-buffer
-		 (org-capture-get :original-buffer)
-	       (memq major-mode '(gnus-summary-mode gnus-article-mode))))
+2. Possibly saving the text of the message we captured from (see
+`gnorb-gnus-copy-message-text').
+
+3. Possibly ticking the message we captured from (see
+`gnorb-gnus-tick-all-tracked-messages')."
+  (when (with-current-buffer
+	    (org-capture-get :original-buffer)
+	  (memq major-mode '(gnus-summary-mode gnus-article-mode)))
     (save-window-excursion
       (set-buffer (org-capture-get :original-buffer))
-      (gnus-with-article-buffer
-	(article-goto-body)
-	(if (numberp gnorb-gnus-copy-message-text)
-	    (progn
-	      (copy-to-register
-	       gnorb-gnus-copy-message-text
-	       (point) (point-max))
-	      (message "Message text copied to register %c"
-		       gnorb-gnus-copy-message-text))
-	  (kill-new (buffer-substring (point) (point-max)))
-	  (message "Message text copied to kill ring"))))))
+      (let ((art-no (gnus-summary-article-number)))
 
-(add-hook 'org-capture-mode-hook 'gnorb-gnus-capture-attach)
-(add-hook 'org-capture-mode-hook 'gnorb-gnus-capture-save-text)
+	(when gnorb-gnus-copy-message-text
+	  (gnus-with-article-buffer
+	    (article-goto-body)
+	    (if (numberp gnorb-gnus-copy-message-text)
+		(progn
+		  (copy-to-register
+		   gnorb-gnus-copy-message-text
+		   (point) (point-max))
+		  (message "Message text copied to register %c"
+			   gnorb-gnus-copy-message-text))
+	      (kill-new (buffer-substring (point) (point-max)))
+	      (message "Message text copied to kill ring"))))
+
+	(when (or gnorb-gnus-capture-always-attach
+		  (org-capture-get :gnus-attachments))
+	  (require 'org-attach)
+	  (setq gnorb-gnus-capture-attachments nil)
+	  (gnorb-gnus-collect-all-attachments t)
+	  (map-y-or-n-p
+	   (lambda (a)
+	     (format "Attach %s to capture heading? "
+		     (file-name-nondirectory a)))
+	   (lambda (a) (org-attach-attach a nil 'mv))
+	   gnorb-gnus-capture-attachments
+	   '("file" "files" "attach"))
+	  (setq gnorb-gnus-capture-attachments nil))
+
+	(when gnorb-gnus-tick-all-tracked-messages
+	  (gnus-summary-mark-article art-no gnus-ticked-mark))
+
+	(gnus-summary-update-article art-no)))))
+
+(add-hook 'org-capture-mode-hook 'gnorb-gnus-after-capture-function)
 
 (defvar org-note-abort)
 
