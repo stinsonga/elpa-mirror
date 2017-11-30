@@ -254,8 +254,8 @@ See the docstring of `gnorb-org-handle-mail' for details."
 	      (cl-remove-if-not
 	       (lambda (m)
 		 (let ((from (car (gnus-registry-get-id-key m 'sender))))
-		   (and from
-			(null (gnorb-user-address-match-p from)))))
+		   (or (null from)
+		       (null (gnorb-user-address-match-p from)))))
 	       assoc-msg-ids)
 	      (lambda (r l)
 		(time-less-p
