@@ -53,6 +53,12 @@
 (require 'eieio-base)
 (require 'rx)
 
+;; Compatibility for Emacs < 26.1
+(unless (fboundp 'if-let*)
+  (defalias 'if-let* 'if-let))
+(unless (fboundp 'when-let*)
+  (defalias 'when-let* 'when-let))
+
 (defgroup paced nil
   "Predictive Abbreviation Completion and Expansion using Dictionaries"
   :group 'convenience)
