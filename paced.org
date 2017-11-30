@@ -481,14 +481,17 @@ Build the Makefile with EDE:
 1. Open any file from paced
 2. Run ~C-c . C~ or ~M-x ede-compile-project~
 
-*Bugs*
+** Bugs
 
 There are two ways to submit bug reports:
 
 1. Using the bug tracker at Savannah
 2. Sending an email using ~paced-submit-bug-report~
 
-*Development*
+When submitting a bug report, be sure to include a description of the dictionary
+or population command that caused the problem, with as much detail as possible.
+
+** Development
 
 If you're new to bazaar, we recommend using Emacs's built-in VC package.  It
 eases the overhead of dealing with a brand new VCS with a few standard commands.
@@ -511,3 +514,12 @@ There are a few rules to follow:
 - New population commands should be named paced-POPULATION-COMMAND-TYPE-population-command
 - Run 'make check' to verify that your mods don't break anything
 - Avoid additional or altered dependencies if at all possible
+
+** Documentation
+
+Documentation is always helpful to us.  Please be sure to do the following after
+making any changes:
+
+1. Update the info page in the repository with ~C-c C-e i i~
+2. If you're updating the HTML documentation, switch to a theme that can easily
+   be read on a white background; we recommend the "adwaita" theme
