@@ -111,7 +111,7 @@ need it to do that.
 
 *Requirements*
 
-| Emacs |  26.1 |
+| Emacs |  25.3 |
 | async | 1.9.2 |
 
 Right now, the only way to install paced is from source.
