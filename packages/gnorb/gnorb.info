@@ -30,6 +30,7 @@ Gnorb Manual
 
 Email Tracking
 
+* Likely Workflow::
 * Tracking Setup::
 * Beginning and Continuing the Tracking Process::
 * Trigger Actions::
@@ -37,7 +38,6 @@ Email Tracking
 * Hinting in Gnus::
 * Message Attachments::
 * Registry Usage::
-* Likely Workflow::
 
 Misc BBDB
 
@@ -135,6 +135,7 @@ agenda rather than in Gnus.
 
 * Menu:
 
+* Likely Workflow::
 * Tracking Setup::
 * Beginning and Continuing the Tracking Process::
 * Trigger Actions::
@@ -142,12 +143,66 @@ agenda rather than in Gnus.
 * Hinting in Gnus::
 * Message Attachments::
 * Registry Usage::
-* Likely Workflow::
 
 
-File: gnorb.info,  Node: Tracking Setup,  Next: Beginning and Continuing the Tracking Process,  Up: Email Tracking
+File: gnorb.info,  Node: Likely Workflow,  Next: Tracking Setup,  Up: Email Tracking
 
-4.1 Tracking Setup
+4.1 Likely Workflow
+===================
+
+First of all, here’s a hypothetical workflow to show you how tracking
+works.
+
+   Say you receive an email from Jimmy, who wants to rent a room in your
+house.  “I’ll respond to this later,” you think.
+
+   You capture an Org TODO from the email, writing a headline “Jimmy
+renting a room”, and give it a REPLY keyword.  Gnorb quietly records the
+correspondence between the email and the TODO, using the Gnus registry.
+
+   The next day, looking at your Agenda, you see the TODO and decide to
+respond to the email.  You hit “C-c t” on the heading, and Gnorb finds
+Jimmy’s email and starts a reply to it.
+
+   You tell Jimmy the room’s available in March, and send the message.
+Gnorb takes you back to the heading, and asks you to trigger an action
+on it.  You choose “todo state”, and change the heading keyword to WAIT.
+
+   Two days later, Jimmy replies to your message, saying that March is
+perfect.  When you open his response, Gnorb politely reminds you that
+the message is relevant to an existing TODO. You hit “C-c t” on the
+message, and are again taken to the TODO and asked to trigger an action.
+Again you choose “todo state”, and change the heading keyword back to
+REPLY.
+
+   You get another email, from Samantha, warning you not to rent the
+room to Jimmy.  She even attaches a picture of a room in her house, as
+it looked after Jimmy had stayed there for six months.  It’s bad.  You
+hit “C-c t” on her message, and pick the “Jimmy renting a room” heading.
+This time, you choose “take note” as the trigger action, and make a
+brief note about how bad that room looked.  Gnorb asks if you’d like to
+attach the picture to the Org heading.  You decide you will.
+
+   Now it’s time to write to Jimmy and say something noncommittal.
+Hitting “C-c t” on the heading would respond to Samantha’s email, the
+most recent of the associated messages, which isn’t what you want.
+Instead you hit “C-c v” on the heading, which opens up a Gnus *Summary*
+buffer containing all four messages: Jimmy’s first, your response, his
+response to that, and Samantha’s message.  You pick Jimmy’s second
+email, and reply to it normally.  Gnorb asks if you’d like to send the
+picture of the room as an attachment.  You would not.  When you send the
+reply Gnorb tracks that as well, and does the “trigger an action” trick
+again.
+
+   In this way Gnorb helps you manage an entire conversation, possibly
+with multiple threads and multiple participants.  Mostly all you need to
+do is hit “C-c t” on newly-received messages, and “C-c t” on the heading
+when it’s time to compose a new reply.
+
+
+File: gnorb.info,  Node: Tracking Setup,  Next: Beginning and Continuing the Tracking Process,  Prev: Likely Workflow,  Up: Email Tracking
+
+4.2 Tracking Setup
 ==================
 
 Email tracking requires the following steps:
@@ -172,7 +227,7 @@ Email tracking requires the following steps:
 
 File: gnorb.info,  Node: Beginning and Continuing the Tracking Process,  Next: Trigger Actions,  Prev: Tracking Setup,  Up: Email Tracking
 
-4.2 Beginning and Continuing the Tracking Process
+4.3 Beginning and Continuing the Tracking Process
 =================================================
 
 Email tracking starts in one of three ways:
@@ -233,7 +288,7 @@ conversation going.
      template specified by the ‘gnorb-gnus-new-todo-capture-key’ option.
 
      If you call this function with a single prefix arg, you’ll be
-     prompted to choose an existing Org heading instead.  After the the
+     prompted to choose an existing Org heading instead.  After the
      message is sent, you’ll be taken to that heading and prompted to
      trigger an action on it.
 
@@ -255,7 +310,7 @@ heading.
 
 File: gnorb.info,  Node: Trigger Actions,  Next: Viewing Things,  Prev: Beginning and Continuing the Tracking Process,  Up: Email Tracking
 
-4.3 Trigger Actions
+4.4 Trigger Actions
 ===================
 
 After receiving or sending a message in a tracked conversation, you’ll
@@ -280,7 +335,7 @@ docstring of ‘gnorb-org-trigger-actions’.
 
 File: gnorb.info,  Node: Viewing Things,  Next: Hinting in Gnus,  Prev: Trigger Actions,  Up: Email Tracking
 
-4.4 Viewing Things
+4.5 Viewing Things
 ==================
 
 Keeping track of a conversation is one thing, but it’s very useful to be
@@ -316,7 +371,7 @@ linked messages.  This is dog-slow at the moment; it will get faster.
 
 File: gnorb.info,  Node: Hinting in Gnus,  Next: Message Attachments,  Prev: Viewing Things,  Up: Email Tracking
 
-4.5 Hinting in Gnus
+4.6 Hinting in Gnus
 ===================
 
 When you receive new mails that might be relevant to existing Org TODOs,
@@ -338,7 +393,7 @@ that may be relevant.
 
 File: gnorb.info,  Node: Message Attachments,  Next: Registry Usage,  Prev: Hinting in Gnus,  Up: Email Tracking
 
-4.6 Message Attachments
+4.7 Message Attachments
 =======================
 
 Gnorb simplifies the handling of attachments that you receive in emails.
@@ -365,9 +420,9 @@ attach the files in the heading’s org-attach directory to the outgoing
 message.
 
 
-File: gnorb.info,  Node: Registry Usage,  Next: Likely Workflow,  Prev: Message Attachments,  Up: Email Tracking
+File: gnorb.info,  Node: Registry Usage,  Prev: Message Attachments,  Up: Email Tracking
 
-4.7 Registry Usage
+4.8 Registry Usage
 ==================
 
 You can see how many associations you’ve got stored in the registry by
@@ -375,58 +430,6 @@ calling ‘gnorb-report-tracking-usage’.  This will pop up a buffer
 showing how much of the registry you’re using, and offering keybindings
 for ‘gnorb-flush-dead-associations’, to help Gnorb clean up after
 itself.
-
-
-File: gnorb.info,  Node: Likely Workflow,  Prev: Registry Usage,  Up: Email Tracking
-
-4.8 Likely Workflow
-===================
-
-You receive an email from Jimmy, who wants to rent a room in your house.
-“I’ll respond to this later,” you think.
-
-   You capture an Org TODO from the email, call it “Jimmy renting a
-room”, and give it a REPLY keyword.  Gnorb quietly records the
-correspondence between the email and the TODO, using the Gnus registry.
-
-   The next day, looking at your Agenda, you see the TODO and decide to
-respond to the email.  You hit “C-c t” on the heading, and Gnorb finds
-Jimmy’s email and starts a reply to it.
-
-   You tell Jimmy the room’s available in March, and send the message.
-Gnorb takes you back to the heading, and asks you to trigger an action
-on it.  You choose “todo state”, and change the heading keyword to WAIT.
-
-   Two days later, Jimmy replies to your message, saying that March is
-perfect.  When you open his response, Gnorb politely reminds you that
-the message is relevant to an existing TODO. You hit “C-c t” on the
-message, and are again taken to the TODO and asked to trigger an action.
-Again you choose “todo state”, and change the heading keyword back to
-REPLY.
-
-   You get another email, from Samantha, warning you not to rent the
-room to Jimmy.  She even attaches a picture of a room in her house, as
-it looked after Jimmy had stayed there for six months.  It’s bad.  You
-hit “C-c t” on her message, and pick the “Jimmy renting a room” heading.
-This time, you choose “take note” as the trigger action, and make a
-brief note about how bad that room looked.  Gnorb asks if you’d like to
-attach the picture to the Org heading.  You decide you will.
-
-   Now it’s time to write to Jimmy and say something noncommittal.
-Hitting “C-c t” on the heading would respond to Samantha’s email, the
-most recent of the associated messages, which isn’t what you want.
-Instead you hit “C-c v” on the heading, which opens up a Gnus *Summary*
-buffer containing all four messages: Jimmy’s first, your response, his
-response to that, and Samantha’s message.  You pick Jimmy’s second
-email, and reply to it normally.  Gnorb asks if you’d like to send the
-picture of the room as an attachment.  You would not.  When you send the
-reply Gnorb tracks that as well, and does the “trigger an action” trick
-again.
-
-   In this way Gnorb helps you manage an entire conversation, possibly
-with multiple threads and multiple participants.  Mostly all you need to
-do is hit “C-c t” on newly-received messages, and “C-c t” on the heading
-when it’s time to compose a new reply.
 
 
 File: gnorb.info,  Node: Restoring Window Layout,  Next: Recent Mails From BBDB Contacts,  Prev: Email Tracking,  Up: Top
@@ -760,28 +763,28 @@ Node: Introduction989
 Node: Installation2314
 Node: Setup2692
 Node: Email Tracking3145
-Node: Tracking Setup4349
-Node: Beginning and Continuing the Tracking Process5605
-Node: Trigger Actions9801
-Node: Viewing Things10875
-Node: Hinting in Gnus12645
-Node: Message Attachments13710
-Node: Registry Usage14949
-Node: Likely Workflow15400
-Node: Restoring Window Layout18071
-Node: Recent Mails From BBDB Contacts18468
-Node: BBDB posting styles19464
-Node: BBDB Org tagging20380
-Node: Misc BBDB21126
-Node: Searching for messages from BBDB contacts21339
-Node: Citing BBDB contacts21785
-Node: User Options22106
-Node: Misc Org23629
-Node: Inserting BBDB links23804
-Node: User Options 124060
-Node: Misc Gnus26774
-Node: User Options 226936
-Node: Default Keybindings30078
+Node: Likely Workflow4349
+Node: Tracking Setup7119
+Node: Beginning and Continuing the Tracking Process8399
+Node: Trigger Actions12591
+Node: Viewing Things13665
+Node: Hinting in Gnus15435
+Node: Message Attachments16500
+Node: Registry Usage17739
+Node: Restoring Window Layout18166
+Node: Recent Mails From BBDB Contacts18563
+Node: BBDB posting styles19559
+Node: BBDB Org tagging20475
+Node: Misc BBDB21221
+Node: Searching for messages from BBDB contacts21434
+Node: Citing BBDB contacts21880
+Node: User Options22201
+Node: Misc Org23724
+Node: Inserting BBDB links23899
+Node: User Options 124155
+Node: Misc Gnus26869
+Node: User Options 227031
+Node: Default Keybindings30173
 
 End Tag Table
 

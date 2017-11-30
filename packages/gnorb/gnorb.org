@@ -64,6 +64,57 @@ you might take notes on how everything's progressing.
 In general, the goal is to keep track of whole conversations, reduce
 friction when moving between Gnus and Org, and keep you in the Org
 agenda rather than in Gnus.
+** Likely Workflow
+First of all, here's a hypothetical workflow to show you how tracking
+works.
+
+Say you receive an email from Jimmy, who wants to rent a room in your
+house. "I'll respond to this later," you think.
+
+You capture an Org TODO from the email, writing a headline "Jimmy
+renting a room", and give it a REPLY keyword. Gnorb quietly records
+the correspondence between the email and the TODO, using the Gnus
+registry.
+
+The next day, looking at your Agenda, you see the TODO and decide to
+respond to the email. You hit "C-c t" on the heading, and Gnorb finds
+Jimmy's email and starts a reply to it.
+
+You tell Jimmy the room's available in March, and send the message.
+Gnorb takes you back to the heading, and asks you to trigger an action
+on it. You choose "todo state", and change the heading keyword to
+WAIT.
+
+Two days later, Jimmy replies to your message, saying that March is
+perfect. When you open his response, Gnorb politely reminds you that
+the message is relevant to an existing TODO. You hit "C-c t" on the
+message, and are again taken to the TODO and asked to trigger an
+action. Again you choose "todo state", and change the heading keyword
+back to REPLY.
+
+You get another email, from Samantha, warning you not to rent the room
+to Jimmy. She even attaches a picture of a room in her house, as it
+looked after Jimmy had stayed there for six months. It's bad. You hit
+"C-c t" on her message, and pick the "Jimmy renting a room" heading.
+This time, you choose "take note" as the trigger action, and make a
+brief note about how bad that room looked. Gnorb asks if you'd like to
+attach the picture to the Org heading. You decide you will.
+
+Now it's time to write to Jimmy and say something noncommittal.
+Hitting "C-c t" on the heading would respond to Samantha's email, the
+most recent of the associated messages, which isn't what you want.
+Instead you hit "C-c v" on the heading, which opens up a Gnus
+*Summary* buffer containing all four messages: Jimmy's first, your
+response, his response to that, and Samantha's message. You pick
+Jimmy's second email, and reply to it normally. Gnorb asks if you'd
+like to send the picture of the room as an attachment. You would not.
+When you send the reply Gnorb tracks that as well, and does the
+"trigger an action" trick again.
+
+In this way Gnorb helps you manage an entire conversation, possibly
+with multiple threads and multiple participants. Mostly all you need
+to do is hit "C-c t" on newly-received messages, and "C-c t" on the
+heading when it's time to compose a new reply.
 ** Tracking Setup
 
 Email tracking requires the following steps:
@@ -144,7 +195,7 @@ Some more detail on the various functions:
    template specified by the `gnorb-gnus-new-todo-capture-key' option.
 
    If you call this function with a single prefix arg, you'll be
-   prompted to choose an existing Org heading instead. After the the
+   prompted to choose an existing Org heading instead. After the
    message is sent, you'll be taken to that heading and prompted to
    trigger an action on it.
 
@@ -267,54 +318,6 @@ calling `gnorb-report-tracking-usage'. This will pop up a buffer
 showing how much of the registry you're using, and offering
 keybindings for `gnorb-flush-dead-associations', to help Gnorb clean
 up after itself.
-** Likely Workflow
-You receive an email from Jimmy, who wants to rent a room in your
-house. "I'll respond to this later," you think.
-
-You capture an Org TODO from the email, call it "Jimmy renting a
-room", and give it a REPLY keyword. Gnorb quietly records the
-correspondence between the email and the TODO, using the Gnus
-registry.
-
-The next day, looking at your Agenda, you see the TODO and decide to
-respond to the email. You hit "C-c t" on the heading, and Gnorb finds
-Jimmy's email and starts a reply to it.
-
-You tell Jimmy the room's available in March, and send the message.
-Gnorb takes you back to the heading, and asks you to trigger an action
-on it. You choose "todo state", and change the heading keyword to
-WAIT.
-
-Two days later, Jimmy replies to your message, saying that March is
-perfect. When you open his response, Gnorb politely reminds you that
-the message is relevant to an existing TODO. You hit "C-c t" on the
-message, and are again taken to the TODO and asked to trigger an
-action. Again you choose "todo state", and change the heading keyword
-back to REPLY.
-
-You get another email, from Samantha, warning you not to rent the room
-to Jimmy. She even attaches a picture of a room in her house, as it
-looked after Jimmy had stayed there for six months. It's bad. You hit
-"C-c t" on her message, and pick the "Jimmy renting a room" heading.
-This time, you choose "take note" as the trigger action, and make a
-brief note about how bad that room looked. Gnorb asks if you'd like to
-attach the picture to the Org heading. You decide you will.
-
-Now it's time to write to Jimmy and say something noncommittal.
-Hitting "C-c t" on the heading would respond to Samantha's email, the
-most recent of the associated messages, which isn't what you want.
-Instead you hit "C-c v" on the heading, which opens up a Gnus
-*Summary* buffer containing all four messages: Jimmy's first, your
-response, his response to that, and Samantha's message. You pick
-Jimmy's second email, and reply to it normally. Gnorb asks if you'd
-like to send the picture of the room as an attachment. You would not.
-When you send the reply Gnorb tracks that as well, and does the
-"trigger an action" trick again.
-
-In this way Gnorb helps you manage an entire conversation, possibly
-with multiple threads and multiple participants. Mostly all you need
-to do is hit "C-c t" on newly-received messages, and "C-c t" on the
-heading when it's time to compose a new reply.
 * Restoring Window Layout
 Many Gnorb functions alter the window layout and value of point. In
 most of these cases, you can restore the previous layout using the
