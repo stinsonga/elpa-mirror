@@ -910,6 +910,11 @@ non-nil, confirmation will be requested before continuing."
               (y-or-n-p "Warning: Repopulating dictionary will reset it.  Continue?"))
       (paced-dictionary-repopulate dict))))
 
+(cl-defmethod paced-dictionary-add-population-command ((dict paced-dictionary)
+                                                       (cmd paced-population-command))
+  "Add population command CMD to dictionary DICT."
+  (cl-pushnew cmd (oref dict population-commands) :test 'equal))
+
 (defun paced-add-buffer-file-to-dictionary (&optional buffer)
   "Populate the dictionary of BUFFER with BUFFER.
 
@@ -928,7 +933,7 @@ must be set with `paced-edit-named-dictionary' or
               (cmd (paced-file-population-command :file file-name)))
         (progn
           (paced-dictionary-populate-from-buffer dict buffer)
-          (cl-pushnew cmd (oref dict population-commands) :test 'equal))
+          (paced-dictionary-add-population-command dict cmd))
       (user-error "No dictionary found for current buffer"))))
 
 
