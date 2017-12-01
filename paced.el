@@ -213,11 +213,11 @@ instead.")
 (defsubst paced-read-dictionary ()
   (completing-read "Dictionary: " (map-keys paced--registered-dictionaries)))
 
-(defsubst paced-dictionary-registered-p (key)
+(defsubst paced-dictionary-key-registered-p (key)
   (map-contains-key paced--registered-dictionaries key))
 
 (defsubst paced-ensure-registered (key)
-  (unless (paced-dictionary-registered-p key)
+  (unless (paced-dictionary-key-registered-p key)
     (error "No paced dictionary called '%s' has been registered." key)))
 
 (cl-defmethod paced-dictionary-register ((dict paced-dictionary))
@@ -342,7 +342,7 @@ be skipped."
     (while (and conditions
                 (not dictionary))
       (pcase-let* ((`(,condition . ,dict) (pop conditions)))
-        (when (and (paced-dictionary-registered-p dict)
+        (when (and (paced-dictionary-key-registered-p dict)
                    (paced-test-dict-enable-condition condition))
           (setq dictionary dict))))
     (when dictionary
