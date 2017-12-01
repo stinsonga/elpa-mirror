@@ -198,14 +198,14 @@ and return a sorted hash-table.
 This defaults to `paced--default-dictionary-sort-func'."))
   "Paced dictionary.")
 
-(defvar paced--registered-dictionaries nil
+(defvar paced--registered-dictionaries (make-hash-table :test 'equal)
   "Internal list of registered dictionaries.
 
 Do not edit this list manually.  Use `paced-make-dictionary'
 instead.")
 
 (defsubst paced-named-dictionary (key)
-  (map-elt paced--registered-dictionaries key nil 'equal))
+  (map-elt paced--registered-dictionaries key nil))
 
 (defsubst paced-dictionary-names ()
   (map-keys paced--registered-dictionaries))
@@ -214,14 +214,14 @@ instead.")
   (completing-read "Dictionary: " (map-keys paced--registered-dictionaries)))
 
 (defsubst paced-dictionary-registered-p (key)
-  (map-contains-key paced--registered-dictionaries key 'equal))
+  (map-contains-key paced--registered-dictionaries key))
 
 (defsubst paced-ensure-registered (key)
   (unless (paced-dictionary-registered-p key)
     (error "No paced dictionary called '%s' has been registered." key)))
 
-(defsubst paced-register-dictionary (key dict)
-  (map-put paced--registered-dictionaries key dict 'equal))
+(cl-defmethod paced-dictionary-register ((dict paced-dictionary))
+  (map-put paced--registered-dictionaries (oref dict object-name) dict))
 
 (defsubst paced--ensure-dictionary-directory ()
   (make-directory paced-dictionary-directory t))
@@ -239,7 +239,7 @@ Return value is the new dictionary."
                    :object-name name
                    :file filename
                    :case-handling case-handling)))
-    (paced-register-dictionary name new-dict)
+    (paced-dictionary-register new-dict)
     new-dict))
 
 (defun paced-create-new-dictionary (name file)
@@ -298,6 +298,10 @@ Has the same form as and takes priority over
 `paced-global-dict-enable-alist'.")
 
 (defun paced-dict-enable-list ()
+  "Return the combination of the local and global enable-alists.
+
+See `paced-local-dict-enable-alist' and
+`paced-global-dict-enable-alist' for more information."
   (append paced-local-dict-enable-alist
           paced-global-dict-enable-alist))
 
