@@ -221,34 +221,49 @@ supervision of someone who does."
     (setq paced--registered-dictionaries (make-hash-table :test 'equal))))
 
 (defsubst paced-named-dictionary (key)
+  "Return a registered dictionary with name KEY.
+
+If none exists, return nil."
   (map-elt paced--registered-dictionaries key nil))
 
 (defsubst paced-dictionary-names ()
+  "Get the names of the registered dictionaries."
   (map-keys paced--registered-dictionaries))
 
 (defsubst paced-read-dictionary ()
+  "Read the name of a registered dictionary."
   (completing-read "Dictionary: " (map-keys paced--registered-dictionaries)))
 
 (defsubst paced-dictionary-key-registered-p (key)
+  "Return non-nil if a dictionary with name KEY has been registered."
   (map-contains-key paced--registered-dictionaries key))
 
 (defsubst paced-ensure-registered (key)
+  "Throw an error if a dictionary with name KEY has not been registered."
   (unless (paced-dictionary-key-registered-p key)
-    (error "No paced dictionary called '%s' has been registered." key)))
+    (error "No paced dictionary called '%s' has been registered" key)))
 
 (cl-defmethod paced-dictionary-register ((dict paced-dictionary))
+  "Registered dictionary DICT."
   (map-put paced--registered-dictionaries (oref dict object-name) dict))
 
 (defsubst paced--ensure-dictionary-directory ()
+  "Ensure that `paced-dictionary-directory' exists."
   (make-directory paced-dictionary-directory t))
 
 (defun paced-make-dictionary (name filename case-handling)
   "Make a paced dictionary called NAME.
 
-NAME is a symbol used to identify the new dictionary.
+NAME is a string used to identify the new dictionary.
 
 If a paced dictionary is already registered with name NAME, then
 it is replaced with a new, empty one.
+
+FILENAME is a file in which to store the new dictionary.
+
+CASE-HANDLING is a symbol that denotes how to handle case during
+population.  See the case-handling slot of class
+`paced-dictionary' for details.
 
 Return value is the new dictionary."
   (let ((new-dict (paced-dictionary
@@ -273,6 +288,7 @@ customization interface."
     (customize-object new-dict)))
 
 (cl-defmethod paced-dictionary-name ((obj paced-dictionary))
+  "Return the name of dictionary OBJ."
   (oref obj object-name))
 
 (defcustom paced-global-dict-enable-alist nil
@@ -303,7 +319,7 @@ is one of the following forms:
   given dictionary if all of the conditions are met.
 
 No matter what this list indicates, dictionaries will not be
-enabled unless paced-mode is active."
+enabled unless `paced-mode' is active."
   :group 'paced
   :type '(alist :key-type sexp :value-type sexp))
 
@@ -491,9 +507,12 @@ This is a separate function only for testing; use
   "Add WORD to the current paced dictionary."
   (if-let* ((dict (paced-current-dictionary)))
       (paced-dictionary-add-word dict word)
-    (error "No current dictionary found.")))
+    (error "No current dictionary found")))
 
 (cl-defmethod paced-dictionary-populate-from-buffer ((dict paced-dictionary) &optional buffer)
+  "Repopulate DICT from BUFFER.
+
+If BUFFER is nil, use the current one."
   (with-current-buffer (or buffer (current-buffer))
     (save-excursion
       (goto-char (point-min))
@@ -585,11 +604,13 @@ command will be lost."
     (paced-dictionary-reset dict)))
 
 (cl-defmethod paced-dictionary-sort ((dict paced-dictionary))
+  "Sort the words in dictionary DICT by usage."
   (oset dict usage-hash
         (funcall (oref dict sort-method)
                  (oref dict usage-hash))))
 
 (defun paced-sort-named-dictionary (key)
+  "Sort the paced dictionary with key KEY."
   (interactive (list (paced-read-dictionary)))
   (paced-ensure-registered key)
   (let ((dict (paced-named-dictionary key)))
@@ -617,24 +638,8 @@ This adds `paced-completion-at-point' to
                                         ; ;; Completion ;; ;
                                         ; ;;;;;;;;;;;;;;;; ;
 
-(cl-defmethod paced-dictionary-completions-for-prefix ((dict paced-dictionary) prefix)
-  (let* ((completion-ignore-case paced-completion-ignore-case)
-         (prefix-length (length prefix)))
-    ;; Account for case differences in the prefix by prepending the prefix.
-    (mapcar
-     (lambda (completion)
-       (when (stringp completion)
-         (concat prefix (substring-no-properties completion prefix-length))))
-     (all-completions prefix (oref dict usage-hash)))))
-
-(defun paced-completions-for-prefix (prefix)
-  "Get completions for PREFIX from the current dictionary."
-  (if-let* ((dict (paced-current-dictionary)))
-      (paced-dictionary-completions-for-prefix dict prefix)
-    (user-error "No dictionary found")))
-
 (defun paced-completion-finish (prefix completions)
-  "Account for case differences in the prefix by prepending the prefix."
+  "Account for case differences in the prefix by prepending PREFIX to COMPLETIONS."
   (cond
    ((not (listp completions))
     ;; If completions is not a list, it's likely 't', in which
@@ -649,6 +654,7 @@ This adds `paced-completion-at-point' to
        completions)))))
 
 (defun paced-completion-table-function (string pred action)
+  "Completion table function for paced dictionaries."
   (if-let* ((dict (paced-current-dictionary)))
       (let* ((completion-ignore-case paced-completion-ignore-case))
         (pcase action
@@ -677,6 +683,9 @@ This only works for an existing entry."
   :type 'boolean)
 
 (defun paced-completion-auto-update (word status)
+  "Automatically update the current dictionary with WORD depending on STATUS.
+
+This should only be called from `paced-completion-at-point'."
   (cl-case status
     (sole
      ;; We're done with completion, but the user may still be typing.
@@ -690,7 +699,7 @@ This only works for an existing entry."
        (paced-add-word-to-current-dict word)))))
 
 (defun paced-completion-at-point ()
-  "Function for `completion-at-point-functions' to get the paced completions"
+  "Function for `completion-at-point-functions' to get the paced completions."
   ;; Don't expand unless we're in a buffer with paced-mode enabled.
   (when (and paced-mode)
     (when-let* ((bounds (paced-bounds-of-thing-at-point)))
@@ -703,7 +712,7 @@ This only works for an existing entry."
                                         ; ;;;;;;;;;;;;;;;;;; ;
 
 (defun paced--insert-file-contents (file)
-  "Inserts the contents of FILE into the current buffer.
+  "Insert the contents of FILE into the current buffer.
 
 Unlike `insert-file-contents', this handles mode hooks, which
 paced requires for repopulation (syntax tables, exclude functions, etc.).
@@ -865,6 +874,7 @@ match a regular expression.")
   (paced--insert-file-contents source))
 
 (defun paced-new-population-command-custom ()
+  "Prompt for a population command type and creates a new command of that type."
   (let* ((type (completing-read "Command Type: "
                                 (eieio-class-children 'paced-population-command))))
     (funcall (intern type))))
@@ -919,7 +929,7 @@ must be set with `paced-edit-named-dictionary' or
         (progn
           (paced-dictionary-populate-from-buffer dict buffer)
           (cl-pushnew cmd (oref dict population-commands) :test 'equal))
-      (user-error "No dictionary found for current buffer."))))
+      (user-error "No dictionary found for current buffer"))))
 
 
 
@@ -932,7 +942,7 @@ must be set with `paced-edit-named-dictionary' or
   (interactive (list (paced-read-dictionary)))
   (if-let* ((dict (paced-named-dictionary name)))
       (paced-dictionary-edit dict)
-    (error "No paced dictionary called '%s' has been registered." name)))
+    (error "No paced dictionary called '%s' has been registered" name)))
 
 (defun paced-edit-current-dictionary ()
   "Edit the current paced dictionary."
@@ -946,6 +956,7 @@ must be set with `paced-edit-named-dictionary' or
 (declare-function lm-report-bug "lisp-mnt" (topic))
 
 (defun paced-submit-bug-report (topic)
+  "Report a bug with topic TOPIC."
   (interactive "sTopic: ")
   (require 'lisp-mnt)
   (let* ((src-file (locate-library "paced.el" t))
