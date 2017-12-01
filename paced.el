@@ -115,6 +115,11 @@ allowing all files."
   :group 'paced
   :type 'boolean)
 
+(defcustom paced-populate-warn-about-reset t
+  "Whether to warn the user about resetting a dictionary when repopulating."
+  :group 'paced
+  :type 'boolean)
+
 
 
 (defun paced--default-dictionary-sort-func (usage-hash)
@@ -885,13 +890,15 @@ repopulating it."
 Population commands are stored in the field of the same name.
 
 Note that this will empty the dictionary's contents before
-repopulating it."
+repopulating it.  If `paced-populate-warn-about-reset' is
+non-nil, confirmation will be requested before continuing."
   (interactive
    (list (paced-read-dictionary)))
   (paced-ensure-registered key)
   (let ((dict (paced-named-dictionary key)))
-    ;; TODO: Warn about reset.
-    (paced-dictionary-repopulate dict)))
+    (when (or (not paced-populate-warn-about-reset)
+              (y-or-n-p "Warning: Repopulating dictionary will reset it.  Continue?"))
+      (paced-dictionary-repopulate dict))))
 
 (defun paced-add-buffer-file-to-dictionary (&optional buffer)
   "Populate the dictionary of BUFFER with BUFFER.
