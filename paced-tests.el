@@ -38,6 +38,14 @@
 
 (defconst paced-test-dict-save-file (paced-test-file "paced-dictionary-case-sensitive"))
 
+(ert-deftest paced-handle-word-case ()
+  (let* ((word "EiEiO"))
+    (should (string-equal (paced--handle-word-case 'preserve word) "EiEiO"))
+    (should (string-equal (paced--handle-word-case 'downcase word) "eieio"))
+    (should (string-equal (paced--handle-word-case 'upcase   word) "EIEIO"))
+    (should (string-equal (paced--handle-word-case 'downcase-first word) "eiEiO"))
+    (should (string-equal (paced--handle-word-case 'upcase-first word) "EiEiO"))))
+
 (ert-deftest paced-create-dictionary ()
   (let* ((paced--registered-dictionaries nil)
          (target-file-exists (file-exists-p paced-test-dict-save-file))
@@ -45,7 +53,7 @@
                             (file-attribute-modification-time (file-attributes paced-test-dict-save-file))))
          (new-dict (paced-make-dictionary "test-dict-case"
                                           paced-test-dict-save-file
-                                          t)))
+                                          'downcase)))
     (should (= (length paced--registered-dictionaries) 1))
     (should (paced-dictionary-p new-dict))
     (oset new-dict updated t) ;; Mark it as updated so it saves

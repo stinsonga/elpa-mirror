@@ -163,14 +163,24 @@ entry should be of the form (VAR VALUE).")
 		     :documentation
 		     "Header line for the save file.
 This is used with the `object-write' method.")
-   (case-sensitive :initarg :case-sensitive
-                   :initform nil
-                   :type boolean
-                   :custom boolean
-                   :label "Case Sensitive"
-                   :documentation "Non-nil if the dictionary should be case sensitive when populating.
+   (case-handling :initarg :case-handling
+                  :initform downcase
+                  :type (member downcase upcase preserve downcase-first upcase-first)
+                  :custom (choice (const :tag "Downcase All Words" downcase)
+                                  (const :tag "Upcase All Words" upcase)
+                                  (const :tag "Preserve Case" preserve)
+                                  (const :tag "Downcase Just the First Letter" downcase-first)
+                                  (const :tag "Upcase Just the First Letter" upcase-first))
+                  :label "Case Sensitive"
+                  :documentation "A symbol indicating how case should be handled during population.
 
-When nil, \"This\" will be the same as \"this\" in `usage-hash'.")
+It can be one of the following:
+
+* downcase        Downcase every word
+* upcase          Upcase every word
+* preserve        Preserve case
+* downcase-first  Downcase the first letter of each word, leave the rest the same
+* upcase-first    Upcase the first letter of each word, leave the rest the same")
    (updated :initarg :updated
             :initform nil
             :type boolean
@@ -216,7 +226,7 @@ instead.")
 (defsubst paced--ensure-dictionary-directory ()
   (make-directory paced-dictionary-directory t))
 
-(defun paced-make-dictionary (name filename case-sensitive)
+(defun paced-make-dictionary (name filename case-handling)
   "Make a paced dictionary called NAME.
 
 NAME is a symbol used to identify the new dictionary.
@@ -228,7 +238,7 @@ Return value is the new dictionary."
   (let ((new-dict (paced-dictionary
                    :object-name name
                    :file filename
-                   :case-sensitive case-sensitive)))
+                   :case-handling case-handling)))
     (paced-register-dictionary name new-dict)
     new-dict))
 
@@ -430,12 +440,34 @@ Things is based on `paced-thing-at-point-constituent'."
   (interactive "p")
   (forward-thing paced-thing-at-point-constituent number))
 
+(defun paced--handle-word-case (case-handling word)
+  "Process WORD based on CASE-HANDLING.
+
+This is a separate function only for testing; use
+`paced-dictionary-process-word' instead."
+  (pcase case-handling
+    (`preserve word)
+    (`downcase (downcase word))
+    (`upcase (upcase word))
+    (`downcase-first
+     ;; Downcase the first letter
+     (concat (downcase (substring word 0 1))
+             (substring word 1)))
+    ;; Upcase the first letter
+    (`upcase-first
+     (concat (upcase (substring word 0 1))
+             (substring word 1)))))
+
+(cl-defmethod paced-dictionary-process-word ((dict paced-dictionary) word)
+  "Return WORD, modified based on DICT's case handling."
+  (paced--handle-word-case (oref dict case-handling) word))
+
 (defsubst paced-add-word-to-dict (dict word)
   "Add WORD to paced dictionary DICT."
   ;; If I've got a word uppercase and lowercase in my usage table, I'm
   ;; going to have repeats when ignore case is enabled.  To solve this,
   ;; downcase everything when not case sensitive.
-  (let ((new-word (if (oref dict case-sensitive) word (downcase word))))
+  (let ((new-word (paced-dictionary-process-word dict word)))
     ;; Use the full name here to silence the byte-compiler
     (cl-incf (map-elt (oref dict usage-hash) new-word 0))
     (oset dict updated t)))
