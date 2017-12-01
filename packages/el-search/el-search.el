@@ -1337,14 +1337,13 @@ position of the beginning of the match."
 PATTERN is the pattern to search, and GET-BUFFER-STREAM a
 function that returns a stream of buffers and/or files to search
 in, in order, when called with no arguments."
-  (let (search)
-    (setq search
-          (make-el-search-object
-           :pattern pattern
-           :head (make-el-search-head
-                  :get-buffer-stream get-buffer-stream
-                  :buffers (funcall get-buffer-stream))
-           :get-matches (lambda () (el-search--all-matches search))))
+  (letrec ((search
+            (make-el-search-object
+             :pattern pattern
+             :head (make-el-search-head
+                    :get-buffer-stream get-buffer-stream
+                    :buffers (funcall get-buffer-stream))
+             :get-matches (lambda () (el-search--all-matches search)))))
     (el-search-compile-pattern-in-search search)
     search))
 
@@ -2244,7 +2243,8 @@ With prefix arg, restart the current search."
             (el-search-hl-other-matches (el-search--current-matcher)))
           (setq el-search--success t))))))
 
-(define-obsolete-function-alias 'el-search-previous-match 'el-search-pattern-backwards)
+(define-obsolete-function-alias 'el-search-previous-match
+  'el-search-pattern-backwards "since el-search-1.3")
 
 (defun el-search-this-sexp (sexp)
   "Prepare to el-search the `sexp-at-point'.
