@@ -37,6 +37,7 @@
 (defconst paced-third-test-file (paced-test-file "third.org"))
 
 (defconst paced-test-dict-save-file (paced-test-file "paced-dictionary-case-sensitive"))
+(defconst paced-test-default-registered-map (make-hash-table :test 'equal))
 
 (ert-deftest paced-handle-word-case ()
   (let* ((word "EiEiO"))
@@ -47,17 +48,17 @@
     (should (string-equal (paced--handle-word-case 'upcase-first word) "EiEiO"))))
 
 (ert-deftest paced-create-dictionary ()
-  (let* ((paced--registered-dictionaries nil)
+  (let* ((paced--registered-dictionaries paced-test-default-registered-map)
          (target-file-exists (file-exists-p paced-test-dict-save-file))
          (old-mod-time (and target-file-exists
                             (file-attribute-modification-time (file-attributes paced-test-dict-save-file))))
          (new-dict (paced-make-dictionary "test-dict-case"
                                           paced-test-dict-save-file
                                           'downcase)))
-    (should (= (length paced--registered-dictionaries) 1))
+    (should (= (map-length paced--registered-dictionaries) 1))
     (should (paced-dictionary-p new-dict))
     (oset new-dict updated t) ;; Mark it as updated so it saves
-    (paced-save-dictionary new-dict)
+    (paced-dictionary-save new-dict)
     (should (file-exists-p paced-test-dict-save-file))
     ;; Either it didn't exist before, or the old mod time is before the new mod
     ;; time.  In other words, it updated.
@@ -66,17 +67,17 @@
                              (file-attribute-modification-time (file-attributes paced-test-dict-save-file)))))))
 
 (ert-deftest paced-load-dictionary ()
-  (let* ((paced--registered-dictionaries nil))
+  (let* ((paced--registered-dictionaries paced-test-default-registered-map))
     (paced-load-dictionary-from-file paced-test-dict-save-file)
-    (should (= (length paced--registered-dictionaries) 1))
+    (should (= (map-length paced--registered-dictionaries) 1))
     (should (map-contains-key paced--registered-dictionaries "test-dict-case"))
-    (should (paced-dictionary-p (map-elt paced--registered-dictionaries "test-dict-case" nil 'string-equal)))))
+    (should (paced-dictionary-p (map-elt paced--registered-dictionaries "test-dict-case" nil)))))
 
 (defvar paced-test-enable-symbol nil)
 
 (ert-deftest paced-enable-list-symbol ()
   "Test case for `paced-dictionary-enable-alist' being an arbitrary symbol."
-  (let* ((paced--registered-dictionaries nil)
+  (let* ((paced--registered-dictionaries paced-test-default-registered-map)
          (paced-global-dict-enable-alist '((paced-test-enable-symbol . "test-dict-case")))
          (new-buffer (find-file-noselect paced-first-test-file)))
     (paced-load-dictionary-from-file paced-test-dict-save-file)
@@ -90,7 +91,7 @@
 
 (ert-deftest paced-enable-list-mode ()
   "Test case for `paced-dictionary-enable-alist' being a mode symbol."
-  (let* ((paced--registered-dictionaries nil)
+  (let* ((paced--registered-dictionaries paced-test-default-registered-map)
          (paced-global-dict-enable-alist '((text-mode . "test-dict-case")))
          (buffer-one (find-file-noselect paced-first-test-file))
          (buffer-two (find-file-noselect paced-second-test-file)))
@@ -108,7 +109,7 @@
 
 (ert-deftest paced-enable-list-function-symbol ()
   "Test case for `paced-dictionary-enable-alist' being a function symbol."
-  (let* ((paced--registered-dictionaries nil)
+  (let* ((paced--registered-dictionaries paced-test-default-registered-map)
          (paced-global-dict-enable-alist '((paced-test-function-symbol . "test-dict-case")))
          (buffer-one (find-file-noselect paced-first-test-file)))
     (paced-load-dictionary-from-file paced-test-dict-save-file)
@@ -122,7 +123,7 @@
 
 (ert-deftest paced-enable-list-lambda-function ()
   "Test case for `paced-dictionary-enable-alist' being a lambda form."
-  (let* ((paced--registered-dictionaries nil)
+  (let* ((paced--registered-dictionaries paced-test-default-registered-map)
          (paced-global-dict-enable-alist '(((lambda nil paced-test-enable-symbol) . "test-dict-case")))
          (buffer-one (find-file-noselect paced-first-test-file)))
     (paced-load-dictionary-from-file paced-test-dict-save-file)
@@ -136,7 +137,7 @@
 
 (ert-deftest paced-enable-list-and-form ()
   "Test case for `paced-dictionary-enable-alist' being an 'and' form."
-  (let* ((paced--registered-dictionaries nil)
+  (let* ((paced--registered-dictionaries paced-test-default-registered-map)
          (paced-global-dict-enable-alist '(((and text-mode paced-test-enable-symbol) . "test-dict-case")))
          (buffer-one (find-file-noselect paced-first-test-file))
          (buffer-two (find-file-noselect paced-second-test-file)))
@@ -157,7 +158,7 @@
 
 (ert-deftest paced-enable-list-or-form ()
   "Test case for `paced-dictionary-enable-alist' being an 'or' form."
-  (let* ((paced--registered-dictionaries nil)
+  (let* ((paced--registered-dictionaries paced-test-default-registered-map)
          (paced-global-dict-enable-alist '(((or text-mode paced-test-enable-symbol) . "test-dict-case")))
          (buffer-one (find-file-noselect paced-first-test-file))
          (buffer-two (find-file-noselect paced-second-test-file)))
@@ -180,7 +181,7 @@
 
 (ert-deftest paced-populate-file ()
   "Test case for single file populator."
-  (let* ((paced--registered-dictionaries nil)
+  (let* ((paced--registered-dictionaries paced-test-default-registered-map)
          (paced-global-dict-enable-alist '((text-mode . "test-dict-case")))
          (cmd (paced-file-population-command :file paced-first-test-file))
          test-dict)
@@ -188,7 +189,7 @@
     (setq test-dict (paced-named-dictionary "test-dict-case"))
     (should (paced-dictionary-p test-dict))
     (oset test-dict population-commands (list cmd))
-    (paced-repopulate-dictionary test-dict)
+    (paced-dictionary-repopulate test-dict)
     (let ((usage-hash (oref test-dict usage-hash)))
       (should (eq (map-length usage-hash) 4))
       (should (seq-set-equal-p (map-keys usage-hash) '("one" "two" "three" "four")))
@@ -199,7 +200,7 @@
 
 (ert-deftest paced-populate-buffer ()
   "Test case for single buffer populator."
-  (let* ((paced--registered-dictionaries nil)
+  (let* ((paced--registered-dictionaries paced-test-default-registered-map)
          (paced-global-dict-enable-alist '((text-mode . "test-dict-case")))
          (buffer "first.txt")
          (buffer-one (find-file-noselect paced-first-test-file))
@@ -209,7 +210,7 @@
     (setq test-dict (paced-named-dictionary "test-dict-case"))
     (should (paced-dictionary-p test-dict))
     (oset test-dict population-commands (list cmd))
-    (paced-repopulate-dictionary test-dict)
+    (paced-dictionary-repopulate test-dict)
     (let ((usage-hash (oref test-dict usage-hash)))
       (should (eq (map-length usage-hash) 4))
       (should (seq-set-equal-p (map-keys usage-hash) '("one" "two" "three" "four")))
@@ -221,7 +222,7 @@
 
 (ert-deftest paced-populate-file-function ()
   "Test case for file-function populator."
-  (let* ((paced--registered-dictionaries nil)
+  (let* ((paced--registered-dictionaries paced-test-default-registered-map)
          (paced-global-dict-enable-alist '((text-mode . "test-dict-case")))
          (pre-func (lambda () (insert (buffer-string)) t))
          (cmd (paced-file-function-population-command :file paced-first-test-file
@@ -231,7 +232,7 @@
     (setq test-dict (paced-named-dictionary "test-dict-case"))
     (should (paced-dictionary-p test-dict))
     (oset test-dict population-commands (list cmd))
-    (paced-repopulate-dictionary test-dict)
+    (paced-dictionary-repopulate test-dict)
     (let ((usage-hash (oref test-dict usage-hash)))
       (should (eq (map-length usage-hash) 4))
       (should (seq-set-equal-p (map-keys usage-hash) '("one" "two" "three" "four")))
@@ -242,7 +243,7 @@
 
 (ert-deftest paced-populate-directory-regexp ()
   "Test case for directory-regexp populator."
-  (let* ((paced--registered-dictionaries nil)
+  (let* ((paced--registered-dictionaries paced-test-default-registered-map)
          (paced-global-dict-enable-alist '((text-mode . "test-dict-case")))
          (cmd (paced-directory-regexp-population-command :directory paced-test-dir
                                                          :regexp ".*\\.txt"
@@ -252,7 +253,7 @@
     (setq test-dict (paced-named-dictionary "test-dict-case"))
     (should (paced-dictionary-p test-dict))
     (oset test-dict population-commands (list cmd))
-    (paced-repopulate-dictionary test-dict)
+    (paced-dictionary-repopulate test-dict)
     (let ((usage-hash (oref test-dict usage-hash)))
       (should (eq (map-length usage-hash) 4))
       (should (seq-set-equal-p (map-keys usage-hash) '("one" "two" "three" "four")))
@@ -263,7 +264,7 @@
 
 (ert-deftest paced-populate-file-list ()
   "Test case for file-list populator."
-  (let* ((paced--registered-dictionaries nil)
+  (let* ((paced--registered-dictionaries paced-test-default-registered-map)
          (paced-global-dict-enable-alist '((text-mode . "test-dict-case")))
          (file-list (lambda () `(,paced-first-test-file)))
          (cmd (paced-file-list-population-command :generator file-list))
@@ -272,7 +273,7 @@
     (setq test-dict (paced-named-dictionary "test-dict-case"))
     (should (paced-dictionary-p test-dict))
     (oset test-dict population-commands (list cmd))
-    (paced-repopulate-dictionary test-dict)
+    (paced-dictionary-repopulate test-dict)
     (let ((usage-hash (oref test-dict usage-hash)))
       (should (eq (map-length usage-hash) 4))
       (should (seq-set-equal-p (map-keys usage-hash) '("one" "two" "three" "four")))
@@ -282,7 +283,7 @@
       (should (eq (map-elt usage-hash "four") 4)))))
 
 (ert-deftest paced-multiple-population-commands ()
-  (let* ((paced--registered-dictionaries nil)
+  (let* ((paced--registered-dictionaries paced-test-default-registered-map)
          (paced-global-dict-enable-alist '((text-mode . "test-dict-case")))
          (cmd1 (paced-file-population-command :file paced-first-test-file))
          (cmd2 (paced-file-population-command :file paced-third-test-file))
@@ -291,7 +292,7 @@
     (setq test-dict (paced-named-dictionary "test-dict-case"))
     (should (paced-dictionary-p test-dict))
     (oset test-dict population-commands (list cmd1 cmd2))
-    (paced-repopulate-dictionary test-dict)
+    (paced-dictionary-repopulate test-dict)
     (let ((usage-hash (oref test-dict usage-hash)))
       (should (eq (map-length usage-hash) 7))
       (should (seq-set-equal-p (map-keys usage-hash) '("one" "two" "three" "four" "five" "six" "seven")))
@@ -304,7 +305,7 @@
       (should (eq (map-elt usage-hash "seven") 1)))))
 
 (ert-deftest paced-populator-settings ()
-  (let* ((paced--registered-dictionaries nil)
+  (let* ((paced--registered-dictionaries paced-test-default-registered-map)
          (paced-global-dict-enable-alist '((text-mode . "test-dict-case")))
          (exclude-command (lambda nil (nth 8 (syntax-ppss)))) ;; exclude comments
          (cmd1 (paced-file-population-command :file paced-first-test-file))
@@ -315,7 +316,7 @@
     (setq test-dict (paced-named-dictionary "test-dict-case"))
     (should (paced-dictionary-p test-dict))
     (oset test-dict population-commands (list cmd1 cmd2))
-    (paced-repopulate-dictionary test-dict)
+    (paced-dictionary-repopulate test-dict)
     (let ((usage-hash (oref test-dict usage-hash)))
       (should (eq (map-length usage-hash) 4))
       (should (seq-set-equal-p (map-keys usage-hash) '("one" "two" "three" "four")))
@@ -326,7 +327,7 @@
 
 (ert-deftest paced-populate-sort-order ()
   "Test case for sorting after population."
-  (let* ((paced--registered-dictionaries nil)
+  (let* ((paced--registered-dictionaries paced-test-default-registered-map)
          (paced-global-dict-enable-alist '((text-mode . "test-dict-case")))
          (cmd (paced-file-population-command :file paced-first-test-file))
          test-dict)
@@ -334,7 +335,7 @@
     (setq test-dict (paced-named-dictionary "test-dict-case"))
     (should (paced-dictionary-p test-dict))
     (oset test-dict population-commands (list cmd))
-    (paced-repopulate-dictionary test-dict)
+    (paced-dictionary-repopulate test-dict)
     (let ((usage-hash (oref test-dict usage-hash)))
       (should (eq (map-length usage-hash) 4))
       (should (equal (map-keys usage-hash) '("four" "three" "two" "one")))
@@ -344,7 +345,7 @@
       (should (eq (map-elt usage-hash "four") 4)))))
 
 (ert-deftest paced-populate-non-existent-file ()
-  (let* ((paced--registered-dictionaries nil)
+  (let* ((paced--registered-dictionaries paced-test-default-registered-map)
          (file "first.txt")
          (cmd (paced-file-population-command :file file))
          test-dict)
@@ -352,12 +353,12 @@
     (setq test-dict (paced-named-dictionary "test-dict-case"))
     (should (paced-dictionary-p test-dict))
     (oset test-dict population-commands (list cmd))
-    (paced-repopulate-dictionary test-dict)
+    (paced-dictionary-repopulate test-dict)
     (let ((usage-hash (oref test-dict usage-hash)))
       (should (map-empty-p usage-hash)))))
 
 (ert-deftest paced-populate-non-existent-buffer ()
-  (let* ((paced--registered-dictionaries nil)
+  (let* ((paced--registered-dictionaries paced-test-default-registered-map)
          (buffer "first.txt")
          (cmd (paced-buffer-population-command :buffer buffer))
          test-dict)
@@ -365,7 +366,7 @@
     (setq test-dict (paced-named-dictionary "test-dict-case"))
     (should (paced-dictionary-p test-dict))
     (oset test-dict population-commands (list cmd))
-    (paced-repopulate-dictionary test-dict)
+    (paced-dictionary-repopulate test-dict)
     (let ((usage-hash (oref test-dict usage-hash)))
       (should (map-empty-p usage-hash)))))
 

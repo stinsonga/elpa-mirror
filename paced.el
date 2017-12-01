@@ -204,6 +204,17 @@ This defaults to `paced--default-dictionary-sort-func'."))
 Do not edit this list manually.  Use `paced-make-dictionary'
 instead.")
 
+(defun paced-reset-registered-dictionaries ()
+  "Reset the registered dictionary list.
+
+WARNING: This will result in the loss of all dictionaries.  Only
+do this if you know what you're doing, or are under the
+supervision of someone who does."
+  (interactive)
+  (when (yes-or-no-p
+         "Warning: This will result in loss of all dictionaries.  Continue?")
+    (setq paced--registered-dictionaries (make-hash-table :test 'equal))))
+
 (defsubst paced-named-dictionary (key)
   (map-elt paced--registered-dictionaries key nil))
 
@@ -348,7 +359,7 @@ be skipped."
     (when dictionary
       (paced-named-dictionary dictionary))))
 
-(cl-defmethod paced-save-dictionary ((dict paced-dictionary))
+(cl-defmethod paced-dictionary-save ((dict paced-dictionary))
   "Save dictionary DICT according to its filename."
   (when (oref dict updated)
     (eieio-persistent-save dict))
@@ -356,27 +367,25 @@ be skipped."
 
 (defun paced-save-named-dictionary (key)
   "Save dictionary named KEY."
-  (declare (interactive-only paced-save-dictionary))
+  (declare (interactive-only paced-dictionary-save))
   (interactive (list (paced-read-dictionary)))
   (paced-ensure-registered key)
   (let ((dict (paced-named-dictionary key)))
-    (paced-save-dictionary dict)))
+    (paced-dictionary-save dict)))
 
 (defun paced-load-dictionary-from-file (file)
   "Load dictionary from FILE."
   (interactive
    (list (read-file-name "Dictionary File: " paced-dictionary-directory)))
   (when-let* ((new-dict (eieio-persistent-read file 'paced-dictionary)))
-    (paced-register-dictionary
-     (paced-dictionary-name new-dict)
-     new-dict)))
+    (paced-dictionary-register new-dict)))
 
 (defun paced-save-all-dictionaries ()
   "Save all registered dictionaries."
   (interactive)
   (map-apply
    (lambda (_ dict)
-     (paced-save-dictionary dict))
+     (paced-dictionary-save dict))
    paced--registered-dictionaries))
 
 ;;;###autoload
@@ -397,9 +406,9 @@ be skipped."
         (paced-load-dictionary-from-file dict-file)))))
 
 (cl-defmethod eieio-done-customizing ((dict paced-dictionary))
-  (paced-register-dictionary (paced-dictionary-name dict) dict)
+  (paced-dictionary-register dict)
   (paced--ensure-dictionary-directory)
-  (paced-save-dictionary dict))
+  (paced-dictionary-save dict))
 
 
 
@@ -466,11 +475,8 @@ This is a separate function only for testing; use
   "Return WORD, modified based on DICT's case handling."
   (paced--handle-word-case (oref dict case-handling) word))
 
-(defsubst paced-add-word-to-dict (dict word)
+(cl-defmethod paced-dictionary-add-word ((dict paced-dictionary) word)
   "Add WORD to paced dictionary DICT."
-  ;; If I've got a word uppercase and lowercase in my usage table, I'm
-  ;; going to have repeats when ignore case is enabled.  To solve this,
-  ;; downcase everything when not case sensitive.
   (let ((new-word (paced-dictionary-process-word dict word)))
     ;; Use the full name here to silence the byte-compiler
     (cl-incf (map-elt (oref dict usage-hash) new-word 0))
@@ -479,10 +485,10 @@ This is a separate function only for testing; use
 (defsubst paced-add-word-to-current-dict (word)
   "Add WORD to the current paced dictionary."
   (if-let* ((dict (paced-current-dictionary)))
-      (paced-add-word-to-dict dict word)
-    (error "No dictionary found")))
+      (paced-dictionary-add-word dict word)
+    (error "No current dictionary found.")))
 
-(cl-defmethod paced-populate-dictionary-from-buffer ((dict paced-dictionary) &optional buffer)
+(cl-defmethod paced-dictionary-populate-from-buffer ((dict paced-dictionary) &optional buffer)
   (with-current-buffer (or buffer (current-buffer))
     (save-excursion
       (goto-char (point-min))
@@ -497,7 +503,7 @@ This is a separate function only for testing; use
            reporter
            (floor (* 100.0 (/ (float (point)) (point-max)))))
           (unless (paced-excluded-p)
-            (paced-add-word-to-dict dict (paced-thing-at-point))))
+            (paced-dictionary-add-word dict (paced-thing-at-point))))
         (progress-reporter-done reporter)))))
 
 (defun paced-populate-dictionary-from-region (dict start end)
@@ -505,12 +511,12 @@ This is a separate function only for testing; use
 
 Note that this doesn't add the current buffer to DICT's
 population commands, so if DICT is later repopulated using
-`paced-repopulate-dictionary' or
+`paced-dictionary-repopulate' or
 `paced-repopulate-named-dictionary', anything added with this
 command will be lost."
   (save-restriction
     (narrow-to-region start end)
-    (paced-populate-dictionary-from-buffer dict)))
+    (paced-dictionary-populate-from-buffer dict)))
 
 (defun paced-populate-buffer-dictionary (&optional buffer)
   "Populate BUFFER's current dictionary with BUFFER.
@@ -523,7 +529,7 @@ only populate the dictionary from a region,
 
 Note that this doesn't add BUFFER to the dictionary's population
 commands, so if it is later repopulated using
-`paced-repopulate-dictionary' or
+`paced-dictionary-repopulate' or
 `paced-repopulate-named-dictionary', anything added with this
 command will be lost.
 
@@ -531,7 +537,7 @@ In order to make changes permanent, use
 `paced-add-buffer-file-to-dictionary'."
   (interactive)
   (if-let* ((dict (paced-current-dictionary)))
-      (paced-populate-dictionary-from-buffer dict buffer)
+      (paced-dictionary-populate-from-buffer dict buffer)
     (user-error "No dictionary found")))
 
 (defun paced-populate-from-region (start end)
@@ -539,7 +545,7 @@ In order to make changes permanent, use
 
 Note that this doesn't add the current buffer to the dictionary's
 population commands, so if it is later repopulated using
-`paced-repopulate-dictionary' or
+`paced-dictionary-repopulate' or
 `paced-repopulate-named-dictionary', anything added with this
 command will be lost."
   (interactive "r")
@@ -555,13 +561,13 @@ excluded.
 
 Note that this doesn't add anything to the dictionary's
 population commands, so if it is later repopulated using
-`paced-repopulate-dictionary' or
+`paced-dictionary-repopulate' or
 `paced-repopulate-named-dictionary', anything added with this
 command will be lost."
   (interactive)
   (paced-add-word-to-current-dict (paced-thing-at-point)))
 
-(cl-defmethod paced-reset-dictionary ((dict paced-dictionary))
+(cl-defmethod paced-dictionary-reset ((dict paced-dictionary))
   "Reset the usage-hash of paced-dictionary DICT."
   (oset dict usage-hash (oref-default dict usage-hash)))
 
@@ -571,9 +577,9 @@ command will be lost."
    (list (paced-read-dictionary)))
   (paced-ensure-registered key)
   (let ((dict (paced-named-dictionary key)))
-    (paced-reset-dictionary dict)))
+    (paced-dictionary-reset dict)))
 
-(cl-defmethod paced-sort-dictionary ((dict paced-dictionary))
+(cl-defmethod paced-dictionary-sort ((dict paced-dictionary))
   (oset dict usage-hash
         (funcall (oref dict sort-method)
                  (oref dict usage-hash))))
@@ -582,7 +588,7 @@ command will be lost."
   (interactive (list (paced-read-dictionary)))
   (paced-ensure-registered key)
   (let ((dict (paced-named-dictionary key)))
-    (paced-sort-dictionary dict)))
+    (paced-dictionary-sort dict)))
 
 
 
@@ -739,7 +745,7 @@ Return non-nil if setup was successful and population can continue.")
         ;; should be disabled.
         (let ((paced--current-source source))
           (when (paced-population-command-setup-buffer cmd source)
-            (eval (macroexp-let* props `(paced-populate-dictionary-from-buffer ,dict)))))))))
+            (eval (macroexp-let* props `(paced-dictionary-populate-from-buffer ,dict)))))))))
 
 (defclass paced-file-population-command (paced-population-command)
   ((file :initarg :file
@@ -858,7 +864,7 @@ match a regular expression.")
                                 (eieio-class-children 'paced-population-command))))
     (funcall (intern type))))
 
-(cl-defmethod paced-repopulate-dictionary ((dict paced-dictionary))
+(cl-defmethod paced-dictionary-repopulate ((dict paced-dictionary))
   "Repopulate dictionary DICT from its population commands.
 
 Population commands are stored in the field of the same name.
@@ -866,12 +872,12 @@ Population commands are stored in the field of the same name.
 Note that this will empty the dictionary's contents before
 repopulating it."
   ;; Empty the dictionary
-  (paced-reset-dictionary dict)
+  (paced-dictionary-reset dict)
   (dolist (cmd (oref dict population-commands))
     (paced-population-command-populate-dictionary dict cmd))
-  (paced-sort-dictionary dict)
+  (paced-dictionary-sort dict)
   (when paced-repopulate-saves-dictionary
-    (paced-save-dictionary dict)))
+    (paced-dictionary-save dict)))
 
 (defun paced-repopulate-named-dictionary (key)
   "Repopulate dictionary named KEY from its population commands.
@@ -885,7 +891,7 @@ repopulating it."
   (paced-ensure-registered key)
   (let ((dict (paced-named-dictionary key)))
     ;; TODO: Warn about reset.
-    (paced-repopulate-dictionary dict)))
+    (paced-dictionary-repopulate dict)))
 
 (defun paced-add-buffer-file-to-dictionary (&optional buffer)
   "Populate the dictionary of BUFFER with BUFFER.
@@ -904,24 +910,28 @@ must be set with `paced-edit-named-dictionary' or
               (file-name (buffer-file-name))
               (cmd (paced-file-population-command :file file-name)))
         (progn
-          (paced-populate-dictionary-from-buffer dict buffer)
+          (paced-dictionary-populate-from-buffer dict buffer)
           (cl-pushnew cmd (oref dict population-commands) :test 'equal))
       (user-error "No dictionary found for current buffer."))))
 
 
 
+(cl-defmethod paced-dictionary-edit ((dict paced-dictionary))
+  "Edit paced-dictionary DICT."
+  (customize-object dict))
+
 (defun paced-edit-named-dictionary (name)
   "Edit the paced-dictionary named NAME."
   (interactive (list (paced-read-dictionary)))
   (if-let* ((dict (paced-named-dictionary name)))
-      (customize-object dict)
+      (paced-dictionary-edit dict)
     (error "No paced dictionary called '%s' has been registered." name)))
 
 (defun paced-edit-current-dictionary ()
   "Edit the current paced dictionary."
   (interactive)
   (if-let* ((dict (paced-current-dictionary)))
-      (customize-object dict)
+      (paced-dictionary-edit dict)
     (user-error "No dictionary found for current buffer")))
 
 
