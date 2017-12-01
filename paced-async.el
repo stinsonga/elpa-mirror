@@ -75,14 +75,13 @@ as a result."
        (message "Finished repopulating dictionary")
        (paced-load-all-dictionaries)))))
 
+;;;###autoload
 (defun paced-repopulate-named-dictionary-async (key)
   "Repopulate dictionary named KEY from its population commands, asynchronously.
 
 Population commands are stored in the field of the same name.
 
-Note that this will empty the dictionary's contents.
-
-If UPDATE-IN-ALL-BUFFERS is non-nil, update the dictionary in all buffers in which it's used."
+Note that this will empty the dictionary's contents."
   (interactive
    (list (paced-read-dictionary)))
   (paced-ensure-registered key)
