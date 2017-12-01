@@ -166,7 +166,7 @@ In order to edit a dictionary, paced provides ~paced-edit-named-dictionary~ and
 ~paced-edit-current-dictionary~.
 
 The edit buffer provides the options to change the population commands, case
-sensitivity, dictionary storage name, and sort method.  Each of these is
+handling, dictionary storage name, and sort method.  Each of these is
 documented in the edit buffer.
 ** Selective Dictionaries
 :PROPERTIES:
