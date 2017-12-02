@@ -638,35 +638,58 @@ This adds `paced-completion-at-point' to
                                         ; ;; Completion ;; ;
                                         ; ;;;;;;;;;;;;;;;; ;
 
-(defun paced-completion-finish (prefix completions)
-  "Account for case differences in the prefix by prepending PREFIX to COMPLETIONS."
-  (cond
-   ((not (listp completions))
-    ;; If completions is not a list, it's likely 't', in which
-    ;; case just return the original prefix.
-    (list prefix))
-   (t
-    (let ((prefix-length (length prefix)))
-      (mapcar
-       (lambda (completion)
-         (when (stringp completion)
-           (concat prefix (substring-no-properties completion prefix-length))))
-       completions)))))
+(cl-defmethod paced-dictionary-fix-completion-case ((dict paced-dictionary) prefix completions)
+  "Account for case differences in the prefix by prepending PREFIX to COMPLETIONS.
+
+The specific case differences should mirror those handled by
+case-handling in `paced-dictionary-process-word'."
+  ;; Anything we changed during population, we want to maintain that part of the
+  ;; prefix during completion.
+  (if (not (listp completions))
+      ;; If completions is not a list, it's likely 't', in which
+      ;; case just return the original prefix.
+      (list prefix)
+    (pcase (oref dict case-handling)
+      (`preserve completions)
+      ((or `downcase `upcase)
+       ;; Changed entire word, so maintain entire prefix
+       (let ((prefix-length (length prefix)))
+         (mapcar
+          (lambda (completion)
+            (when (stringp completion)
+              (concat prefix (substring-no-properties completion prefix-length))))
+          completions)))
+      ((or `downcase-first `upcase-first)
+       ;; Only changed the first letter, so maintain just one letter of the
+       ;; original prefix
+       (let ((prefix-length 1))
+         (mapcar
+          (lambda (completion)
+            (when (stringp completion)
+              (concat (substring prefix 0 prefix-length)
+                      (substring-no-properties completion prefix-length))))
+          completions))))))
+
+(cl-defmethod paced-dictionary-completions ((dict paced-dictionary) prefix action &optional pred)
+  (let* ((completion-ignore-case paced-completion-ignore-case)
+         (usage-hash (oref dict usage-hash))
+         completions)
+    (pcase action
+      (`nil
+       (setq completions (try-completion prefix usage-hash pred)))
+      (`t
+       (setq completions (all-completions prefix usage-hash pred)))
+      (`lambda
+        (setq completions (test-completion prefix usage-hash pred))))
+    (paced-dictionary-fix-completion-case dict prefix completions)))
 
 (defun paced-completion-table-function (string pred action)
   "Completion table function for paced dictionaries."
   (if-let* ((dict (paced-current-dictionary)))
       (let* ((completion-ignore-case paced-completion-ignore-case))
         (pcase action
-          (`nil
-           (paced-completion-finish string
-                                    (try-completion string (oref dict usage-hash) pred)))
-          (`t
-           (paced-completion-finish string
-                                    (all-completions string (oref dict usage-hash) pred)))
-          (`lambda
-            (paced-completion-finish string
-                                     (test-completion string (oref dict usage-hash) pred)))
+          ((or `nil `t `lambda)
+           (paced-dictionary-completions dict string action pred))
           (`(boundaries . _) nil)
           (`metadata
            `(metadata . ((category . paced)
