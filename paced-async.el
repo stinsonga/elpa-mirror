@@ -69,8 +69,8 @@ as a result."
         (require 'paced)
         (load-file paced-async-load-file)
         ;; Repopulate and save the dictionary
-        (paced-repopulate-dictionary ,dictionary)
-        (paced-save-dictionary ,dictionary))
+        (paced-dictionary-repopulate ,dictionary)
+        (paced-dictionary-save ,dictionary))
      (lambda (_result)
        (message "Finished repopulating dictionary")
        (paced-load-all-dictionaries)))))
