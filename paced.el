@@ -170,7 +170,7 @@ This is used with the `object-write' method.")
                                   (const :tag "Upcase Just the First Letter" upcase-first)
                                   (const :tag "Preserve Case on Mixed-Case Words" mixed-case))
                   :label "Case Handling"
-                  :documentation "A symbol indicating how case should be handled during population.
+                  :documentation "How case should be handled during population.
 
 It can be one of the following:
 
@@ -181,9 +181,7 @@ It can be one of the following:
 * upcase-first    Upcase the first letter of each word, leave the rest the same
 * mixed-case      Preserve case on mixed-case words; single-case words
                   are downcased.  See `paced-mixed-case-word-p' for an
-                  explanation of how \"mixed-case\" is defined.
-
-This doesn't affect completion; set `paced-completion-ignore-case' for that.")
+                  explanation of how \"mixed-case\" is defined.")
    (updated :initarg :updated
             :initform nil
             :type boolean
