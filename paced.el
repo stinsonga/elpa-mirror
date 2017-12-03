@@ -39,7 +39,6 @@
 ;; `paced-save-named-dictionary' or `paced-save-all-dictionaries'.
 
 ;; Population commands tell a dictionary how it should refresh its usage table.
-;; The different types of populators are documented in `paced--populator-alist'.
 
 ;; No completion frontend is provided, but a function for
 ;; `completion-at-point-functions' is given.
@@ -143,7 +142,9 @@ Sort hash-table USAGE-HASH by the weights (values) in the table."
    (usage-hash :initarg :usage-hash
                :initform (make-hash-table :test #'equal)
                :type hash-table
-               :documentation "Stores the usage data for this dictionary.")
+               :documentation "Stores the usage data for this dictionary.
+
+This is a hash table, mapping a word to the times it has been used.")
    (population-commands
     :initarg :population-commands
     :initform nil
@@ -152,16 +153,7 @@ Sort hash-table USAGE-HASH by the weights (values) in the table."
     :label "Population Commands"
     :documentation "Commands to use when populating this dictionary.
 
-Each entry must be a list of the form (TYPE ARGS PROPS).
-
-TYPE is the type of populator; see `paced--populator-alist' for
-allowed entries here.
-
-ARGS is a list of arguments to pass to the populator, which are
-specific to the given populator.
-
-PROPS is a list of variables to let-bind when populating.  Each
-entry should be of the form (VAR VALUE).")
+Each entry is a `paced-population-command'.")
    (file-header-line :type string
 		     :allocation :class
 		     :initform ";; Paced Dictionary"
@@ -177,7 +169,7 @@ This is used with the `object-write' method.")
                                   (const :tag "Downcase Just the First Letter" downcase-first)
                                   (const :tag "Upcase Just the First Letter" upcase-first)
                                   (const :tag "Preserve Case on Mixed-Case Words" mixed-case))
-                  :label "Case Sensitive"
+                  :label "Case Handling"
                   :documentation "A symbol indicating how case should be handled during population.
 
 It can be one of the following:
