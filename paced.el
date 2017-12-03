@@ -4,7 +4,7 @@
 
 ;; Author: Ian Dunn <dunni@gnu.org>
 ;; Keywords: convenience, completion
-;; Package-Requires: ((emacs "25.3") (async "1.9.2"))
+;; Package-Requires: ((emacs "25.1") (async "1.9.2"))
 ;; Version: 1.0
 ;; Created: 22 Jan 2017
 ;; Modified: 10 Nov 2017
