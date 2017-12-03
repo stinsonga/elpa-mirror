@@ -698,6 +698,18 @@ case-handling in `paced-dictionary-process-word'."
                         (substring-no-properties completion prefix-length)))))))))))
 
 (cl-defmethod paced-dictionary-completions ((dict paced-dictionary) prefix action &optional pred)
+  "Get the completions for PREFIX in DICT.
+
+ACTION is a completion action, one of 'nil, 't, or 'lambda.  See
+Info node `(elisp)Programmed Completion' for an explanation of
+each of them.
+
+PRED is a predicate to supply to completion, and will return
+non-nil if the completion option should be allowed.
+
+Case handling is handled here; any part of a word that was
+modified by `paced-dictionary-process-word' will be replaced with
+the prefix before completions are returned."
   (let* ((completion-ignore-case paced-completion-ignore-case)
          (usage-hash (oref dict usage-hash))
          completions)
@@ -798,6 +810,7 @@ Each element is of the form (VAR VALUE).")))
 Return non-nil if setup was successful and population can continue.")
 
 (cl-defmethod paced-population-command-populate-dictionary ((dict paced-dictionary) (cmd paced-population-command))
+  "Populate DICT from CMD."
   (let ((sources (paced-population-command-source-list cmd))
         ;; Turn props into a form understood by `let'.
         (props (paced-population-command-prepare-props cmd)))
