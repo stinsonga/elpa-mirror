@@ -24,7 +24,6 @@ Paced
 
 Introduction
 
-* Terminology::                  To avoid confusion
 * Similar Packages::             Packages with similar goals
 * Installation::                 How to install paced
 
@@ -106,32 +105,18 @@ population commands and sort method.
 ‘paced-save-named-dictionary’ or ‘paced-save-all-dictionaries’.
 
    Population commands tell a dictionary how it should refresh its usage
-table.  The different types of populators are documented in
-‘paced--populator-alist’.
+table.
 
    No completion frontend is provided, but a function for
 ‘completion-at-point-functions’ is given.
 
 * Menu:
 
-* Terminology::                  To avoid confusion
 * Similar Packages::             Packages with similar goals
 * Installation::                 How to install paced
 
 
-File: paced.info,  Node: Terminology,  Next: Similar Packages,  Up: Introduction
-
-Terminology
-===========
-
-Dictionary
-     A collection of words and their usage counts.
-
-Population Command
-     A method of loading data into a dictionary.
-
-
-File: paced.info,  Node: Similar Packages,  Next: Installation,  Prev: Terminology,  Up: Introduction
+File: paced.info,  Node: Similar Packages,  Next: Installation,  Up: Introduction
 
 Similar Packages
 ================
@@ -200,8 +185,8 @@ Installation
 
 *Requirements*
 
-Emacs   25.3
-async   1.9.2
+Emacs   25.1
+async   1.9.1
 
    Right now, the only way to install paced is from source.
 
@@ -211,7 +196,6 @@ async   1.9.2
 
    After that, add the following to your init file (typically .emacs):
 
-     ;; Only necessary if installing from source
      (add-to-list 'load-path "/full/path/to/paced/")
      (require 'paced)
 
@@ -265,8 +249,8 @@ In order to edit a dictionary, paced provides
 ‘paced-edit-named-dictionary’ and ‘paced-edit-current-dictionary’.
 
    The edit buffer provides the options to change the population
-commands, case sensitivity, dictionary storage name, and sort method.
-Each of these is documented in the edit buffer.
+commands, case handling, dictionary storage name, and sort method.  Each
+of these is documented in the edit buffer.
 
 
 File: paced.info,  Node: Selective Dictionaries,  Next: Dictionary Files,  Prev: Editing a Dictionary,  Up: Dictionaries
@@ -676,30 +660,29 @@ following after making any changes:
 
 Tag Table:
 Node: Top228
-Node: Copying1491
-Node: Introduction2283
-Node: Terminology3508
-Node: Similar Packages3749
-Node: pabbrev4055
-Node: predictive5129
-Node: Installation6177
-Node: Dictionaries6671
-Node: Creating a Dictionary7075
-Node: Editing a Dictionary8115
-Node: Selective Dictionaries8593
-Node: Dictionary Files10192
-Node: Population Commands11283
-Node: Built-in Commands12219
-Node: Properties13016
-Node: Custom Commands13638
-Node: Asynchronous Population16365
-Node: Example Setups17558
-Node: Org Agenda Files17740
-Node: Project Files18996
-Node: Contributing20109
-Node: Bugs20593
-Node: Development20982
-Node: Documentation21949
+Node: Copying1439
+Node: Introduction2231
+Node: Similar Packages3321
+Node: pabbrev3607
+Node: predictive4681
+Node: Installation5729
+Node: Dictionaries6174
+Node: Creating a Dictionary6578
+Node: Editing a Dictionary7618
+Node: Selective Dictionaries8094
+Node: Dictionary Files9693
+Node: Population Commands10784
+Node: Built-in Commands11720
+Node: Properties12517
+Node: Custom Commands13139
+Node: Asynchronous Population15866
+Node: Example Setups17059
+Node: Org Agenda Files17241
+Node: Project Files18497
+Node: Contributing19610
+Node: Bugs20094
+Node: Development20483
+Node: Documentation21450
 
 End Tag Table
 
