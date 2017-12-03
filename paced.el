@@ -317,7 +317,7 @@ is one of the following forms:
 No matter what this list indicates, dictionaries will not be
 enabled unless `paced-mode' is active."
   :group 'paced
-  :type '(alist :key-type sexp :value-type sexp))
+  :type '(alist :key-type sexp :value-type string))
 
 (defvar-local paced-local-dict-enable-alist nil
   "Local enable list.
