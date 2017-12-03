@@ -288,7 +288,7 @@ customization interface."
   (oref obj object-name))
 
 (defcustom paced-global-dict-enable-alist nil
-  "Global enable list.
+  "List that determines which dictionaries should be active.
 
 Each entry has the form (CONDITION . DICT-KEY), where CONDITION
 is one of the following forms:
