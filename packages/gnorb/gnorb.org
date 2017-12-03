@@ -120,11 +120,11 @@ Some more detail on the various functions:
 
    Calling the function with a double prefix arg will ignore all
    associated messages and links, and compose a blank message.
-   
+
    Once sent, the message will be associated with the Org heading, and
    you'll be brought back to the heading and asked to trigger an
    action on it. See [[id:6bc4a833-e16a-4538-a675-b8ff21c9345d][Trigger Actions]] for more information.
-   
+
    `gnorb-email-subtree' is an alternative to `gnorb-org-handle-mail'.
    It does the same thing as the latter, but first exports the body of
    the subtree as either text or a file, then inserts the text into
@@ -137,17 +137,17 @@ Some more detail on the various functions:
 3. `gnorb-gnus-outgoing-do-todo' ("C-c t" in message-mode) is called
    in message mode, while composing a new message. Usually this is
    only necessary when starting a new tracked conversation.
-    
+
    If called without a prefix arg, a new Org heading will be created
    after the message is sent, and the sent message associated with it.
    The new heading will be created as a capture heading, using the
    template specified by the `gnorb-gnus-new-todo-capture-key' option.
-   
+
    If you call this function with a single prefix arg, you'll be
    prompted to choose an existing Org heading instead. After the the
    message is sent, you'll be taken to that heading and prompted to
    trigger an action on it.
-   
+
    If you've called this function, and then realize you've associated
    the message with the wrong TODO, call it again with a double prefix
    to clear all associations.
@@ -445,6 +445,9 @@ insert an Org link to that record at point.
      BBDB record under point, even when the link isn't part of the
      capture template. It can then be added to the captured heading
      with org-insert-link, as usual.
+- `gnorb-org-log-add-link' :: When non-nil, any time a todo trigger
+     action results in adding a note, a link to the triggering message
+     will be added to the log note text.
 - `gnorb-org-agenda-popup-bbdb' :: Set to "t" to automatically pop up
      the BBDB buffer displaying records corresponding to the Org
      Agenda tags search underway. If this is nil you can always do it
