@@ -1,6 +1,6 @@
 \input texinfo    @c -*- texinfo -*-
 @c %**start of header
-@setfilename ./gnorb.info
+@setfilename gnorb.info
 @settitle Gnorb Manual
 @documentencoding UTF-8
 @documentlanguage en
@@ -40,9 +40,6 @@
 @detailmenu
 --- The Detailed Node Listing ---
 
-
-
-
 Email Tracking
 
 * Tracking Setup::
@@ -54,30 +51,21 @@ Email Tracking
 * Registry Usage::
 * Likely Workflow::
 
-
-
-
-
-
-
 Misc BBDB
 
 * Searching for messages from BBDB contacts::
 * Citing BBDB contacts::
 * User Options::
 
-
-
 Misc Org
 
 * Inserting BBDB links::
-* User Options: User Optionsx. 
-
-
+* User Options: User Options 1.
 
 Misc Gnus
 
-* User Options: User Optionsxx. 
+* User Options: User Options 2.
+
 @end detailmenu
 @end menu
 
@@ -125,7 +113,7 @@ for email tracking takes a bit more setup, however -- see below.
 
 Gnorb doesn't bind any keys by default, but you can call
 `gnorb-install-defaults' to do a basic installation. The rest of this
-manual assumes those @ref{Default Keybindings,default keybindings}.
+manual assumes those @ref{Default Keybindings, , default keybindings}.
 
 @node Email Tracking
 @chapter Email Tracking
@@ -239,7 +227,7 @@ associated messages and links, and compose a blank message.
 
 Once sent, the message will be associated with the Org heading, and
 you'll be brought back to the heading and asked to trigger an
-action on it. See @ref{Trigger Actions,Trigger Actions} for more information.
+action on it. See @ref{Trigger Actions} for more information.
 
 `gnorb-email-subtree' is an alternative to `gnorb-org-handle-mail'.
 It does the same thing as the latter, but first exports the body of
@@ -533,7 +521,7 @@ insert a string of the type ``Bob Smith <bob@@smith.com>''.
 @node User Options
 @section User Options
 
-@table @samp
+@table @asis
 @item `gnorb-bbdb-org-tag-field
 The name of the BBDB xfield, as a
 symbol, that holds Org-related tags. Specified as a string with
@@ -571,7 +559,7 @@ the docstring for details).
 
 @menu
 * Inserting BBDB links::
-* User Options: User Optionsx. 
+* User Options: User Options 1.
 @end menu
 
 @node Inserting BBDB links
@@ -580,10 +568,10 @@ the docstring for details).
 Calling `gnorb-org-contact-link' will prompt for a BBDB record and
 insert an Org link to that record at point.
 
-@node User Optionsx
+@node User Options 1
 @section User Options
 
-@table @samp
+@table @asis
 @item `gnorb-org-after-message-setup-hook'
 Hook run in a message buffer
 after setting up the message, from `gnorb-org-handle-mail' or
@@ -630,6 +618,10 @@ capture process will always store a link to the Gnus message or
 BBDB record under point, even when the link isn't part of the
 capture template. It can then be added to the captured heading
 with org-insert-link, as usual.
+@item `gnorb-org-log-add-link'
+When non-nil, any time a todo trigger
+action results in adding a note, a link to the triggering message
+will be added to the log note text.
 @item `gnorb-org-agenda-popup-bbdb'
 Set to ``t'' to automatically pop up
 the BBDB buffer displaying records corresponding to the Org
@@ -645,13 +637,13 @@ bbdb-pop-up-layout.
 @chapter Misc Gnus
 
 @menu
-* User Options: User Optionsxx. 
+* User Options: User Options 2.
 @end menu
 
-@node User Optionsxx
+@node User Options 2
 @section User Options
 
-@table @samp
+@table @asis
 @item `gnorb-gnus-mail-search-backend'
 Specifies the search backend
 that you use for searching mails. Currently supports notmuch,
@@ -730,7 +722,7 @@ below. If you don't like these defaults, you can always do your own setup.
      (setq gnorb-org-agenda-popup-bbdb t)
      (eval-after-load "org-agenda"
        '(progn (org-defkey org-agenda-mode-map (kbd "C-c t") #'gnorb-org-handle-mail)
-	       (org-defkey org-agenda-mode-map (kbd "C-c v") #'gnorb-org-view)))))
+               (org-defkey org-agenda-mode-map (kbd "C-c v") #'gnorb-org-view)))))
 (eval-after-load "gnorb-gnus"
   '(progn
      (define-key gnus-summary-mime-map "a" #'gnorb-gnus-article-org-attach)
@@ -738,14 +730,14 @@ below. If you don't like these defaults, you can always do your own setup.
      (define-key gnus-summary-mode-map (kbd "C-c v") #'gnorb-gnus-view)
      (setq gnorb-gnus-capture-always-attach t)
      (push '("attach to org heading" . gnorb-gnus-mime-org-attach)
-	   gnus-mime-action-alist)
+           gnus-mime-action-alist)
      (push '(gnorb-gnus-mime-org-attach "a" "Attach to Org heading")
-	   gnus-mime-button-commands)
+           gnus-mime-button-commands)
      (setq gnus-mime-button-map
-	   (let ((map (make-sparse-keymap)))
-	     (dolist (c gnus-mime-button-commands)
-	       (define-key map (cadr c) (car c)))
-	     map))))
+           (let ((map (make-sparse-keymap)))
+             (dolist (c gnus-mime-button-commands)
+               (define-key map (cadr c) (car c)))
+             map))))
 (eval-after-load "message"
   '(progn
      (define-key message-mode-map (kbd "C-c t") #'gnorb-gnus-outgoing-do-todo)))

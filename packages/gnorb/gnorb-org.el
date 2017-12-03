@@ -89,6 +89,16 @@ information about the message from which we're triggering."
   :type 'list
   :package-version '(gnorb . "1.1.3"))
 
+(defcustom gnorb-org-log-add-link t
+  "When non-nil, add a message link in a heading's LOGBOOK.
+When triggering an Org heading from a message, and adding a log
+note, the message id will be added to the text of the log note.
+When later viewing the messages, call `gnorb-org-view' with point
+on a particular logbook item to automatically go to the linked
+message."
+  :group 'gnorb-org
+  :type 'boolean)
+
 (defcustom gnorb-org-msg-id-key "GNORB_MSG_ID"
   "The name of the org property used to store the Message-IDs
   from relevant messages. This is no longer used, and will be

@@ -346,7 +346,12 @@ agenda. Then let the user choose an action from the value of
 		  (format
 		   "Trigger action on %s: "
 		   (gnorb-pretty-outline id))
-		  gnorb-org-trigger-actions)))
+		  gnorb-org-trigger-actions))
+	 (link (when gnorb-org-log-add-link
+		 (format "[[gnus:%s][message]] "
+			 (gnorb-msg-id-to-link
+			  (plist-get gnorb-gnus-message-info :msg-id)
+			  (plist-get gnorb-gnus-message-info :group))))))
     (unless agenda-p
       (org-reveal))
     (cl-labels
@@ -367,7 +372,7 @@ agenda. Then let the user choose an action from the value of
 	  (note
 	   (org-with-point-at root-marker
 	     (make-entry (org-id-get-create))
-	     (call-interactively 'org-add-note)))
+	     (org-add-log-setup 'note nil nil nil (or link nil))))
 	  (todo
 	   (if agenda-p
 	       (progn
@@ -376,7 +381,9 @@ agenda. Then let the user choose an action from the value of
 		 (call-interactively 'org-agenda-todo))
 	     (org-with-point-at root-marker
 	       (make-entry (org-id-get-create))
-	       (call-interactively 'org-todo))))
+	       (call-interactively 'org-todo)
+	       (when link
+		(setq org-log-note-extra link)))))
 	  (no-associate
 	   nil)
 	  (associate
@@ -385,7 +392,7 @@ agenda. Then let the user choose an action from the value of
 	  ;; We're going to capture a new heading
 	  ((cap-child cap-sib)
 	   (org-with-point-at root-marker
-		(setq gnorb-trigger-capture-location (point-marker)))
+	     (setq gnorb-trigger-capture-location (point-marker)))
 	   (let ((entry
 		  ;; Pick a template.
 		  (copy-sequence (org-capture-select-template))))
@@ -483,10 +490,11 @@ to those symbols."
 	    (push link (alist-get sym alist)))))
       alist)))
 
-(defun gnorb-msg-id-to-link (msg-id)
+(defun gnorb-msg-id-to-link (msg-id &optional server-group)
   "Create a full Org link to the message MSG-ID.
-The main work is figuring out which group the message is in."
-  (let ((server-group (car (gnorb-msg-id-request-head msg-id))))
+If SERVER-GROUP isn't given, try to figure it out."
+  (let ((server-group (or server-group
+			  (car (gnorb-msg-id-request-head msg-id)))))
     (when server-group
       (org-link-escape
        (concat server-group "#"
