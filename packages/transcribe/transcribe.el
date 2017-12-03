@@ -1,6 +1,6 @@
 ;;; transcribe.el --- Package for audio transcriptions
 
-;; Copyright 2014-2016  Free Software Foundation, Inc.
+;; Copyright 2014-2017  Free Software Foundation, Inc.
 
 ;; Author: David Gonzalez Gandara <dggandara@member.fsf.org>
 ;; Version: 1.5.2
@@ -22,7 +22,7 @@
 
 ;; REQUIRES:
 ;; -----------------------------
-;; This module works without any requires, but in order to use the audio
+;; This module works without any requires, but in order to use the audio 
 ;; functions, you need to install the Emacs package "emms", by Joe Drew,
 ;; and the external program "mpg321", by Jorgen Schafer and Ulrik Jensen,
 ;; both under GPL licenses.
@@ -89,9 +89,9 @@
 (defvar emms-player-list)
 (push 'emms-player-mpg321-remote emms-player-list)
 
-(if t (require 'emms-mode-line))
+(if t (require 'emms-mode-line));FIXME: isn't `emms-mode-line' autoloaded?
 (emms-mode-line 1)
-(if t (require 'emms-playing-time))
+(if t (require 'emms-playing-time));FIXME: isn't `emms-playing-time' autoloaded?
 (emms-playing-time 1)
 
 (defvar transcribe-function-list '("initiating" "responding" "control" "expressive" "interpersonal"))
@@ -238,10 +238,10 @@
                            (when (string-match "@*" l1) (setq shifts (1+ shifts)))
                            (cl-pushnew l1 interventionsl1 :test #'equal)
                            (setq asunitsl1 (1+ asunitsl1)))))))))))))
-  (reverse interventionsl2)
+  ;; (reverse interventionsl2)
   ;; (write-region (format "%s" interventionsl2) nil (format "transcribe-output-%s-%s-l2.txt" episodenumber personid))
   ;; Write raw interventions to file will be supported by a different function
-  (reverse interventionsl1)
+  ;; (reverse interventionsl1)
   ;; (write-region (format "%s" interventionsl1) nil (format "transcribe-output-%s-%s-l1.txt" episodenumber personid))
   ;; (print interventionsl2) ;uncomment to display all the interventions on screen
   (let((asunitspersecondl2 (/ asunitsl2 (string-to-number duration)))
@@ -281,8 +281,8 @@
   (let* ((xml (xml-parse-region (point-min) (point-max)))
      (results (car xml))
      (episodes (xml-get-children results 'episode)))
-
-     (with-current-buffer "Statistics Output"
+  
+    (with-current-buffer "Statistics Output"
        (erase-buffer)
        (insert "person,episode,duration,C-UNITS(L2),C-UNITS(L1),role,context,demand,QUAN-L2,QUAN-L1,QUAL-L2,initiating,responding,control,expressive,interpersonal,shifts,aux,level,subjects,yearofCLIL,month\n"))
      (dolist (episode episodes)
@@ -297,64 +297,55 @@
            (transcribe-analyze number participant))))))
 
 
-(defun transcribe-xml-tag-person (xmltag move)
-  "This function allows the automatic insertion of a speaker xml tag and places the cursor."
-  (interactive (list(read-string "Person:")(completing-read "move:" transcribe-move-list))) 
-  (end-of-line)
-  (insert (format "\n<%s move=\"%s\"></%s>" xmltag move xmltag))
-  (backward-char 3)
-  (backward-char (string-width xmltag)))
+(define-skeleton transcribe-xml-tag-person
+  "Insert a speaker xml tag and move point accordingly."
+  "Person: "
+  "<" str " move=\"" (completing-read "Move: " transcribe-move-list)
+  "\">" _ "</" str ">")
 
-(defun transcribe-xml-tag (xmltag)
-  "This function allows the automatic insetion of a custom xml tag and places the cursor."
-  (interactive "stag:")
-  (insert (format "<%s></%s>" xmltag xmltag))
-  (backward-char 3)
-  (backward-char (string-width xmltag)))
+(define-skeleton transcribe-xml-tag
+  "Encapsulate the marked region in the given tag."
+  "Tag: "
+  "<" str ">" _ "</" str ">")
+(define-obsolete-function-alias 'transcribe-region-xml-tag
+  #'transcribe-xml-tag "1.6")
 
-(defun transcribe-region-xml-tag (xmltag)
-  "This function encapsulates the marked region in the given tag."
-  (interactive "stag:")
-  (let ((beginning (region-beginning))
-       (end (region-end)))
-  (goto-char beginning)
-  (insert (format "<%s>" xmltag))
-  (goto-char (+ (+ end (string-width xmltag)) 2))
-  (insert (format "</%s>" xmltag))))
+(define-skeleton transcribe-add-attribute
+  "Add an xml attribute at point with the name and value specified."
+  (completing-read "Attribute name: " transcribe-attribute-list)
+  ;; FIXME: provide more specific value completion depending on the
+  ;; chosen attribute.
+  str "=\"" '(read-string "Value: ") "\"")
 
-(defun transcribe-add-attribute (att val)
-  "Adds a xml attribute at cursor with the name and value specified (autocompletion possible)"
-  (interactive (list(completing-read "attribute name:" transcribe-attribute-list)(read-string "value:")))
-  (insert (format "%s=\"%s\"" att val)))
+(define-skeleton transcribe-add-attribute-function
+  "Add the xml attribute `function' at point with the name specified."
+  (completing-read "Function name: " transcribe-function-list)
+  "function=\"" str "\"")
 
-(defun transcribe-add-attribute-function (val)
-  "Adds the xml attribute `function' at cursor with the name specified (autocompletion possible)"
-  (interactive (list(completing-read "function name:" transcribe-function-list)))
-  (insert (format "function=\"%s\"" val)))
+(define-skeleton transcribe-add-attribute-move
+  "Add the xml attribute `move' at point with the name specified."
+  (completing-read "Move name: " transcribe-move-list)
+  "move=\"" str "\"")
 
-(defun transcribe-add-attribute-move (val)
-  "Adds the xml attribute `move' at cursor with the name specified (autocompletion possible)"
-  (interactive (list(completing-read "move name:" transcribe-move-list)))
-  (insert (format "move=\"%s\"" val)))
+(define-skeleton transcribe-xml-tag-l1
+  "Insert an l1 tag and places the cursor."
+  (completing-read "Function: " transcribe-function-list)
+  '(re-search-forward "</l.>" (line-end-position) t)
+  "<l1 clauses=\"1\" errors=\"0\" function=\"" str "\">" _ "</l1>")
 
-(defun transcribe-xml-tag-l1 (function)
-  "Inserts a l1 tag and places the cursor"
-  (interactive (list(completing-read "function:" transcribe-function-list)))
-  (re-search-forward "</l.>" (line-end-position) t)
-  (insert (format "<l1 clauses=\"1\" errors=\"0\" function=\"%s\"></l1>" function))
-  (backward-char 5))
+(define-skeleton transcribe-xml-tag-l2
+  "Insert a l2 tag and place the cursor."
+  (completing-read "function:" transcribe-function-list)
+  '(re-search-forward "</l.>" (line-end-position) t)
+  "<l2 clauses=\"1\" errors=\"0\" function=\"" str "\">" _ "</l2>")
 
-(defun transcribe-xml-tag-l2 (function)
-  "Inserts a l2 tag and places the cursor"
-  (interactive (list(completing-read "function:" transcribe-function-list)))
-  (re-search-forward "</l.>" (line-end-position) t)
-  (insert  (format "<l2 clauses=\"1\" errors=\"0\" function=\"%s\"></l2>" function))
-  (backward-char 5))
-
-(defun transcribe-xml-tag-break (xmltag)
-  "This function breaks an unit into two. That is, insert a closing and an opening equal tags"
-  (interactive "stag:")
-  (insert (format "</%s><%s>" xmltag xmltag)))
+(define-skeleton transcribe-xml-tag-break
+  "Break a unit into two.
+That is, insert a closing and an opening tag."
+  "Tag: "
+  ;; FIXME: Auto-compute the tag rather than pestering the user!
+  ;; Maybe we could simply use `nxml-split-element', for example.
+  "</" str "><" str ">")
 
 (defun transcribe-display-audio-info ()
   (interactive)
