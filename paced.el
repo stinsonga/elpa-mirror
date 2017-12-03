@@ -170,12 +170,13 @@ entry should be of the form (VAR VALUE).")
 This is used with the `object-write' method.")
    (case-handling :initarg :case-handling
                   :initform downcase
-                  :type (member downcase upcase preserve downcase-first upcase-first)
+                  :type (member downcase upcase preserve downcase-first upcase-first mixed-case)
                   :custom (choice (const :tag "Downcase All Words" downcase)
                                   (const :tag "Upcase All Words" upcase)
                                   (const :tag "Preserve Case" preserve)
                                   (const :tag "Downcase Just the First Letter" downcase-first)
-                                  (const :tag "Upcase Just the First Letter" upcase-first))
+                                  (const :tag "Upcase Just the First Letter" upcase-first)
+                                  (const :tag "Preserve Case on Mixed-Case Words" mixed-case))
                   :label "Case Sensitive"
                   :documentation "A symbol indicating how case should be handled during population.
 
@@ -185,7 +186,12 @@ It can be one of the following:
 * upcase          Upcase every word
 * preserve        Preserve case
 * downcase-first  Downcase the first letter of each word, leave the rest the same
-* upcase-first    Upcase the first letter of each word, leave the rest the same")
+* upcase-first    Upcase the first letter of each word, leave the rest the same
+* mixed-case      Preserve case on mixed-case words; single-case words
+                  are downcased.  See `paced-mixed-case-word-p' for an
+                  explanation of how \"mixed-case\" is defined.
+
+This doesn't affect completion; set `paced-completion-ignore-case' for that.")
    (updated :initarg :updated
             :initform nil
             :type boolean
@@ -474,6 +480,23 @@ Things is based on `paced-thing-at-point-constituent'."
   (interactive "p")
   (forward-thing paced-thing-at-point-constituent number))
 
+(defun paced-mixed-case-word-p (word)
+  "Return non-nil if WORD is mixed-case.
+
+A mixed-case word is one with both uppercase and lowercase
+letters, but ignoring the first letter if it's uppercase.  This
+is due to assuming the first letter is unimportant, as per
+sentence starting."
+  ;; Mixed case would typically be an uppercase letter followed by a lowercase
+  ;; letter, or a lowercase letter followed by an uppercase letter.  Since we're
+  ;; ignoring the first letter of a word if it's uppercase, we need to check for
+  ;; two distinct uppercase letters, followed by a lowercase letter.
+  (let ((case-fold-search nil)) ;; Case is important
+    (string-match-p (rx (or (and lower upper) ;; lower followed by upper
+                            ;; Two distinct uppercase letters, as in HAs
+                            (and upper upper lower)))
+                    word)))
+
 (defun paced--handle-word-case (case-handling word)
   "Process WORD based on CASE-HANDLING.
 
@@ -490,7 +513,9 @@ This is a separate function only for testing; use
     ;; Upcase the first letter
     (`upcase-first
      (concat (upcase (substring word 0 1))
-             (substring word 1)))))
+             (substring word 1)))
+    (`mixed-case
+     (if (paced-mixed-case-word-p word) word (downcase word)))))
 
 (cl-defmethod paced-dictionary-process-word ((dict paced-dictionary) word)
   "Return WORD, modified based on DICT's case handling."
@@ -668,7 +693,17 @@ case-handling in `paced-dictionary-process-word'."
             (when (stringp completion)
               (concat (substring prefix 0 prefix-length)
                       (substring-no-properties completion prefix-length))))
-          completions))))))
+          completions)))
+      (`mixed-case
+       ;; Only change prefix on single-case completion options
+       (let ((prefix-length (length prefix)))
+         (mapcar
+          (lambda (completion)
+            (when (stringp completion)
+              (if (paced-mixed-case-word-p completion)
+                  completion
+                (concat (substring prefix 0 prefix-length)
+                        (substring-no-properties completion prefix-length)))))))))))
 
 (cl-defmethod paced-dictionary-completions ((dict paced-dictionary) prefix action &optional pred)
   (let* ((completion-ignore-case paced-completion-ignore-case)
