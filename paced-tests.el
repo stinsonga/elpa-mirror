@@ -400,6 +400,19 @@
     (let ((completions (paced-dictionary-completions test-dict "o" nil)))
       (should (equal completions '("o"))))))
 
+(ert-deftest paced-completions-try-completion-mixed-case ()
+  (let* ((paced--registered-dictionaries paced-test-default-registered-map)
+         (paced-global-dict-enable-alist '((text-mode . "test-dict-case")))
+         (cmd (paced-file-population-command :file paced-first-test-file))
+         (test-dict (paced-make-dictionary "test-dict-case"
+                                           paced-test-dict-save-file
+                                           'mixed-case)))
+    (should (paced-dictionary-p test-dict))
+    (oset test-dict population-commands (list cmd))
+    (paced-dictionary-repopulate test-dict)
+    (let ((completions (paced-dictionary-completions test-dict "o" nil)))
+      (should (equal completions '("o"))))))
+
 (ert-deftest paced-completions-all-completions ()
   (let* ((paced--registered-dictionaries paced-test-default-registered-map)
          (paced-global-dict-enable-alist '((text-mode . "test-dict-case")))

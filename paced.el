@@ -693,7 +693,8 @@ case-handling in `paced-dictionary-process-word'."
               (if (paced-mixed-case-word-p completion)
                   completion
                 (concat (substring prefix 0 prefix-length)
-                        (substring-no-properties completion prefix-length)))))))))))
+                        (substring-no-properties completion prefix-length)))))
+          completions))))))
 
 (cl-defmethod paced-dictionary-completions ((dict paced-dictionary) prefix action &optional pred)
   "Get the completions for PREFIX in DICT.
