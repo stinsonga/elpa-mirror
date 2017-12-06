@@ -259,6 +259,21 @@ captured from onto the Org heading being captured.
   (when (with-current-buffer
 	    (org-capture-get :original-buffer)
 	  (memq major-mode '(gnus-summary-mode gnus-article-mode)))
+    ;; This part needs to happen in the capture buffer.
+    (when (or gnorb-gnus-capture-always-attach
+	      (org-capture-get :gnus-attachments))
+      (require 'org-attach)
+      (setq gnorb-gnus-capture-attachments nil)
+      (gnorb-gnus-collect-all-attachments t)
+      (map-y-or-n-p
+       (lambda (a)
+	 (format "Attach %s to capture heading? "
+		 (file-name-nondirectory a)))
+       (lambda (a) (org-attach-attach a nil 'mv))
+       gnorb-gnus-capture-attachments
+       '("file" "files" "attach"))
+      (setq gnorb-gnus-capture-attachments nil))
+    ;; This part happens in the original summary/article buffer.
     (save-window-excursion
       (set-buffer (org-capture-get :original-buffer))
       (let ((art-no (gnus-summary-article-number)))
@@ -275,20 +290,6 @@ captured from onto the Org heading being captured.
 			   gnorb-gnus-copy-message-text))
 	      (kill-new (buffer-substring (point) (point-max)))
 	      (message "Message text copied to kill ring"))))
-
-	(when (or gnorb-gnus-capture-always-attach
-		  (org-capture-get :gnus-attachments))
-	  (require 'org-attach)
-	  (setq gnorb-gnus-capture-attachments nil)
-	  (gnorb-gnus-collect-all-attachments t)
-	  (map-y-or-n-p
-	   (lambda (a)
-	     (format "Attach %s to capture heading? "
-		     (file-name-nondirectory a)))
-	   (lambda (a) (org-attach-attach a nil 'mv))
-	   gnorb-gnus-capture-attachments
-	   '("file" "files" "attach"))
-	  (setq gnorb-gnus-capture-attachments nil))
 
 	(when gnorb-gnus-tick-all-tracked-messages
 	  (gnus-summary-mark-article art-no gnus-ticked-mark))
