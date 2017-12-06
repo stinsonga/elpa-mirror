@@ -33,11 +33,13 @@
 ;;; Commentary:
 
 ;; This package implements an expression based interactive search tool
-;; for Emacs Lisp files and buffers using pcase-style search patterns.
-;; It is multi file/buffer search capable.  It is designed to be fast
-;; and easy to use.  It offers an occur-like overview of matches and
-;; can do query-replace based on the same set of patterns.  All
-;; searches are added to a history and can be resumed or restarted
+;; for Emacs Lisp files and buffers.  The pattern language used is a
+;; superset of `pcase' patterns.
+;;
+;; "el-search" is multi file/buffer search capable.  It is designed to
+;; be fast and easy to use.  It offers an occur-like overview of
+;; matches and can do query-replace based on the same set of patterns.
+;; All searches are added to a history and can be resumed or restarted
 ;; later.  Finally, it allows you to define your own kinds of search
 ;; patterns and your own multi-search commands.
 ;;
@@ -272,9 +274,13 @@
 ;; search drive the query-replace.  The user interface is
 ;; self-explanatory.
 ;;
-;; You can resume an aborted search-driven query-replace in the
-;; obvious way: call `el-search-jump-to-search-head' followed by
-;; `el-search-query-replace' (C-J C-%).  This will continue the
+;; It is always possible to resume an aborted query-replace session
+;; even if you did other stuff in the meantime (including other
+;; `el-search-query-replace' invocations).  Since internally every
+;; query-replace is driven by a search, call
+;; `el-search-jump-to-search-head' (maybe with a prefix arg) to make
+;; that search current, and invoke `el-search-query-replace' (with the
+;; default bindings, this would be C-J C-%).  This will continue the
 ;; query-replace session from where you left.
 ;;
 ;;
@@ -342,6 +348,11 @@
 ;; Thanks to Stefan Monnier for corrections and advice.
 ;;
 ;;
+;; BUGS:
+;;
+;; - l is very slow for very long lists.  E.g. C-S-e (l "test")
+;;
+;;
 ;; TODO:
 ;;
 ;; - The default keys are not available in the terminal
@@ -359,6 +370,9 @@
 ;; - Replace: pause and warn when replacement might be wrong
 ;;   (ambiguous reader syntaxes; lost comments, comments that can't
 ;;   non-ambiguously be assigned to rewritten code)
+;;
+;; - There could be something much better than pp to format the
+;;   replacement, or pp should be improved.
 
 
 
@@ -376,6 +390,7 @@
 (require 'elisp-mode)
 (require 'thingatpt)
 (require 'thunk)
+(require 'seq)
 (require 'stream)
 (require 'stream-x)
 (require 'help-fns) ;el-search--make-docstring
@@ -645,7 +660,7 @@ nil."
     (el-search--pushnew-to-history input histvar)
     (if (not (string= input "")) input (car (symbol-value histvar)))))
 
-(defun el-search--read-pattern-for-interactive (&optional prompt)
+(defun el-search-read-pattern-for-interactive (&optional prompt)
   (let* ((input (el-search--read-pattern (or prompt "El-search pattern: ")
                                          (car el-search-pattern-history)))
          (pattern (read input)))
@@ -1239,7 +1254,7 @@ PATTERN and combining the heuristic matchers of the subpatterns."
   "Like `count-matches' but accepting an el-search PATTERN instead of a regexp.
 
 Unlike `count-matches' matches \"inside\" other matches also count."
-  (interactive (list (el-search--read-pattern-for-interactive "How many matches for pattern: ")
+  (interactive (list (el-search-read-pattern-for-interactive "How many matches for pattern: ")
                      nil nil t))
   ;; Code is mainly adopted from `count-matches'
   (save-excursion
@@ -1984,7 +1999,10 @@ that the current search."
               ;; this should only happen for bad search patterns
               (goto-char (el-search-head-position current-head))
             (goto-char last-match))
-          (let ((match-pos (save-excursion (el-search-forward (el-search--current-pattern) nil t))))
+          (let ((match-pos
+                 (save-excursion
+                   (el-search--search-pattern-1
+                    (el-search--current-matcher) t nil (el-search--current-heuristic-matcher)))))
             (unless (eq (point) match-pos)
               (message "No match at search head any more - going to the next match")
               (sit-for 1.5))
@@ -2101,14 +2119,14 @@ continued."
          ;; file-truename on both args what we don't want, so we use this:
          (string-match-p "\\`\\.\\." (file-relative-name buffer-or-file-name directory))))))
 
-(defun el-search-pattern--interactive ()
+(defun el-search-pattern--interactive (&optional prompt)
   (list (if (or
              ;;Hack to make a pop-up buffer search from occur "stay active"
              (el-search--pending-search-p)
              (and (eq this-command last-command)
                   (or el-search--success el-search--wrap-flag)))
             (el-search--current-pattern)
-          (el-search--read-pattern-for-interactive))))
+          (el-search-read-pattern-for-interactive prompt))))
 
 ;;;###autoload
 (defun el-search-pattern (pattern)
@@ -2297,12 +2315,12 @@ Use the normal search commands to seize the search."
   (el-search--occur el-search-occur-search-object t))
 
 (defun el-search-edit-occur-pattern (new-pattern)
-  "Change the search pattern associated with this occur buffer.
-Prompt for a new pattern and revert the occur buffer."
+  "Change the search pattern associated with this *El Occur* buffer.
+Prompt for a new pattern and revert."
   (interactive (list (let ((el-search--initial-mb-contents
                             (el-search--pp-to-string
                              (el-search-object-pattern el-search-occur-search-object))))
-                       (el-search--read-pattern-for-interactive "New pattern: "))))
+                       (el-search-read-pattern-for-interactive "New pattern: "))))
   (setf (el-search-object-pattern el-search-occur-search-object)
         new-pattern)
   (el-search-compile-pattern-in-search el-search-occur-search-object)
@@ -2700,7 +2718,7 @@ use of `hs-minor-mode' and `orgstruct-mode'."
 (defun el-search-buffers (pattern)
   "Search all live elisp buffers for PATTERN."
   (interactive
-   (list (el-search--read-pattern-for-interactive "Search elisp buffers for pattern: ")))
+   (list (el-search-read-pattern-for-interactive "Search elisp buffers for pattern: ")))
   (el-search-setup-search
    pattern
    (lambda ()
@@ -2715,7 +2733,7 @@ use of `hs-minor-mode' and `orgstruct-mode'."
 (defun el-search-directory (pattern directory &optional recursively)
   "Search all elisp files in DIRECTORY for PATTERN.
 With prefix arg RECURSIVELY non-nil, search subdirectories recursively."
-  (interactive (list (el-search--read-pattern-for-interactive "Search dir for pattern: ")
+  (interactive (list (el-search-read-pattern-for-interactive "Search dir for pattern: ")
                      (expand-file-name
                       (read-directory-name (format "el-search directory%s: "
                                                    (if current-prefix-arg " recursively" ""))
@@ -2734,7 +2752,7 @@ With prefix arg RECURSIVELY non-nil, search subdirectories recursively."
   "Search Emacs elisp sources for PATTERN.
 This command recursively searches all elisp files under
 `source-directory'."
-  (interactive (list (el-search--read-pattern-for-interactive
+  (interactive (list (el-search-read-pattern-for-interactive
                       "Search Elisp sources for pattern: ")))
   (el-search-setup-search
    pattern
@@ -2750,7 +2768,7 @@ This command recursively searches all elisp files under
   "Search PATTERN in all elisp files in all directories in `load-path'.
 nil elements in `load-path' (standing for `default-directory')
 are ignored."
-  (interactive (list (el-search--read-pattern-for-interactive
+  (interactive (list (el-search-read-pattern-for-interactive
                       "Search load path for pattern: ")))
   (el-search-setup-search
    pattern
@@ -2772,7 +2790,7 @@ search directories recursively.
 This function uses `el-search-stream-of-directory-files' to
 compute a the file stream - see there for a description of
 related user options."
-  (interactive (list (el-search--read-pattern-for-interactive
+  (interactive (list (el-search-read-pattern-for-interactive
                       "Search marked files for pattern: ")
                      (dired-get-marked-files)
                      current-prefix-arg))
@@ -2902,7 +2920,9 @@ reindent."
                       (equal replacement (read (if splice (format "(%s)" result) result)))
                     ((debug error) nil))
                   result
-                (error "Error in `el-search--format-replacement' - please make a bug report"))))
+                (error "Apparent error in `el-search--format-replacement'
+Can please make a bug report including a recipe of what exactly you did?
+Thanks!"))))
         (kill-buffer orig-buffer)))))
 
 (defun el-search--search-and-replace-pattern
@@ -2934,9 +2954,14 @@ reindent."
              (condition-case nil
                  (progn
 
-                   ;; Try to avoid to call time consuming `el-search-hl-other-matches' in the loop
-                   (el-search-hl-other-matches matcher)
-                   (add-hook 'window-scroll-functions #'el-search--after-scroll t t)
+                   (unless replace-all
+                     (el-search-hl-other-matches matcher)
+                     (add-hook 'window-scroll-functions #'el-search--after-scroll t t)
+                     (let ((head (el-search-object-head el-search--current-search)))
+                       (el-search--message-no-log "%s..."
+                                                  (or (el-search-head-file head)
+                                                      (el-search-head-buffer head)))
+                       (sit-for 1.5)))
 
                    (while (and (not done) (el-search--search-pattern-1 matcher t nil heuristic-matcher))
                      (setq opoint (point))
@@ -3038,6 +3063,7 @@ Toggle splicing mode (\\[describe-function] el-search-query-replace for details)
                                            (setq to-insert (funcall get-replacement-string))
                                            nil)
                                        (?o
+                                        ;; FIXME: Should we allow to edit the replacement?
                                         (let* ((buffer (get-buffer-create
                                                         (generate-new-buffer-name "*Replacement*")))
                                                (window (display-buffer-pop-up-window buffer ())))
@@ -3078,7 +3104,8 @@ Toggle splicing mode (\\[describe-function] el-search-query-replace for details)
                               (when (= answer ?N) (setq skip-matches-in-replacement nil))
                               (el-search--skip-expression nil t)
                               (when replace-all
-                                (setq replace-all nil)
+                                (setq replace-all nil) ;FIXME: can this be annoying?  Problem: we need
+                                                       ;to catch possibly infinite loops
                                 (message "Falling back to interactive mode")
                                 (sit-for 2.)))))
                           (t (forward-sexp)))))))
@@ -3209,12 +3236,16 @@ multi-buffer query-replace this way when the current search is
 multi-buffer.  When not called after a search command,
 query-replace all matches following point in the current buffer.
 
-It is also possible to replace matches with any number of expressions
-(even with zero expressions, effectively deleting matches) by using the
-\"splicing\" submode that can be toggled from the prompt with \"s\".
-When splicing mode is on (default off), the replacement
-expression must evaluate to a list, and all of the list's
-elements are inserted in order."
+It is also possible to replace matches with an arbitrary number
+of expressions (even with zero expressions, effectively deleting
+matches) by using the \"splicing\" submode that can be toggled
+from the prompt with \"s\".  When splicing mode is on (default
+off), the replacement expression must evaluate to a list, and all
+of the list's elements are inserted in order.
+
+The optional argument TEXTUAL-TO is bound by the interactive form
+to the text form of the replacement expression specified.  It is
+consulted to construct the text form of each replacement."
   (interactive (el-search-query-replace--read-args)) ;this binds the optional argument
   (setq this-command 'el-search-query-replace) ;in case we come from isearch
   (barf-if-buffer-read-only)
