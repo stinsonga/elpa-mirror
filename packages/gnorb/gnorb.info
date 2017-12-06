@@ -357,7 +357,7 @@ will be made persistent across Gnus sessions.  You can re-run the search
 and update the group contents by hitting “M-g” on the group in the Gnus
 *Group* buffer.
 
-   Calling ‘gnorb-gnus-view“ (”C-c v“) on a tracked message will take
+   Calling ‘gnorb-gnus-view’ (“C-c v”) on a tracked message will take
 you to the tracked Org heading.
 
    As a bonus, it’s possible to go into Gnus’ *Server* buffer, find the
@@ -782,9 +782,9 @@ Node: User Options22201
 Node: Misc Org23724
 Node: Inserting BBDB links23899
 Node: User Options 124155
-Node: Misc Gnus26869
-Node: User Options 227031
-Node: Default Keybindings30173
+Node: Misc Gnus27053
+Node: User Options 227215
+Node: Default Keybindings30357
 
 End Tag Table
 

@@ -258,7 +258,7 @@ will be made persistent across Gnus sessions. You can re-run the
 search and update the group contents by hitting "M-g" on the group in
 the Gnus *Group* buffer.
 
-Calling `gnorb-gnus-view" ("C-c v") on a tracked message will take you
+Calling `gnorb-gnus-view' ("C-c v") on a tracked message will take you
 to the tracked Org heading.
 
 As a bonus, it's possible to go into Gnus' *Server* buffer, find the
