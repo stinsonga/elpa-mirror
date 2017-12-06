@@ -329,7 +329,7 @@
 ;; to reading-printing.  "Some" because we can handle this problem in
 ;; most cases.
 ;;
-;; - Similarly: Comments are normally preserved (where it makes
+;; - Similar: comments are normally preserved (where it makes
 ;; sense).  But when replacing like `(foo ,a ,b) -> `(foo ,b ,a)
 ;;
 ;; in a content like
@@ -345,8 +345,8 @@
 ;;   backquotes detected!"
 ;;
 ;;
-;;  Acknowledgments
-;;  ===============
+;; Acknowledgments
+;; ===============
 ;;
 ;; Thanks to Stefan Monnier for corrections and advice.
 ;;
@@ -354,6 +354,10 @@
 ;; BUGS:
 ;;
 ;; - l is very slow for very long lists.  E.g. C-S-e (l "test")
+;;
+;; - Emacs bug#30132: 27.0.50; "scan-sexps and ##": Occurrences of the
+;;   syntax "##" (a syntax for an interned symbol whose name is the
+;;   empty string) can lead to errors while searching.
 ;;
 ;;
 ;; TODO:
@@ -673,6 +677,16 @@ nil."
     (if (not (string= input "")) input (car (symbol-value histvar)))))
 
 (defun el-search-read-pattern-for-interactive (&optional prompt)
+  "Read an \"el-search\" pattern from the minibuffer, prompting with PROMPT.
+
+This function is designed to be used in the interactive form of
+\"el-search\" commands that need to prompt for a pattern.  Apart
+from reading the pattern it also sets `this-command' to
+`el-search-pattern' and adds the given input to
+`el-search-pattern-history' and `el-search-query-replace-history'.
+
+PROMPT defaults to \"El-search pattern: \".  The return value is the
+`read' input pattern."
   (let* ((input (el-search--read-pattern (or prompt "El-search pattern: ")
                                          (car el-search-pattern-history)))
          (pattern (read input)))
@@ -1014,7 +1028,12 @@ optional MESSAGE are used to construct the error message."
 
 
 (defun el-search-kill-left-over-search-buffers (&optional not-current-buffer)
-  "Kill all buffers that were opened for searching."
+  "Kill all buffers that were opened just for searching.
+Buffers where a search had been paused or aborted (e.g. by moving
+the cursor) are not killed.
+
+With NOT-CURRENT-BUFFER non-nil, inhibit the current buffer from
+being killed."
   (interactive)
   (dolist (buffer (buffer-list))
     (when (with-current-buffer buffer el-search--temp-buffer-flag)
@@ -1386,6 +1405,41 @@ in, in order, when called with no arguments."
     (el-search-compile-pattern-in-search search)
     search))
 
+
+;;;###autoload
+(defun el-search-install-shift-bindings ()
+  (interactive)
+
+  (define-key emacs-lisp-mode-map [(control ?S)] #'el-search-pattern)
+  (define-key emacs-lisp-mode-map [(control ?R)] #'el-search-pattern-backwards)
+  (define-key emacs-lisp-mode-map [(control ?%)] #'el-search-query-replace)
+  (define-key emacs-lisp-mode-map [(control ?H)] #'el-search-this-sexp) ;H like in "highlight" or "here"
+  (define-key global-map          [(control ?J)] #'el-search-jump-to-search-head)
+  (define-key global-map          [(control ?A)] #'el-search-from-beginning)
+  (define-key global-map          [(control ?D)] #'el-search-skip-directory)
+  (define-key global-map          [(control ?N)] #'el-search-continue-in-next-buffer)
+
+  (define-key global-map          [(control ?O)] #'el-search-occur)
+
+  (define-key el-search-read-expression-map [(control ?S)] #'exit-minibuffer)
+  (define-key el-search-read-expression-map [(control ?R)] #'exit-minibuffer)
+  (define-key el-search-read-expression-map [(control ?O)]
+    #'el-search-set-occur-flag-exit-minibuffer)
+
+  (define-key isearch-mode-map [(control ?S)] #'el-search-search-from-isearch)
+  (define-key isearch-mode-map [(control ?R)] #'el-search-search-backwards-from-isearch)
+  (define-key isearch-mode-map [(control ?%)] #'el-search-replace-from-isearch)
+  (define-key isearch-mode-map [(control ?O)] #'el-search-occur-from-isearch)
+
+  (define-key global-map [(control ?E)] #'el-search-emacs-elisp-sources)
+  (define-key global-map [(control ?L)] #'el-search-load-path)
+  (define-key global-map [(control ?B)] #'el-search-buffers)
+
+  (defvar dired-mode-map)
+
+  (with-eval-after-load 'dired
+    (define-key dired-mode-map [(control ?S)] #'el-search-dired-marked-files)))
+
 (defun el-search-setup-search-1 (pattern get-buffer-stream  &optional from-here setup-function)
   (setq el-search--success nil)
   (setq el-search--current-search
@@ -1428,40 +1482,6 @@ that contain a file named \".nosearch\" are excluded as well."
                     el-search-respect-nosearch
                     (directory-files dir-name nil "\\`\\.nosearch\\'" t))))))
    t #'el-search--elisp-file-p))
-
-;;;###autoload
-(defun el-search-install-shift-bindings ()
-  (interactive)
-
-  (define-key emacs-lisp-mode-map [(control ?S)] #'el-search-pattern)
-  (define-key emacs-lisp-mode-map [(control ?R)] #'el-search-pattern-backwards)
-  (define-key emacs-lisp-mode-map [(control ?%)] #'el-search-query-replace)
-  (define-key emacs-lisp-mode-map [(control ?H)] #'el-search-this-sexp) ;H like in "highlight" or "here"
-  (define-key global-map          [(control ?J)] #'el-search-jump-to-search-head)
-  (define-key global-map          [(control ?A)] #'el-search-from-beginning)
-  (define-key global-map          [(control ?D)] #'el-search-skip-directory)
-  (define-key global-map          [(control ?N)] #'el-search-continue-in-next-buffer)
-
-  (define-key global-map          [(control ?O)] #'el-search-occur)
-
-  (define-key el-search-read-expression-map [(control ?S)] #'exit-minibuffer)
-  (define-key el-search-read-expression-map [(control ?R)] #'exit-minibuffer)
-  (define-key el-search-read-expression-map [(control ?O)]
-    #'el-search-set-occur-flag-exit-minibuffer)
-
-  (define-key isearch-mode-map [(control ?S)] #'el-search-search-from-isearch)
-  (define-key isearch-mode-map [(control ?R)] #'el-search-search-backwards-from-isearch)
-  (define-key isearch-mode-map [(control ?%)] #'el-search-replace-from-isearch)
-  (define-key isearch-mode-map [(control ?O)] #'el-search-occur-from-isearch)
-
-  (define-key global-map [(control ?E)] #'el-search-emacs-elisp-sources)
-  (define-key global-map [(control ?L)] #'el-search-load-path)
-  (define-key global-map [(control ?B)] #'el-search-buffers)
-
-  (defvar dired-mode-map)
-
-  (with-eval-after-load 'dired
-    (define-key dired-mode-map [(control ?S)] #'el-search-dired-marked-files)))
 
 
 ;;;; Additional pattern type definitions
@@ -2998,7 +3018,7 @@ Thanks!"))))
                        (el-search--message-no-log "%s..."
                                                   (or (el-search-head-file head)
                                                       (el-search-head-buffer head)))
-                       (sit-for 1.5)))
+                       (sit-for 1.)))
 
                    (while (and (not done) (el-search--search-pattern-1 matcher t nil heuristic-matcher))
                      (setq opoint (point))
@@ -3026,7 +3046,7 @@ Thanks!"))))
                                (el-search--skip-expression new-expr)
                                (condition-case nil
                                    (progn (el-search--ensure-sexp-start)
-                                          (el-search-forward pattern nil t))
+                                          (el-search--search-pattern-1 matcher 'noerror))
                                  (end-of-buffer nil))))
                             (do-replace
                              (lambda ()
