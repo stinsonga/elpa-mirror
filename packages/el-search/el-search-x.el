@@ -209,14 +209,12 @@ COMMIT defaults to HEAD."
   "Return non-nil when FILE has changed relative to REVISION."
   (cl-callf el-search--file-truename-wstm file)
   (when-let ((backend (vc-backend file)))
-    (ignore-errors
-      (let ((default-directory (file-name-directory file))
-            (vc-git-diff-switches nil)) ;FIXME: necessary e.g. for my init file -- why?
-        (and
-         (with-temp-buffer
-           (= 1 (vc-call-backend backend 'diff (list file) nil revision (current-buffer))))
-         (with-temp-buffer
-           (= 1 (vc-call-backend backend 'diff (list file) revision nil (current-buffer)))))))))
+    (let ((default-directory (file-name-directory file)))
+      (and
+       (with-temp-buffer
+         (= 1 (vc-call-backend backend 'diff (list file) nil revision (current-buffer))))
+       (with-temp-buffer
+         (= 1 (vc-call-backend backend 'diff (list file) revision nil (current-buffer))))))))
 
 (defun el-search--changes-from-diff-hl (revision)
   "Return the changed regions in the current buffer's file.
