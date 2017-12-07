@@ -617,8 +617,7 @@ registry be in use, and should be called after the call to
      (require 'gnorb-gnus)
      (unless (gnus-registry-install-p)
        (user-error "Gnorb tracking requires that the Gnus registry be installed."))
-     (add-hook 'org-capture-mode-hook 'gnorb-registry-capture)
-     (add-hook 'org-capture-prepare-finalize-hook 'gnorb-registry-capture-abort-cleanup)
+     (add-hook 'org-capture-prepare-finalize-hook #''gnorb-registry-capture)
      (setq gnorb-tracking-enabled t))))
 
 ;;;###autoload
