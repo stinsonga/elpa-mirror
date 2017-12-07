@@ -611,19 +611,92 @@ default set of parameters."
   :group 'gnorb-org
   :type 'boolean)
 
-(defun gnorb-org-capture-collect-link ()
+(defun gnorb-org-capture-function ()
+  "Do various things after starting the capture process.
+Currently includes:
+
+1. Offering to move all the attachments from the message we
+captured from onto the Org heading being captured.
+
+2. Possibly saving a link to wherever we came from (see
+`gnorb-org-capture-collect-link-p').
+
+3. Possibly saving the text of the message we captured from (see
+`gnorb-gnus-copy-message-text').
+
+4. Possibly ticking the message we captured from (see
+`gnorb-gnus-tick-all-tracked-messages')."
   (when gnorb-org-capture-collect-link-p
     (let ((buf (org-capture-get :original-buffer)))
       (when buf
 	(with-current-buffer buf
 	  (when (memq major-mode '(gnus-summary-mode
 				   gnus-article-mode
-				   bbdb-mode))
-	    (call-interactively 'org-store-link)))))))
-
-(add-hook 'org-capture-mode-hook 'gnorb-org-capture-collect-link)
 
 ;;; Agenda/BBDB popup stuff
+				   bbdb-mode
+				   ebdb-mode))
+	    (call-interactively 'org-store-link))))))
+  (when (with-current-buffer
+	    (org-capture-get :original-buffer)
+	  (memq major-mode '(gnus-summary-mode gnus-article-mode)))
+    ;; This part needs to happen in the capture buffer.
+    (when (or gnorb-gnus-capture-always-attach
+	      (org-capture-get :gnus-attachments))
+      (require 'org-attach)
+      (setq gnorb-gnus-capture-attachments nil)
+      (gnorb-gnus-collect-all-attachments t)
+      (map-y-or-n-p
+       (lambda (a)
+	 (format "Attach %s to capture heading? "
+		 (file-name-nondirectory a)))
+       (lambda (a) (org-attach-attach a nil 'mv))
+       gnorb-gnus-capture-attachments
+       '("file" "files" "attach"))
+      (setq gnorb-gnus-capture-attachments nil))
+
+    ;; This part happens in the original summary/article buffer.
+    (save-window-excursion
+      (set-buffer (org-capture-get :original-buffer))
+      (let ((art-no (gnus-summary-article-number)))
+
+	(when gnorb-gnus-copy-message-text
+	  (gnus-with-article-buffer
+	    (article-goto-body)
+	    (if (numberp gnorb-gnus-copy-message-text)
+		(progn
+		  (copy-to-register
+		   gnorb-gnus-copy-message-text
+		   (point) (point-max))
+		  (message "Message text copied to register %c"
+			   gnorb-gnus-copy-message-text))
+	      (kill-new (buffer-substring (point) (point-max)))
+	      (message "Message text copied to kill ring"))))
+
+	(when gnorb-gnus-tick-all-tracked-messages
+	  (gnus-summary-mark-article art-no gnus-ticked-mark))
+
+	(gnus-summary-update-article art-no)))))
+
+(add-hook 'org-capture-mode-hook 'gnorb-org-capture-function)
+
+(defvar org-note-abort)
+
+(defun gnorb-org-capture-abort-cleanup ()
+  (with-no-warnings ;; For `org-note-abort'
+    (when (and org-note-abort
+	       (or (bound-and-true-p gnorb-gnus-capture-always-attach)
+		   (org-capture-get :gnus-attachments)))
+      (condition-case nil
+	  (progn (org-attach-delete-all)
+		 (setq abort-note 'clean)
+		 ;; remove any gnorb-mail-header values here
+		 )
+	(error
+	 (setq abort-note 'dirty))))))
+
+(add-hook 'org-capture-prepare-finalize-hook
+	  'gnorb-org-capture-abort-cleanup)
 
 (defcustom gnorb-org-agenda-popup-bbdb nil
   "Should Agenda tags search pop up a BBDB buffer with matching
