@@ -646,6 +646,8 @@ registry be in use, and should be called after the call to
        (define-key gnus-summary-mime-map "a" #'gnorb-gnus-article-org-attach)
        (define-key gnus-summary-mode-map (kbd "C-c t") #'gnorb-gnus-incoming-do-todo)
        (define-key gnus-summary-mode-map (kbd "C-c v") #'gnorb-gnus-view)
+       (define-key gnus-summary-mode-map (kbd "C-c C-t") #'gnorb-gnus-tag-message)
+       (define-key gnus-summary-limit-map (kbd "g") #'gnorb-gnus-insert-tagged-messages)
        (setq gnorb-gnus-capture-always-attach t)
        (push '("attach to org heading" . gnorb-gnus-mime-org-attach)
              gnus-mime-action-alist)

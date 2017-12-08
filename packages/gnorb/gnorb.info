@@ -19,8 +19,8 @@ Gnorb Manual
 * Email Tracking::
 * Restoring Window Layout::
 * Recent Mails From BBDB Contacts::
+* Tagging Messages and Contacts::
 * BBDB posting styles::
-* BBDB Org tagging::
 * Misc BBDB::
 * Misc Org::
 * Misc Gnus::
@@ -443,7 +443,7 @@ interactive function ‘gnorb-restore-layout’, by default bound to “C-c
 A”.
 
 
-File: gnorb.info,  Node: Recent Mails From BBDB Contacts,  Next: BBDB posting styles,  Prev: Restoring Window Layout,  Up: Top
+File: gnorb.info,  Node: Recent Mails From BBDB Contacts,  Next: Tagging Messages and Contacts,  Prev: Restoring Window Layout,  Up: Top
 
 6 Recent Mails From BBDB Contacts
 *********************************
@@ -465,9 +465,42 @@ open.  There are several options controlling how all this works; see the
 gnorb-bbdb user options section below for details.
 
 
-File: gnorb.info,  Node: BBDB posting styles,  Next: BBDB Org tagging,  Prev: Recent Mails From BBDB Contacts,  Up: Top
+File: gnorb.info,  Node: Tagging Messages and Contacts,  Next: BBDB posting styles,  Prev: Recent Mails From BBDB Contacts,  Up: Top
 
-7 BBDB posting styles
+7 Tagging Messages and Contacts
+*******************************
+
+It’s possible to use your defined Org tags to tag BBDB contacts and Gnus
+messages.
+
+   For BBDB contacts, tags are stored in an xfield named org-tags, by
+default (you can customize the name of this field using the
+‘gnorb-bbdb-org-tag-field’ option).  Once contacts are tagged, you can
+search for tags normally in the *BBDB* buffer.  You can also pop up a
+*BBDB* buffer alongside an Org Agenda tags search, with contacts
+matching the search terms.  You can have this happen automatically, by
+setting ‘gnorb-org-agenda-popup-bbdb’ to a non-nil value, or do it
+manually by calling ‘gnorb-org-popup-bbdb’.
+
+   Gnus messages can be tagged from a *Summary* buffer using the command
+‘gnorb-gnus-tag-message’ (bound to “C-c C-t” when using the default
+keybindings).  You can also search for tagged messages in a group using
+‘gnorb-gnus-insert-tagged-messages’ (bound to “/ g” when using the
+default keybindings).  The search string can be given as a more complex
+tags expression a la Org Agenda searches, ie “cat|bird-dog”.
+
+   If the option ‘gnorb-gnus-auto-tag-messages’ is non-nil, any time you
+trigger an Org heading from a Gnus message, the message will “inherit”
+the tags of the Org heading.
+
+   You can view Org tags on Gnus messages by adding the “%uG” spec code
+to your ‘gnus-group-line-format’ value.  That spec code can be
+customized using the ‘gnorb-gnus-summary-tags-format-letter’ option.
+
+
+File: gnorb.info,  Node: BBDB posting styles,  Next: Misc BBDB,  Prev: Tagging Messages and Contacts,  Up: Top
+
+8 BBDB posting styles
 *********************
 
 Gnorb comes with a BBDB posting-style system, inspired by (copied from)
@@ -484,24 +517,7 @@ If you want to use this feature regularly, you can remap ‘bbdb-mail’ to
 ‘gnorb-bbdb-mail’ in the ‘bbdb-mode-map’.
 
 
-File: gnorb.info,  Node: BBDB Org tagging,  Next: Misc BBDB,  Prev: BBDB posting styles,  Up: Top
-
-8 BBDB Org tagging
-******************
-
-BBDB contacts can be tagged with the same tags you use in your Org
-files.  This allows you to pop up a *BBDB* buffer alongside your Org
-Agenda when searching for certain tags.  This can happen automatically
-for all Org tags-todo searches, if you set the option
-‘gnorb-org-agenda-popup-bbdb’ to t.  Or you can do it manually, by
-calling the command of the same name.  This command only shows TODOs by
-default: use a prefix argument to show all tagged headings.
-
-   Tags are stored in an xfield named org-tags, by default.  You can
-customize the name of this field using ‘gnorb-bbdb-org-tag-field’.
-
-
-File: gnorb.info,  Node: Misc BBDB,  Next: Misc Org,  Prev: BBDB Org tagging,  Up: Top
+File: gnorb.info,  Node: Misc BBDB,  Next: Misc Org,  Prev: BBDB posting styles,  Up: Top
 
 9 Misc BBDB
 ***********
@@ -759,32 +775,32 @@ If you don’t like these defaults, you can always do your own setup.
 
 Tag Table:
 Node: Top194
-Node: Introduction989
-Node: Installation2314
-Node: Setup2692
-Node: Email Tracking3145
-Node: Likely Workflow4349
-Node: Tracking Setup7119
-Node: Beginning and Continuing the Tracking Process8399
-Node: Trigger Actions12591
-Node: Viewing Things13665
-Node: Hinting in Gnus15435
-Node: Message Attachments16500
-Node: Registry Usage17739
-Node: Restoring Window Layout18166
-Node: Recent Mails From BBDB Contacts18563
-Node: BBDB posting styles19559
-Node: BBDB Org tagging20475
-Node: Misc BBDB21221
-Node: Searching for messages from BBDB contacts21434
-Node: Citing BBDB contacts21880
-Node: User Options22201
-Node: Misc Org23724
-Node: Inserting BBDB links23899
-Node: User Options 124155
-Node: Misc Gnus27053
-Node: User Options 227215
-Node: Default Keybindings30357
+Node: Introduction1002
+Node: Installation2327
+Node: Setup2705
+Node: Email Tracking3158
+Node: Likely Workflow4362
+Node: Tracking Setup7132
+Node: Beginning and Continuing the Tracking Process8412
+Node: Trigger Actions12604
+Node: Viewing Things13678
+Node: Hinting in Gnus15448
+Node: Message Attachments16513
+Node: Registry Usage17752
+Node: Restoring Window Layout18179
+Node: Recent Mails From BBDB Contacts18576
+Node: Tagging Messages and Contacts19582
+Node: BBDB posting styles21233
+Node: Misc BBDB22140
+Node: Searching for messages from BBDB contacts22356
+Node: Citing BBDB contacts22802
+Node: User Options23123
+Node: Misc Org24646
+Node: Inserting BBDB links24821
+Node: User Options 125077
+Node: Misc Gnus27975
+Node: User Options 228137
+Node: Default Keybindings31279
 
 End Tag Table
 
