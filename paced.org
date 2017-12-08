@@ -506,3 +506,26 @@ making any changes:
 1. Update the info page in the repository with ~C-c C-e i i~
 2. If you're updating the HTML documentation, switch to a theme that can easily
    be read on a white background; we recommend the "adwaita" theme
+
+** Working with EDE
+EDE can be a little finicky at times, but we feel the benefits, namely package
+dependency handling and Makefile generation, outweigh the costs.
+
+One of the issues that many will likely encounter is the error "Corrupt file on
+disk".  This is most often due to EDE not loading all its subprojects as needed.
+If you find yourself dealing with this error often, place the following in your
+.emacs file:
+
+#+begin_src emacs-lisp
+;; Target types needed for working with paced
+(require 'ede/proj-elisp)
+(require 'ede/proj-aux)
+(require 'ede/proj-misc)
+#+end_src
+
+These are the three target types that paced uses: elisp for compilation and
+autoloads; aux for auxiliary files such as documentation; and misc for tests.
+
+When creating a new file, EDE will ask if you want to add it to a target.
+Consult with one of the paced devs for guidance, but usually selecting "none"
+and letting one of us handle it is a good way to go.
