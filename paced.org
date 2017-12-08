@@ -449,6 +449,7 @@ for almost everything, but it makes an excellent fallback.
 * Contributing
 :PROPERTIES:
 :DESCRIPTION: I wanna help!
+:CUSTOM_ID: contributing
 :END:
 
 We are all happy for any help you may provide.
@@ -461,10 +462,14 @@ bzr branch https://bzr.savannah.gnu.org/r/paced-el/ paced
 
 Build the Makefile with EDE:
 
-1. Open any file from paced
+1. Open any file from paced (See [[#ede][Working with EDE]] if you encounter "Corrupt object on disk" error)
 2. Run ~C-c . C~ or ~M-x ede-compile-project~
 
 ** Bugs
+:PROPERTIES:
+:CUSTOM_ID: bugs
+:DESCRIPTION: Submitting bug reports
+:END:
 
 There are two ways to submit bug reports:
 
@@ -475,6 +480,10 @@ When submitting a bug report, be sure to include a description of the dictionary
 or population command that caused the problem, with as much detail as possible.
 
 ** Development
+:PROPERTIES:
+:CUSTOM_ID: development
+:DESCRIPTION: Helping with development
+:END:
 
 If you're new to bazaar, we recommend using Emacs's built-in VC package.  It
 eases the overhead of dealing with a brand new VCS with a few standard commands.
@@ -499,6 +508,10 @@ There are a few rules to follow:
 - Avoid additional or altered dependencies if at all possible
 
 ** Documentation
+:PROPERTIES:
+:CUSTOM_ID: docs
+:DESCRIPTION: Improving the documentation
+:END:
 
 Documentation is always helpful to us.  Please be sure to do the following after
 making any changes:
@@ -508,6 +521,11 @@ making any changes:
    be read on a white background; we recommend the "adwaita" theme
 
 ** Working with EDE
+:PROPERTIES:
+:CUSTOM_ID: ede
+:DESCRIPTION: And all its quirks
+:END:
+
 EDE can be a little finicky at times, but we feel the benefits, namely package
 dependency handling and Makefile generation, outweigh the costs.
 
