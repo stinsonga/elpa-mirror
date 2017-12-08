@@ -56,23 +56,22 @@ completion can be customized.
 There are a few Emacs packages that have similar goals to paced, and provided
 some of the inspiration and motivation behind it.
 *** pabbrev
-The [[https://github.com/phillord/pabbrev][pabbrev]] package by Phillip Lord scans text of the current buffer while Emacs
-is idle and presents the user with the most common completions.
+The [[https://github.com/phillord/pabbrev][pabbrev]] package by Phillip Lord automatically scans text of the current
+buffer while Emacs is idle and presents the user with the most common
+completions.
 
 One of the major downsides to pabbrev is that the data it collects doesn't
 persist between Emacs sessions.  For a few files that are always open, such as
-org agenda files, pabbrev works great.  For files that aren't always open, like
-prose or source files, you've got to retrain pabbrev every time you restart
-Emacs.
+org agenda files, pabbrev works great.  If you want to train it from a few files
+that aren't always open, you'll have to open each file and retrain pabbrev from
+that file.  And you'll have to do this every time you restart Emacs.
 
-The benefit of pabbrev dies down if the suggested word isn't the one you need.
-Then you've still got to search through a list of suggestions, which takes away
-from typing.
-
-That's not to say that pabbrev is all bad.  It keeps up-to-date usage and prefix
-hashes of all buffers of the same mode, and scanning, or "scavenging", blends
-seamlessly into the background.  Completion is just a hash table lookup, so it
-can handle completion in microseconds.
+It keeps up-to-date usage and prefix hashes of all buffers of the same mode, and
+scanning, or "scavenging", blends seamlessly into the background.  Completion is
+just a hash table lookup, so it can handle completion in microseconds.  There's
+also no setup required; it will start working right away.  The downside to this
+is that dictionaries aren't flexible; each dictionary corresponds to a major
+mode, and there's no way to change that.
 *** predictive
 The [[https://www.dr-qubit.org/predictive.html][predictive]] package by Toby Cubitt scans text of the current buffer on user
 command.  The usage data is stored in a dictionary, which can then be saved to a
