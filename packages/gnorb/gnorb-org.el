@@ -632,8 +632,6 @@ captured from onto the Org heading being captured.
 	(with-current-buffer buf
 	  (when (memq major-mode '(gnus-summary-mode
 				   gnus-article-mode
-
-;;; Agenda/BBDB popup stuff
 				   bbdb-mode
 				   ebdb-mode))
 	    (call-interactively 'org-store-link))))))
@@ -698,6 +696,8 @@ captured from onto the Org heading being captured.
 (add-hook 'org-capture-prepare-finalize-hook
 	  'gnorb-org-capture-abort-cleanup)
 
+;;; Agenda/BBDB popup stuff
+
 (defcustom gnorb-org-agenda-popup-bbdb nil
   "Should Agenda tags search pop up a BBDB buffer with matching
   records?
@@ -716,17 +716,38 @@ customized with `gnorb-bbdb-org-tag-field'."
 		 (const full-multi-line)
 		 (symbol)))
 
-;;;###autoload
-(defun gnorb-org-popup-bbdb (&optional str)
-  "In an `org-tags-view' Agenda buffer, pop up a BBDB buffer
-showing records whose `org-tags' field matches the current tags
-search."
+(defun gnorb-org-munge-agenda-query-string (str)
+  "Remove all non-tag search terms from query string STR.
+Returns a lambda form used for matching a search string (ie, the
+`cdr' of `org-make-tags-matcher')."
   ;; I was hoping to use `org-make-tags-matcher' directly, then snag
   ;; the tagmatcher from the resulting value, but there doesn't seem
   ;; to be a reliable way of only getting the tag-related returns. But
   ;; I'd still like to use that function. So an ugly hack to first
   ;; remove non-tag contents from the query string, and then make a
   ;; new call to `org-make-tags-matcher'.
+  (let ((org--matcher-tags-todo-only nil)
+	(re "^&?\\([-+:]\\)?\\({[^}]+}\\|LEVEL\\([<=>]\\{1,2\\}\\)\\([0-9]+\\)\\|\\(\\(?:[[:alnum:]_]+\\(?:\\\\-\\)*\\)+\\)\\([<>=]\\{1,2\\}\\)\\({[^}]+}\\|\"[^\"]*\"\\|-?[.0-9]+\\(?:[eE][-+]?[0-9]+\\)?\\)\\|[[:alnum:]_@#%]+\\)")
+	(or-terms (org-split-string str "|"))
+	term rest out-or acc tag-clause)
+    (while (setq term (pop or-terms))
+      (setq acc nil)
+      (while (string-match re term)
+	(setq rest (substring term (match-end 0)))
+	(let ((sub-term (match-string 0 term)))
+	  ;; This isn't a tag, we don't want it.
+	  (unless (string-match-p "\\([<>=]\\)" sub-term)
+	    (push sub-term acc))
+	  (setq term rest)))
+      (push (mapconcat 'identity (nreverse acc) "") out-or))
+    (setq str (mapconcat 'identity (nreverse out-or) "|"))
+    (cdr (org-make-tags-matcher str))))
+
+;;;###autoload
+(defun gnorb-org-popup-bbdb (&optional str)
+  "In an `org-tags-view' Agenda buffer, pop up a BBDB buffer
+showing records whose `org-tags' field matches the current tags
+search."
   (interactive)
   (require 'gnorb-bbdb)
   (let (recs)
@@ -735,23 +756,8 @@ search."
 		 (eq org-agenda-type 'tags))
 	    (or (called-interactively-p 'any)
 		gnorb-org-agenda-popup-bbdb))
-	   (let ((org--matcher-tags-todo-only nil)
-		 (str (or str org-agenda-query-string))
-		 (re "^&?\\([-+:]\\)?\\({[^}]+}\\|LEVEL\\([<=>]\\{1,2\\}\\)\\([0-9]+\\)\\|\\(\\(?:[[:alnum:]_]+\\(?:\\\\-\\)*\\)+\\)\\([<>=]\\{1,2\\}\\)\\({[^}]+}\\|\"[^\"]*\"\\|-?[.0-9]+\\(?:[eE][-+]?[0-9]+\\)?\\)\\|[[:alnum:]_@#%]+\\)")
-		 or-terms term rest out-or acc tag-clause)
-	     (setq or-terms (org-split-string str "|"))
-	     (while (setq term (pop or-terms))
-	       (setq acc nil)
-	       (while (string-match re term)
-		 (setq rest (substring term (match-end 0)))
-		 (let ((sub-term (match-string 0 term)))
-		   (unless (save-match-data ; this isn't a tag, don't want it
-			     (string-match "\\([<>=]\\)" sub-term))
-		     (push sub-term acc))
-		   (setq term rest)))
-	       (push (mapconcat 'identity (nreverse acc) "") out-or))
-	     (setq str (mapconcat 'identity (nreverse out-or) "|"))
-	     (setq tag-clause (cdr (org-make-tags-matcher str)))
+	   (let ((tag-clause (gnorb-org-munge-agenda-query-string
+			      (or str org-agenda-query-string))))
 	     (unless (equal str "")
 	       (setq recs
 		     (cl-remove-if-not
@@ -765,7 +771,7 @@ search."
 				     (case-fold-search t)
 				     (org-trust-scanner-tags t))
 				 ;; This is bad, we're lexically bound, now.
-				 (eval tag-clause)))))
+				 (funcall tag-clause t tags-list 1)))))
 		      (bbdb-records))))))
 	  ((eq major-mode 'org-mode)
 	   (save-excursion

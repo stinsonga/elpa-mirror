@@ -182,14 +182,27 @@ archived headings as well."
 key."
   (registry-search gnus-registry-db :member `((gnorb-ids ,id))))
 
+(defun gnorb-registry-org-tag-search (tag)
+  "Find all messages that have the org TAG in `org-tags'."
+  (registry-search gnus-registry-db :member `((org-tags ,tag))))
+
 (defun gnorb-registry-tracked-messages ()
   "Return all message-ids that have non-empty `gnorb-ids' keys."
   (registry-search gnus-registry-db :regex `((gnorb-ids ".+"))))
+
+(defun gnorb-registry-tagged-messages ()
+  "Return all messages with non-empty `org-tags' keys."
+  (registry-search gnus-registry-db :regex `((org-tags ".+"))))
 
 (defun gnorb-registry-tracked-headings ()
   "Return all Org heading ids that are associated with messages."
   (hash-table-keys
    (registry-lookup-secondary gnus-registry-db 'gnorb-ids)))
+
+(defun gnorb-registry-tracked-tags ()
+  "Return all tags that have been used on tracked messages."
+  (hash-table-keys
+   (registry-lookup-secondary gnus-registry-db 'org-tags)))
 
 (defun gnorb-report-tracking-usage ()
   "Pop up a temporary window reporting on Gnorb usage of the Gnus

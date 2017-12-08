@@ -38,7 +38,7 @@
 		  (group newsgroups message-id x-no-archive))
 (declare-function org-gnus-follow-link "org-gnus"
 		  (group article))
-
+(declare-function org-make-tags-matcher "org" (match))
 (defvar org-refile-targets)
 
 (defgroup gnorb-gnus nil
@@ -117,6 +117,14 @@ Ticks can be safely removed later."
   :group 'gnorb-gnus
   :type 'boolean)
 
+(defcustom gnorb-gnus-auto-tag-messages nil
+  "When non-nil, tag messages with associated heading tags.
+When creating associations between Org headings and messages,
+automatically copy the heading's tags on to the message, using
+the registry."
+  :group 'gnorb-gnus
+  :type 'boolean)
+
 (defcustom gnorb-gnus-summary-mark-format-letter "g"
   "Format letter to be used as part of your
   `gnus-summary-line-format', to indicate in the *Summary* buffer
@@ -125,6 +133,14 @@ Ticks can be safely removed later."
   result in the insertion of the value of
   `gnorb-gnus-summary-mark', for relevant messages, or
   else a space."
+  :group 'gnorb-gnus
+  :type 'string)
+
+(defcustom gnorb-gnus-summary-tags-format-letter "G"
+  "Format letter to be replaced with message tags.
+Add this format specification to your `gnus-summary-line-format'
+to show the tags which are currently applied to the message.
+Must be prefixed with \"u\", eg. \"%uG\"."
   :group 'gnorb-gnus
   :type 'string)
 
@@ -527,7 +543,7 @@ you'll stay in the Gnus summary buffer."
 	    ;; Specifically ask for zombies, so the user has chance to
 	    ;; flush them out.
 	    (gnorb-find-tracked-headings headers t)))
-	 targ)
+	 targ tags)
     (setq gnorb-gnus-message-info
 	  `(:subject ,subject :msg-id ,msg-id
 		     :to ,to :from ,from
@@ -564,6 +580,7 @@ you'll stay in the Gnus summary buffer."
 		  (save-window-excursion
 		    (find-file (nth 1 targ))
 		    (goto-char (nth 3 targ))
+		    (setq tags (org-get-tags))
 		    (org-id-get-create))))
 	  ;; Either bulk associate multiple messages...
 	  (if (> (length articles) 1)
@@ -595,6 +612,10 @@ you'll stay in the Gnus summary buffer."
 	    (dolist (a articles)
 	      (when gnorb-gnus-tick-all-tracked-messages
 		(gnus-summary-mark-article a gnus-ticked-mark))
+	      (when gnorb-gnus-auto-tag-messages
+		(gnorb-gnus-tag-message
+		 (mail-header-id (gnus-data-header (gnus-data-find a)))
+		 tags))
 	      (gnus-summary-update-article a))))
       (error
        ;; If these are left populated after an error, it plays hell
@@ -637,10 +658,16 @@ reply."
 	  (move-marker gnorb-return-marker (point))
 	  (when gnorb-gnus-tick-all-tracked-messages
 	    (gnus-summary-mark-article art-no gnus-ticked-mark))
-	  (gnus-summary-update-article art-no)
 	  ;; Assume the first heading is the one we want.
 	  (gnorb-registry-make-entry
 	   msg-id from subject targ group)
+	  ;; Maybe tag the message.
+	  (when gnorb-gnus-auto-tag-messages
+	    (let ((tags (save-window-excursion
+			  (org-id-goto targ)
+			  (org-get-tags))))
+	      (gnorb-gnus-tag-message msg-id tags)))
+	  (gnus-summary-update-article art-no)
 	  (gnus-summary-wide-reply-with-original 1)
 	  (move-marker ret (point))
 	  (save-restriction
@@ -655,6 +682,75 @@ reply."
 	   (format "Original message and reply will be associated with %s"
 		   (gnorb-pretty-outline targ))))
       (message "No associated headings found"))))
+
+(with-eval-after-load 'gnus-registry
+  (add-to-list 'gnus-registry-extra-entries-precious 'org-tags)
+  (add-to-list 'gnus-registry-track-extra 'org-tags))
+
+;;;###autoload
+(defun gnorb-gnus-tag-message (arg &optional tags)
+  "Tag message or messages with TAGS.
+ARG is used to specify which messages to work on (according to
+Gnus' process prefix convention).  TAGS should be a list of Org
+tags.  The tags are stored under the `org-tags' key in the
+registry.  If called from a lisp program, TAGS are added to any
+existing tags.
+
+If multiple messages are to be tagged, only the first message's
+existing tags are offered as a default."
+  (interactive "P")
+  (let* ((articles (or (gnus-summary-work-articles arg)
+		       (user-error "This command must be used within Gnus")))
+	 (first (mail-header-id
+		 (gnus-data-header
+		  (gnus-data-find (car articles)))))
+	 (crm-separator ":")
+	 (current (gnus-registry-get-id-key first 'org-tags))
+	 (default (when current
+		    (mapconcat #'identity current ":"))))
+    (setq tags
+	  (if tags
+	      (delete-dups (append current tags))
+	    (completing-read-multiple
+	     "Tags: "
+	     (org-global-tags-completion-table) nil t default)))
+    (dolist (a articles)
+      (let ((msg-id (mail-header-id
+		     (gnus-data-header
+		      (gnus-data-find a)))))
+	(gnus-registry-set-id-key msg-id 'org-tags tags)
+	(gnus-summary-update-article a)))
+    (gnus-message 5 "%d message%s tagged: %s"
+		  (length articles)
+		  (if (= 1 (length articles)) "" "s")
+		  (mapconcat #'identity tags ":"))))
+
+;;;###autoload
+(defun gnorb-gnus-insert-tagged-messages (tags)
+  "Insert articles in this group with tags matching TAGS.
+TAGS is a string possibly containing multiple tags to include or
+exclude.  See Info node `(org)Matching tags and properties'."
+  (interactive "MTags: ")
+  (let ((matcher (cdr (org-make-tags-matcher tags)))
+	(tagged-messages (registry-search gnus-registry-db
+					  :regex `((org-tags ".+"))
+					  :member `((group ,gnus-newsgroup-name))))
+	(old (sort (mapcar 'car gnus-newsgroup-data) '<))
+	selected-messages)
+    ;; Funcall the matcher with t, (list of tags), and 1.
+    (dolist (m tagged-messages)
+      (when (funcall matcher t (gnus-registry-get-id-key m 'org-tags) 1)
+	(push m selected-messages)))
+    (if selected-messages
+	;; Turn message ids into article numbers.
+	(progn
+	  (setq selected-messages
+		(mapcar (lambda (id) (cdr (gnus-request-head id gnus-newsgroup-name)))
+			selected-messages))
+	  (gnus-summary-insert-articles selected-messages)
+	  (gnus-summary-limit (gnus-sorted-nunion old selected-messages))
+	  (gnus-summary-position-point))
+      (message "No matching messages in this group"))))
 
 ;;;###autoload
 (defun gnorb-gnus-search-messages (str persist &optional head-text ret)
@@ -780,6 +876,22 @@ option `gnorb-gnus-hint-relevant-article' is non-nil."
 		      gnorb-gnus-summary-mark-format-letter))
       (lambda (header)
 	(gnorb-gnus-insert-format-letter-maybe header)))
+
+(defun gnorb-gnus-insert-format-tags (header)
+  (let* ((id (mail-header-message-id header))
+	 (entry (nth 1 (assoc id (registry-lookup
+				  gnus-registry-db
+				  (list id)))))
+	 (tags (cdr-safe (assq 'org-tags entry))))
+    (if tags
+	(concat
+	 ":" (mapconcat #'identity tags ":") ":")
+      "")))
+
+(fset (intern (concat "gnus-user-format-function-"
+		      gnorb-gnus-summary-tags-format-letter))
+      (lambda (header)
+	(gnorb-gnus-insert-format-tags header)))
 
 ;;;###autoload
 (defun gnorb-gnus-view ()

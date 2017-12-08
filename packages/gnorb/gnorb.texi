@@ -30,8 +30,8 @@
 * Email Tracking::
 * Restoring Window Layout::
 * Recent Mails From BBDB Contacts::
+* Tagging Messages and Contacts::
 * BBDB posting styles::
-* BBDB Org tagging::
 * Misc BBDB::
 * Misc Org::
 * Misc Gnus::
@@ -468,6 +468,36 @@ a prefix arg to the function call to select particular messages to
 open. There are several options controlling how all this works; see
 the gnorb-bbdb user options section below for details.
 
+@node Tagging Messages and Contacts
+@chapter Tagging Messages and Contacts
+
+It's possible to use your defined Org tags to tag BBDB contacts and
+Gnus messages.
+
+For BBDB contacts, tags are stored in an xfield named org-tags, by
+default (you can customize the name of this field using the
+`gnorb-bbdb-org-tag-field' option). Once contacts are tagged, you can
+search for tags normally in the *BBDB* buffer. You can also pop up a
+*BBDB* buffer alongside an Org Agenda tags search, with contacts
+matching the search terms. You can have this happen automatically, by
+setting `gnorb-org-agenda-popup-bbdb' to a non-nil value, or do it
+manually by calling `gnorb-org-popup-bbdb'.
+
+Gnus messages can be tagged from a *Summary* buffer using the command
+`gnorb-gnus-tag-message' (bound to ``C-c C-t'' when using the default
+keybindings). You can also search for tagged messages in a group using
+`gnorb-gnus-insert-tagged-messages' (bound to ``/ g'' when using the
+default keybindings). The search string can be given as a more complex
+tags expression a la Org Agenda searches, ie ``cat|bird-dog''.
+
+If the option `gnorb-gnus-auto-tag-messages' is non-nil, any time you
+trigger an Org heading from a Gnus message, the message will ``inherit''
+the tags of the Org heading.
+
+You can view Org tags on Gnus messages by adding the ``%uG'' spec code
+to your `gnus-group-line-format' value. That spec code can be
+customized using the `gnorb-gnus-summary-tags-format-letter' option.
+
 @node BBDB posting styles
 @chapter BBDB posting styles
 
@@ -483,20 +513,6 @@ an alternate `gnorb-bbdb-mail', which does exactly the same thing, but
 first processes the new mail according to `gnorb-bbdb-posting-styles'.
 If you want to use this feature regularly, you can remap `bbdb-mail'
 to `gnorb-bbdb-mail' in the `bbdb-mode-map'.
-
-@node BBDB Org tagging
-@chapter BBDB Org tagging
-
-BBDB contacts can be tagged with the same tags you use in your Org
-files. This allows you to pop up a *BBDB* buffer alongside your Org
-Agenda when searching for certain tags. This can happen automatically
-for all Org tags-todo searches, if you set the option
-`gnorb-org-agenda-popup-bbdb' to t. Or you can do it manually, by
-calling the command of the same name. This command only shows TODOs by
-default: use a prefix argument to show all tagged headings.
-
-Tags are stored in an xfield named org-tags, by default. You can
-customize the name of this field using `gnorb-bbdb-org-tag-field'.
 
 @node Misc BBDB
 @chapter Misc BBDB
