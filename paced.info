@@ -54,9 +54,10 @@ Example Setups
 
 Contributing
 
-* Bugs::
-* Development::
-* Documentation::
+* Bugs::                         Submitting bug reports
+* Development::                  Helping with development
+* Documentation::                Improving the documentation
+* Working with EDE::             And all its quirks
 
 
 
@@ -130,23 +131,23 @@ pabbrev
 -------
 
 The pabbrev (https://github.com/phillord/pabbrev) package by Phillip
-Lord scans text of the current buffer while Emacs is idle and presents
-the user with the most common completions.
+Lord automatically scans text of the current buffer while Emacs is idle
+and presents the user with the most common completions.
 
    One of the major downsides to pabbrev is that the data it collects
 doesn’t persist between Emacs sessions.  For a few files that are always
-open, such as org agenda files, pabbrev works great.  For files that
-aren’t always open, like prose or source files, you’ve got to retrain
-pabbrev every time you restart Emacs.
+open, such as org agenda files, pabbrev works great.  If you want to
+train it from a few files that aren’t always open, you’ll have to open
+each file and retrain pabbrev from that file.  And you’ll have to do
+this every time you restart Emacs.
 
-   The benefit of pabbrev dies down if the suggested word isn’t the one
-you need.  Then you’ve still got to search through a list of
-suggestions, which takes away from typing.
-
-   That’s not to say that pabbrev is all bad.  It keeps up-to-date usage
-and prefix hashes of all buffers of the same mode, and scanning, or
-“scavenging”, blends seamlessly into the background.  Completion is just
-a hash table lookup, so it can handle completion in microseconds.
+   It keeps up-to-date usage and prefix hashes of all buffers of the
+same mode, and scanning, or “scavenging”, blends seamlessly into the
+background.  Completion is just a hash table lookup, so it can handle
+completion in microseconds.  There’s also no setup required; it will
+start working right away.  The downside to this is that dictionaries
+aren’t flexible; each dictionary corresponds to a major mode, and
+there’s no way to change that.
 
 
 File: paced.info,  Node: predictive,  Prev: pabbrev,  Up: Similar Packages
@@ -585,14 +586,16 @@ We are all happy for any help you may provide.
 
    Build the Makefile with EDE:
 
-  1. Open any file from paced
+  1. Open any file from paced (See *note Working with EDE:: if you
+     encounter “Corrupt object on disk” error)
   2. Run ‘C-c . C’ or ‘M-x ede-compile-project’
 
 * Menu:
 
-* Bugs::
-* Development::
-* Documentation::
+* Bugs::                         Submitting bug reports
+* Development::                  Helping with development
+* Documentation::                Improving the documentation
+* Working with EDE::             And all its quirks
 
 
 File: paced.info,  Node: Bugs,  Next: Development,  Up: Contributing
@@ -637,7 +640,7 @@ can then merge that into the main development branch.
    • Avoid additional or altered dependencies if at all possible
 
 
-File: paced.info,  Node: Documentation,  Prev: Development,  Up: Contributing
+File: paced.info,  Node: Documentation,  Next: Working with EDE,  Prev: Development,  Up: Contributing
 
 Documentation
 =============
@@ -650,33 +653,61 @@ following after making any changes:
      can easily be read on a white background; we recommend the
      “adwaita” theme
 
+
+File: paced.info,  Node: Working with EDE,  Prev: Documentation,  Up: Contributing
+
+Working with EDE
+================
+
+EDE can be a little finicky at times, but we feel the benefits, namely
+package dependency handling and Makefile generation, outweigh the costs.
+
+   One of the issues that many will likely encounter is the error
+“Corrupt file on disk”.  This is most often due to EDE not loading all
+its subprojects as needed.  If you find yourself dealing with this error
+often, place the following in your .emacs file:
+
+     ;; Target types needed for working with paced
+     (require 'ede/proj-elisp)
+     (require 'ede/proj-aux)
+     (require 'ede/proj-misc)
+
+   These are the three target types that paced uses: elisp for
+compilation and autoloads; aux for auxiliary files such as
+documentation; and misc for tests.
+
+   When creating a new file, EDE will ask if you want to add it to a
+target.  Consult with one of the paced devs for guidance, but usually
+selecting “none” and letting one of us handle it is a good way to go.
+
 
 
 Tag Table:
 Node: Top228
-Node: Copying1439
-Node: Introduction2231
-Node: Similar Packages3299
-Node: pabbrev3585
-Node: predictive4659
-Node: Installation5707
-Node: Dictionaries6152
-Node: Creating a Dictionary6556
-Node: Editing a Dictionary7596
-Node: Selective Dictionaries8072
-Node: Dictionary Files9686
-Node: Population Commands10777
-Node: Built-in Commands11713
-Node: Properties12510
-Node: Custom Commands13132
-Node: Asynchronous Population15859
-Node: Example Setups17052
-Node: Org Agenda Files17234
-Node: Project Files18490
-Node: Contributing19603
-Node: Bugs20087
-Node: Development20476
-Node: Documentation21443
+Node: Copying1623
+Node: Introduction2415
+Node: Similar Packages3483
+Node: pabbrev3769
+Node: predictive4912
+Node: Installation5960
+Node: Dictionaries6405
+Node: Creating a Dictionary6809
+Node: Editing a Dictionary7849
+Node: Selective Dictionaries8325
+Node: Dictionary Files9939
+Node: Population Commands11030
+Node: Built-in Commands11966
+Node: Properties12763
+Node: Custom Commands13385
+Node: Asynchronous Population16112
+Node: Example Setups17305
+Node: Org Agenda Files17487
+Node: Project Files18743
+Node: Contributing19856
+Node: Bugs20612
+Node: Development21001
+Node: Documentation21968
+Node: Working with EDE22435
 
 End Tag Table
 
