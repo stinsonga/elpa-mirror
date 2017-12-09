@@ -112,6 +112,21 @@ After that, add the following to your init file (typically .emacs):
 (add-to-list 'load-path "/full/path/to/paced/")
 (require 'paced)
 #+END_SRC
+** Basic Setup
+:PROPERTIES:
+:DESCRIPTION: The simplest setup
+:END:
+
+Paced needn't have a lot of setup to run.  In fact, the simplest setup is as
+follows:
+
+1. Create a new dictionary, "Default" (See [[dictionary_creation][Creating a Dictionary]])
+2. Set paced-global-dict-enable-alist to ~((t . "Default"))~ (See [[selective_dictionaries][Selective Dictionaries]])
+3. Run ~M-x global-paced-mode~
+4. To add a file to the dictionary, use ~M-x paced-add-buffer-file-to-dictionary~
+
+This will create a default dictionary and populate it from buffers you specify.
+
 * Dictionaries
 :PROPERTIES:
 :DESCRIPTION: Paced's bread and butter
@@ -119,6 +134,7 @@ After that, add the following to your init file (typically .emacs):
 ** Creating a Dictionary
 :PROPERTIES:
 :DESCRIPTION: First steps
+:CUSTOM_ID: dictionary_creation
 :END:
 
 Now that you've got paced installed, it's time to create a new dictionary.
@@ -154,6 +170,7 @@ documented in the edit buffer.
 ** Selective Dictionaries
 :PROPERTIES:
 :DESCRIPTION: Enabling certain dictionaries under certain conditions
+:CUSTOM_ID: selective_dictionaries
 :END:
 
 Paced provides a mechanism called the "enable list", that allows a user to
@@ -169,7 +186,7 @@ The conditions are one of the following:
   dictionary should be active in any mode derived from that mode.
 
 - A symbol, in which case the named dictionary is active whenever the value of
-  that symbol is non-nil.
+  that symbol is non-nil.  This includes the symbol ~t~.
 
 - A function symbol, in which case the function is called with no arguments to
   determine if the given dictionary should be enabled.  If the function returns
