@@ -1,5 +1,5 @@
 Project.ede
 Makefile
 test.mk
-test-files/*
+test-files
 paced-tests.el
