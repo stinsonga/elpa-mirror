@@ -1,47 +1,46 @@
 ;;; paced.el --- Predictive Abbreviation Completion and Expansion using Dictionaries -*- lexical-binding: t; -*-
 
-;; Copyright (c) 2017 Ian Dunn
+;; Copyright (C) 2017 Free Software Foundation, Inc.
 
 ;; Author: Ian Dunn <dunni@gnu.org>
+;; Maintainer: Ian Dunn <dunni@gnu.org>
 ;; Keywords: convenience, completion
 ;; Package-Requires: ((emacs "25.1") (async "1.9.1"))
+;; URL: https://savannah.nongnu.org/projects/paced-el/
 ;; Version: 1.0
 ;; Created: 22 Jan 2017
-;; Modified: 10 Nov 2017
+;; Modified: 08 Dec 2017
 
-;; This file is NOT part of GNU Emacs.
+;; This file is part of GNU Emacs.
 
-;; This program is free software: you can redistribute it and/or modify
-;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation, either version 3 of the License, or
-;; (at your option) any later version.
+;; This program is free software; you can redistribute it and/or modify it under
+;; the terms of the GNU General Public License as published by the Free Software
+;; Foundation; either version 3, or (at your option) any later version.
 
-;; This program is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU General Public License for more details.
+;; This program is distributed in the hope that it will be useful, but WITHOUT
+;; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+;; FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+;; details.
 
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
-;; Paced scans one or more files or buffers and constructs a table of words,
-;; weighted by how often they're used.
+;; Paced (Predictive Abbreviation Completion and Expansion using Dictionaries)
+;; scans a group of files (determined by "population commands") to construct a
+;; usage table (dictionary).  Words (or symbols) are sorted by their usage, and
+;; may be later presented to the user for completion.  A dictionary can then be
+;; saved to a file, to be loaded later.
 
-;; Once it's constructed this table, it can present them to the user for
-;; completion, sorted by their weights.
+;; Population commands determine how a dictionary should be filled with words or
+;; symbols.  A dictionary may have multiple population commands, and population
+;; may be performed asynchronously.  Once population is finished, the contents
+;; are sorted, with more commonly used words at the front.  Dictionaries may be
+;; edited through EIEIO's customize-object interface.
 
-;; Creating a new dictionary is easy; just use `paced-create-new-dictionary' to
-;; create a new dictionary, then set the population commands and sort method.
-
-;; Dictionaries are persistent; they're saved with
-;; `paced-save-named-dictionary' or `paced-save-all-dictionaries'.
-
-;; Population commands tell a dictionary how it should refresh its usage table.
-
-;; No completion frontend is provided, but a function for
-;; `completion-at-point-functions' is given.
+;; Completion is done through `completion-at-point'.  The dictionary to use for
+;; completion can be customized.
 
 ;;; Code:
 
@@ -765,7 +764,8 @@ This should only be called from `paced-completion-at-point'."
   (when (and paced-mode)
     (when-let* ((bounds (paced-bounds-of-thing-at-point)))
       (list (car bounds) (cdr bounds) 'paced-completion-table-function
-            :exit-function 'paced-completion-auto-update))))
+            :exit-function 'paced-completion-auto-update
+            :excludsive 'no))))
 
 
                                         ; ;;;;;;;;;;;;;;;;;; ;

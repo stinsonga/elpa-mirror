@@ -1,11 +1,17 @@
 ;;; paced-tests.el --- Tests for paced -*- lexical-binding: t; -*-
 
-;; Copyright (c) 2017 Ian Dunn
+;; Copyright (C) 2017 Free Software Foundation, Inc.
 
 ;; Author: Ian Dunn <dunni@gnu.org>
+;; Maintainer: Ian Dunn <dunni@gnu.org>
+;; Keywords: convenience, completion
+;; Package-Requires: ((emacs "25.1") (async "1.9.1"))
+;; URL: https://savannah.nongnu.org/projects/paced-el/
 ;; Version: 1.0
+;; Created: 22 Jan 2017
+;; Modified: 08 Dec 2017
 
-;; This file is NOT part of GNU Emacs.
+;; This file is part of GNU Emacs.
 
 ;; This program is free software; you can redistribute it and/or modify it under
 ;; the terms of the GNU General Public License as published by the Free Software
