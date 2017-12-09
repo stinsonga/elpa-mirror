@@ -276,6 +276,11 @@ Two variables are of note here:
 - paced-thing-at-point-constituent :: Symbol defining thing on which population
      works.  Typically set to either 'symbol or 'word.
 
+For convenience, properties that are intended for all population commands of a
+given dictionary may be set in the dictionary itself.  In the event of a
+conflict, population command properties take precedence over dictionary
+properties.
+
 ** Custom Commands
 :PROPERTIES:
 :DESCRIPTION: Defining new population commands
