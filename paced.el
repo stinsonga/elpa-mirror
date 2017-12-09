@@ -730,18 +730,17 @@ the prefix before completions are returned."
 
 (defun paced-completion-table-function (string pred action)
   "Completion table function for paced dictionaries."
-  (if-let* ((dict (paced-current-dictionary)))
-      (let* ((completion-ignore-case paced-completion-ignore-case))
-        (pcase action
-          ((or `nil `t `lambda)
-           (paced-dictionary-completions dict string action pred))
-          (`(boundaries . _) nil)
-          (`metadata
-           `(metadata . ((category . paced)
-                         (annotation-function . nil)
-                         (display-sort-function . identity)
-                         (cycle-sort-function . identity))))))
-    (user-error "No dictionary found for current buffer")))
+  (let* ((completion-ignore-case paced-completion-ignore-case))
+    (pcase action
+      ((or `nil `t `lambda)
+       (when-let* ((dict (paced-current-dictionary)))
+         (paced-dictionary-completions dict string action pred)))
+      (`(boundaries . _) nil)
+      (`metadata
+       `(metadata . ((category . paced)
+                     (annotation-function . nil)
+                     (display-sort-function . identity)
+                     (cycle-sort-function . identity)))))))
 
 (defcustom paced-auto-update-p nil
   "Whether to update from completions.
@@ -773,7 +772,7 @@ This should only be called from `paced-completion-at-point'."
     (when-let* ((bounds (paced-bounds-of-thing-at-point)))
       (list (car bounds) (cdr bounds) 'paced-completion-table-function
             :exit-function 'paced-completion-auto-update
-            :excludsive 'no))))
+            :exclusive 'no))))
 
 
                                         ; ;;;;;;;;;;;;;;;;;; ;
