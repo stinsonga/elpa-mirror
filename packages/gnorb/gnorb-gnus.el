@@ -683,7 +683,7 @@ ephemeral one, with RET as the value of its quit-config."
 			 (format
 			  "nngnorb:%s"
 			  (nth 1 (assoc 'nngnorb
-					gnus-seconard-select-methods)))))
+					gnus-secondary-select-methods)))))
 		(dolist (s (append gnus-server-alist gnus-server-method-cache))
 		  (when (eq 'nngnorb (cadr s))
 		    (throw 'found (car s)))))
