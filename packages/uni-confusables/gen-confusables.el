@@ -63,10 +63,13 @@
     (with-temp-file file
       (insert ";;; uni-confusables.el --- Unicode confusables table
 ;; Copyright (C) 1991-2009, 2010 Unicode, Inc.
-;; This file was generated from the Unicode confusables list at
-;; http://www.unicode.org/Public/security/revision-04/confusables.txt.
-;; See lisp/international/README in the Emacs trunk
-;; for the copyright and permission notice.
+;; This file was generated from a local copy of the Unicode confusables
+;; list (covered by the Unicode copyright terms in copyright.html)
+;; which was retrieved from
+;; http://www.unicode.org/Public/security/revision-04/confusables.txt
+;; and mechanically from the source file
+;; gen-confusables.el.  The copyright and permissions are the same
+;; as for gen-confusables.el.
 
 ;; Version: 0.1
 ;; Maintainer: Teodor Zlatanov <tzz@lifelogs.com>
