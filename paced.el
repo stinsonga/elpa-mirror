@@ -794,7 +794,10 @@ Returns nil if FILE doesn't exist."
           :custom (alist :tag "Options" :key-type variable :value-type sexp)
           :documentation "A list of variables to set during population.
 
-Each element is of the form (VAR VALUE).")))
+Each element is of the form (VAR VALUE).
+
+Some suggested variables for this are `paced-exclude-function'
+and `paced-thing-at-point-constituent'.")))
 
 (cl-defmethod paced-population-command-prepare-props ((cmd paced-population-command))
   "Turn props of CMD into a form understood by `let'."
