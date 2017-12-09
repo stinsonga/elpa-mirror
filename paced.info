@@ -26,6 +26,7 @@ Introduction
 
 * Similar Packages::             Packages with similar goals
 * Installation::                 How to install paced
+* Basic Setup::                  The simplest setup
 
 Similar Packages
 
@@ -109,6 +110,7 @@ use for completion can be customized.
 
 * Similar Packages::             Packages with similar goals
 * Installation::                 How to install paced
+* Basic Setup::                  The simplest setup
 
 
 File: paced.info,  Node: Similar Packages,  Next: Installation,  Up: Introduction
@@ -173,7 +175,7 @@ predictive has where it only adds a word to a dictionary if it already
 exists was tedious, since I didn’t need it to do that.
 
 
-File: paced.info,  Node: Installation,  Prev: Similar Packages,  Up: Introduction
+File: paced.info,  Node: Installation,  Next: Basic Setup,  Prev: Similar Packages,  Up: Introduction
 
 Installation
 ============
@@ -193,6 +195,26 @@ async   1.9.1
 
      (add-to-list 'load-path "/full/path/to/paced/")
      (require 'paced)
+
+
+File: paced.info,  Node: Basic Setup,  Prev: Installation,  Up: Introduction
+
+Basic Setup
+===========
+
+Paced needn’t have a lot of setup to run.  In fact, the simplest setup
+is as follows:
+
+  1. Create a new dictionary, “Default” (See *note Creating a
+     Dictionary::)
+  2. Set paced-global-dict-enable-alist to ‘((t . "Default"))’ (See
+     *note Selective Dictionaries::)
+  3. Run ‘M-x global-paced-mode’
+  4. To add a file to the dictionary, use ‘M-x
+     paced-add-buffer-file-to-dictionary’
+
+   This will create a default dictionary and populate it from buffers
+you specify.
 
 
 File: paced.info,  Node: Dictionaries,  Next: Population Commands,  Prev: Introduction,  Up: Top
@@ -267,7 +289,7 @@ has a condition and a key.
      mode.
 
    • A symbol, in which case the named dictionary is active whenever the
-     value of that symbol is non-nil.
+     value of that symbol is non-nil.  This includes the symbol ‘t’.
 
    • A function symbol, in which case the function is called with no
      arguments to determine if the given dictionary should be enabled.
@@ -689,30 +711,31 @@ selecting “none” and letting one of us handle it is a good way to go.
 
 Tag Table:
 Node: Top228
-Node: Copying1623
-Node: Introduction2415
-Node: Similar Packages3483
-Node: pabbrev3769
-Node: predictive4912
-Node: Installation5960
-Node: Dictionaries6405
-Node: Creating a Dictionary6809
-Node: Editing a Dictionary7849
-Node: Selective Dictionaries8325
-Node: Dictionary Files9939
-Node: Population Commands11030
-Node: Built-in Commands11966
-Node: Properties12763
-Node: Custom Commands13625
-Node: Asynchronous Population16352
-Node: Example Setups17545
-Node: Org Agenda Files17727
-Node: Project Files18983
-Node: Contributing20096
-Node: Bugs20852
-Node: Development21241
-Node: Documentation22208
-Node: Working with EDE22675
+Node: Copying1675
+Node: Introduction2467
+Node: Similar Packages3587
+Node: pabbrev3873
+Node: predictive5016
+Node: Installation6064
+Node: Basic Setup6529
+Node: Dictionaries7132
+Node: Creating a Dictionary7536
+Node: Editing a Dictionary8576
+Node: Selective Dictionaries9052
+Node: Dictionary Files10701
+Node: Population Commands11792
+Node: Built-in Commands12728
+Node: Properties13525
+Node: Custom Commands14387
+Node: Asynchronous Population17114
+Node: Example Setups18307
+Node: Org Agenda Files18489
+Node: Project Files19745
+Node: Contributing20858
+Node: Bugs21614
+Node: Development22003
+Node: Documentation22970
+Node: Working with EDE23437
 
 End Tag Table
 
