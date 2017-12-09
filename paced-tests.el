@@ -451,6 +451,18 @@
     (should (paced-dictionary-completions test-dict "one" 'lambda))
     (should-not (paced-dictionary-completions test-dict "o" 'lambda))))
 
+(ert-deftest paced-merge-properties ()
+  (let* ((prop-list-1 '((a . "abc") (b . "xyz")))
+         (prop-list-2 '((a . "def") (c . "ghi")))
+         (prop-list-3 nil)
+         (merged-1   (paced-merge-properties prop-list-1 prop-list-2))
+         (merged-2   (paced-merge-properties prop-list-3 prop-list-2)))
+    (should (equal (map-elt merged-1 'a) '("def")))
+    (should (equal (map-elt merged-1 'b) '("xyz")))
+    (should (equal (map-elt merged-1 'c) '("ghi")))
+    (should (equal (map-elt merged-2 'a) '("def")))
+    (should (equal (map-elt merged-2 'c) '("ghi")))))
+
 (provide 'paced-tests)
 
 ;;; paced-tests.el ends here

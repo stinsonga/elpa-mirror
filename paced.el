@@ -185,6 +185,22 @@ It can be one of the following:
             :initform nil
             :type boolean
             :documentation "Non-nil if this dictionary has been updated since it was last saved.")
+   (default-population-properties
+     :initarg :default-population-properties
+     :initform nil
+     :type list
+     :label "Default Properties"
+     :custom (alist :tag "Properties" :key-type variable :value-type sexp)
+     :documentation "Default properties for population commands.
+
+Each element is of the form (VAR VALUE).  Each VAR will be set to
+VALUE during population for this dictionary.
+
+Properties set in the individual population commands will
+override settings here.
+
+Some suggested variables for this are `paced-exclude-function'
+and `paced-thing-at-point-constituent'.")
    (sort-method :initarg :sort-method
                 :initform 'paced--default-dictionary-sort-func
                 :type function
@@ -806,6 +822,24 @@ Each element is of the form (VAR VALUE).
 Some suggested variables for this are `paced-exclude-function'
 and `paced-thing-at-point-constituent'.")))
 
+(defun paced-merge-properties (&rest props)
+  "Merge the properties in PROPS to a single form understood by `let'.
+
+PROPS is a list of alists, each mapping a variable to a value for
+that variable
+
+The maps in the end of PROPS take precedence over the beginning."
+  (let ((merged-map (apply 'map-merge 'list props)))
+    (map-apply (lambda (var val) (list var val)) merged-map)))
+
+(cl-defmethod paced-dictionary-prepare-properties ((dict paced-dictionary)
+                                                   (cmd  paced-population-command))
+  "Merge the properties of DICT and CMD into a single form understood by `let'.
+
+Properties in CMD take precedence over those in DICT."
+  (paced-merge-properties (oref dict default-population-properties)
+                          (oref cmd props)))
+
 (cl-defmethod paced-population-command-prepare-props ((cmd paced-population-command))
   "Turn props of CMD into a form understood by `let'."
   (with-slots (props) cmd
@@ -822,7 +856,7 @@ Return non-nil if setup was successful and population can continue.")
   "Populate DICT from CMD."
   (let ((sources (paced-population-command-source-list cmd))
         ;; Turn props into a form understood by `let'.
-        (props (paced-population-command-prepare-props cmd)))
+        (props (paced-dictionary-prepare-properties dict cmd)))
     (dolist (source sources)
       (with-temp-buffer
         ;; If pre is nil, continue.
