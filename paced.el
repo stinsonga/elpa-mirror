@@ -440,7 +440,15 @@ since population mostly uses temporary buffers.")
 This should be a function of no arguments that returns non-nil if
 the current thing-at-point should be excluded from paced dictionaries.
 
-By default, this allows everything.")
+By default, this allows everything.
+
+A useful function for this is `paced-in-comment-p'.")
+
+(defun paced-in-comment-p (&optional pos)
+  "Return non-nil if POS is in a comment.
+
+If POS is not specified, defaults to `point'."
+  (nth 8 (syntax-ppss (or pos (point)))))
 
 (defun paced-excluded-p ()
   "Return non-nil to exclude current thing at point.
