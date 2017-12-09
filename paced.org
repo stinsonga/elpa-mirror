@@ -120,8 +120,8 @@ After that, add the following to your init file (typically .emacs):
 Paced needn't have a lot of setup to run.  In fact, the simplest setup is as
 follows:
 
-1. Create a new dictionary, "Default" (See [[dictionary_creation][Creating a Dictionary]])
-2. Set paced-global-dict-enable-alist to ~((t . "Default"))~ (See [[selective_dictionaries][Selective Dictionaries]])
+1. Create a new dictionary, "Default" (See [[#dictionary_creation][Creating a Dictionary]])
+2. Set paced-global-dict-enable-alist to ~((t . "Default"))~ (See [[#selective_dictionaries][Selective Dictionaries]])
 3. Run ~M-x global-paced-mode~
 4. To add a file to the dictionary, use ~M-x paced-add-buffer-file-to-dictionary~
 
