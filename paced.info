@@ -388,6 +388,11 @@ paced-thing-at-point-constituent
      Symbol defining thing on which population works.  Typically set to
      either ’symbol or ’word.
 
+   For convenience, properties that are intended for all population
+commands of a given dictionary may be set in the dictionary itself.  In
+the event of a conflict, population command properties take precedence
+over dictionary properties.
+
 
 File: paced.info,  Node: Custom Commands,  Next: Asynchronous Population,  Prev: Properties,  Up: Population Commands
 
@@ -698,16 +703,16 @@ Node: Dictionary Files9939
 Node: Population Commands11030
 Node: Built-in Commands11966
 Node: Properties12763
-Node: Custom Commands13385
-Node: Asynchronous Population16112
-Node: Example Setups17305
-Node: Org Agenda Files17487
-Node: Project Files18743
-Node: Contributing19856
-Node: Bugs20612
-Node: Development21001
-Node: Documentation21968
-Node: Working with EDE22435
+Node: Custom Commands13625
+Node: Asynchronous Population16352
+Node: Example Setups17545
+Node: Org Agenda Files17727
+Node: Project Files18983
+Node: Contributing20096
+Node: Bugs20852
+Node: Development21241
+Node: Documentation22208
+Node: Working with EDE22675
 
 End Tag Table
 
