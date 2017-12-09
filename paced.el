@@ -840,11 +840,6 @@ Properties in CMD take precedence over those in DICT."
   (paced-merge-properties (oref dict default-population-properties)
                           (oref cmd props)))
 
-(cl-defmethod paced-population-command-prepare-props ((cmd paced-population-command))
-  "Turn props of CMD into a form understood by `let'."
-  (with-slots (props) cmd
-    (map-apply (lambda (var val) (list var val)) props)))
-
 (cl-defgeneric paced-population-command-source-list ((_cmd paced-population-command)))
 
 (cl-defgeneric paced-population-command-setup-buffer ((_cmd paced-population-command) _source)
