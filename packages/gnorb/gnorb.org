@@ -261,6 +261,13 @@ the Gnus *Group* buffer.
 Calling `gnorb-gnus-view' ("C-c v") on a tracked message will take you
 to the tracked Org heading.
 
+From a Gnus *Summary* buffer, you can insert all tracked messages in
+the current group into the buffer with
+`gnorb-gnus-insert-tracked-messages', bound to "/ G" in the default
+keybindings. By default this will only insert messages associated with
+headings that are not in a DONE state; call with a prefix arg to
+insert all messages.
+
 As a bonus, it's possible to go into Gnus' *Server* buffer, find the
 line specifying your nngnorb server, and hit "G" (aka
 `gnus-group-make-nnir-group'). At the query prompt, enter an Org-style
@@ -553,6 +560,9 @@ below. If you don't like these defaults, you can always do your own setup.
        (define-key gnus-summary-mime-map "a" #'gnorb-gnus-article-org-attach)
        (define-key gnus-summary-mode-map (kbd "C-c t") #'gnorb-gnus-incoming-do-todo)
        (define-key gnus-summary-mode-map (kbd "C-c v") #'gnorb-gnus-view)
+       (define-key gnus-summary-mode-map (kbd "C-c C-t") #'gnorb-gnus-tag-message)
+       (define-key gnus-summary-limit-map (kbd "g") #'gnorb-gnus-insert-tagged-messages)
+       (define-key gnus-summary-limit-map (kbd "G") #'gnorb-gnus-insert-tracked-messages)
        (setq gnorb-gnus-capture-always-attach t)
        (push '("attach to org heading" . gnorb-gnus-mime-org-attach)
              gnus-mime-action-alist)

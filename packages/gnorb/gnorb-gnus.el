@@ -753,6 +753,42 @@ exclude.  See Info node `(org)Matching tags and properties'."
       (message "No matching messages in this group"))))
 
 ;;;###autoload
+(defun gnorb-gnus-insert-tracked-messages (show-all)
+  "Insert tracked messages into the Summary buffer.
+Only inserts tracked messages belonging to this group.  If
+SHOW-ALL (interactively, the prefix arg) is non-nil, insert all
+messages; otherwise only insert messages that are tracked by a
+heading in a non-DONE state."
+  (interactive "P")
+  (let ((old (sort (mapcar 'car gnus-newsgroup-data) '<))
+	(tracked-messages
+	 (registry-search gnus-registry-db
+			  :regex `((gnorb-ids ".+"))
+			  :member `((group ,gnus-newsgroup-name)))))
+    (unless show-all
+      (setq tracked-messages
+	    (cl-remove-if
+	     (lambda (msg-id)
+	       (let ((id (car-safe (gnus-registry-get-id-key
+				    msg-id 'gnorb-ids))))
+		 (or (null id)
+		     (save-window-excursion
+		       (org-id-goto id)
+		       (org-entry-is-done-p)))))
+	     tracked-messages)))
+    (if tracked-messages
+	(progn
+	  (setq tracked-messages
+		(delq nil
+		      (mapcar (lambda (id)
+				(cdr (gnus-request-head id gnus-newsgroup-name)))
+			      tracked-messages)))
+	  (gnus-summary-insert-articles tracked-messages)
+	  (gnus-summary-limit (gnus-sorted-nunion tracked-messages old))
+	  (gnus-summary-position-point))
+      (message "No tracked messages in this group"))))
+
+;;;###autoload
 (defun gnorb-gnus-search-messages (str persist &optional head-text ret)
   "Initiate a search for gnus message links in an org subtree.
 The arg STR can be one of two things: an Org heading id value
