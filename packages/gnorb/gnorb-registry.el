@@ -197,17 +197,18 @@ key."
 (defun gnorb-registry-tracked-headings ()
   "Return all Org heading ids that are associated with messages."
   (hash-table-keys
-   (registry-lookup-secondary gnus-registry-db 'gnorb-ids)))
+   (registry-lookup-secondary gnus-registry-db 'gnorb-ids t)))
 
 (defun gnorb-registry-tracked-tags ()
   "Return all tags that have been used on tracked messages."
   (hash-table-keys
-   (registry-lookup-secondary gnus-registry-db 'org-tags)))
+   (registry-lookup-secondary gnus-registry-db 'org-tags t)))
 
 (defun gnorb-report-tracking-usage ()
   "Pop up a temporary window reporting on Gnorb usage of the Gnus
 registry to track message/heading associations.  Reports the
-number of tracked messages, the number of tracked headings, and how much of the registry is occupied."
+number of tracked messages, the number of tracked headings, any
+tagged messages, and how much of the registry is occupied."
   (interactive)
   (pop-to-buffer
    (get-buffer-create "*Gnorb Usage*")
@@ -228,28 +229,40 @@ number of tracked messages, the number of tracked headings, and how much of the 
 
 (defun gnorb-refresh-usage-status (&optional _ignore-auto _noconfirm)
   "Clear and re-format the *Gnorb Usage* buffer."
-  (let ((messages (length (gnorb-registry-tracked-messages)))
-	(headings (length (gnorb-registry-tracked-headings)))
-	(reg-size (registry-size gnus-registry-db))
-	(reg-max-size (if (slot-exists-p gnus-registry-db 'max-size)
-			  (oref gnus-registry-db max-size)
-			(oref gnus-registry-db max-hard))))
+  (let* ((messages (gnorb-registry-tracked-messages))
+	 (message-num (length messages))
+	 (headings (gnorb-registry-tracked-headings))
+	 (heading-num (length headings))
+	 (tagged (gnorb-registry-tagged-messages))
+	 (tags (gnorb-registry-tracked-tags))
+	 (total-occupied (length (delete-dups (append messages tagged))))
+	 (reg-size (registry-size gnus-registry-db))
+	 (reg-max-size (if (slot-exists-p gnus-registry-db 'max-size)
+			   (oref gnus-registry-db max-size)
+			 (oref gnus-registry-db max-hard))))
     (with-current-buffer "*Gnorb Usage*"
       (let ((inhibit-read-only t))
-       (erase-buffer)
-       (insert
-	(format
-	 "Tracking %d Gnus messages associated with %d Org headings."
-	 messages headings))
-       (insert "\n\n")
-       (insert
-	(format
-	 "Occupying %.2f%% (%d/%d) of the registry (max %d)."
-	 (* 100 (/ (float messages) reg-size))
-	 messages reg-size reg-max-size))
-       (insert "\n\n")
-       (insert "Press 'd' to delete associations for non-existent Org headings.\n")
-       (insert "Press 'D' to delete associations for both non-existent and archived Org headings.")))))
+	(erase-buffer)
+	(insert
+	 (format
+	  "Tracking %d Gnus messages associated with %d Org headings."
+	  message-num heading-num))
+	(when tagged
+	  (insert (format "\n%d tagged messages, with %d tag%s:\n"
+			  (length tagged)
+			  (length tags)
+			  (if (= 1 (length tags)) "" "s")))
+	  (dolist (tag tags)
+	    (insert (format "%s\n" tag))))
+	(insert "\n\n")
+	(insert
+	 (format
+	  "Occupying %.2f%% (%d/%d) of the registry (max %d)."
+	  (* 100 (/ (float total-occupied) reg-size))
+	  total-occupied reg-size reg-max-size))
+	(insert "\n\n")
+	(insert "Press 'd' to delete associations for non-existent Org headings.\n")
+	(insert "Press 'D' to delete associations for both non-existent and archived Org headings.")))))
 
 (defun gnorb-registry-transition-from-props (arg)
   "Helper function for transitioning the old tracking system to the new.

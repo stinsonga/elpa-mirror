@@ -360,6 +360,13 @@ and update the group contents by hitting “M-g” on the group in the Gnus
    Calling ‘gnorb-gnus-view’ (“C-c v”) on a tracked message will take
 you to the tracked Org heading.
 
+   From a Gnus *Summary* buffer, you can insert all tracked messages in
+the current group into the buffer with
+‘gnorb-gnus-insert-tracked-messages’, bound to “/ G” in the default
+keybindings.  By default this will only insert messages associated with
+headings that are not in a DONE state; call with a prefix arg to insert
+all messages.
+
    As a bonus, it’s possible to go into Gnus’ *Server* buffer, find the
 line specifying your nngnorb server, and hit “G” (aka
 ‘gnus-group-make-nnir-group’).  At the query prompt, enter an Org-style
@@ -733,8 +740,6 @@ File: gnorb.info,  Node: Default Keybindings,  Prev: Misc Gnus,  Up: Top
 12 Default Keybindings
 **********************
 
-Using the bundled function ‘gnorb-install-defaults’ runs the code below.
-If you don’t like these defaults, you can always do your own setup.
      (global-set-key (kbd "C-c A") 'gnorb-restore-layout)
      (eval-after-load "gnorb-bbdb"
        '(progn
@@ -757,6 +762,9 @@ If you don’t like these defaults, you can always do your own setup.
           (define-key gnus-summary-mime-map "a" #'gnorb-gnus-article-org-attach)
           (define-key gnus-summary-mode-map (kbd "C-c t") #'gnorb-gnus-incoming-do-todo)
           (define-key gnus-summary-mode-map (kbd "C-c v") #'gnorb-gnus-view)
+          (define-key gnus-summary-mode-map (kbd "C-c C-t") #'gnorb-gnus-tag-message)
+          (define-key gnus-summary-limit-map (kbd "g") #'gnorb-gnus-insert-tagged-messages)
+          (define-key gnus-summary-limit-map (kbd "G") #'gnorb-gnus-insert-tracked-messages)
           (setq gnorb-gnus-capture-always-attach t)
           (push '("attach to org heading" . gnorb-gnus-mime-org-attach)
                 gnus-mime-action-alist)
@@ -770,6 +778,9 @@ If you don’t like these defaults, you can always do your own setup.
      (eval-after-load "message"
        '(progn
           (define-key message-mode-map (kbd "C-c t") #'gnorb-gnus-outgoing-do-todo)))
+   Using the bundled function ‘gnorb-install-defaults’ runs the code
+below.  If you don’t like these defaults, you can always do your own
+setup.
 
 
 
@@ -784,23 +795,23 @@ Node: Tracking Setup7132
 Node: Beginning and Continuing the Tracking Process8412
 Node: Trigger Actions12604
 Node: Viewing Things13678
-Node: Hinting in Gnus15448
-Node: Message Attachments16513
-Node: Registry Usage17752
-Node: Restoring Window Layout18179
-Node: Recent Mails From BBDB Contacts18576
-Node: Tagging Messages and Contacts19582
-Node: BBDB posting styles21233
-Node: Misc BBDB22140
-Node: Searching for messages from BBDB contacts22356
-Node: Citing BBDB contacts22802
-Node: User Options23123
-Node: Misc Org24646
-Node: Inserting BBDB links24821
-Node: User Options 125077
-Node: Misc Gnus27975
-Node: User Options 228137
-Node: Default Keybindings31279
+Node: Hinting in Gnus15794
+Node: Message Attachments16859
+Node: Registry Usage18098
+Node: Restoring Window Layout18525
+Node: Recent Mails From BBDB Contacts18922
+Node: Tagging Messages and Contacts19928
+Node: BBDB posting styles21579
+Node: Misc BBDB22486
+Node: Searching for messages from BBDB contacts22702
+Node: Citing BBDB contacts23148
+Node: User Options23469
+Node: Misc Org24992
+Node: Inserting BBDB links25167
+Node: User Options 125423
+Node: Misc Gnus28321
+Node: User Options 228483
+Node: Default Keybindings31625
 
 End Tag Table
 
