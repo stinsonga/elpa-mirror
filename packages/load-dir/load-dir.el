@@ -94,12 +94,12 @@ Will not load a file twice (use `load-dir-reload' for that).
 Recurses into subdirectories if `load-dir-recursive' is t."
   (interactive)
   ;; avoid the case where users inadvertently set `load-dirs' to a string
-  (mapc 'load-dir-one (cond
-                       ((eq load-dirs t)
-                        (list (expand-file-name "~/.emacs.d/load.d")))
-                       ((stringp load-dirs)
-                        (list load-dirs))
-                       (t load-dirs))))
+  (mapc #'load-dir-one (cond
+                        ((eq load-dirs t)
+                         (list (expand-file-name "~/.emacs.d/load.d")))
+                        ((stringp load-dirs)
+                         (list load-dirs))
+                        (t load-dirs))))
 
 (defvar load-dir-loaded nil
   "List of already loaded files.")

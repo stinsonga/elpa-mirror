@@ -155,8 +155,7 @@ implementation -- this function is well and truly coupled."
   (let* ((response-rxp	   "^NTLM TlRMTVNTUAADAAA")
 	 (challenge-rxp	   "^TLRMTVNTUAACAAA")
 	 (auth-header	   (assoc "Authorization" url-http-extra-headers))
-	 (case-fold-search t)
-	 stage)
+	 (case-fold-search t))
     (url-debug 'url-http-ntlm "Buffer: %s" (current-buffer))
     (url-debug 'url-http-ntlm "Arguments: %s" args)
     (url-debug 'url-http-ntlm "Previous arguments: %s" url-http-ntlm--last-args)
@@ -260,7 +259,7 @@ Return nil if the NTLM Type-2 message is not present."
 
 ;;; Public function called by `url-get-authentication'.
 ;;;###autoload
-(defun url-ntlm-auth (url &optional prompt overwrite realm args)
+(defun url-ntlm-auth (url &optional prompt _overwrite realm args)
   "Return an NTLM HTTP authorization header.
 Get the contents of the Authorization header for a HTTP response
 using NTLM authentication, to access URL.  Because NTLM is a
@@ -292,7 +291,7 @@ the server's last response.  These are used by
 	;; NTLM Type 1 message: the request
 	(:request
 	 (url-http-ntlm--detect-loop user-url)
-	 (cl-destructuring-bind (&optional key hash)
+	 (cl-destructuring-bind (&optional key _hash)
 	     (url-http-ntlm--authorization user-url nil realm)
 	   (when (cl-third key)
 	     (url-http-ntlm--string

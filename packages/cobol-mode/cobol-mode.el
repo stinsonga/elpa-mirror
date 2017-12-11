@@ -2476,17 +2476,22 @@ and ignored areas) between points BEG and END."
   `(,prompt "WHEN " str
     ,@(let ((clauses nil))
         (dotimes (_ num-also)
-          (setf clauses (append clauses `(" ALSO " (skeleton-read ,prompt)))))
+          (push `(" ALSO " (skeleton-read ,prompt)) clauses))
         clauses)
     > \n > _ \n))
+
+(defvar cobol--num-conds)
 
 (define-skeleton cobol-skeleton-evaluate
   "Insert an EVALUATE - END-EVALUATE block."
   "Variable/TRUE: "
-  ;; This is set like so because num-conds is incremented even when no str is supplied.
-  '(setf num-conds -1)
-  > "EVALUATE " str ("Variable/TRUE: " '(setf num-conds (1+ num-conds)) " ALSO " str) > \n
-  (cobol-when-with-also "Value/Condition: " num-conds)
+  ;; This is set like so because cobol--num-conds is incremented even when no str is supplied.
+  '(setf cobol--num-conds -1)
+  > "EVALUATE " str ("Variable/TRUE: "
+                     '(setf cobol--num-conds (1+ cobol--num-conds))
+                     " ALSO " str)
+  > \n
+  (cobol-when-with-also "Value/Condition: " cobol--num-conds)
   "END-EVALUATE")
 
 (define-skeleton cobol-skeleton-program
