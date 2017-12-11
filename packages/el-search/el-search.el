@@ -3179,12 +3179,17 @@ Thanks!"))))
                               (let ((current-buffer (current-buffer)))
                                 (lambda () (stream (list current-buffer))))
                               t
-                              (lambda (search)
-                                (setf (alist-get 'is-single-buffer
-                                                 (el-search-object-properties search))
-                                      t)
-                                (setf (alist-get 'description (el-search-object-properties search))
-                                      "Search created by `el-search-query-replace'"))))
+                              (let ((here (copy-marker (point))))
+                                (lambda (search)
+                                  (setf (alist-get 'is-single-buffer
+                                                   (el-search-object-properties search))
+                                        t)
+                                  (setf (alist-get 'description (el-search-object-properties search))
+                                        "Search created by `el-search-query-replace'")
+                                  (let ((inhibit-message t))
+                                    (el-search--next-buffer search)
+                                    (setf (el-search-head-position (el-search-object-head search))
+                                          here))))))
   (catch 'done
     (let ((replace-all nil) (replace-all-and-following nil)
           nbr-replaced nbr-skipped (nbr-replaced-total 0) (nbr-changed-buffers 0)
