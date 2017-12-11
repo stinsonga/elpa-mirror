@@ -223,7 +223,7 @@ we came from."
 	  (insert s)
 	  (insert "\n"))
 	(goto-char (point-min))
-	(gnorb-scan-links (point-max) 'gnus 'mail 'bbdb 'ebdb)))))
+	(gnorb-scan-links (point-max) 'gnus 'mailto 'bbdb 'ebdb)))))
 
 (defun gnorb-org-extract-mail-stuff (&optional arg region)
   "Decide how to hande the Org heading under point as an email task.
@@ -484,7 +484,7 @@ composed.  FILE is a file to attach to the message."
 			(gnorb-bbdb-configure-posting-styles (list (car b-recs))))))
 	  (gnorb-org-setup-message
 	   (alist-get 'gnus links)
-	   (append mails (alist-get 'mail links))
+	   (append mails (alist-get 'mailto links))
 	   from cc bcc
 	   attachments text org-id))))))
 
