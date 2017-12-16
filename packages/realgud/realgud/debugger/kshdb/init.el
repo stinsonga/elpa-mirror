@@ -1,4 +1,4 @@
-;; Copyright (C) 2010-2011, 2016 Free Software Foundation, Inc
+;; Copyright (C) 2010-2011, 2016-2017 Free Software Foundation, Inc
 
 ;; Author: Rocky Bernstein <rocky@gnu.org>
 
@@ -121,5 +121,6 @@ realgud-loc-pat struct")
 
 (setf (gethash "kshdb" realgud-pat-hash) realgud:kshdb-pat-hash)
 (setf (gethash "clear" realgud:kshdb-command-hash) "clear %l")
+(setf (gethash "eval" realgud:kshdb-command-hash) "eval %s")
 
 (provide-me "realgud:kshdb-")
