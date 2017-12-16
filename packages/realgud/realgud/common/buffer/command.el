@@ -1,4 +1,4 @@
-;; Copyright (C) 2015-2016 Free Software Foundation, Inc
+;; Copyright (C) 2015-2017 Free Software Foundation, Inc
 ;; Author: Rocky Bernstein <rocky@gnu.org>
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -156,6 +156,51 @@
       (insert "\n")
       )))
 
+;; FIXME: this is a cheat. We are inserting
+;; and afterwards inserting ""
+(defun realgud:cmdbuf-bp-list-describe (info)
+  (let ((bp-list (realgud-cmdbuf-info-bp-list info)))
+    (cond (bp-list
+	   (insert "** Breakpoint list (bp-list)\n")
+	   (dolist (loc bp-list "")
+	     (let ((bp-num (realgud-loc-num loc)))
+	       (insert (format "*** Breakpoint %d\n" bp-num))
+	       (realgud:org-mode-append-loc loc))))
+	  ;; Since we are inserting, the below in fact
+	  ;; inserts nothing. The string return is
+	  ;; aspirational for when this is fixed
+	  (t "\n")
+	  )))
+
+(defun realgud:org-mode-encode (header object)
+  "Return an org-mode representation of OBJECT as an org-mode string."
+  (format "%s%s" header
+	  (cond ((not object) "nil\n")
+		((stringp object)      (format "%s\n" object))
+		((keywordp object)     (json-encode-string
+					 (substring (symbol-name object) 1)))
+		((symbolp object)      (json-encode-string
+					 (symbol-name object)))
+		((numberp object)      (json-encode-number object))
+		((arrayp object)       (json-encode-array object))
+		((hash-table-p object) (realgud:org-mode-encode-htable object))
+		;; ((listp object)        (realgud:org-mode-encodelist object))
+		(t                     (signal 'error (list object))))))
+
+(defun realgud:org-mode-encode-htable (hash-table)
+  "Return an  org-mode representation of HASH-TABLE as a s."
+  (format "%s"
+	  (json-join
+	   (let (r)
+	     (maphash
+	      (lambda (k v)
+		(push (format
+		       "  - %s\t::\t%s" k (realgud:org-mode-encode v ""))
+		      r))
+	      hash-table)
+	     r)
+	   "")))
+
 (defun realgud:cmdbuf-info-describe (&optional buffer)
   "Display realgud-cmdcbuf-info fields of BUFFER.
 BUFFER is either a debugger command or source buffer. If BUFFER is not given
@@ -172,21 +217,25 @@ Information is put in an internal buffer called *Describe*."
 		(switch-to-buffer (get-buffer-create "*Describe*"))
 		(setq buffer-read-only 'nil)
 		(delete-region (point-min) (point-max))
-		(insert "#+STARTUP: showall\n")
 		;;(insert "#+OPTIONS:    H:2 num:nil toc:t \\n:nil ::t |:t ^:nil -:t f:t *:t tex:t d:(HIDE) tags:not-in-toc\n")
-		(insert (format "#+TITLE: Debugger info for %s\n" cmdbuf-name))
-		(insert "** General Information (")
-		(insert-text-button
-		 "realgud-cmdbuf-info"
-		 ;; FIXME figure out how to set buffer to cmdbuf so we get cmdbuf value
-		 'action (lambda(button) (describe-variable 'realgud-cmdbuf-info))
-		 'help-echo "mouse-2: help-on-variable")
-		(insert ")\n")
+		(insert (format "#+TITLE: Debugger info for %s
+
+This is based on an org-mode buffer. Hit tab to expand/contract sections.
+\n"
+				cmdbuf-name))
+		(insert "** General Information (realgud-cmdbuf-info)\n")
+		;; (insert "** General Information (")
+		;; (insert-text-button
+		;;  "realgud-cmdbuf-info"
+		;;  ;; FIXME figure out how to set buffer to cmdbuf so we get cmdbuf value
+		;;  'action (lambda(button) (describe-variable 'realgud-cmdbuf-info))
+		;;  'help-echo "mouse-2: help-on-variable")
+		;; (insert ")\n")
 
 		(mapc 'insert
 		      (list
 		       (format "  - Debugger name     ::\t%s\n"
-			       (json-encode (realgud-cmdbuf-info-debugger-name info)))
+			       (realgud-cmdbuf-info-debugger-name info))
 		       (format "  - Command-line args ::\t%s\n"
 			       (json-encode (realgud-cmdbuf-info-cmd-args info)))
 		       (format "  - Starting directory ::\t%s\n"
@@ -197,19 +246,28 @@ Information is put in an internal buffer called *Describe*."
 			       (realgud-cmdbuf-info-last-input-end info))
 		       (format "  - Source should go into short-key mode? :: %s\n"
 			       (realgud-cmdbuf-info-src-shortkey? info))
-		       (format "  - Breakpoint list   ::\t %s\n"
-			       (realgud-cmdbuf-info-bp-list info))
-		       (format "  - Remap table for debugger commands ::\n\t%s\n"
-			       (json-encode (realgud-cmdbuf-info-cmd-hash info)))
-		       (format "  - Backtrace buffer  ::\t%s\n"
-			       (realgud-cmdbuf-info-bt-buf info))
 		       (format "  - In debugger?      ::\t%s\n"
 			       (realgud-cmdbuf-info-in-debugger? info))
+
+		       (realgud:org-mode-encode "\n*** Remap table for debugger commands\n"
+						      (realgud-cmdbuf-info-cmd-hash info))
+		       ;; (realgud:org-mode-encode "\n*** Backtrace buffer"
+		       ;; 				(realgud-cmdbuf-info-bt-buf info))
+		       ;; (format "  - Backtrace buffer  ::\t%s\n"
+		       ;;   (realgud-cmdbuf-info-bt-buf info))
 		       ))
+		(insert "\n")
+		(realgud:cmdbuf-bp-list-describe info)
 		(insert "\n")
 		(realgud:cmdbuf-buffers-describe info)
 		(insert "\n")
 		(realgud:loc-hist-describe (realgud-cmdbuf-info-loc-hist info))
+		(insert "
+#+STARTUP: overview
+     #+STARTUP: content
+     #+STARTUP: showall
+     #+STARTUP: showeverything
+")
 		(goto-char (point-min))
 		(realgud:info-mode)
 		)

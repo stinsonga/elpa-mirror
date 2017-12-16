@@ -3,7 +3,7 @@
 ;; Author: Rocky Bernstein <rocky@gnu.org>
 ;; Version: 1.4.4
 ;; Package-Type: multi
-;; Package-Requires: ((load-relative "1.3") (loc-changes "1.2") (test-simple  "1.3.0") (cl-lib "0.5") (emacs "24"))
+;; Package-Requires: ((load-relative "1.2") (loc-changes "1.2") (test-simple  "1.2.0") (cl-lib "0.5") (emacs "24"))
 ;; URL: http://github.com/realgud/realgud/
 ;; Keywords: gdb, python, perl, go, bash, nodejs, zsh, bashdb, zshdb, remake, make, trepan, perldb
 
@@ -68,7 +68,7 @@
 
 ;; Press C-x C-e at the end of the next line configure the program in
 ;; for building via "make" to get set up.
-;; (compile (format "EMACSLOADPATH=:%s:%s ./autogen.sh" (file-name-directory (locate-library "test-simple.elc")) (file-name-directory (locate-library "load-relative.elc")) (file-name-directory (locate-library "loc-changes.elc"))))
+;; (compile (format "EMACSLOADPATH=:%s:%s:%s ./autogen.sh" (file-name-directory (locate-library "test-simple.elc")) (file-name-directory (locate-library "load-relative.elc")) (file-name-directory (locate-library "loc-changes.elc"))))
 
 (require 'load-relative)
 
@@ -80,28 +80,31 @@
 
 ;; FIXME: extend require-relative for "autoload".
 (defun realgud:load-features()
-  (require-relative-list
-   '(
-     "./realgud/common/track-mode"
-     "./realgud/common/utils"
-     "./realgud/debugger/bashdb/bashdb"
-     "./realgud/debugger/gdb/gdb"
-     "./realgud/debugger/gub/gub"
-     "./realgud/debugger/ipdb/ipdb"
-     "./realgud/debugger/jdb/jdb"
-     "./realgud/debugger/kshdb/kshdb"
-     "./realgud/debugger/nodejs/nodejs"
-     "./realgud/debugger/pdb/pdb"
-     "./realgud/debugger/perldb/perldb"
-     "./realgud/debugger/rdebug/rdebug"
-     "./realgud/debugger/remake/remake"
-     "./realgud/debugger/trepan/trepan"
-     "./realgud/debugger/trepanjs/trepanjs"
-     "./realgud/debugger/trepan.pl/trepanpl"
-     "./realgud/debugger/trepan2/trepan2"
-     "./realgud/debugger/trepan3k/trepan3k"
-     "./realgud/debugger/zshdb/zshdb"
-     ) "realgud-")
+  (progn
+    (require-relative-list
+     '(
+       "./realgud/common/track-mode"
+       "./realgud/common/utils"
+       "./realgud/debugger/bashdb/bashdb"
+       "./realgud/debugger/gdb/gdb"
+       "./realgud/debugger/gub/gub"
+       "./realgud/debugger/ipdb/ipdb"
+       "./realgud/debugger/jdb/jdb"
+       "./realgud/debugger/kshdb/kshdb"
+       "./realgud/debugger/nodejs/nodejs"
+       "./realgud/debugger/pdb/pdb"
+       "./realgud/debugger/perldb/perldb"
+       "./realgud/debugger/rdebug/rdebug"
+       "./realgud/debugger/remake/remake"
+       "./realgud/debugger/trepan/trepan"
+       "./realgud/debugger/trepanjs/trepanjs"
+       "./realgud/debugger/trepan.pl/trepanpl"
+       "./realgud/debugger/trepan2/trepan2"
+       "./realgud/debugger/trepan3k/trepan3k"
+       "./realgud/debugger/zshdb/zshdb"
+       ) "realgud-")
+    (realgud:loaded-features)
+    )
   )
 
 (load-relative "./realgud/common/custom")
@@ -113,42 +116,20 @@
   )
 
 (defun realgud:loaded-features()
-  "Return a list of loaded debugger features. These are the
-features that start with 'realgud-' and also include standalone debugger features
-like 'pydbgr'."
-  (let ((result nil)
-	(feature-str))
-    (dolist (feature features result)
-      (setq feature-str (symbol-name feature))
-      (cond ((eq 't
-		 (string-prefix-p feature-str "realgud-"))
-	     (setq result (cons feature-str result)))
-	    ((eq 't
-		 (string-prefix-p feature-str "nodejs"))
-	     (setq result (cons feature-str result)))
-	    ((eq 't
-		 ;; No trailing '-' to get a plain "trepan".
-		 (string-prefix-p feature-str "trepan"))
-	     (setq result (cons feature-str result)))
-	    ((eq 't
-		 ;; No trailing '-' to get a plain "trepanx".
-		 (string-prefix-p feature-str "trepanx"))
-	     (setq result (cons feature-str result)))
-	    ('t nil))
-	)
-      )
-)
+  "Return a list of loaded debugger features. These are the features
+that start with 'realgud-' and 'realgud:'"
+
+  (delq nil
+		(mapcar (lambda (x) (and (string-match-p "^\\(realgud:\\|realgud-\\)" (symbol-name x)) x))
+				features)))
 
 (defun realgud:unload-features()
   "Remove all features loaded from this package. Used in
 `realgud:reload-features'. See that."
-  (interactive "")
-  (let ((result (realgud:loaded-features)))
-    (dolist (feature result result)
-      (unless (symbolp feature) (setq feature (make-symbol feature)))
-      (if (featurep feature)
-	(unload-feature feature) 't))
-  ))
+  (let ((removal-set (realgud:loaded-features)))
+	(dolist (feature removal-set)
+	  (unload-feature feature t))
+	removal-set)) ; return removed set
 
 (defun realgud:reload-features()
   "Reload all features loaded from this package. Useful if have

@@ -7,6 +7,7 @@
 ;; the Free Software Foundation, either version 3 of the License, or
 ;; (at your option) any later version.
 
+(require 'python) ; for python-shell-interpreter
 (require 'load-relative)
 (require-relative-list '("../../common/helper") "realgud-")
 (require-relative-list '("../../common/run")    "realgud:")
@@ -23,6 +24,8 @@
 (declare-function trepan3k-query-cmdline  'realgud:trepan3k-core)
 (declare-function trepan3k-parse-cmd-args 'realgud:trepan3k-core)
 (declare-function realgud:run-debugger    'realgud:run)
+(declare-function realgud:run-process     'realgud:core)
+(declare-function realgud:flatten         'realgud-utils)
 
 ;; -------------------------------------------------------------------
 ;; User-definable variables
@@ -48,7 +51,7 @@ This should be an executable on your path, or an absolute file name."
 
 String OPT-CMD-LINE is treated like a shell string; arguments are
 tokenized by `split-string-and-unquote'. The tokenized string is
-parsed by `trepan2-parse-cmd-args' and path elements found by that
+parsed by `trepan3k-parse-cmd-args' and path elements found by that
 are expanded using `realgud:expand-file-name-if-exists'.
 
 Normally, command buffers are reused when the same debugger is
@@ -67,6 +70,7 @@ fringe and marginal icons.
 			opt-cmd-line no-reset)
   )
 
+;;;###autoload
 (defalias 'trepan3k 'realgud:trepan3k)
 
 ;;;###autoload
@@ -76,9 +80,9 @@ have a call to the debugger somewhere, e.g. 'from trepan.api import debug; debug
 Therefore we invoke python rather than the debugger initially.
 "
   (interactive)
-  (let* ((initial-debugger "python")
+  (let* ((initial-debugger python-shell-interpreter)
 	 (actual-debugger "trepan3k")
-	 (cmd-str (trepan2-query-cmdline initial-debugger))
+	 (cmd-str (trepan3k-query-cmdline initial-debugger))
 	 (cmd-args (split-string-and-unquote cmd-str))
 	 ;; XXX: python gets registered as the interpreter rather than
 	 ;; a debugger, and the debugger position (nth 1) is missing:
@@ -89,8 +93,8 @@ Therefore we invoke python rather than the debugger initially.
 	 (parsed-cmd-args
 	  (cl-remove-if 'nil (realgud:flatten parsed-args))))
     (realgud:run-process actual-debugger script-name parsed-cmd-args
-			 'realgud:trepan3k-minibuffer-history)))
+			 'realgud:trepan3k-deferred-minibuffer-history)))
 
-(defalias 'trepan3k-delayed 'realgud:trepan3k-delayed)
+(realgud-deferred-invoke-setup "trepan3k")
 
 (provide-me "realgud-")
