@@ -52,6 +52,18 @@
 (defconst org-edna-test-id-heading-four  "7d4d564b-18b2-445c-a0c8-b1b3fb9ad29e")
 (defconst org-edna-test-archive-heading  "d7668277-f959-43ba-8e85-8a3c76996862")
 
+(defconst org-edna-test-relative-grandparent "c07cf4c1-3693-443a-9d79-b581f7cbd62c")
+(defconst org-edna-test-relative-parent-one  "5a35daf7-4957-4588-9a68-21d8763a9e0d")
+(defconst org-edna-test-relative-parent-two  "4fe67f03-2b35-4708-8c38-54d2c4dfab81")
+(defconst org-edna-test-relative-standard-child "7c542695-8165-4c8b-b44d-4c12fa009548")
+(defconst org-edna-test-relative-child-with-children "c7a986df-8d89-4509-b086-6db429b5607b")
+(defconst org-edna-test-relative-grandchild-one "588bbd29-2e07-437f-b74d-f72459b545a1")
+(defconst org-edna-test-relative-grandchild-two "a7047c81-21ec-46cd-8289-60ad515900ff")
+(defconst org-edna-test-relative-child-with-todo "8c0b31a1-af49-473c-92ea-a5c1c3bace33")
+(defconst org-edna-test-relative-commented-child "0a1b9508-17ce-49c5-8ff3-28a0076374f5")
+(defconst org-edna-test-relative-archived-child "a4b6131e-0560-4201-86d5-f32b36363431")
+(defconst org-edna-test-relative-child-with-done "4a1d74a2-b032-47da-a823-b32f5cab0aae")
+
 (defun org-edna-find-test-heading (id)
   "Find the test heading with id ID."
   (org-id-find-id-in-file id org-edna-test-file t))
@@ -210,14 +222,14 @@
 
 (ert-deftest org-edna-finder/siblings ()
   (let* ((org-agenda-files `(,org-edna-test-file))
-         (current (org-id-find "82a4ac3d-9565-4f94-bc84-2bbfd8d7d96c" t))
+         (current (org-id-find org-edna-test-sibling-one-id t))
          (siblings (mapcar
                     (lambda (uuid) (org-id-find uuid t))
-                    '("72534efa-e932-460b-ae2d-f044a0074815"
-                      "06aca55e-ce09-46df-80d7-5b52e55d6505")))
+                    `(,org-edna-test-sibling-one-id
+                      ,org-edna-test-sibling-two-id
+                      ,org-edna-test-sibling-three-id)))
          (targets (org-with-point-at current
                     (org-edna-finder/siblings))))
-    (should (= (length targets) 2))
     (should (equal siblings targets))))
 
 (ert-deftest org-edna-finder/siblings-wrap ()
@@ -251,6 +263,28 @@
                     '("06aca55e-ce09-46df-80d7-5b52e55d6505")))
          (targets (org-with-point-at current
                     (org-edna-finder/next-sibling))))
+    (should (= (length targets) 1))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-finder/next-sibling-wrap-next ()
+  (let* ((org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find org-edna-test-sibling-two-id t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    `(,org-edna-test-sibling-three-id)))
+         (targets (org-with-point-at current
+                    (org-edna-finder/next-sibling-wrap))))
+    (should (= (length targets) 1))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-finder/next-sibling-wrap-wrap ()
+  (let* ((org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find org-edna-test-sibling-three-id t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    `(,org-edna-test-sibling-one-id)))
+         (targets (org-with-point-at current
+                    (org-edna-finder/next-sibling-wrap))))
     (should (= (length targets) 1))
     (should (equal siblings targets))))
 
@@ -296,6 +330,465 @@
     (should (= (length targets) 1))
     (should (equal parent targets))))
 
+(ert-deftest org-edna-relatives/from-top ()
+  (let* ((org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find org-edna-test-sibling-one-id t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    `(,org-edna-test-sibling-one-id)))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives 'from-top 1))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/from-bottom ()
+  (let* ((org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find org-edna-test-sibling-one-id t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    `(,org-edna-test-sibling-three-id)))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives 'from-bottom 1))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/forward-wrap-no-wrap ()
+  (let* ((start-marker org-edna-test-sibling-one-id)
+         (target-list `(,org-edna-test-sibling-two-id))
+         (arg 'forward-wrap)
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg 1))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/forward-wrap-wrap ()
+  (let* ((start-marker org-edna-test-sibling-three-id)
+         (target-list `(,org-edna-test-sibling-one-id))
+         (arg 'forward-wrap)
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg 1))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/forward-no-wrap-no-wrap ()
+  (let* ((start-marker org-edna-test-sibling-one-id)
+         (target-list `(,org-edna-test-sibling-two-id))
+         (arg 'forward-no-wrap)
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg 1))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/forward-no-wrap-wrap ()
+  (let* ((start-marker org-edna-test-sibling-three-id)
+         (target-list nil)
+         (arg 'forward-no-wrap)
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/backward-wrap-no-wrap ()
+  (let* ((start-marker org-edna-test-sibling-three-id)
+         (target-list `(,org-edna-test-sibling-two-id))
+         (arg 'backward-wrap)
+         (size (length target-list))
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg size))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/backward-wrap-wrap ()
+  (let* ((start-marker org-edna-test-sibling-one-id)
+         (target-list `(,org-edna-test-sibling-three-id))
+         (arg 'backward-wrap)
+         (size (length target-list))
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg size))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/backward-no-wrap-no-wrap ()
+  (let* ((start-marker org-edna-test-sibling-three-id)
+         (target-list `(,org-edna-test-sibling-two-id))
+         (arg 'backward-no-wrap)
+         (size (length target-list))
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg size))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/backward-no-wrap-wrap ()
+  (let* ((start-marker org-edna-test-sibling-one-id)
+         (target-list nil)
+         (arg 'backward-no-wrap)
+         (size (length target-list))
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg size))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/walk-up ()
+  (let* ((start-marker org-edna-test-sibling-one-id)
+         (target-list `(,org-edna-test-parent-id))
+         (arg 'walk-up)
+         (size (length target-list))
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg size))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/walk-up-with-self ()
+  (let* ((start-marker org-edna-test-sibling-one-id)
+         (target-list `(,org-edna-test-sibling-one-id))
+         (arg 'walk-up-with-self)
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg 1))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/walk-down ()
+  (let* ((start-marker org-edna-test-parent-id)
+         (target-list `(,org-edna-test-sibling-one-id))
+         (arg 'walk-down)
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg 1))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/walk-down-with-self ()
+  (let* ((start-marker org-edna-test-parent-id)
+         (target-list `(,org-edna-test-parent-id))
+         (arg 'walk-down-with-self)
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg 1))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/walk-down ()
+  (let* ((start-marker org-edna-test-parent-id)
+         (target-list `(,org-edna-test-sibling-one-id))
+         (arg 'walk-down)
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg 1))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/walk-down-full ()
+  (let* ((start-marker org-edna-test-relative-parent-one)
+         (target-list `(,org-edna-test-relative-standard-child
+                        ,org-edna-test-relative-child-with-children
+                        ,org-edna-test-relative-grandchild-one
+                        ,org-edna-test-relative-grandchild-two
+                        ,org-edna-test-relative-child-with-todo
+                        ,org-edna-test-relative-commented-child
+                        ,org-edna-test-relative-archived-child
+                        ,org-edna-test-relative-child-with-done))
+         (arg 'walk-down)
+         (size (length target-list))
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg size))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/step-down-full ()
+  (let* ((start-marker org-edna-test-relative-parent-one)
+         (target-list `(,org-edna-test-relative-standard-child
+                        ,org-edna-test-relative-child-with-children
+                        ,org-edna-test-relative-child-with-todo
+                        ,org-edna-test-relative-commented-child
+                        ,org-edna-test-relative-archived-child
+                        ,org-edna-test-relative-child-with-done))
+         (arg 'step-down)
+         (size (length target-list))
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg size))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/filter-todo-only ()
+  (let* ((start-marker org-edna-test-relative-parent-one)
+         (target-list `(,org-edna-test-relative-child-with-todo))
+         (arg 'step-down)
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg 'todo-only))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/filter-todo-and-done-only ()
+  (let* ((start-marker org-edna-test-relative-parent-one)
+         (target-list `(,org-edna-test-relative-child-with-todo
+                        ,org-edna-test-relative-child-with-done))
+         (arg 'step-down)
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg 'todo-and-done-only))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/filter-no-comments ()
+  (let* ((start-marker org-edna-test-relative-parent-one)
+         (target-list `(,org-edna-test-relative-standard-child
+                        ,org-edna-test-relative-child-with-children
+                        ,org-edna-test-relative-child-with-todo
+                        ,org-edna-test-relative-archived-child
+                        ,org-edna-test-relative-child-with-done))
+         (arg 'step-down)
+         (filter 'no-comment)
+         (size (length target-list))
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg filter size))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/filter-no-archive ()
+  (let* ((start-marker org-edna-test-relative-parent-one)
+         (target-list `(,org-edna-test-relative-standard-child
+                        ,org-edna-test-relative-child-with-children
+                        ,org-edna-test-relative-child-with-todo
+                        ,org-edna-test-relative-commented-child
+                        ,org-edna-test-relative-child-with-done))
+         (arg 'step-down)
+         (filter 'no-archive)
+         (size (length target-list))
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg filter size))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/filter-has-tag ()
+  (let* ((start-marker org-edna-test-relative-parent-one)
+         (target-list `(,org-edna-test-relative-archived-child))
+         (arg 'step-down)
+         (filter "+ARCHIVE")
+         (size (length target-list))
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg filter size))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/filter-no-tag ()
+  (let* ((start-marker org-edna-test-relative-parent-one)
+         (target-list `(,org-edna-test-relative-standard-child
+                        ,org-edna-test-relative-child-with-children
+                        ,org-edna-test-relative-child-with-todo
+                        ,org-edna-test-relative-commented-child
+                        ,org-edna-test-relative-child-with-done))
+         (arg 'step-down)
+         (filter "-ARCHIVE")
+         (size (length target-list))
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg filter size))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/filter-matches-regexp ()
+  (let* ((start-marker org-edna-test-relative-parent-one)
+         (target-list `(,org-edna-test-relative-child-with-children
+                        ,org-edna-test-relative-child-with-todo
+                        ,org-edna-test-relative-child-with-done))
+         (arg 'step-down)
+         (filter "Child Heading With .*")
+         (size (length target-list))
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg filter size))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/sort-reverse ()
+  (let* ((start-marker org-edna-test-relative-parent-one)
+         (target-list `(,org-edna-test-relative-child-with-done
+                        ,org-edna-test-relative-archived-child
+                        ,org-edna-test-relative-commented-child
+                        ,org-edna-test-relative-child-with-todo
+                        ,org-edna-test-relative-child-with-children
+                        ,org-edna-test-relative-standard-child))
+         (arg 'step-down)
+         (sort 'reverse-sort)
+         (size (length target-list))
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets (org-with-point-at current
+                    (org-edna-finder/relatives arg sort size))))
+    (should (equal siblings targets))))
+
+(ert-deftest org-edna-relatives/sort-priority ()
+  (let* ((start-marker org-edna-test-relative-parent-one)
+         (target-list `(,org-edna-test-relative-child-with-todo
+                        ,org-edna-test-relative-archived-child
+                        ,org-edna-test-relative-child-with-children
+                        ,org-edna-test-relative-commented-child
+                        ,org-edna-test-relative-standard-child
+                        ,org-edna-test-relative-child-with-done))
+         (arg 'step-down)
+         (size (length target-list))
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list))
+         (targets ))
+    (should (equal siblings
+                   (org-with-point-at current
+                     (org-edna-finder/relatives arg 'priority-up size))))
+    (should (equal (nreverse siblings)
+                   (org-with-point-at current
+                     (org-edna-finder/relatives arg 'priority-down size))))))
+
+(ert-deftest org-edna-relatives/sort-effort ()
+  (let* ((start-marker org-edna-test-relative-parent-one)
+         (target-list `(,org-edna-test-relative-child-with-done
+                        ,org-edna-test-relative-commented-child
+                        ,org-edna-test-relative-archived-child
+                        ,org-edna-test-relative-child-with-children
+                        ,org-edna-test-relative-child-with-todo
+                        ,org-edna-test-relative-standard-child))
+         (arg 'step-down)
+         (size (length target-list))
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list)))
+    (should (equal siblings
+                   (org-with-point-at current
+                     (org-edna-finder/relatives arg 'effort-up size))))
+    (should (equal (nreverse siblings)
+                   (org-with-point-at current
+                     (org-edna-finder/relatives arg 'effort-down size))))))
+
+(ert-deftest org-edna-relatives/sort-scheduled ()
+  (let* ((start-marker org-edna-test-relative-parent-one)
+         (target-list `(,org-edna-test-relative-child-with-todo
+                        ,org-edna-test-relative-child-with-done
+                        ,org-edna-test-relative-commented-child
+                        ,org-edna-test-relative-child-with-children
+                        ,org-edna-test-relative-standard-child
+                        ,org-edna-test-relative-archived-child))
+         (arg 'step-down)
+         (size (length target-list))
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list)))
+    (should (equal siblings
+                   (org-with-point-at current
+                     (org-edna-finder/relatives arg 'scheduled-up size))))
+    (should (equal (nreverse siblings)
+                   (org-with-point-at current
+                     (org-edna-finder/relatives arg 'scheduled-down size))))))
+
+(ert-deftest org-edna-relatives/sort-deadline ()
+  (let* ((start-marker org-edna-test-relative-parent-one)
+         (target-list `(,org-edna-test-relative-commented-child
+                        ,org-edna-test-relative-standard-child
+                        ,org-edna-test-relative-child-with-done
+                        ,org-edna-test-relative-child-with-children
+                        ,org-edna-test-relative-archived-child
+                        ,org-edna-test-relative-child-with-todo))
+         (arg 'step-down)
+         (size (length target-list))
+         (org-agenda-files `(,org-edna-test-file))
+         (current (org-id-find start-marker t))
+         (siblings (mapcar
+                    (lambda (uuid) (org-id-find uuid t))
+                    target-list)))
+    (should (equal siblings
+                   (org-with-point-at current
+                     (org-edna-finder/relatives arg 'deadline-up size))))
+    (should (equal (nreverse siblings)
+                   (org-with-point-at current
+                     (org-edna-finder/relatives arg 'deadline-down size))))))
+
 
 ;; Actions
 
@@ -330,7 +823,6 @@
       (should (not (org-entry-get nil "SCHEDULED"))))))
 
 (ert-deftest org-edna-action-scheduled/cp ()
-  ;; Override `current-time' so we can get a deterministic value
   (let* ((org-agenda-files `(,org-edna-test-file))
          (target (org-id-find "0d491588-7da3-43c5-b51a-87fbd34f79f7" t))
          (source (org-id-find "97e6b0f0-40c4-464f-b760-6e5ca9744eb5" t))
@@ -350,20 +842,113 @@
              (org-agenda-files `(,org-edna-test-file))
              (target (org-id-find "97e6b0f0-40c4-464f-b760-6e5ca9744eb5" t)))
     (org-with-point-at target
-      ;; Time started at Jan 15, 2000
+      ;; Time starts at Jan 15, 2000
+      (org-edna-action/scheduled! nil "2000-01-15 Sat 00:00")
+      (should (string-equal (org-entry-get nil "SCHEDULED")
+                            "<2000-01-15 Sat 00:00>"))
       ;; Increment 1 minute
       (org-edna-action/scheduled! nil "+1M")
       (should (string-equal (org-entry-get nil "SCHEDULED")
                             "<2000-01-15 Sat 00:01>"))
+      ;; Decrement 1 minute
       (org-edna-action/scheduled! nil "-1M")
       (should (string-equal (org-entry-get nil "SCHEDULED")
                             "<2000-01-15 Sat 00:00>"))
+      ;; +1 day
       (org-edna-action/scheduled! nil "+1d")
       (should (string-equal (org-entry-get nil "SCHEDULED")
                             "<2000-01-16 Sun 00:00>"))
+      ;; +1 hour from current time
       (org-edna-action/scheduled! nil "++1h")
       (should (string-equal (org-entry-get nil "SCHEDULED")
                             "<2000-01-15 Sat 01:00>"))
+      ;; Back to Saturday
+      (org-edna-action/scheduled! nil "2000-01-15 Sat 00:00")
+      (should (string-equal (org-entry-get nil "SCHEDULED")
+                            "<2000-01-15 Sat 00:00>"))
+      ;; -1 day to Friday
+      (org-edna-action/scheduled! nil "-1d")
+      (should (string-equal (org-entry-get nil "SCHEDULED")
+                            "<2000-01-14 Fri 00:00>"))
+      ;; Increment two days to the next weekday
+      (org-edna-action/scheduled! nil "+2wkdy")
+      (should (string-equal (org-entry-get nil "SCHEDULED")
+                            "<2000-01-17 Mon 00:00>"))
+      ;; Increment one day, expected to land on a weekday
+      (org-edna-action/scheduled! nil "+1wkdy")
+      (should (string-equal (org-entry-get nil "SCHEDULED")
+                            "<2000-01-18 Tue 00:00>"))
+      ;; Move forward 8 days, then backward until we find a weekend
+      (org-edna-action/scheduled! nil "+8d -wknd")
+      (should (string-equal (org-entry-get nil "SCHEDULED")
+                            "<2000-01-23 Sun 00:00>"))
+      ;; Move forward one week, then forward until we find a weekday
+      ;; (org-edna-action/scheduled! nil "+1w +wkdy")
+      ;; (should (string-equal (org-entry-get nil "SCHEDULED")
+      ;;                       "<2000-01-31 Mon 00:00>"))
+      ;; Back to Saturday for other tests
+      (org-edna-action/scheduled! nil "2000-01-15 Sat 00:00")
+      (should (string-equal (org-entry-get nil "SCHEDULED")
+                            "<2000-01-15 Sat 00:00>")))))
+
+(ert-deftest org-edna-action-scheduled/landing ()
+  "Test landing arguments to scheduled increment."
+  ;; Override `current-time' so we can get a deterministic value
+  (cl-letf* (((symbol-function 'current-time) (lambda () org-edna-test-time))
+             (org-agenda-files `(,org-edna-test-file))
+             (target (org-id-find "97e6b0f0-40c4-464f-b760-6e5ca9744eb5" t)))
+    (org-with-point-at target
+      ;; Time starts at Jan 15, 2000
+      (org-edna-action/scheduled! nil "2000-01-15 Sat 00:00")
+      (should (string-equal (org-entry-get nil "SCHEDULED")
+                            "<2000-01-15 Sat 00:00>"))
+      ;; Move forward 10 days, then backward until we find a weekend
+      (org-edna-action/scheduled! nil "+10d -wknd")
+      (should (string-equal (org-entry-get nil "SCHEDULED")
+                            "<2000-01-23 Sun 00:00>"))
+      ;; Move forward one week, then forward until we find a weekday
+      (org-edna-action/scheduled! nil "+1w +wkdy")
+      (should (string-equal (org-entry-get nil "SCHEDULED")
+                            "<2000-01-31 Mon 00:00>"))
+      ;; Back to Saturday for other tests
+      (org-edna-action/scheduled! nil "2000-01-15 Sat 00:00")
+      (should (string-equal (org-entry-get nil "SCHEDULED")
+                            "<2000-01-15 Sat 00:00>")))))
+
+(ert-deftest org-edna-action-scheduled/float ()
+  (cl-letf* (((symbol-function 'current-time) (lambda () org-edna-test-time))
+             (org-agenda-files `(,org-edna-test-file))
+             (target (org-id-find "97e6b0f0-40c4-464f-b760-6e5ca9744eb5" t)))
+    (org-with-point-at target
+      ;; Time starts at Jan 15, 2000
+      (org-edna-action/scheduled! nil "2000-01-15 Sat 00:00")
+      (should (string-equal (org-entry-get nil "SCHEDULED")
+                            "<2000-01-15 Sat 00:00>"))
+      ;; The third Tuesday of next month (Feb 15th)
+      (org-edna-action/scheduled! nil "float 3 Tue")
+      (should (string-equal (org-entry-get nil "SCHEDULED")
+                            "<2000-02-15 Tue 00:00>"))
+      ;; The second Friday of the following May (May 12th)
+      (org-edna-action/scheduled! nil "float 2 5 May")
+      (should (string-equal (org-entry-get nil "SCHEDULED")
+                            "<2000-05-12 Fri 00:00>"))
+      ;; Move forward to the second Wednesday of the next month (June 14th)
+      (org-edna-action/scheduled! nil "float 2 Wednesday")
+      (should (string-equal (org-entry-get nil "SCHEDULED")
+                            "<2000-06-14 Wed 00:00>"))
+      ;; Move forward to the first Thursday in the following Jan (Jan 4th, 2001)
+      (org-edna-action/scheduled! nil "float 1 4 Jan")
+      (should (string-equal (org-entry-get nil "SCHEDULED")
+                            "<2001-01-04 Thu 00:00>"))
+      ;; The fourth Monday in Feb, 2000 (Feb 28th)
+      (org-edna-action/scheduled! nil "float ++4 monday")
+      (should (string-equal (org-entry-get nil "SCHEDULED")
+                            "<2000-02-28 Mon 00:00>"))
+      ;; The second Monday after Mar 12th, 2000 (Mar 20th)
+      (org-edna-action/scheduled! nil "float 2 monday Mar 12")
+      (should (string-equal (org-entry-get nil "SCHEDULED")
+                            "<2000-03-20 Mon 00:00>"))
+      ;; Back to Saturday for other tests
       (org-edna-action/scheduled! nil "2000-01-15 Sat 00:00")
       (should (string-equal (org-entry-get nil "SCHEDULED")
                             "<2000-01-15 Sat 00:00>")))))
@@ -374,7 +959,7 @@
       (org-edna-action/tag! nil "tag")
       (should (equal (org-get-tags) '("tag")))
       (org-edna-action/tag! nil "")
-      (should-not (org-get-tags)))))
+      (should (equal (org-get-tags) '(""))))))
 
 (ert-deftest org-edna-action-property ()
   (let ((pom (org-edna-find-test-heading org-edna-test-id-heading-one)))
