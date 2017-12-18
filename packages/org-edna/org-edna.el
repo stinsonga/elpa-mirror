@@ -7,7 +7,7 @@
 ;; Keywords: convenience, text, org
 ;; URL: https://savannah.nongnu.org/projects/org-edna-el/
 ;; Package-Requires: ((emacs "25.1") (seq "2.19") (org "9.0.5"))
-;; Version: 1.0beta1
+;; Version: 1.0beta2
 
 ;; This file is part of GNU Emacs.
 
@@ -242,7 +242,7 @@ is changing from a TODO state to a DONE state, run BODY."
           ;; And only from a TODO state to a DONE state
           (member from (cons 'todo org-not-done-keywords))
           (member to (cons 'done org-done-keywords)))
-         (condition-case err
+         (condition-case-unless-debug err
              ,@body
            (error
             (if (eq (car err) 'invalid-read-syntax)
@@ -1195,6 +1195,9 @@ forward) or the last day of MONTH (backward)."
       (pcase-let* ((`(,n ,what-string ,def) (org-edna--read-date-get-relative arg this-time current))
                    (ts (if def current-ts this-ts))
                    (what (cdr (assoc-string what-string type-map))))
+        ;; Ensure that the source timestamp exists
+        (unless ts
+          (error "Tried to increment a non-existent timestamp"))
         (org--deadline-or-schedule nil type (org-edna--mod-timestamp ts n what))))
      (t
       ;; For everything else, assume `org-read-date-analyze' can handle it
@@ -1203,7 +1206,8 @@ forward) or the last day of MONTH (backward)."
       ;; use if that time component isn't specified.  Since there's no way to
       ;; tell if a time was specified, tell `org-read-date-analyze' to use nil
       ;; if no time is found.
-      (let* ((parsed-time (org-read-date-analyze arg this-time '(nil nil nil nil nil nil)))
+      (let* ((case-fold-search t)
+             (parsed-time (org-read-date-analyze arg this-time '(nil nil nil nil nil nil)))
              (have-time (nth 2 parsed-time))
              (final-time (apply 'encode-time (mapcar (lambda (e) (or e 0)) parsed-time)))
              (new-ts (format-time-string (if have-time "%F %R" "%F") final-time)))
