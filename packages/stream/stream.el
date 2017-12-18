@@ -321,6 +321,28 @@ applications of FUNCTION on each element of STREAM in succession."
      (cons (funcall function (stream-first stream))
            (seq-map function (stream-rest stream))))))
 
+(cl-defmethod seq-mapn (function (stream stream) &rest streams)
+  "Map FUNCTION over the STREAMS.
+
+Example: this prints the first ten Fibonacci numbers:
+
+  (letrec ((fibs (stream-cons
+                  1
+                  (stream-cons
+                   1
+                   (seq-mapn #'+ fibs (stream-rest fibs))))))
+    (seq-do #'print (seq-take fibs 10)))
+
+\(fn FUNCTION STREAMS...)"
+  (if (not (seq-every-p #'streamp streams))
+      (cl-call-next-method)
+    (cl-labels ((do-mapn (f streams)
+                         (stream-make
+                          (unless (seq-some #'stream-empty-p streams)
+                            (cons (apply f (mapcar #'stream-first streams))
+                                  (do-mapn f (mapcar #'stream-rest streams)))))))
+      (do-mapn function (cons stream streams)))))
+
 (cl-defmethod seq-do (function (stream stream))
   "Evaluate FUNCTION for each element of STREAM eagerly, and return nil.
 
