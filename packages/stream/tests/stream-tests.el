@@ -166,6 +166,18 @@
   (should (= -1 (stream-first (seq-map #'- (stream-range 1)))))
   (should (= -2 (stream-first (stream-rest (seq-map #'- (stream-range 1)))))))
 
+(ert-deftest stream-seq-mapn-test ()
+  (should (streamp (seq-mapn #'+ (stream (list 1 2 3)) (stream (list 4 5 6)))))
+  (should (not (streamp (seq-mapn #'+ (stream (list 1 2 3)) (stream (list 4 5 6)) (list 7 8 9)))))
+  (should (= 2 (seq-length (seq-mapn #'+ (stream (list 1 2 3)) (stream (list 4 5))))))
+  (should (equal (letrec ((fibs (stream-cons
+                                 1
+                                 (stream-cons
+                                  1
+                                  (seq-mapn #'+ fibs (stream-rest fibs))))))
+                   (seq-into (seq-take fibs 10) 'list))
+                 '(1 1 2 3 5 8 13 21 34 55))))
+
 (ert-deftest stream-seq-do-test ()
   (let ((result '()))
     (seq-do
@@ -292,6 +304,9 @@
 (deftest-for-delayed-evaluation (seq-drop (make-delayed-test-stream) 2))
 (deftest-for-delayed-evaluation (seq-take-while #'numberp (make-delayed-test-stream)))
 (deftest-for-delayed-evaluation (seq-map #'identity (make-delayed-test-stream)))
+(deftest-for-delayed-evaluation (seq-mapn #'cons
+                                          (make-delayed-test-stream)
+                                          (make-delayed-test-stream)))
 (deftest-for-delayed-evaluation (seq-filter #'cl-evenp (make-delayed-test-stream)))
 (deftest-for-delayed-evaluation (stream-delay (make-delayed-test-stream)))
 (deftest-for-delayed-evaluation (seq-copy (make-delayed-test-stream)))
