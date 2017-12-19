@@ -287,7 +287,6 @@
 (deftest-for-delayed-evaluation (seq-take (make-delayed-test-stream) 2))
 (deftest-for-delayed-evaluation (seq-drop (make-delayed-test-stream) 2))
 (deftest-for-delayed-evaluation (seq-take-while #'numberp (make-delayed-test-stream)))
-(deftest-for-delayed-evaluation (seq-take-until #'numberp (make-delayed-test-stream)))
 (deftest-for-delayed-evaluation (seq-map #'identity (make-delayed-test-stream)))
 (deftest-for-delayed-evaluation (seq-filter #'cl-evenp (make-delayed-test-stream)))
 (deftest-for-delayed-evaluation (stream-delay (make-delayed-test-stream)))
