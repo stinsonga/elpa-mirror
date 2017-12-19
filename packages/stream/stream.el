@@ -225,6 +225,9 @@ elements in the STREAMS in order."
 (cl-defmethod seqp ((_stream stream))
   t)
 
+(cl-defmethod seq-empty-p ((stream stream))
+  (stream-empty-p stream))
+
 (cl-defmethod seq-elt ((stream stream) n)
   "Return the element of STREAM at index N."
   (while (> n 0)

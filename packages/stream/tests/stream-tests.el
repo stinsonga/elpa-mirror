@@ -40,6 +40,10 @@
   (should (streamp (stream-empty)))
   (should (stream-empty-p (stream-empty))))
 
+(ert-deftest stream-seq-empty-test ()
+  (should (seq-empty-p (stream-empty)))
+  (should-not (seq-empty-p (stream-range))))
+
 (ert-deftest stream-make-test ()
   (should (streamp (stream-range)))
   (should (not (stream-empty-p (stream-range))))) ;; Should use stream-list or something
