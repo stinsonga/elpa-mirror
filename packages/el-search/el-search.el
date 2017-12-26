@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.4.0.8
+;; Version: 1.4.0.9
 ;; Package-Requires: ((emacs "25") (stream "2.2.4"))
 
 
@@ -796,7 +796,7 @@ the defined pattern type NAME.  See `el-search-heuristic-matcher'
 for details.
 
 \(fn NAME ARGLIST &optional DOCSTRING DECL &rest BODY)"
-  (declare (indent 2) (debug defun))
+  (declare (indent 2) (debug defun) (doc-string 3))
   (let ((doc nil) (declaration-list ()))
     (when (stringp (car body))
       (setq doc  (car body)
