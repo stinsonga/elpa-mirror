@@ -1,6 +1,6 @@
 ;;; vlf-setup.el --- VLF integration with other packages  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2014-2015 Free Software Foundation, Inc.
+;; Copyright (C) 2014-2017 Free Software Foundation, Inc.
 
 ;; Keywords: large files, integration
 ;; Author: Andrey Kotlarski <m00naticus@gmail.com>

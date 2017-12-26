@@ -1,6 +1,6 @@
 ;;; vlf-follow.el --- VLF chunk follows point functionality  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2014 Free Software Foundation, Inc.
+;; Copyright (C) 2014-2017 Free Software Foundation, Inc.
 
 ;; Keywords: large files, follow, recenter
 ;; Author: Andrey Kotlarski <m00naticus@gmail.com>

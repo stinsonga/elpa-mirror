@@ -1,6 +1,6 @@
 ;;; vlf-search.el --- Search functionality for VLF  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2014 Free Software Foundation, Inc.
+;; Copyright (C) 2014-2017 Free Software Foundation, Inc.
 
 ;; Keywords: large files, search
 ;; Author: Andrey Kotlarski <m00naticus@gmail.com>
