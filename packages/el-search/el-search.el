@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.4.0.9
+;; Version: 1.4.0.10
 ;; Package-Requires: ((emacs "25") (stream "2.2.4"))
 
 
@@ -340,6 +340,9 @@
 ;;     b)
 ;;
 ;; the comment will be lost.
+;;
+;; - Emacs bug#29857: 27.0.50; error: "Loading `nil': old-style
+;;   backquotes detected!"
 ;;
 ;;
 ;;  Acknowledgments
