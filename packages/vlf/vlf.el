@@ -1,13 +1,13 @@
 ;;; vlf.el --- View Large Files  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2006, 2012-2015 Free Software Foundation, Inc.
+;; Copyright (C) 2006, 2012-2017 Free Software Foundation, Inc.
 
-;; Version: 1.7
+;; Version: 1.7.1
 ;; Keywords: large files, utilities
 ;; Maintainer: Andrey Kotlarski <m00naticus@gmail.com>
 ;; Authors: 2006 Mathias Dahl <mathias.dahl@gmail.com>
 ;;          2012 Sam Steingold <sds@gnu.org>
-;;          2013-2015 Andrey Kotlarski <m00naticus@gmail.com>
+;;          2013-2017 Andrey Kotlarski <m00naticus@gmail.com>
 ;; URL: https://github.com/m00natic/vlfi
 
 ;; This file is free software; you can redistribute it and/or modify
