@@ -108,12 +108,25 @@ matches the list (1 2 3 4 5 6 7 8 9) and binds `x' to (4 5 6)."
                    `(,,pattern ,,(car more-patterns)))))
        (t `(append ,pattern (append ,@more-patterns)))))))
 
+(defcustom el-search-lazy-l t
+  "Whether to interpret symbols and strings specially in `l'.
+
+When non-nil, the default, `l' based pattern types interpret
+symbols and strings as special LPATS: a SYMBOL matches any symbol
+S matched by SYMBOL's name interpreted as a regexp, and a STRING
+matches any string matched by the STRING interpreted as a regexp.
+
+When nil, symbols and strings act as standard `pcase' patterns."
+  :group 'el-search :type 'boolean)
+
 (defun el-search--transform-nontrivial-lpat (expr)
-  (pcase expr
-    ((and (pred symbolp) (let symbol-name (symbol-name expr)))
-     `(symbol ,symbol-name))
-    ((pred stringp) `(string ,expr))
-    (_ expr)))
+  (if el-search-lazy-l
+      (pcase expr
+        ((and (pred symbolp) (let symbol-name (symbol-name expr)))
+         `(symbol ,symbol-name))
+        ((pred stringp) `(string ,expr))
+        (_ expr))
+    expr))
 
 (el-search-defpattern l (&rest lpats)
   "Alternative pattern type for matching lists.
@@ -123,7 +136,9 @@ order.
 The idea is to be able to search for pieces of code (i.e. lists)
 with very brief input by using a specialized syntax.
 
-An LPAT can take the following forms:
+An LPAT can take the following forms (the special interpretation
+of symbols and strings can be turned off by binding or
+customizing `el-search-lazy-l' to nil):
 
 SYMBOL  Matches any symbol S matched by SYMBOL's name interpreted
         as a regexp.
@@ -157,9 +172,6 @@ could use this pattern:
          (lambda (lpat)
            (pcase lpat
              ((or '__ '_ '_? '^ '$) t)
-             ((pred symbolp)
-              (funcall (el-search-heuristic-matcher `(symbol ,(symbol-name lpat)))
-                       file-name-or-buffer atoms-thunk))
              (_ (funcall (el-search-heuristic-matcher (el-search--transform-nontrivial-lpat lpat))
                          file-name-or-buffer atoms-thunk))))
          lpats)))))
