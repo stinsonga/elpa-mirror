@@ -908,10 +908,10 @@ option `gnorb-gnus-hint-relevant-article' is non-nil."
 	      (t " ")))
     " "))
 
-(fset (intern (concat "gnus-user-format-function-"
-		      gnorb-gnus-summary-mark-format-letter))
-      (lambda (header)
-	(gnorb-gnus-insert-format-letter-maybe header)))
+(defalias (intern (concat "gnus-user-format-function-"
+			  gnorb-gnus-summary-mark-format-letter))
+  (lambda (header)
+    (gnorb-gnus-insert-format-letter-maybe header)))
 
 (defun gnorb-gnus-insert-format-tags (header)
   (let* ((id (mail-header-message-id header))
@@ -924,10 +924,10 @@ option `gnorb-gnus-hint-relevant-article' is non-nil."
 	 ":" (mapconcat #'identity tags ":") ":")
       "")))
 
-(fset (intern (concat "gnus-user-format-function-"
-		      gnorb-gnus-summary-tags-format-letter))
-      (lambda (header)
-	(gnorb-gnus-insert-format-tags header)))
+(defalias (intern (concat "gnus-user-format-function-"
+			  gnorb-gnus-summary-tags-format-letter))
+  (lambda (header)
+    (gnorb-gnus-insert-format-tags header)))
 
 ;;;###autoload
 (defun gnorb-gnus-view ()

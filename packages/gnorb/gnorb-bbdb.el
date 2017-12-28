@@ -166,15 +166,15 @@ be composed, just as in `gnus-posting-styles'."
   :type 'list)
 
 (when (fboundp 'bbdb-record-xfield-string)
-  (fset (intern (format "bbdb-read-xfield-%s"
-			gnorb-bbdb-org-tag-field))
-	(lambda (&optional init)
-	  (gnorb-bbdb-read-org-tags init)))
+  (defalias (intern (format "bbdb-read-xfield-%s"
+			    gnorb-bbdb-org-tag-field))
+    (lambda (&optional init)
+      (gnorb-bbdb-read-org-tags init)))
 
-  (fset (intern (format "bbdb-display-%s-multi-line"
-			gnorb-bbdb-org-tag-field))
-	(lambda (record indent)
-	  (gnorb-bbdb-display-org-tags record indent))))
+  (defalias (intern (format "bbdb-display-%s-multi-line"
+			    gnorb-bbdb-org-tag-field))
+    (lambda (record indent)
+      (gnorb-bbdb-display-org-tags record indent))))
 
 (defun gnorb-bbdb-read-org-tags (&optional init)
   "Read Org mode tags, with `completing-read-multiple'."
@@ -518,22 +518,22 @@ layout type."
 		    (t
 		     ""))))))
 
-(fset (intern (format "bbdb-display-%s-multi-line"
-		      gnorb-bbdb-messages-field))
-      (lambda (record indent)
-	(gnorb-bbdb-display-messages record 'multi indent)))
+(defalias (intern (format "bbdb-display-%s-multi-line"
+			  gnorb-bbdb-messages-field))
+  (lambda (record indent)
+    (gnorb-bbdb-display-messages record 'multi indent)))
 
-(fset (intern (format "bbdb-display-%s-one-line"
-		      gnorb-bbdb-messages-field))
-      (lambda (record)
-	(gnorb-bbdb-display-messages record 'one)))
+(defalias (intern (format "bbdb-display-%s-one-line"
+			  gnorb-bbdb-messages-field))
+  (lambda (record)
+    (gnorb-bbdb-display-messages record 'one)))
 
 ;; Don't allow direct editing of this field
 
-(fset (intern (format "bbdb-read-xfield-%s"
-		      gnorb-bbdb-messages-field))
-      (lambda (&optional _init)
-	(user-error "This field shouldn't be edited manually")))
+(defalias (intern (format "bbdb-read-xfield-%s"
+			  gnorb-bbdb-messages-field))
+  (lambda (&optional _init)
+    (user-error "This field shouldn't be edited manually")))
 
 ;; Open links from the *BBDB* buffer.
 
