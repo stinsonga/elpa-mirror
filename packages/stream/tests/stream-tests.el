@@ -1,6 +1,6 @@
 ;;; stream-tests.el --- Unit tests for stream.el  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015 Free Software Foundation, Inc.
+;; Copyright (C) 2015, 2017 Free Software Foundation, Inc.
 
 ;; Author: Nicolas Petton <nicolas@petton.fr>
 
@@ -26,6 +26,7 @@
 
 (require 'ert)
 (require 'stream)
+(require 'generator)
 (require 'cl-lib)
 
 (defun stream-to-list (stream)
