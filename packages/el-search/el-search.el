@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.4.0.11
+;; Version: 1.4.0.12
 ;; Package-Requires: ((emacs "25") (stream "2.2.4"))
 
 
@@ -2504,7 +2504,9 @@ Prompt for a new pattern and revert."
                         (setq end (point))))
                ((or (pred atom) `(,(pred atom))) t)
                ((guard (< (- end start) 100))    t)))))
-        (try-go-upwards (lambda (pos) (condition-case nil (scan-lists pos -1 1)
+        (try-go-upwards (lambda (pos) (condition-case nil
+                                     (when-let ((pos (scan-lists pos -1 1)))
+                                       (if (eq (char-before pos) ?`) (1- pos) pos))
                                    (scan-error nil)))))
     (when (funcall need-more-context-p match-beg)
       (setq context-beg (funcall try-go-upwards match-beg))
