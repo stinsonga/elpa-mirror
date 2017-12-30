@@ -132,7 +132,7 @@ Info node `(elisp) Mode Line Format'.
 
 The FILE argument is passed through to `eval-after-load'. If FILE is nil then
 the mode symbol is passed as the required feature. If FILE is t then it is
-assumed that the mode is already loaded. (Note that you can also use 'emacs
+assumed that the mode is already loaded. (Note that you can also use \\='emacs
 for this purpose). These FILE options are relevant to minor modes only.
 
 For major modes you should specify the keyword :major as the value of FILE,
