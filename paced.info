@@ -67,7 +67,7 @@ File: paced.info,  Node: Copying,  Next: Introduction,  Prev: Top,  Up: Top
 Copying
 *******
 
-Copyright (C) 2017 Free Software Foundation, Inc.
+Copyright (C) 2017-2018 Free Software Foundation, Inc.
 
      This program is free software: you can redistribute it and/or
      modify it under the terms of the GNU General Public License as
@@ -712,30 +712,30 @@ selecting “none” and letting one of us handle it is a good way to go.
 Tag Table:
 Node: Top228
 Node: Copying1675
-Node: Introduction2489
-Node: Similar Packages3609
-Node: pabbrev3895
-Node: predictive5038
-Node: Installation6086
-Node: Basic Setup6551
-Node: Dictionaries7154
-Node: Creating a Dictionary7558
-Node: Editing a Dictionary8598
-Node: Selective Dictionaries9074
-Node: Dictionary Files10723
-Node: Population Commands11814
-Node: Built-in Commands12750
-Node: Properties13547
-Node: Custom Commands14409
-Node: Asynchronous Population17136
-Node: Example Setups18329
-Node: Org Agenda Files18511
-Node: Project Files19767
-Node: Contributing20880
-Node: Bugs21636
-Node: Development22025
-Node: Documentation22992
-Node: Working with EDE23459
+Node: Introduction2494
+Node: Similar Packages3614
+Node: pabbrev3900
+Node: predictive5043
+Node: Installation6091
+Node: Basic Setup6556
+Node: Dictionaries7159
+Node: Creating a Dictionary7563
+Node: Editing a Dictionary8603
+Node: Selective Dictionaries9079
+Node: Dictionary Files10728
+Node: Population Commands11819
+Node: Built-in Commands12755
+Node: Properties13552
+Node: Custom Commands14414
+Node: Asynchronous Population17141
+Node: Example Setups18334
+Node: Org Agenda Files18516
+Node: Project Files19772
+Node: Contributing20885
+Node: Bugs21641
+Node: Development22030
+Node: Documentation22997
+Node: Working with EDE23464
 
 End Tag Table
 
