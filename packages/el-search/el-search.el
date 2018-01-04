@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.4.0.13
+;; Version: 1.4.0.14
 ;; Package-Requires: ((emacs "25") (stream "2.2.4"))
 
 
@@ -399,6 +399,7 @@
 (require 'help-fns) ;el-search--make-docstring
 (require 'ring)     ;el-search-history
 (require 'hideshow) ;folding in *El Occur*
+(eval-when-compile (require 'outline)) ;folding in *El Occur*
 
 
 ;;;; Configuration stuff
@@ -2319,11 +2320,6 @@ Use the normal search commands to seize the search."
 (defvar-local el-search-occur-search-object nil)
 
 
-(defvar orgstruct-heading-prefix-regexp)
-(declare-function org-back-to-heading 'org)
-(declare-function org-global-cycle    'org)
-(declare-function orgstruct-mode      'org)
-
 (defun el-search-occur-revert-function (&rest _)
   (el-search--occur el-search-occur-search-object t))
 
@@ -2464,16 +2460,31 @@ Prompt for a new pattern and revert."
   (interactive)
   (el-search-occur--next-match 'backwards))
 
-(declare-function orgstruct-hijacker-org-shifttab-2 'org)
+
+(defvar el-search-occur--outline-visible t)
+
 (defun el-search-occur-cycle ()
+  "Cycle between showing an outline and everything."
   (interactive)
-  (cl-letf (((symbol-function 'org-context-p) #'el-search-true))
-    (call-interactively #'orgstruct-hijacker-org-shifttab-2)))
+  (save-excursion
+    (goto-char (point-min))
+    (if el-search-occur--outline-visible
+        (outline-hide-leaves)
+      (outline-show-all)))
+  (cl-callf not el-search-occur--outline-visible))
+
+(defun el-search-occur-tab-command ()
+  "Hide or unhide heading or sexp at point."
+  (interactive)
+  (call-interactively
+   (if (not (outline-on-heading-p))
+       #'hs-toggle-hiding
+     #'outline-toggle-children)))
 
 (defvar el-search-occur-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map [tab]           #'hs-toggle-hiding)
-    (define-key map "\t"            #'hs-toggle-hiding)
+    (define-key map [tab]           #'el-search-occur-tab-command)
+    (define-key map "\t"            #'el-search-occur-tab-command)
     (define-key map [return]        #'el-search-occur-jump-to-match)
     (define-key map "\r"            #'el-search-occur-jump-to-match)
     (define-key map [S-iso-lefttab] #'el-search-occur-cycle)
@@ -2494,9 +2505,8 @@ Prompt for a new pattern and revert."
   (setq-local hs-hide-comments-when-hiding-all nil)
   (hs-minor-mode +1)
   (hs-hide-all)
-  (setq orgstruct-heading-prefix-regexp ";;; ")
   (setq outline-regexp "^;;;\\ \\*+")
-  (orgstruct-mode +1))
+  (outline-minor-mode +1))
 
 (put 'el-search-occur-mode 'mode-class 'special)
 
