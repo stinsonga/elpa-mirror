@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.5.3
+;; Version: 1.5.4
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -364,9 +364,6 @@
 ;;
 ;; the comment will be lost.
 ;;
-;; - Emacs bug#29857: 27.0.50; error: "Loading `nil': old-style
-;;   backquotes detected!"
-;;
 ;;
 ;; Acknowledgments
 ;; ===============
@@ -654,6 +651,14 @@ nil."
   (let ((message-log-max nil))
     (apply #'message format-string args)))
 
+(defalias 'el-search-read
+  (if (boundp 'force-new-style-backquotes)
+      (lambda (&optional stream)
+        "Like `read' but bind `force-new-style-backquotes' to t."
+        (let ((force-new-style-backquotes t))
+          (read stream)))
+    #'read))
+
 (defun el-search--pp-to-string (expr)
   (let ((print-length nil)
         (print-level nil)
@@ -703,7 +708,7 @@ nil."
     (unless (or (string-match-p "\\`\\'" input)
                 (and (stringp hist-head)
                      (or (string= input hist-head)
-                         (ignore-errors (equal (read input) (read hist-head))))))
+                         (ignore-errors (equal (el-search-read input) (el-search-read hist-head))))))
       (push (if (string-match-p "\\`.+\n" input)
                 (with-temp-buffer
                   (emacs-lisp-mode)
@@ -741,7 +746,7 @@ PROMPT defaults to \"El-search pattern: \".  The return value is the
 `read' input pattern."
   (let* ((input (el-search--read-pattern (or prompt "El-search pattern: ")
                                          (car el-search-pattern-history)))
-         (pattern (read input)))
+         (pattern (el-search-read input)))
     ;; A very common mistake: input "foo" instead of "'foo"
     (el-search--maybe-warn-about-unquoted-symbol pattern)
     (setq this-command 'el-search-pattern) ;in case we come from isearch
@@ -755,7 +760,7 @@ PROMPT defaults to \"El-search pattern: \".  The return value is the
 Point should be at a sexp beginning."
   (if (eql (char-after) ?@) ;bug#24542
       (save-excursion
-        (ignore (read (current-buffer)))
+        (ignore (el-search-read (current-buffer)))
         (point))
     (or (scan-sexps (point) 1) (point-max))))
 
@@ -770,7 +775,7 @@ Point should be at a sexp beginning."
   ;; EXPRESSION must equal the (read) expression at point, but with READ
   ;; non-nil, ignore the first argument and use the read expression at
   ;; point instead.
-  (when read (setq expression (save-excursion (read (current-buffer)))))
+  (when read (setq expression (save-excursion (el-search-read (current-buffer)))))
   (cond
    ((or (null expression)
         (equal [] expression)
@@ -812,7 +817,7 @@ not be inside a string or comment."
            (t (setq stop-here t)))))
       (condition-case nil
           (progn
-            (setq res (save-excursion (read (current-buffer))))
+            (setq res (save-excursion (el-search-read (current-buffer))))
             (setq not-done nil))
         (error (forward-char))))
     res))
@@ -968,7 +973,7 @@ be specified as third optional argument."
                                    (thunk-delay
                                     (el-search--flatten-tree
                                      (save-excursion
-                                       (prog1 (read (current-buffer))
+                                       (prog1 (el-search-read (current-buffer))
                                          (setq end-of-defun (point)))))))))
                 (goto-char (or end-of-defun
                                ;; The thunk hasn't been forced
@@ -1219,7 +1224,7 @@ PATTERN and combining the heuristic matchers of the subpatterns."
                                 (goto-char (point-min))
                                 (let ((forms ()))
                                   (condition-case err
-                                      (while t (push (read (current-buffer)) forms))
+                                      (while t (push (el-search-read (current-buffer)) forms))
                                     (end-of-file forms)
                                     (error
                                      (message "%s in %S\nat position %d - skipping"
@@ -2437,7 +2442,7 @@ Use the normal search commands to seize the search."
                          (if (and symbol-at-point-text
                                   ;; That should ideally be always true but isn't
                                   (condition-case nil
-                                      (symbolp (setq symbol-at-point (read symbol-at-point-text)))
+                                      (symbolp (setq symbol-at-point (el-search-read symbol-at-point-text)))
                                     (invalid-read-syntax nil)))
                              symbol-at-point
                            (if (thing-at-point 'sexp)
@@ -2662,7 +2667,7 @@ Prompt for a new pattern and revert."
            (let (end)
              (pcase (save-excursion
                       (goto-char start)
-                      (prog1 (read (current-buffer))
+                      (prog1 (el-search-read (current-buffer))
                         (setq end (point))))
                ((or (pred atom) `(,(pred atom))) t)
                ((guard (< (- end start) 100))    t)))))
@@ -3089,7 +3094,7 @@ reindent."
                           (condition-case nil
                               (progn
                                 (setq start (point)
-                                      this-sexp (read (current-buffer))
+                                      this-sexp (el-search-read (current-buffer))
                                       end   (point))
                                 t)
                             (end-of-buffer nil)))
@@ -3103,11 +3108,12 @@ reindent."
                 ;; find out whether we have a sequence of equal expressions
                 (while (and (not done)
                             (condition-case nil
-                                (progn (setq this-sexp (read (current-buffer))) t)
+                                (progn (setq this-sexp (el-search-read (current-buffer)))
+                                       t)
                               ((invalid-read-syntax end-of-buffer end-of-file) nil)))
                   (if (with-current-buffer orig-buffer
                         (condition-case nil
-                            (if (not (equal this-sexp (read (current-buffer))))
+                            (if (not (equal this-sexp (el-search-read (current-buffer))))
                                 nil
                               (setq orig-match-end (point))
                               t)
@@ -3131,7 +3137,7 @@ reindent."
             (forward-sexp (if splice (length replacement) 1))
             (let ((result (buffer-substring 1 (point))))
               (if (condition-case nil
-                      (equal replacement (read (if splice (format "(%s)" result) result)))
+                      (equal replacement (el-search-read (if splice (format "(%s)" result) result)))
                     ((debug error) nil))
                   result
                 (error "Apparent error in `el-search--format-replacement'
@@ -3188,7 +3194,7 @@ Thanks!"))))
                        (el-search-hl-sexp))
                      (let* ((region (list (point) (el-search--end-of-sexp)))
                             (original-text (apply #'buffer-substring-no-properties region))
-                            (expr      (read original-text))
+                            (expr      (el-search-read original-text))
                             (replaced-this nil)
                             (new-expr  (funcall get-replacement expr))
                             (get-replacement-string
@@ -3380,8 +3386,8 @@ Toggle splicing mode (\\[describe-function] el-search-query-replace for details)
   (let ((from-input (let ((el-search--initial-mb-contents
                            (or el-search--initial-mb-contents
                                (and (eq last-command 'el-search-pattern)
-                                    (if (equal (read (car el-search-pattern-history))
-                                               (read (car el-search-query-replace-history)))
+                                    (if (equal (el-search-read (car el-search-pattern-history))
+                                               (el-search-read (car el-search-query-replace-history)))
                                         (car el-search-query-replace-history)
                                       (car el-search-pattern-history))))))
                       (el-search--read-pattern "Query replace pattern: " nil
@@ -3421,8 +3427,8 @@ Toggle splicing mode (\\[describe-function] el-search-query-replace for details)
               (buffer-string))
             el-search-query-replace-history))
     (el-search--pushnew-to-history from 'el-search-pattern-history)
-    (setq read-from (read from))
-    (setq read-to   (read to))
+    (setq read-from (el-search-read from))
+    (setq read-to   (el-search-read to))
     (el-search--maybe-warn-about-unquoted-symbol read-from)
     (when (and (symbolp read-to)
                (not (el-search--contains-p (el-search--matcher `',read-to) read-from))
