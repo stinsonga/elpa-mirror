@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.4.0.16
+;; Version: 1.4.0.17
 ;; Package-Requires: ((emacs "25") (stream "2.2.4"))
 
 
@@ -2314,7 +2314,8 @@ Use the normal search commands to seize the search."
      `',sexp
      (let ((current-buffer (current-buffer)))
        (lambda () (stream (list current-buffer))))
-     'from-here)
+     'from-here
+     (lambda (search) (setf (alist-get 'is-single-buffer (el-search-object-properties search)) t)))
     (el-search--next-buffer el-search--current-search)
     (setf (el-search-head-position (el-search-object-head el-search--current-search))
           (copy-marker (point)))
