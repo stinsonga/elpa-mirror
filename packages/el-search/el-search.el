@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.4.0.15
+;; Version: 1.4.0.16
 ;; Package-Requires: ((emacs "25") (stream "2.2.4"))
 
 
@@ -2206,6 +2206,7 @@ With prefix arg, restart the current search."
     (setq el-search--success nil))
   (el-search-continue-search))
 
+;;;###autoload
 (defun el-search-pattern-backwards (pattern)
   "Search the current buffer backwards for matches of PATTERN."
   (declare (interactive-only t))
@@ -2286,6 +2287,7 @@ With prefix arg, restart the current search."
 (define-obsolete-function-alias 'el-search-previous-match
   'el-search-pattern-backwards "since el-search-1.3")
 
+;;;###autoload
 (defun el-search-this-sexp (sexp)
   "Prepare to el-search the `sexp-at-point'.
 
