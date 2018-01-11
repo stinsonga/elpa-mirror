@@ -8,7 +8,7 @@
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
 ;; Version: 1.5.1
-;; Package-Requires: ((emacs "25") (stream "2.2.4"))
+;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
 ;; This file is not part of GNU Emacs.
@@ -414,6 +414,7 @@
 
 (require 'cl-lib)
 (require 'pcase)    ;we want to bind `pcase--dontwarn-upats' before pcase is autoloaded
+(require 'cl-print)
 (require 'elisp-mode)
 (require 'thingatpt)
 (require 'thunk)
@@ -1026,6 +1027,12 @@ optional MESSAGE are used to construct the error message."
     (cl-callf copy-el-search-head (el-search-object-head copy))
     (cl-callf copy-alist (el-search-object-properties copy))
     copy))
+
+(cl-defmethod cl-print-object ((object el-search-object) stream)
+  ;; We use a syntax that looks nice with with pp.el
+  (princ "#s(el-search-object " stream)
+  (prin1 (el-search--get-search-description-string object 'verbose 'dont-propertize) stream)
+  (princ ")" stream))
 
 (defun el-search--current-pattern ()
   (and el-search--current-search
