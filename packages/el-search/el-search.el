@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.5.1
+;; Version: 1.5.2
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -118,6 +118,11 @@
 ;;   C-H, M-s e h (el-search-this-sexp)
 ;;     Grab the symbol or sexp under point and initiate an el-search
 ;;     for other occurrences.
+;;
+;;   M-x el-search-to-register
+;;     Save the current search to an Emacs register.  Use C-x r j
+;;     (`jump-to-register') to make that search current and jump to
+;;     the latest position.
 ;;
 ;;
 ;; The setup you'll need for your init file is trivial: just define
@@ -2981,6 +2986,32 @@ related user options."
    (lambda () (stream (delq nil (mapcar #'get-buffer buffer-names))))
    (lambda (search) (setf (alist-get 'description (el-search-object-properties search))
                      "el-search-ibuffer-marked-files"))))
+
+;;;; Register usage
+
+(defun el-search-to-register (register &optional el-search-object)
+  "Prompt for a register and save the EL-SEARCH-OBJECT to it.
+In an interactive call or when EL-SEARCH-OBJECT is nil, the
+current search is used."
+  (interactive (list (register-read-with-preview "Save current search to register: ")))
+  (set-register register (or el-search-object el-search--current-search)))
+
+(defun el-search-clone-to-register (register &optional el-search-object)
+  "Prompt for a register and save a clone of the EL-SEARCH-OBJECT to it.
+In an interactive call or when EL-SEARCH-OBJECT is nil, the
+current search is used.
+
+This is similar to `el-search-to-register' but what is saved is a
+clone with an individual state."
+  (interactive (list (register-read-with-preview "Save clone of current search to register: ")))
+  (set-register register (copy-el-search-object (or el-search-object el-search--current-search))))
+
+(cl-defmethod register-val-jump-to ((val el-search-object) _arg)
+  (el-search-jump-to-search-head val))
+
+(cl-defmethod register-val-describe ((val el-search-object) _verbose) ;VERBOSE is only used by C-x r v
+  (let ((print-circle nil)) ;bug#30070
+    (cl-prin1 val)))
 
 
 ;;;; Query-replace
