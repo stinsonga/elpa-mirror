@@ -584,17 +584,12 @@ useful for debugging.")
   "The currently active search, an `el-search-object', or nil.")
 
 (defvar-local el-search--temp-buffer-flag nil
-  "Non-nil tags file visiting buffers as temporarily opened for searching."
-  ;; FIXME: maintaining a list of buffers to close would make
-  ;; `el-search-kill-left-over-search-buffers' more efficient.  And
-  ;; could we merge this with `el-search--temp-file-buffer-flag'?
-  )
+  "Non-nil tags file visiting buffers as temporarily opened for searching.")
 
 (defvar-local el-search--temp-file-buffer-flag nil
   "Non-nil tags (file) buffers that should not be presented to the user.
 Buffers flagged this way contain the contents of a file but were
-not created with `find-file-noselect'.  The name of this file is
-used as non-nil value.")
+not created with `find-file-noselect'.")
 
 (defvar el-search--success nil
   "Non-nil when last search command was successful.")
@@ -1134,11 +1129,11 @@ being killed."
   (interactive)
   (dolist (buffer (buffer-list))
     (when (with-current-buffer buffer el-search--temp-buffer-flag)
-      (unless (or (buffer-modified-p buffer)
-                  (and not-current-buffer (eq buffer (current-buffer)))
-                  (cl-some (lambda (search) (eq buffer (el-search-head-buffer
-                                                   (el-search-object-head search))))
-                           (ring-elements el-search-history)))
+      (unless (or (and not-current-buffer (eq buffer (current-buffer)))
+                  (and el-search--current-search
+                       (eq buffer (el-search-head-buffer
+                                   (el-search-object-head el-search--current-search))))
+                  (with-current-buffer buffer (el-search--pending-search-p)))
         (kill-buffer buffer)))))
 
 
@@ -1320,7 +1315,12 @@ PATTERN and combining the heuristic matchers of the subpatterns."
   ;; SEARCH's head accordingly.  When specified, PREDICATE should accept
   ;; a file name or buffer, and we skip all buffers and files not
   ;; fulfilling it.  Return the new buffer to search in or nil if done.
-  (unless keep-highlighting (el-search-hl-remove))
+  (unless keep-highlighting
+    (el-search-hl-remove)
+    ;; Ensure that `el-search--pending-search-p' returns nil in this
+    ;; buffer even when `el-search-hl-post-command-fun' doesn't get a
+    ;; chance to clean up before that call.
+    (remove-hook 'post-command-hook 'el-search-hl-post-command-fun t))
   (let ((original-predicate (or predicate #'el-search-true))
         (heuristic-buffer-matcher
          (el-search-head-heuristic-buffer-matcher (el-search-object-head search))))
