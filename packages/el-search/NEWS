@@ -1,6 +1,12 @@
 Some of the user visible news were:
 
 
+Version: 1.5.2
+
+  The new command `el-search-to-register' allows to save the current
+  search (including its state) to a register and later make that
+  search current again with `jump-to-register' (C-x r j).
+
 Version: 1.5.1
 
   The new command `el-search-ibuffer-marked-buffers' el-searches the
