@@ -1,3 +1,5 @@
+;; Copyright (C) 2017  Free Software Foundation, Inc.
+
 (checkdoc-file "colir.el")
 (checkdoc-file "counsel.el")
 (checkdoc-file "ivy-overlay.el")
