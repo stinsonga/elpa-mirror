@@ -1010,21 +1010,27 @@ optional MESSAGE are used to construct the error message."
     `(el-search-when-unwind (progn ,@body)
                             (setf (el-search-object-head el-search--current-search) ,head-copy))))
 
-(defun el-search--get-search-description-string (search &optional verbose)
+(defun el-search--get-search-description-string (search &optional verbose dont-propertize)
   (concat
    (or (alist-get 'description (el-search-object-properties search))
        "Search")
    (when verbose
-     (format " [%s, %s]"
-             (if (alist-get 'is-single-buffer (el-search-object-properties search))
-                 "single-buffer" "paused")
-             (if-let ((buffer (el-search-head-buffer (el-search-object-head search))))
-                 (if (buffer-live-p buffer) (buffer-name buffer) "a killed buffer")
-               "completed")))
+     (let ((search-head (el-search-object-head search)))
+       (format " [%s %s]"
+               (if (alist-get 'is-single-buffer (el-search-object-properties search))
+                   "single-buffer" "paused")
+               (if-let ((buffer (el-search-head-buffer search-head)))
+                   (concat "-> "(if (buffer-live-p buffer)
+                                    (buffer-name buffer)
+                                  (if-let ((head-file (el-search-head-file search-head)))
+                                      (file-name-nondirectory head-file)
+                                    "killed buffer")))
+                 "(completed)"))))
    " for"
    (let ((printed-pattern (el-search--pp-to-string (el-search-object-pattern search))))
      (format (if (string-match-p "\n" printed-pattern) "\n%s" " %s")
-             (propertize printed-pattern 'face 'shadow)))))
+             (if dont-propertize printed-pattern
+               (propertize printed-pattern 'face 'shadow))))))
 
 
 (defun el-search-kill-left-over-search-buffers (&optional not-current-buffer)
