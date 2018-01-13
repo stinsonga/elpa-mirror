@@ -1,5 +1,11 @@
 Some of the user visible news were:
 
+Version: 1.5
+
+  The new function `el-search-install-bindings-under-prefix' can be
+  used to install repeatable versions of the el-search commands under
+  a prefix key.
+
 Version: 1.4.0.15
 
   The new option value 'ask-multi for el-search-auto-save-buffers,
