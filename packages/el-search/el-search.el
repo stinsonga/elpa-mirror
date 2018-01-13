@@ -1983,30 +1983,33 @@ local binding of `window-scroll-functions'."
 
 (defun el-search-jump-to-search-head (&optional previous-search)
   "Switch to current search buffer and go to the last match.
-With prefix arg, prompt for a prior search to resume, and make
-that the current search."
+With argument PREVIOUS-SEARCH non-nil (the prefix argument in an
+interactive call), prompt for a prior search to resume, and make
+that the current search.  In a non-interactive call,
+PREVIOUS-SEARCH can directly specify an el-search-object to make
+current."
   (interactive "P")
   (when previous-search
     ;; FIXME: would it be better to include some context around the search
     ;; head - or to even use an overview buffer for selection?
-    (let ((entry (ring-ref
-                  el-search-history
-                  (string-to-number
-                   (let ((completion-extra-properties
-                          `(:annotation-function
-                            ,(lambda (elt)
-                               (concat
-                                " "
-                                (el-search--get-search-description-string
-                                 (ring-ref el-search-history (string-to-number elt))
-                                 t))))))
-                     (completing-read
-                      "Resume previous search: "
-                      (mapcar #'prin1-to-string
-                              (number-sequence 0 (1- (ring-length el-search-history))))))))))
-      (setq el-search--current-search entry)
-      (setq el-search--success t)
-      (el-search--set-wrap-flag nil)))
+    (setq el-search--current-search
+          (if (el-search-object-p previous-search) previous-search
+            (ring-ref
+             el-search-history
+             (let ((input
+                    (completing-read
+                     "Resume previous search: "
+                     (mapcar
+                      (lambda (n) (format "%d - %s"
+                                     n
+                                     (el-search--get-search-description-string
+                                      (ring-ref el-search-history n)
+                                      t)))
+                      (number-sequence 0 (1- (ring-length el-search-history)))))))
+               (string-match "\\`\\([0-9]+\\) - " input)
+               (string-to-number (match-string 1 input))))))
+    (setq el-search--success t)
+    (el-search--set-wrap-flag nil))
   (el-search-compile-pattern-in-search el-search--current-search)
   (if-let ((search el-search--current-search)
            (current-head (el-search-object-head search))
