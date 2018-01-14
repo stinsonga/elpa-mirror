@@ -1,6 +1,11 @@
 Some of the user visible news were:
 
 
+Version: 1.6.1
+
+  New function `el-search-looking-at', the el-search version of
+  `looking-at'.
+
 Version: 1.5.2
 
   The new command `el-search-to-register' allows to save the current

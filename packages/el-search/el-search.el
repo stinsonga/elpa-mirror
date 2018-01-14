@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.6
+;; Version: 1.6.1
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -936,7 +936,7 @@ N times."
   "Like `pcase--macroexpand' but also expanding \"el-search\" patterns."
   (eval `(el-search--with-additional-pcase-macros (pcase--macroexpand ',pattern))))
 
-(cl-defun el-search--matcher (pattern &optional (result nil result-specified))
+(cl-defun el-search-make-matcher (pattern &optional (result nil result-specified))
   (eval ;use `eval' to allow for user defined pattern types at run time
    (let ((expression (make-symbol "expression")))
      `(el-search--with-additional-pcase-macros
@@ -1014,7 +1014,7 @@ the buffer.
 
 Optional third argument NOERROR, if non-nil, means if fail just
 return nil (no error)."
-  (el-search--search-pattern-1 (el-search--matcher pattern) noerror bound
+  (el-search--search-pattern-1 (el-search-make-matcher pattern) noerror bound
                                (el-search-heuristic-matcher pattern)))
 
 
@@ -1400,7 +1400,7 @@ Unlike `count-matches' matches \"inside\" other matches also count."
 	      rend (point-max)))
       (goto-char rstart))
     (let ((count 0)
-          (matcher  (el-search--matcher          pattern))
+          (matcher  (el-search-make-matcher      pattern))
           (hmatcher (el-search-heuristic-matcher pattern)))
       (while (and (< (point) rend)
 		  (el-search--search-pattern-1 matcher t rend hmatcher))
@@ -1408,6 +1408,32 @@ Unlike `count-matches' matches \"inside\" other matches also count."
 	(el-search--skip-expression nil t))
       (when interactive (message "%d occurrence%s" count (if (= count 1) "" "s")))
       count)))
+
+(defun el-search--looking-at-1 (matcher &optional allow-leading-whitespace)
+  "Like `el-search-looking-at' but accepts a MATCHER as first argument."
+  (if (not (derived-mode-p 'emacs-lisp-mode))
+      (error "Buffer not in emacs-lisp-mode: %s" (buffer-name))
+    (save-excursion
+      (let ((syntax-here (syntax-ppss)) (here (point)) current-sexp)
+        (and (not (or (nth 3 syntax-here) (nth 4 syntax-here)))
+             (condition-case nil
+                 (progn (setq current-sexp (el-search--ensure-sexp-start))
+                        t)
+               (end-of-buffer nil))
+             (or (= here (point))
+                 (and allow-leading-whitespace
+                      (string-match-p "\\`[[:space:]]*\\'" (buffer-substring here (point)))))
+             (el-search--match-p matcher current-sexp))))))
+
+;;;###autoload
+(defun el-search-looking-at (pattern &optional allow-leading-whitespace)
+  "El-search version of `looking-at'.
+Return non-nil when there is a match for PATTERN at point in the
+current buffer.
+
+With ALLOW-LEADING-WHITESPACE non-nil, the match may
+be preceded by whitespace."
+  (el-search--looking-at-1 (el-search-make-matcher pattern) allow-leading-whitespace))
 
 (defun el-search--all-matches (search)
   "Return a stream of all matches of SEARCH.
@@ -1464,7 +1490,7 @@ position of the beginning of the match."
 
 (defun el-search--set-head-pattern (head pattern)
   (setf (el-search-head-matcher head)
-        (el-search--matcher pattern))
+        (el-search-make-matcher pattern))
   (setf (el-search-head-heuristic-matcher head)
         (el-search-heuristic-matcher pattern))
   (setf (el-search-head-heuristic-buffer-matcher head)
@@ -1711,7 +1737,7 @@ MATCHER is a matcher for the el-search pattern to match.  Recurse
 on all types of sequences el-search does not treat as atomic.
 Matches are not restricted to atoms; for example
 
-  (el-search--contains-p (el-search--matcher ''(2 3)) '(1 (2 3)))
+  (el-search--contains-p (el-search-make-matcher ''(2 3)) '(1 (2 3)))
 
 succeeds.
 
@@ -1753,7 +1779,7 @@ matched by \(contains 1\)."
    ((null patterns) '_)
    ((null (cdr patterns))
     (let ((pattern (car patterns)))
-      `(app ,(apply-partially #'el-search--contains-p (el-search--matcher pattern))
+      `(app ,(apply-partially #'el-search--contains-p (el-search-make-matcher pattern))
             `(t ,,pattern)))) ; Match again to establish bindings PATTERN should create
    (t `(and ,@(mapcar (lambda (pattern) `(contains ,pattern)) patterns)))))
 
@@ -1808,7 +1834,7 @@ associated `buffer-file-name'."
                (lambda (file-name-or-buffer atoms-thunk)
                  (not (funcall heuristic-matcher file-name-or-buffer atoms-thunk))))
            (apply inverse-heuristic-matcher args)))))))
-  `(app ,(apply-partially #'el-search--match-p (el-search--matcher pattern))
+  `(app ,(apply-partially #'el-search--match-p (el-search-make-matcher pattern))
         (pred not)))
 
 (defalias 'el-search--symbol-file-matcher
@@ -3207,9 +3233,9 @@ Thanks!"))))
     (let ((replace-all nil) (replace-all-and-following nil)
           nbr-replaced nbr-skipped (nbr-replaced-total 0) (nbr-changed-buffers 0)
           (el-search-keep-hl t) (opoint (point))
-          (get-replacement (el-search--matcher pattern replacement))
+          (get-replacement (el-search-make-matcher pattern replacement))
           (skip-matches-in-replacement 'ask)
-          (matcher (el-search--matcher pattern))
+          (matcher (el-search-make-matcher pattern))
           (heuristic-matcher (el-search--current-heuristic-matcher))
           (save-all-answered nil)
           (should-quit nil))
@@ -3504,7 +3530,7 @@ Don't save this buffer and all following buffers; don't ask again"))))
     (setq read-to   (el-search-read to))
     (el-search--maybe-warn-about-unquoted-symbol read-from)
     (when (and (symbolp read-to)
-               (not (el-search--contains-p (el-search--matcher `',read-to) read-from))
+               (not (el-search--contains-p (el-search-make-matcher `',read-to) read-from))
                (not (eq read-to t))
                (not (eq read-to nil)))
       (el-search--maybe-warn-about-unquoted-symbol read-to))

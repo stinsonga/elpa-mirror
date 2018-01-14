@@ -89,8 +89,8 @@ matches the list (1 2 3 4 5 6 7 8 9) and binds `x' to (4 5 6)."
        ((null (cdr more-patterns))
         `(and (pred listp)
               (app ,(apply-partially #'el-search--split
-                                     (el-search--matcher pattern)
-                                     (el-search--matcher (car more-patterns)))
+                                     (el-search-make-matcher pattern)
+                                     (el-search-make-matcher (car more-patterns)))
                    `(,,pattern ,,(car more-patterns)))))
        (t `(append ,pattern (append ,@more-patterns)))))))
 
@@ -374,7 +374,7 @@ expression matching the `change' pattern will be matched."
                             (progn
                               (backward-up-list)
                               (el-search--match-p
-                               ',(el-search--matcher (or not-pattern pattern))
+                               ',(el-search-make-matcher (or not-pattern pattern))
                                (save-excursion (el-search-read (current-buffer)))))
                           (scan-error)))))))
 
