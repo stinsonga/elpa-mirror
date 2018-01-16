@@ -3186,8 +3186,8 @@ Thanks!"))))
         (kill-buffer orig-buffer)))))
 
 (defun el-search--search-and-replace-pattern
-    (pattern replacement &optional splice to-input-string multiple)
-  (unless multiple
+    (pattern replacement &optional splice to-input-string use-current-search)
+  (unless use-current-search
     (el-search-setup-search-1 pattern
                               (let ((current-buffer (current-buffer)))
                                 (lambda () (stream (list current-buffer))))
@@ -3223,11 +3223,12 @@ Thanks!"))))
                      (unless replace-all
                        (el-search-hl-other-matches matcher)
                        (add-hook 'window-scroll-functions #'el-search--after-scroll t t)
-                       (let ((head (el-search-object-head el-search--current-search)))
-                         (el-search--message-no-log "%s..."
-                                                    (or (el-search-head-file head)
-                                                        (el-search-head-buffer head)))
-                         (sit-for 1.)))
+                       (when use-current-search
+                         (let ((head (el-search-object-head el-search--current-search)))
+                           (el-search--message-no-log "%s..."
+                                                      (or (el-search-head-file head)
+                                                          (el-search-head-buffer head)))
+                           (sit-for 1.))))
 
                      (while (el-search--search-pattern-1 matcher t nil heuristic-matcher)
                        (setq opoint (point))
@@ -3293,8 +3294,6 @@ Thanks!"))))
                                           (and (not replaced-this)
                                                '(?r "r" "Replace this match but don't move"))
                                           '(?! "all" "Replace all remaining matches in this buffer")
-                                          (and multiple
-                                               '(?A "All" "Replace all remaining matches in all buffers"))
                                           '(?b "skip buf"
                                                "Skip this buffer and any remaining matches in it")
                                           (and buffer-file-name
@@ -3317,15 +3316,24 @@ Toggle splicing mode (\\[describe-function] el-search-query-replace for details)
                                          (?n
                                           (unless replaced-this (cl-incf nbr-skipped))
                                           t)
-                                         (?! (unless replaced-this
-                                               (funcall do-replace))
-                                             (setq replace-all t)
-                                             t)
-                                         (?A (unless replaced-this
-                                               (funcall do-replace))
-                                             (setq replace-all t)
-                                             (setq replace-all-and-following t)
-                                             t)
+                                         (?!
+                                          (when (and use-current-search
+                                                     (not (alist-get 'is-single-buffer
+                                                                     (el-search-object-properties
+                                                                      el-search--current-search)))
+                                                     (eq (car (read-multiple-choice
+                                                               "Replace in all following buffers?"
+                                                               '((?! "Only this"
+                                                                     "\
+Replace only remaining matches in this buffer")
+                                                                 (?A "All buffers"
+                                                                     "\
+Replace all matches in all buffers"))))
+                                                         ?A))
+                                            (setq replace-all-and-following t))
+                                          (setq replace-all t)
+                                          (unless replaced-this (funcall do-replace))
+                                          t)
                                          (?b (goto-char (point-max))
                                              (message "Skipping this buffer")
                                              (sit-for 1)
@@ -3435,7 +3443,7 @@ Don't save this buffer and all following buffers; don't ask again"))))
                                   (?N (cdr (setq save-all-answered (cons t nil)))))))
                              (_ t))
                        (save-buffer)))
-                 (unless multiple
+                 (unless use-current-search
                    (message "Replaced %d matches%s"
                             nbr-replaced
                             (if (zerop nbr-skipped)  ""
