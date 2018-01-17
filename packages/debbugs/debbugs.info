@@ -1,7 +1,7 @@
-This is debbugs.info, produced by makeinfo version 6.1 from
+This is debbugs.info, produced by makeinfo version 6.4.90 from
 debbugs.texi.
 
-Copyright (C) 2011-2017 Free Software Foundation, Inc.
+Copyright (C) 2011-2018 Free Software Foundation, Inc.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -722,13 +722,13 @@ also package names as user identification.
 
 
 Tag Table:
-Node: Top1094
-Node: Installation3235
-Node: Configuration4334
-Node: Requesting bug numbers6689
-Node: Requesting bugs statuses12070
-Node: Searching bugs16362
-Node: Requesting messages23168
-Node: Requesting user tags26174
+Node: Top1097
+Node: Installation3238
+Node: Configuration4337
+Node: Requesting bug numbers6692
+Node: Requesting bugs statuses12073
+Node: Searching bugs16365
+Node: Requesting messages23171
+Node: Requesting user tags26177
 
 End Tag Table
