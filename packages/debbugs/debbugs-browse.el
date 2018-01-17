@@ -1,6 +1,6 @@
 ;; debbugs-browse.el --- browse bug URLs with debbugs-gnu or debbugs-org
 
-;; Copyright (C) 2015-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2018 Free Software Foundation, Inc.
 
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, hypermedia, maint
@@ -36,15 +36,18 @@ This can be either `debbugs-gnu-bugs' or `debbugs-org-bugs'."
 		 (const debbugs-org-bugs))
   :version "25.1")
 
+(defcustom debbugs-browse-url-regexp
+  (format "^%s\\(%s\\)?\\([[:digit:]]+\\)$"
+	  "https?://\\(debbugs\\|bugs\\)\\.gnu\\.org/"
+	  (regexp-quote "cgi/bugreport.cgi?bug="))
+  "Regexp matching Debbugs bug report URL."
+  :group 'debbugs-gnu
+  :type  'regexp)
+
 (defun debbugs-browse-url (url &optional _new-window)
   (when (and (stringp url)
-	     (string-match
-	      (format
-	       "^%s\\(%s\\)?\\([[:digit:]]+\\)$"
-	       "https?://debbugs\\.gnu\\.org/"
-	       (regexp-quote "cgi/bugreport.cgi?bug="))
-	      url))
-    (funcall debbugs-browse-function (string-to-number (match-string 2 url)))
+	     (string-match debbugs-browse-url-regexp url))
+    (funcall debbugs-browse-function (string-to-number (match-string 3 url)))
     ;; Return t for add-function mechanery.
     t))
 
