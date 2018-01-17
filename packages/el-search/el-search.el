@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.6.8
+;; Version: 1.6.9
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -816,7 +816,9 @@ Point should be at a sexp beginning."
   "Move point to the next sexp beginning position.
 Do nothing if already at beginning of a sexp.  `read' the
 expression starting at that position and return it.  Point must
-not be inside a string or comment."
+not be inside a string or comment.
+Subsexps of sexps containing shared parts may be skipped (when
+not `read'able without context)."
   ;; We don't catch end-of-buffer to keep the return value
   ;; non-ambiguous
   (let ((not-done t) res)
@@ -841,6 +843,10 @@ not be inside a string or comment."
            ((or (and (looking-at "'") (funcall looking-at-from-back "#" 1))
                 (and (looking-at "@") (funcall looking-at-from-back "," 1)))
             (forward-char))
+           (;; Skip over #N= and #N# read syntax
+            (or (looking-at "['#`,@]*#[0-9]+=")
+                (looking-at "['#`,@]*#[0-9]+#"))
+            (goto-char (match-end 0)))
            (t (setq stop-here t)))))
       (condition-case nil
           (progn
