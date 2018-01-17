@@ -8,7 +8,7 @@
 @end direntry
 
 @copying
-Copyright @copyright{} 2015-2017 Free Software Foundation, Inc.
+Copyright @copyright{} 2015-2018 Free Software Foundation, Inc.
 
 @quotation
 Permission is granted to copy, distribute and/or modify this document
@@ -657,9 +657,10 @@ user option @code{debbugs-browse-function} controls, whether
 @code{debbugs-gnu-bugs} or @code{debbugs-org-bugs} is called.
 
 This minor mode is applicable for all URLs, not only bug references.
-Any URL with the format @uref{https://debbugs.gnu.org/12345} will be
-shown in a bug report buffer, when @code{debbugs-browse-mode} is
-enabled.
+Any URL with the format @uref{https://debbugs.gnu.org/12345} or
+@uref{https://bugs.gnu.org/54321} will be shown in a bug report
+buffer, when @code{debbugs-browse-mode} is enabled.  See user option
+@code{debbugs-browse-url-regexp} for the syntax of supported URLs.
 
 
 @node Command Index

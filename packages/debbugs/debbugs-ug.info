@@ -1,7 +1,7 @@
-This is debbugs-ug.info, produced by makeinfo version 6.1 from
+This is debbugs-ug.info, produced by makeinfo version 6.4.90 from
 debbugs-ug.texi.
 
-Copyright (C) 2015-2017 Free Software Foundation, Inc.
+Copyright (C) 2015-2018 Free Software Foundation, Inc.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -588,8 +588,9 @@ or 'debbugs-org-bugs' is called.
 
    This minor mode is applicable for all URLs, not only bug
 references.  Any URL with the format <https://debbugs.gnu.org/12345>
-will be shown in a bug report buffer, when 'debbugs-browse-mode' is
-enabled.
+or <https://bugs.gnu.org/54321> will be shown in a bug report buffer,
+when 'debbugs-browse-mode' is enabled.  See user option
+'debbugs-browse-url-regexp' for the syntax of supported URLs.
 
 
 File: debbugs-ug.info,  Node: Command Index,  Next: Variable Index,  Prev: Minor Mode,  Up: Top
@@ -666,19 +667,19 @@ Key Index
 
 
 Tag Table:
-Node: Top1097
-Node: Retrieving Bugs2635
-Node: Searching Bugs6868
-Ref: Searching Bugs-Footnote-111181
-Ref: Searching Bugs-Footnote-211269
-Node: Presenting Bugs11360
-Node: Tabulated Lists11936
-Node: TODO Items15611
-Node: Control Messages16667
-Node: Applying Patches19710
-Node: Minor Mode21076
-Node: Command Index22021
-Node: Variable Index22810
-Node: Key Index23884
+Node: Top1100
+Node: Retrieving Bugs2638
+Node: Searching Bugs6871
+Ref: Searching Bugs-Footnote-111184
+Ref: Searching Bugs-Footnote-211272
+Node: Presenting Bugs11363
+Node: Tabulated Lists11939
+Node: TODO Items15614
+Node: Control Messages16670
+Node: Applying Patches19713
+Node: Minor Mode21079
+Node: Command Index22135
+Node: Variable Index22924
+Node: Key Index23998
 
 End Tag Table
