@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.7.9
+;; Version: 1.7.10
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -405,13 +405,10 @@
 ;;   syntax "##" (a syntax for an interned symbol whose name is the
 ;;   empty string) can lead to errors while searching.
 ;;
-;; - In *El Occur* buffers, when there are adjacent or nested matches,
-;;   the movement commands (el-search-occur-previous-match,
-;;   el-search-occur-next-match aka n and p) may skip matches, and the
-;;   shown match count can be inaccurate.
-;;
 ;;
 ;; TODO:
+;;
+;; - Get rid of the redundant el-search-match overlays in occur buffers
 ;;
 ;; - There should be a way to go back to the starting position, like
 ;;   in Isearch, which does this with (push-mark isearch-opoint t) in
@@ -2999,43 +2996,42 @@ Prompt for a new pattern and revert."
       (add-hook 'post-command-hook #'el-search-hl-post-command-fun t t)
       (when do-fun (funcall do-fun)))))
 
+(defvar el-search-occur-match-ov-prop 'el-occur-match-data)
+
 (defun el-search-occur--next-match (&optional backward)
-  (let ((done nil) (pos (point)))
-    (when-let ((this-ov (cl-some (lambda (ov) (and (overlay-get ov 'el-search-match) ov))
-                                 (overlays-at pos))))
-      (setq pos (funcall (if backward #'overlay-start #'overlay-end) this-ov)))
-    (while (and (not done) (setq pos (funcall (if backward #'previous-single-char-property-change
-                                                #'next-single-char-property-change)
-                                              pos 'el-search-match)))
-      (setq done (or (memq pos (list (point-min) (point-max)))
-                     (cl-some (lambda (ov) (overlay-get ov 'el-search-match))
-                              (overlays-at pos)))))
-    (if (memq pos (list (point-min) (point-max)))
+  (let ((pos (point)) new-pos)
+    (cl-flet ((at-a-match-beg-p
+               (lambda (pos)
+                 (when-let ((match-data (get-char-property pos el-search-occur-match-ov-prop)))
+                   (and (not (= (point) (if backward (point-min) (point-max))))
+                        (not (eq match-data
+                                 (get-char-property (1- pos) el-search-occur-match-ov-prop))))))))
+      (while (and (setq new-pos (funcall (if backward #'previous-single-char-property-change
+                                           #'next-single-char-property-change)
+                                         pos el-search-occur-match-ov-prop))
+                  (not (eq pos new-pos))
+                  (setq pos new-pos)
+                  (not (at-a-match-beg-p pos)))))
+    (if (memq pos (list (point-min) (point-max) nil))
         (progn
           (el-search--message-no-log "No match %s this position" (if backward "before" "after"))
           (sit-for 1.5))
       (goto-char pos)
-      (save-excursion (hs-show-block))))
-  (el-search-occur--show-match-count))
+      (save-excursion (hs-show-block))
+      (redisplay)
+      (el-search--scroll-sexp-in-view (list (point) (el-search--end-of-sexp)))
+      (el-search-occur--show-match-count))))
 
 (defvar el-search-occur--total-matches nil)
 
 (defun el-search-occur--show-match-count ()
-  (while-no-input
-    (let ((nbr-match 0)
-          (pos (point))
-          (match-here-p (lambda () (get-char-property (point) 'el-search-match))))
-      (when (funcall match-here-p)
-        (save-excursion
-          (save-restriction
-            (widen)
-            (goto-char (point-min))
-            (while (< (point) pos)
-              (goto-char (next-single-char-property-change (point) 'el-search-match))
-              (when (funcall match-here-p)
-                (cl-incf nbr-match)))
-            (el-search--message-no-log
-             "Match %d/%d" nbr-match el-search-occur--total-matches)))))))
+  (pcase-let ((`(,_buffer ,_mb ,_file ,nbr)
+               (get-char-property (point) el-search-occur-match-ov-prop)))
+    (el-search--message-no-log
+     "%d/%s" nbr
+     (if el-search-occur--total-matches
+         (format "%d" el-search-occur--total-matches)
+       "???"))))
 
 (defun el-search-occur-next-match ()
   "Move point to the next match."
@@ -3168,6 +3164,7 @@ Prompt for a new pattern and revert."
                             (el-search--get-search-description-string search)))
             (condition-case-unless-debug err
                 (let ((insert-summary-position (point))
+                      (match-nbr 0)
                       (stream-of-matches
                        (stream-partition
                         (funcall (el-search-object-get-matches search))
@@ -3187,18 +3184,20 @@ Prompt for a new pattern and revert."
                       (insert (format "  (%d match%s)\n"
                                       buffer-matches
                                       (if (> buffer-matches 1) "es" "")))
-                      (let ((buffer-matches+contexts
+                      (let ((buffer-matches+counts+contexts
                              (seq-map (pcase-lambda ((and match `(,_ ,match-beg ,_)))
                                         (with-current-buffer buffer
-                                          (cons match
-                                                (let ((open-paren-in-column-0-is-defun-start nil))
-                                                  (save-excursion
-                                                    (funcall el-search-get-occur-context-function
-                                                             match-beg))))))
+                                          (list
+                                           match
+                                           (cl-incf match-nbr)
+                                           (let ((open-paren-in-column-0-is-defun-start nil))
+                                             (save-excursion
+                                               (funcall el-search-get-occur-context-function
+                                                        match-beg))))))
                                       stream-of-buffer-matches)))
-                        (while (not (stream-empty-p buffer-matches+contexts))
-                          (pcase-let ((`((,_ ,match-beg ,_) . (,context-beg . ,context-end))
-                                       (stream-first buffer-matches+contexts)))
+                        (while (not (stream-empty-p buffer-matches+counts+contexts))
+                          (pcase-let ((`((,_ ,match-beg ,_) ,_ (,context-beg . ,context-end))
+                                       (stream-first buffer-matches+counts+contexts)))
                             (let ((insertion-point (point)) matches
                                   (end-of-defun (with-current-buffer buffer
                                                   (goto-char match-beg)
@@ -3206,53 +3205,67 @@ Prompt for a new pattern and revert."
                                                     (if (< 0 paren-depth)
                                                         (scan-lists match-beg 1 paren-depth)
                                                       (el-search--end-of-sexp))))))
-                              (let ((rest buffer-matches+contexts)
-                                    (remaining-buffer-matches-+contexts buffer-matches+contexts))
+                              (let ((rest buffer-matches+counts+contexts)
+                                    (remaining-buffer-matches+counts+contexts
+                                     buffer-matches+counts+contexts))
                                 (with-current-buffer buffer
                                   (while (pcase (stream-first rest)
-                                           (`(,_ . (,(and cbeg (pred (> end-of-defun))) . ,_))
+                                           (`(,_ ,_ (,(and cbeg (pred (> end-of-defun))) . ,_))
                                             (prog1 t
                                               (stream-pop rest)
                                               (when (< cbeg context-end)
-                                                (setq remaining-buffer-matches-+contexts rest)
+                                                (setq remaining-buffer-matches+counts+contexts rest)
                                                 (when (< cbeg context-beg)
                                                   (setq context-beg cbeg)
                                                   (setq context-end
                                                         (or (el-search--end-of-sexp cbeg) context-end)))))))))
                                 (setq matches
                                       (car (stream-divide-with-get-rest-fun
-                                            buffer-matches+contexts
-                                            (lambda (_) remaining-buffer-matches-+contexts))))
-                                (setq buffer-matches+contexts remaining-buffer-matches-+contexts))
+                                            buffer-matches+counts+contexts
+                                            (lambda (_) remaining-buffer-matches+counts+contexts))))
+                                (setq buffer-matches+counts+contexts
+                                      remaining-buffer-matches+counts+contexts))
                               (cl-flet ((insert-match-and-advance
-                                         (match-beg)
+                                         (match-beg nbr)
                                          (let ((insertion-point (point)))
-                                           (insert (propertize
-                                                    (with-current-buffer buffer
-                                                      (buffer-substring-no-properties
-                                                       (goto-char match-beg)
-                                                       (goto-char (el-search--end-of-sexp))))
-                                                    'match-data `(,buffer ,match-beg ,file)))
+                                           (insert (with-current-buffer buffer
+                                                     (buffer-substring-no-properties
+                                                      (goto-char match-beg)
+                                                      (goto-char (el-search--end-of-sexp)))))
                                            (let ((ov (make-overlay insertion-point (point) nil t)))
                                              (overlay-put ov 'face 'el-search-occur-match)
                                              (overlay-put
-                                              ov 'el-search-match (list (or file buffer) match-beg)))
+                                              ov 'el-search-match (list (or file buffer) match-beg))
+                                             (overlay-put
+                                              ov el-search-occur-match-ov-prop
+                                              `(,buffer ,match-beg ,file ,nbr)))
                                            (with-current-buffer buffer (point)))))
                                 (insert (format "\n;;;; Line %d\n"
                                                 (with-current-buffer buffer
                                                   (line-number-at-pos context-beg))))
                                 (setq insertion-point (point))
-                                (let ((working-position context-beg))
+                                (let ((working-position context-beg) main-match-beg)
                                   (while (not (stream-empty-p matches))
-                                    (pcase-let ((`((,_ ,match-beg ,_) . ,_) (stream-pop matches)))
+                                    (pcase-let ((`((,_ ,match-beg ,_) ,nbr ,_) (stream-pop matches)))
                                       (insert-buffer-substring buffer working-position match-beg)
-                                      (setq working-position (insert-match-and-advance match-beg))
+                                      (setq
+                                       main-match-beg   (point)
+                                       working-position (insert-match-and-advance match-beg nbr))
                                       ;; Drop any matches inside the printed area.
-                                      ;; FIXME: Should we highlight matches inside matches specially?
-                                      ;; Should we display the number of matches included in a context?
-                                      (while (pcase (stream-first matches)
-                                               (`((,_ ,(pred (> working-position)) ,_) . ,_) t))
-                                        (stream-pop matches))))
+                                      (while
+                                          (pcase (stream-first matches)
+                                            (`((,_ ,(and (pred (> working-position)) mb) ,_) ,nbr ,_)
+                                             (let ((ov-start (+ main-match-beg (- mb match-beg))))
+                                               (overlay-put
+                                                (make-overlay
+                                                 ov-start
+                                                 (+ ov-start
+                                                    (with-current-buffer buffer
+                                                      (el-search--end-of-sexp mb))))
+                                                el-search-occur-match-ov-prop
+                                                `(,buffer ,mb ,file ,nbr)))
+                                             (stream-pop matches)
+                                             t)))))
                                   (insert
                                    (with-current-buffer buffer
                                      (buffer-substring-no-properties
