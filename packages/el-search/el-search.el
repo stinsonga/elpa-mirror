@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.5.2
+;; Version: 1.5.3
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -1089,6 +1089,14 @@ optional MESSAGE are used to construct the error message."
      (format (if (string-match-p "\n" printed-pattern) "\n%s" " %s")
              (if dont-propertize printed-pattern
                (propertize printed-pattern 'face 'shadow))))))
+
+(defun el-search-edit-search-description ()
+  "Edit the description string of the current search.
+That string appears in the printed representation of the search,
+so this is mainly useful to add short notes."
+  (interactive)
+  (cl-callf (lambda (old-description) (read-string "New description: " old-description))
+      (alist-get 'description (el-search-object-properties el-search--current-search))))
 
 
 (defun el-search-kill-left-over-search-buffers (&optional not-current-buffer)
