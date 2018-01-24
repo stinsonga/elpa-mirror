@@ -7,7 +7,7 @@
 ;; Keywords: convenience, completion
 ;; Package-Requires: ((emacs "25.1") (async "1.9.1"))
 ;; URL: https://savannah.nongnu.org/projects/paced-el/
-;; Version: 1.0
+;; Version: 1.0.1
 ;; Created: 22 Jan 2017
 ;; Modified: 08 Dec 2017
 
@@ -391,19 +391,25 @@ be skipped."
     (when dictionary
       (paced-named-dictionary dictionary))))
 
-(cl-defmethod paced-dictionary-save ((dict paced-dictionary))
-  "Save dictionary DICT according to its filename."
-  (when (oref dict updated)
+(cl-defmethod paced-dictionary-save ((dict paced-dictionary) &optional force)
+  "Save dictionary DICT according to its filename.
+
+If FORCE is non-nil, ignore the `updated' flag in DICT and save
+it anyway."
+  (when (or force (oref dict updated))
     (eieio-persistent-save dict))
   (oset dict updated nil))
 
-(defun paced-save-named-dictionary (key)
-  "Save dictionary named KEY."
+(defun paced-save-named-dictionary (key force)
+  "Save dictionary named KEY.
+
+If FORCE is non-nil (given with a prefix arg), forcibly save the
+dictionary if found."
   (declare (interactive-only paced-dictionary-save))
-  (interactive (list (paced-read-dictionary)))
+  (interactive (list (paced-read-dictionary) current-prefix-arg))
   (paced-ensure-registered key)
   (let ((dict (paced-named-dictionary key)))
-    (paced-dictionary-save dict)))
+    (paced-dictionary-save dict force)))
 
 (defun paced-load-dictionary-from-file (file)
   "Load dictionary from FILE."
@@ -412,12 +418,12 @@ be skipped."
   (when-let* ((new-dict (eieio-persistent-read file 'paced-dictionary)))
     (paced-dictionary-register new-dict)))
 
-(defun paced-save-all-dictionaries ()
+(defun paced-save-all-dictionaries (&optional force)
   "Save all registered dictionaries."
-  (interactive)
+  (interactive "P")
   (map-apply
    (lambda (_ dict)
-     (paced-dictionary-save dict))
+     (paced-dictionary-save dict force))
    paced--registered-dictionaries))
 
 ;;;###autoload
@@ -440,7 +446,7 @@ be skipped."
 (cl-defmethod eieio-done-customizing ((dict paced-dictionary))
   (paced-dictionary-register dict)
   (paced--ensure-dictionary-directory)
-  (paced-dictionary-save dict))
+  (paced-dictionary-save dict t))
 
 
 

@@ -19,6 +19,7 @@ Paced
 * Population Commands::          The good stuff
 * Example Setups::               Some examples
 * Contributing::                 I wanna help!
+* Changelog::                    List of changes by version
 
 — The Detailed Node Listing —
 
@@ -59,6 +60,11 @@ Contributing
 * Development::                  Helping with development
 * Documentation::                Improving the documentation
 * Working with EDE::             And all its quirks
+
+Changelog
+
+* 1.0.1: 101.
+* 1.0: 10.
 
 
 
@@ -599,7 +605,7 @@ dedicated solutions for almost everything, but it makes an excellent
 fallback.
 
 
-File: paced.info,  Node: Contributing,  Prev: Example Setups,  Up: Top
+File: paced.info,  Node: Contributing,  Next: Changelog,  Prev: Example Setups,  Up: Top
 
 Contributing
 ************
@@ -707,35 +713,67 @@ documentation; and misc for tests.
 target.  Consult with one of the paced devs for guidance, but usually
 selecting “none” and letting one of us handle it is a good way to go.
 
+
+File: paced.info,  Node: Changelog,  Prev: Contributing,  Up: Top
+
+Changelog
+*********
+
+* Menu:
+
+* 1.0.1: 101.
+* 1.0: 10.
+
+
+File: paced.info,  Node: 101,  Next: 10,  Up: Changelog
+
+1.0.1
+=====
+
+Bug fix release
+   • Save dictionaries right after they’re created
+   • Added “force” parameter to save functions
+
+
+File: paced.info,  Node: 10,  Prev: 101,  Up: Changelog
+
+1.0
+===
+
+Initial release.
+
 
 
 Tag Table:
 Node: Top228
-Node: Copying1675
-Node: Introduction2494
-Node: Similar Packages3614
-Node: pabbrev3900
-Node: predictive5043
-Node: Installation6091
-Node: Basic Setup6556
-Node: Dictionaries7159
-Node: Creating a Dictionary7563
-Node: Editing a Dictionary8603
-Node: Selective Dictionaries9079
-Node: Dictionary Files10728
-Node: Population Commands11819
-Node: Built-in Commands12755
-Node: Properties13552
-Node: Custom Commands14414
-Node: Asynchronous Population17141
-Node: Example Setups18334
-Node: Org Agenda Files18516
-Node: Project Files19772
-Node: Contributing20885
-Node: Bugs21641
-Node: Development22030
-Node: Documentation22997
-Node: Working with EDE23464
+Node: Copying1772
+Node: Introduction2591
+Node: Similar Packages3711
+Node: pabbrev3997
+Node: predictive5140
+Node: Installation6188
+Node: Basic Setup6653
+Node: Dictionaries7256
+Node: Creating a Dictionary7660
+Node: Editing a Dictionary8700
+Node: Selective Dictionaries9176
+Node: Dictionary Files10825
+Node: Population Commands11916
+Node: Built-in Commands12852
+Node: Properties13649
+Node: Custom Commands14511
+Node: Asynchronous Population17238
+Node: Example Setups18431
+Node: Org Agenda Files18613
+Node: Project Files19869
+Node: Contributing20982
+Node: Bugs21756
+Node: Development22145
+Node: Documentation23112
+Node: Working with EDE23579
+Node: Changelog24622
+Node: 10124747
+Node: 1024944
 
 End Tag Table
 
