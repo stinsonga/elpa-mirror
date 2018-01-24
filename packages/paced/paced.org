@@ -14,7 +14,7 @@
 #+TEXINFO_DIR_DESC: Predictive Abbreviation Completion and Expansion using Dictionaries
 
 * Copying
-Copyright (C) 2017 Free Software Foundation, Inc.
+Copyright (C) 2017-2018 Free Software Foundation, Inc.
 
 #+BEGIN_QUOTE
 This program is free software: you can redistribute it and/or modify
@@ -569,3 +569,14 @@ autoloads; aux for auxiliary files such as documentation; and misc for tests.
 When creating a new file, EDE will ask if you want to add it to a target.
 Consult with one of the paced devs for guidance, but usually selecting "none"
 and letting one of us handle it is a good way to go.
+
+* Changelog
+:PROPERTIES:
+:DESCRIPTION: List of changes by version
+:END:
+** 1.0.1
+Bug fix release
+- Save dictionaries right after they're created
+- Added "force" parameter to save functions
+** 1.0
+Initial release.
