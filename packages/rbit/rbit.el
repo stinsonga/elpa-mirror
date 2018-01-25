@@ -1,6 +1,6 @@
 ;;; rbit.el --- Red-black persistent interval trees  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2017  Free Software Foundation, Inc.
+;; Copyright (C) 2017-2018  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords: data structures, binary tree, intervals
@@ -50,7 +50,7 @@
 ;;; Code:
 
 (eval-when-compile (require 'cl-lib))
-
+(require 'ert)
 
 (cl-defstruct (rbit-tree
                (:conc-name rbit--)
@@ -270,12 +270,9 @@ compute the resulting value."
 (defun rbit--bdepth (tree)
   "Return black depth of TREE."
   (if (null tree) 0
-    (let ((blackness (rbit--black tree)))
-      (if (zerop blackness)
-          ;; We don't really care if red nodes are balanced.
-          (max (rbit--bdepth (rbit--left tree))
-               (rbit--bdepth (rbit--right tree)))
-        (+ blackness (rbit--bdepth (rbit--left tree)))))))
+    (+ (rbit--black tree)
+       ;; Red nodes are allowed to have a nil subtree.
+       (rbit--bdepth (or (rbit--left tree) (rbit--right tree))))))
 
 (defun rbit-do (f tree)
   "Call F on each interval in TREE.
@@ -392,6 +389,30 @@ F is called with 3 args: BEG, END, and VAL.  Its return value is ignored."
               tree
             (rbit--make (rbit--black tree) (max beg tbeg) (min end tend)
                         (rbit--val tree) nleft nright))))))))
+
+(defun rbit-map (fun tree)
+  "Pass every value carried by TREE through FUN and return the resulting tree."
+  (when tree
+    (rbit--node (rbit--black tree) (rbit--beg tree) (rbit--end tree)
+                (funcall fun (rbit--val tree))
+                (rbit-map fun (rbit--left tree))
+                (rbit-map fun (rbit--right tree)))))
+
+;; (defun rbit-merge (tree1 tree2 &optional fun)
+;;   "Return the \"union\" of TREE1 and TREE2.
+;; The value used for those ranges covered by both trees, is that returned by
+;; FUN called with both values.
+;; If nil, FUN is taken to just return its first argument."
+;;   ;; Since `tree1' and `tree2' don't necessarily have the same depth,
+;;   ;; there isn't much bdepth to preserve here!
+;;   (cond
+;;    ((null tree1) tree2)
+;;    ((null tree2) tree1)
+;;    ((<= (rbit--end tree1) (rbit--beg tree2))
+;;     (let* ((l1 (rbit--left tree1))
+;;            (r1 (rbit--right tree1))
+;;            (l2 (rbit--left tree2))
+;;            (r2 (rbit--right tree2))
 
 (defun rbit-min (tree)
   "Return the smallest key of TREE, if any."
