@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.6.4
+;; Version: 1.6.5
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -542,6 +542,14 @@ When `el-search-use-transient-map' is non-nil, when any
 \"repeatable\" el-search command had been invoked, executing any
 of these commands will keep the
 `el-search-prefix-key-transient-map' further in effect.")
+
+(defcustom el-search-allow-scroll t
+  "Whether scrolling is allowed during el-search.
+When non-nil, scrolling commands don't deactivate the current
+search.  Unlike isearch, it's possible to scroll the current
+match offscreen.  Use `el-search-jump-to-search-head' (\\[el-search-jump-to-search-head])
+to go back to the position of the current match."
+  :type 'boolean)
 
 (defvar el-search-read-expression-map
   (let ((map (make-sparse-keymap)))
@@ -1579,10 +1587,19 @@ in, in order, when called with no arguments."
          (define-key transient-map (vector key) command))))
     transient-map))
 
+(defun el-search-keep-session-command-p (command)
+  "Non-nil when COMMAND should not deactivate the current search."
+  (and
+   el-search-allow-scroll
+   (symbolp command)
+   (or (get command 'isearch-scroll) ;isearch is preloaded
+       (get command 'scroll-command))))
+
 (defun el-search-prefix-key-maybe-set-transient-map ()
   (when el-search-use-transient-map
     (set-transient-map el-search-prefix-key-transient-map
-                       (lambda () (memq this-command el-search-keep-transient-map-commands)))))
+                       (lambda () (or (memq this-command el-search-keep-transient-map-commands)
+                                      (el-search-keep-session-command-p this-command))))))
 
 (defun el-search-shift-bindings-bind-function (map key command)
   (define-key map `[(control ,@(if (<= ?a key ?z) `(shift ,key) `(,key)))] command))
@@ -2106,6 +2123,7 @@ local binding of `window-scroll-functions'."
   (pcase this-command
     ('el-search-query-replace)
     ('el-search-pattern (el-search-display-match-count))
+    ((pred el-search-keep-session-command-p))
     (_ (unless el-search-keep-hl
          (el-search-hl-remove)
          (remove-hook 'post-command-hook 'el-search-hl-post-command-fun t)
@@ -3492,7 +3510,8 @@ Don't save this buffer and all following buffers; don't ask again"))))
   (barf-if-buffer-read-only)
   (let ((from-input (let ((el-search--initial-mb-contents
                            (or el-search--initial-mb-contents
-                               (and (eq last-command 'el-search-pattern)
+                               (and (or (eq last-command 'el-search-pattern)
+                                        (el-search--pending-search-p))
                                     (if (equal (el-search-read (car el-search-pattern-history))
                                                (el-search-read (car el-search-query-replace-history)))
                                         (car el-search-query-replace-history)
@@ -3592,7 +3611,8 @@ consulted to construct the text form of each replacement."
       search-head
       (eq (el-search-head-buffer search-head) (current-buffer))
       (equal from-pattern (el-search-object-pattern el-search--current-search))
-      (eq last-command 'el-search-pattern)
+      (or (eq last-command 'el-search-pattern)
+          (el-search--pending-search-p))
       (prog1 t
         (el-search--message-no-log "Using the current search to drive query-replace...")
         (sit-for 1.))))))
