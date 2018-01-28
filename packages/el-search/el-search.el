@@ -369,11 +369,11 @@
 ;;
 ;;   the comment will be lost.
 ;;
-;; - Something like '(1 #1#) is unmatchable (because it is
-;;   un`read'able without context).  For a similar reason it is
-;;   currently not possible to allow a replacement to contain
-;;   uninterned symbols or repeated/circular parts.
+;; - Something like (1 #1#) is unmatchable (because it is un`read'able
+;;   without context).
 ;;
+;; - In el-search-query-replace, replacements are not allowed to
+;;   contain uninterned symbols.
 ;;
 ;;
 ;; BUGS
@@ -3245,6 +3245,12 @@ reindent."
             (goto-char 1)
             (forward-sexp (if splice (length replacement) 1))
             (let ((result (buffer-substring 1 (point))))
+              (when (cl-some
+                     (lambda (thing) (and (symbolp thing) thing (not (intern-soft thing))))
+                     (el-search--flatten-tree replacement))
+                ;; el-search can't handle #N read syntax; we print the replacement
+                ;; with print-circle -> nil
+                (user-error "The replacement is not allowed to contain uninterned symbols"))
               (if (condition-case nil
                       (equal replacement (el-search-read (if splice (format "(%s)" result) result)))
                     ((debug error) nil))
