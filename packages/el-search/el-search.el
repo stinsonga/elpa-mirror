@@ -116,7 +116,14 @@
 ;;
 ;;   C-J, M-s e j (el-search-jump-to-search-head)
 ;;     Resume the last search from the position of the last visited
-;;     match, or (with prefix arg) prompt for an old search to resume.
+;;     match.
+;;     With prefix arg 0, resume from the position of the match
+;;     following point instead.  With prefix arg 1 or -1, jump to the
+;;     first or last match visible in the selected window.  This can
+;;     be useful even when a search is current, e.g. after scrolling
+;;     the searched buffer.
+;;     With a plain C-u prefix arg, prompt for a former search to
+;;     resume.
 ;;
 ;;   C-H, M-s e h (el-search-this-sexp)
 ;;     Grab the symbol or sexp under point and initiate an el-search
@@ -2264,19 +2271,32 @@ local binding of `window-scroll-functions'."
   (interactive)
   (el-search--skip-to-next-buffer))
 
-(defun el-search-jump-to-search-head (&optional previous-search)
-  "Switch to current search buffer and go to the last match.
-With argument PREVIOUS-SEARCH non-nil (the prefix argument in an
-interactive call), prompt for a prior search to resume, and make
-that the current search.  In a non-interactive call,
-PREVIOUS-SEARCH can directly specify an el-search-object to make
-current."
+(defun el-search-jump-to-search-head (&optional arg)
+  "Switch to current search buffer and go to the last visited match.
+This resumes the last active search.  With plain C-u prefix
+argument, prompt for a former search to resume, and make that the
+current search.
+
+Any other numeric prefix arg has the following meaning:
+
+ 0: go to the match following point
+ N: go to the Nth match after `window-start'
+-N: go to the Nth match before `window-end'
+
+In a non-interactive call, ARG should be an integer, having the
+same meaning as a numeric prefix arg, or an el-search-object to
+make current."
   (interactive "P")
-  (when previous-search
+  (pcase arg
+    ((or 'nil (pred el-search-object-p) `(,(pred integerp))))
+    (_ (el-search-barf-if-not-search-buffer
+        (current-buffer)
+        "Numeric ARG only allowed in current search's current buffer")))
+  (when (or (consp arg) (el-search-object-p arg))
     ;; FIXME: would it be better to include some context around the search
     ;; head - or to even use an overview buffer for selection?
     (setq el-search--current-search
-          (if (el-search-object-p previous-search) previous-search
+          (if (el-search-object-p arg) arg
             (ring-ref
              el-search-history
              (let ((input
@@ -2325,16 +2345,26 @@ current."
         (setq this-command 'el-search-pattern)
         (pop-to-buffer current-search-buffer el-search-display-buffer-popup-action)
         (let ((last-match (el-search-object-last-match search)))
-          (if (not (and last-match
-                        (eq (marker-buffer last-match) (current-buffer))))
-              ;; this should only happen for bad search patterns
-              (goto-char (el-search-head-position current-head))
-            (goto-char last-match))
+          (cond
+           ((< (prefix-numeric-value arg) 0)
+            (progn (setq arg (prefix-numeric-value arg))
+                   (goto-char (window-end))))
+           ((not (numberp arg))
+            (goto-char (if (not (and last-match
+                                     ;; this should only happen for bad search patterns
+                                     (eq (marker-buffer last-match) (current-buffer))))
+                           (el-search-head-position current-head)
+                         last-match)))
+           ((zerop arg) (setq arg 1))
+           (t (goto-char (window-start))))
           (let ((match-pos
                  (save-excursion
                    (el-search--search-pattern-1
-                    (el-search--current-matcher) t nil (el-search--current-heuristic-matcher)))))
-            (unless (eq (point) match-pos)
+                    (el-search--current-matcher)
+                    (not (numberp arg)) nil ;FIXME: Handle no match case explicitly
+                    (el-search--current-heuristic-matcher)
+                    (if (numberp arg) arg 1)))))
+            (unless (or (numberp arg) (eq (point) match-pos))
               (message "No match at search head any more - going to the next match")
               (redisplay)
               ;; Don't just `sit-for' here: `pop-to-buffer' may have generated frame
