@@ -7,9 +7,9 @@
 ;; Keywords: convenience, completion
 ;; Package-Requires: ((emacs "25.1") (async "1.9.1"))
 ;; URL: https://savannah.nongnu.org/projects/paced-el/
-;; Version: 1.0
+;; Version: 1.1
 ;; Created: 22 Jan 2017
-;; Modified: 08 Dec 2017
+;; Modified: 04 Feb 2018
 
 ;; This file is part of GNU Emacs.
 
@@ -48,7 +48,7 @@ population commmands, or load additional files."
   :group 'paced
   :type 'file)
 
-(cl-defmethod paced-repopulate-dictionary-async ((dictionary paced-dictionary))
+(cl-defmethod paced-dictionary-repopulate-async ((dictionary paced-dictionary))
   "Repopulate DICTIONARY asynchronously.
 
 Note that DICTIONARY isn't modified directly by this process, but
@@ -94,7 +94,7 @@ Note that this will empty the dictionary's contents."
    (list (paced-read-dictionary)))
   (paced-ensure-registered key)
   (let ((dict (paced-named-dictionary key)))
-    (paced-repopulate-dictionary-async dict)))
+    (paced-dictionary-repopulate-async dict)))
 
 ;;;###autoload
 (defun paced-repopulate-current-dictionary-async ()
@@ -105,7 +105,7 @@ Population commands are stored in the field of the same name.
 Note that this will empty the dictionary's contents."
   (interactive)
   (if-let* ((dict (paced-current-dictionary)))
-      (paced-repopulate-dictionary-async dict)
+      (paced-dictionary-repopulate-async dict)
     (error "No current dictionary found")))
 
 (provide 'paced-async)
