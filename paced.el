@@ -118,6 +118,19 @@ allowing all files."
   :group 'paced
   :type 'boolean)
 
+(defcustom paced-point-in-thing-at-point-for-exclusion 'beginning
+  "Symbol to indicate from where exclusion should occur.
+
+If 'beginning, exclusion is checked at the beginning of the thing
+at point.  If 'end, exclusion is checked at the end of the thing
+at point.
+
+See `paced-excluded-p' and `paced-exclude-function' for more
+information on exclusion."
+  :group 'paced
+  :type 'symbol
+  :options '(beginning end))
+
 
 
 (defun paced--default-dictionary-sort-func (usage-hash)
@@ -460,7 +473,11 @@ since population mostly uses temporary buffers.")
   "Local predicate to determine if thing at point should be excluded.
 
 This should be a function of no arguments that returns non-nil if
-the current thing-at-point should be excluded from paced dictionaries.
+the current thing-at-point should be excluded from paced
+dictionaries.  Exclusion is checked from the start or the end of
+the current thing, depending on `paced-point-in-thing-at-point-for-exclusion'.
+Point returns to its original position after the function is
+called.
 
 By default, this allows everything.
 
@@ -471,12 +488,6 @@ A useful function for this is `paced-in-comment-p'.")
 
 If POS is not specified, defaults to `point'."
   (nth 8 (syntax-ppss (or pos (point)))))
-
-(defun paced-excluded-p ()
-  "Return non-nil to exclude current thing at point.
-
-See `paced-exclude-function' for more."
-  (funcall paced-exclude-function))
 
 (defun paced-bounds-of-thing-at-point ()
   "Get the bounds of the thing at point."
@@ -498,6 +509,34 @@ Text properties are excluded."
 Things is based on `paced-thing-at-point-constituent'."
   (interactive "p")
   (forward-thing paced-thing-at-point-constituent number))
+
+(defun paced-goto-beginning-of-thing-at-point ()
+  "Move to the start of the current thing at point.
+
+Thing is based on `paced-thing-at-point-constituent'."
+  (goto-char (car (paced-bounds-of-thing-at-point))))
+
+(defun paced-goto-end-of-thing-at-point ()
+  "Move to the end of the current thing at point.
+
+Thing is based on `paced-thing-at-point-constituent'."
+  (goto-char (cdr (paced-bounds-of-thing-at-point))))
+
+(defun paced-excluded-p ()
+  "Return non-nil to exclude current thing at point.
+
+See `paced-exclude-function' for more.
+
+Exclusion can be performed from either the beginning or end of
+the thing at point.  See `paced-point-in-thing-at-point-for-exclusion' for how
+to set this."
+  (save-excursion
+    (pcase paced-point-in-thing-at-point-for-exclusion
+      (`beginning
+       (paced-goto-beginning-of-thing-at-point))
+      (`end
+       (paced-goto-end-of-thing-at-point)))
+    (funcall paced-exclude-function)))
 
 (defun paced-mixed-case-word-p (word)
   "Return non-nil if WORD is mixed-case.

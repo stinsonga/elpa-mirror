@@ -463,6 +463,20 @@
     (should (equal (map-elt merged-2 'a) '("def")))
     (should (equal (map-elt merged-2 'c) '("ghi")))))
 
+(ert-deftest paced-beginning-end-of-thing-at-point ()
+  "Test exclusion and `paced-point-in-thing-at-point-for-exclusion'."
+  (let* ((paced-exclude-function (lambda () (looking-at-p "one")))
+         (buffer-one (find-file-noselect paced-first-test-file)))
+    (with-current-buffer buffer-one
+      (goto-char (point-min))
+      (should (equal (paced-thing-at-point) "one"))
+      (let ((paced-point-in-thing-at-point-for-exclusion 'beginning))
+        (should (paced-excluded-p)))
+      (paced-forward-thing)
+      (should (equal (paced-thing-at-point) "one"))
+      (let ((paced-point-in-thing-at-point-for-exclusion 'end))
+        (should-not (paced-excluded-p))))))
+
 (provide 'paced-tests)
 
 ;;; paced-tests.el ends here
