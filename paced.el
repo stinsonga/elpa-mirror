@@ -1065,6 +1065,63 @@ must be set with `paced-edit-named-dictionary' or
 
 
 
+;;; Print a Dictionary in a Dedicated Buffer
+
+(defvar-local paced-tabulated-list-dictionary nil
+  "Dictionary printed in a tabulated list buffer.")
+
+(cl-defmethod paced-dictionary-length-of-longest-word ((dict paced-dictionary))
+  "Return the length of the longest word in DICT."
+  (seq-max
+   (map-apply
+    (lambda (key _value)
+      (length key))
+    (oref dict usage-hash))))
+
+(cl-defmethod paced-dictionary-tabulated-list-entries ((dict paced-dictionary))
+  "Create a value for `tabulated-list-entries' from DICT."
+  (map-apply
+   (lambda (key value)
+     (list key (vector key (number-to-string value))))
+   (oref dict usage-hash)))
+
+(defun paced-tabulated-list-revert ()
+  "Revert a `tabulated-list-mode' buffer from its dictionary."
+  (let* ((dict paced-tabulated-list-dictionary)
+         (longest-length (paced-dictionary-length-of-longest-word dict)))
+    (setq tabulated-list-format
+          (vector `("Word" ,longest-length t . (:right-align t))
+                  `("Count" 10 t)))
+    (setq tabulated-list-entries (paced-dictionary-tabulated-list-entries dict))))
+
+(cl-defmethod paced-dictionary-print ((dict paced-dictionary))
+  "Print the contents of DICT in a dedicated buffer."
+  (let* ((buffer-name (format "*Paced Dictionary - %s*" (paced-dictionary-name dict)))
+         (buffer (get-buffer-create buffer-name)))
+    (with-current-buffer buffer
+      (tabulated-list-mode)
+      (setq paced-tabulated-list-dictionary dict)
+      (paced-tabulated-list-revert)
+      (tabulated-list-init-header)
+      (tabulated-list-print))
+    (display-buffer buffer)))
+
+(defun paced-print-current-dictionary ()
+  "Print the contents of the current dictionary in a dedicated buffer."
+  (interactive)
+  (if-let* ((dict (paced-current-dictionary)))
+      (paced-dictionary-print dict)
+    (user-error "No dictionary found for current buffer")))
+
+(defun paced-print-named-dictionary (name)
+  "Print the contents of the dictionary with name NAME."
+  (interactive (list (paced-read-dictionary)))
+  (if-let* ((dict (paced-named-dictionary name)))
+      (paced-dictionary-print dict)
+    (error "No paced dictionary called '%s' has been registered" name)))
+
+
+
 (declare-function lm-report-bug "lisp-mnt" (topic))
 
 (defun paced-submit-bug-report (topic)
