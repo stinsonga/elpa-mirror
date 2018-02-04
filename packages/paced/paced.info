@@ -41,6 +41,7 @@ Dictionaries
 * Editing a Dictionary::         How to edit your new dictionary
 * Selective Dictionaries::       Enabling certain dictionaries under certain conditions
 * Dictionary Files::             Loading and Saving the Dictionaries
+* Printing a Dictionary::        Seeing the contents of a dictionary
 
 Population Commands
 
@@ -53,6 +54,9 @@ Example Setups
 
 * Org Agenda Files::
 * Project Files::
+* Markdown Files::
+* Repopulating Dictionary After Saving::
+* Repopulating Dictionary After Spellchecking the Buffer::
 
 Contributing
 
@@ -63,6 +67,7 @@ Contributing
 
 Changelog
 
+* 1.1: 11.
 * 1.0.1: 101.
 * 1.0: 10.
 
@@ -191,16 +196,26 @@ Installation
 Emacs   25.1
 async   1.9.1
 
-   Right now, the only way to install paced is from source.
+   Paced may be installed from source, or from GNU ELPA.
+
+   From ELPA:
+
+     M-x package-install RET paced RET
 
    From Source:
 
      bzr branch https://bzr.savannah.gnu.org/r/paced-el paced
 
-   After that, add the following to your init file (typically .emacs):
+   After installing from source, add the following to your init file
+(typically .emacs):
 
      (add-to-list 'load-path "/full/path/to/paced/")
      (require 'paced)
+
+   However you install paced, you must also make sure dictionaries are
+loaded on startup:
+
+     (paced-load-all-dictionaries)
 
 
 File: paced.info,  Node: Basic Setup,  Prev: Installation,  Up: Introduction
@@ -213,8 +228,8 @@ is as follows:
 
   1. Create a new dictionary, “Default” (See *note Creating a
      Dictionary::)
-  2. Set paced-global-dict-enable-alist to ‘((t . "Default"))’ (See
-     *note Selective Dictionaries::)
+  2. Set ‘paced-global-dictionary-enable-alist’ to ‘((t . "Default"))’
+     (See *note Selective Dictionaries::)
   3. Run ‘M-x global-paced-mode’
   4. To add a file to the dictionary, use ‘M-x
      paced-add-buffer-file-to-dictionary’
@@ -234,6 +249,7 @@ Dictionaries
 * Editing a Dictionary::         How to edit your new dictionary
 * Selective Dictionaries::       Enabling certain dictionaries under certain conditions
 * Dictionary Files::             Loading and Saving the Dictionaries
+* Printing a Dictionary::        Seeing the contents of a dictionary
 
 
 File: paced.info,  Node: Creating a Dictionary,  Next: Editing a Dictionary,  Up: Dictionaries
@@ -284,9 +300,11 @@ Selective Dictionaries
 Paced provides a mechanism called the “enable list”, that allows a user
 to enable certain dictionaries for completion given certain conditions.
 
-   There are two enable lists: a global and local one.  They both work
-the same, with the local one taking precedence.  Each entry in the list
-has a condition and a key.
+   There are two enable lists: a global
+(‘paced-global-dictionary-enable-alist’) and local
+(‘paced-local-dictionary-enable-alist’) one.  They both work the same,
+with the local one taking precedence.  Each entry in the list has a
+condition and a key.
 
    The conditions are one of the following:
 
@@ -317,7 +335,7 @@ active.
    The key is the dictionary name you set during dictionary creation.
 
 
-File: paced.info,  Node: Dictionary Files,  Prev: Selective Dictionaries,  Up: Dictionaries
+File: paced.info,  Node: Dictionary Files,  Next: Printing a Dictionary,  Prev: Selective Dictionaries,  Up: Dictionaries
 
 Dictionary Files
 ================
@@ -346,6 +364,24 @@ variables may be set using Emacs’s customization interface.
    Dictionaries may also be automatically saved whenever changed by
 setting ‘paced-repopulate-saves-dictionary’ to t.  Population is covered
 in the next section.
+
+
+File: paced.info,  Node: Printing a Dictionary,  Prev: Dictionary Files,  Up: Dictionaries
+
+Printing a Dictionary
+=====================
+
+Paced allows a user to print the contents of a dictionary to a buffer.
+Uses for this might be to tweak population commands or exclude
+functions, or to simply make sure a dictionary is populating correctly.
+
+   To use this feature, run:
+
+     M-x paced-print-named-dictionary RET NAME-OF-DICTIONARY RET
+
+   Or for the current dictionary:
+
+     M-x paced-print-current-dictionary RET
 
 
 File: paced.info,  Node: Population Commands,  Next: Example Setups,  Prev: Dictionaries,  Up: Top
@@ -407,7 +443,7 @@ When setting the population commands of a dictionary, one may also set
 certain properties.  Each property is a variable binding, bound while
 the population command runs.
 
-   Two variables are of note here:
+   A few variables are of note here:
 
 paced-exclude-function
      Function of no arguments that returns non-nil if the thing at point
@@ -415,6 +451,9 @@ paced-exclude-function
 paced-thing-at-point-constituent
      Symbol defining thing on which population works.  Typically set to
      either ’symbol or ’word.
+paced-character-limit
+     Maximum length of a thing to include it in a dictionary.  If set to
+     0 (default), no limit is imposed.
 
    For convenience, properties that are intended for all population
 commands of a given dictionary may be set in the dictionary itself.  In
@@ -498,10 +537,17 @@ A common problem is that population can take a long time.  Some of us
 populate dictionaries from org agenda files, which can get pretty big.
 
    To solve this, paced uses the async
-(https://github.com/jwiegley/emacs-async) package.  Setup should be
-seamless; just stick whatever code you need in
-‘~/.emacs.d/paced-async.el’, type M-x
-paced-repopulate-named-dictionary-async, and push enter.
+(https://github.com/jwiegley/emacs-async) package.  Setup is seamless;
+just stick whatever code you need in ‘~/.emacs.d/paced-async.el’, and
+use one of the two population commands:
+
+   A named dictionary:
+
+     M-x paced-repopulate-named-dictionary-async RET NAME RET
+
+   Or the current dictionary:
+
+     M-x paced-repopulate-current-dictionary-async RET
 
    A few things to note about this:
 
@@ -509,7 +555,9 @@ paced-repopulate-named-dictionary-async, and push enter.
      population
   2. Asynchronous population doesn’t change anything until after
      population is finished, so a user may continue to use their
-     dictionary while population is happening.
+     dictionary while population is happening.  This also means that
+     multiple populations may run in parallel without interfering with
+     one another.
   3. Because async runs population in a separate Emacs process, any
      custom code required for population must be in paced-async.el.
      This includes additional population command types, but doesn’t
@@ -529,6 +577,9 @@ Example Setups
 
 * Org Agenda Files::
 * Project Files::
+* Markdown Files::
+* Repopulating Dictionary After Saving::
+* Repopulating Dictionary After Spellchecking the Buffer::
 
 
 File: paced.info,  Node: Org Agenda Files,  Next: Project Files,  Up: Example Setups
@@ -549,13 +600,28 @@ code and drawers.
 
    Done.
 
-   Now, the exclude command, which sits inside the properties option:
+   Now, the exclude command, which sits inside the properties option.
+This can be added to ‘paced-async.el’:
+
+     (require 'org)
+
+     (defun org-at-tag-p ()
+       (let* ((p (point)))
+         ;; Ignore errors from `org-get-tags-string'.
+         (ignore-errors
+           ;; Checks the match string for a tag heading, setting match-string 1 to the
+           ;; tags.  Also sets match-beginning and match-end.
+           (org-get-tags-string)
+           (when (match-string 1)
+             (<= (match-beginning 1) p (match-end 1))))))
 
      (defun org-paced-exclude ()
        (or
         ;; Drawers
         (org-between-regexps-p org-drawer-regexp ":END:") ;; Doesn't catch END
         (org-in-regexp ":END:") ;; but this does
+
+        (org-at-tag-p) ;; tags
 
         (org-at-comment-p) ;; comments
         (org-in-regexp org-any-link-re) ;; links
@@ -574,7 +640,7 @@ customize buffer as such:
    And you’re done.  See how easy that was?
 
 
-File: paced.info,  Node: Project Files,  Prev: Org Agenda Files,  Up: Example Setups
+File: paced.info,  Node: Project Files,  Next: Markdown Files,  Prev: Org Agenda Files,  Up: Example Setups
 
 Project Files
 =============
@@ -603,6 +669,89 @@ we’ll use a small function for excluding those:
 necessarily recommend this for any programming language, as there are
 dedicated solutions for almost everything, but it makes an excellent
 fallback.
+
+
+File: paced.info,  Node: Markdown Files,  Next: Repopulating Dictionary After Saving,  Prev: Project Files,  Up: Example Setups
+
+Markdown Files
+==============
+
+Another common request is markdown files.  In order for this to work,
+you’ll need to install ‘markdown-mode’:
+
+     M-x package-install RET markdown-mode RET
+
+   After that, add the following to your ‘paced-async.el’ file:
+
+     (require 'markdown-mode)
+
+     (defun paced-markdown-exclude-p ()
+       "Taken from `markdown-flyspell-check-word-p'."
+       ;; Exclude anything markdown mode thinks flyspell should skip.
+       (or
+        ;; Ignore code blocks
+        (markdown-code-block-at-point-p)
+        (markdown-inline-code-at-point-p)
+        ;; Ignore comments
+        (markdown-in-comment-p)
+        ;; Ignore special text
+        (let ((faces (get-text-property (point) 'face)))
+          (if (listp faces)
+              (or (memq 'markdown-reference-face faces)
+                  (memq 'markdown-markup-face faces)
+                  (memq 'markdown-plain-url-face faces)
+                  (memq 'markdown-inline-code-face faces)
+                  (memq 'markdown-url-face faces))
+            (memq faces '(markdown-reference-face
+                          markdown-markup-face
+                          markdown-plain-url-face
+                          markdown-inline-code-face
+                          markdown-url-face))))))
+
+   That excludes anything that the developers of markdown-mode felt
+should be excluded from flyspell.
+
+   Set this as your exclude function in your dictionary’s settings, then
+add each markdown file by hand.
+
+
+File: paced.info,  Node: Repopulating Dictionary After Saving,  Next: Repopulating Dictionary After Spellchecking the Buffer,  Prev: Markdown Files,  Up: Example Setups
+
+Repopulating Dictionary After Saving
+====================================
+
+This is a common request, although with the power of async, it’s an easy
+one to fulfill.  This will repopulate the current buffer’s dictionary
+every time you save a file with a dictionary.  This may seem daunting,
+but the dictionary will remain usable during population, and multiple
+populations won’t interfere with one another.
+
+     ;; Repopulate the current dictionary after saving
+     (add-hook 'after-save-hook 'paced-repopulate-current-dictionary-async)
+
+   Add that to your .emacs file, and paced will take it from there.
+
+   If you decide that’s too much, do the following:
+
+     M-: (remove-hook 'after-save-hook 'paced-repopulate-current-dictionary-async) RET
+
+
+File: paced.info,  Node: Repopulating Dictionary After Spellchecking the Buffer,  Prev: Repopulating Dictionary After Saving,  Up: Example Setups
+
+Repopulating Dictionary After Spellchecking the Buffer
+======================================================
+
+Another request, although much trickier to do.  This one involves using
+Emacs’s advice mechanism:
+
+     (define-advice ispell-pdict-save (:after (&optional _no-query _force-save) paced-populate)
+       ;; Repopulate the current dictionary after running spell check
+       (paced-repopulate-current-dictionary-async))
+
+   If you decide this isn’t for you, do the following to revert the
+changes:
+
+     M-: (advice-remove #'ispell-pdict-save #'ispell-pdict-save@paced-populate) RET
 
 
 File: paced.info,  Node: Contributing,  Next: Changelog,  Prev: Example Setups,  Up: Top
@@ -671,6 +820,19 @@ can then merge that into the main development branch.
      paced-POPULATION-COMMAND-TYPE-population-command
    • Run ’make check’ to verify that your mods don’t break anything
    • Avoid additional or altered dependencies if at all possible
+   • Dictionary commands come in threes (“the operation triad”):
+       1. paced-dictionary-OPERATION, a cl-defmethod which performs
+          OPERATION on a dictionary
+       2. paced-OPERATION-on-named-dictionary, an interactive only
+          function that prompts for a dictionary name and performs
+          OPERATION on that dictionary:
+                    (interactive (list (paced-read-dictionary)))
+                    (paced-ensure-registered name)
+                    (paced-dictionary-OPERATION (paced-named-dictionary name))
+       3. paced-OPERATION-on-current-dictionary, an interactive function
+          that performs OPERATION on the current dictionary
+                    (interactive)
+                    (paced-dictionary-OPERATION (paced-current-dictionary-or-die))
 
 
 File: paced.info,  Node: Documentation,  Next: Working with EDE,  Prev: Development,  Up: Contributing
@@ -721,11 +883,32 @@ Changelog
 
 * Menu:
 
+* 1.1: 11.
 * 1.0.1: 101.
 * 1.0: 10.
 
 
-File: paced.info,  Node: 101,  Next: 10,  Up: Changelog
+File: paced.info,  Node: 11,  Next: 101,  Up: Changelog
+
+1.1
+===
+
+   • Cleaned up the code to reflect the “operation triad”
+        • -OP, OP-on-named, OP-on-current
+        • Retained backwards compatibility by obsoleting a bunch of
+          functions, but didn’t remove any of them
+        • Also removed the use of dict- in global variables and
+          functions
+
+   • Added the ability to print the contents of a dictionary in a
+     separate buffer
+
+   • Added the option to limit the words added during population by size
+
+   • Various documentation improvements
+
+
+File: paced.info,  Node: 101,  Next: 10,  Prev: 11,  Up: Changelog
 
 1.0.1
 =====
@@ -746,34 +929,39 @@ Initial release.
 
 Tag Table:
 Node: Top228
-Node: Copying1772
-Node: Introduction2591
-Node: Similar Packages3711
-Node: pabbrev3997
-Node: predictive5140
-Node: Installation6188
-Node: Basic Setup6653
-Node: Dictionaries7256
-Node: Creating a Dictionary7660
-Node: Editing a Dictionary8700
-Node: Selective Dictionaries9176
-Node: Dictionary Files10825
-Node: Population Commands11916
-Node: Built-in Commands12852
-Node: Properties13649
-Node: Custom Commands14511
-Node: Asynchronous Population17238
-Node: Example Setups18431
-Node: Org Agenda Files18613
-Node: Project Files19869
-Node: Contributing20982
-Node: Bugs21756
-Node: Development22145
-Node: Documentation23112
-Node: Working with EDE23579
-Node: Changelog24622
-Node: 10124747
-Node: 1024944
+Node: Copying1971
+Node: Introduction2790
+Node: Similar Packages3910
+Node: pabbrev4196
+Node: predictive5339
+Node: Installation6387
+Node: Basic Setup7049
+Node: Dictionaries7664
+Node: Creating a Dictionary8137
+Node: Editing a Dictionary9177
+Node: Selective Dictionaries9653
+Node: Dictionary Files11391
+Node: Printing a Dictionary12512
+Node: Population Commands13034
+Node: Built-in Commands13970
+Node: Properties14767
+Node: Custom Commands15765
+Node: Asynchronous Population18492
+Node: Example Setups19941
+Node: Org Agenda Files20242
+Node: Project Files22002
+Node: Markdown Files23138
+Node: Repopulating Dictionary After Saving24763
+Node: Repopulating Dictionary After Spellchecking the Buffer25691
+Node: Contributing26436
+Node: Bugs27210
+Node: Development27599
+Node: Documentation29360
+Node: Working with EDE29827
+Node: Changelog30870
+Node: 1131006
+Node: 10131601
+Node: 1031809
 
 End Tag Table
 

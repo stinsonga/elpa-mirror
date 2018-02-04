@@ -7,9 +7,9 @@
 ;; Keywords: convenience, completion
 ;; Package-Requires: ((emacs "25.1") (async "1.9.1"))
 ;; URL: https://savannah.nongnu.org/projects/paced-el/
-;; Version: 1.0.1
+;; Version: 1.1
 ;; Created: 22 Jan 2017
-;; Modified: 08 Dec 2017
+;; Modified: 04 Feb 2018
 
 ;; This file is part of GNU Emacs.
 
@@ -117,6 +117,27 @@ allowing all files."
   "Whether to warn the user about resetting a dictionary when repopulating."
   :group 'paced
   :type 'boolean)
+
+(defcustom paced-point-in-thing-at-point-for-exclusion 'beginning
+  "Symbol to indicate from where exclusion should occur.
+
+If 'beginning, exclusion is checked at the beginning of the thing
+at point.  If 'end, exclusion is checked at the end of the thing
+at point.
+
+See `paced-excluded-p' and `paced-exclude-function' for more
+information on exclusion."
+  :group 'paced
+  :type 'symbol
+  :options '(beginning end))
+
+(defcustom paced-character-limit 0
+  "Character limit for including things in paced.
+
+If set to 0, impose no limit.  Otherwise, include words whose
+length is less than or equal to the value."
+  :group 'paced
+  :type 'number)
 
 
 
@@ -249,10 +270,18 @@ If none exists, return nil."
   "Return non-nil if a dictionary with name KEY has been registered."
   (map-contains-key paced--registered-dictionaries key))
 
-(defsubst paced-ensure-registered (key)
-  "Throw an error if a dictionary with name KEY has not been registered."
-  (unless (paced-dictionary-key-registered-p key)
-    (error "No paced dictionary called '%s' has been registered" key)))
+(defvar paced-throw-error-on-no-registered t
+  "Whether to throw an error when a named dictionary can't be found.")
+
+(defmacro paced-operate-on-named-dictionary (name &rest form)
+  "Run FORM on the dictionary with name NAME, bound to `dict'.
+
+If no dictionary named NAME exists, throw an error."
+  (declare (indent 1))
+  `(if-let* ((dict (paced-named-dictionary ,name)))
+       (progn ,@form)
+     (when paced-throw-error-on-no-registered
+       (error "No paced dictionary called '%s' has been registered" ,name))))
 
 (cl-defmethod paced-dictionary-register ((dict paced-dictionary))
   "Registered dictionary DICT."
@@ -302,7 +331,9 @@ customization interface."
   "Return the name of dictionary OBJ."
   (oref obj object-name))
 
-(defcustom paced-global-dict-enable-alist nil
+;;; Current Dictionary
+
+(defcustom paced-global-dictionary-enable-alist nil
   "List that determines which dictionaries should be active.
 
 Each entry has the form (CONDITION . DICT-KEY), where CONDITION
@@ -334,28 +365,40 @@ enabled unless `paced-mode' is active."
   :group 'paced
   :type '(alist :key-type sexp :value-type string))
 
-(defvar-local paced-local-dict-enable-alist nil
+(define-obsolete-variable-alias 'paced-global-dict-enable-alist
+  'paced-global-dictionary-enable-alist
+  "1.1")
+
+(defvar-local paced-local-dictionary-enable-alist nil
   "Local enable list.
 
 Has the same form as and takes priority over
-`paced-global-dict-enable-alist'.")
+`paced-global-dictionary-enable-alist'.")
 
-(defun paced-dict-enable-list ()
+(define-obsolete-variable-alias 'paced-local-dict-enable-alist
+  'paced-local-dictionary-enable-alist
+  "1.1")
+
+(defun paced-dictionary-enable-list ()
   "Return the combination of the local and global enable-alists.
 
-See `paced-local-dict-enable-alist' and
-`paced-global-dict-enable-alist' for more information."
-  (append paced-local-dict-enable-alist
-          paced-global-dict-enable-alist))
+See `paced-local-dictionary-enable-alist' and
+`paced-global-dictionary-enable-alist' for more information."
+  (append paced-local-dictionary-enable-alist
+          paced-global-dictionary-enable-alist))
+
+(define-obsolete-function-alias 'paced-dict-enable-list
+  'paced-dictionary-enable-list
+  "1.1")
 
 (defun paced-mode-symbol-p (sym)
   "Return non-nil if SYM is a mode symbol."
   (string-match-p (rx "-mode" string-end) (symbol-name sym)))
 
-(defun paced-test-dict-enable-condition (condition)
+(defun paced-test-dictionary-enable-condition (condition)
   "Determines if CONDITION passes in the current buffer.
 
-See `paced-global-dict-enable-alist' for an explanation."
+See `paced-global-dictionary-enable-alist' for an explanation."
   (pcase condition
     ((and (pred symbolp)
           (pred paced-mode-symbol-p))
@@ -369,9 +412,9 @@ See `paced-global-dict-enable-alist' for an explanation."
     ((pred functionp)
      (funcall condition))
     (`(or . ,rest)
-     (seq-some 'paced-test-dict-enable-condition rest))
+     (seq-some 'paced-test-dictionary-enable-condition rest))
     (`(and . ,rest)
-     (seq-every-p 'paced-test-dict-enable-condition rest))))
+     (seq-every-p 'paced-test-dictionary-enable-condition rest))))
 
 (defun paced-current-dictionary ()
   "Determine the current dictionary.
@@ -379,17 +422,38 @@ See `paced-global-dict-enable-alist' for an explanation."
 Returns nil if no dictionary should be enabled.
 
 If a dictionary is found in the list that doesn't exist, it will
-be skipped."
-  (let ((conditions (paced-dict-enable-list))
+be skipped.
+
+See `paced-global-dictionary-enable-alist' or
+`paced-local-dictionary-enable-alist' for how to set the current
+dictionary conditions."
+  (let ((conditions (paced-dictionary-enable-list))
         (dictionary))
     (while (and conditions
                 (not dictionary))
       (pcase-let* ((`(,condition . ,dict) (pop conditions)))
         (when (and (paced-dictionary-key-registered-p dict)
-                   (paced-test-dict-enable-condition condition))
+                   (paced-test-dictionary-enable-condition condition))
           (setq dictionary dict))))
     (when dictionary
       (paced-named-dictionary dictionary))))
+
+(defvar paced-throw-error-on-no-current t
+  "Whether to throw an error when no current dictionary can be
+found.")
+
+(defmacro paced-operate-on-current-dictionary (&rest form)
+  "Run FORM with the current dictionary bound to `dict'.
+
+If no dictionary can be found for the buffer, throw an error.  To
+suppress the error, set `paced-throw-error-on-no-current' to
+nil."
+  `(if-let* ((dict (paced-current-dictionary)))
+       (progn ,@form)
+     (when paced-throw-error-on-no-current
+       (user-error "No dictionary found for current buffer"))))
+
+;;; Saving and Loading
 
 (cl-defmethod paced-dictionary-save ((dict paced-dictionary) &optional force)
   "Save dictionary DICT according to its filename.
@@ -407,9 +471,17 @@ If FORCE is non-nil (given with a prefix arg), forcibly save the
 dictionary if found."
   (declare (interactive-only paced-dictionary-save))
   (interactive (list (paced-read-dictionary) current-prefix-arg))
-  (paced-ensure-registered key)
-  (let ((dict (paced-named-dictionary key)))
+  (paced-operate-on-named-dictionary key
     (paced-dictionary-save dict force)))
+
+(defun paced-save-current-dictionary (force)
+  "Save the dictionary for the current buffer.
+
+For how the current dictionary is determined, see
+`paced-current-dictionary'."
+  (interactive "P")
+  (paced-operate-on-current-dictionary
+   (paced-dictionary-save dict force)))
 
 (defun paced-load-dictionary-from-file (file)
   "Load dictionary from FILE."
@@ -449,34 +521,7 @@ dictionary if found."
   (paced-dictionary-save dict t))
 
 
-
-(defvar-local paced--current-source nil
-  "The source from which a dictionary is being populated.
-
-This is used internally to inform the user of the current source,
-since population mostly uses temporary buffers.")
-
-(defvar-local paced-exclude-function (lambda () nil)
-  "Local predicate to determine if thing at point should be excluded.
-
-This should be a function of no arguments that returns non-nil if
-the current thing-at-point should be excluded from paced dictionaries.
-
-By default, this allows everything.
-
-A useful function for this is `paced-in-comment-p'.")
-
-(defun paced-in-comment-p (&optional pos)
-  "Return non-nil if POS is in a comment.
-
-If POS is not specified, defaults to `point'."
-  (nth 8 (syntax-ppss (or pos (point)))))
-
-(defun paced-excluded-p ()
-  "Return non-nil to exclude current thing at point.
-
-See `paced-exclude-function' for more."
-  (funcall paced-exclude-function))
+;;; Handling of Thing at Point
 
 (defun paced-bounds-of-thing-at-point ()
   "Get the bounds of the thing at point."
@@ -498,6 +543,76 @@ Text properties are excluded."
 Things is based on `paced-thing-at-point-constituent'."
   (interactive "p")
   (forward-thing paced-thing-at-point-constituent number))
+
+(defun paced-goto-beginning-of-thing-at-point ()
+  "Move to the start of the current thing at point.
+
+Thing is based on `paced-thing-at-point-constituent'."
+  (goto-char (car (paced-bounds-of-thing-at-point))))
+
+(defun paced-goto-end-of-thing-at-point ()
+  "Move to the end of the current thing at point.
+
+Thing is based on `paced-thing-at-point-constituent'."
+  (goto-char (cdr (paced-bounds-of-thing-at-point))))
+
+;;; Character Limits
+
+(defun paced-length-of-thing-at-point ()
+  "Return the length, in characters, of the current thing at point."
+  (length (paced-thing-at-point)))
+
+(defun paced-thing-meets-limit-p ()
+  "Return non-nil if the current thing at point meets the limit requirement.
+
+The limit requirement is set with `paced-character-limit'."
+  (or (eq paced-character-limit 0)
+      (<= (paced-length-of-thing-at-point) paced-character-limit)))
+
+;;; Exclusion
+
+(defvar-local paced-exclude-function (lambda () nil)
+  "Local predicate to determine if thing at point should be excluded.
+
+This should be a function of no arguments that returns non-nil if
+the current thing-at-point should be excluded from paced
+dictionaries.  Exclusion is checked from the start or the end of
+the current thing, depending on `paced-point-in-thing-at-point-for-exclusion'.
+Point returns to its original position after the function is
+called.
+
+By default, this allows everything.
+
+A useful function for this is `paced-in-comment-p'.")
+
+(defun paced-in-comment-p (&optional pos)
+  "Return non-nil if POS is in a comment.
+
+If POS is not specified, defaults to `point'."
+  (nth 8 (syntax-ppss (or pos (point)))))
+
+(defun paced-excluded-p ()
+  "Return non-nil to exclude current thing at point.
+
+See `paced-exclude-function' for more.
+
+Exclusion can be performed from either the beginning or end of
+the thing at point.  See
+`paced-point-in-thing-at-point-for-exclusion' for how to set
+this.
+
+This also handles character limits set by
+`paced-character-limit'."
+  (or (not (paced-thing-meets-limit-p))
+      (save-excursion
+        (pcase paced-point-in-thing-at-point-for-exclusion
+          (`beginning
+           (paced-goto-beginning-of-thing-at-point))
+          (`end
+           (paced-goto-end-of-thing-at-point)))
+        (funcall paced-exclude-function))))
+
+;;; Case Handling
 
 (defun paced-mixed-case-word-p (word)
   "Return non-nil if WORD is mixed-case.
@@ -540,6 +655,14 @@ This is a separate function only for testing; use
   "Return WORD, modified based on DICT's case handling."
   (paced--handle-word-case (oref dict case-handling) word))
 
+;;; Population
+
+(defvar-local paced--current-source nil
+  "The source from which a dictionary is being populated.
+
+This is used internally to inform the user of the current source,
+since population mostly uses temporary buffers.")
+
 (cl-defmethod paced-dictionary-add-word ((dict paced-dictionary) word)
   "Add WORD to paced dictionary DICT."
   (let ((new-word (paced-dictionary-process-word dict word)))
@@ -547,11 +670,13 @@ This is a separate function only for testing; use
     (cl-incf (map-elt (oref dict usage-hash) new-word 0))
     (oset dict updated t)))
 
-(defsubst paced-add-word-to-current-dict (word)
-  "Add WORD to the current paced dictionary."
-  (if-let* ((dict (paced-current-dictionary)))
-      (paced-dictionary-add-word dict word)
-    (error "No current dictionary found")))
+(defun paced-add-word-to-current-dictionary (word)
+  "Add WORD to the current dictionary.
+
+For how the current dictionary is determined, see
+`paced-current-dictionary'."
+  (paced-operate-on-current-dictionary
+   (paced-dictionary-add-word dict word)))
 
 (cl-defmethod paced-dictionary-populate-from-buffer ((dict paced-dictionary) &optional buffer)
   "Repopulate DICT from BUFFER.
@@ -574,7 +699,64 @@ If BUFFER is nil, use the current one."
             (paced-dictionary-add-word dict (paced-thing-at-point))))
         (progress-reporter-done reporter)))))
 
-(defun paced-populate-dictionary-from-region (dict start end)
+(defun paced-populate-current-dictionary-from-buffer (&optional buffer)
+  "Populate the current dictionary from BUFFER.
+
+This means add a usage of each included thing in BUFFER.
+
+BUFFER is either the name of a buffer, or the buffer itself.  If
+not given, use the current buffer.
+
+In order to only populate the dictionary from a region,
+`paced-populate-current-dictionary-from-region'.
+
+Note that this doesn't add the buffer to the dictionary's
+population commands, so if it is later repopulated using
+`paced-dictionary-repopulate' or
+`paced-repopulate-named-dictionary', anything added with this
+command will be lost.
+
+In order to make changes permanent, use
+`paced-add-buffer-file-to-dictionary'.
+
+For how the current dictionary is determined, see
+`paced-current-dictionary'."
+  (interactive "b")
+  (paced-operate-on-current-dictionary
+   (paced-dictionary-populate-from-buffer dict buffer)))
+
+(define-obsolete-function-alias 'paced-populate-buffer-dictionary
+  'paced-populate-current-dictionary-from-buffer
+  "1.1")
+
+(defun paced-populate-named-dictionary-from-buffer (name &optional buffer)
+  "Populate the dictionary named NAME from BUFFER.
+
+This means add a usage of each included thing in BUFFER.
+
+BUFFER is either the name of a buffer, or the buffer itself.  If
+not given, use the current buffer.
+
+In order to only populate the dictionary from a region,
+`paced-populate-current-dictionary-from-region'.
+
+Note that this doesn't add the buffer to the dictionary's
+population commands, so if it is later repopulated using
+`paced-dictionary-repopulate' or
+`paced-repopulate-named-dictionary', anything added with this
+command will be lost.
+
+In order to make changes permanent, use
+`paced-add-buffer-file-to-dictionary'.
+
+For how the current dictionary is determined, see
+`paced-current-dictionary'."
+  (interactive
+   (list (paced-read-dictionary) (read-buffer "Buffer: " nil t)))
+  (paced-operate-on-named-dictionary name
+    (paced-dictionary-populate-from-buffer dict buffer)))
+
+(cl-defmethod paced-dictionary-populate-from-region ((dict paced-dictionary) start end)
   "Populate DICT from the region in the current buffer between START and END.
 
 Note that this doesn't add the current buffer to DICT's
@@ -586,29 +768,7 @@ command will be lost."
     (narrow-to-region start end)
     (paced-dictionary-populate-from-buffer dict)))
 
-(defun paced-populate-buffer-dictionary (&optional buffer)
-  "Populate BUFFER's current dictionary with BUFFER.
-
-This means add a usage of each included thing in buffer.
-
-If called interactively, the current buffer is used.  In order to
-only populate the dictionary from a region,
-`paced-populate-from-region'.
-
-Note that this doesn't add BUFFER to the dictionary's population
-commands, so if it is later repopulated using
-`paced-dictionary-repopulate' or
-`paced-repopulate-named-dictionary', anything added with this
-command will be lost.
-
-In order to make changes permanent, use
-`paced-add-buffer-file-to-dictionary'."
-  (interactive)
-  (if-let* ((dict (paced-current-dictionary)))
-      (paced-dictionary-populate-from-buffer dict buffer)
-    (user-error "No dictionary found")))
-
-(defun paced-populate-from-region (start end)
+(defun paced-populate-current-dictionary-from-region (start end)
   "Populate the current dictionary from the region START to END.
 
 Note that this doesn't add the current buffer to the dictionary's
@@ -617,11 +777,14 @@ population commands, so if it is later repopulated using
 `paced-repopulate-named-dictionary', anything added with this
 command will be lost."
   (interactive "r")
-  (if-let* ((dict (paced-current-dictionary)))
-      (paced-populate-dictionary-from-region dict start end)
-    (user-error "No dictionary found")))
+  (paced-operate-on-current-dictionary
+   (paced-dictionary-populate-from-region dict start end)))
 
-(defun paced-add-current-thing-to-dict ()
+(define-obsolete-function-alias 'paced-populate-from-region
+  'paced-populate-current-dictionary-from-region
+  "1.1")
+
+(defun paced-add-current-thing-to-dictionary ()
   "Add the current thing at point to the current dictionary.
 
 No check is done to determine if the current thing should be
@@ -633,7 +796,10 @@ population commands, so if it is later repopulated using
 `paced-repopulate-named-dictionary', anything added with this
 command will be lost."
   (interactive)
-  (paced-add-word-to-current-dict (paced-thing-at-point)))
+  (paced-operate-on-current-dictionary
+   (paced-dictionary-add-word dict (paced-thing-at-point))))
+
+;;; Dictionary Reset
 
 (cl-defmethod paced-dictionary-reset ((dict paced-dictionary))
   "Reset the usage-hash of paced-dictionary DICT."
@@ -641,11 +807,22 @@ command will be lost."
 
 (defun paced-reset-named-dictionary (key)
   "Reset the paced dictionary with key KEY."
+  (declare (interactive-only paced-dictionary-reset))
   (interactive
    (list (paced-read-dictionary)))
-  (paced-ensure-registered key)
-  (let ((dict (paced-named-dictionary key)))
+  (paced-operate-on-named-dictionary key
     (paced-dictionary-reset dict)))
+
+(defun paced-reset-current-dictionary ()
+  "Reset the current dictionary.
+
+For how the current dictionary is determined, see
+`paced-current-dictionary'."
+  (interactive)
+  (paced-operate-on-current-dictionary
+   (paced-dictionary-reset dict)))
+
+;;; Dictionary Sorting
 
 (cl-defmethod paced-dictionary-sort ((dict paced-dictionary))
   "Sort the words in dictionary DICT by usage."
@@ -655,12 +832,22 @@ command will be lost."
 
 (defun paced-sort-named-dictionary (key)
   "Sort the paced dictionary with key KEY."
+  (declare (interactive-only paced-dictionary-sort))
   (interactive (list (paced-read-dictionary)))
-  (paced-ensure-registered key)
-  (let ((dict (paced-named-dictionary key)))
+  (paced-operate-on-named-dictionary key
     (paced-dictionary-sort dict)))
 
+(defun paced-sort-current-dictionary ()
+  "Sort the current paced dictionary.
+
+For how the current dictionary is determined, see
+`paced-current-dictionary'."
+  (interactive)
+  (paced-operate-on-current-dictionary
+   (paced-dictionary-sort dict)))
+
 
+;;; The Minor Mode
 
 (define-minor-mode paced-mode
   "Toggle paced mode.
@@ -677,10 +864,7 @@ This adds `paced-completion-at-point' to
 (define-globalized-minor-mode global-paced-mode paced-mode paced-mode
   :group 'paced)
 
-
-                                        ; ;;;;;;;;;;;;;;;; ;
-                                        ; ;; Completion ;; ;
-                                        ; ;;;;;;;;;;;;;;;; ;
+;;; Completion
 
 (cl-defmethod paced-dictionary-fix-completion-case ((dict paced-dictionary) prefix completions)
   "Account for case differences in the prefix by prepending PREFIX to COMPLETIONS.
@@ -755,6 +939,8 @@ the prefix before completions are returned."
   (let* ((completion-ignore-case paced-completion-ignore-case))
     (pcase action
       ((or `nil `t `lambda)
+       ;; Intentionally don't throw an error here, so as not to disrupt
+       ;; completion.
        (when-let* ((dict (paced-current-dictionary)))
          (paced-dictionary-completions dict string action pred)))
       (`(boundaries . _) nil)
@@ -784,8 +970,10 @@ This should only be called from `paced-completion-at-point'."
      ;; Might not be the entire completion, so don't add it.
      )
     (finished
+     ;; We know there's a current dictionary, since this should only be called
+     ;; from `paced-completion-at-point'.
      (when paced-auto-update-p
-       (paced-add-word-to-current-dict word)))))
+       (paced-add-word-to-current-dictionary word)))))
 
 (defun paced-completion-at-point ()
   "Function for `completion-at-point-functions' to get the paced completions."
@@ -797,9 +985,7 @@ This should only be called from `paced-completion-at-point'."
             :exclusive 'no))))
 
 
-                                        ; ;;;;;;;;;;;;;;;;;; ;
-                                        ; ;; Repopulation ;; ;
-                                        ; ;;;;;;;;;;;;;;;;;; ;
+;;; Repopulation
 
 (defun paced--insert-file-contents (file)
   "Insert the contents of FILE into the current buffer.
@@ -1011,11 +1197,22 @@ repopulating it.  If `paced-populate-warn-about-reset' is
 non-nil, confirmation will be requested before continuing."
   (interactive
    (list (paced-read-dictionary)))
-  (paced-ensure-registered key)
-  (let ((dict (paced-named-dictionary key)))
+  (paced-operate-on-named-dictionary key
     (when (or (not paced-populate-warn-about-reset)
               (y-or-n-p "Warning: Repopulating dictionary will reset it.  Continue?"))
       (paced-dictionary-repopulate dict))))
+
+(defun paced-repopulate-current-dictionary ()
+  "Repopulate the current dictionary.
+
+Note that this will empty the dictionary's contents before
+repopulating it.  If `paced-populate-warn-about-reset' is
+non-nil, confirmation will be requested before continuing."
+  (interactive)
+  (paced-operate-on-current-dictionary
+   (when (or (not paced-populate-warn-about-reset)
+             (y-or-n-p "Warning: Repopulating dictionary will reset it.  Continue?"))
+     (paced-dictionary-repopulate dict))))
 
 (cl-defmethod paced-dictionary-add-population-command ((dict paced-dictionary)
                                                        (cmd paced-population-command))
@@ -1023,7 +1220,7 @@ non-nil, confirmation will be requested before continuing."
   (cl-pushnew cmd (oref dict population-commands) :test 'equal))
 
 (defun paced-add-buffer-file-to-dictionary (&optional buffer)
-  "Populate the dictionary of BUFFER with BUFFER.
+  "Populate the current dictionary of BUFFER with BUFFER.
 
 The file corresponding to BUFFER is then added to the current
 dictionary's population commands.
@@ -1035,15 +1232,15 @@ must be set with `paced-edit-named-dictionary' or
   (with-current-buffer (or buffer (current-buffer))
     (unless (buffer-file-name)
       (user-error "paced-add-buffer-file-to-dictionary called inside a non-file buffer."))
-    (if-let* ((dict      (paced-current-dictionary))
-              (file-name (buffer-file-name))
-              (cmd (paced-file-population-command :file file-name)))
-        (progn
-          (paced-dictionary-populate-from-buffer dict buffer)
-          (paced-dictionary-add-population-command dict cmd))
-      (user-error "No dictionary found for current buffer"))))
+    (paced-operate-on-current-dictionary
+     (let* ((file-name (buffer-file-name))
+            (cmd (paced-file-population-command :file file-name)))
+       (paced-dictionary-populate-from-buffer dict buffer)
+       (paced-dictionary-add-population-command dict cmd)))))
 
 
+
+;;; Edit a Dictionary
 
 (cl-defmethod paced-dictionary-edit ((dict paced-dictionary))
   "Edit paced-dictionary DICT."
@@ -1051,17 +1248,75 @@ must be set with `paced-edit-named-dictionary' or
 
 (defun paced-edit-named-dictionary (name)
   "Edit the paced-dictionary named NAME."
+  (declare (interactive-only paced-dictionary-edit))
   (interactive (list (paced-read-dictionary)))
-  (if-let* ((dict (paced-named-dictionary name)))
-      (paced-dictionary-edit dict)
-    (error "No paced dictionary called '%s' has been registered" name)))
+  (paced-operate-on-named-dictionary name
+    (paced-dictionary-edit dict)))
 
 (defun paced-edit-current-dictionary ()
-  "Edit the current paced dictionary."
+  "Edit the current paced dictionary.
+
+For how the current dictionary is determined, see
+`paced-current-dictionary'."
   (interactive)
-  (if-let* ((dict (paced-current-dictionary)))
-      (paced-dictionary-edit dict)
-    (user-error "No dictionary found for current buffer")))
+  (paced-operate-on-current-dictionary
+   (paced-dictionary-edit dict)))
+
+
+
+;;; Print a Dictionary in a Dedicated Buffer
+
+(defvar-local paced-tabulated-list-dictionary nil
+  "Dictionary printed in a tabulated list buffer.")
+
+(cl-defmethod paced-dictionary-length-of-longest-word ((dict paced-dictionary))
+  "Return the length of the longest word in DICT."
+  (seq-max
+   (map-apply
+    (lambda (key _value)
+      (length key))
+    (oref dict usage-hash))))
+
+(cl-defmethod paced-dictionary-tabulated-list-entries ((dict paced-dictionary))
+  "Create a value for `tabulated-list-entries' from DICT."
+  (map-apply
+   (lambda (key value)
+     (list key (vector key (number-to-string value))))
+   (oref dict usage-hash)))
+
+(defun paced-tabulated-list-revert ()
+  "Revert a `tabulated-list-mode' buffer from its dictionary."
+  (let* ((dict paced-tabulated-list-dictionary)
+         (longest-length (paced-dictionary-length-of-longest-word dict)))
+    (setq tabulated-list-format
+          (vector `("Word" ,longest-length t . (:right-align t))
+                  `("Count" 10 t)))
+    (setq tabulated-list-entries (paced-dictionary-tabulated-list-entries dict))))
+
+(cl-defmethod paced-dictionary-print ((dict paced-dictionary))
+  "Print the contents of DICT in a dedicated buffer."
+  (let* ((buffer-name (format "*Paced Dictionary - %s*" (paced-dictionary-name dict)))
+         (buffer (get-buffer-create buffer-name)))
+    (with-current-buffer buffer
+      (tabulated-list-mode)
+      (setq paced-tabulated-list-dictionary dict)
+      (paced-tabulated-list-revert)
+      (tabulated-list-init-header)
+      (tabulated-list-print))
+    (display-buffer buffer)))
+
+(defun paced-print-current-dictionary ()
+  "Print the contents of the current dictionary in a dedicated buffer."
+  (interactive)
+  (paced-operate-on-current-dictionary
+   (paced-dictionary-print)))
+
+(defun paced-print-named-dictionary (name)
+  "Print the contents of the dictionary with name NAME."
+  (declare (interactive-only paced-dictionary-print))
+  (interactive (list (paced-read-dictionary)))
+  (paced-operate-on-named-dictionary name
+    (paced-dictionary-print name)))
 
 
 
