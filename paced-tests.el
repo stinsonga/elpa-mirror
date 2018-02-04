@@ -477,6 +477,20 @@
       (let ((paced-point-in-thing-at-point-for-exclusion 'end))
         (should-not (paced-excluded-p))))))
 
+(ert-deftest paced-character-limit ()
+  "Test character limit."
+  (let* ((paced-exclude-function (lambda () nil))
+         (buffer-one (find-file-noselect paced-first-test-file)))
+    (with-current-buffer buffer-one
+      (goto-char (point-min))
+      (should (equal (paced-thing-at-point) "one"))
+      (let* ((paced-character-limit 0))
+        (should-not (paced-excluded-p)))
+      (let* ((paced-character-limit 1))
+        (should (paced-excluded-p)))
+      (let* ((paced-character-limit 3))
+        (should-not (paced-excluded-p))))))
+
 (provide 'paced-tests)
 
 ;;; paced-tests.el ends here

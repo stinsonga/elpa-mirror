@@ -131,6 +131,14 @@ information on exclusion."
   :type 'symbol
   :options '(beginning end))
 
+(defcustom paced-character-limit 0
+  "Character limit for including things in paced.
+
+If set to 0, impose no limit.  Otherwise, include words whose
+length is less than or equal to the value."
+  :group 'paced
+  :type 'number)
+
 
 
 (defun paced--default-dictionary-sort-func (usage-hash)
@@ -522,21 +530,37 @@ Thing is based on `paced-thing-at-point-constituent'."
 Thing is based on `paced-thing-at-point-constituent'."
   (goto-char (cdr (paced-bounds-of-thing-at-point))))
 
+(defun paced-length-of-thing-at-point ()
+  "Return the length, in characters, of the current thing at point."
+  (length (paced-thing-at-point)))
+
+(defun paced-thing-meets-limit-p ()
+  "Return non-nil if the current thing at point meets the limit requirement.
+
+The limit requirement is set with `paced-character-limit'."
+  (or (eq paced-character-limit 0)
+      (<= (paced-length-of-thing-at-point) paced-character-limit)))
+
 (defun paced-excluded-p ()
   "Return non-nil to exclude current thing at point.
 
 See `paced-exclude-function' for more.
 
 Exclusion can be performed from either the beginning or end of
-the thing at point.  See `paced-point-in-thing-at-point-for-exclusion' for how
-to set this."
-  (save-excursion
-    (pcase paced-point-in-thing-at-point-for-exclusion
-      (`beginning
-       (paced-goto-beginning-of-thing-at-point))
-      (`end
-       (paced-goto-end-of-thing-at-point)))
-    (funcall paced-exclude-function)))
+the thing at point.  See
+`paced-point-in-thing-at-point-for-exclusion' for how to set
+this.
+
+This also handles character limits set by
+`paced-character-limit'."
+  (or (not (paced-thing-meets-limit-p))
+      (save-excursion
+        (pcase paced-point-in-thing-at-point-for-exclusion
+          (`beginning
+           (paced-goto-beginning-of-thing-at-point))
+          (`end
+           (paced-goto-end-of-thing-at-point)))
+        (funcall paced-exclude-function))))
 
 (defun paced-mixed-case-word-p (word)
   "Return non-nil if WORD is mixed-case.
