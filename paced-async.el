@@ -38,6 +38,8 @@
 (require 'paced)
 (require 'async)
 
+(eval-when-compile (require 'subr-x))
+
 (defcustom paced-async-load-file (locate-user-emacs-file "paced-async.el")
   "File to load with user-specific population settings.
 
