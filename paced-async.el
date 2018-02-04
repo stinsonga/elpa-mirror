@@ -94,6 +94,18 @@ Note that this will empty the dictionary's contents."
   (let ((dict (paced-named-dictionary key)))
     (paced-repopulate-dictionary-async dict)))
 
+;;;###autoload
+(defun paced-repopulate-current-dictionary-async ()
+  "Repopulate current dictionary from its population commands, asynchronously.
+
+Population commands are stored in the field of the same name.
+
+Note that this will empty the dictionary's contents."
+  (interactive)
+  (if-let* ((dict (paced-current-dictionary)))
+      (paced-repopulate-dictionary-async dict)
+    (error "No current dictionary found")))
+
 (provide 'paced-async)
 
 ;;; paced-async.el ends here
