@@ -7,9 +7,9 @@
 ;; Keywords: convenience, completion
 ;; Package-Requires: ((emacs "25.1") (async "1.9.1"))
 ;; URL: https://savannah.nongnu.org/projects/paced-el/
-;; Version: 1.1
+;; Version: 1.1.1
 ;; Created: 22 Jan 2017
-;; Modified: 04 Feb 2018
+;; Modified: 05 Feb 2018
 
 ;; This file is part of GNU Emacs.
 
@@ -438,7 +438,7 @@ dictionary conditions."
     (when dictionary
       (paced-named-dictionary dictionary))))
 
-(defvar paced-throw-error-on-no-current t
+(defvar paced-throw-error-on-no-current nil
   "Whether to throw an error when no current dictionary can be
 found.")
 

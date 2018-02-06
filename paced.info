@@ -67,6 +67,7 @@ Contributing
 
 Changelog
 
+* 1.1.1: 111.
 * 1.1: 11.
 * 1.0.1: 101.
 * 1.0: 10.
@@ -883,12 +884,24 @@ Changelog
 
 * Menu:
 
+* 1.1.1: 111.
 * 1.1: 11.
 * 1.0.1: 101.
 * 1.0: 10.
 
 
-File: paced.info,  Node: 11,  Next: 101,  Up: Changelog
+File: paced.info,  Node: 111,  Next: 11,  Up: Changelog
+
+1.1.1
+=====
+
+   • Fixed bug with asynchronous population throwing an error on no
+     dictionary
+
+   • Set ‘paced-throw-error-on-no-current’ to nil by default
+
+
+File: paced.info,  Node: 11,  Next: 101,  Prev: 111,  Up: Changelog
 
 1.1
 ===
@@ -929,39 +942,40 @@ Initial release.
 
 Tag Table:
 Node: Top228
-Node: Copying1971
-Node: Introduction2790
-Node: Similar Packages3910
-Node: pabbrev4196
-Node: predictive5339
-Node: Installation6387
-Node: Basic Setup7049
-Node: Dictionaries7664
-Node: Creating a Dictionary8137
-Node: Editing a Dictionary9177
-Node: Selective Dictionaries9653
-Node: Dictionary Files11391
-Node: Printing a Dictionary12512
-Node: Population Commands13034
-Node: Built-in Commands13970
-Node: Properties14767
-Node: Custom Commands15765
-Node: Asynchronous Population18492
-Node: Example Setups19941
-Node: Org Agenda Files20242
-Node: Project Files22002
-Node: Markdown Files23138
-Node: Repopulating Dictionary After Saving24763
-Node: Repopulating Dictionary After Spellchecking the Buffer25691
-Node: Contributing26436
-Node: Bugs27210
-Node: Development27599
-Node: Documentation29360
-Node: Working with EDE29827
-Node: Changelog30870
-Node: 1131006
-Node: 10131601
-Node: 1031809
+Node: Copying1985
+Node: Introduction2804
+Node: Similar Packages3924
+Node: pabbrev4210
+Node: predictive5353
+Node: Installation6401
+Node: Basic Setup7063
+Node: Dictionaries7678
+Node: Creating a Dictionary8151
+Node: Editing a Dictionary9191
+Node: Selective Dictionaries9667
+Node: Dictionary Files11405
+Node: Printing a Dictionary12526
+Node: Population Commands13048
+Node: Built-in Commands13984
+Node: Properties14781
+Node: Custom Commands15779
+Node: Asynchronous Population18506
+Node: Example Setups19955
+Node: Org Agenda Files20256
+Node: Project Files22016
+Node: Markdown Files23152
+Node: Repopulating Dictionary After Saving24777
+Node: Repopulating Dictionary After Spellchecking the Buffer25705
+Node: Contributing26450
+Node: Bugs27224
+Node: Development27613
+Node: Documentation29374
+Node: Working with EDE29841
+Node: Changelog30884
+Node: 11131034
+Node: 1131261
+Node: 10131868
+Node: 1032076
 
 End Tag Table
 
