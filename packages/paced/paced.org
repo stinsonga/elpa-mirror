@@ -734,11 +734,12 @@ and letting one of us handle it is a good way to go.
 :PROPERTIES:
 :DESCRIPTION: List of changes by version
 :END:
+** 1.1.2
+- Fixed bug with printing dictionaries
 ** 1.1.1
 - Fixed bug with asynchronous population throwing an error on no dictionary
 
 - Set ~paced-throw-error-on-no-current~ to nil by default
-
 ** 1.1
 - Cleaned up the code to reflect the "operation triad"
   - -OP, OP-on-named, OP-on-current
