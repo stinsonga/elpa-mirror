@@ -7,7 +7,7 @@
 ;; Keywords: convenience, completion
 ;; Package-Requires: ((emacs "25.1") (async "1.9.1"))
 ;; URL: https://savannah.nongnu.org/projects/paced-el/
-;; Version: 1.1.1
+;; Version: 1.1.2
 ;; Created: 22 Jan 2017
 ;; Modified: 05 Feb 2018
 
