@@ -1309,14 +1309,14 @@ For how the current dictionary is determined, see
   "Print the contents of the current dictionary in a dedicated buffer."
   (interactive)
   (paced-operate-on-current-dictionary
-   (paced-dictionary-print)))
+   (paced-dictionary-print dict)))
 
 (defun paced-print-named-dictionary (name)
   "Print the contents of the dictionary with name NAME."
   (declare (interactive-only paced-dictionary-print))
   (interactive (list (paced-read-dictionary)))
   (paced-operate-on-named-dictionary name
-    (paced-dictionary-print name)))
+    (paced-dictionary-print dict)))
 
 
 
