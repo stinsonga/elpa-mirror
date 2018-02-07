@@ -67,6 +67,7 @@ Contributing
 
 Changelog
 
+* 1.1.2: 112.
 * 1.1.1: 111.
 * 1.1: 11.
 * 1.0.1: 101.
@@ -884,13 +885,22 @@ Changelog
 
 * Menu:
 
+* 1.1.2: 112.
 * 1.1.1: 111.
 * 1.1: 11.
 * 1.0.1: 101.
 * 1.0: 10.
 
 
-File: paced.info,  Node: 111,  Next: 11,  Up: Changelog
+File: paced.info,  Node: 112,  Next: 111,  Up: Changelog
+
+1.1.2
+=====
+
+   • Fixed bug with printing dictionaries
+
+
+File: paced.info,  Node: 111,  Next: 11,  Prev: 112,  Up: Changelog
 
 1.1.1
 =====
@@ -942,40 +952,41 @@ Initial release.
 
 Tag Table:
 Node: Top228
-Node: Copying1985
-Node: Introduction2804
-Node: Similar Packages3924
-Node: pabbrev4210
-Node: predictive5353
-Node: Installation6401
-Node: Basic Setup7063
-Node: Dictionaries7678
-Node: Creating a Dictionary8151
-Node: Editing a Dictionary9191
-Node: Selective Dictionaries9667
-Node: Dictionary Files11405
-Node: Printing a Dictionary12526
-Node: Population Commands13048
-Node: Built-in Commands13984
-Node: Properties14781
-Node: Custom Commands15779
-Node: Asynchronous Population18506
-Node: Example Setups19955
-Node: Org Agenda Files20256
-Node: Project Files22016
-Node: Markdown Files23152
-Node: Repopulating Dictionary After Saving24777
-Node: Repopulating Dictionary After Spellchecking the Buffer25705
-Node: Contributing26450
-Node: Bugs27224
-Node: Development27613
-Node: Documentation29374
-Node: Working with EDE29841
-Node: Changelog30884
-Node: 11131034
-Node: 1131261
-Node: 10131868
-Node: 1032076
+Node: Copying1999
+Node: Introduction2818
+Node: Similar Packages3938
+Node: pabbrev4224
+Node: predictive5367
+Node: Installation6415
+Node: Basic Setup7077
+Node: Dictionaries7692
+Node: Creating a Dictionary8165
+Node: Editing a Dictionary9205
+Node: Selective Dictionaries9681
+Node: Dictionary Files11419
+Node: Printing a Dictionary12540
+Node: Population Commands13062
+Node: Built-in Commands13998
+Node: Properties14795
+Node: Custom Commands15793
+Node: Asynchronous Population18520
+Node: Example Setups19969
+Node: Org Agenda Files20270
+Node: Project Files22030
+Node: Markdown Files23166
+Node: Repopulating Dictionary After Saving24791
+Node: Repopulating Dictionary After Spellchecking the Buffer25719
+Node: Contributing26464
+Node: Bugs27238
+Node: Development27627
+Node: Documentation29388
+Node: Working with EDE29855
+Node: Changelog30898
+Node: 11231062
+Node: 11131180
+Node: 1131419
+Node: 10132026
+Node: 1032234
 
 End Tag Table
 
