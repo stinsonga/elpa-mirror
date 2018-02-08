@@ -734,6 +734,8 @@ and letting one of us handle it is a good way to go.
 :PROPERTIES:
 :DESCRIPTION: List of changes by version
 :END:
+** 1.1.3
+- Fixed bug with printing an empty dictionary
 ** 1.1.2
 - Fixed bug with printing dictionaries
 ** 1.1.1
