@@ -7,7 +7,7 @@
 ;; Keywords: convenience, text, org
 ;; URL: https://savannah.nongnu.org/projects/org-edna-el/
 ;; Package-Requires: ((emacs "25.1") (seq "2.19") (org "9.0.5"))
-;; Version: 1.0beta5
+;; Version: 1.0beta6
 
 ;; This file is part of GNU Emacs.
 
@@ -70,20 +70,19 @@ properties used during actions or conditions."
 ;; 2. Edna sexp form; this is the intermediary form, and form used in org-edna-form
 ;; 3. Lisp form; a form that can be evaluated by Emacs
 
-(defmacro org-edna--syntax-error (msg form error-form)
+(defmacro org-edna--syntax-error (msg form error-pos)
   "Signal an Edna syntax error.
 
 MSG will be reported to the user and should describe the error.
 FORM is the form that generated the error.
-ERROR-FORM is the sub-form in FORM at which the error occurred."
-  `(signal 'invalid-read-syntax (list :msg ,msg :form ,form :error-form ,error-form)))
+ERROR-POS is the positiong in MSG at which the error occurred."
+  `(signal 'invalid-read-syntax (list :msg ,msg :form ,form :error-pos ,error-pos)))
 
 (defun org-edna--print-syntax-error (error-plist)
   "Prints the syntax error from ERROR-PLIST."
   (let* ((msg (plist-get error-plist :msg))
          (form (plist-get error-plist :form))
-         (error-form (plist-get error-plist :error-form))
-         (pos (string-match-p (symbol-name (car error-form)) form)))
+         (pos (plist-get error-plist :error-pos)))
     (message
      "Org Edna Syntax Error: %s\n%s\n%s"
      msg form (concat (make-string pos ?\ ) "^"))))
@@ -192,7 +191,7 @@ siblings todo!(TODO) => ((siblings) (todo! TODO))"
         final-form)
     (while (< pos (length string))
       (pcase-let* ((`(,form ,new-pos) (org-edna-parse-string-form string pos)))
-        (setq final-form (append final-form (list form)))
+        (setq final-form (append final-form (list (cons form pos))))
         (setq pos new-pos)))
     (cons final-form pos)))
 
@@ -212,58 +211,65 @@ the remainder of FORM after the current scope was parsed."
          final-form
          need-break)
     (while (and remaining-form (not need-break))
-      (let ((current-form (pop remaining-form)))
+      (pcase-let* ((`(,current-form . ,error-pos) (pop remaining-form)))
         (pcase (car current-form)
           ('if
               ;; Check the car of each r*-form for the expected
               ;; ending.  If it doesn't match, throw an error.
               (let (cond-form then-form else-form have-else)
                 (pcase-let* ((`(,temp-form ,r-form)
-                              (org-edna--normalize-sexp-form
+                              (org-edna--normalize-forms
                                remaining-form
                                ;; Only allow conditions in cond forms
                                'condition
+                               '((then))
                                from-string)))
-                  ;; Use car-safe to catch r-form = nil
-                  (unless (equal (car-safe r-form) '(then))
+                  (unless r-form
                     (org-edna--syntax-error
                      "Malformed if-construct; expected then terminator"
-                     from-string current-form))
+                     from-string error-pos))
+                  ;; Skip the 'then' construct and move forward
                   (setq cond-form temp-form
+                        error-pos (cdar r-form)
                         remaining-form (cdr r-form)))
+
                 (pcase-let* ((`(,temp-form ,r-form)
-                              (org-edna--normalize-sexp-form remaining-form
-                                                             action-or-condition
-                                                             from-string)))
-                  (unless (member (car-safe r-form) '((else) (endif)))
+                              (org-edna--normalize-forms remaining-form
+                                                         action-or-condition
+                                                         '((else) (endif))
+                                                         from-string)))
+                  (unless r-form
                     (org-edna--syntax-error
                      "Malformed if-construct; expected else or endif terminator"
-                     from-string current-form))
-                  (setq have-else (equal (car r-form) '(else))
+                     from-string error-pos))
+                  (setq have-else (equal (caar r-form) '(else))
                         then-form temp-form
+                        error-pos (cdar r-form)
                         remaining-form (cdr r-form)))
                 (when have-else
                   (pcase-let* ((`(,temp-form ,r-form)
-                                (org-edna--normalize-sexp-form remaining-form
-                                                               action-or-condition
-                                                               from-string)))
-                    (unless (equal (car-safe r-form) '(endif))
+                                (org-edna--normalize-forms remaining-form
+                                                           action-or-condition
+                                                           '((endif))
+                                                           from-string)))
+                    (unless r-form
                       (org-edna--syntax-error "Malformed if-construct; expected endif terminator"
-                                              from-string current-form))
+                                              from-string error-pos))
                     (setq else-form temp-form
                           remaining-form (cdr r-form))))
                 (push `(if ,cond-form ,then-form ,else-form) final-form)))
           ((or 'then 'else 'endif)
            (setq need-break t)
            ;; Push the object back on remaining-form so the if knows where we are
-           (setq remaining-form (cons current-form remaining-form)))
+           (setq remaining-form (cons (cons current-form error-pos) remaining-form)))
           (_
            ;; Determine the type of the form
            ;; If we need to change state, return from this scope
-           (pcase-let* ((`(,type . ,func) (org-edna--function-for-key (car current-form))))
+           (pcase-let* ((`(_ . ,key)   (org-edna-break-modifier (car current-form)))
+                        (`(,type . ,func) (org-edna--function-for-key key)))
              (unless (and type func)
                (org-edna--syntax-error "Unrecognized Form"
-                                       from-string current-form))
+                                       from-string error-pos))
              (pcase type
                ('finder
                 (unless (memq state '(finder consideration))
@@ -272,17 +278,17 @@ the remainder of FORM after the current scope was parsed."
                ('action
                 (unless (eq action-or-condition 'action)
                   (org-edna--syntax-error "Actions aren't allowed in this context"
-                                          from-string current-form)))
+                                          from-string error-pos)))
                ('condition
                 (unless (eq action-or-condition 'condition)
                   (org-edna--syntax-error "Conditions aren't allowed in this context"
-                                          from-string current-form))))
+                                          from-string error-pos))))
              ;; Update state
              (setq state type)
              (if need-break ;; changing state
                  ;; Keep current-form on remaining-form so we have it for the
                  ;; next scope, since we didn't process it here.
-                 (setq remaining-form (cons current-form remaining-form))
+                 (setq remaining-form (cons (cons current-form error-pos) remaining-form))
                (push current-form final-form)))))))
     (when (and (eq state 'finder)
                (eq action-or-condition 'condition))
@@ -290,6 +296,26 @@ the remainder of FORM after the current scope was parsed."
       ;; something.  No default actions, so this must be a blocker.
       (push '(!done?) final-form))
     (list (nreverse final-form) remaining-form)))
+
+(defun org-edna--normalize-forms (form-list action-or-condition end-forms &optional from-string)
+  "Normalize forms in flat form list FORM-LIST until one of END-FORMS is found.
+
+ACTION-OR-CONDITION is either 'action or 'condition, indicating
+which of the two types is allowed in FORM.
+
+FROM-STRING is used internally, and is non-nil if FORM was
+originally a string.
+
+END-FORMS is a list of forms.  When one of them is found, stop parsing."
+  (pcase-let* ((`(,final-form ,rem-form) (org-edna--normalize-sexp-form form-list action-or-condition from-string)))
+    (setq final-form (list final-form))
+    ;; Use car-safe to catch r-form = nil
+    (while (and rem-form (not (member (car (car-safe rem-form)) end-forms)))
+      (pcase-let* ((`(,new-form ,r-form)
+                    (org-edna--normalize-sexp-form rem-form action-or-condition from-string)))
+        (setq final-form (append final-form (list new-form))
+              rem-form r-form)))
+    (list final-form rem-form)))
 
 (defun org-edna--normalize-all-forms (form-list action-or-condition &optional from-string)
   "Normalize all forms in flat form list FORM-LIST.
@@ -299,14 +325,7 @@ which of the two types is allowed in FORM.
 
 FROM-STRING is used internally, and is non-nil if FORM was
 originally a string."
-  (pcase-let* ((`(,final-form ,rem-form) (org-edna--normalize-sexp-form form-list action-or-condition from-string)))
-    (setq final-form (list final-form))
-    (while rem-form
-      (pcase-let* ((`(,new-form ,r-form)
-                    (org-edna--normalize-sexp-form rem-form action-or-condition from-string)))
-        (setq final-form (append final-form (list new-form))
-              rem-form r-form)))
-    final-form))
+  (car-safe (org-edna--normalize-forms form-list action-or-condition nil from-string)))
 
 (defun org-edna-string-form-to-sexp-form (string-form action-or-condition)
   "Parse string form STRING-FORM into an Edna sexp form.
