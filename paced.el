@@ -331,6 +331,10 @@ customization interface."
   "Return the name of dictionary OBJ."
   (oref obj object-name))
 
+(cl-defmethod paced-dictionary-empty-p ((dict paced-dictionary))
+  "Return non-nil if DICT is empty."
+  (map-empty-p (oref dict usage-hash)))
+
 ;;; Current Dictionary
 
 (defcustom paced-global-dictionary-enable-alist nil
@@ -1271,11 +1275,15 @@ For how the current dictionary is determined, see
 
 (cl-defmethod paced-dictionary-length-of-longest-word ((dict paced-dictionary))
   "Return the length of the longest word in DICT."
-  (seq-max
-   (map-apply
-    (lambda (key _value)
-      (length key))
-    (oref dict usage-hash))))
+  (cond
+   ;; If DICT is empty, seq-max throws an error.
+   ((paced-dictionary-empty-p dict) 0)
+   (t
+    (seq-max
+     (map-apply
+      (lambda (key _value)
+        (length key))
+      (oref dict usage-hash))))))
 
 (cl-defmethod paced-dictionary-tabulated-list-entries ((dict paced-dictionary))
   "Create a value for `tabulated-list-entries' from DICT."
