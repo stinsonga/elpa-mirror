@@ -453,6 +453,9 @@
                                  (t (:background "DarkSlateGray1")))
   "Face for highlighting the other matches.")
 
+(defface el-search-highlight-in-prompt-face '((t (:inherit font-lock-variable-name-face)))
+  "Face for highlighting important parts in prompts.")
+
 (defcustom el-search-display-buffer-popup-action
   '((display-buffer-reuse-window display-buffer-pop-up-frame)
     (reusable-frames . visible))
@@ -3324,10 +3327,10 @@ Toggle splicing mode (\\[describe-function] el-search-query-replace for details)
                                      skip-matches-in-replacement))
                            (el-search--skip-expression nil t))
                           ((eq skip-matches-in-replacement 'ask)
-                           (ding) ;Or should we even change the keys so that the user can't repeat
-                                  ;y by accident?
                            (pcase (car (read-multiple-choice
-                                        "There are matches in this replacement - skip them? "
+                                        (propertize
+                                         "There are matches in this replacement - skip them? "
+                                         'face 'el-search-highlight-in-prompt-face)
                                         '((?y "yes")
                                           (?n "no")
                                           (?Y "always Yes")
