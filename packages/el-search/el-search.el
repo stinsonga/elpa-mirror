@@ -3216,16 +3216,19 @@ Thanks!"))))
                                (lambda () (el-search--format-replacement
                                       new-expr original-text to-input-string splice)))
                               (to-insert (funcall get-replacement-string))
+                              (replacement-contains-another-match-p
+                               (lambda ()
+                                 (with-temp-buffer
+                                   (emacs-lisp-mode)
+                                   (insert to-insert)
+                                   (goto-char 1)
+                                   (el-search--skip-expression new-expr)
+                                   (condition-case nil
+                                       (progn (el-search--ensure-sexp-start)
+                                              (el-search--search-pattern-1 matcher 'noerror))
+                                     (end-of-buffer nil)))))
                               (replacement-contains-another-match
-                               (with-temp-buffer
-                                 (emacs-lisp-mode)
-                                 (insert to-insert)
-                                 (goto-char 1)
-                                 (el-search--skip-expression new-expr)
-                                 (condition-case nil
-                                     (progn (el-search--ensure-sexp-start)
-                                            (el-search--search-pattern-1 matcher 'noerror))
-                                   (end-of-buffer nil))))
+                               (funcall replacement-contains-another-match-p))
                               (do-replace
                                (lambda ()
                                  (save-excursion
@@ -3296,9 +3299,12 @@ Toggle splicing mode (\\[describe-function] el-search-query-replace for details)
                                              t)
                                          (?d (call-interactively #'el-search-skip-directory)
                                              t)
-                                         (?s (cl-callf not splice)
-                                             (setq to-insert (funcall get-replacement-string))
-                                             nil)
+                                         (?s
+                                          (setq splice    (not splice)
+                                                to-insert (funcall get-replacement-string)
+                                                replacement-contains-another-match
+                                                (funcall replacement-contains-another-match-p))
+                                          nil)
                                          (?o
                                           ;; FIXME: Should we allow to edit the replacement?
                                           (let* ((buffer (get-buffer-create
