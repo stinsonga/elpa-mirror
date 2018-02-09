@@ -3236,7 +3236,6 @@ Thanks!"))))
                                      (widen)
                                      (el-search--replace-hunk (list (point) (el-search--end-of-sexp)) to-insert)))
                                  (el-search--ensure-sexp-start) ;skip potentially newly added whitespace
-                                 (unless replace-all (el-search-hl-sexp (list opoint (point))))
                                  (cl-incf nbr-replaced)
                                  (cl-incf nbr-replaced-total)
                                  (setq replaced-this t)))
