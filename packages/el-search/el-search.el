@@ -3231,14 +3231,13 @@ Thanks!"))))
                               (to-insert (funcall get-replacement-string))
                               (replacement-contains-another-match-p
                                (lambda ()
+                                 ;; This intentionally includes the replacement itself
                                  (with-temp-buffer
                                    (emacs-lisp-mode)
                                    (insert to-insert)
                                    (goto-char 1)
-                                   (el-search--skip-expression new-expr)
                                    (condition-case nil
-                                       (progn (el-search--ensure-sexp-start)
-                                              (el-search--search-pattern-1 matcher 'noerror))
+                                       (el-search--search-pattern-1 matcher 'noerror)
                                      (end-of-buffer nil)))))
                               (replacement-contains-another-match
                                (funcall replacement-contains-another-match-p))
@@ -3344,34 +3343,36 @@ Toggle splicing mode (\\[describe-function] el-search-query-replace for details)
                          (when replacement-contains-another-match
                            (el-search-hl-other-matches matcher))
                          (unless (eobp)
-                           (cond
-                            ((not (and replaced-this
-                                       replacement-contains-another-match
-                                       skip-matches-in-replacement))
-                             (el-search--skip-expression nil t))
-                            ((eq skip-matches-in-replacement 'ask)
-                             (pcase (car (read-multiple-choice
-                                          (propertize
-                                           "There are matches in this replacement - skip them? "
-                                           'face 'el-search-highlight-in-prompt-face)
-                                          '((?y "yes")
-                                            (?n "no")
-                                            (?Y "always Yes")
-                                            (?N "always No")
-                                            (?q "quit"))))
-                               ((and (or ?y ?Y) answer)
-                                (when (= answer ?Y) (setq skip-matches-in-replacement t))
-                                (forward-sexp))
-                               (?q (signal 'quit t))
-                               (answer
-                                (when (= answer ?N) (setq skip-matches-in-replacement nil))
-                                (el-search--skip-expression nil t)
-                                (when replace-all
-                                  (setq replace-all nil) ;FIXME: can this be annoying?  Problem: we need
-                                                         ;to catch possibly infinite loops
-                                  (message "Falling back to interactive mode")
-                                  (sit-for 2.)))))
-                            (t (forward-sexp)))))))
+                           (let ((skip-replacement
+                                  (lambda () (forward-sexp (if splice (length replacement) 1)))))
+                             (cond
+                              ((not (and replaced-this
+                                         replacement-contains-another-match
+                                         skip-matches-in-replacement))
+                               (unless (or replaced-this (eobp))
+                                 (el-search--skip-expression nil t)))
+                              ((eq skip-matches-in-replacement 'ask)
+                               (pcase (car (read-multiple-choice
+                                            (propertize
+                                             "There are matches in this replacement - skip them? "
+                                             'face 'el-search-highlight-in-prompt-face)
+                                            '((?y "yes")
+                                              (?n "no")
+                                              (?Y "always Yes")
+                                              (?N "always No")
+                                              (?q "quit"))))
+                                 ((and (or ?y ?Y) answer)
+                                  (when (= answer ?Y) (setq skip-matches-in-replacement t))
+                                  (funcall skip-replacement))
+                                 (?q (signal 'quit t))
+                                 (answer
+                                  (when (= answer ?N) (setq skip-matches-in-replacement nil))
+                                  (when replace-all
+                                    (setq replace-all nil) ;FIXME: can this be annoying?  Problem:
+                                                           ;we need to catch possibly infinite loops
+                                    (message "Falling back to interactive mode")
+                                    (sit-for 2.)))))
+                              (t (funcall skip-replacement))))))))
                  (quit  (setq should-quit t))
                  ((error debug) (setq should-quit (lambda () (error "%s" (error-message-string err))))))
                (el-search-hl-remove)
