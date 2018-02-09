@@ -3080,10 +3080,23 @@ reindent."
       (insert to-insert)
       (when insert-newline-after
         (insert "\n"))
-      (save-excursion
-        ;; the whole enclosing sexp might need re-indenting
-        (condition-case nil (up-list)  (scan-error))
-        (indent-region opoint (1+ (point)))))))
+      (if (string= to-insert "")
+          ;; We deleted the match.  Clean up.
+          (if (save-excursion (goto-char (line-beginning-position))
+                              (looking-at (rx bol (* space) eol)))
+              (delete-region (match-beginning 0) (min (1+ (match-end 0)) (point-max)))
+            (save-excursion
+              (skip-chars-backward " \t")
+              (when (looking-at (rx (+ space) eol))
+                (delete-region (match-beginning 0) (match-end 0))))
+            (when (and (looking-back (rx space) (1- (point)))
+                       (looking-at (rx (+ space))))
+              (delete-region (match-beginning 0) (match-end 0)))
+            (indent-according-to-mode))
+        (save-excursion
+          ;; the whole enclosing sexp might need re-indenting
+          (condition-case nil (up-list)  (scan-error))
+          (indent-region opoint (1+ (point))))))))
 
 (defun el-search--format-replacement (replacement original replace-expr-input splice)
   ;; Return a printed representation of REPLACEMENT.  Try to reuse the
@@ -3229,13 +3242,18 @@ Thanks!"))))
                                      (end-of-buffer nil)))))
                               (replacement-contains-another-match
                                (funcall replacement-contains-another-match-p))
+                              (void-replacement-p (lambda () (and splice (null new-expr))))
                               (do-replace
                                (lambda ()
                                  (save-excursion
                                    (save-restriction
                                      (widen)
-                                     (el-search--replace-hunk (list (point) (el-search--end-of-sexp)) to-insert)))
-                                 (el-search--ensure-sexp-start) ;skip potentially newly added whitespace
+                                     (el-search--replace-hunk
+                                      (list (point) (el-search--end-of-sexp))
+                                      to-insert)))
+                                 (unless (funcall void-replacement-p)
+                                   ;;skip potentially newly added whitespace
+                                   (el-search--ensure-sexp-start))
                                  (cl-incf nbr-replaced)
                                  (cl-incf nbr-replaced-total)
                                  (setq replaced-this t)))
