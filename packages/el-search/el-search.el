@@ -3006,7 +3006,9 @@ related user options."
   "Prompt for a register and save the EL-SEARCH-OBJECT to it.
 In an interactive call or when EL-SEARCH-OBJECT is nil, the
 current search is used."
-  (interactive (list (register-read-with-preview "Save current search to register: ")))
+  (interactive (list (if el-search--current-search
+                         (register-read-with-preview "Save current search to register: ")
+                       (user-error "No search has been started yet"))))
   (set-register register (or el-search-object el-search--current-search)))
 
 (defun el-search-clone-to-register (register &optional el-search-object)
@@ -3016,7 +3018,9 @@ current search is used.
 
 This is similar to `el-search-to-register' but what is saved is a
 clone with an individual state."
-  (interactive (list (register-read-with-preview "Save clone of current search to register: ")))
+  (interactive (list (if el-search--current-search
+                         (register-read-with-preview "Save clone of current search to register: ")
+                       (user-error "No search has been started yet"))))
   (set-register register (copy-el-search-object (or el-search-object el-search--current-search))))
 
 (cl-defmethod register-val-jump-to ((val el-search-object) _arg)
