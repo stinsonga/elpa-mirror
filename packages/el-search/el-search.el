@@ -344,34 +344,40 @@
 ;;   (el-search-mapc->dolist repl) -> repl
 ;;
 ;;
-;;
-;; Bugs, Known Limitations
-;; =======================
-;;
-;; - Replacing: in some cases the read syntax of forms is changing due
-;; to reading-printing.  "Some" because we can handle this problem in
-;; most cases.
-;;
-;; - Similar: comments are normally preserved (where it makes
-;; sense).  But when replacing like `(foo ,a ,b) -> `(foo ,b ,a)
-;;
-;; in a content like
-;;
-;;   (foo
-;;     a
-;;     ;; comment
-;;     b)
-;;
-;; the comment will be lost.
-;;
-;;
 ;; Acknowledgments
 ;; ===============
 ;;
 ;; Thanks to Stefan Monnier for corrections and advice.
 ;;
 ;;
-;; BUGS:
+;; Known Limitations
+;; =================
+;;
+;; - Replacing: in some cases the read syntax of forms is changing due
+;;   to reading-printing.  "Some" because we can handle this problem
+;;   in most cases.
+;;
+;; - Similar: comments are normally preserved (where it makes sense).
+;;   But when replacing like `(foo ,a ,b) -> `(foo ,b ,a)
+;;
+;;   in a content like
+;;
+;;     (foo
+;;       a
+;;       ;; comment
+;;       b)
+;;
+;;   the comment will be lost.
+;;
+;; - Something like '(1 #1#) is unmatchable (because it is
+;;   un`read'able without context).  For a similar reason it is
+;;   currently not possible to allow a replacement to contain
+;;   uninterned symbols or repeated/circular parts.
+;;
+;;
+;;
+;; BUGS
+;; ====
 ;;
 ;; - l is very slow for very long lists.  E.g. C-S-e (l "test")
 ;;
@@ -2347,7 +2353,8 @@ With prefix arg, restart the current search."
 ;;;###autoload
 (defun el-search-pattern-backwards (pattern)
   "Search the current buffer backwards for matches of PATTERN."
-  (declare (interactive-only t))
+  (declare (interactive-only t));; FIXME: define noninteractive version - and -1 with hms like
+                                ;; `el-search--search-pattern-1'
   (interactive (el-search-pattern--interactive))
   (if (eq pattern (el-search--current-pattern))
       (progn
@@ -2951,7 +2958,7 @@ are ignored."
    (lambda ()
      (stream-concatenate
       (seq-map (lambda (path) (el-search-stream-of-directory-files path nil))
-               (stream (delq nil load-path)))))
+               (stream (remq nil load-path)))))
    (lambda (search) (setf (alist-get 'description (el-search-object-properties search))
                      "Search `load-path'"))))
 
@@ -3187,7 +3194,8 @@ Thanks!"))))
                                                       (el-search-head-buffer head)))
                        (sit-for 1.)))
 
-                   (while (and (not done) (el-search--search-pattern-1 matcher t nil heuristic-matcher))
+                   (while (and (not done)
+                               (el-search--search-pattern-1 matcher t nil heuristic-matcher))
                      (setq opoint (point))
                      (setf (el-search-head-position
                             (el-search-object-head el-search--current-search))
@@ -3250,9 +3258,11 @@ Thanks!"))))
                                         '(?b "skip buf"
                                              "Skip this buffer and any remaining matches in it")
                                         (and buffer-file-name
-                                             '(?d "skip dir" "Skip a parent directory of current file"))
+                                             '(?d "skip dir"
+                                                  "Skip a parent directory of current file"))
                                         (and (not replaced-this)
-                                             (list ?s (concat (if splice "disable" "enable") " splice")
+                                             (list ?s (concat (if splice "disable" "enable")
+                                                              " splice")
                                                    (substitute-command-keys "\
 Toggle splicing mode (\\[describe-function] el-search-query-replace for details).")))
                                         '(?o "show" "Show replacement in a buffer")
@@ -3377,10 +3387,9 @@ Toggle splicing mode (\\[describe-function] el-search-query-replace for details)
                           nbr-replaced
                           (if (zerop nbr-skipped)  ""
                             (format "   (%d skipped)" nbr-skipped))))))))
-      (while (and
-              (not done)
-              (progn (el-search-continue-search)
-                     (and el-search--success (not el-search--wrap-flag))))
+      (while (and (not done)
+                  (progn (el-search-continue-search)
+                         (and el-search--success (not el-search--wrap-flag))))
         (funcall replace-in-current-buffer)
         (unless replace-all-and-following (setq replace-all nil)))
       (message "Replaced %d matches in %d buffers" nbr-replaced-total nbr-changed-buffers))))
