@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.6.7
+;; Version: 1.6.8
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -548,7 +548,10 @@ of these commands will keep the
 When non-nil, scrolling commands don't deactivate the current
 search.  Unlike isearch, it's possible to scroll the current
 match offscreen.  Use `el-search-jump-to-search-head' (\\[el-search-jump-to-search-head])
-to go back to the position of the current match."
+to go back to the position of the current match.
+
+When nil, scrolling commands deactivate the search (like any
+other command that doesn't continue el-searching)."
   :type 'boolean)
 
 (defvar el-search-read-expression-map
@@ -678,6 +681,7 @@ nil."
   (if (boundp 'force-new-style-backquotes)
       (lambda (&optional stream)
         "Like `read' but bind `force-new-style-backquotes' to t."
+        (defvar force-new-style-backquotes)
         (let ((force-new-style-backquotes t))
           (read stream)))
     #'read))
@@ -1127,18 +1131,14 @@ so this is mainly useful to add short notes."
       (alist-get 'description (el-search-object-properties el-search--current-search))))
 
 
-(defun el-search-kill-left-over-search-buffers (&optional not-current-buffer)
+(defun el-search-kill-left-over-search-buffers ()
   "Kill all buffers that were opened just for searching.
 Buffers where a search had been paused or aborted (e.g. by moving
-the cursor) are not killed.
-
-With NOT-CURRENT-BUFFER non-nil, inhibit the current buffer from
-being killed."
+the cursor) are not killed."
   (interactive)
   (dolist (buffer (buffer-list))
     (when (with-current-buffer buffer el-search--temp-buffer-flag)
-      (unless (or (and not-current-buffer (eq buffer (current-buffer)))
-                  (and el-search--current-search
+      (unless (or (and el-search--current-search
                        (eq buffer (el-search-head-buffer
                                    (el-search-object-head el-search--current-search))))
                   (with-current-buffer buffer (el-search--pending-search-p)))
@@ -1268,7 +1268,9 @@ PATTERN and combining the heuristic matchers of the subpatterns."
     (if buffer
         (if (buffer-live-p buffer)
             (with-current-buffer buffer (funcall get-buffer-atoms))
-          ())
+          ;; FILE-NAME-OR-BUFFER was bound to a killed buffer.  We just return
+          ;; the empty list.
+          '())
       (let ((file-name file-name-or-buffer))
         (if-let ((hash-entry (gethash file-name el-search--atom-list-cache))
                  (its-usable (equal (nth 5 (file-attributes file-name)) (car hash-entry))))
@@ -1289,6 +1291,7 @@ PATTERN and combining the heuristic matchers of the subpatterns."
       (char-table-p object) (bool-vector-p object)))
 
 (defun el-search--flatten-tree (tree)
+  "Return a list of `el-search--atomic-p' objects in TREE."
   (let ((elements ())
         (walked-objects ;to avoid infinite recursion for circular TREEs
          (make-hash-table :test #'eq))
@@ -1328,7 +1331,11 @@ PATTERN and combining the heuristic matchers of the subpatterns."
   ;; Prepare to continue SEARCH in the next buffer in line.  Move
   ;; SEARCH's head accordingly.  When specified, PREDICATE should accept
   ;; a file name or buffer, and we skip all buffers and files not
-  ;; fulfilling it.  Return the new buffer to search in or nil if done.
+  ;; fulfilling it.  The returned buffer may be a helper buffer not
+  ;; suitable for presentation to the user (this case is handled in
+  ;; `el-search-continue-search').
+  ;;
+  ;; Return the new buffer to search in or nil if done.
   (unless keep-highlighting
     (el-search-hl-remove)
     ;; Ensure that `el-search--pending-search-p' returns nil in this
@@ -2893,7 +2900,8 @@ Prompt for a new pattern and revert."
                                         (stream-pop matches))))
                                   (insert
                                    (with-current-buffer buffer
-                                     (buffer-substring-no-properties (point) (scan-sexps context-beg 1))))))
+                                     (buffer-substring-no-properties
+                                      (point) (scan-sexps context-beg 1))))))
 
                               (let ((inhibit-message t) (message-log-max nil))
                                 (indent-region insertion-point (point))
@@ -3116,6 +3124,7 @@ Add line breaks before and after TO-INSERT when appropriate and
 reindent."
   (atomic-change-group
     (let* ((inhibit-message t)
+           (message-log-max nil)
            (opoint (point))
            (original-text (prog1 (apply #'buffer-substring-no-properties region)
                             (goto-char (car region))
@@ -3442,13 +3451,18 @@ Replace all matches in all buffers"))))
                               ((eq skip-matches-in-replacement 'ask)
                                (pcase (car (read-multiple-choice
                                             (propertize
-                                             "There are matches in this replacement - skip them? "
+                                             "Skip the matches in the replacement? "
                                              'face 'el-search-highlight-in-prompt-face)
-                                            '((?y "yes")
-                                              (?n "no")
-                                              (?Y "always Yes")
-                                              (?N "always No")
-                                              (?q "quit"))))
+                                            '((?y "yes"
+                                                  "Skip any matches in this replacement")
+                                              (?n "no"
+                                                  "Continue with the matches in the replacement")
+                                              (?Y "always Yes"
+                                                  "Skip now and for the rest of this session")
+                                              (?N "always No"
+                                                  "Don't skip now and for the rest of this session")
+                                              (?q "quit"
+                                                  "Abort this query-replace session"))))
                                  ((and (or ?y ?Y) answer)
                                   (when (= answer ?Y) (setq skip-matches-in-replacement t))
                                   (funcall skip-replacement))
