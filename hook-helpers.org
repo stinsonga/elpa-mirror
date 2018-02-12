@@ -107,7 +107,7 @@ Which handles everything for you.
 There are two macros in hook helpers: ~define-hook-helper~ and ~create-hook-helper~.
 
 The former is a basic case; it creates and adds a helper for a single hook.
-Most hooks have the -hook suffix, so we take advantage of that here for a little
+Most hooks have the "-hook" suffix, so we take advantage of that here for a little
 less typing.  In order to add a helper to a non-standard hook, use the ~:suffix~
 argument:
 
