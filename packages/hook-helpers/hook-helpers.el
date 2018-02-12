@@ -1,15 +1,15 @@
 ;;; hook-helpers.el --- Anonymous, modifiable hook functions -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2016-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2016-2018 Free Software Foundation, Inc.
 
 ;; Author: Ian Dunn <dunni@gnu.org>
 ;; Maintainer: Ian Dunn <dunni@gnu.org>
 ;; Keywords: development, hooks
 ;; Package-Requires: ((emacs "25.1"))
 ;; URL: https://savannah.nongnu.org/projects/hook-helpers-el/
-;; Version: 1.1
+;; Version: 1.1.1
 ;; Created: 06 May 2016
-;; Modified: 23 Apr 2017
+;; Modified: 11 Feb 2018
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -39,7 +39,11 @@
 
 ;;; Code:
 
-(require 'subr-x)
+(eval-when-compile (require 'subr-x))
+
+;; Compatibility for Emacs < 26.1
+(unless (fboundp 'when-let*)
+  (defalias 'when-let* 'when-let))
 
 (defvar hkhlp--helpers-map nil
   "Map of IDs to helpers.")
@@ -101,7 +105,7 @@ For each hook HOOK in the original:
          ((not hook-val) nil)
          ((member hook new-hooks)
           ;; Update the helper in hooks
-          (when-let ((elt (cl-position old-func hook-val :test 'equal)))
+          (when-let* ((elt (cl-position old-func hook-val :test 'equal)))
             (setf (nth elt hook-val) new-func)))
          (t
           ;; Delete the helper from the hooks
@@ -138,7 +142,7 @@ See `hkhlp-normalize-hook-spec' for an explanation of HOOKS.
                                       :source-file source-file
                                       :hooks (mapcar 'car normalized-hooks))))
        ;; Update an old helper
-       (when-let ((old-helper (alist-get id-sym hkhlp--helpers-map)))
+       (when-let* ((old-helper (alist-get id-sym hkhlp--helpers-map)))
          (hkhlp-update-helper old-helper helper))
        (setf (alist-get id-sym hkhlp--helpers-map) helper)
        ;; Add to the new hook-spec
