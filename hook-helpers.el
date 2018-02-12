@@ -1,6 +1,6 @@
 ;;; hook-helpers.el --- Anonymous, modifiable hook functions -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2016-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2016-2018 Free Software Foundation, Inc.
 
 ;; Author: Ian Dunn <dunni@gnu.org>
 ;; Maintainer: Ian Dunn <dunni@gnu.org>
@@ -9,7 +9,7 @@
 ;; URL: https://savannah.nongnu.org/projects/hook-helpers-el/
 ;; Version: 1.1.1
 ;; Created: 06 May 2016
-;; Modified: 23 Apr 2017
+;; Modified: 11 Feb 2018
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
