@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.7.6
+;; Version: 1.7.7
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -76,6 +76,12 @@
 ;;   C-S, M-s e s (el-search-pattern)
 ;;     Start a search in the current buffer/go to the next match.
 ;;
+;;     While searching, the searched buffer is current (not the
+;;     minibuffer).  All commands that are not search or scrolling
+;;     commands terminate the search, while the state of the search is
+;;     always automatically saved.  Like in isearch you can also just
+;;     hit RET to exit.
+;;
 ;;   C-R, M-s e r (el-search-pattern-backward)
 ;;     Search backward.
 ;;
@@ -124,6 +130,12 @@
 ;;     the searched buffer.
 ;;     With a plain C-u prefix arg, prompt for a former search to
 ;;     resume.
+;;
+;;   C-S-next, v   when search is active (el-search-scroll-down)
+;;   C-S-prior, V  when search is active (el-search-scroll-up)
+;;     Scrolling by matches: Select the first match after
+;;     `window-end', or select the first match before `window-start',
+;;     respectively.
 ;;
 ;;   C-H, M-s e h (el-search-this-sexp)
 ;;     Grab the symbol or sexp under point and initiate an el-search
@@ -553,6 +565,8 @@ The default value is ask-multi."
     el-search-from-beginning
     el-search-last-buffer-match
     el-search-continue-in-next-buffer
+    el-search-scroll-down
+    el-search-scroll-up
     universal-argument universal-argument-more
     digit-argument negative-argument)
   "List of commands that don't end repeatability of el-search commands.
@@ -1680,6 +1694,21 @@ in, in order, when called with no arguments."
     (with-eval-after-load 'ibuffer
       (keybind ibuffer-mode-map ?s #'el-search-ibuffer-marked-buffers))))
 
+(defun el-search-pause-search ()
+  "Exit el-search normally.
+
+You also can invoke any other non-search command to exit an el-search
+normally - the state of the current search is automatically saved in
+any case."
+  (interactive)
+  nil)
+
+(defvar el-search-basic-transient-map
+  (let ((transient-map (make-sparse-keymap)))
+    (define-key transient-map [return]    #'el-search-pause-search)
+    (define-key transient-map (kbd "RET") #'el-search-pause-search)
+    transient-map))
+
 (defvar el-search-prefix-key-transient-map
   (let ((transient-map (make-sparse-keymap)))
     (el-search-loop-over-bindings
@@ -1694,6 +1723,13 @@ in, in order, when called with no arguments."
                              el-search-continue-in-next-buffer
                              el-search-occur))
          (define-key transient-map (vector key) command))))
+
+    ;; v and V are analogue to Ediff - FIXME: this doesn't fit into the
+    ;; `el-search-loop-over-bindings' abstraction
+    (define-key transient-map [?v] #'el-search-scroll-down)
+    (define-key transient-map [?V] #'el-search-scroll-up)
+
+    (set-keymap-parent transient-map el-search-basic-transient-map)
     transient-map))
 
 (defun el-search-keep-session-command-p (command)
@@ -1705,10 +1741,12 @@ in, in order, when called with no arguments."
        (get command 'scroll-command))))
 
 (defun el-search-prefix-key-maybe-set-transient-map ()
-  (when el-search-use-transient-map
-    (set-transient-map el-search-prefix-key-transient-map
-                       (lambda () (or (memq this-command el-search-keep-transient-map-commands)
-                                      (el-search-keep-session-command-p this-command))))))
+  (set-transient-map
+   (if el-search-use-transient-map
+       el-search-prefix-key-transient-map
+     el-search-basic-transient-map)
+   (lambda () (or (memq this-command el-search-keep-transient-map-commands)
+                  (el-search-keep-session-command-p this-command)))))
 
 (defun el-search-shift-bindings-bind-function (map key command)
   (define-key map `[(control ,@(if (<= ?a key ?z) `(shift ,key) `(,key)))] command))
@@ -1716,7 +1754,9 @@ in, in order, when called with no arguments."
 ;;;###autoload
 (defun el-search-install-shift-bindings ()
   (interactive)
-  (el-search-loop-over-bindings #'el-search-shift-bindings-bind-function))
+  (el-search-loop-over-bindings #'el-search-shift-bindings-bind-function)
+  (define-key el-search-basic-transient-map [C-S-next]  #'el-search-scroll-down)
+  (define-key el-search-basic-transient-map [C-S-prior] #'el-search-scroll-up))
 
 (defun el-search-bind-under-prefix-key-function (prefix)
   (lambda (map key command)
@@ -3627,7 +3667,8 @@ exactly you did?  Thanks!"))))
                                                      (substitute-command-keys "\
 Toggle splicing mode (\\[describe-function] el-search-query-replace for details)")))
                                           '(?o "show" "Show replacement in a buffer")
-                                          '(?q "quit"))))))))
+                                          '(?q  "quit")
+                                          '(?\r "quit"))))))))
                          (if replace-all
                              (funcall do-replace)
                            (while (not (pcase (funcall query)
@@ -3685,7 +3726,7 @@ Replace all matches in all buffers"))))
                                             (kill-buffer buffer)
                                             (el-search--after-scroll (selected-window) (window-start))
                                             nil))
-                                         ((or ?q ?\C-g) (signal 'quit t))))))
+                                         ((or ?q ?\C-g ?\r) (signal 'quit t))))))
                          (unless (eobp)
                            (let* ((replacement-end-pos
                                    (and replaced-this
