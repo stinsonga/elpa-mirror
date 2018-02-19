@@ -7,7 +7,7 @@
 ;; Keywords: convenience, completion
 ;; Package-Requires: ((emacs "25.1") (async "1.9.1"))
 ;; URL: https://savannah.nongnu.org/projects/paced-el/
-;; Version: 1.1.2
+;; Version: 1.1.3
 ;; Created: 22 Jan 2017
 ;; Modified: 05 Feb 2018
 
@@ -605,9 +605,13 @@ the thing at point.  See
 `paced-point-in-thing-at-point-for-exclusion' for how to set
 this.
 
+If there is no current \"thing\" at point, the text under point
+will be excluded, and paced will move on.
+
 This also handles character limits set by
 `paced-character-limit'."
   (or (not (paced-thing-meets-limit-p))
+      (not (paced-bounds-of-thing-at-point)) ;; There's no thing at point
       (save-excursion
         (pcase paced-point-in-thing-at-point-for-exclusion
           (`beginning
