@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.6.1
+;; Version: 1.6.2
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -3244,7 +3244,7 @@ Thanks!"))))
                (setq nbr-replaced 0)
                (setq nbr-skipped  0)
                (condition-case err
-                   (progn
+                   (let ((start-point (point)))
 
                      (unless replace-all
                        (el-search-hl-other-matches matcher)
@@ -3300,7 +3300,15 @@ Thanks!"))))
                                    (el-search--ensure-sexp-start))
                                  (cl-incf nbr-replaced)
                                  (cl-incf nbr-replaced-total)
-                                 (setq replaced-this t)))
+                                 (setq replaced-this t)
+                                 (when replace-all
+                                   (let ((head (el-search-object-head el-search--current-search)))
+                                     (el-search--message-no-log
+                                      "%s (%d%%)"
+                                      (or (el-search-head-file head)
+                                          (el-search-head-buffer head))
+                                      (/ (* 100 (- (point) start-point -1))
+                                         (- (point-max) start-point -1)))))))
                               (query
                                (lambda ()
                                  (car
