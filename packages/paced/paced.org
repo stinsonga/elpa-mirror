@@ -477,6 +477,21 @@ added to ~paced-async.el~:
       (when (match-string 1)
         (<= (match-beginning 1) p (match-end 1))))))
 
+(defun org-at-keyword-p ()
+  "Return non-nil if point is at a keyword such as #+TITLE."
+  (save-excursion
+    (beginning-of-line)
+    (looking-at-p "^#\\+")))
+
+(defun org-at-heading-prefix-p ()
+  "Return non-nil if looking at the leading stars of a heading."
+  (looking-at outline-regexp))
+
+(defun org-at-hline-p ()
+  (save-excursion
+    (beginning-of-line)
+    (looking-at-p "^-----")))
+
 (defun org-paced-exclude ()
   (or
    ;; Drawers
@@ -484,6 +499,12 @@ added to ~paced-async.el~:
    (org-in-regexp ":END:") ;; but this does
 
    (org-at-tag-p) ;; tags
+   (org-at-keyword-p) ;; Keywords, such as #+TITLE
+   (org-at-heading-prefix-p) ;; Leading stars of a heading
+   (org-at-item-bullet-p) ;; Item Bullets
+   (org-at-timestamp-p) ;; Timestamps
+   (looking-at-p org-todo-regexp) ;; TODO keywords
+   (org-at-hline-p) ;; H-lines
 
    (org-at-comment-p) ;; comments
    (org-in-regexp org-any-link-re) ;; links
@@ -734,6 +755,9 @@ and letting one of us handle it is a good way to go.
 :PROPERTIES:
 :DESCRIPTION: List of changes by version
 :END:
+** 1.1.3
+- Fixed bug with printing an empty dictionary
+- Fixed bug with paced crashing on non-existent thing at point
 ** 1.1.2
 - Fixed bug with printing dictionaries
 ** 1.1.1

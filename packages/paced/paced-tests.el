@@ -41,6 +41,7 @@
 (defconst paced-first-test-file  (paced-test-file "first.txt"))
 (defconst paced-second-test-file (paced-test-file "second.cpp"))
 (defconst paced-third-test-file  (paced-test-file "third.org"))
+(defconst paced-fourth-test-file  (paced-test-file "fourth.org"))
 
 (defconst paced-test-dict-save-file (paced-test-file "paced-dictionary-case-sensitive"))
 (defconst paced-test-default-registered-map (make-hash-table :test 'equal))
@@ -490,6 +491,16 @@
         (should (paced-excluded-p)))
       (let* ((paced-character-limit 3))
         (should-not (paced-excluded-p))))))
+
+(ert-deftest paced-no-thing-at-point ()
+  "Test for non-existent thing at point."
+  (let* ((org-element-use-cache nil) ;; Causes crashes, so disable it
+         (paced-exclude-function (lambda () nil))
+         (buffer-four (find-file-noselect paced-fourth-test-file)))
+    (with-current-buffer buffer-four
+      (goto-char (point-min))
+      (should-not (paced-thing-at-point))
+      (should (paced-excluded-p)))))
 
 (provide 'paced-tests)
 
