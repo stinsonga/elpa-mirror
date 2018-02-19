@@ -67,6 +67,7 @@ Contributing
 
 Changelog
 
+* 1.1.3: 113.
 * 1.1.2: 112.
 * 1.1.1: 111.
 * 1.1: 11.
@@ -617,6 +618,21 @@ This can be added to ‘paced-async.el’:
            (when (match-string 1)
              (<= (match-beginning 1) p (match-end 1))))))
 
+     (defun org-at-keyword-p ()
+       "Return non-nil if point is at a keyword such as #+TITLE."
+       (save-excursion
+         (beginning-of-line)
+         (looking-at-p "^#\\+")))
+
+     (defun org-at-heading-prefix-p ()
+       "Return non-nil if looking at the leading stars of a heading."
+       (looking-at outline-regexp))
+
+     (defun org-at-hline-p ()
+       (save-excursion
+         (beginning-of-line)
+         (looking-at-p "^-----")))
+
      (defun org-paced-exclude ()
        (or
         ;; Drawers
@@ -624,6 +640,12 @@ This can be added to ‘paced-async.el’:
         (org-in-regexp ":END:") ;; but this does
 
         (org-at-tag-p) ;; tags
+        (org-at-keyword-p) ;; Keywords, such as #+TITLE
+        (org-at-heading-prefix-p) ;; Leading stars of a heading
+        (org-at-item-bullet-p) ;; Item Bullets
+        (org-at-timestamp-p) ;; Timestamps
+        (looking-at-p org-todo-regexp) ;; TODO keywords
+        (org-at-hline-p) ;; H-lines
 
         (org-at-comment-p) ;; comments
         (org-in-regexp org-any-link-re) ;; links
@@ -885,6 +907,7 @@ Changelog
 
 * Menu:
 
+* 1.1.3: 113.
 * 1.1.2: 112.
 * 1.1.1: 111.
 * 1.1: 11.
@@ -892,7 +915,15 @@ Changelog
 * 1.0: 10.
 
 
-File: paced.info,  Node: 112,  Next: 111,  Up: Changelog
+File: paced.info,  Node: 113,  Next: 112,  Up: Changelog
+
+1.1.3
+=====
+
+   • Fixed bug with printing an empty dictionary
+
+
+File: paced.info,  Node: 112,  Next: 111,  Prev: 113,  Up: Changelog
 
 1.1.2
 =====
@@ -952,41 +983,42 @@ Initial release.
 
 Tag Table:
 Node: Top228
-Node: Copying1999
-Node: Introduction2818
-Node: Similar Packages3938
-Node: pabbrev4224
-Node: predictive5367
-Node: Installation6415
-Node: Basic Setup7077
-Node: Dictionaries7692
-Node: Creating a Dictionary8165
-Node: Editing a Dictionary9205
-Node: Selective Dictionaries9681
-Node: Dictionary Files11419
-Node: Printing a Dictionary12540
-Node: Population Commands13062
-Node: Built-in Commands13998
-Node: Properties14795
-Node: Custom Commands15793
-Node: Asynchronous Population18520
-Node: Example Setups19969
-Node: Org Agenda Files20270
-Node: Project Files22030
-Node: Markdown Files23166
-Node: Repopulating Dictionary After Saving24791
-Node: Repopulating Dictionary After Spellchecking the Buffer25719
-Node: Contributing26464
-Node: Bugs27238
-Node: Development27627
-Node: Documentation29388
-Node: Working with EDE29855
-Node: Changelog30898
-Node: 11231062
-Node: 11131180
-Node: 1131419
-Node: 10132026
-Node: 1032234
+Node: Copying2013
+Node: Introduction2832
+Node: Similar Packages3952
+Node: pabbrev4238
+Node: predictive5381
+Node: Installation6429
+Node: Basic Setup7091
+Node: Dictionaries7706
+Node: Creating a Dictionary8179
+Node: Editing a Dictionary9219
+Node: Selective Dictionaries9695
+Node: Dictionary Files11433
+Node: Printing a Dictionary12554
+Node: Population Commands13076
+Node: Built-in Commands14012
+Node: Properties14809
+Node: Custom Commands15807
+Node: Asynchronous Population18534
+Node: Example Setups19983
+Node: Org Agenda Files20284
+Node: Project Files22795
+Node: Markdown Files23931
+Node: Repopulating Dictionary After Saving25556
+Node: Repopulating Dictionary After Spellchecking the Buffer26484
+Node: Contributing27229
+Node: Bugs28003
+Node: Development28392
+Node: Documentation30153
+Node: Working with EDE30620
+Node: Changelog31663
+Node: 11331841
+Node: 11231966
+Node: 11132096
+Node: 1132335
+Node: 10132942
+Node: 1033150
 
 End Tag Table
 
