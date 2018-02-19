@@ -7,7 +7,7 @@
 ;; Keywords: convenience, completion
 ;; Package-Requires: ((emacs "25.1") (async "1.9.1"))
 ;; URL: https://savannah.nongnu.org/projects/paced-el/
-;; Version: 1.1.2
+;; Version: 1.1.3
 ;; Created: 22 Jan 2017
 ;; Modified: 05 Feb 2018
 
@@ -331,6 +331,10 @@ customization interface."
   "Return the name of dictionary OBJ."
   (oref obj object-name))
 
+(cl-defmethod paced-dictionary-empty-p ((dict paced-dictionary))
+  "Return non-nil if DICT is empty."
+  (map-empty-p (oref dict usage-hash)))
+
 ;;; Current Dictionary
 
 (defcustom paced-global-dictionary-enable-alist nil
@@ -601,9 +605,13 @@ the thing at point.  See
 `paced-point-in-thing-at-point-for-exclusion' for how to set
 this.
 
+If there is no current \"thing\" at point, the text under point
+will be excluded, and paced will move on.
+
 This also handles character limits set by
 `paced-character-limit'."
   (or (not (paced-thing-meets-limit-p))
+      (not (paced-bounds-of-thing-at-point)) ;; There's no thing at point
       (save-excursion
         (pcase paced-point-in-thing-at-point-for-exclusion
           (`beginning
@@ -1271,11 +1279,15 @@ For how the current dictionary is determined, see
 
 (cl-defmethod paced-dictionary-length-of-longest-word ((dict paced-dictionary))
   "Return the length of the longest word in DICT."
-  (seq-max
-   (map-apply
-    (lambda (key _value)
-      (length key))
-    (oref dict usage-hash))))
+  (cond
+   ;; If DICT is empty, seq-max throws an error.
+   ((paced-dictionary-empty-p dict) 0)
+   (t
+    (seq-max
+     (map-apply
+      (lambda (key _value)
+        (length key))
+      (oref dict usage-hash))))))
 
 (cl-defmethod paced-dictionary-tabulated-list-entries ((dict paced-dictionary))
   "Create a value for `tabulated-list-entries' from DICT."
