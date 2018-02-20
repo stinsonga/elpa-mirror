@@ -349,6 +349,42 @@ files."
   `(guard (el-search--changed-p (point) ,(or revision "HEAD"))))
 
 
+;;;; `outermost' and `top-level'
+
+(el-search-defpattern outermost (pattern &optional not-pattern)
+    "Matches when PATTERN matches but the parent sexp does not.
+For toplevel expressions, this is equivalent to PATTERN.
+
+Optional NOT-PATTERN defaults to PATTERN; when given, match when
+PATTERN matches but the parent sexp is not matched by
+NOT-PATTERN.
+
+
+This pattern is useful to match only the outermost expression
+when subexpressions would match recursively.  For
+example, (outermost _) matches only top-level expressions.
+Another example: For the `change' pattern, any subexpression of a
+match is typically also an according change.  Wrapping the
+`change' pattern into `outermost' prevents el-search from
+descending into any found expression - only the outermost
+expression matching the `change' pattern will be matched."
+    `(and ,pattern
+          (not (guard (save-excursion
+                        (condition-case nil
+                            (progn
+                              (backward-up-list)
+                              (el-search--match-p
+                               ',(el-search--matcher (or not-pattern pattern))
+                               (save-excursion (el-search-read (current-buffer)))))
+                          (scan-error)))))))
+
+(el-search-defpattern top-level ()
+  "Matches any toplevel expression."
+  '(outermost _))
+
+
+;;; Sloppy pattern types for quick navigation
+
 ;;;; `keys'
 
 (defun el-search--match-key-sequence (keys expr)
@@ -383,39 +419,6 @@ matches any of these expressions:
    "keys" (list key-sequence) (lambda (x) (or (stringp x) (vectorp x))) "argument not a string or vector")
   `(pred (el-search--match-key-sequence ,key-sequence)))
 
-
-;;;; `outermost' and `top-level'
-
-(el-search-defpattern outermost (pattern &optional not-pattern)
-    "Matches when PATTERN matches but the parent sexp does not.
-For toplevel expressions, this is equivalent to PATTERN.
-
-Optional NOT-PATTERN defaults to PATTERN; when given, match when
-PATTERN matches but the parent sexp is not matched by
-NOT-PATTERN.
-
-
-This pattern is useful to match only the outermost expression
-when subexpressions would match recursively.  For
-example, (outermost _) matches only top-level expressions.
-Another example: For the `change' pattern, any subexpression of a
-match is typically also an according change.  Wrapping the
-`change' pattern into `outermost' prevents el-search from
-descending into any found expression - only the outermost
-expression matching the `change' pattern will be matched."
-    `(and ,pattern
-          (not (guard (save-excursion
-                        (condition-case nil
-                            (progn
-                              (backward-up-list)
-                              (el-search--match-p
-                               ',(el-search--matcher (or not-pattern pattern))
-                               (save-excursion (el-search-read (current-buffer)))))
-                          (scan-error)))))))
-
-(el-search-defpattern top-level ()
-  "Matches any toplevel expression."
-  '(outermost _))
 
 
 ;;; Patterns for stylistic rewriting and syntactical simplification

@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.5.4
+;; Version: 1.6
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -385,8 +385,19 @@
 ;;   syntax "##" (a syntax for an interned symbol whose name is the
 ;;   empty string) can lead to errors while searching.
 ;;
+;; - In *El Occur* buffers, when there are adjacent or nested matches,
+;;   the movement commands (el-search-occur-previous-match,
+;;   el-search-occur-next-match aka n and p) may skip matches, and the
+;;   shown match count can be inaccurate.
+;;
 ;;
 ;; TODO:
+;;
+;; - There should be a way to go back to the starting position, like
+;;   in Isearch, which does this with (push-mark isearch-opoint t) in
+;;   `isearch-done'.
+;;
+;; - Add a help command that can be called while searching.
 ;;
 ;; - Make searching work in comments, too? (->
 ;;   `parse-sexp-ignore-comments').  Related: should the pattern
@@ -432,7 +443,7 @@
 (require 'help-fns) ;el-search--make-docstring
 (require 'ring)     ;el-search-history
 (require 'hideshow) ;folding in *El Occur*
-(eval-when-compile (require 'outline)) ;folding in *El Occur*
+(require 'outline)  ;folding in *El Occur*
 
 
 ;;;; Configuration stuff
@@ -2172,7 +2183,7 @@ current."
               (redisplay)
               ;; Don't just `sit-for' here: `pop-to-buffer' may have generated frame
               ;; focus events
-              (sleep-for 3))
+              (sleep-for 1.5))
             (if (not match-pos)
                 (el-search-continue-search)
               (goto-char match-pos)
@@ -2848,7 +2859,7 @@ Prompt for a new pattern and revert."
                      (if (zerop overall-matches)
                          ";;; * No matches"
                        (concat
-                        (format ";;; ** Found %d matches in " overall-matches)
+                        (format ";;; ** %d matches in " overall-matches)
                         (unless (zerop matching-files) (format "%d files" matching-files))
                         (unless (or (zerop matching-files) (zerop matching-buffers)) " and ")
                         (unless (zerop matching-buffers)  (format "%d buffers" matching-buffers))
@@ -2860,8 +2871,10 @@ Prompt for a new pattern and revert."
                     (which-func-ff-hook)))
               (quit  (insert "\n\n;;; * Aborted"))
               (error (insert "\n\n;;; * Error: " (error-message-string err)
-                             "\n;;; Please make a bug report to the maintainer.
-;;; Thanks in advance!")))
+                             "\n\
+;;; If you think this error could be caused by a bug in
+;;; el-search, please make a bug report to the maintainer.
+;;; Thanks!")))
             (el-search--message-no-log "")
             (set-buffer-modified-p nil))))
     (el-search-kill-left-over-search-buffers)))
@@ -3410,8 +3423,12 @@ Toggle splicing mode (\\[describe-function] el-search-query-replace for details)
                                                 (format "   (%d skipped)" nbr-skipped)))
                                              '((?y "yes")
                                                (?n "no")
-                                               (?Y "Yes to all")
-                                               (?N "No to all"))))
+                                               (?Y "Yes to all"
+                                                   "\
+Save this buffer and all following buffers without asking again")
+                                               (?N "No to all"
+                                                   "\
+Don't save this buffer and all following buffers; don't ask again"))))
                                   (?y t)
                                   (?n nil)
                                   (?Y (cdr (setq save-all-answered (cons t t))))
