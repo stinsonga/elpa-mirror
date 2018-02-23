@@ -1,5 +1,10 @@
 # History of user-visible changes
 
+## 2018-02-23 (0.9.6)
+
+* Workaround for Emacs' ([bug#23980](https://debbugs.gnu.org/23980)) triggered
+  in combination with Flyspell.
+
 ## 2018-02-18 (0.9.5)
 
 * The most common case of tooltip flickering with asynchronous backends (and
