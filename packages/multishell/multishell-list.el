@@ -1,6 +1,6 @@
-;;; multishell-list.el --- tabulated-list-mode for multishell shell buffers
+;;; multishell-list.el --- tabulated-list-mode for multishell shell buffers  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2016 Free Software Foundation, Inc. and Ken Manheimer
+;; Copyright (C) 2016-2018 Free Software Foundation, Inc. and Ken Manheimer
 
 ;; Author: Ken Manheimer <ken.manheimer@gmail.com>
 ;; Version: 1.1.5
@@ -11,6 +11,8 @@
 ;; See multishell.el for commentary, change log, etc.
 
 (require 'tabulated-list)
+(require 'multishell)
+(eval-when-compile (require 'cl-lib))
 
 (defgroup multishell-list nil
   "Show a menu of all shell buffers in a buffer."
@@ -65,9 +67,9 @@ switch to the buffer but don't activate (or deactivate) it it."
     (with-current-buffer list-buffer
       (revert-buffer))))
 
-(defun multishell-list-delete (&optional arg)
+(defun multishell-list-delete (&optional _arg)
   "Remove current shell entry, and prompt for buffer-removal if present."
-  (interactive "P")
+  (interactive)
   (let* ((entry (tabulated-list-get-id))
          (name (multishell-name-from-entry entry))
          (name-bracketed (multishell-bracket name))
@@ -200,7 +202,9 @@ Provide for concluding minibuffer interaction if we're in completing mode."
               (not (string= (tabulated-list-get-id) entry)))
     (forward-line 1)))
 
-(defun multishell-collate-row-strings-as-numbers (a b)
+(define-obsolete-function-alias 'multishell-collate-row-strings-as-numbers
+  #'multishell-list--collate-row-strings-as-numbers "multishell 1.1.6")
+(defun multishell-list--collate-row-strings-as-numbers (a b)
   (let ((a (aref (cadr a) 0))
         (b (aref (cadr b) 0)))
     (> (string-to-number a) (string-to-number b))))
@@ -238,7 +242,7 @@ Initial sort is from most to least recently used:
 \\{multishell-list-mode-map\}"
   (setq tabulated-list-format
         [;; (name width sort '(:right-align nil :pad-right nil))
-         ("#" 0 multishell-collate-row-strings-as-numbers :pad-right 1)
+         ("#" 0 multishell-list--collate-row-strings-as-numbers :pad-right 1)
          ("! " 1 t :pad-right 1)
          ("Name" 15 t)
          ("Hops" 30 t)
@@ -253,15 +257,14 @@ Initial sort is from most to least recently used:
 For duplicates, we prefer the ones that have paths."
   (let ((tally (make-hash-table :test #'equal))
         got name name-order-reversed already)
-    (mapcar #'(lambda (entry)
-                (setq name (multishell-name-from-entry entry)
-                      already (gethash name tally nil))
-                (when (not already)
-                  (push name name-order-reversed))
-                (when (or (not already) (< (length already) (length entry)))
-                  ;; Add new or replace shorter prior entry for name:
-                  (puthash name entry tally)))
-            entries)
+    (dolist (entry entries)
+      (setq name (multishell-name-from-entry entry)
+            already (gethash name tally nil))
+      (when (not already)
+        (push name name-order-reversed))
+      (when (or (not already) (< (length already) (length entry)))
+        ;; Add new or replace shorter prior entry for name:
+        (puthash name entry tally)))
     (dolist (name name-order-reversed)
       (push (gethash name tally) got))
     got))
@@ -294,11 +297,11 @@ You can get to the shells listing by recursively invoking
         (set-buffer buffer)
       (pop-to-buffer buffer))
     (multishell-list-mode)
-    (progv
+    (cl-progv
         ;; Temporarily assign multishell-history only when completing:
         (when completing '(multishell-history))
         (when completing
-          (list (multishell-list-cull-dups (mapcar 'substring-no-properties
+          (list (multishell-list-cull-dups (mapcar #'substring-no-properties
                                                    completing))))
       (tabulated-list-print))
     (when completing
@@ -307,6 +310,5 @@ You can get to the shells listing by recursively invoking
       (multishell-list-goto-item-by-entry from-entry))))
 
 (provide 'multishell-list)
-(require 'multishell)
 
 ;;; multishell-list.el ends here
