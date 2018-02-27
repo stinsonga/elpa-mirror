@@ -1,11 +1,12 @@
-;;; multishell.el --- Easily use multiple shell buffers, local and remote.
+;;; multishell.el --- Easily use multiple shell buffers, local and remote  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1999-2016 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2016, 2018 Free Software Foundation, Inc.
 
 ;; Author: Ken Manheimer <ken.manheimer@gmail.com>
 ;; Version: 1.1.5
 ;; Created: 1999 -- first public availability
 ;; Keywords: processes
+;; Package-Requires: ((cl-lib "0.5"))
 ;; URL: https://github.com/kenmanheimer/EmacsMultishell
 ;;
 ;;; Commentary:
@@ -157,7 +158,6 @@
 (require 'comint)
 (require 'shell)
 (require 'savehist)
-(require 'multishell-list)
 
 (defvar multishell-version "1.1.5")
 (defun multishell-version (&optional here)
@@ -197,15 +197,12 @@ If optional UNBIND is true, globally unbind the key.
 
 * `multishell-activate-command-key' - Set this to get the binding or not.
 * `multishell-command-key' - The key to use for the binding, if appropriate."
-  (cond (unbind
-         (when (and (boundp 'multishell-command-key) multishell-command-key)
-           (global-unset-key multishell-command-key)))
-        ((not (and (boundp 'multishell-activate-command-key)
-                   (boundp 'multishell-command-key)))
-         nil)
-        ((and multishell-activate-command-key multishell-command-key)
-         (setq multishell--responsible-for-command-key t)
-         (global-set-key multishell-command-key 'multishell-pop-to-shell))))
+  (when (bound-and-true-p multishell-command-key)
+    (if unbind
+        (global-unset-key multishell-command-key)
+      (when (bound-and-true-p multishell-activate-command-key)
+        (setq multishell--responsible-for-command-key t)
+        (global-set-key multishell-command-key 'multishell-pop-to-shell)))))
 
 (defcustom multishell-activate-command-key nil
   "Set this to impose the `multishell-command-key' binding.
@@ -213,12 +210,12 @@ If optional UNBIND is true, globally unbind the key.
 You can instead manually bind `multishell-pop-to-shell' using emacs
 lisp, eg: (global-set-key \"\\M- \" \\='multishell-pop-to-shell)."
   :type 'boolean
-  :set 'multishell-activate-command-key-setter)
+  :set #'multishell-activate-command-key-setter)
 
 ;; Implement the key customization whenever the package is loaded:
 (if (fboundp 'with-eval-after-load)
     (with-eval-after-load "multishell"
-			  (multishell-implement-command-key-choice))
+      (multishell-implement-command-key-choice))
   (eval-after-load "multishell"
     '(multishell-implement-command-key-choice)))
 
@@ -736,7 +733,6 @@ and path nil if none is resolved."
   (let* ((entries (multishell-history-entries name)))
     (dolist (entry entries)
       (let* ((name-path (multishell-split-entry entry))
-             (name (car name-path))
              (path (or (cadr name-path) "")))
         (when path
           (let* ((old-localname (or (file-remote-p path 'localname)
