@@ -47,7 +47,7 @@
 ;;
 ;; * Manage your list of shells, current and past, as a collection.
 ;;
-;; See the `multishell-pop-to-shell` docstring for details.
+;; See the `multishell-pop-to-shell' docstring for details.
 ;;
 ;; Customize-group `multishell' to select and activate a keybinding and set
 ;; various behaviors. Customize-group `savehist' to preserve buffer
@@ -237,8 +237,7 @@ When set, the history entry for shells started with explicit
 paths will track the shell's current working directory.
 
 If `savehist-save-minibuffer-history' is enabled, the current
-working directory of shells will be conveyed between emacs
-sessions."
+working directory of shells will be conveyed between Emacs sessions."
  :type 'boolean)
 
 (defvar multishell-history nil
@@ -566,7 +565,7 @@ Return the last entry deleted."
     (error
      (message "multishell-kill-buffer-query-function error: %s" err)))
   t)
-(add-hook 'kill-buffer-query-functions 'multishell-kill-buffer-query-function)
+(add-hook 'kill-buffer-query-functions #'multishell-kill-buffer-query-function)
 
 (defun multishell-get-visible-window-for-buffer (buffer)
   "Return visible window containing buffer."
@@ -691,14 +690,18 @@ and path nil if none is resolved."
 (declare-function tramp-cleanup-connection "tramp")
 
 (defun multishell-start-shell-in-buffer (path)
-  "Start, restart, or continue a shell in BUFFER-NAME on PATH."
+  "Start, restart, or continue a shell in current-buffer on PATH."
+  ;; FIXME: The GNU convention is to use "path" only to refer to a list
+  ;; of directories.
   (let* ((is-active (comint-check-proc (current-buffer))))
 
     (when (and path (not is-active))
 
+      ;; FIXME: file-remote-p does not imply Tramp.
+      ;; Why do we need to do something special for Tramp here?
       (when (and (derived-mode-p 'shell-mode) (file-remote-p path))
         ;; Returning to disconnected remote shell - do some tidying.
-        ;; Without this cleanup, occasionally restarting a disconnected
+        ;; FIXME: Without this cleanup, occasionally restarting a disconnected
         ;; remote session, particularly one that includes sudo, results in
         ;; an untraceable "Args out of range" error. That never happens if
         ;; we precedeed connection attempts with this cleanup -
