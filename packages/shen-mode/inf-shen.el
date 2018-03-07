@@ -115,8 +115,8 @@ Defaults to \"^[^> \\n]*>+:? *\", which works pretty good for Lucid, kcl,
 and franz.  This variable is used to initialize `comint-prompt-regexp' in the
 Inferior Shen buffer.
 
-This variable is only used if the variable
-`comint-use-prompt-regexp-instead-of-fields' is non-nil.
+This variable is only used if the variable `comint-use-prompt-regexp'
+is non-nil.
 
 More precise choices:
 Lucid Common Shen: \"^\\\\(>\\\\|\\\\(->\\\\)+\\\\) *\"
