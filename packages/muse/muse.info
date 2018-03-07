@@ -564,7 +564,7 @@ use Planner with Muse and run `(plan)' from your `.emacs'.)  If you
 wish to visit Muse files from your `.emacs', be sure to also add the
 following additional code before any such visits happen:
 
-     (add-hook 'find-file-hooks 'muse-mode-maybe)
+     (add-hook 'find-file-hook 'muse-mode-maybe)
 
 
 File: muse.info,  Node: Projects,  Next: Keystroke Summary,  Prev: Getting Started,  Up: Top
