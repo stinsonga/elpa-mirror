@@ -67,6 +67,9 @@
 ./gnugo/gnugo.el:    (CP "Copyright"       game  simpletext)
 ./hyperbole/hib-doc-id.el:;;  Copyright:        
 ./math-symbol-lists/math-symbol-lists.el:    "columnsep" "columnseprule" "columnwidth" "contentsline" "copyright"
+./mmm-mode/mmm-noweb.el:;; Copyright 1995 by Thorsten.Ohl @ Physik.TH-Darmstadt.de
+./mmm-mode/mmm-noweb.el:;; Copyright 2003, 2004  Joe Kelsey <joe@zircon.seattle.wa.us>
+./mmm-mode/mmm-rpm.el:;; Copyright (C) 2000 by Marcus Harnisch <Marcus.Harnisch@gmx.net>
 ./muse/htmlize-hack.el
 ./rudel/rudel-loaddefs.el
 ./uni-confusables/gen-confusables.el:;; Copyright (C) 1991-2009, 2010 Unicode, Inc.
