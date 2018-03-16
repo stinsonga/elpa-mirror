@@ -7,7 +7,7 @@
 ;; Created: Mar 18 2015
 ;; Keywords: extensions, elisp
 ;; Compatibility: GNU Emacs >=25
-;; Version: 0.1
+;; Version: 0.1.1
 ;; Package-Requires: ((emacs "25"))
 
 
@@ -100,19 +100,20 @@ used between the numbers and defaults to 1."
 (iter-defun iterator-of-directory-files-1 (directory &optional match nosort recurse follow-links)
   "Helper for `iterator-of-directory-files'."
   (when (file-accessible-directory-p directory)
-    (let ((files (directory-files directory t match nosort))  file)
-      (while (setq file (pop files))
-        (cond
-         ((not (file-directory-p file))
-          (iter-yield file))
-         ((member (file-name-nondirectory (directory-file-name file))
-                  '("." "..")))
-         (t
-          (iter-yield file)
-          (when (and (or follow-links (not (file-symlink-p file)))
-                     (if (functionp recurse) (funcall recurse file) recurse))
+    (let ((files (directory-files directory t match nosort)) dirs non-dirs)
+      (dolist (file files)
+        (if (file-directory-p file)
+            (push file dirs)
+          (push file non-dirs)))
+      (dolist (file non-dirs)
+        (iter-yield file))
+      (dolist (dir dirs)
+        (unless (member (file-name-nondirectory (directory-file-name dir)) '("." ".."))
+          (iter-yield dir)
+          (when (and (or follow-links (not (file-symlink-p dir)))
+                     (if (functionp recurse) (funcall recurse dir) recurse))
             (iter-yield-from (iterator-of-directory-files-1
-                              file match nosort recurse follow-links)))))))))
+                              dir match nosort recurse follow-links))))))))
 
 (defun iterator-of-directory-files (directory &optional full match nosort recurse follow-links)
   "Return an iterator of names of files in DIRECTORY.
@@ -126,7 +127,7 @@ directory, and return non-nil when the returned iterator should
 recurse into that directory.  Any other non-nil value means
 recurse into every readable subdirectory.
 
-Even with recurse non-nil, don't descent into directories by
+Even with RECURSE non-nil, don't descent into directories by
 following symlinks unless FOLLOW-LINKS is non-nil."
   (iterator-map
    (lambda (file) (if full file (file-relative-name file directory)))
