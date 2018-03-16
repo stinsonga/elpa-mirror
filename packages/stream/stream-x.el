@@ -1,6 +1,6 @@
 ;;; stream-x.el --- Additional functions for working with streams  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2017 Free Software Foundation, Inc
+;; Copyright (C) 2017 - 2018 Free Software Foundation, Inc
 
 ;; Author: Michael Heerdegen <michael_heerdegen@web.de>
 ;; Maintainer: Michael Heerdegen <michael_heerdegen@web.de>
