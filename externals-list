@@ -68,6 +68,7 @@
  ("js2-mode"		:subtree "https://github.com/mooz/js2-mode.git")
  ("let-alist"		:core "lisp/emacs-lisp/let-alist.el")
  ("math-symbol-lists" 	:subtree "https://github.com/vspinu/math-symbol-lists.git")
+ ("mmm-mode"            :external "https://github.com/purcell/mmm-mode.git")
  ("nameless" :subtree "https://github.com/Malabarba/Nameless")
  ("names" :subtree "http://github.com/Malabarba/names")
  ("omn-mode"            :external nil)
