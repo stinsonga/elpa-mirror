@@ -40,6 +40,20 @@
 (require 'el-search)
 
 
+(el-search-defpattern string-lines (pattern)
+  "Matches any string whose line count is matched by PATTERN.
+
+Examples: (string-lines 1) matches one-line strings.
+\(string-lines (pred (>= 5))\) matches strings consisting of not
+more than 5 lines."
+  (let ((string (make-symbol "string")))
+    `(and (string)
+          ,string
+          (let ,pattern
+            (with-temp-buffer
+              (insert ,string)
+              (count-lines (point-min) (point-max)))))))
+
 ;;;; `append and `l'
 
 (defun el-search--split (matcher1 matcher2 list)
