@@ -1,4 +1,4 @@
-;; Copyright (C) 2015-2017 Free Software Foundation, Inc
+;; Copyright (C) 2015-2018 Free Software Foundation, Inc
 ;; Author: Rocky Bernstein <rocky@gnu.org>
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -468,9 +468,9 @@ command-process buffer has stored."
 		    (list (propertize
 			   (format ":%s%s"
 				   (process-status cmd-process) debug-status)
-			   'face 'debugger-running))
+			   'face 'realgud-debugger-running))
 		  (list (propertize ":not running" 'face
-			'debugger-not-running))
+			'realgud-debugger-not-running))
 		  ))
 	  (setq mode-line-process status)
 	  ;; Force mode line redisplay soon.

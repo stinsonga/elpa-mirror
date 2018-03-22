@@ -7,7 +7,12 @@
 (load-file "../realgud/common/regexp.el")
 (load-file "../realgud/debugger/trepan/init.el")
 
-(declare-function realgud-srcbuf-init 'realgud-buffer-source)
+(declare-function realgud-get-srcbuf    'realgud-buffer-source)
+(declare-function realgud-srcbuf-init   'realgud-buffer-source)
+(declare-function realgud-cmdbuf-init   'realgud-buffer-command)
+(declare-function realgud-command       'realgud-buffer-cmds)
+(declare-function realgud-expand-format 'realgud-send)
+
 (test-simple-start)
 
 (eval-when-compile
@@ -38,6 +43,9 @@
 (assert-equal "hi, rocky!"
 	      (realgud-expand-format "h%s!" "i, rocky")
 	      "format %s")
+
+(assert-equal "\"\\\"fake\\\" news\"!"
+	      (realgud-expand-format "%q!" "\"fake\" news"))
 
 (setup)
 ;; Current buffer is now set up as a source buffer
