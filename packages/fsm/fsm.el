@@ -72,7 +72,7 @@
 ;;       :start ((init) "Start a pingpong fsm."
 ;;               (interactive "nInit (number, negative to auto-terminate): ")
 ;;               (list :ping (ash (ash init -2) 2) ; 4 is death
-;;                     (when (interactive-p) 0)))
+;;                     (when (called-interactively-p 'interactive) 0)))
 ;;       :state-data-name count
 ;;       :states
 ;;       ((:ping
