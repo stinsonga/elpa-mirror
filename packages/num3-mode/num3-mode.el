@@ -1,11 +1,11 @@
 ;;; num3-mode.el --- highlight groups of digits in long numbers  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2012, 2014 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2017 Free Software Foundation, Inc.
 
 ;; Author: Felix Lee <felix8a@gmail.com>, Michal Nazarewicz <mina86@mina86.com>
 ;; Maintainer: Michal Nazarewicz <mina86@mina86.com>
 ;; Keywords: faces, minor-mode
-;; Version: 1.2
+;; Version: 1.3
 
 ;; GNU Emacs is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
