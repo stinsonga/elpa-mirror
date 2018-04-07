@@ -94,12 +94,12 @@ Example: the pattern
 
    (append '(1 2 3) x (app car-safe 7))
 
-matches the list (1 2 3 4 5 6 7 8 9) and binds `x' to (4 5 6)."
+matches the list (1 2 3 4 5 6 7 8 9), binding `x' to (4 5 6)."
   (if (null patterns)
       '(pred null)
     (pcase-let ((`(,pattern . ,more-patterns) patterns))
       (cond
-       ((null more-patterns)  pattern)
+       ((null more-patterns) pattern)
        ((null (cdr more-patterns))
         `(and (pred listp)
               (app ,(apply-partially #'el-search--split
@@ -146,24 +146,25 @@ SYMBOL  Matches any symbol S matched by SYMBOL's name interpreted
 STRING  Matches any string matched by STRING interpreted as a
         regexp.
 _       Matches any list element.
-__      Matches any number of list elements (including zero).
+__      Matches any number (including zero) of list elements.
 ^       Matches zero elements, but only at the beginning of a list.
         Only allowed as the first of the LPATS.
 $       Matches zero elements, but only at the end of a list.
         Only allowed as the last of the LPATS.
 PAT     Anything else is interpreted as a standard pattern and
-        matches one list element matched by it.  Note: If matching
-        PAT binds any symbols, occurrences in any following PATs
-        are not turned into equivalence tests; the scope of symbol
-        bindings is limited to the PAT itself.
+        matches one list element matched by it.  Note: If
+        matching PAT binds any symbols, occurrences in any
+        following patterns are not turned into equivalence tests;
+        the scope of symbol bindings is limited to the PAT
+        itself.
 
-Example: To match defuns that contain \"hl\" in their name and
-have at least one mandatory, but also optional arguments, you
+Example: To match defuns that contain \"hl\" in the defined name
+and have at least one mandatory, but also optional arguments, you
 could use this pattern:
 
     (l ^ 'defun hl (l _ &optional))"
   ;; We don't allow PATs in `l' to create bindings because to make this
-  ;; work as expected we would need backtracking
+  ;; work as expected we would need some kind of backtracking
   (declare
    (heuristic-matcher
     (lambda (&rest lpats)
