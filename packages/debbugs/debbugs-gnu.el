@@ -1211,6 +1211,7 @@ Subject fields."
 		     (not (string-match
 			   string (cdr (assq 'originator status)))))
 		 (or status-only
+		     (not (cdr (assq 'subject status)))
 		     (not (string-match string (cdr (assq 'subject status))))))
 	    (delete-region (point) (progn (forward-line 1) (point)))
 	  (push (cdr (assq 'id status)) debbugs-gnu-limit)
