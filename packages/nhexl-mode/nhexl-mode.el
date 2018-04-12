@@ -1,10 +1,10 @@
 ;;; nhexl-mode.el --- Minor mode to edit files via hex-dump format  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2010, 2012, 2016  Free Software Foundation, Inc.
+;; Copyright (C) 2010, 2012, 2016, 2018  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords: data
-;; Version: 0.2
+;; Version: 0.3
 ;; Package-Requires: ((emacs "24") (cl-lib "0.5"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -28,10 +28,15 @@
 ;; This minor mode implements similar functionality to `hexl-mode',
 ;; but using a different implementation technique, which makes it
 ;; usable as a "plain" minor mode.  It works on any buffer, and does
-;; not mess with the undo boundary or with the major mode.
+;; not mess with the undo log or with the major mode.
 ;;
 ;; In theory it could also work just fine even on very large buffers,
 ;; although in practice it seems to make the display engine suffer.
+;;
+;; It also comes with a "nibble editor" mode (M-x nhexl-nibble-edit-mode),
+;; where the cursor pretends to advance by nibbles (4-bit) and the
+;; self-insertion keys (which only work for hex-digits) will only modify the
+;; nibble under point.
 
 ;;; Todo:
 ;; - Clicks on the hex side should put point at the right place.
@@ -59,10 +64,113 @@
 (defvar nhexl--point nil)
 (make-variable-buffer-local 'nhexl--point)
 
+(defvar nhexl-nibble-edit-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [remap self-insert-command] #'nhexl-nibble-self-insert)
+    (define-key map [remap right-char] #'nhexl-nibble-forward)
+    (define-key map [remap forward-char] #'nhexl-nibble-forward)
+    (define-key map [remap left-char] #'nhexl-nibble-backward)
+    (define-key map [remap backward-char] #'nhexl-nibble-backward)
+    (define-key map [remap next-line] #'nhexl-nibble-next-line)
+    (define-key map [remap previous-line] #'nhexl-nibble-previous-line)
+    map))
+
+(define-minor-mode nhexl-nibble-edit-mode
+  "Minor mode to edit the hex nibbles in `nhexl-mode'."
+  :global nil
+  (if nhexl-nibble-edit-mode
+      (setq-local cursor-type 'hbar)
+    (kill-local-variable 'cursor-type))
+  (nhexl--refresh-cursor))
+
+(defvar-local nhexl--nibble nil)
+
+(defun nhexl--nibble (&optional pos)
+  (or (and (eq (or pos (point)) (nth 1 nhexl--nibble))
+           (eq (buffer-chars-modified-tick) (nth 2 nhexl--nibble))
+           (nth 0 nhexl--nibble))
+      (progn
+        (setq nhexl--nibble nil)
+        0)))
+
+(defun nhexl--nibble-set (n)
+  (setq nhexl--nibble (list n (point) (buffer-chars-modified-tick))))
+
+(defun nhexl--refresh-cursor (&optional pos)
+  (unless pos (setq pos (point)))
+  (let* ((zero (save-restriction (widen) (point-min)))
+         (n (truncate (- pos zero) nhexl-line-width))
+         (from (max (point-min) (+ zero (* n nhexl-line-width))))
+         (to (min (point-max) (+ zero (* (1+ n) nhexl-line-width)))))
+    (with-silent-modifications
+      (put-text-property from to 'fontified nil))))
+
+(defun nhexl--nibble-max (&optional char)
+  (unless char (setq char (following-char)))
+  (if (< char 256) 1
+    (let ((i 1))
+      (setq char (/ char 256))
+      (while (> char 0)
+        (setq char (/ char 16))
+        (setq i (1+ i)))
+      i)))
+
+(defun nhexl-nibble-forward ()
+  "Advance by one nibble."
+  (interactive)
+  (let ((nib (nhexl--nibble)))
+    (if (>= nib (nhexl--nibble-max))
+        (forward-char 1)
+      (nhexl--nibble-set (1+ nib))
+      (nhexl--refresh-cursor))))
+
+(defun nhexl-nibble-backward ()
+  "Advance by one nibble."
+  (interactive)
+  (let ((nib (nhexl--nibble)))
+    (if (> nib 0)
+        (progn
+          (nhexl--nibble-set (1- nib))
+          (nhexl--refresh-cursor))
+      (backward-char 1)
+      (nhexl--nibble-set (nhexl--nibble-max)))))
+
+(defun nhexl-nibble-next-line ()
+  "Go to next line, preserving the nibble position."
+  (interactive)
+  (let ((nib (nhexl--nibble)))
+    (call-interactively 'next-line)
+    (nhexl--nibble-set nib)))
+
+(defun nhexl-nibble-previous-line ()
+  "Go to next line, preserving the nibble position."
+  (interactive)
+  (let ((nib (nhexl--nibble)))
+    (call-interactively 'previous-line)
+    (nhexl--nibble-set nib)))
+
+(defun nhexl-nibble-self-insert ()
+  "Overwrite current nibble with the hex character you type."
+  (interactive)
+  (let* ((max (nhexl--nibble-max))
+         (nib (min max (nhexl--nibble)))
+         (char (following-char))
+         (hex (format "%02x" char))
+         (nhex (concat (substring hex 0 nib)
+                       (string last-command-event)
+                       (substring hex (1+ nib))))
+         (nchar (string-to-number nhex 16)))
+    (insert nchar)
+    (unless (eobp) (delete-char 1))
+    (if (= max nib) nil
+      (backward-char 1)
+      (nhexl--nibble-set (1+ nib)))))
+    
+
 ;;;###autoload
 (define-minor-mode nhexl-mode
   "Minor mode to edit files via hex-dump format"
-  :lighter " NHexl"
+  :lighter (" NHexl" (nhexl-nibble-edit-mode "/ne"))
   (if (not nhexl-mode)
       (progn
         (dolist (varl nhexl--saved-vars)
@@ -90,11 +198,22 @@
     (add-hook 'after-change-functions #'nhexl--change-function nil 'local)))
 
 (defun nhexl--change-function (beg end len)
-  ;; Jit-lock already takes care of refreshing the changed area, so we
-  ;; only have to make sure the tail's addresses are refreshed when
+  ;; Round modifications up-to the hexl-line length since nhexl--jit will need
+  ;; to modify the overlay that covers that text.
+  (let* ((zero (save-restriction (widen) (point-min)))
+         (from (max (point-min)
+                    (+ zero (* (truncate (- beg zero) nhexl-line-width)
+                               nhexl-line-width))))
+         (to (min (point-max)
+                  (+ zero (* (ceiling (- end zero) nhexl-line-width)
+                             nhexl-line-width)))))
+    (with-silent-modifications    ;Don't store this change in buffer-undo-list!
+      (put-text-property from to 'fontified nil)))
+  ;; Also make sure the tail's addresses are refreshed when
   ;; text is inserted/removed.
   (when (/= len (- end beg))
-    (put-text-property beg (point-max) 'fontified nil)))
+    (with-silent-modifications    ;Don't store this change in buffer-undo-list!
+      (put-text-property beg (point-max) 'fontified nil))))
 
 (defvar nhexl--overlay-counter 100)
 (make-variable-buffer-local 'nhexl--overlay-counter)
@@ -162,9 +281,15 @@
                           ;; non-ascii chars.
                           (let ((s (format "%02x" c)))
                             (when (eq nhexl--point (+ from i))
-                              (put-text-property 0 (length s)
-                                                 'face 'highlight
-                                                 s))
+                              (if nhexl-nibble-edit-mode
+                                  (let ((nib (min (nhexl--nibble nhexl--point)
+                                                  (1- (length s)))))
+                                    (put-text-property nib (1+ nib)
+                                                       'face 'highlight
+                                                       s))
+                                (put-text-property 0 (length s)
+                                                   'face 'highlight
+                                                   s)))
                             (if (zerop (mod i 2))
                                 s (concat s " "))))
                         bufstr
@@ -182,11 +307,14 @@
 
 (defun nhexl--jit (from to)
   (let ((zero (save-restriction (widen) (point-min))))
-    (setq from (+ zero (* (truncate (- from zero) nhexl-line-width)
-                          nhexl-line-width)))
-    (setq to (+ zero (* (ceiling (- to zero) nhexl-line-width)
-                        nhexl-line-width)))
-    (remove-overlays from (min to (point-max)) 'nhexl t)
+    (setq from (max (point-min)
+                    (+ zero (* (truncate (- from zero) nhexl-line-width)
+                               nhexl-line-width))))
+    (setq to (min (point-max)
+                  (+ zero (* (ceiling (- to zero) nhexl-line-width)
+                             nhexl-line-width))))
+    (remove-overlays from to 'nhexl t)
+    (remove-text-properties from to '(display))
     (save-excursion
       (goto-char from)
       (while (search-forward "\n" to t)
@@ -213,6 +341,7 @@
 
 (defun nhexl--header-line ()
   ;; FIXME: merge with nhexl--make-line.
+  ;; FIXME: Memoize last line to avoid recomputation!
   (let* ((zero (save-restriction (widen) (point-min)))
          (text
           (let ((tmp ()))
@@ -230,9 +359,15 @@
                   (setq i (1+ i))
                   (let ((s (string c c)))
                     (when (eq i pos)
-                      (put-text-property 0 (length s)
-                                         'face 'highlight
-                                         s))
+                      (if nhexl-nibble-edit-mode
+                          (let ((nib (min (nhexl--nibble nhexl--point)
+                                          (1- (length s)))))
+                            (put-text-property nib (1+ nib)
+                                               'face 'highlight
+                                               s))
+                        (put-text-property 0 (length s)
+                                           'face 'highlight
+                                           s)))
                     (if (zerop (mod i 2)) s
                       (concat
                        s (propertize " " 'display
@@ -252,11 +387,11 @@
     (let ((zero (save-restriction (widen) (point-min)))
           (oldpoint nhexl--point))
       (setq nhexl--point (point))
-      (with-silent-modifications
-        (nhexl--jit (point) (1+ (point)))
-        (if (/= (truncate (- (point) zero) nhexl-line-width)
-                (truncate (- oldpoint zero) nhexl-line-width))
-            (nhexl--jit oldpoint (1+ oldpoint)))))))
+      (nhexl--refresh-cursor)
+      ;; (nhexl--jit (point) (1+ (point)))
+      (if (/= (truncate (- (point) zero) nhexl-line-width)
+              (truncate (- oldpoint zero) nhexl-line-width))
+          (nhexl--refresh-cursor oldpoint)))))
   
 
 (provide 'nhexl-mode)
