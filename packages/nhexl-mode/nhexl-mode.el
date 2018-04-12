@@ -64,6 +64,8 @@
 (defvar nhexl--point nil)
 (make-variable-buffer-local 'nhexl--point)
 
+;;;; Nibble editing minor mode
+
 (defvar nhexl-nibble-edit-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map [remap self-insert-command] #'nhexl-nibble-self-insert)
@@ -71,8 +73,6 @@
     (define-key map [remap forward-char] #'nhexl-nibble-forward)
     (define-key map [remap left-char] #'nhexl-nibble-backward)
     (define-key map [remap backward-char] #'nhexl-nibble-backward)
-    (define-key map [remap next-line] #'nhexl-nibble-next-line)
-    (define-key map [remap previous-line] #'nhexl-nibble-previous-line)
     map))
 
 (define-minor-mode nhexl-nibble-edit-mode
@@ -135,20 +135,6 @@
       (backward-char 1)
       (nhexl--nibble-set (nhexl--nibble-max)))))
 
-(defun nhexl-nibble-next-line ()
-  "Go to next line, preserving the nibble position."
-  (interactive)
-  (let ((nib (nhexl--nibble)))
-    (call-interactively 'next-line)
-    (nhexl--nibble-set nib)))
-
-(defun nhexl-nibble-previous-line ()
-  "Go to next line, preserving the nibble position."
-  (interactive)
-  (let ((nib (nhexl--nibble)))
-    (call-interactively 'previous-line)
-    (nhexl--nibble-set nib)))
-
 (defun nhexl-nibble-self-insert ()
   "Overwrite current nibble with the hex character you type."
   (interactive)
@@ -166,6 +152,22 @@
       (backward-char 1)
       (nhexl--nibble-set (1+ nib)))))
     
+;;;; Main minor mode
+
+(defvar nhexl-mode-map
+  (let ((map (make-sparse-keymap)))
+    ;; `next-line' and `previous-line' work correctly, but they take ages in
+    ;; large buffers and allocate an insane amount of memory, so the GC is
+    ;; constantly triggered.
+    ;; So instead we just override them with our own custom-tailored functions
+    ;; which don't have to work nearly as hard to figure out where's the
+    ;; next line.
+    ;; FIXME: It would also be good to try and improve `next-line' and
+    ;; `previous-line' for this case, tho it is pretty pathological for them.
+    (define-key map [remap next-line] #'nhexl-next-line)
+    (define-key map [remap previous-line] #'nhexl-previous-line)
+    ;; FIXME: Find a key binding for nhexl-nibble-edit-mode!
+    map))
 
 ;;;###autoload
 (define-minor-mode nhexl-mode
@@ -196,6 +198,26 @@
     (add-hook 'change-major-mode-hook (lambda () (nhexl-mode -1)) nil 'local)
     (add-hook 'post-command-hook #'nhexl--post-command nil 'local)
     (add-hook 'after-change-functions #'nhexl--change-function nil 'local)))
+
+(defun nhexl-next-line (&optional arg)
+  "Move cursor vertically down ARG lines."
+  (interactive "p")
+  (unless arg (setq arg 1))
+  (if (< arg 0)
+      (nhexl-previous-line (- arg))
+    (let ((nib (nhexl--nibble)))
+      (forward-char (* arg nhexl-line-width))
+      (nhexl--nibble-set nib))))
+
+(defun nhexl-previous-line (&optional arg)
+  "Move cursor vertically up ARG lines."
+  (interactive "p")
+  (unless arg (setq arg 1))
+  (if (< arg 0)
+      (nhexl-next-line (- arg))
+    (let ((nib (nhexl--nibble)))
+      (backward-char (* arg nhexl-line-width))
+      (nhexl--nibble-set nib))))
 
 (defun nhexl--change-function (beg end len)
   ;; Round modifications up-to the hexl-line length since nhexl--jit will need
