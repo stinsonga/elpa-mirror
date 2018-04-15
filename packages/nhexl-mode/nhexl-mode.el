@@ -33,10 +33,16 @@
 ;; In theory it could also work just fine even on very large buffers,
 ;; although in practice it seems to make the display engine suffer.
 ;;
-;; It also comes with a "nibble editor" mode (M-x nhexl-nibble-edit-mode),
-;; where the cursor pretends to advance by nibbles (4-bit) and the
-;; self-insertion keys (which only work for hex-digits) will only modify the
-;; nibble under point.
+;; It also comes with:
+;;
+;; - `nhexl-nibble-edit-mode': a "nibble editor" minor mode.
+;;   where the cursor pretends to advance by nibbles (4-bit) and the
+;;   self-insertion keys (which only work for hex-digits) will only modify the
+;;   nibble under point.
+;;
+;; - `nhexl-overwrite-only-mode': a minor mode to try and avoid moving text.
+;;   In this minor mode, not only self-inserting keys overwrite existing
+;;   text, but commands like `yank' and `kill-region' as well.
 
 ;;; Todo:
 ;; - Clicks on the hex side should put point at the right place.
@@ -151,7 +157,101 @@
     (if (= max nib) nil
       (backward-char 1)
       (nhexl--nibble-set (1+ nib)))))
-    
+
+;;;; No insertion/deletion minor mode
+
+(defvar nhexl-overwrite-clear-byte ?\000
+  "Byte to use to replace deleted content.")
+
+(defvar nhexl-overwrite-only-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [remap yank] #'nhexl-overwrite-yank)
+    (define-key map [remap yank-pop] #'nhexl-overwrite-yank-pop)
+    (define-key map [remap kill-region] #'nhexl-overwrite-kill-region)
+    (define-key map [remap delete-char] #'nhexl-overwrite-delete-char)
+    (define-key map [remap backward-delete-char-untabify]
+      #'nhexl-overwrite-backward-delete-char)
+    map))
+
+(defun nhexl-overwrite-backward-delete-char (&optional arg)
+  "Delete ARG chars backward by overwriting them.
+Uses `nhexl-overwrite-clear-byte'."
+  (interactive "p")
+  (unless arg (setq arg 1))
+  (if (< arg 0)
+      (nhexl-overwrite-delete-char (- arg))
+    (forward-char (- arg))
+    (save-excursion
+      (insert-char nhexl-overwrite-clear-byte arg)
+      (delete-char arg))))
+
+(defun nhexl-overwrite-delete-char (&optional arg)
+  "Delete ARG chars forward by overwriting them.
+Uses `nhexl-overwrite-clear-byte'."
+  (interactive "p")
+  (unless arg (setq arg 1))
+  (if (< arg 0)
+      (nhexl-overwrite-backward-delete-char (- arg))
+    (insert-char nhexl-overwrite-clear-byte arg)
+    (delete-char arg)))
+
+(defun nhexl-overwrite-kill-region (beg end &optional region)
+  "Kill the region, replacing it with `nhexl-overwrite-clear-byte'."
+  (interactive (list (mark) (point) 'region))
+  (copy-region-as-kill beg end region)
+  (barf-if-buffer-read-only)
+  (pcase-dolist (`(,beg . ,end)
+                 (if region (funcall region-extract-function 'bounds)
+                   (list beg end)))
+    (goto-char beg)
+    (nhexl-overwrite-delete-char (- end beg))))
+
+(defun nhexl-overwrite--yank-wrapper (fun)
+  ;; FIXME? doesn't work when yanking things like rectangles.
+  (let ((orig-size (buffer-size)))
+    (funcall fun)
+    (let* ((inserted (- (buffer-size) orig-size))
+           (deleted (delete-and-extract-region
+                     (point)
+                     (min (point-max) (+ (point) inserted)))))
+      (unless yank-undo-function
+        (setq yank-undo-function #'delete-region))
+      (add-function :before yank-undo-function
+                    (lambda (_beg end)
+                      (save-excursion
+                        (goto-char end)
+                        (insert deleted)))))))
+
+(defun nhexl-overwrite-yank (&optional arg)
+  "Like `yank' but overwriting existing text."
+  (interactive "*P")
+  (nhexl-overwrite--yank-wrapper (lambda () (yank arg))))
+
+(defun nhexl-overwrite-yank-pop (&optional arg)
+  "Like `yank-pop' but overwriting existing text."
+  (interactive "*P")
+  (nhexl-overwrite--yank-wrapper (lambda () (yank-pop arg))))
+
+(defvar-local nhexl--overwrite-save-settings nil)
+
+(define-minor-mode nhexl-overwrite-only-mode
+  "Minor mode where text is only overwritten.
+Insertion/deletion is avoided where possible and replaced by overwriting
+existing text, if needed with `nhexl-overwrite-clear-byte'."
+  :lighter nil
+  (cond
+   (nhexl-overwrite-only-mode
+    (push (cons 'overwrite-mode overwrite-mode)
+          nhexl--overwrite-save-settings)
+    (setq-local overwrite-mode 'overwrite-mode-binary)
+    (setq-local overwrite-mode-binary " OnlyOvwrt"))
+   (t
+    (pcase-dolist (`(,var . ,val)
+                   (prog1 nhexl--overwrite-save-settings
+                     (setq nhexl--overwrite-save-settings nil)))
+      (set var val))
+    (kill-local-variable 'overwrite-mode-binary))))
+
 ;;;; Main minor mode
 
 (defvar nhexl-mode-map
