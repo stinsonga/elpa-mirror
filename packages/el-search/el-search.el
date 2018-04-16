@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.6.5
+;; Version: 1.6.6
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -1260,7 +1260,7 @@ PATTERN and combining the heuristic matchers of the subpatterns."
                                      nil))))))))
         (buffer (if (bufferp file-name-or-buffer)
                     file-name-or-buffer
-                  (get-file-buffer file-name-or-buffer))))
+                  (find-buffer-visiting file-name-or-buffer))))
     (if buffer
         (if (buffer-live-p buffer)
             (with-current-buffer buffer (funcall get-buffer-atoms))
@@ -1355,7 +1355,7 @@ PATTERN and combining the heuristic matchers of the subpatterns."
         (if (bufferp next)
             (setq buffer next)
           (setf (el-search-head-file head) next)
-          (setq buffer (or (get-file-buffer next)
+          (setq buffer (or (find-buffer-visiting next)
                            (let ((warning-minimum-level :error)
                                  (inhibit-message t))
                              (let ((fresh-buffer (generate-new-buffer " el-search-helper-buffer"))
