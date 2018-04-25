@@ -5,7 +5,7 @@
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords: data
 ;; Version: 0.7
-;; Package-Requires: ((emacs "24") (cl-lib "0.5"))
+;; Package-Requires: ((emacs "24.4") (cl-lib "0.5"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -136,16 +136,6 @@ Otherwise they are applied unconditionally."
 (defsubst nhexl--line-width ()
   (if (integerp nhexl-line-width) nhexl-line-width 16))
 
-(defun nhexl--refresh-cursor (&optional pos)
-  (unless pos (setq pos (point)))
-  (let* ((zero (save-restriction (widen) (point-min)))
-         (lw (nhexl--line-width))
-         (n (truncate (- pos zero) lw))
-         (from (max (point-min) (+ zero (* n lw))))
-         (to (min (point-max) (+ zero (* (1+ n) lw)))))
-    (with-silent-modifications
-      (put-text-property from to 'fontified nil))))
-
 (defun nhexl--nibble-max (&optional char)
   (unless char (setq char (following-char)))
   (if (< char 256) 1
@@ -210,6 +200,8 @@ Otherwise they are applied unconditionally."
     (define-key map [remap kill-region] #'nhexl-overwrite-kill-region)
     (define-key map [remap delete-char] #'nhexl-overwrite-delete-char)
     (define-key map [remap backward-delete-char-untabify]
+      #'nhexl-overwrite-backward-delete-char)
+    (define-key map [remap backward-delete-char]
       #'nhexl-overwrite-backward-delete-char)
     map))
 
@@ -326,8 +318,6 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
         (jit-lock-unregister #'nhexl--jit)
         (remove-hook 'after-change-functions #'nhexl--change-function 'local)
         (remove-hook 'post-command-hook #'nhexl--post-command 'local)
-        ;; Apparently it's window-size-change-functions instead of
-        ;; window-configuration-change-hook which we need here!
         ;;(remove-hook 'window-configuration-change-hook
         ;;             #'nhexl--window-config-change t)
         (remove-hook 'window-size-change-functions #'nhexl--window-size-change)
@@ -503,7 +493,7 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
         (message "Flushed %d overlays, %d remaining"
                  (- debug-count debug-new-count) debug-new-count)))))
 
-(defun nhexl--make-line (from next zero)
+(defun nhexl--make-line (from next zero &optional point)
   (let* ((nextpos (min next (point-max)))
          (lw (nhexl--line-width))
          (bufstr (buffer-substring from nextpos))
@@ -511,12 +501,19 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
          (i -1)
          (s (concat
              (unless (eq zero from) "\n")
-             (format (propertize "%08x:"
-                                 prop
-                                 (if (or (< nhexl--point from)
-                                         (>= nhexl--point next))
-                                     'hexl-address-region
-                                   '(highlight hexl-address-region)))
+             (format (if (or (null point)
+                             (< point from)
+                             (>= point next))
+                         (propertize "%08x:" prop 'hexl-address-region)
+                       ;; The `face' property overrides the `font-lock-face'
+                       ;; property (instead of being combined), but we want the
+                       ;; `highlight' face to be present regardless of
+                       ;; font-lock-mode, so we can't use font-lock-face.
+                       (propertize "%08x:" 'face
+                                   (if (or font-lock-mode
+                                           (not nhexl-obey-font-lock))
+                                       '(highlight hexl-address-region default)
+                                     'highlight)))
                      (- from zero))
              (propertize " " 'display '(space :align-to 12))
              (mapconcat (lambda (c)
@@ -525,15 +522,15 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
                           ;; do something clever about
                           ;; non-ascii chars.
                           (let ((s (format "%02x" c)))
-                            (when (eq nhexl--point (+ from i))
+                            (when (and point (eq point (+ from i)))
                               (if nhexl-nibble-edit-mode
-                                  (let ((nib (min (nhexl--nibble nhexl--point)
+                                  (let ((nib (min (nhexl--nibble point)
                                                   (1- (length s)))))
                                     (put-text-property nib (1+ nib)
-                                                       'face 'highlight
+                                                       'face '(highlight default)
                                                        s))
                                 (put-text-property 0 (length s)
-                                                   'face 'highlight
+                                                   'face '(highlight default)
                                                    s)))
                             (if (zerop (mod i 2))
                                 s (concat s " "))))
@@ -552,7 +549,8 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
 
 (defun nhexl--jit (from to)
   (let ((zero (save-restriction (widen) (point-min)))
-        (lw (nhexl--line-width)))
+        (lw (nhexl--line-width))
+        (has-cursor (and (<= from nhexl--point) (< nhexl--point to))))
     (setq from (max (point-min)
                     (+ zero (* (truncate (- from zero) lw) lw))))
     (setq to (min (point-max)
@@ -587,10 +585,29 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
         ;; `face' property.
         (overlay-put ol 'priority most-negative-fixnum)
         (overlay-put ol 'before-string s)
-        (setq from next)))))
+        (setq from next)))
+
+    (when has-cursor
+      (let ((ols (overlays-at nhexl--point))
+            ol)
+        (dolist (o ols) (if (overlay-get o 'nhexl) (setq ol o)))
+        (overlay-put ol 'before-string
+                     (nhexl--make-line (overlay-start ol) (overlay-end ol)
+                                       zero nhexl--point))))
+    ))
+
+(defun nhexl--refresh-cursor (&optional pos)
+  (unless pos (setq pos (point)))
+  (let* ((zero (save-restriction (widen) (point-min)))
+         (lw (nhexl--line-width))
+         (n (truncate (- pos zero) lw))
+         (from (max (point-min) (+ zero (* n lw))))
+         (to (min (point-max) (+ zero (* (1+ n) lw)))))
+    (with-silent-modifications
+      (put-text-property from to 'fontified nil))))
 
 (defun nhexl--header-line ()
-  ;; FIXME: merge with nhexl--make-line.
+  ;; FIXME: merge with nhexl--make-line?
   ;; FIXME: Memoize last line to avoid recomputation!
   (let* ((zero (save-restriction (widen) (point-min)))
          (lw (nhexl--line-width))
@@ -600,7 +617,7 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
               (setq i (logand i #xf))
               (push (if (< i 10) (+ i ?0) (+ i -10 ?a)) tmp))
             (apply #'string (nreverse tmp))))
-         (pos (mod (- nhexl--point zero) lw))
+         (pos (mod (- (point) zero) lw))
          (i -1))
     (put-text-property pos (1+ pos) 'face 'highlight text)
     (concat
@@ -612,7 +629,7 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
                   (let ((s (string c c)))
                     (when (eq i pos)
                       (if nhexl-nibble-edit-mode
-                          (let ((nib (min (nhexl--nibble nhexl--point)
+                          (let ((nib (min (nhexl--nibble (point))
                                           (1- (length s)))))
                             (put-text-property nib (1+ nib)
                                                'face 'highlight
@@ -715,27 +732,26 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
   (when (eq t (default-value 'nhexl-line-width))
     (dolist (win (window-list frame 'nomini))
       (when (buffer-local-value 'nhexl-mode (window-buffer win))
-        (with-selected-window win (nhexl--window-config-change))))))
+        (with-selected-window win (nhexl--adjust-to-width))))))
 
-(defun nhexl--window-config-change ()
-  (when (eq t (default-value 'nhexl-line-width))
-    ;; FIXME: What should we do with buffers displayed in several windows of
-    ;; different width?
-    (let ((win (get-buffer-window)))
-      (when win
-        (let* ((width (window-text-width win))
-               (bytes (/ (- width
-                            (eval-when-compile
-                              (+ 9      ;Address
-                                 3      ;Spaces between address and hex area
-                                 4)))   ;Spaces between hex area and ascii area
-                         3.5))          ;Columns per byte
-               (pow2bytes (lsh 1 (truncate (log bytes 2)))))
-          (when (> (/ bytes pow2bytes) 1.5)
-            ;; Add 1½ steps: 4, *6*, 8, *12*, 16, *24*, 32, *48*, 64
-            (setq pow2bytes (+ pow2bytes (/ pow2bytes 2))))
-          (unless (eql pow2bytes nhexl-line-width)
-            (setq-local nhexl-line-width pow2bytes)))))))
+(defun nhexl--adjust-to-width ()
+  ;; FIXME: What should we do with buffers displayed in several windows of
+  ;; different width?
+  (let ((win (get-buffer-window)))
+    (when win
+      (let* ((width (window-text-width win))
+             (bytes (/ (- width
+                          (eval-when-compile
+                            (+ 9        ;Address
+                               3        ;Spaces between address and hex area
+                               4)))     ;Spaces between hex area and ascii area
+                       3.5))            ;Columns per byte
+             (pow2bytes (lsh 1 (truncate (log bytes 2)))))
+        (when (> (/ bytes pow2bytes) 1.5)
+          ;; Add 1½ steps: 4, *6*, 8, *12*, 16, *24*, 32, *48*, 64
+          (setq pow2bytes (+ pow2bytes (/ pow2bytes 2))))
+        (unless (eql pow2bytes nhexl-line-width)
+          (setq-local nhexl-line-width pow2bytes))))))
 
 (provide 'nhexl-mode)
 ;;; nhexl-mode.el ends here
