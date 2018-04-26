@@ -4,7 +4,7 @@
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords: data
-;; Version: 0.7
+;; Version: 0.8
 ;; Package-Requires: ((emacs "24.4") (cl-lib "0.5"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -49,7 +49,17 @@
 ;; search them with Isearch.
 
 ;;; Todo:
-;; - Clicks on the hex side should put point at the right place.
+;; - When the buffer is displayed in various windows, the "cursor" in the hex
+;;   area only reflects one of the window-points.  Fixing this is rather
+;;   painful tho:
+;;   - for every cursor, we need an extra overlay with the `window'
+;;     property with its own `before-string'.
+;;   - because that overlay won't *replace* the normal overlay (the one
+;;     without the `window' property), we will need to *remove* that
+;;     overlay (lest we get 2 before-strings) and replace it with N overlays
+;;     with a `window' property (for all N other windows that don't have
+;;     their cursor on this line).
+;;   FWIW, the original `hexl-mode' has the same kind of problem.
 
 ;;; Code:
 
@@ -90,10 +100,7 @@ Otherwise they are applied unconditionally."
     (aset dt ?\t [?␉])
     dt))
 
-(defvar nhexl--saved-vars nil)
-(make-variable-buffer-local 'nhexl--saved-vars)
-(defvar nhexl--point nil)
-(make-variable-buffer-local 'nhexl--point)
+(defvar-local nhexl--saved-vars nil)
 
 ;;;; Nibble editing minor mode
 
@@ -120,18 +127,35 @@ Otherwise they are applied unconditionally."
     (kill-local-variable 'cursor-type))
   (nhexl--refresh-cursor))
 
-(defvar-local nhexl--nibble nil)
+(defvar-local nhexl--nibbles nil
+  "Nibble state of the various `point's.
+List of elements of the form (WINDOW OFFSET POINT TICKS),
+where WINDOW can be nil (for the `point' of the buffer itself);
+OFFSET is the nibble-position within the byte at POINT (0 = leftmost);
+and TICKS is the `buffer-chars-modified-tick' for which this was valid.")
 
 (defun nhexl--nibble (&optional pos)
-  (or (and (eq (or pos (point)) (nth 1 nhexl--nibble))
-           (eq (buffer-chars-modified-tick) (nth 2 nhexl--nibble))
-           (nth 0 nhexl--nibble))
-      (progn
-        (setq nhexl--nibble nil)
-        0)))
+  (let ((cwin (if (eq (current-buffer) (window-buffer)) (selected-window)))
+        (data ()))
+    (dolist (n nhexl--nibbles)
+      (let ((nwin (car n)))
+        (cond
+         ((eq cwin nwin) (setq data n))
+         ((eq (current-buffer) (window-buffer nwin)) nil)
+         (t (setq nhexl--nibbles (delq n nhexl--nibbles))))))
+    (or (and (eq (or pos (point)) (nth 2 data))
+             (eq (buffer-chars-modified-tick) (nth 3 data))
+             (nth 1 data))
+        (progn
+          (setq nhexl--nibbles (delq data nhexl--nibbles))
+          0))))
 
 (defun nhexl--nibble-set (n)
-  (setq nhexl--nibble (list n (point) (buffer-chars-modified-tick))))
+  (let* ((cwin (if (eq (current-buffer) (window-buffer)) (selected-window)))
+         (data (assq cwin nhexl--nibbles)))
+    (unless data
+      (push (setq data (list cwin)) nhexl--nibbles))
+    (setcdr data (list n (point) (buffer-chars-modified-tick)))))
 
 (defsubst nhexl--line-width ()
   (if (integerp nhexl-line-width) nhexl-line-width 16))
@@ -302,8 +326,11 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
     ;; but benefit from an ad-hoc implementation.
     (define-key map [remap scroll-up-command] #'nhexl-scroll-up)
     (define-key map [remap scroll-down-command] #'nhexl-scroll-down)
+    (define-key map [remap mouse-set-point] #'nhexl-mouse-set-point)
     ;; FIXME: Find a key binding for nhexl-nibble-edit-mode!
     map))
+
+(defvar-local nhexl--point nil)
 
 ;;;###autoload
 (define-minor-mode nhexl-mode
@@ -318,8 +345,8 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
         (jit-lock-unregister #'nhexl--jit)
         (remove-hook 'after-change-functions #'nhexl--change-function 'local)
         (remove-hook 'post-command-hook #'nhexl--post-command 'local)
-        ;;(remove-hook 'window-configuration-change-hook
-        ;;             #'nhexl--window-config-change t)
+        (remove-hook 'window-configuration-change-hook
+                    #'nhexl--window-config-change t)
         (remove-hook 'window-size-change-functions #'nhexl--window-size-change)
         (remove-function (local 'isearch-search-fun-function)
                          #'nhexl--isearch-search-fun)
@@ -355,11 +382,15 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
     (add-hook 'change-major-mode-hook (lambda () (nhexl-mode -1)) nil 'local)
     (add-hook 'post-command-hook #'nhexl--post-command nil 'local)
     (add-hook 'after-change-functions #'nhexl--change-function nil 'local)
-    ;; (add-hook 'window-configuration-change-hook
-    ;;           #'nhexl--window-config-change nil 'local)
+    (add-hook 'window-configuration-change-hook
+              #'nhexl--window-config-change nil 'local)
     (add-hook 'window-size-change-functions #'nhexl--window-size-change)
     (add-function :around (local 'isearch-search-fun-function)
-                  #'nhexl--isearch-search-fun)))
+                  #'nhexl--isearch-search-fun)
+    ;; FIXME: We should delay this to after running the minor-mode hook.
+    (when (and (eq t (default-value 'nhexl-line-width))
+               (eq (current-buffer) (window-buffer)))
+      (nhexl--adjust-to-width))))
 
 (defun nhexl-next-line (&optional arg)
   "Move cursor vertically down ARG lines."
@@ -424,6 +455,37 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
             (scroll-up arg))
         (nhexl-next-line arg)
         (set-window-start nil (min (point-max) nws)))))))
+
+(defun nhexl-mouse-set-point (event)
+  "Move point to the position clicked on with the mouse."
+  ;; This will select the window if needed and move point to the beginning of
+  ;; the line.
+  (interactive "e")
+  ;; (cl-assert (eq last-))
+  (let* ((posn (event-end event))
+         (str-data (posn-string posn))
+         (addr-offset (eval-when-compile
+                        (+ 1            ;for LF
+                           9            ;for "<address>:"
+                           1))))        ;for the following (stretch)space
+    (cond
+     ((and (consp str-data) (stringp (car str-data))
+           (> (length (car str-data)) addr-offset)
+           (eq ?\n (aref (car str-data) 0))
+           (integerp (cdr str-data)) (> (cdr str-data) addr-offset))
+      (let* ((hexchars (- (cdr str-data) addr-offset))
+             ;; FIXME: Calculations here go wrong in the presence of
+             ;; chars with code > 255.
+             (hex-no-spaces (- hexchars (/ (1+ hexchars) 5)))
+             (bytes (min (/ hex-no-spaces 2)
+                         ;; Bound, for clicks between the hex and ascii areas.
+                         (1- (nhexl--line-width)))))
+        (posn-set-point posn)
+        (forward-char bytes)
+        (when nhexl-nibble-edit-mode
+          (let* ((nibble (- hex-no-spaces (* bytes 2))))
+            (nhexl--nibble-set (min nibble 1))))))
+     (t (call-interactively #'mouse-set-point)))))
 
 (defun nhexl--change-function (beg end len)
   ;; Round modifications up-to the hexl-line length since nhexl--jit will need
@@ -549,8 +611,7 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
 
 (defun nhexl--jit (from to)
   (let ((zero (save-restriction (widen) (point-min)))
-        (lw (nhexl--line-width))
-        (has-cursor (and (<= from nhexl--point) (< nhexl--point to))))
+        (lw (nhexl--line-width)))
     (setq from (max (point-min)
                     (+ zero (* (truncate (- from zero) lw) lw))))
     (setq to (min (point-max)
@@ -575,7 +636,7 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
       
       (let* ((next (+ from lw))
              (ol (make-overlay from next))
-             (s (nhexl--make-line from next zero)))
+             (s (nhexl--make-line from next zero nhexl--point)))
         (overlay-put ol 'nhexl t)
         (overlay-put ol (if nhexl-obey-font-lock 'font-lock-face 'face)
                      'hexl-ascii-region)
@@ -586,14 +647,6 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
         (overlay-put ol 'priority most-negative-fixnum)
         (overlay-put ol 'before-string s)
         (setq from next)))
-
-    (when has-cursor
-      (let ((ols (overlays-at nhexl--point))
-            ol)
-        (dolist (o ols) (if (overlay-get o 'nhexl) (setq ol o)))
-        (overlay-put ol 'before-string
-                     (nhexl--make-line (overlay-start ol) (overlay-end ol)
-                                       zero nhexl--point))))
     ))
 
 (defun nhexl--refresh-cursor (&optional pos)
@@ -734,6 +787,12 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
       (when (buffer-local-value 'nhexl-mode (window-buffer win))
         (with-selected-window win (nhexl--adjust-to-width))))))
 
+(defun nhexl--window-config-change ()
+  ;; Doing it only from `window-size-change-functions' is not sufficient
+  ;; because it's not run when you set-window-buffer.
+  (when (eq t (default-value 'nhexl-line-width))
+    (nhexl--adjust-to-width)))
+  
 (defun nhexl--adjust-to-width ()
   ;; FIXME: What should we do with buffers displayed in several windows of
   ;; different width?
