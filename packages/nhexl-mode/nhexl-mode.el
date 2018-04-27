@@ -4,7 +4,7 @@
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords: data
-;; Version: 0.8
+;; Version: 0.9
 ;; Package-Requires: ((emacs "24.4") (cl-lib "0.5"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -30,9 +30,6 @@
 ;; usable as a "plain" minor mode.  It works on any buffer, and does
 ;; not mess with the undo log or with the major mode.
 ;;
-;; In theory it could also work just fine even on very large buffers,
-;; although in practice it seems to make the display engine suffer.
-;;
 ;; It also comes with:
 ;;
 ;; - `nhexl-nibble-edit-mode': a "nibble editor" minor mode.
@@ -44,14 +41,15 @@
 ;;   In this minor mode, not only self-inserting keys overwrite existing
 ;;   text, but commands like `yank' and `kill-region' as well.
 
-;; Even though the Hex addresses displayed by this mode aren't actually
+;; Even though the hex addresses displayed by this mode aren't actually
 ;; part of the buffer's text (contrary to hexl-mode, for example), you can
 ;; search them with Isearch.
 
-;;; Todo:
-;; - When the buffer is displayed in various windows, the "cursor" in the hex
-;;   area only reflects one of the window-points.  Fixing this is rather
-;;   painful tho:
+;;;; Known bugs:
+;;
+;; - When the buffer is displayed in several windows, the "cursor" in the hex
+;;   area only reflects one of the window-points.  Fixing this would be rather
+;;   painful:
 ;;   - for every cursor, we need an extra overlay with the `window'
 ;;     property with its own `before-string'.
 ;;   - because that overlay won't *replace* the normal overlay (the one
@@ -371,13 +369,16 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
                    
     (unless (local-variable-p 'nhexl--saved-vars)
       (dolist (var '(buffer-display-table buffer-invisibility-spec
-                     overwrite-mode header-line-format))
+                     overwrite-mode header-line-format word-wrap))
         (push (cons var (symbol-value var)) nhexl--saved-vars)))
     (setq nhexl--point (point))
-    (setq header-line-format '(:eval (nhexl--header-line)))
+    ;; Word-wrap doesn't make much sense together with nhexl-mode and
+    ;; the display-engine tends to suffer unduly if it's enabled.
+    (setq-local word-wrap nil)
+    (setq-local header-line-format '(:eval (nhexl--header-line)))
     (binary-overwrite-mode 1)
-    (setq buffer-invisibility-spec ())
-    (set (make-local-variable 'buffer-display-table) nhexl--display-table)
+    (setq-local buffer-invisibility-spec ())
+    (setq-local buffer-display-table nhexl--display-table)
     (jit-lock-register #'nhexl--jit)
     (add-hook 'change-major-mode-hook (lambda () (nhexl-mode -1)) nil 'local)
     (add-hook 'post-command-hook #'nhexl--post-command nil 'local)
@@ -456,22 +457,25 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
         (nhexl-next-line arg)
         (set-window-start nil (min (point-max) nws)))))))
 
+;; If we put the LFs in the before-string, we get a spurious empty
+;; line at the top of the window (bug#31276), so we put the LFs
+;; via a `display' property by default, but it's a bit complicated.
+(eval-and-compile
+  (defvar nhexl--put-LF-in-string nil))
+
 (defun nhexl-mouse-set-point (event)
   "Move point to the position clicked on with the mouse."
-  ;; This will select the window if needed and move point to the beginning of
-  ;; the line.
   (interactive "e")
   ;; (cl-assert (eq last-))
   (let* ((posn (event-end event))
          (str-data (posn-string posn))
          (addr-offset (eval-when-compile
-                        (+ 1            ;for LF
+                        (+ (if nhexl--put-LF-in-string 1 0)
                            9            ;for "<address>:"
                            1))))        ;for the following (stretch)space
+    ;; (message "NMSP: strdata=%S" str-data)
     (cond
      ((and (consp str-data) (stringp (car str-data))
-           (> (length (car str-data)) addr-offset)
-           (eq ?\n (aref (car str-data) 0))
            (integerp (cdr str-data)) (> (cdr str-data) addr-offset))
       (let* ((hexchars (- (cdr str-data) addr-offset))
              ;; FIXME: Calculations here go wrong in the presence of
@@ -480,6 +484,8 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
              (bytes (min (/ hex-no-spaces 2)
                          ;; Bound, for clicks between the hex and ascii areas.
                          (1- (nhexl--line-width)))))
+        ;; This will select the window if needed and move point to the
+        ;; beginning of the line.
         (posn-set-point posn)
         (forward-char bytes)
         (when nhexl-nibble-edit-mode
@@ -510,7 +516,7 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
     (widen)
     (nhexl--change-function (point-min) (point-max) (buffer-size))))
 
-(defvar nhexl--overlay-counter 100)
+(defvar nhexl--overlay-counter 1000)
 (make-variable-buffer-local 'nhexl--overlay-counter)
 
 (defun nhexl--debug-count-ols ()
@@ -562,7 +568,7 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
          (prop (if nhexl-obey-font-lock 'font-lock-face 'face))
          (i -1)
          (s (concat
-             (unless (eq zero from) "\n")
+             (if nhexl--put-LF-in-string (unless (eq zero from) "\n"))
              (format (if (or (null point)
                              (< point from)
                              (>= point next))
@@ -577,7 +583,7 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
                                        '(highlight hexl-address-region default)
                                      'highlight)))
                      (- from zero))
-             (propertize " " 'display '(space :align-to 12))
+             (eval-when-compile (propertize " " 'display '(space :align-to 12)))
              (mapconcat (lambda (c)
                           (setq i (1+ i))
                           ;; FIXME: In multibyte buffers,
@@ -631,12 +637,29 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
                  ;; removing overlays is just a waste since
                  ;; jit-lock-stealth will restore them anyway.
                  (not jit-lock-stealth-time))
-        ;; (run-with-idle-timer 0 nil 'nhexl--flush-overlays (current-buffer))
+        ;; (run-with-idle-timer 0 nil #'nhexl--flush-overlays (current-buffer))
         )
       
       (let* ((next (+ from lw))
              (ol (make-overlay from next))
-             (s (nhexl--make-line from next zero nhexl--point)))
+             (s (nhexl--make-line from next zero nhexl--point))
+             (c (char-before next)))
+        (unless (or nhexl--put-LF-in-string (>= next (point-max)))
+          ;; Display tables aren't applied to strings in `display' properties,
+          ;; so we have to mimick it by hand.
+          (let ((cdisplay (aref nhexl--display-table
+                                (if enable-multibyte-characters c
+                                  (unibyte-char-to-multibyte c)))))
+            (put-text-property (1- next) next
+                               'display (concat
+                                         (string (cond
+                                                  ((eq c ?\n) ?␊)
+                                                  (cdisplay (aref cdisplay 0))
+                                                  (t c)))
+                                         ;; Explicit set a `default' face
+                                         ;; lest it gets nhexl-ascii-region.
+                                         (eval-when-compile
+                                           (propertize "\n" 'face 'default))))))
         (overlay-put ol 'nhexl t)
         (overlay-put ol (if nhexl-obey-font-lock 'font-lock-face 'face)
                      'hexl-ascii-region)
@@ -646,6 +669,7 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
         ;; `face' property.
         (overlay-put ol 'priority most-negative-fixnum)
         (overlay-put ol 'before-string s)
+        ;; (overlay-put ol 'after-string "\n")
         (setq from next)))
     ))
 
@@ -674,9 +698,9 @@ existing text, if needed with `nhexl-overwrite-clear-byte'."
          (i -1))
     (put-text-property pos (1+ pos) 'face 'highlight text)
     (concat
-     (propertize " " 'display '(space :align-to 0))
+     (eval-when-compile (propertize " " 'display '(space :align-to 0)))
      "Address:"
-     (propertize " " 'display '(space :align-to 12))
+     (eval-when-compile (propertize " " 'display '(space :align-to 12)))
      (mapconcat (lambda (c)
                   (setq i (1+ i))
                   (let ((s (string c c)))
