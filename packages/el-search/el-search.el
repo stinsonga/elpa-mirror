@@ -639,7 +639,7 @@ nil."
                    (top-level-paren-start pos)
                    ;; Iff at the beginning top-level paren group, this succeeds and returns point
                    (and (not (eobp)) (top-level-paren-start (1+ pos)))))
-            (cons defun-beg (scan-sexps defun-beg 1))
+            (cons defun-beg (el-search--end-of-sexp defun-beg))
           ;; This corner case (not inside any s-exp or current top level s-exp
           ;; not a list) is a bit hairy to do with syntax stuff, so let's just
           ;; use el-search:
@@ -784,14 +784,19 @@ PROMPT defaults to \"El-search pattern: \".  The return value is the
     pattern))
 
 
-(defun el-search--end-of-sexp ()
+(defun el-search--end-of-sexp (&optional pos)
   "Return the value of point at the end of this sexp.
-Point should be at a sexp beginning."
-  (if (eql (char-after) ?@) ;bug#24542
-      (save-excursion
-        (ignore (el-search-read (current-buffer)))
-        (point))
-    (or (scan-sexps (point) 1) (point-max))))
+Point should be at a sexp beginning.
+
+With POS, a sexp-beginning position, return value of point at the end
+of this sexp."
+  (save-excursion
+    (when pos (goto-char pos))
+    (if (eql (char-after) ?@) ;bug#24542 "The symbol `@' and sexp scanning"
+        (progn
+          (ignore (el-search-read (current-buffer)))
+          (point))
+      (or (scan-sexps (point) 1) (point-max)))))
 
 (defun el-search--skip-expression (expression &optional read)
   ;; Move forward at least one character.  Don't move into a string or
@@ -1053,7 +1058,7 @@ be specified as fourth argument, and COUNT becomes the fifth argument."
                      ((el-search--match-p matcher current-expr)
                       (setq match-beg
                             (and (or (not bound)
-                                     (<= (scan-sexps match-beg 1) bound)
+                                     (<= (el-search--end-of-sexp match-beg) bound)
                                      ;; don't fail for >: a subsequent match may end before BOUND
                                      )
                                  (point))))
@@ -2574,7 +2579,7 @@ This function is the counterpart of `el-search--search-pattern-1'."
                   ;; Search for the hindmost match starting before CURRENT-UPPER-LIMIT
                   (let ((done nil))
                     (goto-char current-defun-start)
-                    (setq current-defun-end (scan-sexps defun-start 1))
+                    (setq current-defun-end (el-search--end-of-sexp current-defun-start))
                     (when (and bound (< current-defun-end bound))
                       (setq done t
                             outer-loop-done t
@@ -2920,13 +2925,13 @@ Prompt for a new pattern and revert."
                               context-beg))))
     (cons (or context-beg match-beg)
           (if context-beg (scan-lists context-beg 1 0)
-            (scan-sexps match-beg 1)))))
+            (el-search--end-of-sexp match-beg)))))
 
 (defun el-search-occur-get-defun-context (match-beg)
   (el-search--bounds-of-defun match-beg))
 
 (defun el-search-occur-get-null-context (match-beg)
-  (cons match-beg (scan-sexps match-beg 1)))
+  (cons match-beg (el-search--end-of-sexp match-beg)))
 
 (defvar el-search-get-occur-context-function #'el-search-occur-get-some-context
   "Function determining amount of context shown in *El Occur* buffers.")
@@ -3019,7 +3024,7 @@ Prompt for a new pattern and revert."
                                                 (when (< cbeg context-beg)
                                                   (setq context-beg cbeg)
                                                   (setq context-end
-                                                        (or (scan-sexps cbeg 1) context-end)))))))))
+                                                        (or (el-search--end-of-sexp cbeg) context-end)))))))))
                                 (setq matches
                                       (car (stream-divide-with-get-rest-fun
                                             buffer-matches+contexts
@@ -3032,7 +3037,7 @@ Prompt for a new pattern and revert."
                                                     (with-current-buffer buffer
                                                       (buffer-substring-no-properties
                                                        (goto-char match-beg)
-                                                       (goto-char (scan-sexps (point) 1))))
+                                                       (goto-char (el-search--end-of-sexp))))
                                                     'match-data `(,buffer ,match-beg ,file)))
                                            (let ((ov (make-overlay insertion-point (point) nil t)))
                                              (overlay-put ov 'face 'el-search-match)
@@ -3057,7 +3062,7 @@ Prompt for a new pattern and revert."
                                   (insert
                                    (with-current-buffer buffer
                                      (buffer-substring-no-properties
-                                      (point) (scan-sexps context-beg 1))))))
+                                      (point) (el-search--end-of-sexp context-beg))))))
 
                               (let ((inhibit-message t) (message-log-max nil))
                                 (indent-region insertion-point (point))

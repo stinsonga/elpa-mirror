@@ -292,7 +292,7 @@ Uses variable `el-search--cached-changes' for caching."
   (save-restriction
     (widen)
     (let ((changes (el-search--changes-from-diff-hl revision))
-          (sexp-end (scan-sexps posn 1))
+          (sexp-end (el-search--end-of-sexp posn))
           (atomic? (thunk-delay (el-search--atomic-p
                                  (save-excursion (goto-char posn)
                                                  (el-search-read (current-buffer)))))))
@@ -317,7 +317,7 @@ Uses variable `el-search--cached-changes' for caching."
       (while (and changes (<= (cdar changes) posn))
         (pop changes))
       (and changes
-           (< (caar changes) (scan-sexps posn 1))))))
+           (< (caar changes) (el-search--end-of-sexp posn))))))
 
 (defun el-search-change--heuristic-matcher (&optional revision)
   (let* ((revision (or revision "HEAD"))
