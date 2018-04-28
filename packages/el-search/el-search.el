@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.6.9
+;; Version: 1.6.10
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -3323,18 +3323,6 @@ Thanks!"))))
                                (lambda () (el-search--format-replacement
                                       new-expr original-text to-input-string splice)))
                               (to-insert (funcall get-replacement-string))
-                              (replacement-contains-another-match-p
-                               (lambda ()
-                                 ;; This intentionally includes the replacement itself
-                                 (with-temp-buffer
-                                   (emacs-lisp-mode)
-                                   (insert to-insert)
-                                   (goto-char 1)
-                                   (condition-case nil
-                                       (el-search--search-pattern-1 matcher 'noerror)
-                                     (end-of-buffer nil)))))
-                              (replacement-contains-another-match
-                               (funcall replacement-contains-another-match-p))
                               (void-replacement-p (lambda () (and splice (null new-expr))))
                               (do-replace
                                (lambda ()
@@ -3426,9 +3414,7 @@ Replace all matches in all buffers"))))
                                              t)
                                          (?s
                                           (setq splice    (not splice)
-                                                to-insert (funcall get-replacement-string)
-                                                replacement-contains-another-match
-                                                (funcall replacement-contains-another-match-p))
+                                                to-insert (funcall get-replacement-string))
                                           nil)
                                          (?o
                                           ;; FIXME: Should we allow to edit the replacement?
@@ -3449,11 +3435,20 @@ Replace all matches in all buffers"))))
                                             (el-search--after-scroll (selected-window) (window-start))
                                             nil))
                                          ((or ?q ?\C-g) (signal 'quit t))))))
-                         (when replacement-contains-another-match
-                           (el-search-hl-other-matches matcher))
                          (unless (eobp)
-                           (let ((skip-replacement
-                                  (lambda () (forward-sexp (if splice (length replacement) 1)))))
+                           (let* ((replacement-end-pos
+                                   (and replaced-this
+                                        (save-excursion
+                                          (forward-sexp (if splice (length replacement) 1))
+                                          (point))))
+                                  (replacement-contains-another-match
+                                   (and replaced-this
+                                        ;; This intentionally includes the replacement itself
+                                        (save-excursion
+                                          (el-search--search-pattern-1
+                                           matcher 'noerror replacement-end-pos heuristic-matcher))))
+                                  (skip-replacement
+                                   (lambda () (goto-char replacement-end-pos))))
                              (cond
                               ((not (and replaced-this
                                          replacement-contains-another-match
@@ -3461,6 +3456,7 @@ Replace all matches in all buffers"))))
                                (unless (or replaced-this (eobp))
                                  (el-search--skip-expression nil t)))
                               ((eq skip-matches-in-replacement 'ask)
+                               (el-search-hl-other-matches matcher)
                                (pcase (car (read-multiple-choice
                                             (propertize
                                              "Skip the matches in the replacement? "
