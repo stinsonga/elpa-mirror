@@ -72,6 +72,7 @@
  ("nameless" :subtree "https://github.com/Malabarba/Nameless")
  ("names" :subtree "http://github.com/Malabarba/names")
  ("omn-mode"            :external nil)
+ ("orgalist"            :external nil)
  ("ntlm"		:core "lisp/net/ntlm.el")
  ("on-screen"           :subtree "https://github.com/michael-heerdegen/on-screen.el.git")
  ("pabbrev"             :external "https://github.com/phillord/pabbrev.git")
