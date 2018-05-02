@@ -500,8 +500,10 @@ If SERVER-GROUP isn't given, try to figure it out."
        (concat server-group "#"
 	       (gnorb-unbracket-message-id msg-id))))))
 
-(defun gnorb-msg-id-request-head (msg-id)
+(defun gnorb-msg-id-request-head (msg-id &optional group)
   "Given a message id, try to find its group and article number.
+If GROUP is given, assume that group and just try to find the
+article number.
 
 So far we're checking the registry, then the groups in
 `gnorb-gnus-sent-groups'. Use search engines? Other clever
@@ -510,8 +512,10 @@ methods?"
     (setq msg-id (gnorb-bracket-message-id msg-id))
     (catch 'found
       (when gnorb-tracking-enabled
-	(setq candidates (append (gnus-registry-get-id-key msg-id 'group)
-				 gnorb-gnus-sent-groups))
+	(setq candidates (if group
+			     (list group)
+			   (append (gnus-registry-get-id-key msg-id 'group)
+				   gnorb-gnus-sent-groups)))
 	(while (setq server-group (pop candidates))
 	  (when (and (stringp server-group)
 		     (string-match-p "+" server-group)
