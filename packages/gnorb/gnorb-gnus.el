@@ -807,20 +807,7 @@ HEAD-TEXT, if present, as its name.  Otherwise create an
 ephemeral one, with RET as the value of its quit-config."
   (interactive)
   (require 'nnir)
-  (let* ((nnir-address
-	  (or (catch 'found
-		;; Try very hard to find the server.
-		(when (assoc 'nngnorb gnus-secondary-select-methods)
-		  (throw 'found
-			 (format
-			  "nngnorb:%s"
-			  (nth 1 (assoc 'nngnorb
-					gnus-secondary-select-methods)))))
-		(dolist (s (append gnus-server-alist gnus-server-method-cache))
-		  (when (eq 'nngnorb (cadr s))
-		    (throw 'found (car s)))))
-	      (user-error
-	       "Please add a \"nngnorb\" backend to your gnus installation.")))
+  (let* ((nnir-address (gnorb-gnus-find-gnorb-server))
 	 (name (if persist
 		   (read-string
 		    (format "Name for group (default %s): " head-text)
@@ -839,6 +826,25 @@ ephemeral one, with RET as the value of its quit-config."
 	  (gnus-group-make-group name method nil spec)
 	  (gnus-group-select-group))
       (gnus-group-read-ephemeral-group name method nil ret nil nil spec))))
+
+(defun gnorb-gnus-find-gnorb-server (&optional no-error)
+  "Try very hard to find a local nngnorb server.
+If NO-ERROR is non-nil, return nil on failure, otherwise an
+error."
+  (or (catch 'found
+	;; Try very hard to find the server.
+	(when (assoc 'nngnorb gnus-secondary-select-methods)
+	  (throw 'found
+		 (format
+		  "nngnorb:%s"
+		  (nth 1 (assoc 'nngnorb
+				gnus-secondary-select-methods)))))
+	(dolist (s (append gnus-server-alist gnus-server-method-cache))
+	  (when (eq 'nngnorb (cadr s))
+	    (throw 'found (car s)))))
+      (unless no-error
+	(user-error
+	 "Please add a \"nngnorb\" backend to your gnus installation."))))
 
 (defun gnorb-gnus-summary-mode-hook ()
   "Check if we've entered a Gnorb-generated group, and activate
