@@ -41,7 +41,7 @@
 		   subject (car-safe (cdr (assoc 'subject data)))
 		   recipient (car-safe (cdr (assoc 'recipient data))))
 	 (push (cons (format "%s: %s"
-			     (if (string-match-p from gnus-ignored-from-addresses)
+			     (if (string-match-p gnus-ignored-from-addresses from)
 				 recipient
 			       from)
 			     subject)	  ; display
