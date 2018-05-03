@@ -746,7 +746,7 @@ sender:google.com subject:\"your search results\""
 	    (gnus-group-read-ephemeral-group
 	     name `(nnir ,server) nil `(switch-to-buffer ,gnus-group-buffer)
 	     nil nil spec))
-	(message "No results found"))))))
+	(message "No results found")))))
 
 ;;;###autoload
 (defun gnorb-gnus-tag-message (arg &optional tags)
