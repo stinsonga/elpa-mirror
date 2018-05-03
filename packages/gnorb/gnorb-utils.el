@@ -28,6 +28,7 @@
   (require 'cl-lib)
   (require 'nnheader))
 (require 'pcase)
+(require 'seq)
 (require 'org)
 (require 'org-agenda)
 (require 'org-element)
