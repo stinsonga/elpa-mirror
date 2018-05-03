@@ -685,13 +685,18 @@ and match it against messages tracked in the registry. Search
 strings are given as a series of ``key:value'' terms, with double
 quotes around multi-word values. See docstring for available
 keys.
+@item `gnorb-helm-search-registry'
+Helm users can use this function to
+conduct a more visual search of the registry. Only
+sender/recipient and subject lines are matched against.
 @end table
 
-This function is not bound by default; you might consider:
+These functions are not bound by default; you might consider:
 
 @lisp
 (with-eval-after-load "gnus-group"
-  (define-key gnus-group-group-map (kbd "/") #'gnorb-gnus-search-registry))
+  (define-key gnus-group-group-map (kbd "/") #'gnorb-gnus-search-registry)
+  (define-key gnus-group-group-map (kbd "?") #'gnorb-helm-search-registry))
 @end lisp
 
 @node User Options 2

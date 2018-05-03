@@ -695,11 +695,16 @@ set of groups beforehand.
      tracked in the registry.  Search strings are given as a series of
      “key:value” terms, with double quotes around multi-word values.
      See docstring for available keys.
+‘gnorb-helm-search-registry’
+     Helm users can use this function to conduct a more visual search of
+     the registry.  Only sender/recipient and subject lines are matched
+     against.
 
-   This function is not bound by default; you might consider:
+   These functions are not bound by default; you might consider:
 
      (with-eval-after-load "gnus-group"
-       (define-key gnus-group-group-map (kbd "/") #'gnorb-gnus-search-registry))
+       (define-key gnus-group-group-map (kbd "/") #'gnorb-gnus-search-registry)
+       (define-key gnus-group-group-map (kbd "?") #'gnorb-helm-search-registry))
 
 
 File: gnorb.info,  Node: User Options 2,  Prev: Searching With the Registry,  Up: Misc Gnus
@@ -836,8 +841,8 @@ Node: Inserting BBDB links25199
 Node: User Options 125455
 Node: Misc Gnus28353
 Node: Searching With the Registry28547
-Node: User Options 229574
-Node: Default Keybindings32752
+Node: User Options 229849
+Node: Default Keybindings33027
 
 End Tag Table
 

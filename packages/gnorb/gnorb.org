@@ -495,12 +495,16 @@ a particular set of groups beforehand.
      strings are given as a series of "key:value" terms, with double
      quotes around multi-word values. See docstring for available
      keys.
+- `gnorb-helm-search-registry' :: Helm users can use this function to
+     conduct a more visual search of the registry. Only
+     sender/recipient and subject lines are matched against.
 
-This function is not bound by default; you might consider:
+These functions are not bound by default; you might consider:
 
 #+BEGIN_SRC elisp
   (with-eval-after-load "gnus-group"
-    (define-key gnus-group-group-map (kbd "/") #'gnorb-gnus-search-registry))
+    (define-key gnus-group-group-map (kbd "/") #'gnorb-gnus-search-registry)
+    (define-key gnus-group-group-map (kbd "?") #'gnorb-helm-search-registry))
 #+END_SRC
 ** User Options
 - `gnorb-gnus-mail-search-backend' :: Specifies the search backend
