@@ -52,6 +52,7 @@ Misc Org
 
 Misc Gnus
 
+* Searching With the Registry::
 * User Options: User Options 2.
 
 
@@ -673,12 +674,37 @@ File: gnorb.info,  Node: Misc Gnus,  Next: Default Keybindings,  Prev: Misc Org,
 
 * Menu:
 
+* Searching With the Registry::
 * User Options: User Options 2.
 
 
-File: gnorb.info,  Node: User Options 2,  Up: Misc Gnus
+File: gnorb.info,  Node: Searching With the Registry,  Next: User Options 2,  Up: Misc Gnus
 
-11.1 User Options
+11.1 Searching With the Registry
+================================
+
+Gnorb can use the Gnus registry as a sort of limited search index: the
+registry tracks information about sender, recipient, subject, and a few
+other things, and while this isn’t as powerful as a full-text search
+index, it’s often sufficient.  It’s also very fast, as it doesn’t rely
+on external program, and doesn’t require the user to mark a particular
+set of groups beforehand.
+
+‘gnorb-gnus-search-registry’
+     Prompt the user for a search string, and match it against messages
+     tracked in the registry.  Search strings are given as a series of
+     “key:value” terms, with double quotes around multi-word values.
+     See docstring for available keys.
+
+   This function is not bound by default; you might consider:
+
+     (with-eval-after-load "gnus-group"
+       (define-key gnus-group-group-map (kbd "/") #'gnorb-gnus-search-registry))
+
+
+File: gnorb.info,  Node: User Options 2,  Prev: Searching With the Registry,  Up: Misc Gnus
+
+11.2 User Options
 =================
 
 ‘gnorb-gnus-mail-search-backend’
@@ -740,6 +766,8 @@ File: gnorb.info,  Node: Default Keybindings,  Prev: Misc Gnus,  Up: Top
 12 Default Keybindings
 **********************
 
+Using the bundled function ‘gnorb-install-defaults’ runs the code below.
+If you don’t like these defaults, you can always do your own setup.
      (global-set-key (kbd "C-c A") 'gnorb-restore-layout)
      (eval-after-load "gnorb-bbdb"
        '(progn
@@ -778,40 +806,38 @@ File: gnorb.info,  Node: Default Keybindings,  Prev: Misc Gnus,  Up: Top
      (eval-after-load "message"
        '(progn
           (define-key message-mode-map (kbd "C-c t") #'gnorb-gnus-outgoing-do-todo)))
-   Using the bundled function ‘gnorb-install-defaults’ runs the code
-below.  If you don’t like these defaults, you can always do your own
-setup.
 
 
 
 Tag Table:
 Node: Top194
-Node: Introduction1002
-Node: Installation2327
-Node: Setup2705
-Node: Email Tracking3158
-Node: Likely Workflow4362
-Node: Tracking Setup7132
-Node: Beginning and Continuing the Tracking Process8412
-Node: Trigger Actions12604
-Node: Viewing Things13678
-Node: Hinting in Gnus15794
-Node: Message Attachments16859
-Node: Registry Usage18098
-Node: Restoring Window Layout18525
-Node: Recent Mails From BBDB Contacts18922
-Node: Tagging Messages and Contacts19928
-Node: BBDB posting styles21579
-Node: Misc BBDB22486
-Node: Searching for messages from BBDB contacts22702
-Node: Citing BBDB contacts23148
-Node: User Options23469
-Node: Misc Org24992
-Node: Inserting BBDB links25167
-Node: User Options 125423
-Node: Misc Gnus28321
-Node: User Options 228483
-Node: Default Keybindings31625
+Node: Introduction1034
+Node: Installation2359
+Node: Setup2737
+Node: Email Tracking3190
+Node: Likely Workflow4394
+Node: Tracking Setup7164
+Node: Beginning and Continuing the Tracking Process8444
+Node: Trigger Actions12636
+Node: Viewing Things13710
+Node: Hinting in Gnus15826
+Node: Message Attachments16891
+Node: Registry Usage18130
+Node: Restoring Window Layout18557
+Node: Recent Mails From BBDB Contacts18954
+Node: Tagging Messages and Contacts19960
+Node: BBDB posting styles21611
+Node: Misc BBDB22518
+Node: Searching for messages from BBDB contacts22734
+Node: Citing BBDB contacts23180
+Node: User Options23501
+Node: Misc Org25024
+Node: Inserting BBDB links25199
+Node: User Options 125455
+Node: Misc Gnus28353
+Node: Searching With the Registry28547
+Node: User Options 229574
+Node: Default Keybindings32752
 
 End Tag Table
 
