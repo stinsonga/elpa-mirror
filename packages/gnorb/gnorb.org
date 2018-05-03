@@ -482,6 +482,26 @@ insert an Org link to that record at point.
      Agenda-related BBDB popup, takes the same values as
      bbdb-pop-up-layout.
 * Misc Gnus
+** Searching With the Registry
+Gnorb can use the Gnus registry as a sort of limited search index: the
+registry tracks information about sender, recipient, subject, and a
+few other things, and while this isn't as powerful as a full-text
+search index, it's often sufficient. It's also very fast, as it
+doesn't rely on external program, and doesn't require the user to mark
+a particular set of groups beforehand.
+
+- `gnorb-gnus-search-registry' :: Prompt the user for a search string,
+     and match it against messages tracked in the registry. Search
+     strings are given as a series of "key:value" terms, with double
+     quotes around multi-word values. See docstring for available
+     keys.
+
+This function is not bound by default; you might consider:
+
+#+BEGIN_SRC elisp
+  (with-eval-after-load "gnus-group"
+    (define-key gnus-group-group-map (kbd "/") #'gnorb-gnus-search-registry))
+#+END_SRC
 ** User Options
 - `gnorb-gnus-mail-search-backend' :: Specifies the search backend
      that you use for searching mails. Currently supports notmuch,

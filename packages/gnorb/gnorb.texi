@@ -64,6 +64,7 @@ Misc Org
 
 Misc Gnus
 
+* Searching With the Registry::
 * User Options: User Options 2.
 
 @end detailmenu
@@ -663,8 +664,35 @@ bbdb-pop-up-layout.
 @chapter Misc Gnus
 
 @menu
+* Searching With the Registry::
 * User Options: User Options 2.
 @end menu
+
+@node Searching With the Registry
+@section Searching With the Registry
+
+Gnorb can use the Gnus registry as a sort of limited search index: the
+registry tracks information about sender, recipient, subject, and a
+few other things, and while this isn't as powerful as a full-text
+search index, it's often sufficient. It's also very fast, as it
+doesn't rely on external program, and doesn't require the user to mark
+a particular set of groups beforehand.
+
+@table @asis
+@item `gnorb-gnus-search-registry'
+Prompt the user for a search string,
+and match it against messages tracked in the registry. Search
+strings are given as a series of ``key:value'' terms, with double
+quotes around multi-word values. See docstring for available
+keys.
+@end table
+
+This function is not bound by default; you might consider:
+
+@lisp
+(with-eval-after-load "gnus-group"
+  (define-key gnus-group-group-map (kbd "/") #'gnorb-gnus-search-registry))
+@end lisp
 
 @node User Options 2
 @section User Options
@@ -733,6 +761,8 @@ line. Defaults to ``&''.
 @node Default Keybindings
 @chapter Default Keybindings
 
+Using the bundled function `gnorb-install-defaults' runs the code
+below. If you don't like these defaults, you can always do your own setup.
 @lisp
 (global-set-key (kbd "C-c A") 'gnorb-restore-layout)
 (eval-after-load "gnorb-bbdb"
@@ -773,7 +803,5 @@ line. Defaults to ``&''.
   '(progn
      (define-key message-mode-map (kbd "C-c t") #'gnorb-gnus-outgoing-do-todo)))
 @end lisp
-Using the bundled function `gnorb-install-defaults' runs the code
-below. If you don't like these defaults, you can always do your own setup.
 
 @bye
