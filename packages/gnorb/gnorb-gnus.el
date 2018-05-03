@@ -1,6 +1,6 @@
 ;;; gnorb-gnus.el --- The gnus-centric fuctions of gnorb -*- lexical-binding: t -*-
 
-;; Copyright (C) 2014  Free Software Foundation, Inc.
+;; Copyright (C) 2018  Free Software Foundation, Inc.
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Keywords:
