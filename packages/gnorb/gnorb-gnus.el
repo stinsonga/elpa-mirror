@@ -703,50 +703,55 @@ sender:google.com subject:\"your search results\""
   (interactive
    (list (read-string "Registry search terms: " nil
 		      gnorb-registry-search-history)))
-  (let (parsed found this-pass term)
+  (let ((case-fold-search t)
+	parsed found this-pass term)
     (with-temp-buffer
       (insert search-string)
       (goto-char (point-min))
       (while (re-search-forward
-	      "\\([[:alpha:]]+\\):\\(\\(?:\\w+\\|\"[[:alpha:] ]+\"\\)\\)"
+	      "\\([[:alpha:]]+\\):\\(\\(?:[^\"[:blank:]]+\\|\"[^\"]+\"\\)\\)"
 	      (point-at-eol) t)
 	(push (cons (intern (match-string 1))
 		    (string-trim (match-string 2) "\"" "\""))
-	      parsed))
-      (dolist (sym (slot-value gnus-registry-db 'tracked))
-	(when (setq term (cdr-safe (assoc sym parsed)))
-	  (maphash
-	   (lambda (k v)
-	     (when (string-match-p term k)
-	       (setq this-pass (append v this-pass))))
-	   (gethash sym (slot-value gnus-registry-db 'tracker)))
-	  (setq found (if found
-			  (seq-intersection found this-pass)
-			this-pass)
-		this-pass nil)))
-      (if found
-	  (let* ((server (gnorb-gnus-find-gnorb-server))
-		 (artlist
-		  (mapcar
-		   (lambda (msg)
-		     (pcase-let ((`(,group . ,artno) (gnorb-msg-id-request-head
-						      msg)))
-		       (when (and artno (integerp artno) (> artno 0))
-			 (vector group artno 100))))
-		   (delq nil (delete-dups found))))
-		 (name (make-temp-name "registry messages"))
-		 (spec (list
-			(cons 'nnir-specs (list (cons 'nnir-query-spec
-						      `((query . "dummy")
-							(articles . ,artlist)))
-						(cons 'nnir-group-spec
-						      `((,server ,(list name))))))
-			(cons 'nnir-artlist nil))))
-	    (switch-to-buffer gnus-group-buffer)
-	    (gnus-group-read-ephemeral-group
-	     name `(nnir ,server) nil `(switch-to-buffer ,gnus-group-buffer)
-	     nil nil spec))
-	(message "No results found")))))
+	      parsed)))
+    (dolist (sym (slot-value gnus-registry-db 'tracked))
+      (when (setq term (cdr-safe (assoc sym parsed)))
+	(maphash
+	 (lambda (k v)
+	   (when (string-match-p term k)
+	     (setq this-pass (append v this-pass))))
+	 (gethash sym (slot-value gnus-registry-db 'tracker)))
+	(setq found (if found
+			(seq-intersection found this-pass)
+		      this-pass)
+	      this-pass nil)))
+    (if found
+	(let* ((server (gnorb-gnus-find-gnorb-server))
+	       (artlist
+		(delq
+		 nil
+		 (mapcar
+		  (lambda (msg)
+		    (pcase-let ((`(,group . ,artno)
+				 (gnorb-msg-id-request-head
+				  msg (car-safe
+				       (gnus-registry-get-id-key msg 'group)))))
+		      (when (and group artno (integerp artno) (> artno 0))
+			(vector group artno 100))))
+		  (delq nil (delete-dups found)))))
+	       (name (make-temp-name "registry messages"))
+	       (spec (list
+		      (cons 'nnir-specs (list (cons 'nnir-query-spec
+						    `((query . "dummy")
+						      (articles . ,artlist)))
+					      (cons 'nnir-group-spec
+						    `((,server ,(list name))))))
+		      (cons 'nnir-artlist nil))))
+	  (switch-to-buffer gnus-group-buffer)
+	  (gnus-group-read-ephemeral-group
+	   name `(nnir ,server) nil `(switch-to-buffer ,gnus-group-buffer)
+	   nil nil spec))
+      (message "No results found"))))
 
 ;;;###autoload
 (defun gnorb-gnus-tag-message (arg &optional tags)
