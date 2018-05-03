@@ -1,8 +1,8 @@
 ;;; gnorb.el --- Glue code between Gnus, Org, and BBDB -*- lexical-binding: t -*-
 
-;; Copyright (C) 2014  Free Software Foundation, Inc.
+;; Copyright (C) 2018  Free Software Foundation, Inc.
 
-;; Version: 1.4.2
+;; Version: 1.5
 ;; Package-Requires: ((cl-lib "0.5"))
 
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
