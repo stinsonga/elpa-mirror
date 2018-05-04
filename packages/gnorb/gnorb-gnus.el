@@ -712,7 +712,8 @@ sender:google.com subject:\"your search results\""
 	      "\\([[:alpha:]]+\\):\\(\\(?:[^\"[:blank:]]+\\|\"[^\"]+\"\\)\\)"
 	      (point-at-eol) t)
 	(push (cons (intern (match-string 1))
-		    (string-trim (match-string 2) "\"" "\""))
+		    (replace-regexp-in-string "\\`\"\\|\"\\'" ""
+					      (match-string 2)))
 	      parsed)))
     (dolist (sym (slot-value gnus-registry-db 'tracked))
       (when (setq term (cdr-safe (assoc sym parsed)))
