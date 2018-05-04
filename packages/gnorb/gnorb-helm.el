@@ -34,13 +34,20 @@
 (defun gnorb-helm-gnus-registry-candidates ()
   "Return a list of candidates from the Gnus registry."
   (let ((check
-	 (when gnus-ignored-from-addresses
+	 (when (or gnus-ignored-from-addresses
+		   message-alternative-emails)
 	   (cond ((functionp gnus-ignored-from-addresses)
 		  (lambda (adr) (funcall gnus-ignored-from-addresses adr)))
 		 ((stringp gnus-ignored-from-addresses)
 		  (lambda (adr)
 		    (string-match-p
-		     gnus-ignored-from-addresses adr))))))
+		     gnus-ignored-from-addresses adr)))
+		 ((functionp message-alternative-emails)
+		  (lambda (adr) (funcall message-alternative-emails adr)))
+		 ((stringp message-alternative-emails)
+		  (lambda (adr)
+		    (string-match-p
+		     message-alternative-emails adr))))))
 	ret from recipient subject group)
     (maphash
      (lambda (msg-id data)
@@ -52,7 +59,8 @@
 		      "%s: %s" ; display
 		      (if (and check
 			       (funcall check from))
-			  (mapconcat #'identity recipient " ")
+			  (concat
+			   "To: " (mapconcat #'identity recipient " "))
 			from)
 		      subject)
 		     (cons msg-id group)) ; real
