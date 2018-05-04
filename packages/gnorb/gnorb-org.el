@@ -443,7 +443,7 @@ composed.  FILE is a file to attach to the message."
       (goto-char pos)))
   (let ((region
 	 (when (use-region-p)
-	   (region-bounds))))
+	   (car (region-bounds)))))
     (deactivate-mark)
     (save-excursion
       (unless (org-back-to-heading t)
