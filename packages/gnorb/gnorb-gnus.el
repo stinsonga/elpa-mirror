@@ -740,7 +740,7 @@ sender:google.com subject:\"your search results\""
 		      (when (and group artno (integerp artno) (> artno 0))
 			(vector group artno 100))))
 		  (delq nil (delete-dups found)))))
-	       (name (make-temp-name "registry messages"))
+	       (name "registry messages")
 	       (spec (list
 		      (cons 'nnir-specs (list (cons 'nnir-query-spec
 						    `((query . "dummy")
