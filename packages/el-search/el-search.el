@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.6.6
+;; Version: 1.6.7
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -76,8 +76,8 @@
 ;;   C-S, M-s e s (el-search-pattern)
 ;;     Start a search in the current buffer/go to the next match.
 ;;
-;;   C-R, M-s e r (el-search-pattern-backwards)
-;;     Search backwards.
+;;   C-R, M-s e r (el-search-pattern-backward)
+;;     Search backward.
 ;;
 ;;   C-%, M-s e % (el-search-query-replace)
 ;;     Do a query-replace.
@@ -529,7 +529,7 @@ The default value is ask-multi."
 
 (defvar el-search-keep-transient-map-commands
   '(el-search-pattern
-    el-search-pattern-backwards
+    el-search-pattern-backward
     el-search-jump-to-search-head
     el-search-from-beginning
     el-search-skip-directory
@@ -1548,7 +1548,7 @@ in, in order, when called with no arguments."
   (cl-flet ((keybind (apply-partially #'funcall function)))
 
     (keybind emacs-lisp-mode-map           ?s #'el-search-pattern)
-    (keybind emacs-lisp-mode-map           ?r #'el-search-pattern-backwards)
+    (keybind emacs-lisp-mode-map           ?r #'el-search-pattern-backward)
     (keybind emacs-lisp-mode-map           ?% #'el-search-query-replace)
     (keybind emacs-lisp-mode-map           ?h #'el-search-this-sexp) ;h like in "highlight" or "here"
     (keybind global-map                    ?j #'el-search-jump-to-search-head)
@@ -1563,7 +1563,7 @@ in, in order, when called with no arguments."
     (keybind el-search-read-expression-map ?o #'el-search-set-occur-flag-exit-minibuffer)
 
     (keybind isearch-mode-map              ?s #'el-search-search-from-isearch)
-    (keybind isearch-mode-map              ?r #'el-search-search-backwards-from-isearch)
+    (keybind isearch-mode-map              ?r #'el-search-search-backward-from-isearch)
     (keybind isearch-mode-map              ?% #'el-search-replace-from-isearch)
     (keybind isearch-mode-map              ?o #'el-search-occur-from-isearch)
 
@@ -1584,7 +1584,7 @@ in, in order, when called with no arguments."
     (el-search-loop-over-bindings
      (lambda (_map key command)
        (when (memq command '(el-search-pattern
-                             el-search-pattern-backwards
+                             el-search-pattern-backward
                              el-search-query-replace
                              el-search-from-beginning
                              el-search-skip-directory
@@ -2415,8 +2415,8 @@ With prefix arg, restart the current search."
   (el-search-continue-search))
 
 ;;;###autoload
-(defun el-search-pattern-backwards (pattern)
-  "Search the current buffer backwards for matches of PATTERN."
+(defun el-search-pattern-backward (pattern)
+  "Search the current buffer backward for matches of PATTERN."
   (declare (interactive-only t));; FIXME: define noninteractive version - and -1 with hms like
                                 ;; `el-search--search-pattern-1'
   (interactive (el-search-pattern--interactive))
@@ -2476,7 +2476,7 @@ With prefix arg, restart the current search."
                     (ding)
                     (el-search--message-no-log "No matches")
                     (sit-for .7))
-                (let ((keys (car (where-is-internal 'el-search-pattern-backwards))))
+                (let ((keys (car (where-is-internal 'el-search-pattern-backward))))
                   (el-search--message-no-log
                    (if keys
                        (format "No (more) match; hit %s to wrap search" (key-description keys))
@@ -2496,7 +2496,11 @@ With prefix arg, restart the current search."
           (setq el-search--success t))))))
 
 (define-obsolete-function-alias 'el-search-previous-match
-  'el-search-pattern-backwards "since el-search-1.3")
+  'el-search-pattern-backward "since el-search-1.3")
+(define-obsolete-function-alias 'el-search-pattern-backwards
+  'el-search-pattern-backward "since el-search-1.6.7")
+
+
 
 ;;;###autoload
 (defun el-search-this-sexp (sexp)
@@ -2633,12 +2637,12 @@ Prompt for a new pattern and revert."
       (add-hook 'post-command-hook #'el-search-hl-post-command-fun t t)
       (when do-fun (funcall do-fun)))))
 
-(defun el-search-occur--next-match (&optional backwards)
+(defun el-search-occur--next-match (&optional backward)
   (let ((done nil) (pos (point)))
     (when-let ((this-ov (cl-some (lambda (ov) (and (overlay-get ov 'el-search-match) ov))
                                  (overlays-at pos))))
-      (setq pos (funcall (if backwards #'overlay-start #'overlay-end) this-ov)))
-    (while (and (not done) (setq pos (funcall (if backwards #'previous-single-char-property-change
+      (setq pos (funcall (if backward #'overlay-start #'overlay-end) this-ov)))
+    (while (and (not done) (setq pos (funcall (if backward #'previous-single-char-property-change
                                                 #'next-single-char-property-change)
                                               pos 'el-search-match)))
       (setq done (or (memq pos (list (point-min) (point-max)))
@@ -2646,7 +2650,7 @@ Prompt for a new pattern and revert."
                               (overlays-at pos)))))
     (if (memq pos (list (point-min) (point-max)))
         (progn
-          (el-search--message-no-log "No match %s this position" (if backwards "before" "after"))
+          (el-search--message-no-log "No match %s this position" (if backward "before" "after"))
           (sit-for 1.5))
       (goto-char pos)
       (save-excursion (hs-show-block))))
@@ -2679,7 +2683,7 @@ Prompt for a new pattern and revert."
 (defun el-search-occur-previous-match ()
   "Move point to the previous match."
   (interactive)
-  (el-search-occur--next-match 'backwards))
+  (el-search-occur--next-match 'backward))
 
 
 (defvar el-search-occur--outline-visible t)
@@ -3644,12 +3648,15 @@ Reuse already given input."
     (call-interactively #'el-search-pattern)))
 
 ;;;###autoload
-(defun el-search-search-backwards-from-isearch ()
-  "Switch to `el-search-pattern-backwards' from isearch.
+(defun el-search-search-backward-from-isearch ()
+  "Switch to `el-search-pattern-backward' from isearch.
 Reuse already given input."
   (interactive)
   (let ((el-search--initial-mb-contents (concat "'" (el-search--take-over-from-isearch))))
-    (call-interactively #'el-search-pattern-backwards)))
+    (call-interactively #'el-search-pattern-backward)))
+
+(define-obsolete-function-alias 'el-search-search-backwards-from-isearch
+  'el-search-search-backward-from-isearch "since el-search-1.6.7")
 
 ;;;###autoload
 (defun el-search-replace-from-isearch ()
