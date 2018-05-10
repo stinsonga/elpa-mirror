@@ -1299,7 +1299,9 @@ PATTERN and combining the heuristic matchers of the subpatterns."
                                   (while (consp object)
                                     (walker (car object))
                                     (setq object (cdr object))
-                                    (when (gethash object walked-objects) (setq object nil)))
+                                    (if (gethash object walked-objects)
+                                        (setq object nil)
+                                      (puthash object t walked-objects)))
                                   (when object ;dotted list
                                     (walker object)))
                               (cl-loop for elt being the elements of object do (walker elt)))))))
