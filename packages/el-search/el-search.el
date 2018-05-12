@@ -1187,6 +1187,8 @@ matcher function is constructed by recursively destructuring the
 PATTERN and combining the heuristic matchers of the subpatterns."
   (pcase pattern
     ((pred symbolp) #'el-search-true)
+    (''nil ; special case: don't miss occurrences in text like "(1 . nil)"
+     #'el-search-true)
     ((pred pcase--self-quoting-p) (lambda (_ atoms-thunk) (member pattern (thunk-force atoms-thunk))))
     (`',tree
      (pcase (el-search--flatten-tree tree)
@@ -1239,7 +1241,9 @@ PATTERN and combining the heuristic matchers of the subpatterns."
 (defvar el-search--atom-list-cache (make-hash-table :test #'equal :size 1000))
 
 (defun el-search-atom-list (file-name-or-buffer)
-  "Return a list of el-search-atomic expressions in FILE-NAME-OR-BUFFER."
+  "Return a list of el-search-atomic expressions in FILE-NAME-OR-BUFFER.
+`nil' atoms may be missing from the list for code like
+\"(1 . nil)\")."
   (let ((get-buffer-atoms
          (lambda () (apply #'append
                       (mapcar #'el-search--flatten-tree
