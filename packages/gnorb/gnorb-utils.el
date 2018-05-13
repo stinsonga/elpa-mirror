@@ -326,6 +326,7 @@ numbers (no upper bound)."
 we were in the agenda when this was called, then keep us in the
 agenda. Then let the user choose an action from the value of
 `gnorb-org-trigger-actions'."
+  (require 'gnorb-org)
   (let* ((agenda-p (eq major-mode 'org-agenda-mode))
 	 (root-marker
 	  (cond (agenda-p
