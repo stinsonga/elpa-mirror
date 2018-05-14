@@ -17,6 +17,7 @@ packages/cl-print/
 packages/dash/
 packages/dismal/
 packages/ebdb/
+packages/eglot/
 packages/ergoemacs-mode/
 packages/exwm/
 packages/hyperbole/
