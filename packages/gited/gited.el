@@ -10,7 +10,7 @@
 ;; Compatibility: GNU Emacs: 24.4
 ;; Version: 0.4.3
 ;; Package-Requires: ((emacs "24.4") (cl-lib "0.5"))
-;; Last-Updated: Tue Apr 10 11:31:19 JST 2018
+;; Last-Updated: Tue Apr 10 11:28:04 JST 2018
 ;;           By: calancha
 ;;     Update #: 687
 
