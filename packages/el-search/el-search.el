@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.12.5
+;; Version: 1.12.6
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -240,9 +240,9 @@
 ;; switches to the next one.  Examples for search commands that start
 ;; a multi search are `el-search-buffers' (search all live elisp mode
 ;; buffers), `el-search-directory' (search all elisp files in a
-;; specified directory), `el-search-emacs-elisp-sources' and
-;; `el-search-dired-marked-files'.  Actually, every search is
-;; internally a multi search.
+;; specified directory), `el-search-emacs-elisp-sources',
+;; `el-search-dired-marked-files' and `el-search-repository'.
+;; Actually, every search is internally a multi search.
 ;;
 ;; You can pause any search by just doing something different (no
 ;; explicit quitting needed); the state of the search is automatically
@@ -4135,6 +4135,73 @@ related user options."
    (lambda (search) (setf (alist-get 'description (el-search-object-properties search))
                           "el-search-ibuffer-marked-files"))))
 
+(declare-function vc-read-revision 'vc)
+(declare-function vc-find-revision 'vc)
+;;;###autoload
+(defun el-search-repository (repo-root-dir pattern &optional revision file-regexp)
+  "El-Search the Git repository under REPO-ROOT-DIR for PATTERN.
+Optional string arg REVISION specifies a repository revision.
+When nil or omitted, search the worktree.  When the second
+optional string argument FILE-REGEXP is specified, it should be a
+regexp, and only matching files will be el-searched.
+
+When called interactively, you are prompted for all arguments.
+
+Searching any REVISION is using temporarily files.  If you
+interrupt a search or open versions of files from *El Occur*, the
+checked out file versions need to be deleted manually."
+  (interactive
+   (cl-flet* ((return (v) (if (equal v "") nil v))
+              (choose (l &rest nums) (mapcar (lambda (n) (return (nth n l))) nums)))
+     (let* ((this-vc-root-dir (vc-root-dir))
+            (repo (expand-file-name
+                   (read-directory-name "Repository root: "
+                                        this-vc-root-dir this-vc-root-dir 'mustmatch))))
+       (choose (list repo
+                     (vc-read-revision "Revision (leave empty for \"worktree\"): " (list repo) 'Git)
+                     (read-string "File filter regexp (leave empty for none): ")
+                     (el-search-read-pattern-for-interactive "Search pattern: "))
+               0 3 1 2))))
+  (let ((just-worktree (not revision)))
+    (el-search-setup-search
+     pattern
+     (lambda ()
+       (let* ((default-directory repo-root-dir)
+              (files (seq-filter #'el-search--elisp-file-p
+                                 (stream
+                                  (mapcar #'expand-file-name
+                                          (split-string
+                                           (shell-command-to-string
+                                            (if just-worktree
+                                                "git ls-files -z --recurse-submodules"
+                                              (format "git ls-tree --name-only -z -r %s --"
+                                                      (shell-quote-argument revision))))
+                                           "\0" 'omit-nulls))))))
+         (when file-regexp
+           (setq files (seq-filter (apply-partially #'string-match-p file-regexp) files)))
+         (if just-worktree files
+           (seq-map
+            (lambda (filename)
+              (let ((default-directory repo-root-dir))
+                (let* ((dd default-directory)
+                       (get-buffer
+                        (lambda ()
+                          (with-current-buffer (let ((inhibit-message t)
+                                                     (default-directory dd))
+                                                 (vc-find-revision filename revision))
+                            (add-hook 'kill-buffer-hook
+                                      (lambda ()
+                                        (when (file-exists-p buffer-file-name)
+                                          (delete-file buffer-file-name)))
+                                      'append 'local)
+                            (current-buffer)))))
+                  (with-current-buffer (funcall get-buffer)
+                    ;; This is a bit hackish...
+                    (setq-local el-search--temp-buffer-flag t)
+                    (setq el-search--get-buffer-fun get-buffer)
+                    (current-buffer)))))
+            files)))))))
+
 ;;;; Register usage
 
 (defun el-search-to-register (register &optional el-search-object)
@@ -5137,6 +5204,7 @@ Reuse already given input."
      ["Search 'load-path'"         el-search-load-path]
      ["Search Emacs Elisp Sources" el-search-emacs-elisp-sources]
      ["Search Elisp Buffers"       el-search-buffers]
+     ["Search Repository"          el-search-repository]
      ["List Patterns"              el-search-list-defined-patterns]))
 
   (easy-menu-add-item

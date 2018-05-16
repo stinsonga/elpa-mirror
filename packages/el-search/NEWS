@@ -1,6 +1,11 @@
 Some of the user visible news were:
 
 
+Version: 1.12.6
+
+  New command 'el-search-repository' to search the worktree or a
+  specified revision of a repository.
+
 Version: 1.12.5
 
   The prefix argument of 'el-search-pattern' provides now analogue
