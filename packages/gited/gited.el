@@ -8,7 +8,7 @@
 
 ;; Created: Wed Oct 26 01:28:54 JST 2016
 ;; Compatibility: GNU Emacs: 24.4
-;; Version: 0.5.1
+;; Version: 0.5.2
 ;; Package-Requires: ((emacs "24.4") (cl-lib "0.5"))
 ;; Last-Updated: Tue May 15 13:30:52 JST 2018
 ;;           By: calancha
@@ -244,7 +244,7 @@
 ;;; Code:
 
 
-;; (require 'gited-ci) ;FIXME: File not found!
+(require 'gited-ci)
 (require 'cl-lib)
 (require 'tabulated-list)
 (require 'dired)
