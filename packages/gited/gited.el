@@ -244,7 +244,7 @@
 ;;; Code:
 
 
-(require 'gited-ci)
+;; (require 'gited-ci) ;FIXME: File not found!
 (require 'cl-lib)
 (require 'tabulated-list)
 (require 'dired)
