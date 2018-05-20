@@ -347,11 +347,12 @@
 ;; Acknowledgments
 ;; ===============
 ;;
+;; Thanks to Manuela for our review sessions.
 ;; Thanks to Stefan Monnier for corrections and advice.
 ;;
 ;;
-;; Known Limitations
-;; =================
+;; Known Limitations and Bugs
+;; ==========================
 ;;
 ;; - Replacing: in some cases the read syntax of forms is changing due
 ;;   to reading-printing.  "Some" because we can handle this problem
@@ -375,11 +376,8 @@
 ;; - In el-search-query-replace, replacements are not allowed to
 ;;   contain uninterned symbols.
 ;;
-;;
-;; BUGS
-;; ====
-;;
-;; - l is very slow for very long lists.  E.g. C-S-e (l "test")
+;; - The `l' pattern type is very slow for very long lists.
+;;   E.g. C-S-e (l "test")
 ;;
 ;; - Emacs bug#30132: 27.0.50; "scan-sexps and ##": Occurrences of the
 ;;   syntax "##" (a syntax for an interned symbol whose name is the
@@ -419,7 +417,7 @@
 ;;
 ;; NEWS:
 ;;
-;; Please see the NEWS file in this directory.
+;; NEWS are listed in the separate NEWS file.
 
 
 
@@ -464,7 +462,7 @@
                                  (t (:background "DarkSlateGray1")))
   "Face for highlighting the other matches.")
 
-(defface el-search-highlight-in-prompt-face '((t (:inherit font-lock-variable-name-face)))
+(defface el-search-highlight-in-prompt-face '((t (:inherit warning)))
   "Face for highlighting important parts in prompts.")
 
 (defcustom el-search-display-buffer-popup-action
@@ -720,7 +718,7 @@ nil."
 (defvar el-search-pattern-history ()
   "History of search pattern input strings.")
 
-(defvar el-search-history (make-ring 10) ;FIXME: Make `10' customizable?
+(defvar el-search-history (make-ring 15) ;FIXME: Make `15' customizable?
   "History of previous searches.")
 
 (defvar el-search-query-replace-history ()
@@ -818,9 +816,10 @@ Do nothing if already at beginning of a sexp.  `read' the
 expression starting at that position and return it.  Point must
 not be inside a string or comment.
 Subsexps of sexps containing shared parts may be skipped (when
-not `read'able without context)."
-  ;; We don't catch end-of-buffer to keep the return value
-  ;; non-ambiguous
+not `read'able without context).
+
+When there is no sexp after point, signal an end-of-buffer
+error."
   (let ((not-done t) res)
     (while not-done
       (let ((stop-here nil)
@@ -961,15 +960,16 @@ N times."
   "Like `pcase--macroexpand' but also expanding \"el-search\" patterns."
   (el-search--with-additional-pcase-macros (pcase--macroexpand pattern)))
 
-(cl-defun el-search-make-matcher (pattern &optional (result nil result-specified))
+(cl-defun el-search-make-matcher (pattern &optional (result-expr nil result-specified))
   (let ((expression (make-symbol "expression")))
     (el-search--with-additional-pcase-macros
+     (defvar warning-suppress-log-types)
      (let ((byte-compile-debug t) ;make undefined pattern types raise an error
            (warning-suppress-log-types '((bytecomp)))
            (pcase--dontwarn-upats (cons '_ pcase--dontwarn-upats)))
        (byte-compile `(lambda (,expression)
                         (pcase ,expression
-                          (,pattern ,(if result-specified result t))
+                          (,pattern ,(if result-specified result-expr t))
                           (_        nil))))))))
 
 (defun el-search--match-p (matcher expression)
@@ -2010,6 +2010,33 @@ absolute name must be matched by all of them."
 (defvar el-search-keep-hl nil
   "Non-nil indicates we should not remove any highlighting.")
 
+(defun el-search--scroll-sexp-in-view (bounds)
+  (let ((wheight (window-height)))
+    ;; FIXME: make the following integer constants customizable,
+    ;; presumably, named in analogy to the scroll- options?
+    (unless (pos-visible-in-window-p
+             (save-excursion (goto-char (cadr bounds))
+                             (line-end-position (max +3 (/ wheight 25)))))
+      (condition-case nil
+          (scroll-up (min
+                      (max
+                       ;; make at least sexp end + a small margin visible
+                       (- (line-number-at-pos (cadr bounds))
+                          (line-number-at-pos (window-end))
+                          (- (max 2 (/ wheight 4))))
+                       ;; also try to center current sexp
+                       (- (/ ( + (line-number-at-pos (car bounds))
+                                 (line-number-at-pos (cadr bounds)))
+                             2)
+                          (/ (+ (line-number-at-pos (window-start))
+                                (line-number-at-pos (window-end)))
+                             2)))
+                      ;; but also ensure at least a small margin is left between point and window start
+                      (- (line-number-at-pos (car  bounds))
+                         (line-number-at-pos (window-start))
+                         3)))
+        ((beginning-of-buffer end-of-buffer) nil)))))
+
 (defun el-search-hl-sexp (&optional bounds)
   (let ((bounds (or bounds (list (point) (el-search--end-of-sexp)))))
     (if (overlayp el-search-hl-overlay)
@@ -2024,31 +2051,7 @@ absolute name must be matched by all of them."
     (while (not (eq t (frame-visible-p (selected-frame))))
       (sleep-for .1))
     (redisplay)
-    (let ((wheight (window-height)))
-      ;; FIXME: make the following integer constants customizable,
-      ;; presumably, named in analogy to the scroll- options?
-      (unless (pos-visible-in-window-p
-               (save-excursion (goto-char (cadr bounds))
-                               (line-end-position (max +3 (/ wheight 25)))))
-        (condition-case nil
-            (scroll-up (min
-                        (max
-                         ;; make at least sexp end + a small margin visible
-                         (- (line-number-at-pos (cadr bounds))
-                            (line-number-at-pos (window-end))
-                            (- (max 2 (/ wheight 4))))
-                         ;; also try to center current sexp
-                         (- (/ ( + (line-number-at-pos (car bounds))
-                                   (line-number-at-pos (cadr bounds)))
-                               2)
-                            (/ (+ (line-number-at-pos (window-start))
-                                  (line-number-at-pos (window-end)))
-                               2)))
-                        ;; but also ensure at least a small margin is left between point and window start
-                        (- (line-number-at-pos (car  bounds))
-                           (line-number-at-pos (window-start))
-                           3)))
-          ((beginning-of-buffer end-of-buffer) nil)))))
+    (el-search--scroll-sexp-in-view bounds))
 
   (add-hook 'post-command-hook #'el-search-hl-post-command-fun t t))
 
@@ -3367,8 +3370,8 @@ reindent."
                     ((debug error) nil))
                   result
                 (error "Apparent error in `el-search--format-replacement'
-Can please make a bug report including a recipe of what exactly you did?
-Thanks!"))))
+Can you please make a bug report including a recipe of what
+exactly you did?  Thanks!"))))
         (kill-buffer orig-buffer)))))
 
 (defun el-search--search-and-replace-pattern
@@ -3432,7 +3435,7 @@ Thanks!"))))
                               (new-expr  (funcall get-replacement expr))
                               (get-replacement-string
                                (lambda () (el-search--format-replacement
-                                      new-expr original-text to-input-string splice)))
+                                           new-expr original-text to-input-string splice)))
                               (to-insert (funcall get-replacement-string))
                               (void-replacement-p (lambda () (and splice (null new-expr))))
                               (do-replace
@@ -3485,7 +3488,7 @@ Thanks!"))))
                                                (list ?s (concat (if splice "disable" "enable")
                                                                 " splice")
                                                      (substitute-command-keys "\
-Toggle splicing mode (\\[describe-function] el-search-query-replace for details).")))
+Toggle splicing mode (\\[describe-function] el-search-query-replace for details)")))
                                           '(?o "show" "Show replacement in a buffer")
                                           '(?q "quit"))))))))
                          (if replace-all
