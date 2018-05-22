@@ -1,0 +1,37 @@
+From d.love@dl.ac.uk  Thu Sep 14 13:25:12 2000
+Received: from djlvig.dl.ac.uk (djlvig.dl.ac.uk [148.79.112.146])
+	by mescaline.gnu.org (8.9.1a/8.9.1) with ESMTP id NAA23692;
+	Thu, 14 Sep 2000 13:25:05 -0400
+Received: (from fx@localhost)
+	by djlvig.dl.ac.uk (8.8.7/8.8.5) id SAA26807;
+	Thu, 14 Sep 2000 18:24:36 +0100
+Date: Thu, 14 Sep 2000 18:24:36 +0100
+Message-Id: <200009141724.SAA26807@djlvig.dl.ac.uk>
+X-Authentication-Warning: djlvig.dl.ac.uk: fx set sender to d.love@dl.ac.uk using -f
+To: Jeff Bailey <jbailey@nisa.net>
+Cc: emacs-devel@gnu.org, cvs-hackers@gnu.org
+Subject: Re: [Emacs-devel] Emacs move
+References: <20000913175943.A26093@sparky.nisa.net>
+From: Dave Love <d.love@dl.ac.uk>
+In-Reply-To: Jeff Bailey's message of "Wed, 13 Sep 2000 17:59:43 -0700"
+User-Agent: Gnus/5.0808 (Gnus v5.8.8) Emacs/21.0.90
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Lines: 9
+Sender: emacs-devel-admin@gnu.org
+Errors-To: emacs-devel-admin@gnu.org
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.0beta4
+Precedence: bulk
+List-Id: Emacs development (internal use) <emacs-devel.gnu.org>
+
+Sorry, my repository-munging loop didn't DTRT in the top-level
+directory.  It needs
+
+  echo emacs >CVS/Repository
+
+afterwards.
+
+Also I think the permission error was because I messed up that
+directory's CVS subdir.  Things now seem fine.
+

@@ -1,0 +1,75 @@
+From jbailey@nisa.net  Sat Sep 16 01:00:42 2000
+Received: from sparky.nisa.net (root@mainsrvr.nisa.net [207.194.212.4])
+	by mescaline.gnu.org (8.9.1a/8.9.1) with ESMTP id BAA02175;
+	Sat, 16 Sep 2000 01:00:41 -0400
+Received: (from jbailey@localhost) by sparky.nisa.net (8.9.3/nisa4.7) id WAA04437; Fri, 15 Sep 2000 22:00:13 -0700
+X-MailHub: mail.nisa.net
+Message-ID: <20000915220012.A3923@sparky.nisa.net>
+Date: Fri, 15 Sep 2000 22:00:12 -0700
+From: Jeff Bailey <jbailey@nisa.net>
+To: bob@rattlesnake.com, gerd@gnu.org
+Cc: jbailey@nisa.net, emacs-devel@gnu.org, cvs-hackers@gnu.org
+Subject: Re: [Emacs-devel] Emacs move
+References: <20000913175943.A26093@sparky.nisa.net> <m13ZXGV-000BCgC@megalith.rattlesnake.com> <200009141949.VAA05998@gerd.segv.de> <m13ZgtN-000BD3C@megalith.rattlesnake.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+X-Mailer: Mutt 0.91
+In-Reply-To: <m13ZgtN-000BD3C@megalith.rattlesnake.com>; from Robert J. Chassell on Thu, Sep 14, 2000 at 05:50:01PM -0400
+Sender: emacs-devel-admin@gnu.org
+Errors-To: emacs-devel-admin@gnu.org
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.0beta4
+Precedence: bulk
+List-Id: Emacs development (internal use) <emacs-devel.gnu.org>
+
+On Thu, Sep 14, 2000 at 05:50:01PM -0400, Robert J. Chassell wrote:
+>    I think Jeff couldn't migrate the pserver passwords to subversions.
+>    Did you receive a mail from Jeff asking for your access methods and
+>    password?
+>
+> Not yet.
+
+Make sure you talk to Gerd to get you on the mailing list that he's
+created for people with write access to the repository.  Otherwise,
+here's the spiel:
+
+Hello and welcome to Subversions, the GNU CVS server with an incredibly
+clever name.
+
+In order to give you access, I will need 2 things from you:
+
+1) Your prefered username.
+
+2) The method by which you will access your repository.  We support 3
+methods right now:
+
+i) Kerberos
+ii) pserver
+iii) lsh
+
+If you would like to use Kerberos to access, I need to arrange to send
+you your password.  A good way of doing this is to send me a GnuPG key.
+If this is difficult, I can postal mail the password to you, or arrange
+to be near a phone at a particular time to give it to you.  If you have a
+`GNU.ORG' kerberos account already, please just send me the name.
+
+If you would like to use pserver, please send me your password encoded with
+`crypt'.
+
+If you would like to use lsh, please send me your DSA key.  Sadly, I haven't
+gotten OpenSSH DSA keys to work yet.  If you know how to do this, please
+let me know.
+
+These instructions are intentionally brief.  If you need the detailed
+version or have any questions, please let me know.
+
+Please send any correspondance to cvs-hackers@gnu.org
+
+
+
+--
+"It is easy to be blinded to the essential uselessness of computers by
+the sense of accomplishment you get from getting them to work at all."
+ - Douglas Adams
+
+

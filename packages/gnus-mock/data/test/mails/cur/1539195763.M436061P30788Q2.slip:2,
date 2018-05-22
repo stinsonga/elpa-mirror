@@ -1,0 +1,42 @@
+From jbailey@nisa.net  Thu Sep 14 12:21:34 2000
+Received: from duke.electric.net (duke.electric.net [216.18.11.193])
+	by mescaline.gnu.org (8.9.1a/8.9.1) with SMTP id MAA10290
+	for <emacs-devel@gnu.org>; Thu, 14 Sep 2000 12:21:32 -0400
+Received: (qmail 32519 invoked by uid 1009); 14 Sep 2000 16:14:50 -0000
+Received: from mainsrvr.nisa.net(207.194.212.4), claiming to be "sparky.nisa.net"
+ via SMTP by duke.electric.net, id smtpdz32410; Thu Sep 14 09:14:46 2000
+Received: (from jbailey@localhost) by sparky.nisa.net (8.9.3/nisa4.7) id JAA10835; Thu, 14 Sep 2000 09:14:48 -0700
+X-MailHub: mail.nisa.net
+Message-ID: <20000914091447.G4827@sparky.nisa.net>
+Date: Thu, 14 Sep 2000 09:14:47 -0700
+From: Jeff Bailey <jbailey@nisa.net>
+To: sds@gnu.org, Jeff Bailey <jbailey@nisa.net>
+Cc: emacs-devel@gnu.org, cvs-hackers@gnu.org
+Subject: Re: [Emacs-devel] Emacs move
+References: <20000913175943.A26093@sparky.nisa.net> <upum7xddn.fsf@xchange.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+X-Mailer: Mutt 0.91
+In-Reply-To: <upum7xddn.fsf@xchange.com>; from Sam Steingold on Thu, Sep 14, 2000 at 10:21:56AM -0400
+Sender: emacs-devel-admin@gnu.org
+Errors-To: emacs-devel-admin@gnu.org
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.0beta4
+Precedence: bulk
+List-Id: Emacs development (internal use) <emacs-devel.gnu.org>
+
+On Thu, Sep 14, 2000 at 10:21:56AM -0400, Sam Steingold wrote:
+
+> this page claims that I can use SSH.
+> I will have to put .ssh/identity.pub into subversions:~sds, right?
+> how do I do this?
+
+By sending it to me.  If you've got lsh we support that too (Just send
+the DSA key).
+
+--
+"It is easy to be blinded to the essential uselessness of computers by
+the sense of accomplishment you get from getting them to work at all."
+ - Douglas Adams
+
+

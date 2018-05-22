@@ -1,0 +1,45 @@
+From gerd@gnu.org  Thu Sep 14 16:00:34 2000
+Received: from mout02.kundenserver.de (mout02.kundenserver.de [195.20.224.133])
+	by mescaline.gnu.org (8.9.1a/8.9.1) with ESMTP id QAA07590;
+	Thu, 14 Sep 2000 16:00:33 -0400
+Received: from [195.20.224.151] (helo=mrelay01.kundenserver.de)
+	by mout02.kundenserver.de with esmtp (Exim 2.12 #2)
+	id 13ZfBG-0006r3-00; Thu, 14 Sep 2000 22:00:22 +0200
+Received: from p3e9c23a7.dip0.t-ipconnect.de ([62.156.35.167] helo=gerd.segv.de)
+	by mrelay01.kundenserver.de with esmtp (Exim 2.12 #2)
+	id 13ZfBD-0001Cp-00; Thu, 14 Sep 2000 22:00:19 +0200
+Received: (from gerd@localhost)
+	by gerd.segv.de (8.9.3/8.9.3) id VAA06005;
+	Thu, 14 Sep 2000 21:51:05 +0200 (CEST)
+	(envelope-from gerd@gnu.org)
+Date: Thu, 14 Sep 2000 21:51:05 +0200 (CEST)
+Message-Id: <200009141951.VAA06005@gerd.segv.de>
+X-Authentication-Warning: gerd.segv.de: gerd set sender to gerd@gnu.org using -f
+To: wmperry@aventail.com
+Cc: bob@rattlesnake.com, jbailey@nisa.net, emacs-devel@gnu.org,
+        cvs-hackers@gnu.org
+Subject: Re: [Emacs-devel] Emacs move
+References: <20000913175943.A26093@sparky.nisa.net>
+	<m13ZXGV-000BCgC@megalith.rattlesnake.com>
+	<86g0n3f4j2.fsf@megalith.bp.aventail.com>
+Reply-To: gerd@gnu.org
+From: Gerd Moellmann <gerd@gnu.org>
+In-Reply-To: wmperry@aventail.com's message of "14 Sep 2000 09:10:25 -0500"
+User-Agent: Gnus/5.0808 (Gnus v5.8.8) Emacs/21.0.90
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Lines: 6
+Sender: emacs-devel-admin@gnu.org
+Errors-To: emacs-devel-admin@gnu.org
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.0beta4
+Precedence: bulk
+List-Id: Emacs development (internal use) <emacs-devel.gnu.org>
+
+wmperry@aventail.com (William M. Perry) writes:
+
+> But it does not build because src/regex.[ch] are not found.  Were these
+> symlinks in the old repository or something strange like that?
+
+Yup, we're sorting this out.
+
