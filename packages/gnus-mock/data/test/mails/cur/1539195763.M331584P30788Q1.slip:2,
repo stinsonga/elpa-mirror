@@ -1,0 +1,83 @@
+From sds@gnu.org  Thu Sep 14 10:26:04 2000
+Received: from sanpietro.red-bean.com (sanpietro.red-bean.com [206.69.89.65])
+	by mescaline.gnu.org (8.9.1a/8.9.1) with ESMTP id KAA17597;
+	Thu, 14 Sep 2000 10:26:03 -0400
+Received: from xchange.com (centurion3.exapps.com [12.25.11.194])
+	by sanpietro.red-bean.com (8.9.3/8.9.3/Debian 8.9.3-21) with ESMTP id JAA07920;
+	Thu, 14 Sep 2000 09:26:01 -0500
+X-Authentication-Warning: sanpietro.red-bean.com: Host centurion3.exapps.com [12.25.11.194] claimed to be xchange.com
+To: Jeff Bailey <jbailey@nisa.net>
+Cc: emacs-devel@gnu.org, cvs-hackers@gnu.org
+Subject: Re: [Emacs-devel] Emacs move
+References: <20000913175943.A26093@sparky.nisa.net>
+Reply-To: sds@gnu.org
+X-Attribution: Sam
+X-Disclaimer: You should not expect anyone to agree with me.
+Mail-Copies-To: never
+From: Sam Steingold <sds@gnu.org>
+In-Reply-To: Jeff Bailey's message of "Wed, 13 Sep 2000 17:59:43 -0700"
+User-Agent: Gnus/5.0807 (Gnus v5.8.7) Emacs/20.7
+Date: 14 Sep 2000 10:21:56 -0400
+Message-ID: <upum7xddn.fsf@xchange.com>
+Lines: 50
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Sender: emacs-devel-admin@gnu.org
+Errors-To: emacs-devel-admin@gnu.org
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.0beta4
+Precedence: bulk
+List-Id: Emacs development (internal use) <emacs-devel.gnu.org>
+
+> * In message <20000913175943.A26093@sparky.nisa.net>
+> * On the subject of "[Emacs-devel] Emacs move"
+> * Sent on Wed, 13 Sep 2000 17:59:43 -0700
+> * Honorable Jeff Bailey <jbailey@nisa.net> writes:
+>
+> Some of your accounts have still not been setup correctly, if I
+> haven't got them by this weekend, you've probably dropped off my
+> radar.  Please remind me.
+
+"cvs login" (:pserver) and "cvs update" are extraordinarily slow.
+is this okay?
+
+> For information on how to access your repository, please look at
+> http://www.gnu.org/software/devel.html#CVS
+
+this page claims that I can use SSH.
+I will have to put .ssh/identity.pub into subversions:~sds, right?
+how do I do this?
+
+> There are a few clever scripts floating around for changing the root
+> of an already checked-out repository to a new one.  If you know of one
+> that works, please post it and cc: me so I can give it to others.
+
+-----------------------------------------
+#!/bin/sh
+# change the CVS Root
+# usage:
+# cd /usr/local/src/emacs
+# find . -type d -name CVS -exec chcvsroot {} \;
+
+ROOTO="anoncvs.gnu.org:/gd/gnu/cvsroot";
+ROOT="subversions.gnu.org:/cvs";
+REPOO="/gd/gnu/cvsroot";
+REPO="/cvs";
+
+FF=$1;
+echo " - "${FF}
+sed "s?${ROOTO}?${ROOT}?" ${FF}/Root > ${FF}.tmp
+mv ${FF}.tmp ${FF}/Root
+sed "s?${REPOO}?${REPO}?" ${FF}/Repository > ${FF}.tmp
+mv ${FF}.tmp ${FF}/Repository
+-----------------------------------------
+
+Thanks.
+
+--
+Sam Steingold (http://www.podval.org/~sds)
+Micros**t is not the answer.  Micros**t is a question, and the answer is Linux,
+(http://www.linux.org) the choice of the GNU (http://www.gnu.org) generation.
+Our business is run on trust.  We trust you will pay in advance.
+
+

@@ -1,0 +1,151 @@
+From kfogel@galois.collab.net  Thu Sep 14 13:42:15 2000
+Received: from galois.collab.net (root@24-148-31-194.na.21stcentury.net [24.148.31.194])
+	by mescaline.gnu.org (8.9.1a/8.9.1) with ESMTP id NAA26083;
+	Thu, 14 Sep 2000 13:42:10 -0400
+Received: (from kfogel@localhost)
+	by galois.collab.net (8.10.1/8.10.1/Debian 8.10.1-1) id e8EFbZI14198;
+	Thu, 14 Sep 2000 10:37:35 -0500
+To: Dave Love <d.love@dl.ac.uk>
+Cc: Jeff Bailey <jbailey@nisa.net>, emacs-devel@gnu.org, cvs-hackers@gnu.org
+Subject: Re: [Emacs-devel] Emacs move
+References: <20000913175943.A26093@sparky.nisa.net> <200009141724.SAA26807@djlvig.dl.ac.uk>
+Reply-to: kfogel@red-bean.com
+Emacs: no job too big... no job.
+From: Karl Fogel <kfogel@galois.collab.net>
+Date: 14 Sep 2000 10:37:35 -0500
+In-Reply-To: Dave Love's message of "Thu, 14 Sep 2000 18:24:36 +0100"
+Message-ID: <87em2nyog0.fsf@galois.collab.net>
+Lines: 124
+X-Mailer: Gnus v5.7/Emacs 20.6
+Sender: emacs-devel-admin@gnu.org
+Errors-To: emacs-devel-admin@gnu.org
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.0beta4
+Precedence: bulk
+List-Id: Emacs development (internal use) <emacs-devel.gnu.org>
+
+Dave Love <d.love@dl.ac.uk> writes:
+> Sorry, my repository-munging loop didn't DTRT in the top-level
+> directory.  It needs
+> [...]
+
+You may be interested in the `cvschroot.pl' script from the CVSUtils
+suite by Tom Tromey and Pavel Roskin.  The entire suite is available
+from:
+
+   http://www.red-bean.com/cvsutils/
+
+But for your convenience, here is cvschroot.pl:
+
+--------------------8-<-------cut-here---------8-<-----------------------
+#! /usr/bin/perl -w
+
+# This script binds the working directory to the given CVS root by
+# storing the new value is the CVS/Root files
+# If CVS/Repository contains the full path, it is adjusted to match
+# the new root
+# The environment variable CVSROOT overrides the contents of CVS/Root
+
+use strict;
+
+Main();
+
+sub Main
+{
+	if (!$ARGV[0] || ($ARGV[0] eq '--help') || ($#ARGV > 0))
+	{
+		usage ();
+	}
+
+	my $root = $ARGV[0];
+	my $cvspath = split_root($root, "New CVS Root");
+	my $old_root = $ENV{"CVSROOT"};
+	my $fixed_root = defined ($old_root);
+
+	open(CVSADM, "cvsu --ignore --find --types C |") ||
+		error ("Cannot read output of cvsu\n");
+
+	while (<CVSADM>) {
+		chomp;
+		my $dir = $_;
+		unless ( $dir =~ m{/$} ) {
+			$dir .= "/";
+		}
+		if ($dir =~ "^\./(.*)") {
+			$dir = $1;
+		}
+
+		unless ($fixed_root) {
+			$old_root = get_line($dir . "Root");
+		}
+
+		my $old_cvspath = split_root($old_root, "Old CVS Root");
+
+		my $repo = get_line($dir . "Repository");
+
+		# if $repo is relative path, leave it as is
+		if ( $repo =~ m{^/} ) {
+			unless ( $repo =~ s{^$old_cvspath}{$cvspath} ) {
+				error ("${dir}Repository doesn't match ${dir}Root\n");
+			}
+
+			put_line ($dir . "Repository", $repo);
+		}
+		put_line ($dir . "Root", $root);
+	}
+}
+
+# print message and exit (like "die", but without raising an exception)
+sub error
+{
+	print STDERR shift(@_);
+	exit 1;
+}
+
+# print usage information and exit
+sub usage
+{
+	print "Usage: cvschroot ROOT\n" .
+	"ROOT is the CVS Root to be written to CVS/Root\n" .
+	"CVS/Repository is also modified if necessary\n";
+	exit 1;
+}
+
+
+# Split CVSROOT into path and everything before it
+sub split_root
+{
+	my $res;
+	if ( shift(@_) =~ m{^([^ ]+:)?(/[^:@ ]+)$} ) {
+		$res = $2;
+	} else {
+		error shift(@_) . " not recognized\n";
+	}
+	return $res;
+}
+
+# Read one line from file
+sub get_line
+{
+	my $file = shift(@_);
+	open (FILE, "< $file")
+		|| error ("couldn't open $file\n");
+	if ($_ = <FILE>) {
+		chomp;
+	} else {
+		error ("couldn't read $file\n");
+	}
+	close (FILE);
+	return $_;
+}
+
+# Write one line to file
+sub put_line
+{
+	my $file = shift(@_);
+	open (FILE, "> $file")
+		|| error ("couldn't write to $file\n");
+	print FILE shift(@_) . "\n";
+	close (FILE);
+}
+

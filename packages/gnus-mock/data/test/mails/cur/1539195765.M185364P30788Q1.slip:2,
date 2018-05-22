@@ -1,0 +1,28 @@
+From rms@santafe.edu  Fri Sep 15 18:28:27 2000
+Received: from pele.santafe.edu (pele.santafe.edu [192.12.12.119])
+	by mescaline.gnu.org (8.9.1a/8.9.1) with ESMTP id SAA05920;
+	Fri, 15 Sep 2000 18:28:26 -0400
+Received: from wijiji.santafe.edu (wijiji [192.12.12.5])
+	by pele.santafe.edu (8.9.1/8.9.1) with ESMTP id QAA07669;
+	Fri, 15 Sep 2000 16:28:12 -0600 (MDT)
+Received: (from rms@localhost)
+	by wijiji.santafe.edu (8.9.3+Sun/8.9.1) id QAA20526;
+	Fri, 15 Sep 2000 16:28:12 -0600 (MDT)
+Date: Fri, 15 Sep 2000 16:28:12 -0600 (MDT)
+Message-Id: <200009152228.QAA20526@wijiji.santafe.edu>
+X-Authentication-Warning: wijiji.santafe.edu: rms set sender to rms@wijiji.santafe.edu using -f
+From: Richard Stallman <rms@gnu.org>
+to: jbailey@nisa.net, emacs-devel@gnu.org, cvs-hackers@gnu.org
+In-reply-to: <m13ZXGV-000BCgC@megalith.rattlesnake.com> (bob@rattlesnake.com)
+Subject: Re: [Emacs-devel] Emacs move
+Reply-to: rms@gnu.org
+References: <20000913175943.A26093@sparky.nisa.net> <m13ZXGV-000BCgC@megalith.rattlesnake.com>
+Sender: emacs-devel-admin@gnu.org
+Errors-To: emacs-devel-admin@gnu.org
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.0beta4
+Precedence: bulk
+List-Id: Emacs development (internal use) <emacs-devel.gnu.org>
+
+Bob should certainly have access to the Emacs repository.
+

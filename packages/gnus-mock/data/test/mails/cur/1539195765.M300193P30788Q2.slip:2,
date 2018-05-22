@@ -1,0 +1,48 @@
+From jbailey@nisa.net  Wed Sep 13 20:59:44 2000
+Received: from sparky.nisa.net (root@mainsrvr.nisa.net [207.194.212.4])
+	by mescaline.gnu.org (8.9.1a/8.9.1) with ESMTP id UAA17218;
+	Wed, 13 Sep 2000 20:59:43 -0400
+Received: (from jbailey@localhost) by sparky.nisa.net (8.9.3/nisa4.7) id RAA27622; Wed, 13 Sep 2000 17:59:43 -0700
+X-MailHub: mail.nisa.net
+Message-ID: <20000913175943.A26093@sparky.nisa.net>
+Date: Wed, 13 Sep 2000 17:59:43 -0700
+From: Jeff Bailey <jbailey@nisa.net>
+To: emacs-devel@gnu.org
+Cc: cvs-hackers@gnu.org
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+X-Mailer: Mutt 0.91
+Subject: [Emacs-devel] Emacs move
+Sender: emacs-devel-admin@gnu.org
+Errors-To: emacs-devel-admin@gnu.org
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.0beta4
+Precedence: bulk
+List-Id: Emacs development (internal use) <emacs-devel.gnu.org>
+
+Thanks for all of your help during this move, it has now been completed.
+
+Some of your accounts have still not been setup correctly, if I haven't
+got them by this weekend, you've probably dropped off my radar.  Please
+remind me.
+
+For information on how to access your repository, please look at
+http://www.gnu.org/software/devel.html#CVS
+
+There are a few clever scripts floating around for changing the root of
+an already checked-out repository to a new one.  If you know of one that
+works, please post it and cc: me so I can give it to others.
+
+Please send any questions you have to cvs-hackers@gnu.org.
+
+Good hacking.
+
+Tks,
+Jeff Bailey
+
+--
+"It is easy to be blinded to the essential uselessness of computers by
+the sense of accomplishment you get from getting them to work at all."
+ - Douglas Adams
+
+

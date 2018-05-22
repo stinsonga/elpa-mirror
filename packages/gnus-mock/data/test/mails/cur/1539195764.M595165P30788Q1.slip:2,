@@ -1,0 +1,82 @@
+From wmperry@aventail.com  Thu Sep 14 10:10:31 2000
+Received: from mail.rdc1.tn.home.com (imail@ha1.rdc1.tn.home.com [24.2.7.66])
+	by mescaline.gnu.org (8.9.1a/8.9.1) with ESMTP id KAA17067;
+	Thu, 14 Sep 2000 10:10:30 -0400
+Received: from megalith.bp.aventail.com ([24.12.70.142])
+          by mail.rdc1.tn.home.com (InterMail vM.4.01.02.00 201-229-116)
+          with ESMTP
+          id <20000914141026.YSIB12979.mail.rdc1.tn.home.com@megalith.bp.aventail.com>;
+          Thu, 14 Sep 2000 07:10:26 -0700
+Received: (from wmperry@localhost)
+	by megalith.bp.aventail.com (8.11.0/8.11.0/Debian 8.11.0-6) id e8EEAPa16180;
+	Thu, 14 Sep 2000 09:10:25 -0500
+X-Authentication-Warning: megalith.bp.aventail.com: wmperry set sender to wmperry@aventail.com using -f
+To: bob@rattlesnake.com
+Cc: jbailey@nisa.net, emacs-devel@gnu.org, cvs-hackers@gnu.org
+Subject: Re: [Emacs-devel] Emacs move
+References: <20000913175943.A26093@sparky.nisa.net>
+	<m13ZXGV-000BCgC@megalith.rattlesnake.com>
+Reply-to: wmperry@aventail.com
+X-Face: O~Rn;(l][/-o1sALg4A@xpE:9-"'IR[%;,,!m7</SYF`{vYQ(&RI1&EiH[FvT;J}@f!4kfz
+ x_!Y#=y{Uuj9GvUi=cPuajQ(Z42R[wE@{G,sn$qGr5g/wnb*"*ktI+,CD}1Z'wxrM2ag-r0p5I6\nA
+ [WJopW_J.WY;
+Content-Type: text/plain; charset=us-ascii
+From: wmperry@aventail.com (William M. Perry)
+Date: 14 Sep 2000 09:10:25 -0500
+In-Reply-To: "Robert J. Chassell"'s message of "Thu, 14 Sep 2000 07:33:15 -0400 (EDT)"
+Message-ID: <86g0n3f4j2.fsf@megalith.bp.aventail.com>
+Lines: 44
+User-Agent: Gnus/5.0808 (Gnus v5.8.8) XEmacs/21.1 (GTK)
+MIME-Version: 1.0
+Sender: emacs-devel-admin@gnu.org
+Errors-To: emacs-devel-admin@gnu.org
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.0beta4
+Precedence: bulk
+List-Id: Emacs development (internal use) <emacs-devel.gnu.org>
+
+"Robert J. Chassell" <bob@rattlesnake.com> writes:
+
+>    For information on how to access your repository, please look at
+>    http://www.gnu.org/software/devel.html#CVS
+>
+> Done.  As it happens, emacs is not listed as any of the available
+> modules, so perhaps I should not be surprised that I cannot
+> access the emacs repository.
+>
+> I ran the following
+>
+>      $ cvs -d :pserver:anoncvs@subversions.gnu.org:/cvs login
+>     (Logging in to anoncvs@subversions.gnu.org)
+>     CVS password:
+>
+> but check out failed:
+>
+>      $ cvs -d :pserver:anoncvs@subversions.gnu.org:/cvs checkout emacs
+>     cvs server: Updating emacs
+>     cvs server: cannot open directory /cvs/emacs: Permission denied
+>     cvs server: skipping directory emacs
+>
+>
+> Also, on my machine I changed the name of the archive to
+>
+>     :pserver:anoncvs@subversions.gnu.org:/cvs
+>
+> in my CVS/Root files but also cannot update emacs.
+
+I used /home/cvs and was able to check it out, but I also used my account
+instead of anoncvs.
+
+But it does not build because src/regex.[ch] are not found.  Were these
+symlinks in the old repository or something strange like that?  When I do a
+`cvs update' I get:
+
+cvs server: Updating .
+cvs server: nothing known about regex.c
+cvs server: nothing known about regex.h
+cvs server: Updating bitmaps
+cvs server: Updating m
+cvs server: Updating s
+
+-Bill P.
+

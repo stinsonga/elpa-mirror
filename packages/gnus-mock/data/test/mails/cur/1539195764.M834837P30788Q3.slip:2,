@@ -1,0 +1,61 @@
+From gerd@gnu.org  Thu Sep 14 16:00:27 2000
+Received: from mout01.kundenserver.de (mout01.kundenserver.de [195.20.224.132])
+	by mescaline.gnu.org (8.9.1a/8.9.1) with ESMTP id QAA07586;
+	Thu, 14 Sep 2000 16:00:26 -0400
+Received: from [195.20.224.151] (helo=mrelay01.kundenserver.de)
+	by mout01.kundenserver.de with esmtp (Exim 2.12 #2)
+	id 13ZfBB-0002Fl-00; Thu, 14 Sep 2000 22:00:17 +0200
+Received: from p3e9c23a7.dip0.t-ipconnect.de ([62.156.35.167] helo=gerd.segv.de)
+	by mrelay01.kundenserver.de with esmtp (Exim 2.12 #2)
+	id 13ZfAv-0001Cp-00; Thu, 14 Sep 2000 22:00:07 +0200
+Received: (from gerd@localhost)
+	by gerd.segv.de (8.9.3/8.9.3) id VAA05998;
+	Thu, 14 Sep 2000 21:49:03 +0200 (CEST)
+	(envelope-from gerd@gnu.org)
+Date: Thu, 14 Sep 2000 21:49:03 +0200 (CEST)
+Message-Id: <200009141949.VAA05998@gerd.segv.de>
+X-Authentication-Warning: gerd.segv.de: gerd set sender to gerd@gnu.org using -f
+To: bob@rattlesnake.com
+Cc: jbailey@nisa.net, emacs-devel@gnu.org, cvs-hackers@gnu.org
+Subject: Re: [Emacs-devel] Emacs move
+References: <20000913175943.A26093@sparky.nisa.net>
+	<m13ZXGV-000BCgC@megalith.rattlesnake.com>
+Reply-To: gerd@gnu.org
+From: Gerd Moellmann <gerd@gnu.org>
+In-Reply-To: "Robert J. Chassell"'s message of "Thu, 14 Sep 2000 07:33:15 -0400 (EDT)"
+User-Agent: Gnus/5.0808 (Gnus v5.8.8) Emacs/21.0.90
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Lines: 24
+Sender: emacs-devel-admin@gnu.org
+Errors-To: emacs-devel-admin@gnu.org
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.0beta4
+Precedence: bulk
+List-Id: Emacs development (internal use) <emacs-devel.gnu.org>
+
+"Robert J. Chassell" <bob@rattlesnake.com> writes:
+
+> Also I tried, logging in as me,
+>
+>     :pserver:bob@subversions.gnu.org:/cvs
+
+That's the right root.  Anon CVS is currently not available.
+
+> and used the password that had worked with cvs.gnu.org, but that >
+> failed too.
+
+I think Jeff couldn't migrate the pserver passwords to subversions.
+Did you receive a mail from Jeff asking for your access methods and
+password?
+
+> Also, neither kerberos nor lsh let me log on to subversions, although
+> I can log on to melange.gnu.org using kerberos and log on to
+> alpha.gnu.org using lsh.
+
+I think telnet is not allowed on subversions.
+
+But if Jeff has set up Kerberos access to the repository for you, you
+should be able to first kauth, and then check out Emacs with CVSROOT
+`subversions.gnu.org:/cvs'.
+
