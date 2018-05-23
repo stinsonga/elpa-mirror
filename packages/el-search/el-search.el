@@ -309,6 +309,19 @@
 ;; the buffer for any match.  Hit s from the prompt to toggle splicing
 ;; mode in an `el-search-query-replace' session.
 ;;
+;; There are two ways to edit replacements directly while performing
+;; an el-search-query-replace:
+;;
+;; (1) Without suspending the search: hit o at the prompt to show the
+;; replacement of the current match in a separate buffer.  You can
+;; edit the replacement in this buffer.  Confirming with C-c C-c will
+;; make el-search replace the current match with this buffer's
+;; contents.
+;;
+;; (2) At any time you can interrupt a query-replace session by
+;; hitting RET.  Make your edits, then resume the query-replace
+;; session by hitting C-S-j C-% or M-s e j %.
+;;
 ;;
 ;; Multi query-replace
 ;; ===================
@@ -3482,7 +3495,10 @@ clone with an individual state."
 (defun el-search--replace-hunk (region to-insert)
   "Replace the text in REGION in current buffer with string TO-INSERT.
 Add line breaks before and after TO-INSERT when appropriate and
-reindent."
+reindent.
+
+The return value is a marker pointing to the end of the inserted
+text."
   (atomic-change-group
     (let* ((inhibit-message t)
            (message-log-max nil)
@@ -3517,23 +3533,24 @@ reindent."
       (insert to-insert)
       (when insert-newline-after
         (insert "\n"))
-      (if (string= to-insert "")
-          ;; We deleted the match.  Clean up.
-          (if (save-excursion (goto-char (line-beginning-position))
-                              (looking-at (rx bol (* space) eol)))
-              (delete-region (match-beginning 0) (min (1+ (match-end 0)) (point-max)))
-            (save-excursion
-              (skip-chars-backward " \t")
-              (when (looking-at (rx (+ space) eol))
-                (delete-region (match-beginning 0) (match-end 0))))
-            (when (and (looking-back (rx space) (1- (point)))
-                       (looking-at (rx (+ space))))
-              (delete-region (match-beginning 0) (match-end 0)))
-            (indent-according-to-mode))
-        (save-excursion
-          ;; the whole enclosing sexp might need re-indenting
-          (condition-case nil (up-list)  (scan-error))
-          (indent-region opoint (1+ (point))))))))
+      (prog1 (copy-marker (point))
+        (if (string= to-insert "")
+            ;; We deleted the match.  Clean up.
+            (if (save-excursion (goto-char (line-beginning-position))
+                                (looking-at (rx bol (* space) eol)))
+                (delete-region (match-beginning 0) (min (1+ (match-end 0)) (point-max)))
+              (save-excursion
+                (skip-chars-backward " \t")
+                (when (looking-at (rx (+ space) eol))
+                  (delete-region (match-beginning 0) (match-end 0))))
+              (when (and (looking-back (rx space) (1- (point)))
+                         (looking-at (rx (+ space))))
+                (delete-region (match-beginning 0) (match-end 0)))
+              (indent-according-to-mode))
+          (save-excursion
+            ;; the whole enclosing sexp might need re-indenting
+            (condition-case nil (up-list)  (scan-error))
+            (indent-region opoint (1+ (point)))))))))
 
 (defun el-search--format-replacement (replacement original replace-expr-input splice)
   ;; Return a printed representation of REPLACEMENT.  Try to reuse the
@@ -3615,6 +3632,42 @@ Can you please make a bug report including a recipe of what
 exactly you did?  Thanks!"))))
         (kill-buffer orig-buffer)))))
 
+(defvar el-search-query-replace--current-match-string nil
+  "Holds the current match as a string.")
+
+(declare-function ediff-make-cloned-buffer 'ediff-util)
+(declare-function ediff-regions-internal   'ediff)
+(defun el-search-query-replace-ediff-replacement (&rest hook-funs)
+  ;; Assumes that the *Replacement* buffer is current
+  ;; FIXME: should we make this ediff3 with prefix arg?
+  (interactive)
+  (let* ((buffer-orig (generate-new-buffer "*El-search Orig*"))
+         (buffer-b (make-indirect-buffer
+                    (current-buffer)
+                    (generate-new-buffer-name "*El-search Replacement*")
+                    'clone))
+         (delete-temp-buffers
+          (lambda () (mapc #'kill-buffer (list buffer-orig buffer-b)))))
+    (with-current-buffer buffer-orig
+      (emacs-lisp-mode)
+      (insert el-search-query-replace--current-match-string)
+      (indent-region (point-min) (point-max))
+      (setq buffer-read-only t))
+    (require 'ediff)
+    (apply #'ediff-regions-internal
+           (nconc
+            (with-current-buffer buffer-orig (list buffer-orig (point-min) (point-max)))
+            (with-current-buffer buffer-b
+              (save-excursion
+                (goto-char (point-min))
+                (while (looking-at "^;;\\|^$")
+                  (forward-line))
+                (list (current-buffer) (point) (point-max))))
+            (list (apply #'list
+                         (lambda () (add-hook 'ediff-quit-hook delete-temp-buffers t t))
+                         hook-funs)
+                  'ediff-regions-linewise nil nil)))))
+
 (defun el-search--search-and-replace-pattern
     (pattern replacement &optional splice to-input-string use-current-search)
   (unless use-current-search
@@ -3678,15 +3731,28 @@ exactly you did?  Thanks!"))))
                                (lambda () (el-search--format-replacement
                                            new-expr original-text to-input-string splice)))
                               (to-insert (funcall get-replacement-string))
-                              (void-replacement-p (lambda () (and splice (null new-expr))))
+                              (void-replacement-p
+                               (lambda ()
+                                 ;; We can't just test "(and splice (null new-expr))" because the
+                                 ;; replacement could have been edited with o
+                                 (with-temp-buffer
+                                   (emacs-lisp-mode)
+                                   (insert to-insert)
+                                   (goto-char (point-min))
+                                   (condition-case nil
+                                       (progn (el-search--ensure-sexp-start)
+                                              nil)
+                                     (end-of-buffer t)))))
+                              replacement-end-pos
                               (do-replace
                                (lambda ()
                                  (save-excursion
                                    (save-restriction
                                      (widen)
-                                     (el-search--replace-hunk
-                                      (list (point) (el-search--end-of-sexp))
-                                      to-insert)))
+                                     (setq replacement-end-pos
+                                           (el-search--replace-hunk
+                                            (list (point) (el-search--end-of-sexp))
+                                            to-insert))))
                                  (unless (funcall void-replacement-p)
                                    ;;skip potentially newly added whitespace
                                    (el-search--ensure-sexp-start))
@@ -3701,6 +3767,93 @@ exactly you did?  Thanks!"))))
                                           (el-search-head-buffer head))
                                       (/ (* 100 (- (point) start-point -1))
                                          (- (point-max) start-point -1)))))))
+                              (edit-replacement
+                               (lambda (&optional ediff-only)
+                                 (save-excursion ;user may copy stuff from base buffer etc.
+                                   (let* ((buffer (get-buffer-create
+                                                   (generate-new-buffer-name "*Replacement*")))
+                                          (window (display-buffer buffer)))
+                                     (select-window window)
+                                     (emacs-lisp-mode)
+                                     (unless ediff-only
+                                       (insert
+                                        (propertize "\
+;; This buffer shows the individual replacement for the current match.
+;; You may edit it here while query-replace is interrupted by a
+;; `recursive-edit'.
+;; Type C-c C-q to quit, dismissing any changes, or C-c C-c to confirm
+;; changes.
+;; Type C-c C-e to Ediff the current match with this buffer's content.
+;; Type C-c C-r to restart editing with the calculated replacement."
+                                                    'read-only t 'field t
+                                                    'front-sticky t 'rear-nonsticky t)
+                                        "\n\n"))
+                                     (save-excursion (insert to-insert))
+                                     (let* ((owconf (current-window-configuration))
+                                            (make-cleanup-fun
+                                             (lambda (&optional do)
+                                               (lambda ()
+                                                 (interactive)
+                                                 ;; Ediff may change the window configuration
+                                                 (set-window-configuration owconf)
+                                                 (when do (funcall do)))))
+                                            (make-ediff-startup-hook-fun
+                                             (lambda (&optional do)
+                                               (let ((e (funcall make-cleanup-fun do)))
+                                                 (lambda () (add-hook 'ediff-quit-hook e t t))))))
+                                       (use-local-map
+                                        (let ((map (make-sparse-keymap))
+                                              (abort (funcall
+                                                      make-cleanup-fun
+                                                      (lambda ()
+                                                        (let ((inhibit-read-only t))
+                                                          (delete-region (point-min) (point-max)))
+                                                        (exit-recursive-edit)))))
+                                          (set-keymap-parent map (current-local-map))
+                                          (define-key map [(control ?c) (control ?c)]
+                                            (funcall make-cleanup-fun #'exit-recursive-edit))
+                                          (define-key map [(control ?c) (control ?q)]
+                                            abort)
+                                          (define-key map [(control ?c) (control ?a)] ;"Abort"
+                                            abort)
+                                          (define-key map [(control ?c) (control ?e)]
+                                            (lambda ()
+                                              (interactive)
+                                              (el-search-query-replace-ediff-replacement
+                                               (funcall make-ediff-startup-hook-fun))))
+                                          (define-key map [(control ?c) (control ?r)]
+                                            (lambda ()
+                                              (interactive)
+                                              (goto-char (point-min))
+                                              (while (and (not (eobp))
+                                                          (looking-at "^;;\\|^$"))
+                                                (forward-line))
+                                              (delete-region (point) (point-max))
+                                              (insert (funcall get-replacement-string))))
+                                          map))
+                                       (let ((el-search-query-replace--current-match-string
+                                              original-text))
+                                         (when ediff-only
+                                           (el-search-query-replace-ediff-replacement
+                                            (funcall make-ediff-startup-hook-fun
+                                                     #'exit-recursive-edit)))
+                                         (recursive-edit)))
+                                     (let ((content-now
+                                            (with-current-buffer buffer
+                                              (goto-char (point-min))
+                                              (while (and (not (eobp))
+                                                          (looking-at "^;;\\|^$"))
+                                                (forward-line))
+                                              (buffer-substring (point) (point-max)))))
+                                       (when (and (not (or (string= to-insert content-now)
+                                                           (string-match-p (rx bos (* space) eos)
+                                                                           content-now)))
+                                                  (y-or-n-p "Use modified version?"))
+                                         (setq to-insert content-now)))
+                                     (delete-window window)
+                                     (kill-buffer buffer))
+                                   (el-search--after-scroll (selected-window) (window-start))
+                                   nil)))
                               (query
                                (lambda ()
                                  (car
@@ -3732,26 +3885,42 @@ Replace match but don't move or restore match if already replaced")
                                                                 " splice")
                                                      (substitute-command-keys "\
 Toggle splicing mode (\\[describe-function] el-search-query-replace for details)")))
-                                          '(?o "show" "Show replacement in a buffer")
+                                          '(?o "show" "\
+Show current replacement in a separate buffer - you can modify it there")
+                                          '(?e "ediff" "\
+Ediff match with replacement")
                                           '(?q  "quit")
                                           '(?\r "quit"))))))))
                          (if replace-all
                              (funcall do-replace)
-                           (let ((handle nil))
+                           (let* ((handle nil)
+                                  (replace-or-restore
+                                   (lambda ()
+                                     (if (not replaced-this)
+                                         (progn
+                                           (activate-change-group
+                                            (setq handle (prepare-change-group)))
+                                           (funcall do-replace))
+                                       (cancel-change-group handle)
+                                       (setq handle nil)
+                                       (setq replaced-this nil)
+                                       (cl-decf nbr-replaced)
+                                       (cl-decf nbr-replaced-total))))
+                                  (edit-and-update
+                                   (lambda (&optional ediff-only)
+                                     (let ((old-to-insert to-insert))
+                                       (funcall edit-replacement ediff-only)
+                                       (unless (string= old-to-insert to-insert)
+                                         (if (not replaced-this)
+                                             (funcall replace-or-restore)
+                                           (el-search--message-no-log
+                                            "Already replaced this match - hit r r to update")
+                                           (sit-for 2))))
+                                     nil)))
                              (unwind-protect
                                  (while (not (pcase (funcall query)
-                                               (?r
-                                                (if (not replaced-this)
-                                                    (progn
-                                                      (activate-change-group
-                                                       (setq handle (prepare-change-group)))
-                                                      (funcall do-replace))
-                                                  (cancel-change-group handle)
-                                                  (setq handle nil)
-                                                  (setq replaced-this nil)
-                                                  (cl-decf nbr-replaced)
-                                                  (cl-decf nbr-replaced-total))
-                                                nil)
+                                               (?r (funcall replace-or-restore)
+                                                   nil)
                                                (?y
                                                 (unless replaced-this (funcall do-replace))
                                                 t)
@@ -3788,33 +3957,14 @@ Replace all matches in all buffers"))))
                                                 (setq splice    (not splice)
                                                       to-insert (funcall get-replacement-string))
                                                 nil)
-                                               (?o
-                                                ;; FIXME: Should we allow to edit the replacement?
-                                                (let* ((buffer (get-buffer-create
-                                                                (generate-new-buffer-name "*Replacement*")))
-                                                       (window (display-buffer buffer)))
-                                                  (with-selected-window window
-                                                    (emacs-lisp-mode)
-                                                    (save-excursion
-                                                      (insert
-                                                       "\
-;; This buffer shows the replacement for the current match.
-;; Please hit any key to proceed.\n\n"
-                                                       (funcall get-replacement-string)))
-                                                    (read-char " "))
-                                                  (delete-window window)
-                                                  (kill-buffer buffer)
-                                                  (el-search--after-scroll (selected-window) (window-start))
-                                                  nil))
+                                               (?o (funcall edit-and-update)
+                                                   nil)
+                                               (?e (funcall edit-and-update 'ediff-only)
+                                                   nil)
                                                ((or ?q ?\C-g ?\r) (signal 'quit t)))))
                                (when handle (accept-change-group handle)))))
                          (unless (eobp)
-                           (let* ((replacement-end-pos
-                                   (and replaced-this
-                                        (save-excursion
-                                          (forward-sexp (if splice (length replacement) 1))
-                                          (point))))
-                                  (replacement-contains-another-match
+                           (let* ((replacement-contains-another-match
                                    (and replaced-this
                                         ;; This intentionally includes the replacement itself
                                         (save-excursion
