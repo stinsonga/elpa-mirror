@@ -471,7 +471,7 @@ composed.  FILE is a file to attach to the message."
 		  (when m
 		    (push m mails))))))
 	  (dolist (b b-recs)
-	    (let ((m (ebdb-mail-address
+	    (let ((m (bbdb-mail-address
 		      (car (bbdb-message-search
 			    (org-link-unescape b))))))
 	      (when m
@@ -729,7 +729,7 @@ Returns a lambda form used for matching a search string (ie, the
   (let ((org--matcher-tags-todo-only nil)
 	(re "^&?\\([-+:]\\)?\\({[^}]+}\\|LEVEL\\([<=>]\\{1,2\\}\\)\\([0-9]+\\)\\|\\(\\(?:[[:alnum:]_]+\\(?:\\\\-\\)*\\)+\\)\\([<>=]\\{1,2\\}\\)\\({[^}]+}\\|\"[^\"]*\"\\|-?[.0-9]+\\(?:[eE][-+]?[0-9]+\\)?\\)\\|[[:alnum:]_@#%]+\\)")
 	(or-terms (org-split-string str "|"))
-	term rest out-or acc tag-clause)
+	term rest out-or acc)
     (while (setq term (pop or-terms))
       (setq acc nil)
       (while (string-match re term)
