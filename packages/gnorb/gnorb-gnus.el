@@ -550,7 +550,7 @@ you'll stay in the Gnus summary buffer."
 		     :link ,link :date ,date :refs ,ref-msg-ids
 		     :group ,group))
     (gnorb-gnus-collect-all-attachments nil t)
-    (condition-case err
+    (unwind-protect
 	(if id
 	    (progn
 	      (delete-other-windows)
@@ -617,12 +617,9 @@ you'll stay in the Gnus summary buffer."
 		 (mail-header-id (gnus-data-header (gnus-data-find a)))
 		 tags))
 	      (gnus-summary-update-article a))))
-      (error
-       ;; If these are left populated after an error, it plays hell
-       ;; with future trigger processes.
-       (setq gnorb-gnus-message-info nil)
-       (setq gnorb-gnus-capture-attachments nil)
-       (signal (car err) (cdr err))))))
+      ;; No matter what, clear these two variables.
+      (setq gnorb-gnus-message-info nil)
+      (setq gnorb-gnus-capture-attachments nil))))
 
 ;;;###autoload
 (defun gnorb-gnus-quick-reply ()
