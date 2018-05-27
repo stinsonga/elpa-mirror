@@ -970,13 +970,27 @@ N times."
   (funcall matcher expression))
 
 
-(defun el-search--search-pattern-1 (matcher &optional noerror bound heuristic-matcher)
+(defun el-search--search-pattern-1 (matcher &optional noerror bound heuristic-matcher count)
   "Like `el-search-forward' but accepts a matcher as first argument.
 In addition, a HEURISTIC-MATCHER corresponding to the MATCHER can
-be specified as third optional argument."
-  (if (not (derived-mode-p 'emacs-lisp-mode))
-      (if noerror nil (error "Buffer not in emacs-lisp-mode: %s" (buffer-name)))
-    (let ((match-beg nil) (opoint (point)) current-expr)
+be specified as fourth argument, and COUNT becomes the fifth argument."
+  (cond
+   ((not (derived-mode-p 'emacs-lisp-mode))
+    (if noerror nil (error "Buffer not in emacs-lisp-mode: %s" (buffer-name))))
+   ((and count (not (integerp count)))
+    (signal 'wrong-type-argument (list 'integerp count)))
+   ((and count (< count 0))
+    (el-search--search-backward-1 matcher noerror bound heuristic-matcher (- count)))
+   ((and bound (< bound (point)))
+    (error "Invalid search bound (wrong side of point)"))
+   (t
+    (let* ((opoint (point))
+           (fail (lambda ()
+                   (goto-char
+                    (if (not (memq noerror '(nil t)))
+                        (or bound (point-max))
+                      opoint))
+                   (if noerror nil (signal 'search-failed nil)))))
 
       ;; when inside a string or comment, move past it
       (let ((syntax-here (syntax-ppss)))
@@ -987,41 +1001,57 @@ be specified as third optional argument."
           (forward-line 1)
           (while (and (not (eobp)) (looking-at (rx (and (* space) ";"))))
             (forward-line 1))))
+      (if count
+          (cond
+           ((= count 0) (point)) ;this is what the vanilla search functions do
+           ((catch 'success
+              (while (< 0 count)
+                (cond
+                 ((not (el-search--search-pattern-1 matcher 'noerror bound heuristic-matcher))
+                  (throw 'success nil))
+                 ((= 1 count)
+                  (throw 'success t))
+                 (t
+                  (cl-decf count)
+                  (el-search--skip-expression nil t)))))
+            (point))
+           (t (funcall fail)))
+        (let ((match-beg nil) current-expr)
+          (if (catch 'no-match
+                (while (not match-beg)
+                  (condition-case nil
+                      (setq current-expr (el-search--ensure-sexp-start))
+                    (end-of-buffer (throw 'no-match t)))
+                  (let ((end-of-defun nil))
+                    (cond
+                     ((and el-search-optimized-search
+                           heuristic-matcher
+                           (looking-at "^(")
+                           (not (funcall heuristic-matcher
+                                         (current-buffer)
+                                         (thunk-delay
+                                          (el-search--flatten-tree
+                                           (save-excursion
+                                             (prog1 (el-search-read (current-buffer))
+                                               (setq end-of-defun (point)))))))))
+                      (goto-char (or end-of-defun
+                                     ;; the thunk hasn't been forced
+                                     (scan-lists (point) 1 0))))
+                     ((el-search--match-p matcher current-expr)
+                      (setq match-beg
+                            (and (or (not bound)
+                                     (<= (scan-sexps match-beg 1) bound)
+                                     ;; don't fail for >: a subsequent match may end before BOUND
+                                     )
+                                 (point))))
+                     (t (el-search--skip-expression current-expr))))
+                  (when (and bound (<= bound (point)))
+                    (throw 'no-match t)))
+                nil)
+              (funcall fail)
+            match-beg)))))))
 
-      (cond
-       ((catch 'no-match
-          (while (and (not match-beg) (or (not bound) (<= (point) bound)))
-            (condition-case nil
-                (setq current-expr (el-search--ensure-sexp-start))
-              (end-of-buffer
-               (goto-char opoint)
-               (throw 'no-match t)))
-            (let ((end-of-defun nil))
-              (cond
-               ((and el-search-optimized-search
-                     heuristic-matcher
-                     (looking-at "^(")
-                     (not (funcall heuristic-matcher
-                                   (current-buffer)
-                                   (thunk-delay
-                                    (el-search--flatten-tree
-                                     (save-excursion
-                                       (prog1 (el-search-read (current-buffer))
-                                         (setq end-of-defun (point)))))))))
-                (goto-char (or end-of-defun
-                               ;; The thunk hasn't been forced
-                               (scan-lists (point) 1 0))))
-               ((el-search--match-p matcher current-expr)
-                (setq match-beg (point)
-                      opoint (point)))
-               (t (el-search--skip-expression current-expr))))))
-        (if noerror nil (signal 'search-failed nil)))
-       ((and bound match-beg)
-        (and (<= (scan-sexps match-beg 1) bound)
-             match-beg))
-       (t match-beg)))))
-
-(defun el-search-forward (pattern &optional bound noerror)
+(defun el-search-forward (pattern &optional bound noerror count)
   "Search for el-search PATTERN in current buffer from point.
 Set point to the beginning of the occurrence found and return point.
 
@@ -1031,9 +1061,18 @@ value of nil means search to the end of the accessible portion of
 the buffer.
 
 Optional third argument NOERROR, if non-nil, means if fail just
-return nil (no error)."
+return nil (no error); when not t, in addition also move to limit
+of search.
+
+The optional fourth argument COUNT is a number that indicates the
+search direction and the number of occurrences to search for.  If
+it is positive, search forward for COUNT successive occurrences;
+if it is negative, search backward for -COUNT occurrences.  The
+match found is the COUNTth/-COUNTth one in the buffer starting
+after/before the origin of the search."
   (el-search--search-pattern-1 (el-search-make-matcher pattern) noerror bound
-                               (el-search-heuristic-matcher pattern)))
+                               (el-search-heuristic-matcher pattern)
+                               count))
 
 
 ;; FIXME: make this also a declaration spec?
