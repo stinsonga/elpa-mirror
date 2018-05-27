@@ -2466,11 +2466,102 @@ With prefix arg, restart the current search."
     (setq el-search--success nil))
   (el-search-continue-search))
 
+(defun el-search--search-backward-1 (matcher &optional noerror bound heuristic-matcher count)
+  "Like `el-search-backward' but accepts a matcher as first argument.
+In addition, a HEURISTIC-MATCHER corresponding to the MATCHER can
+be specified as fourth argument, and COUNT becomes the fifth argument.
+
+This function is the counterpart of `el-search--search-pattern-1'."
+  (cond
+   ((not (derived-mode-p 'emacs-lisp-mode))
+    (if noerror nil (error "Buffer not in emacs-lisp-mode: %s" (buffer-name))))
+   ((and count (not (integerp count)))
+    (signal 'wrong-type-argument (list 'integerp count)))
+   ((and count (< count 0))
+    (el-search--search-pattern-1 matcher noerror bound heuristic-matcher (- count)))
+   ((and bound (< (point) bound))
+    (error "Invalid search bound (wrong side of point)"))
+   (t
+    (let* ((opoint (point))
+           (fail (lambda ()
+                   (goto-char
+                    (if (not (memq noerror '(nil t)))
+                        (or bound (point-min))
+                      opoint))
+                   (if noerror nil (signal 'search-failed nil)))))
+      (if count
+          (cond
+           ((= count 0) (point)) ;this is what the vanilla search functions do
+           ((catch 'success
+              ;; This is inefficient: O(n^2)
+              (while (< 0 count)
+                (cond
+                 ((not (el-search--search-backward-1 matcher 'noerror bound heuristic-matcher))
+                  (throw 'success nil))
+                 ((= 1 count)
+                  (throw 'success t))
+                 (t (cl-decf count)))))
+            (point))
+           (t (funcall fail)))
+        (let ((found-match nil))
+          (let ((outer-loop-done nil))
+            ;; Strategy: search forwards (inner loop) for PATTERN, starting from
+            ;; this toplevel expression's beginning up to point.  If matches
+            ;; starting before point exist, return the last one.  If no match is
+            ;; found, search the top level expression before this one up to its
+            ;; end, etc (outer loop).
+            (while (not outer-loop-done)
+              (let ((hindmost-match nil)
+                    (current-upper-limit (point))
+                    (current-defun-start (or (syntax-ppss-toplevel-pos (syntax-ppss))
+                                             (scan-sexps (point) -1)))
+                    (current-defun-end))
+
+                (when current-defun-start
+                  ;; Search for the hindmost match starting before CURRENT-UPPER-LIMIT
+                  (let ((done nil))
+                    (goto-char current-defun-start)
+                    (setq current-defun-end (scan-sexps defun-start 1))
+                    (when (and bound (< current-defun-end bound))
+                      (setq done t
+                            outer-loop-done t
+                            found-match nil))
+                    (while (and (not done)
+                                (el-search--search-pattern-1
+                                 matcher 'no-error current-defun-end heuristic-matcher))
+                      (if (>= (point) current-upper-limit)
+                          (setq done t)
+                        (setq hindmost-match (point))
+                        (el-search--skip-expression nil t)))))
+
+                (if (not hindmost-match)
+                    (if current-defun-start
+                        (goto-char current-defun-start)
+                      ;; reached bob
+                      (setq outer-loop-done t))
+                  (setq outer-loop-done t)
+                  (setq found-match hindmost-match)))))
+          (if (and found-match (not (and bound (< found-match bound))))
+              (goto-char found-match)
+            (funcall fail))))))))
+
+(defun el-search-backward (pattern &optional bound noerror count)
+  "Search backward for el-search PATTERN from point.
+Set point to the beginning of the occurrence found and return point.
+
+This function is almost identical to `el-search-forward', except
+that by default it searches backward instead of forward, and the
+sign of COUNT also indicates exactly the opposite searching
+direction.  See `el-search-forward' for details."
+  (el-search--search-backward-1 (el-search-make-matcher pattern) noerror bound
+                                (el-search-heuristic-matcher pattern)
+                                count))
+
 ;;;###autoload
 (defun el-search-pattern-backward (pattern)
-  "Search the current buffer backward for matches of PATTERN."
-  (declare (interactive-only t));; FIXME: define noninteractive version - and -1 with hms like
-                                ;; `el-search--search-pattern-1'
+  "Search the current buffer backward for matches of PATTERN.
+See the command `el-search-pattern' for more information."
+  (declare (interactive-only el-search-backward))
   (interactive (el-search-pattern--interactive))
   (if (eq pattern (el-search--current-pattern))
       (progn
@@ -2491,61 +2582,36 @@ With prefix arg, restart the current search."
     (el-search--message-no-log "[Wrapped backward search]")
     (sit-for .7)
     (goto-char (point-max)))
-  (let ((outer-loop-done nil)
-        (original-point (point))
-        (matcher (el-search--current-matcher))
-        (heuristic-matcher (el-search--current-heuristic-matcher)))
-    ;; Strategy: search forwards (inner loop) for PATTERN, starting from
-    ;; this toplevel expression's beginning up to point, then if no match
-    ;; is found, search the top level expression before this one up to its
-    ;; end, etc (outer loop).
-    (while (not outer-loop-done)
-      (let ((last-match nil)
-            (limit (point))
-            (defun-start (or (syntax-ppss-toplevel-pos (syntax-ppss))
-                             (scan-sexps (point) -1)))
-            (done nil) defun-end)
-        (when defun-start
-          (goto-char defun-start)
-          (setq defun-end (scan-sexps defun-start 1))
-          (while (and (not done)
-                      (el-search--search-pattern-1 matcher 'no-error defun-end))
-            (if (>= (point) limit)
-                (setq done t)
-              (setq last-match (point))
-              (el-search--skip-expression nil t))))
-        (if (not last-match)
-            (if defun-start
-                (goto-char defun-start)
-              ;; reached bob
-              (goto-char original-point)
-              (setq outer-loop-done t)
-              (if (not (or el-search--success
-                           (save-excursion
-                             (goto-char (point-min))
-                             (el-search--search-pattern-1 matcher t nil heuristic-matcher))))
-                  (progn
-                    (ding)
-                    (el-search--message-no-log "No matches")
-                    (sit-for .7))
-                (let ((keys (car (where-is-internal 'el-search-pattern-backward))))
-                  (el-search--message-no-log
-                   (if keys
-                       (format "No (more) match; hit %s to wrap search" (key-description keys))
-                     "No (more) match")))
-                (sit-for .7)
-                (goto-char original-point)
-                (el-search--set-wrap-flag 'backward)))
-          (setq outer-loop-done t)
-          (goto-char last-match)
-          (setf (el-search-head-position (el-search-object-head el-search--current-search))
-                (copy-marker (point)))
-          (setf (el-search-object-last-match el-search--current-search)
-                (copy-marker (point)))
-          (el-search-hl-sexp)
-          (unless (eq last-command 'el-search-pattern)
-            (el-search-hl-other-matches (el-search--current-matcher)))
-          (setq el-search--success t))))))
+  (if-let ((preceding-match (el-search--search-backward-1
+                             (el-search--current-matcher)
+                             t nil
+                             (el-search--current-heuristic-matcher))))
+      (progn
+        (goto-char preceding-match)
+        (setf (el-search-head-position (el-search-object-head el-search--current-search))
+              (copy-marker (point)))
+        (setf (el-search-object-last-match el-search--current-search)
+              (copy-marker (point)))
+        (el-search-hl-sexp)
+        (unless (eq last-command 'el-search-pattern)
+          (el-search-hl-other-matches (el-search--current-matcher)))
+        (setq el-search--success t))
+    (if (not (or el-search--success
+                 (save-excursion
+                   (goto-char (point-min))
+                   (el-search--search-pattern-1
+                    (el-search--current-matcher) t nil (el-search--current-heuristic-matcher)))))
+        (progn
+          (ding)
+          (el-search--message-no-log "No matches")
+          (sit-for .7))
+      (let ((keys (car (where-is-internal 'el-search-pattern-backward))))
+        (el-search--message-no-log
+         (if keys
+             (format "No (more) match; hit %s to wrap search" (key-description keys))
+           "No (more) match")))
+      (sit-for .7)
+      (el-search--set-wrap-flag 'backward))))
 
 (define-obsolete-function-alias 'el-search-previous-match
   'el-search-pattern-backward "since el-search-1.3")
