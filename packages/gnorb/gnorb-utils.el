@@ -637,7 +637,7 @@ registry be in use, and should be called after the call to
        (define-key bbdb-mode-map (kbd "C-c l") #'gnorb-bbdb-open-link)
        (define-key bbdb-mode-map [remap bbdb-mail] #'gnorb-bbdb-mail)
        (eval-after-load "gnorb-org"
-	 (org-defkey org-mode-map (kbd "C-c C") #'gnorb-org-contact-link))))
+	 '(org-defkey org-mode-map (kbd "C-c C") #'gnorb-org-contact-link))))
   (eval-after-load "gnorb-org"
     '(progn
        (org-defkey org-mode-map (kbd "C-c t") #'gnorb-org-handle-mail)
