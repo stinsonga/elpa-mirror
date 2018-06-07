@@ -1,6 +1,11 @@
 Some of the user visible news were:
 
 
+Version: 1.8.4
+
+  Quitting (C-g) while el-searching now brings you back to the
+  starting point like in isearch.
+
 Version: 1.8.3
 
   `el-search-query-replace' now adds undo boundaries for each manual
