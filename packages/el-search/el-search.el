@@ -2127,9 +2127,9 @@ created.")
                         (buffer-chars-modified-tick)
                         stream-of-buffer-matches)))))
 
-      (let ((nbr-this-match 1) total-matches (pos-here (point))
+      (let ((pos-here (point)) (matches-<=-here 1) total-matches
             (defun-bounds (or (el-search--bounds-of-defun) (cons (point) (point))))
-            (nbr-this-match-in-defun 1) (total-matches-in-defun 0)
+            (matches-<=-here-in-defun 1) (total-matches-in-defun 0)
             (largest-match-start-not-after-pos-here nil))
         (pcase-let ((`(,_ ,_ ,matches) el-search--buffer-match-count-data))
           (setq total-matches (let ((inhibit-message t)) (seq-length matches)))
@@ -2137,11 +2137,11 @@ created.")
             (when (<= (stream-first matches) pos-here)
               (setq largest-match-start-not-after-pos-here (stream-first matches))
               (unless (= (stream-first matches) pos-here)
-                (cl-incf nbr-this-match)))
+                (cl-incf matches-<=-here)))
             (when (<= (car defun-bounds) (stream-first matches))
               (cl-incf total-matches-in-defun)
               (when (< (stream-first matches) pos-here)
-                (cl-incf nbr-this-match-in-defun)))
+                (cl-incf matches-<=-here-in-defun)))
             (stream-pop matches))
           (if (zerop total-matches) ;this can happen for el-search-this-sexp
               (el-search--message-no-log "No matches")
@@ -2155,22 +2155,34 @@ created.")
                     (and largest-match-start-not-after-pos-here
                          (or (= pos-here largest-match-start-not-after-pos-here)
                              at-a-match-but-not-at-match-beginning))))
-              (when at-a-match-but-not-at-match-beginning
-                (cl-decf nbr-this-match)
-                (cl-decf nbr-this-match-in-defun))
+              (when (or at-a-match-but-not-at-match-beginning
+                        (not at-a-match))
+                (cl-decf matches-<=-here)
+                (cl-decf matches-<=-here-in-defun))
               (if at-a-match
                   (el-search--message-no-log
-                   "%s  %d/%d    %s"
+                   "%s %d/%d  %s"
                    (let ((head (el-search-object-head el-search--current-search)))
                      (or (el-search-head-file head)
                          (buffer-name (el-search-head-buffer head))))
-                   nbr-this-match
+                   matches-<=-here
                    total-matches
-                   (if (<= total-matches-in-defun 1)
-                       ""
-                     (propertize (format "(%d/%d)" nbr-this-match-in-defun total-matches-in-defun)
-                                 'face 'shadow)))
-                (el-search--message-no-log "[Not at a match]")))))))))
+                   (propertize
+                    (format (pcase (save-excursion
+                                     (goto-char (car defun-bounds))
+                                     (el-search-read (current-buffer)))
+                              (`(,a ,b . ,_) (format "(%s  %%d/%%d)"
+                                                     (truncate-string-to-width
+                                                      (format "%S %S" a b)
+                                                      40 nil nil 'ellipsis)))
+                              (_             "(%d/%d)"))
+                            matches-<=-here-in-defun total-matches-in-defun)
+                    'face 'shadow))
+                (el-search--message-no-log
+                 (concat "[Not at a match]   "
+                         (if (= matches-<=-here total-matches)
+                             (format "(%s/%s <-)" matches-<=-here total-matches)
+                           (format "(-> %s/%s)" (1+ matches-<=-here) total-matches))))))))))))
 
 (defun el-search-hl-other-matches (matcher)
   "Highlight all visible matches.
