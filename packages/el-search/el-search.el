@@ -2467,16 +2467,50 @@ See `el-search-defined-patterns' for a list of defined patterns."
      (lambda (search) (setf (alist-get 'is-single-buffer (el-search-object-properties search)) t))
      'from-here))))
 
-(defun el-search-from-beginning (&optional restart-search)
+(defmacro el-search--unless-no-buffer-match (&rest body)
+  "Execute BODY unless no match for current search in current buffer.
+In this case, ignore BODY and emit a message saying \"No matches\".
+
+The return value is the result of the last form in BODY if it is
+executed, and nil else."
+  (declare (indent 0) (debug (body)))
+  `(if (not (or el-search--success
+                (save-excursion
+                  (goto-char (point-min))
+                  (el-search--search-pattern-1
+                   (el-search--current-matcher) t nil (el-search--current-heuristic-matcher)))))
+       (progn
+         (ding)
+         (el-search--message-no-log "No matches")
+         (sit-for .7)
+         nil)
+     ,@body))
+
+(defun el-search-from-beginning (&optional arg)
   "Go to the first of this buffer's matches.
-With prefix arg, restart the current search."
+With prefix ARG, restart the current search when positive; go to the
+last match in the current buffer when negative."
   (interactive "P")
-  (if (not restart-search)
+  (cond
+   ((< (prefix-numeric-value arg) 0)
+    (el-search-last-buffer-match))
+   ((not arg)
+    (el-search--unless-no-buffer-match
       (setf (el-search-head-position (el-search-object-head el-search--current-search))
             (point-min))
+      (el-search-continue-search)))
+   (t
     (el-search-reset-search el-search--current-search)
-    (setq el-search--success nil))
-  (el-search-continue-search))
+    (setq el-search--success nil)
+    (el-search-continue-search))))
+
+(defun el-search-last-buffer-match ()
+  "Go to the last of this buffer's matches."
+  (interactive)
+  (setq this-command 'el-search-pattern)
+  (el-search--unless-no-buffer-match
+    (goto-char (point-max))
+    (funcall-interactively #'el-search-pattern-backward (el-search--current-pattern))))
 
 (defun el-search--search-backward-1 (matcher &optional noerror bound heuristic-matcher count)
   "Like `el-search-backward' but accepts a matcher as first argument.
@@ -2608,22 +2642,14 @@ See the command `el-search-pattern' for more information."
         (unless (eq last-command 'el-search-pattern)
           (el-search-hl-other-matches (el-search--current-matcher)))
         (setq el-search--success t))
-    (if (not (or el-search--success
-                 (save-excursion
-                   (goto-char (point-min))
-                   (el-search--search-pattern-1
-                    (el-search--current-matcher) t nil (el-search--current-heuristic-matcher)))))
-        (progn
-          (ding)
-          (el-search--message-no-log "No matches")
-          (sit-for .7))
-      (let ((keys (car (where-is-internal 'el-search-pattern-backward))))
-        (el-search--message-no-log
-         (if keys
-             (format "No (more) match; hit %s to wrap search" (key-description keys))
-           "No (more) match")))
-      (sit-for .7)
-      (el-search--set-wrap-flag 'backward))))
+    (el-search--unless-no-buffer-match
+     (let ((keys (car (where-is-internal 'el-search-pattern-backward))))
+       (el-search--message-no-log
+        (if keys
+            (format "No (more) match; hit %s to wrap search" (key-description keys))
+          "No (more) match")))
+     (sit-for .7)
+     (el-search--set-wrap-flag 'backward))))
 
 (define-obsolete-function-alias 'el-search-previous-match
   'el-search-pattern-backward "since el-search-1.3")
