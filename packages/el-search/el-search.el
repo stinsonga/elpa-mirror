@@ -1025,7 +1025,7 @@ be specified as fourth argument, and COUNT becomes the fifth argument."
            ((catch 'success
               (while (< 0 count)
                 (cond
-                 ((not (el-search--search-pattern-1 matcher 'noerror bound heuristic-matcher))
+                 ((not (el-search--search-pattern-1 matcher t bound heuristic-matcher))
                   (throw 'success nil))
                  ((= 1 count)
                   (throw 'success t))
@@ -2554,7 +2554,7 @@ This function is the counterpart of `el-search--search-pattern-1'."
               ;; This is inefficient: O(n^2)
               (while (< 0 count)
                 (cond
-                 ((not (el-search--search-backward-1 matcher 'noerror bound heuristic-matcher))
+                 ((not (el-search--search-backward-1 matcher t bound heuristic-matcher))
                   (throw 'success nil))
                  ((= 1 count)
                   (throw 'success t))
@@ -2586,7 +2586,7 @@ This function is the counterpart of `el-search--search-pattern-1'."
                             found-match nil))
                     (while (and (not done)
                                 (el-search--search-pattern-1
-                                 matcher 'no-error current-defun-end heuristic-matcher))
+                                 matcher t current-defun-end heuristic-matcher))
                       (if (>= (point) current-upper-limit)
                           (setq done t)
                         (setq hindmost-match (point))
@@ -3601,7 +3601,7 @@ Replace all matches in all buffers"))))
                                         ;; This intentionally includes the replacement itself
                                         (save-excursion
                                           (el-search--search-pattern-1
-                                           matcher 'noerror replacement-end-pos heuristic-matcher))))
+                                           matcher t replacement-end-pos heuristic-matcher))))
                                   (skip-replacement
                                    (lambda () (goto-char replacement-end-pos))))
                              (cond
