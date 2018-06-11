@@ -1,6 +1,16 @@
 Some of the user visible news were:
 
 
+Version: 1.7
+
+  Signature and semantics of non-interactive function
+  `el-search-forward' have been further adapted to that of the vanilla
+  search function `search-forward'.  The counterpart
+  `el-search-backward' has been added.
+
+  The new key bindings < and > let you directly jump to the first and
+  to the last match in a buffer.
+
 Version: 1.6.5
 
   When the new user option `el-search-allow-scroll' is enabled (the
