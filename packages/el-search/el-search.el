@@ -1045,6 +1045,7 @@ be specified as fourth argument, and COUNT becomes the fifth argument."
                      ((and el-search-optimized-search
                            heuristic-matcher
                            (looking-at "^(")
+                           (zerop (car (syntax-ppss)))
                            (not (funcall heuristic-matcher
                                          (current-buffer)
                                          (thunk-delay
