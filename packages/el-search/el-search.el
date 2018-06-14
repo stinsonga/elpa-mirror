@@ -2770,6 +2770,32 @@ Use the normal search commands to seize the search."
     (add-hook 'post-command-hook #'el-search-hl-post-command-fun t t)
     (el-search--message-no-log "%s" printed-sexp)))
 
+(defun el-search-scroll-down ()
+  "Jump to the first match starting after `window-end'."
+  (interactive)
+  (setq this-command 'el-search-pattern)
+  (let ((here (point)))
+    (goto-char (window-end))
+    (if (el-search--search-pattern-1 (el-search--current-matcher) t nil
+                                     (el-search--current-heuristic-matcher))
+        (el-search-jump-to-search-head 0)
+      (goto-char here)
+      (el-search--message-no-log "[No more matches after here]")
+      (sit-for 1))))
+
+(defun el-search-scroll-up ()
+  "Jump to the hindmost match starting before `window-start'."
+  (interactive)
+  (setq this-command 'el-search-pattern)
+  (let ((here (point)))
+    (goto-char (window-start))
+    (if (el-search--search-backward-1 (el-search--current-matcher) t nil
+                                      (el-search--current-heuristic-matcher))
+        (el-search-jump-to-search-head 0)
+      (goto-char here)
+      (el-search--message-no-log "[No more matches before here]")
+      (sit-for 1))))
+
 
 ;;;; El-Occur
 
