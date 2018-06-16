@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.7.7
+;; Version: 1.7.8
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -612,6 +612,26 @@ consulted by all streams `el-search-stream-of-directory-files'
 returns."
   :type 'boolean)
 
+(defvar el-search-open-invisible t
+  ;; Not an option because I don't know if a nil value is useful to
+  ;; anyone.
+  "Whether el-search should open invisible text.
+When non-nil, el-search automatically opens text hidden by
+\"outline.el\" or \"hideshow.el\" to make the current match
+visible, like isearch does by default.  See also
+`el-search-hide-immediately'.
+
+Note that el-search always matches invisible text, this option
+only controls whether matches are made visible.")
+
+(defcustom el-search-hide-immediately t
+  "If non-nil, re-hide an invisible match right away.
+This is the exact counterpart of `isearch-hide-immediately': it
+controls whether opened invisible text is re-hidden already while
+searching after leaving the opened area, or only after exiting
+the search.  The last successful match is never hidden."
+  :type 'boolean)
+
 
 ;;;; Helpers and Definitions
 
@@ -689,6 +709,22 @@ nil."
             (if (<= defun-beg pos defun-end)
                 (cons defun-beg defun-end)
               nil)))))))
+
+(defun el-search-unhide-invisible (&optional beg end)
+  (when el-search-open-invisible
+    (cl-callf or beg (point))
+    (let ((isearch-hide-immediately el-search-hide-immediately)
+          (search-invisible 'open)
+          (isearch-old-opened-overlays (copy-sequence isearch-opened-overlays)))
+      (isearch-range-invisible beg (or end (1+ beg)))
+      (when (cl-set-difference
+             ;; Closing overlays may make additional text visible
+             isearch-old-opened-overlays isearch-opened-overlays)
+        (el-search--after-scroll nil (window-start))))))
+
+(defun el-search-rehide-invisible ()
+  (when el-search-open-invisible
+    (isearch-clean-overlays)))
 
 (defun el-search-with-short-term-memory (function)
   "Wrap FUNCTION to cache the last arguments/result pair."
@@ -2106,19 +2142,14 @@ absolute name must be matched by all of them."
           (scroll-up (min
                       (max
                        ;; make at least sexp end + a small margin visible
-                       (- (line-number-at-pos (cadr bounds))
-                          (line-number-at-pos (window-end))
-                          (- (max 2 (/ wheight 4))))
+                       (+ (count-screen-lines (cadr bounds) (window-end))
+                          (max 2 (/ wheight 4)))
                        ;; also try to center current sexp
-                       (- (/ ( + (line-number-at-pos (car bounds))
-                                 (line-number-at-pos (cadr bounds)))
-                             2)
-                          (/ (+ (line-number-at-pos (window-start))
-                                (line-number-at-pos (window-end)))
-                             2)))
+                       (/ (+ (count-screen-lines (window-start) (car  bounds))
+                             (count-screen-lines (window-end)   (cadr bounds)))
+                          2))
                       ;; but also ensure at least a small margin is left between point and window start
-                      (- (line-number-at-pos (car  bounds))
-                         (line-number-at-pos (window-start))
+                      (- (count-screen-lines (car bounds) (window-start))
                          3)))
         ((beginning-of-buffer end-of-buffer) nil)))))
 
@@ -2135,6 +2166,7 @@ absolute name must be matched by all of them."
     ;; must apparently be displayed for this to work.
     (while (not (eq t (frame-visible-p (selected-frame))))
       (sleep-for .1))
+    (apply #'el-search-unhide-invisible bounds)
     (redisplay)
     (el-search--scroll-sexp-in-view bounds))
 
@@ -2281,7 +2313,8 @@ local binding of `window-scroll-functions'."
     (delete-overlay el-search-hl-overlay))
   (remove-hook 'window-scroll-functions #'el-search--after-scroll t)
   (mapc #'delete-overlay el-search-hl-other-overlays)
-  (setq el-search-hl-other-overlays '()))
+  (setq el-search-hl-other-overlays '())
+  (el-search-rehide-invisible))
 
 (defun el-search-hl-post-command-fun ()
   (pcase this-command
