@@ -966,11 +966,14 @@ N times."
      (defvar warning-suppress-log-types)
      (let ((byte-compile-debug t) ;make undefined pattern types raise an error
            (warning-suppress-log-types '((bytecomp)))
-           (pcase--dontwarn-upats (cons '_ pcase--dontwarn-upats)))
-       (byte-compile `(lambda (,expression)
-                        (pcase ,expression
-                          (,pattern ,(if result-specified result-expr t))
-                          (_        nil))))))))
+           (pattern-is-catchall (eq pattern '_)))
+       (byte-compile
+        `(lambda (,(if pattern-is-catchall '_ expression))
+           ,(if pattern-is-catchall
+                (if result-specified result-expr t)
+              `(pcase ,expression
+                 (,pattern ,(if result-specified result-expr t))
+                 (_        nil)))))))))
 
 (defun el-search--match-p (matcher expression)
   (funcall matcher expression))
