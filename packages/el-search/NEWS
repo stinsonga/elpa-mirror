@@ -1,6 +1,10 @@
 Some of the user visible news were:
 
 
+Version: 1.7.8
+
+  Similar to isearch, el-search now opens invisible text.
+
 Version: 1.7.7
 
   The new scroll commands `el-search-scroll-down' and
