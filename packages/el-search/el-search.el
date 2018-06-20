@@ -930,9 +930,16 @@ for details.
              (lambda ,args ,@(and doc `(,doc)) ,@body)))))
 
 (defmacro el-search--with-additional-pcase-macros (&rest body)
-  `(cl-letf ,(mapcar (pcase-lambda (`(,symbol . ,fun)) `((get ',symbol 'pcase-macroexpander) #',fun))
-                     el-search--pcase-macros)
-     ,@body))
+  (let ((saved (make-symbol "saved")))
+    `(let ((,saved nil))
+       (unwind-protect
+           (progn
+             (pcase-dolist (`(,symbol . ,fun) el-search--pcase-macros)
+               (push (cons symbol (get symbol 'pcase-macroexpander)) ,saved)
+               (put symbol 'pcase-macroexpander fun))
+             ,@body)
+         (pcase-dolist (`(,symbol . ,fun) ,saved)
+           (put symbol 'pcase-macroexpander fun))))))
 
 (defun el-search--macroexpand-1 (pattern &optional n)
   "Expand el-search PATTERN.
@@ -952,19 +959,18 @@ N times."
 
 (defun el-search--macroexpand (pattern)
   "Like `pcase--macroexpand' but also expanding \"el-search\" patterns."
-  (eval `(el-search--with-additional-pcase-macros (pcase--macroexpand ',pattern))))
+  (el-search--with-additional-pcase-macros (pcase--macroexpand pattern)))
 
 (cl-defun el-search-make-matcher (pattern &optional (result nil result-specified))
-  (eval ;use `eval' to allow for user defined pattern types at run time
-   (let ((expression (make-symbol "expression")))
-     `(el-search--with-additional-pcase-macros
-       (let ((byte-compile-debug t) ;make undefined pattern types raise an error
-             (warning-suppress-log-types '((bytecomp)))
-             (pcase--dontwarn-upats (cons '_ pcase--dontwarn-upats)))
-         (byte-compile (lambda (,expression)
-                         (pcase ,expression
-                           (,pattern ,(if result-specified result t))
-                           (_        nil)))))))))
+  (let ((expression (make-symbol "expression")))
+    (el-search--with-additional-pcase-macros
+     (let ((byte-compile-debug t) ;make undefined pattern types raise an error
+           (warning-suppress-log-types '((bytecomp)))
+           (pcase--dontwarn-upats (cons '_ pcase--dontwarn-upats)))
+       (byte-compile `(lambda (,expression)
+                        (pcase ,expression
+                          (,pattern ,(if result-specified result t))
+                          (_        nil))))))))
 
 (defun el-search--match-p (matcher expression)
   (funcall matcher expression))
