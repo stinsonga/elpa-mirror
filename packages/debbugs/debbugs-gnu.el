@@ -706,12 +706,8 @@ are taken from the cache instead."
 			    (sort ids '<))
 			(debbugs-gnu-get-bugs debbugs-gnu-local-query)))))
       (let* ((id (cdr (assq 'id status)))
-	     (words
-	      (mapconcat
-	       'identity
-	       (cons (cdr (assq 'severity status))
-		     (cdr (assq 'keywords status)))
-	       ","))
+	     (words (cons (cdr (assq 'severity status))
+			  (cdr (assq 'keywords status))))
 	     (address (if (cdr (assq 'originator status))
 			  (mail-header-parse-address
 			   (decode-coding-string (cdr (assq 'originator status))
@@ -725,19 +721,21 @@ are taken from the cache instead."
 						'utf-8)))
 	     merged)
 	(unless (equal (cdr (assq 'pending status)) "pending")
-	  (setq words (concat words "," (cdr (assq 'pending status)))))
+	  (setq words (append words (list (cdr (assq 'pending status))))))
 	(let ((packages (cdr (assq 'package status))))
 	  (dolist (elt packages)
 	    (when (member elt debbugs-gnu-default-packages)
 	      (setq packages (delete elt packages))))
-	  (when packages
-	    (setq words (concat words "," (mapconcat 'identity packages ",")))))
+	  (setq words (append words packages)))
 	(when (setq merged (cdr (assq 'mergedwith status)))
-	  (setq words (format "%s,%s"
-			      (if (numberp merged)
-				  merged
-				(mapconcat 'number-to-string merged ","))
-			      words)))
+	  (setq words (cons (if (numberp merged)
+				merged
+			      (mapconcat 'number-to-string merged ","))
+			    words)))
+	;; `words' could contain the same word twice, for example
+	;; "fixed" from keywords and pending.
+	(setq words
+	      (mapconcat 'identity (delete-duplicates words :test 'equal) ","))
 	(when (or (not merged)
 		  (not (let ((found nil))
 			 (dolist (id (if (listp merged)
