@@ -728,14 +728,11 @@ are taken from the cache instead."
 	      (setq packages (delete elt packages))))
 	  (setq words (append words packages)))
 	(when (setq merged (cdr (assq 'mergedwith status)))
-	  (setq words (cons (if (numberp merged)
-				merged
-			      (mapconcat 'number-to-string merged ","))
-			    words)))
+	  (setq words (append (mapcar 'number-to-string merged) words)))
 	;; `words' could contain the same word twice, for example
-	;; "fixed" from keywords and pending.
-	(setq words
-	      (mapconcat 'identity (delete-duplicates words :test 'equal) ","))
+	;; "fixed" from `keywords' and `pending'.
+	(setq words (mapconcat
+		     'identity (cl-delete-duplicates words :test 'equal) ","))
 	(when (or (not merged)
 		  (not (let ((found nil))
 			 (dolist (id (if (listp merged)
