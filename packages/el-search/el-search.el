@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.8.9
+;; Version: 1.9.0
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -63,17 +63,24 @@
 ;; "repeatable" where it makes sense so that you can for example hit
 ;; M-s e j s s s a % to reactive the last search, go to the next match
 ;; three times, then go back to the first match in the current buffer,
-;; and finally invoke query-replace.
+;; and finally invoke `el-search-query-replace'.
 ;;
-;; Here is a complete list of key bindings installed when
+;; It follows a complete list of key bindings installed when
 ;; you call
+;;
 ;;   (el-search-install-shift-bindings)
+;;
 ;; or
+;;
 ;;   (el-search-install-bindings-under-prefix [(meta ?s) ?e])
 ;;
-;; respectively:
+;; respectively.  If you don't want to install any key bindings, you
+;; at least want to remember the command name "el-search-pattern" or
+;; its alias "el-search" to get a start, and that C-h will give you
+;; access to some help commands; among other things C-h b listing the
+;; relevant key bindings for controlling a search.
 ;;
-;;   C-S, M-s e s (el-search-pattern)
+;;   C-S, M-s e s (`el-search-pattern')
 ;;     Start a search in the current buffer/go to the next match.
 ;;
 ;;     While searching, the searched buffer is current (not the
@@ -83,10 +90,16 @@
 ;;     hit RET to exit or C-g to abort and jump back to where you
 ;;     started.
 ;;
-;;   C-R, M-s e r (el-search-pattern-backward)
+;;   C-h (aka the `help-char')
+;;
+;;     C-h offers access to some help commands special to el-search
+;;     when a search is active.  Among other things C-h b (or ?) gives
+;;     you a list of bindings to control the search.
+;;
+;;   C-R, M-s e r (`el-search-pattern-backward')
 ;;     Search backward.
 ;;
-;;   C-%, M-s e % (el-search-query-replace)
+;;   C-%, M-s e % (`el-search-query-replace')
 ;;     Do a query-replace.
 ;;
 ;;   M-x el-search-directory
@@ -94,26 +107,26 @@
 ;;     Emacs-Lisp files in that directory.  With prefix arg,
 ;;     recursively search files in subdirectories.
 ;;
-;;   C-S, M-s e s in Dired (el-search-dired-marked-files)
+;;   C-S, M-s e s in Dired (`el-search-dired-marked-files')
 ;;     Like above but uses the marked files and directories.
 ;;
-;;   C-S, M-s e s in Ibuffer (el-search-ibuffer-marked-buffers)
+;;   C-S, M-s e s in Ibuffer (`el-search-ibuffer-marked-buffers')
 ;;     Search marked buffers in *Ibuffer*.
 ;;
-;;   C-O, M-s e o (el-search-occur)
+;;   C-O, M-s e o (`el-search-occur')
 ;;     Pop up an occur buffer for the current search.
 ;;
 ;;   C-O or M-RET (from a search pattern prompt)
 ;;     Execute this search command as occur.
 ;;
-;;   C-N, M-s e n (el-search-continue-in-next-buffer)
+;;   C-N, M-s e n (`el-search-continue-in-next-buffer')
 ;;     Skip over current buffer or file.
 ;;
-;;   C-D, M-s e d (el-search-skip-directory)
+;;   C-D, M-s e d (`el-search-skip-directory')
 ;;     Prompt for a directory name and skip all subsequent files
 ;;     located under this directory.
 ;;
-;;   C-A, M-s e a, M-s e < (el-search-from-beginning)
+;;   C-A, M-s e a, M-s e < (`el-search-from-beginning')
 ;;     Go back to the first match in this buffer or (with positive
 ;;     prefix arg) completely restart the current search from the
 ;;     first file or buffer.
@@ -121,7 +134,7 @@
 ;;     With negative prefix arg, or with >, go to the last match in
 ;;     the current buffer.
 ;;
-;;   C-J, M-s e j (el-search-jump-to-search-head)
+;;   C-J, M-s e j (`el-search-jump-to-search-head')
 ;;     Resume the last search from the position of the last visited
 ;;     match.
 ;;     With prefix arg 0, resume from the position of the match
@@ -132,13 +145,13 @@
 ;;     With a plain C-u prefix arg, prompt for a former search to
 ;;     resume.
 ;;
-;;   C-S-next, v   when search is active (el-search-scroll-down)
-;;   C-S-prior, V  when search is active (el-search-scroll-up)
+;;   C-S-next, v   when search is active (`el-search-scroll-down')
+;;   C-S-prior, V  when search is active (`el-search-scroll-up')
 ;;     Scrolling by matches: Select the first match after
 ;;     `window-end', or select the first match before `window-start',
 ;;     respectively.
 ;;
-;;   C-H, M-s e h (el-search-this-sexp)
+;;   C-H, M-s e h (`el-search-this-sexp')
 ;;     Grab the symbol or sexp under point and initiate an el-search
 ;;     for other occurrences.
 ;;
@@ -410,8 +423,6 @@
 ;;
 ;; TODO:
 ;;
-;; - Add a help command that can be called while searching.
-;;
 ;; - Make searching work in comments, too? (->
 ;;   `parse-sexp-ignore-comments').  Related: should the pattern
 ;;   `symbol' also match strings that contain matches for a symbol so
@@ -437,6 +448,7 @@
 ;;;; Requirements
 
 (eval-when-compile (require 'subr-x))
+(eval-when-compile (require 'help-macro)) ;make-help-screen
 (unless (require 'rmc nil t) ;read-multiple-choice
   (require 'subr-x))
 
@@ -577,6 +589,9 @@ following cases from the prompt."
   ;; explicitly install the transient map themselves.
   '(el-search-pattern
     el-search-pattern-backward
+    el-search-help-list-bindings
+    el-search-help-for-help
+    describe-key
     el-search-from-beginning
     el-search-last-buffer-match
     el-search-continue-in-next-buffer
@@ -1193,6 +1208,16 @@ after/before the origin of the search."
                                (el-search-heuristic-matcher pattern)
                                count))
 
+(defvar el-search-quick-help-buffer-name "*El-Search Quick Help*")
+(defvar-local el-search-help-window nil)
+
+(defun el-search-close-quick-help-maybe ()
+  (when-let* ((help-buffer (get-buffer el-search-quick-help-buffer-name))
+              (help-win (buffer-local-value 'el-search-help-window help-buffer))
+              ((window-live-p help-win)))
+    (delete-window help-win)
+    t))
+
 
 ;; FIXME: make this also a declaration spec?
 (defun el-search-defpattern--check-args (type args predicate &optional message)
@@ -1789,12 +1814,18 @@ Go back to the place where the search had been started."
   (goto-char (car el-search--search-origin))
   (unless dont-quit (signal 'quit nil)))
 
+(defvar el-search-help-map (make-sparse-keymap))
+
 (defvar el-search-basic-transient-map
-  (let ((transient-map (make-sparse-keymap)))
-    (define-key transient-map [return]       #'el-search-pause-search)
-    (define-key transient-map (kbd "RET")    #'el-search-pause-search)
-    (define-key transient-map [(control ?g)] #'el-search-keyboard-quit)
-    transient-map))
+  (let ((map (make-sparse-keymap)))
+    (define-key map [return]       #'el-search-pause-search)
+    (define-key map (kbd "RET")    #'el-search-pause-search)
+    (define-key map [(control ?g)] #'el-search-keyboard-quit)
+    (define-key map [??]           #'el-search-help-list-bindings)
+    (define-key map `[,help-char]  el-search-help-map)
+    (define-key map [help]         el-search-help-map)
+    (define-key map [f1]           el-search-help-map)
+    map))
 
 (defvar el-search-prefix-key-transient-map
   (let ((transient-map (make-sparse-keymap)))
@@ -1909,6 +1940,145 @@ that contain a file named \".nosearch\" are excluded as well."
                     el-search-respect-nosearch
                     (directory-files dir-name nil "\\`\\.nosearch\\'" t))))))
    t #'el-search--elisp-file-p))
+
+
+;;;; Help stuff
+
+(make-help-screen el-search-help-for-help-internal
+  "Type a help option: [bmikp] or ?"
+  "You have typed %THIS-KEY%, the help character.  Type a Help option:
+\(Type \\<help-map>\\[help-quit] to exit or \
+\\<help-map>\\[help-quit] \\[el-search-jump-to-search-head] to \
+continue searching.)
+
+b           Display el-search key bindings.
+m           Display key bindings with some documentation.
+i           Read the introduction.
+k KEYS      Display full documentation of key sequence.
+p           List defined patterns.
+
+You can't type here other help keys available in the global help
+map until you finished el-searching."
+  el-search-help-map)
+
+(defun el-search-help-for-help ()
+  (interactive)
+  (let ((display-buffer-overriding-action '(nil (inhibit-same-window . t))))
+    (el-search-help-for-help-internal)))
+
+(defun el-search-help-list-bindings--1 (buffer search-buffer &optional more)
+  (with-current-buffer buffer
+    (erase-buffer)
+    (cl-flet* ((keys-string
+                (lambda (cmd-name)
+                  (let* ((get-keys
+                          (lambda (&optional map)
+                            (with-current-buffer search-buffer
+                              (where-is-internal cmd-name (and map (list map))))))
+                         (tmap (if el-search-use-transient-map
+                                   el-search-prefix-key-transient-map
+                                 el-search-basic-transient-map))
+                         (keys (nreverse (or (funcall get-keys tmap)
+                                             (funcall get-keys)))))
+                    (if keys (mapconcat #'key-description keys ", ")
+                      "no key"))))
+               (cmd-help
+                (lambda (cmd-name)
+                  (let* ((maxl 34)
+                         (add-padding
+                          (lambda (s)
+                            (let ((sl (length s)))
+                              (concat (if (<= maxl sl) s
+                                        (concat s " " (make-string (- maxl sl 1) ?.)))
+                                      " ")))))
+                    (if more
+                        (concat
+                         "`" (symbol-name cmd-name) "'"
+                         " (" (keys-string cmd-name) ")\n"
+                         (when-let ((docstring (documentation cmd-name)))
+                           (string-match "\\(\\`.*$\\)" docstring)
+                           (concat (match-string 1 docstring) "\n"))
+                         "\n")
+                      (concat "  "
+                              (funcall add-padding (symbol-name cmd-name))
+                              (keys-string cmd-name)
+                              "\n"))))))
+      (insert
+       "Bindings for controlling el-searches:\n\n"
+       (cmd-help 'el-search-pattern)
+       (cmd-help 'el-search-pattern-backward)
+       (cmd-help 'el-search-help-list-bindings)
+       (cmd-help 'el-search-help-list-bindings-verbose)
+       (cmd-help 'el-search-pause-search)
+       (cmd-help 'el-search-keyboard-quit)
+       (cmd-help 'el-search-occur)
+       (cmd-help 'el-search-jump-to-search-head)
+       (cmd-help 'el-search-from-beginning)
+       (cmd-help 'el-search-last-buffer-match)
+       (cmd-help 'el-search-scroll-down)
+       (cmd-help 'el-search-scroll-up)
+       (cmd-help 'el-search-continue-in-next-buffer)
+       (cmd-help 'el-search-skip-directory)
+       (cmd-help 'el-search-to-register)
+       (cmd-help 'el-search-query-replace)
+       (if more "" (substitute-command-keys "
+Toggle visibility of this window with \
+`\\<el-search-basic-transient-map>\\[el-search-help-list-bindings]'"))))
+    (goto-char (point-min)))
+  buffer)
+
+(defun el-search-help-list-bindings ()
+  "Toggle quick help window."
+  (interactive)
+  (setq this-command 'el-search-pattern)
+  (unless (el-search-close-quick-help-maybe)
+    (let* ((help-buffer (el-search-help-list-bindings--1
+                         (get-buffer-create el-search-quick-help-buffer-name)
+                         (current-buffer)))
+           (help-window (display-buffer-pop-up-window help-buffer '())))
+      (fit-window-to-buffer help-window)
+      (with-current-buffer help-buffer (setq-local el-search-help-window help-window)))))
+
+(defun el-search-help-list-bindings-verbose ()
+  "List bindings and first lines of documentation."
+  (interactive)
+  (temp-buffer-window-show
+   (el-search-help-list-bindings--1
+    (get-buffer-create "*Help*") (current-buffer) 'more)))
+
+(defun el-search-help-list-patterns ()
+  (interactive)
+  (describe-function 'el-search-defined-patterns))
+
+(defun el-search-help-read-intro ()
+  (interactive)
+  (with-output-to-temp-buffer "*Help*"
+    (princ "\
+Introduction to El-Search
+=========================\n\n\n")
+    (princ (string-trim
+            (replace-regexp-in-string
+             "^;+ ?" ""
+             (with-temp-buffer
+               (insert-file-contents (locate-library "el-search.el"))
+               (save-excursion
+                 (search-forward ";;; Commentary:")
+                 (buffer-substring-no-properties
+                  (point)
+                  (progn (search-forward ";; Acknowledgments")
+                         (forward-line -1)
+                         (point))))))))))
+
+(define-key el-search-help-map `[,help-char] #'el-search-help-for-help)
+(define-key el-search-help-map [help] #'el-search-help-for-help)
+(define-key el-search-help-map [f1] #'el-search-help-for-help)
+(define-key el-search-help-map [??] #'el-search-help-for-help)
+(define-key el-search-help-map [?b] #'el-search-help-list-bindings)
+(define-key el-search-help-map [?m] #'el-search-help-list-bindings-verbose)
+(define-key el-search-help-map [?p] #'el-search-help-list-patterns)
+(define-key el-search-help-map [?i] #'el-search-help-read-intro)
+(define-key el-search-help-map [?k] #'describe-key)
+(define-key el-search-help-map [?q] #'help-quit)
 
 
 ;;;; Additional pattern type definitions
@@ -2403,7 +2573,8 @@ local binding of `window-scroll-functions'."
          (el-search-hl-remove)
          (remove-hook 'post-command-hook 'el-search-hl-post-command-fun t)
          (setq el-search--temp-buffer-flag nil)
-         (el-search-kill-left-over-search-buffers)))))
+         (el-search-kill-left-over-search-buffers)
+         (el-search-close-quick-help-maybe)))))
 
 (defun el-search--pending-search-p ()
   (memq #'el-search-hl-post-command-fun post-command-hook))
@@ -2430,12 +2601,11 @@ local binding of `window-scroll-functions'."
   (el-search--skip-to-next-buffer))
 
 (defun el-search-jump-to-search-head (&optional arg)
-  "Switch to current search buffer and go to the last visited match.
-This resumes the last active search.  With plain C-u prefix
-argument, prompt for a former search to resume, and make that the
-current search.
-
-Any other numeric prefix arg has the following meaning:
+  "Resume a search or jump to the specified match.
+Resume the last active search and select the last match found.
+With plain C-u prefix argument, prompt for a former search to
+resume, and make that the current search.  Any other numeric
+prefix arg has the following meaning:
 
  0: go to the match following point
  N: go to the Nth match after `window-start'
