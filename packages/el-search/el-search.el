@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.7.1
+;; Version: 1.7.2
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -1164,6 +1164,15 @@ optional MESSAGE are used to construct the error message."
     `(el-search-when-unwind (progn ,@body)
                             (setf (el-search-object-head el-search--current-search) ,head-copy))))
 
+(defun el-search--search-buffer-p (&optional buffer)
+  (and el-search--current-search
+       (eq (or buffer (current-buffer))
+           (el-search-head-buffer (el-search-object-head el-search--current-search)))))
+
+(defun el-search-barf-if-not-search-buffer (&optional buffer &rest args)
+  (unless (el-search--search-buffer-p buffer)
+    (apply #'user-error (or args (list "Not in current search buffer")))))
+
 (defun el-search--get-search-description-string (search &optional verbose dont-propertize)
   (concat
    (or (alist-get 'description (el-search-object-properties search))
@@ -1202,9 +1211,7 @@ the cursor) are not killed."
   (interactive)
   (dolist (buffer (buffer-list))
     (when (with-current-buffer buffer el-search--temp-buffer-flag)
-      (unless (or (and el-search--current-search
-                       (eq buffer (el-search-head-buffer
-                                   (el-search-object-head el-search--current-search))))
+      (unless (or (el-search--search-buffer-p buffer)
                   (with-current-buffer buffer (el-search--pending-search-p)))
         (kill-buffer buffer)))))
 
@@ -1625,7 +1632,7 @@ in, in order, when called with no arguments."
     (keybind global-map                    ?j #'el-search-jump-to-search-head)
     (keybind global-map                    ?a #'el-search-from-beginning)
     (keybind global-map                    ?< #'el-search-from-beginning)
-    (keybind global-map                    ?> #'el-search-last-buffer-match)
+    (keybind emacs-lisp-mode-map           ?> #'el-search-last-buffer-match)
     (keybind global-map                    ?d #'el-search-skip-directory)
     (keybind global-map                    ?n #'el-search-continue-in-next-buffer)
 
@@ -1658,6 +1665,7 @@ in, in order, when called with no arguments."
      (lambda (_map key command)
        (when (memq command '(el-search-pattern
                              el-search-pattern-backward
+                             el-search-jump-to-search-head
                              el-search-query-replace
                              el-search-from-beginning
                              el-search-last-buffer-match
@@ -2267,10 +2275,10 @@ current."
                      "Resume previous search: "
                      (mapcar
                       (lambda (n) (format "%d - %s"
-                                     n
-                                     (el-search--get-search-description-string
-                                      (ring-ref el-search-history n)
-                                      t)))
+                                          n
+                                          (el-search--get-search-description-string
+                                           (ring-ref el-search-history n)
+                                           t)))
                       (number-sequence 0 (1- (ring-length el-search-history)))))))
                (string-match "\\`\\([0-9]+\\) - " input)
                (string-to-number (match-string 1 input))))))
@@ -2520,6 +2528,7 @@ last match in the current buffer when negative."
    ((< (prefix-numeric-value arg) 0)
     (el-search-last-buffer-match))
    ((not arg)
+    (el-search-barf-if-not-search-buffer)
     (el-search--unless-no-buffer-match
       (setf (el-search-head-position (el-search-object-head el-search--current-search))
             (point-min))
@@ -2533,6 +2542,7 @@ last match in the current buffer when negative."
   "Go to the last of this buffer's matches."
   (interactive)
   (setq this-command 'el-search-pattern)
+  (el-search-barf-if-not-search-buffer)
   (el-search--unless-no-buffer-match
     (goto-char (point-max))
     (funcall-interactively #'el-search-pattern-backward (el-search--current-pattern))))
