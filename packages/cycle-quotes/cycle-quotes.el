@@ -1,8 +1,9 @@
 ;;; cycle-quotes.el --- Cycle between quote styles  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2015-2016  Free Software Foundation, Inc.
+;; Copyright (C) 2015-2018 Free Software Foundation, Inc.
 
 ;; Author: Simen Heggestøyl <simenheg@gmail.com>
+;; Maintainer: Simen Heggestøyl <simenheg@gmail.com>
 ;; Keywords: convenience
 ;; Version: 0.1
 
@@ -22,10 +23,11 @@
 ;;; Commentary:
 
 ;; This package provides the `cycle-quotes' command to cycle between
-;; different string quote styles. For instance, in JavaScript, there's
-;; three string quote characters: ", ` and '.  In a JavaScript buffer,
-;; with point located someplace within the string, `cycle-quotes' will
-;; cycle between the following quote styles each time it's called:
+;; different string quote styles.  For instance, in JavaScript,
+;; there's three string quote characters: ", ` and '.  In a JavaScript
+;; buffer, with point located someplace within the string,
+;; `cycle-quotes' will cycle between the following quote styles each
+;; time it's called:
 ;;
 ;;    --> "Hi, it's me!" --> `Hi, it's me!` --> 'Hi, it\'s me!' --
 ;;   |                                                            |
