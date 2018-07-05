@@ -95,8 +95,10 @@ Example: the pattern
    (append '(1 2 3) x (app car-safe 7))
 
 matches the list (1 2 3 4 5 6 7 8 9), binding `x' to (4 5 6)."
-  (if (null patterns)
-      '(pred null)
+  (cond
+   ((null patterns)       '(pred null))
+   ((equal patterns '(_)) '(pred listp))
+   (t
     (pcase-let ((`(,pattern . ,more-patterns) patterns))
       (cond
        ((null more-patterns) pattern)
@@ -106,7 +108,7 @@ matches the list (1 2 3 4 5 6 7 8 9), binding `x' to (4 5 6)."
                                      (el-search-make-matcher pattern)
                                      (el-search-make-matcher (car more-patterns)))
                    `(,,pattern ,,(car more-patterns)))))
-       (t `(append ,pattern (append ,@more-patterns)))))))
+       (t `(append ,pattern (append ,@more-patterns))))))))
 
 (defcustom el-search-lazy-l t
   "Whether to interpret symbols and strings specially in `l'.

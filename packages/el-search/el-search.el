@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.8.6
+;; Version: 1.8.7
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -1073,14 +1073,17 @@ N times."
      (defvar warning-suppress-log-types)
      (let ((byte-compile-debug t) ;make undefined pattern types raise an error
            (warning-suppress-log-types '((bytecomp)))
-           (pattern-is-catchall (eq pattern '_)))
+           (pattern-is-catchall (memq pattern '(_ t)))
+           (pattern-is-symbol   (and (symbolp pattern)
+                                     (not (or (keywordp pattern)
+                                              (null pattern))))))
        (byte-compile
         `(lambda (,(if pattern-is-catchall '_ expression))
-           ,(if pattern-is-catchall
-                (if result-specified result-expr t)
-              `(pcase ,expression
-                 (,pattern ,(if result-specified result-expr t))
-                 (_        nil)))))))))
+           ,(cond
+             (pattern-is-catchall (if result-specified result-expr t))
+             ((and pattern-is-symbol (not result-specified)) t)
+             (t `(pcase ,expression
+                   (,pattern ,(if result-specified result-expr t)))))))))))
 
 (defun el-search--match-p (matcher expression)
   (funcall matcher expression))
