@@ -291,6 +291,12 @@ HOWTO specifies how to do the conversion.
   :type '(repeat (cons symbol (choice (const exact)
 				      (const spaces)))))
 
+(defcustom filladapt-token-match-empty '(beginning-of-line end-of-line)
+  "List of tokens that may match the empty string.
+Normally a token is ignored if it matches the empty string.  This list
+contains the tokens that should be excluded from that rule."
+  :type '(repeat symbol))
+
 (defcustom filladapt-fill-paragraph-post-hook nil
   "Hooks run after filladapt runs fill-paragraph."
   :type 'hook)
@@ -540,7 +546,10 @@ STRING is the token's text."
 	  (setq token-table filladapt-token-table
 		done t)
 	  (while token-table
-	    (if (null (looking-at (car (car token-table))))
+	    (if (or (null (looking-at (car (car token-table))))
+		    (and (not (memq (car (cdr (car token-table)))
+				    filladapt-token-match-empty))
+			 (eq (match-beginning 0) (match-end 0))))
 		(setq token-table (cdr token-table))
 	      (goto-char (match-end 0))
 	      (setq token-list (cons (list (nth 1 (car token-table))
