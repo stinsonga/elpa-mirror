@@ -1,4 +1,4 @@
-This is debbugs-ug.info, produced by makeinfo version 6.4.90 from
+This is debbugs-ug.info, produced by makeinfo version 6.5 from
 debbugs-ug.texi.
 
 Copyright (C) 2015-2018 Free Software Foundation, Inc.
@@ -482,6 +482,11 @@ The strings show the exact format of the control messages.
      The second argument in the close message, the Emacs version, is
      read interactively if the bugs belongs to the '"emacs"' package.
 
+'forwarded'
+     "forwarded 12345 ADDRESS"
+
+     The address, an email address or a URL, is read interactively.
+
 'forcemerge'
 'merge'
      "forcemerge|merge 12345 54321"
@@ -495,7 +500,8 @@ The strings show the exact format of the control messages.
      "close 12345"
 
 'noowner'
-     "noowner 12345"
+'notforwarded'
+     "noowner|notforwarded 12345"
 
 'owner'
      "owner 12345 !"
@@ -629,7 +635,7 @@ Variable Index
 * debbugs-gnu-default-severities:        Retrieving Bugs.   (line  63)
 * debbugs-gnu-default-suppress-bugs:     Retrieving Bugs.   (line  44)
 * debbugs-gnu-mail-backend:              Tabulated Lists.   (line  79)
-* debbugs-gnu-send-mail-function:        Control Messages.  (line 114)
+* debbugs-gnu-send-mail-function:        Control Messages.  (line 120)
 * debbugs-gnu-suppress-closed:           Tabulated Lists.   (line  76)
 * debbugs-gnu-trunk-directory:           Applying Patches.  (line  18)
 * debbugs-org-severity-priority:         TODO Items.        (line  10)
@@ -667,19 +673,19 @@ Key Index
 
 
 Tag Table:
-Node: Top1100
-Node: Retrieving Bugs2638
-Node: Searching Bugs6871
-Ref: Searching Bugs-Footnote-111184
-Ref: Searching Bugs-Footnote-211272
-Node: Presenting Bugs11363
-Node: Tabulated Lists11939
-Node: TODO Items15614
-Node: Control Messages16670
-Node: Applying Patches19713
-Node: Minor Mode21079
-Node: Command Index22135
-Node: Variable Index22924
-Node: Key Index23998
+Node: Top1097
+Node: Retrieving Bugs2635
+Node: Searching Bugs6868
+Ref: Searching Bugs-Footnote-111181
+Ref: Searching Bugs-Footnote-211269
+Node: Presenting Bugs11360
+Node: Tabulated Lists11936
+Node: TODO Items15611
+Node: Control Messages16667
+Node: Applying Patches19851
+Node: Minor Mode21217
+Node: Command Index22273
+Node: Variable Index23062
+Node: Key Index24136
 
 End Tag Table
