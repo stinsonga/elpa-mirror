@@ -318,6 +318,9 @@ If this is `rmail', use Rmail instead."
 (defface debbugs-gnu-done '((t (:foreground "DarkGrey")))
   "Face for closed bug reports.")
 
+(defface debbugs-gnu-forwarded '((t (:foreground "yellow")))
+  "Face for forwarded bug reports.")
+
 (defface debbugs-gnu-tagged '((t (:foreground "red")))
   "Face for reports that have been tagged locally.")
 
@@ -763,6 +766,8 @@ are taken from the cache instead."
 		'debbugs-gnu-archived)
 	       ((equal (cdr (assq 'pending status)) "done")
 		'debbugs-gnu-done)
+	       ((equal (cdr (assq 'pending status)) "forwarded")
+		'debbugs-gnu-forwarded)
 	       ((member "pending" (cdr (assq 'keywords status)))
 		'debbugs-gnu-pending)
 	       ;; For some new bugs `date' and `log_modified' may
@@ -1017,7 +1022,8 @@ The following commands are available:
     (debbugs-gnu-stale . 2)
     (debbugs-gnu-handled . 3)
     (debbugs-gnu-pending . 4)
-    (debbugs-gnu-done . 5)))
+    (debbugs-gnu-forwarded . 5)
+    (debbugs-gnu-done . 6)))
 
 (defun debbugs-gnu-get-state-preference (face-string)
   (or (cdr (assq (get-text-property 0 'face face-string)
@@ -1478,6 +1484,7 @@ removed instead."
 	    "merge" "forcemerge"
 	    "block" "unblock"
 	    "owner" "noowner"
+	    "forwarded" "notforwarded"
 	    "invalid"
 	    "reassign"
 	    "retitle"
@@ -1523,7 +1530,8 @@ removed instead."
 	      mail-header-separator
 	      "\n"
 	      (cond
-	       ((member message '("unarchive" "unmerge" "reopen" "noowner"))
+	       ((member message '("unarchive" "unmerge" "reopen"
+				  "noowner" "notforwarded"))
 		(format "%s %d\n" message id))
 	       ((member message '("merge" "forcemerge"))
 		(format
@@ -1555,6 +1563,8 @@ removed instead."
 		(format "retitle %d %s\n" id (read-string "New title: ")))
 	       ((equal message "reassign")
 		(format "reassign %d %s\n" id (read-string "Package(s): ")))
+	       ((equal message "forwarded")
+		(format "forwarded %d %s\n" id (read-string "Forwarded to: ")))
 	       ((equal message "close")
 		(format "close %d %s\n" id (or version "")))
 	       ((equal message "done")

@@ -547,6 +547,11 @@ If the command invoking the control message has been prefixed with
 The second argument in the close message, the Emacs version, is read
 interactively if the bugs belongs to the @code{"emacs"} package.
 
+@item forwarded
+"forwarded 12345 @var{address}"
+
+The address, an email address or a URL, is read interactively.
+
 @item forcemerge
 @itemx merge
 "forcemerge|merge 12345 54321"
@@ -560,7 +565,8 @@ of comma-separated bug numbers.
 "close 12345"
 
 @item noowner
-"noowner 12345"
+@itemx notforwarded
+"noowner|notforwarded 12345"
 
 @item owner
 "owner 12345 !"
