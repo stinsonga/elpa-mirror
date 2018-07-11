@@ -1,6 +1,6 @@
 ;;; javaimp.el --- Add and reorder Java import statements in Maven projects  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2014-2017  Free Software Foundation, Inc.
+;; Copyright (C) 2014-2018  Free Software Foundation, Inc.
 
 ;; Author: Filipp Gunbin <fgunbin@fastmail.fm>
 ;; Maintainer: Filipp Gunbin <fgunbin@fastmail.fm>
@@ -173,7 +173,6 @@ to the completion alternatives list.")
   final-name
   packaging
   source-dir test-source-dir build-dir
-  modules
   dep-jars
   load-ts)
 
@@ -265,9 +264,22 @@ module file."
 	   (projects (javaimp--maven-xml-extract-projects xml-tree))
 	   (modules (mapcar #'javaimp--maven-xml-parse-project projects))
 	   ;; first module is always root
-	   (tree (javaimp--maven-build-tree (car modules) nil modules file)))
-      (if tree
-	  (push tree javaimp-project-forest)))
+	   (tree (javaimp--maven-build-tree (car modules) nil modules)))
+      (when tree
+	;; Set files in a separate step after building the tree because "real"
+	;; parent of a child (given by <parent>) does not necessary contains the
+	;; child in its <modules>.  This is rare, but happens.
+	(javaimp--maven-fill-modules-files file tree)
+	;; check that no :file slot is empty
+	(let ((modules-without-files
+	       (mapcar #'javaimp-node-contents
+		       (javaimp--select-nodes-from-tree
+			tree (lambda (m)
+			       (null (javaimp-module-file m)))))))
+	  (if modules-without-files
+	      (error "Cannot find file for module(s): %s"
+		     (mapconcat #'javaimp-module-id modules-without-files ", "))))
+	(push tree javaimp-project-forest)))
     (message "Loaded tree for %s" file)))
 
 
@@ -307,7 +319,8 @@ of <project> elements"
     (make-javaimp-module
      :id (javaimp--maven-xml-extract-id project)
      :parent-id (javaimp--maven-xml-extract-id (javaimp--xml-child 'parent project))
-     ;; <project> element does not contain pom file path (we set :file slot later)
+     ;; <project> element does not contain pom file path, so we set this slot
+     ;; later, see javaimp--maven-fill-modules-files
      :file nil
      :final-name (javaimp--xml-first-child
 		  (javaimp--xml-child 'finalName build-elt))
@@ -324,9 +337,6 @@ of <project> elements"
      :build-dir (file-name-as-directory
 		 (javaimp-cygpath-convert-maybe
 		  (javaimp--xml-first-child (javaimp--xml-child 'directory build-elt))))
-     :modules (mapcar (lambda (module-elt)
-			(javaimp--xml-first-child module-elt))
-		      (javaimp--xml-children (javaimp--xml-child 'modules project) 'module))
      :dep-jars nil		      ; dep-jars is initialized lazily on demand
      :load-ts (current-time))))
 
@@ -336,26 +346,6 @@ of <project> elements"
    :artifact (javaimp--xml-first-child (javaimp--xml-child 'artifactId elt))
    :version (javaimp--xml-first-child (javaimp--xml-child 'version elt))))
 
-(defun javaimp--maven-xml-file-matches (file id parent-id)
-  (let* ((xml-tree (with-temp-buffer
-		     (insert-file-contents file)
-		     (xml-parse-region (point-min) (point-max))))
-	 (project-elt (assq 'project xml-tree))
-	 (tested-id (javaimp--maven-xml-extract-id project-elt))
-	 (tested-parent-id (javaimp--maven-xml-extract-id (assq 'parent project-elt))))
-    ;; seems that the only mandatory component in tested ids is artifact, while
-    ;; group and version may be inherited and thus not presented in pom.xml
-    (let ((test (if (or (null (javaimp-id-group tested-id))
-			(null (javaimp-id-version tested-id))
-			(null (javaimp-id-group tested-parent-id))
-			(null (javaimp-id-version tested-parent-id)))
-		    (progn
-		      (message "File %s contains incomplete id, using lax match" file)
-		      (lambda (first second)
-			(equal (javaimp-id-artifact first) (javaimp-id-artifact second))))
-		  #'equal)))
-      (and (funcall test tested-id id)
-	   (funcall test tested-parent-id parent-id)))))
 
 
 ;; Maven routines
@@ -380,54 +370,62 @@ the temporary buffer and returns its result"
       (goto-char (point-min))
       (funcall handler))))
 
-(defun javaimp--maven-build-tree (this parent-node all file)
+(defun javaimp--maven-build-tree (this parent-node all)
   (message "Building tree for module: %s" (javaimp-module-id this))
   (let ((children
 	 ;; reliable way to find children is to look for modules with "this" as
 	 ;; the parent
-	 (seq-filter (lambda (m) (equal (javaimp-module-parent-id m)
-					(javaimp-module-id this)))
-			      all)))
-    (if (and (null children)
-	     (equal (javaimp-module-packaging this) "pom"))
-	(progn (message "Skipping empty aggregate module: %s" (javaimp-module-id this))
-	       nil)
-      ;; filepath was not set before, but now we know it
-      (setf (javaimp-module-file this) file)
-      ;; node
-      (let* ((this-node (make-javaimp-node
-			:parent parent-node
-			:children nil
-			:contents this))
-	     ;; recursively build child nodes
-	     (child-nodes
-	      (mapcar (lambda (child)
-			(let ((child-file
-			       ;; !! this is hack
-			       (javaimp--maven-get-submodule-file
-				child file (javaimp-module-modules this))))
-			  (javaimp--maven-build-tree
-			   child this-node all child-file)))
-		      children)))
-	(setf (javaimp-node-children this-node) child-nodes)
-	this-node))))
+	 (seq-filter (lambda (m)
+		       (equal (javaimp-module-parent-id m) (javaimp-module-id this)))
+		     all)))
+    (let* ((this-node (make-javaimp-node
+		       :parent parent-node
+		       :children nil
+		       :contents this))
+	   ;; recursively build child nodes
+	   (child-nodes
+	    (mapcar (lambda (child)
+		      (javaimp--maven-build-tree child this-node all))
+		    children)))
+      (setf (javaimp-node-children this-node) child-nodes)
+      this-node)))
 
-(defun javaimp--maven-get-submodule-file (submodule parent-file rel-paths-from-parent)
-  ;; Seems that the only reliable way to match a module parsed from <project>
-  ;; element with module relative path taken from <modules> is to visit pom and
-  ;; check that id and parent-id matches
-  (let* ((parent-dir (file-name-directory parent-file))
-	 (files (mapcar (lambda (rel-path)
-			  (concat parent-dir
-				  (file-name-as-directory rel-path)
-				  "pom.xml"))
-			rel-paths-from-parent)))
-    (or (seq-find
-	 (lambda (file)
-	   (javaimp--maven-xml-file-matches
-	    file (javaimp-module-id submodule) (javaimp-module-parent-id submodule)))
-	 files)
-	(error "Cannot find file for module: %s" (javaimp-module-id submodule)))))
+(defun javaimp--maven-fill-modules-files (file tree)
+  ;; Reads module id from FILE, looks up corresponding module in TREE, sets its
+  ;; :file slot, then recurses for each submodule.  A submodule file path is
+  ;; constructed by appending relative path taken from <module> to FILE's
+  ;; directory.
+  (let* ((xml-tree (with-temp-buffer
+		     (insert-file-contents file)
+		     (xml-parse-region (point-min) (point-max))))
+	 (project-elt (assq 'project xml-tree))
+	 (this-id (javaimp--maven-xml-extract-id project-elt))
+	 ;; seems that the only mandatory component in tested ids is artifact, while
+	 ;; group and version may be inherited and thus not presented in pom.xml
+	 (id-pred (if (or (null (javaimp-id-group this-id))
+			  (null (javaimp-id-version this-id)))
+		      (progn
+			(message "File %s contains incomplete id, will check artifact only" file)
+			(lambda (tested-id)
+			  (equal (javaimp-id-artifact this-id)
+				 (javaimp-id-artifact tested-id))))
+		    (lambda (tested-id)
+		      (equal this-id tested-id))))
+	 (module
+	  (javaimp-node-contents
+	   (or (javaimp--find-node-in-tree
+		tree (lambda (m)
+		       (funcall id-pred (javaimp-module-id m))))
+	       (error "Cannot find module for id %s (taken from file %s)" this-id file)))))
+    (setf (javaimp-module-file module) file)
+    (let ((rel-paths
+	   (mapcar #'javaimp--xml-first-child
+		   (javaimp--xml-children (javaimp--xml-child 'modules project-elt) 'module))))
+      (dolist (rel-path rel-paths)
+	(javaimp--maven-fill-modules-files (concat (file-name-directory file)
+						   (file-name-as-directory rel-path)
+						   "pom.xml")
+					   tree)))))
 
 
 ;;; Loading dep-jars
@@ -514,37 +512,35 @@ the temporary buffer and returns its result"
 ;; Tree search routines
 
 (defun javaimp--find-node (predicate)
-  (javaimp--find-node-in-forest javaimp-project-forest predicate))
+  (catch 'found
+    (dolist (tree javaimp-project-forest)
+      (javaimp--find-node-in-tree-1 tree predicate))))
 
 (defun javaimp--select-nodes (predicate)
-  (javaimp--select-nodes-from-forest javaimp-project-forest predicate))
-
-(defun javaimp--find-node-in-forest (forest predicate)
-  (catch 'found
-    (dolist (tree forest)
-      (javaimp--find-node-in-tree tree predicate))))
-
-(defun javaimp--find-node-in-tree (tree predicate)
-  (if tree
-      (progn (if (funcall predicate (javaimp-node-contents tree))
-		 (throw 'found tree))
-	     (dolist (child (javaimp-node-children tree))
-	       (javaimp--find-node-in-tree child predicate)))))
-
-(defun javaimp--select-nodes-from-forest (forest predicate)
   (apply #'seq-concatenate 'list
 	 (mapcar (lambda (tree)
 		   (javaimp--select-nodes-from-tree tree predicate))
-		 forest)))
+		 javaimp-project-forest)))
+
+(defun javaimp--find-node-in-tree (tree predicate)
+  (catch 'found
+    (javaimp--find-node-in-tree-1 tree predicate)))
+
+(defun javaimp--find-node-in-tree-1 (tree predicate)
+  (when tree
+    (if (funcall predicate (javaimp-node-contents tree))
+	(throw 'found tree))
+    (dolist (child (javaimp-node-children tree))
+      (javaimp--find-node-in-tree-1 child predicate))))
 
 (defun javaimp--select-nodes-from-tree (tree predicate)
-  (if tree
-      (append (if (funcall predicate (javaimp-node-contents tree))
-		  (list tree))
-	      (apply #'seq-concatenate 'list
-		     (mapcar (lambda (child)
-			       (javaimp--select-nodes-from-tree child predicate))
-			     (javaimp-node-children tree))))))
+  (when tree
+    (append (if (funcall predicate (javaimp-node-contents tree))
+		(list tree))
+	    (apply #'seq-concatenate 'list
+		   (mapcar (lambda (child)
+			     (javaimp--select-nodes-from-tree child predicate))
+			   (javaimp-node-children tree))))))
 
 
 ;; Some API functions
@@ -703,12 +699,15 @@ is `ordinary' or `static'.  Interactively, NEW-IMPORTS is nil."
       (message "Nothing to organize!")))))
 
 (defun javaimp--parse-imports ()
-  (let (first last list)
+  "Returns (FIRST LAST . IMPORTS)"
+  (let (first last imports)
     (while (re-search-forward "^\\s-*import\\s-+\\(static\\s-+\\)?\\([._[:word:]]+\\)" nil t)
-      (push (cons (match-string 2) (if (match-string 1) 'static 'ordinary)) list)
+      (let ((type (if (match-string 1) 'static 'ordinary))
+	    (class (match-string 2)))
+	(push (cons class type) imports))
       (setq last (line-beginning-position))
       (or first (setq first last)))
-    (cons first (cons last list))))
+    (cons first (cons last imports))))
 
 (defun javaimp--prepare-for-insertion (start)
   (cond (start
