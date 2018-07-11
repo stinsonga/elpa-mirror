@@ -94,12 +94,14 @@ button."
   :group 'frame-tabs)
 
 ;; Options
+(defvar frame-tabs-mode)
+
 (defun frame-tabs--set-value (symbol value)
   "Helper function for customizing frame tabs."
   (set-default symbol value)
   (when frame-tabs-mode
-    (frame-tabs-mode -1))
-  (frame-tabs-mode 1))
+    (frame-tabs-mode -1)
+    (frame-tabs-mode 1)))
 
 (defcustom frame-tabs-side 'top
   "Side of frame where tabs windows are located.
@@ -132,6 +134,8 @@ of a frame this is their minimum number of columns.
 This value may be overridden when the major side window showing
 the frame tabs window contains other windows."
   :type 'integer
+  :initialize 'custom-initialize-default
+  :set 'frame-tabs--set-value
   :version "26.1"
   :group 'frame-tabs)
 
@@ -144,6 +148,8 @@ of a frame this is their maximum number of columns.
 This value may be overridden when the major side window showing
 the frame tabs window contains other windows."
   :type 'integer
+  :initialize 'custom-initialize-default
+  :set 'frame-tabs--set-value
   :version "26.1"
   :group 'frame-tabs)
 
@@ -151,6 +157,8 @@ the frame tabs window contains other windows."
   "Frame tabs update interval, in seconds.
 This is the time Emacs waits before updating frame tabs windows."
   :type 'float
+  :initialize 'custom-initialize-default
+  :set 'frame-tabs--set-value
   :version "26.1"
   :group 'frame-tabs)
 
