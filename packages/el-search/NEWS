@@ -1,6 +1,12 @@
 Some of the user visible news were:
 
 
+Version: 1.7.3
+
+Match highlighting faces have been improved to look better on text
+terminals.  Matches in *El Occur* buffers are now highlighted with a
+separate face.
+
 Version: 1.7
 
   Signature and semantics of non-interactive function
