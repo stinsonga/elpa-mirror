@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.7.2
+;; Version: 1.7.3
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -453,17 +453,26 @@
   "Expression based search and replace for Emacs Lisp."
   :group 'lisp)
 
-(defface el-search-match '((((background dark))
-                            ;; (:background "#0000A0")
+(defface el-search-match '((((class color) (min-colors 88) (background dark))
                             (:background "#600000"))
-			   (t (:background "DarkSlateGray3")))
+			   (((class color) (min-colors 88) (background light))
+                            (:background "DarkSlateGray3"))
+                           (t (:background "red")))
   "Face for highlighting the current match.")
 
-(defface el-search-other-match '((((background dark))
-                                  ;; (:background "#202060")
+(defface el-search-other-match '((((class color) (min-colors 88) (background dark))
                                   (:background "#603030"))
-                                 (t (:background "DarkSlateGray1")))
+                                 (((class color) (min-colors 88) (background light))
+                                  (:background "DarkSlateGray1"))
+                                 (t (:background "red")))
   "Face for highlighting the other matches.")
+
+(defface el-search-occur-match '((((class color) (min-colors 88) (background dark))
+                                  (:background "#000060"))
+			         (((class color) (min-colors 88) (background light))
+                                  (:background "GreenYellow"))
+                                 (t (:background "blue")))
+  "Face for highlighting matches in *El Occur*.")
 
 (defface el-search-highlight-in-prompt-face '((t (:inherit warning)))
   "Face for highlighting important parts in prompts.")
@@ -3063,7 +3072,7 @@ Prompt for a new pattern and revert."
                                                        (goto-char (el-search--end-of-sexp))))
                                                     'match-data `(,buffer ,match-beg ,file)))
                                            (let ((ov (make-overlay insertion-point (point) nil t)))
-                                             (overlay-put ov 'face 'el-search-match)
+                                             (overlay-put ov 'face 'el-search-occur-match)
                                              (overlay-put
                                               ov 'el-search-match (list (or file buffer) match-beg)))
                                            (with-current-buffer buffer (point)))))
