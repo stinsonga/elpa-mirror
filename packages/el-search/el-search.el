@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.9.6
+;; Version: 1.9.7
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -119,7 +119,7 @@
 ;;   C-O or M-RET (from a search pattern prompt)
 ;;     Execute this search command as occur.
 ;;
-;;   C-N, M-s e n (`el-search-continue-in-next-buffer')
+;;   C-X, M-s e x (`el-search-continue-in-next-buffer')
 ;;     Skip over current buffer or file.
 ;;
 ;;   C-D, M-s e d (`el-search-skip-directory')
@@ -249,7 +249,7 @@
 ;; `el-search-jump-to-search-head' (C-J; M-s e j): this command jumps
 ;; to the last match and re-activates the search.
 ;;
-;; `el-search-continue-in-next-buffer' (C-N; n) skips all remaining
+;; `el-search-continue-in-next-buffer' (C-X; x) skips all remaining
 ;; matches in the current buffer and continues searching in the next
 ;; buffer.  `el-search-skip-directory' (C-D; d) even skips all
 ;; subsequent files under a specified directory.
@@ -1754,6 +1754,8 @@ in, in order, when called with no arguments."
 
     (keybind emacs-lisp-mode-map           ?s #'el-search-pattern)
     (keybind emacs-lisp-mode-map           ?r #'el-search-pattern-backward)
+    (keybind emacs-lisp-mode-map           ?n #'el-search-pattern)
+    (keybind emacs-lisp-mode-map           ?p #'el-search-pattern-backward)
     (keybind emacs-lisp-mode-map           ?% #'el-search-query-replace)
     (keybind emacs-lisp-mode-map           ?h #'el-search-this-sexp) ;h like in "highlight" or "here"
     (keybind global-map                    ?j #'el-search-jump-to-search-head)
@@ -1761,7 +1763,7 @@ in, in order, when called with no arguments."
     (keybind global-map                    ?< #'el-search-from-beginning)
     (keybind emacs-lisp-mode-map           ?> #'el-search-last-buffer-match)
     (keybind global-map                    ?d #'el-search-skip-directory)
-    (keybind global-map                    ?n #'el-search-continue-in-next-buffer)
+    (keybind global-map                    ?x #'el-search-continue-in-next-buffer)
 
     (keybind global-map                    ?o #'el-search-occur)
 
@@ -3348,6 +3350,8 @@ Prompt for a new pattern and revert."
     (define-key map [(shift tab)]   #'el-search-occur-cycle)
     (define-key map [?p]            #'el-search-occur-previous-match)
     (define-key map [?n]            #'el-search-occur-next-match)
+    (define-key map [?r]            #'el-search-occur-previous-match)
+    (define-key map [?s]            #'el-search-occur-next-match)
     (define-key map [?e]            #'el-search-edit-occur-pattern)
     (define-key map [?c ?n]         #'el-search-occur-no-context)
     (define-key map [?c ?d]         #'el-search-occur-defun-context)

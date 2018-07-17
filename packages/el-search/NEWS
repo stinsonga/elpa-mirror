@@ -1,6 +1,15 @@
 Some of the user visible news were:
 
 
+Version: 1.9.7
+
+  Changed default binding schemes: For reasons of harmonization, in
+  both searches and in el-search-occur both of basic keys s, r and n, p
+  now move to the next or previous match.
+
+  The default binding of 'el-search-continue-in-next-buffer' therefore
+  has been moved from n to x respectively.
+
 Version: 1.9.5
 
   'string' and derived pattern types now support expressions evaluting
