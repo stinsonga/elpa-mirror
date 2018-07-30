@@ -21,6 +21,7 @@ packages/eglot/
 packages/ergoemacs-mode/
 packages/exwm/
 packages/hyperbole/
+packages/jsonrpc/
 packages/let-alist/
 packages/mmm-mode/
 packages/ntlm/
