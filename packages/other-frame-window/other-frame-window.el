@@ -1,11 +1,11 @@
 ;;; other-frame-window.el --- Minor mode to enable global prefix keys for other frame/window buffer placement  -*- lexical-binding: t -*-
 ;;
-;; Copyright (C) 2015, 2017  Free Software Foundation, Inc.
+;; Copyright (C) 2015, 2017, 2018  Free Software Foundation, Inc.
 ;;
 ;; Author: Stephen Leake <stephen_leake@member.fsf.org>
 ;; Maintainer: Stephen Leake <stephen_leake@member.fsf.org>
 ;; Keywords: frame window
-;; Version: 1.0.4
+;; Version: 1.0.5
 ;; Package-Requires: ((emacs "24.4"))
 ;;
 ;; This file is part of GNU Emacs.
@@ -61,6 +61,14 @@
 ;; r - find-file-read-only in another window/frame.
 ;;
 ;; To extend this list, add key bindings to ‘ofw-transient-map’.
+;;
+;; Some code in Emacs uses an explicit list of actions in a call to
+;; display-buffer, which can defeat the purpose of
+;; other-frame-window. To override that, add:
+;;
+;; (setq display-buffer-overriding-action (cons (list 'display-buffer-same-window) nil))
+;;
+;; to your Emacs init file.
 
 ;;;; Usage:
 ;;
@@ -137,10 +145,14 @@
     (set-transient-map ofw-transient-map)))
 
 (defun ofw--echo-keystrokes ()
-  (let ((funs (car display-buffer-overriding-action)))
-    (cond
-     ((memq #'ofw-display-buffer-other-frame funs) "[other-frame]")
-     ((memq #'ofw-display-buffer-other-window funs) "[other-window]"))))
+  ;; Sometimes people abuse ‘display-buffer-overriding-action’, and
+  ;; that crashes emacs, so be careful.
+  (when (and (consp display-buffer-overriding-action)
+	     (listp (car display-buffer-overriding-action)))
+    (let ((funs (car display-buffer-overriding-action)))
+      (cond
+       ((memq #'ofw-display-buffer-other-frame funs) "[other-frame]")
+       ((memq #'ofw-display-buffer-other-window funs) "[other-window]")))))
 
 (when (boundp 'prefix-command-echo-keystrokes-functions)
   (add-hook 'prefix-command-echo-keystrokes-functions
@@ -298,6 +310,13 @@ o - select another window/frame.
 r - find-file-read-only in another window/frame.
 
 To extend this list, add key bindings to ‘ofw-transient-map’.
+
+To override default Emacs behavior in the absence of a prefix, do:
+
+\(setq display-buffer-overriding-action
+  (cons (list 'display-buffer-same-window) nil))
+
+in your init file.
 "
   :global t
 
