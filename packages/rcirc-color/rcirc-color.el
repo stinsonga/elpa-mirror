@@ -1,10 +1,10 @@
 ;;; rcirc-color.el --- color nicks
 
-;; Copyright (C) 2005-2017  Free Software Foundation, Inc.
+;; Copyright (C) 2005-2018  Free Software Foundation, Inc.
 
 ;; Author: Alex Schroeder <alex@gnu.org>
 ;; Maintainer: Alex Schroeder <alex@gnu.org>
-;; Version: 0.3
+;; Version: 0.4
 ;; Keywords: comm
 
 ;; This file is part of GNU Emacs.
@@ -86,16 +86,21 @@ If you set this variable to a non-nil value, an md5 hash is
 computed based on the nickname and the first twelve bytes are
 used to determine the color: #rrrrggggbbbb.")
 
+(defvar rcirc-color-other-attributes nil
+  "Other attributes to use for nicks.
+Example: (setq rcirc-color-other-attributes '(:weight bold))")
+
 (defadvice rcirc-facify (before rcirc-facify-colors last activate)
   "Add colors to other nicks based on `rcirc-colors'."
   (when (and (eq face 'rcirc-other-nick)
              (not (string= string "")))
     (let ((cell (gethash string rcirc-color-mapping)))
       (unless cell
-	(setq cell (cons 'foreground-color
-			 (if rcirc-color-is-deterministic
-			     (concat "#" (substring (md5 string) 0 12))
-			   (elt rcirc-colors (random (length rcirc-colors))))))
+	(setq cell (nconc (list :foreground
+				(if rcirc-color-is-deterministic
+				    (concat "#" (substring (md5 string) 0 12))
+				  (elt rcirc-colors (random (length rcirc-colors)))))
+			   rcirc-color-other-attributes))
         (puthash (substring-no-properties string) cell rcirc-color-mapping))
       (setq face (list cell)))))
 
