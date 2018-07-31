@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.7.4
+;; Version: 1.7.5
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -2241,7 +2241,13 @@ local binding of `window-scroll-functions'."
 (defun el-search-hl-post-command-fun ()
   (pcase this-command
     ('el-search-query-replace)
-    ('el-search-pattern (el-search-display-match-count))
+    ('el-search-pattern
+     (unless
+         ;; When entering a numerical prefix `this-command' isn't updated.  We
+         ;; test for this condition (is there a better one?) to avoid that key
+         ;; input feedback is hidden
+         (memq universal-argument-map overriding-terminal-local-map)
+       (el-search-display-match-count)))
     ((pred el-search-keep-session-command-p))
     (_ (unless el-search-keep-hl
          (el-search-hl-remove)
@@ -2287,12 +2293,11 @@ In a non-interactive call, ARG should be an integer, having the
 same meaning as a numeric prefix arg, or an el-search-object to
 make current."
   (interactive "P")
-  (pcase arg
-    ((or 'nil (pred el-search-object-p) `(,(pred integerp))))
-    (_ (el-search-barf-if-not-search-buffer
-        (current-buffer)
-        "Numeric ARG only allowed in current search's current buffer")))
-  (when (or (consp arg) (el-search-object-p arg))
+  (when (integerp arg)
+    (el-search-barf-if-not-search-buffer
+     (current-buffer)
+     "Numeric ARG only allowed in current search's current buffer"))
+  (when (or (el-search-object-p arg) (consp arg))
     ;; FIXME: would it be better to include some context around the search
     ;; head - or to even use an overview buffer for selection?
     (setq el-search--current-search
@@ -2773,6 +2778,7 @@ Use the normal search commands to seize the search."
 (defun el-search-scroll-down ()
   "Jump to the first match starting after `window-end'."
   (interactive)
+  (el-search-barf-if-not-search-buffer)
   (setq this-command 'el-search-pattern)
   (let ((here (point)))
     (goto-char (window-end))
@@ -2786,6 +2792,7 @@ Use the normal search commands to seize the search."
 (defun el-search-scroll-up ()
   "Jump to the hindmost match starting before `window-start'."
   (interactive)
+  (el-search-barf-if-not-search-buffer)
   (setq this-command 'el-search-pattern)
   (let ((here (point)))
     (goto-char (window-start))
