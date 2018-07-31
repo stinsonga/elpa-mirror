@@ -1,6 +1,17 @@
 Some of the user visible news were:
 
 
+Version: 1.7.5
+
+The meaning of the prefix argument of `el-search-jump-to-search-head'
+(C-J or M-s e j with the default bindings) has been extended: A
+numeric prefix N jumps to the Nth match after `window-start', while a
+negative prefix -N jumps to the Nth match before `window-end'.  Prefix
+0 jumps to the match following point, which is also useful to resume
+the current search from any buffer position.
+A former search can now be made current with a plain C-u prefix arg.
+
+
 Version: 1.7.3
 
 Match highlighting faces have been improved to look better on text
