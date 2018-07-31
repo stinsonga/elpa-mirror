@@ -289,37 +289,41 @@ Uses variable `el-search--cached-changes' for caching."
 
 (defun el-search--change-p (posn revision)
   ;; Non-nil when sexp after POSN is part of a change
-  (when (buffer-modified-p)
-    (user-error "Buffer is modified - please save"))
-  (save-restriction
-    (widen)
-    (let ((changes (el-search--changes-from-diff-hl revision))
-          (sexp-end (el-search--end-of-sexp posn))
-          (atomic? (thunk-delay (el-search--atomic-p
-                                 (save-excursion (goto-char posn)
-                                                 (el-search-read (current-buffer)))))))
-      (while (and changes (or (< (cdar changes) posn)
-                              (and
-                               ;; a string spanning multiple lines is a change even when not all
-                               ;; lines are changed
-                               (< (cdar changes) sexp-end)
-                               (not (thunk-force atomic?)))))
-        (pop changes))
-      (and changes (or (<= (caar changes) posn)
-                       (and (thunk-force atomic?)
-                            (<= (caar changes) sexp-end)))))))
+  (if (buffer-modified-p)
+      (if (eq this-command 'el-search-pattern)
+          (user-error "Buffer is modified - please save")
+        nil)
+    (save-restriction
+      (widen)
+      (let ((changes (el-search--changes-from-diff-hl revision))
+            (sexp-end (el-search--end-of-sexp posn))
+            (atomic? (thunk-delay (el-search--atomic-p
+                                   (save-excursion (goto-char posn)
+                                                   (el-search-read (current-buffer)))))))
+        (while (and changes (or (< (cdar changes) posn)
+                                (and
+                                 ;; a string spanning multiple lines is a change even when not all
+                                 ;; lines are changed
+                                 (< (cdar changes) sexp-end)
+                                 (not (thunk-force atomic?)))))
+          (pop changes))
+        (and changes (or (<= (caar changes) posn)
+                         (and (thunk-force atomic?)
+                              (<= (caar changes) sexp-end))))))))
 
 (defun el-search--changed-p (posn revision)
   ;; Non-nil when sexp after POSN contains a change
-  (when (buffer-modified-p)
-    (user-error "Buffer is modified - please save"))
-  (save-restriction
-    (widen)
-    (let ((changes (el-search--changes-from-diff-hl revision)))
-      (while (and changes (<= (cdar changes) posn))
-        (pop changes))
-      (and changes
-           (< (caar changes) (el-search--end-of-sexp posn))))))
+  (if (buffer-modified-p)
+      (if (eq this-command 'el-search-pattern)
+          (user-error "Buffer is modified - please save")
+        nil)
+    (save-restriction
+      (widen)
+      (let ((changes (el-search--changes-from-diff-hl revision)))
+        (while (and changes (<= (cdar changes) posn))
+          (pop changes))
+        (and changes
+             (< (caar changes) (el-search--end-of-sexp posn)))))))
 
 (defun el-search-change--heuristic-matcher (&optional revision)
   (let* ((revision (or revision "HEAD"))
@@ -351,8 +355,15 @@ Uses variable `el-search--cached-changes' for caching."
                                                      revision file))))))))))
     (lambda (file-name-or-buffer _) (funcall file-changed-p file-name-or-buffer))))
 
+(el-search-defpattern change--1 (&optional revision)
+  (declare (heuristic-matcher #'el-search-change--heuristic-matcher))
+  `(guard (el-search--change-p (point) ,(or revision "HEAD"))))
+
 (el-search-defpattern change (&optional revision)
   "Matches the object if its text is part of a file change.
+
+Matches anything that changed relative to REVISION.
+Never matches in a modified buffer.
 
 Requires library \"diff-hl\".  REVISION defaults to the file's
 repository's HEAD commit and is a revision string.  Customize
@@ -361,12 +372,18 @@ REVISION is interpreted.
 
 This pattern-type does currently only work for git versioned
 files."
+  `(and (filename) (change--1 ,revision)))
+
+(el-search-defpattern changed--1 (&optional revision)
   (declare (heuristic-matcher #'el-search-change--heuristic-matcher))
-  `(guard (el-search--change-p (point) ,(or revision "HEAD"))))
+  `(guard (el-search--changed-p (point) ,(or revision "HEAD"))))
 
 (el-search-defpattern changed (&optional revision)
   "Matches the object if its text contains a file change.
 
+Matches anything that textually contains a change relative to
+REVISION.  Never matches in a modified buffer.
+
 Requires library \"diff-hl\".  REVISION defaults to the file's
 repository's HEAD commit and is a revision string.  Customize
 `el-search-change-revision-transformer-function' to control how
@@ -374,8 +391,7 @@ REVISION is interpreted.
 
 This pattern-type does currently only work for git versioned
 files."
-  (declare (heuristic-matcher #'el-search-change--heuristic-matcher))
-  `(guard (el-search--changed-p (point) ,(or revision "HEAD"))))
+  `(and (filename) (changed--1 ,revision)))
 
 
 ;;;; `outermost' and `top-level'
