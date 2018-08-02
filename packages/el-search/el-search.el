@@ -2708,17 +2708,25 @@ don't display anything"
                                     buffer-or-file
                                     matches-<=-here
                                     total-matches
-                                    (propertize
-                                     (format (pcase (save-excursion
-                                                      (goto-char (car defun-bounds))
-                                                      (el-search-read (current-buffer)))
-                                               (`(,a ,b . ,_) (format "(%s  %%d/%%d)"
-                                                                      (truncate-string-to-width
-                                                                       (format "%S %S" a b)
-                                                                       40 nil nil 'ellipsis)))
-                                               (_             "(%d/%d)"))
-                                             matches-<=-here-in-defun total-matches-in-defun)
-                                     'face 'shadow))))
+                                    (format
+                                     (pcase (save-excursion
+                                              (goto-char (car defun-bounds))
+                                              (and (el-search-looking-at '`(,_ ,_ . ,_))
+                                                   (looking-at "(") ;exclude toplevel `ATOM and sim.
+                                                   (let ((region (list
+                                                                  (progn (down-list) (point))
+                                                                  (min (line-end-position)
+                                                                       (scan-sexps (point) 2)))))
+                                                     (when (bound-and-true-p jit-lock-mode)
+                                                       (apply #'jit-lock-fontify-now region))
+                                                     (apply #'buffer-substring region))))
+                                       ((and (pred stringp) signature)
+                                        (format "(%s  %%d/%%d)"
+                                                (truncate-string-to-width
+                                                 signature
+                                                 40 nil nil 'ellipsis)))
+                                       (_ "(%d/%d)"))
+                                     matches-<=-here-in-defun total-matches-in-defun))))
                              (list
                               (concat (if (not just-count) "[Not at a match]   " "")
                                       (if (= matches-<=-here total-matches)
