@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.7.5
+;; Version: 1.7.6
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -545,12 +545,13 @@ The default value is ask-multi."
   )
 
 (defvar el-search-keep-transient-map-commands
+  ;; Commands that may read input (`el-search-jump-to-search-head',
+  ;; `el-search-skip-directory') need to be omitted here and should
+  ;; explicitly install the transient map themselves.
   '(el-search-pattern
     el-search-pattern-backward
-    el-search-jump-to-search-head
     el-search-from-beginning
     el-search-last-buffer-match
-    el-search-skip-directory
     el-search-continue-in-next-buffer
     universal-argument universal-argument-more
     digit-argument negative-argument)
@@ -634,6 +635,10 @@ The non-nil value should be one of the symbols `forward' and
 (defun el-search-true (&rest _args)
   "Ignore the arguments and return t."
   t)
+
+(defun el-search--entering-prefix-arg-p ()
+  "Non-nil while a prefix arg is entered."
+  (memq universal-argument-map overriding-terminal-local-map))
 
 (defun el-search--bounds-of-defun (&optional pos)
   "Return (BEG . END) of the top level s-exp covering POS.
@@ -2241,13 +2246,8 @@ local binding of `window-scroll-functions'."
 (defun el-search-hl-post-command-fun ()
   (pcase this-command
     ('el-search-query-replace)
-    ('el-search-pattern
-     (unless
-         ;; When entering a numerical prefix `this-command' isn't updated.  We
-         ;; test for this condition (is there a better one?) to avoid that key
-         ;; input feedback is hidden
-         (memq universal-argument-map overriding-terminal-local-map)
-       (el-search-display-match-count)))
+    ((guard (el-search--entering-prefix-arg-p))) ; don't hide key input feedback
+    ('el-search-pattern (el-search-display-match-count))
     ((pred el-search-keep-session-command-p))
     (_ (unless el-search-keep-hl
          (el-search-hl-remove)
@@ -2383,12 +2383,12 @@ make current."
               (setf (el-search-object-last-match el-search--current-search)
                     (copy-marker (point)))
               (el-search-hl-sexp)
-              (el-search-hl-other-matches (el-search--current-matcher))
-              (el-search-prefix-key-maybe-set-transient-map)))))
+              (el-search-hl-other-matches (el-search--current-matcher))))))
     (el-search--message-no-log "[Search completed - restarting]")
     (sit-for 1.5)
     (el-search-reset-search el-search--current-search)
-    (el-search-continue-search)))
+    (el-search-continue-search))
+  (el-search-prefix-key-maybe-set-transient-map))
 
 (defun el-search-continue-search (&optional from-here)
   "Continue or resume the current search.
@@ -2488,7 +2488,8 @@ continued."
      (or (bufferp buffer-or-file-name)
          ;; `file-in-directory-p' would be perfect here, but it calls
          ;; file-truename on both args what we don't want, so we use this:
-         (string-match-p "\\`\\.\\." (file-relative-name buffer-or-file-name directory))))))
+         (string-match-p "\\`\\.\\." (file-relative-name buffer-or-file-name directory)))))
+  (el-search-prefix-key-maybe-set-transient-map))
 
 (defun el-search-pattern--interactive (&optional prompt)
   (list (if (or
