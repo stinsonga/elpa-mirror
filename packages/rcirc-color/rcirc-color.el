@@ -1,10 +1,11 @@
-;;; rcirc-color.el --- color nicks
+;;; rcirc-color.el --- color nicks  -*- lexical-binding:t -*-
 
 ;; Copyright (C) 2005-2018  Free Software Foundation, Inc.
 
 ;; Author: Alex Schroeder <alex@gnu.org>
 ;; Maintainer: Alex Schroeder <alex@gnu.org>
-;; Version: 0.4
+;; Version: 0.4.1
+;; Package-Requires: ((emacs "24.4"))
 ;; Keywords: comm
 
 ;; This file is part of GNU Emacs.
@@ -90,21 +91,24 @@ used to determine the color: #rrrrggggbbbb.")
   "Other attributes to use for nicks.
 Example: (setq rcirc-color-other-attributes '(:weight bold))")
 
-(defadvice rcirc-facify (before rcirc-facify-colors last activate)
+(advice-add 'rcirc-facify :around #'rcirc-color--facify)
+(defun rcirc-color--facify (orig-fun string face &rest args)
   "Add colors to other nicks based on `rcirc-colors'."
   (when (and (eq face 'rcirc-other-nick)
-             (not (string= string "")))
-    (let ((cell (gethash string rcirc-color-mapping)))
-      (unless cell
-	(setq cell (nconc (list :foreground
-				(if rcirc-color-is-deterministic
+             (> (length string) 0))
+    (let ((cell (or (gethash string rcirc-color-mapping)
+                    (puthash (substring-no-properties string)
+                             `(:foreground
+			       ,(if rcirc-color-is-deterministic
 				    (concat "#" (substring (md5 string) 0 12))
-				  (elt rcirc-colors (random (length rcirc-colors)))))
-			   rcirc-color-other-attributes))
-        (puthash (substring-no-properties string) cell rcirc-color-mapping))
-      (setq face (list cell)))))
+				  (elt rcirc-colors
+                                       (random (length rcirc-colors))))
+			       ,@rcirc-color-other-attributes)
+                             rcirc-color-mapping))))
+      (setq face (list cell))))
+  (apply orig-fun string face args))
 
-(defun rcirc-markup-nick-colors (sender response)
+(defun rcirc-markup-nick-colors (_sender _response)
   "Add a face to all known nicks in `rcirc-color-mapping'.
 This ignores SENDER and RESPONSE."
   (with-syntax-table rcirc-nick-syntax-table
@@ -113,7 +117,7 @@ This ignores SENDER and RESPONSE."
 	(when face
 	  (rcirc-add-face (match-beginning 0) (match-end 0) face))))))
 
-(add-to-list 'rcirc-markup-text-functions 'rcirc-markup-nick-colors)
+(add-hook 'rcirc-markup-text-functions #'rcirc-markup-nick-colors)
 
 (defun-rcirc-command color (args)
   "Change one of the nick colors."
@@ -146,7 +150,8 @@ commands."
       (error "Use what color?"))
     (puthash nick (cons 'foreground-color color) rcirc-color-mapping)))
 
-(defadvice rcirc-handler-NICK (before rcirc-handler-NICK-colors activate)
+(advice-add 'rcirc-handler-NICK :before #'rcirc-color--handler-NICK)
+(defun rcirc-color--handler-NICK (_process sender args _text)
   "Update colors in `rcirc-color-mapping'."
   (let* ((old-nick (rcirc-user-nick sender))
          (cell (gethash old-nick rcirc-color-mapping))
