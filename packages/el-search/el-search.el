@@ -4045,7 +4045,11 @@ text."
           (with-temp-buffer
             (emacs-lisp-mode)
             (insert (if splice
-                        (mapconcat #'el-search--pp-to-string replacement " ")
+                        (let ((insertions (mapcar #'el-search--pp-to-string replacement)))
+                          (mapconcat #'identity insertions
+                                     (if (cl-some (apply-partially #'string-match-p "\n")
+                                                  insertions)
+                                         "\n" " ")))
                       (el-search--pp-to-string replacement)))
             (goto-char 1)
             (let (start this-sexp end orig-match-start orig-match-end done)
