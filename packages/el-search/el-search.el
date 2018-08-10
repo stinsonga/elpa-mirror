@@ -948,6 +948,29 @@ nil."
     (timer-set-time el-search--mb-hints-timer (time-add (current-time) el-search-mb-hints-delay))
     (timer-activate el-search--mb-hints-timer)))
 
+(defun el-search-eldoc-documentation-function ()
+  (when (catch 'result
+          (save-excursion
+            (while (condition-case nil
+                       (progn (backward-up-list)
+                              (if (el-search-looking-at '`(,(or 'pred 'guard) . ,_))
+                                  (throw 'result nil)
+                                t))
+                     (scan-error nil)))
+            t))
+    (pcase-let (((and current-fsym `(,fnsym ,index))
+                 (elisp--fnsym-in-current-sexp)))
+      (defvar el-search--pcase-macros) ;defined later
+      (let (pattern-def  docstring  help)
+        (and fnsym
+             (setq pattern-def (cdr (assoc fnsym el-search--pcase-macros)))
+             ;; This is what `elisp-get-fnsym-args-string' (which we can't use) does
+             (setq docstring (documentation pattern-def))
+             (setq help (help-split-fundoc docstring fnsym))
+             (elisp--highlight-function-argument
+              current-fsym (elisp-function-argstring (car help))
+              index (concat (symbol-name fnsym) ": ")))))))
+
 (defvar el-search--this-session-match-count-data nil)
 
 (defun el-search-read-pattern-setup-mb ()
@@ -958,7 +981,9 @@ nil."
     (setq el-search--this-session-match-count-data nil)
     (when (timerp el-search--mb-hints-timer) (cancel-timer el-search--mb-hints-timer))
     (setq el-search--mb-hints-timer nil)
-    (add-hook 'post-command-hook #'el-search-read-pattern-trigger-mb-hints t t)))
+    (add-hook 'post-command-hook #'el-search-read-pattern-trigger-mb-hints t t))
+  (add-function :before-until (local 'eldoc-documentation-function)
+                #'el-search-eldoc-documentation-function))
 
 (defvar el-search--search-pattern-1-do-fun nil)
 (defvar el-search--busy-animation
