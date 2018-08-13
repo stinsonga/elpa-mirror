@@ -27,7 +27,7 @@
 ;;
 ;;  CRiSP mode from XEmacs: revision 1.34 at 1998/08/11 21:18:53.
 ;;
-;;   CRiSP mode was created on 01 Mar 1996 by by
+;;   CRiSP mode was created on 01 Mar 1996 by
 ;;   "Gary D. Foster <gfoster@suzieq.ml.org>"
 
 ;; There is also an Emacs version of "crisp.el" which is now obsolete
@@ -161,7 +161,7 @@
 ;; It is recommended to keep the default value for fast line number
 ;; calculation which helps Linum mode as well, otherwise, you might
 ;; experience big slow down when switching windows using Brief window
-;; commands (i.e. [F1-<arrow>] key).
+;; commands (i.e. [F1] [<arrow>] keys).
 ;;
 ;; * Huge clipboard/Xselection texts:
 ;;   (config option: `brief-enable-postpone-selection')
@@ -657,7 +657,7 @@ Notice that this function sometimes works only if called interactively."
      ((< brief-calibration-ref 0.7)
       (setq brief-slowdown-factor 7.0))
      ;; Extremely slow systems, I wonder if anyone would work in such kind
-     ;; of enrironments.
+     ;; of environment.
      (t (setq brief-slowdown-factor 8.0)))))
 
 ;;(defvar brief-debugging t) ;; enable debugging here
@@ -7113,9 +7113,9 @@ matter if brief-mode is enabled or not."
 (eval-when (eval load)
   '(when brief-replace-emacs-func:line-number-at-pos
      ;; Global replacement, no matter if Brief mode is enabled or not.
-     ;; Notice that to dynamically overriding the `line-number-at-pos' function
-     ;; according to `brief-replace-emacs-func:line-number-at-pos',
-     ;; `custom-set-variables' must to be used to change this custom value.
+     ;; Notice that it dynamically overrides the `line-number-at-pos' function
+     ;; according to `brief-replace-emacs-func:line-number-at-pos'.
+     ;; `custom-set-variables' must be used to change this custom value.
      ;; Normal `setq', `set' and `set-default' will only change the value but
      ;; will not change the replacement status of `line-number-at-pos'.
      (if (fboundp 'advice-add)
