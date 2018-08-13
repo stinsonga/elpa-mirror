@@ -229,8 +229,10 @@ COMMIT defaults to HEAD."
   (let ((default-directory repo-root-dir))
     (mapcar #'expand-file-name
             (split-string
-             (shell-command-to-string
-              (format "git diff -z --name-only %s --" (shell-quote-argument commit)))
+             (let ((current-message (current-message)))
+               (with-temp-message (concat current-message "  [Calling VCS...]")
+                 (shell-command-to-string
+                  (format "git diff -z --name-only %s --" (shell-quote-argument commit)))))
              "\0" t))))
 
 (defvar vc-git-diff-switches)
@@ -274,18 +276,21 @@ Uses variable `el-search--cached-changes' for caching."
             (goto-char 1)
             (cdr (setq el-search--cached-changes
                        (cons (list revision (visited-file-modtime))
-                             (and (el-search--file-changed-p buffer-file-name diff-hl-reference-revision)
-                                  (delq nil (mapcar (pcase-lambda (`(,start-line ,nbr-lines ,kind))
-                                                      (if (eq kind 'delete) nil
-                                                        (forward-line (- start-line current-line-nbr))
-                                                        (setq change-beg (point))
-                                                        (forward-line (1- nbr-lines))
-                                                        (setq current-line-nbr (+ start-line nbr-lines -1))
-                                                        (cons (copy-marker change-beg)
-                                                              (copy-marker (line-end-position)))))
-                                                    (ignore-errors
-                                                      (let ((default-directory (file-name-directory buffer-file-name)))
-                                                        (diff-hl-changes)))))))))))))))
+                             (and (el-search--file-changed-p
+                                   buffer-file-name diff-hl-reference-revision)
+                                  (delq nil
+                                        (mapcar (pcase-lambda (`(,start-line ,nbr-lines ,kind))
+                                                  (if (eq kind 'delete) nil
+                                                    (forward-line (- start-line current-line-nbr))
+                                                    (setq change-beg (point))
+                                                    (forward-line (1- nbr-lines))
+                                                    (setq current-line-nbr (+ start-line nbr-lines -1))
+                                                    (cons (copy-marker change-beg)
+                                                          (copy-marker (line-end-position)))))
+                                                (ignore-errors
+                                                  (let ((default-directory
+                                                          (file-name-directory buffer-file-name)))
+                                                    (diff-hl-changes)))))))))))))))
 
 (defun el-search--change-p (posn revision)
   ;; Non-nil when sexp after POSN is part of a change
@@ -461,7 +466,8 @@ matches any of these expressions:
   (when (eq (car-safe key-sequence) 'kbd)
     (setq key-sequence (kbd (cadr key-sequence))))
   (el-search-defpattern--check-args
-   "keys" (list key-sequence) (lambda (x) (or (stringp x) (vectorp x))) "argument not a string or vector")
+   "keys" (list key-sequence)
+   (lambda (x) (or (stringp x) (vectorp x))) "argument not a string or vector")
   `(pred (el-search--match-key-sequence ,key-sequence)))
 
 

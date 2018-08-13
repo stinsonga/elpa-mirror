@@ -1,6 +1,13 @@
 Some of the user visible news were:
 
 
+Version: 1.10.1
+
+  El-search now shows hints in the search pattern prompt when the new
+  user option 'el-search-display-mb-hints' is non-nil (the default).
+  This includes pointing to errors in the input and showing a match
+  count preview.
+
 Version: 1.9.7
 
   Changed default binding schemes: For reasons of harmonization, in
