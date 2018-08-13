@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.8.7
+;; Version: 1.8.8
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -1820,12 +1820,18 @@ Go back to the place where the search had been started."
     transient-map))
 
 (defun el-search-keep-session-command-p (command)
-  "Non-nil when COMMAND should not deactivate the current search."
-  (and
-   el-search-allow-scroll
-   (symbolp command)
-   (or (get command 'isearch-scroll) ;isearch is preloaded
-       (get command 'scroll-command))))
+  "Non-nil when COMMAND should not deactivate the current search.
+
+The default is to allow scrolling commands when
+`el-search-allow-scroll' is non-nil and `mouse-set-point'.
+
+For controlling which commands should or should not deactivate an
+active search it is recommended to advice this function."
+  (or (and el-search-allow-scroll
+           (symbolp command)
+           (or (get command 'isearch-scroll) ;isearch is preloaded
+               (get command 'scroll-command)))
+      (memq command '(mouse-drag-region mouse-set-point))))
 
 (defun el-search-prefix-key-maybe-set-transient-map ()
   (set-transient-map
