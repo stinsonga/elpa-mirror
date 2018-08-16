@@ -5,7 +5,7 @@
 ;; Author:     Luke Lee <luke.yx.lee@gmail.com>
 ;; Maintainer: Luke Lee <luke.yx.lee@gmail.com>
 ;; Keywords:   brief, emulations, crisp
-;; Version:    5.80
+;; Version:    5.81
 
 ;; GNU Emacs is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -412,7 +412,7 @@
 ;; backward compatibility issues.
 ;;(require 'replace)
 
-(defconst brief-version "5.80"
+(defconst brief-version "5.81"
   "The version of this Brief emulator.")
 
 ;;
@@ -511,7 +511,7 @@ If FILE1 or FILE2 does not exist, the return value is unspecified."
 
   (if (version< emacs-version "24.0")
       ;; a wrapper function to ignore arguments
-      (defmacro bookmark-jump-wrapper (bmk func regionp)
+      (defmacro bookmark-jump-wrapper (bmk func _regionp)
         `(bookmark-jump ,bmk ,func))
     (defmacro bookmark-jump-wrapper (bmk func regionp)
       `(bookmark-jump ,bmk ,func ,regionp)))
@@ -519,8 +519,8 @@ If FILE1 or FILE2 does not exist, the return value is unspecified."
   ;; Selection/clipboard related functions and variables
   (when (version< emacs-version "25.1")
 
-    (unless (boundp 'saved-region-selection)
-      (defvar saved-region-selection nil))
+    ;;(unless (boundp 'saved-region-selection) ;; Legacy code for XEmacs
+    ;;  (defvar saved-region-selection nil))
 
     (unless (boundp 'gui--last-selected-text-primary)
       (if (boundp 'x-last-selected-text-primary)
@@ -541,13 +541,13 @@ If FILE1 or FILE2 does not exist, the return value is unspecified."
             (setq brief-selection-op-legacy t)
             (defalias 'gui-get-selection 'w32-get-clipboard-data))
           (unless (fboundp 'gui-set-selection)
-            (defun gui-set-selection (type data)
+            (defun gui-set-selection (_type data)
               (w32-set-selection data)))
           (unless (fboundp 'gui-backend-get-selection)
-            (defun gui-backend-get-selection (selection-symbol target-type)
+            (defun gui-backend-get-selection (_selection-symbol _target-type)
               (w32-get-clipboard-data)))
           (unless (fboundp 'gui-backend-set-selection)
-            (defun gui-backend-set-selection (selection value)
+            (defun gui-backend-set-selection (_selection value)
               (w32-set-selection value))))
 
       (unless (fboundp 'gui-get-selection)
@@ -616,16 +616,18 @@ referencing this value.")
 
 (defvar brief-slowdown-factor 1.0
   "A slowdown measurement according to the calibration.
-This value is an empirical obtained thru various experiemnts.")
+This value is an empirical obtained thru various experiments.")
 
 (defun brief-calibration ()
-  "Compute the UI performance reference values.
-Notice that this function sometimes works only if called interactively."
+  "Estimate the UI performance reference values.
+Notice that this function sometimes works only if called interactively.
+Also, under terminal mode it can't actually get the slowdown."
   (interactive)
   ;; Yes, these can be done in a single setq, but this make things clearer.
   (setq brief-calibration-value
         (- (- (brief-current-time)
               (progn
+                ;; TODO: how to obtain the slowdown in terminal mode?
                 (redisplay t)
                 (brief-current-time)))))
   ;; Record only the worst case. In a lot of cases it takes very short
@@ -669,7 +671,7 @@ Notice that this function sometimes works only if called interactively."
           ;;    (apply 'message args)
           (message "%s %s" (format-time-string "[%H:%M:%S.%3N]" (current-time))
                    msg)))
-    (defmacro brief-dbg-message (&rest args))))
+    (defmacro brief-dbg-message (&rest _))))
 
 (defmacro brief-rectangle-active ()
   "Compatibility macro to test for an active rectangle."
@@ -702,7 +704,7 @@ Notice that this function sometimes works only if called interactively."
            ;; once happened when: (1) marking a rectangle (2) use self-inserting
            ;; commands (3) undo -- at this moment the rectangle will disappear
            ;; and `deactivate-mark-hook' will be executed.  During this period
-           ;; of time, any function in the hook will experienced `use-region-p'
+           ;; of time, any function in the hook will experience `use-region-p'
            ;; be NIL while `brief-rectangle-active' be non-NIL.
            (brief-rectangle-active)))))
 
@@ -793,7 +795,7 @@ indicates Brief mode is enabled.
 
 Setting this variable directly does not take effect;
 use either M-x customize or the function `brief-mode'."
-  :set        (lambda (symbol value) (brief-mode (if value t nil)))
+  :set        (lambda (_symbol value) (brief-mode (if value t nil)))
   :initialize 'custom-initialize-default
   :require    'brief
   :type       'boolean
@@ -1232,7 +1234,7 @@ slowdown factor; otherwise, return 1.0."
 (defvar brief-query-replace-from-history nil)
 (defvar brief-query-replace-to-history nil)
 ;;(defvar c-basic-offset nil)
-(defvar brief-c-tabs-always-indent nil)
+;;(defvar brief-c-tabs-always-indent nil)
 ;;(defvar brief-c-insert-tab-function nil)
 
 ;; TODO: [2016-05-10 Tue] Should we distinguish the following two?
@@ -1265,7 +1267,7 @@ it calls `buffer-menu' instead."
         (ibuffer nil)
         (redisplay) ;; sometimes if we don't do this the texts in buffer won't be ready
         (when search-str
-          (save-mark-and-excursion
+          (save-excursion
             (goto-char (point-min))
             (ignore-errors
               (setq pos (search-forward search-str))))
@@ -1391,6 +1393,7 @@ modified."
 (defun brief-rectangle-mode (arg)
   "Start marking rectangle region."
   (interactive "p")
+  ;; TODO: support native rectangle mode
   (cua-set-rectangle-mark))
 
 ;; [2016-04-20 Wed] support multiple cursors
@@ -1749,7 +1752,7 @@ When prefixed it won't switch current frame or buffer."
   "Switch to the specified window in the current frame."
   (interactive)
   (if window
-      (let ((top (selected-window))
+      (let (;;(top (selected-window))
             (curr (next-window))
             (count 1))
         (catch 'break
@@ -1837,7 +1840,7 @@ Convert a width of text-scaled char unit back to units of
   "Compute the relative column number of cursor for current window.
 Supports all 3 modes: line truncation, line wrapping and visual line
 mode, as well as hidden texts."
-  (save-mark-and-excursion
+  (save-excursion
     (let* ((p       (point))
            (c       (following-char))
            ;; Notice that we must use `current-column' instead of `point' here,
@@ -1909,19 +1912,20 @@ START point is included while END point is excluded. Thus when
 START=END it always return 0.  This function returns the number of
 newlines between them.
 
-Counting UNIX style EOL 'LF' (line-feed) when using unix encoding;
-counting MAC style EOL 'CR' (carrage-return) when using mac encoding;
+Counting UNIX style EOL 'LF' (line-feed) when using Unix encoding;
+counting MAC style EOL 'CR' (carrage-return) when using Mac encoding;
 counting DOS style EOL 'CRLF' when using DOS encoding."
-  (save-mark-and-excursion
+  (save-excursion
     (save-restriction
       (let* ((done 0)
-             (encoding (symbol-name buffer-file-coding-system))
-             ;; default unix encoding
-             (eol "\n"))
-        (if (string-match "-dos$" encoding) ;; dos encoding
-            (setq eol "\r\n")
-          (if (string-match "-mac$" encoding) ;; mac encoding
-              (setq eol "\r")))
+             eol)
+        (case (coding-system-eol-type buffer-file-coding-system)
+          (0 (setq eol "\n"))   ;; UNIX encoding
+          (1 (setq eol "\r\n")) ;; DOS encoding
+          (2 (setq eol "\r"))   ;; Mac encoding
+          (otherwise
+           ;; Default use UNIX encoding, like in the *Help* buffer
+           (setq eol "\n")))
         (narrow-to-region start end)
         (goto-char (point-min))
         (if (eq selective-display t)
@@ -2079,7 +2083,7 @@ This is the number of newlines between them."
 (defun brief-current-row-visual () ;; base:0
   "Compute the relative row number of cursor for current window.
 Supports all 3 modes: line truncation, line wrapping and visual line mode."
-  (save-mark-and-excursion
+  (save-excursion
     (let* ((point0 (point))
            ;;(line0 (line-number-at-pos))
            ;;(linum-mode nil) ;; TODO: line number mode can make big org mode
@@ -2804,6 +2808,8 @@ The 'key-up' is actually emulated by running an idle timer."
            (nth 5 brief-xclipboard-args))
       (error "Invalid TYPE")))
 
+;; All the variables and functions defined as <brief...> are all used
+;; internally by Brief, mainly for external process related functions.
 (defvar <brief-external-bytes-received> 0
   "Brief internal variable to store received bytes count.")
 
@@ -2827,7 +2833,7 @@ The 'key-up' is actually emulated by running an idle timer."
   "A brief internal variable for Emacs <= v24 to detect process done.
 This is used in `brief-external-get-selection'")
 
-(defun <brief-external-clipboard-sentinel> (proc event)
+(defun <brief-external-clipboard-sentinel> (_proc _event)
   "Brief internal function, discard process status message string.
 Also indicate the status change of the external helper process.  For
 Emacs <= v24 this is required before getting all the output of the
@@ -3039,9 +3045,12 @@ program."
                                 (throw 'break 'giveup))
 
                               (when brief-show-external-clipboard-recv-progress
+                                ;; FIXME: As `<brief-external-bytes-received>'
+                                ;; is always read as zero here we can only use a
+                                ;; counter to estimate the progress.
                                 (message
-                                 "Receiving data from Xselection : %d chunks ..."
-                                 count)
+                                 "Receiving data from Xselection : %d iterations ..."
+                                 (truncate (/ count (brief-slowdown-factor))))
                                 ;; This `sit-for' allows message buffer updating
                                 (sit-for (* 0.01 (brief-slowdown-factor))))))
 
@@ -3507,6 +3516,7 @@ able to restore it back if we have no backups.")
   ;; `advice-add' defined
   ;;
   (defun brief-gui-get-selection (orig-func &rest args)
+    "Brief's advice replacement for `gui-get-selection'."
     ;; [2017-07-14 Fri] When clipboard data is huge, `gui-backend-get-selection'
     ;; which was implemented as `x-get-selection-internal' will stop responding.
     (if (or (and (brief-is-x)
@@ -3532,15 +3542,19 @@ able to restore it back if we have no backups.")
 ;;Format: (time selection-data)"
 ;;    nil)
 ;;
+
+  (defvar brief-gui-set-selection-reentry nil
+    "An internal variable to prevent function reenter.")
   ;; The core modification that prevent Windows X server failure
   ;; due to too much flooding message as clipboard change caused by
   ;; Microsoft Office
   (defun brief-gui-set-selection (orig-func &rest args)
-    (if (boundp 'brief-gui-set-selection-reentry)
+    "Brief's advice replacement for `gui-set-selection'."
+    (if brief-gui-set-selection-reentry
         (brief-dbg-message "Reenter brief-gui-set-selection, exit")
       (brief-dbg-message "enter brief-gui-set-selection")
       (let ((type (car args))
-            (data (cadr args))
+            ;;(data (cadr args))
             (brief-gui-set-selection-reentry t))
         (if (eq type 'SECONDARY)
             (apply orig-func args)
@@ -3841,7 +3855,7 @@ restored, otherwise NIL."
 ;;     (or backup-clipboard
 ;;         (brief-region-backup-clipboard-selection))))
 
-(defun brief-reset-for-command-cancellation (&rest args)
+(defun brief-reset-for-command-cancellation (&rest _)
   "Restore selection and reset internal variables due to command cancellation."
   (brief-restore-clipboard-selection)
   (and (brief-use-region) (deactivate-mark))
@@ -3923,9 +3937,9 @@ The implementation of `cua-close-rectangle' does not invoke the
                          text)))
   text)
 
-(defun brief-yank (arg)
+(defun brief-yank ()
   "Yank kill-ring/Xselection or rectangle into current text."
-  (interactive "p")
+  (interactive "*")
   (let* ((interprogram-cut-function nil)
          (interprogram-paste-function nil))
 
@@ -3984,17 +3998,17 @@ The implementation of `cua-close-rectangle' does not invoke the
     (brief-no-longer-need-restore-clipboard)))
 
 ;; 04/15/'08 ins function
-(defun brief-print (arg)
-  "Print buffer or region"
-  (interactive "p")
-  (if (brief-use-region)
-      (call-interactively 'print-region)
-    (call-interactively 'print-buffer)))
+(defun brief-print ()
+  "Print buffer or region."
+  (interactive)
+  (call-interactively (if (brief-use-region)
+                          'print-region
+                        'print-buffer)))
 
 ;; 06/21/2005 ins function
-(defun brief-buffer-read-only-toggle (arg)
-  "Toggle buffer read only status ON/OFF"
-  (interactive "P")
+(defun brief-buffer-read-only-toggle ()
+  "Toggle buffer read only status ON/OFF."
+  (interactive)
   ;;(if (and (buffer-modified-p) (not buffer-read-only))
   ;;    ;;if it's modified, it must not be read-only
   ;;    ;; - [2013-01-31 10:06:48 +0800] false assumption, buffers created by
@@ -4002,7 +4016,7 @@ The implementation of `cua-close-rectangle' does not invoke the
   ;;    (message
   ;;     "Buffer modified, cannot set to read-only. Please save the buffer first.")
   (setq buffer-read-only (not buffer-read-only))
-  (force-mode-line-update) ;;;; 05/07/2008 ins 1
+  (force-mode-line-update) ;; 05/07/2008 ins 1
   (if buffer-read-only
       (message "Buffer set to read-only")
     (message
@@ -4062,7 +4076,7 @@ ARG behaves the same as `beginning-of-line'."
     "Goto column number in current line.
 This is a backward compatibility function for older Emacs versions."
     (let ((i 0) (max-column 0))
-      (save-mark-and-excursion
+      (save-excursion
         (end-of-line)
         (setq max-column (current-column)))
       (beginning-of-line)
@@ -4118,14 +4132,17 @@ or negative prefix} and {`brief-linecmd-respect-visual'}."
 (defun brief-move-to-column-visual (vcol)
   "Move to visual column VCOL but not exceeding EOL."
   (let* (p
-         (vend (save-mark-and-excursion
+         (vend (save-excursion
                  (end-of-visual-line) ;; move to current visual line end
                  (setq p (brief-current-column-visual))
                  (if (not (zerop p))
                      p
-                   (left-char 1)
+                   ;;(left-char 1) ;; Emacs23 have no `left-char'
+                   (backward-char 1)
                    (brief-current-column-visual)))))
-    (right-char (- (min vcol vend) (brief-current-column-visual)))))
+    ;;Emacs23 have no `right-char'
+    ;;(right-char (- (min vcol vend) (brief-current-column-visual)))
+    (forward-char (- (min vcol vend) (brief-current-column-visual)))))
 
 (defun brief-delete-entire-line (arg)
   ;; <2011-06-09 Thu 14:14> for Emacs, use 'delete' as name since it does not
@@ -4210,7 +4227,7 @@ copies the region to the kill ring and clipboard, and then deletes it."
         (this-command this-command)
         (last-command last-command)
         (visual (brief-is-visual-operation))
-        (curr-prefix-arg current-prefix-arg)
+        ;;(curr-prefix-arg current-prefix-arg)
         ;; Debouncing
         (cmd-time (brief-current-time)))
     (if (and brief-debounce-keys-microsoft-office
@@ -4234,7 +4251,7 @@ copies the region to the kill ring and clipboard, and then deletes it."
           ;;(cua-set-mark)
           ;;(message nil) ; clear the "Mark Set" message due to cua-set-mark
           (set-mark (if visual
-                        (save-mark-and-excursion
+                        (save-excursion
                           ;; There could be more than one lines hidden
                           ;; in this visual line.
                           (beginning-of-visual-line 1))
@@ -4323,7 +4340,7 @@ To copy exactly 4 lines use C-4 as prefix instead of a single \\[universal-argum
              (interprogram-paste-function nil)
              (prev-point (point))
              (inhibit-message t) ; preventing `cua-set-mark' saying "Mark Set"
-             (curr-prefix-arg current-prefix-arg)
+             ;;(curr-prefix-arg current-prefix-arg)
              (is-physical-line (not (brief-is-visual-operation)))
              ;; make `current-prefix-arg' a local variable, override the original
              (current-prefix-arg current-prefix-arg))
@@ -4359,7 +4376,7 @@ To copy exactly 4 lines use C-4 as prefix instead of a single \\[universal-argum
                   (setq arg 1)) ;; When prefixed with C-u, ARG=4 so fix it
               (set-mark (if is-physical-line
                             (line-beginning-position)
-                          (save-mark-and-excursion
+                          (save-excursion
                             ;; There could be more than one lines abbreviated
                             ;; in this visual line.
                             (beginning-of-visual-line 1))))
@@ -4447,7 +4464,7 @@ used in programs."
     (let ((scroll-by (* (or arg 1)
                         (1- (- (window-height)
                                next-screen-context-lines)))))
-      (condition-case err
+      (condition-case nil
           ;; <2011-06-08 Wed 18:48> modified for smooth-scroll
           (if (= 1 (window-start))
               (goto-char 1)
@@ -4484,7 +4501,7 @@ be used in programs."
     (let ((scroll-by (* (or arg 1)
                         (1- (- (window-height)
                                next-screen-context-lines)))))
-      (condition-case err
+      (condition-case nil
           (progn ;; <2011-06-08 Wed 18:48> modified for smooth-scroll
             (if (smooth-scroll-mode-activate)
                 (smooth-scroll/orig-scroll-up scroll-by)
@@ -4692,11 +4709,11 @@ If we're searching in a region, this undo will restore the region."
   (interactive "P")
   ;; TODO: undo everything in the region (check `undo' then restore
   ;;       the region. (Find text "Undo in region" in `undo' source)
-  (let ((was-replace nil))
+  (let () ;; (was-replace nil)
     (if (not (or (brief-is-search-command last-command)
                  (brief-is-prefix-command last-command)
-                 (setq was-replace
-                       (brief-is-query-replace-command last-command))))
+                 ;;(setq was-replace
+                       (brief-is-query-replace-command last-command)));;)
         ;; It was not a search or query&replace command, do usual undo
         (undo arg)
 
@@ -4780,17 +4797,16 @@ When repeat searching within a rectangle, the cursor will temporarily
 stopped at the searched point if found.  If we really want to set cursor
 there, press \\[keyboard-quit] to cancel the rectangle."
   (setq count (or count 1))
-  (let* (regstart
-         (left (cua--rectangle-left))
+  (let* ((left (cua--rectangle-left))
          (width (1+ (- (cua--rectangle-right) left)))
-         (lineend (save-mark-and-excursion ;; end point of the rectangle at
-                                           ;; current line
+         (lineend (save-excursion ;; end point of the rectangle at
+                                  ;;; current line
                     (move-to-column (cua--rectangle-right))
                     (min (1+ (point))
                          (line-end-position))))
          (cnt 0)
          (result (catch 'found
-                   (save-mark-and-excursion
+                   (save-excursion
                      ;;(goto-char (cua--rectangle-top))
                      ;;(move-to-column left)
                      ;;(setq lineend (+ (point) width))
@@ -4820,7 +4836,7 @@ there, press \\[keyboard-quit] to cancel the rectangle."
 (defvar-local brief-last-search-begin  nil)
 (defvar-local brief-last-search-end    nil)
 
-(defun brief-search-forward-regexp (regexp &optional bound noerror count)
+(defun brief-search-forward-regexp (_regexp &optional _bound noerror count)
   "Search forwards for a REGEXP.
 The search is limited in the currently marked (rectangle) region.
 Cursor will jump the match position only if the search is successful.
@@ -4900,7 +4916,7 @@ region.  To settle the cursor there, cancel the (rectangle) region."
     (if (and is-rect
              (or (= reg-start reg-end)
                  (= reg-end (cua--rect-start-position))))
-        (save-mark-and-excursion
+        (save-excursion
           ;; rect at the same line
           (move-to-column (cua--rectangle-right))
           (setq reg-end (min (1+ (point))
@@ -5029,14 +5045,14 @@ cursor there, press \\[keyboard-quit] to cancel the rectangle."
   (let* ((lastline 0)
          (right (1+ (cua--rectangle-right))) ;; 1+: including the rightmost char
          (width (- right (cua--rectangle-left)))
-         (linestart (save-mark-and-excursion ;; start point of the rectangle
-                                             ;; at that line
+         (linestart (save-excursion ;; start point of the rectangle
+                                    ;;; at that line
                       (move-to-column (cua--rectangle-left))
                       (max (1- (point))
                            (line-beginning-position))))
          (cnt 0)
          (result (catch 'found
-                   (save-mark-and-excursion
+                   (save-excursion
                      (while (> (point) regstart)
                        (if (search-backward-regexp
                             regexp
@@ -5059,7 +5075,7 @@ cursor there, press \\[keyboard-quit] to cancel the rectangle."
            (brief-keep-rectangle-unchanged)
            (goto-char result)))))
 
-(defun brief-search-backward-regexp (regexp &optional bound noerror count)
+(defun brief-search-backward-regexp (_regexp &optional _bound noerror count)
   "Search backwards for a REGEXP.
 The search is limited in the currently marked (rectangle) region.
 Cursor will jump the match position only if the search is successful.
@@ -5138,7 +5154,7 @@ region.  To settle the cursor there, cancel the (rectangle) region."
     (if (and is-rect
              (or (= reg-start reg-end)
                  (= reg-end (cua--rect-start-position))))
-        (save-mark-and-excursion
+        (save-excursion
           ;; rect at the same line
           (move-to-column (cua--rectangle-left))
           (setq reg-start (point))))
@@ -5289,7 +5305,7 @@ command (\\[universal-argument]), it is also repeated."
 
 ;;;(defalias query-replace brief-query-replace)
 (defun brief-query-replace-rectangle-regexp (regexp to
-                                             &optional delimited start end)
+                                             &optional _delimited start end)
   "Backward compatibility function for Emacs version < 25.1."
   ;;(save-excursion ;; `apply-on-rectangle' already did this
   (let* ((message-list nil)
@@ -5297,7 +5313,7 @@ command (\\[universal-argument]), it is also repeated."
          (result
           (catch 'break
             (apply-on-rectangle
-             (lambda (startcol endcol regexp to)
+             (lambda (startcol _endcol regexp to)
                (move-to-column startcol)
                (let ((last-key (aref (this-command-keys)
                                      (1- (length (this-command-keys))))))
@@ -5334,7 +5350,7 @@ command (\\[universal-argument]), it is also repeated."
     result))
 
 (defun brief-query-replace-regexp (regexp to-string
-                                          &optional delimited start end backward)
+                                          &optional _delim _start _end _backward)
   "Backward compatibility function for Emacs version < 25.1."
   (let ((reg-start (or (and (brief-rectangle-active)
                             (cua--rectangle-top))
@@ -5344,14 +5360,15 @@ command (\\[universal-argument]), it is also repeated."
                             (cua--rectangle-bot))
                        (and (brief-use-region)
                             (region-end))))
-        (undo-len  (and brief-group-undo-replacement
-                        (length buffer-undo-list)))
-        undo-before)
+        ;;(undo-len  (and brief-group-undo-replacement
+        ;;                (length buffer-undo-list)))
+        ;;undo-before
+        )
     ;;(and
     (funcall (or (and ;;(brief-use-region)
                       (brief-rectangle-active)
-                      'brief-query-replace-rectangle-regexp)
-                 'query-replace-regexp)
+                      #'brief-query-replace-rectangle-regexp)
+                 #'query-replace-regexp)
              (car brief-query-replace-from-history)
              (car brief-query-replace-to-history)
              nil reg-start reg-end)
@@ -5420,7 +5437,7 @@ will be restricted within the (rectangle) region."
              (move-overlay brief-search-overlay reg-start reg-end))))
 
     (save-mark-and-excursion
-      (condition-case err
+      (condition-case nil
           ;; Catch 'quit signal
           (progn
             (when is-rect
@@ -5659,7 +5676,7 @@ Perform `brief-query-replace' in backward direction."
   "Delete characters forward until encountering the end of a word.
 With optional argument COUNT, do this that many times."
   (interactive "*p")
-  (brief-delete-region (point) (save-mark-and-excursion
+  (brief-delete-region (point) (save-excursion
                                  (brief-forward-word count) (point))))
 
 ;; <2011-06-14 Tue 18:05> modified from XEmacs simple.el 'backward-kill-word'
@@ -5669,7 +5686,7 @@ With argument, do this that many times."
   (interactive "*p")
   (brief-delete-word (- (or count 1))))
 
-(defun brief-delete-end-of-line (arg)
+(defun brief-delete-end-of-line ()
   "Delete characters till end of current (visual) line(s).
 
 The deleted texts does not go into the kill-ring or clipboard.  If
@@ -5684,7 +5701,7 @@ of a physical line.
 On the otherhand, when `brief-linecmd-respect-visual' is nil, this
 command delete texts till the end of a physical line unless prefixed
 with \\[universal-argument] which will delete texts till the end of visual line."
-  (interactive "*P")
+  (interactive "*")
   (brief-delete-region
    (point)
    (if (and (or (null truncate-lines)
@@ -5705,9 +5722,9 @@ with \\[universal-argument] which will delete texts till the end of visual line.
 (defun brief-indent-tab (arg)
   "Indent the region if marked, otherwise insert a normal TAB character.
 When in minibuffer it will do completion unless prefixed with \\[universal-argument]."
-  (interactive "*p")
+  (interactive "*P")
   (if (and (window-minibuffer-p)
-           (null current-prefix-arg))
+           (null arg))
       ;;(call-interactively 'minibuffer-complete)
       (completion-at-point)
     (if (brief-use-region)
@@ -5766,17 +5783,17 @@ When in minibuffer it will do completion unless prefixed with \\[universal-argum
 ;; Brief mode macro commands
 ;;
 
-(defun brief-define-macro (arg)
+(defun brief-define-macro ()
   "Start defining a keyboard macro. Press another (\\[brief-define-macro]) to end defining."
-  (interactive "p")
+  (interactive)
   (call-interactively (if defining-kbd-macro
                           'end-kbd-macro
                         'start-kbd-macro)))
 
 ;; <2010-07-21 Wed 11:57> added
-(defun brief-call-last-kbd-macro (arg)
+(defun brief-call-last-kbd-macro ()
   "Run the latest defined keyboard macro."
-  (interactive "p")
+  (interactive)
   ;; (if (is-gdb-doing-trace)
   ;;     (progn (switch-to-buffer-other-window
   ;;             (eval 'current-gdb-buffer)) ;;; <2010-07-22 Thu 11:23> ins 1
@@ -5879,7 +5896,7 @@ When in minibuffer it will do completion unless prefixed with \\[universal-argum
 (defvar brief-last-3rd-command nil
   "The previous value of `brief-last-last-command'.")
 
-(defun brief-home (arg)
+(defun brief-home ()
   "\"Home\" the cursor the way that Brief editor do it.
 
 When `visual-line-mode' is nil and `truncate-lines' is non-nil, the
@@ -5891,7 +5908,7 @@ When `visual-line-mode' is non-nil or `truncate-lines' is nil, the first
 \\[brief-home] goes to the beginning of visible line and the second \\[brief-home] then
 goes to the physical beginning of line.  Consecutive 3rd and 4th \\[brief-home]s
 then goes to the top of screen and beginning of buffer."
-  (interactive "^p")
+  (interactive "^")
   (let ((home4  (eq brief-last-3rd-command  'brief-home))
         (home3  (eq brief-last-last-command 'brief-home))
         (home2  (eq last-command            'brief-home)))
@@ -5903,7 +5920,7 @@ then goes to the top of screen and beginning of buffer."
      ((and home3 home2)
       (if truncate-lines
           (goto-char (point-min))
-        (let ((p1 (save-mark-and-excursion (beginning-of-line) (point)))
+        (let ((p1 (save-excursion (beginning-of-line) (point)))
               (p2 (window-start)))
           (goto-char (if (/= p1 p2)
                          (min p1 p2)
@@ -5912,7 +5929,7 @@ then goes to the top of screen and beginning of buffer."
      (home2
       (if truncate-lines
           (move-to-window-line 0)
-        (let ((p1 (save-mark-and-excursion (beginning-of-line) (point)))
+        (let ((p1 (save-excursion (beginning-of-line) (point)))
               (p2 (window-start)))
           (goto-char (if (/= (point) (max p1 p2))
                          (max p1 p2)
@@ -5933,14 +5950,14 @@ then goes to the top of screen and beginning of buffer."
 ;;  (brief-set-mark-here-if-not-active)
 ;;  (call-interactively 'brief-home (list arg)))
 
-(defun brief-goto-window-end ()
-  "Move cursor to the end of current window."
+(defun brief-window-end ()
+  "Get the point of the window end."
   (let ((we (window-end)))
-    (goto-char (if (/= (point-max) we)
-                   (1- we)
-                 we))))
+    (if (/= (point-max) we)
+        (1- we)
+      we)))
 
-(defun brief-end (arg)
+(defun brief-end ()
   "\"End\" the cursor the way that Brief editor do it.
 
 When `visual-line-mode' is nil and `truncate-lines' is non-nil, the
@@ -5953,11 +5970,11 @@ When `visual-line-mode' is non-nil or `truncate-lines' is nil, the first
 the physical end of line.  Consecutive 3rd and 4th \\[brief-end]s goes to the
 bottom of screen and end of buffer."
 
-  (interactive "^p")
+  (interactive "^")
   (let ((end4  (eq brief-last-3rd-command  'brief-end))
         (end3  (eq brief-last-last-command 'brief-end))
         (end2  (eq last-command            'brief-end))
-        p1 p2 c1 c2)
+        p1 p2 c1)
     (cond
      ;; 4th press
      ((and end4 end3 end2)
@@ -5966,20 +5983,20 @@ bottom of screen and end of buffer."
      ((and end3 end2)
       (if truncate-lines
           (goto-char (point-max))
-        (setq p1 (save-mark-and-excursion (move-end-of-line 1) (point))
-              p2 (save-mark-and-excursion (brief-goto-window-end)))
+        (setq p1 (save-excursion (move-end-of-line 1) (point))
+              p2 (brief-window-end))
         (goto-char (if (/= p1 p2)
                        (max p1 p2)
                      (point-max)))))
      ;; 2rd press
      (end2
       (if truncate-lines
-          (brief-goto-window-end)
-        (setq p1 (save-mark-and-excursion
+          (goto-char (brief-window-end))
+        (setq p1 (save-excursion
                    ;; if we're at the abbreviated text '...' we will need to
                    ;; go beyond that.
                    (move-end-of-line 1) (point))
-              p2 (save-mark-and-excursion (brief-goto-window-end)))
+              p2 (brief-window-end))
         (goto-char (if (/= (point) (min p1 p2))
                        (min p1 p2)
                      (max p1 p2)))))
@@ -5987,10 +6004,10 @@ bottom of screen and end of buffer."
      (t
       (if truncate-lines
           (move-end-of-line 1)
-        (setq p1 (save-mark-and-excursion
+        (setq p1 (save-excursion
                    (end-of-visual-line)
                    (setq c1 (following-char)) (point))
-              p2 (save-mark-and-excursion
+              p2 (save-excursion
                    (end-of-line) (point))) ;; `end-of-line' of course is at crlf
         (goto-char (if (and (/= p1 p2)
                             ;; Check if we're at the abbreviated text '...'
@@ -6113,22 +6130,21 @@ key of `save-buffers-kill-emacs' to bypass all these checks."
   (interactive)
   (if brief-override-meta-x
 
-      (if (and (boundp 'server-process) server-process)
+      (if (bound-and-true-p server-process)
 
           ;; Emacs Client/Server mode editing
 
-          (if server-clients
+          (if (bound-and-true-p server-clients)
               ;; Client connected
-              (cond
-               ;; <2011-09-20 Tue 10:40> modified from `server-edit' and
-               ;; `server-switch-buffer' (server.el.gz) to deal with the
-               ;; special case the invoking emacs-client without giving
-               ;; a file.
-               ((or (not server-process)
-                    (memq (process-status server-process) '(signal exit)))
-                (server-mode 1))
 
-               (server-clients
+              ;; <2011-09-20 Tue 10:40> modified from `server-edit' and
+              ;; `server-switch-buffer' (server.el.gz) to deal with the
+              ;; special case the invoking emacs-client without giving
+              ;; a file.
+              (if (or (not server-process)
+                      (memq (process-status server-process) '(signal exit)))
+                  (server-mode 1)
+
                 (let ((next-buffer (server-done))
                       (rest server-clients))
                   (if next-buffer
@@ -6159,8 +6175,6 @@ key of `save-buffers-kill-emacs' to bypass all these checks."
                             (server-force-stop)
                             (kill-emacs))
                         (delete-frame (selected-frame) t))))))
-
-               (t (message "No server editing buffers exists")))
 
             ;; No client connected
             (if (progn
@@ -6406,6 +6420,7 @@ from `write-file'."
 
 ;; <2011-06-10 Fri 14:35> for Emacs X clipboard
 (brief-key [(insert)]               'brief-yank)
+(brief-key [(insertchar)]           'brief-yank)
 
 ;; Preventing the need of a keypad; for notebooks and a lot of new keyboards
 (brief-key [(control insert)]       'brief-copy-line)
@@ -6575,19 +6590,20 @@ from `write-file'."
 
 (eval-after-load 'cc-cmds
   '(progn
-     (defun brief-indent-shift-tab (arg)
-       "Indent region or line for C/C++ code."
-       (interactive "*p")
-       (if (brief-use-region)
-           (and (fboundp #'c-indent-line-or-region)
-                (c-indent-line-or-region))
-         (setq brief-c-tabs-always-indent t)
-         (and (fboundp #'c-indent-command)
-              (c-indent-command))))
-     (define-key brief-global-mode-map [(backtab)] ;; <2012-01-03 Tue 15:45>
-       'brief-indent-shift-tab)
-     (define-key brief-global-mode-map [(shift tab)]
-       'brief-indent-shift-tab)))
+     (defun brief-indent-shift-tab ()
+       "Indent region or line for C/C++ code, if in C/C++ mode."
+       (interactive "*")
+       (when (member major-mode '(c-mode c++-mode))
+         (if (brief-use-region)
+             (and (fboundp #'c-indent-line-or-region)
+                  (c-indent-line-or-region))
+           ;;(setq brief-c-tabs-always-indent t)
+           (and (fboundp #'c-indent-command)
+                (c-indent-command)))))
+     (brief-key [(backtab)] ;; <2012-01-03 Tue 15:45>
+                'brief-indent-shift-tab)
+     (brief-key [(shift tab)]
+                'brief-indent-shift-tab)))
 
 ;;
 ;; Brief mode definitions
@@ -6911,13 +6927,13 @@ toggle brief-mode."
       ;; calibrate current system UI performance
       (call-interactively 'brief-calibration))
 
-(if (fboundp 'add-minor-mode)
-    (add-minor-mode 'brief-mode 'brief-mode-mode-line-string
-                    nil nil 'brief-mode)
-  (or (assq 'brief-mode minor-mode-alist)
-      (setq minor-mode-alist
-            (cons '(brief-mode brief-mode-mode-line-string)
-                  minor-mode-alist))))
+;;(if (fboundp 'add-minor-mode)
+;;    (add-minor-mode 'brief-mode 'brief-mode-mode-line-string
+;;                    nil nil 'brief-mode)
+;;  (or (assq 'brief-mode minor-mode-alist)
+;;      (setq minor-mode-alist
+;;            (cons '(brief-mode brief-mode-mode-line-string)
+;;                  minor-mode-alist))))
 
 ;; Interaction with other packages.
 
@@ -6926,10 +6942,12 @@ toggle brief-mode."
      (put 'brief-home 'CUA 'move)
      (put 'brief-end  'CUA 'move)))
 
-;; Support multiple-cursors
+;; Support multiple-cursors package
 
 (eval-after-load 'multiple-cursors
   '(progn
+    (defvar mc/cmds-to-run-for-all)
+    (defvar mc/cmds-to-run-once)
     ;; Check if `brief-previous-clipboard-selection' is listed
     ;; in `mc/cursor-specific-vars', if not, add it in.
     ;; This make copy&paste works under multiple cursor mode.
@@ -6940,6 +6958,7 @@ toggle brief-mode."
               mc/cursor-specific-vars))
 
     ;; Setup `mc/cmds-to-run-for-all' and `mc/cmds-to-run-once'
+    ;; for all Brief keys binding commands.
     (when brief-init-multi-cursor-cmd
       ;; Run for all
       (delete-dups
@@ -6982,6 +7001,7 @@ toggle brief-mode."
                 forward-sexp
                 backward-sexp
                 eval-last-sexp)))
+
       ;; Run once
       (delete-dups
        (nconc mc/cmds-to-run-once
