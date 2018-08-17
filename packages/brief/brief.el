@@ -5,7 +5,7 @@
 ;; Author:     Luke Lee <luke.yx.lee@gmail.com>
 ;; Maintainer: Luke Lee <luke.yx.lee@gmail.com>
 ;; Keywords:   brief, emulations, crisp
-;; Version:    5.81
+;; Version:    5.82
 
 ;; GNU Emacs is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -412,7 +412,7 @@
 ;; backward compatibility issues.
 ;;(require 'replace)
 
-(defconst brief-version "5.81"
+(defconst brief-version "5.82"
   "The version of this Brief emulator.")
 
 ;;
@@ -930,7 +930,8 @@ This is useful when multiple editors are sharing the external clipboard."
   :type  'boolean
   :group 'brief)
 
-(defcustom brief-external-xclipboard-timeout 5 ;; most-positive-fixnum
+(defcustom brief-external-xclipboard-timeout 5
+  ;; (/ most-positive-fixnum 10)  ;; will be multiplied by slowdown factor
   "Timeout seconds for Brief to invoke external xclipboard helper program."
   :type  'number
   :group 'brief)
@@ -1062,7 +1063,8 @@ Xclipboard."
               nil
               "-selection"
               "primary" "clipboard" "secondary"
-              ("-l" " 1")))))))
+              ("-l" " 1")))))
+    xc))
 
 (defun brief-set:brief-in-favor-of-xsel (sym val)
   "Reset `brief-xclipboard-cmd' and `brief-xclipboard-args' so that
@@ -2982,7 +2984,9 @@ program."
                 (case (or mode 'interrupt) ;; default 'interrupt mode
                   ('timeout   (* brief-external-xclipboard-timeout
                                  (brief-slowdown-factor)))
-                  ('interrupt most-positive-fixnum)
+                  ;; Emacs23: A `most-positive-fixnum' will cause immediate
+                  ;; timeout, so divide it by 2.
+                  ('interrupt (/ most-positive-fixnum 2))
                   (otherwise
                    (error
                     "Brief: unknown mode %S for brief-external-get-selection"
@@ -3459,80 +3463,98 @@ able to restore it back if we have no backups.")
 ;; due to too much flooding message as clipboard change
 (if (not (fboundp 'advice-add))
     (progn
+      (defvar brief-ad-gui-get-selection-reenter nil)
+      (defvar brief-ad-gui-set-selection-reenter nil)
       (if brief-selection-op-legacy
           (defadvice x-get-selection (around brief-advice-gui-get-selection
                                              (&optional type data-type)
                                              disable activate compile)
-            (if window-system
+            (if (or window-system
+                    brief-ad-gui-get-selection-reenter)
                 ad-do-it
-              (brief-external-get-selection type)))
+              (let ((brief-ad-gui-get-selection-reenter t))
+                (brief-external-get-selection (or type 'PRIMARY)))))
+
         (defadvice gui-get-selection (around brief-advice-gui-get-selection
                                              (&optional type data-type)
                                              disable activate compile)
           ;; [2017-07-14 Fri] When clipboard data is huge,
           ;; `gui-backend-get-selection', which was implemented as
           ;; `x-get-selection-internal', will stop responding.
-          (if window-system
+          (if (or window-system
+                  brief-ad-gui-get-selection-reenter)
               ad-do-it
-            (brief-external-get-selection type))))
+            (let ((brief-ad-gui-get-selection-reenter t))
+              (brief-external-get-selection (or type 'PRIMARY))))))
 
       (if brief-selection-op-legacy
           (defadvice x-set-selection (around brief-advice-gui-set-selection
                                              (type data) disable activate compile)
-            (if (eq type 'SECONDARY)
+            (if (or (eq type 'SECONDARY)
+                    brief-ad-gui-set-selection-reenter)
                 ad-do-it
-              (if brief-is-gui-set-selection-postponed
-                  (brief-activate-postpone-gui-selection-timer)
-                (unless (brief-multiple-cursor-in-action)
-                  (if (and (brief-is-x)
-                           (not brief-use-external-clipboard-when-possible))
-                      ad-do-it
-                    (brief-external-set-selection type data))))))
+              (let ((brief-ad-gui-set-selection-reenter t))
+                (if brief-is-gui-set-selection-postponed
+                    (brief-activate-postpone-gui-selection-timer)
+                  (unless (brief-multiple-cursor-in-action)
+                    (if (and (brief-is-x)
+                             (not brief-use-external-clipboard-when-possible))
+                        ad-do-it
+                      (brief-external-set-selection type data)))))))
 
         (defadvice gui-set-selection (around brief-advice-gui-set-selection
                                              (type data) disable activate compile)
-          (if (eq type 'SECONDARY)
+          (if (or (eq type 'SECONDARY)
+                  brief-ad-gui-set-selection-reenter)
               ad-do-it
-            (if brief-is-gui-set-selection-postponed
-                ;; Activate timer to start postponing gui-set-selection.
-                ;; In terminal mode this will not run.
-                (brief-activate-postpone-gui-selection-timer)
-              (unless (brief-multiple-cursor-in-action)
-                (if (or (brief-is-winnt)
-                        (and (brief-is-x)
-                             ;; [2017-12-12 Tue] The following is no longer true.
-                             ;; Cannot reproduce it any longer, maybe a glitch
-                             ;; during the development?
-                             ;; [2017-07-13 Thu] When running in X11, the
-                             ;; function `x-own-selection-internal' will fail
-                             ;; if the data is longer than 262040 bytes.  This
-                             ;; bug is caught thru many experiments.
-                             ;; When data is long, use external helper program.
-                             ;;(< (length data) 262041)
-                             (not brief-use-external-clipboard-when-possible)))
-                    ad-do-it
-                  (brief-external-set-selection type data))))))))
+            (let ((brief-ad-gui-set-selection-reenter t))
+              (if brief-is-gui-set-selection-postponed
+                  ;; Activate timer to start postponing gui-set-selection.
+                  ;; In terminal mode this will not run.
+                  (brief-activate-postpone-gui-selection-timer)
+                (unless (brief-multiple-cursor-in-action)
+                  (if (or (brief-is-winnt)
+                          (and (brief-is-x)
+                               ;; [2017-12-12 Tue] The following is no longer true.
+                               ;; Cannot reproduce it any longer, maybe a glitch
+                               ;; during the development?
+                               ;; [2017-07-13 Thu] When running in X11, the
+                               ;; function `x-own-selection-internal' will fail
+                               ;; if the data is longer than 262040 bytes.  This
+                               ;; bug is caught thru many experiments.
+                               ;; When data is long, use external helper program.
+                               ;;(< (length data) 262041)
+                               (not brief-use-external-clipboard-when-possible)))
+                      ad-do-it
+                    (brief-external-set-selection type data)))))))))
   ;;
   ;; `advice-add' defined
   ;;
+  ;; When external helper is enabled but neither 'xsel' nor 'xclip' is
+  ;; installed, reenter will occur.
+  (defvar brief-gui-get-selection-reentry nil
+    "An internal variable to prevent advised function reenter.")
   (defun brief-gui-get-selection (orig-func &rest args)
     "Brief's advice replacement for `gui-get-selection'."
     ;; [2017-07-14 Fri] When clipboard data is huge, `gui-backend-get-selection'
     ;; which was implemented as `x-get-selection-internal' will stop responding.
-    (if (or (and (brief-is-x)
-                 brief-use-external-clipboard-when-possible)
-            (brief-is-terminal))
-        (brief-external-get-selection (or (car args)
-                                          'PRIMARY))
-      (if (and (brief-is-winnt)
-               ;; On Win32/Win64 we by default use 'CLIPBOARD
-               (eq (or (car args)
-                       'CLIPBOARD)
-                   'CLIPBOARD))
-          (or (w32-get-clipboard-data)
-              (w32--get-selection)
-              (apply orig-func args))
-        (apply orig-func args))))
+    (if brief-gui-get-selection-reentry
+        (apply orig-func args)
+      (let ((brief-gui-get-selection-reentry t))
+        (if (or (and (brief-is-x)
+                     brief-use-external-clipboard-when-possible)
+                (brief-is-terminal))
+            (brief-external-get-selection (or (car args)
+                                              'PRIMARY))
+          (if (and (brief-is-winnt)
+                   ;; On Win32/Win64 we by default use 'CLIPBOARD
+                   (eq (or (car args)
+                           'CLIPBOARD)
+                       'CLIPBOARD))
+              (or (w32-get-clipboard-data)
+                  (w32--get-selection)
+                  (apply orig-func args))
+            (apply orig-func args))))))
 
   ;;(advice-remove 'gui-get-selection 'brief-gui-get-selection)
   ;;(advice-add 'gui-get-selection :around 'brief-gui-get-selection)
@@ -3544,14 +3566,16 @@ able to restore it back if we have no backups.")
 ;;
 
   (defvar brief-gui-set-selection-reentry nil
-    "An internal variable to prevent function reenter.")
+    "An internal variable to prevent advised function reenter.")
   ;; The core modification that prevent Windows X server failure
   ;; due to too much flooding message as clipboard change caused by
   ;; Microsoft Office
   (defun brief-gui-set-selection (orig-func &rest args)
     "Brief's advice replacement for `gui-set-selection'."
     (if brief-gui-set-selection-reentry
-        (brief-dbg-message "Reenter brief-gui-set-selection, exit")
+        (progn
+          (brief-dbg-message "Reenter brief-gui-set-selection, call orig func.")
+          (apply orig-func args))
       (brief-dbg-message "enter brief-gui-set-selection")
       (let ((type (car args))
             ;;(data (cadr args))
