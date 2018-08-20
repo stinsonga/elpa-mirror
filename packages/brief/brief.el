@@ -5,7 +5,7 @@
 ;; Author:     Luke Lee <luke.yx.lee@gmail.com>
 ;; Maintainer: Luke Lee <luke.yx.lee@gmail.com>
 ;; Keywords:   brief, emulations, crisp
-;; Version:    5.82
+;; Version:    5.83
 
 ;; GNU Emacs is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -412,7 +412,7 @@
 ;; backward compatibility issues.
 ;;(require 'replace)
 
-(defconst brief-version "5.82"
+(defconst brief-version "5.83"
   "The version of this Brief emulator.")
 
 ;;
@@ -2810,15 +2810,17 @@ The 'key-up' is actually emulated by running an idle timer."
            (nth 5 brief-xclipboard-args))
       (error "Invalid TYPE")))
 
-;; All the variables and functions defined as <brief...> are all used
+;; All the variables and functions defined as brief--xxx are all used
 ;; internally by Brief, mainly for external process related functions.
-(defvar <brief-external-bytes-received> 0
+(defvar brief--external-bytes-received 0
   "Brief internal variable to store received bytes count.")
 
-(defvar <brief-backing-up-clipboard> nil
+(defvar brief--backing-up-clipboard nil
   "Brief internal flag to indicate we're currently backing up external clipboard")
 
-(defun <brief-external-clipboard-filter> (proc string)
+(defvar brief--prev-external-bytes-received 0)
+
+(defun brief--external-clipboard-filter (proc string)
   "Brief internal function to filter external clipboard helper program data."
   (when (buffer-live-p (process-buffer proc))
     (with-current-buffer (process-buffer proc)
@@ -2826,24 +2828,35 @@ The 'key-up' is actually emulated by running an idle timer."
       ;; Insert the text, advancing the process marker.
       (goto-char (process-mark proc))
       (insert string)
-      (setq <brief-external-bytes-received>
-            (+ <brief-external-bytes-received>
+      (setq brief--external-bytes-received
+            (+ brief--external-bytes-received
                (string-bytes string)))
+      (when (and brief-show-external-clipboard-recv-progress
+                 (> (- brief--external-bytes-received
+                       brief--prev-external-bytes-received)
+                    (/ 8388608  ;; 8M (empirical)
+                       (exp (- (brief-slowdown-factor) 1.0)))))
+        ;; More messages, slower the receiving
+        (message "Receiving data from Xselection : %d bytes ..."
+                 brief--external-bytes-received)
+        (setq brief--prev-external-bytes-received
+              brief--external-bytes-received))
       (set-marker (process-mark proc) (point)))))
 
 (defvar brief-external-process-status-changed 0
   "A brief internal variable for Emacs <= v24 to detect process done.
 This is used in `brief-external-get-selection'")
 
-(defun <brief-external-clipboard-sentinel> (_proc _event)
+(defun brief--external-clipboard-sentinel (_proc _event)
   "Brief internal function, discard process status message string.
 Also indicate the status change of the external helper process.  For
 Emacs <= v24 this is required before getting all the output of the
 external helper process."
   (incf brief-external-process-status-changed)
-  ;;(message "<brief-external-clipboard-sentinel> %S %S %d"
+  ;;(message "brief--external-clipboard-sentinel %S %S %d"
   ;;         (process-exit-status proc) event
   ;;         brief-external-process-status-changed)
+  (setq brief--prev-external-bytes-received 0)
   t)
 
 (defun brief-external-clipboard-process-coding-system ()
@@ -2888,13 +2901,13 @@ program."
             (goto-char (point-min))
             ;; Convert from DOS line-ending to UNIX line-ending, or
             ;; MAC line endings according to current coding system
-            (let ((encoding (symbol-name buffer-file-coding-system))
+            (let ((encoding (coding-system-eol-type buffer-file-coding-system))
                   eol)
-              (unless (string-match "-dos$" encoding) ;; dos encoding
+              (unless (= encoding 1) ;; DOS encoding
                 (setq eol
-                      (if (string-match "-mac$" encoding) ;; mac encoding
+                      (if (= 2 encoding) ;; Mac encoding
                           "\r"
-                        ;; default unix encoding
+                        ;; Default UNIX encoding
                         "\n"))
                 (while (search-forward "\r\n" nil t)
                   (replace-match eol))))
@@ -2946,10 +2959,10 @@ program."
                                        (nth 6 brief-xclipboard-args))))))
                            (set-process-filter
                             proc
-                            '<brief-external-clipboard-filter>)
+                            'brief--external-clipboard-filter)
                            (set-process-sentinel
                             proc
-                            '<brief-external-clipboard-sentinel>)
+                            'brief--external-clipboard-sentinel)
                            (set-process-query-on-exit-flag proc nil)
                            proc)
 
@@ -2970,8 +2983,8 @@ program."
                         :connection-type 'pipe
                         :noquery t
                         ;; Prevent extern process status message get into the buffer
-                        :filter   '<brief-external-clipboard-filter>
-                        :sentinel '<brief-external-clipboard-sentinel>
+                        :filter   'brief--external-clipboard-filter
+                        :sentinel 'brief--external-clipboard-sentinel
                         :stderr   stderr)))
 
                ;; Prevent message if already inhibited or in minibuffer
@@ -3000,10 +3013,11 @@ program."
               (with-current-buffer stderr
                 (erase-buffer)))
 
-            (setq <brief-external-bytes-received> 0)
+            (setq brief--prev-external-bytes-received 0)
+            (setq brief--external-bytes-received 0)
             (setq brief-external-process-status-changed 0)
             ;;(set-process-query-on-exit-flag proc nil)
-            ;;(set-process-sentinel proc '<brief-external-clipboard-sentinel>)
+            ;;(set-process-sentinel proc 'brief--external-clipboard-sentinel)
 
             ;; Force timeout for big clipboard data, if in 'timeout mode
             (if (with-timeout
@@ -3036,7 +3050,7 @@ program."
                               ;; seconds. By default it's 1.0 second.
                               (when
                                   (and brief-giveup-clipboard-backup-if-huge
-                                       <brief-backing-up-clipboard>
+                                       brief--backing-up-clipboard
                                        (> (- (brief-current-time)
                                              start-wait-time)
                                           (* brief-giveup-clipboard-backup-timeout
@@ -3049,13 +3063,13 @@ program."
                                 (throw 'break 'giveup))
 
                               (when brief-show-external-clipboard-recv-progress
-                                ;; FIXME: As `<brief-external-bytes-received>'
-                                ;; is always read as zero here we can only use a
-                                ;; counter to estimate the progress.
-                                (message
-                                 "Receiving data from Xselection : %d iterations ..."
-                                 (truncate (/ count (brief-slowdown-factor))))
-                                ;; This `sit-for' allows message buffer updating
+                                ;; ;; As `brief--external-bytes-received' is
+                                ;; ;; always read as zero here we can only use
+                                ;; ;; a counter to estimate the progress.
+                                ;; (message
+                                ;;  "Receiving data from Xselection : %d iterations ..."
+                                ;;  (truncate (/ count (brief-slowdown-factor))))
+                                ;; ;; This `sit-for' allows message buffer updating
                                 (sit-for (* 0.01 (brief-slowdown-factor))))))
 
                           (if (not (fboundp 'make-process))
@@ -3068,7 +3082,7 @@ program."
                                   (and (= 0 brief-external-process-status-changed)
                                        (not (and
                                              brief-giveup-clipboard-backup-if-huge
-                                             <brief-backing-up-clipboard>
+                                             brief--backing-up-clipboard
                                              (> (- (brief-current-time)
                                                    start-wait-time)
                                                 brief-giveup-clipboard-backup-timeout))))
@@ -3078,10 +3092,10 @@ program."
                           ;; Show total bytes received if user had waited long
                           ;; enough to see the earlier recv message.
                           (when (and brief-show-external-clipboard-recv-progress
-                                     (> <brief-external-bytes-received> 0))
+                                     (> brief--external-bytes-received 0))
                             (message
                              "Total %d bytes received from Xselection in %.3f seconds"
-                             <brief-external-bytes-received>
+                             brief--external-bytes-received
                              (- (brief-current-time) start-wait-time)))))
 
                     ;; User quit
@@ -3153,7 +3167,8 @@ program."
       result)))
 
 ;;(defvar brief-external-sending 0) ;;DBG
-(defconst brief-external-send-blocksize (* 2 65536)
+(defconst brief-external-send-blocksize  65536 ;; (* 2 65536)
+  ;; The old value (* 2 65536) make the send progress x32 times slower!
   "Maximum block size when sending string to external Xselection.
 The block size is counted in 'characters' with the current buffer
 encoding, not in bytes.")
@@ -3301,7 +3316,10 @@ This function does not support native Win32/Win64."
                (databeg 0)
                (sentbytes 0)
                (sendstr "")
-               (dataend brief-external-send-blocksize))
+               (blocksize  (truncate (/ brief-external-send-blocksize
+                                        (brief-slowdown-factor))))
+               (dataend blocksize)
+               (start-wait-time (brief-current-time)))
 
           (set-process-query-on-exit-flag proc nil)
           ;;(message "*proc %S starts*" proc) ;;DBG
@@ -3336,19 +3354,20 @@ This function does not support native Win32/Win64."
                         (+ sentbytes (string-bytes sendstr)))
                   (process-send-string proc sendstr)
 
-                  (when (zerop (logand count 3))
+                  (when (zerop (logand count 255))
                     ;; Notice that this `sit-for' MUST be placed *BEFORE*
                     ;; showing the message, otherwise the `process-live-p'
                     ;; will think the PROC to be still running even if
                     ;; it's already exited or aborted.
-                    (accept-process-output)
+                    ;;(accept-process-output)
                     (sit-for 0.01 nil) ;; cannot be zero
                     (and brief-show-external-clipboard-send-progress
                          (process-live-p proc)
                          (message "* Sent %d bytes to Xselection"
                                   sentbytes)))
 
-                  (when brief-is-external-interruptible
+                  (when (and brief-is-external-interruptible
+                             (zerop (logand count 255)))
                     ;; Allow Emacs updating its internal status, or
                     ;; receive the 'quit signal.
                     (accept-process-output)
@@ -3356,7 +3375,7 @@ This function does not support native Win32/Win64."
                     )
                   (incf count)
                   (setq databeg dataend
-                        dataend (+ dataend brief-external-send-blocksize)))
+                        dataend (+ dataend blocksize)))
 
                 (if (process-live-p proc)
                     (progn
@@ -3364,8 +3383,9 @@ This function does not support native Win32/Win64."
                                (> databeg 0))
                           (if (>= databeg datalen)
                               (message
-                               "* Complete sending %d bytes to Xselection"
-                               databytes)
+                               "* Complete sending %d bytes to Xselection in %.3f seconds"
+                               databytes
+                               (- (brief-current-time) start-wait-time))
                             (message "* Interrupted sending to Xselection")))
                       (process-send-eof proc))
 
