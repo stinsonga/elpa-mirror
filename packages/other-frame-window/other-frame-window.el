@@ -25,16 +25,32 @@
 ;;
 ;;; Commentary:
 ;;
-;; C-x 7 <command> causes a buffer displayed by <command>
-;; to appear in another window in the same frame; a window
+;; other-frame-window provides prefix key sequences to control where a
+;; new buffer is created by a subsequent command. With no prefix, the
+;; buffer is created where the command decides (nominally the currently
+;; selected window). Prefix C-x 7 causes the buffer to appear in
+;; another window in the same frame; a window is created if necessary.
+;; Prefix C-x 9 causes the buffer to appear in another frame; a frame
 ;; is created if necessary.
 ;;
-;; C-x 9 <command> causes a buffer displayed by <command>
-;; to appear in another frame; a frame is created if necessary.
+;; Some commands display new buffers in other than the currently
+;; selected window, which defeats the purpose of ‘other-frame-window’ in
+;; the absense of a prefix. To override that, customize
+;; ‘display-buffer-alist’ for those commands. For example, to override
+;; ‘gud-gdb’:
+;;
+;; (add-to-list
+;;  'display-buffer-alist
+;;  (cons "\\*gud"
+;; 	 (cons 'display-buffer-same-window nil)))
+;; )
+;;
+;; Other key bindings provided by other-frame-window:
 ;;
 ;; C-x W moves the current buffer to another window in the same frame.
 ;;
 ;; C-x F moves the current buffer to another frame.
+;;
 ;;
 ;; In addition, C-x 7 and C-x 9 can be followed by these keys:
 ;;
@@ -62,13 +78,6 @@
 ;;
 ;; To extend this list, add key bindings to ‘ofw-transient-map’.
 ;;
-;; Some code in Emacs uses an explicit list of actions in a call to
-;; display-buffer, which can defeat the purpose of
-;; other-frame-window. To override that, add:
-;;
-;; (setq display-buffer-overriding-action (cons (list 'display-buffer-same-window) nil))
-;;
-;; to your Emacs init file.
 
 ;;;; Usage:
 ;;
@@ -308,15 +317,6 @@ m - compose mail in another window/frame.
 o - select another window/frame.
 
 r - find-file-read-only in another window/frame.
-
-To extend this list, add key bindings to ‘ofw-transient-map’.
-
-To override default Emacs behavior in the absence of a prefix, do:
-
-\(setq display-buffer-overriding-action
-  (cons (list 'display-buffer-same-window) nil))
-
-in your init file.
 "
   :global t
 
