@@ -1,6 +1,10 @@
 Some of the user visible news were:
 
 
+Version: 1.7.15
+
+  *El Occur* buffers are now initially unfolded.
+
 Version: 1.7.8
 
   Similar to isearch, el-search now opens invisible text.

@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.7.14
+;; Version: 1.7.15
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -256,9 +256,8 @@
 ;; match in that buffer or file.  With S-tab you can (un)collapse all
 ;; file sections like in `org-mode' to see only file names and the
 ;; number of matches, or everything.  Tab folds and unfolds
-;; expressions (this uses hideshow; initially, all expressions are
-;; folded to one line) and also sections at the beginning of
-;; headlines.
+;; expressions (this uses hideshow) and also sections at the beginning
+;; of headlines.
 ;;
 ;;
 ;; Multiple multi searches
@@ -3273,14 +3272,7 @@ Prompt for a new pattern and revert."
                                       (point) (el-search--end-of-sexp context-beg))))))
 
                               (let ((inhibit-message t) (message-log-max nil))
-                                (indent-region insertion-point (point))
-                                (save-excursion
-                                  (goto-char insertion-point)
-                                  (ignore-errors
-                                    ;; This can error...
-                                    (if nil ;if need-context
-                                        (hs-hide-level 1)
-                                      (hs-hide-block)))))
+                                (indent-region insertion-point (point)))
                               (insert "\n")))))))
 
                   (save-excursion
@@ -3315,8 +3307,7 @@ Prompt for a new pattern and revert."
 
 Buffers and files are separated by headlines.  Matches are
 highlighted with face `el-search-match'.  For short matches, some
-context is shown, and nearby matches are grouped.  Initially all
-expressions are folded to one line.
+context is shown, and nearby matches are grouped.
 \\<el-search-occur-mode-map>
 Clicking on a file or buffer name displays it in a different
 window and goes to the first match.
