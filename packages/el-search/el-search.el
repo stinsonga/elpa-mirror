@@ -3364,7 +3364,16 @@ Prompt for a new pattern and revert."
             (el-search--end-of-sexp match-beg)))))
 
 (defun el-search-occur-get-defun-context (match-beg)
-  (el-search--bounds-of-defun match-beg))
+  (let ((bounds (el-search--bounds-of-defun match-beg)))
+    (save-excursion
+      (goto-char (car bounds))
+      (let ((done nil))
+        (while (not (or done (bobp)))
+          (forward-line -1)
+          (if (looking-at-p "[[:space:]]*;")
+              (setf (car bounds) (point))
+            (setq done t)))))
+    bounds))
 
 (defun el-search-occur-get-null-context (match-beg)
   (cons match-beg (el-search--end-of-sexp match-beg)))
