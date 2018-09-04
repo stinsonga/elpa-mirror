@@ -63,6 +63,7 @@
 ./auctex/tex-info.el:   '("copyright" nil)
 ./debbugs/debbugs-gnu.el:	  (insert "  Copyright-paperwork-exempt: yes"))
 ./ergoemacs-mode/ergoemacs-themes.el:                 ,(lambda () emacs-copyright)
+./excorporate/excorporate-calfw.el:;; copyright assignment papers on file with the FSF.
 ./gnugo/gnugo.el:    (CP "Copyright"       game  simpletext)
 ./hyperbole/hib-doc-id.el:;;  Copyright:        
 ./math-symbol-lists/math-symbol-lists.el:    "columnsep" "columnseprule" "columnwidth" "contentsline" "copyright"
