@@ -1453,7 +1453,8 @@ optional MESSAGE are used to construct the error message."
   get-matches ;method returning a stream of all matches
   properties  ;An alist of additional properties.  Meaningful properties
               ;are:
-              ; - is-single-buffer   Indicates a single-buffer search
+              ; - is-single-buffer   Indicates a single-buffer search; value should
+              ;                      then be the searched buffer
               ; - description        When specified, a string describing the search
   )
 
@@ -1504,9 +1505,20 @@ optional MESSAGE are used to construct the error message."
        (eq (or buffer (current-buffer))
            (el-search-head-buffer (el-search-object-head el-search--current-search)))))
 
+(defun el-search-revive-search ()
+  (el-search-hl-post-command-fun 'stop)
+  (setq el-search--success nil)
+  (setq el-search--wrap-flag nil)
+  (el-search-reset-search el-search--current-search))
+
 (defun el-search-barf-if-not-search-buffer (&optional buffer &rest args)
-  (unless (el-search--search-buffer-p buffer)
-    (apply #'user-error (or args (list "Not in current search buffer")))))
+  (if (eq (alist-get 'is-single-buffer (el-search-object-properties el-search--current-search))
+          (current-buffer))
+      (unless (el-search-head-buffer (el-search-object-head el-search--current-search))
+        (el-search-revive-search)
+        (el-search--next-buffer el-search--current-search))
+    (unless (el-search--search-buffer-p buffer)
+      (apply #'user-error (or args (list "Not in current search buffer"))))))
 
 (defun el-search--get-search-description-string (search &optional verbose dont-propertize)
   (concat
@@ -3011,8 +3023,8 @@ make current."
                (el-search-hl-sexp)
                (el-search-hl-other-matches (el-search--current-matcher)))))))
     (el-search--message-no-log "[Search completed - restarting]")
+    (el-search-revive-search)
     (sit-for 1.5)
-    (el-search-reset-search el-search--current-search)
     (el-search-continue-search))
   (el-search-prefix-key-maybe-set-transient-map))
 
@@ -3160,7 +3172,7 @@ See `el-search-defined-patterns' for a list of defined patterns."
       (el-search--set-wrap-flag nil)
       (el-search--message-no-log "[Wrapped search]")
       (sit-for .7)
-      (el-search-from-beginning 'restart)))
+      (el-search-from-beginning 1)))
    ((or
      (el-search--pending-search-p)
      (and (eq this-command last-command)
@@ -3169,12 +3181,13 @@ See `el-search-defined-patterns' for a list of defined patterns."
       (el-search--skip-expression nil t)
       (el-search-continue-search 'from-here)))
    (t ;create a new search single-buffer search
-    (el-search-setup-search
-     pattern
-     (let ((current-buffer (current-buffer)))
-       (lambda () (stream (list current-buffer))))
-     (lambda (search) (setf (alist-get 'is-single-buffer (el-search-object-properties search)) t))
-     'from-here))))
+    (let ((current-buffer (current-buffer)))
+      (el-search-setup-search
+       pattern
+       (lambda () (stream (list current-buffer)))
+       (lambda (search) (setf (alist-get 'is-single-buffer (el-search-object-properties search))
+                              current-buffer))
+       'from-here)))))
 
 ;;;###autoload
 (defalias 'el-search #'el-search-pattern)
@@ -3328,12 +3341,13 @@ See the command `el-search-pattern' for more information."
       (progn
         (el-search-compile-pattern-in-search el-search--current-search)
         (el-search-prefix-key-maybe-set-transient-map))
-    (el-search-setup-search-1
-     pattern
-     (let ((current-buffer (current-buffer)))
-       (lambda () (stream (list current-buffer))))
-     'from-here
-     (lambda (search) (setf (alist-get 'is-single-buffer (el-search-object-properties search)) t)))
+    (let ((current-buffer (current-buffer)))
+      (el-search-setup-search-1
+       pattern
+       (lambda () (stream (list current-buffer)))
+       'from-here
+       (lambda (search) (setf (alist-get 'is-single-buffer (el-search-object-properties search))
+                              current-buffer))))
     ;; Make this buffer the current search buffer so that a following C-S
     ;; doesn't delete highlighting
     (el-search--next-buffer el-search--current-search))
@@ -3397,12 +3411,13 @@ Use the normal search commands to seize the search."
                              (user-error "No sexp at point")))))))
   (let ((printed-sexp (el-search--pp-to-string sexp)))
     (el-search--pushnew-to-history (concat "'" printed-sexp) 'el-search-pattern-history)
-    (el-search-setup-search-1
-     `',sexp
-     (let ((current-buffer (current-buffer)))
-       (lambda () (stream (list current-buffer))))
-     'from-here
-     (lambda (search) (setf (alist-get 'is-single-buffer (el-search-object-properties search)) t)))
+    (let ((current-buffer (current-buffer)))
+      (el-search-setup-search-1
+       `',sexp
+       (lambda () (stream (list current-buffer)))
+       'from-here
+       (lambda (search) (setf (alist-get 'is-single-buffer (el-search-object-properties search))
+                              current-buffer))))
     (el-search--next-buffer el-search--current-search)
     (setf (el-search-head-position (el-search-object-head el-search--current-search))
           (copy-marker (point)))
@@ -3533,7 +3548,7 @@ Prompt for a new pattern and revert."
        'from-here
        (lambda (search)
          (setf (alist-get 'is-single-buffer (el-search-object-properties search))
-               t)))
+               buffer)))
       (el-search--next-buffer el-search--current-search)
       (setq this-command 'el-search-pattern
             el-search--success t)
@@ -4246,21 +4261,21 @@ exactly you did?  Thanks!"))))
 (defun el-search--search-and-replace-pattern
     (pattern replacement &optional splice to-input-string use-current-search)
   (unless use-current-search
-    (el-search-setup-search-1 pattern
-                              (let ((current-buffer (current-buffer)))
-                                (lambda () (stream (list current-buffer))))
-                              t
-                              (let ((here (copy-marker (point))))
-                                (lambda (search)
-                                  (setf (alist-get 'is-single-buffer
-                                                   (el-search-object-properties search))
-                                        t)
-                                  (setf (alist-get 'description (el-search-object-properties search))
-                                        "Search created by `el-search-query-replace'")
-                                  (let ((inhibit-message t))
-                                    (el-search--next-buffer search)
-                                    (setf (el-search-head-position (el-search-object-head search))
-                                          here))))))
+    (let ((current-buffer (current-buffer)))
+      (el-search-setup-search-1 pattern
+                                (lambda () (stream (list current-buffer)))
+                                t
+                                (let ((here (copy-marker (point))))
+                                  (lambda (search)
+                                    (setf (alist-get 'is-single-buffer
+                                                     (el-search-object-properties search))
+                                          current-buffer)
+                                    (setf (alist-get 'description (el-search-object-properties search))
+                                          "Search created by `el-search-query-replace'")
+                                    (let ((inhibit-message t))
+                                      (el-search--next-buffer search)
+                                      (setf (el-search-head-position (el-search-object-head search))
+                                            here)))))))
   (catch 'done
     (let ((replace-all nil) (replace-all-and-following nil)
           nbr-replaced nbr-skipped (nbr-replaced-total 0) (nbr-changed-buffers 0)
