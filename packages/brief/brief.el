@@ -5,7 +5,7 @@
 ;; Author:     Luke Lee <luke.yx.lee@gmail.com>
 ;; Maintainer: Luke Lee <luke.yx.lee@gmail.com>
 ;; Keywords:   brief, emulations, crisp
-;; Version:    5.84
+;; Version:    5.85
 
 ;; GNU Emacs is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -22,29 +22,43 @@
 
 ;;; Commentary:
 
-;; This Brief editor emulator was originally based on the CRiSP mode
-;; emulator (listed below), with extensive rewriting.
 ;;
+;; This Extended Brief editor emulator was originally based on the
+;; CRiSP mode emulator (listed below), with extensive rewriting over
+;; 17+ years.  Almost all of the original Brief 3.1 Editor keys are
+;; implemented and extended.
+;;
+;; A lot of editor behaviors were also adapted to Emacs.  One example
+;; is that this Brief emulator is able to respect `visual-line-mode',
+;; `toggle-truncate-lines' and hidden/abbreviated mode texts (which
+;; usually shown as "..." in Emacs) such as org-mode, hideshow mode
+;; and hideif mode (hide C/C++ "#ifdef" conditional compilation units,
+;; another package that I had rewritten).  When texts are hidden at
+;; cursor line, Brief line-oriented commands like line-cut, line-copy,
+;; line-deletion ... will operate on all hidden lines.  For a complete
+;; description of the functions extended, search the "brief.el" source
+;; code for ";;; Brief Extension:".  Main TOC is:
+;;
+;;  * Visual mode, line truncation and hidden texts
+;;  * Fast line number computation cache
+;;  * Huge clipboard/Xselection texts
+;;  * External Xselection helper programs `xsel' and `xclip'
+;;  * Fast cursor movement
+;;  Key Binding Compatibility Note
+;;  Platform Compatibility Notes
+;;  Enabling Brief Mode
+;;  Cygwin 2.x Users
+;;
+;; Based CRiSP version info:
 ;;  CRiSP mode from XEmacs: revision 1.34 at 1998/08/11 21:18:53.
 ;;
 ;;   CRiSP mode was created on 01 Mar 1996 by
 ;;   "Gary D. Foster <gfoster@suzieq.ml.org>"
-
-;; There is also an Emacs version of "crisp.el" which is now obsolete
-;; but still (temporarily) exists in the Emacs source code repository
-;; at "<emacs>/src/lisp/obsolete/crisp.el".  In case of it being
-;; removed from Emacs source tree someday, I moved the whole
-;; development history from Emacs source into ELPA repository at
-;; "<elpa>/packages/crisp".  To check the whole development history
-;; log you need to clone the ELPA git repository, then go to
-;; sub-directory "packages/crisp" and type the command
-;; "git log --follow crisp.el".  Notice the "--follow" argument,
-;; lacking it git will only give you the history "after" the
-;; directory structure changed, which was introduced when moving
-;; CRiSP from Emacs source repository to ELPA.
+;;
 
 ;;; History:
 
+;;
 ;; Starting from 31 May 2001 I started modifying XEmacs CRiSP mode
 ;; emulator for my own use on Linux, in order to get a similar
 ;; finger-feel like the MS-DOS-based Brief editor which I had been
@@ -61,14 +75,18 @@
 ;; version 5.80), the code is almost completely rewritten compare to
 ;; the original XEmacs CRiSP mode code.
 ;;
-;; A lot of editor behaviors were also adapted to Emacs.  One example
-;; is that Brief mode emulator could respect `visual-line-mode',
-;; `toggle-truncate-lines' and hidden/abbreviated mode texts (which
-;; usually shown as "..." in Emacs) such as org-mode, hideshow mode
-;; and hideif (hide "#ifdef", conditional compilation units, another
-;; package that I had rewritten).  When texts are hidden at cursor
-;; line, Brief line-oriented commands like line-cut, line-copy,
-;; line-deletion ... will operate on all hidden lines.
+;; The original Emacs version of "crisp.el" is now obsolete but still
+;; (temporarily) exists in the Emacs source code repository at
+;; "<emacs_git_repo>/src/lisp/obsolete/crisp.el".  In case of it being
+;; removed from Emacs source tree someday, I moved the whole
+;; development history from Emacs source into ELPA repository at
+;; "<elpa>/packages/crisp".  To check the whole development history
+;; log you need to clone the ELPA git repository, then go to
+;; sub-directory "packages/crisp" and type the command
+;; "git log --follow crisp.el".  Notice the "--follow" argument,
+;; if lacking of it git will only give you the history "after" the
+;; directory structure changed, which was introduced when moving
+;; CRiSP from Emacs source repository to ELPA.
 ;;
 
 ;;; Brief Extension:
@@ -412,7 +430,7 @@
 ;; backward compatibility issues.
 ;;(require 'replace)
 
-(defconst brief-version "5.84"
+(defconst brief-version "5.85"
   "The version of this Brief emulator.")
 
 ;;
@@ -1008,7 +1026,6 @@ This works only if `brief-giveup-clipboard-backup-if-huge' is enabled."
   :type  'boolean
   :group 'brief)
 
-
 (defvar brief-xclipboard-args nil
   "Brief internal variable for external Xselection helper.")
 ;; format: (get-arg
@@ -1185,6 +1202,14 @@ just run-once for all cursors and multiple-cursors package will then
 register user's selection.  With this option set non-NIL, the choice
 of all Brief mode commands are set initially without the need of
 user's attention."
+  :type  'boolean
+  :group 'brief)
+
+(defcustom brief-turn-off-scroll-bar-mode  nil
+  "Turn off scroll-bar mode to save more window area for texts.
+As far as I knew quite a few old Brief users love its thin borders.  With
+this value set to non-NIL Brief mode turn-off `scroll-bar-mode' which
+saves the horizontal scroll bar for one more column of texts."
   :type  'boolean
   :group 'brief)
 
@@ -1485,8 +1510,18 @@ If ARG is non-NIL, insert results at point."
 (defvar brief-inhibit-bookmark-try-switch-frame-window nil
   "An internal flag to prevent bookmark jumps switching frame and window.")
 
+(defun brief-frame-list ()
+  "Return frame-list with current frame the first.
+When running in terminal mode, exclude root frame as it's incorrect for brief
+mode to access root frame windows."
+  (remove
+   (and (bound-and-true-p server-process)
+        (car (last (frame-list)))) ;; root frame
+   (cons (current-frame) ;; let current frame be the 1st frame to test
+         (remove (current-frame) (frame-list)))))
+
 (defun brief-bookmark-try-switch-frame-window (bookmark)
-  "Try to find a window containing this bookmark then jump to the frame and win.
+  "Try to find a window containing BOOKMARK then jump to the frame and window.
 If found, return 't; if not found, jump to the first frame/window
 containing the buffer and return symbol 'frame.  If no such buffer/
 window/frame exists, keep current frame/window and return NIL.
@@ -1533,8 +1568,7 @@ example, add the following into .emacs:
                  fname nil))
       (when (or fname bname)
         (catch 'found
-          (dolist (f (cons currf ;; let current frame be the 1st frame to test
-                           (remove currf (frame-list))))
+          (dolist (f (brief-frame-list))
             (select-frame f)
             (dolist (w (window-list))
               (and (setq buf (window-buffer w))
@@ -1662,11 +1696,18 @@ example, add the following into .emacs:
 (defun brief-bookmark-jump-set (bookmark) ;; 06/02/'08 ins 1 func
   "Jump to bookmark 0~9 if `brief-shorter-bookmark-jump-key' is t.
 Otherwise, set the bookmark at cursor.
-When prefixed with (\\[universal-argument]), it tries to restore the previous bookmark
-if there is one.  This is useful when user miss-typed a bookmark-set
-command somewhere but forgot where it originally was.  When the
-bookmark is successfully restored, again restoring the bookmark will
-bring it back to its new location (where user might just miss-typed)."
+
+When performing bookmark set, prefixed with (\\[universal-argument]), it tries to restore
+the previous bookmark if there is one.  This is useful when user
+miss-typed a bookmark-set command somewhere but forgot where it
+originally was.  When the bookmark is successfully restored, again
+restoring the bookmark will bring it back to its new location (where
+user might just miss-typed).
+
+When performing jump, prefixed with (\\[universal-argument]) will prevent it from
+switching window/frame and will search bookmark only within current
+window and frame.  See `brief-bookmark-try-switch-frame-window' for
+more detail."
     (if brief-shorter-bookmark-jump-key
         (brief-bookmark-do-jump bookmark)
       (brief-bookmark-do-set bookmark)))
@@ -1739,6 +1780,134 @@ When prefixed it won't switch current frame or buffer."
   "Jump/set bookmark '9'."
   (interactive)
   (brief-bookmark-jump-set ?9))
+
+;;
+;; Compilation buffer with its associated frame and window
+;;
+
+(defvar brief-compilation-frame-win nil
+  "Dedicated frame and window of the user assigned compilation buffer.")
+
+(defun brief-view-compilation-output ()
+  "Try to find the compilation frame and window.
+If not found, return NIL.  If found, return non-NIL and jump to the
+first frame/window containing '*compilation*' buffer, or any buffer in
+`compilation-mode', also set them as the dedicated frame/window for
+the next run.
+
+When prefixed with \\[universal-argument], it search only in current frame for a window
+containing a compilation buffer.  If it found one, it will assign that
+window and frame as the dedicated ones so that the next run it always
+try to pop the assigned frame and window containing the compilation
+buffer.  When the prefix is a number, the search is restricted only
+for '*compilation*' buffer.  Other compilation buffers like lisp
+compilation won't be counted in."
+  (interactive)
+  (if (and current-prefix-arg ;; pure `universal-argument'
+           (equal current-prefix-arg '(4)))
+      (if (catch 'found
+            (dolist (w (cons (selected-window) ;; selected window preferred
+                             (remove (selected-window) (window-list))))
+              (when (eq (with-current-buffer (window-buffer w)
+                          major-mode)
+                        'compilation-mode)
+                (setq brief-compilation-frame-win
+                      (cons (selected-frame) w))
+                (throw 'found t)))
+            nil)
+          (message "Dedicated compilation buffer frame/window set.")
+        (message "No compilation window found in this frame."))
+
+    (if (eq major-mode 'compilation-mode)
+        ;; Already in compilation buffer, just go to previous error
+        (call-interactively 'compilation-previous-error)
+
+      ;; Search for a proper compilation buffer/frame/window
+      (let ((buf (get-buffer "*compilation*"))
+            (currf (selected-frame))
+            (foundframe nil)
+            (foundwin nil)
+            (strict (numberp current-prefix-arg))
+            wb f w)
+        ;; Check if the user assigned compilation-buffer dedicated
+        ;; frame and window are still alive as they was
+        (if (and brief-compilation-frame-win
+                 (setq f (car brief-compilation-frame-win))
+                 (setq w (cdr brief-compilation-frame-win))
+                 (framep f)
+                 (frame-live-p f)
+                 (windowp w)
+                 (window-live-p w)
+                 (eq (with-current-buffer (window-buffer w)
+                       major-mode)
+                     'compilation-mode)
+                 (or (not strict)
+                     (and strict
+                          (eq (window-buffer w) buf))))
+            ;; Still in good condition, use it
+            (setq foundframe f
+                  foundwin   w)
+
+          ;; No dedicated f/w or not in a good condition, search next
+          (setq brief-compilation-frame-win nil)
+          (catch 'found
+            (dolist (f (brief-frame-list))
+              (select-frame f)
+              (dolist (w (or (and (eq currf f) ;; in current frame
+                                  ;; selected window preferred
+                                  (cons (selected-window)
+                                        (remove (selected-window)
+                                                (window-list))))
+                             (window-list)))
+                (setq wb (window-buffer w))
+                (when (or (and buf (eq wb buf))
+                          (and (not strict)
+                               (eq (with-current-buffer wb major-mode)
+                                   'compilation-mode)))
+                  ;; Record the first found frame/win
+                  (if foundframe
+                      t
+                    (setq foundframe f
+                          foundwin   w))
+                  (if (eq wb buf)
+                      (throw 'found foundwin)))))
+            ;; Not found, switch back to the original frame
+            (select-frame currf)))
+
+        (if foundwin
+            (progn
+              ;; Found it, switch to that frame and window, also set
+              ;; that as dedicated one unless user assigned otherwise
+              (setq brief-compilation-frame-win
+                    (cons foundframe foundwin))
+              (select-frame-set-input-focus foundframe)
+              (raise-frame foundframe)
+              (select-window foundwin)
+              (when (boundp 'compilation-mode-map)
+                ;; Extend compilation-mode for brief style keys
+                ;;(define-key compilation-mode-map [(control p)]
+                ;;  'compilation-previous-error)
+                (define-key compilation-mode-map [(control n)]
+                  'compilation-next-error)))
+
+          ;; Not found, search buffer list if not strict search.
+          (if (not strict)
+              (catch 'found
+                (dolist (b (buffer-list))
+                  (if (eq (with-current-buffer b major-mode)
+                          'compilation-mode)
+                    (throw 'found (setq buf b))))))
+          (if (null buf)
+              (message (concat "No " (if strict
+                                         "*compilation*"
+                                       "compilation") " buffer found."))
+            ;; Open buffer in a split window
+            (if (= (length (window-list)) 1)
+                (split-window-vertically))
+            (other-window 1)
+            (switch-to-buffer buf)))
+
+        (or foundwin buf)))))
 
 ;;
 ;; Window locating functions
@@ -1884,8 +2053,10 @@ mode, as well as hidden texts."
                   begcol hscroll)))))))
 
 (defun brief-move-to-column (arg)
+  "Move to column ARG by considering the presence of hidden texts."
   (if (and (= 3 (- arg (move-to-column arg))) ;; (length "...") = 3
            (brief-is-crlf (following-char)))
+      ;;
       (let ((p1 (point)))
         (end-of-visual-line) ;; We're now at here
         (if (not (brief-is-crlf (following-char)))
@@ -1905,35 +2076,25 @@ mode, as well as hidden texts."
   "Return number of lines between START and END.
 START point is included while END point is excluded. Thus when
 START=END it always return 0.  This function returns the number of
-newlines between them.
-
-Counting UNIX style EOL 'LF' (line-feed) when using Unix encoding;
-counting MAC style EOL 'CR' (carrage-return) when using Mac encoding;
-counting DOS style EOL 'CRLF' when using DOS encoding."
+newlines between them."
   (save-excursion
     (save-restriction
-      (let* ((done 0)
-             eol)
-        (case (coding-system-eol-type buffer-file-coding-system)
-          (0 (setq eol "\n"))   ;; UNIX encoding
-          (1 (setq eol "\r\n")) ;; DOS encoding
-          (2 (setq eol "\r"))   ;; Mac encoding
-          (otherwise
-           ;; Default use UNIX encoding, like in the *Help* buffer
-           (setq eol "\n")))
+      (let* ((done 0))
         (narrow-to-region start end)
         (goto-char (point-min))
+        ;; Follow how `count-lines' do it
         (if (eq selective-display t)
             (save-match-data
-              ;; sometimes a lot of ^M are in a text file so don't include them
-              (while (search-forward eol nil t 64) ; was re-search-forward "[\n\C-m]"
+              (while (re-search-forward "[\n\C-m]" nil t 64)
                 (setq done (+ 64 done)))
-              (while (search-forward eol nil t 1)
+              (while (re-search-forward "[\n\C-m]" nil t 1)
                 (incf done))
               done)
           (setq done
                 (- (buffer-size) (forward-line (buffer-size))))
-          (if (not (bolp))
+          ;; Reverse the side effect caused by the above line
+          (if (and (/= start end)
+                   (not (bolp)))
               (1- done)
             done))))))
 
@@ -2836,7 +2997,7 @@ The 'key-up' is actually emulated by running an idle timer."
                     (/ 8388608  ;; 8M (empirical)
                        (exp (- (brief-slowdown-factor) 1.0)))))
         ;; More messages, slower the receiving
-        (message "Receiving data from Xselection : %d bytes ..."
+        (message "* Receiving data from Xselection : %d bytes ..."
                  brief--external-bytes-received)
         (setq brief--prev-external-bytes-received
               brief--external-bytes-received))
@@ -3238,11 +3399,11 @@ This function does not support native Win32/Win64."
                         (string= gui--last-selected-text-primary data)))
              t)
            ;;(message "dbg: write to /dev/clipboard")
-           (let ((encoding (symbol-name buffer-file-coding-system))
+           (let ((encoding (coding-system-eol-type buffer-file-coding-system))
                  eol)
-             (unless (string-match "-dos$" encoding) ;; already dos encoding
+             (unless (= 1 encoding) ;; already dos encoding
                (setq eol
-                     (if (string-match "-mac$" encoding) ;; mac encoding
+                     (if (= 2 encoding) ;; mac encoding
                          "\r"
                        ;; default unix encoding
                        "\n"))
@@ -3381,7 +3542,7 @@ This function does not support native Win32/Win64."
                                (> databeg 0))
                           (if (>= databeg datalen)
                               (message
-                               "* Complete sending %d bytes to Xselection in %.3f seconds"
+                               "Complete sending %d bytes to Xselection in %.3f seconds"
                                databytes
                                (- (brief-current-time) start-wait-time))
                             (message "* Interrupted sending to Xselection")))
@@ -3552,14 +3713,14 @@ able to restore it back if we have no backups.")
   ;; installed, reenter will occur.
   (defvar brief-gui-get-selection-reentry nil
     "An internal variable to prevent advised function reenter.")
-  (defun brief-gui-get-selection (orig-func &rest args)
+
+  (defun brief-gui-get-selection (orig-func &optional type &rest args)
     "Brief's advice replacement for `gui-get-selection'."
     ;; [2017-07-14 Fri] When clipboard data is huge, `gui-backend-get-selection'
     ;; which was implemented as `x-get-selection-internal' will stop responding.
     (if brief-gui-get-selection-reentry
-        (apply orig-func args)
-      (let ((brief-gui-get-selection-reentry t)
-            (type (car args)))
+        (apply orig-func type args)
+      (let ((brief-gui-get-selection-reentry t))
         (if (or (and (brief-is-x)
                      brief-use-external-clipboard-when-possible)
                 (brief-is-terminal))
@@ -3571,7 +3732,7 @@ able to restore it back if we have no backups.")
                   ;; TODO: revise this for Win32/64 Emacs newer than v23
                   (or (w32-get-clipboard-data)
                       (w32--get-selection)))
-              (apply orig-func args))))))
+              (apply orig-func type args))))))
 
   ;;(advice-remove 'gui-get-selection 'brief-gui-get-selection)
   ;;(advice-add 'gui-get-selection :around 'brief-gui-get-selection)
@@ -3584,6 +3745,7 @@ able to restore it back if we have no backups.")
 
   (defvar brief-gui-set-selection-reentry nil
     "An internal variable to prevent advised function reenter.")
+
   ;; The core modification that prevent Windows X server failure
   ;; due to too much flooding message as clipboard change caused by
   ;; Microsoft Office
@@ -4046,25 +4208,27 @@ The implementation of `cua-close-rectangle' does not invoke the
                           'print-region
                         'print-buffer)))
 
-(defalias 'brief-buffer-read-only-toggle
-  (if (fboundp 'read-only-mode)
-      'read-only-mode
-    (lambda ()
-      ;; 06/21/2005 ins function
-      "Toggle buffer read only status ON/OFF."
-      (interactive)
-      ;;(if (and (buffer-modified-p) (not buffer-read-only))
-      ;;    ;;if it's modified, it must not be read-only
-      ;;    ;; - [2013-01-31 10:06:48 +0800] false assumption, buffers created by
-      ;;    ;; '*Find*' will be such case.
-      ;;    (message
-      ;; "Buffer modified, cannot set to read-only. Please save the buffer first.")
-      (setq buffer-read-only (not buffer-read-only))
-      (force-mode-line-update) ;; 05/07/2008 ins 1
+(defun brief-buffer-read-only-toggle ()
+  ;; 06/21/2005 ins function
+  "Toggle buffer read only status ON/OFF."
+  (interactive)
+  (if (fboundp 'read-only-mode) ;; above Emacs23
       (if buffer-read-only
-          (message "Buffer set to read-only")
-        (message
-         "Buffer set to read-write, careful not to modify read-only files!")))))
+          (read-only-mode -1)
+        (read-only-mode 1))
+    ;;(if (and (buffer-modified-p) (not buffer-read-only))
+    ;;    ;;if it's modified, it must not be read-only
+    ;;    ;; - [2013-01-31 10:06:48 +0800] false assumption, buffers created by
+    ;;    ;; '*Find*' will be such case.
+    ;;    (message
+    ;; "Buffer modified, cannot set to read-only. Please save the buffer first.")
+    (setq buffer-read-only (not buffer-read-only)))
+
+  (force-mode-line-update) ;; 05/07/2008 ins 1
+  (if buffer-read-only
+      (message "Buffer set to read-only")
+    (message
+     "Buffer set to read-write, careful when modifying read-only files!")))
 
 (defun brief-mark-line (arg)
   "Set mark at the end of the line.
@@ -6422,6 +6586,7 @@ from `write-file'."
 
 (brief-key [(f10)]                  'execute-extended-command)
 (brief-key [(meta f10)]             'compile)
+(brief-key [(control p)]            'brief-view-compilation-output)
 
 (brief-key [(meta b)]               'brief-buffer-list-window)
 ;; added function brief-indent-tab
@@ -6681,7 +6846,10 @@ Also set internal variable `brief--prev-brief-mode'."
   "(Backup variable for Win32/Win64 only)")
 
 (defvar brief-backup-cua-mode cua-mode
-  "Backup variable for cua-mode, before enabling brief-mode.")
+  "Backup variable for `cua-mode', before enabling Brief mode.")
+
+(defvar brief-backup-scroll-bar-mode scroll-bar-mode
+  "Backup variable for `scroll-bar-mode', before enabling Brief mode.")
 
 ;;;###autoload
 (define-minor-mode brief-mode
@@ -6738,6 +6906,9 @@ toggle brief-mode."
         (progn
           ;; restore cua-mode
           (cua-mode (if brief-backup-cua-mode 1 -1))
+          ;; restore scroll-bar-mode if customized to do so
+          (if brief-turn-off-scroll-bar-mode
+              (scroll-bar-mode (if brief-backup-scroll-bar-mode 1 -1)))
 
           (if (and (brief-is-winnt)
                    (boundp 'select-enable-clipboard))
@@ -6835,9 +7006,13 @@ toggle brief-mode."
       ;; Enable brief mode
       ;;
 
-      ;; Need to enable cua-mode for rectangle operation
+      ;; Need to enable `cua-mode' for rectangle operation
       (setq brief-backup-cua-mode cua-mode)
       (cua-mode 1)
+      ;; Disable `scroll-bar-mode' if customized to do so
+      (when brief-turn-off-scroll-bar-mode
+        (setq brief-backup-scroll-bar-mode scroll-bar-mode)
+        (scroll-bar-mode -1))
 
       (if brief-enable-postpone-selection
           (brief-enable-clipboard-postponement))
