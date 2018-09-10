@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.7.8
+;; Version: 1.7.9
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -585,6 +585,16 @@ to go back to the position of the current match.
 
 When nil, scrolling commands deactivate the search (like any
 other command that doesn't continue el-searching)."
+  :type 'boolean)
+
+(defcustom el-search-fancy-scrolling t
+  "Whether to enable fancy scrolling in el-search.
+When active, el-search tries to scroll the selected window in a
+way to make the current match better visible.  When off, only the
+default scrolling done by Emacs is used.  Since el-search puts point
+at the beginning of each match, this means that the end of each match
+can still be after `window-end'.  Fancy scrolling tries to make the
+whole match visible whenever possible."
   :type 'boolean)
 
 (defvar el-search-read-expression-map
@@ -2132,26 +2142,41 @@ absolute name must be matched by all of them."
   "Non-nil indicates we should not remove any highlighting.")
 
 (defun el-search--scroll-sexp-in-view (bounds)
-  (let ((wheight (window-height)))
-    ;; FIXME: make the following integer constants customizable,
-    ;; presumably, named in analogy to the scroll- options?
-    (unless (pos-visible-in-window-p
-             (save-excursion (goto-char (cadr bounds))
-                             (line-end-position (max +3 (/ wheight 25)))))
-      (condition-case nil
-          (scroll-up (min
-                      (max
-                       ;; make at least sexp end + a small margin visible
-                       (+ (count-screen-lines (cadr bounds) (window-end))
-                          (max 2 (/ wheight 4)))
-                       ;; also try to center current sexp
-                       (/ (+ (count-screen-lines (window-start) (car  bounds))
-                             (count-screen-lines (window-end)   (cadr bounds)))
-                          2))
-                      ;; but also ensure at least a small margin is left between point and window start
-                      (- (count-screen-lines (car bounds) (window-start))
-                         3)))
-        ((beginning-of-buffer end-of-buffer) nil)))))
+  ;; Try to make the sexp bounded by BOUNDS better visible.
+  ;; This tries to scroll (cdr BOUNDS) into view when necessary, and to
+  ;; center the sexp.
+  (when el-search-fancy-scrolling
+    (let ((wheight (window-height)))
+      ;; FIXME: make the following integer constants customizable,
+      ;; presumably, named in analogy to the scroll- options?
+      (unless (pos-visible-in-window-p
+               ;; Don't adjust scrolling when the sexp is already completely visible
+               (save-excursion (goto-char (cadr bounds))
+                               (line-end-position (max +3 (/ wheight 25)))))
+        (cl-flet ((signed-screen-lines-count
+                   (lambda (a b) (funcall (if (< b a) #'- #'identity )
+                                          (count-screen-lines a b)))))
+
+          (condition-case nil
+              (scroll-up (min
+                          (max
+                           ;; make at least sexp end + a small margin visible
+                           (+ (signed-screen-lines-count (window-end) (cadr bounds))
+                              (max 2 (/ wheight 4)))
+
+                           ;; also try to center current sexp - this is
+                           ;;        / l(window-start) + l(window-end)  l(car bounds) + l(cdr bounds) \
+                           ;; #lines | -------------------------------, ----------------------------- |
+                           ;;        \                 2                              2               /
+                           (/ (+ (signed-screen-lines-count (window-start) (car  bounds))
+                                 (signed-screen-lines-count (window-end)   (cadr bounds)))
+                              2))
+
+                          ;; but also ensure at least a small margin is left between point and
+                          ;; window start
+                          (- (signed-screen-lines-count (window-start) (car bounds))
+                             3)))
+            ((beginning-of-buffer end-of-buffer) nil)))))))
 
 (defun el-search-hl-sexp (&optional bounds)
   (let ((bounds (or bounds (list (point) (el-search--end-of-sexp)))))
