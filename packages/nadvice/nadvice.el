@@ -3,7 +3,7 @@
 ;; Copyright (C) 2018  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
-;; Version: 0.1
+;; Version: 0.2
 ;; Keywords: 
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -73,6 +73,8 @@
 (defun advice-remove (symbol function)
   (ad-remove-advice symbol 'around function)
   (ad-activate symbol))
+
+)
 
 (provide 'nadvice)
 ;;; nadvice.el ends here
