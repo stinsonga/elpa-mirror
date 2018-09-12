@@ -27,7 +27,7 @@
 ;;
 ;; Limitations;
 ;; - only supports `advice-add' and `advice-remove';
-;; - only handles the :before, :after, and :around kinds of advice;
+;; - only handles the :before, :after, :override, and :around kinds of advice;
 ;; - requires a named rather than anonymous function;
 ;; - and does not support any additional properties like `name' or `depth'.
 ;;
@@ -52,6 +52,8 @@
                 `(progn (apply #',function (ad-get-args 0)) ad-do-it))
                ((eq where :after)
                 `(progn ad-do-it (apply #',function (ad-get-args 0))))
+               ((eq where :override)
+                `(setq ad-return-value (apply #',function (ad-get-args 0))))
                ((eq where :around)
                 `(setq ad-return-value
                        (apply #',function
@@ -59,7 +61,8 @@
                                 (ad-set-args 0 nadvice--rest-arg)
                                 ad-do-it)
                               (ad-get-args 0))))
-               (t (error "This version of nadvice.el only handles :before, :after, and :around")))))
+               (t (error "This version of nadvice.el does not handle %S"
+                         where)))))
     (ad-add-advice symbol
                    `(,function nil t (advice lambda () ,body))
                    'around
