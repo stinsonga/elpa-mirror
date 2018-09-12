@@ -1,6 +1,6 @@
 ;;; nadvice.el --- Forward compatibility for Emacs-24.4's nadvice
 
-;; Copyright (C) 2018  Stefan Monnier
+;; Copyright (C) 2018  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Version: 0.1
