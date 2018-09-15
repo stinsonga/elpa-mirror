@@ -3,7 +3,7 @@
 ;; Copyright (C) 2018  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
-;; Version: 0.2
+;; Version: 0.3
 ;; Keywords:
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -77,8 +77,14 @@
 
 ;;;###autoload
 (defun advice-remove (symbol function)
-  (ad-remove-advice symbol 'around function)
-  (ad-activate symbol))
+  ;; Just return nil if there is no advice, rather than signaling an
+  ;; error.
+  (condition-case nil
+      (ad-remove-advice symbol 'around function)
+    (error nil))
+  (condition-case nil
+      (ad-activate symbol)
+    (error nil)))
 
 )
 
