@@ -38,6 +38,8 @@
 
 (declare-function ad-remove-advice "advice")
 
+(eval-and-compile (require 'advice))
+
 (unless (fboundp 'add-function)
   ;; If `add-function' is defined, we're presumably running on
   ;; an Emacs that comes with the real nadvice.el, so let's be careful
