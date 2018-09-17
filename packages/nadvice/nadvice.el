@@ -26,7 +26,7 @@
 ;; move to the new advice system without dropping support for Emacs<24.4.
 ;;
 ;; Limitations;
-;; - only supports `advice-add' and `advice-remove';
+;; - only supports `advice-add', `advice-remove', and `advice-member-p'.
 ;; - only handles the :before, :after, :override, and :around kinds of advice;
 ;; - requires a named rather than anonymous function;
 ;; - and does not support any additional properties like `name' or `depth'.
@@ -46,6 +46,9 @@
   ;; Load `advice' manually, in case `advice-remove' is called first,
   ;; since ad-remove-advice is not autoloaded.
   (require 'advice)
+
+(defun advice-member-p (advice symbol)
+  (ad-find-advice symbol 'around advice))
 
 ;;;###autoload
 (defun advice-add (symbol where function &optional props)
@@ -79,12 +82,9 @@
 (defun advice-remove (symbol function)
   ;; Just return nil if there is no advice, rather than signaling an
   ;; error.
-  (condition-case nil
-      (ad-remove-advice symbol 'around function)
-    (error nil))
-  (condition-case nil
-      (ad-activate symbol)
-    (error nil)))
+  (when (advice-member-p function symbol)
+    (ad-remove-advice symbol 'around function)
+    (ad-activate symbol)))
 
 )
 
