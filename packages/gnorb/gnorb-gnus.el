@@ -356,7 +356,7 @@ work."
 			  (find-file (nth 1 rel-headings))
 			  (goto-char (nth 3 rel-headings))
 			  (org-id-get-create))))))
-    (if (not (eq major-mode 'message-mode))
+    (if (not (derived-mode-p 'message-mode 'mail-mode))
 	;; The message is already sent, so we're relying on whatever was
 	;; stored into `gnorb-gnus-message-info'.
 	(if (equal arg '(16))
@@ -364,7 +364,7 @@ work."
 	    unsent message.")
 	  (if arg
 	      (progn
-		(push (car rel-headings) gnorb-message-org-ids)
+		(push (caar rel-headings) gnorb-message-org-ids)
 		(gnorb-org-restore-after-send))
 	    (setq ref-ids (plist-get gnorb-gnus-message-info :refs))
 	    (if ref-ids
