@@ -226,14 +226,22 @@ The default value is nil."
   "Return a list of files that changed relative to COMMIT.
 COMMIT defaults to HEAD."
   (cl-callf or commit "HEAD")
-  (let ((default-directory repo-root-dir))
-    (mapcar #'expand-file-name
-            (split-string
-             (let ((current-message (current-message)))
-               (with-temp-message (concat current-message "  [Calling VCS...]")
-                 (shell-command-to-string
-                  (format "git diff -z --name-only %s --" (shell-quote-argument commit)))))
-             "\0" t))))
+  (let ((default-directory repo-root-dir)
+        (message-log-max nil)
+        (current-message (current-message)))
+    (with-temp-message (concat current-message "  [Calling VCS...]")
+      (mapcar #'expand-file-name
+              (cl-nintersection
+               (split-string
+                (shell-command-to-string
+                 (format "git diff -z --name-only %s --" (shell-quote-argument commit)))
+                "\0" t)
+               (split-string
+                (shell-command-to-string
+                 (format "git diff -z --name-only 4b825dc642cb6eb9a060e54bf8d69288fbee4904 %s --"
+                         (shell-quote-argument commit)))
+                "\0" t)
+               :test #'equal)))))
 
 (defvar vc-git-diff-switches)
 (defun el-search--file-changed-p (file revision)
