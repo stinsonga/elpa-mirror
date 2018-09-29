@@ -156,7 +156,6 @@ and Gnus and BBDB maps."
 
 (defun gnorb-follow-gnus-link (group id)
   "Be a little clever about following gnus links.
-
 The goal here is reuse frames and windows as much as possible, so
 we're not opening multiple windows on the *Group* buffer, for
 instance, and messing up people's layouts. There also seems to be
@@ -211,16 +210,13 @@ window."
   ;; called from elsewhere...
   (let* ((id (gnorb-bracket-message-id id))
 	 (arts (gnus-group-unread group))
-	 artno success)
-    (or (setq artno (car (gnus-registry-get-id-key id 'artno)))
-	(progn
-	  (setq artno (cdr (gnus-request-head id group)))
-	  (gnus-registry-set-id-key id 'artno (list artno))))
+	 (artno (cdr (gnus-request-head id group)))
+	 success)
     (gnus-activate-group group)
     (setq success (gnus-group-read-group arts t group))
     (if success
 	(gnus-summary-goto-article artno nil t)
-      (signal 'error "Group could not be opened."))))
+      (signal 'error (format "Group %s could not be opened." group)))))
 
 ;; I'd like to suggest this as a general addition to Emacs.  *Very*
 ;; tired of abusing `completing-read' for this purpose.
