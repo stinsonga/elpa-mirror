@@ -516,7 +516,12 @@ methods?"
 				   gnorb-gnus-sent-groups)))
 	(while (setq server-group (pop candidates))
 	  (when (and (stringp server-group)
-		     (string-match-p "+" server-group)
+		     ;; I don't remember the reason for this check,
+		     ;; which is totally fragile and fails on groups
+		     ;; belonging to `gnus-select-method': another
+		     ;; reason why this select method stuff is a mess.
+
+		     ;;(string-match-p "+" server-group)
 		     (not
 		      (string-match-p
 		       "\\(nnir\\|nnvirtual\\|UNKNOWN\\)"
@@ -532,7 +537,6 @@ methods?"
 
 (defun gnorb-collect-ids (&optional id)
   "Collect all Org IDs for a subtree.
-
 Starting with the heading under point (or the heading indicated
 by the ID argument), collect its ID property, and the IDs of all
 child headings."
