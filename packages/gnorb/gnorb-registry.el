@@ -81,16 +81,18 @@ sent. Save the relevant Org ids in the 'gnorb-ids key."
 (defun gnorb-registry-capture ()
   "When capturing from a Gnus message, add our new Org heading id
 to the message's registry entry, under the `gnorb-ids' key."
-  (when (and (with-current-buffer
-		 (org-capture-get :original-buffer)
-	       (memq major-mode '(gnus-summary-mode gnus-article-mode)))
-	     (not org-note-abort))
-    (let* ((msg-id
-	    (gnorb-bracket-message-id
-	     (plist-get org-store-link-plist :message-id)))
-	   (org-id (org-id-get-create)))
-      (plist-put org-capture-plist :gnorb-id org-id)
-      (gnorb-registry-make-entry msg-id nil nil org-id nil))))
+  (let ((orig-buff (org-capture-get :original-buffer)))
+    (when (and (buffer-live-p orig-buff)
+	       (with-current-buffer
+		   orig-buff
+		 (memq major-mode '(gnus-summary-mode gnus-article-mode)))
+	       (not org-note-abort))
+      (let* ((msg-id
+	      (gnorb-bracket-message-id
+	       (plist-get org-store-link-plist :message-id)))
+	     (org-id (org-id-get-create)))
+	(plist-put org-capture-plist :gnorb-id org-id)
+	(gnorb-registry-make-entry msg-id nil nil org-id nil)))))
 
 (defun gnorb-find-visit-candidates (ids &optional include-zombies)
   "For all message-ids in IDS (which should be a list of
