@@ -3608,7 +3608,7 @@ Prompt for a new pattern and revert."
        #'hs-toggle-hiding
      #'outline-toggle-children)))
 
-(defvar el-search-occur-mode-map
+(defvar el-search-occur-mode-map-1
   (let ((map (make-sparse-keymap)))
     (define-key map [tab]           #'el-search-occur-tab-command)
     (define-key map "\t"            #'el-search-occur-tab-command)
@@ -3625,10 +3625,23 @@ Prompt for a new pattern and revert."
     (define-key map [?c ?d]         #'el-search-occur-defun-context)
     (define-key map [?c ?a]         #'el-search-occur-defun-context)
     (define-key map [?c ?s]         #'el-search-occur-some-context)
+    map))
+
+(defvar el-search-occur-mode-map
+  (let ((map (copy-keymap el-search-occur-mode-map-1)))
     (set-keymap-parent map (make-composed-keymap special-mode-map emacs-lisp-mode-map))
     map))
 
 (define-derived-mode el-search-occur-mode emacs-lisp-mode "El-Occur"
+  "Major mode for El-Occur buffers.
+
+This mode provides the following key bindings:
+
+\\{el-search-occur-mode-map-1}
+The mode's keymap inherits from `emacs-lisp-mode-map' and in
+addition from `special-mode-map':
+
+\\{special-mode-map}"
   (setq-local revert-buffer-function #'el-search-occur-revert-function)
   (setq buffer-read-only t)
   (setq-local hs-hide-comments-when-hiding-all nil)
