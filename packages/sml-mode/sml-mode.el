@@ -1,9 +1,9 @@
 ;;; sml-mode.el --- Major mode for editing (Standard) ML  -*- lexical-binding: t; coding: utf-8 -*-
 
-;; Copyright (C) 1989,1999,2000,2004,2007,2010-2017  Free Software Foundation, Inc.
+;; Copyright (C) 1989,1999,2000,2004,2007,2010-2018  Free Software Foundation, Inc.
 
 ;; Maintainer: Stefan Monnier <monnier@iro.umontreal.ca>
-;; Version: 6.8
+;; Version: 6.9
 ;; Keywords: SML
 ;; Author:	Lars Bo Nielsen
 ;;		Olin Shivers
@@ -50,6 +50,11 @@
 ;; - indentation of a declaration after a long `datatype' can be slow.
 
 ;;;; News:
+
+;;;;; Changes since 6.8:
+
+;; - new var sml-abbrev-skeletons to control whether to include skeletons
+;;   in the main abbrev table.
 
 ;;;;; Changes since 5.0:
 
@@ -1252,6 +1257,20 @@ TAB file name completion, as in shell-mode, etc.."
 
 (defvar comment-quote-nested)
 
+(defcustom sml-abbrev-skeletons t
+  "Whether to include skeletons in `sml-mode's abbrev table."
+  :type 'boolean)
+
+(define-abbrev-table 'sml-skel-abbrev-table nil
+  "Abbrev table for skeletons in `sml-mode.'"
+  :case-fixed t
+  :enable-function
+  (lambda () (and sml-abbrev-skeletons (not (nth 8 (syntax-ppss))))))
+
+(define-abbrev-table 'sml-mode-abbrev-table nil
+  "Abbrevs for `sml-mode.'"
+  :parents (list sml-skel-abbrev-table))
+
 ;;;###autoload
 (define-derived-mode sml-mode sml-prog-proc-mode "SML"
   "\\<sml-mode-map>Major mode for editing Standard ML code.
@@ -1484,20 +1503,16 @@ arguments at all.
 signature, structure, and functor by default.")
 
 (defmacro sml-def-skeleton (name interactor &rest elements)
+  (declare (indent 2))
   (let ((fsym (intern (concat "sml-form-" name))))
     `(progn
        (add-to-list 'sml-forms-alist ',(cons name fsym))
-       (define-abbrev sml-mode-abbrev-table ,name "" ',fsym nil 'system)
-       (let ((abbrev (abbrev-symbol ,name sml-mode-abbrev-table)))
-         (abbrev-put abbrev :case-fixed t)
-         (abbrev-put abbrev :enable-function
-                     (lambda () (not (nth 8 (syntax-ppss))))))
+       (define-abbrev sml-skel-abbrev-table ,name "" ',fsym :system t)
        (define-skeleton ,fsym
          ,(format "SML-mode skeleton for `%s..' expressions" name)
          ,interactor
          ,(concat name " ") >
          ,@elements))))
-(put 'sml-def-skeleton 'lisp-indent-function 2)
 
 (sml-def-skeleton "let" nil
   @ "\nin " > _ "\nend" >)
