@@ -31,11 +31,27 @@
 ;; diverged).
 
 (("ack"			:subtree "https://github.com/leoliu/ack-el")
- ("aggressive-indent" :subtree "https://github.com/Malabarba/aggressive-indent-mode")
+ ("aggressive-indent"	:subtree "https://github.com/Malabarba/aggressive-indent-mode")
  ("auctex"		:external "git://git.sv.gnu.org/auctex.git")
  ("bbdb"		:external "git://git.savannah.nongnu.org/bbdb.git")
- ("bug-hunter" :subtree "https://github.com/Malabarba/elisp-bug-hunter")
+ ("bug-hunter"		:subtree "https://github.com/Malabarba/elisp-bug-hunter")
  ;;FIXME:("cedet"	:external "??")
+ ;; ("cc-mode"		:core ("lisp/progmodes/cc-align.el"
+ ;;                               "lisp/progmodes/cc-awk.el"
+ ;;                               "lisp/progmodes/cc-bytecomp.el"
+ ;;                               "lisp/progmodes/cc-cmds.el"
+ ;;                               "lisp/progmodes/cc-defs.el"
+ ;;                               "lisp/progmodes/cc-engine.el"
+ ;;                               "lisp/progmodes/cc-fonts.el"
+ ;;                               "lisp/progmodes/cc-guess.el"
+ ;;                               "lisp/progmodes/cc-langs.el"
+ ;;                               "lisp/progmodes/cc-menus.el"
+ ;;                               "lisp/progmodes/cc-mode.el"
+ ;;                               "lisp/progmodes/cc-styles.el"
+ ;;                               "lisp/progmodes/cc-vars.el"
+ ;;                               ;; FIXME: elpa.gnu.org doesn't know how to build
+ ;;                               ;; the .info file from this texi file!
+ ;;                               "doc/misc/cc-mode.texi"))
  ("chess"		:external nil) ;; Was https://github.com/jwiegley/emacs-chess.git
  ;; ("cobol-mode"          :subtree "https://gist.github.com/Edward-H/6768e7dc53ea3dd2adca")
  ("cl-print"		:core "lisp/emacs-lisp/cl-print.el")
@@ -60,6 +76,7 @@
  ("ergoemacs-mode"	:external "https://github.com/ergoemacs/ergoemacs-mode.git")
  ("exwm"		:external "https://github.com/ch11ng/exwm.git")
  ("f90-interface-browser" :subtree "https://github.com/wence-/f90-iface")
+ ("fountain-mode"	:external "https://github.com/rnkn/fountain-mode")
  ("ggtags"		:subtree "https://github.com/leoliu/ggtags")
  ("gnome-c-style"	:subtree "https://github.com/ueno/gnome-c-style.git")
  ("gnorb"               :subtree "https://github.com/girzel/gnorb")
@@ -71,8 +88,8 @@
  ("let-alist"		:core "lisp/emacs-lisp/let-alist.el")
  ("math-symbol-lists" 	:subtree "https://github.com/vspinu/math-symbol-lists.git")
  ("mmm-mode"            :external "https://github.com/purcell/mmm-mode.git")
- ("nameless" :subtree "https://github.com/Malabarba/Nameless")
- ("names" :subtree "http://github.com/Malabarba/names")
+ ("nameless"		:subtree "https://github.com/Malabarba/Nameless")
+ ("names"		:subtree "http://github.com/Malabarba/names")
  ("omn-mode"            :external nil)
  ("orgalist"            :external nil)
  ("ntlm"		:core "lisp/net/ntlm.el")
@@ -87,8 +104,8 @@
  ("rich-minority"	:subtree "https://github.com/Malabarba/rich-minority")
  ("rudel"		:external nil) ;; Was bzr::bzr://rudel.bzr.sourceforge.net/bzrroot/rudel/trunk
  ("soap-client"		:core ("lisp/net/soap-client.el" "lisp/net/soap-inspect.el"))
- ("sotlisp" :subtree "https://github.com/Malabarba/speed-of-thought-lisp")
- ("spinner" :subtree "https://github.com/Malabarba/spinner.el")
+ ("sotlisp"		:subtree "https://github.com/Malabarba/speed-of-thought-lisp")
+ ("spinner"		:subtree "https://github.com/Malabarba/spinner.el")
  ("sql-indent"          :external "https://github.com/alex-hhh/emacs-sql-indent")
  ("temp-buffer-browse"  :subtree "https://github.com/leoliu/temp-buffer-browse")
  ("test-simple"         :subtree "https://github.com/rocky/emacs-test-simple")
