@@ -51,6 +51,7 @@
 (require 'gnus-registry)
 (require 'gnorb-utils)
 (require 'cl-lib)
+(eval-when-compile (require 'subr-x))
 
 (defgroup gnorb-registry nil
   "Gnorb's use of the Gnus registry."
@@ -81,6 +82,9 @@ sent. Save the relevant Org ids in the 'gnorb-ids key."
 (defun gnorb-registry-capture ()
   "When capturing from a Gnus message, add our new Org heading id
 to the message's registry entry, under the `gnorb-ids' key."
+  ;; We're called by org-capture.
+  (declare-function org-capture-get "org-capture" (prop &optional local))
+  (defvar org-capture-plist)
   (let ((orig-buff (org-capture-get :original-buffer)))
     (when (and (buffer-live-p orig-buff)
 	       (with-current-buffer
@@ -174,7 +178,7 @@ archived headings as well."
 		   (and clean-archived
 			(string-match-p "org_archive$" file)))
 	   (gnorb-delete-all-associations k)
-	   (incf deleted-count))))
+	   (cl-incf deleted-count))))
      gnorb-id-tracker)
     (message "Deleted %d invalid associations"
 	     deleted-count)))
@@ -239,9 +243,10 @@ tagged messages, and how much of the registry is occupied."
 	 (tags (gnorb-registry-tracked-tags))
 	 (total-occupied (length (delete-dups (append messages tagged))))
 	 (reg-size (registry-size gnus-registry-db))
-	 (reg-max-size (if (slot-exists-p gnus-registry-db 'max-size)
-			   (oref gnus-registry-db max-size)
-			 (oref gnus-registry-db max-hard))))
+	 (reg-max-size
+	  (slot-value gnus-registry-db
+                      (if (slot-exists-p gnus-registry-db 'max-size)
+                          'max-size 'max-hard))))
     (with-current-buffer "*Gnorb Usage*"
       (let ((inhibit-read-only t))
 	(erase-buffer)
@@ -284,33 +289,35 @@ and then once you're sure everything's working okay, run it again
 with a prefix arg, to clean the Gnorb-specific properties from
 your Org files."
   (interactive "P")
+  (require 'gnorb-org)
+  (defvar gnorb-org-find-candidates-match)
+  (defvar gnorb-org-msg-id-key)
   (let ((count 0))
     (message "Collecting all relevant Org headings, this could take a while...")
     (org-map-entries
      (lambda ()
        (let ((id (org-id-get))
 	     (props (org-entry-get-multivalued-property
-	       (point) gnorb-org-msg-id-key))
-	     links)
-	(when props
-	  ;; If the property is set, we should probably assume that any
-	  ;; Gnus links in the subtree are relevant, and should also be
-	  ;; collected and associated.
-	  (setq links (gnorb-scan-links
-		       (org-element-property :end (org-element-at-point))
-		       'gnus))
-	  (dolist (l (alist-get 'gnus links))
-	    (gnorb-registry-make-entry
-	     (cl-second (split-string l "#")) nil nil
-	     id (cl-first (split-string l "#"))))
-	  (dolist (p props)
-	    (gnorb-registry-make-entry p nil nil id nil)
-	    ;; This function will try to find the group for the message
-	    ;; and set that value on the registry entry if it can find
-	    ;; it.
-	    (unless (gnus-registry-get-id-key p 'group)
-	      (gnorb-msg-id-request-head p))
-	    (cl-incf count)))))
+	             (point) gnorb-org-msg-id-key)))
+	 (when props
+	   ;; If the property is set, we should probably assume that any
+	   ;; Gnus links in the subtree are relevant, and should also be
+	   ;; collected and associated.
+	   (let ((links (gnorb-scan-links
+		         (org-element-property :end (org-element-at-point))
+		         'gnus)))
+	     (dolist (l (alist-get 'gnus links))
+	       (gnorb-registry-make-entry
+	        (cl-second (split-string l "#")) nil nil
+	        id (cl-first (split-string l "#")))))
+	   (dolist (p props)
+	     (gnorb-registry-make-entry p nil nil id nil)
+	     ;; This function will try to find the group for the message
+	     ;; and set that value on the registry entry if it can find
+	     ;; it.
+	     (unless (gnus-registry-get-id-key p 'group)
+	       (gnorb-msg-id-request-head p))
+	     (cl-incf count)))))
      gnorb-org-find-candidates-match
      'agenda 'archive 'comment)
     (message "Collecting all relevant Org headings, this could take a while... done")
@@ -325,3 +332,4 @@ your Org files."
       (message "%d entries created." count))))
 
 (provide 'gnorb-registry)
+;;; gnorb-registry.el ends here
