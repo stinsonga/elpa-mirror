@@ -35,29 +35,32 @@
 
 ;; The mock session starts with some predefined servers, as well as
 ;; some dummy mail data.  At startup, all dummy data is copied into a
-;; temporary directory, which is then deleted at shutdown.  The
-;; environment can thus be loaded, tweaked, trashed, and re-loaded
-;; with impunity.  To fully restore a clean testing environment,
-;; simply quit the Emacs process and restart it from the parent
-;; process by running `gnus-mock-start' again.  Alternately it's
-;; possible to restart "in place" by calling `gnus-mock-reload',
-;; though, depending on what the developer has gotten up to, this
-;; isn't guaranteed to completely restore the environment.
+;; temporary directory, which is deleted at shutdown.  The environment
+;; can thus be loaded, tweaked, trashed, and re-loaded with impunity.
+;; To fully restore a clean testing environment, simply quit the Emacs
+;; process and restart it from the parent process by running
+;; `gnus-mock-start' again.  Alternately it's possible to restart "in
+;; place" by calling `gnus-mock-reload', though, depending on what the
+;; developer has gotten up to, this isn't guaranteed to completely
+;; restore the environment.
 
-;; A special config file is used for the mock session; users may add
-;; to this config, or shadow its options, by setting
-;; `gnus-mock-settings-file' to the name of an additional config file,
-;; the contents of which will be appended to the default mock config
-;; file.
+;; Users have two options for adding custom configuration to the mock
+;; session:
+
+;; - `gnus-mock-gnus-settings' can be set to a filename, the contents
+;;    of which will be appended to the .gnus.el startup file in the
+;;    mock session.  This code will be executed at Gnus startup.
+
+;; - `gnus-mock-init-setting' should also be a filename, the contents
+;;   of which will be appended to the init.el file that is loaded when
+;;   the child Emacs process starts.
 
 ;; It's possible to compose and send mail in a mock Gnus session; the
 ;; mail will be sent using the value of `gnus-mock-sendmail-program'.
 ;; If Python is available on the user's system, this option will be
 ;; set to a Python program that simply accepts the outgoing mail and
-;; shunts it to a folder in the temporary data directory.  The
-;; predefined maildir server has this directory in its `mail-sources',
-;; thus allowing the developer to send messages and see them received
-;; in the local maildir.
+;; shunts it to the "incoming" mailbox of the pre-defined nnmaildir
+;; server.
 
 ;;; Code:
 
@@ -68,11 +71,18 @@
   "Options for the mock Gnus installation."
   :group 'gnus)
 
-(defcustom gnus-mock-settings-file nil
-  "Path to an additional config file for mock Gnus.
-The contents of this file will be appended to gnus-mock's own
-config file before Gnus startup, in effect shadowing config
-values in the default file."
+(defcustom gnus-mock-gnus-file nil
+  "Path to an additional Gnus config file for mock Gnus.
+The contents of this file will be appended to gnus-mock's Gnus
+init file, which will be loaded when Gnus is started."
+  :group 'gnus-mock
+  :type 'file)
+
+(defcustom gnus-mock-init-file nil
+  "Path to an additional init config file for mock Gnus.
+The contents of this file will be appended to gnus-mock's init
+file, which will be loaded when the child Emacs process is
+started."
   :group 'gnus-mock
   :type 'file)
 
@@ -160,11 +170,17 @@ gnus-directory \"%s\"
      gnus-mock-data-dir
      (file-name-as-directory mock-tmp-dir) nil nil t)
     ;; Possibly insert additional config.
-    (when gnus-mock-settings-file
+    (when gnus-mock-init-file
       (with-temp-buffer
-	(insert-file-contents gnus-mock-settings-file)
+	(insert-file-contents gnus-mock-init-file)
 	(append-to-file
 	 (point-min) (point-max) init-file)))
+    (when gnus-mock-gnus-file
+      (with-temp-buffer
+	(insert-file-contents gnus-mock-gnus-file)
+	(append-to-file
+	 (point-min) (point-max)
+	 (expand-file-name ".gnus.el" mock-tmp-dir))))
     ;; There are absolute paths in the .newsrc.eld file, so doctor
     ;; that file.
     (with-current-buffer (find-file-noselect
