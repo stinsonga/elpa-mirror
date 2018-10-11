@@ -1,0 +1,50 @@
+From bob@rattlesnake.com  Thu Sep 14 17:50:04 2000
+Received: from megalith.rattlesnake.com (megalith.rattlesnake.com [140.186.114.245])
+	by mescaline.gnu.org (8.9.1a/8.9.1) with ESMTP id RAA23171;
+	Thu, 14 Sep 2000 17:50:02 -0400
+Received: by rattlesnake.com
+	via sendmail from stdin
+	id <m13ZgtN-000BD3C@megalith.rattlesnake.com> (Debian Smail3.2.0.102)
+	for gerd@gnu.org; Thu, 14 Sep 2000 17:50:01 -0400 (EDT)
+Message-Id: <m13ZgtN-000BD3C@megalith.rattlesnake.com>
+Date: Thu, 14 Sep 2000 17:50:01 -0400 (EDT)
+From: "Robert J. Chassell" <bob@rattlesnake.com>
+To: gerd@gnu.org
+CC: bob@rattlesnake.com, jbailey@nisa.net, emacs-devel@gnu.org,
+        cvs-hackers@gnu.org
+In-reply-to: <200009141949.VAA05998@gerd.segv.de> (message from Gerd Moellmann
+	on Thu, 14 Sep 2000 21:49:03 +0200 (CEST))
+Subject: Re: [Emacs-devel] Emacs move
+Reply-to: bob@rattlesnake.com
+References: <20000913175943.A26093@sparky.nisa.net>
+	<m13ZXGV-000BCgC@megalith.rattlesnake.com> <200009141949.VAA05998@gerd.segv.de>
+Sender: emacs-devel-admin@gnu.org
+Errors-To: emacs-devel-admin@gnu.org
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.0beta4
+Precedence: bulk
+List-Id: Emacs development (internal use) <emacs-devel.gnu.org>
+
+   I think Jeff couldn't migrate the pserver passwords to subversions.
+   Did you receive a mail from Jeff asking for your access methods and
+   password?
+
+Not yet.
+
+As a practical matter, I don't understand security procedures and all
+that.  I realize tha I should learn, but I come from an ancient era,
+when the biggest security lapse was the April 1st spoof pretending to
+be a message from `kremvax' in the former Soviet Union.
+
+So please
+tell me in detail, as for a newbie,
+what I should do to get CVS updates for Emacs 21.  I have Kerberos
+access to delysid, mescaline, and melange and lsh access to
+alpha.gnu.org.
+
+Thanks!
+
+--
+    Robert J. Chassell                  bob@rattlesnake.com
+    Rattlesnake Enterprises             http://www.rattlesnake.com
+

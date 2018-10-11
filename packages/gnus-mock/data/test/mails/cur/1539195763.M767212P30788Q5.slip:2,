@@ -1,0 +1,40 @@
+From jbailey@nisa.net  Thu Sep 14 13:55:37 2000
+Received: from sparky.nisa.net (root@mainsrvr.nisa.net [207.194.212.4])
+	by mescaline.gnu.org (8.9.1a/8.9.1) with ESMTP id NAA29211;
+	Thu, 14 Sep 2000 13:55:34 -0400
+Received: (from jbailey@localhost) by sparky.nisa.net (8.9.3/nisa4.7) id KAA29618; Thu, 14 Sep 2000 10:55:13 -0700
+X-MailHub: mail.nisa.net
+Message-ID: <20000914105512.A29291@sparky.nisa.net>
+Date: Thu, 14 Sep 2000 10:55:12 -0700
+From: Jeff Bailey <jbailey@nisa.net>
+To: kfogel@red-bean.com, Dave Love <d.love@dl.ac.uk>
+Cc: Jeff Bailey <jbailey@nisa.net>, emacs-devel@gnu.org, cvs-hackers@gnu.org
+Subject: Re: [Emacs-devel] Emacs move
+References: <20000913175943.A26093@sparky.nisa.net> <200009141724.SAA26807@djlvig.dl.ac.uk> <87em2nyog0.fsf@galois.collab.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+X-Mailer: Mutt 0.91
+In-Reply-To: <87em2nyog0.fsf@galois.collab.net>; from Karl Fogel on Thu, Sep 14, 2000 at 10:37:35AM -0500
+Sender: emacs-devel-admin@gnu.org
+Errors-To: emacs-devel-admin@gnu.org
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.0beta4
+Precedence: bulk
+List-Id: Emacs development (internal use) <emacs-devel.gnu.org>
+
+On Thu, Sep 14, 2000 at 10:37:35AM -0500, Karl Fogel wrote:
+> Dave Love <d.love@dl.ac.uk> writes:
+> > Sorry, my repository-munging loop didn't DTRT in the top-level
+> > directory.  It needs
+> > [...]
+>
+> You may be interested in the `cvschroot.pl' script from the CVSUtils
+> suite by Tom Tromey and Pavel Roskin.  The entire suite is available
+> from:
+>
+>    http://www.red-bean.com/cvsutils/
+>
+
+I looked at this before, but it depends on the rest of cvsutils, which
+has moved.  Thanks for giving me the URL.
+
