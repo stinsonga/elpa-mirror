@@ -197,10 +197,13 @@ gnus-directory \"%s\"
       (while (re-search-forward "REPLACE_ME" (point-max) t)
 	(replace-match mock-tmp-dir t))
       (basic-save-buffer))
-    (make-process :name "gnus-mock" :buffer nil
-		  :command (list gnus-mock-emacs-program
-				 "-Q" "--load" init-file)
-		  :stderr "*gnus mock errors*")))
+    (condition-case nil
+     (make-process :name "gnus-mock" :buffer nil
+		   :command (list gnus-mock-emacs-program
+				  "-Q" "--load" init-file)
+		   :stderr "*gnus mock errors*")
+     (error (when gnus-mock-cleanup-p
+	      (delete-directory mock-tmp-dir t))))))
 
 (provide 'gnus-mock)
 ;;; gnus-mock.el ends here
