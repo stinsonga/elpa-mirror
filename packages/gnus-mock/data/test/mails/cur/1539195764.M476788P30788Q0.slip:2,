@@ -1,0 +1,97 @@
+From bob@rattlesnake.com  Thu Sep 14 07:33:19 2000
+Received: from megalith.rattlesnake.com (megalith.rattlesnake.com [140.186.114.245])
+	by mescaline.gnu.org (8.9.1a/8.9.1) with ESMTP id HAA06883;
+	Thu, 14 Sep 2000 07:33:17 -0400
+Received: by rattlesnake.com
+	via sendmail from stdin
+	id <m13ZXGV-000BCgC@megalith.rattlesnake.com> (Debian Smail3.2.0.102)
+	for emacs-devel@gnu.org; Thu, 14 Sep 2000 07:33:15 -0400 (EDT)
+Message-Id: <m13ZXGV-000BCgC@megalith.rattlesnake.com>
+Date: Thu, 14 Sep 2000 07:33:15 -0400 (EDT)
+From: "Robert J. Chassell" <bob@rattlesnake.com>
+To: jbailey@nisa.net
+CC: emacs-devel@gnu.org, cvs-hackers@gnu.org
+In-reply-to: <20000913175943.A26093@sparky.nisa.net> (message from Jeff Bailey
+	on Wed, 13 Sep 2000 17:59:43 -0700)
+Subject: Re: [Emacs-devel] Emacs move
+Reply-to: bob@rattlesnake.com
+References:  <20000913175943.A26093@sparky.nisa.net>
+Sender: emacs-devel-admin@gnu.org
+Errors-To: emacs-devel-admin@gnu.org
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.0beta4
+Precedence: bulk
+List-Id: Emacs development (internal use) <emacs-devel.gnu.org>
+
+   For information on how to access your repository, please look at
+   http://www.gnu.org/software/devel.html#CVS
+
+Done.  As it happens, emacs is not listed as any of the available
+modules, so perhaps I should not be surprised that I cannot
+access the emacs repository.
+
+I ran the following
+
+     $ cvs -d :pserver:anoncvs@subversions.gnu.org:/cvs login
+    (Logging in to anoncvs@subversions.gnu.org)
+    CVS password:
+
+but check out failed:
+
+     $ cvs -d :pserver:anoncvs@subversions.gnu.org:/cvs checkout emacs
+    cvs server: Updating emacs
+    cvs server: cannot open directory /cvs/emacs: Permission denied
+    cvs server: skipping directory emacs
+
+
+Also, on my machine I changed the name of the archive to
+
+    :pserver:anoncvs@subversions.gnu.org:/cvs
+
+in my CVS/Root files but also cannot update emacs.
+
+
+Here are the messages:
+
+  <bob> /usr/local/src/emacs $ cvs login
+  (Logging in to anoncvs@subversions.gnu.org)
+  CVS password:
+
+  <bob> /usr/local/src/emacs $ cvs update
+  ? config.log
+  ? Makefile
+  ? config.cache
+  ? config.status
+  ? leim/Makefile
+  ? lib-src/Makefile
+  ? lisp/Makefile
+  ? lwlib/Makefile
+  ? man/Makefile
+  ? oldXMenu/Makefile
+  ? src/Makefile
+  cvs server: Updating .
+  cvs server: cannot open directory /cvs/emacs: Permission denied
+  cvs server: skipping directory
+  no such user bob in CVSROOT/passwd
+  cvs update: authorization failed: server subversions.gnu.org rejected access
+  cvs update: used empty password; try "cvs login" with a real password
+
+
+
+Also I tried, logging in as me,
+
+    :pserver:bob@subversions.gnu.org:/cvs
+
+and used the password that had worked with cvs.gnu.org, but that
+failed too.
+
+Also, neither kerberos nor lsh let me log on to subversions, although
+I can log on to melange.gnu.org using kerberos and log on to
+alpha.gnu.org using lsh.
+
+Please help!    Thanks!
+
+--
+    Robert J. Chassell                  bob@rattlesnake.com
+    Rattlesnake Enterprises             http://www.rattlesnake.com
+

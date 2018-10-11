@@ -1,0 +1,56 @@
+From johnw@gnu.org  Thu Sep 14 15:19:10 2000
+Received: from localhost.localdomain (IDENT:root@ip079.tuc167.gci-net.com [208.2.167.79])
+	by mescaline.gnu.org (8.9.1a/8.9.1) with ESMTP id PAA01818
+	for <emacs-devel@gnu.org>; Thu, 14 Sep 2000 15:19:09 -0400
+Received: (from johnw@localhost)
+	by localhost.localdomain (8.9.3/8.9.3) id MAA05085;
+	Thu, 14 Sep 2000 12:19:01 -0700
+Date: Thu, 14 Sep 2000 12:19:01 -0700
+Message-Id: <200009141919.MAA05085@localhost.localdomain>
+X-Authentication-Warning: localhost.localdomain: johnw set sender to johnw@gnu.org using -f
+To: emacs-devel@gnu.org
+Subject: Re: [Emacs-devel] Emacs move
+References: <20000913175943.A26093@sparky.nisa.net>
+From: John Wiegley <johnw@gnu.org>
+X-Home-Page: http://www.emacs.org/~johnw/
+X-Public-Key: http://pgp5.ai.mit.edu:11371/pks/lookup?op=get&search=0xF40524D0
+In-Reply-To: Jeff Bailey's message of "Wed, 13 Sep 2000 17:59:43 -0700"
+User-Agent: Gnus/5.0808 (Gnus v5.8.8) Emacs/21.0.90
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Lines: 27
+Sender: emacs-devel-admin@gnu.org
+Errors-To: emacs-devel-admin@gnu.org
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.0beta4
+Precedence: bulk
+List-Id: Emacs development (internal use) <emacs-devel.gnu.org>
+
+>>>>> On Wed Sep 13, Jeff writes:
+
+> There are a few clever scripts floating around for changing the root
+> of an already checked-out repository to a new one.  If you know of
+> one that works, please post it and cc: me so I can give it to
+> others.
+
+I've using this one daily for quite some time.  I name it "local", and
+also symlink "remote" to it.
+
+----------------------------------------------------------------------
+
+#!/bin/sh
+
+REMOTE=":ext:$LOGNAME\\@melange.gnu.org:/gd/gnu/cvsroot"
+LOCAL=":local:$HOME/src/cvsroot"
+
+if [ $(basename $0) = remote ]; then
+    TEMP=$REMOTE
+    REMOTE=$LOCAL
+    LOCAL=$TEMP
+fi
+
+for i in $(find . -name CVS -type d); do
+    echo Converting $i...
+    perl -i~ -pne "s~$REMOTE~$LOCAL~;" $i/Root
+done
+
