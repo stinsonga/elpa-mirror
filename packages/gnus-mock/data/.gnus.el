@@ -33,3 +33,7 @@ again."
 		     gnus-home-directory nil nil t)
      (gnus-read-init-file)
      (message "Mock Gnus data restored"))))
+
+(add-hook 'gnus-started-hook (lambda ()
+			       (unless sendmail-program
+				 (message "Python unavailable on this system, you won't be able to send mail"))))
