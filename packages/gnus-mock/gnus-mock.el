@@ -1,6 +1,6 @@
 ;;; gnus-mock.el --- Mock Gnus installation for testing  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2018  Free Software Foundation
+;; Copyright (C) 2018  Free Software Foundation, Inc.
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
