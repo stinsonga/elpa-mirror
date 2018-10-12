@@ -4,7 +4,7 @@
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
-;; Version: 0.1
+;; Version: 0.1.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -91,7 +91,6 @@ started."
   :group 'gnus-mock
   :type 'string)
 
-
 (defcustom gnus-mock-cleanup-p t
   "When non-nil, delete temporary files after shutdown.
 Each Gnus mock session will create a unique temporary directory,
@@ -105,7 +104,10 @@ so multiple sessions will not conflict if this option is nil."
   :type 'boolean)
 
 (defcustom gnus-mock-sendmail-program
-  (when (executable-find "python") "fakesendmail.py")
+  (when (executable-find "python")
+    (if (memq system-type '(cygwin ms-dos windows-nt))
+	"windows-sendmail-wrapper.cmd"
+      "fakesendmail.py"))
   "Program used as the value of `sendmail-program'."
   :group 'gnus-mock
   :type 'string)
