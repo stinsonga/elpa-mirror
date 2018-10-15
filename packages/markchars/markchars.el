@@ -3,7 +3,7 @@
 ;; Author: Lennart Borgman (lennart O borgman A gmail O com)
 ;; Contributhor: Ted Zlatanov <tzz@lifelogs.com>
 ;; Created: 2010-03-22 Mon
-;; Version: 0.2.0
+;; Version: 0.2.1
 ;; Last-Updated: 2011-04-15
 ;; URL:
 ;; Keywords:
@@ -133,7 +133,7 @@ By default it matches nonascii-chars."
                               (list 0 '(markchars--render-nonidn
                                         (match-beginning 0)
                                         (match-end 0)))))
-                            ((eq what 'confusables)
+                            ((eq what 'markchars-confusables)
                              (list
                               "\\<\\w+\\>"
                               (list 0 '(markchars--render-confusables
