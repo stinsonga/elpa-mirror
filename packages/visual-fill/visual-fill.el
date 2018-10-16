@@ -3,6 +3,7 @@
 ;; Copyright (C) 2018  Stefan Monnier
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
+;; Version: 0.1
 ;; Keywords: 
 
 ;; This program is free software; you can redistribute it and/or modify
