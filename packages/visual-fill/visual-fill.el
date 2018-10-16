@@ -1,6 +1,6 @@
 ;;; visual-fill.el --- Auto-refill paragraphs without modifying the buffer  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2018  Stefan Monnier
+;; Copyright (C) 2018  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Version: 0.1
@@ -35,7 +35,8 @@
 
 (defun visual-fill--cleanup (start end)
   (while (and (< start end)
-              (setq start (text-property-any start end 'display visual-fill--space)))
+              (setq start (text-property-any start end
+                                             'display visual-fill--space)))
     (remove-text-properties
      start
      (setq start (or (text-property-not-all start end
