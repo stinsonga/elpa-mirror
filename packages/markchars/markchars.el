@@ -1,6 +1,8 @@
 ;;; markchars.el --- Mark chars fitting certain characteristics
-;;
-;; Author: Lennart Borgman (lennart O borgman A gmail O com)
+
+;; Copyright (C) 2011-2018  Free Software Foundation, Inc.
+
+;; Author: Lennart Borgman <lennart.borgman@gmail.com>
 ;; Contributhor: Ted Zlatanov <tzz@lifelogs.com>
 ;; Created: 2010-03-22 Mon
 ;; Version: 0.2.1
