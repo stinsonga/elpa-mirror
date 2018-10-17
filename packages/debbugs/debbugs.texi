@@ -89,7 +89,7 @@ Install @code{debbugs} from the @ref{Packaging, ELPA repository, , elisp}.
 
 If you want to install @code{debbugs} on Emacs 22/23, you will need to
 install the @code{soap-client} library first.  It can be downloaded from
-the @uref{http://code.google.com/p/emacs-soap-client/, Emacs SOAP client
+the @uref{https://code.google.com/p/emacs-soap-client/, Emacs SOAP client
 project page}.
 
 Compile the library and add it into your @code{load-path}:
@@ -99,7 +99,7 @@ Compile the library and add it into your @code{load-path}:
 @end example
 
 @code{debbugs} library can be downloaded from the
-@uref{http://elpa.gnu.org/packages/, ELPA repository}.  Compile it and
+@uref{https://elpa.gnu.org/packages/, ELPA repository}.  Compile it and
 set the @code{load-path}:
 
 @example
@@ -230,7 +230,7 @@ Debian port: @code{"patch"}, @code{"wontfix"}, @code{"moreinfo"},
 @code{"wheezy"}, @code{"wheezy-ignore"}, @code{"jessie"},
 @code{"jessie-ignore"}, @code{"stretch"}, @code{"stretch-ignore"},
 @code{"buster"}, @code{"buster-ignore"}. The actual list of tags can
-be found on @uref{http://www.debian.org/Bugs/Developer#tags}.
+be found on @uref{https://www.debian.org/Bugs/Developer#tags}.
 
 GNU port: @code{"fixed"}, @code{"notabug"}, @code{"wontfix"},
 @code{"unreproducible"}, @code{"moreinfo"}, @code{"patch"},
@@ -465,6 +465,7 @@ values are strings or numbers, i.e.@: @var{:keyword} @var{value}
 
 Every sublist of the @var{query} forms a hyperestraier condition.  A
 detailed description of hyperestraier conditions can be found at
+@c https does not work.
 @url{http://fallabs.com/hyperestraier/uguide-en.html#searchcond}.
 
 The following conditions are possible:
@@ -685,7 +686,7 @@ from the Debbugs server.
 @itemx mboxstatus
 Download status mbox.  The use of either symbol depends on the actual
 Debbugs server configuration.  For @code{"gnu.org"}, use the former;
-for @code{"debian.org} - the latter.
+for @code{"debian.org"} - the latter.
 @end table
 
 @var{filename}, if non-@code{nil}, is the name of the file to store

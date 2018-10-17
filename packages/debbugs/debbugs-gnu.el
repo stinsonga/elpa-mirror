@@ -989,11 +989,6 @@ Used instead of `tabulated-list-print-entry'."
 (define-derived-mode debbugs-gnu-mode tabulated-list-mode "Debbugs"
   "Major mode for listing bug reports.
 
-All normal editing commands are switched off.
-\\<debbugs-gnu-mode-map>
-
-The following commands are available:
-
 \\{debbugs-gnu-mode-map}"
   (set (make-local-variable 'debbugs-gnu-sort-state) 'number)
   (set (make-local-variable 'debbugs-gnu-limit) nil)
@@ -1606,11 +1601,6 @@ removed instead."
 (define-derived-mode debbugs-gnu-usertags-mode tabulated-list-mode "Usertags"
   "Major mode for listing user tags.
 
-All normal editing commands are switched off.
-\\<debbugs-gnu-usertags-mode-map>
-
-The following commands are available:
-
 \\{debbugs-gnu-usertags-mode-map}"
   (buffer-disable-undo)
   (setq truncate-lines t)
@@ -1940,6 +1930,7 @@ If given a prefix, patch in the branch directory instead."
 
 (define-minor-mode debbugs-gnu-lisp-mode
   "Minor mode for providing a debbugs interface in Lisp buffers.
+
 \\{debbugs-gnu-lisp-mode-map}"
   :lighter " Debbugs" :keymap debbugs-gnu-lisp-mode-map)
 
@@ -1950,6 +1941,7 @@ If given a prefix, patch in the branch directory instead."
 
 (define-minor-mode debbugs-gnu-diff-mode
   "Minor mode for providing a debbugs interface in diff buffers.
+
 \\{debbugs-gnu-diff-mode-map}"
   :lighter " Debbugs" :keymap debbugs-gnu-diff-mode-map)
 
@@ -1966,6 +1958,7 @@ If given a prefix, patch in the branch directory instead."
 
 (define-minor-mode debbugs-gnu-change-mode
   "Minor mode for providing a debbugs interface in ChangeLog buffers.
+
 \\{debbugs-gnu-change-mode-map}"
   :lighter " Debbugs" :keymap debbugs-gnu-change-mode-map)
 
