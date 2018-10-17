@@ -5,8 +5,8 @@
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, hypermedia
 ;; Package: debbugs
-;; Version: 0.15
-;; Package-Requires: ((soap-client "3.1.1") (cl-lib "0.5"))
+;; Version: 0.16
+;; Package-Requires: ((soap-client "3.1.5") (cl-lib "0.5"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -562,6 +562,8 @@ Example:
 	(when (member (symbol-name (car elt)) tags)
 	  (setq result (append (cdr elt) result)))))))
 
+;; get_bug_log ought to have an optional argument $msg_num.  According
+;; to Debbugs/SOAP.pm, currently $msg_num is completely ignored.  So we do.
 (defun debbugs-get-bug-log (bug-number)
   "Return a list of messages related to BUG-NUMBER.
 

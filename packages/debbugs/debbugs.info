@@ -1,4 +1,4 @@
-This is debbugs.info, produced by makeinfo version 6.4.90 from
+This is debbugs.info, produced by makeinfo version 6.5 from
 debbugs.texi.
 
 Copyright (C) 2011-2018 Free Software Foundation, Inc.
@@ -85,14 +85,14 @@ Installation on Emacs 22 and Emacs 23
 If you want to install 'debbugs' on Emacs 22/23, you will need to
 install the 'soap-client' library first.  It can be downloaded from
 the Emacs SOAP client project page
-(http://code.google.com/p/emacs-soap-client/).
+(https://code.google.com/p/emacs-soap-client/).
 
    Compile the library and add it into your 'load-path':
 
      (add-to-list 'load-path "/path/to/emacs-soap-client/")
 
    'debbugs' library can be downloaded from the ELPA repository
-(http://elpa.gnu.org/packages/).  Compile it and set the 'load-path':
+(https://elpa.gnu.org/packages/).  Compile it and set the 'load-path':
 
      (add-to-list 'load-path "/path/to/debbugs/")
 
@@ -220,7 +220,7 @@ Debbugs server the list of bug numbers that match a user's query.
           '"jessie"', '"jessie-ignore"', '"stretch"',
           '"stretch-ignore"', '"buster"', '"buster-ignore"'.  The
           actual list of tags can be found on
-          <http://www.debian.org/Bugs/Developer#tags>.
+          <https://www.debian.org/Bugs/Developer#tags>.
 
           GNU port: '"fixed"', '"notabug"', '"wontfix"',
           '"unreproducible"', '"moreinfo"', '"patch"', '"pending"',
@@ -660,7 +660,7 @@ File: debbugs.info,  Node: Requesting messages,  Next: Requesting user tags,  Pr
      'mboxstatus'
           Download status mbox.  The use of either symbol depends on
           the actual Debbugs server configuration.  For '"gnu.org"',
-          use the former; for '"debian.org' - the latter.
+          use the former; for '"debian.org"' - the latter.
 
      FILENAME, if non-'nil', is the name of the file to store mbox.
      If FILENAME is 'nil', the downloaded mbox is inserted into the
@@ -722,13 +722,13 @@ also package names as user identification.
 
 
 Tag Table:
-Node: Top1097
-Node: Installation3238
-Node: Configuration4337
-Node: Requesting bug numbers6692
+Node: Top1094
+Node: Installation3235
+Node: Configuration4336
+Node: Requesting bug numbers6691
 Node: Requesting bugs statuses12073
 Node: Searching bugs16365
 Node: Requesting messages23171
-Node: Requesting user tags26177
+Node: Requesting user tags26178
 
 End Tag Table

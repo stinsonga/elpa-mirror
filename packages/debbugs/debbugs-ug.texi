@@ -183,6 +183,7 @@ This is useful for bug triages.
 
 The GNU Debbugs server allows text search in the database in the
 messages submitted to the bugs.  It uses a
+@c https does not work.
 @uref{http://fallabs.com/hyperestraier/uguide-en.html#searchcond,
 HyperEstraier based search engine}@footnote{This has been added to the
 Debbugs/SOAP backend of the GNU Debbugs server only.}.
