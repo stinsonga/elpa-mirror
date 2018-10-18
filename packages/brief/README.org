@@ -12,7 +12,7 @@ hour and difficult to forget.
 For example, the first <home> key bring the cursor to home (beginning) of current
 line, a consecutive second <home> key to the home (beginning) of the window and a
 third <home> to the home (beginning) of the file.  Similarly for the <end> key.
-To paste/insert clipboard contents into current file just press <insert>... and
+To paste/insert clipboard contents into current file just press <insert>,... and
 so on.
 
 Personally, I've been using this key combination for over 27+ years (by the time
@@ -29,7 +29,7 @@ this Brief Mode.
 
 ** Quick steps for non-Emacs users:
 
-  1. Install Emacs package, better be Emacs version 24 above (Emacs26 recommended).
+  1. Install Emacs, better be Emacs version 24 above (Emacs26 recommended).
      For Debian/Ubuntu users:
 
      $ sudo apt install emacs -y
@@ -78,7 +78,7 @@ this Brief Mode.
    | 'E'dit a file:                              | <Alt>-E             |
    |---------------------------------------------+---------------------|
    | 'B'uffer list:                              | <Alt>-B             |
-   | press <q> to quit buffer list               |                     |
+   |   press <q> to quit buffer list             |                     |
    |---------------------------------------------+---------------------|
    | Go to 'home' (beginning) of line:           | <Home>              |
    | Go to 'home' (beginning) of window:         | <Home> (2nd <Home>) |
@@ -89,39 +89,40 @@ this Brief Mode.
    | Go to 'end' of file:                        | <End> (3rd <End>)   |
    |---------------------------------------------+---------------------|
    | 'H'elp:                                     | <Alt>-H             |
-   | press <q> or <Esc> to quit help system      |                     |
-   | (For key-specific help, press "<Alt>-h k",  |                     |
-   | then followed by the key command sequence.  |                     |
-   | For example: "<Alt>-h k" "<Home>")          |                     |
+   |  press <q> or <Esc> to quit help system     |                     |
+   |  (For key-specific help, press "<Alt>-h k", |                     |
+   |  then followed by the key command sequence. |                     |
+   |  For example: "<Alt>-h k" "<Home>")         |                     |
    |---------------------------------------------+---------------------|
    | 'G'oto line:                                | <Alt>-G             |
    |---------------------------------------------+---------------------|
    | 'L'ine oriented text selecting:             | <Alt>-L             |
-   | followed by cursor commands                 |                     |
+   |   followed by cursor commands               |                     |
    |---------------------------------------------+---------------------|
    | 'C'olumn oriented text selecting:           | <Alt>-C             |
-   | followed by cursor commands                 |                     |
+   |   followed by cursor commands               |                     |
    |---------------------------------------------+---------------------|
    | Start line 'M'arking:                       | <Alt>-M             |
    |---------------------------------------------+---------------------|
    | Copy ('+') text selection into clipboard:   | <Keypad +>          |
-   | if no text selected, copy current line      | <Ctrl>-<Insert>     |
+   |   if no text selected, copy current line    | <Ctrl>-<Insert>     |
    |---------------------------------------------+---------------------|
    | Cut ('-') text selection into clipboard:    | <Keypad ->          |
-   | if no text selected, cut current line       | <Shift>-<Delete>    |
+   |   if no text selected, cut current line     | <Shift>-<Delete>    |
    |---------------------------------------------+---------------------|
    | Paste clipboard texts into current line:    | <Insert>            |
+   |   if text selected, replace selected        |                     |
    |---------------------------------------------+---------------------|
    | 'D'elete a line(s):                         | <Alt>-D             |
-   | if text selected, delete selected           |                     |
+   |   if text selected, delete selected         |                     |
    |---------------------------------------------+---------------------|
    | 'K'ill till end of line:                    | <Alt>-K             |
    |---------------------------------------------+---------------------|
    | 'R'ead a file and insert into current line: | <Alt>-R             |
    |---------------------------------------------+---------------------|
    | 'W'rite (save) editing file:                | <Alt>-W             |
-   | if text selected, save selected region to   |                     |
-   | a file (will prompt for a file name)        |                     |
+   |   if text selected, save selected region to |                     |
+   |   a file (will prompt for a file name)      |                     |
    |---------------------------------------------+---------------------|
    | 'O'utput as another file name:              | <Alt>-O             |
    | (save as, will prompt for a file name)      |                     |
@@ -159,10 +160,13 @@ this Brief Mode.
 ** Search (<F5>) and Replace (<F6>) commands:
 
    By default the un-prefixed commands search/replace forwards. Prefixed key
-   change their meaning: <shift> means "repeat", <alt> means "backward" and
-   <control> means "current" or sometimes "forwards".
+   change their meaning:
+   <alt> (ALTer direction) means "backward",
+   <shift> means "repeat" and
+   <'C'ontrol> means "'C'urrent" or sometimes "forwards".
 
 *** Search:
+
    |--------------------------------------------------+------------------------|
    | Search regular expression forwards               | <F5>                   |
    | Search regular expression backwards              | <Alt>-<F5>             |
@@ -179,6 +183,7 @@ this Brief Mode.
    |--------------------------------------------------+------------------------|
 
 *** Replace:
+
    |---------------------------------------------------+------------------------|
    | Replace regular expression forwards               | <F6>                   |
    | Replace regular expression backwards              | <Alt>-<F6>             |
@@ -192,6 +197,7 @@ this Brief Mode.
    |---------------------------------------------------+------------------------|
 
 *** Toggle search & replace behavior (for current buffer):
+
    |------------------------------------------------------+--------------------|
    | Toggle case sensitivity (default case sensitive)     | <Control>-<X> <F5> |
    |------------------------------------------------------+--------------------|
@@ -247,9 +253,9 @@ this Brief Mode.
 
    |---------------------------------------------------+------------------------|
    | Move backwards an expression, or matching         | <Alt>-<Left>           |
-   | parenthesis backwards                             |                        |
+   |   parenthesis backwards                           |                        |
    | Move forwards an expression, or matching          | <Alt>-<Right>          |
-   | parenthesis forwards                              |                        |
+   |   parenthesis forwards                            |                        |
    |---------------------------------------------------+------------------------|
    | Move backwards a word                             | <Ctrl>-<Left>          |
    | Move forwards a word                              | <Ctrl>-<Right>         |
