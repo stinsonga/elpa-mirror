@@ -826,8 +826,8 @@ use either M-x customize or the function `brief-mode'."
   :group      'brief)
 
 (defcustom brief-search-replace-using-regexp t
-  "An option determine if search & replace using regular expression or string.
-This is a buffer local variable with default value 't which means
+  "Determine if search & replace commands using regular expression or string.
+This is a buffer local variable with default value 't, which means
 regular expression is used for search & replace commands by default."
   :type  'boolean
   :group 'brief)
@@ -860,7 +860,7 @@ variable at run-time has no effect."
 New user might be wondering where the original <M-x> key has gone,
 so this shows a message on Brief mode start to notify that that key
 combination has been moved to '<f10>' key."
-  :type 'boolean
+  :type  'boolean
   :group 'brief)
 
 (defcustom brief-query-exit-emacs t
@@ -1185,9 +1185,9 @@ marked region changed according to our cursor."
   :type  'boolean
   :group 'brief)
 
-(defcustom brief-fake-region-face 'region ; 'secondary-selection
+(defface brief-fake-region-face
+  '((default :inherit region))  ;; 'secondary-selection
   "The face (color) of fake region when `brief-search-fake-region-mark' is t."
-  :type  'sexp
   :group 'brief)
 
 (defcustom brief-after-search-hook nil
@@ -1206,12 +1206,12 @@ only on the visual part of current line, *unless* that command is
 prefixed (\\[universal-argument]).  Similarly, when visual/truncation mode is turned on,
 prefixed (\\[universal-argument]) line commands *will* only operate on visual part of
 the line."
-  :type 'boolean
+  :type  'boolean
   :group 'brief)
 
 (defcustom brief-skip-buffers '("TAGS")
   "Define the buffer names that Brief don't want to switch to."
-  :type 'sexp
+  :type  'sexp
   :group 'brief)
 
 (defcustom brief-apply-slowdown-factor  t
@@ -1301,7 +1301,7 @@ slowdown factor; otherwise, return 1.0."
 (defvar brief--kbd-macro-seq nil
   "Internal variable for saving paused keyboard macro")
 
-(defvar-local brief-search-overlay nil
+(defvar-local brief--search-overlay nil
   "A buffer local overlay which records the current search selection.
 It is deleted when the search ends or region deactivated.")
 
@@ -1338,7 +1338,7 @@ it calls `buffer-menu' instead."
     (call-interactively 'buffer-menu)))
 
 (defvar brief-latest-killed-buffer-info nil
-  "This variable records the info of the most recently killed file buffer.
+  "The info of the most recently killed file buffer to be restored.
 If user accidentally killed a file buffer, it can be recovered
 accordingly.
 Information is a list of:
@@ -1541,7 +1541,11 @@ If ARG is non-NIL, insert results at point."
   (brief-call-list-interactively (list 'brief-mark-line-down)))
 
 (defmacro brief-meta-l-key (updown key)
-  "Define key function and associated the key in `brief-prefix-meta-l'."
+  "Define M-L associated key function and map in `brief-prefix-meta-l'.
+UPDOWN is either 'up' or 'down' (with no (') quote) indicating the
+direction of the key.
+A key function name `brief-call-mark-line-[up|down]-with-<key>' is
+created and mapped into `brief-prefix-meta-l'"
   (let* ((dir     (symbol-name updown))
          (keydesc (key-description key))
          (keyfunc (intern (concat "brief-mark-line-" dir "-with-" keydesc))))
@@ -1559,7 +1563,7 @@ If ARG is non-NIL, insert results at point."
 
 (defcustom brief-bookmark-nearby 256
   "Define the distance (chars) of two bookmarks that brief considered nearby."
-  :type 'number
+  :type  'number
   :group 'brief)
 
 (defvar brief-inhibit-bookmark-try-switch-frame-window nil
@@ -3742,8 +3746,8 @@ able to restore it back if we have no backups.")
                   brief-ad-gui-set-selection-reenter)
               ad-do-it
             (let ((brief-ad-gui-set-selection-reenter t))
-              (unless (and brief-search-overlay
-                           (overlay-start brief-search-overlay))
+              (unless (and brief--search-overlay
+                           (overlay-start brief--search-overlay))
                 ;; Bypass `gui-set-selection' due to searching
 
                 (if brief-is-gui-set-selection-postponed
@@ -3821,8 +3825,8 @@ able to restore it back if we have no backups.")
             (brief-gui-set-selection-reentry t))
         (if (eq type 'SECONDARY)
             (apply orig-func args)
-          (unless (and brief-search-overlay
-                       (overlay-start brief-search-overlay))
+          (unless (and brief--search-overlay
+                       (overlay-start brief--search-overlay))
             ;; Bypass `gui-set-selection' due to searching
             (if brief-is-gui-set-selection-postponed
                 ;; Activate timer to start postponing gui-set-selection
@@ -4983,10 +4987,10 @@ without affecting the overylay.  Used by `brief-search-replace'.")
 
 (defun brief-delete-search-overlay ()
   "Delete the search overlay when region deactivated."
-  (and (overlayp brief-search-overlay)
+  (and (overlayp brief--search-overlay)
        (not brief-hold-overlay)
-       (eq (overlay-buffer brief-search-overlay) (current-buffer))
-       (delete-overlay brief-search-overlay))
+       (eq (overlay-buffer brief--search-overlay) (current-buffer))
+       (delete-overlay brief--search-overlay))
   t)
 
 ;;(add-hook 'deactivate-mark-hook 'brief-delete-search-overlay)
@@ -5019,21 +5023,21 @@ If we're searching in a region, this undo will restore the region."
       ;;  (goto-char (cadr brief-last-query-replace-region))
       ;;  (setq brief-last-query-replace-region nil))
       (setq brief-last-search-region nil) ; (is-rect is-region count/beg end)
-      (if (and (overlayp brief-search-overlay)
-               (eq (overlay-buffer brief-search-overlay) (current-buffer))
-               (overlay-start brief-search-overlay)
-               (overlay-end   brief-search-overlay))
+      (if (and (overlayp brief--search-overlay)
+               (eq (overlay-buffer brief--search-overlay) (current-buffer))
+               (overlay-start brief--search-overlay)
+               (overlay-end   brief--search-overlay))
           ;; Line region?
           (progn
             ;; restore region
             (if (brief-is-search-forward-command last-command)
                 (progn
-                  (set-mark (overlay-end brief-search-overlay))
-                  (goto-char (overlay-start brief-search-overlay)))
+                  (set-mark (overlay-end brief--search-overlay))
+                  (goto-char (overlay-start brief--search-overlay)))
               ;; was a backward search
-              (set-mark (overlay-start brief-search-overlay))
-              (goto-char (overlay-end brief-search-overlay)))
-            (delete-overlay brief-search-overlay))
+              (set-mark (overlay-start brief--search-overlay))
+              (goto-char (overlay-end brief--search-overlay)))
+            (delete-overlay brief--search-overlay))
         ;; Rectangle?
         (if (brief-rectangle-active)
             (progn
@@ -5148,15 +5152,15 @@ region.  To settle the cursor there, cancel the (rectangle) region."
                          (and (cadr brief-last-search-region)
                               (eq (region-beginning) (region-end)))))
          (is-overlay (and brief-search-fake-region-mark
-                          (overlayp brief-search-overlay)))
+                          (overlayp brief--search-overlay)))
          (reg-start  (or (and is-overlay
-                              (overlay-start brief-search-overlay))
+                              (overlay-start brief--search-overlay))
                          (and is-rect
                               (cua--rectangle-top))
                          (and is-region
                               (region-beginning))))
          (reg-end    (or (and is-overlay
-                              (overlay-end brief-search-overlay))
+                              (overlay-end brief--search-overlay))
                          (and is-rect
                               (cua--rectangle-bot))
                          (and is-region
@@ -5176,15 +5180,15 @@ region.  To settle the cursor there, cancel the (rectangle) region."
          (not is-rect)
          new-search
          brief-search-fake-region-mark
-         (if brief-search-overlay
-             (when (null (overlay-start brief-search-overlay))
-               (move-overlay brief-search-overlay reg-start reg-end))
+         (if brief--search-overlay
+             (when (null (overlay-start brief--search-overlay))
+               (move-overlay brief--search-overlay reg-start reg-end))
            ;; Create buffer specific overlay
-           (setq brief-search-overlay
+           (setq brief--search-overlay
                  (make-overlay (point-min) (point-min)))
-           (delete-overlay brief-search-overlay)
-           (overlay-put brief-search-overlay 'face brief-fake-region-face)
-           (move-overlay brief-search-overlay reg-start reg-end)))
+           (delete-overlay brief--search-overlay)
+           (overlay-put brief--search-overlay 'face 'brief-fake-region-face)
+           (move-overlay brief--search-overlay reg-start reg-end)))
 
     ;; Check if we're continuing a search within a region
     (if (brief-is-search-forward-command last-command)
@@ -5398,15 +5402,15 @@ region.  To settle the cursor there, cancel the (rectangle) region."
                          (and (cadr brief-last-search-region)
                               (eq (region-beginning) (region-end)))))
          (is-overlay (and brief-search-fake-region-mark
-                          (overlayp brief-search-overlay)))
+                          (overlayp brief--search-overlay)))
          (reg-start  (or (and is-overlay
-                              (overlay-start brief-search-overlay))
+                              (overlay-start brief--search-overlay))
                          (and is-rect
                               (cua--rectangle-top))
                          (and is-region
                               (region-beginning))))
          (reg-end    (or (and is-overlay
-                              (overlay-end brief-search-overlay))
+                              (overlay-end brief--search-overlay))
                          (and is-rect
                               (cua--rectangle-bot))
                          (and is-region
@@ -5426,15 +5430,15 @@ region.  To settle the cursor there, cancel the (rectangle) region."
          (not is-rect)
          new-search
          brief-search-fake-region-mark
-         (if brief-search-overlay
-             (when (null (overlay-start brief-search-overlay))
-               (move-overlay brief-search-overlay reg-start reg-end))
+         (if brief--search-overlay
+             (when (null (overlay-start brief--search-overlay))
+               (move-overlay brief--search-overlay reg-start reg-end))
            ;; Create buffer specific overlay
-           (setq brief-search-overlay
+           (setq brief--search-overlay
                  (make-overlay (point-min) (point-min)))
-           (delete-overlay brief-search-overlay)
-           (overlay-put brief-search-overlay 'face brief-fake-region-face)
-           (move-overlay brief-search-overlay reg-start reg-end)))
+           (delete-overlay brief--search-overlay)
+           (overlay-put brief--search-overlay 'face 'brief-fake-region-face)
+           (move-overlay brief--search-overlay reg-start reg-end)))
 
     ;; Check if we're continuing a search within a region
     (if (brief-is-search-forward-command last-command)
@@ -5757,15 +5761,15 @@ toggled by `brief-toggle-search-replace-regexp' (\\[brief-toggle-search-replace-
       (push-mark (mark t) t t)
       (and (not is-rect)
            brief-search-fake-region-mark
-           (if brief-search-overlay
-               (when (null (overlay-start brief-search-overlay))
-                 (move-overlay brief-search-overlay reg-start reg-end))
+           (if brief--search-overlay
+               (when (null (overlay-start brief--search-overlay))
+                 (move-overlay brief--search-overlay reg-start reg-end))
              ;; Create buffer specific overlay
-             (setq brief-search-overlay
+             (setq brief--search-overlay
                    (make-overlay (point-min) (point-min)))
-             (delete-overlay brief-search-overlay)
-             (overlay-put brief-search-overlay 'face brief-fake-region-face)
-             (move-overlay brief-search-overlay reg-start reg-end))))
+             (delete-overlay brief--search-overlay)
+             (overlay-put brief--search-overlay 'face 'brief-fake-region-face)
+             (move-overlay brief--search-overlay reg-start reg-end))))
 
     (save-mark-and-excursion
       (condition-case err
@@ -6187,10 +6191,10 @@ When in minibuffer it will do completion unless prefixed with \\[universal-argum
   "Save last keyboard macro into a file."
   (interactive (or (and last-kbd-macro
                         (call-interactively
-                         '(lambda (filename)
-                            (interactive
-                             "GSave current keyboard macro to file : ")
-                            (list filename))))
+                         (lambda (filename)
+                           (interactive
+                            "GSave current keyboard macro to file : ")
+                           (list filename))))
                    (error
                     "Keyboard macro not defined yet, press <f7> to define one.")))
   (if (eq t ;; is a directory, i.e. no filename inputed
@@ -6332,12 +6336,11 @@ then goes to the top of screen and beginning of buffer."
 
 (defun brief-end-of-visual-line ()
   "Move to the visual end of current line."
-  (let* (c1
-         (p1 (save-excursion
+  (let* ((p1 (save-excursion
                (end-of-visual-line)
-               (setq c1 (following-char)) (point)))
-         (p2 (save-excursion
-               (end-of-line) (point)))) ;; `end-of-line' of course is at crlf
+               (point)))
+         (c1 (char-after p1))
+         (p2 (line-end-position))) ;; `end-of-line' of course is at crlf
     (goto-char (if (and (/= p1 p2)
                         ;; Check if we're at the abbreviated text '...'
                         (not (brief-is-crlf c1)))
@@ -6664,24 +6667,18 @@ from `write-file'."
            (if (setq auto-save-default (not auto-save-default))
                "ON" "OFF")))
 
-(defun brief-beginning-of-file ()
-  "Goto beginning of file."
-  (interactive "^")
-  (goto-char (point-min)))
-
-(defun brief-end-of-file ()
-  "Goto end of file."
-  (interactive "^")
-  (goto-char (point-max)))
-
 (defun brief-end-of-window ()
   "Goto the last visible character of window."
   (interactive "^")
   (move-to-window-line -1)
   (brief-end-of-visual-line))
 
+(defalias 'brief-beginning-of-file    #'beginning-of-buffer)
+(defalias 'brief-end-of-file          #'end-of-buffer)
+
 (defun brief-open-new-line-next ()
-  "Open a new line right below the current line and go there."
+  "Open a new line right below the current line and go there.
+Unlike [return] key, this command does not split current line."
   (interactive)
   (move-end-of-line 1)
   (newline))
@@ -6825,7 +6822,6 @@ from `write-file'."
 (brief-key [(control meta shift X)] 'save-buffers-kill-emacs)
 
 (brief-key [(meta h)]               'help)
-
 
 ;; Macro commands
 
