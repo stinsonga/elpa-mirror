@@ -6,6 +6,7 @@
 ;; Maintainer: Luke Lee <luke.yx.lee@gmail.com>
 ;; Keywords:   brief, emulations, crisp
 ;; Version:    5.86
+;; Package-Type: multi
 
 ;; GNU Emacs is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
