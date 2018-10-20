@@ -107,6 +107,7 @@
  ("sotlisp"		:subtree "https://github.com/Malabarba/speed-of-thought-lisp")
  ("spinner"		:subtree "https://github.com/Malabarba/spinner.el")
  ("sql-indent"          :external "https://github.com/alex-hhh/emacs-sql-indent")
+ ("ssh-deploy"		:external "https://github.com/cjohansson/emacs-ssh-deploy")
  ("temp-buffer-browse"  :subtree "https://github.com/leoliu/temp-buffer-browse")
  ("test-simple"         :subtree "https://github.com/rocky/emacs-test-simple")
  ("vdiff"               :subtree "https://github.com/justbur/emacs-vdiff")
