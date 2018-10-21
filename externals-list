@@ -111,6 +111,37 @@
  ("temp-buffer-browse"  :subtree "https://github.com/leoliu/temp-buffer-browse")
  ("test-simple"         :subtree "https://github.com/rocky/emacs-test-simple")
  ("vdiff"               :subtree "https://github.com/justbur/emacs-vdiff")
+ ;;("tramp"		:core
+ ;;			  (;; FIXME: elpa.gnu.org doesn't know where to get from
+ ;;			   ;;"README.md"
+ ;;			   ;; FIXME: elpa.gnu.org doesn't know where to get from
+ ;;			   ;;"dir"
+ ;;			   "lisp/net/tramp.el"
+ ;;			   "lisp/net/tramp-archive.el"
+ ;;			   "lisp/net/tramp-adb.el"
+ ;;			   "lisp/net/tramp-cache.el"
+ ;;			   "lisp/net/tramp-cmds.el"
+ ;;			   "lisp/net/tramp-compat.el"
+ ;;			   "lisp/net/tramp-ftp.el"
+ ;;			   "lisp/net/tramp-gvfs.el"
+ ;;			   ;; FIXME: elpa.gnu.org doesn't know how to build
+ ;;			   "lisp/net/tramp-loaddefs.el"
+ ;;			   "lisp/net/tramp-sh.el"
+ ;;			   "lisp/net/tramp-smb.el"
+ ;;			   "lisp/net/tramp-uu.el"
+ ;;			   "lisp/net/trampver.el"
+ ;;			   ("doc/misc/tramp.texi" "doc/tramp.texi")
+ ;;			   ("doc/misc/trampver.texi" "doc/trampver.texi")
+ ;;			   ;; FIXME: elpa.gnu.org doesn't know how to build
+ ;;			   "info/tramp.info"
+ ;;			   ("test/lisp/net/tramp-tests.el"
+ ;;			    "test/tramp-tests.el")
+ ;;			   ("test/lisp/net/tramp-archive-tests.el"
+ ;;			    "test/tramp-archive-tests.el")
+ ;;			   ("test/lisp/net/tramp-archive-resources/foo.tar.gz"
+ ;;			    "test/tramp-archive-resources/foo.tar.gz")
+ ;;			   ("test/lisp/net/tramp-archive-resources/foo.iso/foo"
+ ;;			    "test/tramp-archive-resources/foo.iso/foo")))
  ;;FIXME:("vlf"		:subtree ??)
  ("w3"			:external nil)
  ("wcheck-mode"		:subtree "https://github.com/tlikonen/wcheck-mode.git")
