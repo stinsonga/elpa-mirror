@@ -2,10 +2,10 @@
 
 ;; Copyright (C) 2018  Free Software Foundation, Inc.
 
-;; Author:     Luke Lee <luke.yx.lee@gmail.com>
-;; Maintainer: Luke Lee <luke.yx.lee@gmail.com>
-;; Keywords:   brief, emulations, crisp
-;; Version:    5.86
+;; Author:       Luke Lee <luke.yx.lee@gmail.com>
+;; Maintainer:   Luke Lee <luke.yx.lee@gmail.com>
+;; Keywords:     brief, emulations, crisp
+;; Version:      5.86
 ;; Package-Type: multi
 
 ;; GNU Emacs is free software: you can redistribute it and/or modify
@@ -830,47 +830,41 @@ use either M-x customize or the function `brief-mode'."
   "Determine if search & replace commands using regular expression or string.
 This is a buffer local variable with default value 't, which means
 regular expression is used for search & replace commands by default."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (make-variable-buffer-local 'brief-search-replace-using-regexp)
 
 (defcustom brief-mode-mode-line-string " Brief"
   "String to display in the mode line when Brief emulation mode is enabled."
-  :type  'string
-  :group 'brief)
+  :type  'string)
 
 (defcustom brief-override-meta-x t
   "Controls overriding the normal Emacs M-x key binding in this Brief emulator.
 Normally the Brief emulator rebinds M-x to `save-buffers-exit-emacs',
 and provides the usual M-x functionality on the F10 key.  If this
 variable is non-nil, M-x will exit Emacs."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defcustom brief-enable-less-frequent-keys t
   "Enable less frequently used Brief keys that Emacs native commands are using.
 By disabling this flag Emacs native key commands like C-e and C-d are
 kept unaltered.  This works only on Brief mode load time. Changing this
 variable at run-time has no effect."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defcustom brief-warn-meta-x-moved t
   "Show help message when `brief-override-meta-x' is non-nil.
 New user might be wondering where the original <M-x> key has gone,
 so this shows a message on Brief mode start to notify that that key
 combination has been moved to '<f10>' key."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defcustom brief-query-exit-emacs t
   "Ask if user really want to exit Emacs, when `brief-override-meta-x' is t.
 This option is useful for people who has already been accustomed to
 treat M-x as `execute-extended-command' \\[execute-extended-command].  This gives user
 the second chance without quitting Emacs immediately and accidentally."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defcustom brief-load-scroll-lock nil
   "Controls loading of the Scroll Lock in the Brief emulator.
@@ -879,13 +873,11 @@ package when enabling the Brief emulator.
 
 If this variable is nil when you start the Brief emulator, it
 does not load the scroll-lock package."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defcustom brief-load-hook nil
   "Hooks to run after loading the Brief emulator package."
-  :type  'hook
-  :group 'brief)
+  :type  'hook)
 
 ;; Some X systems use 'PRIMARY while some use 'CLIPBOARD.
 ;; Enabling both can ensure data sync but night become slow when
@@ -894,15 +886,13 @@ does not load the scroll-lock package."
   "On XWinodws enable Brief to use 'PRIMARY selection.
 For Windows NT systems we always use 'CLIPBOARD and this option has
 no effect."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defcustom brief-select-enable-clipboard nil
   "On XWindows enable Brief to use 'CLIPBOARD selection.
 For Windows NT systems we always use 'CLIPBOARD and this option has
 no effect."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 ;;
 ;; Xselection get/set Postponement
@@ -939,7 +929,6 @@ Notice that to change the setting of this value, `custom-set-variables'
 need to be used or only the value of is changed but it won't have any
 real effect until `brief-mode' changed."
   :type  'boolean
-  :group 'brief
   :set   'brief-set:brief-enable-postpone-selection)
 
 (defcustom brief-debounce-keys-microsoft-office nil
@@ -959,8 +948,7 @@ machines this option is provided to allow users workaround it.
 
 Currently debouncing only implemented in `brief-kill-line' (\\[brief-kill-line]),
 `brief-delete-entire-line'(\\[brief-delete-entire-line]) and `brief-copy-line'(\\[brief-copy-line])."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 ;;
 ;; External Xselection (clipboard) helper function related
@@ -969,14 +957,12 @@ Currently debouncing only implemented in `brief-kill-line' (\\[brief-kill-line])
 (defcustom brief-force-set-external-selection t
   "When setting current kill data, always set external selection.
 This is useful when multiple editors are sharing the external clipboard."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defcustom brief-external-xclipboard-timeout 5
   ;; (/ most-positive-fixnum 10)  ;; will be multiplied by slowdown factor
   "Timeout seconds for Brief to invoke external xclipboard helper program."
-  :type  'number
-  :group 'brief)
+  :type  'number)
 
 (defcustom brief-use-external-clipboard-when-possible t
   "Use external clipboard program helper to read clipboard whenever possible.
@@ -986,8 +972,7 @@ will always use external clipboard program like 'xclip' to read
 clipboard data.  Notice when Brief is running in terminal mode it
 always use external clipboard program no matter if this flag is on
 or off."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defcustom brief-show-external-clipboard-recv-progress t
   "Show progress when reading data from external clipboard helper program.
@@ -995,8 +980,7 @@ This is useful when the clipboard data is very large.  Without this
 option there might be no visual indication about the (in)completion
 of clipboard reading.  By enabling this option the user can see the
 progress."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defcustom brief-show-external-clipboard-send-progress t
   "Show progress when writing data to external clipboard helper program.
@@ -1004,8 +988,7 @@ This is useful when the clipboard data is very large.  Without this
 option there might be no visual indication about the (in)completion
 of clipboard writing.  By enabling this option the user can see the
 progress."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defcustom brief-external-clipboard-coding-system 'utf-8 ;; 'buffer
   "Customized coding system for external clipboard, default UTF-8.
@@ -1021,15 +1004,13 @@ coding system does not match your buffer.  For a complete list of
 available coding system symbols, check the completion list (press
 \\[minibuffer-complete]) when running `set-buffer-file-coding-system'
 (\\[set-buffer-file-coding-system])"
-  :type  'symbol
-  :group 'brief)
+  :type  'symbol)
 
 (defcustom brief-cygwin-use-clipboard-dev t
   "When running under Cygwin use /dev/clipboard to speed things up.
 Forking a subprocess is expensive in Cygwin.  Running external helper
 could cause a lot of delay comparing to its virtual clipboard device."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defcustom brief-giveup-clipboard-backup-if-huge t
   "Give up backing up original clipboard data if it's huge.
@@ -1039,8 +1020,7 @@ it could restore clipboard.  However, the data size of current clipboard
 is not known so it's possible that we are backing up a very huge data.
 With this option enabled we can skip backing up to prevent Emacs waits
 long."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defcustom brief-giveup-clipboard-backup-timeout 1.5
   "Timeout value to give up backing up clipboard data if it's huge.
@@ -1048,14 +1028,12 @@ This works only if `brief-giveup-clipboard-backup-if-huge' is enabled.
 Note that there is no direct way to detect the size of current clipboard
 contents without first reading it in first.  Therefore we use a general
 timeout value instead."
-  :type  'number
-  :group 'brief)
+  :type  'number)
 
 (defcustom brief-giveup-clipboard-backup-message t
   "Show visual message if backup timeout reached and we're giving up backup.
 This works only if `brief-giveup-clipboard-backup-if-huge' is enabled."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defvar brief-xclipboard-args nil
   "Brief internal variable for external Xselection helper.")
@@ -1129,7 +1107,6 @@ as non-nil, please rebuild the 'xsel' from author's git repository:
 \"https://github.com/kfish/xsel.git\" and checkout at least commit id
 \"9bfc13d\"."
   :type  'boolean
-  :group 'brief
   :set   'brief-set:brief-in-favor-of-xsel)
 
 ;;
@@ -1144,47 +1121,40 @@ which is a shorter key combination.  However, in real cases jumping
 bookmarks happens much more frequently than setting bookmarks,
 therefore a shorter key sequence is sometimes more desired.  Setting
 this flag non-NIL will achieve this goal."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defcustom brief-open-file-use-dialog-when-possible nil
   "Use the file dialog box X window manager provided when possible."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 ;; This option works only if `brief-open-file-use-dialog-when-possible' is t,
 ;;  it also seems not working on some older GTK+ systems. But anyway,
 ;;  it doesn't cause any problems to be either 't or 'nil.
 (defcustom brief-open-file-show-hidden-files t
   "Show hidden files in the file dialog box."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defcustom brief-search-recenter-vertically t
   "Recenter cursor vertically when doing search or replacement.
 By recentering the cursor, context above/below are shown."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defcustom brief-search-recenter-horizontally t
   "Recenter cursor horizontally to the right when doing search or replacement.
 By recentering the cursor to the right, context left to the cursor
 are shown."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defcustom brief-group-undo-replacement t
   "Group undos for search&replace in a (rectangle) region."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defcustom brief-search-fake-region-mark t ;nil
   "Mark a fake region when doing search within it.
 If we use the same background color as other normal region, it looks
 as if our marked region is still there when cursor moved.  Normally
 marked region changed according to our cursor."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defface brief-fake-region-face
   '((default :inherit region))  ;; 'secondary-selection
@@ -1194,8 +1164,7 @@ marked region changed according to our cursor."
 (defcustom brief-after-search-hook nil
   "Hook for user defined search behavior.
 This hook gets called after each brief search operation."
-  :type  'hook
-  :group 'brief)
+  :type  'hook)
 
 (defcustom brief-linecmd-respect-visual nil
   "Set this to t if line commands must respect visual/truncation mode.
@@ -1207,13 +1176,11 @@ only on the visual part of current line, *unless* that command is
 prefixed (\\[universal-argument]).  Similarly, when visual/truncation mode is turned on,
 prefixed (\\[universal-argument]) line commands *will* only operate on visual part of
 the line."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defcustom brief-skip-buffers '("TAGS")
   "Define the buffer names that Brief don't want to switch to."
-  :type  'sexp
-  :group 'brief)
+  :type  'sexp)
 
 (defcustom brief-apply-slowdown-factor  t
   "Apply the calibrated slowdown factor to all related timeout values.
@@ -1222,8 +1189,7 @@ small.  However, it is not known that if there could be environments
 that make this slowdown factor too high and make Brief performance
 poor.  If that's the case, set this value to nil to prevent applying
 the slowdown factor."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defcustom brief-init-multi-cursor-cmd  t
   "Initialize multiple-cursors package for Brief commands.
@@ -1233,16 +1199,14 @@ just run-once for all cursors and multiple-cursors package will then
 register user's selection.  With this option set non-NIL, the choice
 of all Brief mode commands are set initially without the need of
 user's attention."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 (defcustom brief-turn-off-scroll-bar-mode  nil
   "Turn off scroll-bar mode to save more window area for texts.
 As far as I knew quite a few old Brief users love its thin borders.  With
 this value set to non-NIL Brief mode turn-off `scroll-bar-mode' which
 saves the horizontal scroll bar for one more column of texts."
-  :type  'boolean
-  :group 'brief)
+  :type  'boolean)
 
 ;;
 ;; End of customization variables
@@ -1564,8 +1528,7 @@ created and mapped into `brief-prefix-meta-l'"
 
 (defcustom brief-bookmark-nearby 256
   "Define the distance (chars) of two bookmarks that brief considered nearby."
-  :type  'number
-  :group 'brief)
+  :type  'number)
 
 (defvar brief-inhibit-bookmark-try-switch-frame-window nil
   "An internal flag to prevent bookmark jumps switching frame and window.")
@@ -6661,6 +6624,12 @@ from `write-file'."
   (interactive)
   (scroll-up -1))
 
+;; Emacs v23 does not support this
+;;(define-minor-mode brief-auto-backup-mode
+;;  "Whether auto-backup is done globally."
+;;  :global t
+;;  :variable auto-save-default)
+
 (defun brief-toggle-auto-backup ()
   "Toggle auto-backup on or off."
   (interactive)
@@ -6961,31 +6930,32 @@ Unlike [return] key, this command does not split current line."
 ;; Miscellaneous infrequently used Brief keys
 ;;
 
-(when brief-enable-less-frequent-keys
-  ;; Change Emacs native key binding for infrequently used commands
+(defun brief-enable-less-frequent-keys ()
+  (when brief-enable-less-frequent-keys
+    ;; Change Emacs native key binding for infrequently used commands
 
-  (brief-key [(meta v)]               'brief-version)
-  (define-key cua--cua-keys-keymap [(meta v)] 'brief-version)
+    (brief-key [(meta v)]               'brief-version)
+    (define-key cua--cua-keys-keymap [(meta v)] 'brief-version)
 
-  (brief-key [(control e)]            'brief-scroll-up-one-line)
-  (brief-key [(control d)]            'brief-scroll-down-one-line)
+    (brief-key [(control e)]            'brief-scroll-up-one-line)
+    (brief-key [(control d)]            'brief-scroll-down-one-line)
 
-  (brief-key [(control w)]            'brief-toggle-auto-backup)
+    (brief-key [(control w)]            'brief-toggle-auto-backup)
 
-  (brief-key [(control prior)]        'brief-beginning-of-file)
-  (brief-key [(control next)]         'brief-end-of-file)
-  ;;(brief-meta-l-key up   [(control prior)]) ;;already defined
-  ;;(brief-meta-l-key down [(control next)])  ;;already defined
+    (brief-key [(control prior)]        'brief-beginning-of-file)
+    (brief-key [(control next)]         'brief-end-of-file)
+    ;;(brief-meta-l-key up   [(control prior)]) ;;already defined
+    ;;(brief-meta-l-key down [(control next)])  ;;already defined
 
-  (brief-key [(meta home)]            'brief-move-to-window-line-0)
-  (brief-key [(meta end)]             'brief-end-of-window)
-  (brief-meta-l-key up   [(meta home)])     ; brief-mark-line-up-with-<M-home>
-  (brief-meta-l-key down [(meta end)])      ; brief-mark-line-down-with-<M-end>
+    (brief-key [(meta home)]            'brief-move-to-window-line-0)
+    (brief-key [(meta end)]             'brief-end-of-window)
+    (brief-meta-l-key up   [(meta home)])     ; brief-mark-line-up-with-<M-home>
+    (brief-meta-l-key down [(meta end)])      ; brief-mark-line-down-with-<M-end>
 
-  (brief-key [(control return)]       'brief-open-new-line-next)
-  (define-key cua-global-keymap [(control return)] 'brief-open-new-line-next)
+    (brief-key [(control return)]       'brief-open-new-line-next)
+    (define-key cua-global-keymap [(control return)] 'brief-open-new-line-next)
 
-  (brief-key [(meta z)]               'eshell))
+    (brief-key [(meta z)]               'eshell)))
 
 ;; [2016-04-01 18:20:22 +0800] Fix CUA C-v behavior which is not consistent
 ;; with my brief-yank All CUA keymaps starts from `cua--keymap-alist', which
@@ -7289,6 +7259,8 @@ toggle brief-mode."
 
       (use-global-map brief-global-mode-map)
 
+      (brief-enable-less-frequent-keys)
+
       ;; Force `transient-mark-mode' in Emacs, so that the marking routines work
       ;; as expected.  If the user turns off transient mark mode, most things
       ;; will still work fine but some region/rectangle marking functions won't
@@ -7328,8 +7300,8 @@ toggle brief-mode."
       (if (version< emacs-version "24.0")
           (setq brief--prev-brief-mode t))))
 
-      ;; calibrate current system UI performance
-      (call-interactively 'brief-calibration))
+  ;; calibrate current system UI performance
+  (call-interactively 'brief-calibration))
 
 ;; Interaction with other packages.
 
@@ -7523,7 +7495,10 @@ toggle brief-mode."
     (defadvice line-number-at-pos
         (around brief-override-line-number-at-pos (&optional pos)
                 disable compile activate)
-      (brief-fast-line-number-at-pos pos))))
+      ;; Forward reference here
+      (if brief-replace-emacs-func:line-number-at-pos
+          (brief-fast-line-number-at-pos pos)
+        ad-do-it))))
 
 (defun brief-set:brief-replace-emacs-func:line-number-at-pos (sym val)
   "Method 'set' of variable `brief-replace-emacs-func:line-number-at-pos'.
@@ -7570,10 +7545,9 @@ which is slow on very big files, especially when using `linum-mode'.
 Notice that this replacement is global once you loaded brief mode, no
 matter if brief-mode is enabled or not."
   :type  'boolean
-  :group 'brief
   :set   'brief-set:brief-replace-emacs-func:line-number-at-pos)
 
-(eval-when (eval load)
+(eval-when (compile eval load)
   '(when brief-replace-emacs-func:line-number-at-pos
      ;; Global replacement, no matter if Brief mode is enabled or not.
      ;; Notice that it dynamically overrides the `line-number-at-pos' function
@@ -7586,11 +7560,26 @@ matter if brief-mode is enabled or not."
          ;; using `setq' to set the value.
          (advice-add 'line-number-at-pos
                      :override #'brief-fast-line-number-at-pos)
-       (defadvice line-number-at-pos
-           (around brief-replace-line-number-at-pos (pos) activate compile)
-         (if brief-replace-emacs-func:line-number-at-pos
-             (brief-fast-line-number-at-pos pos)
-           ad-do-it)))))
+       (ad-enable-advice 'line-number-at-pos
+                         'around 'brief-override-line-number-at-pos)
+       (ad-activate 'line-number-at-pos))))
+
+(defun brief-easy-start ()
+  "Emulate Brief by changing less favored Emacs settings for programmers.
+Before enabling brief mode this sets the following:
+ 1) No line wrapping by setting `truncate-lines' 't.
+ 2) No jumppy scrolling in both vertical and horizontal directions.
+ 3) Smaller borders.
+This function is used by the quick launcher 'b' script."
+  (interactive)
+  (setq-default truncate-lines t)  ;; disable line wrapping
+  ;;(setq-default global-visual-line-mode t)
+  (setq scroll-step 1              ;; set vertical scroll not jumppy
+        scroll-conservatively 101)
+  (setq hscroll-margin 1           ;; set horizontal scroll not jumppy
+        hscroll-step 1)
+  (scroll-bar-mode -1)             ;; small border without scroll bar
+  (brief-mode 1))
 
 (run-hooks 'brief-load-hook)
 

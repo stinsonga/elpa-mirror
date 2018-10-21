@@ -138,13 +138,4 @@ done
 
 # Launch Emacs with Brief mode default settings
 
-exec ${EMACS} --load ${BRIEFPATH}/brief --eval \
-"(progn \
-  (setq-default truncate-lines t) \
-  (setq scroll-step 1 \
-        scroll-conservatively 101) \
-  (setq hscroll-margin 1 \
-        hscroll-step 1) \
-  (scroll-bar-mode -1) \
-  (brief-mode 1))" \
-"${EMACSARGS[@]}"
+exec ${EMACS} --load ${BRIEFPATH}/brief --funcall brief-easy-start "${EMACSARGS[@]}"
