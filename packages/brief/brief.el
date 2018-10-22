@@ -5,7 +5,7 @@
 ;; Author:       Luke Lee <luke.yx.lee@gmail.com>
 ;; Maintainer:   Luke Lee <luke.yx.lee@gmail.com>
 ;; Keywords:     brief, emulations, crisp
-;; Version:      5.86
+;; Version:      5.87
 ;; Package-Type: multi
 
 ;; GNU Emacs is free software: you can redistribute it and/or modify
@@ -457,7 +457,7 @@
 ;; backward compatibility issues.
 ;;(require 'replace)
 
-(defconst brief-version "5.86"
+(defconst brief-version "5.87"
   "The version of this Brief emulator.")
 
 ;;
@@ -6957,16 +6957,6 @@ Unlike [return] key, this command does not split current line."
 
     (brief-key [(meta z)]               'eshell)))
 
-;; [2016-04-01 18:20:22 +0800] Fix CUA C-v behavior which is not consistent
-;; with my brief-yank All CUA keymaps starts from `cua--keymap-alist', which
-;; exists in `emulation-mode-map-alists'. In `cua--keymap-alist', the
-;; `cua--cua-keys-keymap' was listed near the head so it got higher priority.
-
-(when (and (fboundp 'cua-paste)
-           (boundp 'cua--cua-keys-keymap))
-  (define-key cua--cua-keys-keymap [remap yank] 'brief-yank)
-  (define-key cua--cua-keys-keymap [(control v)] 'brief-yank))
-
 ;;==============================================================================
 ;;
 ;; Brief mode definitions
@@ -7308,7 +7298,16 @@ toggle brief-mode."
 (eval-after-load 'cua-base
   '(progn
      (put 'brief-home 'CUA 'move)
-     (put 'brief-end  'CUA 'move)))
+     (put 'brief-end  'CUA 'move)
+     ;; [2016-04-01 18:20:22 +0800] Fix CUA C-v behavior which is not consistent
+     ;; with my brief-yank All CUA keymaps starts from `cua--keymap-alist', which
+     ;; exists in `emulation-mode-map-alists'. In `cua--keymap-alist', the
+     ;; `cua--cua-keys-keymap' was listed near the head so it got higher priority.
+
+     (when (and (fboundp 'cua-paste)
+                (boundp 'cua--cua-keys-keymap))
+       (define-key cua--cua-keys-keymap [remap yank] 'brief-yank)
+       (define-key cua--cua-keys-keymap [(control v)] 'brief-yank))))
 
 ;; Support multiple-cursors package
 
@@ -7564,6 +7563,7 @@ matter if brief-mode is enabled or not."
                          'around 'brief-override-line-number-at-pos)
        (ad-activate 'line-number-at-pos))))
 
+;;;###autoload
 (defun brief-easy-start ()
   "Emulate Brief by changing less favored Emacs settings for programmers.
 Before enabling brief mode this sets the following:
