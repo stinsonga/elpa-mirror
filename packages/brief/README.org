@@ -327,9 +327,11 @@ this Brief Mode.
   changing default settings.
 
   With the quick launcher 'b' all these are fixed.  The <page up>/<page down>
-  are rewritten to behave like other editors while 'b' changed other settings.
-  If you launch Emacs without using 'b' you may want to include those changes
-  into your ~/.emacs init script:
+  are rewritten in Brief while function `brief-easy-start' changed other settings
+  then do `(brief-mode 1)' to enable Brief mode.
+
+  If you launch Emacs without using quick launcher 'b' or `brief-easy-start'
+  function, you may want to include those changes into your ~/.emacs init script:
 
   ;;--------------------------------------------------------------------------;
   (setq-default truncate-lines t)  ;; disable line wrapping                   ;
@@ -342,7 +344,6 @@ this Brief Mode.
   ;;--------------------------------------------------------------------------;
 
   Or you can refer to the source code "brief.el" for function `brief-easy-start'.
-
 
 * For more details like Cygwin 2.x users note, please check the comments in the
   source code "brief.el".
