@@ -1,11 +1,12 @@
 ;;; crisp.el --- CRiSP/Brief Emacs emulator
 
-;; Copyright (C) 1997-1999, 2001-2014 Free Software Foundation, Inc.
+;; Copyright (C) 1997-1999, 2001-2014, 2018 Free Software Foundation, Inc.
 
 ;; Author: Gary D. Foster <Gary.Foster@Corp.Sun.COM>
 ;; Maintainer: Luke Lee <luke.yx.lee@gmail.com>
 ;; Keywords: emulations brief crisp
-;; Version: 1.3.4
+;; Package-Require: ((cl-lib "0.5"))
+;; Version: 1.3.5
 
 ;; This file is part of GNU Emacs.
 
@@ -55,6 +56,8 @@
 ;; All these overrides should go *before* the (require 'crisp) statement.
 
 ;;; Code:
+
+(eval-when-compile (require 'cl-lib))
 
 ;; local variables
 
@@ -178,31 +181,14 @@ nice to the world.")
 
 (defcustom crisp-mode-mode-line-string " *CRiSP*"
   "String to display in the mode line when CRiSP emulation mode is enabled."
-  :type 'string
-  :group 'crisp)
-
-;;;###autoload
-(defcustom crisp-mode nil
-  "Track status of CRiSP emulation mode.
-A value of nil means CRiSP mode is not enabled.  A value of t
-indicates CRiSP mode is enabled.
-
-Setting this variable directly does not take effect;
-use either M-x customize or the function `crisp-mode'."
-  :set (lambda (symbol value) (crisp-mode (if value 1 0)))
-  :initialize 'custom-initialize-default
-  :require 'crisp
-  :version "20.4"
-  :type 'boolean
-  :group 'crisp)
+  :type 'string)
 
 (defcustom crisp-override-meta-x t
   "Controls overriding the normal Emacs M-x key binding in the CRiSP emulator.
 Normally the CRiSP emulator rebinds M-x to `save-buffers-exit-emacs', and
 provides the usual M-x functionality on the F10 key.  If this variable
 is non-nil, M-x will exit Emacs."
-  :type 'boolean
-  :group 'crisp)
+  :type 'boolean)
 
 (defcustom crisp-load-scroll-all nil
   "Controls loading of the Scroll Lock in the CRiSP emulator.
@@ -211,20 +197,19 @@ package when enabling the CRiSP emulator.
 
 If this variable is nil when you start the CRiSP emulator, it
 does not load the scroll-all package."
-  :type 'boolean
-  :group 'crisp)
+  :type 'boolean)
 
 (defcustom crisp-load-hook nil
   "Hooks to run after loading the CRiSP emulator package."
-  :type 'hook
-  :group 'crisp)
+  :type 'hook)
 
 (defcustom crisp-mode-hook nil
   "Hook run by the function `crisp-mode'."
-  :type 'hook
-  :group 'crisp)
+  :type 'hook)
 
-(defconst crisp-version "1.3.4"
+(defconst crisp--version-or-file
+  (if (fboundp 'package-get-version) (package-get-version)
+    (list load-file-name))
   "The version of the CRiSP emulator.")
 
 (defconst crisp-mode-help-address "gfoster@suzieq.ml.org"
@@ -262,7 +247,33 @@ does not load the scroll-all package."
   "Version number of the CRiSP emulator package.
 If ARG, insert results at point."
   (interactive "P")
-  (let ((foo (concat "CRiSP version " crisp-version)))
+  (when (consp crisp--version-or-file)
+    (setq crisp--version-or-file
+          (let ((file (car crisp--version-or-file)))
+            ;; Copy/pasted from package-get-version:
+            (cond
+             ((null file) nil)
+             ;; Packages are normally installed into directories named
+             ;; "<pkg>-<vers>", so get the version number from there.
+             ((string-match "/[^/]+-\\([0-9]\\(?:[0-9.]\\|pre\\|beta\\|alpha\\|snapshot\\)+\\)/[^/]+\\'" file)
+              (match-string 1 file))
+             ;; For packages run straight from the an elpa.git clone, there's
+             ;; no "-<vers>" in the directory name, so we have to fetch the
+             ;; version the hard way.
+             (t
+              (let* ((pkgdir (file-name-directory file))
+                     (pkgname (file-name-nondirectory
+                               (directory-file-name pkgdir)))
+                     (mainfile (expand-file-name
+                                (concat pkgname ".el") pkgdir)))
+                (when (file-readable-p mainfile)
+                  (require 'lisp-mnt)
+                  (with-temp-buffer
+                    (insert-file-contents mainfile)
+                    (or (lm-header "package-version")
+                        (lm-header "version"))))))))))
+  (let* ((foo (concat "CRiSP version "
+                      (or crisp--version-or-file "<unknown>"))))
     (if arg
 	(insert (message foo))
       (message foo))))
@@ -350,34 +361,32 @@ normal CRiSP binding) and when it is nil M-x will run
       (save-buffers-kill-emacs)
     (call-interactively 'execute-extended-command)))
 
+(defvar crisp--minor-mode-map (make-sparse-keymap)
+  "Dummy map for `minor-mode-map-alist'.")
+
 ;;;###autoload
 (define-minor-mode crisp-mode
   "Toggle CRiSP/Brief emulation (CRiSP mode).
 With a prefix argument ARG, enable CRiSP mode if ARG is positive,
 and disable it otherwise.  If called from Lisp, enable the mode
 if ARG is omitted or nil."
-  :keymap crisp-mode-map
+  :keymap crisp--minor-mode-map
   :lighter crisp-mode-mode-line-string
-  (when crisp-mode
+  :global t
+  (cond
+   (crisp-mode
     ;; Make menu entries show M-u or f14 in preference to C-x u.
     (put 'undo :advertised-binding
          `([?\M-u] [f14] ,@(get 'undo :advertised-binding)))
-    ;; Force transient-mark-mode, so that the marking routines work as
-    ;; expected.  If the user turns off transient mark mode, most
-    ;; things will still work fine except the crisp-(copy|kill)
-    ;; functions won't work quite as nicely when regions are marked
-    ;; differently and could really confuse people.  Caveat emptor.
-    (if (fboundp 'transient-mark-mode)
-	(transient-mark-mode t))
+    (cl-pushnew crisp-mode-map (cdr global-map))
     (if crisp-load-scroll-all
 	(require 'scroll-all))
-    (if (featurep 'scroll-all)
-	(define-key crisp-mode-map [(meta f1)] 'scroll-all-mode))))
+    (if (fboundp 'scroll-all-mode)
+	(define-key crisp-mode-map [(meta f1)] 'scroll-all-mode)))
+   (t ;; not crisp-mode
+    (cl-callf (lambda (binds) (delq crisp-mode-map binds)) (cdr global-map)))))
 
 ;; People might use Apropos on `brief'.
-;;;###autoload
-(defalias 'brief-mode 'crisp-mode)
-
 ;; Interaction with other packages.
 (put 'crisp-home 'CUA 'move)
 (put 'crisp-end  'CUA 'move)
