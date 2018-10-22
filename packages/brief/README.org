@@ -5,10 +5,10 @@ Brief Mode / Brief Emulator / Brief Editor             -*- mode: org; -*-
 
 * Brief
 
-The Brief editor is famous for its easy-to-learn.  Most of the command 'K'eys are
-associated with meaningful 'K'eywords.  Usually, it can be mastered within an
-hour and difficult to forget.  Brief v3.1 was once very popular among programmers
-in the MS-DOS days.
+The Brief editor v3.1 was once very popular among programmers in the MS-DOS days.
+It was famous for its easy-to-learn.  Most of the command 'K'eys are associated
+with meaningful 'K'eywords.  Usually, it can be mastered within an hour and
+difficult to forget.
 
 For example, the first <home> key bring the cursor to home (beginning) of current
 line, a consecutive second <home> key to the home (beginning) of the window and a
