@@ -1,12 +1,14 @@
 #!/bin/bash
 # Brief Emulator/Brief Mode Launcher with Emacs
 # A support script associated with ELPA package "brief"
-# Version    : 1.0
+# Version    : 1.1
 # Written by : Luke Lee since Brief mode 5.86
+#
+# Note that this script works only after Emacs package "brief"
+# is properly installed.
+#
 
 # Environment variables and default values
-BRIEFVERSION=${BRIEFVERSION-"5.86"}
-BRIEFPATH=${BRIEFPATH-"~/.emacs.d/elpa/brief-${BRIEFVERSION}"}
 BRIEFQUICK=${BRIEFQUICK-"1"}
 BRIEFTERMINAL=${BRIEFTERMINAL-"0"}
 EMACS=${EMACS-"emacs"}
@@ -25,8 +27,6 @@ usage: b [-h] [-nq] [-nw] [<emacs-args>]
 
 Environment variables:
 
-    BRIEFVERSION     ELPA brief version, default "5.86"
-    BRIEFPATH        default path to search brief.el[c]
     BRIEFQUICK       launch Emacs with -q, default=1
     BRIEFTERMINAL    launch Emacs in terminal mode with -nw, default=0
     EMACS            default Emacs binary to launch
@@ -47,15 +47,6 @@ EOF
     echo "Error: brief.el[c] file(s) not found."
     exit 2
   fi
-}
-
-function find_brief ()
-{
-  if [ -f $1/brief.el ] || [ -f $1/brief.elc ]; then
-    BRIEFPATH="$1"
-    return `true`
-  fi
-  return `false`
 }
 
 # Try if $EMACS can be found and executed, if not, exit
@@ -84,13 +75,6 @@ find_emacs
 # Search for brief.el or brief.elc through default path list
 
 HELP=0
-
-find_brief ${BRIEFPATH} \
-  || find_brief ~/.emacs.d/elpa/brief-${BRIEFVERSION} \
-  || find_brief ~/.emacs.d/elpa/brief \
-  || find_brief ~/.emacs.d/brief \
-  || find_brief ~/bin/elisp/brief \
-  || help notfound
 
 # Scan arguments
 
@@ -132,10 +116,10 @@ done
 # Process extra arguments
 
 [ "$HELP" != "0" ] && help
-[ "$SHOWVERSION" == "1" ] && echo -e "Brief mode/emulator version ${BRIEFVERSION} for"
+[ "$SHOWVERSION" == "1" ] && echo -e "Brief mode/emulator for"
 [ "$BRIEFTERMINAL" == "1" ] && EMACSARGS=("-nw" "${EMACSARGS[@]}")
 [ "$BRIEFQUICK" == "1" ] && EMACSARGS=("-q" "${EMACSARGS[@]}")
 
 # Launch Emacs with Brief mode default settings
 
-exec ${EMACS} --load ${BRIEFPATH}/brief --funcall brief-easy-start "${EMACSARGS[@]}"
+exec ${EMACS} -f package-initialize -f brief-easy-start "${EMACSARGS[@]}"
