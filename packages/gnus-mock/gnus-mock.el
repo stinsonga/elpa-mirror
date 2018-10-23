@@ -130,45 +130,43 @@ will start a mock Gnus session."
       (let* ((mock-tmp-dir (make-temp-file "emacs-gnus-mock-" t))
 	     (init-file (expand-file-name "init.el" mock-tmp-dir)))
 	(with-temp-buffer
-	  (insert "(setq "
-		  (format
-		   "gnus-home-directory \"%s\"
-init-file-user \"%s\"
-sendmail-program \"%s\"
-message-directory \"%s\"
-gnus-startup-file \"%s\"
-gnus-init-file \"%s\"
-nndraft-directory \"%s\"
-gnus-agent-directory \"%s\"
-gnus-directory \"%s\"
-"
-		   mock-tmp-dir
-		   "mockturtle"
-		   (expand-file-name gnus-mock-sendmail-program mock-tmp-dir)
-		   mock-tmp-dir
-		   (expand-file-name ".newsrc" mock-tmp-dir)
-		   (expand-file-name ".gnus" mock-tmp-dir)
-		   (expand-file-name "drafts/" mock-tmp-dir)
-		   (expand-file-name "agent/" mock-tmp-dir)
-		   (expand-file-name "News/" mock-tmp-dir))
-		  ")\n\n")
-	  ;; Constant that can be checked if we need to know it's a mock
-	  ;; session.
-	  (insert "(defconst gnus-mock-p t)\n")
-	  ;; Constant for use in `gnus-mock-reload', which is defined in
-	  ;; the .gnus.el startup file.
-	  (insert (format "(defconst gnus-mock-data-dir \"%s\")\n"
-			  gnus-mock-data-dir))
-	  (when gnus-mock-cleanup-p
-	    (insert
-	     (format
-	      "(add-hook 'kill-emacs-hook (lambda () (delete-directory \"%s\" t)))\n"
-	      mock-tmp-dir)))
-	  (when gnus-mock-use-images
-	    (insert
-	     (format "(add-to-list 'load-path \"%s/data\")\n"
-		     mock-tmp-dir)))
-	  (write-file init-file))
+	  (let ((standard-output (current-buffer))
+		(print-circle nil))
+	    (prin1
+	     `(setq gnus-home-directory ,mock-tmp-dir
+		    init-file-user "mockturtle"
+		    sendmail-program
+		    ,(expand-file-name gnus-mock-sendmail-program
+				       mock-tmp-dir)
+		    message-directory ,mock-tmp-dir
+		    gnus-startup-file
+		    ,(expand-file-name ".newsrc" mock-tmp-dir)
+		    gnus-init-file
+		    ,(expand-file-name ".gnus" mock-tmp-dir)
+		    nndraft-directory
+		    ,(expand-file-name "drafts/" mock-tmp-dir)
+		    gnus-agent-directory
+		    ,(expand-file-name "agent/" mock-tmp-dir)
+		    gnus-directory
+		    ,(expand-file-name "News/" mock-tmp-dir)))
+	    (princ "\n\n")
+	    ;; Constant that can be checked if we need to know it's a mock
+	    ;; session.
+	    (prin1 '(defconst gnus-mock-p t))
+	    (princ "\n")
+	    ;; Constant for use in `gnus-mock-reload', which is defined in
+	    ;; the .gnus.el startup file.
+ 	    (prin1 `(defconst gnus-mock-data-dir ,gnus-mock-data-dir))
+	    (when gnus-mock-cleanup-p
+	      (princ "\n")
+	      (prin1 `(add-hook 'kill-emacs-hook
+				(lambda () (delete-directory
+					    ,mock-tmp-dir t)))))
+	    (when gnus-mock-use-images
+	      (princ "\n")
+	      (prin1 `(add-to-list 'load-path
+				   ,(format "%s/data" mock-tmp-dir))))
+	    (write-file init-file)))
 	;; Put our data and config in place.
 	(copy-directory
 	 gnus-mock-data-dir
