@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.7.12
+;; Version: 1.7.13
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -1286,7 +1286,8 @@ the cursor) are not killed."
   (interactive)
   (dolist (buffer (buffer-list))
     (when (with-current-buffer buffer el-search--temp-buffer-flag)
-      (unless (or (el-search--search-buffer-p buffer)
+      (unless (or (buffer-modified-p buffer) ; e.g. modified by el-s-query-replace and auto-save off
+                  (el-search--search-buffer-p buffer)
                   (with-current-buffer buffer (el-search--pending-search-p)))
         (kill-buffer buffer)))))
 
