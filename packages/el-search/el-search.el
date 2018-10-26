@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.7.10
+;; Version: 1.7.11
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -1135,12 +1135,11 @@ be specified as fourth argument, and COUNT becomes the fifth argument."
                                      ;; the thunk hasn't been forced
                                      (scan-lists (point) 1 0))))
                      ((el-search--match-p matcher current-expr)
-                      (setq match-beg
-                            (and (or (not bound)
-                                     (<= (el-search--end-of-sexp match-beg) bound)
-                                     ;; don't fail for >: a subsequent match may end before BOUND
-                                     )
-                                 (point))))
+                      (if (or (not bound)
+                              (<= (el-search--end-of-sexp match-beg) bound))
+                          (setq match-beg (point))
+                        ;; don't fail: a subsequent match may end before BOUND
+                        (el-search--skip-expression current-expr)))
                      (t (el-search--skip-expression current-expr))))
                   (when (and bound (<= bound (point)))
                     (throw 'no-match t)))
