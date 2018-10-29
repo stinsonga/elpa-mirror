@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.8.8
+;; Version: 1.8.9
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -559,7 +559,7 @@ following cases from the prompt."
                  (const :tag "On"  t)
                  (const :tag "Ask" ask)))
 
-(defvar el-search-use-transient-map nil
+(defvar el-search-use-transient-map t
   "Whether el-search should make commands repeatable."
   ;; I originally wanted to make commands repeatable by looking at the
   ;; command keys.  But that got overly complicated: It interfered with
@@ -1847,6 +1847,7 @@ active search it is recommended to advice this function."
 ;;;###autoload
 (defun el-search-install-shift-bindings ()
   (interactive)
+  (setq el-search-use-transient-map nil)
   (el-search-loop-over-bindings #'el-search-shift-bindings-bind-function)
   (define-key el-search-basic-transient-map [C-S-next]  #'el-search-scroll-down)
   (define-key el-search-basic-transient-map [C-S-prior] #'el-search-scroll-up))
@@ -2705,6 +2706,9 @@ See `el-search-defined-patterns' for a list of defined patterns."
        (lambda () (stream (list current-buffer))))
      (lambda (search) (setf (alist-get 'is-single-buffer (el-search-object-properties search)) t))
      'from-here))))
+
+;;;###autoload
+(defalias 'el-search #'el-search-pattern)
 
 (defmacro el-search--unless-no-buffer-match (&rest body)
   "Execute BODY unless no match for current search in current buffer.
