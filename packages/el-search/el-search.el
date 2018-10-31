@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.9.4
+;; Version: 1.9.5
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -2087,51 +2087,72 @@ Introduction to El-Search
 
 ;;;; Additional pattern type definitions
 
-(defun el-search-regexp-like-p (thing)
-  "Return non-nil when THING is regexp like.
+(defun el-search--simple-regexp-like-p (thing)
+  (or (atom thing)
+      (functionp thing)
+      (and (consp thing)
+           (proper-list-p thing)
+           (not (consp (car thing))))))
 
-In el-search, a regexp-like is either a normal regexp (i.e. a
-string), or a predicate accepting a string argument, or a list of
-the form
+(defun el-search-regexp-like-p (object)
+  "Return non-nil when OBJECT is regexp like.
 
-  \(bindings regexp\)
+In el-search, a regexp-like is either an expression evaluating to
+a normal regexp (e.g. a string or an `rx' form; it is evaluated
+once when a pattern is compiled) or a function accepting a string
+argument that can be used directly as a predicate for match
+testing, or a list of the form
 
-where REGEXP is the actual regexp to match and BINDINGS is a
-let-style list of variable bindings.
+  \(BINDINGS X\)
 
-Example: (((case-fold-search nil)) \"foo\") is a regexp like
-matching \"foo\", but not \"Foo\" even when `case-fold-search' is
-currently enabled."
-  (pcase thing
-    ((or (pred stringp) (pred functionp)) t)
+where BINDINGS is a let-style list of variable bindings and X one
+of the above.
+
+Example: (((case-fold-search nil)) (rx bos \"a\")) is a
+regexp-like matching any string starting with lower case \"a\"."
+  (pcase object
+    ((pred el-search--simple-regexp-like-p) t)
     (`(,(and (pred listp) bindings)
-       ,(pred stringp))
+       ,(pred el-search--simple-regexp-like-p))
      (cl-every
-      (lambda (binding) (pcase binding ((or (pred symbolp) `(,(pred symbolp)) `(,(pred symbolp) ,_)) t)))
+      (lambda (binding)
+        (pcase binding ((or (pred symbolp) `(,(pred symbolp)) `(,(pred symbolp) ,_)) t)))
       bindings))))
 
 (defun el-search--string-matcher (regexp-like)
   "Return a compiled match predicate for REGEXP-LIKE.
-That's a predicate returning non-nil when the
+This is a predicate returning non-nil when the
 `el-search-regexp-like-p' REGEXP-LIKE matches the (only)
 argument (that should be a string)."
-  (let ((match-bindings ()) regexp)
-    (pcase regexp-like
-      ((pred stringp) (setq regexp regexp-like))
-      (`(,binds ,real-regexp)
+  (let ((regexp) (match-bindings ()))
+    (pcase-exhaustive regexp-like
+      ((pred el-search--simple-regexp-like-p) (setq regexp regexp-like))
+      (`(,(and (pred listp) binds) ,real-regexp)
        (setq regexp real-regexp)
        (setq match-bindings binds)))
-    (if (functionp regexp-like)
-        (if (or (symbolp regexp-like) (byte-code-function-p regexp-like))
-            regexp-like
-          (byte-compile regexp-like))
+    (cl-flet ((wrap-let
+               (lambda (bindings body)
+                 (if (null bindings) body
+                   `(let ,bindings ,body)))))
       (byte-compile
        (let ((string (make-symbol "string")))
-         `(lambda (,string) (let ,match-bindings (string-match ,regexp ,string))))))))
+         `(lambda (,string)
+            ,(wrap-let
+              match-bindings
+              (if (functionp regexp)
+                  `(funcall #',regexp ,string)
+                `(string-match
+                  ,(pcase (eval regexp t)
+                     ((and (pred stringp) s) s)
+                     (_ (error "Expression in regexp-like doesn't eval to a string: %S" regexp)))
+                  ,string)))))))))
 
 (el-search-defpattern string (&rest regexps)
   "Matches any string that is matched by all REGEXPS.
-Any of the REGEXPS is `el-search-regexp-like-p'."
+Any of the REGEXPS is `el-search-regexp-like-p'.
+
+If multiple REGEXPS are given, they don't need to match in order,
+so (string \"bar\" \"foo\") matches \"foobar\" for example."
   (declare (heuristic-matcher
             (lambda (&rest regexps)
               (let ((matchers (mapcar #'el-search--string-matcher regexps)))
@@ -2150,11 +2171,16 @@ Any of the REGEXPS is `el-search-regexp-like-p'."
   "Matches any symbol whose name is matched by all REGEXPS.
 Any of the REGEXPS is `el-search-regexp-like-p'.
 
+This pattern is equivalent to
+
+  `(and (pred symbolp)
+        (app symbol-name (string ,@regexps)))
+
 Example: to replace all symbols with names starting with \"foo-\"
 to start with \"bar-\" instead, you would use
 `el-search-query-replace' with a rule like this:
 
-  (and (symbol \"\\\\`foo-\\\\(.*\\\\)\") s) >
+  (and (symbol (rx bos \"foo-\" (group (+ nonl)))) s) >
   (intern (concat \"bar-\" (match-string 1 (symbol-name s))))"
   (declare (heuristic-matcher
             (lambda (&rest regexps)
