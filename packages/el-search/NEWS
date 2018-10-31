@@ -1,6 +1,12 @@
 Some of the user visible news were:
 
 
+Version: 1.9.5
+
+  'string' and derived pattern types now support expressions evaluting
+  to regexps as arguments.  This means you can use 'rx' to construct
+  regexps in 'string' patterns, for example.
+
 Version: 1.9.0
 
   This version adds some help commands available through the C-h help
