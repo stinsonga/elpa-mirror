@@ -811,6 +811,10 @@ nil."
   (let ((message-log-max nil))
     (apply #'message format-string args)))
 
+(defun el-search--byte-compile (form)
+  (let ((byte-compile-log-warning-function #'ignore))
+    (byte-compile form)))
+
 (defun el-search--set-this-command-refresh-message-maybe ()
   (when (eq (setq this-command 'el-search-pattern) last-command)
     (message "%s" el-search--last-message)))
@@ -1232,7 +1236,7 @@ N times."
            (pattern-is-symbol   (and (symbolp pattern)
                                      (not (or (keywordp pattern)
                                               (null pattern))))))
-       (byte-compile
+       (el-search--byte-compile
         `(lambda (,(if pattern-is-catchall '_ expression))
            ,(cond
              (pattern-is-catchall (if result-specified result-expr t))
@@ -2277,7 +2281,7 @@ argument (that should be a string)."
                (lambda (bindings body)
                  (if (null bindings) body
                    `(let ,bindings ,body)))))
-      (byte-compile
+      (el-search--byte-compile
        (let ((string (make-symbol "string")))
          `(lambda (,string)
             ,(wrap-let
