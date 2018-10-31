@@ -20,6 +20,7 @@ packages/ebdb/
 packages/eglot/
 packages/ergoemacs-mode/
 packages/exwm/
+packages/fountain-mode/
 packages/hyperbole/
 packages/jsonrpc/
 packages/let-alist/
@@ -33,8 +34,10 @@ packages/python/
 packages/rudel/
 packages/soap-client/
 packages/sql-indent/
+packages/ssh-deploy/
 packages/w3/
 packages/xelb/
+packages/zones/
 
 # Testing file
 /archive
