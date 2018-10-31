@@ -150,5 +150,6 @@
  ("which-key"           :subtree "https://github.com/justbur/emacs-which-key")
  ("xelb"		:external "https://github.com/ch11ng/xelb.git")
  ("yasnippet"		:subtree "https://github.com/capitaomorte/yasnippet.git")
+ ("zones"		:external nil)  ;https://www.emacswiki.org/emacs/zones.el
  ("ztree"		:subtree "https://github.com/fourier/ztree")
  )
