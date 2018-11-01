@@ -1,0 +1,101 @@
+From MAILER-DAEMON Fri Nov 09 06:41:37 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TWmxt-0001c6-8k
+	for mharc-info-gnus-english@gnu.org; Fri, 09 Nov 2012 06:41:37 -0500
+Received: from eggs.gnu.org ([208.118.235.92]:56470)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <easior@126.com>) id 1TWmxo-0001bq-D2
+	for info-gnus-english@gnu.org; Fri, 09 Nov 2012 06:41:36 -0500
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <easior@126.com>) id 1TWmxn-00053L-AB
+	for info-gnus-english@gnu.org; Fri, 09 Nov 2012 06:41:32 -0500
+Received: from m50-110.126.com ([123.125.50.110]:49004)
+	by eggs.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <easior@126.com>) id 1TWmxj-00052i-Lg
+	for info-gnus-english@gnu.org; Fri, 09 Nov 2012 06:41:31 -0500
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=126.com;
+	s=s110527; h=Received:From:To:Subject:Face:Date:Message-ID:
+	User-Agent:MIME-Version:Content-Type:Content-Transfer-Encoding;
+	bh=EhD+HiWgWYV+wLyybECfAeTN2NqdL3E03MULN7BuNt0=; b=XB8aH00lsmmeS
+	y+ZBzbeR1ic01SONoPmI/r3SGu3j/uEXnV/ihuf/J+yyEBo+wn9FH6SgV/30Wxra
+	hjAQplNs1KPgWVhaXIWBR6/j9tFFigkK5rs92TWCBCWshOJUSu+xijmQ6HpWpLtg
+	U7hJzBvt3LAlhCT3LK/L69fOkoM4+8=
+Received: from Aphrodite.local (unknown [27.115.42.254])
+	by smtp4 (Coremail) with SMTP id jdKowEBJE0zc65xQRShPAQ--.117S2;
+	Fri, 09 Nov 2012 19:41:17 +0800 (CST)
+From: Easior <easior@126.com>
+To: info-gnus-english@gnu.org
+Subject: which variable determines the behavior of news' drafts?
+Face: iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAABGdBTUEAAK/INwWK6QAAABl0
+	RVh0U29mdHdhcmUAQWRvYmUgSW1hZ2VSZWFkeXHJZTwAAAAMUExURe/v7y8pJ5UdEpuRfs3NYikA
+	AAE9SURBVHjaxJRbbsUgDEQ9nv3vuWAI2ASoo34URcrVzRz8GIPI/y3q+MUUgAGopgIAE2AO4JNb
+	FoCiSIs+BZQabNkr16S5kAGUNfeGMeeCGZHVF7NoRqRL1tIlFUA/APoF6O1sKxWgEPgC0AWgfPIN
+	lDyArMvNL8DKyDW1ZPKMHn/PxQ4Psz2ipdLTyWREIBC3abPNEAHc93X6u2suj0iUm6AGbofJ3U84
+	AbUDVQl7ZAEYIw056uHAJoLwFYqme1aIIBbzBZT/aMMbgS62bN8hetPDnTyjRr1d3dw3tgMhhG2+
+	BxrhR2kA5DGEhCKaa2d9/zzkzS7iQDxFcvazwQc9F6+Ve8OO00fgJp96LjbvATrJIublNNA1aVUv
+	6fn6pn7Y7yWvUx0babPXR7C/dm7Mfdpw3Rp8LPMP60eAAQAtmgbkuFBEMwAAAABJRU5ErkJgggo=
+Date: Fri, 09 Nov 2012 19:41:26 +0800
+Message-ID: <m2sj8jc8bd.fsf@126.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/24.2 (darwin)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+X-CM-TRANSID: jdKowEBJE0zc65xQRShPAQ--.117S2
+X-Coremail-Antispam: 1Uf129KBjvdXoW7Gw1rXry7CrWDGF4fKry3Arb_yoWfJFXEka
+	4kGF9rAFWakF47Ja13tr4UX3W8KrZ5G3srArW5Kr42krWxJ398JrsrJrs8ZF17XayIqr1a
+	krZ5Jr4jywnrGjkaLaAFLSUrUUUUUb8apTn2vfkv8UJUUUU8Yxn0WfASr-VFAUDa7-sFnT
+	9fnUUvcSsGvfC2KfnxnUUI43ZEXa7IU8SfO7UUUUU==
+X-CM-SenderInfo: 5hdvx0bu6rjloofrz/1tbi8xxiaU0vMrLrhQAAso
+X-detected-operating-system: by eggs.gnu.org: GNU/Linux 2.6.x
+X-Received-From: 123.125.50.110
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Fri, 09 Nov 2012 11:41:36 -0000
+
+
+Hi, all.
+
+I have made some modifications of default places of gnus directories, e.g.
+
+(setq gnus-default-directory "~/.emacs.d/gnus/")
+(setq gnus-home-directory "~/.emacs.d/gnus/")
+(setq gnus-directory "~/.emacs.d/gnus/News/")
+(setq message-auto-save-directory  "~/.emacs.d/gnus/Mail/drafts/")
+
+it always works well. However, there exists a seemingly strange directory
+
+$ cd ~/.emacs.d/gnus/News
+$ ls 
+agent  drafts trash
+$ ls drafts
+drafts queue
+
+it means that there are two directories with the same name "drafts" exiting in the gnus
+hirarchical directories. How can I do?
+
+Thank in advance.
+
+-- 
+Best Regards,
+
+Easior
+-----
+Ich bin von heute und ehedam, aber etwas ist in mir, das ist vor
+morgen und übermorgen und einstmal.﻿
+
+                                     Friedrich Wilhelm Nietzsche
+----------------------------------------------------------------
+
+
+

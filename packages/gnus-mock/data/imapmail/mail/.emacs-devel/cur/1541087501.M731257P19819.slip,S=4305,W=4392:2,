@@ -1,0 +1,87 @@
+From MAILER-DAEMON Thu Jun 29 22:10:31 2017
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1dQlOA-0007W9-UC
+	for mharc-emacs-devel@gnu.org; Thu, 29 Jun 2017 22:10:30 -0400
+Received: from eggs.gnu.org ([2001:4830:134:3::10]:49844)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <mvoteiza@udel.edu>) id 1dQlO8-0007Vz-FZ
+	for emacs-devel@gnu.org; Thu, 29 Jun 2017 22:10:29 -0400
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <mvoteiza@udel.edu>) id 1dQlO4-00024y-Fz
+	for emacs-devel@gnu.org; Thu, 29 Jun 2017 22:10:28 -0400
+Received: from mail-qt0-x232.google.com ([2607:f8b0:400d:c0d::232]:33943)
+	by eggs.gnu.org with esmtps (TLS1.0:RSA_AES_128_CBC_SHA1:16)
+	(Exim 4.71) (envelope-from <mvoteiza@udel.edu>) id 1dQlO4-00023l-8f
+	for emacs-devel@gnu.org; Thu, 29 Jun 2017 22:10:24 -0400
+Received: by mail-qt0-x232.google.com with SMTP id 32so88960776qtv.1
+	for <emacs-devel@gnu.org>; Thu, 29 Jun 2017 19:10:22 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=udel-edu.20150623.gappssmtp.com; s=20150623;
+	h=date:from:to:cc:subject:message-id:mime-version:content-disposition
+	:user-agent; bh=l7QWNktVtxMHBwTXGGbaWXc2STPluebFC/lgHZd/R1k=;
+	b=ib6k8bkJ2itn0n8aAQNH05vOhWQtbtclFMRPfyCBLT/hX47vhr7becwpw+xUnOSnfb
+	lGDJzUKOewW3KgolLQb7snAZCB8glipRo/9nKCWqUg8y8/f0nejNgwm5aB+/6uoyBGZL
+	xZsxfO+Xi7zzKuhl4LYJgRlqFpUwnXq08FirYFErb/9iuO2vyrqpxlaXU39f2l6Q5cq3
+	g74kwfczCKdPHoL5fV5JQ16PPC5R5dVvp8KRD9zPzP59KMoTy1Xw8rYxiGDQxbKBQtMK
+	iELJcZevE17hLZjzk4a1V7prod9jUnlc4Og5Ric0KTnYqIb9X7HZCWlS4vEKkvUyGmoq
+	8wDg==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:date:from:to:cc:subject:message-id:mime-version
+	:content-disposition:user-agent;
+	bh=l7QWNktVtxMHBwTXGGbaWXc2STPluebFC/lgHZd/R1k=;
+	b=jLZ0G0aUEytwpNm8+qt3pGtEhK2EmGUpsNbGeOZ0YrbZDC/TKOYTLSydQQZF7O6gDT
+	Jy5bBTG4I5bljBiPRxqoevkgyxfeIpS/9bFISQyGp/Qr6Zgel2W4tQafyq0po0sLnUHu
+	l+5psSZFeXPsqBME36lQPhHhKCrw8I8M1WeSf13CyDjTGYYVqYY4Gnv/+M+0z14LVZfL
+	lsETeKADlCHkv/hWUnIom2zxIlWLoVnseIvuwrTNcicQIS8f3Dg4ynVbEc64HqqLpiVi
+	2J/pGA2iApD1h6Tpf3SI9g9e+rWgJatwPLUJ336SMclE9w6KZco4bKC9y2hrb5OmelXh
+	w5UQ==
+X-Gm-Message-State: AKS2vOzYQBy4Ci9fjcAjOC+rUYrWjPdC1iR8f3/uZjF4TCeFRC/JD2+c
+	A7fymfZfBmRdDAzY9haG6Q==
+X-Received: by 10.237.51.34 with SMTP id u31mr6755959qtd.188.1498788621755;
+	Thu, 29 Jun 2017 19:10:21 -0700 (PDT)
+Received: from holos.localdomain (pool-173-64-125-158.bltmmd.fios.verizon.net.
+	[173.64.125.158]) by smtp.gmail.com with ESMTPSA id
+	m49sm5828311qtf.32.2017.06.29.19.10.20
+	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+	Thu, 29 Jun 2017 19:10:21 -0700 (PDT)
+Received: by holos.localdomain (Postfix, from userid 1000)
+	id 3C2E168E78; Thu, 29 Jun 2017 22:10:20 -0400 (EDT)
+Date: Thu, 29 Jun 2017 22:10:20 -0400
+From: Mark Oteiza <mvoteiza@udel.edu>
+To: emacs-devel@gnu.org
+Cc: Stefan Monnier <monnier@IRO.UMontreal.CA>
+Subject: On cl-print and help-fns
+Message-ID: <20170630021020.GA27460@holos.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+User-Agent: Mutt/1.8.3 (2017-05-23)
+X-detected-operating-system: by eggs.gnu.org: Genre and OS details not
+	recognized.
+X-Received-From: 2607:f8b0:400d:c0d::232
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.1.21
+Precedence: list
+List-Id: "Emacs development discussions." <emacs-devel.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/emacs-devel/>
+List-Post: <mailto:emacs-devel@gnu.org>
+List-Help: <mailto:emacs-devel-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Fri, 30 Jun 2017 02:10:29 -0000
+
+Hi,
+
+While cl-print is a nice feature, I am puzzled why its use in the help
+buffer is neither documented nor configurable.
+
+https://git.savannah.gnu.org/cgit/emacs.git/commit/?id=2c18969c8
+
+I think that "Its value is #f(compiled-function () #<bytecode>)", while
+less messy, is less useful than just seeing the bytecode, as the bytecode
+would at least give me a clue.  The cl-prin1-to-string output is opaque.
+
+

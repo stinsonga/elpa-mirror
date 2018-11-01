@@ -1,0 +1,51 @@
+From MAILER-DAEMON Thu Nov 29 18:20:06 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TeDOo-0003cY-Pt
+	for mharc-info-gnus-english@gnu.org; Thu, 29 Nov 2012 18:20:06 -0500
+Path: usenet.stanford.edu!news.kjsl.com!us.feeder.erje.net!feeder.erje.net!eu.feeder.erje.net!news.mixmin.net!aioe.org!.POSTED!not-for-mail
+From: Emanuel Berg <embe8573@student.uu.se>
+Newsgroups: gnu.emacs.gnus
+Subject: Re: 2 x summary buffer line color
+Date: Fri, 30 Nov 2012 00:16:32 +0100
+Organization: Aioe.org NNTP Server
+Lines: 11
+Message-ID: <87boegngof.fsf@VLAN-3434.student.uu.se>
+References: <87obig5pln.fsf@VLAN-3434.student.uu.se>
+	<mailman.14077.1354216834.855.info-gnus-english@gnu.org>
+	<87ip8ongz4.fsf@VLAN-3434.student.uu.se>
+NNTP-Posting-Host: SWN/nubmpQxYKwY7hPy4YA.user.speranza.aioe.org
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+X-Complaints-To: abuse@aioe.org
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/23.4 (gnu/linux)
+X-Notice: Filtered by postfilter v. 0.8.2
+Cancel-Lock: sha1:+NNqDOa2nK5mdFvdsYvs67Ek7RU=
+Xref: usenet.stanford.edu gnu.emacs.gnus:87069
+To: info-gnus-english@gnu.org
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Thu, 29 Nov 2012 23:20:06 -0000
+
+Emanuel Berg <embe8573@student.uu.se> writes:
+
+> I wonder though, you say, my articles, replies to me, etc., but, for
+> example in the first case, will that not simply highlight all articles
+> that you've not read?
+
+Or, is this determined by the score? Then it makes sense, my mistake.
+
+-- 
+Emanuel Berg - programmer (hire me!)
+CV + code + screenshots: http://user.it.uu.se/~embe8573
+

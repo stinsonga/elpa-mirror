@@ -1,0 +1,61 @@
+From MAILER-DAEMON Fri Jun 30 14:20:59 2017
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1dR0XL-0007Ww-Sl
+	for mharc-emacs-devel@gnu.org; Fri, 30 Jun 2017 14:20:59 -0400
+Received: from eggs.gnu.org ([2001:4830:134:3::10]:33447)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <eliz@gnu.org>) id 1dR0XJ-0007Wq-W1
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 14:20:58 -0400
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <eliz@gnu.org>) id 1dR0XF-0003E6-Va
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 14:20:57 -0400
+Received: from fencepost.gnu.org ([2001:4830:134:3::e]:45114)
+	by eggs.gnu.org with esmtp (Exim 4.71) (envelope-from <eliz@gnu.org>)
+	id 1dR0XF-0003DO-KV; Fri, 30 Jun 2017 14:20:53 -0400
+Received: from 84.94.185.246.cable.012.net.il ([84.94.185.246]:1679
+	helo=home-c4e4a596f7)
+	by fencepost.gnu.org with esmtpsa (TLS1.2:RSA_AES_256_CBC_SHA1:256)
+	(Exim 4.82) (envelope-from <eliz@gnu.org>)
+	id 1dR0XE-0008Aa-Kg; Fri, 30 Jun 2017 14:20:53 -0400
+Date: Fri, 30 Jun 2017 21:20:40 +0300
+Message-Id: <83wp7tpcav.fsf@gnu.org>
+From: Eli Zaretskii <eliz@gnu.org>
+To: Alex <agrambot@gmail.com>
+CC: emacs-devel@gnu.org
+In-reply-to: <87vandz7lw.fsf@lylat> (message from Alex on Fri, 30 Jun 2017
+	11:51:55 -0600)
+Subject: Re: Native line numbers, final testing
+Reply-to: Eli Zaretskii <eliz@gnu.org>
+References: <83y3s9pm2a.fsf@gnu.org> <87vandz7lw.fsf@lylat>
+X-detected-operating-system: by eggs.gnu.org: GNU/Linux 2.2.x-3.x [generic]
+X-Received-From: 2001:4830:134:3::e
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.1.21
+Precedence: list
+List-Id: "Emacs development discussions." <emacs-devel.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/emacs-devel/>
+List-Post: <mailto:emacs-devel@gnu.org>
+List-Help: <mailto:emacs-devel-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Fri, 30 Jun 2017 18:20:58 -0000
+
+> From: Alex <agrambot@gmail.com>
+> Cc: emacs-devel@gnu.org
+> Date: Fri, 30 Jun 2017 11:51:55 -0600
+> 
+> There's an issue with relative line numbers with a non-nil
+> `display-line-numbers-current-absolute'.
+> 
+> If the current line number is at least 4 digits long, then the text in
+> the current line is shifted over.
+
+Thanks, but I don't understand what you mean, and I tried one file
+with 5-digit line number and didn't see what I think you described.
+
+Can you show a screenshot?  Are you using some special font where this
+happens?
+
+

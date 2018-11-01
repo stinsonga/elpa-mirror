@@ -1,0 +1,45 @@
+From MAILER-DAEMON Mon Nov 19 09:50:07 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TaSfn-0007E3-Ld
+	for mharc-info-gnus-english@gnu.org; Mon, 19 Nov 2012 09:50:07 -0500
+Path: usenet.stanford.edu!news.glorb.com!news.netfront.net!not-for-mail
+From: yanglm <yanglm.ace@163.com>
+Newsgroups: gnu.emacs.gnus
+Subject: gnus-notify.el is not work on Emacs24.2
+Date: Mon, 19 Nov 2012 14:45:34 +0000 (UTC)
+Organization: Netfront http://www.netfront.net/
+Lines: 6
+Message-ID: <123791454375028291.719217yanglm.ace-163.com@freenews.netfront.net>
+NNTP-Posting-Host: 123.151.32.70
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-Trace: adenine.netfront.net 1353336334 35980 123.151.32.70 (19 Nov 2012
+	14:45:34 GMT)
+X-Complaints-To: news@netfront.net
+NNTP-Posting-Date: Mon, 19 Nov 2012 14:45:34 +0000 (UTC)
+User-Agent: NewsTap/3.5.5 (iPad)
+Xref: usenet.stanford.edu gnu.emacs.gnus:87055
+To: info-gnus-english@gnu.org
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Mon, 19 Nov 2012 14:50:06 -0000
+
+Error message is below
+invalid function : gnus-group-unread 
+
+who can fix it!
+
+--- news://freenews.netfront.net/ - complaints: news@netfront.net ---
+

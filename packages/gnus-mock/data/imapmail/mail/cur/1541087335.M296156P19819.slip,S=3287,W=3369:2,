@@ -1,0 +1,82 @@
+From MAILER-DAEMON Wed Nov 21 10:22:16 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TbC80-00038V-Pm
+	for mharc-info-gnus-english@gnu.org; Wed, 21 Nov 2012 10:22:16 -0500
+Received: from eggs.gnu.org ([208.118.235.92]:33443)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TbC7t-00037T-L4
+	for info-gnus-english@gnu.org; Wed, 21 Nov 2012 10:22:15 -0500
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TbC7n-0005Nm-AM
+	for info-gnus-english@gnu.org; Wed, 21 Nov 2012 10:22:09 -0500
+Received: from plane.gmane.org ([80.91.229.3]:33389)
+	by eggs.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TbC7n-0005Ni-3N
+	for info-gnus-english@gnu.org; Wed, 21 Nov 2012 10:22:03 -0500
+Received: from list by plane.gmane.org with local (Exim 4.69)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TbC7v-0005dX-IE
+	for info-gnus-english@gnu.org; Wed, 21 Nov 2012 16:22:11 +0100
+Received: from 37.160.11.167 ([37.160.11.167])
+	by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+	id 1AlnuQ-0007hv-00
+	for <info-gnus-english@gnu.org>; Wed, 21 Nov 2012 16:22:11 +0100
+Received: from j.cubizolles by 37.160.11.167 with local (Gmexim 0.1 (Debian))
+	id 1AlnuQ-0007hv-00
+	for <info-gnus-english@gnu.org>; Wed, 21 Nov 2012 16:22:11 +0100
+X-Injected-Via-Gmane: http://gmane.org/
+To: info-gnus-english@gnu.org
+From: Julien Cubizolles <j.cubizolles@free.fr>
+Subject: Select message by header
+Date: Wed, 21 Nov 2012 16:21:34 +0100
+Lines: 18
+Message-ID: <871ufnm16p.fsf@free.fr>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+X-Complaints-To: usenet@ger.gmane.org
+X-Gmane-NNTP-Posting-Host: 37.160.11.167
+User-Agent: Gnus/5.130006 (Ma Gnus v0.6) Emacs/24.3.50 (gnu/linux)
+Cancel-Lock: sha1:MH24feLS/vuW7HmtBXyNVHmPj+E=
+X-detected-operating-system: by eggs.gnu.org: Genre and OS details not
+	recognized.
+X-Received-From: 80.91.229.3
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Wed, 21 Nov 2012 15:22:15 -0000
+
+What's the best way to mark all messages according to the value of a
+header ?
+
+Let's say I want to move all messages from a given author, I can do from
+a Summary buffer :
+
+/ a name-of-the-author, then M P b, then B m name-of-group-where-to
+move, then / w to recover the summary
+
+The filtering/unfiltering feels unnecessary here
+
+Or I can do 
+& From name-of-the-author, then B m but then gnus asks for the
+name-of-group-where-to-move for each message
+
+How to get the best of both methods ?
+
+Julien.
+
+
+

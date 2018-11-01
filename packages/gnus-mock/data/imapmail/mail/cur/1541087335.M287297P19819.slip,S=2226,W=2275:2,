@@ -1,0 +1,49 @@
+From MAILER-DAEMON Sun Nov 18 19:20:06 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TaF5q-0003Tp-1k
+	for mharc-info-gnus-english@gnu.org; Sun, 18 Nov 2012 19:20:06 -0500
+Path: usenet.stanford.edu!news.glorb.com!feeder.erje.net!eu.feeder.erje.net!feed.xsnews.nl!border-1.ams.xsnews.nl!feeder.xennanews.com!feeder.xennanews.com!nf37.xennanews.com!not-for-mail
+From: Cecil Westerhof <Cecil@decebal.nl>
+Newsgroups: gnu.emacs.gnus
+Subject: Deleted group still found by tab expansion
+Organization: Decebal Computing
+X-Homepage: http://www.decebal.nl/
+Date: Sun, 18 Nov 2012 23:47:34 +0100
+Message-ID: <87boeur0jd.fsf@Compaq.site.inet>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/23.3 (gnu/linux)
+Cancel-Lock: sha1:ii43G3C46BojGT1npOe/u+uzmR4=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+X-Complaints-To: abuse@xennanews.com
+Lines: 11
+NNTP-Posting-Host: 84.53.123.169 (84.53.123.169)
+NNTP-Posting-Date: Sun, 18 Nov 2012 23:59:22 +0100
+Xref: usenet.stanford.edu gnu.emacs.gnus:87054
+To: info-gnus-english@gnu.org
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Mon, 19 Nov 2012 00:20:05 -0000
+
+In the past I had two groups. One ended with SpamNotFound and the othe
+with SpamNLLGG. I deleted the last group. But still when I want to
+move a message and type SpamN and give a TAB, instead of expanding to
+SpamNotFound I get the two possibilities. Why does Gnus remember a
+group that is deleted a long time ago? And how can I make Gnus forget
+the group?
+
+-- 
+Cecil Westerhof
+Senior Software Engineer
+LinkedIn: http://www.linkedin.com/in/cecilwesterhof
+

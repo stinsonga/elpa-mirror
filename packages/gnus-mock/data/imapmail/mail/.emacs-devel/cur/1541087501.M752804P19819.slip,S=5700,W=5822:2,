@@ -1,0 +1,122 @@
+From MAILER-DAEMON Fri Jun 30 21:57:46 2017
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1dR7fO-0005GF-OX
+	for mharc-emacs-devel@gnu.org; Fri, 30 Jun 2017 21:57:46 -0400
+Received: from eggs.gnu.org ([2001:4830:134:3::10]:42061)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <jean.christophe.helary@gmail.com>)
+	id 1dR7fM-0005G6-VS
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 21:57:45 -0400
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <jean.christophe.helary@gmail.com>)
+	id 1dR7fJ-0000nn-U0
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 21:57:45 -0400
+Received: from mail-pg0-x234.google.com ([2607:f8b0:400e:c05::234]:34986)
+	by eggs.gnu.org with esmtps (TLS1.0:RSA_AES_128_CBC_SHA1:16)
+	(Exim 4.71) (envelope-from <jean.christophe.helary@gmail.com>)
+	id 1dR7fJ-0000n2-LD
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 21:57:41 -0400
+Received: by mail-pg0-x234.google.com with SMTP id j186so70921624pge.2
+	for <emacs-devel@gnu.org>; Fri, 30 Jun 2017 18:57:41 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=gmail.com; s=20161025;
+	h=from:content-transfer-encoding:mime-version:subject:date:references
+	:to:in-reply-to:message-id;
+	bh=0WG55+LqIeHr6q+fTLiAGrks9UjP9d3t9HWsVhglgKg=;
+	b=PT4jvOGw2nIzbuutgTFvwQwa+CemjgrKEhcCR5ca5F7opzM8ziTKb8blUOOkBVF1Dk
+	WQhqFoUK4b09LYsv7y7KUSz36lH9RwozqYpq6ybl0bR5wBofQg2sFfv6oDhfby45s9c/
+	26E6mIqB+dHnl+Dwu2rpYdfUP3ZyHoOPVRt4Y/9f0rAxKb+szqWbJr5BD4s5Y08LXfZM
+	z1PRnfpfTTjw4CO9mJJPcRUDO+yCX7lBTYXXqtvIP+FhnzNENMdyaXY0g7Mq+GUUhBAX
+	JPlup7mxx9zOL4QOk5ZgsT9p19ELWk0GKR3uefqTQi6fdMbqJDK4kn5wjczdpZPGlXrs
+	m1HQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:from:content-transfer-encoding:mime-version
+	:subject:date:references:to:in-reply-to:message-id;
+	bh=0WG55+LqIeHr6q+fTLiAGrks9UjP9d3t9HWsVhglgKg=;
+	b=F21ZQgw7v/zaVxzSQiQkmmIZoldkBlPEtBXk74OcIspYoeaB5zb/RObkHkdZz6npDS
+	f2FbN5kn5ZeBu0hYGKslrvg+AbjVdxrh3F/uwJGzUqO5bvFqALW1tOMNIXnPnsxJkBo7
+	7yhRiQxdgQ99RL3cram8WvoahQ7u+66n5xuxc21NS3tGIYsKhHLtnsRWHBkYexmh7wkp
+	NTup4oIxz1tK/b9c3e3gnIQYEH0KYThG9C8PlCiib/M8poanf28roxJwo8fnhtNY4fxX
+	KZb509Zymsonio0YZWbVCCKdIZCndOTg6b2RFIgbZNVbPI2fc1vZJtezuX39qX0MXhgd
+	Al+g==
+X-Gm-Message-State: AKS2vOzgf7sEzUGhS2R8zP26h9N6QuZY5hi22AVPsqNh9+DxywFam2zK
+	jVCkX9BduTBqQt6UEpI=
+X-Received: by 10.84.128.1 with SMTP id 1mr27746843pla.244.1498874260364;
+	Fri, 30 Jun 2017 18:57:40 -0700 (PDT)
+Received: from [10.251.103.141] ([210.160.37.44])
+	by smtp.gmail.com with ESMTPSA id
+	s62sm22113253pfi.36.2017.06.30.18.57.38 for <emacs-devel@gnu.org>
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Fri, 30 Jun 2017 18:57:39 -0700 (PDT)
+From: Jean-Christophe Helary <jean.christophe.helary@gmail.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
+Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
+Subject: Re: format use inquiry
+Date: Sat, 1 Jul 2017 10:56:49 +0900
+References: <BD6A3938-3833-4235-BCC7-9A233429B423@gmail.com>
+	<7e7f068e4e.fsf@fencepost.gnu.org>
+	<E1dNrNO-0002Dq-ES@fencepost.gnu.org>
+To: Emacs development discussions <emacs-devel@gnu.org>
+In-Reply-To: <E1dNrNO-0002Dq-ES@fencepost.gnu.org>
+Message-Id: <2FDCF579-44BC-49AD-985F-14AE5C654645@gmail.com>
+X-Mailer: Apple Mail (2.3273)
+X-detected-operating-system: by eggs.gnu.org: Genre and OS details not
+	recognized.
+X-Received-From: 2607:f8b0:400e:c05::234
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.1.21
+Precedence: list
+List-Id: "Emacs development discussions." <emacs-devel.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/emacs-devel/>
+List-Post: <mailto:emacs-devel@gnu.org>
+List-Help: <mailto:emacs-devel-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Sat, 01 Jul 2017 01:57:45 -0000
+
+
+> On Jun 22, 2017, at 10:57, Richard Stallman <rms@gnu.org> wrote:
+>=20
+>>> (format "http%s://elpa.gnu.org/packages/"
+>>>                                        (if (gnutls-available-p) "s" =
+""))
+>=20
+>> Yes, it is. But obviously I think that, since I wrote it.
+>=20
+> I agree it is acceptable, but this looks like something that might be
+> needed in a number of places, so perhaps we should make a nicer
+> interface to do it.
+
+There is only one instance of such a query in package.el and no other =
+package in the emacs distribution seems to use gnutls-available-p to add =
+an "s" to http.
+
+Paul suggested that it would be a maintenance hassle to keep 2 almost =
+identical urls if we spelled them out as Yuri suggested but I checked =
+other source packages and for ex auth-source-pass-tests.el explicitly =
+spells out all the urls without resorting to smart formatting to save a =
+few characters.
+
+Also, considering the way %s is abused in other places package.el, for =
+ex in:
+
+ (message "%d package%s marked for upgrading."                           =
+                                   =20
+        (length upgrades)                                                =
+                                         =20
+        (if (=3D (length upgrades) 1) "" "s")))))=20
+
+I don't think it is good to keep the above code because it gives bad =
+incentives to authors especially if work on i18n/l10n proceeds (even =
+though http/https is not related to l10n).
+
+So, I'm going to spell out the urls as I proceed with untangling code =
+and translatable strings in package.el. I'll send a diff here when I'm =
+done for evaluation.
+
+Jean-Christophe=20=
+
+

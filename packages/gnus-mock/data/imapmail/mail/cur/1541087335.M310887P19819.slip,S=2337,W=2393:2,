@@ -1,0 +1,56 @@
+From MAILER-DAEMON Thu Nov 29 14:00:08 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1Te9LE-0007nX-P9
+	for mharc-info-gnus-english@gnu.org; Thu, 29 Nov 2012 14:00:08 -0500
+Path: usenet.stanford.edu!news.glorb.com!feeder.erje.net!eu.feeder.erje.net!proxad.net!feeder1-2.proxad.net!193.252.117.184.MISMATCH!feeder.news.orange.fr!not-for-mail
+From: Daimrod <daimrod@gmail.com>
+Newsgroups: gnu.emacs.gnus
+Subject: Send signed message to newsgroup
+Date: Thu, 29 Nov 2012 20:00:39 +0100
+Message-ID: <87sj7skze0.fsf@casa.home>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/24.3.50 (gnu/linux)
+Cancel-Lock: sha1:eSRHMgnb+Dy0bezBK+w9/bQGYTs=
+MIME-Version: 1.0
+Content-Type: text/plain
+Lines: 18
+Organization: les newsgroups par Orange
+NNTP-Posting-Date: 29 Nov 2012 19:59:24 CET
+NNTP-Posting-Host: 90.54.229.31
+X-Trace: 1354215564 reader.news.orange.fr 9017 90.54.229.31:15616
+X-Complaints-To: abuse@orange.fr
+Xref: usenet.stanford.edu gnu.emacs.gnus:87066
+To: info-gnus-english@gnu.org
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Thu, 29 Nov 2012 19:00:07 -0000
+
+Hi,
+
+I use Gnus v5.13 with Emacs compiled from the git repository.
+
+Remote:   master @ origin (git://git.savannah.gnu.org/emacs.git)
+Head:     858ed42 Fix wording of commentary to 'struct face' in dispextern.h.
+
+Though I can send mail to a newsgroup, I can't sign it without being rejected:
+
+441 437 Rejected 1672 001b00 IncomingFilter 
+Couldn't send message via news: 441 437 Rejected 1672 001b00 IncomingFilter 
+
+I didn't try (yet) to find when this problem was introduced but I've
+been able to send signed mail to a newsgroup with an ancient version of
+Emacs (probably one or two month old).
+
+-- 
+Daimrod/Greg
+

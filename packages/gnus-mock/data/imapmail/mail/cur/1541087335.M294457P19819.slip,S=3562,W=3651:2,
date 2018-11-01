@@ -1,0 +1,89 @@
+From MAILER-DAEMON Mon Nov 19 14:22:43 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TaWvb-00021R-Tp
+	for mharc-info-gnus-english@gnu.org; Mon, 19 Nov 2012 14:22:43 -0500
+Received: from eggs.gnu.org ([208.118.235.92]:49391)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TaWvX-000201-1Y
+	for info-gnus-english@gnu.org; Mon, 19 Nov 2012 14:22:42 -0500
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TaWvS-00038p-0p
+	for info-gnus-english@gnu.org; Mon, 19 Nov 2012 14:22:38 -0500
+Received: from plane.gmane.org ([80.91.229.3]:47122)
+	by eggs.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TaWvR-00038h-QA
+	for info-gnus-english@gnu.org; Mon, 19 Nov 2012 14:22:33 -0500
+Received: from list by plane.gmane.org with local (Exim 4.69)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TaWva-0007UR-58
+	for info-gnus-english@gnu.org; Mon, 19 Nov 2012 20:22:42 +0100
+Received: from fw54.torolab.ibm.com ([199.246.40.54])
+	by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+	id 1AlnuQ-0007hv-00
+	for <info-gnus-english@gnu.org>; Mon, 19 Nov 2012 20:22:42 +0100
+Received: from harizvi by fw54.torolab.ibm.com with local (Gmexim 0.1 (Debian))
+	id 1AlnuQ-0007hv-00
+	for <info-gnus-english@gnu.org>; Mon, 19 Nov 2012 20:22:42 +0100
+X-Injected-Via-Gmane: http://gmane.org/
+To: info-gnus-english@gnu.org
+From: Haider Rizvi <harizvi@gmail.com>
+Subject: Gnus in stuck state with gnus-demon
+Date: Mon, 19 Nov 2012 14:22:14 -0500
+Lines: 26
+Message-ID: <m17gph5rfd.fsf@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain
+X-Complaints-To: usenet@ger.gmane.org
+X-Gmane-NNTP-Posting-Host: fw54.torolab.ibm.com
+User-Agent: Gnus/5.130006 (Ma Gnus v0.6) Emacs/24.2 (darwin)
+Cancel-Lock: sha1:FXdPZbl83QklMHnVLYsl870x5pc=
+X-detected-operating-system: by eggs.gnu.org: Genre and OS details not
+	recognized.
+X-Received-From: 80.91.229.3
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Mon, 19 Nov 2012 19:22:42 -0000
+
+For my gnus setup, I have various nntp servers, nnimap, and nnrss servers. 
+
+I have set the following for fetching mail and news automatically: 
+(gnus-demon-add-handler 'gnus-demon-scan-news 30 1)
+(gnus-demon-init)
+
+Quite often, I see gnus stuck, the last message being about nndraft. I
+can break out of it by pressing ctrl-g. It doesn't seem to be just gnus
+getting msgs, I have been patient and waited for a while with no
+movement.
+
+After breaking, in *Messages* I see the following:
+
+......
+nnimap read 82k from imap.gmail.com (initial sync of 3 groups; please wait) [2 times]
+Reading active file from archive via nnfolder...done
+Reading active file via nndraft...done
+
+
+Ma Gnus v0.6
+GNU Emacs 24.2.1 (x86_64-apple-darwin, NS apple-appkit-1038.36)
+ of 2012-08-27 on bob.porkrind.org
+
+Regards, 
+-- 
+Haider
+
+
+

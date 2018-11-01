@@ -5,7 +5,7 @@
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Package-Type: multi
-;; Version: 0.1.2
+;; Version: 0.2.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -48,11 +48,11 @@
 ;; Users have two options for adding custom configuration to the mock
 ;; session:
 
-;; - `gnus-mock-gnus-settings' can be set to a filename, the contents
+;; - `gnus-mock-gnus-file' can be set to a filename, the contents
 ;;    of which will be appended to the .gnus.el startup file in the
 ;;    mock session.  This code will be executed at Gnus startup.
 
-;; - `gnus-mock-init-setting' should also be a filename, the contents
+;; - `gnus-mock-init-file' should also be a filename, the contents
 ;;   of which will be appended to the init.el file that is loaded when
 ;;   the child Emacs process starts.
 
@@ -110,6 +110,18 @@ so multiple sessions will not conflict if this option is nil."
 	"windows-sendmail-wrapper.cmd"
       "fakesendmail.py"))
   "Program used as the value of `sendmail-program'."
+  :group 'gnus-mock
+  :type 'string)
+
+(defcustom gnus-mock-dovecot-imap-program nil
+  "Dovecot imap executable used to set up an nnimap server.
+This option should not be set to the \"dovecot\" executable
+itself, but rather to the \"imap\" executable that ships with
+dovecot.  This executable isn't on the PATH, but often lives at
+/usr/lib/dovecot/imap.
+
+If nil, no nnimap server will be added to the Gnus mock
+installation."
   :group 'gnus-mock
   :type 'string)
 
@@ -192,12 +204,50 @@ will start a mock Gnus session."
 	    (append-to-file
 	     (point-min) (point-max)
 	     (expand-file-name ".gnus.el" mock-tmp-dir))))
+	;; Possibly add an nnimap server.
+	(when gnus-mock-dovecot-imap-program
+	  (with-temp-buffer
+	    (insert "\n\n")
+	    (prin1
+	     `(add-to-list
+	       'gnus-secondary-select-methods
+	       (quote (nnimap
+		       "Mocky"
+		       (nnimap-stream shell)
+		       (nnimap-shell-program
+			,(concat
+			  gnus-mock-dovecot-imap-program
+			  (format " -o mail_location=maildir:%s/imapmail/mail"
+				  mock-tmp-dir))))))
+	     (current-buffer))
+	    (append-to-file
+	     (point-min) (point-max)
+	     (expand-file-name ".gnus.el" mock-tmp-dir))))
 	;; There are absolute paths in the .newsrc.eld file, so doctor
 	;; that file.
 	(with-current-buffer (find-file-noselect
 			      (expand-file-name ".newsrc.eld" mock-tmp-dir))
 	  (while (re-search-forward "REPLACE_ME" (point-max) t)
 	    (replace-match mock-tmp-dir t))
+	  (when gnus-mock-dovecot-imap-program
+	    (goto-char (point-max))
+	    (insert "\n\n")
+	    (prin1
+	     '(setq
+	       gnus-newsrc-alist
+	       (append
+		gnus-newsrc-alist
+		'(("nnimap+Mocky:INBOX" 3 nil ((unexist) (seen (1 . 32)))
+		   "nnimap:Mocky" ((modseq . "33") (uidvalidity . "1541087103")
+				   (active 1 . 32)
+				   (permanent-flags %Answered %Flagged %Deleted
+						    %Seen %Draft %*)))
+		  ("nnimap+Mocky:emacs-devel" 3 nil ((unexist 0))
+		   "nnimap:Mocky" ((modseq . "21") (uidvalidity . "1541087104")
+				   (active 0 . 20)
+				   (permanent-flags %Answered %Flagged %Deleted
+						    %Seen %Draft %*))))))
+	     (current-buffer)))
 	  (basic-save-buffer))
 	(make-process :name "gnus-mock" :buffer nil
 		      :command (list gnus-mock-emacs-program

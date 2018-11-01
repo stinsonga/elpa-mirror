@@ -1,0 +1,109 @@
+From MAILER-DAEMON Thu Jun 29 16:26:13 2017
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1dQg0z-0005m6-Ge
+	for mharc-emacs-devel@gnu.org; Thu, 29 Jun 2017 16:26:13 -0400
+Received: from eggs.gnu.org ([2001:4830:134:3::10]:41991)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <kaushal.modi@gmail.com>) id 1dQg0x-0005lx-Cx
+	for emacs-devel@gnu.org; Thu, 29 Jun 2017 16:26:12 -0400
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <kaushal.modi@gmail.com>) id 1dQg0w-0007N9-Hw
+	for emacs-devel@gnu.org; Thu, 29 Jun 2017 16:26:11 -0400
+Received: from mail-lf0-x230.google.com ([2a00:1450:4010:c07::230]:36322)
+	by eggs.gnu.org with esmtps (TLS1.0:RSA_AES_128_CBC_SHA1:16)
+	(Exim 4.71) (envelope-from <kaushal.modi@gmail.com>)
+	id 1dQg0v-0007Ig-1B; Thu, 29 Jun 2017 16:26:09 -0400
+Received: by mail-lf0-x230.google.com with SMTP id h22so59291728lfk.3;
+	Thu, 29 Jun 2017 13:26:07 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=gmail.com; s=20161025;
+	h=mime-version:references:in-reply-to:from:date:message-id:subject:to; 
+	bh=yHyut9o5E9L2ecBMn2EZMioy/LmZ6uI34QpgScmeMLQ=;
+	b=nvOHWOiPfpnMML3MWrR7JnW29Rc4nrhS5R5yUWLWFAIk8GIJvNxuxhxGIwEMpf6hVM
+	VTwQaCLA+JMdK43B6B+YmwZh2gKegmEhuSfYdAs3QSnQXLuCAg2ds6cnh4oFSD/4sfTm
+	9K4Vylb7Xvt9/WwLqL9c4TyMH/VaovARy9GixftGYafBceZ6f06ye0tcvPB6bVXg0CIs
+	w+1coJBkj9pJuSD44ghFzz8qKryqnlcDAAF+0g/u2H7dXvVZZ6Pd+nUTfh6Pv0oyCj0A
+	e4l1oXQ+fLYGHsUO3TRsXItVTTqIFtI1fIsGOLEW0zwVoKSKhW+wQohO5IkT4/keR7bA
+	2fwA==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+	:message-id:subject:to;
+	bh=yHyut9o5E9L2ecBMn2EZMioy/LmZ6uI34QpgScmeMLQ=;
+	b=cn7wR196vlxjndEjuxLygRZ7y+9DqDmUDTmoGilVeyxzkR2hDE6DcIM487PfS5uNB6
+	416cVK8kI+khl4R4IepZR2kLu9xCvzs406FjZUt1VpuyQt9ZZBaXiLpgkxRcjN1htwXq
+	xI6uy4MCgNKo/JFo6cIUj/HfDvFj2V/NZG5jWBgwv3AFV8jaakyGNm2OLUmx9CYRmbAB
+	d45rZE2CpAE8kkNoHk9SHK6KKzYX2M7B7+C+5Ok/PEgaQ0RbrqTQV0UAE7BQJI2WUizX
+	vpNQs5ylvcJ/URi7VfH40psGy35ZGMaCPK5fgHlWeEnbZOKrdJa0HSvSb7zhJF+JWXXI
+	GIKQ==
+X-Gm-Message-State: AKS2vOxDmdO4ZFnQAfF7DMZcyxsSg17LS+RzFQcV3OpJR2V1lkcxo0Vd
+	M5HWdinnBG0LU+3LMef9UugsHdlCpA==
+X-Received: by 10.46.75.9 with SMTP id y9mr5376298lja.60.1498767965938; Thu,
+	29 Jun 2017 13:26:05 -0700 (PDT)
+MIME-Version: 1.0
+References: <83tw35thxw.fsf@gnu.org> <87efu7lsj0.fsf@lylat>
+	<83r2y7sc9q.fsf@gnu.org> <87a84vl8gm.fsf@lylat> <8760fjl85k.fsf@lylat>
+	<83o9tassmh.fsf@gnu.org> <87wp7y4jvk.fsf@lylat>
+	<83bmp9se23.fsf@gnu.org>
+In-Reply-To: <83bmp9se23.fsf@gnu.org>
+From: Kaushal Modi <kaushal.modi@gmail.com>
+Date: Thu, 29 Jun 2017 20:25:54 +0000
+Message-ID: <CAFyQvY2fFoR2qJ_JjRLmHhQMe6gh54ydpXgsYqZnp5j9mzZdqQ@mail.gmail.com>
+Subject: Native line numbers column disappears at times
+To: Eli Zaretskii <eliz@gnu.org>, emacs-devel@gnu.org
+Content-Type: multipart/alternative; boundary="f403045e9d1c35ed8505531f1cc0"
+X-detected-operating-system: by eggs.gnu.org: Genre and OS details not
+	recognized.
+X-Received-From: 2a00:1450:4010:c07::230
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.1.21
+Precedence: list
+List-Id: "Emacs development discussions." <emacs-devel.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/emacs-devel/>
+List-Post: <mailto:emacs-devel@gnu.org>
+List-Help: <mailto:emacs-devel-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Thu, 29 Jun 2017 20:26:12 -0000
+
+--f403045e9d1c35ed8505531f1cc0
+Content-Type: text/plain; charset="UTF-8"
+
+Hi Eli,
+
+I have been testing out the line numbers branch for past few days. I see a
+tremendous improvement over the first cut (and thank you for adding the
+current line number highlight feature).
+
+I have just 1 remark:
+
+The line numbers column disappears at times. I have seen that to happen
+only when the emacs *frame* is not in focus. As soon as I click on that
+window, the line numbers re-appear. I don't yet have a recipe to
+consistently recreate this.
+
+Thanks.
+-- 
+
+Kaushal Modi
+
+--f403045e9d1c35ed8505531f1cc0
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">Hi Eli,<div><br></div><div>I have been testing out the lin=
+e numbers branch for past few days. I see a tremendous improvement over the=
+ first cut (and thank you for adding the current line number highlight feat=
+ure).</div><div><br></div><div>I have just 1 remark:</div><div><br></div><d=
+iv>The line numbers column disappears at times. I have seen that to happen =
+only when the emacs *frame* is not in focus. As soon as I click on that win=
+dow, the line numbers re-appear. I don&#39;t yet have a recipe to consisten=
+tly recreate this.</div><div><br></div><div>Thanks.</div></div><div dir=3D"=
+ltr">-- <br></div><div data-smartmail=3D"gmail_signature"><p dir=3D"ltr">Ka=
+ushal Modi</p>
+</div>
+
+--f403045e9d1c35ed8505531f1cc0--
+
+

@@ -1,0 +1,100 @@
+From MAILER-DAEMON Fri Nov 16 18:10:06 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TZV30-0002DH-8B
+	for mharc-info-gnus-english@gnu.org; Fri, 16 Nov 2012 18:10:06 -0500
+Received: from eggs.gnu.org ([208.118.235.92]:57273)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TZV2v-0002AB-3a
+	for info-gnus-english@gnu.org; Fri, 16 Nov 2012 18:10:04 -0500
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TZV2s-00033z-0b
+	for info-gnus-english@gnu.org; Fri, 16 Nov 2012 18:10:01 -0500
+Received: from plane.gmane.org ([80.91.229.3]:41500)
+	by eggs.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TZV2r-00033t-Qr
+	for info-gnus-english@gnu.org; Fri, 16 Nov 2012 18:09:57 -0500
+Received: from list by plane.gmane.org with local (Exim 4.69)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TZV2y-0000zM-37
+	for info-gnus-english@gnu.org; Sat, 17 Nov 2012 00:10:04 +0100
+Received: from samograd.ca ([69.90.114.176])
+	by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+	id 1AlnuQ-0007hv-00
+	for <info-gnus-english@gnu.org>; Sat, 17 Nov 2012 00:10:04 +0100
+Received: from burton by samograd.ca with local (Gmexim 0.1 (Debian))
+	id 1AlnuQ-0007hv-00
+	for <info-gnus-english@gnu.org>; Sat, 17 Nov 2012 00:10:04 +0100
+X-Injected-Via-Gmane: http://gmane.org/
+To: info-gnus-english@gnu.org
+From: Burton Samograd <burton@samograd.ca>
+Subject: Error in nnimap-open-connection-1 when using nnimap-stream plain
+Date: Fri, 16 Nov 2012 15:57:09 -0700
+Lines: 37
+Message-ID: <kghd2zdma0q.fsf@CDW764-BURTONS.QFTI.COM>
+Mime-Version: 1.0
+Content-Type: text/plain
+X-Complaints-To: usenet@ger.gmane.org
+X-Gmane-NNTP-Posting-Host: samograd.ca
+User-Agent: Gnus/5.1299999999999999 (Gnus v5.13) Emacs/24.3.50 (cygwin)
+Cancel-Lock: sha1:WVM5Oh06Sv8pm0B/ouZJi9ptyzQ=
+X-detected-operating-system: by eggs.gnu.org: Genre and OS details not
+	recognized.
+X-Received-From: 80.91.229.3
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Fri, 16 Nov 2012 23:10:04 -0000
+
+Hello,
+
+When I use the following select method:
+
+(setq gnus-select-method '(nnimap "localhost"
+                                  (nnimap-address "localhost")
+                                  (nnimap-server-port 1143)
+                                  (nnimap-stream plain)))
+
+I get a "wrong type argument: string nil" message when running gnus.
+Tracking this down lead me into nnimap-open-connection-1, where it
+doesn't look like capabilities are set when using nnimap-stream plain
+(or maybe some other reason).
+
+I fixed it by wrapping the mapcar #'upcase with an if statement
+(starting at line 433 of my gnus sources in nnimap.el):
+
+	    (setf (nnimap-capabilities nnimap-object)
+		  (if capabilities
+		    (mapcar #'upcase
+			    (split-string capabilities))
+		    ""))
+
+The original code was:
+
+	    (setf (nnimap-capabilities nnimap-object)
+            (mapcar #'upcase
+			    (split-string capabilities)))
+
+which error'd out when capabilities was nil.
+
+I'm not sure if this is a proper fix, but it got me a bit further into
+what I was trying to do, which as attempt to use Davmail to connect to
+an exchange server.  
+
+--
+Burton Samograd
+
+
+

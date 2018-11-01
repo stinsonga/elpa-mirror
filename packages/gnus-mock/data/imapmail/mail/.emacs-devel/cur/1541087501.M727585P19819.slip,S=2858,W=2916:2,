@@ -1,0 +1,58 @@
+From MAILER-DAEMON Fri Jun 30 02:00:40 2017
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1dQoyu-000342-Ps
+	for mharc-emacs-devel@gnu.org; Fri, 30 Jun 2017 02:00:40 -0400
+Received: from eggs.gnu.org ([2001:4830:134:3::10]:39484)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <eliz@gnu.org>) id 1dQoyr-00033t-My
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 02:00:38 -0400
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <eliz@gnu.org>) id 1dQoyl-0001rL-6U
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 02:00:34 -0400
+Received: from fencepost.gnu.org ([2001:4830:134:3::e]:53271)
+	by eggs.gnu.org with esmtp (Exim 4.71) (envelope-from <eliz@gnu.org>)
+	id 1dQoyl-0001rC-3R; Fri, 30 Jun 2017 02:00:31 -0400
+Received: from 84.94.185.246.cable.012.net.il ([84.94.185.246]:3971
+	helo=home-c4e4a596f7)
+	by fencepost.gnu.org with esmtpsa (TLS1.2:RSA_AES_256_CBC_SHA1:256)
+	(Exim 4.82) (envelope-from <eliz@gnu.org>)
+	id 1dQoyk-0002fs-5v; Fri, 30 Jun 2017 02:00:30 -0400
+Date: Fri, 30 Jun 2017 09:00:17 +0300
+Message-Id: <838tkaqaku.fsf@gnu.org>
+From: Eli Zaretskii <eliz@gnu.org>
+To: Kaushal Modi <kaushal.modi@gmail.com>
+CC: emacs-devel@gnu.org
+In-reply-to: <CAFyQvY2fFoR2qJ_JjRLmHhQMe6gh54ydpXgsYqZnp5j9mzZdqQ@mail.gmail.com>
+	(message from Kaushal Modi on Thu, 29 Jun 2017 20:25:54 +0000)
+Subject: Re: Native line numbers column disappears at times
+Reply-to: Eli Zaretskii <eliz@gnu.org>
+References: <83tw35thxw.fsf@gnu.org> <87efu7lsj0.fsf@lylat>
+	<83r2y7sc9q.fsf@gnu.org> <87a84vl8gm.fsf@lylat> <8760fjl85k.fsf@lylat>
+	<83o9tassmh.fsf@gnu.org> <87wp7y4jvk.fsf@lylat>
+	<83bmp9se23.fsf@gnu.org>
+	<CAFyQvY2fFoR2qJ_JjRLmHhQMe6gh54ydpXgsYqZnp5j9mzZdqQ@mail.gmail.com>
+X-detected-operating-system: by eggs.gnu.org: GNU/Linux 2.2.x-3.x [generic]
+X-Received-From: 2001:4830:134:3::e
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.1.21
+Precedence: list
+List-Id: "Emacs development discussions." <emacs-devel.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/emacs-devel/>
+List-Post: <mailto:emacs-devel@gnu.org>
+List-Help: <mailto:emacs-devel-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Fri, 30 Jun 2017 06:00:38 -0000
+
+> From: Kaushal Modi <kaushal.modi@gmail.com>
+> Date: Thu, 29 Jun 2017 20:25:54 +0000
+> 
+> The line numbers column disappears at times. I have seen that to happen only when the emacs *frame* is
+> not in focus. As soon as I click on that window, the line numbers re-appear. I don't yet have a recipe to
+> consistently recreate this.
+
+Thanks for letting me know.  I do need a recipe to debug and fix this.
+
+

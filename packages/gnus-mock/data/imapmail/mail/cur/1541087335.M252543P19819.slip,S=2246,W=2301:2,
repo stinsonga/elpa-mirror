@@ -1,0 +1,55 @@
+From MAILER-DAEMON Sun Nov 04 14:30:06 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TV5tW-00045w-6t
+	for mharc-info-gnus-english@gnu.org; Sun, 04 Nov 2012 14:30:06 -0500
+Path: usenet.stanford.edu!newsfeed.news.ucla.edu!news.snarked.org!feeder.erje.net!eu.feeder.erje.net!news2.arglkargh.de!news.mixmin.net!aioe.org!.POSTED!not-for-mail
+From: Winston <wbe@UBEBLOCK.psr.com.invalid>
+Newsgroups: gnu.emacs.gnus
+Subject: Re: Sometimes problem when posting to aioe
+Date: Sun, 04 Nov 2012 14:28:17 -0500
+Organization: Panther Software and Research Company
+Lines: 16
+Message-ID: <ydpq3tuq0e.fsf@UBEblock.psr.com>
+References: <87bofqkdw7.fsf@Compaq.site> <yd4nl6wij8.fsf@UBEblock.psr.com>
+NNTP-Posting-Host: HiP9CM4zZKmgWNAsVK99/w.user.speranza.aioe.org
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+X-Complaints-To: abuse@aioe.org
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/23.3 (berkeley-unix)
+X-Notice: Filtered by postfilter v. 0.8.2
+Cancel-Lock: sha1:kO5PzssBFUebZblFrHCzEkgpXyg=
+Mail-Copies-To: never
+Xref: usenet.stanford.edu gnu.emacs.gnus:87040
+To: info-gnus-english@gnu.org
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Sun, 04 Nov 2012 19:30:05 -0000
+
+Cecil Westerhof <Cecil@decebal.nl> wrote:
+>> This works with one very important hitch: I lose all my marks.
+
+to which I incompletely replied:
+> Another, and rather simple, solution to this problem is:
+
+> cd ~/News/marks
+> ln -s news.aioe.org nntp.aioe.org    [or vice versa]
+
+Oops.  Similarly, you also need to do:
+
+cd ~/News/agent/nntp
+ln -s news.aioe.org nntp.aioe.org      [or vice versa]
+
+HTH,
+ -WBE
+

@@ -1,0 +1,69 @@
+From MAILER-DAEMON Fri Jun 30 02:12:13 2017
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1dQpA5-0007Sj-P9
+	for mharc-emacs-devel@gnu.org; Fri, 30 Jun 2017 02:12:13 -0400
+Received: from eggs.gnu.org ([2001:4830:134:3::10]:44035)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <ged-emacs-devel@m.gmane.org>) id 1dQpA3-0007RT-HU
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 02:12:12 -0400
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <ged-emacs-devel@m.gmane.org>) id 1dQpA0-0002xQ-C7
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 02:12:11 -0400
+Received: from [195.159.176.226] (port=38916 helo=blaine.gmane.org)
+	by eggs.gnu.org with esmtps (TLS1.0:RSA_AES_128_CBC_SHA1:16)
+	(Exim 4.71) (envelope-from <ged-emacs-devel@m.gmane.org>)
+	id 1dQpA0-0002wT-5R
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 02:12:08 -0400
+Received: from list by blaine.gmane.org with local (Exim 4.84_2)
+	(envelope-from <ged-emacs-devel@m.gmane.org>) id 1dQp9o-0001fX-WE
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 08:11:56 +0200
+X-Injected-Via-Gmane: http://gmane.org/
+To: emacs-devel@gnu.org
+From: Stefan Monnier <monnier@iro.umontreal.ca>
+Subject: Re: On cl-print and help-fns
+Date: Fri, 30 Jun 2017 02:11:55 -0400
+Lines: 18
+Message-ID: <jwvh8yy9fdx.fsf-monnier+gmane.emacs.devel@gnu.org>
+References: <20170630021020.GA27460@holos.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain
+X-Complaints-To: usenet@blaine.gmane.org
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.0.50 (gnu/linux)
+Cancel-Lock: sha1:P4Nr8O4NQ6m+4vcm/KnFCn3hJmI=
+X-detected-operating-system: by eggs.gnu.org: GNU/Linux 2.2.x-3.x [generic]
+	[fuzzy]
+X-Received-From: 195.159.176.226
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.1.21
+Precedence: list
+List-Id: "Emacs development discussions." <emacs-devel.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/emacs-devel/>
+List-Post: <mailto:emacs-devel@gnu.org>
+List-Help: <mailto:emacs-devel-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Fri, 30 Jun 2017 06:12:12 -0000
+
+> While cl-print is a nice feature, I am puzzled why its use in the help
+> buffer is neither documented nor configurable.
+
+> https://git.savannah.gnu.org/cgit/emacs.git/commit/?id=2c18969c8
+
+> I think that "Its value is #f(compiled-function () #<bytecode>)", while
+> less messy, is less useful than just seeing the bytecode, as the bytecode
+> would at least give me a clue.  The cl-prin1-to-string output is opaque.
+
+Maybe we should default cl-print-compiled to `static`, so as to hide the
+byte-code, but still show the constants used in the code?
+
+
+        Stefan
+
+
+PS: Oh, and IIUC in the latest version of the code, you might be
+able to click on the #<bytecode> to see a disassembly of the code.
+
+
+

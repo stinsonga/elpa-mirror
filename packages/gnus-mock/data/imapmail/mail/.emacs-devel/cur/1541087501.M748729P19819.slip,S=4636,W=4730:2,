@@ -1,0 +1,94 @@
+From MAILER-DAEMON Fri Jun 30 21:31:54 2017
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1dR7GM-000669-9b
+	for mharc-emacs-devel@gnu.org; Fri, 30 Jun 2017 21:31:54 -0400
+Received: from eggs.gnu.org ([2001:4830:134:3::10]:58189)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <rocky.bernstein@gmail.com>) id 1dR2kT-0001OX-G0
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 16:42:42 -0400
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <rocky.bernstein@gmail.com>) id 1dR2kS-0003Ja-O1
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 16:42:41 -0400
+Received: from mail-oi0-x22b.google.com ([2607:f8b0:4003:c06::22b]:32786)
+	by eggs.gnu.org with esmtps (TLS1.0:RSA_AES_128_CBC_SHA1:16)
+	(Exim 4.71) (envelope-from <rocky.bernstein@gmail.com>)
+	id 1dR2kS-0003Ab-J1
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 16:42:40 -0400
+Received: by mail-oi0-x22b.google.com with SMTP id p188so45248313oia.0
+	for <emacs-devel@gnu.org>; Fri, 30 Jun 2017 13:42:38 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=gmail.com; s=20161025;
+	h=mime-version:sender:from:date:message-id:subject:to;
+	bh=thwpxHUeeu3CrKuHSKMBkZIt6P3gdyJWVFnfiPzNkfg=;
+	b=Btg3ai+KWsGQ46Ma2QxraquPB8ZROekkOXBmBhErWRyZ/6fJGKfGEAhgD+U6iEGc4H
+	BneBnskuhHkl287yBFG389vMXrgPPacC5PiNdpH/jyDAgil7Fb37SKUJscQU9zDlqP7G
+	54UAgxfojDmoHUWZIfJPF32bPosjw41GwwC7FYU/Mx8K7PsQ4+S5Yu/Xn/IcbrXRDo09
+	tcXkl7fclNlyHeN6G3k2NjQzEj/S0NQuWwqVnm+5LwViesziwn675V5HW7G2aSTdooQr
+	iCiWUfg8NM4tlRCmTrHfQFWukPDOLRgI2crkSvQaktI5gTZ/TzG0IuqapRzMx2a8jz3x
+	O+Ew==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:mime-version:sender:from:date:message-id:subject
+	:to; bh=thwpxHUeeu3CrKuHSKMBkZIt6P3gdyJWVFnfiPzNkfg=;
+	b=r/krzb/PW4G3PmsweWKZfXzv2tkw355mpiE4pOzU0NkCHkCAbEeZEQGiCh2S1fZ2l4
+	9lWLfjwbRSj+TNvrwc/QwDHUsuoDVP+ubT4Y6g6W7AQFfPNcPfCu0BPRqffEQy04yVo3
+	0abIhOZnxi3rX1WnjU7qV5ym6C8nzc7MU3z46QkQX/UO6E7hr+mh2odVHm4v4DNtjdwJ
+	YgrtPIC9apiAA7vwx42A7lXALeNfwslDoIodU2PiLiNi6iIAy6IH3QEZ4ma6pm7iHnVL
+	Tr2Ti8qJ02ZcuvAv0e4BlqAqIicjCPcL001KxPkoz7pXif9hoTk3BV+XYECV2xUTPl9/
+	II2g==
+X-Gm-Message-State: AKS2vOzKi4IyzBjm9kTwZkThH6IjAXBRlLx/jN43k9nLK7heC5ltQm3X
+	hkhUNCtzc84g/uzsCNEn3jVJbpRFPj3a
+X-Received: by 10.202.198.4 with SMTP id w4mr13606041oif.147.1498855357751;
+	Fri, 30 Jun 2017 13:42:37 -0700 (PDT)
+MIME-Version: 1.0
+Sender: rocky.bernstein@gmail.com
+Received: by 10.74.77.86 with HTTP; Fri, 30 Jun 2017 13:42:37 -0700 (PDT)
+From: Rocky Bernstein <rb@dustyfeet.com>
+Date: Fri, 30 Jun 2017 16:42:37 -0400
+X-Google-Sender-Auth: c3MxvLdGpJF9_kxIwUC9RS_Wp0g
+Message-ID: <CANCp2gbxOeZHTtobBgq-+t_yqHmkp8zc4ZO4krs-Ojg5HV14kA@mail.gmail.com>
+Subject: Adding a few realgud colors to /etc/themes
+To: emacs-devel@gnu.org
+Content-Type: multipart/alternative; boundary="001a1134f0a82b29ab055333754c"
+X-detected-operating-system: by eggs.gnu.org: Genre and OS details not
+	recognized.
+X-Received-From: 2607:f8b0:4003:c06::22b
+X-Mailman-Approved-At: Fri, 30 Jun 2017 21:31:53 -0400
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.1.21
+Precedence: list
+List-Id: "Emacs development discussions." <emacs-devel.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/emacs-devel/>
+List-Post: <mailto:emacs-devel@gnu.org>
+List-Help: <mailto:emacs-devel-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Fri, 30 Jun 2017 20:42:42 -0000
+
+--001a1134f0a82b29ab055333754c
+Content-Type: text/plain; charset="UTF-8"
+
+I would like to add three realgud color face definitions per theme into
+etc/themes. (realgud is an elpa package)
+
+What's the preferred way to do this?
+
+The easiest for me is to create a branch of of the savannah git, make
+changes, and then do something that allows people to look at and merge in
+when okay.
+
+--001a1134f0a82b29ab055333754c
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">I would like to add three realgud color face definitions p=
+er theme into etc/themes. (realgud is an elpa package)<div><br></div><div>W=
+hat&#39;s the preferred way to do this?=C2=A0</div><div><br></div><div>The =
+easiest for me is to create a branch of of the savannah git, make changes, =
+and then do something that allows people to look at and merge in when okay.=
+</div><div><br></div><div><br></div><div><br></div><div><br></div></div>
+
+--001a1134f0a82b29ab055333754c--
+
+

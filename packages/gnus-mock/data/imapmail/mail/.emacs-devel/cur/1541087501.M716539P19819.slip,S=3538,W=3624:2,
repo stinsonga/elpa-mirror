@@ -1,0 +1,86 @@
+From MAILER-DAEMON Fri Jun 30 02:06:51 2017
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1dQp4t-0004eN-1F
+	for mharc-emacs-devel@gnu.org; Fri, 30 Jun 2017 02:06:51 -0400
+Received: from eggs.gnu.org ([2001:4830:134:3::10]:42250)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <ged-emacs-devel@m.gmane.org>) id 1dQp4r-0004eH-BF
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 02:06:50 -0400
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <ged-emacs-devel@m.gmane.org>) id 1dQp4o-0007ps-6u
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 02:06:49 -0400
+Received: from [195.159.176.226] (port=57208 helo=blaine.gmane.org)
+	by eggs.gnu.org with esmtps (TLS1.0:RSA_AES_128_CBC_SHA1:16)
+	(Exim 4.71) (envelope-from <ged-emacs-devel@m.gmane.org>)
+	id 1dQp4o-0007nj-0g
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 02:06:46 -0400
+Received: from list by blaine.gmane.org with local (Exim 4.84_2)
+	(envelope-from <ged-emacs-devel@m.gmane.org>) id 1dQp4e-0002yX-O7
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 08:06:36 +0200
+X-Injected-Via-Gmane: http://gmane.org/
+To: emacs-devel@gnu.org
+From: Stefan Monnier <monnier@iro.umontreal.ca>
+Subject: Re: [Emacs-diffs] master c75eb10: Don't change
+	byte-compile-delete-errors at runtime (Bug#27340)
+Date: Fri, 30 Jun 2017 02:06:33 -0400
+Lines: 27
+Message-ID: <jwvmv8q9fug.fsf-monnier+gmane.emacs.devel@gnu.org>
+References: <20170624141528.514.4459@vcs0.savannah.gnu.org>
+	<20170624141530.443C5210EB@vcs0.savannah.gnu.org>
+	<jwv8tkhbh3a.fsf-monnier+emacsdiffs@gnu.org>
+	<CAM-tV-_OuF+5-xu6nbTZrG5==jPWz_VPq213njpZjJ+PiMqmXA@mail.gmail.com>
+	<jwvd19rc18h.fsf-monnier+emacsdiffs@gnu.org> <87r2y28ule.fsf@gnu.org>
+	<CAM-tV--eQTV=PHX75egRvmpv=KHmHJ6qMLqzdWFoR1fyBCUe_A@mail.gmail.com>
+	<871sq28sk0.fsf@gnu.org> <jwv1sq2frod.fsf-monnier+emacsdiffs@gnu.org>
+	<87h8yy78bh.fsf@gnu.org>
+Mime-Version: 1.0
+Content-Type: text/plain
+X-Complaints-To: usenet@blaine.gmane.org
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.0.50 (gnu/linux)
+Cancel-Lock: sha1:bOxsaXqcjbFmAz54/kHcU7pSocA=
+X-detected-operating-system: by eggs.gnu.org: GNU/Linux 2.2.x-3.x [generic]
+	[fuzzy]
+X-Received-From: 195.159.176.226
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.1.21
+Precedence: list
+List-Id: "Emacs development discussions." <emacs-devel.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/emacs-devel/>
+List-Post: <mailto:emacs-devel@gnu.org>
+List-Help: <mailto:emacs-devel-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Fri, 30 Jun 2017 06:06:50 -0000
+
+> In CL declaim can be used to make variables special. (In fact, `special'
+> is the only declaration that must have an effect in all conforming CL
+> implementations.)
+
+Right, AFAIK it's largely equivalent to Elisp's (defvar foo).
+
+not sure how it works in CL, but in Elisp, if a file foo.el has
+
+    (defvar foo)
+    ...
+
+then `foo` will be treated as dynamically bound in foo.el when the
+compiler generate the code for foo.elc.
+But loading foo.elc, won't mark `foo` as dynamically bound, so in
+
+    (require 'foo)
+    (defun bar (x)
+      (let ((foo x))
+        (lambda (y) (+ foo y))))
+
+the function `bar` should treat its `foo` binding lexically.
+
+
+        Stefan
+
+
+PS: Note I'm really talking about (defvar foo) and not (defvar foo blabla)
+
+
+

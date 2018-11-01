@@ -1,0 +1,71 @@
+From MAILER-DAEMON Thu Nov 22 16:49:59 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1Tbeel-0002Zn-4z
+	for mharc-info-gnus-english@gnu.org; Thu, 22 Nov 2012 16:49:59 -0500
+Received: from eggs.gnu.org ([208.118.235.92]:60487)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1Tbeej-0002YQ-5t
+	for info-gnus-english@gnu.org; Thu, 22 Nov 2012 16:49:57 -0500
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1Tbeei-0003rr-A6
+	for info-gnus-english@gnu.org; Thu, 22 Nov 2012 16:49:57 -0500
+Received: from plane.gmane.org ([80.91.229.3]:37981)
+	by eggs.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1Tbeei-0003ph-3G
+	for info-gnus-english@gnu.org; Thu, 22 Nov 2012 16:49:56 -0500
+Received: from list by plane.gmane.org with local (Exim 4.69)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1Tbeej-000882-M4
+	for info-gnus-english@gnu.org; Thu, 22 Nov 2012 22:49:57 +0100
+Received: from gas45-3-82-244-252-119.fbx.proxad.net ([82.244.252.119])
+	by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+	id 1AlnuQ-0007hv-00
+	for <info-gnus-english@gnu.org>; Thu, 22 Nov 2012 22:49:57 +0100
+Received: from j.cubizolles by gas45-3-82-244-252-119.fbx.proxad.net with
+	local (Gmexim 0.1 (Debian)) id 1AlnuQ-0007hv-00
+	for <info-gnus-english@gnu.org>; Thu, 22 Nov 2012 22:49:57 +0100
+X-Injected-Via-Gmane: http://gmane.org/
+To: info-gnus-english@gnu.org
+From: Julien Cubizolles <j.cubizolles@free.fr>
+Subject: Agent, Imap and duplicate messages
+Date: Thu, 22 Nov 2012 18:27:10 +0100
+Lines: 7
+Message-ID: <87mwy9r1jl.fsf@free.fr>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+X-Complaints-To: usenet@ger.gmane.org
+X-Gmane-NNTP-Posting-Host: gas45-3-82-244-252-119.fbx.proxad.net
+User-Agent: Gnus/5.130006 (Ma Gnus v0.6) Emacs/24.3.50 (gnu/linux)
+Cancel-Lock: sha1:sZFwAP9JFS79VD0E6Qp8Ci0zBKs=
+X-detected-operating-system: by eggs.gnu.org: Genre and OS details not
+	recognized.
+X-Received-From: 80.91.229.3
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Thu, 22 Nov 2012 21:49:58 -0000
+
+I'm using an agentised nnimap group and noticed a strange
+behaviour. Just after starting gnus, many unread messages are shown several
+times (twice or sometimes 3 or 4 times), the copy being marked as old (O
+mark). However hitting M-g clears the summary of these duplicates. It's
+not too bad but kind of annoying. Have your seen something similar ?
+
+Julien.
+
+
+
