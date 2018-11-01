@@ -426,6 +426,13 @@ Toggle showing of closed bugs.
 @code{debbugs-gnu-send-control-message} @*
 Send a control message for this bug, @ref{Control Messages}.
 
+@item
+@kindex @kbd{E}
+@kbd{E} @tab
+@code{debbugs-gnu-make-control-message} @*
+Make (but don't yet send) a control message for this bug, @ref{Control
+Messages}.
+
 @end multitable
 
 @vindex debbugs-gnu-suppress-closed
@@ -482,6 +489,13 @@ Toggle local tag of bugs.
 @code{debbugs-gnu-send-control-message} @*
 Send a control message for this bug, @ref{Control Messages}.
 
+@item
+@kindex @kbd{C-c # E}
+@kbd{C-c # E} @tab
+@code{debbugs-gnu-make-control-message} @*
+Make (but don't yet send) a control message for this bug, @ref{Control
+Messages}.
+
 @end multitable
 
 When the bug attributes are shown by @code{org-cycle}, there is a link
@@ -522,7 +536,6 @@ bug belongs to the @code{"emacs"} package.
 
 @item confirmed
 @itemx easy
-@itemx fixed
 @itemx help
 @itemx moreinfo
 @itemx notabug
@@ -531,7 +544,7 @@ bug belongs to the @code{"emacs"} package.
 @itemx security
 @itemx unreproducible
 @itemx wontfix
-"tags 12345 confirmed|easy|fixed|help|moreinfo|notabug"
+"tags 12345 confirmed|easy|help|moreinfo|notabug"
 
 "tags 12345 patch|pending|security|unreproducible|wontfix"
 
@@ -549,6 +562,15 @@ If the command invoking the control message has been prefixed with
 
 The second argument in the close message, the Emacs version, is read
 interactively if the bug belongs to the @code{"emacs"} package.
+
+@item found
+@itemx notfound
+@itemx fixed
+@itemx notfixed
+"found|notfound|fixed|notfixed 12345 25.1"
+
+The second argument, the Emacs version, is read interactively if the
+bug belongs to the @code{"emacs"} package.
 
 @item forwarded
 "forwarded 12345 @var{address}"
@@ -606,6 +628,11 @@ The new bug title is read interactively.
 
 The username, read interactively, is either a package name or an email
 address.  The tag to be set is also read interactively.
+
+@item documentation
+"user emacs" @*
+"usertag 12345 documentation"
+
 @end table
 
 @vindex debbugs-gnu-send-mail-function
