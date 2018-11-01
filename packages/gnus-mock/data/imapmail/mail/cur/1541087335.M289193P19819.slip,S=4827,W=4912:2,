@@ -1,0 +1,85 @@
+From MAILER-DAEMON Tue Nov 20 05:45:07 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TalKF-0001Zz-D8
+	for mharc-info-gnus-english@gnu.org; Tue, 20 Nov 2012 05:45:07 -0500
+Path: usenet.stanford.edu!news.glorb.com!news.netfront.net!not-for-mail
+From: Liming Yang <liming.yang@w-oasis.com>
+Newsgroups: gnu.emacs.gnus
+Subject: Re: gnus-notify.el is not work on Emacs24.2
+Date: Tue, 20 Nov 2012 18:43:22 +0800
+Organization: Netfront http://www.netfront.net/
+Lines: 43
+Message-ID: <87mwycimgl.fsf@w-oasis.com>
+References: <123791454375028291.719217yanglm.ace-163.com@freenews.netfront.net>
+	<mailman.13328.1353341920.855.info-gnus-english@gnu.org>
+NNTP-Posting-Host: 114.255.88.2
+Mime-Version: 1.0
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
+X-Trace: adenine.netfront.net 1353408151 89220 114.255.88.2 (20 Nov 2012
+	10:42:31 GMT)
+X-Complaints-To: news@netfront.net
+NNTP-Posting-Date: Tue, 20 Nov 2012 10:42:31 +0000 (UTC)
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/24.2 (gnu/linux)
+Cancel-Lock: sha1:g0eYmcFj8SNxxhpWANXEgYQaVK0=
+Xref: usenet.stanford.edu gnu.emacs.gnus:87059
+To: info-gnus-english@gnu.org
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Tue, 20 Nov 2012 10:45:05 -0000
+
+Debugger entered--Lisp error: (invalid-function gnus-group-unread)
+  gnus-group-unread("dummy.group")
+  #[(g) "@\303	!\304\305\306	!\"A\205=1F\n\247\205=1F\n\307V\205=1F\310	!*=
+\207" [g group unread gnus-group-unread assoc modeline-notify gnus-group-fi=
+nd-parameter 0 gnus-mst-notify-group] 4](("dummy.group" 0 nil))
+  mapc(#[(g) "@\303	!\304\305\306	!\"A\205=1F\n\247\205=1F\n\307V\205=1F\3=
+10	!*\207" [g group unread gnus-group-unread assoc modeline-notify gnus-gro=
+up-find-parameter 0 gnus-mst-notify-group] 4] (("dummy.group" 0 nil) ("\277=
+\306\321\247\274\274\312\365.\327\324\310\273\277\306\321\247.\322\275\321\=
+247" 3 ((1 . 42509) (57556 . 57577) 57580 (57596 . 57597)) ((seen (57556 . =
+57611)))) ("nntp+freenews.netfront.net:gnu.emacs.bug" 3 nil nil "nntp:freen=
+ews.netfront.net") ("nntp+freenews.netfront.net:gnu.emacs.gnus" 3 ((1 . 147=
+0) 1472 1475 1477 1481 1486 (1488 . 1489) (1502 . 1503) 1505 (1507 . 1508) =
+1513 1517 1520 1525 1528 1530 (1532 . 1533) 1538 1542 1544 1549 (1554 . 155=
+5) 1560 (1562 . 1563) (1565 . 1566) 1574 (1581 . 1582) (1585 . 1586) 1588 1=
+592 1594 1598 1600 1603 1615 1618 (1623 . 1625) 1628 1630 1633 (1638 . 1639=
+) 1643 1646 1649 1653 1698 1746 1778 1789 1800 ...) ((seen (1470 . 1471) (1=
+473 . 1474) 1476 (1478 . 1480) (1482 . 1485) 1487 (1490 . 1501) 1504 1506 (=
+1509 . 1512) (1514 . 1516) (1518 . 1519) (1521 . 1524) (1526 . 1527) 1529 1=
+531 (1534 . 1537) (1539 . 1541) 1543 (1545 . 1548) (1550 . 1553) (1556 . 15=
+59) 1561 1564 (1567 . 1573) (1575 . 1580) (1583 . 1584) 1587 (1589 . 1591) =
+1593 (1595 . 1597) 1599 (1601 . 1602) (1604 . 1614) (1616 . 1617) (1619 . 1=
+622) (1626 . 1627) 1629 (1631 . 1632) (1634 . 1637) (1640 . 1642) (1644 . 1=
+645) (1647 . 1648) (1650 . 1652) (1654 . 1697) (1699 . 1745) (1747 . 1777) =
+(1779 . 1788) (1790 . 1799) ...)) "nntp:freenews.netfront.net") ("nntp+free=
+news.netfront.net:gnu.emacs.help" 3 nil nil "nntp:freenews.netfront.net") (=
+"nntp+freenews.netfront.net:linux.debian.user" 3 nil nil "nntp:freenews.net=
+front.net") ("nntp+freenews.netfront.net:linux.kernel" 3 ((1 . 217364) 3174=
+85 317493) ((seen (317485 . 317984))) "nntp:freenews.netfront.net") ("nntp+=
+freenews.netfront.net:linux.debian.doc" 3 nil nil "nntp:freenews.netfront.n=
+et") ("nntp+freenews.netfront.net:linux.debian.kernel" 3 nil nil "nntp:free=
+news.netfront.net") ("nnml:mail.system" 3 ((1 . 6)) ((seen (1 . 6))) "nnml:=
+") ("nnml:mail.send.mail" 3 nil nil "nnml:") ("nnml:mail.send.news" 3 nil n=
+il "nnml:") ("nnml:mail.misc" 3 nil nil "nnml:") ("nndraft:drafts" 1 nil ni=
+l (nndraft "") ((gnus-dummy (gnus-draft-mode))))))
+  gnus-mst-show-groups-with-new-messages()
+  run-hooks(gnus-after-getting-new-news-hook)
+  apply(run-hooks gnus-after-getting-new-news-hook)
+  gnus-run-hooks(gnus-after-getting-new-news-hook)
+  gnus-group-get-new-news(nil)
+  call-interactively(gnus-group-get-new-news nil nil)
+
+--- news://freenews.netfront.net/ - complaints: news@netfront.net ---
+

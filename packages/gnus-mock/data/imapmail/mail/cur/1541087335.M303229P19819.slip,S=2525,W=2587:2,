@@ -1,0 +1,62 @@
+From MAILER-DAEMON Thu Nov 29 11:45:06 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1Te7EY-0007Qw-7J
+	for mharc-info-gnus-english@gnu.org; Thu, 29 Nov 2012 11:45:06 -0500
+Path: usenet.stanford.edu!news.glorb.com!feeder.erje.net!eu.feeder.erje.net!news.mixmin.net!aioe.org!.POSTED!not-for-mail
+From: Emanuel Berg <embe8573@student.uu.se>
+Newsgroups: gnu.emacs.gnus
+Subject: 2 x summary buffer line color
+Date: Thu, 29 Nov 2012 17:41:08 +0100
+Organization: Aioe.org NNTP Server
+Lines: 25
+Message-ID: <87obig5pln.fsf@VLAN-3434.student.uu.se>
+NNTP-Posting-Host: SWN/nubmpQxYKwY7hPy4YA.user.speranza.aioe.org
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+X-Complaints-To: abuse@aioe.org
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/23.4 (gnu/linux)
+X-Notice: Filtered by postfilter v. 0.8.2
+Cancel-Lock: sha1:VIVVMwUZQ4fwNdlwev6BIogbhdQ=
+Xref: usenet.stanford.edu gnu.emacs.gnus:87065
+To: info-gnus-english@gnu.org
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Thu, 29 Nov 2012 16:45:05 -0000
+
+1) I'd like a line in the summary buffer only to tell author and
+subject, but I'd like those elements to be in different colors.
+
+This is how far I got (in .gnus):
+
+(setq gnus-summary-line-format "%U%R%I%a: %s\n")
+
+Is there a markup for colors?
+
+2) How do you define your own highlighting as for read and unread
+articles? Again, I added this to .gnus, but it fell short because I
+don't know how to define those last elements of the association list
+element (they are not Emacs variables, and not Emacs functions, and
+those are the only things I know how to track (with C-h v and C-h f,
+respectively)).
+
+(setq gnus-summary-highlight
+      '(((eq mark gnus-unread-mark) . gnus-summary-normal-unread)
+        (t . gnus-summary-normal-read) ))
+
+Thank you :)
+-- 
+Emanuel Berg - programmer (hire me!)
+CV + code + screenshots: http://user.it.uu.se/~embe8573
+
+

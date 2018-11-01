@@ -1,0 +1,117 @@
+From MAILER-DAEMON Fri Jun 30 22:00:00 2017
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1dR7hY-0006P2-Ij
+	for mharc-emacs-devel@gnu.org; Fri, 30 Jun 2017 22:00:00 -0400
+Received: from eggs.gnu.org ([2001:4830:134:3::10]:42572)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <filipe.silva@gmail.com>) id 1dR7hV-0006OW-Sr
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 21:59:58 -0400
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <filipe.silva@gmail.com>) id 1dR7hV-00033M-5b
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 21:59:57 -0400
+Received: from mail-oi0-x22e.google.com ([2607:f8b0:4003:c06::22e]:36387)
+	by eggs.gnu.org with esmtps (TLS1.0:RSA_AES_128_CBC_SHA1:16)
+	(Exim 4.71) (envelope-from <filipe.silva@gmail.com>)
+	id 1dR7hT-00031N-N1; Fri, 30 Jun 2017 21:59:55 -0400
+Received: by mail-oi0-x22e.google.com with SMTP id p187so105029000oif.3;
+	Fri, 30 Jun 2017 18:59:54 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=gmail.com; s=20161025;
+	h=mime-version:in-reply-to:references:from:date:message-id:subject:to
+	:cc; bh=XXWcGLYcxybY6br5Ell0WiPd6Odvr59+4xgQoEVfcbg=;
+	b=ok9IIXi+YcBX0J2XtCdPFMT8f7N4Fa3XfUGARwTvoP0aCLIAfdAJTZyOhjdD33VVeC
+	zSXiRYjYJMvu+P3siRX9CIq9YB5+6CUFpHbNJ4f9QKlIBhyHjoqCaIfooUcltZ+lLKTW
+	wbmHkzYTYm4BA//dmNr56GmRJrsXJCM5s91nTjGwwX5ehWYZj/BLzIMyS8oIKMb+1s3E
+	WPy/A45fHeh8/0lrQzww6PWtlos/DT7YJFEnKpG5NaRgI8Wn8SaPDak+4OPAdlGxPuvN
+	YvonLs8siGD+mja4SMuvymTAOln0xrVrALZXm3WLr11IJzuPf/9FM1aV5wB6p8mLtkTB
+	R1vg==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:mime-version:in-reply-to:references:from:date
+	:message-id:subject:to:cc;
+	bh=XXWcGLYcxybY6br5Ell0WiPd6Odvr59+4xgQoEVfcbg=;
+	b=A7yU3v1Jxc7YcLcpWZKd0cYE3ZCJsC99/OrX237MXjzYERjrjDsQnBE0aYXVWgQ89V
+	seF7XDRQfFuRo/rV49Nz4267akVyhnmea9UIfKhc594q0r60wWY65sQFdUZXTHnomugL
+	oVWt9MSqTRzpU9HzUPiioQRwP1ZTXlLSUuMkyAn6n1+HXGMQXYwP5prIfypiRXq8kvCA
+	RTCn4nniIriTa5QNPxX+krSzVaQM7jQf/VfKK39bP93WZb6F242VLeTNTuIkGRBEwA/m
+	3g2817jjqkMPt8AePCoEAkw268sdmDBr+0BQ53vYg10mdJW6Acfw373ctJR0NP2RjV/3
+	hzog==
+X-Gm-Message-State: AKS2vOzySCPhSUhL420rZQWHI2dUccRKsPLwuZTrNx9+UfazaGiRxkiF
+	ZllCUciG2wT61+aZizUDGeHkPoED5g==
+X-Received: by 10.202.224.70 with SMTP id x67mr12914085oig.75.1498874392922;
+	Fri, 30 Jun 2017 18:59:52 -0700 (PDT)
+MIME-Version: 1.0
+Received: by 10.182.2.73 with HTTP; Fri, 30 Jun 2017 18:59:52 -0700 (PDT)
+In-Reply-To: <83y3s9pm2a.fsf@gnu.org>
+References: <83y3s9pm2a.fsf@gnu.org>
+From: Filipe Silva <filipe.silva@gmail.com>
+Date: Fri, 30 Jun 2017 22:59:52 -0300
+Message-ID: <CAEwkUWO17QdH0Xh93E+Udg0MNVAjErjhboB7K1r49mWhAr4MLA@mail.gmail.com>
+Subject: Re: Native line numbers, final testing
+To: Eli Zaretskii <eliz@gnu.org>
+Cc: Emacs developers <emacs-devel@gnu.org>
+Content-Type: multipart/alternative; boundary="001a113d38a0c0d05c055337e354"
+X-detected-operating-system: by eggs.gnu.org: Genre and OS details not
+	recognized.
+X-Received-From: 2607:f8b0:4003:c06::22e
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.1.21
+Precedence: list
+List-Id: "Emacs development discussions." <emacs-devel.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/emacs-devel/>
+List-Post: <mailto:emacs-devel@gnu.org>
+List-Help: <mailto:emacs-devel-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Sat, 01 Jul 2017 01:59:58 -0000
+
+--001a113d38a0c0d05c055337e354
+Content-Type: text/plain; charset="UTF-8"
+
+Awesome Eli! I should be able to perform testing tomorrow
+
+On Fri, Jun 30, 2017 at 11:49 AM, Eli Zaretskii <eliz@gnu.org> wrote:
+
+> I've finished development of this feature and pushed the changes to
+> the scratch/line-numbers branch.  "Visual" line numbers are
+> implemented, and all the known bugs should be fixed.  I also added
+> documentation.
+>
+> Please test and report any problems you find.  If no grave bugs show
+> up, I will probably land this on master in a few days.
+>
+> Thanks to everybody who sent feedback and reported problems and
+> feature requests.
+>
+>
+
+--001a113d38a0c0d05c055337e354
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div class=3D"gmail_default" style=3D"font-family:courier =
+new,monospace">Awesome Eli! I should be able to perform testing tomorrow</d=
+iv></div><div class=3D"gmail_extra"><br><div class=3D"gmail_quote">On Fri, =
+Jun 30, 2017 at 11:49 AM, Eli Zaretskii <span dir=3D"ltr">&lt;<a href=3D"ma=
+ilto:eliz@gnu.org" target=3D"_blank">eliz@gnu.org</a>&gt;</span> wrote:<br>=
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex">I&#39;ve finished development of this featur=
+e and pushed the changes to<br>
+the scratch/line-numbers branch.=C2=A0 &quot;Visual&quot; line numbers are<=
+br>
+implemented, and all the known bugs should be fixed.=C2=A0 I also added<br>
+documentation.<br>
+<br>
+Please test and report any problems you find.=C2=A0 If no grave bugs show<b=
+r>
+up, I will probably land this on master in a few days.<br>
+<br>
+Thanks to everybody who sent feedback and reported problems and<br>
+feature requests.<br>
+<br>
+</blockquote></div><br></div>
+
+--001a113d38a0c0d05c055337e354--
+
+

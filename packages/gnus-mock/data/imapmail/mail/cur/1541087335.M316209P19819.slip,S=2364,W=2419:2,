@@ -1,0 +1,55 @@
+From MAILER-DAEMON Thu Nov 29 22:55:06 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TeHgv-0000cc-Vr
+	for mharc-info-gnus-english@gnu.org; Thu, 29 Nov 2012 22:55:05 -0500
+Path: usenet.stanford.edu!news.kjsl.com!us.feeder.erje.net!feeder.erje.net!eu.feeder.erje.net!news.mixmin.net!aioe.org!.POSTED!not-for-mail
+From: Emanuel Berg <embe8573@student.uu.se>
+Newsgroups: gnu.emacs.gnus
+Subject: Gnus header in Rmail
+Date: Fri, 30 Nov 2012 04:50:52 +0100
+Organization: Aioe.org NNTP Server
+Lines: 18
+Message-ID: <874nk7bvfn.fsf@VLAN-3434.student.uu.se>
+NNTP-Posting-Host: SWN/nubmpQxYKwY7hPy4YA.user.speranza.aioe.org
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+X-Complaints-To: abuse@aioe.org
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/23.4 (gnu/linux)
+X-Notice: Filtered by postfilter v. 0.8.2
+Cancel-Lock: sha1:GkXie55mAw1PrYmyY9FKIt6n79w=
+Xref: usenet.stanford.edu gnu.emacs.gnus:87070
+To: info-gnus-english@gnu.org
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Fri, 30 Nov 2012 03:55:05 -0000
+
+I use Emacs' Rmail (M-x rmail) as my e-mail client. Since I started to
+use Gnus, when I hit `C-x m` to get a blank e-mail to write (in
+Message mode), this header is nowadays visible:
+
+    X-Draft-From: ("rec.sport.boxing" 11442)
+
+I suppose it has something to do with Message mode being used both to
+send e-mails (and to respond to received ones, i.e., invocation from
+Rmail) and to send articles to the newsgroups.
+
+Help would be appreciated, as it is a bit weird (although I don't know
+if people are paying attention to all strange headers in e-mails, it
+just shouldn't be there).
+
+-- 
+Emanuel Berg - programmer (hire me!)
+CV + code + screenshots: http://user.it.uu.se/~embe8573
+
+

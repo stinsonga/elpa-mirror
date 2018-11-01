@@ -1,0 +1,82 @@
+From MAILER-DAEMON Fri Jun 30 13:53:11 2017
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1dR06R-0006VX-FT
+	for mharc-emacs-devel@gnu.org; Fri, 30 Jun 2017 13:53:11 -0400
+Received: from eggs.gnu.org ([2001:4830:134:3::10]:53927)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <agrambot@gmail.com>) id 1dR06P-0006Ue-3G
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 13:53:09 -0400
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <agrambot@gmail.com>) id 1dR06M-0001nN-3c
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 13:53:09 -0400
+Received: from mail-io0-x241.google.com ([2607:f8b0:4001:c06::241]:34371)
+	by eggs.gnu.org with esmtps (TLS1.0:RSA_AES_128_CBC_SHA1:16)
+	(Exim 4.71) (envelope-from <agrambot@gmail.com>)
+	id 1dR06L-0001mk-VS; Fri, 30 Jun 2017 13:53:06 -0400
+Received: by mail-io0-x241.google.com with SMTP id m19so3995142ioe.1;
+	Fri, 30 Jun 2017 10:53:04 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=gmail.com; s=20161025;
+	h=from:to:cc:subject:references:date:in-reply-to:message-id
+	:user-agent:mime-version;
+	bh=WziIk3O0vDW/bArlDNc4M93QFRSd8AA01KJBarqyico=;
+	b=TA2MlD7fP178dXnafOn6xTBbw+UCKjeLHDlabPx0iJ0J+G3q6aqFDjEsrvMFzIHGPl
+	z4S+HDhWMnY1VXN0TRqsUSLWTWocyPExRxeZlsrkjA5Fayb2P8Zpst6lBh8ZhNVSK5j9
+	hLKEDYKFy6xAqOrPpfwrfqXQerKhqk0hMVxqH+kjCONB+4giJYSkrKONoKSwQCr21ZZ+
+	b4THr7UX3c6fvV/aozsEpzyvqhVbbfOl6CyB4LHt759YkVWMAMIDZX8xnWkDsVkUuAnA
+	KxQC5Qjj+Ay40WxQDWloz8ioM5eXATfVoPb0OIQ/nFo0hRhZQEymNvgJQ9wuAGX2i+a+
+	q2bQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:from:to:cc:subject:references:date:in-reply-to
+	:message-id:user-agent:mime-version;
+	bh=WziIk3O0vDW/bArlDNc4M93QFRSd8AA01KJBarqyico=;
+	b=lHeHTnmG+lP+PXFGju5pVm4CGyLFnmMItJKLsQf+GtDXzvboyhrAaUa2Sh81QrT5jk
+	l0jDqV/P51nraTzCWA0rVvSTmIPaPjFLZELbx8bzUG+3dJoQG/85pCOaN+7gvl/aI1qU
+	vILaG/nhXBKH+KV0erjPiX3CnYi6ezZdwIzvvdbEltvL8sSgQpVqGjQmAKjgDUhGOqe7
+	wY3gs2NBZXYiz8alAgblqHsmFB9FbFAYs85/Kiq5WCDqYPbMUkxUVFhrW/xtbtAgV0/f
+	HjLoQxCfZFiBAXm2VF9/hscmYNK0xMmte5wAVaKWn/cjsNQ5LZ0pEsG/xam1Fgcd6kUX
+	Tssg==
+X-Gm-Message-State: AKS2vOyJLkvDpnGFl2kg/Sjlmq0YpvdMPvuGj7ZcbrIP46zABt6dIDQQ
+	MMa2jSSeROeJzwdE
+X-Received: by 10.107.16.29 with SMTP id y29mr15665129ioi.190.1498845183220;
+	Fri, 30 Jun 2017 10:53:03 -0700 (PDT)
+Received: from lylat (S010664777d9cebe3.ss.shawcable.net. [70.64.85.59])
+	by smtp.gmail.com with ESMTPSA id
+	b14sm2449124itb.18.2017.06.30.10.53.01
+	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+	Fri, 30 Jun 2017 10:53:02 -0700 (PDT)
+From: Alex <agrambot@gmail.com>
+To: Eli Zaretskii <eliz@gnu.org>
+Cc: emacs-devel@gnu.org
+Subject: Re: Native line numbers, final testing
+References: <83y3s9pm2a.fsf@gnu.org>
+Date: Fri, 30 Jun 2017 11:51:55 -0600
+In-Reply-To: <83y3s9pm2a.fsf@gnu.org> (Eli Zaretskii's message of "Fri, 30 Jun
+	2017 17:49:49 +0300")
+Message-ID: <87vandz7lw.fsf@lylat>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.0.50 (gnu/linux)
+MIME-Version: 1.0
+Content-Type: text/plain
+X-detected-operating-system: by eggs.gnu.org: Genre and OS details not
+	recognized.
+X-Received-From: 2607:f8b0:4001:c06::241
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.1.21
+Precedence: list
+List-Id: "Emacs development discussions." <emacs-devel.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/emacs-devel/>
+List-Post: <mailto:emacs-devel@gnu.org>
+List-Help: <mailto:emacs-devel-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Fri, 30 Jun 2017 17:53:10 -0000
+
+There's an issue with relative line numbers with a non-nil
+`display-line-numbers-current-absolute'.
+
+If the current line number is at least 4 digits long, then the text in
+the current line is shifted over.
+
+

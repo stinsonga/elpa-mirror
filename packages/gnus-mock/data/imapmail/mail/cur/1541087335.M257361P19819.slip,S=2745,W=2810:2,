@@ -1,0 +1,65 @@
+From MAILER-DAEMON Sat Nov 03 16:15:07 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TUk7W-00087R-Vx
+	for mharc-info-gnus-english@gnu.org; Sat, 03 Nov 2012 16:15:06 -0400
+Path: usenet.stanford.edu!newsfeed.hal-mli.net!feeder3.hal-mli.net!newsfeed.hal-mli.net!feeder1.hal-mli.net!feeder.erje.net!eu.feeder.erje.net!news.stack.nl!aioe.org!.POSTED!not-for-mail
+From: Winston <wbe@UBEBLOCK.psr.com.invalid>
+Newsgroups: gnu.emacs.gnus
+Subject: Re: Sometimes problem when posting to aioe
+Date: Sat, 03 Nov 2012 16:14:35 -0400
+Organization: Panther Software and Research Company
+Lines: 26
+Message-ID: <yd4nl6wij8.fsf@UBEblock.psr.com>
+References: <87bofqkdw7.fsf@Compaq.site>
+NNTP-Posting-Host: HiP9CM4zZKmgWNAsVK99/w.user.speranza.aioe.org
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+X-Complaints-To: abuse@aioe.org
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/23.3 (berkeley-unix)
+X-Notice: Filtered by postfilter v. 0.8.2
+Cancel-Lock: sha1:F2pNsehh+vVxM7O4yTq5L1Jc9Pg=
+Mail-Copies-To: never
+Xref: usenet.stanford.edu gnu.emacs.gnus:87039
+To: info-gnus-english@gnu.org
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Sat, 03 Nov 2012 20:15:05 -0000
+
+Cecil Westerhof <Cecil@decebal.nl> asked:
+> I use the aioe newsserver. Sometimes I get:
+>     nntp (news.aioe.org) open error: ''.  Continue? (y or n)
+
+> The only way to keep reading and sending news is to change:
+>     (setq gnus-select-method '(nntp "news.aioe.org"))
+> to:
+>     (setq gnus-select-method '(nntp "nntp.aioe.org"))
+
+> Does anybody know why this happens and what to do about it?
+
+My impression from actual use is that one or the other server is
+actually down for a few hours or sometimes days at a time.  As long as
+at least one of them is up, the service itself is logically available.
+The "solution" is just what you're already doing, or something such as
+what others have already suggested.
+
+> This works with one very important hitch: I lose all my marks.
+
+Another, and rather simple, solution to this problem is:
+
+cd ~/News/marks
+ln -s news.aioe.org nntp.aioe.org    [or vice versa]
+
+HTH,
+ -WBE
+

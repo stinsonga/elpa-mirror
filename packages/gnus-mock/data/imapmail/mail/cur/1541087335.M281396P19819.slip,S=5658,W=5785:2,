@@ -1,0 +1,127 @@
+From MAILER-DAEMON Thu Nov 15 23:13:57 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TZDJV-000394-ET
+	for mharc-info-gnus-english@gnu.org; Thu, 15 Nov 2012 23:13:57 -0500
+Received: from eggs.gnu.org ([208.118.235.92]:53630)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <easior@126.com>) id 1TZDJQ-00036K-Fv
+	for info-gnus-english@gnu.org; Thu, 15 Nov 2012 23:13:55 -0500
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <easior@126.com>) id 1TZDJN-0006X7-ED
+	for info-gnus-english@gnu.org; Thu, 15 Nov 2012 23:13:52 -0500
+Received: from m50-110.126.com ([123.125.50.110]:40831)
+	by eggs.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <easior@126.com>) id 1TZDJL-0006Mx-MJ
+	for info-gnus-english@gnu.org; Thu, 15 Nov 2012 23:13:49 -0500
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=126.com;
+	s=s110527; h=Received:From:To:Subject:In-Reply-To:Date:
+	Message-ID:References:User-Agent:Face:MIME-Version:Content-Type:
+	Content-Transfer-Encoding; bh=HaxaAp9/Lr5mBCdu/jpo4qC8fso56Xx2kj
+	4qTGTLZcM=; b=V21tI5tUnkOXQCyk07F1xS/RzxqVMzOekFq8g/+06UrzjtAJMC
+	fzuPkQ+l/kxRDiZ3WMXGxTHzJ/hogsHlzzMIFzVSl6oje+7HdroNtl7bDn7etTjQ
+	Hl0nUHgkGrlrjRKkk2nruy6+O1GI1c3/S0vnZS16a8A/rTOlzJE/ALbgM=
+Received: from Noah.localdomain (unknown [27.115.42.252])
+	by smtp4 (Coremail) with SMTP id jdKowECZgWhwvaVQxTuFAg--.382S3;
+	Fri, 16 Nov 2012 12:13:37 +0800 (CST)
+From: Easior <easior@126.com>
+To: info-gnus-english@gnu.org
+Subject: Re: multiple gmail accounts: smtp and expiry
+In-Reply-To: <63bompavp2.fsf@news.eternal-september.org> (Richard Riley's
+	message of "Wed, 18 Apr 2012 17:47:21 +0200")
+Date: Wed, 14 Nov 2012 20:06:14 +0800
+Message-ID: <87ip98s821.fsf@Noah.localdomain>
+References: <87sjg6dxlr.fsf@gmail.com> <82ipgyv890.fsf@gmail.com>
+	<h4ehrmh3ky.fsf@news.eternal-september.org> <82d375oxl5.fsf@gmail.com>
+	<63bompavp2.fsf@news.eternal-september.org>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/24.2 (gnu/linux)
+Face: iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAABGdBTUEAAK/INwWK6QAAABl0
+	RVh0U29mdHdhcmUAQWRvYmUgSW1hZ2VSZWFkeXHJZTwAAAAMUExURe/v7y8pJ5UdEpuRfs3NYikA
+	AAE9SURBVHjaxJRbbsUgDEQ9nv3vuWAI2ASoo34URcrVzRz8GIPI/y3q+MUUgAGopgIAE2AO4JNb
+	FoCiSIs+BZQabNkr16S5kAGUNfeGMeeCGZHVF7NoRqRL1tIlFUA/APoF6O1sKxWgEPgC0AWgfPIN
+	lDyArMvNL8DKyDW1ZPKMHn/PxQ4Psz2ipdLTyWREIBC3abPNEAHc93X6u2suj0iUm6AGbofJ3U84
+	AbUDVQl7ZAEYIw056uHAJoLwFYqme1aIIBbzBZT/aMMbgS62bN8hetPDnTyjRr1d3dw3tgMhhG2+
+	BxrhR2kA5DGEhCKaa2d9/zzkzS7iQDxFcvazwQc9F6+Ve8OO00fgJp96LjbvATrJIublNNA1aVUv
+	6fn6pn7Y7yWvUx0babPXR7C/dm7Mfdpw3Rp8LPMP60eAAQAtmgbkuFBEMwAAAABJRU5ErkJgggo=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+X-CM-TRANSID: jdKowECZgWhwvaVQxTuFAg--.382S3
+X-Coremail-Antispam: 1Uf129KBjvJXoW7Cw4kXF15XFWUuFyxtFWfuFg_yoW8Wr4fpw
+	43JF17Gr1DJr4UAw1vqw1UXw1Iyr1UArnxJrn8Jry8Xryqyr4xJ3yUtr4rC34DJ34fJr1j
+	vr1UGr1DGw1UJrDanT9S1TB71UUUUUUqnTZGkaVYY2UrUUUUjbIjqfuFe4nvWSU5nxnvy2
+	9KBjDUYxBIdaVFxhVjvjDU0xZFpf9x07jxcTQUUUUU=
+X-CM-SenderInfo: 5hdvx0bu6rjloofrz/1tbi1xFpaUgYzcm8NwAAsZ
+X-detected-operating-system: by eggs.gnu.org: GNU/Linux 2.6.x
+X-Received-From: 123.125.50.110
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Fri, 16 Nov 2012 04:13:55 -0000
+
+>>>>> "RR" =3D=3D Richard Riley <rileyrg@gmail.com> writes:
+
+    RR> Sivaram Neelakantan <nsivaram.net@gmail.com> writes:
+    >>  On Tue, Apr 17 2012,Richard Riley wrote:
+    >>=20
+    >>  [snipped 19 lines]
+    >>=20
+    >>>>  And if people have better ideas, they'd correct it on the wiki.
+    >>>>=20
+    >>>=20
+    >>>  Except in reality they don't. Mutiple smtp accounts has numerous
+    >>>  solutions - some which do and some which dont work with multiple
+    RR> gmail
+    >>>  accounts and the latest Gnus and for someone not familiar with
+    RR> elisp to
+    >>=20
+    >>  True.  You at least know what didn't work.  :-)
+
+    RR> In addition the msmtp solution is not nice since (a) its external to
+    RR> emacs/gnus and (b) passwords are kept in clear text as opposed to t=
+he
+    RR> much more preferablie .authinfo.gpg. Possibly there is some cleaver
+    RR> way
+    RR> around that but I dont know.
+
+If you want to let gnus work with .authinfo.gpg, you can use=20
+
+,-------------------------------------------------
+|(setq auth-sources '((:source "~/.authinfo.gpg")))
+`-------------------------------------------------
+It also works with nnimap back end for gmail account. You could try it.
+
+
+    >>=20
+    >>  [snipped 6 lines]
+    >>=20
+    >>   sivaram
+    >>   --=20
+
+    RR> _______________________________________________
+    RR> info-gnus-english mailing list
+    RR> info-gnus-english@gnu.org
+    RR> https://lists.gnu.org/mailman/listinfo/info-gnus-english
+
+--=20
+Best regards,
+
+Easior
+-----
+Ich bin von heute und ehedam, aber etwas ist in mir, das ist vor
+morgen und =C3=BCbermorgen und einstmal.=EF=BB=BF
+
+                                     Friedrich Wilhelm Nietzsche
+----------------------------------------------------------------
+
+
+

@@ -1,0 +1,82 @@
+From MAILER-DAEMON Tue Nov 06 03:15:07 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TVeJP-0001RD-Rc
+	for mharc-info-gnus-english@gnu.org; Tue, 06 Nov 2012 03:15:07 -0500
+From: Reiner Steib <reinersteib+gmane@imap.cc>
+Newsgroups: gnu.emacs.gnus
+Subject: Re: delete temporary html files
+References: <87mwyzeuxe.fsf@psinom.home>
+X-Face: #vK]N[`vqjuod*|)'[iD7/"3AB-A<O>pT%fmN"LWAg@oS7OesGv~)n[OBTLM#I="J'Y^-7I
+	I/ps7o_'IK@#-Rs{::DZ@O8yS|fexe,XslY[:dNWOb~>?mC-&i_c)say:"\IpA.5U.b]'NY;
+	Pks{lb h.+#6%DpZuaK3dcHB`Av3zc:r!C%~s0&m, tWj]&},
+	qg.+0ww2gK%f!:GK|wMl.I!(voY*1"^li8"~B BNG)9LvPi?^DMR-GVDnZqhu*3Hi,
+	+g=wFhI)BL6&u{EOVEHjVEVq~d?_}lMntWAc3(6?kftjc>_f>!
+	g0wM(qPM$d5]^TT_Qyi&L?LGVG)SHN;Gk/,pkY9,~
+Mail-Copies-To: nobody
+Date: Tue, 06 Nov 2012 09:11:45 +0100
+Message-ID: <87objbw3pa.fsf@marauder.physik.uni-ulm.de>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/24.1.50 (gnu/linux)
+Cancel-Lock: sha1:o5J+YurFZQgmEI8bNNDs7kkTmq8=
+MIME-Version: 1.0
+Content-Type: text/plain
+NNTP-Posting-Host: bridgekeeper.physik.uni-ulm.de
+X-Trace: news.uni-ulm.de 1352189512 134.60.10.175 (6 Nov 2012 09:11:52 +0100)
+Lines: 38
+Path: usenet.stanford.edu!goblin1!goblin.stu.neva.ru!news2.arglkargh.de!feeder.erje.net!eu.feeder.erje.net!news-2.dfn.de!news.dfn.de!news.uni-stuttgart.de!rz.uni-karlsruhe.de!news.uni-ulm.de!hydrangea.reiner-steib.de!not-for-mail
+Xref: usenet.stanford.edu gnu.emacs.gnus:87041
+To: info-gnus-english@gnu.org
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+Reply-To: Reiner Steib <Reiner.Steib@gmx.de>
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Tue, 06 Nov 2012 08:15:05 -0000
+
+On Fri, Nov 02 2012, prad wrote:
+
+> sometimes i read emails in my browser because they don't show up
+> properly in gnus (S-K S-H). 
+
+You mean `K H'.
+
+> when i quit the summary, i get a message asking me if i want to
+> delete tmp html files.
+>
+> is there a way to set things so tmp html files are deleted
+> automatically?
+
+,----[ <f1> v gnus-article-browse-delete-temp RET ]
+| gnus-article-browse-delete-temp is a variable defined in `gnus-art.el'.
+| Its value is ask
+| 
+| Documentation:
+| What to do with temporary files from `gnus-article-browse-html-parts'.
+| If nil, don't delete temporary files.  If it is t, delete them on
+| exit from the summary buffer.  If it is the symbol `file', query
+| on each file, if it is `ask' ask once when exiting from the
+| summary buffer.
+`----
+
+> i'm also puzzled as to why the question is asked. why would anyone want
+> to keep tmp html files around when it's 
+>
+> a) already visible in one's browser
+> b) you can get it back anytime with S-K S-H
+
+Maybe t ("Don't ask") should be the default.
+
+Bye, Reiner.
+-- 
+       ,,,
+      (o o)
+---ooO-(_)-Ooo---  |  PGP key available  |  http://rsteib.home.pages.de/
+

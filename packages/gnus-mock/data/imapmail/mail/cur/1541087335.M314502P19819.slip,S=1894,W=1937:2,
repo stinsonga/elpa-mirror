@@ -1,0 +1,43 @@
+From MAILER-DAEMON Thu Nov 29 23:00:06 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TeHlm-00026y-Ip
+	for mharc-info-gnus-english@gnu.org; Thu, 29 Nov 2012 23:00:06 -0500
+Path: usenet.stanford.edu!news.kjsl.com!feeder.erje.net!us.feeder.erje.net!news2.arglkargh.de!news.mixmin.net!aioe.org!.POSTED!not-for-mail
+From: Emanuel Berg <embe8573@student.uu.se>
+Newsgroups: gnu.emacs.gnus
+Subject: Re: Gnus header in Rmail
+Date: Fri, 30 Nov 2012 04:54:14 +0100
+Organization: Aioe.org NNTP Server
+Lines: 5
+Message-ID: <87vccnagpl.fsf@VLAN-3434.student.uu.se>
+References: <874nk7bvfn.fsf@VLAN-3434.student.uu.se>
+NNTP-Posting-Host: SWN/nubmpQxYKwY7hPy4YA.user.speranza.aioe.org
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+X-Complaints-To: abuse@aioe.org
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/23.4 (gnu/linux)
+X-Notice: Filtered by postfilter v. 0.8.2
+Cancel-Lock: sha1:qXMrAB8ZUr+Lc7qZe3fTRZBBzro=
+Xref: usenet.stanford.edu gnu.emacs.gnus:87071
+To: info-gnus-english@gnu.org
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Fri, 30 Nov 2012 04:00:05 -0000
+
+That should be: Gnus header in *Message mode*, not Rmail.
+-- 
+Emanuel Berg - programmer (hire me!)
+CV + code + screenshots: http://user.it.uu.se/~embe8573
+
+

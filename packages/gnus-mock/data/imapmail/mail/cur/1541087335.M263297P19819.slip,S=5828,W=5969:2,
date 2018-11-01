@@ -1,0 +1,141 @@
+From MAILER-DAEMON Fri Nov 09 06:02:09 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TWmLh-0004QG-K4
+	for mharc-info-gnus-english@gnu.org; Fri, 09 Nov 2012 06:02:09 -0500
+Received: from eggs.gnu.org ([208.118.235.92]:52206)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <easior@126.com>) id 1TWmLY-0004Py-Ax
+	for info-gnus-english@gnu.org; Fri, 09 Nov 2012 06:02:07 -0500
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <easior@126.com>) id 1TWmLU-0002Kn-BV
+	for info-gnus-english@gnu.org; Fri, 09 Nov 2012 06:02:00 -0500
+Received: from m50-112.126.com ([123.125.50.112]:43240)
+	by eggs.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <easior@126.com>) id 1TWmLT-0002Ka-40
+	for info-gnus-english@gnu.org; Fri, 09 Nov 2012 06:01:56 -0500
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=126.com;
+	s=s110527; h=Received:From:To:Cc:Subject:References:Face:Date:
+	In-Reply-To:Message-ID:User-Agent:MIME-Version:Content-Type:
+	Content-Transfer-Encoding; bh=0dYBCHQYZFCK1e7FN4UsOXej5lDmVOO5lQ
+	kw04viKF4=; b=Uwzozl5wjOtP+NgfZ8eqlGlEO4ygJu+MvmzWaW8j5b+5dBvzEp
+	H7f/L0T+ysK5RdfulTvBwttNbvj2jLUprAnkarxA//8lhU3E6wVxy/xV4SAe5cO8
+	5suUskZ7Tb1TXdtsZBkXySTMDAzCgdN77Sd3mG43oattwvJVqjDkNykTE=
+Received: from Aphrodite.local (unknown [27.115.42.254])
+	by smtp6 (Coremail) with SMTP id j9KowECJeVWd4pxQJzdCAQ--.9S2;
+	Fri, 09 Nov 2012 19:01:51 +0800 (CST)
+From: Easior <easior@126.com>
+To: asjo@koldfront.dk (Adam Sjøgren)
+Subject: Re: how to work with nnfolder?
+References: <87k3tv9zdf.fsf@Noah.localdomain>
+	<87390jb681.fsf@topper.koldfront.dk>
+Face: iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAABGdBTUEAAK/INwWK6QAAABl0
+	RVh0U29mdHdhcmUAQWRvYmUgSW1hZ2VSZWFkeXHJZTwAAAAMUExURe/v7y8pJ5UdEpuRfs3NYikA
+	AAE9SURBVHjaxJRbbsUgDEQ9nv3vuWAI2ASoo34URcrVzRz8GIPI/y3q+MUUgAGopgIAE2AO4JNb
+	FoCiSIs+BZQabNkr16S5kAGUNfeGMeeCGZHVF7NoRqRL1tIlFUA/APoF6O1sKxWgEPgC0AWgfPIN
+	lDyArMvNL8DKyDW1ZPKMHn/PxQ4Psz2ipdLTyWREIBC3abPNEAHc93X6u2suj0iUm6AGbofJ3U84
+	AbUDVQl7ZAEYIw056uHAJoLwFYqme1aIIBbzBZT/aMMbgS62bN8hetPDnTyjRr1d3dw3tgMhhG2+
+	BxrhR2kA5DGEhCKaa2d9/zzkzS7iQDxFcvazwQc9F6+Ve8OO00fgJp96LjbvATrJIublNNA1aVUv
+	6fn6pn7Y7yWvUx0babPXR7C/dm7Mfdpw3Rp8LPMP60eAAQAtmgbkuFBEMwAAAABJRU5ErkJgggo=
+Date: Fri, 09 Nov 2012 19:01:56 +0800
+In-Reply-To: <87390jb681.fsf@topper.koldfront.dk> (Adam Sj's message of "Fri, 
+	09 Nov 2012 08:11:58 +0100")
+Message-ID: <m2zk2rca57.fsf@126.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/24.2 (darwin)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+X-CM-TRANSID: j9KowECJeVWd4pxQJzdCAQ--.9S2
+X-Coremail-Antispam: 1Uf129KBjvJXoW7tw15KFy8Xr18Jw48JryUtrb_yoW8Aw13pF
+	4aqrsIvr48Zr48CFs5uw1jyryfJFy5KFW5ZasYqr4rA3W5uFy8Jr1xCr4FvFyUArySkr1j
+	yFs7tryDAr1qva7anT9S1TB71UUUUUUqnTZGkaVYY2UrUUUUjbIjqfuFe4nvWSU5nxnvy2
+	9KBjDUYxBIdaVFxhVjvjDU0xZFpf9x07UB7K3UUUUU=
+X-CM-SenderInfo: 5hdvx0bu6rjloofrz/1tbi1wRiaUgYzYKzKQAAsd
+X-detected-operating-system: by eggs.gnu.org: GNU/Linux 2.6.x
+X-Received-From: 123.125.50.112
+Cc: info-gnus-english@gnu.org
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Fri, 09 Nov 2012 11:02:07 -0000
+
+>>>>> "AS" =3D=3D Adam Sjgren <asjo@koldfront.dk> writes:
+
+    AS> On Fri, 09 Nov 2012 12:25:16 +0800, Easior wrote:
+    >>  ;; Tell gnus which method to use for archives (nnfolder)
+
+    AS> [...]
+
+    >>  However, there is something weird happened. When I send a message by
+    AS> gnus,
+    >>  I'll find that a file named 'mail' will be created in the directory
+    >>  "~/.emacs.d/gnus/Mail/archive/sent/". In fact, it is not correct.
+    AS> Gnus
+    >>  should create a file, e.g. named '1', in the directory
+    >>  "~/.emacs.d/gnus/Mail/archive/sent/mail".
+
+    AS> What gave you that impression?
+
+The mechanism of nnml made me such impression.
+
+    AS> nnfolder stores each _group_ in a file, not each mail.
+
+    AS> See:
+
+    AS> * http://gnus.org/manual/gnus_201.html
+
+    AS> As you have observed, nnml stores each _mail_ in a separate file; as
+    AS> described in:
+
+    AS> * http://gnus.org/manual/gnus_194.html
+
+    >>  everything is ok. What's happened?
+
+    AS> Looks like it works as advertised to me?
+
+    AS> :-),
+
+    AS> Adam
+
+    AS> --=20
+    AS> "Everybody will be quick to agree that EMACS has a Adam Sjgren
+    AS> simple to learn user interface, at least to gain asjo@koldfront.dk
+    AS> 'novice' status."
+
+Thank you very much.
+
+There is another problem. If I use=20
+
+;; Tell gnus which method to use for archives (nnfolder)=20
+(setq gnus-message-archive-method=20
+           '(nnfolder "archive"=20
+                 (nnfolder-directory "~/.emacs.d/gnus/Mail/archive")=20
+                 (nnfolder-active-file "~/.emacs.d/gnus/Mail/archive/active=
+")=20
+                 ;; (nnfolder-get-new-mail nil)=20
+                 (nnfolder-inhibit-expiry t)))=20
+
+all buffers related to gnus will be read only. Why does it happen?
+
+--=20
+Best Regards,
+
+Easior
+-----
+Ich bin von heute und ehedam, aber etwas ist in mir, das ist vor
+morgen und =C3=BCbermorgen und einstmal.=EF=BB=BF
+
+                                     Friedrich Wilhelm Nietzsche
+----------------------------------------------------------------
+
+
+

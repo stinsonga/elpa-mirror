@@ -1,0 +1,53 @@
+From MAILER-DAEMON Fri Jun 30 10:50:11 2017
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1dQxFL-0005pq-Ry
+	for mharc-emacs-devel@gnu.org; Fri, 30 Jun 2017 10:50:11 -0400
+Received: from eggs.gnu.org ([2001:4830:134:3::10]:37635)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <eliz@gnu.org>) id 1dQxFJ-0005nx-Pe
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 10:50:10 -0400
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <eliz@gnu.org>) id 1dQxFG-0008CL-OQ
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 10:50:09 -0400
+Received: from fencepost.gnu.org ([2001:4830:134:3::e]:41606)
+	by eggs.gnu.org with esmtp (Exim 4.71) (envelope-from <eliz@gnu.org>)
+	id 1dQxFG-0008By-L6
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 10:50:06 -0400
+Received: from 84.94.185.246.cable.012.net.il ([84.94.185.246]:1379
+	helo=home-c4e4a596f7)
+	by fencepost.gnu.org with esmtpsa (TLS1.2:RSA_AES_256_CBC_SHA1:256)
+	(Exim 4.82) (envelope-from <eliz@gnu.org>) id 1dQxFF-0006EU-GL
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 10:50:06 -0400
+Date: Fri, 30 Jun 2017 17:49:49 +0300
+Message-Id: <83y3s9pm2a.fsf@gnu.org>
+From: Eli Zaretskii <eliz@gnu.org>
+To: emacs-devel@gnu.org
+Subject: Native line numbers, final testing
+Reply-to: Eli Zaretskii <eliz@gnu.org>
+X-detected-operating-system: by eggs.gnu.org: GNU/Linux 2.2.x-3.x [generic]
+X-Received-From: 2001:4830:134:3::e
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.1.21
+Precedence: list
+List-Id: "Emacs development discussions." <emacs-devel.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/emacs-devel/>
+List-Post: <mailto:emacs-devel@gnu.org>
+List-Help: <mailto:emacs-devel-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Fri, 30 Jun 2017 14:50:10 -0000
+
+I've finished development of this feature and pushed the changes to
+the scratch/line-numbers branch.  "Visual" line numbers are
+implemented, and all the known bugs should be fixed.  I also added
+documentation.
+
+Please test and report any problems you find.  If no grave bugs show
+up, I will probably land this on master in a few days.
+
+Thanks to everybody who sent feedback and reported problems and
+feature requests.
+
+

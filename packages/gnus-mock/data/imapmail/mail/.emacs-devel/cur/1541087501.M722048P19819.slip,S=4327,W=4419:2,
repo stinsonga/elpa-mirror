@@ -1,0 +1,92 @@
+From MAILER-DAEMON Thu Jun 29 18:12:02 2017
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1dQhfO-0004v0-54
+	for mharc-emacs-devel@gnu.org; Thu, 29 Jun 2017 18:12:02 -0400
+Received: from eggs.gnu.org ([2001:4830:134:3::10]:40434)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <bojohan@gnu.org>) id 1dQhfM-0004up-0C
+	for emacs-devel@gnu.org; Thu, 29 Jun 2017 18:12:00 -0400
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <bojohan@gnu.org>) id 1dQhfH-0007z2-Vq
+	for emacs-devel@gnu.org; Thu, 29 Jun 2017 18:11:59 -0400
+Received: from manu26.manufrog.com ([98.142.98.2]:44390)
+	by eggs.gnu.org with esmtps (TLS1.0:DHE_RSA_AES_256_CBC_SHA1:32)
+	(Exim 4.71) (envelope-from <bojohan@gnu.org>) id 1dQhfH-0007yJ-RI
+	for emacs-devel@gnu.org; Thu, 29 Jun 2017 18:11:55 -0400
+Received: from c-5306e555.04-211-6c6b701.cust.bredbandsbolaget.se
+	([85.229.6.83]:54900 helo=muon.localdomain)
+	by manu26.manufrog.com with esmtpa (Exim 4.89)
+	(envelope-from <bojohan@gnu.org>)
+	id 1dQhfA-0047HD-BM; Fri, 30 Jun 2017 00:11:48 +0200
+Received: by muon.localdomain (Postfix, from userid 1000)
+	id F3EA748420E; Fri, 30 Jun 2017 00:11:46 +0200 (CEST)
+From: =?utf-8?Q?Johan_Bockg=C3=A5rd?= <bojohan@gnu.org>
+To: Stefan Monnier <monnier@IRO.UMontreal.CA>
+Cc: Noam Postavsky <npostavs@gmail.com>, Emacs developers <emacs-devel@gnu.org>
+Subject: Re: [Emacs-diffs] master c75eb10: Don't change
+	byte-compile-delete-errors at runtime (Bug#27340)
+References: <20170624141528.514.4459@vcs0.savannah.gnu.org>
+	<20170624141530.443C5210EB@vcs0.savannah.gnu.org>
+	<jwv8tkhbh3a.fsf-monnier+emacsdiffs@gnu.org>
+	<CAM-tV-_OuF+5-xu6nbTZrG5==jPWz_VPq213njpZjJ+PiMqmXA@mail.gmail.com>
+	<jwvd19rc18h.fsf-monnier+emacsdiffs@gnu.org> <87r2y28ule.fsf@gnu.org>
+	<CAM-tV--eQTV=PHX75egRvmpv=KHmHJ6qMLqzdWFoR1fyBCUe_A@mail.gmail.com>
+	<871sq28sk0.fsf@gnu.org> <jwv1sq2frod.fsf-monnier+emacsdiffs@gnu.org>
+Date: Fri, 30 Jun 2017 00:11:46 +0200
+In-Reply-To: <jwv1sq2frod.fsf-monnier+emacsdiffs@gnu.org> (Stefan Monnier's
+	message of "Thu, 29 Jun 2017 16:49:44 -0400")
+Message-ID: <87h8yy78bh.fsf@gnu.org>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/25.0.50 (gnu/linux)
+MIME-Version: 1.0
+Content-Type: text/plain
+X-AntiAbuse: This header was added to track abuse,
+	please include it with any abuse report
+X-AntiAbuse: Primary Hostname - manu26.manufrog.com
+X-AntiAbuse: Original Domain - gnu.org
+X-AntiAbuse: Originator/Caller UID/GID - [47 12] / [47 12]
+X-AntiAbuse: Sender Address Domain - gnu.org
+X-Get-Message-Sender-Via: manu26.manufrog.com: authenticated_id:
+	noreply@tryserumgardar.se
+X-Authenticated-Sender: manu26.manufrog.com: noreply@tryserumgardar.se
+X-Source: 
+X-Source-Args: 
+X-Source-Dir: 
+X-detected-operating-system: by eggs.gnu.org: GNU/Linux 2.2.x-3.x [generic]
+	[fuzzy]
+X-Received-From: 98.142.98.2
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.1.21
+Precedence: list
+List-Id: "Emacs development discussions." <emacs-devel.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/emacs-devel/>
+List-Post: <mailto:emacs-devel@gnu.org>
+List-Help: <mailto:emacs-devel-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Thu, 29 Jun 2017 22:12:01 -0000
+
+Stefan Monnier <monnier@IRO.UMontreal.CA> writes:
+
+>> The Hyperspec says that:
+>>
+>> 1. [declaim should] make definitions available both in the compilation
+>>    and run-time environments.
+>
+> Hmm... the uses of declaim that I'm familiar with are optimization
+> settings for the compiler.  These don't "make definitions available"
+> AFAICT.  If foo.el contains a declaim to set the optimization level,
+> I don't see why it would make sense for this setting to affect all files
+> compiled after foo.elc was loaded (I can understand that the spec may
+> allow such a suboptimal behavior, but not that it would require it).
+
+In CL declaim can be used to make variables special. (In fact, `special'
+is the only declaration that must have an effect in all conforming CL
+implementations.)
+
+Also see
+
+https://groups.google.com/forum/#!original/comp.lang.lisp/rO1Vru1fbvI/-3FkSBvlE0gJ
+
+

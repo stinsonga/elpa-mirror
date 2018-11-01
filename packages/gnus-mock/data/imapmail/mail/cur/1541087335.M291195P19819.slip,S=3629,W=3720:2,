@@ -1,0 +1,91 @@
+From MAILER-DAEMON Mon Nov 19 11:18:40 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TaU3U-0006y6-Lr
+	for mharc-info-gnus-english@gnu.org; Mon, 19 Nov 2012 11:18:40 -0500
+Received: from eggs.gnu.org ([208.118.235.92]:45956)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TaU3P-0006y0-6j
+	for info-gnus-english@gnu.org; Mon, 19 Nov 2012 11:18:39 -0500
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TaU3J-0003bV-3f
+	for info-gnus-english@gnu.org; Mon, 19 Nov 2012 11:18:35 -0500
+Received: from plane.gmane.org ([80.91.229.3]:54792)
+	by eggs.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TaU3I-0003ae-TE
+	for info-gnus-english@gnu.org; Mon, 19 Nov 2012 11:18:29 -0500
+Received: from list by plane.gmane.org with local (Exim 4.69)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TaU3Q-0005iQ-14
+	for info-gnus-english@gnu.org; Mon, 19 Nov 2012 17:18:36 +0100
+Received: from tsdh.uni-koblenz.de ([141.26.67.142])
+	by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+	id 1AlnuQ-0007hv-00
+	for <info-gnus-english@gnu.org>; Mon, 19 Nov 2012 17:18:36 +0100
+Received: from tsdh by tsdh.uni-koblenz.de with local (Gmexim 0.1 (Debian))
+	id 1AlnuQ-0007hv-00
+	for <info-gnus-english@gnu.org>; Mon, 19 Nov 2012 17:18:36 +0100
+X-Injected-Via-Gmane: http://gmane.org/
+To: info-gnus-english@gnu.org
+From: Tassilo Horn <tsdh@gnu.org>
+Subject: Re: gnus-notify.el is not work on Emacs24.2
+Date: Mon, 19 Nov 2012 17:18:12 +0100
+Lines: 27
+Message-ID: <87wqxho9bv.fsf@thinkpad.tsdh.de>
+References: <123791454375028291.719217yanglm.ace-163.com@freenews.netfront.net>
+Mime-Version: 1.0
+Content-Type: text/plain
+X-Complaints-To: usenet@ger.gmane.org
+X-Gmane-NNTP-Posting-Host: tsdh.uni-koblenz.de
+User-Agent: Gnus/5.130006 (Ma Gnus v0.6) Emacs/24.3.50 (gnu/linux)
+Cancel-Lock: sha1:Ya75UbA/qbDBSQAxO92/2UtGAEA=
+X-detected-operating-system: by eggs.gnu.org: Genre and OS details not
+	recognized.
+X-Received-From: 80.91.229.3
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Mon, 19 Nov 2012 16:18:39 -0000
+
+yanglm <yanglm.ace@163.com> writes:
+
+> Error message is below
+> invalid function : gnus-group-unread 
+
+The error message indicates that `gnus-group-unread' (which is a macro)
+is called like a function.  Glancing at the gnus-notify.el code at
+
+  http://www.emacswiki.org/emacs/gnus-notify.el
+
+I can't see where this happens.
+
+Could you do M-x toggle-debug-on-error RET and then trigger the problem
+again?  You'll get a *backtrace* buffer that will help to spot the
+problem.
+
+> who can fix it!
+
+Probably the gnus-notify.el author.  His name and email address are
+listed in the file.
+
+Bye,
+Tassilo
+
+BTW: Very new, not yet released Gnus/Emacs versions have a
+gnus-notifications.el that provides about the same features.  You might
+want to switch to that once emacs 24.3 has been released.
+
+
+

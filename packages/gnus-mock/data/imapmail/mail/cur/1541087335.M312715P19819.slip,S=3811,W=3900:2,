@@ -1,0 +1,89 @@
+From MAILER-DAEMON Fri Nov 30 07:57:59 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TeQAJ-0001pc-Ko
+	for mharc-info-gnus-english@gnu.org; Fri, 30 Nov 2012 07:57:59 -0500
+Received: from eggs.gnu.org ([208.118.235.92]:58204)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TeQAG-0001o3-JT
+	for info-gnus-english@gnu.org; Fri, 30 Nov 2012 07:57:57 -0500
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TeQAF-000225-Bz
+	for info-gnus-english@gnu.org; Fri, 30 Nov 2012 07:57:56 -0500
+Received: from plane.gmane.org ([80.91.229.3]:54170)
+	by eggs.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TeQAF-00021w-5C
+	for info-gnus-english@gnu.org; Fri, 30 Nov 2012 07:57:55 -0500
+Received: from list by plane.gmane.org with local (Exim 4.69)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TeQAN-0004Ji-5c
+	for info-gnus-english@gnu.org; Fri, 30 Nov 2012 13:58:03 +0100
+Received: from 2505ds5-by.0.fullrate.dk ([89.150.142.116])
+	by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+	id 1AlnuQ-0007hv-00
+	for <info-gnus-english@gnu.org>; Fri, 30 Nov 2012 13:58:03 +0100
+Received: from asjo by 2505ds5-by.0.fullrate.dk with local (Gmexim 0.1
+	(Debian)) id 1AlnuQ-0007hv-00
+	for <info-gnus-english@gnu.org>; Fri, 30 Nov 2012 13:58:03 +0100
+X-Injected-Via-Gmane: http://gmane.org/
+To: info-gnus-english@gnu.org
+From: asjo@koldfront.dk (Adam =?iso-8859-1?Q?Sj=F8gren?=)
+Subject: Re: Gnus header in Rmail
+Date: Fri, 30 Nov 2012 13:57:41 +0100
+Organization: koldfront - analysis & revolution, Copenhagen, Denmark
+Lines: 17
+Message-ID: <877gp345a2.fsf@topper.koldfront.dk>
+References: <874nk7bvfn.fsf@VLAN-3434.student.uu.se>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
+X-Complaints-To: usenet@ger.gmane.org
+X-Gmane-NNTP-Posting-Host: 2505ds5-by.0.fullrate.dk
+OpenPGP: id=21BDE416; url=http://asjo.koldfront.dk/gpg.asc
+X-Face: )qY&CseJ?.:=8F#^~GcSA?F=9eu'{KAFfL1C3/A&:nE?PW\i65"ba0NS)97,
+	Q(^@xk}n4Ou
+	rPuR#V8I(J_@~H($[ym:`K_+]*kjvW>xH5jbgLBVFGXY:(#4P>zVBklLbdL&XxL\M)%T}3S/IS9lMJ
+	^St'=VZBR<gm`!Dj`dIpp?+$"$l_'JKDN\w-jB;fo0Qy}Tbw
+X-Image-Url: http://asjo.koldfront.dk/pics/x-face.png
+User-Agent: Gnus/5.130006 (Ma Gnus v0.6) Emacs/24.2.50 (gnu/linux)
+Cancel-Lock: sha1:SS5wwhDMhjKvWfj9ZESMNlzKGvY=
+X-detected-operating-system: by eggs.gnu.org: Genre and OS details not
+	recognized.
+X-Received-From: 80.91.229.3
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Fri, 30 Nov 2012 12:57:57 -0000
+
+On Fri, 30 Nov 2012 04:50:52 +0100, Emanuel wrote:
+
+> Help would be appreciated, as it is a bit weird (although I don't know
+> if people are paying attention to all strange headers in e-mails, it
+> just shouldn't be there).
+
+I would think it would only be used internally and removed before
+sending - did you check if it actually gets sent?
+
+
+  Best regards,
+
+    Adam
+
+-- 
+ "we push onward. to you, it is 2005, to us, it is            Adam Sjøgren
+  2011. we are always far ahead."                        asjo@koldfront.dk
+
+
+

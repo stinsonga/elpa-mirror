@@ -1,0 +1,86 @@
+From MAILER-DAEMON Sun Nov 25 09:48:11 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TcdVD-00067T-3u
+	for mharc-info-gnus-english@gnu.org; Sun, 25 Nov 2012 09:48:11 -0500
+Received: from eggs.gnu.org ([208.118.235.92]:46521)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <kurlberg@math.kth.se>) id 1TcZW2-0005f4-KQ
+	for info-gnus-english@gnu.org; Sun, 25 Nov 2012 05:32:47 -0500
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <kurlberg@math.kth.se>) id 1TcZW1-0005Qt-Gu
+	for info-gnus-english@gnu.org; Sun, 25 Nov 2012 05:32:46 -0500
+Received: from smtp-2.sys.kth.se ([130.237.32.160]:47783)
+	by eggs.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <kurlberg@math.kth.se>) id 1TcZW1-0005PG-9v
+	for info-gnus-english@gnu.org; Sun, 25 Nov 2012 05:32:45 -0500
+Received: from mailscan-1.sys.kth.se (mailscan-1.sys.kth.se [130.237.32.91])
+	by smtp-2.sys.kth.se (Postfix) with ESMTP id 2866914DC48
+	for <info-gnus-english@gnu.org>; Sun, 25 Nov 2012 11:32:07 +0100 (CET)
+X-Virus-Scanned: by amavisd-new at kth.se
+Received: from smtp-2.sys.kth.se ([130.237.32.160])
+	by mailscan-1.sys.kth.se (mailscan-1.sys.kth.se [130.237.32.91])
+	(amavisd-new, port 10024)
+	with LMTP id tA+BqjK-n1UP; Sun, 25 Nov 2012 11:32:02 +0100 (CET)
+X-KTH-Auth: kurlberg [89.160.0.43]
+X-KTH-mail-from: kurlberg@math.kth.se
+Received: from odin.local (c-89-160-0-43.cust.bredband2.com [89.160.0.43])
+	by smtp-2.sys.kth.se (Postfix) with ESMTP id 16B6A14D7CC;
+	Sun, 25 Nov 2012 11:32:00 +0100 (CET)
+From: Par Kurlberg <kurlberg@math.kth.se>
+To: info-gnus-english@gnu.org
+Subject: nnimap, tick mark not synced when reading from 2 computers
+Date: Sun, 25 Nov 2012 11:32:00 +0100
+Message-ID: <m2vccut1lr.fsf@math.kth.se>
+MIME-Version: 1.0
+Content-Type: text/plain
+X-detected-operating-system: by eggs.gnu.org: GNU/Linux 2.4.x
+X-Received-From: 130.237.32.160
+X-Mailman-Approved-At: Sun, 25 Nov 2012 09:48:08 -0500
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Sun, 25 Nov 2012 10:32:47 -0000
+
+
+Work mail is kept on an exchange server, and I access it from two
+computers (one laptop, the other my work desktop) using gnus+nnimap.
+Recently (I think it is after I upgraded to emacs 24) I have had trouble
+with tick marks not being synced properly.  E.g., when I untick a
+message on my laptop, it is remains ticked in the summary buffer on my
+desktop.  As far as I can tell, the %Flagged flag on the imap server is
+being set/reset correctly from either client, but it seems like gnus
+uses the information in ~/.newsrc.eld, and this overrides the flags on
+the server.  (This suspicion could be wrong.)
+
+Any hints on how to fix this?  (Or hints on how to debug it?)
+
+Best,
+Par 
+
+PS: Some system info
+
+Computer 1 (macos)
+
+GNU Emacs 24.1.1 (x86_64-apple-darwin11.4.0, GTK+ Version 2.18.9) of
+2012-06-20 on odin.local
+
+Gnus v5.13
+
+
+Computer 2 (ubuntu)
+
+GNU Emacs 24.1.1 (x86_64-unknown-linux-gnu, GTK+ Version 2.24.10) of 2012-06-21\
+ 
+Gnus v5.13
+
+

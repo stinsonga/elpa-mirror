@@ -1,0 +1,82 @@
+From MAILER-DAEMON Thu Nov 29 18:15:06 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TeDJy-00039p-Oh
+	for mharc-info-gnus-english@gnu.org; Thu, 29 Nov 2012 18:15:06 -0500
+Path: usenet.stanford.edu!goblin3!goblin2!goblin.stu.neva.ru!aioe.org!.POSTED!not-for-mail
+From: Emanuel Berg <embe8573@student.uu.se>
+Newsgroups: gnu.emacs.gnus
+Subject: Re: 2 x summary buffer line color
+Date: Fri, 30 Nov 2012 00:10:07 +0100
+Organization: Aioe.org NNTP Server
+Lines: 43
+Message-ID: <87ip8ongz4.fsf@VLAN-3434.student.uu.se>
+References: <87obig5pln.fsf@VLAN-3434.student.uu.se>
+	<mailman.14077.1354216834.855.info-gnus-english@gnu.org>
+NNTP-Posting-Host: SWN/nubmpQxYKwY7hPy4YA.user.speranza.aioe.org
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+X-Complaints-To: abuse@aioe.org
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/23.4 (gnu/linux)
+X-Notice: Filtered by postfilter v. 0.8.2
+Cancel-Lock: sha1:d8Z/wfo4xFb6a5o9N0XbCH22giY=
+Xref: usenet.stanford.edu gnu.emacs.gnus:87068
+To: info-gnus-english@gnu.org
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Thu, 29 Nov 2012 23:15:05 -0000
+
+Oleksandr Gavenko <gavenkoa@gmail.com> writes:
+
+> ;; Especially highlight my message and replays to me.
+> (eval-after-load 'gnus-sum
+>   '(progn
+>      (defface my-gnus-own-unread-face nil
+>        "Use this face to display own postings in Summary Buffer")
+>      (copy-face 'gnus-summary-high-unread-face 'my-gnus-own-unread-face)
+>      (set-face-background 'my-gnus-own-unread-face "linen")
+>      (add-to-list 'gnus-summary-highlight
+>                   '((and (> score 190) (eq mark gnus-unread-mark)) . my-gnus-own-unread-face))
+>      (defface my-gnus-own-ancient-face nil
+>        "Use this face to display own postings in Summary Buffer")
+>      (copy-face 'gnus-summary-high-ancient-face 'my-gnus-own-ancient-face)
+>      (set-face-background 'my-gnus-own-ancient-face "linen")
+>      (add-to-list 'gnus-summary-highlight
+>                   '((and (> score 190) (eq mark gnus-ancient-mark)) . my-gnus-own-ancient-face))
+>      (defface my-gnus-own-ticked-face nil
+>        "Use this face to display own postings in Summary Buffer")
+>      (copy-face 'gnus-summary-high-ticked-face 'my-gnus-own-ticked-face)
+>      (set-face-background 'my-gnus-own-ticked-face "linen")
+>      (add-to-list 'gnus-summary-highlight
+>                   '((and (> score 190) (or (eq mark gnus-dormant-mark) (eq mark gnus-ticked-mark))) . my-gnus-own-ticked-face))
+>      (defface my-gnus-fup-face nil
+>        "Use this face to display direct fups to my postings.")
+>      (copy-face 'gnus-summary-high-unread-face 'my-gnus-fup-face)
+>      (set-face-background 'my-gnus-fup-face "honeydew")
+>      (add-to-list 'gnus-summary-highlight
+>                   '((and (<= 90 score) (<= score 110) (eq mark gnus-unread-mark)) . my-gnus-fup-face))
+>      ))
+
+OK, that worked, but it would probably look better if you either
+changed the attributes of those standard faces, or, defined you own
+faces. All that copying is a bit "hackish" :) (But like I said, it
+worked, so thanks.)
+
+I wonder though, you say, my articles, replies to me, etc., but, for
+example in the first case, will that not simply highlight all articles
+that you've not read?
+
+-- 
+Emanuel Berg - programmer (hire me!)
+CV + code + screenshots: http://user.it.uu.se/~embe8573
+

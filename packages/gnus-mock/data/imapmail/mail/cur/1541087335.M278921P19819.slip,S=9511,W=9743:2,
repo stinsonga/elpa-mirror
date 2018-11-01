@@ -1,0 +1,232 @@
+From MAILER-DAEMON Thu Nov 15 23:13:57 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TZDJV-00038e-Ao
+	for mharc-info-gnus-english@gnu.org; Thu, 15 Nov 2012 23:13:57 -0500
+Received: from eggs.gnu.org ([208.118.235.92]:53628)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <easior@126.com>) id 1TZDJQ-00036J-F1
+	for info-gnus-english@gnu.org; Thu, 15 Nov 2012 23:13:55 -0500
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <easior@126.com>) id 1TZDJN-0006X1-9k
+	for info-gnus-english@gnu.org; Thu, 15 Nov 2012 23:13:52 -0500
+Received: from m50-111.126.com ([123.125.50.111]:36231)
+	by eggs.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <easior@126.com>) id 1TZDJM-0006WY-0w
+	for info-gnus-english@gnu.org; Thu, 15 Nov 2012 23:13:49 -0500
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=126.com;
+	s=s110527; h=Received:From:To:Cc:Subject:In-Reply-To:Date:
+	Message-ID:References:User-Agent:Face:MIME-Version:Content-Type:
+	Content-Transfer-Encoding; bh=iBfV7+Rjp/yKl5P2qYWh0+fB6ourOsc9M+
+	B8ngttOb0=; b=YbkcuBiPX7rROIccxVkslEp1xZ6+uKj7UsYql+83TWMbrqha92
+	t7sYdBnJMeteIpc+vYKs6nG5d4KEizUqGnyEZU4JHkDF2pv0M9VQzMFAl43wKNtM
+	OWc1hI3w5BMEKLuMgrE8pra1zDgIJF/nWV7/NBzfRFJd3ovsYwjZA9zrQ=
+Received: from Noah.localdomain (unknown [27.115.42.252])
+	by smtp5 (Coremail) with SMTP id jtKowEAZkEd0vaVQrW9oAg--.650S3;
+	Fri, 16 Nov 2012 12:13:40 +0800 (CST)
+From: Easior <easior@126.com>
+To: Thorsten Jolitz <tjolitz@googlemail.com>
+Subject: Re: Strange indentation in message-mode
+In-Reply-To: <87pqalfh3j.fsf@googlemail.com> (Thorsten Jolitz's message of
+	"Thu, 03 May 2012 16:56:48 +0200")
+Date: Wed, 14 Nov 2012 19:55:02 +0800
+Message-ID: <87obj0s8kp.fsf@Noah.localdomain>
+References: <87txzxh7u0.fsf@googlemail.com> <87sjfhh22e.fsf@gnu.org>
+	<87pqalfh3j.fsf@googlemail.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/24.2 (gnu/linux)
+Face: iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAABGdBTUEAAK/INwWK6QAAABl0
+	RVh0U29mdHdhcmUAQWRvYmUgSW1hZ2VSZWFkeXHJZTwAAAAMUExURe/v7y8pJ5UdEpuRfs3NYikA
+	AAE9SURBVHjaxJRbbsUgDEQ9nv3vuWAI2ASoo34URcrVzRz8GIPI/y3q+MUUgAGopgIAE2AO4JNb
+	FoCiSIs+BZQabNkr16S5kAGUNfeGMeeCGZHVF7NoRqRL1tIlFUA/APoF6O1sKxWgEPgC0AWgfPIN
+	lDyArMvNL8DKyDW1ZPKMHn/PxQ4Psz2ipdLTyWREIBC3abPNEAHc93X6u2suj0iUm6AGbofJ3U84
+	AbUDVQl7ZAEYIw056uHAJoLwFYqme1aIIBbzBZT/aMMbgS62bN8hetPDnTyjRr1d3dw3tgMhhG2+
+	BxrhR2kA5DGEhCKaa2d9/zzkzS7iQDxFcvazwQc9F6+Ve8OO00fgJp96LjbvATrJIublNNA1aVUv
+	6fn6pn7Y7yWvUx0babPXR7C/dm7Mfdpw3Rp8LPMP60eAAQAtmgbkuFBEMwAAAABJRU5ErkJgggo=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+X-CM-TRANSID: jtKowEAZkEd0vaVQrW9oAg--.650S3
+X-Coremail-Antispam: 1Uf129KBjvJXoWxtrW7Wry8uF17Gw4fJryxXwb_yoW7WF4Upr
+	13Jr17Gr4UJr1UJw1UJr1UGr1Yvr1UJr1UJr15Jr18Jr1Yyr1UJr1UJr1rJryUJry5Jw1U
+	Ar1UWr1UJr1UJrUanT9S1TB71UUUUUUqnTZGkaVYY2UrUUUUjbIjqfuFe4nvWSU5nxnvy2
+	9KBjDUYxBIdaVFxhVjvjDU0xZFpf9x07jf_-PUUUUU=
+X-CM-SenderInfo: 5hdvx0bu6rjloofrz/1tbinx9paU3ktCFn5gAAs9
+X-detected-operating-system: by eggs.gnu.org: GNU/Linux 2.6.x
+X-Received-From: 123.125.50.111
+Cc: info-gnus-english@gnu.org
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Fri, 16 Nov 2012 04:13:55 -0000
+
+>>>>> "TJ" =3D=3D Thorsten Jolitz <tjolitz@googlemail.com> writes:
+
+    TJ> Bastien <bzg@gnu.org> writes:
+    TJ> Hi Bastien,
+
+    >>  Thorsten Jolitz <tjolitz@googlemail.com> writes:
+    >>=20
+    >>>  The mode line says:
+    >>>=20
+    >>>  ,------------------------------------------------
+    >>>  | Message MML AC OrgTbl OrgStruct yas Abbrev Fill
+    >>>  `------------------------------------------------
+    >>>=20
+    >>>  and I deactivated OrgTbl and then OrgStruct, but the problem did
+    TJ> not go
+    >>>  away. When I deactivate auto-fill-mode, the lines get very long,
+    TJ> and
+    >>>      when I press M-q the paragraphs get filled correctly. But with
+    >>>  auto-fill-mode activated, M-q does not undo the strange
+    TJ> indentation.
+    >>>=20
+    >>>  Any idea what could be the problem?
+    >>=20
+    >>  OrgStruct in the mode-line doesn't tell whether this is
+    TJ> orgstruct-mode
+    >>  or orgstruct++-mode (I need to fix this.)
+    >>=20
+    >>  But my guess is that you use orgstruct++-mode, right?
+
+    TJ> C-h m gives:
+
+    TJ> ,------------------------------------------------------------------=
+----
+    TJ> | Enabled minor modes: Abbrev Auto-Complete Auto-Composition
+    TJ> | Auto-Compression Auto-Encryption Auto-Fill Delete-Selection
+    TJ> | Diff-Auto-Refine Display-Time File-Name-Shadow Flyspell Font-Lock
+    TJ> | Global-Font-Lock Gnus-Message-Citation Ido-Everywhere Line-Number
+    TJ> Mml
+    TJ> | Mouse-Wheel Openwith Orgstruct Orgtbl Rcirc-Track Recentf
+    TJ> | Shell-Dirtrack Show-Paren Tooltip Transient-Mark Yas/Global
+    TJ> Yas/Minor
+    TJ> `------------------------------------------------------------------=
+----
+
+    TJ> and further down:
+
+    TJ> ,--------------------------------------------
+    TJ> | Orgstruct minor mode (indicator OrgStruct):
+    TJ> | Toggle the minor mode `orgstruct-mode'.
+    TJ> `--------------------------------------------
+
+    TJ> pressing the link:
+
+    TJ> ,--------------------------------------------------------------
+    TJ> | ...
+    TJ> | orgstruct-mode is also a variable.
+    TJ> |=20
+    TJ> | orgstruct-mode is a variable defined in `org.el'.
+    TJ> | Its value is nil
+    TJ> |=20
+    TJ> |   Automatically becomes buffer-local when set in any fashion.
+    TJ> |=20
+    TJ> | Documentation:
+    TJ> | Non-nil if OrgStruct mode is enabled.
+    TJ> | Use the command `orgstruct-mode' to change this variable.
+    TJ> `--------------------------------------------------------------
+
+    TJ> not quite right, since mode-line says it is enabled.=20
+
+    TJ> checking the functionality, e.g.:
+
+    TJ> ,------------------------------------------------------
+    TJ> | M-q         Fill paragraph and items like in Org-mode
+    TJ> | M-RET       Insert new heading/item
+    TJ> `------------------------------------------------------
+
+    TJ> =3D>  (Promote, demote works)
+    TJ> ,------------------------------------------------------------------=
+---
+    TJ> | <M-return> runs the command orgtbl-hijacker-command-106, which is=
+ an
+    TJ> | interactive Lisp function.
+    TJ> |=20
+    TJ> | It is bound to <M-return>.
+    TJ> |=20
+    TJ> | (orgtbl-hijacker-command-106 ARG)
+    TJ> `------------------------------------------------------------------=
+---
+
+    TJ> ,----------------------------------------------------------------
+    TJ> | M-q runs the command orgstruct-hijacker-command-22, which is an
+    TJ> | interactive Lisp function.
+    TJ> |=20
+    TJ> | It is bound to M-q.
+    TJ> `----------------------------------------------------------------
+
+    >>  orgstruct++-mode used to *replace* some indent/filling functions of
+    >>  major-mode (in this case message-mode) by Org's ones.  Deactivating
+    >>  orgstruct++-mode was _not_ restoring the values for those replaced
+    >>  variables... which caused confusion.
+    >>=20
+    >>  I recently reworked Org's code to fix this.=20=20
+    >>=20
+    >>  Please double-check you have this commit in your git log:
+    >>=20
+    >>    http://orgmode.org/w/?p=3Dorg-mode.git;a=3Dcommit;h=3Da8c312
+
+    TJ> apparently not:
+
+    TJ> ,------------------------------------------------------------
+    TJ> | ~/gitclone/org-mode $ git show a8c312                       |
+    TJ> | fatal: ambiguous argument                                   |
+    TJ> | 'a8c312': unknown revision or path not in the working tree. |
+    TJ> `------------------------------------------------------------
+
+    TJ> after sending this post, I will update and refresh Org-mode and rep=
+ort
+    TJ> what happened.=20
+
+    TJ> my system data:
+    TJ> ,------------------------------------------------------------------=
+----
+    TJ> | "GNU Emacs 24.0.93.1 (x86_64-unknown-linux-gnu, GTK+ Version
+    TJ> 2.24.10)
+    TJ> |  of 2012-02-07 on arch
+    TJ> | 7.8.09
+    TJ> | Ma Gnus v0.2"
+    TJ> `------------------------------------------------------------------=
+----
+
+    TJ> --=20
+    TJ> cheers,
+    TJ> Thorsten
+
+    TJ> _______________________________________________
+    TJ> info-gnus-english mailing list
+    TJ> info-gnus-english@gnu.org
+    TJ> https://lists.gnu.org/mailman/listinfo/info-gnus-english
+
+Hi, Thorsten.
+
+I'm very interesting in your styles of citing codes. It's so cool. I wonder=
+ whether it is
+automatically made when you composed your messages. If it does, can you sha=
+re your elisp
+codes with me?
+
+Thanks in advance.
+
+--=20
+Best regards,
+
+Easior
+-----
+Ich bin von heute und ehedam, aber etwas ist in mir, das ist vor
+morgen und =C3=BCbermorgen und einstmal.=EF=BB=BF
+
+                                     Friedrich Wilhelm Nietzsche
+----------------------------------------------------------------
+
+
+

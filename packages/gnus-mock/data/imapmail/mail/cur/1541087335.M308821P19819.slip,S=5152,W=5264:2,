@@ -1,0 +1,112 @@
+From MAILER-DAEMON Thu Nov 29 14:20:34 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1Te9f0-00083E-Ml
+	for mharc-info-gnus-english@gnu.org; Thu, 29 Nov 2012 14:20:34 -0500
+Received: from eggs.gnu.org ([208.118.235.92]:40571)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1Te9et-00080M-Kb
+	for info-gnus-english@gnu.org; Thu, 29 Nov 2012 14:20:33 -0500
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1Te9es-0004UI-9t
+	for info-gnus-english@gnu.org; Thu, 29 Nov 2012 14:20:27 -0500
+Received: from plane.gmane.org ([80.91.229.3]:42819)
+	by eggs.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1Te9es-0004Tv-3T
+	for info-gnus-english@gnu.org; Thu, 29 Nov 2012 14:20:26 -0500
+Received: from list by plane.gmane.org with local (Exim 4.69)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1Te9ey-0008R4-9H
+	for info-gnus-english@gnu.org; Thu, 29 Nov 2012 20:20:32 +0100
+Received: from 37.229.16.202 ([37.229.16.202])
+	by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+	id 1AlnuQ-0007hv-00
+	for <info-gnus-english@gnu.org>; Thu, 29 Nov 2012 20:20:32 +0100
+Received: from gavenkoa by 37.229.16.202 with local (Gmexim 0.1 (Debian))
+	id 1AlnuQ-0007hv-00
+	for <info-gnus-english@gnu.org>; Thu, 29 Nov 2012 20:20:32 +0100
+X-Injected-Via-Gmane: http://gmane.org/
+To: info-gnus-english@gnu.org
+From: Oleksandr Gavenko <gavenkoa@gmail.com>
+Subject: Re: 2 x summary buffer line color
+Date: Thu, 29 Nov 2012 21:20:09 +0200
+Organization: Oleksandr Gavenko <gavenkoa@gmail.com>,
+	http://gavenkoa.users.sf.net
+Lines: 46
+Message-ID: <87624ojjx2.fsf@gavenkoa.example.com>
+References: <87obig5pln.fsf@VLAN-3434.student.uu.se>
+Mime-Version: 1.0
+Content-Type: text/plain
+X-Complaints-To: usenet@ger.gmane.org
+X-Gmane-NNTP-Posting-Host: 37.229.16.202
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/24.2 (gnu/linux)
+Cancel-Lock: sha1:ZeFPYLFSmEcEXpdecOJB4xJiEwY=
+X-detected-operating-system: by eggs.gnu.org: Genre and OS details not
+	recognized.
+X-Received-From: 80.91.229.3
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Thu, 29 Nov 2012 19:20:33 -0000
+
+On 2012-11-29, Emanuel Berg wrote:
+
+> 2) How do you define your own highlighting as for read and unread
+> articles? Again, I added this to .gnus, but it fell short because I
+> don't know how to define those last elements of the association list
+> element (they are not Emacs variables, and not Emacs functions, and
+> those are the only things I know how to track (with C-h v and C-h f,
+> respectively)).
+>
+> (setq gnus-summary-highlight
+>       '(((eq mark gnus-unread-mark) . gnus-summary-normal-unread)
+>         (t . gnus-summary-normal-read) ))
+
+I just copy piece in some way relevant code from my '.emacs':
+
+;; Especially highlight my message and replays to me.
+(eval-after-load 'gnus-sum
+  '(progn
+     (defface my-gnus-own-unread-face nil
+       "Use this face to display own postings in Summary Buffer")
+     (copy-face 'gnus-summary-high-unread-face 'my-gnus-own-unread-face)
+     (set-face-background 'my-gnus-own-unread-face "linen")
+     (add-to-list 'gnus-summary-highlight
+                  '((and (> score 190) (eq mark gnus-unread-mark)) . my-gnus-own-unread-face))
+     (defface my-gnus-own-ancient-face nil
+       "Use this face to display own postings in Summary Buffer")
+     (copy-face 'gnus-summary-high-ancient-face 'my-gnus-own-ancient-face)
+     (set-face-background 'my-gnus-own-ancient-face "linen")
+     (add-to-list 'gnus-summary-highlight
+                  '((and (> score 190) (eq mark gnus-ancient-mark)) . my-gnus-own-ancient-face))
+     (defface my-gnus-own-ticked-face nil
+       "Use this face to display own postings in Summary Buffer")
+     (copy-face 'gnus-summary-high-ticked-face 'my-gnus-own-ticked-face)
+     (set-face-background 'my-gnus-own-ticked-face "linen")
+     (add-to-list 'gnus-summary-highlight
+                  '((and (> score 190) (or (eq mark gnus-dormant-mark) (eq mark gnus-ticked-mark))) . my-gnus-own-ticked-face))
+     (defface my-gnus-fup-face nil
+       "Use this face to display direct fups to my postings.")
+     (copy-face 'gnus-summary-high-unread-face 'my-gnus-fup-face)
+     (set-face-background 'my-gnus-fup-face "honeydew")
+     (add-to-list 'gnus-summary-highlight
+                  '((and (<= 90 score) (<= score 110) (eq mark gnus-unread-mark)) . my-gnus-fup-face))
+     ))
+
+-- 
+Best regards!
+
+
+

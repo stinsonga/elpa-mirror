@@ -1,0 +1,155 @@
+From MAILER-DAEMON Fri Jun 30 22:32:42 2017
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1dR8DC-0004RH-5x
+	for mharc-emacs-devel@gnu.org; Fri, 30 Jun 2017 22:32:42 -0400
+Received: from eggs.gnu.org ([2001:4830:134:3::10]:47380)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <drew.adams@oracle.com>) id 1dR8DA-0004RB-1B
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 22:32:41 -0400
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <drew.adams@oracle.com>) id 1dR8D6-0007JU-RA
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 22:32:39 -0400
+Received: from aserp1040.oracle.com ([141.146.126.69]:28321)
+	by eggs.gnu.org with esmtps (TLS1.0:DHE_RSA_AES_256_CBC_SHA1:32)
+	(Exim 4.71) (envelope-from <drew.adams@oracle.com>)
+	id 1dR8D6-0007JA-Gf
+	for emacs-devel@gnu.org; Fri, 30 Jun 2017 22:32:36 -0400
+Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
+	by aserp1040.oracle.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2) with
+	ESMTP id v612WVAJ022749
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Sat, 1 Jul 2017 02:32:32 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id v612WVM3006110
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256
+	verify=OK); Sat, 1 Jul 2017 02:32:31 GMT
+Received: from abhmp0003.oracle.com (abhmp0003.oracle.com [141.146.116.9])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id v612WV5C010913;
+	Sat, 1 Jul 2017 02:32:31 GMT
+MIME-Version: 1.0
+Message-ID: <fd204570-69c0-4edd-919b-71cafe067c84@default>
+Date: Fri, 30 Jun 2017 19:32:29 -0700 (PDT)
+From: Drew Adams <drew.adams@oracle.com>
+Sender: Drew Adams <drew.adams@oracle.com>
+To: Jean-Christophe Helary <jean.christophe.helary@gmail.com>, Emacs
+	development discussions <emacs-devel@gnu.org>
+Subject: RE: format use inquiry
+References: <BD6A3938-3833-4235-BCC7-9A233429B423@gmail.com>
+	<7e7f068e4e.fsf@fencepost.gnu.org>
+	<E1dNrNO-0002Dq-ES@fencepost.gnu.org>
+	<2FDCF579-44BC-49AD-985F-14AE5C654645@gmail.com>
+In-Reply-To: <2FDCF579-44BC-49AD-985F-14AE5C654645@gmail.com>
+X-Priority: 3
+X-Mailer: Oracle Beehive Extensions for Outlook 2.0.1.9.1  (1003210) [OL
+	12.0.6770.5000 (x86)]
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+X-Source-IP: userv0022.oracle.com [156.151.31.74]
+X-detected-operating-system: by eggs.gnu.org: GNU/Linux 2.4.x-2.6.x [generic]
+	[fuzzy]
+X-Received-From: 141.146.126.69
+X-BeenThere: emacs-devel@gnu.org
+X-Mailman-Version: 2.1.21
+Precedence: list
+List-Id: "Emacs development discussions." <emacs-devel.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/emacs-devel/>
+List-Post: <mailto:emacs-devel@gnu.org>
+List-Help: <mailto:emacs-devel-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/emacs-devel>,
+	<mailto:emacs-devel-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Sat, 01 Jul 2017 02:32:41 -0000
+
+> Paul suggested that it would be a maintenance hassle to keep 2 almost
+> identical urls if we spelled them out as Yuri suggested but I checked oth=
+er
+> source packages and for ex auth-source-pass-tests.el explicitly spells ou=
+t
+> all the urls without resorting to smart formatting to save a few characte=
+rs.
+>=20
+> Also, considering the way %s is abused in other places package.el, for ex
+> in:
+>=20
+>  (message "%d package%s marked for upgrading."
+>         (length upgrades)
+>         (if (=3D (length upgrades) 1) "" "s")))))
+>=20
+> I don't think it is good to keep the above code because it gives bad
+> incentives to authors especially if work on i18n/l10n proceeds (even thou=
+gh
+> http/https is not related to l10n).
+>=20
+> So, I'm going to spell out the urls as I proceed with untangling code and
+> translatable strings in package.el. I'll send a diff here when I'm done f=
+or
+> evaluation.
+
+FWIW, I think this is a bit misguided.  It seems to
+be putting translation/localization interests before
+code-readability - IOW, making things simpler for some
+tools or secondary uses of code, rather than keeping
+them simple for someone to read.
+
+I'm not arguing maintenance burden but readability
+(which also affects maintenance burden).
+
+Maybe some sacrifice of code simplicity is needed in
+the interest of translation-help.  But I think another
+approach should be sought than what you've proposed.
+
+Code, especially Lisp code, is partly about expressing
+something symbolically, to yourself and others who read
+the code.
+
+If you factor out the part of two things that is common,
+that makes it easy to _see_ what is common and what is
+different.
+
+If you instead use two URLs that are almost identical
+then you make a human reader scan each of them looking
+for differences:
+
+(if (gnutls-available-p)
+    "https://elpa.gnu.org/packeges/";
+  "http://elpa.gnu.org/packages/";)
+
+(Did you spot the typo?)
+
+Here the URLs are pretty short, so you might not
+get a headache immediately, scanning and comparing.
+But imagine the mental load if they were a lot longer.
+Or if you had to scan and compare lots of them.
+Spend an evening doing that and you might change your
+mind about how great it is to duplicate all of that
+common text.
+
+You could bind a variable to name each one:
+
+(let ((https "https://elpa.gnu.org/packages/")
+      (http   "http://elpa.gnu.org/packages/"))
+  (if (gnutls-available-p) https http))
+
+(You can come up with better var names.)
+
+That still makes someone scan and compare, but
+it at least points out (names) what the expected
+difference is.  I don't claim it doesn't suffer
+from what I complain about above, but it seems a
+bit less burdensome to me.
+
+There might be other approaches.  None of this
+matters much if we're talking only about someone's
+preferred style here or there.  But if we're
+talking about a wholesale change then maybe some
+better approach can be found.
+
+Just one opinion.
+
+As for the question of messages that use singular
+vs plural forms, I'd again point to Common Lisp's
+`format', which addresses that kind of thing (at
+least for English).
+
+

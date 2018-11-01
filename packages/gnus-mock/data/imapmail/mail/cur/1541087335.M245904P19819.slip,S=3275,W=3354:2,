@@ -1,0 +1,79 @@
+From MAILER-DAEMON Fri Nov 02 14:12:17 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TULj7-0002aK-V6
+	for mharc-info-gnus-english@gnu.org; Fri, 02 Nov 2012 14:12:17 -0400
+Received: from eggs.gnu.org ([208.118.235.92]:43916)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TULj5-0002Yn-Md
+	for info-gnus-english@gnu.org; Fri, 02 Nov 2012 14:12:16 -0400
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TULj4-0003dJ-KO
+	for info-gnus-english@gnu.org; Fri, 02 Nov 2012 14:12:15 -0400
+Received: from plane.gmane.org ([80.91.229.3]:35834)
+	by eggs.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TULj4-0003d6-DX
+	for info-gnus-english@gnu.org; Fri, 02 Nov 2012 14:12:14 -0400
+Received: from list by plane.gmane.org with local (Exim 4.69)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TULj9-0003Tk-4Y
+	for info-gnus-english@gnu.org; Fri, 02 Nov 2012 19:12:19 +0100
+Received: from s0106000acd1d509c.du.shawcable.net ([70.67.174.161])
+	by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+	id 1AlnuQ-0007hv-00
+	for <info-gnus-english@gnu.org>; Fri, 02 Nov 2012 19:12:19 +0100
+Received: from prad by s0106000acd1d509c.du.shawcable.net with local (Gmexim
+	0.1 (Debian)) id 1AlnuQ-0007hv-00
+	for <info-gnus-english@gnu.org>; Fri, 02 Nov 2012 19:12:19 +0100
+X-Injected-Via-Gmane: http://gmane.org/
+To: info-gnus-english@gnu.org
+From: prad <prad@towardsfreedom.com>
+Subject: delete temporary html files
+Date: Fri, 02 Nov 2012 11:11:57 -0700
+Lines: 16
+Message-ID: <87mwyzeuxe.fsf@psinom.home>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+X-Complaints-To: usenet@ger.gmane.org
+X-Gmane-NNTP-Posting-Host: s0106000acd1d509c.du.shawcable.net
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/23.2 (gnu/linux)
+Cancel-Lock: sha1:xe7+TuSMczZDa3kzsYmiqrAJ2c0=
+X-detected-operating-system: by eggs.gnu.org: Genre and OS details not
+	recognized.
+X-Received-From: 80.91.229.3
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Fri, 02 Nov 2012 18:12:16 -0000
+
+sometimes i read emails in my browser because they don't show up
+properly in gnus (S-K S-H). when i quit the summary, i get a message
+asking me if i want to delete tmp html files.
+
+is there a way to set things so tmp html files are deleted
+automatically?
+
+i'm also puzzled as to why the question is asked. why would anyone want
+to keep tmp html files around when it's 
+
+a) already visible in one's browser
+b) you can get it back anytime with S-K S-H
+
+-- 
+in friendship,
+prad
+
+
+

@@ -1,0 +1,110 @@
+From MAILER-DAEMON Fri Nov 09 02:12:26 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TWilO-0004f8-LL
+	for mharc-info-gnus-english@gnu.org; Fri, 09 Nov 2012 02:12:26 -0500
+Received: from eggs.gnu.org ([208.118.235.92]:47009)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TWilJ-0004dn-8d
+	for info-gnus-english@gnu.org; Fri, 09 Nov 2012 02:12:24 -0500
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TWilE-0001tu-IQ
+	for info-gnus-english@gnu.org; Fri, 09 Nov 2012 02:12:21 -0500
+Received: from plane.gmane.org ([80.91.229.3]:41005)
+	by eggs.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TWilE-0001ti-Br
+	for info-gnus-english@gnu.org; Fri, 09 Nov 2012 02:12:16 -0500
+Received: from list by plane.gmane.org with local (Exim 4.69)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TWilJ-00057U-DD
+	for info-gnus-english@gnu.org; Fri, 09 Nov 2012 08:12:21 +0100
+Received: from 2505ds5-by.0.fullrate.dk ([89.150.142.116])
+	by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+	id 1AlnuQ-0007hv-00
+	for <info-gnus-english@gnu.org>; Fri, 09 Nov 2012 08:12:21 +0100
+Received: from asjo by 2505ds5-by.0.fullrate.dk with local (Gmexim 0.1
+	(Debian)) id 1AlnuQ-0007hv-00
+	for <info-gnus-english@gnu.org>; Fri, 09 Nov 2012 08:12:21 +0100
+X-Injected-Via-Gmane: http://gmane.org/
+To: info-gnus-english@gnu.org
+From: asjo@koldfront.dk (Adam =?iso-8859-1?Q?Sj=F8gren?=)
+Subject: Re: how to work with nnfolder?
+Date: Fri, 09 Nov 2012 08:11:58 +0100
+Organization: koldfront - analysis & revolution, Copenhagen, Denmark
+Lines: 38
+Message-ID: <87390jb681.fsf@topper.koldfront.dk>
+References: <87k3tv9zdf.fsf@Noah.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
+X-Complaints-To: usenet@ger.gmane.org
+X-Gmane-NNTP-Posting-Host: 2505ds5-by.0.fullrate.dk
+OpenPGP: id=21BDE416; url=http://asjo.koldfront.dk/gpg.asc
+X-Face: )qY&CseJ?.:=8F#^~GcSA?F=9eu'{KAFfL1C3/A&:nE?PW\i65"ba0NS)97,
+	Q(^@xk}n4Ou
+	rPuR#V8I(J_@~H($[ym:`K_+]*kjvW>xH5jbgLBVFGXY:(#4P>zVBklLbdL&XxL\M)%T}3S/IS9lMJ
+	^St'=VZBR<gm`!Dj`dIpp?+$"$l_'JKDN\w-jB;fo0Qy}Tbw
+X-Image-Url: http://asjo.koldfront.dk/pics/x-face.png
+User-Agent: Gnus/5.130006 (Ma Gnus v0.6) Emacs/24.2.50 (gnu/linux)
+Cancel-Lock: sha1:e1Ttmq3MP1MAd6Bu4Oun6l8jro4=
+X-detected-operating-system: by eggs.gnu.org: Genre and OS details not
+	recognized.
+X-Received-From: 80.91.229.3
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Fri, 09 Nov 2012 07:12:25 -0000
+
+On Fri, 09 Nov 2012 12:25:16 +0800, Easior wrote:
+
+> ;; Tell gnus which method to use for archives (nnfolder)
+
+[...]
+
+> However, there is something weird happened. When I send a message by gnus,
+> I'll find that a file named 'mail' will be created in the directory
+> "~/.emacs.d/gnus/Mail/archive/sent/". In fact, it is not correct. Gnus
+> should create a file, e.g. named '1', in the directory
+> "~/.emacs.d/gnus/Mail/archive/sent/mail".
+
+What gave you that impression?
+
+nnfolder stores each _group_ in a file, not each mail.
+
+See:
+
+ * http://gnus.org/manual/gnus_201.html
+
+As you have observed, nnml stores each _mail_ in a separate file; as
+described in:
+
+ * http://gnus.org/manual/gnus_194.html
+
+> everything is ok. What's happened?
+
+Looks like it works as advertised to me?
+
+
+  :-),
+
+    Adam
+
+-- 
+ "Everybody will be quick to agree that EMACS has a           Adam Sjøgren
+  simple to learn user interface, at least to gain       asjo@koldfront.dk
+  'novice' status."
+
+
+

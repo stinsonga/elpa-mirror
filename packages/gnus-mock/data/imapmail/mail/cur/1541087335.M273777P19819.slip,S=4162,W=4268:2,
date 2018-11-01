@@ -1,0 +1,106 @@
+From MAILER-DAEMON Sun Nov 11 12:52:23 2012
+Received: from list by lists.gnu.org with archive (Exim 4.71)
+	id 1TXbhn-0008Oq-Uq
+	for mharc-info-gnus-english@gnu.org; Sun, 11 Nov 2012 12:52:23 -0500
+Received: from eggs.gnu.org ([208.118.235.92]:57993)
+	by lists.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TXbhj-0008OI-Vp
+	for info-gnus-english@gnu.org; Sun, 11 Nov 2012 12:52:23 -0500
+Received: from Debian-exim by eggs.gnu.org with spam-scanned (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TXbhg-0005Ht-Tn
+	for info-gnus-english@gnu.org; Sun, 11 Nov 2012 12:52:19 -0500
+Received: from plane.gmane.org ([80.91.229.3]:44334)
+	by eggs.gnu.org with esmtp (Exim 4.71)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TXbhg-0005Hg-N6
+	for info-gnus-english@gnu.org; Sun, 11 Nov 2012 12:52:16 -0500
+Received: from list by plane.gmane.org with local (Exim 4.69)
+	(envelope-from <gegu-info-gnus-english@m.gmane.org>)
+	id 1TXbhn-0001xR-0y
+	for info-gnus-english@gnu.org; Sun, 11 Nov 2012 18:52:23 +0100
+Received: from c-24-131-17-1.hsd1.pa.comcast.net ([24.131.17.1])
+	by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+	id 1AlnuQ-0007hv-00
+	for <info-gnus-english@gnu.org>; Sun, 11 Nov 2012 18:52:23 +0100
+Received: from gardellawg by c-24-131-17-1.hsd1.pa.comcast.net with local
+	(Gmexim 0.1 (Debian)) id 1AlnuQ-0007hv-00
+	for <info-gnus-english@gnu.org>; Sun, 11 Nov 2012 18:52:23 +0100
+X-Injected-Via-Gmane: http://gmane.org/
+To: info-gnus-english@gnu.org
+From: William Gardella <gardellawg@gmail.com>
+Subject: Re: which variable determines the behavior of news' drafts?
+Date: Sun, 11 Nov 2012 12:52:03 -0500
+Lines: 41
+Message-ID: <87bof4gh8c.fsf@gmail.com>
+References: <m2sj8jc8bd.fsf@126.com>
+Mime-Version: 1.0
+Content-Type: text/plain
+X-Complaints-To: usenet@ger.gmane.org
+X-Gmane-NNTP-Posting-Host: c-24-131-17-1.hsd1.pa.comcast.net
+X-Archive: encrypt
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/24.2 (gnu/linux)
+Cancel-Lock: sha1:T2bRvh0nmXXPNW+HxN0pGrI8qkI=
+X-detected-operating-system: by eggs.gnu.org: Genre and OS details not
+	recognized.
+X-Received-From: 80.91.229.3
+X-BeenThere: info-gnus-english@gnu.org
+X-Mailman-Version: 2.1.14
+Precedence: list
+List-Id: "Announcements and discussions for GNUS,
+	the GNU Emacs Usenet newsreader \(in English\)"
+	<info-gnus-english.gnu.org>
+List-Unsubscribe: <https://lists.gnu.org/mailman/options/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=unsubscribe>
+List-Archive: <http://lists.gnu.org/archive/html/info-gnus-english>
+List-Post: <mailto:info-gnus-english@gnu.org>
+List-Help: <mailto:info-gnus-english-request@gnu.org?subject=help>
+List-Subscribe: <https://lists.gnu.org/mailman/listinfo/info-gnus-english>,
+	<mailto:info-gnus-english-request@gnu.org?subject=subscribe>
+X-List-Received-Date: Sun, 11 Nov 2012 17:52:23 -0000
+
+Hi there.
+
+Easior <easior@126.com> writes:
+
+> Hi, all.
+>
+> I have made some modifications of default places of gnus directories,
+> e.g.
+>
+> (setq gnus-default-directory "~/.emacs.d/gnus/") (setq
+> gnus-home-directory "~/.emacs.d/gnus/") (setq gnus-directory
+> "~/.emacs.d/gnus/News/") (setq message-auto-save-directory
+> "~/.emacs.d/gnus/Mail/drafts/")
+>
+> it always works well. However, there exists a seemingly strange
+> directory
+>
+> $ cd ~/.emacs.d/gnus/News $ ls agent drafts trash $ ls drafts drafts
+> queue
+>
+> it means that there are two directories with the same name "drafts"
+> exiting in the gnus hirarchical directories. How can I do?
+>
+> Thank in advance.
+
+Those two directories exist because Gnus makes two "nndraft" groups
+within `gnus-directory' automatically.  nndraft:drafts is for saved
+unsent messages, while nndraft:queue is where "sent" messages are
+diverted to whenever Gnus is in "unplugged" (offline) mode, or if you
+set the variable `gnus-agent-queue-mail' to t.
+
+FYI, according to the docstring of `message-auto-save-directory', it is
+only used when Gnus isn't running.  You might be better off setting it
+to what Gnus is trying to use.
+
+Your directory setup is cool for portability.  I think I'll steal it. :)
+
+Best, WGG
+
+-- 
+I use grml (http://grml.org/)
+
+
+
