@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.7.11
+;; Version: 1.7.12
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -407,8 +407,6 @@
 ;;
 ;;
 ;; TODO:
-;;
-;; - Get rid of the redundant el-search-match overlays in occur buffers
 ;;
 ;; - There should be a way to go back to the starting position, like
 ;;   in Isearch, which does this with (push-mark isearch-opoint t) in
@@ -2919,11 +2917,14 @@ Prompt for a new pattern and revert."
   (el-search-compile-pattern-in-search el-search-occur-search-object)
   (revert-buffer))
 
+(defvar el-search-occur-match-ov-prop 'el-occur-match-data)
+
 (defun el-search-occur-jump-to-match ()
   (interactive)
   (if (button-at (point))
       (push-button)
-    (if-let ((params  (get-char-property (point) 'el-search-match)))
+    (if-let ((params (pcase (get-char-property (point) el-search-occur-match-ov-prop)
+                       (`(,buffer ,match-beg ,file ,_) (list (or file buffer) match-beg)))))
         (apply #'el-search--occur-button-action params)
       ;; User clicked not directly on a match
       (catch 'nothing-here
@@ -2936,10 +2937,11 @@ Prompt for a new pattern and revert."
                (unless (< defun-end (point)) (goto-char defun-beg))))
             ;; Try to find corresponding position in source buffer
             (setq some-match-pos (point))
-            (while (and (not done) (setq some-match-pos (funcall #'next-single-char-property-change
-                                                                 some-match-pos 'el-search-match)))
+            (while (and (not done) (setq some-match-pos
+                                         (funcall #'next-single-char-property-change
+                                                  some-match-pos el-search-occur-match-ov-prop)))
               (setq done (or (memq some-match-pos (list (point-min) (point-max)))
-                             (cl-some (lambda (ov) (overlay-get ov 'el-search-match))
+                             (cl-some (lambda (ov) (overlay-get ov el-search-occur-match-ov-prop))
                                       (overlays-at some-match-pos))))))
           (let ((delta-lines (count-lines clicked-pos some-match-pos)))
             (when (save-excursion
@@ -2948,10 +2950,10 @@ Prompt for a new pattern and revert."
               (cl-decf delta-lines))
             (when (< clicked-pos some-match-pos)
               (cl-callf - delta-lines))
-            (pcase-let ((`(,file-name-or-buffer ,pos)
-                         (get-char-property some-match-pos 'el-search-match)))
+            (pcase-let ((`(,buffer ,pos ,file . ,_)
+                         (get-char-property some-match-pos el-search-occur-match-ov-prop)))
               (el-search--occur-button-action
-               file-name-or-buffer nil
+               (or file buffer) nil
                (lambda ()
                  (goto-char pos)
                  (beginning-of-line)
@@ -2995,14 +2997,12 @@ Prompt for a new pattern and revert."
       (add-hook 'post-command-hook #'el-search-hl-post-command-fun t t)
       (when do-fun (funcall do-fun)))))
 
-(defvar el-search-occur-match-ov-prop 'el-occur-match-data)
-
 (defun el-search-occur--next-match (&optional backward)
   (let ((pos (point)) new-pos)
     (cl-flet ((at-a-match-beg-p
                (lambda (pos)
                  (when-let ((match-data (get-char-property pos el-search-occur-match-ov-prop)))
-                   (and (not (= (point) (if backward (point-min) (point-max))))
+                   (and (not (= pos (if backward (point-min) (point-max))))
                         (not (eq match-data
                                  (get-char-property (1- pos) el-search-occur-match-ov-prop))))))))
       (while (and (setq new-pos (funcall (if backward #'previous-single-char-property-change
@@ -3231,10 +3231,8 @@ Prompt for a new pattern and revert."
                                                      (buffer-substring-no-properties
                                                       (goto-char match-beg)
                                                       (goto-char (el-search--end-of-sexp)))))
-                                           (let ((ov (make-overlay insertion-point (point) nil t)))
+                                           (let ((ov (make-overlay insertion-point (point) nil 'fr-ad)))
                                              (overlay-put ov 'face 'el-search-occur-match)
-                                             (overlay-put
-                                              ov 'el-search-match (list (or file buffer) match-beg))
                                              (overlay-put
                                               ov el-search-occur-match-ov-prop
                                               `(,buffer ,match-beg ,file ,nbr)))
@@ -3260,7 +3258,8 @@ Prompt for a new pattern and revert."
                                                  ov-start
                                                  (+ ov-start
                                                     (with-current-buffer buffer
-                                                      (el-search--end-of-sexp mb))))
+                                                      (el-search--end-of-sexp mb)))
+                                                 nil 'front-advance) ;f-a is needed for later indenting
                                                 el-search-occur-match-ov-prop
                                                 `(,buffer ,mb ,file ,nbr)))
                                              (stream-pop matches)
