@@ -91,6 +91,7 @@
 
 ;;   RET: Show corresponding messages in Gnus/Rmail
 ;;   "C": Send a control message
+;;   "E": Make (but don't yet send) a control message
 ;;   "t": Mark the bug locally as tagged
 ;;   "b": Show bugs this bug is blocked by
 ;;   "B": Show bugs this bug is blocking
@@ -107,7 +108,8 @@
 ;;   "w": Display all the currently selected bug reports
 
 ;; When you visit the related bug messages in Gnus or Rmail, you could
-;; also send control messages by keystroke "C".
+;; also send or make control messages by keystroke "C" or "E" in the
+;; message summary buffer.
 
 ;; In the header line of every bug list page, you can toggle sorting
 ;; per column by selecting a column with the mouse.  The sorting
@@ -168,8 +170,10 @@
 (autoload 'gnus-summary-show-article "gnus-sum")
 (autoload 'log-edit-insert-changelog "log-edit")
 (autoload 'mail-header-subject "nnheader")
+(autoload 'message-add-header "message")
 (autoload 'message-goto-body "message")
 (autoload 'message-make-from "message")
+(autoload 'message-narrow-to-headers "message")
 (autoload 'rmail-get-new-mail "rmail")
 (autoload 'rmail-show-message "rmail")
 (autoload 'rmail-summary "rmailsum")
@@ -917,6 +921,7 @@ Used instead of `tabulated-list-print-entry'."
     (define-key map "g" 'debbugs-gnu-rescan)
     (define-key map "R" 'debbugs-gnu-show-all-blocking-reports)
     (define-key map "C" 'debbugs-gnu-send-control-message)
+    (define-key map "E" 'debbugs-gnu-make-control-message)
 
     (define-key map "s" 'debbugs-gnu-toggle-sort)
     (define-key map "t" 'debbugs-gnu-toggle-tag)
@@ -1324,9 +1329,11 @@ MERGED is the list of bugs merged with this one."
 	 (format "Re: bug#%d: %s" id (cdr (assq 'subject status))))
     (rmail-summary)
     (define-key rmail-summary-mode-map "C" 'debbugs-gnu-send-control-message)
+    (define-key rmail-summary-mode-map "E" 'debbugs-gnu-make-control-message)
     (set-window-text-height nil 10)
     (other-window 1)
     (define-key rmail-mode-map "C" 'debbugs-gnu-send-control-message)
+    (define-key rmail-mode-map "E" 'debbugs-gnu-make-control-message)
     (rmail-show-message 1)))
 
 (defcustom debbugs-gnu-lars-workflow nil
@@ -1375,6 +1382,7 @@ MERGED is the list of bugs merged with this one."
 (defvar debbugs-gnu-summary-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "C" 'debbugs-gnu-send-control-message)
+    (define-key map "E" 'debbugs-gnu-make-control-message)
     (define-key map [(meta m)] 'debbugs-gnu-apply-patch)
     map))
 
@@ -1472,6 +1480,37 @@ returned by `debbugs-gnu-bugs'."
 	       (number-sequence (string-to-number from) (string-to-number to)))
 	      result))))))))
 
+
+(defconst debbugs-gnu-control-message-keywords
+  '("serious" "important" "normal" "minor" "wishlist"
+    "done" "donenotabug" "donewontfix" "doneunreproducible"
+    "invalid" ; done+notabug+wontfix
+    "unarchive" "unmerge" "reopen" "close"
+    "merge" "forcemerge"
+    "block" "unblock"
+    "owner" "noowner"
+    "reassign"
+    "retitle"
+    "forwarded" "notforwarded"
+    ;; 'notfixed <bugnum> <version>' works, even though it's
+    ;; undocumented at debbugs.gnu.org.
+    "fixed" "found" "notfound" "notfixed"
+    "patch" "wontfix" "moreinfo" "unreproducible" "notabug"
+    "pending" "help" "security" "confirmed" "easy"
+    "usertag"
+    "documentation" ;; usertag:emacs.documentation
+    ))
+
+(defconst debbugs-gnu-control-message-commands-regexp
+  (concat "^" (regexp-opt (cl-list* "#" "tags" "severity" "user"
+                                    debbugs-gnu-control-message-keywords))
+          " .*$"))
+
+(defconst debbugs-gnu-control-message-end-regexp
+  (concat "^" (regexp-opt '("--" "quit" "stop"
+                            "thank" "thanks" "thankyou" "thank you"))
+          "$"))
+
 (defun debbugs-gnu-send-control-message (message &optional reverse)
   "Send a control message for the current bug report.
 You can set the severity or add a tag, or close the report.  If
@@ -1482,124 +1521,195 @@ If given a prefix, and given a tag to set, the tag will be
 removed instead."
   (interactive
    (list (completing-read
-	  "Control message: "
-	  '("serious" "important" "normal" "minor" "wishlist"
-	    "done" "donenotabug" "donewontfix" "doneunreproducible"
-	    "unarchive" "unmerge" "reopen" "close"
-	    "merge" "forcemerge"
-	    "block" "unblock"
-	    "owner" "noowner"
-	    "forwarded" "notforwarded"
-	    "invalid"
-	    "reassign"
-	    "retitle"
-	    "patch" "wontfix" "moreinfo" "unreproducible" "fixed" "notabug"
-	    "pending" "help" "security" "confirmed" "easy"
-	    "usertag")
-	  nil t)
+          "Control message: " debbugs-gnu-control-message-keywords nil t)
 	 current-prefix-arg))
-  (let* ((id (or (debbugs-gnu-current-id t)
-		 debbugs-gnu-bug-number	; Set on group entry.
-		 (debbugs-gnu-guess-current-id)))
-	 (status (debbugs-gnu-current-status))
-	 (version
-	  (when (and
-		 (member message '("close" "done"))
-		 (member "emacs" (cdr (assq 'package status))))
-	    (read-string
-	     "Version: "
-	     (cond
-	      ;; Emacs development versions.
-	      ((if (boundp 'emacs-build-number)
-		   (string-match
-		    "^\\([0-9]+\\)\\.\\([0-9]+\\)\\.\\([0-9]+\\)" emacs-version)
-		 (string-match
-		  "^\\([0-9]+\\)\\.\\([0-9]+\\)\\.\\([0-9]+\\)\\." emacs-version))
-	       (format "%s.%d"
-		       (match-string 1 emacs-version)
-		       (1+ (string-to-number (match-string 2 emacs-version)))))
-	      ;; Emacs release versions.
-	      ((if (boundp 'emacs-build-number)
-		   (string-match
-		    "^\\([0-9]+\\)\\.\\([0-9]+\\)$" emacs-version)
-		 (string-match
-		  "^\\([0-9]+\\)\\.\\([0-9]+\\)\\.\\([0-9]+\\)$" emacs-version))
-	       (format "%s.%s"
-		       (match-string 1 emacs-version)
-		       (match-string 2 emacs-version)))
-	      (t emacs-version))))))
+  (let ((id (or (debbugs-gnu-current-id t)
+                debbugs-gnu-bug-number       ; Set on group entry.
+                (debbugs-gnu-guess-current-id))))
     (with-temp-buffer
-      (insert "To: control@debbugs.gnu.org\n"
-	      "From: " (message-make-from) "\n"
-	      (format "Subject: control message for bug #%d\n" id)
-	      mail-header-separator
-	      "\n"
-	      (cond
-	       ((member message '("unarchive" "unmerge" "reopen"
-				  "noowner" "notforwarded"))
-		(format "%s %d\n" message id))
-	       ((member message '("merge" "forcemerge"))
-		(format
-		 "%s %d %s\n" message id
-		 (mapconcat
-		  'identity
-		  (debbugs-gnu-expand-bug-number-list
-		   (completing-read-multiple
-		    (format "%s with bug(s) #: " (capitalize message))
-		    debbugs-gnu-completion-table))
-		  " ")))
-	       ((member message '("block" "unblock"))
-		(format
-		 "%s %d by %s\n" message id
-		 (mapconcat
-		  'identity
-		  (debbugs-gnu-expand-bug-number-list
-		   (completing-read-multiple
-		    (format "%s with bug(s) #: " (capitalize message))
-		    (if (equal message "unblock")
-			(mapcar 'number-to-string
-				(cdr (assq 'blockedby status)))
-		      debbugs-gnu-completion-table)
-		    nil (and (equal message "unblock") status)))
-		  " ")))
-	       ((equal message "owner")
-		(format "owner %d !\n" id))
-	       ((equal message "retitle")
-		(format "retitle %d %s\n" id (read-string "New title: ")))
-	       ((equal message "reassign")
-		(format "reassign %d %s\n" id (read-string "Package(s): ")))
-	       ((equal message "forwarded")
-		(format "forwarded %d %s\n" id (read-string "Forwarded to: ")))
-	       ((equal message "close")
-		(format "close %d %s\n" id (or version "")))
-	       ((equal message "done")
-		(format "tags %d fixed\nclose %d %s\n" id id (or version "")))
-	       ((member message '("donenotabug" "donewontfix"
-				  "doneunreproducible"))
-		(format "tags %d %s\nclose %d\n" id (substring message 4) id))
-	       ((member message '("serious" "important" "normal"
-				  "minor" "wishlist"))
-		(format "severity %d %s\n" id message))
-	       ((equal message "invalid")
-		(format "tags %d notabug\ntags %d wontfix\nclose %d\n"
-			id id id))
-	       ((equal message "usertag")
-		(format "user %s\nusertag %d %s\n"
-			(completing-read
-			 "Package name or email address: "
-			 (append
-			  debbugs-gnu-all-packages (list user-mail-address))
-			 nil nil (car debbugs-gnu-default-packages))
-			id (read-string "User tag: ")))
-	       (t
-		(format "tags %d%s %s\n"
-			id (if reverse " -" "")
-			message))))
+      (debbugs-gnu-make-control-message
+       message id reverse (current-buffer))
       (funcall (or debbugs-gnu-send-mail-function send-mail-function))
       (remhash id debbugs-cache-data)
       (message-goto-body)
       (message "Control message sent:\n%s"
-	       (buffer-substring-no-properties (point) (1- (point-max)))))))
+               (buffer-substring-no-properties (point) (1- (point-max)))))))
+
+(defun debbugs-gnus-implicit-ids ()
+  "Return a list of bug IDs guessed from the current buffer."
+  (delq nil (delete-dups
+             (list (debbugs-gnu-current-id t)
+                   debbugs-gnu-bug-number ; Set on group entry.
+                   (debbugs-gnu-guess-current-id)
+                   (let ((bugnum-re "\\([0-9]+\\)\\(?:-done\\)?@debbugs.gnu.org"))
+                     (when (derived-mode-p 'message-mode)
+                       (save-excursion
+                         (save-restriction
+                           (message-narrow-to-headers)
+                           (or (let ((addr (message-fetch-field "to")))
+                                 (and addr (string-match bugnum-re addr)
+                                      (string-to-number (match-string 1 addr))))
+                               (let ((addr (message-fetch-field "cc")))
+                                 (and addr (string-match bugnum-re addr)
+                                      (string-to-number (match-string 1 addr)))))))))))))
+
+(defun debbugs-gnu-make-control-message (message bugid &optional reverse buffer)
+  "Make a control message for the current bug report.
+The message is inserted into BUFFER, and mail headers are adjust
+so that it will be sent to control@debbugs.gnu.org (via Bcc if
+there is already a To address).  If BUFFER omitted, create and
+display a new buffer.
+
+When called interactively, choose the current buffer if it is in
+`message-mode', or create a new buffer otherwise.
+
+You can set the severity or add a tag, or close the report.  If
+you use the special \"done\" MESSAGE, the report will be marked as
+fixed, and then closed.
+
+If given a prefix, and given a tag to set, the tag will be
+removed instead."
+  (interactive
+   (save-excursion                 ; Point can change while prompting!
+     (list (completing-read
+            "Control message: " debbugs-gnu-control-message-keywords nil t)
+           (let* ((implicit-ids (mapcar #'prin1-to-string
+                                        (debbugs-gnus-implicit-ids)))
+                  (default-id (car implicit-ids)))
+             (string-to-number
+              (completing-read (if default-id
+                                   (format "Bug #ID (default %s): " default-id)
+                                 "Bug #ID: ")
+                               implicit-ids
+                               (lambda (s) (string-match-p "\\`[0-9]+\\'" s))
+                               nil nil nil (car implicit-ids))))
+           current-prefix-arg
+           (when (derived-mode-p 'message-mode)
+             (current-buffer)))))
+  (let* ((status (debbugs-gnu-current-status))
+         (version
+          (when (and
+                 (member message '("close" "done"
+                                   "fixed" "notfixed" "found" "notfound"))
+                 (member "emacs" (cdr (assq 'package status))))
+            (save-excursion
+              (read-string
+               "Version: "
+               (pcase (nbutlast (version-to-list emacs-version)
+                                ;; Chop off build number, if needed.
+                                (if (boundp 'emacs-build-number)
+                                    0
+                                  1))
+                 (`(,major ,minor ,_micro) ; Development version.
+                  (format "%d.%d" major
+                          (if (member message '("notfixed" "found" "notfound"))
+                              minor
+                            (1+ minor))))
+                 (`(,major ,minor)      ; Release version.
+                  (format "%d.%d" major minor))
+                 ;; Unexpected version format?
+                 (_ emacs-version)))))))
+    (unless buffer
+      (setq buffer
+            (pop-to-buffer
+             (get-buffer-create
+              (format "*Debbugs Control Message for #%d*" bugid)))))
+    (set-buffer buffer)
+    (when (= (buffer-size) 0)
+      (insert "To: control@debbugs.gnu.org\n"
+              "From: " (message-make-from) "\n"
+              (format "Subject: control message for bug #%d\n" bugid)
+              mail-header-separator
+              "\n"))
+    (unless (or (derived-mode-p 'message-mode)
+                ;; `message-mode' associates buffer with file, we
+                ;; don't want to do that for temp buffers.
+                (eq (aref (buffer-name) 0) ?\s))
+      (message-mode))
+    (save-restriction
+      (message-narrow-to-headers)
+      (let* ((ctrl-addr "control@debbugs.gnu.org")
+             (ctrl-re (regexp-quote ctrl-addr))
+             (to-addr (message-fetch-field "to"))
+             (bcc-addr (message-fetch-field "bcc")))
+        (unless (or (and  to-addr (string-match-p ctrl-re to-addr))
+                    (and bcc-addr (string-match-p ctrl-re bcc-addr)))
+          (message-add-header
+           (format "%s: %s" (if to-addr "Bcc" "To") ctrl-addr)))))
+    (message-goto-body)
+    (while (looking-at-p debbugs-gnu-control-message-commands-regexp)
+      (forward-line))
+    (insert
+     (save-excursion             ; Point can change while prompting!
+       (cond
+        ((member message '("unarchive" "unmerge" "noowner" "notforwarded"))
+         (format "%s %d\n" message bugid))
+        ((equal message "reopen")
+         (format "reopen %d\ntag %d - fixed patch\n" bugid bugid))
+        ((member message '("merge" "forcemerge"))
+         (format
+          "%s %d %s\n" message bugid
+          (mapconcat
+           'identity
+           (debbugs-gnu-expand-bug-number-list
+            (completing-read-multiple
+             (format "%s with bug(s) #: " (capitalize message))
+             debbugs-gnu-completion-table))
+           " ")))
+        ((member message '("block" "unblock"))
+         (format
+          "%s %d by %s\n" message bugid
+          (mapconcat
+           'identity
+           (debbugs-gnu-expand-bug-number-list
+            (completing-read-multiple
+             (format "%s with bug(s) #: " (capitalize message))
+             (if (equal message "unblock")
+                 (mapcar 'number-to-string
+                         (cdr (assq 'blockedby status)))
+               debbugs-gnu-completion-table)
+             nil (and (equal message "unblock") status)))
+           " ")))
+        ((equal message "owner")
+         (format "owner %d !\n" bugid))
+        ((equal message "retitle")
+         (format "retitle %d %s\n" bugid (read-string "New title: ")))
+        ((equal message "forwarded")
+         (format "forwarded %d %s\n" bugid (read-string "Forward to: ")))
+        ((equal message "reassign")
+         (format "reassign %d %s\n" bugid (read-string "Package(s): ")))
+        ((equal message "close")
+         (format "close %d %s\n" bugid (or version "")))
+        ((equal message "done")
+         (format "tags %d fixed\nclose %d %s\n" bugid bugid version))
+        ((member message '("found" "notfound" "fixed" "notfixed"))
+         (format "%s %d %s\n" message bugid version))
+        ((member message '("donenotabug" "donewontfix"
+                           "doneunreproducible"))
+         (format "tags %d %s\nclose %d\n" bugid (substring message 4) bugid))
+        ((member message '("serious" "important" "normal"
+                           "minor" "wishlist"))
+         (format "severity %d %s\n" bugid message))
+        ((equal message "invalid")
+         (format "tags %d notabug wontfix\nclose %d\n"
+                 bugid bugid))
+        ((equal message "documentation")
+         (format "user emacs\nusertag %d %s\n" bugid "documentation"))
+        ((equal message "usertag")
+         (format "user %s\nusertag %d %s\n"
+                 (completing-read
+                  "Package name or email address: "
+                  (append
+                   debbugs-gnu-all-packages (list user-mail-address))
+                  nil nil (car debbugs-gnu-default-packages))
+                 bugid (read-string "User tag: ")))
+        (t
+         (format "tags %d %c %s\n"
+                 bugid (if reverse ?- ?+)
+                 message)))))
+    (unless (looking-at-p debbugs-gnu-control-message-end-regexp)
+      (insert "quit\n\n"))))
+
 
 (defvar debbugs-gnu-usertags-mode-map
   (let ((map (make-sparse-keymap)))
