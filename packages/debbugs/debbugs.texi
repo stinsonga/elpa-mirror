@@ -236,7 +236,7 @@ GNU port: @code{"fixed"}, @code{"notabug"}, @code{"wontfix"},
 @code{"unreproducible"}, @code{"moreinfo"}, @code{"patch"},
 @code{"pending"}, @code{"help"}, @code{"security"},
 @code{"confirmed"}, @code{"easy"}.  See
-@url{https://debbugs.gnu.org/Developer.html#tags} for the actual list
+@uref{https://debbugs.gnu.org/Developer.html#tags} for the actual list
 of tags.
 
 @item :owner
@@ -466,7 +466,7 @@ values are strings or numbers, i.e.@: @var{:keyword} @var{value}
 Every sublist of the @var{query} forms a hyperestraier condition.  A
 detailed description of hyperestraier conditions can be found at
 @c https does not work.
-@url{http://fallabs.com/hyperestraier/uguide-en.html#searchcond}.
+@uref{http://fallabs.com/hyperestraier/uguide-en.html#searchcond}.
 
 The following conditions are possible:
 

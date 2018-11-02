@@ -68,6 +68,7 @@ Programmer's Manual, debbugs}).
 * Command Index::               Debbugs commands.
 * Variable Index::              User options and variables.
 * Key Index::                   Keyboard strokes on bug report buffers.
+* Mail Command Index::          Debbugs control mailserver commands.
 @end menu
 
 
@@ -683,6 +684,11 @@ buffer, when @code{debbugs-browse-mode} is enabled.  See user option
 @node Key Index
 @unnumbered Key Index
 @printindex ky
+
+
+@node Mail Command Index
+@unnumbered Debbugs control mailserver commands
+@include instructions.texi
 
 @bye
 
