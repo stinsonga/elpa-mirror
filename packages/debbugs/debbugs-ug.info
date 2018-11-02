@@ -991,5 +991,35 @@ Node: Command Index22342
 Node: Variable Index23131
 Node: Key Index24205
 Node: Mail Command Index25771
+Ref: Mail Command Index: reassign25924
+Ref: Mail Command Index: reopen26388
+Ref: Mail Command Index: found27542
+Ref: Mail Command Index: notfound28623
+Ref: Mail Command Index: submitter29032
+Ref: Mail Command Index: forwarded29426
+Ref: Mail Command Index: notforwarded29765
+Ref: Mail Command Index: retitle29966
+Ref: Mail Command Index: severity30350
+Ref: Mail Command Index: clone30615
+Ref: Mail Command Index: merge31379
+Ref: Mail Command Index: forcemerge32766
+Ref: Mail Command Index: unmerge33040
+Ref: Mail Command Index: tags33743
+Ref: Mail Command Index: block34850
+Ref: Mail Command Index: unblock34892
+Ref: Mail Command Index: close35382
+Ref: Mail Command Index: package36032
+Ref: Mail Command Index: owner36644
+Ref: Mail Command Index: noowner37007
+Ref: Mail Command Index: archive37180
+Ref: Mail Command Index: unarchive37321
+Ref: Mail Command Index: #37614
+Ref: Mail Command Index: quit37874
+Ref: Mail Command Index: stop37881
+Ref: Mail Command Index: thank37888
+Ref: Mail Command Index: thanks37896
+Ref: Mail Command Index: thankyou37905
+Ref: Mail Command Index: thank you37916
+Ref: Mail Command Index: --37928
 
 End Tag Table
