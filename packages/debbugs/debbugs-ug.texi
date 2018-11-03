@@ -503,7 +503,8 @@ archived the control message @samp{unarchive} must be sent first.
 
 In the minibuffer, the following control messages can be requested
 (assuming that 12345 is the bug the control message is intended for).
-The strings show the exact format of the control messages.
+The strings show the exact format of the control messages.  For the
+meaning of the control messages, @xref{Mail Command Index}.
 
 @table @samp
 @item block
