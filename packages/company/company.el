@@ -5,7 +5,7 @@
 ;; Author: Nikolaj Schumacher
 ;; Maintainer: Dmitry Gutov <dgutov@yandex.ru>
 ;; URL: http://company-mode.github.io/
-;; Version: 0.9.6
+;; Version: 0.9.7
 ;; Keywords: abbrev, convenience, matching
 ;; Package-Requires: ((emacs "24.3"))
 
@@ -44,7 +44,9 @@
 ;; Here is a simple example completing "foo":
 ;;
 ;; (defun company-my-backend (command &optional arg &rest ignored)
+;;   (interactive (list 'interactive))
 ;;   (pcase command
+;;     (`interactive (company-begin-backend 'company-my-backend))
 ;;     (`prefix (company-grab-symbol))
 ;;     (`candidates (list "foobar" "foobaz" "foobarbaz"))
 ;;     (`meta (format "This value is named %s" arg))))
@@ -322,7 +324,10 @@ This doesn't include the margins and the scroll bar."
 (defcustom company-backends `(,@(unless (version< "24.3.51" emacs-version)
                                   (list 'company-elisp))
                               company-bbdb
-                              company-nxml company-css
+                              ,@(unless (version<= "26" emacs-version)
+                                  (list 'company-nxml))
+                              ,@(unless (version<= "26" emacs-version)
+                                  (list 'company-css))
                               company-eclim company-semantic company-clang
                               company-xcode company-cmake
                               company-capf
@@ -398,10 +403,13 @@ be kept if they have different annotations.  For that to work properly,
 backends should store the related information on candidates using text
 properties.
 
-`match': The second argument is a completion candidate.  Return the index
-after the end of text matching `prefix' within the candidate string.  It
-will be used when rendering the popup.  This command only makes sense for
-backends that provide non-prefix completion.
+`match': The second argument is a completion candidate.  Return a positive
+integer, the index after the end of text matching `prefix' within the
+candidate string.  Alternatively, return a list of (CHUNK-START
+. CHUNK-END) elements, where CHUNK-START and CHUNK-END are indexes within
+the candidate string.  The corresponding regions are be used when rendering
+the popup.  This command only makes sense for backends that provide
+non-prefix completion.
 
 `require-match': If this returns t, the user is not allowed to enter
 anything not offered as a candidate.  Please don't use that value in normal
@@ -600,7 +608,8 @@ treated as if it was on this list."
 
 (defcustom company-continue-commands '(not save-buffer save-some-buffers
                                            save-buffers-kill-terminal
-                                           save-buffers-kill-emacs)
+                                           save-buffers-kill-emacs
+                                           completion-at-point)
   "A list of commands that are allowed during completion.
 If this is t, or if `company-begin-commands' is t, any command is allowed.
 Otherwise, the value must be a list of symbols.  If it starts with `not',
@@ -1358,10 +1367,18 @@ Keywords and function definition names are ignored."
      noccurs)))
 
 (defun company--occurrence-predicate ()
+  (defvar comint-last-prompt)
   (let ((beg (match-beginning 0))
-        (end (match-end 0)))
+        (end (match-end 0))
+        (comint-last-prompt (bound-and-true-p comint-last-prompt)))
     (save-excursion
       (goto-char end)
+      ;; Workaround for python-shell-completion-at-point's behavior:
+      ;; https://github.com/company-mode/company-mode/issues/759
+      ;; https://github.com/company-mode/company-mode/issues/549
+      (when (derived-mode-p 'inferior-python-mode)
+        (let ((lbp (line-beginning-position)))
+          (setq comint-last-prompt (cons lbp lbp))))
       (and (not (memq (get-text-property (1- (point)) 'face)
                       '(font-lock-function-name-face
                         font-lock-keyword-face)))
@@ -1618,7 +1635,6 @@ prefix match (same case) will be prioritized."
       ;; `company-completion-finished-hook' in that case, with right argument.
       (if (stringp result)
           (let ((company-backend backend))
-            (company-call-backend 'pre-completion result)
             (run-hook-with-args 'company-completion-finished-hook result)
             (company-call-backend 'post-completion result))
         (run-hook-with-args 'company-completion-cancelled-hook result))))
@@ -2378,11 +2394,13 @@ If SHOW-VERSION is non-nil, show the version in the echo area."
          cc annotations)
     (when (or (stringp prefix) (consp prefix))
       (let ((company-backend backend))
-        (setq cc (company-call-backend 'candidates prefix)
-              annotations
-              (mapcar
-               (lambda (c) (cons c (company-call-backend 'annotation c)))
-               cc))))
+        (condition-case nil
+            (setq cc (company-call-backend 'candidates (company--prefix-str prefix))
+                  annotations
+                  (mapcar
+                   (lambda (c) (cons c (company-call-backend 'annotation c)))
+                   cc))
+          (error (setq annotations 'error)))))
     (pop-to-buffer (get-buffer-create "*company-diag*"))
     (setq buffer-read-only nil)
     (erase-buffer)
@@ -2401,11 +2419,13 @@ If SHOW-VERSION is non-nil, show the version in the echo area."
     (insert "\n")
     (insert (message  "Completions:"))
     (unless cc (insert " none"))
-    (save-excursion
-      (dolist (c annotations)
-        (insert "\n  " (prin1-to-string (car c)))
-        (when (cdr c)
-          (insert " " (prin1-to-string (cdr c))))))
+    (if (eq annotations 'error)
+        (insert "(error fetching)")
+      (save-excursion
+        (dolist (c annotations)
+          (insert "\n  " (prin1-to-string (car c)))
+          (when (cdr c)
+            (insert " " (prin1-to-string (cdr c)))))))
     (special-mode)))
 
 ;;; pseudo-tooltip ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2490,7 +2510,6 @@ If SHOW-VERSION is non-nil, show the version in the echo area."
                                                   (- width (length annotation)))
                           annotation))
                        right)))
-    (setq common (+ (min common width) margin))
     (setq width (+ width margin (length right)))
 
     (font-lock-append-text-property 0 width 'mouse-face
@@ -2502,11 +2521,17 @@ If SHOW-VERSION is non-nil, show the version in the echo area."
                                           'company-tooltip-annotation-selection
                                         'company-tooltip-annotation)
                                       line))
-    (font-lock-prepend-text-property margin common 'face
-                                     (if selected
-                                         'company-tooltip-common-selection
-                                       'company-tooltip-common)
-                                     line)
+    (cl-loop
+     with width = (- width (length right))
+     for (comp-beg . comp-end) in (if (integerp common) `((0 . ,common)) common)
+     for inline-beg = (+ margin comp-beg)
+     for inline-end = (min (+ margin comp-end) width)
+     when (< inline-beg width)
+     do (font-lock-prepend-text-property inline-beg inline-end 'face
+                                         (if selected
+                                             'company-tooltip-common-selection
+                                           'company-tooltip-common)
+                                         line))
     (when (let ((re (funcall company-search-regexp-function
                              company-search-string)))
             (and (not (string= re ""))
@@ -2802,7 +2827,6 @@ Returns a negative number if the tooltip should be displayed above point."
 
 (defun company-pseudo-tooltip-show (row column selection)
   (company-pseudo-tooltip-hide)
-  (save-excursion
 
     (let* ((height (company--pseudo-tooltip-height))
            above)
@@ -2811,15 +2835,17 @@ Returns a negative number if the tooltip should be displayed above point."
         (setq row (+ row height -1)
               above t))
 
-      (let* ((nl (< (move-to-window-line row) row))
-             (beg (point))
-             (end (save-excursion
-                    (move-to-window-line (+ row (abs height)))
-                    (point)))
-             (ov (make-overlay beg end nil t))
-             (args (list (mapcar 'company-plainify
-                                 (company-buffer-lines beg end))
-                         column nl above)))
+      (let (nl beg end ov args)
+        (save-excursion
+          (setq nl (< (move-to-window-line row) row)
+                beg (point)
+                end (save-excursion
+                      (move-to-window-line (+ row (abs height)))
+                      (point))
+                ov (make-overlay beg end nil t)
+                args (list (mapcar 'company-plainify
+                                   (company-buffer-lines beg end))
+                           column nl above)))
 
         (setq company-pseudo-tooltip-overlay ov)
         (overlay-put ov 'company-replacement-args args)
@@ -2830,7 +2856,7 @@ Returns a negative number if the tooltip should be displayed above point."
           (overlay-put ov 'company-width (string-width (car lines))))
 
         (overlay-put ov 'company-column column)
-        (overlay-put ov 'company-height height)))))
+        (overlay-put ov 'company-height height))))
 
 (defun company-pseudo-tooltip-show-at-point (pos column-offset)
   (let* ((col-row (company--col-row pos))
