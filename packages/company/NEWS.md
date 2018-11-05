@@ -1,5 +1,23 @@
 # History of user-visible changes
 
+## 2018-11-06 (0.9.7)
+
+* For more sophisticated highlighting in non-prefix completion, a backend may
+  now respond to a `match` request with a list of regions.  See
+  `company-backends`.
+  ([#798](https://github.com/company-mode/company-mode/issues/798),
+  [#762](https://github.com/company-mode/company-mode/issues/762))
+* The `company-capf` backend will pick up on a `:company-match` metadata element
+  on the capf function (similar to `:company-location` or `:company-doc-buffer`)
+  and use it as a response to aforementioned `match` request.
+* `company-cmake` supports completion inside string interpolations
+  ([#714](https://github.com/company-mode/company-mode/pull/714)).
+* Workaround for the conflict between `inferior-python-mode`'s completion code
+  and `company-sort-by-occurrence`.
+* In Emacs 26 and newer, `company-css` is removed from `company-backends`.
+  `company-capf` is used instead.
+* Same for `company-nxml`.
+
 ## 2018-02-23 (0.9.6)
 
 * Workaround for Emacs' ([bug#23980](https://debbugs.gnu.org/23980)) triggered
