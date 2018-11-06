@@ -39,7 +39,6 @@
 (declare-function org-gnus-follow-link "org-gnus"
 		  (group article))
 (declare-function org-make-tags-matcher "org" (match))
-(defvar org-refile-targets)
 
 (defgroup gnorb-gnus nil
   "The Gnus bits of Gnorb."
@@ -164,6 +163,19 @@ Must be prefixed with \"u\", eg. \"%uG\"."
   :group 'gnorb-gnus
   :type 'list)
 
+(defcustom gnorb-gnus-refile-use-outline-path 'org
+  "Gnorb equivalent of `org-refile-use-outline-path' (which see).
+Used when selecting Org headings for triggering or attaching
+attachments."
+  :group 'gnorb-gnus
+  :type '(choice
+	  (const :tag "Not" nil)
+	  (const :tag "Yes" t)
+	  (const :tag "Start with file name" file)
+	  (const :tag "Start with full file path" full-file-path)
+	  (const :tag "Start with buffer name" buffer-name)
+	  (const :tag "Use org-refile-use-outline-path" org)))
+
 (defcustom gnorb-gnus-sent-groups nil
   "A list of strings indicating sent mail groups.
 
@@ -207,6 +219,10 @@ each message."
   "Attach HANDLE to an existing org heading."
   (let* ((filename (gnorb-gnus-save-part handle))
 	 (org-refile-targets gnorb-gnus-trigger-refile-targets)
+	 (org-refile-use-outline-path
+	  (if (eq gnorb-gnus-refile-use-outline-path 'org)
+	      org-refile-use-outline-path
+	    gnorb-gnus-refile-use-outline-path))
 	 (headers (gnus-data-header
 		   (gnus-data-find
 		    (gnus-summary-article-number))))
@@ -345,6 +361,10 @@ the outgoing message will still be available -- nothing else will
 work."
   (interactive "P")
   (let ((org-refile-targets gnorb-gnus-trigger-refile-targets)
+	(org-refile-use-outline-path
+	 (if (eq gnorb-gnus-refile-use-outline-path 'org)
+	     org-refile-use-outline-path
+	   gnorb-gnus-refile-use-outline-path))
 	(compose-marker (make-marker))
 	header-ids ref-ids rel-headings
 	gnorb-window-conf in-reply-to)
@@ -536,6 +556,10 @@ you'll stay in the Gnus summary buffer."
 		  (point) (point-max))))
 	 (link (call-interactively 'org-store-link))
 	 (org-refile-targets gnorb-gnus-trigger-refile-targets)
+	 (org-refile-use-outline-path
+	  (if (eq gnorb-gnus-refile-use-outline-path 'org)
+	      org-refile-use-outline-path
+	    gnorb-gnus-refile-use-outline-path))
 	 (ref-msg-ids (concat (mail-header-references headers) " "
 			      msg-id))
 	 (related-headings
