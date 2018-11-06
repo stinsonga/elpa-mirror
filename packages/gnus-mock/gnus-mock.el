@@ -5,7 +5,7 @@
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Package-Type: multi
-;; Version: 0.2.0
+;; Version: 0.2.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -138,124 +138,124 @@ The new Emacs process will be started as \"-Q\", with the mock
 Gnus settings pre-loaded.  Any of the normal Gnus entry points
 will start a mock Gnus session."
   (interactive)
-  (condition-case nil
-      (let* ((mock-tmp-dir (make-temp-file "emacs-gnus-mock-" t))
-	     (init-file (expand-file-name "init.el" mock-tmp-dir)))
-	(with-temp-buffer
-	  (let ((standard-output (current-buffer))
-		(print-circle nil))
-	    (prin1
-	     `(setq gnus-home-directory ,mock-tmp-dir
-		    init-file-user "mockturtle"
-		    sendmail-program
-		    ,(expand-file-name gnus-mock-sendmail-program
-				       mock-tmp-dir)
-		    message-directory ,mock-tmp-dir
-		    gnus-startup-file
-		    ,(expand-file-name ".newsrc" mock-tmp-dir)
-		    gnus-init-file
-		    ,(expand-file-name ".gnus" mock-tmp-dir)
-		    nndraft-directory
-		    ,(expand-file-name "drafts/" mock-tmp-dir)
-		    gnus-agent-directory
-		    ,(expand-file-name "agent/" mock-tmp-dir)
-		    gnus-directory
-		    ,(expand-file-name "News/" mock-tmp-dir)))
-	    (princ "\n\n")
-	    ;; Constant that can be checked if we need to know it's a mock
-	    ;; session.
-	    (prin1 '(defconst gnus-mock-p t))
-	    (princ "\n")
-	    ;; Constant for use in `gnus-mock-reload', which is defined in
-	    ;; the .gnus.el startup file.
- 	    (prin1 `(defconst gnus-mock-data-dir ,gnus-mock-data-dir))
-	    (when gnus-mock-cleanup-p
+  (let ((mock-tmp-dir (make-temp-file "emacs-gnus-mock-" t)))
+    (condition-case nil
+	(let ((init-file (expand-file-name "init.el" mock-tmp-dir)))
+	  (with-temp-buffer
+	    (let ((standard-output (current-buffer))
+		  (print-circle nil))
+	      (prin1
+	       `(setq gnus-home-directory ,mock-tmp-dir
+		      init-file-user "mockturtle"
+		      sendmail-program
+		      ,(expand-file-name gnus-mock-sendmail-program
+					 mock-tmp-dir)
+		      message-directory ,mock-tmp-dir
+		      gnus-startup-file
+		      ,(expand-file-name ".newsrc" mock-tmp-dir)
+		      gnus-init-file
+		      ,(expand-file-name ".gnus.el" mock-tmp-dir)
+		      nndraft-directory
+		      ,(expand-file-name "drafts/" mock-tmp-dir)
+		      gnus-agent-directory
+		      ,(expand-file-name "agent/" mock-tmp-dir)
+		      gnus-directory
+		      ,(expand-file-name "News/" mock-tmp-dir)))
+	      (princ "\n\n")
+	      ;; Constant that can be checked if we need to know it's a mock
+	      ;; session.
+	      (prin1 '(defconst gnus-mock-p t))
 	      (princ "\n")
-	      (prin1 `(add-hook 'kill-emacs-hook
-				(lambda () (delete-directory
-					    ,mock-tmp-dir t)))))
-	    (when gnus-mock-use-images
-	      (princ "\n")
-	      (prin1 `(add-to-list 'load-path
-				   ,(format "%s/data" mock-tmp-dir))))
-	    (write-file init-file)))
-	;; Put our data and config in place.
-	(copy-directory
-	 gnus-mock-data-dir
-	 (file-name-as-directory mock-tmp-dir) nil nil t)
-	;; Git doesn't let us commit empty directories, so create our
-	;; necessary empty maildir bits.
-	(mapc (lambda (path) (make-directory path t))
-	      (mapcar (lambda (dir)
-			(format "%s/test/%s" mock-tmp-dir dir))
-		      '("Welcome/new" "Welcome/tmp" "Welcome/.nnmaildir/marks"
-			"incoming/tmp" "incoming/new" "incoming/cur"
-			"incoming/.nnmaildir/marks" "incoming/.nnmaildir/nov"
-			"mails/tmp" "mails/new" "mails/.nnmaildir/marks")))
-	;; Possibly insert additional config.
-	(when gnus-mock-init-file
-	  (with-temp-buffer
-	    (insert-file-contents gnus-mock-init-file)
-	    (append-to-file
-	     (point-min) (point-max) init-file)))
-	(when gnus-mock-gnus-file
-	  (with-temp-buffer
-	    (insert-file-contents gnus-mock-gnus-file)
-	    (append-to-file
-	     (point-min) (point-max)
-	     (expand-file-name ".gnus.el" mock-tmp-dir))))
-	;; Possibly add an nnimap server.
-	(when gnus-mock-dovecot-imap-program
-	  (with-temp-buffer
-	    (insert "\n\n")
-	    (prin1
-	     `(add-to-list
-	       'gnus-secondary-select-methods
-	       (quote (nnimap
-		       "Mocky"
-		       (nnimap-stream shell)
-		       (nnimap-shell-program
-			,(concat
-			  gnus-mock-dovecot-imap-program
-			  (format " -o mail_location=maildir:%s/imapmail/mail"
-				  mock-tmp-dir))))))
-	     (current-buffer))
-	    (append-to-file
-	     (point-min) (point-max)
-	     (expand-file-name ".gnus.el" mock-tmp-dir))))
-	;; There are absolute paths in the .newsrc.eld file, so doctor
-	;; that file.
-	(with-current-buffer (find-file-noselect
-			      (expand-file-name ".newsrc.eld" mock-tmp-dir))
-	  (while (re-search-forward "REPLACE_ME" (point-max) t)
-	    (replace-match mock-tmp-dir t))
+	      ;; Constant for use in `gnus-mock-reload', which is defined in
+	      ;; the .gnus.el startup file.
+ 	      (prin1 `(defconst gnus-mock-data-dir ,gnus-mock-data-dir))
+	      (when gnus-mock-cleanup-p
+		(princ "\n")
+		(prin1 `(add-hook 'kill-emacs-hook
+				  (lambda () (delete-directory
+					      ,mock-tmp-dir t)))))
+	      (when gnus-mock-use-images
+		(princ "\n")
+		(prin1 `(add-to-list 'load-path
+				     ,(format "%s/data" mock-tmp-dir))))
+	      (write-file init-file)))
+	  ;; Put our data and config in place.
+	  (copy-directory
+	   gnus-mock-data-dir
+	   (file-name-as-directory mock-tmp-dir) nil nil t)
+	  ;; Git doesn't let us commit empty directories, so create our
+	  ;; necessary empty maildir bits.
+	  (mapc (lambda (path) (make-directory path t))
+		(mapcar (lambda (dir)
+			  (format "%s/test/%s" mock-tmp-dir dir))
+			'("Welcome/new" "Welcome/tmp" "Welcome/.nnmaildir/marks"
+			  "incoming/tmp" "incoming/new" "incoming/cur"
+			  "incoming/.nnmaildir/marks" "incoming/.nnmaildir/nov"
+			  "mails/tmp" "mails/new" "mails/.nnmaildir/marks")))
+	  ;; Possibly insert additional config.
+	  (when gnus-mock-init-file
+	    (with-temp-buffer
+	      (insert-file-contents gnus-mock-init-file)
+	      (append-to-file
+	       (point-min) (point-max) init-file)))
+	  (when gnus-mock-gnus-file
+	    (with-temp-buffer
+	      (insert-file-contents gnus-mock-gnus-file)
+	      (append-to-file
+	       (point-min) (point-max)
+	       (expand-file-name ".gnus.el" mock-tmp-dir))))
+	  ;; Possibly add an nnimap server.
 	  (when gnus-mock-dovecot-imap-program
-	    (goto-char (point-max))
-	    (insert "\n\n")
-	    (prin1
-	     '(setq
-	       gnus-newsrc-alist
-	       (append
-		gnus-newsrc-alist
-		'(("nnimap+Mocky:INBOX" 3 nil ((unexist) (seen (1 . 32)))
-		   "nnimap:Mocky" ((modseq . "33") (uidvalidity . "1541087103")
-				   (active 1 . 32)
-				   (permanent-flags %Answered %Flagged %Deleted
-						    %Seen %Draft %*)))
-		  ("nnimap+Mocky:emacs-devel" 3 nil ((unexist 0))
-		   "nnimap:Mocky" ((modseq . "21") (uidvalidity . "1541087104")
-				   (active 0 . 20)
-				   (permanent-flags %Answered %Flagged %Deleted
-						    %Seen %Draft %*))))))
-	     (current-buffer)))
-	  (basic-save-buffer))
-	(make-process :name "gnus-mock" :buffer nil
-		      :command (list gnus-mock-emacs-program
-				     "-Q" "--load" init-file)
-		      :stderr "*gnus mock errors*"))
-    (error (when (and gnus-mock-cleanup-p
-		      (file-exists-p mock-tmp-dir))
-	     (delete-directory mock-tmp-dir t)))))
+	    (with-temp-buffer
+	      (insert "\n\n")
+	      (prin1
+	       `(add-to-list
+		 'gnus-secondary-select-methods
+		 (quote (nnimap
+			 "Mocky"
+			 (nnimap-stream shell)
+			 (nnimap-shell-program
+			  ,(concat
+			    gnus-mock-dovecot-imap-program
+			    (format " -o mail_location=maildir:%s/imapmail/mail"
+				    mock-tmp-dir))))))
+	       (current-buffer))
+	      (append-to-file
+	       (point-min) (point-max)
+	       (expand-file-name ".gnus.el" mock-tmp-dir))))
+	  ;; There are absolute paths in the .newsrc.eld file, so doctor
+	  ;; that file.
+	  (with-current-buffer (find-file-noselect
+				(expand-file-name ".newsrc.eld" mock-tmp-dir))
+	    (while (re-search-forward "REPLACE_ME" (point-max) t)
+	      (replace-match mock-tmp-dir t))
+	    (when gnus-mock-dovecot-imap-program
+	      (goto-char (point-max))
+	      (insert "\n\n")
+	      (prin1
+	       '(setq
+		 gnus-newsrc-alist
+		 (append
+		  gnus-newsrc-alist
+		  '(("nnimap+Mocky:INBOX" 3 nil ((unexist) (seen (1 . 32)))
+		     "nnimap:Mocky" ((modseq . "33") (uidvalidity . "1541087103")
+				     (active 1 . 32)
+				     (permanent-flags %Answered %Flagged %Deleted
+						      %Seen %Draft %*)))
+		    ("nnimap+Mocky:emacs-devel" 3 nil ((unexist 0))
+		     "nnimap:Mocky" ((modseq . "21") (uidvalidity . "1541087104")
+				     (active 0 . 20)
+				     (permanent-flags %Answered %Flagged %Deleted
+						      %Seen %Draft %*))))))
+	       (current-buffer)))
+	    (basic-save-buffer))
+	  (make-process :name "gnus-mock" :buffer nil
+			:command (list gnus-mock-emacs-program
+				       "-Q" "--load" init-file)
+			:stderr "*gnus mock errors*"))
+      (error (when (and gnus-mock-cleanup-p
+			(file-exists-p mock-tmp-dir))
+	       (delete-directory mock-tmp-dir t))))))
 
 (provide 'gnus-mock)
 ;;; gnus-mock.el ends here
