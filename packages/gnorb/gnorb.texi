@@ -730,6 +730,11 @@ it can't, it will prompt you for one, using the refile interface.
 This option will be used as the value of `org-refile-targets'
 during that process: see the docstring of `org-refile-targets'
 for the appropriate syntax.
+@item `gnorb-gnus-refile-use-outline-path'
+Similar to the previous
+option, this option will be used as the value of
+`org-refile-use-outline-path' when selecting a heading: see the
+its docstring for the meaning of its potential values.
 @item `gnorb-gnus-new-todo-capture-key'
 Set this to a single-character
 string pointing at an Org capture template to use when creating

@@ -736,6 +736,10 @@ File: gnorb.info,  Node: User Options 2,  Prev: Searching With the Registry,  Up
      interface.  This option will be used as the value of
      ‘org-refile-targets’ during that process: see the docstring of
      ‘org-refile-targets’ for the appropriate syntax.
+‘gnorb-gnus-refile-use-outline-path’
+     Similar to the previous option, this option will be used as the
+     value of ‘org-refile-use-outline-path’ when selecting a heading:
+     see the its docstring for the meaning of its potential values.
 ‘gnorb-gnus-new-todo-capture-key’
      Set this to a single-character string pointing at an Org capture
      template to use when creating TODOs from outgoing messages.  The
@@ -842,7 +846,7 @@ Node: User Options 125455
 Node: Misc Gnus28353
 Node: Searching With the Registry28547
 Node: User Options 229849
-Node: Default Keybindings33027
+Node: Default Keybindings33279
 
 End Tag Table
 
