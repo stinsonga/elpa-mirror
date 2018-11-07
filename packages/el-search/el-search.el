@@ -298,9 +298,10 @@
 ;;    `(foo ,b ,a . ,rest) RET
 ;;
 ;; Type y to replace a match and go to the next one, r to replace
-;; without moving, n to go to the next match without replacing and !
-;; to replace all remaining matches automatically.  q quits.  ? shows
-;; a quick help summarizing all of these keys.
+;; without moving (hitting r again restores that match), n to go to
+;; the next match without replacing and ! to replace all remaining
+;; matches automatically.  q quits.  ? shows a quick help summarizing
+;; all of these keys.
 ;;
 ;; It is possible to replace a match with an arbitrary number of
 ;; expressions using "splicing mode".  When it is active, the
@@ -3717,8 +3718,10 @@ exactly you did?  Thanks!"))))
                                                   "Replace match and move to the next"))
                                           (and (not replaced-this)
                                                '(?n "n" "Move to the next match"))
-                                          (and (not replaced-this)
-                                               '(?r "r" "Replace match but don't move"))
+                                          `(?r "r"
+                                               ,(if (not replaced-this)
+                                                    "Replace match but don't move"
+                                                  "Restore match"))
                                           '(?! "all" "Replace all remaining matches in this buffer")
                                           '(?b "skip buf"
                                                "Skip this buffer and any remaining matches in it")
@@ -3735,63 +3738,76 @@ Toggle splicing mode (\\[describe-function] el-search-query-replace for details)
                                           '(?\r "quit"))))))))
                          (if replace-all
                              (funcall do-replace)
-                           (while (not (pcase (funcall query)
-                                         (?r (funcall do-replace)
-                                             nil)
-                                         (?y
-                                          (unless replaced-this (funcall do-replace))
-                                          t)
-                                         (?n
-                                          (cl-incf nbr-skipped)
-                                          t)
-                                         (?!
-                                          (when (and use-current-search
-                                                     (not (alist-get 'is-single-buffer
-                                                                     (el-search-object-properties
-                                                                      el-search--current-search)))
-                                                     (eq (car (read-multiple-choice
-                                                               "Replace in all following buffers?"
-                                                               '((?! "Only this"
-                                                                     "\
+                           (let ((handle nil))
+                             (unwind-protect
+                                 (while (not (pcase (funcall query)
+                                               (?r
+                                                (if (not replaced-this)
+                                                    (progn
+                                                      (activate-change-group
+                                                       (setq handle (prepare-change-group)))
+                                                      (funcall do-replace))
+                                                  (cancel-change-group handle)
+                                                  (setq handle nil)
+                                                  (setq replaced-this nil)
+                                                  (cl-decf nbr-replaced)
+                                                  (cl-decf nbr-replaced-total))
+                                                nil)
+                                               (?y
+                                                (unless replaced-this (funcall do-replace))
+                                                t)
+                                               (?n
+                                                (cl-incf nbr-skipped)
+                                                t)
+                                               (?!
+                                                (when (and use-current-search
+                                                           (not (alist-get 'is-single-buffer
+                                                                           (el-search-object-properties
+                                                                            el-search--current-search)))
+                                                           (eq (car (read-multiple-choice
+                                                                     "Replace in all following buffers?"
+                                                                     '((?! "Only this"
+                                                                           "\
 Replace only remaining matches in this buffer")
-                                                                 (?A "All buffers"
-                                                                     "\
+                                                                       (?A "All buffers"
+                                                                           "\
 Replace all matches in all buffers"))))
-                                                         ?A))
-                                            (setq replace-all-and-following t))
-                                          (setq replace-all t)
-                                          (unless replaced-this (funcall do-replace))
-                                          t)
-                                         (?b (goto-char (point-max))
-                                             (message "Skipping this buffer")
-                                             (sit-for 1)
-                                             ;; FIXME: add #skipped matches to nbr-skipped?
-                                             t)
-                                         (?d (call-interactively #'el-search-skip-directory)
-                                             t)
-                                         (?s
-                                          (setq splice    (not splice)
-                                                to-insert (funcall get-replacement-string))
-                                          nil)
-                                         (?o
-                                          ;; FIXME: Should we allow to edit the replacement?
-                                          (let* ((buffer (get-buffer-create
-                                                          (generate-new-buffer-name "*Replacement*")))
-                                                 (window (display-buffer buffer)))
-                                            (with-selected-window window
-                                              (emacs-lisp-mode)
-                                              (save-excursion
-                                                (insert
-                                                 "\
+                                                               ?A))
+                                                  (setq replace-all-and-following t))
+                                                (setq replace-all t)
+                                                (unless replaced-this (funcall do-replace))
+                                                t)
+                                               (?b (goto-char (point-max))
+                                                   (message "Skipping this buffer")
+                                                   (sit-for 1)
+                                                   ;; FIXME: add #skipped matches to nbr-skipped?
+                                                   t)
+                                               (?d (call-interactively #'el-search-skip-directory)
+                                                   t)
+                                               (?s
+                                                (setq splice    (not splice)
+                                                      to-insert (funcall get-replacement-string))
+                                                nil)
+                                               (?o
+                                                ;; FIXME: Should we allow to edit the replacement?
+                                                (let* ((buffer (get-buffer-create
+                                                                (generate-new-buffer-name "*Replacement*")))
+                                                       (window (display-buffer buffer)))
+                                                  (with-selected-window window
+                                                    (emacs-lisp-mode)
+                                                    (save-excursion
+                                                      (insert
+                                                       "\
 ;; This buffer shows the replacement for the current match.
 ;; Please hit any key to proceed.\n\n"
-                                                 (funcall get-replacement-string)))
-                                              (read-char " "))
-                                            (delete-window window)
-                                            (kill-buffer buffer)
-                                            (el-search--after-scroll (selected-window) (window-start))
-                                            nil))
-                                         ((or ?q ?\C-g ?\r) (signal 'quit t))))))
+                                                       (funcall get-replacement-string)))
+                                                    (read-char " "))
+                                                  (delete-window window)
+                                                  (kill-buffer buffer)
+                                                  (el-search--after-scroll (selected-window) (window-start))
+                                                  nil))
+                                               ((or ?q ?\C-g ?\r) (signal 'quit t)))))
+                               (when handle (accept-change-group handle)))))
                          (unless (eobp)
                            (let* ((replacement-end-pos
                                    (and replaced-this
