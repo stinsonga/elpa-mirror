@@ -298,9 +298,9 @@
 ;;    `(foo ,b ,a . ,rest) RET
 ;;
 ;; Type y to replace a match and go to the next one, r to replace
-;; without moving, SPC or n to go to the next match and ! to replace
-;; all remaining matches automatically.  q quits.  And ? shows a quick
-;; help summarizing all of these keys.
+;; without moving, n to go to the next match without replacing and !
+;; to replace all remaining matches automatically.  q quits.  ? shows
+;; a quick help summarizing all of these keys.
 ;;
 ;; It is possible to replace a match with an arbitrary number of
 ;; expressions using "splicing mode".  When it is active, the
@@ -3711,13 +3711,14 @@ exactly you did?  Thanks!"))))
                                              (+ nbr-done nbr-to-do)))
                                    (delq nil
                                          (list
+                                          `(?y "y"
+                                               ,(if replaced-this
+                                                    "Keep replacement and move to the next match"
+                                                  "Replace match and move to the next"))
                                           (and (not replaced-this)
-                                               '(?y "y" "Replace this match and move to the next"))
-                                          (list ?n
-                                                (if replaced-this "next" "n")
-                                                "Go to the next match")
+                                               '(?n "n" "Move to the next match"))
                                           (and (not replaced-this)
-                                               '(?r "r" "Replace this match but don't move"))
+                                               '(?r "r" "Replace match but don't move"))
                                           '(?! "all" "Replace all remaining matches in this buffer")
                                           '(?b "skip buf"
                                                "Skip this buffer and any remaining matches in it")
@@ -3737,10 +3738,11 @@ Toggle splicing mode (\\[describe-function] el-search-query-replace for details)
                            (while (not (pcase (funcall query)
                                          (?r (funcall do-replace)
                                              nil)
-                                         (?y (funcall do-replace)
-                                             t)
+                                         (?y
+                                          (unless replaced-this (funcall do-replace))
+                                          t)
                                          (?n
-                                          (unless replaced-this (cl-incf nbr-skipped))
+                                          (cl-incf nbr-skipped)
                                           t)
                                          (?!
                                           (when (and use-current-search
