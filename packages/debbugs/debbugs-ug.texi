@@ -518,7 +518,7 @@ of comma-separated bug numbers.
 "close 12345 25.1"
 
 The second argument, the Emacs version, is read interactively if the
-bugs belongs to the @code{"emacs"} package.
+bug belongs to the @code{"emacs"} package.
 
 @item confirmed
 @itemx easy
@@ -538,7 +538,7 @@ bugs belongs to the @code{"emacs"} package.
 If the command invoking the control message has been prefixed with
 @kbd{C-u}, the respective tag is removed from the bug, like
 
-"tags 12345 -confirmed"
+"tags 12345 - confirmed"
 
 @item done
 @itemx donenotabug
@@ -548,7 +548,7 @@ If the command invoking the control message has been prefixed with
 "close 12345 25.1"
 
 The second argument in the close message, the Emacs version, is read
-interactively if the bugs belongs to the @code{"emacs"} package.
+interactively if the bug belongs to the @code{"emacs"} package.
 
 @item forwarded
 "forwarded 12345 @var{address}"
