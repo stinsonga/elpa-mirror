@@ -452,7 +452,7 @@ meaning of the control messages, *Note Mail Command Index::.
      "close 12345 25.1"
 
      The second argument, the Emacs version, is read interactively if
-     the bugs belongs to the '"emacs"' package.
+     the bug belongs to the '"emacs"' package.
 
 'confirmed'
 'easy'
@@ -472,7 +472,7 @@ meaning of the control messages, *Note Mail Command Index::.
      If the command invoking the control message has been prefixed
      with 'C-u', the respective tag is removed from the bug, like
 
-     "tags 12345 -confirmed"
+     "tags 12345 - confirmed"
 
 'done'
 'donenotabug'
@@ -482,7 +482,7 @@ meaning of the control messages, *Note Mail Command Index::.
      "close 12345 25.1"
 
      The second argument in the close message, the Emacs version, is
-     read interactively if the bugs belongs to the '"emacs"' package.
+     read interactively if the bug belongs to the '"emacs"' package.
 
 'forwarded'
      "forwarded 12345 ADDRESS"
@@ -986,41 +986,41 @@ Node: Presenting Bugs11429
 Node: Tabulated Lists12005
 Node: TODO Items15680
 Node: Control Messages16736
-Node: Applying Patches19990
-Node: Minor Mode21356
-Node: Command Index22412
-Node: Variable Index23201
-Node: Key Index24275
-Node: Mail Command Index25841
-Ref: Mail Command Index: reassign25994
-Ref: Mail Command Index: reopen26458
-Ref: Mail Command Index: found27612
-Ref: Mail Command Index: notfound28693
-Ref: Mail Command Index: submitter29102
-Ref: Mail Command Index: forwarded29496
-Ref: Mail Command Index: notforwarded29835
-Ref: Mail Command Index: retitle30036
-Ref: Mail Command Index: severity30420
-Ref: Mail Command Index: clone30685
-Ref: Mail Command Index: merge31449
-Ref: Mail Command Index: forcemerge32836
-Ref: Mail Command Index: unmerge33110
-Ref: Mail Command Index: tags33813
-Ref: Mail Command Index: block34920
-Ref: Mail Command Index: unblock34962
-Ref: Mail Command Index: close35452
-Ref: Mail Command Index: package36102
-Ref: Mail Command Index: owner36714
-Ref: Mail Command Index: noowner37077
-Ref: Mail Command Index: archive37250
-Ref: Mail Command Index: unarchive37391
-Ref: Mail Command Index: #37684
-Ref: Mail Command Index: quit37944
-Ref: Mail Command Index: stop37951
-Ref: Mail Command Index: thank37958
-Ref: Mail Command Index: thanks37966
-Ref: Mail Command Index: thankyou37975
-Ref: Mail Command Index: thank you37986
-Ref: Mail Command Index: --37998
+Node: Applying Patches19989
+Node: Minor Mode21355
+Node: Command Index22411
+Node: Variable Index23200
+Node: Key Index24274
+Node: Mail Command Index25840
+Ref: Mail Command Index: reassign25993
+Ref: Mail Command Index: reopen26457
+Ref: Mail Command Index: found27611
+Ref: Mail Command Index: notfound28692
+Ref: Mail Command Index: submitter29101
+Ref: Mail Command Index: forwarded29495
+Ref: Mail Command Index: notforwarded29834
+Ref: Mail Command Index: retitle30035
+Ref: Mail Command Index: severity30419
+Ref: Mail Command Index: clone30684
+Ref: Mail Command Index: merge31448
+Ref: Mail Command Index: forcemerge32835
+Ref: Mail Command Index: unmerge33109
+Ref: Mail Command Index: tags33812
+Ref: Mail Command Index: block34919
+Ref: Mail Command Index: unblock34961
+Ref: Mail Command Index: close35451
+Ref: Mail Command Index: package36101
+Ref: Mail Command Index: owner36713
+Ref: Mail Command Index: noowner37076
+Ref: Mail Command Index: archive37249
+Ref: Mail Command Index: unarchive37390
+Ref: Mail Command Index: #37683
+Ref: Mail Command Index: quit37943
+Ref: Mail Command Index: stop37950
+Ref: Mail Command Index: thank37957
+Ref: Mail Command Index: thanks37965
+Ref: Mail Command Index: thankyou37974
+Ref: Mail Command Index: thank you37985
+Ref: Mail Command Index: --37997
 
 End Tag Table
