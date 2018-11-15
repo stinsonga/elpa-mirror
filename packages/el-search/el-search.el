@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.7.15
+;; Version: 1.8
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -393,18 +393,6 @@
 ;;   to reading-printing.  "Some" because we can handle this problem
 ;;   in most cases.
 ;;
-;; - Similar: comments are normally preserved (where it makes sense).
-;;   But when replacing like `(foo ,a ,b) -> `(foo ,b ,a)
-;;
-;;   in a content like
-;;
-;;     (foo
-;;       a
-;;       ;; comment
-;;       b)
-;;
-;;   the comment will be lost.
-;;
 ;; - Something like (1 #1#) is unmatchable (because it is un`read'able
 ;;   without context).
 ;;
@@ -436,10 +424,6 @@
 ;; - Port this package to non Emacs Lisp modes?  How?  Would it
 ;;   already suffice using only syntax tables, sexp scanning and
 ;;   font-lock?
-;;
-;; - Replace: pause and warn when replacement might be wrong
-;;   (ambiguous reader syntaxes; lost comments, comments that can't
-;;   non-ambiguously be assigned to rewritten code)
 ;;
 ;; - There could be something much better than pp to format the
 ;;   replacement, or pp should be improved.
@@ -551,6 +535,32 @@ The default value is ask-multi."
                  (const :tag "On"  t)
                  (const :tag "Ask" ask)
                  (const :tag "Ask when multibuffer" ask-multi)))
+
+(defcustom el-search-query-replace-stop-for-comments 'ask
+  "Whether `el-search-query-replace' should stop for problematic comments.
+
+It's not always clear how comments in a match should be mapped to
+the replacement.  If it can't be done automatically, the value of this
+option decides how to proceed.
+
+When nil, comments will likely be messed up or lost.  You should
+then check the results after finishing `el-search-query-replace'.
+
+A non-nil value means to interrupt when encountering problematic
+comments.  When the non-nil value is the symbol ask (that's the
+default), a prompt will appear that will ask how to proceed for
+the current match.  You may then choose to edit the replacement
+manually, or ignore the problem for this case to fix it later.
+
+Any other non-nil value will not prompt and just directly pop to
+a buffer where you can edit the replacement to adjust the
+comments.
+
+When the value is ask, you can still choose the answer for all
+following cases from the prompt."
+  :type '(choice (const :tag "Off" nil)
+                 (const :tag "On"  t)
+                 (const :tag "Ask" ask)))
 
 (defvar el-search-use-transient-map nil
   "Whether el-search should make commands repeatable."
@@ -3668,6 +3678,22 @@ exactly you did?  Thanks!"))))
                          hook-funs)
                   'ediff-regions-linewise nil nil)))))
 
+(defun el-search-query-replace--comments-preserved-p (from to)
+  (cl-flet ((get-comments
+             (lambda (text)
+               (let ((comments '()))
+                 (with-temp-buffer
+                   (insert text)
+                   (goto-char (point-min))
+                   (emacs-lisp-mode)
+                   (while (search-forward-regexp comment-start-skip nil t)
+                     (let ((comment-text (buffer-substring (point) (line-end-position))))
+                       (unless (string= comment-text "")
+                         (push comment-text comments)))
+                     (forward-line +1))
+                   comments)))))
+    (seq-set-equal-p (get-comments from) (get-comments to) #'string=)))
+
 (defun el-search--search-and-replace-pattern
     (pattern replacement &optional splice to-input-string use-current-search)
   (unless use-current-search
@@ -3695,7 +3721,9 @@ exactly you did?  Thanks!"))))
           (matcher (el-search-make-matcher pattern))
           (heuristic-matcher (el-search--current-heuristic-matcher))
           (save-all-answered nil)
-          (should-quit nil))
+          (should-quit nil)
+          (stop-for-comments el-search-query-replace-stop-for-comments)
+          (stopped-for-comments nil))
       (let ((replace-in-current-buffer
              (lambda ()
                (setq nbr-replaced 0)
@@ -3856,42 +3884,74 @@ exactly you did?  Thanks!"))))
                                    nil)))
                               (query
                                (lambda ()
-                                 (car
-                                  (read-multiple-choice
-                                   (let ((nbr-done  (+ nbr-replaced nbr-skipped))
-                                         (nbr-to-do (el-search-count-matches pattern)))
-                                     (format "[%d/%d] %s"
-                                             (if replaced-this nbr-done (1+ nbr-done))
-                                             (+ nbr-done nbr-to-do)
-                                             (if replaced-this "*" "-")))
-                                   (delq nil
-                                         (list
-                                          `(?y "y"
-                                               ,(if replaced-this
-                                                    "Keep replacement and move to the next match"
-                                                  "Replace match and move to the next"))
-                                          (and (not replaced-this)
-                                               '(?n "n" "Move to the next match"))
-                                          '(?r "r" "\
+                                 (if stopped-for-comments
+                                     (progn
+                                       (setq stopped-for-comments nil)
+                                       ?o)
+                                   (car
+                                    (read-multiple-choice
+                                     (let ((nbr-done  (+ nbr-replaced nbr-skipped))
+                                           (nbr-to-do (el-search-count-matches pattern)))
+                                       (format "[%d/%d] %s"
+                                               (if replaced-this nbr-done (1+ nbr-done))
+                                               (+ nbr-done nbr-to-do)
+                                               (if replaced-this "*" "-")))
+                                     (delq nil
+                                           (list
+                                            `(?y "y"
+                                                 ,(if replaced-this
+                                                      "Keep replacement and move to the next match"
+                                                    "Replace match and move to the next"))
+                                            (and (not replaced-this)
+                                                 '(?n "n" "Move to the next match"))
+                                            '(?r "r" "\
 Replace match but don't move or restore match if already replaced")
-                                          '(?! "all" "Replace all remaining matches in this buffer")
-                                          '(?b "skip buf"
-                                               "Skip this buffer and any remaining matches in it")
-                                          (and buffer-file-name
-                                               '(?d "skip dir"
-                                                    "Skip a parent directory of current file"))
-                                          (and (not replaced-this)
-                                               (list ?s (concat (if splice "disable" "enable")
-                                                                " splice")
-                                                     (substitute-command-keys "\
+                                            '(?! "all" "Replace all remaining matches in this buffer")
+                                            '(?b "skip buf"
+                                                 "Skip this buffer and any remaining matches in it")
+                                            (and buffer-file-name
+                                                 '(?d "skip dir"
+                                                      "Skip a parent directory of current file"))
+                                            (and (not replaced-this)
+                                                 (list ?s (concat (if splice "disable" "enable")
+                                                                  " splice")
+                                                       (substitute-command-keys "\
 Toggle splicing mode (\\[describe-function] el-search-query-replace for details)")))
-                                          '(?o "show" "\
+                                            '(?o "show" "\
 Show current replacement in a separate buffer - you can modify it there")
-                                          '(?e "ediff" "\
+                                            '(?e "ediff" "\
 Ediff match with replacement")
-                                          '(?q  "quit")
-                                          '(?\r "quit"))))))))
-                         (if replace-all
+                                            '(?q  "quit")
+                                            '(?\r "quit")))))))))
+                         (when (and
+                                stop-for-comments
+                                (not (el-search-query-replace--comments-preserved-p
+                                      original-text to-insert)))
+                           (pcase (if (eq stop-for-comments 'ask)
+                                      (car (read-multiple-choice
+                                            (propertize
+                                             "Problems with adjusting comments - edit now? "
+                                             'face 'el-search-highlight-in-prompt-face)
+                                            (list
+                                             '(?y "yes" "Edit the replacement now")
+                                             '(?n "no"  "Just replace and mess up comments")
+                                             '(?Y "always Yes" "Yes, now and later - don't ask again")
+                                             '(?N "always No"  "No, not now and not later")
+                                             '(?q  "quit"))))
+                                    (progn
+                                      (message "%s" (propertize
+                                                     "Problems with adjusting comments, please edit"
+                                                     'face 'el-search-highlight-in-prompt-face))
+                                      (sit-for 1.5)
+                                      ?y))
+                             (?n)
+                             (?N (setq stop-for-comments nil))
+                             (?y (setq stopped-for-comments t))
+                             (?Y (setq stop-for-comments t)
+                                 (setq stopped-for-comments t))
+                             ((or ?q ?\C-g) (signal 'quit t))))
+                         (if (and replace-all
+                                  (not stopped-for-comments))
                              (funcall do-replace)
                            (let* ((handle nil)
                                   (replace-or-restore

@@ -1,6 +1,26 @@
 Some of the user visible news were:
 
 
+Version: 1.8
+
+  Several improvements in `el-search-query-replace':
+
+  It's now possible to edit the replacement in a separate buffer
+  without interrupting `el-search-query-replace', and to ediff the
+  current replacement with the current match (new keys 'o' and 'e').
+ 
+  Hitting the 'r' key now toggles between replacing a match without
+  moving and restoring the match.
+
+  After replacing a match with 'r', the key to go to the next match
+  changed from 'n' to 'y' which should feel more natural.
+
+  Depending on the value of the new user option
+  `el-search-query-replace-stop-for-comments',
+  `el-search-query-replace' can now interrupt automatic replacement
+  when it's not able to unumbigously assign comments in the current
+  match to the replacement.
+
 Version: 1.7.15
 
   *El Occur* buffers are now initially unfolded.
