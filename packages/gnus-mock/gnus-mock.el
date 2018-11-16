@@ -5,7 +5,7 @@
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Package-Type: multi
-;; Version: 0.2.1
+;; Version: 0.3.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -245,6 +245,12 @@ will start a mock Gnus session."
 		    ("nnimap+Mocky:emacs-devel" 3 nil ((unexist 0))
 		     "nnimap:Mocky" ((modseq . "21") (uidvalidity . "1541087104")
 				     (active 0 . 20)
+				     (permanent-flags %Answered %Flagged %Deleted
+						      %Seen %Draft %*)))
+		    ("nnimap+Mocky:\320\237\321\200\320\270\320\262\320\265\321\202\320\274\320\270\321\200"
+		     3 nil ((unexist) (seen 1))
+		     "nnimap:Mocky" ((modseq . "2") (uidvalidity . "1541087105")
+				     (active 1 . 1)
 				     (permanent-flags %Answered %Flagged %Deleted
 						      %Seen %Draft %*))))))
 	       (current-buffer)))
