@@ -1,6 +1,12 @@
 Some of the user visible news were:
 
 
+Version: 1.8.3
+
+  `el-search-query-replace' now adds undo boundaries for each manual
+  replacement so that afterwards `undo' undoes replacements
+  step-by-step similar to vanilla `query-replace'.
+
 Version: 1.8
 
   Several improvements in `el-search-query-replace':

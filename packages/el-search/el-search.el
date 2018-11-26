@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.8.2
+;; Version: 1.8.3
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -3955,6 +3955,7 @@ Ediff match with replacement")
                          (if (and replace-all
                                   (not stopped-for-comments))
                              (funcall do-replace)
+                           (undo-boundary)
                            (let* ((handle nil)
                                   (replace-or-restore
                                    (lambda ()
@@ -3974,7 +3975,9 @@ Ediff match with replacement")
                                        (funcall edit-replacement ediff-only)
                                        (unless (string= old-to-insert to-insert)
                                          (if (not replaced-this)
-                                             (funcall replace-or-restore)
+                                             (progn
+                                               (funcall replace-or-restore)
+                                               (undo-boundary))
                                            (el-search--message-no-log
                                             "Already replaced this match - hit r r to update")
                                            (sit-for 2))))
@@ -4024,7 +4027,9 @@ Replace all matches in all buffers"))))
                                                (?e (funcall edit-and-update 'ediff-only)
                                                    nil)
                                                ((or ?q ?\C-g ?\r) (signal 'quit t)))))
-                               (when handle (accept-change-group handle)))))
+                               (when handle (accept-change-group handle))))
+                           (when (and replaced-this (not replace-all))
+                             (undo-boundary)))
                          (unless (eobp)
                            (let* ((replacement-contains-another-match
                                    (and replaced-this
