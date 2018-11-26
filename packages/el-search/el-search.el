@@ -100,7 +100,8 @@
 ;;     Search backward.
 ;;
 ;;   C-%, M-s e % (`el-search-query-replace')
-;;     Do a query-replace.
+;;     Start a query-replace session.  Resume a session with prefix
+;;     arg.
 ;;
 ;;   M-x el-search-directory
 ;;     Prompt for a directory name and start a multi el-search for all
@@ -156,9 +157,10 @@
 ;;     for other occurrences.
 ;;
 ;;   M-x el-search-to-register
-;;     Save the current search to an Emacs register.  Use C-x r j
-;;     (`jump-to-register') to make that search current and jump to
-;;     the latest position.
+;;   M-x el-search-query-replace-to-register
+;;     Save the current el-search or el-search-query-replace session
+;;     to an Emacs register.  Use `jump-to-register' (C-x r j) to
+;;     continue that search or query-replace session.
 ;;
 ;;
 ;; The setup you need for your init file is trivial: you only need to
@@ -323,6 +325,11 @@
 ;; the buffer for any match.  Hit s from the prompt to toggle splicing
 ;; mode in an `el-search-query-replace' session.
 ;;
+;; Much like `el-search' sessions, `el-search-query-replace' sessions
+;; are also internally represented as objects with state, and are also
+;; collected in a history.  That means you can pause, resume and
+;; restart query-replace sessions, store them in registers, etc.
+;;
 ;; There are two ways to edit replacements directly while performing
 ;; an el-search-query-replace:
 ;;
@@ -333,8 +340,8 @@
 ;; contents.
 ;;
 ;; (2) At any time you can interrupt a query-replace session by
-;; hitting RET.  Make your edits, then resume the query-replace
-;; session by hitting C-S-j C-% or M-s e j %.
+;; hitting RET.  You can resume the query-replace session by calling
+;; `el-search-query-replace' with a prefix argument.
 ;;
 ;;
 ;; Multi query-replace
@@ -346,14 +353,6 @@
 ;; Answer "yes" to the prompt asking whether you want the started
 ;; search to drive the query-replace.  The user interface is
 ;; self-explanatory.
-;;
-;; It is always possible to resume an aborted query-replace session
-;; even if you did other stuff in the meantime (including other
-;; `el-search-query-replace' invocations).  Since internally every
-;; query-replace is driven by a search, call
-;; `el-search-jump-to-search-head' to make that search current, and
-;; invoke `el-search-query-replace'.  This will continue the
-;; query-replace session from where you left.
 ;;
 ;;
 ;; Advanced usage: Replacement rules for semi-automatic code rewriting
@@ -719,6 +718,8 @@ useful for debugging.")
 
 (defvar el-search--search-origin nil)
 
+(defvar el-search--current-query-replace nil)
+
 (defvar-local el-search--temp-buffer-flag nil
   "Non-nil tags file visiting buffers as temporarily opened for searching.")
 
@@ -898,7 +899,26 @@ nil."
 (defvar el-search-query-replace-history ()
   "History of input strings from `el-search-query-replace'.")
 
+(defun el-search--read-history-entry (hist-ring description-fun)
+  (let ((l (ring-length hist-ring)))
+    (ring-ref hist-ring
+              (let ((input
+                     (completing-read
+                      "Resume previous session: "
+                      (mapcar
+                       (lambda (n) (format (format "%%0%dd - %%s" (1+ (floor (log l 10))))
+                                           n
+                                           (funcall description-fun
+                                                    (ring-ref hist-ring (1- n))
+                                                    'verbose)))
+                       (number-sequence 1 l)))))
+                (string-match (rx bos (group (1+ (any "0-9"))) " - ") input)
+                (1- (string-to-number (match-string 1 input)))))))
+
 (defvar el-search--initial-mb-contents nil)
+
+(defvar el-search-query-replace-object-history (make-ring 15)
+  "History of previous `el-search-query-replace' sessions.")
 
 (defun el-search--pushnew-to-history (input histvar)
   ;; Push string INPUT to HISTVAR unless empty or equal to the head
@@ -2909,6 +2929,15 @@ With argument STOP non-nil, force cleanup."
   (interactive)
   (el-search--skip-to-next-buffer))
 
+(defun el-search--goto-char-maybe-barf (pos)
+  (when (and (buffer-narrowed-p)
+             (or (< pos (point-min))
+                 (< (point-max) pos)))
+    (unless (y-or-n-p "\
+Position not accessible in narrowed buffer - really continue?")
+      (user-error "Abort")))
+  (goto-char pos))
+
 (defun el-search-jump-to-search-head (&optional arg)
   "Resume a search or jump to the specified match.
 Resume the last active search and select the last match found.
@@ -2934,20 +2963,8 @@ make current."
     ;; head - or to even use an overview buffer for selection?
     (setq el-search--current-search
           (if (el-search-object-p arg) arg
-            (ring-ref
-             el-search-history
-             (let ((input
-                    (completing-read
-                     "Resume previous search: "
-                     (mapcar
-                      (lambda (n) (format "%d - %s"
-                                          n
-                                          (el-search--get-search-description-string
-                                           (ring-ref el-search-history n)
-                                           t)))
-                      (number-sequence 0 (1- (ring-length el-search-history)))))))
-               (string-match "\\`\\([0-9]+\\) - " input)
-               (string-to-number (match-string 1 input))))))
+            (el-search--read-history-entry
+             el-search-history #'el-search--get-search-description-string)))
     (setq el-search--success t)
     (el-search--set-wrap-flag nil))
   (el-search-compile-pattern-in-search el-search--current-search)
@@ -2989,11 +3006,12 @@ make current."
              (setq arg (prefix-numeric-value arg))
              (goto-char (window-end)))
             ((not (numberp arg))
-             (goto-char (if (not (and last-match
-                                      ;; this should only happen for bad search patterns
-                                      (eq (marker-buffer last-match) (current-buffer))))
-                            (el-search-head-position current-head)
-                          last-match)))
+             (el-search--goto-char-maybe-barf
+              (if (not (and last-match
+                            ;; this should only happen for bad search patterns
+                            (eq (marker-buffer last-match) (current-buffer))))
+                  (el-search-head-position current-head)
+                last-match)))
             ((zerop arg) (setq arg 1))
             (t (goto-char (window-start))))
            (let ((match-pos
@@ -3063,7 +3081,8 @@ continued."
                (while (and (el-search-head-buffer head)
                            (not (setq match (with-current-buffer (el-search-head-buffer head)
                                               (save-excursion
-                                                (goto-char (el-search-head-position head))
+                                                (el-search--goto-char-maybe-barf
+                                                 (el-search-head-position head))
                                                 (el-search--search-pattern-1
                                                  matcher t nil heuristic-matcher))))))
                  (el-search--next-buffer el-search--current-search))
@@ -3101,7 +3120,7 @@ continued."
                              (with-current-buffer new-buffer
                                (setq-local el-search--temp-buffer-flag t)))))))
                    (pop-to-buffer (el-search-head-buffer head) el-search-display-next-buffer-action)
-                   (goto-char match-start))
+                   (el-search--goto-char-maybe-barf match-start))
                  (setf (el-search-object-last-match el-search--current-search)
                        (copy-marker (point)))
                  (setf (el-search-head-position head)
@@ -4115,6 +4134,58 @@ clone with an individual state."
 
 ;;;; Query-replace
 
+(cl-defstruct el-search-query-replace-object
+  search-object from-pattern to-expr textual-to splice)
+
+(defun el-search--get-q-r-description-string (qr-object &optional verbose dont-propertize)
+  (let ((qr-search (el-search-query-replace-object-search-object qr-object)))
+    (concat
+     "Replace"
+     (let ((printed-rule
+            (concat
+             (let ((printed-pattern (el-search--pp-to-string (el-search-object-pattern qr-search))))
+               (format (if (string-match-p "\n" printed-pattern) ":\n%s" " %s")
+                       (if dont-propertize printed-pattern
+                         (propertize printed-pattern 'face 'shadow))))
+             " -> "
+             (el-search--pp-to-string (el-search-query-replace-object-to-expr qr-object)))))
+       (if dont-propertize printed-rule
+         (propertize printed-rule 'face 'shadow)))
+     (and verbose
+          (let ((search-head (el-search-object-head qr-search)))
+            (format "  [%s %s]"
+                    (if (alist-get 'is-single-buffer (el-search-object-properties qr-search))
+                        "single-buffer" "paused")
+                    (if-let ((buffer (el-search-head-buffer search-head)))
+                        (concat "in "(if (buffer-live-p buffer)
+                                         (buffer-name buffer)
+                                       (if-let ((head-file (el-search-head-file search-head)))
+                                           (file-name-nondirectory head-file)
+                                         "killed buffer")))
+                      "(completed)")))))))
+
+(cl-defmethod cl-print-object ((object el-search-query-replace-object) stream)
+  (princ "#s(el-search-query-replace " stream)
+  (prin1 (el-search--get-q-r-description-string object 'verbose 'dont-propertize) stream)
+  (princ ")" stream))
+
+(defun el-search-query-replace-to-register (register &optional el-search-query-replace-object)
+  "Prompt for a register and save the EL-SEARCH-QUERY-REPLACE-OBJECT to it.
+In an interactive call or when EL-SEARCH-QUERY-REPLACE-OBJECT is
+nil, the last active `el-search-query-replace' session object is
+used."
+  (interactive (list (if el-search--current-query-replace
+                         (register-read-with-preview "Save current search to register: ")
+                       (user-error "No el-search-query-replace has been started yet"))))
+  (set-register register (or el-search-query-replace-object el-search--current-query-replace)))
+
+(cl-defmethod register-val-jump-to ((val el-search-query-replace-object) _arg)
+  (el-search-query-replace val nil))
+
+(cl-defmethod register-val-describe ((val el-search-query-replace-object) _verbose)
+  (let ((print-circle nil)) ;bug#30070
+    (cl-prin1 val)))
+
 (defun el-search--replace-hunk (region to-insert)
   "Replace the text in REGION in current buffer with string TO-INSERT.
 Add line breaks before and after TO-INSERT when appropriate and
@@ -4326,22 +4397,40 @@ exactly you did?  Thanks!"))))
 
 (defun el-search--search-and-replace-pattern
     (pattern replacement &optional splice to-input-string use-current-search)
-  (unless use-current-search
-    (let ((current-buffer (current-buffer)))
-      (el-search-setup-search-1 pattern
-                                (lambda () (stream (list current-buffer)))
-                                t
-                                (let ((here (copy-marker (point))))
-                                  (lambda (search)
-                                    (setf (alist-get 'is-single-buffer
-                                                     (el-search-object-properties search))
-                                          current-buffer)
-                                    (setf (alist-get 'description (el-search-object-properties search))
-                                          "Search created by `el-search-query-replace'")
-                                    (let ((inhibit-message t))
-                                      (el-search--next-buffer search)
-                                      (setf (el-search-head-position (el-search-object-head search))
-                                            here)))))))
+  (if-let ((qr-object (and (el-search-query-replace-object-p pattern) pattern)))
+      (setq
+       el-search--current-query-replace pattern
+       pattern                   (el-search-query-replace-object-from-pattern  qr-object)
+       replacement               (el-search-query-replace-object-to-expr       qr-object)
+       splice                    (el-search-query-replace-object-splice        qr-object)
+       to-input-string           (el-search-query-replace-object-textual-to    qr-object)
+       el-search--current-search (el-search-query-replace-object-search-object qr-object)
+       use-current-search        t)
+    (unless use-current-search
+      (let ((current-buffer (current-buffer)))
+        (el-search-setup-search-1
+         pattern
+         (lambda () (stream (list current-buffer)))
+         t
+         (let ((here (copy-marker (point))))
+           (lambda (search)
+             (setf (alist-get 'is-single-buffer
+                              (el-search-object-properties search))
+                   current-buffer)
+             (setf (alist-get 'description (el-search-object-properties search))
+                   "Search created by `el-search-query-replace'")
+             (let ((inhibit-message t))
+               (el-search--next-buffer search)
+               (setf (el-search-head-position (el-search-object-head search))
+                     here)))))))
+    (ring-insert el-search-query-replace-object-history
+                 (setq el-search--current-query-replace
+                       (make-el-search-query-replace-object
+                        :search-object el-search--current-search
+                        :from-pattern pattern
+                        :to-expr replacement
+                        :textual-to to-input-string
+                        :splice nil))))
   (catch 'done
     (let ((replace-all nil) (replace-all-and-following nil)
           nbr-replaced nbr-skipped (nbr-replaced-total 0) (nbr-changed-buffers 0)
@@ -4353,7 +4442,11 @@ exactly you did?  Thanks!"))))
           (save-all-answered nil)
           (should-quit nil)
           (stop-for-comments el-search-query-replace-stop-for-comments)
-          (stopped-for-comments nil))
+          (stopped-for-comments nil)
+          (message-continue
+           (lambda ()
+             (message "%s" (substitute-command-keys "Resume with C-u \\[el-search-query-replace]"))
+             (sit-for 2))))
       (let ((replace-in-current-buffer
              (lambda ()
                (setq nbr-replaced 0)
@@ -4554,7 +4647,9 @@ Show current replacement in a separate buffer - you can modify it there")
                                             '(?e "ediff" "\
 Ediff match with replacement")
                                             '(?q  "quit")
-                                            '(?\r "quit")))))))))
+                                            '(?\r "quit")
+                                            '(?S "Search" "\
+Switch to driving search.  Useful to reposition search head.")))))))))
                          (when (and
                                 stop-for-comments
                                 (not (el-search-query-replace--comments-preserved-p
@@ -4624,22 +4719,26 @@ Ediff match with replacement")
                                                 (cl-incf nbr-skipped)
                                                 t)
                                                (?!
-                                                (when (and use-current-search
-                                                           (not (alist-get 'is-single-buffer
-                                                                           (el-search-object-properties
-                                                                            el-search--current-search)))
-                                                           (eq (car (read-multiple-choice
-                                                                     "\
-Also replace in all following buffers?"
-                                                                     '((?! "Only this"
-                                                                           "\
-Replace only remaining matches in this buffer")
-                                                                       (?A "All buffers"
-                                                                           "\
-Replace all matches in all buffers"))))
-                                                               ?A))
-                                                  (setq replace-all-and-following t))
                                                 (setq replace-all t)
+                                                (when (and use-current-search
+                                                           (not (alist-get
+                                                                 'is-single-buffer
+                                                                 (el-search-object-properties
+                                                                  el-search--current-search))))
+                                                  (pcase (car (read-multiple-choice
+                                                               "\
+Also replace in all following buffers?"
+                                                               '((?! "Only this"
+                                                                     "\
+Replace only remaining matches in this buffer")
+                                                                 (?/ "This then pause"
+                                                                     "\
+Replace all in this buffer then terminate to resume session later")
+                                                                 (?A "All buffers"
+                                                                     "\
+Replace all matches in all buffers"))))
+                                                    (?A (setq replace-all-and-following t))
+                                                    (?/ (setq replace-all 'stop))))
                                                 (unless replaced-this (funcall do-replace))
                                                 t)
                                                (?b (goto-char (point-max))
@@ -4652,12 +4751,24 @@ Replace all matches in all buffers"))))
                                                (?s
                                                 (setq splice    (not splice)
                                                       to-insert (funcall get-replacement-string))
+                                                (setf (el-search-query-replace-object-splice
+                                                       el-search--current-query-replace)
+                                                      splice)
                                                 nil)
                                                (?o (funcall edit-and-update)
                                                    nil)
                                                (?e (funcall edit-and-update 'ediff-only)
                                                    nil)
-                                               ((or ?q ?\C-g ?\r) (signal 'quit t)))))
+                                               ((or ?q ?\C-g ?\r) (signal 'quit t))
+                                               (?S
+                                                (run-with-timer
+                                                 0 nil
+                                                 (lambda ()
+                                                   (message "Activating driving search...")
+                                                   (sit-for 1.)
+                                                   (el-search-jump-to-search-head
+                                                    el-search--current-search)))
+                                                (signal 'quit t)))))
                                (when handle (accept-change-group handle))))
                            (when (and replaced-this (not replace-all))
                              (undo-boundary)))
@@ -4710,7 +4821,10 @@ Replace all matches in all buffers"))))
                (el-search-hl-remove)
                (when should-quit
                  (remove-hook 'post-command-hook 'el-search-hl-post-command-fun t)
-                 (if (functionp should-quit) (funcall should-quit) (throw 'done t)))
+                 (if (functionp should-quit)
+                     (funcall should-quit)
+                   (funcall message-continue)
+                   (throw 'done t)))
                (setf (el-search-head-position (el-search-object-head el-search--current-search))
                      (point-max))
                (goto-char opoint)
@@ -4754,83 +4868,121 @@ Don't save this buffer and all following buffers; don't ask again"))))
                             nbr-replaced
                             (if (zerop nbr-skipped)  ""
                               (format "   (%d skipped)" nbr-skipped))))))))
-        (while (progn (el-search-continue-search)
-                      (and el-search--success (not el-search--wrap-flag))) ;FIXME: do it better
-          (funcall replace-in-current-buffer)
-          (unless replace-all-and-following (setq replace-all nil)))
+        (let ((stop nil))
+          (while (and (not stop)
+                       ;FIXME: do it better.
+                      (progn (el-search-continue-search)
+                             (and el-search--success (not el-search--wrap-flag))))
+            (funcall replace-in-current-buffer)
+            (when (eq replace-all 'stop)
+              (setq stop t)
+              (el-search-hl-post-command-fun 'stop)
+              (funcall message-continue))
+            (unless replace-all-and-following (setq replace-all nil))))
         (message "Replaced %d matches in %d buffers" nbr-replaced-total nbr-changed-buffers)))))
 
 (defun el-search-query-replace--read-args ()
   (barf-if-buffer-read-only)
-  (let ((from-input
-         (let ((el-search--initial-mb-contents
-                (or el-search--initial-mb-contents
-                    (and (or (eq last-command 'el-search-pattern)
-                             (el-search--pending-search-p))
-                         (if (equal (el-search-read (car el-search-pattern-history))
-                                    (el-search-read (car el-search-query-replace-history)))
-                             (car el-search-query-replace-history)
-                           (car el-search-pattern-history))))))
-           ;; We only want error hints so we don't bind el-search--display-match-count-in-prompt
-           (unwind-protect (minibuffer-with-setup-hook #'el-search-read-pattern-setup-mb
-                             (let ((el-search--reading-input-for-query-replace t))
-                               (el-search--read-pattern "Query replace pattern: " nil
-                                                        'el-search-query-replace-history)))
-             (when (timerp el-search--mb-hints-timer)
-               (cancel-timer el-search--mb-hints-timer)))))
-        from to read-from read-to)
-    (with-temp-buffer
-      (emacs-lisp-mode)
-      (insert from-input)
-      (goto-char 1)
-      (forward-sexp)
-      (skip-chars-forward " \t\n")
-      ;; FIXME: maybe more sanity tests here...
-      (if (not (looking-at "->\\|=>\\|>"))
-          (setq from from-input
-                to (let ((el-search--initial-mb-contents nil))
-                     (el-search--read-pattern "Replace with result of evaluation of: " from)))
-        (delete-region (point) (match-end 0))
-        (goto-char 1)
-        (forward-sexp)
-        (setq from (buffer-substring 1 (point)))
-        (skip-chars-forward " \t\n")
-        (setq to (buffer-substring (point) (progn (forward-sexp) (point))))))
-    (unless (and el-search-query-replace-history
-                 (not (string= from from-input))
-                 (string= from-input (car el-search-query-replace-history)))
-      (push (with-temp-buffer
-              (emacs-lisp-mode)
-              (insert (let ((newline-in-from (string-match-p "\n" from))
-                            (newline-in-to   (string-match-p "\n" to)))
-                        (format "%s%s%s ->%s%s"
-                                (if (and (or newline-in-from newline-in-to)
-                                         (not (string-match-p "\\`\n" from))) "\n" "")
-                                (if     newline-in-from                       "\n" "" ) from
-                                (if (and (or newline-in-from newline-in-to)
-                                         (not (string-match-p "\\`\n" to)))   "\n" " ") to)))
-              (indent-region 1 (point-max))
-              (buffer-string))
-            el-search-query-replace-history))
-    (el-search--pushnew-to-history from 'el-search-pattern-history)
-    (setq read-from (el-search-read from))
-    (setq read-to   (el-search-read to))
-    (el-search--maybe-warn-about-unquoted-symbol read-from)
-    (when (and (symbolp read-to)
-               (not (el-search--contains-p (el-search-make-matcher `',read-to) read-from))
-               (not (eq read-to t))
-               (not (eq read-to nil)))
-      (el-search--maybe-warn-about-unquoted-symbol read-to))
-    (list read-from read-to to)))
+  (if (not current-prefix-arg)
+      (let ((from-input
+             (let ((el-search--initial-mb-contents
+                    (or el-search--initial-mb-contents
+                        (and (or (eq last-command 'el-search-pattern)
+                                 (el-search--pending-search-p))
+                             (if (equal (el-search-read (car el-search-pattern-history))
+                                        (el-search-read (car el-search-query-replace-history)))
+                                 (car el-search-query-replace-history)
+                               (car el-search-pattern-history))))))
+               ;; We only want error hints so we don't bind el-search--display-match-count-in-prompt
+               (unwind-protect (minibuffer-with-setup-hook #'el-search-read-pattern-setup-mb
+                                 (let ((el-search--reading-input-for-query-replace t))
+                                   (el-search--read-pattern "Query replace pattern: " nil
+                                                            'el-search-query-replace-history)))
+                 (when (timerp el-search--mb-hints-timer)
+                   (cancel-timer el-search--mb-hints-timer)))))
+            from to read-from read-to)
+        (with-temp-buffer
+          (emacs-lisp-mode)
+          (insert from-input)
+          (goto-char 1)
+          (forward-sexp)
+          (skip-chars-forward " \t\n")
+          ;; FIXME: maybe more sanity tests here...
+          (if (not (looking-at "->\\|=>\\|>"))
+              (setq from from-input
+                    to (let ((el-search--initial-mb-contents nil))
+                         (el-search--read-pattern "Replace with result of evaluation of: " from)))
+            (delete-region (point) (match-end 0))
+            (goto-char 1)
+            (forward-sexp)
+            (setq from (buffer-substring 1 (point)))
+            (skip-chars-forward " \t\n")
+            (setq to (buffer-substring (point) (progn (forward-sexp) (point))))))
+        (unless (and el-search-query-replace-history
+                     (not (string= from from-input))
+                     (string= from-input (car el-search-query-replace-history)))
+          (push (with-temp-buffer
+                  (emacs-lisp-mode)
+                  (insert (let ((newline-in-from (string-match-p "\n" from))
+                                (newline-in-to   (string-match-p "\n" to)))
+                            (format "%s%s%s ->%s%s"
+                                    (if (and (or newline-in-from newline-in-to)
+                                             (not (string-match-p "\\`\n" from))) "\n" "")
+                                    (if     newline-in-from                       "\n" "" ) from
+                                    (if (and (or newline-in-from newline-in-to)
+                                             (not (string-match-p "\\`\n" to)))   "\n" " ") to)))
+                  (indent-region 1 (point-max))
+                  (buffer-string))
+                el-search-query-replace-history))
+        (el-search--pushnew-to-history from 'el-search-pattern-history)
+        (setq read-from (el-search-read from))
+        (setq read-to   (el-search-read to))
+        (el-search--maybe-warn-about-unquoted-symbol read-from)
+        (when (and (symbolp read-to)
+                   (not (el-search--contains-p (el-search-make-matcher `',read-to) read-from))
+                   (not (eq read-to t))
+                   (not (eq read-to nil)))
+          (el-search--maybe-warn-about-unquoted-symbol read-to))
+        (list read-from read-to to))
+    (unless el-search--current-query-replace
+      (error "No pending query-replace session"))
+    (let ((numeric-prefix (prefix-numeric-value current-prefix-arg)))
+      (when (or (< numeric-prefix 0) (equal current-prefix-arg '(16)))
+        (setq el-search--current-query-replace
+              (el-search--read-history-entry
+               el-search-query-replace-object-history
+               #'el-search--get-q-r-description-string)))
+      (let ((query-restart (lambda () (y-or-n-p "Restart current query-replace session? ")))
+            (restart (lambda () (el-search-reset-search
+                                 (el-search-query-replace-object-search-object
+                                  el-search--current-query-replace)))))
+        (unless (or (= numeric-prefix 0)
+                    (el-search-head-buffer
+                     (el-search-object-head
+                      (el-search-query-replace-object-search-object
+                       el-search--current-query-replace)))
+                    (and (funcall query-restart)
+                         (prog1 t (funcall restart))))
+          (user-error "%s" (substitute-command-keys "\
+Session terminated - C-u 0 \\[el-search-query-replace] to restart")))
+        (when (and (= numeric-prefix 0)
+                   (or (funcall query-restart)
+                       (user-error "Abort")))
+          (funcall restart)))
+      (list el-search--current-query-replace nil))))
 
 ;;;###autoload
 (defun el-search-query-replace (from-pattern to-expr &optional textual-to)
   "Replace some matches of \"el-search\" pattern FROM-PATTERN.
 
-TO-EXPR is an Elisp expression that is evaluated repeatedly for
-each match with bindings created in FROM-PATTERN in effect to
-produce a replacement expression.  Operate from point
-to (point-max).
+With prefix arg, generally resume the last session; but with
+prefix arg 0 restart the last session, and with negative or plain
+C-u C-u prefix arg, prompt for an older session to resume.
+
+FROM-PATTERN is an el-search pattern to match.  TO-EXPR is an
+Elisp expression that is evaluated repeatedly for each match with
+bindings created in FROM-PATTERN in effect to produce a
+replacement expression.
 
 As each match is found, the user must type a character saying
 what to do with it.  For directions, type ? at that time.
@@ -4844,38 +4996,37 @@ you can also give an input of the form
 prompt and specify both expressions at once.  This format is also
 used for history entries.
 
-When called directly after a search command, use the current
-search to drive query-replace (like in isearch).  You get a
-multi-buffer query-replace this way when the current search is
-multi-buffer.  When not called after a search command,
-query-replace all matches following point in the current buffer.
+Operate from point to (point-max), unless when called directly
+after a search command; then use the current search to drive
+query-replace (similar to isearch).  You get a multi-buffer
+query-replace this way when the current search is multi-buffer.
 
-It is also possible to replace matches with an arbitrary number
-of expressions (even with zero expressions, effectively deleting
+It is possible to replace matches with an arbitrary number of
+expressions (even with zero expressions, effectively deleting
 matches) by using the \"splicing\" submode that can be toggled
 from the prompt with \"s\".  When splicing mode is on (default
 off), the replacement expression must evaluate to a list, and all
 of the list's elements are inserted in order.
 
-The optional argument TEXTUAL-TO is bound by the interactive form
-to the text form of the replacement expression specified.  It is
-consulted to construct the text form of each replacement."
+In a non-interactive call, FROM-PATTERN can be an
+el-search-query-replace-object to resume.  In this case the remaining
+arguments are ignored."
   (interactive (el-search-query-replace--read-args)) ;this binds the optional argument
   (setq this-command 'el-search-query-replace) ;in case we come from isearch
-  (barf-if-buffer-read-only)
   (el-search--search-and-replace-pattern
    from-pattern to-expr nil textual-to
-   (let ((search-head (and el-search--current-search
-                           (el-search-object-head el-search--current-search))))
-     (and
-      search-head
-      (eq (el-search-head-buffer search-head) (current-buffer))
-      (equal from-pattern (el-search-object-pattern el-search--current-search))
-      (or (eq last-command 'el-search-pattern)
-          (el-search--pending-search-p))
-      (prog1 t
-        (el-search--message-no-log "Using the current search to drive query-replace...")
-        (sit-for 1.))))))
+   (or (el-search-query-replace-object-p from-pattern)
+       (let ((search-head (and el-search--current-search
+                               (el-search-object-head el-search--current-search))))
+         (and
+          search-head
+          (eq (el-search-head-buffer search-head) (current-buffer))
+          (equal from-pattern (el-search-object-pattern el-search--current-search))
+          (or (eq last-command 'el-search-pattern)
+              (el-search--pending-search-p))
+          (prog1 t
+            (el-search--message-no-log "Using the current search to drive query-replace...")
+            (sit-for 1.)))))))
 
 (defun el-search--take-over-from-isearch (&optional goto-left-end)
   (let ((other-end (and goto-left-end isearch-other-end))
@@ -4954,6 +5105,9 @@ Reuse already given input."
      ["Resume Former Search" ,(lambda () (interactive) (el-search-jump-to-search-head '(4)))
       :enable (cdr (ring-elements el-search-history))]
      ["Query-Replace" el-search-query-replace :enable (not buffer-read-only)]
+     ["Resume Query-Replace"
+      ,(lambda () (interactive) (el-search-query-replace el-search--current-query-replace nil))
+      :enable el-search--current-query-replace]
      ["Occur" ,(lambda () (interactive)
                  (defvar el-search-occur-flag)
                  (let ((el-search-occur-flag t)) (call-interactively #'el-search-pattern)))])))

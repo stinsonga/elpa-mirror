@@ -1,6 +1,21 @@
 Some of the user visible news were:
 
 
+Version: ???
+
+  Like searches, 'el-search-query-replace' sessions are now also
+  internally represented by objects with state, which means you can do
+  similar things: Resuming or restarting sessions can be achieved by
+  calling the command `el-search-query-replace' with a prefix arg.
+  The new command 'el-search-query-replace-to-register' lets you save
+  the current session to a register.
+
+  The 'el-search-query-replace' user interface also got a new key "/"
+  that replaces all remaining matches in the current buffer
+  automatically and then suspends the session.  This gives you the
+  chance to check if everything is alright in that buffer before you
+  continue with the next file or buffer by resuming that session.
+
 Version: 1.11.3
 
   When copying large parts of an *El Occur* buffer to the kill ring
