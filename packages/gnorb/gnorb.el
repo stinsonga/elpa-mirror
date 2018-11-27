@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2018  Free Software Foundation, Inc.
 
-;; Version: 1.6.0
+;; Version: 1.6.1
 ;; Package-Requires: ((cl-lib "0.5"))
 
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
