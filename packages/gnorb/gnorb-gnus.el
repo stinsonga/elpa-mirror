@@ -941,7 +941,7 @@ error."
     (when (string-match-p "Gnorb" (cadr method))
       (gnorb-summary-minor-mode))))
 
-(add-hook 'gnus-summary-mode-hook #'gnorb-gnus-summary-mode-hook)
+(add-hook 'gnus-summary-prepared-hook #'gnorb-gnus-summary-mode-hook)
 
 ;;; Automatic noticing of relevant messages
 
