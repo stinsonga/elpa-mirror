@@ -3707,9 +3707,10 @@ exactly you did?  Thanks!"))))
                                   (read-multiple-choice
                                    (let ((nbr-done  (+ nbr-replaced nbr-skipped))
                                          (nbr-to-do (el-search-count-matches pattern)))
-                                     (format "[%d/%d]"
+                                     (format "[%d/%d] %s"
                                              (if replaced-this nbr-done (1+ nbr-done))
-                                             (+ nbr-done nbr-to-do)))
+                                             (+ nbr-done nbr-to-do)
+                                             (if replaced-this "*" "-")))
                                    (delq nil
                                          (list
                                           `(?y "y"
@@ -3718,10 +3719,8 @@ exactly you did?  Thanks!"))))
                                                   "Replace match and move to the next"))
                                           (and (not replaced-this)
                                                '(?n "n" "Move to the next match"))
-                                          `(?r "r"
-                                               ,(if (not replaced-this)
-                                                    "Replace match but don't move"
-                                                  "Restore match"))
+                                          '(?r "r" "\
+Replace match but don't move or restore match if already replaced")
                                           '(?! "all" "Replace all remaining matches in this buffer")
                                           '(?b "skip buf"
                                                "Skip this buffer and any remaining matches in it")
@@ -3765,7 +3764,8 @@ Toggle splicing mode (\\[describe-function] el-search-query-replace for details)
                                                                            (el-search-object-properties
                                                                             el-search--current-search)))
                                                            (eq (car (read-multiple-choice
-                                                                     "Replace in all following buffers?"
+                                                                     "\
+Also replace in all following buffers?"
                                                                      '((?! "Only this"
                                                                            "\
 Replace only remaining matches in this buffer")
