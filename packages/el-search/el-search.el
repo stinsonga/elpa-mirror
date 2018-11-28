@@ -528,13 +528,16 @@ is non-nil."
   "Face for highlighting important parts in prompts.")
 
 (defcustom el-search-display-buffer-popup-action
-  '((display-buffer-reuse-window display-buffer-pop-up-frame)
+  '((display-buffer-reuse-window display-buffer-same-window)
     (reusable-frames . visible))
   "`display-buffer' action used to display pop-up windows."
   :type display-buffer--action-custom-type)
 
 (defcustom el-search-display-next-buffer-action
-  '(display-buffer-same-window (inhibit-same-window . nil))
+  '((display-buffer-reuse-window
+     display-buffer-same-window)
+    (reusable-frames . visible)
+    (inhibit-same-window . nil))
   "Action used to display the next buffer in multi searches."
   :type display-buffer--action-custom-type)
 
@@ -2979,7 +2982,7 @@ make current."
             (sit-for 2)
             (el-search-continue-search))
         (setq this-command 'el-search-pattern)
-        (pop-to-buffer current-search-buffer el-search-display-buffer-popup-action)
+        (pop-to-buffer current-search-buffer el-search-display-next-buffer-action)
         (el-search-protect-search-head
          (let ((last-match (el-search-object-last-match search)))
            (cond
