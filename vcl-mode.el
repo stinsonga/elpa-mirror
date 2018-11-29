@@ -1,10 +1,10 @@
 ;;; vcl-mode.el --- major mode for editing VCL sources
 
-;; Authors: 2015 Sergey Poznyakoff
-;; Version: 0.1
+;; Authors: 2015-2018 Sergey Poznyakoff
+;; Version: 1.0
 ;; Keywords: Varnish, VCL
 
-;; Copyright (C) 2015 Sergey Poznyakoff
+;; Copyright (C) 2015-2018 Free Software Foundation, Inc.
  
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 ;;  (autoload 'vcl-mode "vcl-mode" "Major mode for Varnish VCL sources" t)
 ;;  (add-to-list 'auto-mode-alist (cons (purecopy "\\.vcl\\'")  'vcl-mode))
 
+(require 'cl)
 (require 'cc-langs)
 
 (defvar vcl-mode-map ()
