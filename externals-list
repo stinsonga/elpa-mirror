@@ -111,6 +111,7 @@
  ("temp-buffer-browse"  :subtree "https://github.com/leoliu/temp-buffer-browse")
  ("test-simple"         :subtree "https://github.com/rocky/emacs-test-simple")
  ("vdiff"               :subtree "https://github.com/justbur/emacs-vdiff")
+ ("vcl-mode"	        :subtree "git://git.gnu.org.ua/vcl-mode")
  ;;("tramp"		:core
  ;;			  (;; FIXME: elpa.gnu.org doesn't know where to get from
  ;;			   ;;"README.md"
