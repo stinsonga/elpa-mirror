@@ -1,16 +1,16 @@
-;;; vcl-mode.el --- major mode for editing VCL sources
+;;; vcl-mode.el --- Major mode for Varnish Configuration Language
 
-;; Authors: 2015-2018 Sergey Poznyakoff
+;; Author: Sergey Poznyakoff <gray@gnu.org.ua>
 ;; Version: 1.0
 ;; Keywords: Varnish, VCL
 
 ;; Copyright (C) 2015-2018 Free Software Foundation, Inc.
- 
+
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation; either version 3 of the License, or
 ;; (at your option) any later version.
- 
+
 ;; This program is distributed in the hope that it will be useful,
 ;; but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -18,6 +18,19 @@
 
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;; Emacs support for Varnish's configuration language:
+;; https://varnish-cache.org/docs/trunk/users-guide/vcl.html
+;; This version of vcl-mode supports VCL-4.0.
+
+;; The features provided are auto-indentation (based on CC-mode's
+;; engine), keyword highlighting, and matching of {"..."} multi-line
+;; string delimiters.
+
+;; If you need support for VCL-2.0, you might have more luck with the older
+;; package: https://github.com/ssm/elisp/blob/master/vcl-mode.el
 
 ;; Installation:
 ;; You may wish to use precompiled version of the mode. To create it
@@ -30,6 +43,8 @@
 ;;  To your .emacs or site-start.el add:
 ;;  (autoload 'vcl-mode "vcl-mode" "Major mode for Varnish VCL sources" t)
 ;;  (add-to-list 'auto-mode-alist (cons (purecopy "\\.vcl\\'")  'vcl-mode))
+
+;;; Code:
 
 (require 'cl)
 (require 'cc-langs)
@@ -109,7 +124,7 @@
       'font-lock-keyword-face)
      ))
   "Subdued level highlighting for VCL buffers.")
-    
+
 (defconst vcl-font-lock-keywords-2
   (append vcl-font-lock-keywords-1
 	  (eval-when-compile
@@ -162,7 +177,7 @@
 			 "regsuball") t)
 		      "\\>")
 	      'font-lock-function-name-face)
-	     
+
 	     ;; Objects and variables
 	     ;; See https://www.varnish-cache.org/docs/4.0/reference/vcl.html#variables
 	     (list (concat "\\<"
@@ -269,7 +284,7 @@
 	       '(1 font-lock-builtin-face)
 	       '(2 font-lock-variahle-name-face)
 	       '(3 font-lock-builtin-face))
-		   
+
 	     (cons
 	      (concat "\\<"
 	     	      (regexp-opt
@@ -291,7 +306,7 @@
 	     ;; '("\\<\\(\\sw+\\)\\(\\.\\(\\sw+\\)\\)*[ \t]*("
 	     ;;   (1 font-lock-function-name-face)
 	     ;;   (3 font-lock-function-name-face nil t))
-	     
+
 	     ;; Constants
 	     '("\\<\\([[:digit:]]+\\(\\.[[:digit:]]+\\)?\\)[ \t]*\\(ms\\|[smhdwy]\\)?\\>"
 	       (1 font-lock-constant-face) (3 font-lock-builtin-face nil t)))))
@@ -312,7 +327,7 @@
 
 (defun vcl-sharp-comment-syntax ()
   (save-excursion
-    (goto-char (match-beginning 0))    
+    (goto-char (match-beginning 0))
     (let ((syntax (save-match-data (syntax-ppss))))
       (cond
        ((not (or (nth 3 syntax) (nth 4 syntax)))
@@ -411,7 +426,7 @@ With ARG, do it that many times.
 		   (search-failed
 		    (message "Not enough groups to satisfy the request")
 		    (throw 'stop t)))))))
-       
+
        (scan-error (goto-char (nth 2 err))
 		   (message "%s" (nth 1 err)))
        (search-failed (message "Unbalanced %s" (cdr err)))))))
@@ -429,7 +444,7 @@ Key bindings:
   (set (make-local-variable 'syntax-propertize-function)
        vcl-syntax-propertize-function)
   (set (make-local-variable 'parse-sexp-lookup-properties) t)
-  
+
   (c-initialize-cc-mode t)
   (c-lang-setvar comment-start "# ")
   (setq c-opt-cpp-prefix nil)
@@ -442,5 +457,6 @@ Key bindings:
 
   (c-run-mode-hooks 'c-mode-common-hook 'vcl-mode-hook)
   (c-update-modeline))
-  
+
 (provide 'vcl-mode)
+;;; vcl-mode.el ends here
