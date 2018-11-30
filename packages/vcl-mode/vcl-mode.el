@@ -1,7 +1,7 @@
-;;; vcl-mode.el --- Major mode for Varnish Configuration Language
+;;; vcl-mode.el --- Major mode for Varnish Configuration Language  -*- lexical-binding:t -*-
 
 ;; Author: Sergey Poznyakoff <gray@gnu.org.ua>
-;; Version: 1.0
+;; Version: 1.1
 ;; Keywords: Varnish, VCL
 
 ;; Copyright (C) 2015-2018 Free Software Foundation, Inc.
@@ -32,36 +32,23 @@
 ;; If you need support for VCL-2.0, you might have more luck with the older
 ;; package: https://github.com/ssm/elisp/blob/master/vcl-mode.el
 
-;; Installation:
-;; You may wish to use precompiled version of the mode. To create it
-;; run:
-;;    emacs -batch -f batch-byte-compile vcl-mode.el
-;; Install the file vcl-mode.elc (and, optionally, vcl-mode.el) to
-;; a directory in your Emacs load-path.
-
-;; Customization:
-;;  To your .emacs or site-start.el add:
-;;  (autoload 'vcl-mode "vcl-mode" "Major mode for Varnish VCL sources" t)
-;;  (add-to-list 'auto-mode-alist (cons (purecopy "\\.vcl\\'")  'vcl-mode))
-
 ;;; Code:
 
-(require 'cl)
+(require 'cc-mode)
 (require 'cc-langs)
 
-(defvar vcl-mode-map ()
+(defvar vcl-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map c-mode-base-map)
+    (define-key map "\C-c%" 'vcl-match-paren)
+    map)
   "Keymap used in vcl-mode buffers.")
-(if vcl-mode-map
-    nil
-  (setq vcl-mode-map (c-make-inherited-keymap))
-  (define-key vcl-mode-map "\C-c%" 'vcl-match-paren))
 
 (defvar vcl-mode-syntax-table
   (let ((st (make-syntax-table)))
     (modify-syntax-entry ?\n "> b" st)
-    (modify-syntax-entry ?\r ">   " st)
-    (modify-syntax-entry ?\f ">   " st)
-;    (modify-syntax-entry ?\# "<" st)
+    ;; Use comment style `b' to match the style used for \n!
+    (modify-syntax-entry ?\# "< b" st)
     (modify-syntax-entry ?/ ". 124b" st)
     (modify-syntax-entry ?* ". 23" st)
     (modify-syntax-entry ?+ "." st)
@@ -75,14 +62,13 @@
     (modify-syntax-entry ?| "." st)
     (modify-syntax-entry ?_ "_" st)
     (modify-syntax-entry ?\' "." st)
-    (modify-syntax-entry ?\" "." st)
+    (modify-syntax-entry ?\" "\"" st)
     st)
   "Syntax table in use in VCL Mode buffers.")
 
-(defvar vcl-mode-abbrev-table nil
+(define-abbrev-table 'vcl-mode-abbrev-table
+  '(("else" "else" c-electric-continued-statement :system t))
   "Abbreviation table used in vcl-mode buffers.")
-(c-define-abbrev-table 'vcl-mode-abbrev-table
-  '(("else" "else" c-electric-continued-statement 0)))
 
 ;; Font locking
 (defconst vcl-font-lock-keywords-1
@@ -142,7 +128,7 @@
 		         "remove"
 			 "unset"
 			 "director"
-			 "probe") t)
+			 "probe"))
 		      "\\>")
 	      'font-lock-keyword-face)
 	     ;; Return values
@@ -160,7 +146,7 @@
 			 "deliver"
 		         "restart"
 	                 "true"
-                         "false") t)
+                         "false"))
 		      "\\>")
 	      'font-lock-constant-face)
 	     ;; Functions
@@ -174,7 +160,7 @@
 		         "synth"
 			 "synthetic"
 			 "regsub"
-			 "regsuball") t)
+			 "regsuball"))
 		      "\\>")
 	      'font-lock-function-name-face)
 
@@ -186,7 +172,8 @@
 	     		 "resp"
 	     		 "bereq"
                          "beresp"
-                         "obj") t)
+                         "obj")
+                       t)
 		      "\\.\\(http\\)\\(\\.\\([a-zA-Z_-][a-zA-Z_0-9-]*\\)\\)?")
 	       '(1 font-lock-builtin-face)
 	       '(2 font-lock-builtin-face)
@@ -202,13 +189,15 @@
 			      "retries"
 			      "uncacheable"
 			      "url"
-			      "xid") t))
+			      "xid")
+                            t))
 	       '(1 font-lock-builtin-face)
 	       '(2 font-lock-builtin-face))
 	     (list (concat "\\<\\(beresp\\)\\.\\(backend\\)\\."
 			   (regexp-opt
 			    '("name"
-			      "ip") t))
+			      "ip")
+                            t))
 	       '(1 font-lock-builtin-face)
 	       '(2 font-lock-builtin-face)
 	       '(3 font-lock-builtin-face))
@@ -225,13 +214,15 @@
 			      "status"
 			      "storage_hint"
 			      "ttl"
-			      "uncacheable") t))
+			      "uncacheable")
+                            t))
 	       '(1 font-lock-builtin-face)
 	       '(2 font-lock-builtin-face))
 	     (list (concat "\\<\\(client\\)\\."
 			   (regexp-opt
 			    '("identity"
-			      "ip") t))
+			      "ip")
+                            t))
 	       '(1 font-lock-builtin-face)
 	       '(2 font-lock-builtin-face))
 	     (list (concat "\\<\\(obj\\)\\."
@@ -243,7 +234,8 @@
 			      "reason"
 			      "status"
 			      "ttl"
-			      "uncacheable") t))
+			      "uncacheable")
+                            t))
 	       '(1 font-lock-builtin-face)
 	       '(2 font-lock-builtin-face))
 	     (list (concat "\\<\\(req\\)\\."
@@ -259,28 +251,32 @@
 			      "restarts"
 			      "ttl"
 			      "url"
-			      "xid") t))
+			      "xid")
+                            t))
 	       '(1 font-lock-builtin-face)
 	       '(2 font-lock-builtin-face))
 	     (list (concat "\\<\\(resp\\)\\."
 			   (regexp-opt
 			    '("proto"
 			      "reason"
-			      "status") t))
+			      "status")
+                            t))
 	       '(1 font-lock-builtin-face)
 	       '(2 font-lock-builtin-face))
 	     (list (concat "\\<\\(server\\)\\."
 			   (regexp-opt
 			    '("hostname"
 			      "identity"
-			      "ip") t))
+			      "ip")
+                            t))
 	       '(1 font-lock-builtin-face)
 	       '(2 font-lock-builtin-face))
 	     (list (concat "\\<\\(storage\\)\\.\\(\\sw+\\)\\."
 			   (regexp-opt
 			    '("free_space"
 			      "used_space"
-			      "happy") t))
+			      "happy")
+                            t))
 	       '(1 font-lock-builtin-face)
 	       '(2 font-lock-variahle-name-face)
 	       '(3 font-lock-builtin-face))
@@ -295,7 +291,7 @@
 	     	         "client"
                          "server"
                          "obj"
-			 "now") t)
+			 "now"))
 	     	      "\\>")
 	      'font-lock-builtin-face)
 
@@ -303,9 +299,6 @@
 	     '("\\<\\(\\(\\sw+\\)\\.\\)*\\(\\sw+\\)[ \t]*("
 	       (2 font-lock-variable-name-face nil t)
 	       (3 font-lock-function-name-face))
-	     ;; '("\\<\\(\\sw+\\)\\(\\.\\(\\sw+\\)\\)*[ \t]*("
-	     ;;   (1 font-lock-function-name-face)
-	     ;;   (3 font-lock-function-name-face nil t))
 
 	     ;; Constants
 	     '("\\<\\([[:digit:]]+\\(\\.[[:digit:]]+\\)?\\)[ \t]*\\(ms\\|[smhdwy]\\)?\\>"
@@ -325,67 +318,38 @@
 
 (put 'vcl-mode 'c-mode-prefix "vcl-")
 
-(defun vcl-sharp-comment-syntax ()
-  (save-excursion
-    (goto-char (match-beginning 0))
-    (let ((syntax (save-match-data (syntax-ppss))))
-      (cond
-       ((not (or (nth 3 syntax) (nth 4 syntax)))
-	(put-text-property (match-beginning 1) (match-end 1)
-			   'syntax-table (string-to-syntax "<"))
-	(end-of-line)
-	(put-text-property (point) (+ (point) 1)
-			   'syntax-table (string-to-syntax ">")))))))
-
 (defconst vcl-syntax-propertize-function
   (syntax-propertize-rules
    ("\\({\\)\""
-    (1 "|"))
-   ("\\({\\)[^\"]"
-    (1 "(}"))
+    (1 (when (null (nth 8 (save-excursion
+                            (syntax-ppss (match-beginning 0)))))
+         (string-to-syntax "|"))))
    ("\"\\(}\\)"
-    (1 "|"))
-   ("\\(^\\|[^\"]\\)\\(}\\)"
-    (2 "){"))
-   ("\\(\"\\)[^}]"
-    (1 (let ((syntax (save-match-data (syntax-ppss))))
-	 (string-to-syntax
-	  (cond ((nth 4 syntax)
-		 ".")
-		((eq (nth 3 syntax) t)
-		 (backward-char)
-		 ".")
-		(t
-		 (backward-char)
-		 "\""))))))
-   ("\\(#\\)"
-    (1 (ignore (vcl-sharp-comment-syntax))))
-   ))
+    (1 (when (eq t (nth 3 (save-excursion
+                            (syntax-ppss (match-beginning 0)))))
+         (string-to-syntax "|"))))))
 
 (defun vcl-match-paren (&optional arg)
+  ;; FIXME: Assuming syntax-propertize works correctly, forward-sexp and
+  ;; backward-sexp should do the trick!
   "If point is on a parenthesis (including VCL multi-line string delimiter),
 find the matching one and move point to it.
-With ARG, do it that many times.
-"
+With ARG, do it that many times."
  (interactive "p")
  (let ((n (or arg 1))
        (matcher (cond
-		 ((looking-at "\\s\(")
+		 ((looking-at "\\s(")
 		  (cons
-		   (lexical-let ((s (buffer-substring
-				     (match-beginning 0)
-				     (match-end 0))))
+		   (let ((s (match-string 0)))
 		     (lambda ()
 		       (search-forward s)
 		       (backward-char)))
 		   (lambda ()
 		     (forward-list)
 		     (backward-char))))
-		 ((looking-at "\\s\)")
+		 ((looking-at "\\s)")
 		  (cons
-		   (lexical-let ((s (buffer-substring
-				     (match-beginning 0)
-				     (match-end 0))))
+		   (let ((s (match-string 0)))
 		     (lambda ()
 		       (search-backward s)))
 		   (lambda ()
@@ -421,7 +385,7 @@ With ARG, do it that many times.
 	       (setq n (1- n))
 	       (if (= n 0)
 		   (throw 'stop t)
-		 (condition-case e
+		 (condition-case nil
 		     (funcall fx)
 		   (search-failed
 		    (message "Not enough groups to satisfy the request")
@@ -436,11 +400,11 @@ With ARG, do it that many times.
 
 ;;;###autoload
 (define-derived-mode vcl-mode prog-mode "VCL"
-  "Major mode for editing VCL code.
+  "Major mode for editing Varnish Configuration Language code.
 
 Key bindings:
 \\{vcl-mode-map}"
-
+  :abbrev-table vcl-mode-abbrev-table
   (set (make-local-variable 'syntax-propertize-function)
        vcl-syntax-propertize-function)
   (set (make-local-variable 'parse-sexp-lookup-properties) t)
@@ -448,14 +412,11 @@ Key bindings:
   (c-initialize-cc-mode t)
   (c-lang-setvar comment-start "# ")
   (setq c-opt-cpp-prefix nil)
-  (set-syntax-table vcl-mode-syntax-table)
-  (setq local-abbrev-table vcl-mode-abbrev-table
-	abbrev-mode t)
-  (use-local-map vcl-mode-map)
+  (setq abbrev-mode t)
   (c-init-language-vars vcl-mode)
   (c-common-init 'vcl-mode)
 
-  (c-run-mode-hooks 'c-mode-common-hook 'vcl-mode-hook)
+  (run-mode-hooks 'c-mode-common-hook 'vcl-mode-hook)
   (c-update-modeline))
 
 (provide 'vcl-mode)
