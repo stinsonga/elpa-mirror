@@ -13,7 +13,7 @@ package ARM_Texinfo is
    --
    -- ---------------------------------------
    --
-   --  Copyright (C) 2003, 2007, 2011, 2013 Stephen Leake.  All Rights Reserved.
+   --  Copyright (C) 2003, 2007, 2011, 2013, 2018 Stephen Leake.  All Rights Reserved.
    --  E-Mail: stephen_leake@stephe-leake.org
    --
    --  This library is free software; you can redistribute it and/or
@@ -35,13 +35,13 @@ package ARM_Texinfo is
    -- Ancient  - S L - Developed package as add-on to Arm_Form.
    -- 10/19/11 - RLB - Integrated outside-developed package into Arm_Form.
    --                  Commented out/replaced Ada 2005 features (this is
-   --		       Ada 95 code). Updated for a few other changes since
-   --		       the last update.
+   --                  Ada 95 code). Updated for a few other changes since
+   --                  the last update.
    -- 10/25/11 - RLB - Added old insertion version to Revised_Clause_Header.
    --  4/ 1/12 - S L - Various revisions.
    --  8/31/12 - RLB - Added Output_Path.
    -- 11/26/12 - RLB - Added subdivision names to Clause_Header and
-   --		       Revised_Clause_Header.
+   --                  Revised_Clause_Header.
 
    type Texinfo_Output_Type is new ARM_Output.Output_Type with private;
 
@@ -281,6 +281,7 @@ private
       In_Paragraph  : Boolean := False; --  Sub-state within major states
       Style         : ARM_Output.Paragraph_Style_Type;
       Indent        : ARM_Output.Paragraph_Indent_Type;
+      Format        : ARM_Output.Format_Type := ARM_Output.Normal_Format;
       End_Hang_Seen : Boolean;
 
       --  Detecting end of title page

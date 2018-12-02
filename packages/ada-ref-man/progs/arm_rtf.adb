@@ -5237,7 +5237,7 @@ package body ARM_RTF is
 	-- Bold off, Italic off should be avoided (as separate commands).
 	TRACE_TF : constant Boolean := FALSE;
 	use type ARM_Output.Change_Type;
-	use type ARM_Contents.Change_Version_Type;
+	--  use type ARM_Contents.Change_Version_Type;
 	use type ARM_Output.Location_Type;
 	use type ARM_Output.Size_Type;
 	use type ARM_Output.Color_Type;
