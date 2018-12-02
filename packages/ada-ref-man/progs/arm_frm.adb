@@ -21,7 +21,7 @@ package body ARM_Format is
     --
     -- ---------------------------------------
     -- Copyright 2000, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
-    --           2010, 2011, 2012, 2013, 2016
+    --           2010, 2011, 2012, 2013, 2016, 2018
     -- AXE Consultants. All rights reserved.
     -- P.O. Box 1512, Madison WI  53701
     -- E-Mail: randy@rrsoftware.com
@@ -2335,7 +2335,9 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 			-- supposed to be any at this point.
 		        Ada.Text_IO.Put_Line ("** References generated for no display paragraph; line " & ARM_Input.Line_String (Input_Object));
 		    else
+                        pragma Warnings (Off, "writable actual for ""List"" overlaps with actual for ""Format_Object""");
 			Make_References (Format_Object.References, Format_Object, Output_Object);
+                        pragma Warnings (On);
 		    end if;
 		end if;
 

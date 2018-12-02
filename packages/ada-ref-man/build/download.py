@@ -68,7 +68,10 @@ class CVSWeb ():
             match = re.search (str.encode (pattern), contents)
             if not match:
                 return None
-            cgi += '?rev=' + bytes.decode (match.group (1))
+            rev = bytes.decode (match.group (1))
+            cgi += '?rev=' + rev
+            print ('{:<30} : {}'.format (path, rev))
+
         else:
             cgi += '?rev=HEAD'
         with urllib.request.urlopen (self._host + cgi) as f:

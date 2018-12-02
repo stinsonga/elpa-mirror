@@ -22,7 +22,7 @@ package body ARM_Master is
     -- execute it.
     --
     -- ---------------------------------------
-    -- Copyright 2006, 2007, 2009, 2011, 2012, 2013, 2016
+    -- Copyright 2006, 2007, 2009, 2011, 2012, 2013, 2016, 2018
     --   AXE Consultants. All rights reserved.
     -- P.O. Box 1512, Madison WI  53701
     -- E-Mail: randy@rrsoftware.com
@@ -316,7 +316,7 @@ package body ARM_Master is
 	procedure Process_Command is
 	    Command_Name : ARM_Input.Command_Name_Type;
 	    Ch : Character;
-	    use type ARM_Output.Size_Type;
+	    --  use type ARM_Output.Size_Type;
 	    Command : Command_Type;
 
 	    Close_Ch : Character;

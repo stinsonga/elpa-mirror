@@ -2,7 +2,7 @@ with Ada.Exceptions;
 with Ada.Strings.Fixed;
 package body ARM_Texinfo is
 
-   --  Copyright (C) 2003, 2007, 2010 - 2013, 2015, 2017 Stephen Leake.  All Rights Reserved.
+   --  Copyright (C) 2003, 2007, 2010 - 2013, 2015, 2017, 2018 Stephen Leake.  All Rights Reserved.
    --  E-Mail: stephen_leake@acm.org
    --
    --  This library is free software; you can redistribute it and/or
@@ -824,7 +824,12 @@ package body ARM_Texinfo is
      (Output_Object : in out Texinfo_Output_Type;
       Format        : in     ARM_Output.Format_Type)
    is begin
-      null;
+      --  We only handle italic, for annotated syntax item names
+      if Format.Italic /= Output_Object.Format.Italic then
+         --  Info format does not support fonts, so we use <>
+         Put (Output_Object.File, (if Format.Italic then '<' else '>'));
+      end if;
+      Output_Object.Format := Format;
    end Text_Format;
 
    procedure End_Paragraph (Output_Object : in out Texinfo_Output_Type)
@@ -1647,8 +1652,11 @@ package body ARM_Texinfo is
                "Table with 1 column");
 
          when 2 =>
+            --  @table doesn't work inside @display; PDFTex fails with @table here.
+            --  https://lists.gnu.org/archive/html/bug-texinfo/2004-10/txtJLetHrEhdc.txt
             New_Line (Output_Object.File);
-            Put_Line (Output_Object.File, "@table @asis");
+            Put_Line (Output_Object.File, "@multitable {wwwwwwwwww} {wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww}");
+            Put (Output_Object.File, "@headitem ");
 
          when others =>
             New_Line (Output_Object.File);
@@ -1709,7 +1717,8 @@ package body ARM_Texinfo is
 
          when 2 =>
             New_Line (Output_Object.File);
-            Put_Line (Output_Object.File, "@table @asis");
+            Put_Line (Output_Object.File, "@multitable {wwwwwwwwww} {wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww}");
+            Put (Output_Object.File, "@headitem ");
 
          when others =>
             New_Line (Output_Object.File);
@@ -1733,8 +1742,8 @@ package body ARM_Texinfo is
          when Normal =>
             case Output_Object.Column_Count is
             when 2 =>
-               --  using @table
-               Put (Output_Object.File, ' ');
+               New_Line (Output_Object.File);
+               Put (Output_Object.File, "@tab ");
 
             when others =>
                Put (Output_Object.File, " @tab ");
@@ -1769,7 +1778,8 @@ package body ARM_Texinfo is
 
          when Normal =>
             --  A two-column table; header has been output
-            null;
+            New_Line (Output_Object.File);
+            Put (Output_Object.File, "@item ");
 
          when Contents | Multi_Column | Title | Index_Start | Index =>
             Unexpected_State (Output_Object);
@@ -1784,7 +1794,7 @@ package body ARM_Texinfo is
          case Output_Object.Column_Count is
          when 2 =>
             New_Line (Output_Object.File);
-            Put_Line (Output_Object.File, "@end table");
+            Put_Line (Output_Object.File, "@end multitable");
 
          when others =>
             Put_Line (Output_Object.File, "@end multitable");

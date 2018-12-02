@@ -71,7 +71,6 @@ project ARM_Info is
      Switches :=
        ("-g",
         "-O0",
-        "-gnat2005",
         "-gnatfoqQ",
         "-gnatVa",
         "-gnatwaCeFKLMP",
