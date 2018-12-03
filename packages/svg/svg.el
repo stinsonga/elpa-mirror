@@ -4,7 +4,7 @@
 
 ;; Maintainer: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: image
-;; Version: 0.1
+;; Version: 0.2
 ;; Package-Requires: ((emacs "25"))
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -64,7 +64,7 @@ any further elements added."
 	    `((width . ,width)
 	      (height . ,height)
 	      (version . "1.1")
-	      (xmlsn . "http://www.w3.org/2000/svg")
+	      (xmlns . "http://www.w3.org/2000/svg")
 	      ,@(svg-arguments nil args))))
 
 (defun svg-gradient (svg id type &rest stops)
