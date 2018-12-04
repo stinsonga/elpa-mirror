@@ -76,6 +76,7 @@
  ("ergoemacs-mode"	:external "https://github.com/ergoemacs/ergoemacs-mode.git")
  ("exwm"		:external "https://github.com/ch11ng/exwm.git")
  ("f90-interface-browser" :subtree "https://github.com/wence-/f90-iface")
+ ("flymake"		:core "lisp/progmodes/flymake.el")
  ("fountain-mode"	:external "https://github.com/rnkn/fountain-mode")
  ("ggtags"		:subtree "https://github.com/leoliu/ggtags")
  ("gnome-c-style"	:subtree "https://github.com/ueno/gnome-c-style.git")
