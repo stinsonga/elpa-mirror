@@ -255,10 +255,16 @@ will start a mock Gnus session."
 						      %Seen %Draft %*))))))
 	       (current-buffer)))
 	    (basic-save-buffer))
-	  (make-process :name "gnus-mock" :buffer nil
-			:command (list gnus-mock-emacs-program
-				       "-Q" "--load" init-file)
-			:stderr "*gnus mock errors*"))
+	  (let ((default-directory
+		  (expand-file-name
+		   "lisp/gnus"
+		   (file-name-as-directory
+		    (expand-file-name "../.."
+				      gnus-mock-emacs-program)))))
+	    (make-process :name "gnus-mock" :buffer nil
+			  :command (list gnus-mock-emacs-program
+					 "-Q" "--load" init-file)
+			  :stderr "*gnus mock errors*")))
       (error (when (and gnus-mock-cleanup-p
 			(file-exists-p mock-tmp-dir))
 	       (delete-directory mock-tmp-dir t))
