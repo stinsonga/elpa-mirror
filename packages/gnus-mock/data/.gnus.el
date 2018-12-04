@@ -15,6 +15,8 @@
 (setq user-mail-address "mockturtle@gnus.org"
       user-full-name "Mock Turtle")
 
+(setq gnus-verbose 10)
+
 ;; `sendmail-program' has already been set to fakesendmail.py in the
 ;; init file.
 (setq message-send-mail-function #'message-send-mail-with-sendmail)
