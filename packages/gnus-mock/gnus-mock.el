@@ -139,7 +139,7 @@ Gnus settings pre-loaded.  Any of the normal Gnus entry points
 will start a mock Gnus session."
   (interactive)
   (let ((mock-tmp-dir (make-temp-file "emacs-gnus-mock-" t)))
-    (condition-case nil
+    (condition-case-unless-debug err
 	(let ((init-file (expand-file-name "init.el" mock-tmp-dir)))
 	  (with-temp-buffer
 	    (let ((standard-output (current-buffer))
@@ -261,7 +261,8 @@ will start a mock Gnus session."
 			:stderr "*gnus mock errors*"))
       (error (when (and gnus-mock-cleanup-p
 			(file-exists-p mock-tmp-dir))
-	       (delete-directory mock-tmp-dir t))))))
+	       (delete-directory mock-tmp-dir t))
+	     (signal (car err) (cdr err))))))
 
 (provide 'gnus-mock)
 ;;; gnus-mock.el ends here
