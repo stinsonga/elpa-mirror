@@ -6,7 +6,7 @@
 --  used in most of the WisiToken unit tests. Since it uses regexp, it
 --  is easy to convert to an Aflex lexer.
 --
---  Copyright (C) 2015, 2017, 2018 Stephe Leake
+--  Copyright (C) 2015, 2017, 2018 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --

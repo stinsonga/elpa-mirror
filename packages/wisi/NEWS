@@ -7,6 +7,13 @@ Please send wisi bug reports to bug-gnu-emacs@gnu.org, with
 'wisi' in the subject. If possible, use M-x report-emacs-bug.
 
 
+* wisi 2.0.1
+8 Dec 2018
+
+** Assign copyright in Ada files to FSF
+
+** Update user guide, include it in elpa package
+
 * wisi 2.0.0
 17 Nov 2018
 

@@ -14,7 +14,7 @@
 --  [warth 2008]  Warth, A., Douglass, J.R. and Millstein, T.D., 2008. Packrat
 --                parsers can support left recursion. PEPM, 8, pp.103-110.
 --
---  Copyright (C) 2018 Stephen Leake All Rights Reserved.
+--  Copyright (C) 2018 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free

@@ -48,10 +48,15 @@ PYTHON ?= python3
 
 .PHONY: all clean publish
 
-all: $(foreach d,$(DOCUMENTS),\
+all:: $(foreach d,$(DOCUMENTS),\
      $(foreach y,$(YEARS),\
      $(foreach f,$(FORMATS),\
        $(d)$(y).$(f))))
+
+all:: create-dir
+
+create-dir : force
+	for file in *.info; do install-info $$file dir; done
 
 # We have been unable to get rid of all the section ref violations, so we
 # specify --no-validate. Delete that to see the errors.

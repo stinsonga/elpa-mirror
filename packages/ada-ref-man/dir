@@ -1,7 +1,21 @@
+This is the file .../info/dir, which contains the
+topmost node of the Info hierarchy, called (dir)Top.
+The first time you invoke Info you start off looking at this node.
 
-File: dir,	Node: Top
+File: dir,	Node: Top	This is the top of the INFO tree
+
+  This (the Directory node) gives a menu of major topics.
+  Typing "q" exits, "H" lists all Info commands, "d" returns here,
+  "h" gives a primer for first-timers,
+  "mEmacs<Return>" visits the Emacs manual, etc.
+
+  In Emacs, you can click mouse button 2 on a menu item or cross reference
+  to select it.
 
 * Menu:
 
-* Annotated Ada Reference Manual TC1: (aarm2012).
-* Ada Reference Manual TC1:           (arm2012).
+GNU Ada tools
+* Ada Reference Manual: (arm2005).
+* Ada Reference Manual TC1: (arm2012).
+* Annotated ARM: (arm2005).
+* Annotated ARM TC1: (arm2012).

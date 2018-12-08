@@ -1,6 +1,8 @@
--------------------------------------------------------------------------------
+--  Abstract:
 --
---  Copyright (C) 2009, 2014-2015, 2017, 2018 Stephe Leake
+--  See spec
+--
+--  Copyright (C) 2009, 2014-2015, 2017, 2018 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --

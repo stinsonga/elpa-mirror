@@ -6,8 +6,7 @@
 --  to not depend on wisitoken-lr-mckenzie_recover, so editing that
 --  does not cause everything to be regenerated/compiled.
 --
---  Copyright (C) 2002, 2003, 2009, 2010, 2013-2015, 2017, 2018 Stephe Leake
---  Copyright (C) 1999 Ted Dennison
+--  Copyright (C) 2002, 2003, 2009, 2010, 2013-2015, 2017, 2018 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --

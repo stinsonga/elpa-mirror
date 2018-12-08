@@ -2,7 +2,7 @@
 --
 --  Types and operations shared by Ada and Ada_Emacs outputs.
 --
---  Copyright (C) 2017, 2018 Stephen Leake All Rights Reserved.
+--  Copyright (C) 2017, 2018 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -83,9 +83,8 @@ package WisiToken.BNF.Output_Ada_Common is
      (Input_Data            :         in WisiToken_Grammar_Runtime.User_Data_Type;
       Tuple                 :         in Generate_Tuple;
       Generate_Data         : aliased in WisiToken.BNF.Generate_Utils.Generate_Data;
-      Output_File_Name_Root :         in String;
-      Elisp_Regexps         :         in WisiToken.BNF.String_Pair_Lists.List);
-   --  Create_re2c is called from wisi-generate, which does not declare
+      Output_File_Name_Root :         in String);
+   --  Create_re2c is called from wisitoken-bnf-generate, which does not declare
    --  Common_Data.
 
 end WisiToken.BNF.Output_Ada_Common;

@@ -3,7 +3,7 @@
 --  Parser for Wisi grammar files, producing Ada or Elisp source
 --  files for a parser.
 --
---  Copyright (C) 2012 - 2015, 2017, 2018 Stephen Leake.  All Rights Reserved.
+--  Copyright (C) 2012 - 2015, 2017, 2018 Free Software Foundation, Inc.
 --
 --  The WisiToken package is free software; you can redistribute it
 --  and/or modify it under terms of the GNU General Public License as
@@ -54,7 +54,7 @@ is
    begin
       --  verbosity meaning is actually determined by output choice;
       --  they should be consistent with this description.
-      Put_Line (Standard_Error, "version 1.0");
+      Put_Line (Standard_Error, "version 1.0.1");
       Put_Line (Standard_Error, "wisi-generate [options] {wisi grammar file}");
       Put_Line (Standard_Error, "Generate source code implementing a parser for the grammar.");
       New_Line (Standard_Error);
@@ -349,7 +349,7 @@ begin
                Lexer_Done (Input_Data.User_Lexer) := True;
                if Input_Data.User_Lexer = re2c_Lexer then
                   WisiToken.BNF.Output_Ada_Common.Create_re2c
-                    (Input_Data, Tuple, Generate_Data, -Output_File_Name_Root, Input_Data.User_Names.Regexps);
+                    (Input_Data, Tuple, Generate_Data, -Output_File_Name_Root);
                end if;
             end if;
 
