@@ -16,8 +16,7 @@
 --  Sethi, and Ullman (aka: "The [Red] Dragon Book" due to the dragon
 --  on the cover).
 --
---  Copyright (C) 2009, 2010, 2013 - 2015, 2017, 2018 Stephe Leake
---  Copyright (C) 1999 FlightSafety International and Ted Dennison
+--  Copyright (C) 2009, 2010, 2013 - 2015, 2017, 2018 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --

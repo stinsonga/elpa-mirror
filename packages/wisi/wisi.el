@@ -7,7 +7,7 @@
 ;; Keywords: parser
 ;;  indentation
 ;;  navigation
-;; Version: 2.0.0
+;; Version: 2.0.1
 ;; package-requires: ((cl-lib "1.0") (emacs "25.0") (seq "2.20"))
 ;; URL: http://www.nongnu.org/ada-mode/wisi/wisi.html
 ;;

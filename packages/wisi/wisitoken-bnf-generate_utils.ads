@@ -3,7 +3,7 @@
 --  Utilities for translating input file structures to WisiToken
 --  structures needed for LALR.Generate.
 --
---  Copyright (C) 2014, 2015, 2017, 2018 Stephen Leake All Rights Reserved.
+--  Copyright (C) 2014, 2015, 2017, 2018 Free Software Foundation, Inc.
 --
 --  The WisiToken package is free software; you can redistribute it
 --  and/or modify it under terms of the GNU General Public License as

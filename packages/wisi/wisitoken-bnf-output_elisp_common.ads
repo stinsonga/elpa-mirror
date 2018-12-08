@@ -2,7 +2,7 @@
 --
 --  Subprograms common to Output_Elisp and Output_Ada_Emacs
 --
---  Copyright (C) 2012, 2013, 2015, 2017, 2018 Stephen Leake. All Rights Reserved.
+--  Copyright (C) 2012, 2013, 2015, 2017, 2018 Free Software Foundation, Inc.
 --
 --  The WisiToken package is free software; you can redistribute it
 --  and/or modify it under terms of the GNU General Public License as

@@ -2,7 +2,7 @@
 --
 --  Generalized LR parser state.
 --
---  Copyright (C) 2014-2015, 2017, 2018 Stephe Leake
+--  Copyright (C) 2014-2015, 2017, 2018 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --

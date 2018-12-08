@@ -7,7 +7,7 @@
 --  [dragon] "Compilers Principles, Techniques, and Tools" by Aho,
 --  Sethi, and Ullman (aka: "The [Red] Dragon Book").
 --
---  Copyright (C) 2017, 2018 Stephe Leake
+--  Copyright (C) 2017, 2018 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --

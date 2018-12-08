@@ -11,7 +11,7 @@
 --  [Grune 2008] Parsing Techniques, A Practical Guide, Second
 --  Edition. Dick Grune, Ceriel J.H. Jacobs.
 --
---  Copyright (C) 2017, 2018 Stephen Leake All Rights Reserved.
+--  Copyright (C) 2017, 2018 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
