@@ -1,12 +1,12 @@
 ;;; diff-hl.el --- Highlight uncommitted changes using VC -*- lexical-binding: t -*-
 
-;; Copyright (C) 2012-2016  Free Software Foundation, Inc.
+;; Copyright (C) 2012-2018  Free Software Foundation, Inc.
 
 ;; Author:   Dmitry Gutov <dgutov@yandex.ru>
 ;; URL:      https://github.com/dgutov/diff-hl
 ;; Keywords: vc, diff
-;; Version:  1.8.4
-;; Package-Requires: ((cl-lib "0.2"))
+;; Version:  1.8.5
+;; Package-Requires: ((cl-lib "0.2") (emacs "24.3"))
 
 ;; This file is part of GNU Emacs.
 
@@ -127,6 +127,15 @@
            (set-default var value)
            (when on (global-diff-hl-mode 1)))))
 
+(defcustom diff-hl-highlight-revert-hunk-function
+  #'diff-hl-revert-highlight-first-column
+  "Function to highlight the current hunk in `diff-hl-revert-hunk'.
+The function is called at the beginning of the hunk and passed
+the end position as its only argument."
+  :type '(choice (const :tag "Do nothing" ignore)
+                 (const :tag "Highlight the first column"
+                        diff-hl-revert-highlight-first-column)))
+
 (defvar diff-hl-reference-revision nil
   "Revision to diff against.  nil means the most recent one.")
 
@@ -237,6 +246,7 @@
 (defun diff-hl-changes-buffer (file backend)
   (let ((buf-name " *diff-hl* "))
     (diff-hl-with-diff-switches
+     ;; FIXME: To diff against the staging area, call 'git diff-files -p'.
      (vc-call-backend backend 'diff (list file)
                       diff-hl-reference-revision nil
                       buf-name))
@@ -380,53 +390,69 @@ in the source file, or the last line of the hunk above it."
                 (unless (looking-at "^-")
                   (cl-decf to-go))))))))))
 
+(defface diff-hl-reverted-hunk-highlight
+  '((default :inverse-video t))
+  "Face used to highlight the first column of the hunk to be reverted.")
+
+(defun diff-hl-revert-highlight-first-column (end)
+  (let ((inhibit-read-only t))
+    (save-excursion
+      (while (< (point) end)
+        (font-lock-prepend-text-property (point) (1+ (point)) 'font-lock-face
+                                         'diff-hl-reverted-hunk-highlight)
+        (forward-line 1)))))
+
 (defun diff-hl-revert-hunk ()
   "Revert the diff hunk with changes at or above the point."
   (interactive)
-  (vc-buffer-sync)
-  (let ((diff-buffer (generate-new-buffer-name "*diff-hl*"))
-        (buffer (current-buffer))
-        (line (save-excursion
-                (unless (diff-hl-hunk-overlay-at (point))
-                  (diff-hl-previous-hunk))
-                (line-number-at-pos)))
-        (fileset (vc-deduce-fileset)))
-    (unwind-protect
-        (progn
-          (vc-diff-internal nil fileset diff-hl-reference-revision nil
-                            nil diff-buffer)
-          (vc-exec-after
-           `(let (beg-line end-line)
-              (when (eobp)
-                (with-current-buffer ,buffer (diff-hl-remove-overlays))
-                (error "Buffer is up-to-date"))
-              (let (diff-auto-refine-mode)
-                (diff-hl-diff-skip-to ,line))
-              (save-excursion
-                (while (looking-at "[-+]") (forward-line 1))
-                (setq end-line (line-number-at-pos (point)))
-                (unless (eobp) (diff-split-hunk)))
-              (unless (looking-at "[-+]") (forward-line -1))
-              (while (looking-at "[-+]") (forward-line -1))
-              (setq beg-line (line-number-at-pos (point)))
-              (unless (looking-at "@")
-                (forward-line 1)
-                (diff-split-hunk))
-              (let ((wbh (window-body-height)))
-                (if (>= wbh (- end-line beg-line))
-                    (recenter (/ (+ wbh (- beg-line end-line) 2) 2))
-                  (recenter 1)))
-              (when diff-auto-refine-mode
-                (diff-refine-hunk))
-              (unless (yes-or-no-p (format "Revert current hunk in %s?"
-                                           ,(cl-caadr fileset)))
-                (error "Revert canceled"))
-              (let ((diff-advance-after-apply-hunk nil))
-                (diff-apply-hunk t))
-              (with-current-buffer ,buffer
-                (save-buffer))
-              (message "Hunk reverted"))))
-      (quit-windows-on diff-buffer t))))
+  (save-restriction
+    (widen)
+    (vc-buffer-sync)
+    (let ((diff-buffer (generate-new-buffer-name "*diff-hl*"))
+          (buffer (current-buffer))
+          (line (save-excursion
+                  (unless (diff-hl-hunk-overlay-at (point))
+                    (diff-hl-previous-hunk))
+                  (line-number-at-pos)))
+          (fileset (vc-deduce-fileset)))
+      (unwind-protect
+          (progn
+            (vc-diff-internal nil fileset diff-hl-reference-revision nil
+                              nil diff-buffer)
+            (vc-exec-after
+             `(let (beg-line end-line m-end)
+                (when (eobp)
+                  (with-current-buffer ,buffer (diff-hl-remove-overlays))
+                  (user-error "Buffer is up-to-date"))
+                (let (diff-auto-refine-mode)
+                  (diff-hl-diff-skip-to ,line))
+                (save-excursion
+                  (while (looking-at "[-+]") (forward-line 1))
+                  (setq end-line (line-number-at-pos (point)))
+                  (setq m-end (point-marker))
+                  (unless (eobp) (diff-split-hunk)))
+                (unless (looking-at "[-+]") (forward-line -1))
+                (while (looking-at "[-+]") (forward-line -1))
+                (setq beg-line (line-number-at-pos (point)))
+                (unless (looking-at "@")
+                  (forward-line 1)
+                  (diff-split-hunk))
+                (funcall diff-hl-highlight-revert-hunk-function m-end)
+                (let ((wbh (window-body-height)))
+                  (if (>= wbh (- end-line beg-line))
+                      (recenter (/ (+ wbh (- beg-line end-line) 2) 2))
+                    (recenter 1)))
+                (when diff-auto-refine-mode
+                  (diff-refine-hunk))
+                (unless (yes-or-no-p (format "Revert current hunk in %s? "
+                                             ,(cl-caadr fileset)))
+                  (user-error "Revert canceled"))
+                (let ((diff-advance-after-apply-hunk nil))
+                  (diff-apply-hunk t))
+                (with-current-buffer ,buffer
+                  (save-buffer))
+                (message "Hunk reverted"))))
+        (quit-windows-on diff-buffer t)))))
 
 (defun diff-hl-hunk-overlay-at (pos)
   (cl-loop for o in (overlays-in pos (1+ pos))
@@ -447,7 +473,7 @@ in the source file, or the last line of the hunk above it."
                        (throw 'found (overlay-start o)))))))))
     (if pos
         (goto-char pos)
-      (error "No further hunks found"))))
+      (user-error "No further hunks found"))))
 
 (defun diff-hl-previous-hunk ()
   "Go to the beginning of the previous hunk in the current buffer."
@@ -458,7 +484,7 @@ in the source file, or the last line of the hunk above it."
   (interactive)
   (let ((hunk (diff-hl-hunk-overlay-at (point))))
     (unless hunk
-      (error "No hunk at point"))
+      (user-error "No hunk at point"))
     (goto-char (overlay-start hunk))
     (push-mark (overlay-end hunk) nil t)))
 
@@ -470,11 +496,18 @@ in the source file, or the last line of the hunk above it."
     map))
 (fset 'diff-hl-command-map diff-hl-command-map)
 
+(defvar diff-hl-lighter ""
+  "Mode line lighter for Diff Hl.
+
+The value of this variable is a mode line template as in
+`mode-line-format'.")
+
 ;;;###autoload
 (define-minor-mode diff-hl-mode
   "Toggle VC diff highlighting."
-  :lighter "" :keymap `(([remap vc-diff] . diff-hl-diff-goto-hunk)
-                        (,diff-hl-command-prefix . diff-hl-command-map))
+  :lighter diff-hl-lighter
+  :keymap `(([remap vc-diff] . diff-hl-diff-goto-hunk)
+            (,diff-hl-command-prefix . diff-hl-command-map))
   (if diff-hl-mode
       (progn
         (diff-hl-maybe-define-bitmaps)
@@ -538,7 +571,12 @@ in the source file, or the last line of the hunk above it."
     (dolist (buf (buffer-list))
       (when (and (buffer-local-value 'diff-hl-mode buf)
                  (not (buffer-modified-p buf))
-                 (file-in-directory-p (buffer-file-name buf) topdir))
+                 ;; Solve the "cloned indirect buffer" problem
+                 ;; (diff-hl-mode could be non-nil there, even if
+                 ;; buffer-file-name is nil):
+                 (buffer-file-name buf)
+                 (file-in-directory-p (buffer-file-name buf) topdir)
+                 (file-exists-p (buffer-file-name buf)))
         (with-current-buffer buf
           (let* ((file buffer-file-name)
                  (backend (vc-backend file)))
