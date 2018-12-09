@@ -1,6 +1,6 @@
 ;;; landmark.el --- Neural-network robot that learns landmarks  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1996-1997, 2000-2016 Free Software Foundation, Inc.
+;; Copyright (C) 1996-2018 Free Software Foundation, Inc.
 
 ;; Author: Terrence Brannon <metaperl@gmail.com>
 ;; Created: December 16, 1996 - first release to usenet
@@ -161,8 +161,7 @@
 
 (defcustom landmark-mode-hook nil
   "If non-nil, its value is called on entry to Landmark mode."
-  :type 'hook
-  :group 'landmark)
+  :type 'hook)
 
 (defvar landmark-mode-map
   (let ((map (make-sparse-keymap)))
@@ -217,14 +216,12 @@
 (defface landmark-font-lock-face-O '((((class color)) :foreground "red")
 			       (t :weight bold))
   "Face to use for Emacs's O."
-  :version "22.1"
-  :group 'landmark)
+  :version "22.1")
 
 (defface landmark-font-lock-face-X '((((class color)) :foreground "green")
 			       (t :weight bold))
   "Face to use for your X."
-  :version "22.1"
-  :group 'landmark)
+  :version "22.1")
 
 (defvar landmark-font-lock-keywords
   '(("O" . 'landmark-font-lock-face-O)
@@ -902,7 +899,9 @@ mouse-1: get robot moving, mouse-2: play on this square")))
 	  (if (zerop (% landmark-x-offset landmark-square-width))
 	      landmark-square-width
 	    (max (/ (+ (% landmark-x-offset landmark-square-width)
-		       landmark-square-width 1) 2) 2)))
+		       landmark-square-width 1)
+                    2)
+                 2)))
     (erase-buffer)
     (insert-char ?\n landmark-y-offset)
     (while (progn
@@ -1130,12 +1129,10 @@ this program to add a random element to the way moves were made.")
   "If non-nil, print \"One moment please\" when a new board is generated.
 The drawback of this is you don't see how many moves the last run took
 because it is overwritten by \"One moment please\"."
-  :type 'boolean
-  :group 'landmark)
+  :type 'boolean)
 (defcustom landmark-output-moves t
   "If non-nil, output number of moves so far on a move-by-move basis."
-  :type 'boolean
-  :group 'landmark)
+  :type 'boolean)
 
 
 (defun landmark-weights-debug ()
@@ -1151,7 +1148,7 @@ because it is overwritten by \"One moment please\"."
 
 (defun landmark-print-distance ()
   (insert (format "tree: %S \n" (landmark-calc-distance-of-robot-from 'landmark-tree)))
-  (mapc 'landmark-print-distance-int landmark-directions))
+  (mapc #'landmark-print-distance-int landmark-directions))
 
 
 ;;(setq direction 'landmark-n)
@@ -1164,10 +1161,11 @@ because it is overwritten by \"One moment please\"."
 
 (defun landmark-nslify-wts ()
   (interactive)
-  (let ((l (apply 'append (mapcar 'landmark-nslify-wts-int landmark-directions))))
+  (let ((l (apply #'append
+                  (mapcar #'landmark-nslify-wts-int landmark-directions))))
     (insert (format "set data_value WTS \n %s \n" l))
     (insert (format "/* max: %S min: %S */"
-		  (eval (cons 'max l)) (eval (cons 'min l))))))
+		  (apply #'max l) (apply #'min l)))))
 
 (defun landmark-print-wts-int (direction)
   (mapc (lambda (target-direction)
@@ -1182,7 +1180,7 @@ because it is overwritten by \"One moment please\"."
   (interactive)
   (with-current-buffer "*landmark-wts*"
     (insert "==============================\n")
-    (mapc 'landmark-print-wts-int landmark-directions)))
+    (mapc #'landmark-print-wts-int landmark-directions)))
 
 (defun landmark-print-moves (moves)
   (interactive)
@@ -1202,7 +1200,7 @@ because it is overwritten by \"One moment please\"."
   (interactive)
   (with-current-buffer "*landmark-y,s,noise*"
     (insert "==============================\n")
-    (mapc 'landmark-print-y-s-noise-int landmark-directions)))
+    (mapc #'landmark-print-y-s-noise-int landmark-directions)))
 
 (defun landmark-print-smell-int (direction)
   (insert (format "%S: smell: %S \n"
@@ -1214,7 +1212,7 @@ because it is overwritten by \"One moment please\"."
   (with-current-buffer "*landmark-smell*"
     (insert "==============================\n")
     (insert (format "tree: %S \n" (get 'z 't)))
-    (mapc 'landmark-print-smell-int landmark-directions)))
+    (mapc #'landmark-print-smell-int landmark-directions)))
 
 (defun landmark-print-w0-int (direction)
   (insert (format "%S: w0: %S \n"
@@ -1225,7 +1223,7 @@ because it is overwritten by \"One moment please\"."
   (interactive)
   (with-current-buffer "*landmark-w0*"
     (insert "==============================\n")
-    (mapc 'landmark-print-w0-int landmark-directions)))
+    (mapc #'landmark-print-w0-int landmark-directions)))
 
 (defun landmark-blackbox ()
   (with-current-buffer "*landmark-blackbox*"
@@ -1250,35 +1248,30 @@ because it is overwritten by \"One moment please\"."
 
 (defun landmark-print-wts-blackbox ()
   (interactive)
-  (mapc 'landmark-print-wts-int landmark-directions))
+  (mapc #'landmark-print-wts-int landmark-directions))
 
 ;;;_  - learning parameters
 (defcustom landmark-bound 0.005
   "The maximum that w0j may be."
-  :type 'number
-  :group 'landmark)
+  :type 'number)
 (defcustom landmark-c 1.0
   "A factor applied to modulate the increase in wij.
 Used in the function landmark-update-normal-weights."
-  :type 'number
-  :group 'landmark)
+  :type 'number)
 (defcustom landmark-c-naught 0.5
   "A factor applied to modulate the increase in w0j.
 Used in the function landmark-update-naught-weights."
-  :type 'number
-  :group 'landmark)
+  :type 'number)
 (defvar landmark-initial-w0 0.0)
 (defvar landmark-initial-wij 0.0)
 (defcustom landmark-no-payoff 0
   "The amount of simulation cycles that have occurred with no movement.
 Used to move the robot when he is stuck in a rut for some reason."
-  :type 'integer
-  :group 'landmark)
+  :type 'integer)
 (defcustom landmark-max-stall-time 2
   "The maximum number of cycles that the robot can remain stuck in a place.
 After this limit is reached, landmark-random-move is called to push him out of it."
-  :type 'integer
-  :group 'landmark)
+  :type 'integer)
 
 
 ;;;_ + Randomizing functions
@@ -1343,7 +1336,8 @@ After this limit is reached, landmark-random-move is called to push him out of i
   (put 'landmark-e    'y (/ landmark-board-height 2))
   (put 'landmark-e    'sym 4)
 
-  (mapc 'landmark-plot-internal '(landmark-n landmark-s landmark-e landmark-w landmark-tree)))
+  (mapc #'landmark-plot-internal
+        '(landmark-n landmark-s landmark-e landmark-w landmark-tree)))
 
 
 
@@ -1387,33 +1381,33 @@ After this limit is reached, landmark-random-move is called to push him out of i
 
 (defun landmark-update-normal-weights (direction)
   (mapc (lambda (target-direction)
-	     (put direction target-direction
-		  (+
-		   (get direction target-direction)
-		   (* landmark-c
-		      (- (get 'z 't) (get 'z 't-1))
-		      (get target-direction 'y_t)
-		      (get direction 'smell)))))
-	  landmark-directions))
+	  (put direction target-direction
+	       (+
+		(get direction target-direction)
+		(* landmark-c
+		   (- (get 'z 't) (get 'z 't-1))
+		   (get target-direction 'y_t)
+		   (get direction 'smell)))))
+	landmark-directions))
 
 (defun landmark-update-naught-weights (direction)
   (mapc (lambda (_target-direction)
-	     (put direction 'w0
-		  (landmark-f
-		   (+
-		    (get direction 'w0)
-		    (* landmark-c-naught
-		       (- (get 'z 't) (get 'z 't-1))
-		       (get direction 'y_t))))))
-	  landmark-directions))
+	  (put direction 'w0
+	       (landmark-f
+		(+
+		 (get direction 'w0)
+		 (* landmark-c-naught
+		    (- (get 'z 't) (get 'z 't-1))
+		    (get direction 'y_t))))))
+	landmark-directions))
 
 
 ;;;_ + Statistics gathering and creating functions
 
 (defun landmark-calc-current-smells ()
   (mapc (lambda (direction)
-	     (put direction 'smell (landmark-calc-smell-internal direction)))
-	  landmark-directions))
+	  (put direction 'smell (landmark-calc-smell-internal direction)))
+	landmark-directions))
 
 (defun landmark-calc-payoff ()
   (put 'z 't-1 (get 'z 't))
@@ -1424,14 +1418,14 @@ After this limit is reached, landmark-random-move is called to push him out of i
 
 (defun landmark-store-old-y_t ()
   (mapc (lambda (direction)
-	     (put direction 'y_t-1 (get direction 'y_t)))
-	  landmark-directions))
+	  (put direction 'y_t-1 (get direction 'y_t)))
+	landmark-directions))
 
 
 ;;;_ + Functions to move robot
 
 (defun landmark-confidence-for (target-direction)
-  (apply '+
+  (apply #'+
 	 (get target-direction 'w0)
 	 (mapcar (lambda (direction)
 		   (*
@@ -1442,8 +1436,8 @@ After this limit is reached, landmark-random-move is called to push him out of i
 
 (defun landmark-calc-confidences ()
   (mapc (lambda (direction)
-	     (put direction 's (landmark-confidence-for direction)))
-	     landmark-directions))
+	  (put direction 's (landmark-confidence-for direction)))
+	landmark-directions))
 
 (defun landmark-move ()
   (if (and (= (get 'landmark-n 'y_t) 1.0) (= (get 'landmark-s 'y_t) 1.0))
@@ -1458,14 +1452,14 @@ After this limit is reached, landmark-random-move is called to push him out of i
 	    (message "e-w normalization"))))
 
   (mapc (lambda (pair)
-	     (when (> (get (car pair) 'y_t) 0)
-               (funcall (car (cdr pair)))
-               (landmark--intangible)))
-	  '(
-	    (landmark-n landmark-move-up)
-	    (landmark-s landmark-move-down)
-	    (landmark-e forward-char)
-	    (landmark-w backward-char)))
+	  (when (> (get (car pair) 'y_t) 0)
+            (funcall (car (cdr pair)))
+            (landmark--intangible)))
+	'(
+	  (landmark-n landmark-move-up)
+	  (landmark-s landmark-move-down)
+	  (landmark-e forward-char)
+	  (landmark-w backward-char)))
   (landmark-plot-square (landmark-point-square) 1)
   (cl-incf landmark-number-of-moves)
   (if landmark-output-moves
@@ -1491,13 +1485,13 @@ After this limit is reached, landmark-random-move is called to push him out of i
 	(landmark-random-move)
       (progn
 	(landmark-calc-confidences)
-	(mapc 'landmark-y landmark-directions)
+	(mapc #'landmark-y landmark-directions)
 	(landmark-move)))
 
     (landmark-calc-payoff)
 
-    (mapc 'landmark-update-normal-weights landmark-directions)
-    (mapc 'landmark-update-naught-weights landmark-directions)
+    (mapc #'landmark-update-normal-weights landmark-directions)
+    (mapc #'landmark-update-naught-weights landmark-directions)
     (if landmark-debug
 	(landmark-weights-debug)))
   (landmark-terminate-game nil))
@@ -1533,8 +1527,8 @@ If the game is finished, this command requests for another game."
 
 	       (landmark-calc-payoff)
 
-	       (mapc 'landmark-update-normal-weights landmark-directions)
-	       (mapc 'landmark-update-naught-weights landmark-directions)
+	       (mapc #'landmark-update-normal-weights landmark-directions)
+	       (mapc #'landmark-update-naught-weights landmark-directions)
 	       (landmark-amble-robot)
 	       )))))))
 
@@ -1573,7 +1567,7 @@ If the game is finished, this command requests for another game."
 
   (if (not save-weights)
       (progn
-	(mapc 'landmark-fix-weights-for landmark-directions)
+	(mapc #'landmark-fix-weights-for landmark-directions)
 	(dolist (direction landmark-directions)
           (put direction 'w0 landmark-initial-w0)))
     (message "Weights preserved for this run."))
@@ -1604,10 +1598,10 @@ If the game is finished, this command requests for another game."
                                     (* landmark-cy landmark-cy)))
                            1.5))
   (mapc (lambda (direction)
-	     (put direction 'r (* landmark-cx 1.1)))
+	  (put direction 'r (* landmark-cx 1.1)))
 	landmark-ew)
   (mapc (lambda (direction)
-	     (put direction 'r (* landmark-cy 1.1)))
+	  (put direction 'r (* landmark-cy 1.1)))
 	landmark-ns)
   (put 'landmark-tree 'r landmark-tree-r))
 
@@ -1667,13 +1661,13 @@ Use \\[describe-mode] for more info."
     (if landmark-one-moment-please
 	(message "One moment, please..."))
     (landmark-start-game landmark-n landmark-m)
-    (eval (cons 'landmark-init
-		(cond
-		 ((= parg 1)  '(t nil))
-		 ((= parg 2)  '(t t))
-		 ((= parg 3)  '(nil t))
-		 ((= parg 4)  '(nil nil))
-		 (t '(nil t))))))))
+    (apply #'landmark-init
+	   (cond
+	    ((= parg 1)  '(t nil))
+	    ((= parg 2)  '(t t))
+	    ((= parg 3)  '(nil t))
+	    ((= parg 4)  '(nil nil))
+	    (t '(nil t)))))))
 
 
 ;;;_ + Local variables
