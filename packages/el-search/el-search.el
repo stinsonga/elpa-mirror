@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.8
+;; Version: 1.8.1
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -3798,8 +3798,7 @@ exactly you did?  Thanks!"))))
                               (edit-replacement
                                (lambda (&optional ediff-only)
                                  (save-excursion ;user may copy stuff from base buffer etc.
-                                   (let* ((buffer (get-buffer-create
-                                                   (generate-new-buffer-name "*Replacement*")))
+                                   (let* ((buffer (generate-new-buffer "*Replacement*"))
                                           (window (display-buffer buffer)))
                                      (select-window window)
                                      (emacs-lisp-mode)
@@ -3817,6 +3816,8 @@ exactly you did?  Thanks!"))))
                                                     'front-sticky t 'rear-nonsticky t)
                                         "\n\n"))
                                      (save-excursion (insert to-insert))
+                                     (let ((inhibit-message t))
+                                       (indent-region (point) (point-max)))
                                      (let* ((owconf (current-window-configuration))
                                             (make-cleanup-fun
                                              (lambda (&optional do)
@@ -3834,8 +3835,7 @@ exactly you did?  Thanks!"))))
                                               (abort (funcall
                                                       make-cleanup-fun
                                                       (lambda ()
-                                                        (let ((inhibit-read-only t))
-                                                          (delete-region (point-min) (point-max)))
+                                                        (set-buffer-modified-p nil)
                                                         (exit-recursive-edit)))))
                                           (set-keymap-parent map (current-local-map))
                                           (define-key map [(control ?c) (control ?c)]
@@ -3865,19 +3865,19 @@ exactly you did?  Thanks!"))))
                                            (el-search-query-replace-ediff-replacement
                                             (funcall make-ediff-startup-hook-fun
                                                      #'exit-recursive-edit)))
+                                         (set-buffer-modified-p nil)
                                          (recursive-edit)))
-                                     (let ((content-now
-                                            (with-current-buffer buffer
-                                              (goto-char (point-min))
-                                              (while (and (not (eobp))
-                                                          (looking-at "^;;\\|^$"))
-                                                (forward-line))
-                                              (buffer-substring (point) (point-max)))))
-                                       (when (and (not (or (string= to-insert content-now)
-                                                           (string-match-p (rx bos (* space) eos)
-                                                                           content-now)))
+                                     (let ((new-to-insert
+                                            (and (buffer-modified-p buffer)
+                                                 (with-current-buffer buffer
+                                                   (goto-char (point-min))
+                                                   (while (and (not (eobp))
+                                                               (looking-at "^;;\\|^$"))
+                                                     (forward-line))
+                                                   (buffer-substring (point) (point-max))))))
+                                       (when (and new-to-insert
                                                   (y-or-n-p "Use modified version?"))
-                                         (setq to-insert content-now)))
+                                         (setq to-insert new-to-insert)))
                                      (delete-window window)
                                      (kill-buffer buffer))
                                    (el-search--after-scroll (selected-window) (window-start))
@@ -3926,7 +3926,8 @@ Ediff match with replacement")
                          (when (and
                                 stop-for-comments
                                 (not (el-search-query-replace--comments-preserved-p
-                                      original-text to-insert)))
+                                      (concat original-text "\n" to-input-string)
+                                      to-insert)))
                            (pcase (if (eq stop-for-comments 'ask)
                                       (car (read-multiple-choice
                                             (propertize
