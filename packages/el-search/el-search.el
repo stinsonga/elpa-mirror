@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.8.1
+;; Version: 1.8.2
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -3182,8 +3182,9 @@ Prompt for a new pattern and revert."
                 (progn
                   (erase-buffer)
                   (delete-all-overlays))
-              (el-search-occur-mode)
-              (setq el-search-occur-search-object search))
+              (setq el-search-occur-search-object search)
+              (put 'el-search-occur-search-object 'permanent-local t)
+              (el-search-occur-mode))
             (insert (format ";;; * %s   -*- mode: el-search-occur -*-\n\n;;; ** %s\n\n"
                             (current-time-string)
                             (el-search--get-search-description-string search)))
