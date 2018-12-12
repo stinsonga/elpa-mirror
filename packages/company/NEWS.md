@@ -1,8 +1,17 @@
 # History of user-visible changes
 
+## 2018-12-13 (0.9.9)
+
+* Fix for the changes in the previous release.
+* New hook `company-after-completion-hook`.
+* `company-clang` removes identity preprocessor #defines from completions
+  ([#841](https://github.com/company-mode/company-mode/issues/841)).
+
 ## 2018-12-08 (0.9.8)
 
-* CAPF backend fixed to use the right `:exit-function`
+* CAPF backend fixed to use the right `:exit-function`. It can now safely be a
+  closure with lexical context capturing the buffer state at the moment when the
+  completion table was returned
   ([#845](https://github.com/company-mode/company-mode/pull/845)).
 
 ## 2018-11-06 (0.9.7)
