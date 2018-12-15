@@ -4363,13 +4363,8 @@ exactly you did?  Thanks!"))))
                               (edit-replacement
                                (lambda (&optional ediff-only)
                                  (save-excursion ;user may copy stuff from base buffer etc.
-                                   (let* ((buffer (generate-new-buffer "*Replacement*"))
-                                          (window (display-buffer buffer)))
-                                     (select-window window)
-                                     (emacs-lisp-mode)
-                                     (unless ediff-only
-                                       (insert
-                                        (propertize "\
+                                   (let* ((header
+                                           (propertize "\
 ;; This buffer shows the individual replacement for the current match.
 ;; You may edit it here while query-replace is interrupted by a
 ;; `recursive-edit'.
@@ -4377,9 +4372,21 @@ exactly you did?  Thanks!"))))
 ;; to confirm.
 ;; Type C-c C-e to Ediff the current match with this buffer's content.
 ;; Type C-c C-r to revert this buffer."
-                                                    'read-only t 'field t
-                                                    'front-sticky t 'rear-nonsticky t)
-                                        "\n\n"))
+                                                       'read-only t 'field t
+                                                       'front-sticky t 'rear-nonsticky t))
+                                          (find-replacement-beg
+                                           (lambda ()
+                                             (goto-char (point-min))
+                                             (when (looking-at (regexp-quote header))
+                                               (goto-char (match-end 0)))
+                                             (while (and (not (eobp)) (looking-at "^$"))
+                                               (forward-line))))
+                                          (buffer (generate-new-buffer "*Replacement*"))
+                                          (window (display-buffer buffer)))
+                                     (select-window window)
+                                     (emacs-lisp-mode)
+                                     (unless ediff-only
+                                       (insert header "\n\n"))
                                      (save-excursion (insert to-insert))
                                      (let ((inhibit-message t))
                                        (indent-region (point) (point-max)))
@@ -4417,10 +4424,7 @@ exactly you did?  Thanks!"))))
                                           (define-key map [(control ?c) (control ?r)]
                                             (lambda ()
                                               (interactive)
-                                              (goto-char (point-min))
-                                              (while (and (not (eobp))
-                                                          (looking-at "^;;\\|^$"))
-                                                (forward-line))
+                                              (funcall find-replacement-beg)
                                               (delete-region (point) (point-max))
                                               (insert (funcall get-replacement-string))))
                                           map))
@@ -4435,11 +4439,9 @@ exactly you did?  Thanks!"))))
                                      (let ((new-to-insert
                                             (and (buffer-modified-p buffer)
                                                  (with-current-buffer buffer
-                                                   (goto-char (point-min))
-                                                   (while (and (not (eobp))
-                                                               (looking-at "^;;\\|^$"))
-                                                     (forward-line))
-                                                   (buffer-substring (point) (point-max))))))
+                                                   (funcall find-replacement-beg)
+                                                   (string-trim
+                                                    (buffer-substring (point) (point-max)))))))
                                        (when (and new-to-insert
                                                   (y-or-n-p "Use modified version?"))
                                          (setq to-insert new-to-insert)))
