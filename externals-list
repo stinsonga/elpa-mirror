@@ -98,7 +98,7 @@
  ("pabbrev"             :external "https://github.com/phillord/pabbrev.git")
  ("parsec"              :subtree "https://github.com/cute-jumper/parsec.el.git")
  ("pinentry"		:subtree "https://github.com/ueno/pinentry-el.git")
- ("posframe"		:subtree "https://github.com/tumashu/posframe")
+ ("posframe"		:external "https://github.com/tumashu/posframe")
  ("psgml"               :external "https://github.com/lenst/psgml.git")
  ("python"		:core "lisp/progmodes/python.el")
  ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
