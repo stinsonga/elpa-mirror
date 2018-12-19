@@ -560,7 +560,9 @@ group."
     (nnvirtual
      (setq group (car (nnvirtual-map-article art-no))))
     (nnir
-     (setq group (nnir-article-group art-no))))
+     (setq group (nnir-article-group art-no)))
+    (nnselect
+     (setq group (nnselect-article-group art-no))))
   group)
 
 (defun gnorb-find-tracked-headings (headers &optional include-zombies)
