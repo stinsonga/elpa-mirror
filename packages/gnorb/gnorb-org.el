@@ -31,6 +31,7 @@
 (defvar gnorb-bbdb-org-tag-field)
 (defvar bbdb-buffer-name)
 (defvar message-alternative-emails)
+(defvar bbdb-records)
 
 (autoload 'gnorb-bbdb-configure-posting-styles "gnorb-bbdb")
 (autoload 'gnorb-registry-org-id-search "gnorb-registry")

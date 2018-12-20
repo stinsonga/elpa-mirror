@@ -40,6 +40,10 @@
 (autoload 'bbdb-completing-read-record "bbdb-com")
 (autoload 'bbdb-current-record "bbdb")
 
+(defvar bbdb-buffer-name)
+(defvar bbdb-separator-alist)
+(defvar bbdb-crm-local-completion-map)
+
 (require 'gnorb-utils)
 (require 'cl-lib)
 
@@ -495,7 +499,7 @@ layout type."
 		       (mapconcat
 			(lambda (m)
 			  (prog1
-			      (org-propertize
+			      (propertize
 			       (concat
 				(format-time-string
 				 (replace-regexp-in-string
