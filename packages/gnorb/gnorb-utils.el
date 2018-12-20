@@ -36,6 +36,8 @@
 (require 'mailcap)
 (mailcap-parse-mimetypes)
 
+(defvar bbdb-mode-map)
+
 (defgroup gnorb nil
   "Glue code between Gnus, Org, and BBDB."
   :tag "Gnorb"
