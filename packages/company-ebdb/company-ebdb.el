@@ -46,6 +46,10 @@
   :type '(repeat (symbol :tag "Major mode"))
   :package-version '(company . "0.8.8"))
 
+(defcustom company-ebdb-pop-up t
+  "When non-nil, pop up an *EBDB* buffer after completion."
+  :type 'boolean)
+
 (defun company-ebdb--candidates (arg)
   (cl-mapcan (lambda (record)
                (mapcar (lambda (mail) (ebdb-dwim-mail record mail))
@@ -54,7 +58,8 @@
 						  (ebdb-field-mail ,arg))))))
 
 (defun company-ebdb--post-complete (arg)
-  (when (apply #'derived-mode-p company-ebdb-modes)
+  (when (and company-ebdb-pop-up
+	     (apply #'derived-mode-p company-ebdb-modes))
    (let* ((bits (ebdb-decompose-ebdb-address arg))
 	  (recs (ebdb-message-search (car bits) (nth 1 bits))))
      (when recs
