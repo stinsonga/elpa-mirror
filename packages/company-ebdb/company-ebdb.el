@@ -41,7 +41,7 @@
   "Completion backend for EBDB."
   :group 'company)
 
-(defcustom company-ebdb-modes '(message-mode mail-mode notmuch-message-mode)
+(defcustom company-ebdb-modes '(message-mode mail-mode)
   "Major modes in which `company-ebdb' may complete."
   :type '(repeat (symbol :tag "Major mode"))
   :package-version '(company . "0.8.8"))
@@ -54,7 +54,7 @@
 						  (ebdb-field-mail ,arg))))))
 
 (defun company-ebdb--post-complete (arg)
-  (when (memq major-mode company-ebdb-modes)
+  (when (apply #'derived-mode-p company-ebdb-modes)
    (let* ((bits (ebdb-decompose-ebdb-address arg))
 	  (recs (ebdb-message-search (car bits) (nth 1 bits))))
      (when recs
@@ -66,7 +66,7 @@
   (interactive (list 'interactive))
   (cl-case command
     (interactive (company-begin-backend 'company-ebdb))
-    (prefix (and (memq major-mode company-ebdb-modes)
+    (prefix (and (apply #'derived-mode-p company-ebdb-modes)
                  (featurep 'ebdb-com)
                  (looking-back "^\\(To\\|Cc\\|Bcc\\): *.*? *\\([^,;]*\\)"
                                (line-beginning-position))
