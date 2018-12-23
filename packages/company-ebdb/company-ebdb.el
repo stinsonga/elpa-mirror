@@ -76,5 +76,7 @@
     (sorted t)
     (no-cache t)))
 
+(add-to-list 'company-backends 'company-ebdb)
+
 (provide 'company-ebdb)
 ;;; company-ebdb.el ends here
