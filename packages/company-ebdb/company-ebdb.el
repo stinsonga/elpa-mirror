@@ -52,8 +52,12 @@
 
 (defun company-ebdb--candidates (arg)
   (cl-mapcan (lambda (record)
-               (mapcar (lambda (mail) (ebdb-dwim-mail record mail))
-                       (ebdb-record-mail record)))
+	       (delq nil
+		     (mapcar (lambda (mail)
+			       (let ((dwim (ebdb-dwim-mail record mail)))
+				 (when (string-match-p arg dwim)
+				   dwim)))
+			     (ebdb-record-mail record))))
              (eval '(ebdb-search (ebdb-records) `((ebdb-field-name ,arg)
 						  (ebdb-field-mail ,arg))))))
 
