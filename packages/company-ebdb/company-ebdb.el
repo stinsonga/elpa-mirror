@@ -49,7 +49,7 @@
 (defun company-ebdb--candidates (arg)
   (cl-mapcan (lambda (record)
                (mapcar (lambda (mail) (ebdb-dwim-mail record mail))
-                       (ebdb-record-mail record t)))
+                       (ebdb-record-mail record)))
              (eval '(ebdb-search (ebdb-records) `((ebdb-field-name ,arg)
 						  (ebdb-field-mail ,arg))))))
 
