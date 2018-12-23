@@ -4,7 +4,7 @@
 
 ;; Author: Jan Tatarik <jan.tatarik@gmail.com>
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
-;; Version: 1
+;; Version: 1.1
 ;; Package-Requires: ((company "0.9.4") (ebdb "0.2"))
 
 ;; This file is part of GNU Emacs.
