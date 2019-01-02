@@ -3,7 +3,7 @@
 ;; Copyright 2016 Free Software Foundation, Inc.
 
 ;; Author: David Gonzalez Gandara <dggandara@member.fsf.org>
-;; Version: 0.95
+;; Version: 0.97
 ;; Package-Requires: ((cl-lib "0.5"))
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -75,6 +75,13 @@
 ;;
 ;; - Print standings - Native
 ;;
+;; - Calculate performance and ARPO (Average Rating Performance of Opponents -Native
+;;   ARPO calcuations are based on the ideas of Miguel Brozos, Marco A. Campo,
+;;   Carlos Díaz and Julio González
+;;   eio.usc.es/pub/julio/desempate/Performance_Recursiva.htm
+;;
+;; - Export ELO in FEDA (Spanish Chess Federation) format - with python
+;;
 ;; - Do pairings - with bbpPairings.exe. In order for this to work,
 ;;                 remember to add XXR and XXCfields in the file with the number
 ;;                 of rounds of the tournament.
@@ -82,9 +89,7 @@
 ;; TODO:
 ;; ---------------------------------
 ;;
-;; - Write the add players function in ELISP.
-;;
-;; - Automatically purge all players who didn't play any games.
+;; - Write the add players from file function in ELISP.
 ;;
 ;; - Insert results from a results file created with a pairing program.
 ;;   Add the date in the "132" line and the results in the "001" lines.
@@ -104,8 +109,6 @@
 ;;
 ;; - Error handling
 ;;
-;; - Calculate tyebreaks
-;;
 ;; - Make the interface more friendly
 ;;
 ;; You will find more information in www.dggandara.eu/arbitools.htm
@@ -113,6 +116,29 @@
 ;;; Code:
 
 (eval-when-compile (require 'cl-lib))
+
+(defvar arbitools-verbose nil)
+(defvar arbitools-performancetable (list -800 -677 -589 -538 -501 -470 -444 -422 -401 -383 -366 -351 -336 -322 -309 -296 -284 -273 -262 -251 -240 -230 -220 -211 -202 -193 -184 -175 -166 -158 -149 -141 -133 -125 -117 -110 -102 -95 -87 -80 -72 -65 -57 -50 -43 -36 -29 -21 -14 -7 0 7 14 21 29 36 43 50 57 65 72 80 87 95 102 110 117 125 133 141 149 158 166 175 184 193 202 211 220 230 240 251 262 273 284 296 309 322 336 351 366 383 401 422 444 470 501 538 589 677 800))
+(defvar arbitools-players-info nil)
+
+;; TODO Implement a hashtable to parse the file and store the data
+;; TODO Implement the performance table as a vector variable
+
+(defun arbitools-fill-players-info ()
+  "Fill arbitools-players-info with the information from the main buffer"
+  (save-excursion
+    (goto-char (point-min))
+    (setq arbitools-players-info nil)
+    (while (re-search-forward "^001" nil t)
+      (let* ((linestring (thing-at-point 'line))
+	     (rankstring (substring-no-properties linestring 5 8))
+	     (namestring (substring-no-properties linestring 14 47))
+	     (elostring (substring-no-properties linestring 48 52))
+	     (playerinfo))
+	  (add-to-list 'playerinfo rankstring)
+	  (add-to-list 'playerinfo namestring t)
+	  (add-to-list 'playerinfo elostring t)
+          (add-to-list 'arbitools-players-info playerinfo t)))))
 
 (defun arbitools-do-pairings (round)
   "Use bbpPairings to do the pairings for the next round.
@@ -221,8 +247,9 @@
               s))
 
 (defun arbitools-arpo-vega ()
-  "Create userTB.txt file for vega based on ARPO results file. Use in crosstable.txt. 
-   You need to open the ARPO file in another buffer."
+  "Create userTB.txt file for file generated with ARPO app. 
+   Use in crosstable.txt generated in Vega. 
+   You need to open the ARPO1.txt file in another buffer."
   (interactive)
   (save-excursion
     (goto-char (point-min))
@@ -262,7 +289,7 @@
                     ;; else
 		    (save-excursion (with-current-buffer "userTB.txt"
 			(insert "0.0;")))))) ;; in case the player has not got an ARPO, write a 0
-	    (next-line)) 
+	    (forward-line)) 
 	    ;;else statement
 	    (setq continue nil)))))) ;; if no more players, tell the while to stop
 
@@ -294,7 +321,6 @@
            (opponent nil)
            (color nil)
            (result nil))
-      
       
       (goto-char (point-min))
       (re-search-forward "^012" nil t)
@@ -388,15 +414,6 @@
          (setq tablenumber (+ tablenumber 1))
          (setq numberofplayers (- numberofplayers 1)))))
    (switch-to-buffer "Pairings List"))
-
-
-
-(defun arbitools-standings ()
-  "Get standings and report files from a tournament file."
-  ;; TODO: Add tiebreaks
-  (interactive)
-  ;; (shell-command (concat (expand-file-name "arbitools-standings.py") " -i " buffer-file-name))) ;this is to use the actual path
-  (call-process "arbitools-run.py" nil "Arbitools-output" nil "standings" buffer-file-name))
 
 (defun arbitools-list-players ()
   "Put the list of players in two buffers, one in plain text and another 
@@ -496,8 +513,8 @@
         (setq actualround (/ (current-column) 10)))
       (when (< actualround 0)
         (setq actualround 0)))
-      ;;(save-excursion (with-current-buffer "Arbitools-output"  
-      ;;    (insert (format "column: %d -" actualround))))
+      ;;(when arbitool-verbose (save-excursion (with-current-buffer "Arbitools-output"  
+        ;;  (insert (format "column: %d -" actualround)))))
     actualround))
 
 (defun arbitools-calculate-points (round)
@@ -543,17 +560,19 @@
    function."
   ;; TODO: Write tiebreaks. Write a new function that organize the standings according 
   ;; to a given tiebreak.
-  ;; Also, make it possible to print standing for past rounds.
+  ;; Also, make it possible to print standings for past rounds.
   (interactive)
   (save-excursion
-    (with-current-buffer "Standings"
-      (erase-buffer))
+    (save-excursion (with-current-buffer "Standings"
+      (erase-buffer)))
     (arbitools-list-players)
-    (let* ((linestring (thing-at-point 'line))
-          (tournamentnamestring (substring linestring 4))
+    (let* ((linestring)
+          (tournamentnamestring)
           (numberofplayers 0)
           (round "round")
           (datachunk "")
+	  (name)
+	  (arpo)
           (newpos 0)
           (idfide "")
           (beg)
@@ -562,21 +581,21 @@
       (re-search-forward "^062" nil t)
       (forward-char 1)
       (setq numberofplayers (thing-at-point 'word)) ;; get the number of players
-      ;;(setq numberofplayers "27")
       (goto-char (point-min))
       (re-search-forward "^012" nil t) ;; Get the name of the tournament
-      (with-current-buffer "Standings" ;; write the headings
-        (erase-buffer)
+      (setq tournamentnamestring (thing-at-point 'line))
+      (save-excursion (with-current-buffer "Standings" ;; write the headings
+	(erase-buffer)		
         (insert (format "%s" tournamentnamestring))
         (insert (format "Standings for round %s\n\n" round))
-        (insert (format "POS. PTS.   No. Name                              ID\n")))
+        (insert (format "POS. PTS.   No. Name                              ID         ARPO\n"))))
       (goto-char (point-min))
       (while (re-search-forward "^001" nil t) ;; loop the players in the main buffer
         (beginning-of-line)
         (setq datachunk (substring-no-properties (thing-at-point 'line) 80 84)) ;; get points
         (with-current-buffer "Standings"
           (insert (format "%s" datachunk))
-          (insert-char ?\s (- 4 (length datachunk)))
+          (insert-char ?\s (- 4 (length datachunk))) ;; insert spaces to make list beautiful
           (insert "  "))
         (setq datachunk (substring-no-properties (thing-at-point 'line) 4 8)) ;; get rank
         (with-current-buffer "Standings"
@@ -584,6 +603,7 @@
           (insert-char ?\s (- 4 (length datachunk)))
           (insert "  "))
         (setq datachunk (substring-no-properties (thing-at-point 'line) 14 47)) ;; get name
+	(setq name datachunk)
         (with-current-buffer "Standings"
           (insert (format "%s" datachunk))
           (insert-char ?\s (- 33 (length datachunk)))
@@ -594,8 +614,20 @@
         (with-current-buffer "Standings"
           (insert (format "%s" datachunk))
           (insert-char ?\s (- 10 (length datachunk)))
-          (insert "\n")))
-     (with-current-buffer "Standings" ;;  sorting
+	  (insert " "))
+	(save-excursion (with-current-buffer "ARPO"
+	  (goto-char (point-min))
+	  (re-search-forward name nil t)
+	  (forward-word)
+	  (setq arpo (thing-at-point 'word))
+	  (forward-word)
+	  (setq arpo (format "%s.%s" arpo (thing-at-point 'word)))))
+	(with-current-buffer "Standings"
+	  ;;(insert "2350.01234")
+          (insert (format "%s" arpo)) ;; fix tabs for sorting to work fine
+	  (insert "\n"))
+     )
+     (save-excursion (with-current-buffer "Standings" ;;  sorting
         (goto-char (point-min))
         (forward-line 4)
         (setq beg (point))
@@ -616,16 +648,14 @@
         (setq beg (point))
         (goto-char (point-max))
         (setq end (point))
-        (reverse-region beg end)) ;; get this to sort in reverse
+        (reverse-region beg end))) ;; get this to sort in reverse
       (goto-char (point-min))
       (while (re-search-forward "^001" nil t)
-        (beginning-of-line)
-        (forward-char 68)
-        (setq idfide (thing-at-point 'word))
-        (with-current-buffer "Standings"
+	(setq datachunk (substring-no-properties (thing-at-point 'line) 14 47))
+        (save-excursion (with-current-buffer "Standings"
           (goto-char (point-min))
-          (search-forward idfide nil t)
-          (setq newpos (- (line-number-at-pos) 4))) ;; the number of gives as the pos field
+          (search-forward datachunk nil t)
+          (setq newpos (- (line-number-at-pos) 4)))) ;; the number of gives as the pos field
                                               ;; minus 4 because of the first two lines
         (beginning-of-line)
         (forward-char 89) ;; go to POS field
@@ -880,7 +910,7 @@
          (beginning-of-line)
          (forward-char pointtowrite)
          (unless (= pointtowrite positionendofline) ;; check if there is something and 
-           (save-excursion (with-current-buffer "Arbitools-output" (insert "yes")))
+           (when arbitools-verbose (save-excursion (with-current-buffer "Arbitools-output" (insert "yes"))))
            (delete-char (- positionendofline pointtowrite)))   ;; erase it
          (insert "     ") ;; replace the first positions with spaces
          ;; make room for bigger numbers
@@ -891,6 +921,353 @@
            ((string= "+" result) (insert (format "%s b -" white)))
            ((string= "-" result) (insert (format "%s b +" white)))
            ((string= "0" result) (insert (format "%s b 1" white)))))))))
+
+(defun arbitools-get-player-opponents (player &rest cutworst)
+  "Takes the player's rank as argument. Returns a list which contains the rank number 
+   of player opponents in the tournament. Worst passes the number of worst opponents
+   to remove from the list"
+  (save-excursion
+    (let*((opps nil)
+	  (oppspoints)
+	  (opponent 000)
+          (roundcount 1))
+      (goto-char (point-min))
+      (while (re-search-forward "^001" nil t)
+        (let* ((linestring (thing-at-point 'line))
+	       (maxlength 0)
+	       (numberofrounds)
+	       (offset 0)
+	       (rankstring (substring-no-properties linestring 5 8))
+	       (rank (string-to-number rankstring)))
+	  
+          (when (= rank player)
+	    (end-of-line)
+	    (setq maxlength (+ maxlength (current-column)))
+	    (setq numberofrounds (/ (- maxlength 89) 10))
+	    (dotimes (number numberofrounds)
+	      (setq offset (+ 94 (* (- roundcount 1) 10)))
+	      (beginning-of-line)
+	      (forward-char offset)
+              (setq opponent (thing-at-point 'word))
+              (when (and (not (string= opponent " "))(not (string= opponent ""))(not (string= opponent nil))(not (string= opponent "0000")))
+		(add-to-list 'opps opponent))
+	      (setq roundcount (+ roundcount 1))))))
+      ;;do list opponents, create an alist with the points of each opponent
+      (dolist (opp opps)
+	;;while players
+	      (goto-char (point-min))
+	      (while (re-search-forward "^001" nil t)
+                (let* ((linestring (thing-at-point 'line))
+		      (maxlength 0)
+		      (numberofrounds)
+		      (offset 0)
+		      (rankstring (substring-no-properties linestring 5 8 ))
+		      (rank (string-to-number rankstring))
+		      (points 0.0))
+		  (when (= rank (string-to-number opp))
+		    (setq points (arbitools-get-player-played-points (string-to-number opp)))
+		    (add-to-list 'oppspoints (cons opp points))))))
+      (sort oppspoints (lambda (a b) (< (cdr a) (cdr b))))
+      (when (not (car cutworst)) (setq cutworst nil))
+      (when (and (> (length opps) (- (arbitools-number-of-rounds) 2)) cutworst)
+	(setq opps (delete (car (car oppspoints)) opps))                            ;; cut worst opponent
+	(setq opps (delete (car (nth (- (length oppspoints) 1) oppspoints)) opps))) ;; cut best opponent
+      (when arbitools-verbose (save-excursion (with-current-buffer "Arbitools-output"
+	(insert (format "opponents: %s oppspoints %s Cutting %s and %s cutworst:%s %s\n"
+	     opps oppspoints (car (car oppspoints)) (car (nth (- (length oppspoints) 1) oppspoints)) (car cutworst) (type-of cutworst))))))
+      opps)))
+
+
+(defun arbitools-get-player-played-points (player)
+  "Takes the player's rank as argument. Returns points got by player in actual games"
+  ;; TODO manage results such as 0000 - =
+  (save-excursion
+    (let*((points     0.0)
+	  (result     0)
+	  (roundcount 1))
+      
+      (goto-char (point-min))
+      (while (re-search-forward "^001" nil t)
+        (let* ((linestring     (thing-at-point 'line))
+	       (maxlength      0)
+	       (numberofrounds)
+	       (offset         0)
+	       (rankstring     (substring-no-properties linestring 5 8))
+	       (rank           (string-to-number rankstring)))
+	  
+          (when (= rank player)
+	    (end-of-line)
+	    (setq maxlength (+ maxlength (current-column)))
+	    (setq numberofrounds (/ (- maxlength 89) 10))
+	    (dotimes (number numberofrounds)
+              (setq offset (+ 98 (* (- roundcount 1) 10)))
+	      (beginning-of-line)
+	      (forward-char offset)
+              (setq result (thing-at-point 'symbol))
+              (when (and (and (and (and (not (string= result nil))
+				    (not (string= result "H")))
+			            (not (string= result "-")))
+			            (not (string= result "F")))
+			            (not (string= result "Z")))
+		(cond
+		 ((string= result "1")(setq points (+ 1 points)))
+		 ((string= result "+")(setq points (+ 1 points)))
+		 ((string= result "=")(setq points (+ 0.5 points)))))
+	      (setq roundcount (+ roundcount 1)))))
+	)
+      points)))
+
+
+(defun arbitools-get-player-performance (player &rest cutworst)
+  "Takes the player's rank as argument. Returns the performance of the player 
+   in the tournament"
+  ;; TODO for some reason, get-player-opponents gets cutworst at always true
+  (save-excursion
+    (let* ((opponents         (arbitools-get-player-opponents player (car cutworst))) ;; get opponents
+	   (points            (arbitools-get-player-played-points player)) ;; get points
+	   (discard           0.0) ;;points to discard
+	   (percentage        0.0)
+	   (diff              0)
+	   (eloaverage        0.0)
+	   (performance       0.0)
+	   (numberofopponents 0))
+      ;; discard points against discarded opponents
+      (goto-char (point-min))
+      (while (re-search-forward "^001" nil t)
+	(let* ((linestring (thing-at-point 'line))
+	       (maxlength 0)
+	       (numberofrounds)
+	       (roundcount 1)
+	       (opp 000)
+	       (offset 0)
+	       (rankstring (substring-no-properties linestring 5 8))
+	       (rank (string-to-number rankstring)))
+	    
+	    (when (= rank player)
+	      (end-of-line)
+	      (setq maxlength (+ maxlength (current-column)))
+	      (setq numberofrounds (/ (- maxlength 89) 10))
+	      (dotimes (number numberofrounds)
+		(setq offset (+ 94 (* (- roundcount 1) 10)))
+		(beginning-of-line)
+		(forward-char offset)
+		(setq opp (thing-at-point 'word))
+		(when (not (member opp opponents))
+		  
+                  (forward-char 4)
+		  (when (string= (thing-at-point 'symbol) "1")(setq discard (+ discard 1.0)))
+		  (when (string= (thing-at-point 'symbol) "=")(setq discard (+ discard 0.5))))
+		(setq roundcount (+ roundcount 1))))))
+      ;; loop over opponents and get their elo average
+      (dolist (opponent opponents)
+	(let* ((rating (string-to-number (nth 2 (nth (- (string-to-number opponent) 1) arbitools-players-info)))))
+	  (when (not (numberp rating)) (setq rating 1000))
+	  (when (= rating 0) (setq rating 1000))
+	  (setq eloaverage (+ eloaverage rating))
+	  (setq numberofopponents (+ numberofopponents 1)))
+		  
+	;;(goto-char (point-min))                                                       ;; old code
+	;;(while (re-search-forward "^001" nil t)                                       ;; old code
+	;;  (let* ((linestring (thing-at-point 'line))                                  ;; old code
+	;;	 (rankstring (substring-no-properties linestring 5 8))                  ;; old code
+	;;	 (ratingstring (substring-no-properties linestring 48 52))              ;; old code
+	;;	 (rating (string-to-number ratingstring)))                              ;; old code
+	 
+	;;    (when (= (string-to-number rankstring) (string-to-number opponent))       ;; old code
+	;;      (when (= rating 0)  (setq rating 1000))                                 ;; old code
+	;;      (when (not (numberp rating)) (setq rating 1000))                        ;; old code
+	;;      (setq eloaverage (+ eloaverage rating))                                 ;; old code
+	;;      (setq numberofopponents (+ numberofopponents 1)))))                     ;; old code
+
+
+      )
+      ;; calculate performance
+      (setq eloaverage (/ eloaverage numberofopponents))
+      (setq points (- points discard))
+      (setq percentage (/ points numberofopponents))
+      (setq diff (nth (truncate (* 100 percentage)) arbitools-performancetable))
+      (when (and diff arbitools-verbose) (save-excursion (with-current-buffer "Arbitools-output" (insert (format "Correct! player %d eloaverage: %d points:%d numberofopponents:%d  percentage: %d cutworst:%s\n" player eloaverage points numberofopponents (* percentage 100) cutworst)))))
+      (when (not diff) (setq diff 0)
+	    (save-excursion (with-current-buffer "Arbitools-output" (insert (format "Warning! player %d diff=0 eloaverage: %d points:%d numberofopponents:%d percentage: %d\n" player eloaverage points numberofopponents (* 100 percentage))))))
+      (setq performance (+ eloaverage diff))
+    performance)))
+
+(defun arbitools-calculate-players-performance (&rest cutworst)
+  "Calculates the performance for all the players in the tourmanent and writes them in a buffer,
+   ordered by player rank."
+  (save-excursion
+    (let*((performance 0.0)
+	  (performances))
+      
+      (when arbitools-verbose (save-excursion (with-current-buffer "Players performance"
+			 (delete-region (point-min)(point-max))
+			 (insert "rank Name                           Performance\n"))))
+       ;; Loop over players and calculate performances
+       (dotimes (iter (length arbitools-players-info))                                ;; test code
+	(let* ((rating (string-to-number (nth 2 (nth iter arbitools-players-info))))         ;; test code
+	       (name (nth 1 (nth iter arbitools-players-info))))         ;; test code
+
+	  (setq performance (arbitools-get-player-performance (+ iter 1) cutworst))          ;; test code  
+	  (add-to-list 'performances performance)                                           ;; test code
+	  (when arbitools-verbose (save-excursion (with-current-buffer "Players performance" ;; test code
+	     (goto-char (point-max))                                                         ;; test code
+	     (insert (format "%d %s %s\n" (+ iter 1)	name performance)))))))              ;; test code
+       
+      ;;(goto-char (point-min))
+      ;;(while (re-search-forward "^001" nil t)
+	;;(let* ((linestring (thing-at-point 'line))
+	;;       (rankstring (substring linestring 5 8))
+	;;       (namestring (substring linestring 14 47))
+	;;       (rank (string-to-number rankstring)))
+
+	  ;;(setq performance (arbitools-get-player-performance rank cutworst))
+	  ;;(add-to-list 'performances performance)    
+          ;;(when arbitools-verbose (save-excursion (with-current-buffer "Players performance"
+	;;	(goto-char (point-max))
+	;;	(insert (format "%s %s %s\n" rankstring namestring performance)))))))
+    performances)))
+
+(defun arbitools-calculate-arpo (&rest cutworst)
+  "Calculates the ARPO for all the players and writes the results to a buffer. 
+   also it creates a userTB.txt buffer, so that it can be used in Vega."
+  ;; TODO This algorythm is terribly inefficient, it should be improved
+  (interactive)
+  (or cutworst (setq cutworst t)) ;; TODO allow to call the function with cutworst nil
+  (arbitools-fill-players-info)
+  (save-excursion
+    (let* ((iterand)
+	   (iterand_1)
+	   (converges nil)
+	   (iterations 0)
+	   (opponents)
+	   (percentage 0.0)
+	   (diff 0)
+	   (points 0.0)
+	   (discard 0.0)
+	   (performances (reverse (arbitools-calculate-players-performance cutworst))) ;;calculate performances
+	   (performancesopponents)
+	   (opponentsperformance 0.0)
+	   (averageperformanceofopponents 0.0)
+	   (differences)
+	   (difference)
+	   (continue t)
+	   numberofplayers
+	   numberofopponents)
+      
+        (setq iterand_1 performances)              ;; store performance list in iterand_1 for the first iteration
+        (setq numberofplayers (length performances))
+	(while continue                            ;; iterate performances until the check is true
+	  (setq iterand iterand_1)                 ;; fill iterand with iterand_1
+	  (setq iterand_1 nil)                     ;; reset iterand_1
+	  (dotimes (number numberofplayers)        ;; loop the list of performances
+	    (setq opponents (arbitools-get-player-opponents (+ number 1) cutworst)) ;; get opponents list
+	    (setq numberofopponents (length opponents))
+
+            ;; get opponents performances from iterand list, store in a list. Reset performances list
+	    (setq performancesopponents nil)
+	    (setq averageperformanceofopponents 0.0)
+            (dolist (opponent opponents)           ;; loope the opponents of each player
+	      (setq opponentsperformance (nth (- (string-to-number opponent) 1) iterand))
+	      (setq averageperformanceofopponents (+ averageperformanceofopponents opponentsperformance))
+	      (add-to-list 'performancesopponents opponentsperformance))
+
+	    ;; calculate average of opponents performance + dp
+            (setq averageperformanceofopponents (/ averageperformanceofopponents numberofopponents))
+
+	    ;; calculate points to discard (points against discarded opponents)
+	    (setq discard 0.0)
+	    (goto-char (point-min))
+            (while (re-search-forward "^001" nil t)
+	      (let* ((linestring    (thing-at-point 'line))
+	            (maxlength      0)
+	            (numberofrounds)
+	            (roundcount     1)
+	            (opp            000)
+	            (offset         0)
+	            (rankstring     (substring linestring 5 8))
+	            (rank           (string-to-number rankstring)))
+	    
+	        (when (= rank (+ number 1))
+	            (end-of-line)
+	            (setq maxlength (+ maxlength (current-column)))
+	            (setq numberofrounds (/ (- maxlength 89) 10))
+	            (dotimes (number_1 numberofrounds)
+		      (setq offset (+ 94 (* (- roundcount 1) 10)))
+		      (beginning-of-line)
+		      (forward-char offset)
+		      (setq opp (thing-at-point 'word))
+		      (when (not (member opp opponents))
+                        (forward-char 4)
+		        (when (string= (thing-at-point 'symbol) "1")(setq discard (+ discard 1.0)))
+		        (when (string= (thing-at-point 'symbol) "=")(setq discard (+ discard 0.5))))
+		      (setq roundcount (+ roundcount 1))))))
+	    
+            ;; calculate percentage of points
+	    (setq points (arbitools-get-player-played-points (+ number 1)))
+	    (setq points (- points discard))
+	    (when (> (length opponents) 0) (setq percentage (/ points numberofopponents)))
+	    (setq diff (nth (truncate (* 100 percentage)) arbitools-performancetable))
+	    (setq averageperformanceofopponents (+ averageperformanceofopponents diff))
+	    (when arbitools-verbose (save-excursion (with-current-buffer "Arbitools-output"
+		  (insert (format "Success! player %d run %d points %f discard %f opponents %d: %s percentage %f ARPO averageperformanceofopponents %f performances %s\n"
+		  (+ number 1) iterations points discard numberofopponents opponents percentage averageperformanceofopponents performancesopponents)))))
+     
+            (add-to-list 'iterand_1 averageperformanceofopponents)) ;; write the performance in iterand_1
+	  
+	  (setq iterand_1 (reverse iterand_1)) ;; reverse iterand_1
+	  (setq differences nil)
+	  
+	  ;; write difference in a list to check for convergence
+	  (dotimes (number numberofplayers)
+	    (setq difference (- (nth number iterand) (nth number iterand_1)))
+	    (add-to-list 'differences difference))
+	  
+	  ;; check if the model converges
+	  (when (and (< (abs (- (nth 1 differences) (nth 0 differences))) 0.009) ;; define here the value of epsilon
+		  (< (abs (- (nth (- numberofplayers 1) differences) (nth 0 differences))) 0.001))
+	    (setq converges t)) ;;improve this to check more members
+	  
+	  (setq iterations (+ iterations 1))
+	  (when (or converges (= iterations 50)) (setq continue nil)))  ;; define here maximum number of iterations
+
+	  ;; write a buffer with rank, name and the value from the last list obtained
+	  (when arbitools-verbose (save-excursion (with-current-buffer "Arbitools-output"
+		(insert (format "difference: %f differences: %s converges: %s"
+				(- (nth 1 differences) (nth 0 differences))
+				differences converges)))))
+
+          ;; write the results in the corresponding buffer
+	  (save-excursion (with-current-buffer "ARPO"
+			    (goto-char (point-min))
+			    (delete-region (point-min)(point-max))
+			    (insert "rank Name                           ARPO\n")))
+	  (save-excursion (with-current-buffer "UserTB.txt"
+                            (goto-char (point-min))
+			    (delete-region (point-min)(point-max))
+			    (insert "  User Tie-Break   ;")))
+
+	   (dotimes (iter (length iterand_1))
+	    (let* ((rating (string-to-number (nth 2 (nth iter arbitools-players-info))))
+		   (name (nth 1 (nth iter arbitools-players-info)))
+		   (arpo (nth iter iterand_1)))
+              (save-excursion (with-current-buffer "ARPO" (insert (format "%d %s %s\n" (+ iter 1) name arpo))))
+	      (save-excursion (with-current-buffer "UserTB.txt" (insert (format "%s;" arpo))))))
+
+	  
+	  ;;(goto-char (point-min))                                                ;; old code
+	  ;;(while (re-search-forward "^001" nil t)                                ;; old code
+	  ;;  (let* ((linestring (thing-at-point 'line))                           ;; old code
+		;;   (rankstring (substring-no-properties linestring 5 8))         ;; old code
+		;;   (namestring (substring-no-properties linestring 14 47))       ;; old code
+		;;   (rank (string-to-number rankstring))                          ;; old code
+		;;   (arpo (nth (- rank 1) iterand_1)))                            ;; old code
+	   ;;   (save-excursion (with-current-buffer "ARPO"                        ;; old code
+	   ;;       (insert (format "%s %s %s\n" rankstring namestring arpo))))    ;; old code
+           ;;   (save-excursion (with-current-buffer "UserTB.txt"                  ;; old code
+           ;;       (insert (format "%s;" arpo))))))                               ;; old code
+
+
+	  )))
 
 (defun arbitools-it3 ()
    "Get the IT3 tournament report. You will get a .tex file, and a pdf
@@ -932,6 +1309,7 @@
     ["List Pairings" arbitools-list-pairing]
     ["Recalculate Standings" arbitools-calculate-standings]
     ["Recalculate points" arbitools-calculate-points]
+    ["Calculate ARPO" arbitools-calculate-arpo]
     "---"
     ["Print Standings to file" arbitools-standings]
     "---"
@@ -1014,6 +1392,9 @@
   (generate-new-buffer "Pairings List")
   (generate-new-buffer "Standings")
   (generate-new-buffer "Pairings-output")
+  (generate-new-buffer "Players performance")
+  (generate-new-buffer "ARPO")
+  (generate-new-buffer "UserTB.txt")
   (column-number-mode)
   (set (make-local-variable 'font-lock-defaults) '(arbitools-highlights)))
 
