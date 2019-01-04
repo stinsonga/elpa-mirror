@@ -1,6 +1,15 @@
 Some of the user visible news were:
 
 
+Version: 1.11.3
+
+  When copying large parts of an *El Occur* buffer to the kill ring
+  (large here means "includes file headlines"), or you save an
+  *El Occur* buffer, matches are surrounded with --> <-- text markers
+  so that they are better visible when you send the output to someone
+  else, for example.  This can be turned off or be configured with the
+  new user option 'el-search-occur-match-markers'.
+
 Version: 1.11.1
 
   Eldoc now displays signatures of search patterns for the search
