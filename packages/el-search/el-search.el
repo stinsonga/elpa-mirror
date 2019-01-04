@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.11.2
+;; Version: 1.11.3
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -426,9 +426,6 @@
 ;; - Add org and/or Info documentation
 ;;
 ;; - Could we profit from the edebug-read-storing-offsets reader?
-;;
-;; - We need a mean to prepare occur output for posting.  Surround
-;;   matches with [[[ ]]] maybe?
 ;;
 ;; - Make currently hardcoded bindings in
 ;;   `el-search-loop-over-bindings' configurable
@@ -3648,6 +3645,56 @@ Prompt for a new pattern and revert."
     (set-keymap-parent map (make-composed-keymap special-mode-map emacs-lisp-mode-map))
     map))
 
+(defcustom el-search-occur-match-markers (list "--> " " <--")
+  "Whether to mark matches in copied or saved text in *El Occur*.
+
+When non-nil, should be a list of two strings (BEFORE-MARKER
+AFTER-MARKER).  When large parts of an *El Occur* buffer are
+copied or the buffer is saved to a file, all matches are silently
+surrounded with these markers.  This is useful if you want to
+send the buffer contents to someone else.  \"Large\" means that
+the copied text includes buffer or file headlines, so this will
+not get in your way if you only want to copy single expressions
+from an *El Occur* buffer.
+
+When nil, all such treatment is disabled."
+  :type '(choice
+          (const :tag "Off" nil)
+          (list  :tag "Match Text Markers"
+	         (string :tag "Before-Marker String")
+	         (string :tag "After-Marker String"))))
+
+(defun el-search-occur-filter-buffer-substring (beg end &optional delete)
+  (if (or delete
+          (not el-search-occur-match-markers)
+          (not (save-excursion
+                 (goto-char beg)
+                 (search-forward-regexp outline-regexp end t))))
+      (buffer-substring--filter beg end delete)
+    (let ((contents '())
+          p)
+      (save-excursion
+        (setq p (goto-char beg))
+        (while (not (<= end (point)))
+          (goto-char (next-single-char-property-change (point) el-search-occur-match-ov-prop nil end))
+          (push (buffer-substring p (point)) contents)
+          (push (if (get-char-property (point) el-search-occur-match-ov-prop)
+                    (car el-search-occur-match-markers)
+                  (if (<= end (point)) "" (cadr el-search-occur-match-markers)))
+                contents)
+          (setq p (point))))
+      (apply #'concat (nreverse contents)))))
+
+(defun el-search-occur-write-file (&optional file)
+  (let ((file (or file buffer-file-name))
+        (contents (save-restriction (widen) (filter-buffer-substring (point-min) (point-max)))))
+    (with-temp-buffer
+      (insert contents)
+      (write-region (point-min) (point-max) file nil t))
+    (set-buffer-modified-p nil)
+    t ;signal success
+    ))
+
 (define-derived-mode el-search-occur-mode emacs-lisp-mode "El-Occur"
   "Major mode for El-Occur buffers.
 
@@ -3663,7 +3710,9 @@ addition from `special-mode-map':
   (setq-local hs-hide-comments-when-hiding-all nil)
   (hs-minor-mode +1)
   (setq outline-regexp "^;;;\\ \\*+")
-  (outline-minor-mode +1))
+  (outline-minor-mode +1)
+  (add-hook 'write-contents-functions 'el-search-occur-write-file nil t)
+  (setq-local filter-buffer-substring-function #'el-search-occur-filter-buffer-substring))
 
 (put 'el-search-occur-mode 'mode-class 'special)
 
