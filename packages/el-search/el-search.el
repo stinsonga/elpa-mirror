@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.9.0
+;; Version: 1.9.1
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -1966,85 +1966,88 @@ map until you finished el-searching."
   (let ((display-buffer-overriding-action '(nil (inhibit-same-window . t))))
     (el-search-help-for-help-internal)))
 
-(defun el-search-help-list-bindings--1 (buffer search-buffer &optional more)
-  (with-current-buffer buffer
-    (erase-buffer)
-    (cl-flet* ((keys-string
-                (lambda (cmd-name)
-                  (let* ((get-keys
-                          (lambda (&optional map)
-                            (with-current-buffer search-buffer
-                              (where-is-internal cmd-name (and map (list map))))))
-                         (tmap (if el-search-use-transient-map
-                                   el-search-prefix-key-transient-map
-                                 el-search-basic-transient-map))
-                         (keys (nreverse (or (funcall get-keys tmap)
-                                             (funcall get-keys)))))
-                    (if keys (mapconcat #'key-description keys ", ")
-                      "no key"))))
-               (cmd-help
-                (lambda (cmd-name)
-                  (let* ((maxl 34)
-                         (add-padding
-                          (lambda (s)
-                            (let ((sl (length s)))
-                              (concat (if (<= maxl sl) s
-                                        (concat s " " (make-string (- maxl sl 1) ?.)))
-                                      " ")))))
-                    (if more
-                        (concat
-                         "`" (symbol-name cmd-name) "'"
-                         " (" (keys-string cmd-name) ")\n"
-                         (when-let ((docstring (documentation cmd-name)))
-                           (string-match "\\(\\`.*$\\)" docstring)
-                           (concat (match-string 1 docstring) "\n"))
-                         "\n")
-                      (concat "  "
-                              (funcall add-padding (symbol-name cmd-name))
-                              (keys-string cmd-name)
-                              "\n"))))))
-      (insert
-       "Bindings for controlling el-searches:\n\n"
-       (cmd-help 'el-search-pattern)
-       (cmd-help 'el-search-pattern-backward)
-       (cmd-help 'el-search-help-list-bindings)
-       (cmd-help 'el-search-help-list-bindings-verbose)
-       (cmd-help 'el-search-pause-search)
-       (cmd-help 'el-search-keyboard-quit)
-       (cmd-help 'el-search-occur)
-       (cmd-help 'el-search-jump-to-search-head)
-       (cmd-help 'el-search-from-beginning)
-       (cmd-help 'el-search-last-buffer-match)
-       (cmd-help 'el-search-scroll-down)
-       (cmd-help 'el-search-scroll-up)
-       (cmd-help 'el-search-continue-in-next-buffer)
-       (cmd-help 'el-search-skip-directory)
-       (cmd-help 'el-search-to-register)
-       (cmd-help 'el-search-query-replace)
-       (if more "" (substitute-command-keys "
+(defun el-search-help-list-bindings--1 (&optional verbose)
+  (cl-flet* ((keys-string
+              (lambda (cmd-name)
+                (let* ((get-keys
+                        (lambda (&optional map)
+                          (seq-filter
+                           (lambda (binding)
+                             (pcase binding
+                               ((seq 'menu-bar) nil)
+                               (_ t)))
+                           (where-is-internal cmd-name (and map (list map))))))
+                       (tmap (if el-search-use-transient-map
+                                 el-search-prefix-key-transient-map
+                               el-search-basic-transient-map))
+                       (keys (nreverse (or (funcall get-keys tmap)
+                                           (funcall get-keys)))))
+                  (if keys (mapconcat #'key-description keys ", ")
+                    "no key"))))
+             (cmd-help
+              (lambda (cmd-name)
+                (let* ((maxl 34)
+                       (add-padding
+                        (lambda (s)
+                          (let ((sl (length s)))
+                            (concat (if (<= maxl sl) s
+                                      (concat s " " (make-string (- maxl sl 1) ?.)))
+                                    " ")))))
+                  (princ (if verbose
+                             (concat
+                              "`" (symbol-name cmd-name) "'"
+                              " (" (keys-string cmd-name) ")\n"
+                              (when-let ((docstring (documentation cmd-name)))
+                                (string-match "\\(\\`.*$\\)" docstring)
+                                (concat (match-string 1 docstring) "\n"))
+                              "\n")
+                           (concat "  "
+                                   (funcall add-padding (symbol-name cmd-name))
+                                   (keys-string cmd-name)
+                                   "\n")))))))
+    (princ "Bindings for controlling el-searches:\n\n")
+    (cmd-help 'el-search-pattern)
+    (cmd-help 'el-search-pattern-backward)
+    (cmd-help 'el-search-help-list-bindings)
+    (cmd-help 'el-search-help-list-bindings-verbose)
+    (cmd-help 'el-search-pause-search)
+    (cmd-help 'el-search-keyboard-quit)
+    (cmd-help 'el-search-occur)
+    (cmd-help 'el-search-jump-to-search-head)
+    (cmd-help 'el-search-from-beginning)
+    (cmd-help 'el-search-last-buffer-match)
+    (cmd-help 'el-search-scroll-down)
+    (cmd-help 'el-search-scroll-up)
+    (cmd-help 'el-search-continue-in-next-buffer)
+    (cmd-help 'el-search-skip-directory)
+    (cmd-help 'el-search-to-register)
+    (cmd-help 'el-search-query-replace)
+    (unless verbose (princ (substitute-command-keys "
 Toggle visibility of this window with \
 `\\<el-search-basic-transient-map>\\[el-search-help-list-bindings]'"))))
-    (goto-char (point-min)))
-  buffer)
+  standard-output)
 
 (defun el-search-help-list-bindings ()
   "Toggle quick help window."
   (interactive)
   (setq this-command 'el-search-pattern)
   (unless (el-search-close-quick-help-maybe)
-    (let* ((help-buffer (el-search-help-list-bindings--1
-                         (get-buffer-create el-search-quick-help-buffer-name)
-                         (current-buffer)))
-           (help-window (display-buffer-pop-up-window help-buffer '())))
-      (fit-window-to-buffer help-window)
-      (with-current-buffer help-buffer (setq-local el-search-help-window help-window)))))
+    (let ((help-buffer (get-buffer-create el-search-quick-help-buffer-name)))
+      (with-current-buffer help-buffer
+        (let ((inhibit-read-only t))
+          (erase-buffer)))
+      (let ((standard-output help-buffer))
+        (el-search-help-list-bindings--1))
+      (let ((help-window (display-buffer-pop-up-window help-buffer '())))
+        (fit-window-to-buffer help-window)
+        (with-current-buffer help-buffer
+          (setq-local el-search-help-window help-window))))))
 
 (defun el-search-help-list-bindings-verbose ()
   "List bindings and first lines of documentation."
   (interactive)
-  (temp-buffer-window-show
-   (el-search-help-list-bindings--1
-    (get-buffer-create "*Help*") (current-buffer) 'more)))
+  (with-help-window (help-buffer)
+    (el-search-help-list-bindings--1 'verbose)))
 
 (defun el-search-help-list-patterns ()
   (interactive)
