@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.9.1
+;; Version: 1.9.2
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -1512,8 +1512,8 @@ PATTERN and combining the heuristic matchers of the subpatterns."
       (walker tree)
       elements)))
 
-(defun el-search-heuristic-buffer-matcher (pattern)
-  (let ((heuristic-matcher (el-search-heuristic-matcher pattern)))
+(defun el-search-heuristic-buffer-matcher (pattern &optional hm)
+  (let ((heuristic-matcher (or hm (el-search-heuristic-matcher pattern))))
     (lambda (file-name-or-buffer)
       (el-search--message-no-log "%s"
                                  (if (stringp file-name-or-buffer)
@@ -1709,10 +1709,10 @@ position of the beginning of the match."
 (defun el-search--set-head-pattern (head pattern)
   (setf (el-search-head-matcher head)
         (el-search-make-matcher pattern))
-  (setf (el-search-head-heuristic-matcher head)
-        (el-search-heuristic-matcher pattern))
-  (setf (el-search-head-heuristic-buffer-matcher head)
-        (el-search-heuristic-buffer-matcher pattern))
+  (let ((hm (el-search-heuristic-matcher pattern)))
+    (setf (el-search-head-heuristic-matcher head) hm)
+    (setf (el-search-head-heuristic-buffer-matcher head)
+          (el-search-heuristic-buffer-matcher pattern hm)))
   head)
 
 (defun el-search-compile-pattern-in-search (search)
@@ -2733,8 +2733,8 @@ continued."
   (interactive "P")
   (setq this-command 'el-search-pattern)
   (unless (eq last-command this-command)
-    (el-search--set-search-origin-maybe))
-  (el-search-compile-pattern-in-search el-search--current-search)
+    (el-search--set-search-origin-maybe)
+    (el-search-compile-pattern-in-search el-search--current-search))
   (el-search-protect-search-head
    (unwind-protect
        (let* ((old-current-buffer (current-buffer))
