@@ -89,6 +89,7 @@
  ("js2-mode"		:subtree "https://github.com/mooz/js2-mode.git")
  ("jsonrpc"		:core "lisp/jsonrpc.el")
  ("let-alist"		:core "lisp/emacs-lisp/let-alist.el")
+ ("map"                 :core "lisp/emacs-lisp/map.el")
  ("math-symbol-lists" 	:subtree "https://github.com/vspinu/math-symbol-lists.git")
  ("mmm-mode"            :external "https://github.com/purcell/mmm-mode.git")
  ("nameless"		:subtree "https://github.com/Malabarba/Nameless")
