@@ -25,10 +25,13 @@ packages/flymake/
 packages/fountain-mode/
 packages/gpastel/
 packages/hyperbole/
+packages/ivy-explorer/
 packages/jsonrpc/
 packages/let-alist/
+packages/map/
 packages/mmm-mode/
 packages/ntlm/
+packages/objed/
 packages/omn-mode/
 packages/orgalist/
 packages/pabbrev/
