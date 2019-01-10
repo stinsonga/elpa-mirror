@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.9.2
+;; Version: 1.9.3
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -465,6 +465,7 @@
 (require 'ring)     ;el-search-history
 (require 'hideshow) ;folding in *El Occur*
 (require 'outline)  ;folding in *El Occur*
+(eval-when-compile (require 'easymenu))
 
 
 ;;;; Configuration stuff
@@ -4515,6 +4516,62 @@ Reuse already given input."
   (interactive)
   (setq el-search-occur-flag t)
   (call-interactively #'el-search-search-from-isearch))
+
+
+;;;; Menus
+
+;;;###autoload
+(progn
+  (require 'easymenu)
+
+  (easy-menu-add-item
+   nil '("Tools")
+   `("El-Search"
+     ["Search Directory" el-search-directory]
+     ["Search Directory Recursively"
+      ,(lambda () (interactive)
+         (let ((current-prefix-arg '(4)))
+           (call-interactively #'el-search-directory)))]
+     ["Search 'load-path'"         el-search-load-path]
+     ["Search Emacs Elisp Sources" el-search-emacs-elisp-sources]
+     ["Search Elisp Buffers"       el-search-buffers]))
+
+  (easy-menu-add-item
+   (lookup-key emacs-lisp-mode-map [menu-bar]) '("Emacs-Lisp")
+   `("El-Search"
+     ["Forward"  el-search-pattern]
+     ["Backward" el-search-pattern-backward]
+     ["Sexp at Point" el-search-this-sexp]
+     ["Resume Last Search" el-search-jump-to-search-head :enable el-search--current-search]
+     ["Resume Former Search" ,(lambda () (interactive) (el-search-jump-to-search-head '(4)))
+      :enable (cdr (ring-elements el-search-history))]
+     ["Query-Replace" el-search-query-replace :enable (not buffer-read-only)]
+     ["Occur" ,(lambda () (interactive)
+                 (let ((el-search-occur-flag t)) (call-interactively #'el-search-pattern)))])))
+
+(easy-menu-define nil el-search-occur-mode-map "El Occur Menu"
+  `("El-Occur"
+    ["Next Match"     el-search-occur-next-match
+     :help "Go to the next match"]
+    ["Previous Match" el-search-occur-previous-match
+     :help "Go to the previous match"]
+    ["Jump to Source" el-search-occur-jump-to-match
+     :help "Jump to corresponding position in source"]
+    ["Adjust Pattern" el-search-edit-occur-pattern
+     :help "Edit search pattern and revert"]
+    ("Context"
+     ["No context"    el-search-occur-no-context
+      :style radio
+      :selected (eq el-search-get-occur-context-function 'el-search-occur-get-null-context)]
+     ["Some context"  el-search-occur-some-context
+      :style radio
+      :selected (eq el-search-get-occur-context-function 'el-search-occur-get-some-context)]
+     ["Top-Level"     el-search-occur-defun-context
+      :style radio
+      :selected (eq el-search-get-occur-context-function 'el-search-occur-get-defun-context)])
+    ("Outline"
+     ["Hide all" el-search-occur-cycle :style radio :selected (not el-search-occur--outline-visible)]
+     ["Show All" el-search-occur-cycle :style radio :selected el-search-occur--outline-visible])))
 
 
 (provide 'el-search)
