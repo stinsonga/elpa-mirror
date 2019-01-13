@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.9.3
+;; Version: 1.9.4
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -3149,9 +3149,12 @@ Use the normal search commands to seize the search."
 
 (defvar-local el-search-occur-search-object nil)
 
+(defvar el-search-occur--outline-visible t)
 
 (defun el-search-occur-revert-function (&rest _)
-  (el-search--occur el-search-occur-search-object t))
+  (el-search--occur el-search-occur-search-object t)
+  (unless el-search-occur--outline-visible
+    (outline-hide-leaves)))
 
 (defun el-search-edit-occur-pattern (new-pattern)
   "Change the search pattern associated with this *El Occur* buffer.
@@ -3290,8 +3293,6 @@ Prompt for a new pattern and revert."
   (interactive)
   (el-search-occur--next-match 'backward))
 
-
-(defvar el-search-occur--outline-visible t)
 
 (defun el-search-occur-cycle ()
   "Cycle between showing an outline and everything."
@@ -4547,6 +4548,7 @@ Reuse already given input."
       :enable (cdr (ring-elements el-search-history))]
      ["Query-Replace" el-search-query-replace :enable (not buffer-read-only)]
      ["Occur" ,(lambda () (interactive)
+                 (defvar el-search-occur-flag)
                  (let ((el-search-occur-flag t)) (call-interactively #'el-search-pattern)))])))
 
 (easy-menu-define nil el-search-occur-mode-map "El Occur Menu"
