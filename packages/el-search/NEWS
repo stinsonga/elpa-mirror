@@ -1,6 +1,11 @@
 Some of the user visible news were:
 
 
+Version: 1.9.0
+
+  This version adds some help commands available through the C-h help
+  prefix.
+
 Version: 1.8.4
 
   Quitting (C-g) while el-searching now brings you back to the
