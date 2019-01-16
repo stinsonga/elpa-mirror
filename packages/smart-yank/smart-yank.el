@@ -1,6 +1,6 @@
 ;;; smart-yank.el --- A different approach of yank pointer handling  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2016-2018 Free Software Foundation, Inc
+;; Copyright (C) 2016-2019 Free Software Foundation, Inc
 
 ;; Author: Michael Heerdegen <michael_heerdegen@web.de>
 ;; Maintainer: Michael Heerdegen <michael_heerdegen@web.de>
