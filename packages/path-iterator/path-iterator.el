@@ -1,6 +1,6 @@
-;; path-iterator.el --- An iterator for traversing a directory path.  -*-lexical-binding:t-*-
+;;; path-iterator.el --- An iterator for traversing a directory path.  -*-lexical-binding:t-*-
 
-;; Copyright (C) 2015 - 2017 Free Software Foundation, Inc.
+;; Copyright (C) 2015 - 2017, 2019 Free Software Foundation, Inc.
 ;;
 ;; Author: Stephen Leake <stephen_leake@stephe-leake.org>
 ;; Maintainer: Stephen Leake <stephen_leake@stephe-leake.org>
@@ -23,9 +23,50 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; Code:
+;;; Commentary:
 
-(require 'cl-generic)
+;; A path-iterator object is created by `make-path-iterator', which
+;; takes keyword arguments:
+;;
+;; user-path-non-recursive: list of directories to return, in order given
+;;
+;; user-path-recursive: list of root directory trees to return; trees
+;; are explored in depth-first order, after all directories in
+;; `user-path-non-recursive' are returned.
+;;
+;; ignore-function: a function that takes one argument (an absolute
+;; directory name), and returns nil if directory should be returned,
+;; non-nil if not.
+;;
+;; Other functions:
+;;
+;; path-iter-done: non-nil if the iterator is done (all directories
+;; have been returned).
+;;
+;; path-iter-next: return the next directory, or nil if done.
+;;
+;; path-iter-restart: restart iterator; next call to `path-iter-next'
+;; will return the first directory.
+;;
+;; path-iter-reset: clear internal caches; recompute the path. In
+;; normal operation, the directories returned from both the
+;; non-recursive and recursive path are cached in an array in the
+;; first iteration, and subsequent iterations just return items in
+;; that array. This avoids calling `directory-files' and the
+;; ignore-function on iterations after the first. `path-iter-reset'
+;; should be called if directories are added/deleted in the recursive
+;; path, or if the ignore-function is changed,
+;;
+;; path-iter-contains-root: non-nil if the iterator directory lists
+;; contain the given directory. For both the non-recursive and
+;; recursive lists, the given directory must be in the list; nested
+;; directories return nil.
+;;
+;; path-iter-expand-filename: expand a given filename against all the
+;; directories returned by the iterator, return the first one that
+;; exists, or nil if the filename exists in none of the directories.
+
+;;; Code:
 
 (cl-defstruct
     (path-iterator
@@ -38,9 +79,9 @@
 		    user-path-recursive
 		    ignore-function
 		    &aux
-		    (path-non-recursive-init (path-iter-to-truename user-path-non-recursive))
+		    (path-non-recursive-init (path-iter--to-truename user-path-non-recursive))
 		    (path-non-recursive path-non-recursive-init)
-		    (path-recursive-init (path-iter-to-truename user-path-recursive))
+		    (path-recursive-init (path-iter--to-truename user-path-recursive))
 		    (path-recursive path-recursive-init)
 		    (visited nil)
 		    (current nil)
@@ -76,7 +117,7 @@
       (member root (path-iter-path-non-recursive-init iter))
       ))
 
-(defun path-iter-to-truename (path)
+(defun path-iter--to-truename (path)
   "Convert each existing element of PATH to an absolute directory file truename,
 return the resulting list.  Elements of PATH are either absolute or
 relative to `default-directory'.
@@ -245,4 +286,4 @@ Return a list of absolute filenames or nil if none found."
     result))
 
 (provide 'path-iterator)
-;; path-iterator.el ends here
+;;; path-iterator.el ends here.
