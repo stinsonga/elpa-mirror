@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.12.3
+;; Version: 1.12.4
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -659,11 +659,10 @@ whole match visible whenever possible."
 (defvar el-search-read-expression-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map read-expression-map)
-    (define-key map [(control ?g)] #'abort-recursive-edit)
+    (define-key map "\C-g" #'abort-recursive-edit)
     (define-key map [up]   nil)
     (define-key map [down] nil)
-    (define-key map [(control ?j)] #'newline)
-    (define-key map [(meta return)] #'el-search-set-occur-flag-exit-minibuffer)
+    (define-key map "\C-j" #'newline)
     (define-key map (kbd "M-RET")   #'el-search-set-occur-flag-exit-minibuffer)
     map)
   "Keymap for reading input with `el-search-read-expression'.")
@@ -2063,9 +2062,8 @@ Go back to the place where the search had been started."
 
 (defvar el-search-basic-transient-map
   (let ((map (make-sparse-keymap)))
-    (define-key map [return]       #'el-search-pause-search)
     (define-key map (kbd "RET")    #'el-search-pause-search)
-    (define-key map [(control ?g)] #'el-search-keyboard-quit)
+    (define-key map "\C-g"         #'el-search-keyboard-quit)
     (define-key map [??]           #'el-search-help-list-bindings)
     (define-key map `[,help-char]  el-search-help-map)
     (define-key map [help]         el-search-help-map)
@@ -3646,12 +3644,9 @@ Prompt for a new pattern and revert."
 
 (defvar el-search-occur-mode-map-1
   (let ((map (make-sparse-keymap)))
-    (define-key map [tab]           #'el-search-occur-tab-command)
     (define-key map "\t"            #'el-search-occur-tab-command)
-    (define-key map [return]        #'el-search-occur-jump-to-match)
     (define-key map "\r"            #'el-search-occur-jump-to-match)
-    (define-key map [S-iso-lefttab] #'el-search-occur-cycle)
-    (define-key map [(shift tab)]   #'el-search-occur-cycle)
+    (define-key map [backtab]       #'el-search-occur-cycle)
     (define-key map [?p]            #'el-search-occur-previous-match)
     (define-key map [?n]            #'el-search-occur-next-match)
     (define-key map [?r]            #'el-search-occur-previous-match)

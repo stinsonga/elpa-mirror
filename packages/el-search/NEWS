@@ -1,6 +1,23 @@
 Some of the user visible news were:
 
 
+Version: 1.12.4
+
+  Key syntax cleanup: In some cases the code used to bind some keys
+  twice: it bound events E1 and E2 where in some environments hitting
+  a certain key generates E1 in in others E2 where E2 is normally
+  translated into E1.  For example, the code created bindings for
+  "\C-j" and also for [(meta return)], although binding only "\C-j"
+  would suffice because in environments where [(meta return)] is
+  created it would be immediately translated to "\C-j".
+
+  That means that should you add a binding for the event that is
+  generated only in some environments like [(meta return)] in the
+  respective key map you would get the effect that your binding
+  shadows the el-search binding in some environments and in others
+  not.  If you experience something like that, check your init file if
+  you do something like that.
+
 Version: 1.12.2
 
   Some changes to the 'el-search-query-replace' prompt to make it
