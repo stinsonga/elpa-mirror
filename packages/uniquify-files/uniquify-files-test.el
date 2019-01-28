@@ -80,7 +80,7 @@
   (should (equal (uniq-file-completion-table uft-iter "fi" nil 'metadata)
 		 (cons 'metadata
 		       (list
-			'(category . uniq-file)))))
+			'(category . project-file)))))
 
   ;; all-completions. We sort the results here to make the test stable
   (should (equal (sort (uniq-file-completion-table uft-iter "-fi" nil t) #'string-lessp)
@@ -117,9 +117,9 @@
   (should (equal (uniq-file-completion-table uft-iter "fi" nil nil)
 		 nil))
 
-  ;; This table does not implement test-completion
-  (should (equal (uniq-file-completion-table uft-iter "fi" nil 'lambda)
-		 nil))
+  ;; test-completion
+  (should (equal (uniq-file-completion-table uft-iter (uniq-file-to-table-input "foo-file1.text<alice-1>") nil 'lambda)
+		 t))
 
   )
 
@@ -151,43 +151,46 @@
 
   )
 
-(ert-deftest test-uniq-file-test-completion ()
+(defun test-uniq-file-test-completion-1 (table)
+  (should (equal (test-completion "foo-fi" table)
+		 nil))
+
+  (should (equal (test-completion "f-fi<dir" table)
+		 nil))
+
+  (should (equal (test-completion "foo-file1.text<>" table)
+		 t))
+
+  (should (equal (test-completion "foo-file1.text" table)
+		 t))
+
+  (should (equal (test-completion "foo-file1.text<alice-1/>" table)
+		 t))
+
+  (should (equal (test-completion "foo-file3.text" table)
+		 nil))
+
+  (should (equal (test-completion "foo-file3.texts2" table)
+		 t))
+
+  (should (equal (test-completion "bar-file2.text<Alice/alice-" table)
+		 nil))
+  )
+
+(ert-deftest test-uniq-file-test-completion-func ()
   (let ((table (apply-partially 'uniq-file-completion-table uft-iter)))
+    (test-uniq-file-test-completion-1 table)))
 
-    (should (equal (test-completion "foo-fi" table)
-		   nil))
-
-    (should (equal (test-completion "f-fi<dir" table)
-		   nil))
-
-    (should (equal (test-completion "foo-file1.text<>" table)
-		   t))
-
-    (should (equal (test-completion "foo-file1.text" table)
-		   t))
-
-    (should (equal (test-completion "foo-file1.text<alice-1/>" table)
-		   t))
-
-    (should (equal (test-completion "foo-file3.text" table)
-		   t))
-
-    (should (equal (test-completion "foo-file3.texts" table)
-		   t))
-
-    (should (equal (test-completion "foo-file3.texts2" table)
-		   t))
-
-    (should (equal (test-completion "bar-file2.text<Alice/alice-" table)
-		   nil))
-
-    ))
+(ert-deftest test-uniq-file-test-completion-list ()
+  (let ((table (path-iter-all-files uft-iter))
+	(completion-styles '(uniquify-file))) ;; FIXME: need a way to specify category
+    (test-uniq-file-test-completion-1 table)))
 
 (ert-deftest test-uniquify-file-all-completions-noface ()
   (let ((table (apply-partially 'uniq-file-completion-table uft-iter)))
 
     (should (equal
-	     (sort (completion-uniquify-file-all-completions "" table nil nil) #'string-lessp)
+	     (sort (uniq-file-all-completions "" table nil nil) #'string-lessp)
 	     (list
 	      "bar-file1.text<alice-1/>"
 	      "bar-file1.text<alice-2/>"
@@ -207,7 +210,7 @@
 	      )))
 
     (should (equal
-	     (sort (completion-uniquify-file-all-completions "*-fi" table nil nil) #'string-lessp)
+	     (sort (uniq-file-all-completions "*-fi" table nil nil) #'string-lessp)
 	     (list
 	      "bar-file1.text<alice-1/>"
 	      "bar-file1.text<alice-2/>"
@@ -227,7 +230,7 @@
 	      )))
 
     (should (equal
-	     (sort (completion-uniquify-file-all-completions "b" table nil nil) #'string-lessp)
+	     (sort (uniq-file-all-completions "b" table nil nil) #'string-lessp)
 	     (list
 	      "bar-file1.text<alice-1/>"
 	      "bar-file1.text<alice-2/>"
@@ -236,7 +239,7 @@
 	      )))
 
     (should (equal
-	     (sort (completion-uniquify-file-all-completions "foo" table nil nil) #'string-lessp)
+	     (sort (uniq-file-all-completions "foo" table nil nil) #'string-lessp)
 	     (list
 	      "foo-file1.text<>"
 	      "foo-file1.text<Alice/alice-1/>"
@@ -252,14 +255,14 @@
 	      )))
 
     (should (equal
-	     (sort (completion-uniquify-file-all-completions "f-file2" table nil nil) #'string-lessp)
+	     (sort (uniq-file-all-completions "f-file2" table nil nil) #'string-lessp)
 	     (list
 	      "foo-file2.text<Alice/alice-1/>"
 	      "foo-file2.text<Bob/bob-1/>"
 	      )))
 
     (should (equal
-	     (sort (completion-uniquify-file-all-completions "b-fi<" table nil nil) #'string-lessp)
+	     (sort (uniq-file-all-completions "b-fi<" table nil nil) #'string-lessp)
 	     (list
 	      "bar-file1.text<alice-1/>"
 	      "bar-file1.text<alice-2/>"
@@ -268,7 +271,7 @@
 	      )))
 
     (should (equal
-	     (sort (completion-uniquify-file-all-completions "f-file<" table nil nil) #'string-lessp)
+	     (sort (uniq-file-all-completions "f-file<" table nil nil) #'string-lessp)
 	     (list
 	      "foo-file1.text<>"
 	      "foo-file1.text<Alice/alice-1/>"
@@ -284,7 +287,7 @@
 	      )))
 
     (should (equal
-	     (sort (completion-uniquify-file-all-completions "b-fi<a-" table nil nil) #'string-lessp)
+	     (sort (uniq-file-all-completions "b-fi<a-" table nil nil) #'string-lessp)
 	     ;; FIXME: This result reflects a bug in
 	     ;; `completion-pcm--pattern->regex'; "a-" becomes
 	     ;; "a.*?-", but it should be (concat "a[^"
@@ -297,21 +300,21 @@
 	      )))
 
     (should (equal
-	     (sort (completion-uniquify-file-all-completions "b-fi<a-1" table nil nil) #'string-lessp)
+	     (sort (uniq-file-all-completions "b-fi<a-1" table nil nil) #'string-lessp)
 	     (list "bar-file1.text<Alice/alice-1/>"
 		   "bar-file2.text<Alice/alice-1/>")))
 
-    (should (equal (completion-uniquify-file-all-completions "f-file1.text<a-1" table nil nil)
+    (should (equal (uniq-file-all-completions "f-file1.text<a-1" table nil nil)
 		   (list "foo-file1.text<Alice/alice-1/>")))
 
-    (should (equal (completion-uniquify-file-all-completions "f-file5" table nil nil)
+    (should (equal (uniq-file-all-completions "f-file5" table nil nil)
 		   (list "foo-file5.text")))
 
-    (should (equal (completion-uniquify-file-all-completions "foo-file1.text<Alice/alice-1/>" table nil nil)
+    (should (equal (uniq-file-all-completions "foo-file1.text<Alice/alice-1/>" table nil nil)
 		   (list "foo-file1.text<Alice/alice-1/>")))
 
     (should (equal
-	     (sort (completion-uniquify-file-all-completions "b-fi<a>" table nil nil) #'string-lessp)
+	     (sort (uniq-file-all-completions "b-fi<a>" table nil nil) #'string-lessp)
 	     (list
 	      "bar-file1.text<Alice/alice-1/>"
 	      "bar-file1.text<Alice/alice-2/>"
@@ -320,7 +323,7 @@
 	      )))
 
     (should (equal
-	     (sort (completion-uniquify-file-all-completions "foo-file1.text<>" table nil nil) #'string-lessp)
+	     (sort (uniq-file-all-completions "foo-file1.text<>" table nil nil) #'string-lessp)
 	     ;; This is complete but not unique, because the directory part matches multiple directories.
 	     (list
 	      "foo-file1.text<>"
@@ -339,7 +342,7 @@ all positions in POS-LIST in STRING; return new string."
       (put-text-property pos (1+ pos) 'face 'completions-first-difference string)))
   string)
 
-(ert-deftest test-uniquify-file-all-completions-face ()
+(ert-deftest test-uniq-file-all-completions-face ()
   ;; all-completions tested above without considering face text
   ;; properties; here we test just those properties. Test cases are
   ;; the same as above.
@@ -350,7 +353,7 @@ all positions in POS-LIST in STRING; return new string."
   (let ((table (apply-partially 'uniq-file-completion-table uft-iter)))
 
     (should (equal-including-properties
-	     (sort (completion-uniquify-file-all-completions "" table nil nil) #'string-lessp)
+	     (sort (uniq-file-all-completions "" table nil nil) #'string-lessp)
 	     (list
 	      (test-uniq-file-hilit '(0) "bar-file1.text<alice-1/>")
 	      (test-uniq-file-hilit '(0) "bar-file1.text<alice-2/>")
@@ -370,7 +373,7 @@ all positions in POS-LIST in STRING; return new string."
 	      )))
 
     (should (equal-including-properties
-	     (sort (completion-uniquify-file-all-completions "*-fi" table nil nil) #'string-lessp)
+	     (sort (uniq-file-all-completions "*-fi" table nil nil) #'string-lessp)
 	     (list
 	      (test-uniq-file-hilit '(0 8) "bar-file1.text<alice-1/>")
 	      (test-uniq-file-hilit '(0 8) "bar-file1.text<alice-2/>")
@@ -390,7 +393,7 @@ all positions in POS-LIST in STRING; return new string."
 	      )))
 
     (should (equal-including-properties
-	     (sort (completion-uniquify-file-all-completions "b" table nil nil) #'string-lessp)
+	     (sort (uniq-file-all-completions "b" table nil nil) #'string-lessp)
 	     (list
 	      (test-uniq-file-hilit '(8) "bar-file1.text<alice-1/>")
 	      (test-uniq-file-hilit '(8) "bar-file1.text<alice-2/>")
@@ -399,7 +402,7 @@ all positions in POS-LIST in STRING; return new string."
 	      )))
 
     (should (equal-including-properties
-	     (sort (completion-uniquify-file-all-completions "foo" table nil nil) #'string-lessp)
+	     (sort (uniq-file-all-completions "foo" table nil nil) #'string-lessp)
 	     (list
 	      (test-uniq-file-hilit '(8) "foo-file1.text<>")
 	      (test-uniq-file-hilit '(8) "foo-file1.text<Alice/alice-1/>")
@@ -415,14 +418,14 @@ all positions in POS-LIST in STRING; return new string."
 	      )))
 
     (should (equal-including-properties
-	     (sort (completion-uniquify-file-all-completions "f-file2" table nil nil) #'string-lessp)
+	     (sort (uniq-file-all-completions "f-file2" table nil nil) #'string-lessp)
 	     (list
 	      (test-uniq-file-hilit '(15) "foo-file2.text<Alice/alice-1/>")
 	      (test-uniq-file-hilit '(15) "foo-file2.text<Bob/bob-1/>")
 	      )))
 
     (should (equal-including-properties
-	     (sort (completion-uniquify-file-all-completions "foo-file3.text" table nil nil) #'string-lessp)
+	     (sort (uniq-file-all-completions "foo-file3.text" table nil nil) #'string-lessp)
 	     (list
 	      "foo-file3.text"
 	      (test-uniq-file-hilit '(14) "foo-file3.texts")
@@ -431,119 +434,119 @@ all positions in POS-LIST in STRING; return new string."
 
     ))
 
-(ert-deftest test-uniquify-file-try-completion ()
+(ert-deftest test-uniq-file-try-completion ()
   (let ((table (apply-partially 'uniq-file-completion-table uft-iter))
 	string)
 
     (setq string "fo")
-    (should (equal (completion-uniquify-file-try-completion string table nil (length string))
+    (should (equal (uniq-file-try-completion string table nil (length string))
 		   '("foo-file" . 8)))
 
     (setq string "b")
-    (should (equal (completion-uniquify-file-try-completion string table nil (length string))
+    (should (equal (uniq-file-try-completion string table nil (length string))
 		   '("bar-file" . 8)))
 
     (setq string "fo<al")
-    (should (equal (completion-uniquify-file-try-completion string table nil 2)
+    (should (equal (uniq-file-try-completion string table nil 2)
 		   '("foo-file<Alice/" . 8)))
-    (should (equal (completion-uniquify-file-try-completion string table nil 5)
+    (should (equal (uniq-file-try-completion string table nil 5)
 		   '("foo-file<Alice/" . 15)))
 
     (setq string "foo-file3") ;; not unique, not valid
-    (should (equal (completion-uniquify-file-try-completion string table nil (length string))
+    (should (equal (uniq-file-try-completion string table nil (length string))
 		   '("foo-file3.text" . 14)))
 
     (setq string "f-file1.text<a-1") ;; unique but not valid
-    (should (equal (completion-uniquify-file-try-completion string table nil (length string))
+    (should (equal (uniq-file-try-completion string table nil (length string))
 		   '("foo-file1.text<Alice/alice-1/>" . 30)))
 
     (setq string "foo-file1.text") ;; valid but not unique
-    (should (equal (completion-uniquify-file-try-completion string table nil (length string))
+    (should (equal (uniq-file-try-completion string table nil (length string))
 		   (cons "foo-file1.text<" 15)))
 
     (setq string "foo-file1<") ;; not valid
-    (should (equal (completion-uniquify-file-try-completion string table nil (length string))
+    (should (equal (uniq-file-try-completion string table nil (length string))
 		   (cons "foo-file1.text<" 15)))
 
     (setq string "foo-file1.text<>") ;; valid but not unique
-    (should (equal (completion-uniquify-file-try-completion string table nil (length string))
+    (should (equal (uniq-file-try-completion string table nil (length string))
 		   (cons "foo-file1.text<>" 15)))
 
     (setq string "foo-file1.text<alice-1/>") ;; valid and unique
-    (should (equal (completion-uniquify-file-try-completion string table nil (length string))
+    (should (equal (uniq-file-try-completion string table nil (length string))
 		   t))
 
     (setq string "foo-file3.texts") ;; not unique, valid
-    (should (equal (completion-uniquify-file-try-completion string table nil (length string))
+    (should (equal (uniq-file-try-completion string table nil (length string))
 		   '("foo-file3.texts" . 15)))
 
     (setq string "foo-file3.texts2") ;; unique and valid
-    (should (equal (completion-uniquify-file-try-completion string table nil (length string))
+    (should (equal (uniq-file-try-completion string table nil (length string))
 		   t))
 
     (setq string "fil2") ;; misspelled
-    (should (equal (completion-uniquify-file-try-completion string table nil (length string))
+    (should (equal (uniq-file-try-completion string table nil (length string))
 		   nil))
 
     ;; User input sequence: b-file2
     (setq string "b-file2")
-    (should (equal (completion-uniquify-file-try-completion string table nil (length string))
+    (should (equal (uniq-file-try-completion string table nil (length string))
 		   '("bar-file2.text<alice-" . 21)))
 
     ;; prev + <tab>; input is prev output
     (setq string "bar-file2.text<alice-")
-    (should (equal (completion-uniquify-file-try-completion string table nil (length string))
+    (should (equal (uniq-file-try-completion string table nil (length string))
 		   '("bar-file2.text<Alice/alice-" . 27)))
 
     ;; prev + <tab>; input is prev output
     (setq string "bar-file2.text<Alice/alice-")
-    (should (equal (completion-uniquify-file-try-completion string table nil (length string))
+    (should (equal (uniq-file-try-completion string table nil (length string))
 		   '("bar-file2.text<Alice/alice-" . 27)))
 
     ;; completion-try-completion called from icomplete-completions with
     ;; result of all-completions instead of table function, but with table metadata.
     (setq string "f-file<")
-    (let ((comps (completion-uniquify-file-all-completions string table nil nil)))
-      (should (equal (completion-uniquify-file-try-completion string comps nil (length string))
+    (let ((comps (uniq-file-all-completions string table nil nil)))
+      (should (equal (uniq-file-try-completion string comps nil (length string))
 		     (cons "foo-file" 8))))
     ))
 
-(ert-deftest test-uniquify-file-get-data-string ()
+(ert-deftest test-uniq-file-get-data-string ()
   (let ((table (apply-partially 'uniq-file-completion-table uft-iter)))
 
-    (should (equal (completion-uniquify-file-get-data-string "foo-file1.text<alice-1>" table nil)
+    (should (equal (uniq-file-get-data-string "foo-file1.text<alice-1>" table nil)
 		   (concat uft-alice1 "/foo-file1.text")))
 
-    (should (equal (completion-uniquify-file-get-data-string "foo-file3.text" table nil)
+    (should (equal (uniq-file-get-data-string "foo-file3.text" table nil)
 		   (concat uft-alice2 "/foo-file3.text")))
 
-    (should (equal (completion-uniquify-file-get-data-string "foo-file3.texts" table nil)
+    (should (equal (uniq-file-get-data-string "foo-file3.texts" table nil)
 		   (concat uft-alice2 "/foo-file3.texts")))
 
-    (should (equal (completion-uniquify-file-get-data-string "foo-file3.texts2" table nil)
+    (should (equal (uniq-file-get-data-string "foo-file3.texts2" table nil)
 		   (concat uft-root "/foo-file3.texts2")))
     ))
 
-(ert-deftest test-uniq-file-normalize ()
-  (should (equal (uniq-file-normalize "fi")
+(ert-deftest test-uniq-file-to-table-input ()
+  (should (equal (uniq-file-to-table-input "fi")
 		 "fi"))
 
-  (should (equal (uniq-file-normalize "fi<di")
+  (should (equal (uniq-file-to-table-input "fi<di")
 		 "di/fi"))
 
-  (should (equal (uniq-file-normalize "foo-file1.text")
+  (should (equal (uniq-file-to-table-input "foo-file1.text")
 		 "foo-file1.text"))
 
-  (should (equal (uniq-file-normalize "file1<Alice/alice-2/>")
+  (should (equal (uniq-file-to-table-input "file1<Alice/alice-2/>")
 		 "Alice/alice-2/file1"))
 
-  (should (equal (uniq-file-normalize "file1<>")
+  (should (equal (uniq-file-to-table-input "file1<>")
 		 "file1"))
 
-  (should (equal (uniq-file-normalize "file1.text<Alice/alice-2/>")
+  (should (equal (uniq-file-to-table-input "file1.text<Alice/alice-2/>")
 		 "Alice/alice-2/file1.text"))
 
-  (should (equal (uniq-file-normalize "bar-file2.text<Alice/alice-")
+  (should (equal (uniq-file-to-table-input "bar-file2.text<Alice/alice-")
 		 "Alice/alice-/bar-file2.text"))
 
   )
@@ -638,6 +641,9 @@ all positions in POS-LIST in STRING; return new string."
 		   "foo-file5.c"
 		   )))
   )
+
+;; FIXME: need higher-level tests, on completion-*-completion, to
+;; check completion-category, completion-styles-alist.
 
 (provide 'uniquify-files-test)
 ;;; uniquify-files-test.el ends here
