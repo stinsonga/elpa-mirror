@@ -1,6 +1,12 @@
 Some of the user visible news were:
 
 
+Version: 1.12.2
+
+  Some changes to the 'el-search-query-replace' prompt to make it
+  shorter.  The keys o and e to show and ediff the replacement changed
+  to e and E ("edit", "Ediff").
+
 Version: 1.12.1
 
   Like searches, 'el-search-query-replace' sessions are now also
