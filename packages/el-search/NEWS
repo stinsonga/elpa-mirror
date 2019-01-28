@@ -1,6 +1,11 @@
 Some of the user visible news were:
 
 
+Version: 1.10.2
+
+  New help command 'el-search-list-defined-patterns' listing all
+  currently defined pattern types.
+
 Version: 1.10.1
 
   El-search now shows hints in the search pattern prompt when the new

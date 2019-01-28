@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.10.1
+;; Version: 1.10.2
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -1165,6 +1165,12 @@ expander functions.")
 (put 'el-search-defined-patterns 'function-documentation
      '(el-search--make-docstring 'el-search-defined-patterns))
 
+;;;###autoload
+(defun el-search-list-defined-patterns ()
+  "Pop up a help buffer listing defined el-search pattern types."
+  (interactive)
+  (describe-function 'el-search-defined-patterns))
+
 (defun el-search--make-docstring (name)
   ;; Code mainly from `pcase--make-docstring'
   (let* ((main (documentation (symbol-function name) 'raw))
@@ -2229,10 +2235,6 @@ Toggle visibility of this window with \
   (with-help-window (help-buffer)
     (el-search-help-list-bindings--1 'verbose)))
 
-(defun el-search-help-list-patterns ()
-  (interactive)
-  (describe-function 'el-search-defined-patterns))
-
 (defun el-search-help-read-intro ()
   (interactive)
   (with-output-to-temp-buffer "*Help*"
@@ -2258,7 +2260,7 @@ Introduction to El-Search
 (define-key el-search-help-map [??] #'el-search-help-for-help)
 (define-key el-search-help-map [?b] #'el-search-help-list-bindings)
 (define-key el-search-help-map [?m] #'el-search-help-list-bindings-verbose)
-(define-key el-search-help-map [?p] #'el-search-help-list-patterns)
+(define-key el-search-help-map [?p] #'el-search-list-defined-patterns)
 (define-key el-search-help-map [?i] #'el-search-help-read-intro)
 (define-key el-search-help-map [?k] #'describe-key)
 (define-key el-search-help-map [?q] #'help-quit)
