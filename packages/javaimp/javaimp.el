@@ -4,7 +4,7 @@
 
 ;; Author: Filipp Gunbin <fgunbin@fastmail.fm>
 ;; Maintainer: Filipp Gunbin <fgunbin@fastmail.fm>
-;; Version: 0.6
+;; Version: 0.6.1
 ;; Keywords: java, maven, programming
 
 ;; This program is free software; you can redistribute it and/or modify
