@@ -285,5 +285,22 @@ Return a list of absolute filenames or nil if none found."
        (file-name-all-completions filename dir)))
     result))
 
+(defun path-iter-all-files (iter)
+  "Return all filenames in ITER (a `path-iterator' object."
+  (let (result)
+    (path-iter-restart iter)
+
+    (while (not (path-iter-done iter))
+      (let ((dir (path-iter-next iter)))
+	(mapc
+	 (lambda (absfile)
+	   (when (and (not (string-equal "." (substring absfile -1)))
+		      (not (string-equal ".." (substring absfile -2)))
+		      (not (file-directory-p absfile)))
+	     (push absfile result)))
+	 (directory-files dir t))
+	))
+    result))
+
 (provide 'path-iterator)
 ;;; path-iterator.el ends here.

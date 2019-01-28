@@ -158,7 +158,7 @@ iterator built from PATH-NON-RECURSIVE, PATH-RECURSIVE, IGNORE-FUNCTION."
   (let ((default-directory path-iter-root-dir))
     (should
      (equal
-      (path-iter-to-truename
+      (path-iter--to-truename
        (list
 	nil
 	(concat path-iter-root-dir "/alice-1")))
@@ -167,6 +167,23 @@ iterator built from PATH-NON-RECURSIVE, PATH-RECURSIVE, IGNORE-FUNCTION."
 	(concat path-iter-root-dir "/alice-1")))
 
   )))
+
+(ert-deftest path-iter-all-files ()
+  (let ((iter
+	 (make-path-iterator
+	  :user-path-non-recursive nil
+	  :user-path-recursive (list path-iter-root-dir))))
+
+    (should
+     (equal
+      (path-iter-all-files iter)
+      (list
+       (concat path-iter-root-dir "/bob-1/bob-3/foo-file3.text")
+       (concat path-iter-root-dir "/bob-1/bob-2/foo-file2.text")
+       (concat path-iter-root-dir "/alice-1/foo-file1.text")
+       (concat path-iter-root-dir "/file-0.text")
+       )))
+    ))
 
 (provide 'path-iterator-test)
 ;;; path-iterator.el ends here
