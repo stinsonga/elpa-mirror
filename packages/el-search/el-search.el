@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.12.1
+;; Version: 1.12.2
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -333,7 +333,7 @@
 ;; There are two ways to edit replacements directly while performing
 ;; an el-search-query-replace:
 ;;
-;; (1) Without suspending the search: hit o at the prompt to show the
+;; (1) Without suspending the search: hit e at the prompt to show the
 ;; replacement of the current match in a separate buffer.  You can
 ;; edit the replacement in this buffer.  Confirming with C-c C-c will
 ;; make el-search replace the current match with this buffer's
@@ -4609,6 +4609,7 @@ exactly you did?  Thanks!"))))
                                      (kill-buffer buffer))
                                    (el-search--after-scroll (selected-window) (window-start))
                                    nil)))
+                              (use-dialog-box nil)
                               (query
                                (lambda ()
                                  (if stopped-for-comments
@@ -4633,24 +4634,24 @@ exactly you did?  Thanks!"))))
                                                  '(?n "n" "Move to the next match"))
                                             '(?r "r" "\
 Replace match but don't move or restore match if already replaced")
-                                            '(?! "all" "Replace all remaining matches in this buffer")
+                                            '(?! "!" "Replace all remaining matches in this buffer")
                                             '(?b "skip buf"
                                                  "Skip this buffer and any remaining matches in it")
                                             (and buffer-file-name
-                                                 '(?d "skip dir"
+                                                 '(?d "dir"
                                                       "Skip a parent directory of current file"))
                                             (and (not replaced-this)
-                                                 (list ?s (concat (if splice "disable" "enable")
-                                                                  " splice")
+                                                 (list ?s (concat (if splice "no " "")
+                                                                  "splice")
                                                        (substitute-command-keys "\
 Toggle splicing mode (\\[describe-function] el-search-query-replace for details)")))
-                                            '(?o "show" "\
+                                            '(?e "edit" "\
 Show current replacement in a separate buffer - you can modify it there")
-                                            '(?e "ediff" "\
+                                            '(?E "Ediff" "\
 Ediff match with replacement")
                                             '(?q  "quit")
                                             '(?\r "quit")
-                                            '(?S "Search" "\
+                                            '(?S "S" "\
 Switch to driving search.  Useful to reposition search head.")))))))))
                          (when (and
                                 stop-for-comments
@@ -4757,9 +4758,9 @@ Replace all matches in all buffers"))))
                                                        el-search--current-query-replace)
                                                       splice)
                                                 nil)
-                                               (?o (funcall edit-and-update)
+                                               (?e (funcall edit-and-update)
                                                    nil)
-                                               (?e (funcall edit-and-update 'ediff-only)
+                                               (?E (funcall edit-and-update 'ediff-only)
                                                    nil)
                                                ((or ?q ?\C-g ?\r) (signal 'quit t))
                                                (?S
