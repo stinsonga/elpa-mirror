@@ -425,7 +425,7 @@ HAND is a list of 5 poker cards."
 					   (poker-rank-to-plural-string three)
 					   (poker-rank-to-string high)
 					   (poker-rank-to-string kicker)))
-    (`(2 ,two1 ,two2 ,high 0 0) (format "wwo pairs of %s and %s, %s high"
+    (`(2 ,two1 ,two2 ,high 0 0) (format "two pairs of %s and %s, %s high"
 				    (poker-rank-to-plural-string two1)
 				    (poker-rank-to-plural-string two2)
 				    (poker-rank-to-string high)))
