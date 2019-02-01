@@ -229,32 +229,43 @@ Match 1 is the filename, match 2 is the relative directory.")
 
     (cl-mapcar
      (lambda (name)
-       ;; `dir' can match more than one absolute directory, so we
-       ;; compute `completed-dir' for each element of conflicts.
+       ;; The set of `non-common' is unique, but we also need to
+       ;; include all of `completed-dir' in the result.
        ;;
-       ;; `completed-dir' may overlap only `common-root', or both
-       ;; `common-root' and `non-common'; eliminate the overlap with
-       ;; `non-common'.
+       ;; examples
+       ;;   1. uniquify-files-test.el test-uniq-file-uniquify, dir "Al/a-"
+       ;;      conflicts:
+       ;;         .../Alice/alice-1/bar-file1.text
+       ;;         .../Alice/alice-1/bar-file2.text
+       ;;         .../Alice/alice-2/bar-file2.text
+       ;;      common        : .../Alice/
+       ;;      non-common    : alice-1/, alice-2/
+       ;;      completed-dir : Alice/alice-1/, Alice/alice-2/
        ;;
-       ;; We can assume `completed-dir' matches at the end of
-       ;; `common-root', not in the middle.
+       ;;   2. uniquify-files-test.el test-uniq-file-all-completions-noface-1 "f-file4.text<a-3"
+       ;;      conflicts:
+       ;;         .../uniquify-files-resources/Alice/alice-3/foo-file4.text
+       ;;         .../uniquify-files-resources/Bob/alice-3/foo-file4.text
+       ;;      common        : .../uniquify-files-resources
+       ;;      non-common    : Alice/alice-3/, Bob/alice-3/
+       ;;      completed-dir : alice-3/
        ;;
-       ;; example (see uniquify-files-test.el test-uniq-file-uniquify, dir "Al/a-")
-       ;;   common        : c:/tmp/Alice/
-       ;;   non-common    : alice-2/
-       ;;   completed-dir : Alice/alice-2/
-       ;;
-       (let* ((completed-dir (and dir (uniq-file--dir-match dir (file-name-directory name))))
-	      (completed-dirs (and completed-dir (nreverse (split-string completed-dir "/" t))))
-	      (non-common (substring (file-name-directory name) (length common-root)))
-	      (first-non-common (substring non-common 0 (string-match "/" non-common))))
+       (let ((completed-dir (and dir (uniq-file--dir-match dir (file-name-directory name))))
+	     (non-common (substring (file-name-directory name) (length common-root))))
 
-	 (while completed-dirs
-	   (let ((dir1 (pop completed-dirs)))
-	     (when (not (string-equal dir1 first-non-common))
-	       (setq non-common (concat dir1 "/" non-common)))))
+	 (when (and completed-dir
+		    (not (string-match completed-dir non-common)))
+	   ;; case 1.
+	   (let* ((completed-dirs (and completed-dir (nreverse (split-string completed-dir "/" t))))
+		  (first-non-common (substring non-common 0 (string-match "/" non-common))))
+	     (while completed-dirs
+	       (let ((dir1 (pop completed-dirs)))
+		 (when (not (string-equal dir1 first-non-common))
+		   (setq non-common (concat dir1 "/" non-common)))))))
+	 ;; else case 2; non-common is correct
 
-	 (concat (file-name-nondirectory name) "<" non-common ">")))
+	 (concat (file-name-nondirectory name) "<" non-common ">")
+	 ))
      conflicts)
     ))
 
@@ -268,37 +279,39 @@ include at least the completion of DIR.
 
 If DIR is non-nil, all elements of NAMES must match DIR."
   ;;  AKA uniq-file-to-user; convert list of data format strings to list of user format strings.
-  (when names
-    (let (result
-	  conflicts ;; list of names where all non-directory names are the same.
+  (let ((case-fold-search completion-ignore-case))
+    (when names
+      (let (result
+	    conflicts ;; list of names where all non-directory names are the same.
+	    )
+
+	;; Sort names on basename so duplicates are grouped together
+	(setq names (sort names (lambda (a b)
+				  (string< (file-name-nondirectory a) (file-name-nondirectory b)))))
+
+	(while names
+	  (setq conflicts (list (pop names)))
+	  (while (and names
+		      (string= (file-name-nondirectory (car conflicts)) (file-name-nondirectory (car names))))
+	    (push (pop names) conflicts))
+
+	  (if (= 1 (length conflicts))
+	      (let ((completed-dir (and dir (uniq-file--dir-match dir (file-name-directory (car conflicts))))))
+		(push
+		 (if completed-dir
+		     (concat (file-name-nondirectory (car conflicts)) "<" completed-dir ">")
+
+		   (concat (file-name-nondirectory (car conflicts))))
+		 result))
+
+	    (setq result (append (uniq-files--conflicts conflicts dir) result)))
 	  )
-
-      ;; Sort names on basename so duplicates are grouped together
-      (setq names (sort names (lambda (a b)
-				(string< (file-name-nondirectory a) (file-name-nondirectory b)))))
-
-      (while names
-	(setq conflicts (list (pop names)))
-	(while (and names
-		    (string= (file-name-nondirectory (car conflicts)) (file-name-nondirectory (car names))))
-	  (push (pop names) conflicts))
-
-	(if (= 1 (length conflicts))
-	    (let ((completed-dir (and dir (uniq-file--dir-match dir (file-name-directory (car conflicts))))))
-	      (push
-	       (if completed-dir
-		   (concat (file-name-nondirectory (car conflicts)) "<" completed-dir ">")
-
-		 (concat (file-name-nondirectory (car conflicts))))
-	       result))
-
-	  (setq result (append (uniq-files--conflicts conflicts dir) result)))
-	)
-      (nreverse result)
-      )))
+	(nreverse result)
+	))
+    ))
 
 (defun uniq-file-to-table-input (user-string &optional _table _pred)
-  "Convert USER-STRING to table input string."
+  "Implement `completion-to-table-input' for uniquify-file."
   (let* ((match (string-match uniq-files--regexp user-string))
 	 (dir (and match (match-string 2 user-string))))
 
@@ -354,12 +367,13 @@ STRING should be in completion table input format."
 	 (file-regex (completion-pcm--pattern->regex file-pattern)))
     (list dir-regex file-regex)))
 
-(defun uniq-file--pcm-merged-pat (string all point &optional extra-delim)
+(defun uniq-file--pcm-merged-pat (string all point)
   "Return a pcm pattern that is the merged completion of STRING in ALL.
 ALL must be a list of table input format strings?
 Pattern is in reverse order."
-  (let* ((completion-pcm--delim-wild-regex
-	  (concat "[" completion-pcm-word-delimiters extra-delim "*]"))
+  (let* ((case-fold-search completion-ignore-case)
+	 (completion-pcm--delim-wild-regex
+	  (concat "[" completion-pcm-word-delimiters "<>*]"))
 	 ;; If STRING ends in an empty directory part, some valid
 	 ;; completions won't have any directory part.
 	 (trimmed-string
@@ -367,9 +381,26 @@ Pattern is in reverse order."
 		   (= (aref string (1- (length string))) ?<))
 	      (substring string 0 -1)
 	    string))
+	 dir-start
 	 (pattern (completion-pcm--string->pattern trimmed-string point)))
-    (completion-pcm--merge-completions all pattern)
-    ))
+
+    ;; If trimmed-string has a directory part, allow uniquifying
+    ;; directories.
+    (when (and (setq dir-start (string-match "<" trimmed-string))
+	       (< dir-start (1- (length trimmed-string))))
+      (let (new-pattern
+	    item)
+	(while pattern
+	  (setq item (pop pattern))
+	  (push item new-pattern)
+	  (when (equal item "<")
+	    (setq item (pop pattern))
+	    (if (eq item 'any-delim)
+		(push 'any new-pattern)
+	      (push item new-pattern))))
+	(setq pattern (nreverse new-pattern))))
+
+    (completion-pcm--merge-completions all pattern)))
 
 (defun uniq-file-try-completion (user-string table pred point)
   "Implement `completion-try-completion' for uniquify-file."
@@ -425,7 +456,7 @@ Pattern is in reverse order."
 	result
 
       ;; Find merged completion of uniqified file names
-      (let* ((merged-pat (uniq-file--pcm-merged-pat user-string uniq-all point "<>"))
+      (let* ((merged-pat (uniq-file--pcm-merged-pat user-string uniq-all point))
 
 	     ;; `merged-pat' is in reverse order.  Place new point at:
 	     (point-pat (or (memq 'point merged-pat) ;; the old point
@@ -445,7 +476,7 @@ Pattern is in reverse order."
 	(cons merged new-point)))
     ))
 
-(defun uniq-files--hilit (string all point &optional extra-delim)
+(defun uniq-files--hilit (string all point)
   "Apply face text properties to each element of ALL.
 STRING is the current user input.
 ALL is a list of strings in user format.
@@ -454,7 +485,7 @@ Returns new list.
 
 Adds the face `completions-first-difference' to the first
 character after each completion field."
-  (let* ((merged-pat (nreverse (uniq-file--pcm-merged-pat string all point extra-delim)))
+  (let* ((merged-pat (nreverse (uniq-file--pcm-merged-pat string all point)))
 	 (field-count 0)
 	 (regex (completion-pcm--pattern->regex merged-pat '(any star any-delim point)))
 	 )
@@ -516,7 +547,7 @@ nil otherwise."
 
     (when all
       (setq all (uniq-file--uniquify all (file-name-directory table-string)))
-      (uniq-files--hilit user-string all point "<>"))
+      (uniq-files--hilit user-string all point))
     ))
 
 (defun uniq-file-get-data-string (user-string table pred)
@@ -619,7 +650,7 @@ nil otherwise."
 	       uniq-file-get-data-string)) ;; 5 user to data format
 
 (defun uniq-file-completion-table (path-iter string pred action)
-  "Do completion for file names in PATH-ITER.
+  "Implement a completion table for file names in PATH-ITER.
 
 PATH-ITER is a `path-iterator' object. It will be restarted for
 each call to `uniq-file-completion-table'.
@@ -655,8 +686,7 @@ ACTION is the current completion action; one of:
 - 'metadata; return (metadata . ALIST) as defined by
   `completion-metadata'.
 
-Return a list of absolute file names matching STRING, using
-`partial-completion' style matching."
+Return a list of absolute file names matching STRING."
 
   ;; This completion table function combines iterating on files in
   ;; PATH-ITER with filtering on USER-STRING and PRED. This is an
