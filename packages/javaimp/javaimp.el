@@ -4,7 +4,7 @@
 
 ;; Author: Filipp Gunbin <fgunbin@fastmail.fm>
 ;; Maintainer: Filipp Gunbin <fgunbin@fastmail.fm>
-;; Version: 0.6
+;; Version: 0.6.1
 ;; Keywords: java, maven, programming
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -94,7 +94,7 @@
   "Add and reorder Java import statements in Maven projects"
   :group 'c)
 
-(defcustom javaimp-import-group-alist '(("\\`javax?\\." . 10))
+(defcustom javaimp-import-group-alist '(("\\`java\\." . 10) ("\\`javax\\." . 15))
   "Specifies how to group classes and how to order resulting
 groups in the imports list.
 
@@ -568,31 +568,29 @@ duplicated.  Completion alternatives are constructed based on
 this module's dependencies' classes, JDK classes and top-level
 classes in the current module."
   (interactive
-   (progn
-     (barf-if-buffer-read-only)
-     (let* ((file (expand-file-name
-		   (or buffer-file-name
-		       (error "Buffer is not visiting a file!"))))
-	    (node (or (javaimp--find-node
-		       (lambda (m)
-			 (or (string-prefix-p (javaimp-module-source-dir m) file)
-			     (string-prefix-p (javaimp-module-test-source-dir m) file))))
-		      (error "Cannot find module by file: %s" file))))
-       (javaimp--maven-update-module-maybe node)
-       (let ((module (javaimp-node-contents node)))
-	 (list (completing-read
-		"Import: "
-		(append
-		 ;; we're not caching full list of classes coming from module
-		 ;; dependencies because jars may change and we need to reload
-		 ;; them
-		 (let ((jars (append (javaimp-module-dep-jars module)
-				     (javaimp--get-jdk-jars))))
-		   (apply #'seq-concatenate 'list
-			  (mapcar #'javaimp--get-jar-classes jars)))
-		 (and javaimp-include-current-module-classes
-		      (javaimp--get-module-classes module)))
-		nil t nil nil (symbol-name (symbol-at-point))))))))
+   (let* ((file (expand-file-name (or buffer-file-name
+				      (error "Buffer is not visiting a file!"))))
+	  (node (or (javaimp--find-node
+		     (lambda (m)
+		       (or (string-prefix-p (javaimp-module-source-dir m) file)
+			   (string-prefix-p (javaimp-module-test-source-dir m) file))))
+		    (error "Cannot find module by file: %s" file))))
+     (javaimp--maven-update-module-maybe node)
+     (let ((module (javaimp-node-contents node)))
+       (list (completing-read
+	      "Import: "
+	      (append
+	       ;; we're not caching full list of classes coming from module
+	       ;; dependencies because jars may change and we need to reload
+	       ;; them
+	       (let ((jars (append (javaimp-module-dep-jars module)
+				   (javaimp--get-jdk-jars))))
+		 (apply #'seq-concatenate 'list
+			(mapcar #'javaimp--get-jar-classes jars)))
+	       (and javaimp-include-current-module-classes
+		    (javaimp--get-module-classes module)))
+	      nil t nil nil (symbol-name (symbol-at-point)))))))
+  (barf-if-buffer-read-only)
   (javaimp-organize-imports (cons classname 'ordinary)))
 
 (defun javaimp--get-module-classes (module)
