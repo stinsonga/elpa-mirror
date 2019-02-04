@@ -131,7 +131,7 @@ If an element of PATH is nil, `default-directory' is used."
 			  (expand-file-name name)
 			default-directory)))
 	 (when (file-directory-p absname)
-	   (push (file-truename absname) result))
+	   (push (directory-file-name (file-truename absname)) result))
 	 ))
      path)
     (nreverse result)))
