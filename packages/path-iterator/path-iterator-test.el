@@ -37,9 +37,9 @@ iterator built from PATH-NON-RECURSIVE, PATH-RECURSIVE, IGNORE-FUNCTION."
      ))
 
 (defun path-iter-test-run-1 (iter expected-dirs)
-  (let (computed-dirs)
-    (while (not (path-iter-done iter))
-      (push (path-iter-next iter) computed-dirs))
+  (let (dir computed-dirs)
+    (while (setq dir (path-iter-next iter))
+      (push dir computed-dirs))
     (should (null (path-iter-next iter)))
     (setq computed-dirs (nreverse computed-dirs))
     (should (equal computed-dirs expected-dirs))
@@ -86,10 +86,23 @@ iterator built from PATH-NON-RECURSIVE, PATH-RECURSIVE, IGNORE-FUNCTION."
   (list
    (concat path-iter-root-dir "/bob-1"))
   (list
-   (concat path-iter-root-dir "/alice-1")
    (concat path-iter-root-dir "/bob-1")
    (concat path-iter-root-dir "/bob-1/bob-2")
    (concat path-iter-root-dir "/bob-1/bob-3")
+   (concat path-iter-root-dir "/alice-1")
+   ))
+
+(path-iter-deftest dup
+  (list
+   (concat path-iter-root-dir "/alice-1")
+   (concat path-iter-root-dir "/bob-1")) ;; non-recursive
+  (list
+   (concat path-iter-root-dir "/bob-1")) ;; recursive
+  (list
+   (concat path-iter-root-dir "/bob-1")
+   (concat path-iter-root-dir "/bob-1/bob-2")
+   (concat path-iter-root-dir "/bob-1/bob-3")
+   (concat path-iter-root-dir "/alice-1")
    ))
 
 (defvar path-iter-ignore-bob nil
