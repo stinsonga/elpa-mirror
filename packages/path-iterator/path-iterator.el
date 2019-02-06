@@ -40,9 +40,6 @@
 ;;
 ;; Other functions:
 ;;
-;; path-iter-done: non-nil if the iterator is done (all directories
-;; have been returned).
-;;
 ;; path-iter-next: return the next directory, or nil if done.
 ;;
 ;; path-iter-restart: restart iterator; next call to `path-iter-next'
@@ -136,30 +133,17 @@ If an element of PATH is nil, `default-directory' is used."
      path)
     (nreverse result)))
 
-(cl-defmethod path-iter-done ((iter path-iterator))
-"Return non-nil if ITER is done."
-  (cond
-   ((listp (path-iter-visited iter))
-    ;; First iteration
-    (and (null (car (path-iter-path-non-recursive iter)))
-	 (null (car (path-iter-path-recursive iter)))))
-
-   (t
-    ;; Subsequent iterations
-    (= (1+ (path-iter-current iter)) (length (path-iter-visited iter))))
-   ))
-
 (cl-defmethod path-iter-next ((iter path-iterator))
   "Return the next directory to visit, or nil if there are no more.
 
-The iterator will first visit all elements of the non-recursive
-path, then all elements of the recursive path, and visit all
-subdirectories of the recursive path for which `ignore-function'
-returns nil, in depth-first order (parent directories are visited
-before their subdirectories; sibling directories are visited
-after subdirectories), but will not visit any directory more than
-once. The order of subdirectories within a directory is given by
-`directory-files'.
+The iterator will first visit all elements of the recursive path,
+visiting all subdirectories of the recursive path for which
+`ignore-function' returns nil, in depth-first order (parent
+directories are visited before their subdirectories; sibling
+directories are visited after subdirectories); then visit all
+directories in the non-recursive path, but will not visit any
+directory more than once. The order of subdirectories within a
+directory is given by `directory-files'.
 
 `ignore-function' is passed one argument; the directory file
 name. Symlinks in the directory part are resolved, but the
@@ -171,21 +155,6 @@ not end in a slash, have casing that matches the existing
 directory file name, and resolve simlinks (see `file-truename')."
   (cond
    ((and (listp (path-iter-visited iter))
-	 (not (null (path-iter-path-non-recursive iter))))
-    ;; First iteration, doing non-recursive path
-    (let ((result (pop (path-iter-path-non-recursive iter))))
-
-      (while (member result (path-iter-visited iter))
-	(setq result (pop (path-iter-path-non-recursive iter))))
-
-      (push result (path-iter-visited iter))
-
-      (unless result
-	(setf (path-iter-state iter) 'complete))
-
-      result))
-
-   ((and (listp (path-iter-visited iter))
 	 (not (null (path-iter-path-recursive iter))))
     ;; First iteration, doing recursive path
 
@@ -195,27 +164,44 @@ directory file name, and resolve simlinks (see `file-truename')."
       (while (member result (path-iter-visited iter))
 	(setq result (pop (path-iter-path-recursive iter))))
 
-      (push result (path-iter-visited iter))
+      (when result
+	(push result (path-iter-visited iter))
 
-      ;; Push directories in `result' onto the path, to be visited
-      ;; next. `directory-files' sorts the list.
-      (cl-mapc
-       (lambda (absname)
-	 (unless (or (string-equal "." (file-name-nondirectory absname))
-		     (string-equal ".." (file-name-nondirectory absname))
-		     (not (file-directory-p absname))
-		     ;; If `absname' is a symlink, we assume
-		     ;; `ignore-function' wants the link name.
-		     (and (path-iter-ignore-function iter)
-			  (funcall (path-iter-ignore-function iter) absname)))
-	   (push (file-truename absname) subdirs))
-	 )
-       (directory-files result t))
+	;; Push directories in `result' onto the path, to be visited
+	;; next. `directory-files' sorts the list.
+	(cl-mapc
+	 (lambda (absname)
+	   (unless (or (string-equal "." (file-name-nondirectory absname))
+		       (string-equal ".." (file-name-nondirectory absname))
+		       (not (file-directory-p absname))
+		       ;; If `absname' is a symlink, we assume
+		       ;; `ignore-function' wants the link name.
+		       (and (path-iter-ignore-function iter)
+			    (funcall (path-iter-ignore-function iter) absname)))
+	     (push (file-truename absname) subdirs))
+	   )
+	 (directory-files result t))
 
-      (setf (path-iter-path-recursive iter)
-	    (append
-	     (nreverse subdirs)
-	     (path-iter-path-recursive iter)))
+	(setf (path-iter-path-recursive iter)
+	      (append
+	       (nreverse subdirs)
+	       (path-iter-path-recursive iter)))
+	)
+      (unless result
+	(setf (path-iter-state iter) 'complete))
+
+      result))
+
+   ((and (listp (path-iter-visited iter))
+	 (not (null (path-iter-path-non-recursive iter))))
+    ;; First iteration, doing non-recursive path
+    (let ((result (pop (path-iter-path-non-recursive iter))))
+
+      (while (member result (path-iter-visited iter))
+	(setq result (pop (path-iter-path-non-recursive iter))))
+
+      (when result
+	(push result (path-iter-visited iter)))
 
       (unless result
 	(setf (path-iter-state iter) 'complete))
@@ -287,19 +273,18 @@ Return a list of absolute filenames or nil if none found."
 
 (defun path-iter-all-files (iter)
   "Return all filenames in ITER (a `path-iterator' object."
-  (let (result)
+  (let (dir result)
     (path-iter-restart iter)
 
-    (while (not (path-iter-done iter))
-      (let ((dir (path-iter-next iter)))
-	(mapc
-	 (lambda (absfile)
-	   (when (and (not (string-equal "." (substring absfile -1)))
-		      (not (string-equal ".." (substring absfile -2)))
-		      (not (file-directory-p absfile)))
-	     (push absfile result)))
-	 (directory-files dir t))
-	))
+    (while (setq dir (path-iter-next iter))
+      (mapc
+       (lambda (absfile)
+	 (when (and (not (string-equal "." (substring absfile -1)))
+		    (not (string-equal ".." (substring absfile -2)))
+		    (not (file-directory-p absfile)))
+	   (push absfile result)))
+       (directory-files dir t))
+      )
     result))
 
 (provide 'path-iterator)
