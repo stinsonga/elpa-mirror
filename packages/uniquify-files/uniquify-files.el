@@ -808,8 +808,10 @@ In the user input string, `*' is treated as a wildcard."
 (defun locate-uniquified-file-iter-2 (iter &optional predicate default prompt)
   "Same as `locate-uniquified-file-iter', but the internal
 completion table is the list returned by `path-iter-all-files'."
-  (let ((table (path-iter-all-files iter))
-	(completion-styles '(uniquify-file)))
+  (let* ((table (path-iter-all-files iter))
+	 (table-styles (cdr (assq 'styles (completion-metadata "" table nil))))
+	 (completion-category-overrides
+	  (list (list 'project-file (cons 'styles table-styles)))))
     (completing-read (format (concat (or prompt "file") " (%s): ") default)
 		     table
 		     predicate t nil nil default)
