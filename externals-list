@@ -83,6 +83,8 @@
  ("gnome-c-style"	:subtree "https://github.com/ueno/gnome-c-style.git")
  ("gnorb"               :subtree "https://github.com/girzel/gnorb")
  ("gpastel"		:external "https://gitlab.petton.fr/DamienCassou/gpastel")
+ ;; FIXME: Waiting for copyright paperwork
+ ;; ("greader"		:external "https://gitlab.com/michelangelo-rodriguez/greader")
  ("highlight-escape-sequences" :subtree "https://github.com/dgutov/highlight-escape-sequences/")
  ("hyperbole"           :external "http://git.savannah.gnu.org/r/hyperbole.git")
  ("ioccur"		:subtree "https://github.com/thierryvolpiatto/ioccur.git")
@@ -157,6 +159,7 @@
  ("websocket"		:subtree "https://github.com/ahyatt/emacs-websocket.git")
  ("which-key"           :subtree "https://github.com/justbur/emacs-which-key")
  ("xelb"		:external "https://github.com/ch11ng/xelb.git")
+ ("xr"			:external "https://github.com/mattiase/xr")
  ("yasnippet"		:subtree "https://github.com/capitaomorte/yasnippet.git")
  ("zones"		:external nil)  ;https://www.emacswiki.org/emacs/zones.el
  ("ztree"		:subtree "https://github.com/fourier/ztree")
