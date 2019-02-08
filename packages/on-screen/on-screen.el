@@ -7,7 +7,7 @@
 ;; Created: 24 Jan 2013
 ;; Keywords: convenience
 ;; URL: https://github.com/michael-heerdegen/on-screen.el
-;; Version: 1.3.2
+;; Version: 1.3.3
 ;; Package-Requires: ((cl-lib "0"))
 
 
@@ -526,7 +526,9 @@ This should normally go to `window-scroll-functions'."
              ((timerp timer)
               (timer-set-time timer (timer-relative-time (current-time) on-screen-delay)))
              ((or (not area)
-                  (= display-start s1)))
+                  (= display-start s1)
+                  ;; Deleting a large portion of the buffer caused window scroll
+                  (not (<= (point-min) s1 (point-max)))))
              ((and (numberp on-screen-drawing-threshold)
                    (< (abs (apply #'count-lines (sort (list display-start s1) #'<)))
                       on-screen-drawing-threshold)))
@@ -551,7 +553,7 @@ This should normally go to `window-scroll-functions'."
                    ;;scrolling down near buffer end
                    (setq s2 nil))
 
-                 (cond 
+                 (cond
                   ((equal method '(shadow . nil))
                    (if (and s1 s2) (list (make-overlay s1 s2)) ()))
                   ((eq (car method) 'shadow)
