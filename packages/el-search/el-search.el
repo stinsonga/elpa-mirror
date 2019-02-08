@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.12.2
+;; Version: 1.12.3
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -4796,22 +4796,22 @@ Replace all matches in all buffers"))))
                                             (propertize
                                              "Skip the matches in the replacement? "
                                              'face 'el-search-highlight-in-prompt-face)
-                                            '((?y "yes"
+                                            '((?s "skip"
                                                   "Skip any matches in this replacement")
-                                              (?n "no"
+                                              (?d "don't"
                                                   "Continue with the matches in the replacement")
-                                              (?Y "always Yes"
+                                              (?S "always Skip"
                                                   "Skip now and for the rest of this session")
-                                              (?N "always No"
+                                              (?D "always Don't"
                                                   "Don't skip now and for the rest of this session")
                                               (?q "quit"
                                                   "Abort this query-replace session"))))
-                                 ((and (or ?y ?Y) answer)
-                                  (when (= answer ?Y) (setq skip-matches-in-replacement t))
+                                 ((and (or ?s ?S) answer)
+                                  (when (= answer ?S) (setq skip-matches-in-replacement t))
                                   (funcall skip-replacement))
                                  (?q (signal 'quit t))
                                  (answer
-                                  (when (= answer ?N) (setq skip-matches-in-replacement nil))
+                                  (when (= answer ?D) (setq skip-matches-in-replacement nil))
                                   (when replace-all
                                     (setq replace-all nil)
                                     ;; FIXME: can this be annoying?  Problem: we need to catch possibly
