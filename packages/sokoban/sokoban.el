@@ -1,10 +1,10 @@
-;;; sokoban.el --- Implementation of Sokoban for Emacs.
+;;; sokoban.el --- Implementation of Sokoban for Emacs. -*- lexical-binding: t -*-
 
-;; Copyright (C) 1998, 2013, 2017 Free Software Foundation, Inc.
+;; Copyright (C) 1998, 2013, 2017, 2019 Free Software Foundation, Inc.
 
 ;; Author: Glynn Clements <glynn.clements@xemacs.org>
 ;; Maintainer: Dieter Deyke <dieter.deyke@gmail.com>
-;; Version: 1.4.6
+;; Version: 1.4.7
 ;; Package-Requires: ((emacs "23.1"))
 ;; Created: 1997-09-11
 ;; Keywords: games
@@ -650,7 +650,7 @@ static char * player_on_target_xpm[] = {
   (let ((y sokoban-score-y))
     (dolist (string (list (format "Moves:  %05d" sokoban-moves)
 			  (format "Pushes: %05d" sokoban-pushes)
-			  (format "Done:   %d/%d"
+			  (format "Done:   %d/%d "
 				  sokoban-done
 				  sokoban-targets)))
       (let* ((len (length string)))
