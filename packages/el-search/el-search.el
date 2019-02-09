@@ -923,15 +923,14 @@ nil."
   ;; Push string INPUT to HISTVAR unless empty or equal to the head
   ;; element modulo `read'.  Reindent INPUT when multiline.
   (let ((hist-head (car (symbol-value histvar))))
-    (unless (or (string-match-p "\\`\\'" input)
+    (unless (or (string-match-p (rx bos eos) input)
                 (and (stringp hist-head)
                      (or (string= input hist-head)
                          (ignore-errors (equal (el-search-read input) (el-search-read hist-head))))))
-      (push (if (string-match-p "\\`.+\n" input)
+      (push (if (string-match-p (rx bos (+ nonl) "\n") input)
                 (with-temp-buffer
                   (emacs-lisp-mode)
-                  (unless (string-match-p "\\`\n" input)
-                    (insert "\n"))
+                  (insert "\n")
                   (insert input)
                   (indent-region 1 (point))
                   (buffer-string))
@@ -1178,7 +1177,7 @@ error."
 
            ;; FIXME: can the rest be done more generically?
            ((and (looking-at (rx (or (syntax symbol) (syntax word))))
-                 (not (looking-at "\\_<"))
+                 (not (looking-at (rx symbol-start)))
                  (not (funcall looking-at-from-back ",@" 2)))
             (forward-symbol 1))
            ((or (and (looking-at "'") (funcall looking-at-from-back "#" 1))
@@ -1226,7 +1225,8 @@ In addition to the standard `pcase' patterns the following
 pattern types are defined:")
       (mapc
        (pcase-lambda (`(,symbol . ,fun))
-         (unless (string-match-p "\\`[-_]\\|--" (symbol-name symbol)) ;Let's consider these "internal"
+         (unless (string-match-p (rx (or (seq bos (any "-" "_")) "--")) ;Let's consider these "internal"
+                                 (symbol-name symbol))
            (when-let ((doc (documentation fun)))
              (insert "\n\n\n-- ")
              (setq doc (help-fns--signature symbol doc fun fun nil))
@@ -1882,7 +1882,7 @@ Unlike `count-matches' matches \"inside\" other matches also count."
                (end-of-buffer nil))
              (or (= here (point))
                  (and allow-leading-whitespace
-                      (string-match-p "\\`[[:space:]]*\\'" (buffer-substring here (point)))))
+                      (string-match-p (rx bos (+ space) eos) (buffer-substring here (point)))))
              (el-search--match-p matcher current-sexp))))))
 
 ;;;###autoload
@@ -2182,7 +2182,7 @@ that contain a file named \".nosearch\" are excluded as well."
                             el-search-ignored-directory-regexps)
                    (and
                     el-search-respect-nosearch
-                    (directory-files dir-name nil "\\`\\.nosearch\\'" t))))))
+                    (directory-files dir-name nil (rx bos ".nosearch" eos) t))))))
    t #'el-search--elisp-file-p))
 
 
@@ -2242,7 +2242,7 @@ map until you finished el-searching."
                               "`" (symbol-name cmd-name) "'"
                               " (" (keys-string cmd-name) ")\n"
                               (when-let ((docstring (documentation cmd-name)))
-                                (string-match "\\(\\`.*$\\)" docstring)
+                                (string-match (rx (group bos (0+ nonl) eol)) docstring)
                                 (concat (match-string 1 docstring) "\n"))
                               "\n")
                            (concat "  "
@@ -3150,7 +3150,7 @@ continued."
      (or (bufferp buffer-or-file-name)
          ;; `file-in-directory-p' would be perfect here, but it calls
          ;; file-truename on both args what we don't want, so we use this:
-         (string-match-p "\\`\\.\\." (file-relative-name buffer-or-file-name directory)))))
+         (string-match-p (rx bos "..") (file-relative-name buffer-or-file-name directory)))))
   (el-search-prefix-key-maybe-set-transient-map))
 
 (defun el-search-pattern--interactive (&optional prompt display-match-count)
@@ -3727,7 +3727,7 @@ addition from `special-mode-map':
   (setq buffer-read-only t)
   (setq-local hs-hide-comments-when-hiding-all nil)
   (hs-minor-mode +1)
-  (setq outline-regexp "^;;;\\ \\*+")
+  (setq outline-regexp (rx bol ";;; " (+ "*")))
   (outline-minor-mode +1)
   (add-hook 'write-contents-functions 'el-search-occur-write-file nil t)
   (setq-local filter-buffer-substring-function #'el-search-occur-filter-buffer-substring))
@@ -4196,8 +4196,10 @@ text."
                             (goto-char (car region))
                             (apply #'delete-region region)))
            ;; care about other sexps in this line
-           (sexp-before-us (not (looking-back "\(\\|^\\s-*" (line-beginning-position))))
-           (sexp-after-us  (not (looking-at "\\s-*[;\)]\\|$")))
+           (sexp-before-us (not (looking-back
+                                 (rx (or "(" (seq bol (zero-or-more (syntax whitespace)))))
+                                 (line-beginning-position))))
+           (sexp-after-us  (not (looking-at (rx (or (seq (* (syntax whitespace)) (any ";)")) eol)))))
            (insert-newline-before
             (or
              (and (string-match-p "\n" to-insert)
@@ -4216,7 +4218,7 @@ text."
              ))
            (insert-newline-after (and insert-newline-before sexp-after-us)))
       (when insert-newline-before
-        (when (looking-back "\\s-+" (line-beginning-position))
+        (when (looking-back (rx (+ (syntax whitespace))) (line-beginning-position) 'greedy)
           (delete-region (match-beginning 0) (match-end 0)))
         (insert "\n"))
       (insert to-insert)
@@ -4353,7 +4355,7 @@ exactly you did?  Thanks!"))))
             (with-current-buffer buffer-b
               (save-excursion
                 (goto-char (point-min))
-                (while (looking-at "^;;\\|^$")
+                (while (looking-at (rx (or (seq bol ";;") (seq bol eol))))
                   (forward-line))
                 (list (current-buffer) (point) (point-max))))
             (list (apply #'list
@@ -4906,7 +4908,7 @@ Don't save this buffer and all following buffers; don't ask again"))))
           (forward-sexp)
           (skip-chars-forward " \t\n")
           ;; FIXME: maybe more sanity tests here...
-          (if (not (looking-at "->\\|=>\\|>"))
+          (if (not (looking-at (rx (or "->" "=>" ">"))))
               (setq from from-input
                     to (let ((el-search--initial-mb-contents nil))
                          (el-search--read-pattern "Replace with result of evaluation of: " from)))
@@ -4925,10 +4927,10 @@ Don't save this buffer and all following buffers; don't ask again"))))
                                 (newline-in-to   (string-match-p "\n" to)))
                             (format "%s%s%s ->%s%s"
                                     (if (and (or newline-in-from newline-in-to)
-                                             (not (string-match-p "\\`\n" from))) "\n" "")
-                                    (if     newline-in-from                       "\n" "" ) from
+                                             (not (string-match-p (rx bos "\n") from))) "\n" "")
+                                    (if     newline-in-from                             "\n" "" ) from
                                     (if (and (or newline-in-from newline-in-to)
-                                             (not (string-match-p "\\`\n" to)))   "\n" " ") to)))
+                                             (not (string-match-p (rx bos "\n") to)))   "\n" " ") to)))
                   (indent-region 1 (point-max))
                   (buffer-string))
                 el-search-query-replace-history))
