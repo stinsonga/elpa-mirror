@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.11.3
+;; Version: 1.11.4
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -4295,21 +4295,34 @@ exactly you did?  Thanks!"))))
                          hook-funs)
                   'ediff-regions-linewise nil nil)))))
 
-(defun el-search-query-replace--comments-preserved-p (from to)
-  (cl-flet ((get-comments
-             (lambda (text)
-               (let ((comments '()))
-                 (with-temp-buffer
-                   (insert text)
-                   (goto-char (point-min))
-                   (emacs-lisp-mode)
-                   (while (search-forward-regexp comment-start-skip nil t)
-                     (let ((comment-text (buffer-substring (point) (line-end-position))))
-                       (unless (string= comment-text "")
-                         (push comment-text comments)))
-                     (forward-line +1))
-                   comments)))))
-    (seq-set-equal-p (get-comments from) (get-comments to) #'string=)))
+(defun el-search-query-replace--comments-preserved-p (from-text to-text)
+  ;; Return non-nil when strings FROM-TEXT and TO-TEXT contain the same
+  ;; comments.
+  (cl-flet* ((goto-next-comment-start-p
+              (lambda ()
+                (let ((success nil) (done nil))
+                  (while (not (or done success))
+                    (if (not (search-forward-regexp comment-start-skip nil t))
+                        (setq done t)
+                      (setq success (not (nth 3 (syntax-ppss))))))
+                  success)))
+             (get-comments
+              (lambda (text)
+                (let ((comments '()))
+                  (with-temp-buffer
+                    (insert text)
+                    (goto-char (point-min))
+                    (emacs-lisp-mode)
+                    (while (goto-next-comment-start-p)
+                      (let ((comment-text (buffer-substring (point) (line-end-position))))
+                        (unless (string= comment-text "")
+                          (push comment-text comments)))
+                      (forward-line +1))
+                    comments)))))
+    (cl-tree-equal
+     (sort (get-comments from-text) #'string-lessp)
+     (sort (get-comments to-text)   #'string-lessp)
+     :test #'string=)))
 
 (defun el-search--search-and-replace-pattern
     (pattern replacement &optional splice to-input-string use-current-search)
