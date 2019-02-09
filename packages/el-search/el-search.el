@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.9.5
+;; Version: 1.9.6
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -2087,12 +2087,12 @@ Introduction to El-Search
 
 ;;;; Additional pattern type definitions
 
-(defun el-search--simple-regexp-like-p (thing)
-  (or (atom thing)
-      (functionp thing)
-      (and (consp thing)
-           (proper-list-p thing)
-           (not (consp (car thing))))))
+(defun el-search--simple-regexp-like-p (object)
+  (or (atom object)
+      (functionp object)
+      (and (consp object)
+           (if (fboundp 'proper-list-p) (proper-list-p object) t)
+           (not (consp (car object))))))
 
 (defun el-search-regexp-like-p (object)
   "Return non-nil when OBJECT is regexp like.
