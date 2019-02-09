@@ -4515,6 +4515,7 @@ exactly you did?  Thanks!"))))
                                           (el-search-head-buffer head))
                                       (/ (* 100 (- (point) start-point -1))
                                          (- (point-max) start-point -1)))))))
+                              (accepted-replacement nil)
                               (edit-replacement
                                (lambda (&optional ediff-only)
                                  (save-excursion ;user may copy stuff from base buffer etc.
@@ -4523,8 +4524,8 @@ exactly you did?  Thanks!"))))
 ;; This buffer shows the individual replacement for the current match.
 ;; You may edit it here while query-replace is interrupted by a
 ;; `recursive-edit'.
-;; Type C-c C-q to quit, dismissing changes in this buffer, or C-c C-c
-;; to confirm.
+;; Type C-c C-c to confirm, or C-c C-q to quit, dismissing
+;; changes in this buffer.
 ;; Type C-c C-e to Ediff the current match with this buffer's content.
 ;; Type C-c C-r to revert this buffer."
                                                        'read-only t 'field t
@@ -4566,7 +4567,10 @@ exactly you did?  Thanks!"))))
                                                         (exit-recursive-edit)))))
                                           (set-keymap-parent map (current-local-map))
                                           (define-key map [(control ?c) (control ?c)]
-                                            (funcall make-cleanup-fun #'exit-recursive-edit))
+                                            (funcall make-cleanup-fun
+                                                     (lambda ()
+                                                       (setq accepted-replacement t)
+                                                       (exit-recursive-edit))))
                                           (define-key map [(control ?c) (control ?q)]
                                             abort)
                                           (define-key map [(control ?c) (control ?k)]
@@ -4699,7 +4703,8 @@ Switch to driving search.  Useful to reposition search head.")))))))))
                                    (lambda (&optional ediff-only)
                                      (let ((old-to-insert to-insert))
                                        (funcall edit-replacement ediff-only)
-                                       (unless (string= old-to-insert to-insert)
+                                       (unless (and (string= old-to-insert to-insert)
+                                                    (not accepted-replacement))
                                          (if (not replaced-this)
                                              (progn
                                                (funcall replace-or-restore)
