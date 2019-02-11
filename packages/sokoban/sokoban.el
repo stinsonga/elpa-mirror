@@ -5,7 +5,9 @@
 ;; Author: Glynn Clements <glynn.clements@xemacs.org>
 ;; Maintainer: Dieter Deyke <dieter.deyke@gmail.com>
 ;; Version: 1.4.7
-;; Package-Requires: ((emacs "23.1"))
+;; Comment: While we set lexical-binding, it currently doesn't make use
+;;          of closures, which is why it can still work in Emacs-23.1.
+;; Package-Requires: ((emacs "23.1") (cl-lib "0.5"))
 ;; Created: 1997-09-11
 ;; Keywords: games
 ;; Package-Type: multi
@@ -52,8 +54,7 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'cl))
+(eval-when-compile (require 'cl-lib))
 
 (require 'gamegrid)
 (require 'xml)
@@ -536,7 +537,7 @@ static char * player_on_target_xpm[] = {
     (dolist (SokobanLevels tree)
       (dolist (LevelCollection (xml-get-children SokobanLevels 'LevelCollection))
         (dolist (Level (xml-get-children LevelCollection 'Level))
-          (incf n)
+          (cl-incf n)
           (insert (format ";LEVEL %d\n" n))
           (dolist (L (xml-get-children Level 'L))
             (insert (car (xml-node-children L)))
@@ -561,7 +562,7 @@ static char * player_on_target_xpm[] = {
         (setq r 0)
         (while (not (or (eobp)
 		        (looking-at sokoban-comment-regexp)))
-          (incf r)
+          (cl-incf r)
           (setq sokoban-height (max sokoban-height r)
                 sokoban-width (max sokoban-width (- (line-end-position) (line-beginning-position))))
 	  (forward-line))))
@@ -626,10 +627,10 @@ static char * player_on_target_xpm[] = {
 	(cond
 	 ((or (eq c sokoban-target)
 	      (eq c sokoban-player-on-target))
-	  (incf sokoban-targets))
+	  (cl-incf sokoban-targets))
 	 ((eq c sokoban-block-on-target)
-	  (incf sokoban-targets)
-	  (incf sokoban-done))
+	  (cl-incf sokoban-targets)
+	  (cl-incf sokoban-done))
 	 ((= c ?\040) ;; treat space characters in level file as floor
 	  (aset (aref sokoban-level-map y) x sokoban-floor)))))))
 
@@ -657,7 +658,7 @@ static char * player_on_target_xpm[] = {
         (dotimes (x len)
 	  (gamegrid-set-cell (+ sokoban-score-x x)
 			     y (aref string x))))
-      (incf y)))
+      (cl-incf y)))
   (setq mode-line-format
 	(format "Sokoban:   Level: %d/%d   Moves: %05d   Pushes: %05d   Done: %d/%d"
 		sokoban-level (length sokoban-level-data) sokoban-moves sokoban-pushes
@@ -666,13 +667,13 @@ static char * player_on_target_xpm[] = {
 
 (defun sokoban-add-move (dx dy)
   (push (list 'move dx dy) sokoban-undo-list)
-  (incf sokoban-moves)
+  (cl-incf sokoban-moves)
   (sokoban-draw-score))
 
 (defun sokoban-add-push (dx dy)
   (push (list 'push dx dy) sokoban-undo-list)
-  (incf sokoban-moves)
-  (incf sokoban-pushes)
+  (cl-incf sokoban-moves)
+  (cl-incf sokoban-pushes)
   (sokoban-draw-score))
 
 (defun sokoban-targetp (x y)
@@ -714,21 +715,21 @@ static char * player_on_target_xpm[] = {
 		    (y (+ sokoban-y dy)))
 	       (sokoban-set-floor x y)
 	       (if (sokoban-targetp x y)
-		   (decf sokoban-done))
+		   (cl-decf sokoban-done))
 	       (sokoban-set-block sokoban-x sokoban-y)
 	       (if (sokoban-targetp sokoban-x sokoban-y)
-		   (incf sokoban-done)))
+		   (cl-incf sokoban-done)))
 	     (setq sokoban-x (- sokoban-x dx))
 	     (setq sokoban-y (- sokoban-y dy))
 	     (sokoban-set-player sokoban-x sokoban-y)
-	     (decf sokoban-pushes)
-	     (decf sokoban-moves))
+	     (cl-decf sokoban-pushes)
+	     (cl-decf sokoban-moves))
 	    ((eq type 'move)
 	     (sokoban-set-floor sokoban-x sokoban-y)
 	     (setq sokoban-x (- sokoban-x dx))
 	     (setq sokoban-y (- sokoban-y dy))
 	     (sokoban-set-player sokoban-x sokoban-y)
-	     (decf sokoban-moves))
+	     (cl-decf sokoban-moves))
 	    (t
 	     (message "Invalid entry in sokoban-undo-list")))
       (sokoban-draw-score))))
@@ -752,14 +753,14 @@ static char * player_on_target_xpm[] = {
 	     (cond ((or (eq cc sokoban-floor)
 			(eq cc sokoban-target))
 		    (if (sokoban-targetp x y)
-			(decf sokoban-done))
+			(cl-decf sokoban-done))
                     (sokoban-set-block xx yy)
 		    (sokoban-set-player x y)
 		    (sokoban-set-floor sokoban-x sokoban-y)
 		    (setq sokoban-x x
 			  sokoban-y y)
 		    (if (sokoban-targetp xx yy)
-			(incf sokoban-done))
+			(cl-incf sokoban-done))
 		    (sokoban-add-push dx dy)
 		    (cond ((= sokoban-done sokoban-targets)
                            (let ((level sokoban-level))
@@ -866,8 +867,6 @@ static char * player_on_target_xpm[] = {
   (interactive)
   (setq sokoban-level 0)
   (sokoban-next-level))
-
-(put 'sokoban-mode 'mode-class 'special)
 
 (easy-menu-define sokoban-popup-menu nil "Popup menu for Sokoban mode."
   '("Sokoban Commands"
