@@ -474,6 +474,21 @@
   "Expression based search and replace for Emacs Lisp."
   :group 'lisp)
 
+(defcustom el-search-display-mb-hints t
+  "Whether to show hints in the search pattern prompt."
+  :type 'boolean)
+
+(defcustom el-search-mb-hints-delay 0.8
+  "Time before displaying minibuffer hints.
+
+Setting this has only an effect if `el-search-display-mb-hints'
+is non-nil."
+  :type 'number)
+
+(defcustom el-search-mb-hints-timeout 15
+  "How long to display minibuffer hints."
+  :type 'number)
+
 (defface el-search-match '((((class color) (min-colors 88) (background dark))
                             (:background "#600000"))
 			   (((class color) (min-colors 88) (background light))
@@ -863,10 +878,13 @@ nil."
               input)
             (symbol-value histvar)))))
 
+(defun el-search--pattern-is-unquoted-symbol-p (pattern)
+  (and (symbolp pattern)
+       (not (eq pattern '_))
+       (not (keywordp pattern))))
+
 (defun el-search--maybe-warn-about-unquoted-symbol (pattern)
-  (when (and (symbolp pattern)
-             (not (eq pattern '_))
-             (not (keywordp pattern)))
+  (when (el-search--pattern-is-unquoted-symbol-p pattern)
     (message "Free variable `%S' (missing a quote?)" pattern)
     (sit-for 2.)))
 
@@ -875,6 +893,25 @@ nil."
   (let ((input (el-search-read-expression prompt el-search--initial-mb-contents histvar default)))
     (el-search--pushnew-to-history input histvar)
     (if (not (string= input "")) input (car (symbol-value histvar)))))
+
+(defvar el-search--reading-input-for-query-replace nil)
+
+(defvar el-search--search-pattern-1-do-fun nil)
+(defvar el-search--busy-animation
+  ;; '("." "o" "O" "o" "." " ")
+  ;; '("|" "/" "-" "\\")
+  '("*   " " *  " "  * " "   *" "  * " " *  "))
+(defvar el-search-mb-anim-time .33)
+
+(defun el-search--make-display-animation-function (display-fun)
+  (let ((last-update (seconds-to-time 0))
+        (anim (copy-sequence el-search--busy-animation)))
+    (setcdr (last anim) anim)
+    (lambda ()
+      (let ((now (current-time)))
+        (when (< el-search-mb-anim-time (float-time (time-subtract now last-update)))
+          (setq last-update now)
+          (funcall display-fun (pop anim)))))))
 
 (defun el-search-read-pattern-for-interactive (&optional prompt)
   "Read an \"el-search\" pattern from the minibuffer, prompting with PROMPT.
@@ -1154,6 +1191,8 @@ be specified as fourth argument, and COUNT becomes the fifth argument."
         (let ((match-beg nil) current-expr)
           (if (catch 'no-match
                 (while (not match-beg)
+                  (when el-search--search-pattern-1-do-fun
+                    (funcall el-search--search-pattern-1-do-fun))
                   (condition-case nil
                       (setq current-expr (el-search--ensure-sexp-start))
                     (end-of-buffer (throw 'no-match t)))
@@ -1654,7 +1693,7 @@ With ALLOW-LEADING-WHITESPACE non-nil, the match may
 be preceded by whitespace."
   (el-search--looking-at-1 (el-search-make-matcher pattern) allow-leading-whitespace))
 
-(defun el-search--all-matches (search)
+(defun el-search--all-matches (search &optional dont-copy)
   "Return a stream of all matches of SEARCH.
 The returned stream will always start searching from the
 beginning anew even when SEARCH has been used interactively or
@@ -1668,7 +1707,7 @@ The elements of the returned stream will have the form
 where BUFFER or FILE is the buffer or file where a match has been
 found (exactly one of the two will be nil), and MATCH-BEG is the
 position of the beginning of the match."
-  (let* ((search (el-search-reset-search (copy-el-search-object search)))
+  (let* ((search (if dont-copy search (el-search-reset-search (copy-el-search-object search))))
          (head (el-search-object-head search)))
     (seq-filter
      #'identity ;we use `nil' as a "skip" tag
@@ -4401,8 +4440,9 @@ Don't save this buffer and all following buffers; don't ask again"))))
                                                (el-search-read (car el-search-query-replace-history)))
                                         (car el-search-query-replace-history)
                                       (car el-search-pattern-history))))))
-                      (el-search--read-pattern "Query replace pattern: " nil
-                                               'el-search-query-replace-history)))
+                      (let ((el-search--reading-input-for-query-replace t))
+                        (el-search--read-pattern "Query replace pattern: " nil
+                                                 'el-search-query-replace-history))))
         from to read-from read-to)
     (with-temp-buffer
       (emacs-lisp-mode)
