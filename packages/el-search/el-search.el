@@ -2475,12 +2475,10 @@ absolute name must be matched by all of them."
   "Holds information for displaying a match count.
 The value is a list of elements
 
-   \(SEARCH BUFFER-CHARS-MOD-TICK BUFFER-MATCHES\)
+  \(SEARCH BUFFER-CHARS-MOD-TICK (POINT-MIN POINT-MAX) MATCHES\)
 
-BUFFER-MATCHES is a stream of matches in this buffer.  SEARCH is
-the active search and BUFFER-CHARS-MOD-TICK the return value of
-`buffer-chars-modified-tick' from when this stream had been
-created.")
+MATCHES is a stream of matches in this buffer.  The other values
+are used to check validity.")
 
 (defun el-search-display-match-count ()
   "Display an x/y-style match count in the echo area."
@@ -2489,7 +2487,9 @@ created.")
 
       ;; Check whether cached stream of buffer matches is still valid
       (pcase el-search--buffer-match-count-data
-        (`(,(pred (eq el-search--current-search))  ,(pred (eq (buffer-chars-modified-tick)))  . ,_))
+        (`(,(pred (eq el-search--current-search))
+           ,(pred (eq (buffer-chars-modified-tick)))
+           (,(pred (eq (point-min))) ,(pred (eq (point-max))))  . ,_))
         (_
          ;; (message "Refreshing match count data") (sit-for 1)
          (redisplay) ;don't delay highlighting
@@ -2504,13 +2504,14 @@ created.")
                        (list
                         el-search--current-search
                         (buffer-chars-modified-tick)
+                        `(,(point-min) ,(point-max))
                         stream-of-buffer-matches)))))
 
       (let ((pos-here (point)) (matches-<=-here 1) total-matches
             (defun-bounds (or (el-search--bounds-of-defun) (cons (point) (point))))
             (matches-<=-here-in-defun 1) (total-matches-in-defun 0)
             (largest-match-start-not-after-pos-here nil))
-        (pcase-let ((`(,_ ,_ ,matches) el-search--buffer-match-count-data))
+        (pcase-let ((`(,_ ,_ ,_ ,matches) el-search--buffer-match-count-data))
           (setq total-matches (let ((inhibit-message t)) (seq-length matches)))
           (while (and (not (stream-empty-p matches)) (< (stream-first matches) (cdr defun-bounds)))
             (when (<= (stream-first matches) pos-here)
