@@ -4,7 +4,7 @@
 
 ;; Author: Glynn Clements <glynn.clements@xemacs.org>
 ;; Maintainer: Dieter Deyke <dieter.deyke@gmail.com>
-;; Version: 1.4.7
+;; Version: 1.4.8
 ;; Comment: While we set lexical-binding, it currently doesn't make use
 ;;          of closures, which is why it can still work in Emacs-23.1.
 ;; Package-Requires: ((emacs "23.1") (cl-lib "0.5"))
@@ -509,6 +509,8 @@ static char * player_on_target_xpm[] = {
     (define-key map "r"	'sokoban-restart-level)
     (define-key map "g"	'sokoban-goto-level)
     (define-key map "F"	'fit-frame-to-buffer)
+    (define-key map "s"	'sokoban-save)
+    (define-key map "l"	'sokoban-load)
 
     (define-key map [left]	'sokoban-move-left)
     (define-key map [right]	'sokoban-move-right)
@@ -868,12 +870,58 @@ static char * player_on_target_xpm[] = {
   (setq sokoban-level 0)
   (sokoban-next-level))
 
+(defvar sokoban-grid-state)
+
+(defconst sokoban-state-variables '(
+                                    sokoban-level
+                                    sokoban-level-map
+                                    sokoban-targets
+                                    sokoban-x
+                                    sokoban-y
+                                    sokoban-moves
+                                    sokoban-pushes
+                                    sokoban-done
+                                    sokoban-undo-list
+                                    sokoban-grid-state
+                                    ))
+(defun sokoban-save (filename)
+  "Save current Sokoban state."
+  (interactive "FSave file: ")
+  (let ((buf (current-buffer)))
+    (setq sokoban-grid-state nil)
+    (dotimes (y sokoban-height)
+      (dotimes (x sokoban-width)
+        (push (gamegrid-get-cell x y) sokoban-grid-state)))
+    (setq sokoban-grid-state (reverse sokoban-grid-state))
+    (with-temp-file filename
+      (dolist (var sokoban-state-variables)
+        (print
+         (with-current-buffer buf (eval var))
+         (current-buffer))))))
+
+(defun sokoban-load (filename)
+  "Restore saved Sokoban state."
+  (interactive "fLoad file: ")
+  (let ((buf (current-buffer)))
+    (with-temp-buffer
+      (insert-file-contents filename)
+      (goto-char (point-min))
+      (dolist (var sokoban-state-variables)
+        (let ((value (read (current-buffer))))
+          (with-current-buffer buf (set var value))))))
+  (dotimes (y sokoban-height)
+    (dotimes (x sokoban-width)
+      (gamegrid-set-cell x y (pop sokoban-grid-state))))
+  (sokoban-draw-score))
+
 (easy-menu-define sokoban-popup-menu nil "Popup menu for Sokoban mode."
   '("Sokoban Commands"
     ["Restart this level" sokoban-restart-level]
     ["Start new game" sokoban-start-game]
     ["Go to specific level" sokoban-goto-level]
-    ["Fit frame to buffer" fit-frame-to-buffer]))
+    ["Fit frame to buffer" fit-frame-to-buffer]
+    ["Save current state" sokoban-save]
+    ["Restore saved state" sokoban-load]))
 (define-key sokoban-mode-map [down-mouse-3] sokoban-popup-menu)
 
 (define-derived-mode sokoban-mode special-mode "Sokoban"
@@ -903,6 +951,8 @@ sokoban-mode keybindings:
 \\[sokoban-restart-level]	Restarts the current level
 \\[sokoban-goto-level]	Jumps to a specified level
 \\[fit-frame-to-buffer]	Fit frame to buffer
+\\[sokoban-save]	Save current state
+\\[sokoban-load]	Restore saved state
 \\[sokoban-move-left]	Move one square to the left
 \\[sokoban-move-right]	Move one square to the right
 \\[sokoban-move-up]	Move one square up
