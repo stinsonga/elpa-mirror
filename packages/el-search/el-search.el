@@ -4894,10 +4894,10 @@ Don't save this buffer and all following buffers; don't ask again"))))
                     (or el-search--initial-mb-contents
                         (and (or (eq last-command 'el-search-pattern)
                                  (el-search--pending-search-p))
-                             (if (equal (el-search-read (car el-search-pattern-history))
+                             (if (equal (el-search--current-pattern)
                                         (el-search-read (car el-search-query-replace-history)))
                                  (car el-search-query-replace-history)
-                               (car el-search-pattern-history))))))
+                               (el-search--pp-to-string (el-search--current-pattern)))))))
                ;; We only want error hints so we don't bind el-search--display-match-count-in-prompt
                (unwind-protect (minibuffer-with-setup-hook #'el-search-read-pattern-setup-mb
                                  (let ((el-search--reading-input-for-query-replace t))
