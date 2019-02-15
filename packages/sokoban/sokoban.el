@@ -1,11 +1,13 @@
-;;; sokoban.el --- Implementation of Sokoban for Emacs.
+;;; sokoban.el --- Implementation of Sokoban for Emacs. -*- lexical-binding: t -*-
 
-;; Copyright (C) 1998, 2013, 2017 Free Software Foundation, Inc.
+;; Copyright (C) 1998, 2013, 2017, 2019 Free Software Foundation, Inc.
 
 ;; Author: Glynn Clements <glynn.clements@xemacs.org>
 ;; Maintainer: Dieter Deyke <dieter.deyke@gmail.com>
-;; Version: 1.4.6
-;; Package-Requires: ((emacs "23.1"))
+;; Version: 1.4.8
+;; Comment: While we set lexical-binding, it currently doesn't make use
+;;          of closures, which is why it can still work in Emacs-23.1.
+;; Package-Requires: ((emacs "23.1") (cl-lib "0.5"))
 ;; Created: 1997-09-11
 ;; Keywords: games
 ;; Package-Type: multi
@@ -52,8 +54,7 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'cl))
+(eval-when-compile (require 'cl-lib))
 
 (require 'gamegrid)
 (require 'xml)
@@ -508,6 +509,8 @@ static char * player_on_target_xpm[] = {
     (define-key map "r"	'sokoban-restart-level)
     (define-key map "g"	'sokoban-goto-level)
     (define-key map "F"	'fit-frame-to-buffer)
+    (define-key map "s"	'sokoban-save)
+    (define-key map "l"	'sokoban-load)
 
     (define-key map [left]	'sokoban-move-left)
     (define-key map [right]	'sokoban-move-right)
@@ -536,7 +539,7 @@ static char * player_on_target_xpm[] = {
     (dolist (SokobanLevels tree)
       (dolist (LevelCollection (xml-get-children SokobanLevels 'LevelCollection))
         (dolist (Level (xml-get-children LevelCollection 'Level))
-          (incf n)
+          (cl-incf n)
           (insert (format ";LEVEL %d\n" n))
           (dolist (L (xml-get-children Level 'L))
             (insert (car (xml-node-children L)))
@@ -561,7 +564,7 @@ static char * player_on_target_xpm[] = {
         (setq r 0)
         (while (not (or (eobp)
 		        (looking-at sokoban-comment-regexp)))
-          (incf r)
+          (cl-incf r)
           (setq sokoban-height (max sokoban-height r)
                 sokoban-width (max sokoban-width (- (line-end-position) (line-beginning-position))))
 	  (forward-line))))
@@ -626,10 +629,10 @@ static char * player_on_target_xpm[] = {
 	(cond
 	 ((or (eq c sokoban-target)
 	      (eq c sokoban-player-on-target))
-	  (incf sokoban-targets))
+	  (cl-incf sokoban-targets))
 	 ((eq c sokoban-block-on-target)
-	  (incf sokoban-targets)
-	  (incf sokoban-done))
+	  (cl-incf sokoban-targets)
+	  (cl-incf sokoban-done))
 	 ((= c ?\040) ;; treat space characters in level file as floor
 	  (aset (aref sokoban-level-map y) x sokoban-floor)))))))
 
@@ -650,14 +653,14 @@ static char * player_on_target_xpm[] = {
   (let ((y sokoban-score-y))
     (dolist (string (list (format "Moves:  %05d" sokoban-moves)
 			  (format "Pushes: %05d" sokoban-pushes)
-			  (format "Done:   %d/%d"
+			  (format "Done:   %d/%d "
 				  sokoban-done
 				  sokoban-targets)))
       (let* ((len (length string)))
         (dotimes (x len)
 	  (gamegrid-set-cell (+ sokoban-score-x x)
 			     y (aref string x))))
-      (incf y)))
+      (cl-incf y)))
   (setq mode-line-format
 	(format "Sokoban:   Level: %d/%d   Moves: %05d   Pushes: %05d   Done: %d/%d"
 		sokoban-level (length sokoban-level-data) sokoban-moves sokoban-pushes
@@ -666,13 +669,13 @@ static char * player_on_target_xpm[] = {
 
 (defun sokoban-add-move (dx dy)
   (push (list 'move dx dy) sokoban-undo-list)
-  (incf sokoban-moves)
+  (cl-incf sokoban-moves)
   (sokoban-draw-score))
 
 (defun sokoban-add-push (dx dy)
   (push (list 'push dx dy) sokoban-undo-list)
-  (incf sokoban-moves)
-  (incf sokoban-pushes)
+  (cl-incf sokoban-moves)
+  (cl-incf sokoban-pushes)
   (sokoban-draw-score))
 
 (defun sokoban-targetp (x y)
@@ -714,21 +717,21 @@ static char * player_on_target_xpm[] = {
 		    (y (+ sokoban-y dy)))
 	       (sokoban-set-floor x y)
 	       (if (sokoban-targetp x y)
-		   (decf sokoban-done))
+		   (cl-decf sokoban-done))
 	       (sokoban-set-block sokoban-x sokoban-y)
 	       (if (sokoban-targetp sokoban-x sokoban-y)
-		   (incf sokoban-done)))
+		   (cl-incf sokoban-done)))
 	     (setq sokoban-x (- sokoban-x dx))
 	     (setq sokoban-y (- sokoban-y dy))
 	     (sokoban-set-player sokoban-x sokoban-y)
-	     (decf sokoban-pushes)
-	     (decf sokoban-moves))
+	     (cl-decf sokoban-pushes)
+	     (cl-decf sokoban-moves))
 	    ((eq type 'move)
 	     (sokoban-set-floor sokoban-x sokoban-y)
 	     (setq sokoban-x (- sokoban-x dx))
 	     (setq sokoban-y (- sokoban-y dy))
 	     (sokoban-set-player sokoban-x sokoban-y)
-	     (decf sokoban-moves))
+	     (cl-decf sokoban-moves))
 	    (t
 	     (message "Invalid entry in sokoban-undo-list")))
       (sokoban-draw-score))))
@@ -752,14 +755,14 @@ static char * player_on_target_xpm[] = {
 	     (cond ((or (eq cc sokoban-floor)
 			(eq cc sokoban-target))
 		    (if (sokoban-targetp x y)
-			(decf sokoban-done))
+			(cl-decf sokoban-done))
                     (sokoban-set-block xx yy)
 		    (sokoban-set-player x y)
 		    (sokoban-set-floor sokoban-x sokoban-y)
 		    (setq sokoban-x x
 			  sokoban-y y)
 		    (if (sokoban-targetp xx yy)
-			(incf sokoban-done))
+			(cl-incf sokoban-done))
 		    (sokoban-add-push dx dy)
 		    (cond ((= sokoban-done sokoban-targets)
                            (let ((level sokoban-level))
@@ -867,14 +870,58 @@ static char * player_on_target_xpm[] = {
   (setq sokoban-level 0)
   (sokoban-next-level))
 
-(put 'sokoban-mode 'mode-class 'special)
+(defvar sokoban-grid-state)
+
+(defconst sokoban-state-variables '(
+                                    sokoban-level
+                                    sokoban-level-map
+                                    sokoban-targets
+                                    sokoban-x
+                                    sokoban-y
+                                    sokoban-moves
+                                    sokoban-pushes
+                                    sokoban-done
+                                    sokoban-undo-list
+                                    sokoban-grid-state
+                                    ))
+(defun sokoban-save (filename)
+  "Save current Sokoban state."
+  (interactive "FSave file: ")
+  (let ((buf (current-buffer)))
+    (setq sokoban-grid-state nil)
+    (dotimes (y sokoban-height)
+      (dotimes (x sokoban-width)
+        (push (gamegrid-get-cell x y) sokoban-grid-state)))
+    (setq sokoban-grid-state (reverse sokoban-grid-state))
+    (with-temp-file filename
+      (dolist (var sokoban-state-variables)
+        (print
+         (with-current-buffer buf (eval var))
+         (current-buffer))))))
+
+(defun sokoban-load (filename)
+  "Restore saved Sokoban state."
+  (interactive "fLoad file: ")
+  (let ((buf (current-buffer)))
+    (with-temp-buffer
+      (insert-file-contents filename)
+      (goto-char (point-min))
+      (dolist (var sokoban-state-variables)
+        (let ((value (read (current-buffer))))
+          (with-current-buffer buf (set var value))))))
+  (dotimes (y sokoban-height)
+    (dotimes (x sokoban-width)
+      (gamegrid-set-cell x y (pop sokoban-grid-state))))
+  (sokoban-draw-score))
 
 (easy-menu-define sokoban-popup-menu nil "Popup menu for Sokoban mode."
   '("Sokoban Commands"
     ["Restart this level" sokoban-restart-level]
     ["Start new game" sokoban-start-game]
     ["Go to specific level" sokoban-goto-level]
-    ["Fit frame to buffer" fit-frame-to-buffer]))
+    ["Fit frame to buffer" fit-frame-to-buffer]
+    ["Save current state" sokoban-save]
+    ["Restore saved state" sokoban-load]))
 (define-key sokoban-mode-map [down-mouse-3] sokoban-popup-menu)
 
 (define-derived-mode sokoban-mode special-mode "Sokoban"
@@ -904,6 +951,8 @@ sokoban-mode keybindings:
 \\[sokoban-restart-level]	Restarts the current level
 \\[sokoban-goto-level]	Jumps to a specified level
 \\[fit-frame-to-buffer]	Fit frame to buffer
+\\[sokoban-save]	Save current state
+\\[sokoban-load]	Restore saved state
 \\[sokoban-move-left]	Move one square to the left
 \\[sokoban-move-right]	Move one square to the right
 \\[sokoban-move-up]	Move one square up
