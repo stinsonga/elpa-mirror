@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.12.4
+;; Version: 1.12.5
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -90,6 +90,10 @@
 ;;     hit RET to exit or C-g to abort and jump back to where you
 ;;     started.
 ;;
+;;     By using the prefix arg this command can be used to reactivate
+;;     the last or a former search and to restart searches from the
+;;     beginning.
+;;
 ;;   C-h (aka the `help-char')
 ;;
 ;;     C-h offers access to some help commands special to el-search
@@ -100,8 +104,8 @@
 ;;     Search backward.
 ;;
 ;;   C-%, M-s e % (`el-search-query-replace')
-;;     Start a query-replace session.  Resume a session with prefix
-;;     arg.
+;;     Start a query-replace session.  Resume or restart sessions with
+;;     prefix arg.
 ;;
 ;;   M-x el-search-directory
 ;;     Prompt for a directory name and start a multi el-search for all
@@ -128,23 +132,18 @@
 ;;     located under this directory.
 ;;
 ;;   C-A, M-s e a, M-s e < (`el-search-from-beginning')
-;;     Go back to the first match in this buffer or (with positive
-;;     prefix arg) completely restart the current search from the
-;;     first file or buffer.
-;;
-;;     With negative prefix arg, or with >, go to the last match in
+;;     Go back to the first match in this buffer.
+;;     With prefix arg or with M-s e >, go to the last match in
 ;;     the current buffer.
 ;;
-;;   C-J, M-s e j (`el-search-jump-to-search-head')
-;;     Resume the last search from the position of the last visited
-;;     match.
+;;   C-J, M-s e j (`el-search-jump')
+;;     Convenience command to move by matches.  Resumes the last
+;;     search if necessary.
+;;     Without prefix arg, jump (back) to the current match.
 ;;     With prefix arg 0, resume from the position of the match
-;;     following point instead.  With prefix arg 1 or -1, jump to the
-;;     first or last match visible in the selected window.  This can
-;;     be useful even when a search is current, e.g. after scrolling
-;;     the searched buffer.
-;;     With a plain C-u prefix arg, prompt for a former search to
-;;     resume.
+;;     following point instead.
+;;     With prefix arg 1 or -1, jump to the first or last match
+;;     visible in the selected window.
 ;;
 ;;   C-S-next, v   when search is active (`el-search-scroll-down')
 ;;   C-S-prior, V  when search is active (`el-search-scroll-up')
@@ -248,8 +247,7 @@
 ;; You can pause any search by just doing something different (no
 ;; explicit quitting needed); the state of the search is automatically
 ;; saved.  You can later continue searching by calling
-;; `el-search-jump-to-search-head' (C-J; M-s e j): this command jumps
-;; to the last match and re-activates the search.
+;; `el-search-pattern' (C-S; M-s e s) with a prefix arg.
 ;;
 ;; `el-search-continue-in-next-buffer' (C-X; x) skips all remaining
 ;; matches in the current buffer and continues searching in the next
@@ -279,13 +277,11 @@
 ;; Multiple multi searches
 ;; =======================
 ;;
-;; Every search is collected in a history.  You can resume older
-;; searches from the position of the last match by calling
-;; `el-search-jump-to-search-head' (C-J; M-s e j) with a prefix
-;; argument.  That let's you select an older search to resume and
-;; switches to the buffer and position where this search had been
-;; suspended.  Like any search you can restart the search driving an
-;; `el-search-query-replace' with C-u C-A or C-u M-s e a respectively.
+;; Every search is stored in a history.  You can resume older searches
+;; from the position of the last match by calling `el-search-pattern'
+;; (C-S; M-s e s) with a prefix argument.  That let's you select an
+;; older search to resume and switches to the buffer and position
+;; where this search had been suspended.
 ;;
 ;;
 ;; Query-replace
@@ -613,7 +609,7 @@ following cases from the prompt."
   )
 
 (defvar el-search-keep-transient-map-commands
-  ;; Commands that may read input (`el-search-jump-to-search-head',
+  ;; Commands that may read input (`el-search-jump',
   ;; `el-search-skip-directory') need to be omitted here and should
   ;; explicitly install the transient map themselves.
   '(el-search-pattern
@@ -639,7 +635,7 @@ of these commands will keep the
   "Whether scrolling is allowed during el-search.
 When non-nil, scrolling commands don't deactivate the current
 search.  Unlike isearch, it's possible to scroll the current
-match offscreen.  Use `el-search-jump-to-search-head' (\\[el-search-jump-to-search-head])
+match offscreen.  Use `el-search-jump' (\\[el-search-jump])
 to go back to the position of the current match.
 
 When nil, scrolling commands deactivate the search (like any
@@ -1999,7 +1995,7 @@ in, in order, when called with no arguments."
     (keybind emacs-lisp-mode-map           ?p #'el-search-pattern-backward)
     (keybind emacs-lisp-mode-map           ?% #'el-search-query-replace)
     (keybind emacs-lisp-mode-map           ?h #'el-search-this-sexp) ;h like in "highlight" or "here"
-    (keybind global-map                    ?j #'el-search-jump-to-search-head)
+    (keybind global-map                    ?j #'el-search-jump)
     (keybind global-map                    ?a #'el-search-from-beginning)
     (keybind global-map                    ?< #'el-search-from-beginning)
     (keybind emacs-lisp-mode-map           ?> #'el-search-last-buffer-match)
@@ -2077,7 +2073,7 @@ Go back to the place where the search had been started."
      (lambda (_map key command)
        (when (memq command '(el-search-pattern
                              el-search-pattern-backward
-                             el-search-jump-to-search-head
+                             el-search-jump
                              el-search-query-replace
                              el-search-from-beginning
                              el-search-last-buffer-match
@@ -2192,7 +2188,7 @@ that contain a file named \".nosearch\" are excluded as well."
   "Type a help option: [bmikp] or ?"
   "You have typed %THIS-KEY%, the help character.  Type a Help option:
 \(Type \\<help-map>\\[help-quit] to exit or \
-\\<help-map>\\[help-quit] \\[el-search-jump-to-search-head] to \
+\\<help-map>\\[help-quit] \\[el-search-jump] to \
 continue searching.)
 
 b           Display el-search key bindings.
@@ -2257,7 +2253,7 @@ map until you finished el-searching."
     (cmd-help 'el-search-pause-search)
     (cmd-help 'el-search-keyboard-quit)
     (cmd-help 'el-search-occur)
-    (cmd-help 'el-search-jump-to-search-head)
+    (cmd-help 'el-search-jump)
     (cmd-help 'el-search-from-beginning)
     (cmd-help 'el-search-last-buffer-match)
     (cmd-help 'el-search-scroll-down)
@@ -2937,27 +2933,30 @@ Position not accessible in narrowed buffer - really continue?")
       (user-error "Abort")))
   (goto-char pos))
 
-(defun el-search-jump-to-search-head (&optional arg)
-  "Resume a search or jump to the specified match.
-Resume the last active search and select the last match found.
-With plain C-u prefix argument, prompt for a former search to
-resume, and make that the current search.  Any other numeric
-prefix arg has the following meaning:
+(define-obsolete-function-alias 'el-search-jump-to-search-head
+  'el-search-jump "el-search 1.12.5")
 
+(defun el-search-jump (&optional arg)
+  "Jump by matches.
+Select a match, resuming the last search if necessary.  The
+prefix argument decides which match is selected:
+
+ no prefix arg: select the (last) current match
  0: go to the match following point
  N: go to the Nth match after `window-start'
 -N: go to the Nth match before `window-end'
 
 In a non-interactive call, ARG should be an integer, having the
 same meaning as a numeric prefix arg, or an el-search-object to
-make current."
+make current, or the symbol t, in which case the user is prompted
+for an older search to resume."
   (interactive "P")
   (el-search--set-search-origin-maybe)
   (when (integerp arg)
     (el-search-barf-if-not-search-buffer
      (current-buffer)
-     "Numeric ARG only allowed in current search's current buffer"))
-  (when (or (el-search-object-p arg) (consp arg))
+     "Prefix ARG only allowed in current search's current buffer"))
+  (when (or (el-search-object-p arg) (eq arg t))
     ;; FIXME: would it be better to include some context around the search
     ;; head - or to even use an overview buffer for selection?
     (setq el-search--current-search
@@ -3171,6 +3170,10 @@ PATTERN.  When called from the current search's current search
 buffer, continue that search from point.  Otherwise or when a new
 PATTERN is given, start a new single-buffer search from point.
 
+With prefix arg, generally resume the last search.  With prefix
+arg 0, restart it.  With C-u C-u or negative prefix arg, prompt
+for an older search to resume.
+
 The minibuffer is put into `emacs-lisp-mode' for reading the
 input pattern, and there are some special key bindings:
 \\<el-search-read-expression-map>\\[newline] inserts a newline,
@@ -3184,29 +3187,45 @@ types defined with `el-search-defpattern'.
 
 See `el-search-defined-patterns' for a list of defined patterns."
   (declare (interactive-only el-search-forward))
-  (interactive (el-search-pattern--interactive nil 'display-match-count))
-  (cond
-   ((eq el-search--wrap-flag 'forward)
-    (progn
-      (el-search--set-wrap-flag nil)
-      (el-search--message-no-log "[Wrapped search]")
-      (sit-for .7)
-      (el-search-from-beginning 1)))
-   ((or
-     (el-search--pending-search-p)
-     (and (eq this-command last-command)
-          (eq pattern (el-search--current-pattern))))
-    (progn
-      (el-search--skip-expression nil t)
-      (el-search-continue-search 'from-here)))
-   (t ;create a new search single-buffer search
-    (let ((current-buffer (current-buffer)))
-      (el-search-setup-search
-       pattern
-       (lambda () (stream (list current-buffer)))
-       (lambda (search) (setf (alist-get 'is-single-buffer (el-search-object-properties search))
-                              current-buffer))
-       'from-here)))))
+  (interactive (if current-prefix-arg (list current-prefix-arg)
+                 (el-search-pattern--interactive nil 'display-match-count)))
+  (cl-flet ((restart-search
+             (lambda ()
+               (el-search-reset-search el-search--current-search)
+               (setq el-search--success nil)
+               (el-search-continue-search))))
+    (if (and current-prefix-arg (called-interactively-p 'any))
+        (let ((numerical-arg (prefix-numeric-value current-prefix-arg)))
+          (el-search--set-search-origin-maybe)
+          (cond
+           ((or (equal current-prefix-arg '(16)) (< numerical-arg 0)) ;resume older search
+            (el-search-jump t))
+           ((= numerical-arg 0) ;restart
+            (restart-search))
+           (t ;resume current search
+            (el-search-jump))))
+      (cond
+       ((eq el-search--wrap-flag 'forward)
+        (progn
+          (el-search--set-wrap-flag nil)
+          (el-search--message-no-log "[Wrapped search]")
+          (sit-for .7)
+          (restart-search)))
+       ((or
+         (el-search--pending-search-p)
+         (and (eq this-command last-command)
+              (eq pattern (el-search--current-pattern))))
+        (progn
+          (el-search--skip-expression nil t)
+          (el-search-continue-search 'from-here)))
+       (t ;create a new search single-buffer search
+        (let ((current-buffer (current-buffer)))
+          (el-search-setup-search
+           pattern
+           (lambda () (stream (list current-buffer)))
+           (lambda (search) (setf (alist-get 'is-single-buffer (el-search-object-properties search))
+                                  current-buffer))
+           'from-here)))))))
 
 ;;;###autoload
 (defalias 'el-search #'el-search-pattern)
@@ -3232,23 +3251,17 @@ executed, and nil else."
 
 (defun el-search-from-beginning (&optional arg)
   "Go to the first of this buffer's matches.
-With prefix ARG, restart the current search when positive; go to the
-last match in the current buffer when negative."
+With prefix ARG, go to the last match in the current buffer."
   (interactive "P")
   (el-search--set-search-origin-maybe)
+  (el-search-barf-if-not-search-buffer)
   (cond
-   ((< (prefix-numeric-value arg) 0)
-    (el-search-last-buffer-match))
-   ((not arg)
-    (el-search-barf-if-not-search-buffer)
+   (arg (el-search-last-buffer-match))
+   (t
     (el-search--unless-no-buffer-match
       (setf (el-search-head-position (el-search-object-head el-search--current-search))
             (point-min))
-      (el-search-continue-search)))
-   (t
-    (el-search-reset-search el-search--current-search)
-    (setq el-search--success nil)
-    (el-search-continue-search))))
+      (el-search-continue-search)))))
 
 (defun el-search-last-buffer-match ()
   "Go to the last of this buffer's matches."
@@ -3455,7 +3468,7 @@ Use the normal search commands to seize the search."
     (goto-char (window-end))
     (if (el-search--search-pattern-1 (el-search--current-matcher) t nil
                                      (el-search--current-heuristic-matcher))
-        (el-search-jump-to-search-head 0)
+        (el-search-jump 0)
       (goto-char here)
       (el-search--message-no-log "[No more matches after here]")
       (sit-for 1))))
@@ -3469,7 +3482,7 @@ Use the normal search commands to seize the search."
     (goto-char (window-start))
     (if (el-search--search-backward-1 (el-search--current-matcher) t nil
                                       (el-search--current-heuristic-matcher))
-        (el-search-jump-to-search-head 0)
+        (el-search-jump 0)
       (goto-char here)
       (el-search--message-no-log "[No more matches before here]")
       (sit-for 1))))
@@ -4121,7 +4134,7 @@ clone with an individual state."
   (set-register register (copy-el-search-object (or el-search-object el-search--current-search))))
 
 (cl-defmethod register-val-jump-to ((val el-search-object) _arg)
-  (el-search-jump-to-search-head val))
+  (el-search-jump val))
 
 (cl-defmethod register-val-describe ((val el-search-object) _verbose) ;VERBOSE is only used by C-x r v
   (let ((print-circle nil)) ;bug#30070
@@ -4771,8 +4784,7 @@ Replace all matches in all buffers"))))
                                                  (lambda ()
                                                    (message "Activating driving search...")
                                                    (sit-for 1.)
-                                                   (el-search-jump-to-search-head
-                                                    el-search--current-search)))
+                                                   (el-search-jump el-search--current-search)))
                                                 (signal 'quit t)))))
                                (when handle (accept-change-group handle))))
                            (when (and replaced-this (not replace-all))
@@ -5106,8 +5118,8 @@ Reuse already given input."
      ["Forward"  el-search-pattern]
      ["Backward" el-search-pattern-backward]
      ["Sexp at Point" el-search-this-sexp]
-     ["Resume Last Search" el-search-jump-to-search-head :enable el-search--current-search]
-     ["Resume Former Search" ,(lambda () (interactive) (el-search-jump-to-search-head '(4)))
+     ["Resume Last Search" el-search-jump :enable el-search--current-search]
+     ["Resume Former Search" ,(lambda () (interactive) (el-search-jump '(4)))
       :enable (cdr (ring-elements el-search-history))]
      ["Query-Replace" el-search-query-replace :enable (not buffer-read-only)]
      ["Resume Query-Replace"

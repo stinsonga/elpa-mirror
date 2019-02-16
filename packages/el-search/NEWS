@@ -1,6 +1,18 @@
 Some of the user visible news were:
 
 
+Version: 1.12.5
+
+  The prefix argument of 'el-search-pattern' provides now analogue
+  functionalities as for 'el-search-query-replace': It normally
+  resumes the last search; 0 restarts the search and a negative or C-u
+  C-u prefix arg lets you choose an older search to resume.
+
+  'el-search-jump-to-search-head' has been renamed to
+  'el-search-jump'.  The meaning of the prefix arg has been limited to
+  the jump-by-matches applications, everything else can now be
+  accomplished with 'el-search-pattern'.
+
 Version: 1.12.4
 
   Key syntax cleanup: In some cases the code used to bind some keys
