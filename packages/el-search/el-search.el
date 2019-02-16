@@ -811,6 +811,10 @@ nil."
   (let ((message-log-max nil))
     (apply #'message format-string args)))
 
+(defun el-search--byte-compile (form)
+  (let ((byte-compile-log-warning-function #'ignore))
+    (byte-compile form)))
+
 (defun el-search--set-this-command-refresh-message-maybe ()
   (when (eq (setq this-command 'el-search-pattern) last-command)
     (message "%s" el-search--last-message)))
@@ -1232,7 +1236,7 @@ N times."
            (pattern-is-symbol   (and (symbolp pattern)
                                      (not (or (keywordp pattern)
                                               (null pattern))))))
-       (byte-compile
+       (el-search--byte-compile
         `(lambda (,(if pattern-is-catchall '_ expression))
            ,(cond
              (pattern-is-catchall (if result-specified result-expr t))
@@ -2277,7 +2281,7 @@ argument (that should be a string)."
                (lambda (bindings body)
                  (if (null bindings) body
                    `(let ,bindings ,body)))))
-      (byte-compile
+      (el-search--byte-compile
        (let ((string (make-symbol "string")))
          `(lambda (,string)
             ,(wrap-let
@@ -2708,17 +2712,25 @@ don't display anything"
                                     buffer-or-file
                                     matches-<=-here
                                     total-matches
-                                    (propertize
-                                     (format (pcase (save-excursion
-                                                      (goto-char (car defun-bounds))
-                                                      (el-search-read (current-buffer)))
-                                               (`(,a ,b . ,_) (format "(%s  %%d/%%d)"
-                                                                      (truncate-string-to-width
-                                                                       (format "%S %S" a b)
-                                                                       40 nil nil 'ellipsis)))
-                                               (_             "(%d/%d)"))
-                                             matches-<=-here-in-defun total-matches-in-defun)
-                                     'face 'shadow))))
+                                    (format
+                                     (pcase (save-excursion
+                                              (goto-char (car defun-bounds))
+                                              (and (el-search-looking-at '`(,_ ,_ . ,_))
+                                                   (looking-at "(") ;exclude toplevel `ATOM and sim.
+                                                   (let ((region (list
+                                                                  (progn (down-list) (point))
+                                                                  (min (line-end-position)
+                                                                       (scan-sexps (point) 2)))))
+                                                     (when (bound-and-true-p jit-lock-mode)
+                                                       (apply #'jit-lock-fontify-now region))
+                                                     (apply #'buffer-substring region))))
+                                       ((and (pred stringp) signature)
+                                        (format "(%s  %%d/%%d)"
+                                                (truncate-string-to-width
+                                                 signature
+                                                 40 nil nil 'ellipsis)))
+                                       (_ "(%d/%d)"))
+                                     matches-<=-here-in-defun total-matches-in-defun))))
                              (list
                               (concat (if (not just-count) "[Not at a match]   " "")
                                       (if (= matches-<=-here total-matches)
@@ -4033,7 +4045,11 @@ text."
           (with-temp-buffer
             (emacs-lisp-mode)
             (insert (if splice
-                        (mapconcat #'el-search--pp-to-string replacement " ")
+                        (let ((insertions (mapcar #'el-search--pp-to-string replacement)))
+                          (mapconcat #'identity insertions
+                                     (if (cl-some (apply-partially #'string-match-p "\n")
+                                                  insertions)
+                                         "\n" " ")))
                       (el-search--pp-to-string replacement)))
             (goto-char 1)
             (let (start this-sexp end orig-match-start orig-match-end done)
