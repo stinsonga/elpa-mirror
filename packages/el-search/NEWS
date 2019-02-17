@@ -1,6 +1,13 @@
 Some of the user visible news were:
 
 
+Version: 1.11.1
+
+  Eldoc now displays signatures of search patterns for the search
+  pattern prompt.
+
+  Some 'display-buffer' actions have been slightly changed.
+
 Version: 1.10.2
 
   New help command 'el-search-list-defined-patterns' listing all

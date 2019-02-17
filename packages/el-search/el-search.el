@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.10.2
+;; Version: 1.11.1
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -47,10 +47,10 @@
 ;; Key bindings
 ;; ============
 ;;
-;; Loading this file doesn't install any key bindings - but you
-;; probably want some.  There are two predefined installable schemes
-;; of key bindings.  The first scheme defines bindings mostly of the
-;; form "Control-Shift-Letter", e.g. C-S, C-R, C-% etc.  These can be
+;; Loading this file doesn't install any key bindings - but you maybe
+;; want some.  There are two predefined installable schemes of key
+;; bindings.  The first scheme defines bindings mostly of the form
+;; "Control-Shift-Letter", e.g. C-S, C-R, C-% etc.  These can be
 ;; installed by calling (el-search-install-shift-bindings) - typically
 ;; from your init file.  For console users (and others), the function
 ;; `el-search-install-bindings-under-prefix' installs bindings of the
@@ -75,10 +75,10 @@
 ;;   (el-search-install-bindings-under-prefix [(meta ?s) ?e])
 ;;
 ;; respectively.  If you don't want to install any key bindings, you
-;; at least want to remember the command name "el-search-pattern" or
-;; its alias "el-search" to get a start, and that C-h will give you
-;; access to some help commands; among other things C-h b listing the
-;; relevant key bindings for controlling a search.
+;; want to remember the command name "el-search-pattern" or its alias
+;; "el-search" to get a start, and that after starting a search C-h
+;; will give you access to some help commands; among other things C-h
+;; b listing the relevant key bindings for controlling a search.
 ;;
 ;;   C-S, M-s e s (`el-search-pattern')
 ;;     Start a search in the current buffer/go to the next match.
