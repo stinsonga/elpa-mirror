@@ -3387,7 +3387,7 @@ See the command `el-search-pattern' for more information."
         (setf (el-search-object-last-match el-search--current-search)
               (copy-marker (point)))
         (el-search-hl-sexp)
-        (unless (eq last-command 'el-search-pattern)
+        (unless (and (eq last-command 'el-search-pattern) el-search--success)
           (el-search-hl-other-matches (el-search--current-matcher)))
         (setq el-search--success t))
     (el-search--unless-no-buffer-match
