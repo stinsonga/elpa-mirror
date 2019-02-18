@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.11.1
+;; Version: 1.11.2
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -1007,67 +1007,65 @@ nil."
 
 (defun el-search-read-display-mb-hints ()
   (when (minibufferp)
-    (while-no-input
-      (let (err)
-        (cl-macrolet ((try (&rest body)
-                           (let ((err-data (make-symbol "err-data")))
-                             `(condition-case ,err-data
-                                  (progn ,@body)
-                                (error (setq err ,err-data)
-                                       nil)))))
-          (let* ((input (minibuffer-contents))
-                 (pattern (pcase (ignore-errors (read-from-string input))
-                            (`(,expr . ,(or (guard el-search--reading-input-for-query-replace)
-                                            (pred (= (length input)))))
-                             expr)))
-                 (matcher (and pattern (try (el-search-make-matcher pattern)))))
-            (let* ((base-win (minibuffer-selected-window))
-                   (buf (window-buffer base-win)))
-              (if (and el-search--display-match-count-in-prompt matcher)
-                  (progn (with-current-buffer buf
-                           (setq el-search--current-search
-                                 (el-search-make-search
-                                  pattern
-                                  (let ((b (current-buffer)))
-                                    (lambda () (stream (list b)))))))
-                         (let ((ol (make-overlay (point-max) (point-max) nil t t)))
-                           (unwind-protect
-                               (cl-flet ((display-message
-                                          (lambda (message &rest args)
-                                            (setq message
-                                                  (propertize (apply #'format message args)
-                                                              'face 'shadow))
-                                            (put-text-property 0 1 'cursor t message)
-                                            (overlay-put ol 'after-string message)
-                                            (redisplay))))
-                                 (when-let ((msg (el-search--pattern-is-unquoted-symbol-p pattern)))
-                                   ;; A very common mistake: input "foo" instead of "'foo"
-                                   (display-message "    [%s]" msg)
-                                   (sit-for 2))
-                                 (let ((el-search--search-pattern-1-do-fun
-                                        (el-search--make-display-animation-function
-                                         (lambda (icon)
-                                           (display-message (concat "     " icon))))))
-                                   (display-message
-                                    "     %-12s"
-                                    (or (try (with-current-buffer buf
-                                               (cl-letf (((point) (window-point base-win)))
-                                                 (el-search-display-match-count 'dont-message))))
-                                        (error-message-string err))))
-                                 (sit-for el-search-mb-hints-timeout))
-                             (delete-overlay ol))))
-                (unless (string= input "")
-                  (catch 'no-message
-                    (let ((minibuffer-message-timeout el-search-mb-hints-timeout))
-                      (minibuffer-message
-                       (propertize
-                        (format "    [%s]"
-                                (cond
-                                 ((not pattern) "invalid")
-                                 (err (error-message-string err))
-                                 (el-search--display-match-count-in-prompt "No match")
-                                 (t (throw 'no-message t))))
-                        'face 'shadow)))))))))))
+    (let (err)
+      (cl-macrolet ((try (&rest body)
+                         (let ((err-data (make-symbol "err-data")))
+                           `(condition-case ,err-data
+                                (progn ,@body)
+                              (error (setq err ,err-data)
+                                     nil)))))
+        (let* ((input (minibuffer-contents))
+               (pattern (pcase (ignore-errors (read-from-string input))
+                          (`(,expr . ,(or (guard el-search--reading-input-for-query-replace)
+                                          (pred (= (length input)))))
+                           expr)))
+               (matcher (and pattern (try (el-search-make-matcher pattern)))))
+          (let* ((base-win (minibuffer-selected-window))
+                 (buf (window-buffer base-win)))
+            (if (and el-search--display-match-count-in-prompt matcher)
+                (progn (with-current-buffer buf
+                         (setq el-search--current-search
+                               (el-search-make-search
+                                pattern
+                                (let ((b (current-buffer)))
+                                  (lambda () (stream (list b)))))))
+                       (let ((ol (make-overlay (point-max) (point-max) nil t t)))
+                         (unwind-protect
+                             (cl-flet ((display-message
+                                        (lambda (message &rest args)
+                                          (setq message
+                                                (propertize (apply #'format message args)
+                                                            'face 'shadow))
+                                          (put-text-property 0 1 'cursor t message)
+                                          (overlay-put ol 'after-string message)
+                                          (redisplay))))
+                               (when-let ((msg (el-search--pattern-is-unquoted-symbol-p pattern)))
+                                 ;; A very common mistake: input "foo" instead of "'foo"
+                                 (display-message "    [%s]" msg)
+                                 (sit-for 2))
+                               (let ((el-search--search-pattern-1-do-fun
+                                      (el-search--make-display-animation-function
+                                       (lambda (icon)
+                                         (display-message (concat "     " icon))))))
+                                 (when-let ((count
+                                             (try (with-current-buffer buf
+                                                    (cl-letf (((point) (window-point base-win)))
+                                                      (el-search-display-match-count 'dont-message))))))
+                                   (display-message "     %-12s" count)
+                                   (sit-for el-search-mb-hints-timeout))))
+                           (delete-overlay ol))))
+              (unless (string= input "")
+                (catch 'no-message
+                  (let ((minibuffer-message-timeout el-search-mb-hints-timeout))
+                    (minibuffer-message
+                     (propertize
+                      (format "    [%s]"
+                              (cond
+                               ((not pattern) "invalid")
+                               (err (error-message-string err))
+                               (el-search--display-match-count-in-prompt "No match")
+                               (t (throw 'no-message t))))
+                      'face 'shadow))))))))))
     (when quit-flag
       ;; When `quit-flag' is bound here, it had been set by `while-no-input'
       ;; meaning the user explicitly quit.  This means we must:
