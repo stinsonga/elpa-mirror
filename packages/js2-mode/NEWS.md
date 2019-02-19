@@ -1,5 +1,9 @@
 # History of user-visible changes
 
+## 2019-02-19
+
+* Changed the default of `js2-strict-trailing-comma-warning` to nil.
+
 ## 2018-03-01
 
 * Support single-line JSDocs.
