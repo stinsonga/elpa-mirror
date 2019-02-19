@@ -1200,7 +1200,9 @@ expander functions.")
          (ud (help-split-fundoc main name)))
     (with-temp-buffer
       (insert (or (cdr ud) main)
-              "\n\nThe following additional pattern types are currently defined:")
+              "\n\n\
+In addition to the standard `pcase' patterns the following
+pattern types are defined:")
       (mapc
        (pcase-lambda (`(,symbol . ,fun))
          (unless (string-match-p "\\`[-_]\\|--" (symbol-name symbol)) ;Let's consider these "internal"
@@ -4925,7 +4927,8 @@ Reuse already given input."
            (call-interactively #'el-search-directory)))]
      ["Search 'load-path'"         el-search-load-path]
      ["Search Emacs Elisp Sources" el-search-emacs-elisp-sources]
-     ["Search Elisp Buffers"       el-search-buffers]))
+     ["Search Elisp Buffers"       el-search-buffers]
+     ["List Patterns"              el-search-list-defined-patterns]))
 
   (easy-menu-add-item
    (lookup-key emacs-lisp-mode-map [menu-bar]) '("Emacs-Lisp")
