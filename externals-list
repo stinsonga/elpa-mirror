@@ -67,6 +67,7 @@
  ("delight"		:subtree "http://git.savannah.gnu.org/r/delight.git")
  ("diffview"            :subtree "https://github.com/mgalgs/diffview-mode.git")
  ("diff-hl"		:subtree "https://github.com/dgutov/diff-hl.git")
+ ("dired-git-info" :external "https://github.com/clemera/dired-git-info")
  ("disk-usage"		:external "https://gitlab.com/ambrevar/emacs-disk-usage")
  ("dismal"		:external nil)
  ("dts-mode"		:subtree "https://github.com/bgamari/dts-mode.git")
