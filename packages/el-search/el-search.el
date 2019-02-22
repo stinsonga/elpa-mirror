@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.11.4
+;; Version: 1.12.1
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -164,8 +164,8 @@
 ;;
 ;;
 ;; The setup you need for your init file is trivial: you only need to
-;; install the key bindings you want to use.  All important commands
-;; are autoloaded.
+;; install key bindings if you want some (see above).  All important
+;; commands are autoloaded.
 ;;
 ;;
 ;; Usage
@@ -321,9 +321,9 @@
 ;;
 ;; It is possible to replace a match with an arbitrary number of
 ;; expressions using "splicing mode".  When it is active, the
-;; replacement expression must evaluate to a list, and is spliced into
-;; the buffer for any match.  Hit s from the prompt to toggle splicing
-;; mode in an `el-search-query-replace' session.
+;; replacement expression must evaluate to a list, and this list is
+;; spliced into the buffer for any match.  Hit s from the prompt to
+;; toggle splicing mode in an `el-search-query-replace' session.
 ;;
 ;; Much like `el-search' sessions, `el-search-query-replace' sessions
 ;; are also internally represented as objects with state, and are also
@@ -2070,6 +2070,7 @@ Go back to the place where the search had been started."
     (define-key map `[,help-char]  el-search-help-map)
     (define-key map [help]         el-search-help-map)
     (define-key map [f1]           el-search-help-map)
+    ;; (define-key map [remap point-to-register] #'el-search-to-register)
     map))
 
 (defvar el-search-prefix-key-transient-map
@@ -2633,9 +2634,9 @@ absolute name must be matched by all of them."
   "Non-nil indicates we should not remove any highlighting.")
 
 (defun el-search--scroll-sexp-in-view (bounds)
-  ;; Try to make the sexp bounded by BOUNDS better visible.
-  ;; This tries to scroll (cdr BOUNDS) into view when necessary, and to
-  ;; center the sexp.
+  ;; Try to make the sexp bounded by BOUNDS (which is a list (BEG END))
+  ;; better visible.  This tries to scroll (cadr BOUNDS) into view when
+  ;; necessary, and to center the sexp.
   (when el-search-fancy-scrolling
     (let ((wheight (window-height)))
       ;; FIXME: make the following integer constants customizable,
@@ -3401,9 +3402,9 @@ See the command `el-search-pattern' for more information."
       (el-search--set-wrap-flag 'backward))))
 
 (define-obsolete-function-alias 'el-search-previous-match
-  'el-search-pattern-backward "since el-search-1.3")
+  'el-search-pattern-backward "el-search 1.3")
 (define-obsolete-function-alias 'el-search-pattern-backwards
-  'el-search-pattern-backward "since el-search-1.6.7")
+  'el-search-pattern-backward "el-search 1.6.7")
 
 
 
@@ -4145,8 +4146,7 @@ clone with an individual state."
             (concat
              (let ((printed-pattern (el-search--pp-to-string (el-search-object-pattern qr-search))))
                (format (if (string-match-p "\n" printed-pattern) ":\n%s" " %s")
-                       (if dont-propertize printed-pattern
-                         (propertize printed-pattern 'face 'shadow))))
+                       printed-pattern))
              " -> "
              (el-search--pp-to-string (el-search-query-replace-object-to-expr qr-object)))))
        (if dont-propertize printed-rule
@@ -4175,7 +4175,7 @@ In an interactive call or when EL-SEARCH-QUERY-REPLACE-OBJECT is
 nil, the last active `el-search-query-replace' session object is
 used."
   (interactive (list (if el-search--current-query-replace
-                         (register-read-with-preview "Save current search to register: ")
+                         (register-read-with-preview "Save current query-replace to register: ")
                        (user-error "No el-search-query-replace has been started yet"))))
   (set-register register (or el-search-query-replace-object el-search--current-query-replace)))
 
@@ -4399,7 +4399,7 @@ exactly you did?  Thanks!"))))
     (pattern replacement &optional splice to-input-string use-current-search)
   (if-let ((qr-object (and (el-search-query-replace-object-p pattern) pattern)))
       (setq
-       el-search--current-query-replace pattern
+       el-search--current-query-replace qr-object
        pattern                   (el-search-query-replace-object-from-pattern  qr-object)
        replacement               (el-search-query-replace-object-to-expr       qr-object)
        splice                    (el-search-query-replace-object-splice        qr-object)
@@ -4572,7 +4572,9 @@ exactly you did?  Thanks!"))))
                                             (funcall make-cleanup-fun #'exit-recursive-edit))
                                           (define-key map [(control ?c) (control ?q)]
                                             abort)
-                                          (define-key map [(control ?c) (control ?a)] ;"Abort"
+                                          (define-key map [(control ?c) (control ?k)]
+                                            abort)
+                                          (define-key map [(control ?c) (control ?a)]
                                             abort)
                                           (define-key map [(control ?c) (control ?e)]
                                             (lambda ()
@@ -4620,7 +4622,7 @@ exactly you did?  Thanks!"))))
                                        (format "[%d/%d] %s"
                                                (if replaced-this nbr-done (1+ nbr-done))
                                                (+ nbr-done nbr-to-do)
-                                               (if replaced-this "*" "-")))
+                                               (if replaced-this (propertize "*" 'face 'success) "-")))
                                      (delq nil
                                            (list
                                             `(?y "y"
@@ -5057,7 +5059,7 @@ Reuse already given input."
     (call-interactively #'el-search-pattern-backward)))
 
 (define-obsolete-function-alias 'el-search-search-backwards-from-isearch
-  'el-search-search-backward-from-isearch "since el-search-1.6.7")
+  'el-search-search-backward-from-isearch "el-search 1.6.7")
 
 ;;;###autoload
 (defun el-search-replace-from-isearch ()
