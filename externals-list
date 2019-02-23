@@ -86,6 +86,7 @@
  ("gnorb"               :subtree "https://github.com/girzel/gnorb")
  ("gpastel"		:external "https://gitlab.petton.fr/DamienCassou/gpastel")
  ("greader"		:external "https://gitlab.com/michelangelo-rodriguez/greader")
+ ("guess-language"	:external "https://github.com/tmalsburg/guess-language.el")
  ("highlight-escape-sequences" :subtree "https://github.com/dgutov/highlight-escape-sequences/")
  ("hyperbole"           :external "http://git.savannah.gnu.org/r/hyperbole.git")
  ("ioccur"		:subtree "https://github.com/thierryvolpiatto/ioccur.git")
