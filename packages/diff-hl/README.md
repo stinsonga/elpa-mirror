@@ -18,7 +18,16 @@ The package also contains auxiliary modes:
 * `diff-hl-flydiff-mode` implements highlighting changes on the fly.
   It requires Emacs 24.4 or newer.
 
-Check out the Commentary section in each respective file for the usage
+Usage
+=====
+
+Put this into your init script:
+
+```lisp
+(global-diff-hl-mode)
+```
+
+Check out the Commentary section in each file for more detailed usage
 instructions.
 
 Screenshots
@@ -93,8 +102,7 @@ psvn
 -----
 
 ```lisp
-(defadvice svn-status-update-modeline (after svn-update-diff-hl activate)
-  (diff-hl-update))
+(advice-add 'svn-status-update-modeline :after #'diff-hl-update)
 ```
 
 Magit

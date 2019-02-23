@@ -1,11 +1,11 @@
 ;;; diff-hl.el --- Highlight uncommitted changes using VC -*- lexical-binding: t -*-
 
-;; Copyright (C) 2012-2018  Free Software Foundation, Inc.
+;; Copyright (C) 2012-2019  Free Software Foundation, Inc.
 
 ;; Author:   Dmitry Gutov <dgutov@yandex.ru>
 ;; URL:      https://github.com/dgutov/diff-hl
 ;; Keywords: vc, diff
-;; Version:  1.8.5
+;; Version:  1.8.6
 ;; Package-Requires: ((cl-lib "0.2") (emacs "24.3"))
 
 ;; This file is part of GNU Emacs.
@@ -187,6 +187,10 @@ the end position as its only argument."
       (diff-hl-define-bitmaps)
       (define-fringe-bitmap 'diff-hl-bmp-empty [0] 1 1 'center))))
 
+(defun diff-hl-maybe-redefine-bitmaps ()
+  (when (window-system)
+    (diff-hl-define-bitmaps)))
+
 (defvar diff-hl-spec-cache (make-hash-table :test 'equal))
 
 (defun diff-hl-fringe-spec (type pos side)
@@ -245,11 +249,20 @@ the end position as its only argument."
 
 (defun diff-hl-changes-buffer (file backend)
   (let ((buf-name " *diff-hl* "))
-    (diff-hl-with-diff-switches
-     ;; FIXME: To diff against the staging area, call 'git diff-files -p'.
-     (vc-call-backend backend 'diff (list file)
-                      diff-hl-reference-revision nil
-                      buf-name))
+    (condition-case err
+        (diff-hl-with-diff-switches
+         ;; FIXME: To diff against the staging area, call 'git diff-files -p'.
+         (vc-call-backend backend 'diff (list file)
+                          diff-hl-reference-revision nil
+                          buf-name))
+      (error
+       (when (string-match-p "\\`Failed (status 128)" (error-message-string err))
+         (diff-hl-with-diff-switches
+          ;; FIXME: To diff against the staging area, call 'git diff-files -p'.
+          (vc-call-backend backend 'diff (list file)
+                           "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+                           nil
+                           buf-name)))))
     buf-name))
 
 (defun diff-hl-changes ()
@@ -534,7 +547,7 @@ The value of this variable is a mode line template as in
         ;; instead, but only when they dosn't call `revert-buffer':
         (add-hook 'magit-not-reverted-hook 'diff-hl-update nil t)
         (add-hook 'auto-revert-mode-hook 'diff-hl-update nil t)
-        (add-hook 'text-scale-mode-hook 'diff-hl-define-bitmaps nil t))
+        (add-hook 'text-scale-mode-hook 'diff-hl-maybe-redefine-bitmaps nil t))
     (remove-hook 'after-save-hook 'diff-hl-update t)
     (remove-hook 'after-change-functions 'diff-hl-edit t)
     (remove-hook 'find-file-hook 'diff-hl-update t)
@@ -543,7 +556,7 @@ The value of this variable is a mode line template as in
     (remove-hook 'magit-revert-buffer-hook 'diff-hl-update t)
     (remove-hook 'magit-not-reverted-hook 'diff-hl-update t)
     (remove-hook 'auto-revert-mode-hook 'diff-hl-update t)
-    (remove-hook 'text-scale-mode-hook 'diff-hl-define-bitmaps t)
+    (remove-hook 'text-scale-mode-hook 'diff-hl-maybe-redefine-bitmaps t)
     (diff-hl-remove-overlays)))
 
 (when (require 'smartrep nil t)
