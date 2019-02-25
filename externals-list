@@ -34,6 +34,7 @@
  ("aggressive-indent"	:subtree "https://github.com/Malabarba/aggressive-indent-mode")
  ("auctex"		:external "git://git.sv.gnu.org/auctex.git")
  ("bbdb"		:external "git://git.savannah.nongnu.org/bbdb.git")
+ ("buffer-expose" :external "https://github.com/clemera/buffer-expose")
  ("bug-hunter"		:subtree "https://github.com/Malabarba/elisp-bug-hunter")
  ;;FIXME:("cedet"	:external "??")
  ;; ("cc-mode"		:core ("lisp/progmodes/cc-align.el"
