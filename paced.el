@@ -87,7 +87,7 @@ the user whether to save dictionaries here."
   :group 'paced
   :type 'directory)
 
-(defcustom paced-dictionary-directory-whitelist-regexp ".*"
+(defcustom paced-dictionary-directory-whitelist-regexp (rx (zero-or-more anything))
   "Regexp to match when reading from the dictionary directory.
 
 Any files that match this regexp will be loaded by
@@ -95,11 +95,10 @@ Any files that match this regexp will be loaded by
   :group 'paced
   :type 'regexp)
 
-(defcustom paced-dictionary-directory-blacklist-regexp "$^"
+(defcustom paced-dictionary-directory-blacklist-regexp (rx string-end string-start)
   "Regexp to match for files NOT to load with `paced-load-all-dictionaries'.
 
-This is the string \"$^\" by default, which matches nothing, thus
-allowing all files."
+This regexp by default matches nothing, thus allowing all files."
   :group 'paced
   :type 'regexp)
 
@@ -443,8 +442,7 @@ dictionary conditions."
       (paced-named-dictionary dictionary))))
 
 (defvar paced-throw-error-on-no-current nil
-  "Whether to throw an error when no current dictionary can be
-found.")
+  "Whether to throw an error when no current dictionary can be found.")
 
 (defmacro paced-operate-on-current-dictionary (&rest form)
   "Run FORM with the current dictionary bound to `dict'.
@@ -482,7 +480,10 @@ dictionary if found."
   "Save the dictionary for the current buffer.
 
 For how the current dictionary is determined, see
-`paced-current-dictionary'."
+`paced-current-dictionary'.
+
+With prefix argument FORCE, save the dictionary even if it hasn't
+been modified."
   (interactive "P")
   (paced-operate-on-current-dictionary
    (paced-dictionary-save dict force)))
@@ -495,7 +496,10 @@ For how the current dictionary is determined, see
     (paced-dictionary-register new-dict)))
 
 (defun paced-save-all-dictionaries (&optional force)
-  "Save all registered dictionaries."
+  "Save all registered dictionaries.
+
+With prefix argument FORCE, save the dictionaries regardless of
+whether they've been modified."
   (interactive "P")
   (map-apply
    (lambda (_ dict)
@@ -1175,7 +1179,7 @@ match a regular expression.")
   (paced--insert-file-contents source))
 
 (defun paced-new-population-command-custom ()
-  "Prompt for a population command type and creates a new command of that type."
+  "Prompt for a population command type and create a new command of that type."
   (let* ((type (completing-read "Command Type: "
                                 (eieio-class-children 'paced-population-command))))
     (funcall (intern type))))
@@ -1207,7 +1211,7 @@ non-nil, confirmation will be requested before continuing."
    (list (paced-read-dictionary)))
   (paced-operate-on-named-dictionary key
     (when (or (not paced-populate-warn-about-reset)
-              (y-or-n-p "Warning: Repopulating dictionary will reset it.  Continue?"))
+              (y-or-n-p "Warning: Repopulating dictionary will reset it.  Continue? "))
       (paced-dictionary-repopulate dict))))
 
 (defun paced-repopulate-current-dictionary ()
@@ -1219,7 +1223,7 @@ non-nil, confirmation will be requested before continuing."
   (interactive)
   (paced-operate-on-current-dictionary
    (when (or (not paced-populate-warn-about-reset)
-             (y-or-n-p "Warning: Repopulating dictionary will reset it.  Continue?"))
+             (y-or-n-p "Warning: Repopulating dictionary will reset it.  Continue? "))
      (paced-dictionary-repopulate dict))))
 
 (cl-defmethod paced-dictionary-add-population-command ((dict paced-dictionary)
@@ -1255,7 +1259,7 @@ must be set with `paced-edit-named-dictionary' or
   (customize-object dict))
 
 (defun paced-edit-named-dictionary (name)
-  "Edit the paced-dictionary named NAME."
+  "Edit the `paced-dictionary' named NAME."
   (declare (interactive-only paced-dictionary-edit))
   (interactive (list (paced-read-dictionary)))
   (paced-operate-on-named-dictionary name
