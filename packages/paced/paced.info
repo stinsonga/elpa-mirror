@@ -599,7 +599,7 @@ code and drawers.
 
    The generator for file-list is easy:
 
-     (lambda nil org-agenda-files)
+     org-agenda-files
 
    Done.
 
@@ -1004,22 +1004,22 @@ Node: Custom Commands15807
 Node: Asynchronous Population18534
 Node: Example Setups19983
 Node: Org Agenda Files20284
-Node: Project Files22795
-Node: Markdown Files23931
-Node: Repopulating Dictionary After Saving25556
-Node: Repopulating Dictionary After Spellchecking the Buffer26484
-Node: Contributing27229
-Node: Bugs28003
-Node: Development28392
-Node: Documentation30153
-Node: Working with EDE30620
-Node: Changelog31663
-Node: 11331841
-Node: 11232034
-Node: 11132164
-Node: 1132403
-Node: 10133010
-Node: 1033218
+Node: Project Files22782
+Node: Markdown Files23918
+Node: Repopulating Dictionary After Saving25543
+Node: Repopulating Dictionary After Spellchecking the Buffer26471
+Node: Contributing27216
+Node: Bugs27990
+Node: Development28379
+Node: Documentation30140
+Node: Working with EDE30607
+Node: Changelog31650
+Node: 11331828
+Node: 11232021
+Node: 11132151
+Node: 1132390
+Node: 10132997
+Node: 1033205
 
 End Tag Table
 
