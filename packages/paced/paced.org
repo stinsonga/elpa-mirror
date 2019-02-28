@@ -456,7 +456,7 @@ to block out all of Org's extra features such as source code and drawers.
 The generator for file-list is easy:
 
 #+begin_src emacs-lisp
-(lambda nil org-agenda-files)
+org-agenda-files
 #+end_src
 
 Done.
