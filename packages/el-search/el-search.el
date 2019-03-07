@@ -3524,6 +3524,7 @@ Prompt for a new pattern and revert."
   (revert-buffer))
 
 (defvar el-search-occur-match-ov-prop 'el-occur-match-data)
+(defvar el-search-occur-headline-prop 'el-search-occur-headline)
 
 (defun el-search-occur-jump-to-match ()
   (interactive)
@@ -3713,9 +3714,7 @@ When nil, all such treatment is disabled."
 (defun el-search-occur-filter-buffer-substring (beg end &optional delete)
   (if (or delete
           (not el-search-occur-match-markers)
-          (not (save-excursion
-                 (goto-char beg)
-                 (search-forward-regexp outline-regexp end t))))
+          (eq end (next-single-char-property-change beg el-search-occur-headline-prop nil end)))
       (buffer-substring--filter beg end delete)
     (let ((contents '())
           p)
@@ -3868,8 +3867,9 @@ addition from `special-mode-map':
                       (insert "\n\n;;; *** ")
                       (insert-button
                        (or file (format "%S" buffer))
-                       'action (lambda (_) (el-search--occur-button-action
-                                            (or get-buffer file buffer))))
+                       'action
+                       (lambda (_) (el-search--occur-button-action (or get-buffer file buffer)))
+                       el-search-occur-headline-prop t)
                       (insert (format "  (%d match%s)\n"
                                       buffer-matches
                                       (if (> buffer-matches 1) "es" "")))
