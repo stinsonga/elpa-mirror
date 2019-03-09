@@ -6,7 +6,7 @@
 ;; Maintainer: Tassilo Horn <tsdh@gnu.org>
 ;; Keywords: tools
 ;; Package-Requires: ((emacs "26.1"))
-;; Version: 0
+;; Version: 1.0
 
 ;; This file is part of GNU Emacs.
 
