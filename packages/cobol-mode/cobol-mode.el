@@ -1,6 +1,6 @@
 ;;; cobol-mode.el --- Mode for editing COBOL code -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2013-2017  Free Software Foundation, Inc.
+;; Copyright (C) 2013-2019  Free Software Foundation, Inc.
 
 ;; Author: Edward Hart <edward.dan.hart@gmail.com>
 ;; Maintainer: Edward Hart <edward.dan.hart@gmail.com>
@@ -1959,7 +1959,7 @@ The next key typed is executed unless it is SPC."
   "Regexp matching a complete sequence area.")
 
 (defconst cobol--fixed-comment-indicators-re
-  "*/"
+  "\\*/"
   "Regexp containing COBOL fixed-form comment indicators.")
 
 (defconst cobol--fixed-form-comment-re
