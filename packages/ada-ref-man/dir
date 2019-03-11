@@ -15,7 +15,5 @@ File: dir,	Node: Top	This is the top of the INFO tree
 * Menu:
 
 GNU Ada tools
-* Ada Reference Manual: (arm2005).
-* Ada Reference Manual TC1: (arm2012).
-* Annotated ARM: (arm2005).
-* Annotated ARM TC1: (arm2012).
+* Ada Reference Manual: (arm2012).
+* Annotated ARM: (aarm2012).

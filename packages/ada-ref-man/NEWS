@@ -4,6 +4,12 @@ Copyright (C) 2018 Free Software Foundation, Inc.
 See the end of the file for license conditions.
 
 
+* 2012.5
+3 Mar 2019
+
+** Fix 'dir' file; it refered to arm2005, which is no longer in this
+   package.
+
 * 2012.4
 16 Sep 2018
 
