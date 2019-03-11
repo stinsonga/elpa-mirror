@@ -7,7 +7,7 @@
 ;; Keywords: languages
 ;;  ada
 ;; Package-Type: multi
-;; Version: 2012.4
+;; Version: 2012.5
 ;; url: http://stephe-leake.org/ada/arm.html
 
 ;;; ada-ref-man.el ends here
