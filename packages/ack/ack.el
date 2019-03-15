@@ -1,9 +1,10 @@
 ;;; ack.el --- interface to ack-like tools           -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2012-2015  Free Software Foundation, Inc.
+;; Copyright (C) 2012-2018  Free Software Foundation, Inc.
 
 ;; Author: Leo Liu <sdl.web@gmail.com>
-;; Version: 1.5
+;; Maintainer: João Távora <joaotavora@gmail.com>
+;; Version: 1.6
 ;; Keywords: tools, processes, convenience
 ;; Created: 2012-03-24
 ;; URL: https://github.com/leoliu/ack-el
@@ -279,21 +280,52 @@ This gets tacked on the end of the generated expressions.")
 ;; Work around bug http://debbugs.gnu.org/13811
 (defvar ack--project-root nil)          ; dynamically bound in `ack'
 
-(defun ack-skel-vc-grep ()
-  "Insert a template for vc grep search."
-  (interactive)
-  (let* ((regexp (concat "\\`" (regexp-opt
-                                (mapcar 'car ack-vc-grep-commands))
-                         "\\'"))
-         (root (or (ack-guess-project-root default-directory regexp)
-                   (error "Cannot locate vc project root")))
-         (which (car (directory-files root nil regexp)))
-         (backend (downcase (substring which 1)))
-         (cmd (or (cdr (assoc which ack-vc-grep-commands))
-                  (error "No command provided for `%s grep'" backend))))
-    (setq ack--project-root root)
-    (delete-minibuffer-contents)
-    (skeleton-insert `(nil ,cmd " '" _ "'"))))
+(defvar ack--yanked-symbol nil)  ; buffer-local in the minibuffer
+
+(defun ack-skel-vc-grep (&optional interactive)
+  "Find a vc-controlled dir, insert a template for a vc grep search.
+If called interactively, INTERACTIVE is non-nil and calls to this
+function that cannot locate such a directory will produce an
+error, whereas in non-interactive calls they will silently exit,
+leaving the minibuffer unchanged.
+
+Additionally, interactive calls preceded by a previous
+`ack-yank-symbol-at-point' call, will recall the symbol inserted.
+
+This function is a suitable addition to
+`ack-minibuffer-setup-hook'."
+  (interactive "p")
+  (catch 'giveup
+    (let* ((regexp (concat "\\`" (regexp-opt
+                                  (mapcar 'car ack-vc-grep-commands))
+                           "\\'"))
+           (guessed-root (or (ack-guess-project-root ack--project-root regexp)
+                             (if interactive
+                                 (user-error
+                                  "Cannot locate a vc project root from %s"
+                                  ack--project-root)
+                               (throw 'giveup nil))))
+           (which (progn
+                    (unless (or interactive
+                                (equal
+                                 (file-truename ack--project-root)
+                                 (file-truename guessed-root)))
+                      ;; See github
+                      ;; https://github.com/leoliu/ack-el/issues/10
+                      ;; for the reason for giving up here
+                      ;; non-interactively.
+                      (throw 'giveup nil))
+                    (car (directory-files guessed-root nil regexp))))
+           (backend (downcase (substring which 1)))
+           (cmd (or (cdr (assoc which ack-vc-grep-commands))
+                    (error "No command provided for `%s grep'" backend))))
+      (when interactive
+        (setq ack--project-root guessed-root)
+        (ack-update-minibuffer-prompt))
+      (delete-minibuffer-contents)
+      (skeleton-insert `(nil ,cmd " '" _ "'"))
+      (when (and interactive ack--yanked-symbol)
+        (insert ack--yanked-symbol)))))
 
 (defun ack-yank-symbol-at-point ()
   "Yank the symbol from the window before entering the minibuffer."
@@ -302,8 +334,9 @@ This gets tacked on the end of the generated expressions.")
                      (with-current-buffer
                          (window-buffer (minibuffer-selected-window))
                        (thing-at-point 'symbol)))))
-    (if symbol (insert symbol)
-      (minibuffer-message "No symbol found"))))
+    (cond (symbol (insert symbol)
+                  (set (make-local-variable 'ack--yanked-symbol) symbol))
+          (t (minibuffer-message "No symbol found")))))
 
 (defvar ack-minibuffer-local-map
   (let ((map (make-sparse-keymap)))
@@ -372,8 +405,8 @@ minibuffer:
 \\{ack-minibuffer-local-map}"
   (interactive
    (let ((ack--project-root (or (funcall ack-default-directory-function
-                                    current-prefix-arg)
-                           default-directory))
+                                         current-prefix-arg)
+                                default-directory))
          ;; Disable completion cycling; see http://debbugs.gnu.org/12221
          (completion-cycle-threshold nil))
      (list (minibuffer-with-setup-hook 'ack-minibuffer-setup-function
@@ -382,13 +415,19 @@ minibuffer:
                                    ack-minibuffer-local-map
                                    nil 'ack-history))
            ack--project-root)))
-  (let ((default-directory (expand-file-name
-                            (or directory default-directory))))
-    ;; Change to the compilation buffer so that `ack-buffer-name-function' can
-    ;; make use of `compilation-arguments'.
-    (with-current-buffer (compilation-start command-args 'ack-mode)
+  (let* ((lexical-default-directory
+          (expand-file-name
+           (or directory default-directory))))
+    ;; Change to the compilation to ensure a correct
+    ;; `default-directory' there and to ensure
+    ;; `ack-buffer-name-function' can make use of
+    ;; `compilation-arguments'.
+    (with-current-buffer
+        (let ((default-directory lexical-default-directory))
+          (compilation-start command-args 'ack-mode))
       (when ack-buffer-name-function
         (rename-buffer (funcall ack-buffer-name-function "ack")))
+      (setq default-directory lexical-default-directory)
       (current-buffer))))
 
 (provide 'ack)
