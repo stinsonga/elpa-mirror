@@ -3,7 +3,7 @@
 --  Parser for Wisi grammar files, producing Ada or Elisp source
 --  files for a parser.
 --
---  Copyright (C) 2012 - 2015, 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2012 - 2015, 2017 - 2019 Free Software Foundation, Inc.
 --
 --  The WisiToken package is free software; you can redistribute it
 --  and/or modify it under terms of the GNU General Public License as
@@ -54,7 +54,7 @@ is
    begin
       --  verbosity meaning is actually determined by output choice;
       --  they should be consistent with this description.
-      Put_Line (Standard_Error, "version 1.0.1");
+      Put_Line (Standard_Error, "version 1.1.0");
       Put_Line (Standard_Error, "wisi-generate [options] {wisi grammar file}");
       Put_Line (Standard_Error, "Generate source code implementing a parser for the grammar.");
       New_Line (Standard_Error);

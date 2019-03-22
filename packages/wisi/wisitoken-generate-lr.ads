@@ -2,7 +2,7 @@
 --
 --  Common utilities for LR parser table generators.
 --
---  Copyright (C) 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -117,33 +117,59 @@ package WisiToken.Generate.LR is
 
    function Match (Known : in Conflict; Item : in Conflict_Lists.Constant_Reference_Type) return Boolean;
 
-   procedure Compute_Minimal_Terminal_Sequences
-     (Grammar    : in     WisiToken.Productions.Prod_Arrays.Vector;
-      Descriptor : in     WisiToken.Descriptor;
-      Result     : in out Token_Sequence_Arrays.Vector);
+   type RHS_Sequence is
+   record
+      Left_Recursive : Boolean := False;
+      --  Direct or indirect; see comment in
+      --  Set_Minimal_Complete_Actions.Delete_Non_Minimal.
+
+      Sequence : Token_ID_Arrays.Vector;
+   end record;
+
+   package RHS_Sequence_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
+     (Natural, RHS_Sequence, Default_Element => (others => <>));
+
+   function Image (Item : in RHS_Sequence; Descriptor : in WisiToken.Descriptor) return String;
+   --  Positional Ada aggregate syntax.
+
+   function Image is new RHS_Sequence_Arrays.Gen_Image_Aux (Descriptor, Image);
+
+   function Min (Item : in RHS_Sequence_Arrays.Vector) return RHS_Sequence;
+   --  Return element of Item with minimum length;
+
+   type Minimal_Sequence_Array is array (Token_ID range <>) of RHS_Sequence_Arrays.Vector;
+
+   function Compute_Minimal_Terminal_Sequences
+     (Descriptor : in     WisiToken.Descriptor;
+      Grammar    : in     WisiToken.Productions.Prod_Arrays.Vector)
+     return Minimal_Sequence_Array;
    --  For each production in Grammar, compute the minimal sequence of
    --  terminals that will complete it. Result is an empty sequence if
-   --  the production may be empty.
+   --  the production may be empty, or Invalid_Token_ID if it is
+   --  recursive.
 
-   function Minimal_Terminal_First
-     (Grammar    : in     WisiToken.Productions.Prod_Arrays.Vector;
-      Descriptor : in     WisiToken.Descriptor)
+   function Compute_Minimal_Terminal_First
+     (Descriptor                 : in WisiToken.Descriptor;
+      Minimal_Terminal_Sequences : in Minimal_Sequence_Array)
       return Token_Array_Token_ID;
    --  For each nonterminal in Grammar, return the first of the minimal
    --  sequence of terminals that will complete it; Invalid_Token_ID if
    --  the minimal sequence is empty.
 
    procedure Set_Minimal_Complete_Actions
-     (State                  : in out Parse_State;
-      Kernel                 : in     LR1_Items.Item_Set;
-      Minimal_Terminal_First : in     Token_Array_Token_ID;
-      Ancestors              : in     Token_Array_Token_Set;
-      Descriptor             : in     WisiToken.Descriptor;
-      Grammar                : in     WisiToken.Productions.Prod_Arrays.Vector);
-   --  Set State.Minimal_Terminal_First to the set of terminals that will
+     (State                      : in out Parse_State;
+      Kernel                     : in     LR1_Items.Item_Set;
+      Descriptor                 : in     WisiToken.Descriptor;
+      Grammar                    : in     WisiToken.Productions.Prod_Arrays.Vector;
+      Minimal_Terminal_Sequences : in     Minimal_Sequence_Array;
+      Minimal_Terminal_First     : in     Token_Array_Token_ID);
+   --  Set State.Minimal_Complete_Actions to the set of actions that will
    --  most quickly complete the productions in Kernel (which must be for
    --  State). Useful in error correction when we know the next actual
    --  terminal is a block ending or statement start.
+   --
+   --  The Minimal_Complete_Actions will be empty in a state where there
+   --  is nothing useful to do.
 
    ----------
    --  Parse table output
@@ -169,7 +195,6 @@ package WisiToken.Generate.LR is
       Title      : in String;
       Grammar    : in WisiToken.Productions.Prod_Arrays.Vector;
       Kernels    : in LR1_Items.Item_Set_List;
-      Ancestors  : in Token_Array_Token_Set;
       Conflicts  : in Conflict_Lists.List;
       Descriptor : in WisiToken.Descriptor);
 

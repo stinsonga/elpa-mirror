@@ -2,7 +2,7 @@
 --
 --  Generalized LR parser state.
 --
---  Copyright (C) 2014-2015, 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2014-2015, 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --
@@ -60,6 +60,11 @@ package WisiToken.Parse.LR.Parser_Lists is
       Recover_Insert_Delete : Config_Op_Queues.Queue;
       --  Tokens in that were inserted during error recovery, or should be
       --  deleted/skipped when read. Contains only Insert and Delete ops.
+      --  Used/emptied by main parse.
+
+      Prev_Deleted : Recover_Token_Index_Arrays.Vector;
+      --  Tokens deleted by previous error recovery; don't process in new
+      --  error recovery.
 
       Current_Token : Syntax_Trees.Node_Index := Syntax_Trees.Invalid_Node_Index;
       --  Current terminal, in Tree
@@ -131,19 +136,25 @@ package WisiToken.Parse.LR.Parser_Lists is
    function Verb (Cursor : in Parser_Lists.Cursor) return All_Parse_Action_Verbs;
 
    procedure Terminate_Parser
-     (Parsers : in out List;
-      Current : in out Cursor'Class;
-      Message : in     String;
-      Trace   : in out WisiToken.Trace'Class);
+     (Parsers   : in out List;
+      Current   : in out Cursor'Class;
+      Message   : in     String;
+      Trace     : in out WisiToken.Trace'Class;
+      Terminals : in     Base_Token_Arrays.Vector);
    --  Terminate Current. Current is set to no element.
+   --
+   --  Terminals is used to report the current token in the message.
 
    procedure Duplicate_State
-     (Parsers : in out List;
-      Current : in out Cursor'Class;
-      Trace   : in out WisiToken.Trace'Class);
+     (Parsers   : in out List;
+      Current   : in out Cursor'Class;
+      Trace     : in out WisiToken.Trace'Class;
+      Terminals : in     Base_Token_Arrays.Vector);
    --  If any other parser in Parsers has a stack equivalent to Current,
    --  Terminate one of them. Current is either unchanged, or advanced to
    --  the next parser.
+   --
+   --  Terminals is used to report the current token in the message.
 
    type State_Reference (Element : not null access Parser_State) is null record
    with Implicit_Dereference => Element;
@@ -212,11 +223,13 @@ package WisiToken.Parse.LR.Parser_Lists is
      (Container : aliased in List'Class;
       Position  :         in Parser_Node_Access)
      return Constant_Reference_Type;
+   pragma Inline (Constant_Reference);
 
    function Reference
      (Container : aliased in out List'Class;
       Position  :         in     Parser_Node_Access)
      return State_Reference;
+   pragma Inline (Reference);
 
    function Persistent_State_Ref (Position : in Parser_Node_Access) return State_Access;
 

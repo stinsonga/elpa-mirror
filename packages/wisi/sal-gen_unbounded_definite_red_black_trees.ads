@@ -8,7 +8,7 @@
 --  [1] Introduction to Algorithms, Thomas H. Cormen, Charles E.
 --  Leiserson, Ronald L. Rivest, Clifford Stein.
 --
---  Copyright (C) 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -70,6 +70,7 @@ package SAL.Gen_Unbounded_Definite_Red_Black_Trees is
      (Container : aliased in Tree;
       Key       :         in Key_Type)
      return Constant_Ref_Type;
+   pragma Inline (Constant_Ref);
 
    type Variable_Ref_Type (Element : not null access Element_Type) is null record
    with Implicit_Dereference => Element;
@@ -78,11 +79,13 @@ package SAL.Gen_Unbounded_Definite_Red_Black_Trees is
      (Container : aliased in Tree;
       Position  :         in Cursor)
      return Variable_Ref_Type;
+   pragma Inline (Variable_Ref);
 
    function Variable_Ref
      (Container : aliased in Tree;
       Key       :         in Key_Type)
      return Variable_Ref_Type;
+   pragma Inline (Variable_Ref);
    --  Raises Not_Found if Key not found in Container.
 
    package Iterators is new Ada.Iterator_Interfaces (Cursor, Has_Element);

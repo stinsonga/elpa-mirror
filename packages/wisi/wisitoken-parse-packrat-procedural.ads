@@ -9,7 +9,7 @@
 --
 --  See parent.
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -49,7 +49,8 @@ package WisiToken.Parse.Packrat.Procedural is
       end case;
    end record;
 
-   package Memos is new SAL.Gen_Unbounded_Definite_Vectors (Token_Index, Memo_Entry);
+   package Memos is new SAL.Gen_Unbounded_Definite_Vectors
+     (Token_Index, Memo_Entry, Default_Element => (others => <>));
    type Derivs is array (Token_ID range <>) of Memos.Vector;
 
    type Parser (First_Nonterminal, Last_Nonterminal : Token_ID) is new Packrat.Parser with
@@ -70,6 +71,8 @@ package WisiToken.Parse.Packrat.Procedural is
      return Procedural.Parser;
 
    overriding procedure Parse (Parser : aliased in out Procedural.Parser);
+   overriding function Tree (Parser : in Procedural.Parser) return Syntax_Trees.Tree;
+
    overriding function Any_Errors (Parser : in Procedural.Parser) return Boolean
      is (False);
    --  All errors are reported by Parse raising Syntax_Error.

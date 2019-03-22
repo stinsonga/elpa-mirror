@@ -7,6 +7,19 @@ Please send wisi bug reports to bug-gnu-emacs@gnu.org, with
 'wisi' in the subject. If possible, use M-x report-emacs-bug.
 
 
+* wisi 2.1.0
+21 Mar 2019
+
+** Add support for partial parsing; useful in very large files. Files
+   larger than wisi-partial-parse-threshold (default 100_001) will be
+   parsed partially.
+
+** Miscellaneous speed-ups in the Ada code; 'pragma Inline', better use of Ada tasks.
+
+** Better error correction in the Ada process parser; insert minimimal
+  tokens to complete a statement/declaration before or after the error
+  point.
+
 * wisi 2.0.1
 8 Dec 2018
 

@@ -2,7 +2,7 @@
 --
 --  Subprograms common to more than one parser, higher-level than in wisitoken.ads
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -44,7 +44,7 @@ package WisiToken.Parse is
    --
    --  The user must first call Lexer.Reset_* to set the input text.
 
-   procedure Parse (Shared_Parser : aliased in out Base_Parser) is abstract;
+   procedure Parse (Parser : aliased in out Base_Parser) is abstract;
    --  Call Lex_All, then execute parse algorithm to parse the tokens,
    --  storing the result in Parser for Execute_Actions.
    --
@@ -54,6 +54,9 @@ package WisiToken.Parse is
    --
    --  For other errors, raises Parse_Error with an appropriate error
    --  message.
+
+   function Tree (Parser : in Base_Parser) return Syntax_Trees.Tree is abstract;
+   --  Return the syntax tree resulting from the parse.
 
    function Any_Errors (Parser : in Base_Parser) return Boolean is abstract;
 

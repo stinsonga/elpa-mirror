@@ -2,7 +2,7 @@
 --
 --  Type and operations for building grammar productions.
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --
@@ -31,14 +31,16 @@ package WisiToken.Productions is
       Check  : WisiToken.Semantic_Checks.Semantic_Check;
    end record;
 
-   package RHS_Arrays is new SAL.Gen_Unbounded_Definite_Vectors (Natural, Right_Hand_Side);
+   package RHS_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
+     (Natural, Right_Hand_Side, Default_Element => (others => <>));
 
    type Instance is record
       LHS  : Token_ID := Invalid_Token_ID;
       RHSs : RHS_Arrays.Vector;
    end record;
 
-   package Prod_Arrays is new SAL.Gen_Unbounded_Definite_Vectors (Token_ID, Instance);
+   package Prod_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
+     (Token_ID, Instance, Default_Element => (others => <>));
 
    function Image
      (LHS        : in Token_ID;
@@ -51,14 +53,16 @@ package WisiToken.Productions is
    procedure Put (Grammar : Prod_Arrays.Vector; Descriptor : in WisiToken.Descriptor);
    --  Put Image of each production to Ada.Text_IO.Current_Output.
 
-   package Line_Number_Arrays is new SAL.Gen_Unbounded_Definite_Vectors (Natural, WisiToken.Line_Number_Type);
+   package Line_Number_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
+     (Natural, Line_Number_Type, Default_Element => Invalid_Line_Number);
 
    type Prod_Source_Line_Map is record
-      Line    : Line_Number_Type;
+      Line    : Line_Number_Type := Invalid_Line_Number;
       RHS_Map : Line_Number_Arrays.Vector;
    end record;
 
-   package Source_Line_Maps is new SAL.Gen_Unbounded_Definite_Vectors (Token_ID, Prod_Source_Line_Map);
+   package Source_Line_Maps is new SAL.Gen_Unbounded_Definite_Vectors
+     (Token_ID, Prod_Source_Line_Map, Default_Element => (others => <>));
    --  For line numbers of productions in source files.
 
 end WisiToken.Productions;

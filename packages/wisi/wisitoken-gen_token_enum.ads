@@ -2,7 +2,7 @@
 --
 --  Support for an enumerated token type
 --
---  Copyright (C) 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -47,7 +47,7 @@ package WisiToken.Gen_Token_Enum is
       Last_Terminal                 => +Last_Terminal,
       First_Nonterminal             => +First_Nonterminal,
       Last_Nonterminal              => +Last_Nonterminal,
-      EOF_ID                        => +EOF_ID,
+      EOI_ID                        => +EOF_ID,
       Accept_ID                     => +Accept_ID,
       Case_Insensitive              => Case_Insensitive,
       New_Line_ID                   => Invalid_Token_ID,
@@ -67,7 +67,7 @@ package WisiToken.Gen_Token_Enum is
       Last_Terminal                 => +Last_Terminal,
       First_Nonterminal             => +First_Nonterminal,
       Last_Nonterminal              => +Last_Nonterminal,
-      EOF_ID                        => +EOF_ID,
+      EOI_ID                        => +EOF_ID,
       Accept_ID                     => +Accept_ID,
       Case_Insensitive              => Case_Insensitive,
       New_Line_ID                   => Invalid_Token_ID,

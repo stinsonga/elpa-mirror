@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -138,7 +138,7 @@ package body WisiToken.BNF.Output_Ada_Common is
       Indent_Line ("Last_Terminal                 =>" & WisiToken.Token_ID'Image (Descriptor.Last_Terminal) & ",");
       Indent_Line ("First_Nonterminal             =>" & WisiToken.Token_ID'Image (Descriptor.First_Nonterminal) & ",");
       Indent_Line ("Last_Nonterminal              =>" & WisiToken.Token_ID'Image (Descriptor.Last_Nonterminal) & ",");
-      Indent_Line ("EOF_ID                        =>" & WisiToken.Token_ID'Image (Descriptor.EOF_ID) & ",");
+      Indent_Line ("EOI_ID                        =>" & WisiToken.Token_ID'Image (Descriptor.EOI_ID) & ",");
       Indent_Line ("Accept_ID                     =>" & WisiToken.Token_ID'Image (Descriptor.Accept_ID) & ",");
       Indent_Line ("Case_Insensitive              => " & Image (Input_Data.Language_Params.Case_Insensitive) & ",");
       Indent_Line ("New_Line_ID                   =>" & WisiToken.Token_ID'Image (Descriptor.New_Line_ID) & ",");
@@ -232,9 +232,10 @@ package body WisiToken.BNF.Output_Ada_Common is
             for Name of Name_List.all loop
                if Name /= null then
                   Indent_Line ("function " & Name.all);
-                  Indent_Line (" (Lexer   : access constant WisiToken.Lexer.Instance'Class;");
-                  Indent_Line ("  Nonterm : in out WisiToken.Recover_Token;");
-                  Indent_Line ("  Tokens  : in     WisiToken.Recover_Token_Array)");
+                  Indent_Line (" (Lexer          : access constant WisiToken.Lexer.Instance'Class;");
+                  Indent_Line ("  Nonterm        : in out WisiToken.Recover_Token;");
+                  Indent_Line ("  Tokens         : in     WisiToken.Recover_Token_Array;");
+                  Indent_Line ("  Recover_Active : in     Boolean)");
                   Indent_Line (" return WisiToken.Semantic_Checks.Check_Status;");
                end if;
             end loop;
@@ -535,7 +536,7 @@ package body WisiToken.BNF.Output_Ada_Common is
      (Input_Data    : in WisiToken_Grammar_Runtime.User_Data_Type;
       Generate_Data : in WisiToken.BNF.Generate_Utils.Generate_Data)
    is
-      use all type Ada.Containers.Count_Type;
+      use all type WisiToken.Parse.LR.All_Parse_Action_Verbs;
       use Ada.Strings.Unbounded;
 
       Table            : WisiToken.Parse.LR.Parse_Table_Ptr renames Generate_Data.LR_Parse_Table;
@@ -711,10 +712,12 @@ package body WisiToken.BNF.Output_Ada_Common is
             end loop;
          end Gotos;
 
-         if Table.States (State_Index).Minimal_Complete_Actions.Length > 0 then
+         if Input_Data.Language_Params.Error_Recover and
+           Table.States (State_Index).Minimal_Complete_Action.Verb /= Parse.LR.Pause
+         then
             Indent_Wrap
-              ("Set_Minimal_Action (Table.States (" & Trimmed_Image (State_Index) & ").Minimal_Complete_Actions, " &
-                 WisiToken.Parse.LR.Image (Table.States (State_Index).Minimal_Complete_Actions, Strict => True) & ");");
+              ("Table.States (" & Trimmed_Image (State_Index) & ").Minimal_Complete_Action := " &
+                 WisiToken.Parse.LR.Strict_Image (Table.States (State_Index).Minimal_Complete_Action) & ";");
          end if;
 
          if Line_Count > Lines_Per_Subr then
@@ -834,7 +837,7 @@ package body WisiToken.BNF.Output_Ada_Common is
       case Common_Data.Interface_Kind is
       when Process =>
          Indent_Line ("   Trace,");
-         Indent_Line ("   Lexer.New_Lexer (Trace),");
+         Indent_Line ("   Lexer.New_Lexer (Trace.Descriptor),");
          Indent_Line ("   Table,");
          if Input_Data.Language_Params.Error_Recover then
             Indent_Line ("   Language_Fixes,");
@@ -876,7 +879,7 @@ package body WisiToken.BNF.Output_Ada_Common is
          Indent_Line ("return Parser : WisiToken.Parse.Packrat.Generated.Parser do");
          Indent := Indent + 3;
          Indent_Line ("Parser.Trace := Trace;");
-         Indent_Line ("Parser.Lexer := Lexer.New_Lexer (Trace);");
+         Indent_Line ("Parser.Lexer := Lexer.New_Lexer (Trace.Descriptor);");
          Indent_Line ("Parser.User_Data := User_Data;");
          Indent_Line ("Parser.Parse_WisiToken_Accept := Parse_wisitoken_accept_1'Access;");
          Indent := Indent - 3;
@@ -921,7 +924,7 @@ package body WisiToken.BNF.Output_Ada_Common is
          Indent_Line ("return WisiToken.Parse.Packrat.Procedural.Create");
          Indent_Line
            ("  (Grammar, Direct_Left_Recursive, " & Trimmed_Image (Generate_Data.Descriptor.Accept_ID) &
-              ", Trace, Lexer.New_Lexer (Trace), User_Data);");
+              ", Trace, Lexer.New_Lexer (Trace.Descriptor), User_Data);");
       end case;
       Indent := Indent - 3;
       Indent_Line ("end Create_Parser;");
@@ -983,7 +986,7 @@ package body WisiToken.BNF.Output_Ada_Common is
       Indent_Line ("int            line_token_start; // line at start of current token");
       Indent_Line ("unsigned char* marker;           // saved cursor");
       Indent_Line ("size_t         marker_pos;       // saved character position");
-      Indent_Line ("size_t         marker_line;      // saved line ");
+      Indent_Line ("size_t         marker_line;      // saved line");
       Indent_Line ("unsigned char* context;          // saved cursor");
       Indent_Line ("size_t         context_pos;      // saved character position");
       Indent_Line ("int            context_line;     // saved line");
@@ -1012,13 +1015,16 @@ package body WisiToken.BNF.Output_Ada_Common is
       Indent_Line ("   (unsigned char* input, size_t length, int verbosity)");
       Indent_Line ("{");
       Indent := Indent + 3;
-      Indent_Line ("wisi_lexer* result  = malloc (sizeof (wisi_lexer));");
-      Indent_Line ("result->buffer      = input;");
-      Indent_Line ("result->buffer_last = input + length - 1;");
-      Indent_Line ("result->cursor      = input;");
-      Indent_Line ("result->char_pos    = 1;");
-      Indent_Line ("result->line        = (*result->cursor == 0x0A) ? 2 : 1;");
-      Indent_Line ("result->verbosity   = verbosity;");
+      Indent_Line ("wisi_lexer* result        = malloc (sizeof (wisi_lexer));");
+      Indent_Line ("result->buffer            = input;");
+      Indent_Line ("result->buffer_last       = input + length - 1;");
+      Indent_Line ("result->cursor            = input;");
+      Indent_Line ("result->byte_token_start  = input;");
+      Indent_Line ("result->char_pos          = 1;");
+      Indent_Line ("result->char_token_start  = 1;");
+      Indent_Line ("result->line              = (*result->cursor == 0x0A) ? 2 : 1;");
+      Indent_Line ("result->line_token_start  = result->line;");
+      Indent_Line ("result->verbosity         = verbosity;");
       Indent_Line ("return result;");
       Indent := Indent - 3;
       Indent_Line ("}");
@@ -1077,10 +1083,13 @@ package body WisiToken.BNF.Output_Ada_Common is
       Indent_Line ("static void skip(wisi_lexer* lexer)");
       Indent_Line ("{");
       Indent := Indent + 3;
-      Indent_Line ("if (lexer->cursor <= lexer->buffer_last) ++lexer->cursor;");
       Indent_Line ("if (lexer->cursor <= lexer->buffer_last)");
+      Indent_Line ("{");
+      Indent_Line ("   ++lexer->cursor;");
       Indent_Line ("   if (DO_COUNT) ++lexer->char_pos;");
-      Indent_Line ("if (*lexer->cursor == 0x0A) ++lexer->line;");
+      Indent_Line ("   if (lexer->cursor <= lexer->buffer_last)");
+      Indent_Line ("      if (*lexer->cursor == 0x0A) ++lexer->line;");
+      Indent_Line ("}");
       Indent := Indent - 3;
       Indent_Line ("}");
       Indent_Start ("#define YYSKIP() skip(lexer)");
@@ -1144,7 +1153,7 @@ package body WisiToken.BNF.Output_Ada_Common is
       Indent_Line ("if (lexer->cursor > lexer->buffer_last)");
       Indent_Line ("{");
       Indent := Indent + 3;
-      Indent_Line ("*id            =" & WisiToken.Token_ID'Image (Generate_Data.Descriptor.EOF_ID) & ";");
+      Indent_Line ("*id            =" & WisiToken.Token_ID'Image (Generate_Data.Descriptor.EOI_ID) & ";");
       Indent_Line ("*byte_position = lexer->buffer_last - lexer->buffer + 1;");
       Indent_Line ("*byte_length   = 0;");
       Indent_Line ("*char_position = lexer->char_token_start;");
@@ -1156,10 +1165,7 @@ package body WisiToken.BNF.Output_Ada_Common is
       New_Line;
 
       Indent_Line ("lexer->byte_token_start = lexer->cursor;");
-      Indent_Line ("if (DO_COUNT)");
-      Indent_Line ("   lexer->char_token_start = lexer->char_pos;");
-      Indent_Line ("else");
-      Indent_Line ("   lexer->char_token_start = lexer->char_pos + 1;");
+      Indent_Line ("lexer->char_token_start = lexer->char_pos;");
       Indent_Line ("if (*lexer->cursor == 0x0A)");
       Indent_Line ("   lexer->line_token_start = lexer->line-1;");
       Indent_Line ("else");
@@ -1239,7 +1245,7 @@ package body WisiToken.BNF.Output_Ada_Common is
       end loop;
       New_Line;
 
-      --  Default action
+      --  Default action.
       Indent_Line ("* {status = ERROR_unrecognized_character; continue;}");
 
       Put_Line ("*/");

@@ -1,6 +1,6 @@
 ;;; wisi-fringe.el --- show approximate error locations in the fringe
 ;;
-;; Copyright (C) 2018  Free Software Foundation, Inc.
+;; Copyright (C) 2018 - 2019  Free Software Foundation, Inc.
 ;;
 ;; This file is part of GNU Emacs.
 ;;
@@ -115,12 +115,16 @@ in the window."
 	 (rem (- error-line (floor (/ line scale)))))
     (cons (+ window-line-first line) (lsh 1 (min 5 (floor (* rem (* 6 scale))))))))
 
+(defun wisi-fringe-clean ()
+  "Remove all wisi-fringe marks."
+  (remove-overlays (point-min) (point-max) 'wisi-fringe t))
+
 (defun wisi-fringe-display-errors (positions)
-  "Display a bar in the right fringe for each buffer position in POSITIONS.
+  "Display markers in the left and right fringe for each buffer position in POSITIONS.
 The buffer containing POSITIONS must be current, and the window
 displaying that buffer must be current."
   ;; FIXME: recompute fringe display on scroll!
-  (remove-overlays (point-min) (point-max) 'wisi-fringe t)
+  (wisi-fringe-clean)
   (let (scaled-posns
 	(buffer-lines (line-number-at-pos (point-max)))
 	(window-lines (window-height))

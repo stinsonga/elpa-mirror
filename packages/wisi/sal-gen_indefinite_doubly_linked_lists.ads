@@ -3,7 +3,7 @@
 --  A generic doubly linked list with indefinite elements, allowing
 --  permanent references to elements.
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software; you can redistribute it and/or
 --  modify it under terms of the GNU General Public License as
@@ -71,15 +71,18 @@ package SAL.Gen_Indefinite_Doubly_Linked_Lists is
 
    function Constant_Reference (Position : in Cursor) return Constant_Reference_Type
    with Pre => Has_Element (Position);
+   pragma Inline (Constant_Reference);
 
    function Constant_Ref (Container : in List'Class; Position : in Peek_Type) return Constant_Reference_Type
    with Pre => Position <= Container.Length;
+   pragma Inline (Constant_Ref);
 
    type Reference_Type (Element : not null access Element_Type) is null record
    with Implicit_Dereference => Element;
 
    function Reference (Position : in Cursor) return Reference_Type
    with Pre => Has_Element (Position);
+   pragma Inline (Reference);
 
 private
    type Node_Type;
