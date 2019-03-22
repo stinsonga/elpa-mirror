@@ -176,6 +176,9 @@
 (require 'cl-lib)
 (require 'path-iterator)
 
+(defvar completion-current-style nil
+  "Current active completion style.")
+
 (defconst uniq-file--regexp "^\\(.*\\)<\\([^>]*\\)>?$"
   ;; The trailing '>' is optional so the user can type "<dir" in the
   ;; input buffer to complete directories.
@@ -413,6 +416,8 @@ Pattern is in reverse order."
 	uniq-all
 	done)
 
+    (setq completion-current-style 'uniquify-file)
+
     ;; Compute result or uniq-all, set done.
     (cond
      ((or
@@ -520,7 +525,8 @@ nil otherwise."
     result))
 
 (defun uniq-file--set-style (all style)
-  "Set completion-style text property on each string in ALL to STYLE."
+  "Set completion-style text property on each string in ALL to STYLE.
+Return a new list."
   (mapcar
    (lambda (str)
      (put-text-property 0 1 'completion-style style str)
@@ -533,6 +539,8 @@ nil otherwise."
 
   (let ((table-string (uniq-file-to-table-input user-string))
 	all)
+
+    (setq completion-current-style 'uniquify-file)
 
     (cond
      ((functionp table)
@@ -558,8 +566,10 @@ nil otherwise."
 
     (when all
       (setq all (uniq-file--uniquify all (file-name-directory table-string)))
-      (uniq-file--hilit user-string all point)
-      (uniq-file--set-style all 'uniquify-file))
+      (setq all (uniq-file--hilit user-string all point))
+      (setq all (uniq-file--set-style all 'uniquify-file))
+      all
+      )
     ))
 
 (defun uniq-file-get-data-string (user-string table pred)
@@ -601,32 +611,27 @@ nil otherwise."
 
 (defun completion-get-data-string (user-string table pred)
   "Return the data string corresponding to USER-STRING."
-  ;; If the style requires a conversion here, the completion-style
-  ;; text property was set on USER-STRING by the style implementation
-  ;; of all-completions.
-  (let* ((style (get-text-property 0 'completion-style user-string))
-	 (to-data-func (when style (nth 5 (assq style completion-styles-alist)))))
+  (let* ((to-data-func (when completion-current-style (nth 5 (assq completion-current-style completion-styles-alist)))))
     (if to-data-func
-	(funcall to-data-func user-string table pred)
-      user-string)))
+  	(funcall to-data-func user-string table pred)
+      user-string))
+  )
 
 (defun completion-to-table-input (orig-fun user-string table &optional pred)
   "Convert user string to table input."
-  ;; See comment in completion-get-data-string about completion-style
-  ;; text-property.
-  (let* ((style (get-text-property 0 'completion-style user-string))
-	 (table-string
-	  (let ((to-table-func (if (functionp table)
-				   (nth 4 (assq style completion-styles-alist)) ;; user to table
+  (let* ((table-string
+  	  (let ((to-table-func (if (functionp table)
+  				   (nth 4 (assq completion-current-style completion-styles-alist)) ;; user to table
 
-				 ;; TABLE is a list of absolute file names
-				 (nth 5 (assq style completion-styles-alist)) ;; user to data
-				 )))
-	    (if to-table-func
-		(funcall to-table-func user-string table pred)
-	      user-string))))
+  				 ;; TABLE is a list of absolute file names
+  				 (nth 5 (assq completion-current-style completion-styles-alist)) ;; user to data
+  				 )))
+  	    (if to-table-func
+  		(funcall to-table-func user-string table pred)
+  	      user-string))))
     (funcall orig-fun table-string table pred)
-    ))
+    )
+  )
 
 (advice-add #'test-completion :around #'completion-to-table-input)
 
@@ -634,9 +639,17 @@ nil otherwise."
 							  require-match initial-input hist def
 							  inherit-input-method)
   "Advice for `completing-read-default'; convert user string to data string."
-  (let ((user-string (funcall orig-fun prompt collection
+  (let* ((completion-current-style nil)
+	 (user-string (funcall orig-fun prompt collection
 			      predicate require-match initial-input hist def
 			      inherit-input-method)))
+
+    (unless completion-current-style
+      ;; If completion-current-style is not set here, it's because the
+      ;; user invoked `exit-minibuffer' to use the default string, or
+      ;; because the completion functions did not set it (they are
+      ;; legacy).
+      (setq completion-current-style (car (cdr (assq 'styles (completion-metadata "" collection nil))))))
     (completion-get-data-string user-string collection predicate)
     ))
 
@@ -775,9 +788,13 @@ PRED returns non-nil. DEFAULT is the default for completion.
 
 In the user input string, `*' is treated as a wildcard."
   (interactive)
-  (let ((iter (make-path-iterator :user-path-non-recursive (or path load-path))))
+  (let* ((iter (make-path-iterator :user-path-non-recursive (or path load-path)))
+	 (table (apply-partially #'uniq-file-completion-table iter))
+	 (table-styles (cdr (assq 'styles (completion-metadata "" table nil))))
+	 (completion-category-overrides
+	  (list (list 'project-file (cons 'styles table-styles)))))
     (completing-read (or prompt "file: ")
-		     (apply-partially #'uniq-file-completion-table iter)
+		     table
 		     predicate t nil nil default)
     ))
 
