@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -23,20 +23,13 @@ with System.Multiprocessors;
 with WisiToken.Generate;
 package body WisiToken.Generate.LR is
 
+   package RHS_Set is new SAL.Gen_Unbounded_Definite_Vectors (Natural, Boolean, Default_Element => False);
+   type Token_ID_RHS_Set is array (Token_ID range <>) of RHS_Set.Vector;
+
+   type Token_ID_Array_Positive is array (Token_ID range <>) of Positive;
+
    ----------
    --  Body subprograms, alphabetical
-
-   function Count_Reduce (List : in Parse.LR.Minimal_Action_Lists.List) return Integer
-   is
-      Count : Integer := 0;
-   begin
-      for Item of List loop
-         if Item.Verb = Reduce then
-            Count := Count + 1;
-         end if;
-      end loop;
-      return Count;
-   end Count_Reduce;
 
    function Find
      (Symbol      : in Token_ID;
@@ -55,111 +48,163 @@ package body WisiToken.Generate.LR is
       return null;
    end Find;
 
+   function Min
+     (Item    : in RHS_Sequence_Arrays.Vector;
+      RHS_Set : in LR.RHS_Set.Vector)
+     return Integer
+   is
+      use all type Ada.Containers.Count_Type;
+      Min_Length : Ada.Containers.Count_Type := Ada.Containers.Count_Type'Last;
+      Min_RHS    : Natural                   := Natural'Last;
+   begin
+      for RHS in Item.First_Index .. Item.Last_Index loop
+         if RHS_Set (RHS) and then Min_Length > Item (RHS).Sequence.Length then
+               Min_Length := Item (RHS).Sequence.Length;
+               Min_RHS    := RHS;
+         end if;
+      end loop;
+      if Min_RHS = Natural'Last then
+         raise SAL.Programmer_Error with "nonterm has no minimum terminal sequence";
+      else
+         return Min_RHS;
+      end if;
+   end Min;
+
    procedure Terminal_Sequence
-     (Grammar       : in     WisiToken.Productions.Prod_Arrays.Vector;
-      Descriptor    : in     WisiToken.Descriptor;
-      All_Sequences : in out Token_Sequence_Arrays.Vector;
-      All_Set       : in out Token_ID_Set;
-      Recursing     : in out Token_ID_Set;
-      Nonterm       : in     Token_ID)
+     (Grammar         : in     WisiToken.Productions.Prod_Arrays.Vector;
+      Descriptor      : in     WisiToken.Descriptor;
+      All_Sequences   : in out Minimal_Sequence_Array;
+      All_Set         : in out Token_ID_Set;
+      RHS_Set         : in out Token_ID_RHS_Set;
+      Recursing       : in out Token_ID_Set;
+      Recursing_Index : in out Token_ID_Array_Positive;
+      Nonterm         : in     Token_ID)
    is
       use Ada.Containers;
+      use Token_ID_Arrays;
+
+      subtype Terminals is Token_ID range Descriptor.First_Terminal .. Descriptor.Last_Terminal;
+
       Prod : Productions.Instance renames Grammar (Nonterm);
 
-      Temp              : Token_Sequence_Arrays.Vector;
-      Min_Length        : Count_Type := Count_Type'Last;
-      Skipped_Recursive : Boolean    := False;
+      Skipped_Recursive : Boolean := False;
    begin
       --  We get here because All_Sequences (Nonterm) has not been comptued
-      --  yet. Attempt to compute All_Sequences (Nonterm); if successful, set
-      --  All_Set (Nonterm) True.
+      --  yet. Attempt to compute All_Sequences (Nonterm); it may not
+      --  succeed due to recursion. If successful, set All_Set (Nonterm)
+      --  True.
+      --
+      --  In a useful grammar, all direct and indirect recursive nonterms
+      --  have a non-recursive minimal terminal sequence; finding it will
+      --  break the recursion, allowing this algorithm to complete. This is
+      --  checked in Compute_Minimal_Terminal_Sequences.
 
-      --  First fill Temp with terminals from each production for Nonterm.
-      for L in Prod.RHSs.First_Index .. Prod.RHSs.Last_Index loop
-
-         if Prod.RHSs (L).Tokens.Length = 0 then
-            All_Set (Nonterm) := True;
-
-            if Trace_Generate > Detail then
-               Ada.Text_IO.Put_Line (Image (Nonterm, Descriptor) & " => ()");
-            end if;
-
-            return;
-         end if;
-
-         if Prod.RHSs (L).Tokens (1) = Nonterm then
-            --  The first RHS token = LHS; a recursive list. This will never be
-            --  the shortest production, so just skip it.
-            null;
-
-         else
-            declare
-               Sequence : Token_ID_Arrays.Vector;
-            begin
-               for ID of Prod.RHSs (L).Tokens loop
-                  if ID in Descriptor.First_Terminal .. Descriptor.Last_Terminal then
-                     Sequence.Append (ID);
-
-                  else
-                     if not All_Set (ID) then
-                        if Recursing (ID) then
-                           --  This nonterm is mutually recursive with some other. This
-                           --  production will never be the shortest unless it's the only one,
-                           --  so skip it.
-                           if Trace_Generate > Detail then
-                              Ada.Text_IO.Put_Line (Image (ID, Descriptor) & " mutual recurse skipped");
-                           end if;
-                           Skipped_Recursive := True;
-                           goto Skip;
-                        else
-                           Recursing (ID) := True;
-                           if Trace_Generate > Detail then
-                              Ada.Text_IO.Put_Line (Image (ID, Descriptor) & " recurse");
-                           end if;
-                           Terminal_Sequence (Grammar, Descriptor, All_Sequences, All_Set, Recursing, ID);
-                           Recursing (ID) := False;
-
-                           if not All_Set (ID) then
-                              --  abandoned because of recursion
-                              Skipped_Recursive := True;
-                              goto Skip;
-                           end if;
-                        end if;
-                     end if;
-                     Sequence.Append (All_Sequences (ID));
-                  end if;
-               end loop;
-
-               if Trace_Generate > Detail then
-                  Ada.Text_IO.Put_Line (Image (Nonterm, Descriptor) & " -> " & Image (Sequence, Descriptor));
-               end if;
-               Temp.Append (Sequence);
-            end;
-         end if;
-
-         <<Skip>>
-         null;
-      end loop;
-
-      --  Now find the minimum length.
-      if Temp.Length = 0 and Skipped_Recursive then
-         --  better luck next time.
-         return;
+      --  Fill All_Sequences (Nonterm) with terminals from each production
+      --  for Nonterm. We set partial results so recursion can be resolved.
+      if All_Sequences (Nonterm).Length = 0 then
+         All_Sequences (Nonterm).Set_First_Last (Prod.RHSs.First_Index, Prod.RHSs.Last_Index); -- defaults empty
+         RHS_Set (Nonterm).Set_First_Last (Prod.RHSs.First_Index, Prod.RHSs.Last_Index); -- defaults False
       end if;
 
-      for S of Temp loop
-         if S.Length <= Min_Length then
-            Min_Length := S.Length;
+      for RHS in Prod.RHSs.First_Index .. Prod.RHSs.Last_Index loop
+         if not RHS_Set (Nonterm)(RHS) then
+            if Prod.RHSs (RHS).Tokens.Length = 0 then
+               RHS_Set (Nonterm)(RHS) := True;
+               if Trace_Generate > Extra then
+                  Ada.Text_IO.Put_Line (Trimmed_Image (Production_ID'(Nonterm, RHS)) & " => () empty");
+               end if;
 
-            All_Sequences (Nonterm) := S;
+            else
+               for I in Prod.RHSs (RHS).Tokens.First_Index .. Prod.RHSs (RHS).Tokens.Last_Index loop
+                  Recursing_Index (Nonterm) := I;
+                  declare
+                     ID : Token_ID renames Prod.RHSs (RHS).Tokens (I);
+                  begin
+                     if ID in Terminals then
+                        All_Sequences (Nonterm) (RHS).Sequence.Append (ID);
+
+                     else
+                        if not All_Set (ID) then
+                           --  Need to compute some RHSs of ID
+
+                           if ID = Nonterm or Recursing (ID) then
+                              --  Nonterm is mutually recursive with itself or some other.
+                              All_Sequences (Nonterm)(RHS).Left_Recursive := I = Positive'First and
+                                (ID = Nonterm or Recursing_Index (ID) = Positive'First);
+
+                              if (for some RHS of RHS_Set (ID) => RHS) then
+                                 --  There is a minimal sequence for ID; use it
+                                 null;
+                              else
+                                 if Trace_Generate > Extra then
+                                    Ada.Text_IO.Put_Line
+                                      (Trimmed_Image (Production_ID'(Nonterm, RHS)) & "." & Trimmed_Image (I) & " => " &
+                                         (if ID = Nonterm
+                                          then "direct recursive"
+                                          else "indirect recursive " & Image (ID, Descriptor)));
+                                 end if;
+
+                                 All_Sequences (Nonterm)(RHS).Left_Recursive := False;
+                                 All_Sequences (Nonterm)(RHS).Sequence.Clear;
+                                 goto Skip;
+                              end if;
+                           else
+                              Recursing (ID) := True;
+                              if Trace_Generate > Extra then
+                                 Ada.Text_IO.Put_Line (Trimmed_Image (ID) & " " & Image (ID, Descriptor) & " compute");
+                              end if;
+                              Terminal_Sequence
+                                (Grammar, Descriptor, All_Sequences, All_Set, RHS_Set, Recursing, Recursing_Index, ID);
+                              Recursing (ID) := False;
+
+                              if All_Set (ID) or else (for some RHS of RHS_Set (ID) => RHS) then
+                                 --  Found a minimal sequence for ID; use it
+                                 null;
+                              else
+                                 All_Sequences (Nonterm)(RHS).Sequence.Clear;
+                                 goto Skip;
+                              end if;
+                           end if;
+                        end if;
+                        declare
+                           Min_RHS : constant Integer := Min (All_Sequences (ID), RHS_Set (ID));
+                        begin
+                           All_Sequences (Nonterm)(RHS).Sequence.Append (All_Sequences (ID)(Min_RHS).Sequence);
+                        end;
+                     end if;
+                  end;
+               end loop;
+               RHS_Set (Nonterm)(RHS) := True;
+               if Trace_Generate > Extra then
+                  Ada.Text_IO.Put_Line
+                    (Trimmed_Image (Production_ID'(Nonterm, RHS)) & " => " &
+                       Image (All_Sequences (Nonterm)(RHS), Descriptor));
+               end if;
+            end if;
          end if;
+         <<Skip>>
+         Skipped_Recursive := True;
       end loop;
 
-      if Trace_Generate > Detail then
-         Ada.Text_IO.Put_Line (Image (Nonterm, Descriptor) & " ==> " & Image (All_Sequences (Nonterm), Descriptor));
+      if Skipped_Recursive then
+         if (for some RHS of RHS_Set (Nonterm) => not RHS) then
+            --  Some RHSs are have unresolved recursion; we will
+            --  eventually try again when the recursion is resolved.
+            if Trace_Generate > Extra then
+               Ada.Text_IO.Put_Line
+                 (Trimmed_Image (Nonterm) & " " & Image (Nonterm, Descriptor) & " skipped some recursive");
+            end if;
+            return;
+         end if;
       end if;
 
       All_Set (Nonterm) := True;
+
+      if Trace_Generate > Extra then
+         Ada.Text_IO.Put_Line
+           (Trimmed_Image (Nonterm) & " " & Image (Nonterm, Descriptor) & " ==> " &
+              Image (All_Sequences (Nonterm), Descriptor));
+      end if;
    end Terminal_Sequence;
 
    ----------
@@ -301,7 +346,7 @@ package body WisiToken.Generate.LR is
 
                Goto_State : constant Unknown_State_Index := LR1_Items.Goto_State (Closure, Dot_ID);
             begin
-               if Dot_ID = Descriptor.EOF_ID then
+               if Dot_ID = Descriptor.EOI_ID then
                   --  This is the start symbol production with dot before EOF.
                   declare
                      P_ID : constant Production_ID := Item.Prod;
@@ -590,10 +635,35 @@ package body WisiToken.Generate.LR is
         Known.On = Item.On;
    end Match;
 
-   procedure Compute_Minimal_Terminal_Sequences
-     (Grammar    : in     WisiToken.Productions.Prod_Arrays.Vector;
-      Descriptor : in     WisiToken.Descriptor;
-      Result     : in out Token_Sequence_Arrays.Vector)
+   function Image (Item : in RHS_Sequence; Descriptor : in WisiToken.Descriptor) return String
+   is begin
+      return "(" & Boolean'Image (Item.Left_Recursive) & ", " & Image (Item.Sequence, Descriptor) & ")";
+   end Image;
+
+   function Min (Item : in RHS_Sequence_Arrays.Vector) return RHS_Sequence
+   is
+      use all type Ada.Containers.Count_Type;
+      Min_Length : Ada.Containers.Count_Type := Ada.Containers.Count_Type'Last;
+      Min_RHS    : Natural                   := Natural'Last;
+   begin
+      --  This version assumes all RHS are computed.
+      for RHS in Item.First_Index .. Item.Last_Index loop
+         if Min_Length > Item (RHS).Sequence.Length then
+            Min_Length := Item (RHS).Sequence.Length;
+            Min_RHS    := RHS;
+         end if;
+      end loop;
+      if Min_RHS = Natural'Last then
+         raise Grammar_Error with "nonterm has no minimum terminal sequence";
+      else
+         return Item (Min_RHS);
+      end if;
+   end Min;
+
+   function Compute_Minimal_Terminal_Sequences
+     (Descriptor : in     WisiToken.Descriptor;
+      Grammar    : in     WisiToken.Productions.Prod_Arrays.Vector)
+     return Minimal_Sequence_Array
    is
       --  Result (ID).Length = 0 is a valid sequence (ie the nonterminal can
       --  be empty), so we use an auxilliary array to track whether Result
@@ -601,59 +671,66 @@ package body WisiToken.Generate.LR is
       --
       --  We also need to detect mutual recursion, and incomplete grammars.
 
-      All_Set   : Token_ID_Set := (Descriptor.First_Nonterminal .. Descriptor.Last_Nonterminal => False);
-      Recursing : Token_ID_Set := (Descriptor.First_Nonterminal .. Descriptor.Last_Nonterminal => False);
+      All_Set   : Token_ID_Set := (Descriptor.First_Nonterminal .. Descriptor.Last_Nonterminal  => False);
+      Recursing : Token_ID_Set := (Descriptor.First_Nonterminal .. Descriptor.Last_Nonterminal  => False);
+
+      Recursing_Index : Token_ID_Array_Positive :=
+        (Descriptor.First_Nonterminal .. Descriptor.Last_Nonterminal  => Positive'Last);
+
+      RHS_Set : Token_ID_RHS_Set :=
+        (Descriptor.First_Nonterminal .. Descriptor.Last_Nonterminal => LR.RHS_Set.Empty_Vector);
 
       Last_Count : Integer := 0;
       This_Count : Integer;
    begin
-      Result.Set_First (Descriptor.First_Nonterminal);
-      Result.Set_Last (Descriptor.Last_Nonterminal);
-
-      loop
-         exit when (for all B of All_Set => B);
-         for P of Grammar loop
-            if not All_Set (P.LHS) then
-               Terminal_Sequence (Grammar, Descriptor, Result, All_Set, Recursing, P.LHS);
+      return Result : Minimal_Sequence_Array (Descriptor.First_Nonterminal .. Descriptor.Last_Nonterminal) do
+         loop
+            exit when (for all B of All_Set => B);
+            for P of Grammar loop
+               if not All_Set (P.LHS) then
+                  Terminal_Sequence (Grammar, Descriptor, Result, All_Set, RHS_Set, Recursing, Recursing_Index, P.LHS);
+               end if;
+            end loop;
+            This_Count := Count (All_Set);
+            if This_Count = Last_Count then
+               Ada.Text_IO.Put_Line (Ada.Text_IO.Standard_Error, Image (All_Set, Descriptor, Inverted => True));
+               raise Grammar_Error with "recursion not resolved";
             end if;
+            Last_Count := This_Count;
          end loop;
-         This_Count := Count (All_Set);
-         if This_Count = Last_Count then
-            raise Grammar_Error with "nonterminals have no minimum terminal sequence: " &
-              Image (All_Set, Descriptor, Inverted => True);
-         end if;
-         Last_Count := This_Count;
-      end loop;
+      end return;
    end Compute_Minimal_Terminal_Sequences;
 
-   function Minimal_Terminal_First
-     (Grammar    : in     WisiToken.Productions.Prod_Arrays.Vector;
-      Descriptor : in     WisiToken.Descriptor)
+   function Compute_Minimal_Terminal_First
+     (Descriptor                 : in WisiToken.Descriptor;
+      Minimal_Terminal_Sequences : in Minimal_Sequence_Array)
      return Token_Array_Token_ID
    is
       use all type Ada.Containers.Count_Type;
-      Minimal_Terminal_Sequences : Token_Sequence_Arrays.Vector;
+      use Token_ID_Arrays;
    begin
-      Compute_Minimal_Terminal_Sequences (Grammar, Descriptor, Minimal_Terminal_Sequences);
-
       return Result : Token_Array_Token_ID (Descriptor.First_Nonterminal .. Descriptor.Last_Nonterminal) do
          for ID in Result'Range loop
-            if Minimal_Terminal_Sequences (ID).Length = 0 then
-               Result (ID) := Invalid_Token_ID;
-            else
-               Result (ID) := Minimal_Terminal_Sequences (ID)(Minimal_Terminal_Sequences (ID).First);
-            end if;
+            declare
+               Min_Seq : Token_ID_Arrays.Vector renames Min (Minimal_Terminal_Sequences (ID)).Sequence;
+            begin
+               if Min_Seq.Length = 0 then
+                  Result (ID) := Invalid_Token_ID;
+               else
+                  Result (ID) := Element (Min_Seq.First);
+               end if;
+            end;
          end loop;
       end return;
-   end Minimal_Terminal_First;
+   end Compute_Minimal_Terminal_First;
 
    procedure Set_Minimal_Complete_Actions
-     (State                  : in out Parse_State;
-      Kernel                 : in     LR1_Items.Item_Set;
-      Minimal_Terminal_First : in     Token_Array_Token_ID;
-      Ancestors              : in     Token_Array_Token_Set;
-      Descriptor             : in     WisiToken.Descriptor;
-      Grammar                : in     WisiToken.Productions.Prod_Arrays.Vector)
+     (State                      : in out Parse_State;
+      Kernel                     : in     LR1_Items.Item_Set;
+      Descriptor                 : in     WisiToken.Descriptor;
+      Grammar                    : in     WisiToken.Productions.Prod_Arrays.Vector;
+      Minimal_Terminal_Sequences : in     Minimal_Sequence_Array;
+      Minimal_Terminal_First     : in     Token_Array_Token_ID)
    is
       use all type Ada.Containers.Count_Type;
       use LR1_Items.Item_Lists;
@@ -661,40 +738,8 @@ package body WisiToken.Generate.LR is
 
       subtype Terminals is Token_ID range Descriptor.First_Terminal .. Descriptor.Last_Terminal;
 
-      Del  : LR1_Items.Item_Lists.Cursor;
-
-      procedure Delete_Same_Ancestor (List : in out LR1_Items.Item_Lists.List; Cur : in LR1_Items.Item_Lists.Cursor)
-      is
-         Cur_LHS : constant Token_ID := Element (Cur).Prod.LHS;
-
-         J : LR1_Items.Item_Lists.Cursor := List.First;
-      begin
-         loop
-            exit when not Has_Element (J);
-            if J = Cur then
-               Next (J);
-            else
-               declare
-                  Item : LR1_Items.Item renames Constant_Ref (J);
-               begin
-                  if Cur_LHS = Item.Prod.LHS or else Ancestors (Cur_LHS, Item.Prod.LHS) then
-                     Del := J;
-                     Next (J);
-                     List.Delete (Del);
-                  else
-                     Next (J);
-                  end if;
-               end;
-            end if;
-         end loop;
-      end Delete_Same_Ancestor;
-
-      procedure Append_No_Dup (Item : in Minimal_Action)
-      is begin
-         if not State.Minimal_Complete_Actions.Contains (Item) then
-            State.Minimal_Complete_Actions.Insert (Item);
-         end if;
-      end Append_No_Dup;
+      Working_Set : LR1_Items.Item_Lists.List := Kernel.Set;
+      Del         : LR1_Items.Item_Lists.Cursor;
 
       function Find_Action (List : in Action_Node_Ptr; ID : in Token_ID) return Minimal_Action
       is
@@ -719,65 +764,162 @@ package body WisiToken.Generate.LR is
          raise SAL.Programmer_Error;
       end Find_Action;
 
-      Working_Set : LR1_Items.Item_Lists.List := Kernel.Set;
-      I           : LR1_Items.Item_Lists.Cursor;
+      procedure Delete_Non_Minimal
+      is
+         Min_Length : Ada.Containers.Count_Type := Ada.Containers.Count_Type'Last;
+         I          : LR1_Items.Item_Lists.Cursor;
+         Min_I      : LR1_Items.Item_Lists.Cursor;
+      begin
+         --  The absolute minimal production for an LHS may not be in this state.
+         --  For example, for an Ada aggregate, the minimal terminal sequence is:
+         --  aggregate <= LEFT_PAREN RIGHT_PAREN
+         --  but one state has:
+         --  aggregate <= LEFT_PAREN expression_opt WITH ^ NULL RECORD RIGHT_PAREN
+         --  aggregate <= LEFT_PAREN expression_opt WITH ^ association_list RIGHT_PAREN
+         --
+         --  Find the minimum of the productions that are present
+
+         I := Working_Set.First;
+         loop
+            exit when not Has_Element (I);
+            declare
+               Prod : constant WisiToken.Production_ID := Constant_Ref (I).Prod;
+            begin
+               --  IMPROVEME: If Dot is near the end of a production, this is not the
+               --  best metric; the best metric is count of remaining tokens to
+               --  insert. But changing to that won't make much difference; it only
+               --  matters when Dot is not near the beginning, but then we don't have
+               --  multiple productions (they all must have same prefix).
+               --
+               --  We must eliminate direct left recursion; otherwise it can appear
+               --  to have a minimum length. For example, consider ada_lite state
+               --  149:
+               --
+               --  57.0:actual_parameter_part <= LEFT_PAREN association_list ^ RIGHT_PAREN
+               --  61.0:association_list <= association_list ^ COMMA association_opt
+               --
+               --  Both have length 2, but the association_list requires a
+               --  RIGHT_PAREN eventually.
+               --
+               --  We also have to eliminate indirect left recursion; consider ada_lite state 60:
+               --
+               --   94.0:function_specification <= FUNCTION name ^ parameter_and_result_profile
+               --  103.0:name <= name ^ LEFT_PAREN range_list
+               --  103.1:name <= name ^ actual_parameter_part
+               --  123.0:selected_component <= name ^ DOT IDENTIFIER
+               --
+               --  'selected' component has length 3, which two others also have, but
+               --  it requires more eventually.
+               --
+               --  An item production is left recursive only if Dot is after the
+               --  first token (ie, before the second token); consider conflict_name
+               --  state 5:
+               --
+               --   8.0:attribute_reference <= name TICK ^ attribute_designator, RIGHT_PAREN/TICK/Wisi_EOI
+               --  11.0:qualified_expression <= name TICK ^ aggregate, RIGHT_PAREN/TICK/Wisi_EOI
+               --
+               --  Both are indirect left recursive with "name", but both are past
+               --  the recursion, and can be completed.
+
+               if Min_Length > Minimal_Terminal_Sequences (Prod.LHS)(Prod.RHS).Sequence.Length and
+                 not (Minimal_Terminal_Sequences (Prod.LHS)(Prod.RHS).Left_Recursive and then
+                        (Has_Element (Constant_Ref (I).Dot) and then
+                           Constant_Ref (I).Dot = To_Cursor (Grammar (Prod.LHS).RHSs (Prod.RHS).Tokens, 2)))
+               then
+                  Min_Length := Minimal_Terminal_Sequences (Prod.LHS)(Prod.RHS).Sequence.Length;
+                  Min_I      := I;
+               end if;
+            end;
+            Next (I);
+         end loop;
+
+         if not Has_Element (Min_I) then
+            Working_Set.Clear;
+         else
+            I := Working_Set.First;
+            loop
+               exit when not Has_Element (I);
+               declare
+                  Prod : constant WisiToken.Production_ID := Constant_Ref (I).Prod;
+               begin
+                  if I /= Min_I then
+                     if Trace_Generate > Extra then
+                        Ada.Text_IO.Put_Line ("delete " & Image (Prod) & " not minimal");
+                     end if;
+                     Del := I;
+                     Next (I);
+                     Working_Set.Delete (Del);
+                  else
+                     Next (I);
+                  end if;
+               end;
+            end loop;
+         end if;
+      end Delete_Non_Minimal;
 
    begin
-      --  First find items to delete.
+      --  The actions computed here are used in the error recovery
+      --  algorithm, to decide what terminals to insert in the input stream
+      --  in order to correct an error. The strategy is to complete a high
+      --  level production (ie declaration or statement) as quickly as
+      --  possible, because the next real token is known to be the start of
+      --  a high level production, or the end of a containing block-style
+      --  production.
       --
-      --  This algorithm will return an empty Minimal_Complete_Actions in
-      --  the top level accept state.
+      --  The actions are empty in a state that includes the accept
+      --  production, or where the only not left recursive productions can
+      --  be empty. That tells the error recovery algorithm to stop using
+      --  the minimal complete actions strategy.
 
-      I := Working_Set.First;
-      loop
-         exit when not Has_Element (I);
-         declare
-            Item : LR1_Items.Item renames Constant_Ref (I);
-            Prod : WisiToken.Productions.Instance renames Grammar (Item.Prod.LHS);
-         begin
-            if not Has_Element (Item.Dot) then
-               --  Completing this item also completes items that share an ancestor.
-               Delete_Same_Ancestor (Working_Set, I);
-               Next (I);
+      if (for some Item of Working_Set =>
+            Item.Prod.LHS = Descriptor.Accept_ID and
+            (Has_Element (Item.Dot) and then Element (Item.Dot) = Descriptor.EOI_ID))
+      then
+         --  No actions
+         return;
+      end if;
 
-            elsif To_Index (Item.Dot) = 2 and then
-              Prod.RHSs (Item.Prod.RHS).Tokens (1) = Item.Prod.LHS
-            then
-               --  Item is left-recursive; it can't be minimal.
-               Del := I;
-               Next (I);
-               Working_Set.Delete (Del);
-            else
-               Next (I);
-            end if;
-         end;
-      end loop;
+      if Working_Set.Length > 1 then
+         --  There are multiple productions in this state, all equally valid;
+         --  the choice is determined by what input error recovery inserts.
+         Delete_Non_Minimal;
+      end if;
+
+      if Trace_Generate > Extra then
+         Ada.Text_IO.Put_Line ("after deletions:");
+         LR1_Items.Put (Grammar, Descriptor, Working_Set, Show_Lookaheads => False);
+      end if;
+
+      --  Find the actions for the remaining productions.
 
       for Item of Working_Set loop
          if not Has_Element (Item.Dot) then
             --  Item has no next terminal. Include a reduce action; the
             --  Minimal_Terminal_First for the resulting state will be used.
-            Append_No_Dup
-              ((Reduce, Item.Prod.LHS,
-                Token_Count => Grammar (Item.Prod.LHS).RHSs (Item.Prod.RHS).Tokens.Length));
+            if Trace_Generate > Extra then
+               Ada.Text_IO.Put_Line ("reduce " & Image (Item.Prod));
+            end if;
+            State.Minimal_Complete_Action :=
+              (Reduce, Item.Prod.LHS,
+                Token_Count => Grammar (Item.Prod.LHS).RHSs (Item.Prod.RHS).Tokens.Length);
          else
             declare
                ID : constant Token_ID := Element (Item.Dot);
             begin
-               if ID /= Descriptor.EOF_ID then
+               if ID /= Descriptor.EOI_ID then
 
                   if ID in Terminals then
-                     Append_No_Dup (Find_Action (State.Action_List, ID));
+                     State.Minimal_Complete_Action := Find_Action (State.Action_List, ID);
 
                   else
                      if Minimal_Terminal_First (ID) = Invalid_Token_ID then
                         --  Item.Dot is a nullable nonterm, include a reduce of the null
                         --  nonterm, rather than a shift of the following terminal; recover
                         --  must do the reduce first.
-                        Append_No_Dup ((Reduce, ID, Token_Count => 0));
+                        State.Minimal_Complete_Action := (Reduce, ID, Token_Count => 0);
 
                      else
-                        Append_No_Dup (Find_Action (State.Action_List, Minimal_Terminal_First (ID)));
+                        State.Minimal_Complete_Action := Find_Action (State.Action_List, Minimal_Terminal_First (ID));
                      end if;
                   end if;
                end if;
@@ -891,15 +1033,20 @@ package body WisiToken.Generate.LR is
             New_Line (File);
          end;
 
-         for Action of State.Minimal_Complete_Actions loop
-            Put (File, ' ' & Minimal_Verbs'Image (Action.Verb));
-            case Action.Verb is
+         declare
+            Action  : Minimal_Action renames State.Minimal_Complete_Action;
+         begin
+            case State.Minimal_Complete_Action.Verb is
+            when Pause =>
+               null;
             when Shift =>
+               Put (File, Minimal_Verbs'Image (Action.Verb));
                Put (File, Token_ID'Image (Action.ID) & State_Index'Image (Action.State));
             when Reduce =>
+               Put (File, Minimal_Verbs'Image (Action.Verb));
                Put (File, Token_ID'Image (Action.Nonterm) & Ada.Containers.Count_Type'Image (Action.Token_Count));
             end case;
-         end loop;
+         end;
          Put (File, ';');
          New_Line (File);
       end loop;
@@ -1003,12 +1150,10 @@ package body WisiToken.Generate.LR is
 
    procedure Put (Descriptor : in WisiToken.Descriptor; State : in Parse_State)
    is
-      use all type Ada.Containers.Count_Type;
       use Ada.Text_IO;
       use Ada.Strings.Fixed;
       Action_Ptr : Action_Node_Ptr := State.Action_List;
       Goto_Ptr   : Goto_Node_Ptr   := State.Goto_List;
-      Need_Comma : Boolean := False;
    begin
       while Action_Ptr /= null loop
          Put ("   ");
@@ -1037,24 +1182,17 @@ package body WisiToken.Generate.LR is
          Goto_Ptr := Next (Goto_Ptr);
       end loop;
 
-      if State.Minimal_Complete_Actions.Length > 0 then
-         New_Line;
-         Put ("   Minimal_Complete_Actions => (");
-         for Action of State.Minimal_Complete_Actions loop
-            if Need_Comma then
-               Put (", ");
-            else
-               Need_Comma := True;
-            end if;
-            case Action.Verb is
-            when Shift =>
-               Put (Image (Action.ID, Descriptor));
-            when Reduce =>
-               Put (Image (Action.Nonterm, Descriptor));
-            end case;
-         end loop;
-         Put_Line (")");
-      end if;
+      New_Line;
+      Put ("   Minimal_Complete_Action => (");
+      case State.Minimal_Complete_Action.Verb is
+      when Pause =>
+         null;
+      when Shift =>
+         Put (Image (State.Minimal_Complete_Action.ID, Descriptor));
+      when Reduce =>
+         Put (Image (State.Minimal_Complete_Action.Nonterm, Descriptor));
+      end case;
+      Put_Line (")");
    end Put;
 
    procedure Put_Parse_Table
@@ -1062,13 +1200,11 @@ package body WisiToken.Generate.LR is
       Title      : in String;
       Grammar    : in WisiToken.Productions.Prod_Arrays.Vector;
       Kernels    : in LR1_Items.Item_Set_List;
-      Ancestors  : in Token_Array_Token_Set;
       Conflicts  : in Conflict_Lists.List;
       Descriptor : in WisiToken.Descriptor)
    is
       use all type Ada.Containers.Count_Type;
       use Ada.Text_IO;
-      Minimal_Complete_Multiple_Reduce : State_Index_Arrays.Vector;
    begin
       Put_Line ("Tokens:");
       WisiToken.Put_Tokens (Descriptor);
@@ -1088,14 +1224,6 @@ package body WisiToken.Generate.LR is
       end if;
 
       New_Line;
-      Put_Line ("Ancestors:");
-      for ID in Ancestors'Range (1) loop
-         if Any (Ancestors, ID) then
-            Put_Line (Image (ID, Descriptor) & " => " & Image (Slice (Ancestors, ID), Descriptor));
-         end if;
-      end loop;
-
-      New_Line;
       Put_Line (Title & " Parse Table:");
 
       for State_Index in Table.States'Range loop
@@ -1103,23 +1231,10 @@ package body WisiToken.Generate.LR is
          New_Line;
          Put (Descriptor, Table.States (State_Index));
 
-         if Count_Reduce (Table.States (State_Index).Minimal_Complete_Actions) > 1 then
-            Minimal_Complete_Multiple_Reduce.Append (State_Index);
-         end if;
-
          if State_Index /= Table.States'Last then
             New_Line;
          end if;
       end loop;
-
-      if Minimal_Complete_Multiple_Reduce.Length + Conflicts.Length > 0 then
-         New_Line;
-      end if;
-
-      if Minimal_Complete_Multiple_Reduce.Length > 0 then
-         Indent_Wrap
-           ("States with multiple reduce in Minimal_Complete_Action: " & Image (Minimal_Complete_Multiple_Reduce));
-      end if;
 
       if Conflicts.Length > 0 then
          declare

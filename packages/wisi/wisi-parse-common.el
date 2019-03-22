@@ -1,6 +1,6 @@
 ;;; wisi-parse-common.el --- declarations used by wisi-parse.el, wisi-ada-parse.el, and wisi.el
 ;;
-;; Copyright (C) 2014, 2015, 2017, 2018  Free Software Foundation, Inc.
+;; Copyright (C) 2014, 2015, 2017 - 2019  Free Software Foundation, Inc.
 ;;
 ;; Author: Stephen Leake <stephen_leake@member.fsf.org>
 ;;
@@ -59,8 +59,20 @@ for the language-specific parser options."
   ;; not needed for the elisp parser, which can see the options directly.
   )
 
-(cl-defgeneric wisi-parse-current ((parser wisi-parser))
-  "Parse current buffer.")
+(cl-defgeneric wisi-parse-expand-region ((parser wisi-parser) begin end)
+  "Return a cons SEND-BEGIN . SEND-END that is an expansion of
+region BEGIN END that starts at a valid parse start point,
+contains END, and ends at a point the parser can handle
+gracefully."
+  (cons begin end))
+
+(cl-defgeneric wisi-parse-adjust-indent ((parser wisi-parser) indent _repair)
+  "Adjust INDENT for REPAIR (a wisi--parse-error-repair struct). Return new indent."
+  indent)
+
+(cl-defgeneric wisi-parse-current ((parser wisi-parser) begin send-end parse-end)
+  "Parse current buffer starting at BEGIN, continuing at least thru PARSE-END.
+If using an external parser, send it BEGIN thru SEND-END.")
 
 (cl-defgeneric wisi-parse-kill ((parser wisi-parser))
   "Kill any external process associated with parser.")

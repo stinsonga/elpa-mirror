@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -21,7 +21,7 @@ package body WisiToken.Parse.Packrat.Generated is
 
    overriding procedure Parse (Parser : aliased in out Generated.Parser)
    is
-      --  'aliased required for Base_Tree'Access. WORKAROUND: that was
+      --  'aliased' required for Base_Tree'Access. WORKAROUND: that was
       --  enough when Parser type was declared in generated Main; now that
       --  it's a derived type, it doesn't work. So we use Unchecked_Access.
 
@@ -62,6 +62,11 @@ package body WisiToken.Parse.Packrat.Generated is
       end if;
 
    end Parse;
+
+   overriding function Tree (Parser : in Generated.Parser) return Syntax_Trees.Tree
+   is begin
+      return Parser.Tree;
+   end Tree;
 
    overriding function Any_Errors (Parser : in Generated.Parser) return Boolean
    is

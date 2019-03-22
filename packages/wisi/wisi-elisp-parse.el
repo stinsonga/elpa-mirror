@@ -1,6 +1,6 @@
 ;; wisi-elisp-parse.el --- Wisi parser  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2013-2015, 2017 - 2018  Free Software Foundation, Inc.
+;; Copyright (C) 2013-2015, 2017 - 2019  Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -85,7 +85,7 @@ point at which that max was spawned.")
 (cl-defmethod wisi-parse-kill ((_parser wisi-elisp-parser))
   nil)
 
-(defvar wisi-elisp-parse--indent
+(defvar wisi-elisp-parse--indent nil
   ;; not buffer-local; only let-bound in wisi-parse-current (elisp)
   "A vector of indentation for all lines in buffer.
 Each element can be one of:
@@ -103,25 +103,26 @@ Each element can be one of:
 - list ('anchor (start-id ...) ('anchored id delta))
   for nested anchors.")
 
-(cl-defmethod wisi-parse-current ((parser wisi-elisp-parser))
-  "Parse current buffer from beginning."
+(cl-defmethod wisi-parse-current ((parser wisi-elisp-parser) _begin _send-end _parse-end)
+  "Parse entire current buffer.
+BEGIN, END are ignored"
 
-  (let* ((actions (wisi-elisp-parser-actions parser))
-	 (gotos   (wisi-elisp-parser-gotos parser))
-	 (parser-states ;; vector of parallel parser states
-	  (vector
-	   (make-wisi-elisp-parser-state
-	    :label 0
-	    :active  'shift
-	    :stack   (make-vector wisi-parse-max-stack-size nil)
-	    :sp      0
-	    :pending nil)))
-	 (active-parser-count 1)
-	 active-parser-count-prev
-	 (active 'shift)
-	 (token nil)
-	 some-pending
-	 wisi-elisp-parse--indent)
+  (let ((actions (wisi-elisp-parser-actions parser))
+	(gotos   (wisi-elisp-parser-gotos parser))
+	(parser-states ;; vector of parallel parser states
+	 (vector
+	  (make-wisi-elisp-parser-state
+	   :label 0
+	   :active  'shift
+	   :stack   (make-vector wisi-parse-max-stack-size nil)
+	   :sp      0
+	   :pending nil)))
+	(active-parser-count 1)
+	active-parser-count-prev
+	(active 'shift)
+	(token nil)
+	some-pending
+	wisi-elisp-parse--indent)
 
     (cl-case wisi--parse-action
       (indent
@@ -270,6 +271,9 @@ Each element can be one of:
        (wisi-elisp-parse--resolve-anchors))
 
       (t nil))
+
+    ;; Return region parsed.
+    (cons (point-min) (point))
     ))
 
 (defun wisi-elisp-parsers-active-index (parser-states)

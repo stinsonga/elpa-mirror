@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -42,7 +42,7 @@ package body WisiToken.Parse is
                Parser.Line_Begin_Token (Token.Line) := Parser.Terminals.Last_Index +
                  (if Token.ID >= Parser.Trace.Descriptor.First_Terminal then 1 else 0);
 
-            elsif Token.ID = Parser.Trace.Descriptor.EOF_ID then
+            elsif Token.ID = Parser.Trace.Descriptor.EOI_ID then
                Parser.Line_Begin_Token.Set_Length (Ada.Containers.Count_Type (Token.Line + 1));
                Parser.Line_Begin_Token (Token.Line + 1) := Parser.Terminals.Last_Index + 1;
             end if;
@@ -71,7 +71,7 @@ package body WisiToken.Parse is
 
    procedure Lex_All (Parser : in out Base_Parser)
    is
-      EOF_ID : constant Token_ID := Parser.Trace.Descriptor.EOF_ID;
+      EOF_ID : constant Token_ID := Parser.Trace.Descriptor.EOI_ID;
    begin
       Parser.Lexer.Errors.Clear;
       Parser.Terminals.Clear;

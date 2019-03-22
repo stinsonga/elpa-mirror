@@ -6,7 +6,7 @@
 --
 --  [1] http://re2c.org/
 --
---  Copyright (C) 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --
@@ -39,6 +39,9 @@ generic
      return System.Address;
    --  Create the re2c lexer object, passing it the full text to process.
    --  Length is buffer length in 8 bit bytes.
+   --
+   --  The C lexer does not know about Buffer_Nominal_First,
+   --  Line_Nominal_First; its buffer positions and lines start at 1.
 
    with procedure Free_Lexer (Lexer : in out System.Address);
    --  Destruct the re2c lexer object
@@ -75,20 +78,32 @@ package WisiToken.Lexer.re2c is
    overriding procedure Finalize (Object : in out Instance);
 
    function New_Lexer
-     (Trace  : not null access WisiToken.Trace'Class)
+     (Descriptor  : not null access constant WisiToken.Descriptor)
      return WisiToken.Lexer.Handle;
    --  If the tokens do not include a reporting New_Line token, set
    --  New_Line_ID to Invalid_Token_ID.
 
-   overriding procedure Reset_With_String (Lexer : in out Instance; Input : in String);
+   overriding procedure Reset_With_String
+     (Lexer      : in out Instance;
+      Input      : in     String;
+      Begin_Char : in     Buffer_Pos       := Buffer_Pos'First;
+      Begin_Line : in     Line_Number_Type := Line_Number_Type'First);
    --  Copies Input to internal buffer.
 
    overriding procedure Reset_With_String_Access
-     (Lexer     : in out Instance;
-      Input     : in     Ada.Strings.Unbounded.String_Access;
-      File_Name : in     Ada.Strings.Unbounded.Unbounded_String);
+     (Lexer      : in out Instance;
+      Input      : access String;
+      File_Name  : in     Ada.Strings.Unbounded.Unbounded_String;
+      Begin_Char : in     Buffer_Pos       := Buffer_Pos'First;
+      Begin_Line : in     Line_Number_Type := Line_Number_Type'First);
 
-   overriding procedure Reset_With_File (Lexer : in out Instance; File_Name : in String);
+   overriding procedure Reset_With_File
+     (Lexer          : in out Instance;
+      File_Name      : in     String;
+      Begin_Byte_Pos : in     Buffer_Pos       := Invalid_Buffer_Pos;
+      End_Byte_Pos   : in     Buffer_Pos       := Invalid_Buffer_Pos;
+      Begin_Char     : in     Buffer_Pos       := Buffer_Pos'First;
+      Begin_Line     : in     Line_Number_Type := Line_Number_Type'First);
    --  Uses memory mapped file; no copies.
 
    overriding procedure Discard_Rest_Of_Input (Lexer : in out Instance) is null;
@@ -114,7 +129,7 @@ private
       Lexer         : System.Address := System.Null_Address;
       Source        : WisiToken.Lexer.Source;
       ID            : Token_ID; --  Last token read by find_next
-      Byte_Position : Natural; -- We don't use Buffer_Pos here, because Source.Buffer is indexed by Integer
+      Byte_Position : Natural;  --  We don't use Buffer_Pos here, because Source.Buffer is indexed by Integer
       Byte_Length   : Natural;
       Char_Position : Natural;
       Char_Length   : Natural;
@@ -122,7 +137,7 @@ private
       --  start of Managed.Buffer, 1 indexed.
 
       Line            : Line_Number_Type; -- after last (or current) New_Line token
-      Char_Line_Start : Natural;          -- Character position after last New_Line token
+      Char_Line_Start : Natural;          -- Character position after last New_Line token, lexer origin.
       Prev_ID         : Token_ID;         -- previous token_id
    end record;
 

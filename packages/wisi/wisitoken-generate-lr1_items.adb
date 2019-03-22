@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2002, 2003, 2008, 2009, 2012 - 2015, 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2002, 2003, 2008, 2009, 2012 - 2015, 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --
@@ -43,7 +43,7 @@ package body WisiToken.Generate.LR1_Items is
    begin
       for Item of Set loop
          if Item.Dot /= Token_ID_Arrays.No_Element then
-            if Element (Item.Dot) /= Descriptor.EOF_ID then
+            if Element (Item.Dot) /= Descriptor.EOI_ID then
                IDs (Element (Item.Dot)) := True;
             end if;
          end if;
@@ -536,6 +536,23 @@ package body WisiToken.Generate.LR1_Items is
    procedure Put
      (Grammar         : in WisiToken.Productions.Prod_Arrays.Vector;
       Descriptor      : in WisiToken.Descriptor;
+      Item            : in Item_Lists.List;
+      Show_Lookaheads : in Boolean := True;
+      Kernel_Only     : in Boolean := False)
+   is begin
+      for It of Item loop
+         if not Kernel_Only or else
+           In_Kernel (Grammar, Descriptor, It)
+         then
+            Ada.Text_IO.Put_Line
+              ("  " & Image (Grammar, Descriptor, It, Show_Lookaheads => Show_Lookaheads));
+         end if;
+      end loop;
+   end Put;
+
+   procedure Put
+     (Grammar         : in WisiToken.Productions.Prod_Arrays.Vector;
+      Descriptor      : in WisiToken.Descriptor;
       Item            : in Item_Set;
       Show_Lookaheads : in Boolean := True;
       Kernel_Only     : in Boolean := False;
@@ -547,14 +564,7 @@ package body WisiToken.Generate.LR1_Items is
          Put_Line ("State" & Unknown_State_Index'Image (Item.State) & ":");
       end if;
 
-      for It of Item.Set loop
-         if not Kernel_Only or else
-           In_Kernel (Grammar, Descriptor, It)
-         then
-            Put_Line
-              ("  " & Image (Grammar, Descriptor, It, Show_Lookaheads => Show_Lookaheads));
-         end if;
-      end loop;
+      Put (Grammar, Descriptor, Item.Set, Show_Lookaheads, Kernel_Only);
 
       if Show_Goto_List then
          Put (Descriptor, Item.Goto_List);

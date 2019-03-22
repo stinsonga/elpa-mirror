@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -352,7 +352,7 @@ package body SAL.Gen_Unbounded_Definite_Vectors is
 
       if Container.Last >= First then
          if Container.Elements = null then
-            Container.Elements := new Array_Type'(J .. To_Peek_Type (Container.Last) => <>);
+            Container.Elements := new Array_Type'(J .. To_Peek_Type (Container.Last) => Default_Element);
 
          elsif Container.Elements'First > J then
             Grow (Container.Elements, J);
@@ -371,7 +371,7 @@ package body SAL.Gen_Unbounded_Definite_Vectors is
 
       if Last >= Container.First then
          if Container.Elements = null then
-            Container.Elements := new Array_Type'(To_Peek_Type (Container.First) .. J => <>);
+            Container.Elements := new Array_Type'(To_Peek_Type (Container.First) .. J => Default_Element);
 
          elsif Container.Elements'Last < J then
             Grow (Container.Elements, J);
@@ -379,7 +379,10 @@ package body SAL.Gen_Unbounded_Definite_Vectors is
       end if;
    end Set_Last;
 
-   procedure Set_First_Last (Container : in out Vector; First : in Index_Type; Last : in Extended_Index)
+   procedure Set_First_Last
+     (Container : in out Vector;
+      First     : in     Index_Type;
+      Last      : in     Extended_Index)
    is begin
       Set_First (Container, First);
       Set_Last (Container, Last);
@@ -395,22 +398,6 @@ package body SAL.Gen_Unbounded_Definite_Vectors is
       end if;
       if Length > 0 then
          Container.Set_Last (Index_Type (Length) + Container.First - 1);
-      end if;
-   end Set_Length;
-
-   procedure Set_Length
-     (Container : in out Vector;
-      Length    : in     Ada.Containers.Count_Type;
-      Default   : in     Element_Type)
-   is
-      Old_First : constant Extended_Index := Container.First;
-      Old_Last  : constant Extended_Index := Container.Last;
-   begin
-      Set_Length (Container, Length);
-      if Old_First = No_Index then
-         Container.Elements.all := (others => Default);
-      else
-         Container.Elements (To_Peek_Type (Old_Last + 1) .. To_Peek_Type (Container.Last)) := (others => Default);
       end if;
    end Set_Length;
 

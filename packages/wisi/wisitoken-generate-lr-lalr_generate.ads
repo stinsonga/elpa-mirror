@@ -2,7 +2,7 @@
 --
 --  Generalized LALR parse table generator.
 --
---  Copyright (C) 2002 - 2003, 2009 - 2010, 2013 - 2015, 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2002 - 2003, 2009 - 2010, 2013 - 2015, 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --
@@ -62,5 +62,22 @@ package WisiToken.Generate.LR.LALR_Generate is
       First_Nonterm_Set : in Token_Array_Token_Set;
       Descriptor        : in WisiToken.Descriptor)
      return LR1_Items.Item_Set_List;
+
+   procedure Fill_In_Lookaheads
+     (Grammar                 : in     WisiToken.Productions.Prod_Arrays.Vector;
+      Has_Empty_Production    : in     Token_ID_Set;
+      First_Terminal_Sequence : in     Token_Sequence_Arrays.Vector;
+      Kernels                 : in out LR1_Items.Item_Set_List;
+      Descriptor              : in     WisiToken.Descriptor);
+
+   procedure Add_Actions
+     (Kernels                 : in     LR1_Items.Item_Set_List;
+      Grammar                 : in     WisiToken.Productions.Prod_Arrays.Vector;
+      Has_Empty_Production    : in     Token_ID_Set;
+      First_Nonterm_Set       : in     Token_Array_Token_Set;
+      First_Terminal_Sequence : in     Token_Sequence_Arrays.Vector;
+      Conflicts               :    out Conflict_Lists.List;
+      Table                   : in out Parse_Table;
+      Descriptor              : in     WisiToken.Descriptor);
 
 end WisiToken.Generate.LR.LALR_Generate;

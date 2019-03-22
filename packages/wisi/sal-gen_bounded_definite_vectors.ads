@@ -3,7 +3,7 @@
 --  A simple bounded vector of definite items, intended to be faster
 --  than Ada.Containers.Bounded_Definite_Vectors.
 --
---  Copyright (C) 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -80,6 +80,7 @@ package SAL.Gen_Bounded_Definite_Vectors is
    with Implicit_Dereference => Element;
 
    function Constant_Reference (Container : aliased Vector; Index : in Index_Type) return Constant_Reference_Type;
+   pragma Inline (Constant_Reference);
 
    type Variable_Reference_Type (Element : not null access Element_Type) is null record
    with Implicit_Dereference => Element;
@@ -88,6 +89,7 @@ package SAL.Gen_Bounded_Definite_Vectors is
      (Container : aliased in out Vector;
       Index     :         in     Index_Type)
      return Variable_Reference_Type;
+   pragma Inline (Variable_Reference);
 
    type Cursor is private;
 
@@ -98,11 +100,13 @@ package SAL.Gen_Bounded_Definite_Vectors is
    function Iterate (Container : Vector) return Vector_Iterator_Interfaces.Reversible_Iterator'Class;
 
    function Constant_Reference (Container : aliased Vector; Position : in Cursor) return Constant_Reference_Type;
+   pragma Inline (Constant_Reference);
 
    function Variable_Reference
      (Container : aliased in out Vector;
       Position  :         in     Cursor)
      return Variable_Reference_Type;
+   pragma Inline (Variable_Reference);
 
 private
 

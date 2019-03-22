@@ -2,7 +2,7 @@
 --
 --  An abstract lexer interface.
 --
---  Copyright (C) 2014 - 2015, 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2014 - 2015, 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --
@@ -51,7 +51,7 @@ package WisiToken.Lexer is
 
    package Error_Lists is new Ada.Containers.Doubly_Linked_Lists (Error);
 
-   type Instance (Trace  : not null access WisiToken.Trace'Class)
+   type Instance (Descriptor  : not null access constant WisiToken.Descriptor)
    is abstract new Ada.Finalization.Limited_Controlled with record
       Errors : Error_Lists.List;
    end record;
@@ -60,19 +60,35 @@ package WisiToken.Lexer is
 
    type Handle is access all Class;
 
-   procedure Reset_With_String (Lexer : in out Instance; Input : in String) is abstract;
+   procedure Reset_With_String
+     (Lexer      : in out Instance;
+      Input      : in     String;
+      Begin_Char : in     Buffer_Pos       := Buffer_Pos'First;
+      Begin_Line : in     Line_Number_Type := Line_Number_Type'First)
+     is abstract;
    --  Reset Lexer to start a new parse, reading from Input.
 
    procedure Reset_With_String_Access
-     (Lexer     : in out Instance;
-      Input     : in     Ada.Strings.Unbounded.String_Access;
-      File_Name : in     Ada.Strings.Unbounded.Unbounded_String)
+     (Lexer      : in out Instance;
+      Input      : access String;
+      File_Name  : in     Ada.Strings.Unbounded.Unbounded_String;
+      Begin_Char : in     Buffer_Pos       := Buffer_Pos'First;
+      Begin_Line : in     Line_Number_Type := Line_Number_Type'First)
      is abstract;
-   --  Reset Lexer to start a new parse, reading from Input.
-   --  File_Name is used for error messages.
+   --  Reset Lexer to start a new parse, reading from Input. File_Name is
+   --  used for error messages.
 
-   procedure Reset_With_File (Lexer : in out Instance; File_Name : in String) is abstract;
-   --  Reset Lexer to start a new parse, reading from File_Name.
+   procedure Reset_With_File
+     (Lexer      : in out Instance;
+      File_Name  : in     String;
+      Begin_Pos  : in     Buffer_Pos       := Invalid_Buffer_Pos;
+      End_Pos    : in     Buffer_Pos       := Invalid_Buffer_Pos;
+      Begin_Char : in     Buffer_Pos       := Buffer_Pos'First;
+      Begin_Line : in     Line_Number_Type := Line_Number_Type'First)
+     is abstract;
+   --  Reset Lexer to start a new parse, reading from File_Name. If
+   --  Begin_Pos, End_Pos /= Invalid_Buffer_Pos, only parse that portion
+   --  of the file.
    --
    --  Raises Ada.IO_Exceptions.Name_Error if File_Name cannot be opened.
 
@@ -117,7 +133,7 @@ package WisiToken.Lexer is
    --  If the underlying text feeder does not support the notion of
    --  'line', returns Invalid_Line_Number.
    --
-   --  Token.Col is the column number of the start of the token, 1
+   --  Token.Column is the column number of the start of the token, 1
    --  indexed. If the underlying text feeder does not support the notion
    --  of 'line', returns byte position in internal buffer.
 
@@ -132,19 +148,28 @@ private
       File_Name : Ada.Strings.Unbounded.Unbounded_String;
       --  Not saved in Mapped_File, may be empty for String_Label
 
+      Buffer_Nominal_First_Byte : Buffer_Pos;
+      Buffer_Nominal_First_Char : Buffer_Pos;
+      Line_Nominal_First        : Line_Number_Type;
+
       case Label is
       when String_Label =>
-         Buffer      : Ada.Strings.Unbounded.String_Access;
+         Buffer      : access String;
          User_Buffer : Boolean := False;
          --  If User_Buffer is True, user provided buffer and will deallocate
          --  it. Otherwise we must deallocate it.
 
+         --  Buffer_Nominal_First, Line_Nominal_First are 1.
       when File_Label =>
 
          --  The input is memory mapped from the following, which must be closed:
          File        : GNATCOLL.Mmap.Mapped_File;
          Region      : GNATCOLL.Mmap.Mapped_Region;
          Buffer_Last : Positive;
+         --  Region always has first character at offset 0.
+
+         --  Buffer_Nominal_First is Begin_Pos. Line_Nominal_First is
+         --  Begin_Line.
       end case;
    end record;
 
@@ -157,5 +182,6 @@ private
    --  Source.Buffer_Last. Indexing is reliable.
 
    function File_Name (Source : in Lexer.Source) return String;
+   function To_Char_Pos (Source : in Lexer.Source; Lexer_Char_Pos : in Integer) return Base_Buffer_Pos;
 
 end WisiToken.Lexer;

@@ -415,8 +415,8 @@ File: wisitoken-user_guide.info,  Node: Other declarations,  Prev: Error recover
      'wisi-face-apply' actions must be declared, so the elisp and Ada
      code aggree on what they mean.
 
-'%elisp_indent <name>'
-     Declare a name for an elisp indent variable.
+'%elisp_indent <elisp name> <Ada name>'
+     Declare elisp and Ada names for an indent variable.
 
      When generating Ada code for Emacs, the elisp indent variables used
      in 'wisi-indent' actions must be declared, so the elisp and Ada
@@ -487,11 +487,9 @@ File: wisitoken-user_guide.info,  Node: Other declarations,  Prev: Error recover
 '%start'
      The start token for the grammar.
 
-'regexp_name <name>'
-     Declare a named regular expression.  The name may then occur in
-     another regular expression.
-
-     The re2c lexer supports this usage; other lexers may not.
+'re2c_regexp <name> <value>'
+     Declare a named regular expression with re2c name and syntax.  The
+     name may then occur in another re2c regular expression.
 
 
 File: wisitoken-user_guide.info,  Node: Nonterminals,  Next: Conditional code,  Prev: Declarations,  Up: Grammar File Syntax
@@ -550,7 +548,7 @@ Node: Keywords7260
 Node: Tokens7569
 Node: Error recovery9217
 Node: Other declarations12453
-Node: Nonterminals16476
-Node: Conditional code17193
+Node: Nonterminals16475
+Node: Conditional code17192
 
 End Tag Table

@@ -2,7 +2,7 @@
 --
 --  An unbounded queue of definite non-limited elements.
 --
---  Copyright (C) 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -59,6 +59,7 @@ package SAL.Gen_Unbounded_Definite_Queues is
       Implicit_Dereference => Element;
 
    function Peek (Queue : in Pkg.Queue; N : Peek_Type := 1) return Constant_Reference_Type;
+   pragma Inline (Peek);
    --  Return a constant reference to a queue item. N = 1 is the queue
    --  head.
    --
@@ -68,6 +69,7 @@ package SAL.Gen_Unbounded_Definite_Queues is
    with Implicit_Dereference => Element;
 
    function Variable_Peek (Queue : in out Pkg.Queue; N : Peek_Type := 1) return Variable_Reference_Type;
+   pragma Inline (Variable_Peek);
    --  Return a variable reference to a queue item. N = 1 is the queue
    --  head.
    --

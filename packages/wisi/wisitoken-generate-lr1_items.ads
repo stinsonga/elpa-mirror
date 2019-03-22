@@ -2,7 +2,7 @@
 --
 --  Types and operatorion for LR(1) items.
 --
---  Copyright (C) 2003, 2008, 2013-2015, 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2003, 2008, 2013 - 2015, 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --
@@ -216,12 +216,12 @@ package WisiToken.Generate.LR1_Items is
    --  Not combined with non-Lookaheads version for speed; this is called
    --  a lot.
 
-   package Item_Set_Arrays is new SAL.Gen_Unbounded_Definite_Vectors (State_Index, Item_Set);
+   package Item_Set_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
+     (State_Index, Item_Set, Default_Element => (others => <>));
    subtype Item_Set_List is Item_Set_Arrays.Vector;
 
-   package State_Index_Arrays is new SAL.Gen_Unbounded_Definite_Vectors (Positive, State_Index);
-
-   package Int_Arrays is new SAL.Gen_Unbounded_Definite_Vectors (Positive, Interfaces.Integer_16);
+   package Int_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
+     (Positive, Interfaces.Integer_16, Default_Element => Interfaces.Integer_16'Last);
    function Compare_Integer_16 (Left, Right : in Interfaces.Integer_16) return SAL.Compare_Result is
      (if Left > Right then SAL.Greater
       elsif Left < Right then SAL.Less
@@ -309,6 +309,13 @@ package WisiToken.Generate.LR1_Items is
       Descriptor      : in WisiToken.Descriptor;
       Item            : in LR1_Items.Item;
       Show_Lookaheads : in Boolean := True);
+
+   procedure Put
+     (Grammar         : in WisiToken.Productions.Prod_Arrays.Vector;
+      Descriptor      : in WisiToken.Descriptor;
+      Item            : in Item_Lists.List;
+      Show_Lookaheads : in Boolean := True;
+      Kernel_Only     : in Boolean := False);
 
    procedure Put
      (Grammar         : in WisiToken.Productions.Prod_Arrays.Vector;

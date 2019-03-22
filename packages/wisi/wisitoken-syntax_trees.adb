@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018, 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -33,9 +33,12 @@ package body WisiToken.Syntax_Trees is
 
    procedure Move_Branch_Point (Tree : in out Syntax_Trees.Tree; Required_Node : in Valid_Node_Index);
 
+   type Visit_Parent_Mode is (Before, After);
+
    function Process_Tree
      (Tree         : in Syntax_Trees.Tree;
       Node         : in Valid_Node_Index;
+      Visit_Parent : in Visit_Parent_Mode;
       Process_Node : access function
         (Tree : in Syntax_Trees.Tree;
          Node : in Valid_Node_Index)
@@ -355,11 +358,77 @@ package body WisiToken.Syntax_Trees is
          end if;
       end Process;
 
-      Junk : constant Boolean := Process_Tree (Tree, Node, Process'Access);
+      Junk : constant Boolean := Process_Tree (Tree, Node, After, Process'Access);
       pragma Unreferenced (Junk);
    begin
       return Found;
    end Find_Descendant;
+
+   function Find_Min_Terminal_Index
+     (Tree  : in Syntax_Trees.Tree;
+      Index : in Token_Index)
+     return Node_Index
+   is
+      Found : Node_Index := Invalid_Node_Index;
+
+      function Process (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Boolean
+      is
+         function Compute (N : in Syntax_Trees.Node) return Boolean
+         is begin
+            if N.Label /= Nonterm then
+               return True;
+            elsif Index = N.Min_Terminal_Index then
+               Found := Node;
+               return False;
+            else
+               return True;
+            end if;
+         end Compute;
+      begin
+         return Compute
+           ((if Node <= Tree.Last_Shared_Node
+             then Tree.Shared_Tree.Nodes (Node)
+             else Tree.Branched_Nodes (Node)));
+      end Process;
+
+      Junk : constant Boolean := Process_Tree (Tree, Tree.Root, Before, Process'Access);
+      pragma Unreferenced (Junk);
+   begin
+      return Found;
+   end Find_Min_Terminal_Index;
+
+   function Find_Max_Terminal_Index
+     (Tree  : in Syntax_Trees.Tree;
+      Index : in Token_Index)
+     return Node_Index
+   is
+      Found : Node_Index := Invalid_Node_Index;
+
+      function Process (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Boolean
+      is
+         function Compute (N : in Syntax_Trees.Node) return Boolean
+         is begin
+            if N.Label /= Nonterm then
+               return True;
+            elsif Index = N.Max_Terminal_Index then
+               Found := Node;
+               return False;
+            else
+               return True;
+            end if;
+         end Compute;
+      begin
+         return Compute
+           ((if Node <= Tree.Last_Shared_Node
+             then Tree.Shared_Tree.Nodes (Node)
+             else Tree.Branched_Nodes (Node)));
+      end Process;
+
+      Junk : constant Boolean := Process_Tree (Tree, Tree.Root, Before, Process'Access);
+      pragma Unreferenced (Junk);
+   begin
+      return Found;
+   end Find_Max_Terminal_Index;
 
    function Find_Sibling
      (Tree : in Syntax_Trees.Tree;
@@ -791,6 +860,7 @@ package body WisiToken.Syntax_Trees is
    function Process_Tree
      (Tree         : in Syntax_Trees.Tree;
       Node         : in Valid_Node_Index;
+      Visit_Parent : in Visit_Parent_Mode;
       Process_Node : access function
         (Tree : in Syntax_Trees.Tree;
          Node : in Valid_Node_Index)
@@ -799,15 +869,25 @@ package body WisiToken.Syntax_Trees is
    is
       function Compute (N : in Syntax_Trees.Node) return Boolean
       is begin
+         if Visit_Parent = Before then
+            if not Process_Node (Tree, Node) then
+               return False;
+            end if;
+         end if;
+
          if N.Label = Nonterm then
             for Child of N.Children loop
-               if not Process_Tree (Tree, Child, Process_Node) then
+               if not Process_Tree (Tree, Child, Visit_Parent, Process_Node) then
                   return False;
                end if;
             end loop;
          end if;
 
-         return Process_Node (Tree, Node);
+         if Visit_Parent = After then
+            return Process_Node (Tree, Node);
+         else
+            return True;
+         end if;
       end Compute;
    begin
       if Node <= Tree.Last_Shared_Node then
@@ -915,6 +995,7 @@ package body WisiToken.Syntax_Trees is
       else
          Tree.Branched_Nodes (Node).Augmented := Value;
       end if;
+      Tree.Shared_Tree.Augmented_Present := True;
    end Set_Augmented;
 
    procedure Set_Children
