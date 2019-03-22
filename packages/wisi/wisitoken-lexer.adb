@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -52,5 +52,10 @@ package body WisiToken.Lexer is
    is begin
       return -Source.File_Name;
    end File_Name;
+
+   function To_Char_Pos (Source : in Lexer.Source; Lexer_Char_Pos : in Integer) return Base_Buffer_Pos
+   is begin
+      return Base_Buffer_Pos (Lexer_Char_Pos) + Source.Buffer_Nominal_First_Char - Buffer_Pos'First;
+   end To_Char_Pos;
 
 end WisiToken.Lexer;

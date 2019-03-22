@@ -2,7 +2,7 @@
 --
 --  Base utilities for McKenzie_Recover
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -18,6 +18,7 @@
 pragma License (Modified_GPL);
 
 with Ada.Exceptions;
+with WisiToken.Parse.LR.Parser;
 with WisiToken.Parse.LR.Parser_Lists;
 private package WisiToken.Parse.LR.McKenzie_Recover.Base is
 
@@ -165,7 +166,7 @@ private package WisiToken.Parse.LR.McKenzie_Recover.Base is
    --  There is only one object of this type, declared in Recover. It
    --  provides appropriate access to Shared_Parser components.
    --
-   --  Since all the accesible objects are read-only (except Trace),
+   --  Since all the accessible objects are read-only (except Trace),
    --  there are no protected operations, and this is not a protected
    --  type.
 

@@ -27,7 +27,7 @@ with WisiToken_Grammar_Runtime;
 package WisiToken.BNF.Generate_Utils is
 
    EOI_Name : constant String := "Wisi_EOI";
-   --  EOI_Name is used for EOF_ID token; it must match Emacs ada-mode
+   --  EOI_Name is used for Descriptor.EOI_ID token; it must match Emacs ada-mode
    --  wisi.el wisi-eoi-term. It must be a valid Ada identifier when
    --  "_ID" is appended.
 

@@ -5,7 +5,7 @@
 --  In a child package of Parser.LR partly for historical reasons,
 --  partly to allow McKenzie_Recover to be in a sibling package.
 --
---  Copyright (C) 2002, 2003, 2009, 2010, 2013-2015, 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2002, 2003, 2009, 2010, 2013-2015, 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --
@@ -53,14 +53,19 @@ package WisiToken.Parse.LR.Parser is
    --  For an Error action, Config.Error_Token gives the terminal that
    --  caused the error.
 
-   type Language_Use_Minimal_Complete_Actions_Access is access function
-     (Next_Token : in Token_ID;
-      Config     : in Configuration)
-     return Boolean;
-   --  Return True if using Minimal_Complete_Actions is appropriate.
+   type Language_Use_Minimal_Complete_Actions_Access is access procedure
+     (Current_Token        : in     Token_ID;
+      Next_Token           : in     Token_ID;
+      Config               : in     Configuration;
+      Use_Complete         :    out Boolean;
+      Matching_Begin_Token :    out Token_ID);
+   --  Set Use_Complete True if using Minimal_Complete_Actions is
+   --  appropriate. Set Matching_Begin_Token to token that starts a production
+   --  matching Next_Token (and following tokens, if any).
    --
    --  For example, if Next_Token is a block end, return True to complete
-   --  the current statement/declaration as quickly as possible..
+   --  the current statement/declaration as quickly as possible, and
+   --  Matching_Begin_Token to the corresponding block begin.
 
    type Language_String_ID_Set_Access is access function
      (Descriptor        : in WisiToken.Descriptor;
@@ -131,8 +136,14 @@ package WisiToken.Parse.LR.Parser is
    --  For errors where no recovery is possible, raises Parse_Error with
    --  an appropriate error message.
 
+   overriding function Tree (Shared_Parser : in Parser) return Syntax_Trees.Tree;
+   --  If there is one parser in Parsers, return its tree. Otherwise,
+   --  raise Parse_Error for an ambiguous parse.
+
    overriding procedure Execute_Actions (Parser : in out LR.Parser.Parser);
-   --  Execute the grammar actions in Parser.
+   --  Call User_Data.Reduce on all nonterms in the syntax tree, then
+   --  User_Data.Delete_Token on any tokens deleted by error recovery,
+   --  then the grammar semantic actions.
 
    overriding function Any_Errors (Parser : in LR.Parser.Parser) return Boolean;
    --  Return True if any errors where encountered, recovered or not.

@@ -1,15 +1,15 @@
 ;;; wisi.el --- Utilities for implementing an indentation/navigation engine using a generalized LALR parser -*- lexical-binding:t -*-
 ;;
-;; Copyright (C) 2012 - 2018  Free Software Foundation, Inc.
+;; Copyright (C) 2012 - 2019  Free Software Foundation, Inc.
 ;;
 ;; Author: Stephen Leake <stephen_leake@stephe-leake.org>
 ;; Maintainer: Stephen Leake <stephen_leake@stephe-leake.org>
 ;; Keywords: parser
 ;;  indentation
 ;;  navigation
-;; Version: 2.0.1
+;; Version: 2.1.0
 ;; package-requires: ((cl-lib "1.0") (emacs "25.0") (seq "2.20"))
-;; URL: http://www.nongnu.org/ada-mode/wisi/wisi.html
+;; URL: http://stephe-leake.org/ada/wisitoken.html
 ;;
 ;; This file is part of GNU Emacs.
 ;;
@@ -47,6 +47,9 @@
 ;; at different times (user indent, font-lock, user navigate), so only
 ;; the relevant parser actions are run.
 ;;
+;; Parsing can be noticeably slow in large files, so sometimes we do a
+;; partial parse, and keep a list of parsed regions.
+;;
 ;; Since we have a cache (the text properties), we need to consider
 ;; when to invalidate it.  Ideally, we invalidate only when a change
 ;; to the buffer would change the result of a parse that crosses that
@@ -56,16 +59,23 @@
 ;; indentation (Python).  Adding comments does not change a parse,
 ;; unless code is commented out.
 ;;
-;; For font-lock and navigate, keeping track of the point after which
-;; caches have been deleted is sufficent (see `wisi-cache-max').
+;; For navigate, we expect fully accurate results, and can tolerate
+;; one initial delay, so we always parse the entire file.
 ;;
-;; For indenting, we cache the indent for each line in a text property
-;; on the newline char preceding the line. `wisi-indent-region' sets
-;; the cache on all the lines computed (normally the whole buffer),
-;; but performs the indent only on the lines in the indent
+;; For font-lock, we only parse the portion of the file requested by
+;; font-lock, so we keep a list of regions, and edit that list when
+;; the buffer is changed..
+;;
+;; For indenting, we expect fast results, and can tolerate some
+;; inaccuracy until the editing is done, so we allow partial parse. We
+;; cache the indent for each line in a text property on the newline
+;; char preceding the line. `wisi-indent-region' sets the cache on all
+;; the lines computed (part of the buffer in large files), but
+;; performs the indent only on the lines in the indent
 ;; region. Subsequent calls to `wisi-indent-region' apply the cached
 ;; indents. Non-whitespace edits to the buffer invalidate the indent
-;; caches in the edited region and after.
+;; caches in the edited region and after. Since we can do partial
+;; parse, we keep a list of parsed regions.
 ;;
 ;; See `wisi--post-change' for the details of what we check for
 ;; invalidating.
@@ -85,7 +95,8 @@
 ;;   The Ada grammar as given in the Ada language reference manual is
 ;;   not LALR(1). So we use a generalized parser. In addition, the
 ;;   semantic lexer is more complex, and gives different information
-;;   than we need.
+;;   than we need. Finally, the semantic parser does not support error
+;;   correction, and thus fails in most editing situations.
 ;;
 ;; We use wisitoken wisi-generate to compile BNF to Elisp source, and
 ;; wisi-compile-grammar to compile that to the parser table. See
@@ -120,12 +131,22 @@
 (require 'wisi-elisp-lexer)
 (require 'wisi-fringe)
 
-(defcustom wisi-size-threshold 100000
+(defcustom wisi-size-threshold most-positive-fixnum
   "Max size (in characters) for using wisi parser results for anything."
   :type 'integer
   :group 'wisi
   :safe 'integerp)
 (make-variable-buffer-local 'wisi-size-threshold)
+
+(defcustom wisi-partial-parse-threshold 100001
+  "Min size (in characters) for using partial wisi parser.
+The partial parser finds a nearby start point, and parses a small
+portion of the file containing the region to parse. For indent,
+it assumes the start point is properly indented."
+  :type 'integer
+  :group 'wisi
+  :safe 'integerp)
+(make-variable-buffer-local 'wisi-partial-parse-threshold)
 
 (defvar wisi-inhibit-parse nil
   "When non-nil, don't run the parser.
@@ -145,6 +166,14 @@ Useful when debugging parser or parser actions."
 (defvar wisi-error-buffer nil
   "Buffer for displaying syntax errors.")
 
+(defun wisi-safe-marker-pos (pos)
+  "Return an integer buffer position from POS, an integer or marker"
+  (cond
+   ((markerp pos)
+    (marker-position pos))
+
+   (t pos)))
+
 ;;;; token info cache
 
 (defvar-local wisi-parse-failed nil
@@ -163,100 +192,183 @@ Useful when debugging parser or parser actions."
 (defun wisi-set-parse-try (value &optional parse-action)
   (setcdr (assoc (or parse-action wisi--parse-action) wisi--parse-try) value))
 
-(defvar-local wisi--cache-max
+(defvar-local wisi--cached-regions
   (list
    (cons 'face nil)
    (cons 'navigate nil)
    (cons 'indent nil))
-  "Alist of maximimum position in buffer where parser text properties are valid.")
+  "Alist of lists of regions in buffer where parser text properties are valid.
+Regions in a list are in random order.")
 
-(defun wisi-cache-max (&optional parse-action)
-  ;; Don't need 'wisi-set-cache-max; (move-marker (wisi-cache-max) foo) works
-  (let ((mark (cdr (assoc (or parse-action wisi--parse-action) wisi--cache-max))))
-    (unless (marker-position mark)
-      ;; Sometimes marker gets set to <marker in no buffer>; not clear how.
-      (move-marker mark (point-min)))
-    mark))
+(defun wisi--contained-region (begin end region)
+  "Non-nil if BEGIN END (buffer positions) is contained in REGION (a cons of positions)."
+  ;; We assume begin < end
+  (and (<= (car region) begin)
+       (<= end (cdr region))))
+
+(defun wisi--contained-pos (pos region)
+  "Non-nil if POS (a buffer position) is contained in REGION (a cons of positions)."
+  (and (<= (car region) pos)
+       (<= pos (cdr region))))
+
+(defun wisi-cache-covers-region (begin end &optional parse-action)
+  "Non-nil if BEGIN END is contained in a parsed region."
+  (let ((region-list (cdr (assoc (or parse-action wisi--parse-action) wisi--cached-regions)))
+	region)
+    (while (and region-list
+		(not (wisi--contained-region begin end (car region-list))))
+      (pop region-list))
+
+    (when region-list
+      ;; return a nice value for verbosity in wisi-validate-cache
+      (setq region (car region-list))
+      (cons (marker-position (car region)) (marker-position (cdr region))))))
+
+(defun wisi-cache-covers-pos (parse-action pos)
+  "Non-nil if POS is contained in a PARSE-ACTION parsed region."
+  (let ((region-list (cdr (assoc parse-action wisi--cached-regions))))
+    (while (and region-list
+		(not (wisi--contained-pos pos (car region-list))))
+      (pop region-list))
+
+    (when region-list
+      t)))
+
+(defun wisi-cache-contains-pos (parse-action pos)
+  "Non-nil if POS is at or before the end of any PARSE-ACTION parsed region."
+  (let ((region-list (cdr (assoc parse-action wisi--cached-regions)))
+	result)
+    (while (and (not result) region-list)
+      (when (<= pos (cdr (car region-list)))
+	(setq result t))
+      (pop region-list))
+
+    result))
+
+(defun wisi-cache-set-region (region)
+  "Set the cached region list for `wisi--parse-action' to REGION."
+  (setcdr (assoc wisi--parse-action wisi--cached-regions)
+	  (list (cons (copy-marker (car region))
+		      (copy-marker (cdr region))))))
+
+(defun wisi-cache-add-region (region)
+  "Add REGION to the cached region list for `wisi--parse-action'."
+  (push (cons (copy-marker (car region))
+	      (copy-marker (cdr region)))
+	(cdr (assoc wisi--parse-action wisi--cached-regions))))
+
+(defun wisi-cache-delete-regions-after (parse-action pos)
+  "Delete any PARSE-ACTION parsed region at or after POS.
+Truncate any region that overlaps POS."
+  (let ((region-list (cdr (assoc parse-action wisi--cached-regions)))
+	result)
+    (while (and (not result) region-list)
+      (cond
+       ((and (> pos (car (car region-list)))
+	     (<= pos (cdr (car region-list))))
+	;; region contains POS; keep truncated
+	(push (cons (car (car region-list)) (copy-marker pos)) result))
+
+       ((> pos (car (car region-list)))
+	;; region is entirely before POS; keep
+	(push (car region-list) result))
+
+       ;; else region is entirely after POS; delete
+       )
+
+      (pop region-list))
+    (setcdr (assoc parse-action wisi--cached-regions) result)
+    ))
 
 (defun wisi--delete-face-cache (after)
   (with-silent-modifications
-    (remove-text-properties after (point-max) '(wisi-face nil 'font-lock-face nil))
-    ))
+    (remove-text-properties after (point-max) '(font-lock-face nil))
+    )
+  (wisi-cache-delete-regions-after 'face after))
 
 (defun wisi--delete-navigate-cache (after)
   (with-silent-modifications
     ;; This text property is 'wisi-cache', not 'wisi-navigate', for
     ;; historical reasons.
     (remove-text-properties after (point-max) '(wisi-cache nil))
-    ))
+    )
+  (wisi-cache-delete-regions-after 'navigate after))
 
 (defun wisi--delete-indent-cache (after)
   (with-silent-modifications
     (remove-text-properties after (point-max) '(wisi-indent nil))
-    ))
+    )
+  (wisi-cache-delete-regions-after 'indent after))
 
 (defun wisi-invalidate-cache (action after)
   "Invalidate ACTION caches for the current buffer from AFTER to end of buffer."
-  (when (< after (wisi-cache-max action))
+  (when (wisi-cache-contains-pos action after)
     (when (> wisi-debug 0) (message "wisi-invalidate-cache %s:%s:%d" action (current-buffer) after))
     (cond
      ((eq 'face action)
       (wisi--delete-face-cache after))
 
      ((eq 'navigate action)
-      ;; We goto statement start to ensure that motion within nested
-      ;; structures is properly done (ie prev/next on ’elsif’ is not
-      ;; set by wisi-motion-action if already set by a lower level
-      ;; statement). We don’t do it for ’face or ’indent, because that
-      ;; might require a parse, and they don’t care about nested
-      ;; structures.
-      (save-excursion
-	(goto-char after)
+      (when (wisi-cache-covers-pos 'navigate after)
+	;; We goto statement start to ensure that motion within nested
+	;; structures is properly done (ie prev/next on ’elsif’ is not
+	;; set by wisi-motion-action if already set by a lower level
+	;; statement). We don’t do it for ’face or ’indent, because that
+	;; might require a parse, and they don’t care about nested
+	;; structures.
+	(save-excursion
+	  (goto-char after)
 
-	;; This is copied from ‘wisi-goto-statement-start’; we can’t
-	;; call that because it would call ‘wisi-validate-cache’,
-	;; which would call ‘wisi-invalidate-cache’; infinite loop.
-	;; If this needed a navigate parse to succeed, we would not
-	;; get here.
-	(let ((cache (or (wisi-get-cache (point))
-			 (wisi-backward-cache))))
-	  (cond
-	   ((null cache)
-	    ;; at bob
-	    nil)
+	  ;; This is copied from ‘wisi-goto-statement-start’; we can’t
+	  ;; call that because it would call ‘wisi-validate-cache’,
+	  ;; which would call ‘wisi-invalidate-cache’; infinite loop.
+	  ;; If this needed a navigate parse to succeed, we would not
+	  ;; get here.
+	  (let ((cache (or (wisi-get-cache (point))
+			   (wisi-backward-cache))))
+	    (cond
+	     ((null cache)
+	      ;; at bob
+	      nil)
 
-	   ((eq 'statement-end (wisi-cache-class cache))
-	    ;; If the change did affect part of a structure statement,
-	    ;; this is a lower level statement. Otherwise, we are
-	    ;; invalidating more than necessary; not a problem.
-	    (wisi-goto-start cache)
-	    (setq cache (wisi-backward-cache))
-	    (when cache ;; else bob
-	      (wisi-goto-start cache)))
+	     ((eq 'statement-end (wisi-cache-class cache))
+	      ;; If the change did affect part of a structure statement,
+	      ;; this is a lower level statement. Otherwise, we are
+	      ;; invalidating more than necessary; not a problem.
+	      (wisi-goto-start cache)
+	      (setq cache (wisi-backward-cache))
+	      (when cache ;; else bob
+		(wisi-goto-start cache)))
 
-	   (t
-	    (wisi-goto-start cache))
-	   ))
+	     (t
+	      (wisi-goto-start cache))
+	     ))
 
-	(setq after (point)))
+	  (setq after (point))))
       (wisi--delete-navigate-cache after))
 
      ((eq 'indent action)
-      ;; indent cache is stored on newline before line being indented.
+      ;; The indent cache is stored on newline before line being
+      ;; indented. We delete that, because changing text on a line can
+      ;; change the indent of that line.
       (setq after
 	    (save-excursion
 	      (goto-char after)
 	      (line-beginning-position)))
       (wisi--delete-indent-cache (max 1 (1- after))))
      )
-    (move-marker (wisi-cache-max action) after)
     ))
 
 (defun wisi-reset-parser ()
-  "For ’ada-reset-parser’."
-  (wisi-invalidate-cache 'indent 0)
-  (wisi-invalidate-cache 'face 0)
-  (wisi-invalidate-cache 'navigate 0))
+  "Force a parse."
+  (interactive)
+  (wisi-invalidate-cache 'indent (point-min))
+  (wisi-invalidate-cache 'face (point-min))
+  (wisi-invalidate-cache 'navigate (point-min))
+  (wisi-set-parse-try t 'indent)
+  (wisi-set-parse-try t 'face)
+  (wisi-set-parse-try t 'navigate)
+  (wisi-fringe-clean))
 
 ;; wisi--change-* keep track of buffer modifications.
 ;; If wisi--change-end comes before wisi--change-beg, it means there were
@@ -323,21 +435,35 @@ Used to ignore whitespace changes in before/after change hooks.")
   "For `after-change-functions'"
   ;; begin . end is range of text being inserted (empty if equal);
   ;; length is the size of the deleted text.
-  ;;
-  ;; This change might be changing to/from a keyword; trigger
-  ;; font-lock. See test/ada_mode-interactive_common.adb Obj_1.
-  (unless wisi-indenting-p
+
+  ;; Remove caches on inserted text, which could have caches from
+  ;; anywhere, and are in any case invalid.
+
+  ;; If the insertion changes a word that has wisi fontification,
+  ;; remove fontification from the entire word, so it is all
+  ;; refontified consistently.
+
+  (let (word-begin word-end)
     (save-excursion
-      (let (word-end)
-	(goto-char end)
-	(skip-syntax-forward "w_")
-	(setq word-end (point))
-	(goto-char begin)
-	(skip-syntax-backward "w_")
+      (goto-char end)
+      (skip-syntax-forward "w_")
+      (setq word-end (point))
+      (goto-char begin)
+      (skip-syntax-backward "w_")
+      (setq word-begin (point)))
+    (if (get-text-property word-begin 'font-lock-face)
 	(with-silent-modifications
-	  (remove-text-properties (point) word-end '(font-lock-face nil fontified nil)))
-	)
-      )))
+	  (remove-text-properties
+	   word-begin word-end
+	   '(font-lock-face nil wisi-cache nil wisi-indent nil fontified nil)))
+
+      ;; No point in removing
+      ;; 'fontified here; that's already handled by jit-lock.
+      (with-silent-modifications
+	(remove-text-properties
+	 begin end
+	 '(font-lock-face nil wisi-cache nil wisi-indent nil))))
+    ))
 
 (defun wisi--post-change (begin end)
   "Update wisi text properties for changes in region BEG END."
@@ -345,14 +471,6 @@ Used to ignore whitespace changes in before/after change hooks.")
 
   ;; see comments above on syntax-propertize
   (when (< emacs-major-version 25) (syntax-propertize end))
-
-  ;; Remove caches on inserted text, which could have caches from
-  ;; before the failed parse (or another buffer), and are in any case
-  ;; invalid. No point in removing 'fontified; that's handled by
-  ;; jit-lock.
-
-  (with-silent-modifications
-    (remove-text-properties begin end '(wisi-cache nil font-lock-face nil)))
 
   (save-excursion
     (let ((need-invalidate t)
@@ -547,19 +665,31 @@ Usefull if the parser appears to be hung."
   ;; also force re-parse
   (dolist (parse-action '(face navigate indent))
     (wisi-set-parse-try t parse-action)
-    (move-marker (wisi-cache-max parse-action) (point-max));; force delete caches
     (wisi-invalidate-cache parse-action (point-min)))
   )
 
-(defun wisi--run-parse ()
-  "Run the parser."
-  (unless (buffer-narrowed-p)
-    (let ((msg (when (> wisi-debug 0)
-		 (format "wisi: parsing %s %s:%d ..."
-			 wisi--parse-action
-			 (buffer-name)
-			 (line-number-at-pos (point))))))
-      (when (> wisi-debug 0)
+(defun wisi-partial-parse-p (begin end)
+  (and (wisi-process--parser-p wisi--parser)
+       (not (and (= begin (point-min))
+		 (= end (point-max))))
+       (>= (point-max) wisi-partial-parse-threshold)))
+
+(defun wisi--run-parse (begin parse-end)
+  "Run the parser, on at least region BEGIN PARSE-END."
+  (unless (or (buffer-narrowed-p)
+	      (= (point-min) (point-max))) ;; some parsers can’t handle an empty buffer.
+    (let* ((partial-parse-p (wisi-partial-parse-p begin parse-end))
+	   (msg (when (> wisi-debug 0)
+		  (format "wisi: %sparsing %s %s:%d %d %d ..."
+			  (if partial-parse-p "partial " "")
+			  wisi--parse-action
+			  (buffer-name)
+			  begin
+			  (if (markerp parse-end) (marker-position parse-end) parse-end)
+			  (line-number-at-pos begin))))
+	   (parsed-region nil))
+
+      (when msg
 	(message msg))
 
       (setq wisi--last-parse-action wisi--parse-action)
@@ -573,19 +703,25 @@ Usefull if the parser appears to be hung."
 
       (condition-case-unless-debug err
 	  (save-excursion
-	    (wisi-parse-current wisi--parser)
-	    (setq wisi-parse-failed nil)
-	    (move-marker (wisi-cache-max) (point))
-	    )
+	    (if partial-parse-p
+	      (let ((send-region (wisi-parse-expand-region wisi--parser begin parse-end)))
+		(setq parsed-region (wisi-parse-current wisi--parser (car send-region) (cdr send-region) parse-end))
+		(wisi-cache-add-region parsed-region))
+
+	      ;; parse full buffer
+	      (setq parsed-region (cons (point-min) (point-max)))
+	      (wisi-cache-set-region (wisi-parse-current wisi--parser (point-min) (point-max) (point-max))))
+
+	    (when (> wisi-debug 0) (message "... parsed %s" parsed-region))
+	    (setq wisi-parse-failed nil))
 	(wisi-parse-error
 	 (cl-ecase wisi--parse-action
 	   (face
-	    ;; caches set by failed parse are ok
-	    (wisi--delete-face-cache (wisi-cache-max)))
+	    ;; caches set by failed elisp parse are ok
+	    (wisi--delete-face-cache (cdr parsed-region)))
 
 	   (navigate
-	    ;; parse partially resets caches before and after wisi-cache-max
-	    (move-marker (wisi-cache-max) (point-min))
+	    ;; elisp parse partially resets caches
 	    (wisi--delete-navigate-cache (point-min)))
 
 	   (indent
@@ -600,12 +736,13 @@ Usefull if the parser appears to be hung."
 	 (signal (car err) (cdr err)))
 	)
 
-      (wisi-fringe-display-errors
-       (append
-	(seq-map (lambda (err) (wisi--lexer-error-pos err)) (wisi-parser-lexer-errors wisi--parser))
-	(seq-map (lambda (err) (wisi--parse-error-pos err)) (wisi-parser-parse-errors wisi--parser))))
+      (unless partial-parse-p
+	(wisi-fringe-display-errors
+	 (append
+	  (seq-map (lambda (err) (wisi--lexer-error-pos err)) (wisi-parser-lexer-errors wisi--parser))
+	  (seq-map (lambda (err) (wisi--parse-error-pos err)) (wisi-parser-parse-errors wisi--parser)))))
 
-      (when (> wisi-debug 0)
+      (when (> wisi-debug 1)
 	(if (or (wisi-parser-lexer-errors wisi--parser)
 		(wisi-parser-parse-errors wisi--parser))
 	    (progn
@@ -632,23 +769,30 @@ Usefull if the parser appears to be hung."
     (move-marker wisi--change-end (point-min))
     ))
 
-(defun wisi-validate-cache (pos error-on-fail parse-action)
-  "Ensure cached data for PARSE-ACTION is valid at least up to POS in current buffer."
-  (if (< (point-max) wisi-size-threshold)
+(defun wisi-validate-cache (begin end error-on-fail parse-action)
+  "Ensure cached data for PARSE-ACTION is valid in region BEGIN END in current buffer."
+  (if (and (not wisi-inhibit-parse)
+	   (< (point-max) wisi-size-threshold))
       (let ((wisi--parse-action parse-action))
 	(wisi--check-change)
 
-	;; Now we can rely on wisi-cache-max.
+	;; Now we can rely on wisi-cache-covers-region
 
-	;; If wisi-cache-max = pos, then there is no cache at pos; need parse
-	(when (and (not wisi-inhibit-parse)
-		   (wisi-parse-try)
-		   (<= (wisi-cache-max) pos))
+	(if (and (or (not wisi-parse-failed)
+		     (wisi-parse-try))
+		(not (wisi-cache-covers-region begin end)))
+	    (progn
+	      ;; Don't keep retrying failed parse until text changes again.
+	      (wisi-set-parse-try nil)
+	      (wisi--run-parse begin end))
 
-	  ;; Don't keep retrying failed parse until text changes again.
-	  (wisi-set-parse-try nil)
-
-	  (wisi--run-parse))
+	  (when (> wisi-debug 0)
+	    (message "parse %s skipped: parse-failed %s parse-try %s cache-covers-region %s %s.%s"
+		     parse-action
+		     wisi-parse-failed
+		     (wisi-parse-try)
+		     (wisi-cache-covers-region begin end)
+		     begin end)))
 
 	;; We want this error even if we did not try to parse; it means
 	;; the parse results are not valid.
@@ -656,11 +800,14 @@ Usefull if the parser appears to be hung."
 	  (error "parse %s failed" parse-action))
 	)
     (when (> wisi-debug 0)
-      (message "parse skipped due to ‘wisi-size-threshold’"))))
+      (message "parse %s skipped inihibit-parse %s wisi-size-threshold %d"
+	       parse-action
+	       wisi-inhibit-parse
+	       wisi-size-threshold))))
 
-(defun wisi-fontify-region (_begin end)
+(defun wisi-fontify-region (begin end)
   "For `jit-lock-functions'."
-  (wisi-validate-cache end nil 'face))
+  (wisi-validate-cache begin end nil 'face))
 
 (defun wisi-get-containing-cache (cache)
   "Return cache from (wisi-cache-containing CACHE)."
@@ -746,7 +893,7 @@ If LIMIT (a buffer position) is reached, throw an error."
 cache. Otherwise move to cache-next, or cache-end, or next cache
 if both nil.  Return cache found."
   (unless (eobp)
-    (wisi-validate-cache (point-max) t 'navigate) ;; ensure there is a next cache to move to
+    (wisi-validate-cache (point-min) (point-max) t 'navigate)
     (let ((cache (wisi-get-cache (point))))
       (if (and cache
 	       (not (eq (wisi-cache-class cache) 'statement-end)))
@@ -763,7 +910,7 @@ if both nil.  Return cache found."
 (defun wisi-backward-statement-keyword ()
   "If not at a cached token, move backward to prev
 cache. Otherwise move to cache-prev, or prev cache if nil."
-  (wisi-validate-cache (point) t 'navigate)
+  (wisi-validate-cache (point-min) (point-max) t 'navigate)
   (let ((cache (wisi-get-cache (point)))
 	prev)
     (when cache
@@ -849,14 +996,14 @@ Return start cache."
   "Move point to token at start of statement point is in or after.
 Return start cache."
   (interactive)
-  (wisi-validate-cache (point) t 'navigate)
+  (wisi-validate-cache (point-min) (point-max) t 'navigate)
   (wisi-goto-start (or (wisi-get-cache (point))
 		       (wisi-backward-cache))))
 
 (defun wisi-goto-statement-end ()
   "Move point to token at end of statement point is in or before."
   (interactive)
-  (wisi-validate-cache (point) t 'navigate)
+  (wisi-validate-cache (point-min) (point-max) t 'navigate)
   (let ((cache (or (wisi-get-cache (point))
 		   (wisi-forward-cache))))
     (when (wisi-cache-end cache)
@@ -914,7 +1061,7 @@ the comment on the previous line."
 
 (defun wisi-indent-statement ()
   "Indent region given by `wisi-goto-start', `wisi-cache-end'."
-  (wisi-validate-cache (point) t 'navigate)
+  (wisi-validate-cache (point-min) (point-max) t 'navigate)
 
   (save-excursion
     (let ((cache (or (wisi-get-cache (point))
@@ -965,8 +1112,43 @@ Called with BEGIN END.")
 	;; single line in buffer; terminate loop
 	(goto-char (point-max))))))
 
-(defun wisi-indent-region (begin end)
-  "For `indent-region-function', using the wisi indentation engine."
+(defun wisi-list-memq (a b)
+  "Return non-nil if any member of A is a memq of B."
+  (let ((temp (copy-sequence a))
+	result)
+    (while (and (not result)
+		temp)
+      (when (memq (pop temp) b)
+	(setq result t)))
+    result))
+
+(defun wisi--get-cached-indent (begin end)
+  "Return cached indent for point (must be bol), after correcting
+for parse errors. BEGIN, END is the parsed region."
+  (let ((indent (get-text-property (1- (point)) 'wisi-indent)))
+    (unless indent
+      (error "nil indent for line %d" (line-number-at-pos (point))))
+    (when (and (wisi-partial-parse-p begin end)
+	       (< 0 (length (wisi-parser-parse-errors wisi--parser))))
+      (dolist (err (wisi-parser-parse-errors wisi--parser))
+	(dolist (repair (wisi--parse-error-repair err))
+	  ;; point is at bol; error pos may be at first token on same line.
+	  (save-excursion
+	    (back-to-indentation)
+	    (when (>= (point) (wisi--parse-error-repair-pos repair))
+	      (setq indent (max 0 (wisi-parse-adjust-indent wisi--parser indent repair))))
+	    ))))
+    indent))
+
+(defun wisi-indent-region (begin end &optional indent-blank-lines)
+  "For `indent-region-function', using the wisi indentation engine.
+If INDENT-BLANK-LINES is non-nil, also indent blank lines (for use as
+`indent-line-function')."
+  (when (< 0 wisi-debug)
+    (message "wisi-indent-region %d %d"
+	     (wisi-safe-marker-pos begin)
+	     (wisi-safe-marker-pos end)))
+
   (let ((wisi--parse-action 'indent)
 	(parse-required nil)
 	(end-mark (copy-marker end))
@@ -974,14 +1156,15 @@ Called with BEGIN END.")
 
     (wisi--check-change)
 
-    ;; Always indent the line containing BEGIN.
+    ;; BEGIN is inclusive; END is exclusive.
     (save-excursion
       (goto-char begin)
       (setq begin (line-beginning-position))
 
       (when (bobp) (forward-line))
       (while (and (not parse-required)
-		  (<= (point) end)
+		  (or (and (= begin end) (= (point) end))
+		      (< (point) end))
 		  (not (eobp)))
 	(unless (get-text-property (1- (point)) 'wisi-indent)
 	  (setq parse-required t))
@@ -989,18 +1172,23 @@ Called with BEGIN END.")
       )
 
     ;; A parse either succeeds and sets the indent cache on all
-    ;; lines in the buffer, or fails and leaves valid caches
+    ;; lines in the parsed region, or fails and leaves valid caches
     ;; untouched.
     (when (and parse-required
-	       (wisi-parse-try))
+	       (or (not wisi-parse-failed)
+		   (wisi-parse-try 'indent)))
 
       (wisi-set-parse-try nil)
-      (wisi--run-parse)
+
+      (wisi--run-parse begin end)
 
       ;; If there were errors corrected, the indentation is
-      ;; potentially ambiguous; see test/ada_mode-interactive_2.adb
-      (setq wisi-indent-failed (< 0 (+ (length (wisi-parser-lexer-errors wisi--parser))
-				       (length (wisi-parser-parse-errors wisi--parser)))))
+      ;; potentially ambiguous; see
+      ;; test/ada_mode-interactive_2.adb. Or it was a partial parse,
+      ;; where errors producing bad indent are pretty much expected.
+      (unless (wisi-partial-parse-p begin end)
+	(setq wisi-indent-failed (< 0 (+ (length (wisi-parser-lexer-errors wisi--parser))
+					 (length (wisi-parser-parse-errors wisi--parser))))))
       )
 
     (if wisi-parse-failed
@@ -1008,6 +1196,8 @@ Called with BEGIN END.")
 	  ;; primary indent failed
 	  (setq wisi-indent-failed t)
 	  (when (functionp wisi-indent-region-fallback)
+	    (when (< 0 wisi-debug)
+	      (message "wisi-indent-region fallback"))
 	    (funcall wisi-indent-region-fallback begin end)))
 
       (save-excursion
@@ -1015,22 +1205,28 @@ Called with BEGIN END.")
 	(goto-char begin)
 	(let ((wisi-indenting-p t))
 	  (while (and (not (eobp))
-		      (<= (point) end-mark)) ;; end-mark can be at the start of an empty line
-	    (indent-line-to (if (bobp) 0 (get-text-property (1- (point)) 'wisi-indent)))
-	    (forward-line 1)))
+		      (or (and (= begin end) (= (point) end))
+			  (< (point) end-mark))) ;; end-mark is exclusive
+	    (when (or indent-blank-lines (not (eolp)))
+	      ;; ’indent-region’ doesn’t indent an empty line; ’indent-line’ does
+	      (let ((indent (if (bobp) 0 (wisi--get-cached-indent begin end))))
+		    (indent-line-to indent))
+	      )
+	    (forward-line 1))
 
-	;; Run wisi-indent-calculate-functions
-	(when wisi-indent-calculate-functions
-	  (goto-char begin)
-	  (while (and (not (eobp))
-		      (< (point) end-mark))
-	    (back-to-indentation)
-	    (let ((indent
-		   (run-hook-with-args-until-success 'wisi-indent-calculate-functions)))
-	      (when indent
-		(indent-line-to indent)))
+	  ;; Run wisi-indent-calculate-functions
+	  (when wisi-indent-calculate-functions
+	    (goto-char begin)
+	    (while (and (not (eobp))
+			(< (point) end-mark))
+	      (back-to-indentation)
+	      (let ((indent
+		     (run-hook-with-args-until-success 'wisi-indent-calculate-functions)))
+		(when indent
+		  (indent-line-to indent)))
 
-	    (forward-line 1)))
+	      (forward-line 1)))
+	  )
 
 	(when
 	    (and prev-indent-failed
@@ -1038,6 +1234,8 @@ Called with BEGIN END.")
 	  ;; Previous parse failed or indent was potentially
 	  ;; ambiguous, this one is not.
 	  (goto-char end-mark)
+	  (when (< 0 wisi-debug)
+	    (message "wisi-indent-region post-parse-fail-hook"))
 	  (run-hooks 'wisi-post-indent-fail-hook))
 	))
     ))
@@ -1050,7 +1248,7 @@ Called with BEGIN END.")
     (when (>= (point) savep)
       (setq to-indent t))
 
-    (wisi-indent-region (line-beginning-position) (line-end-position))
+    (wisi-indent-region (line-beginning-position) (line-end-position) t)
 
     (goto-char savep)
     (when to-indent (back-to-indentation))
@@ -1093,7 +1291,6 @@ Called with BEGIN END.")
       (if (buffer-live-p wisi-error-buffer)
 	  (let ((err
 		 (with-current-buffer wisi-error-buffer
-		   ;; FIXME: ensure at beginning of error message line.
 		   (get-text-property (point) 'wisi-error-data))))
 	    (wisi-repair-error-1 err))
 	(error "no current error found")
@@ -1122,6 +1319,24 @@ If non-nil, only repair errors in BEG END region."
 
 ;;;; debugging
 
+(defun wisi-show-region (string)
+  (interactive "Mregion: ")
+  (when (not (= ?\( (aref string 0)))
+    (setq string (concat "(" string ")")))
+
+  (let ((region (read string)))
+    (cond
+     ((consp (cdr region))
+      ;; region is a list; (begin end)
+      (set-mark  (nth 0 region))
+      (goto-char (nth 1 region)))
+
+     ((consp region)
+      ;; region is a cons; (begin . end)
+      (set-mark  (car region))
+      (goto-char (cdr region)))
+     )))
+
 (defun wisi-debug-keys ()
   "Add debug key definitions to `global-map'."
   (interactive)
@@ -1130,29 +1345,41 @@ If non-nil, only repair errors in BEG END region."
   (define-key global-map "\M-j" 'wisi-show-cache)
   )
 
-(defun wisi-parse-buffer (&optional parse-action)
+(defun wisi-read-parse-action ()
+  "Read a parse action symbol from the minibuffer."
+  (intern-soft (completing-read "parse action (indent): " '(face navigate indent) nil t nil nil 'indent)))
+
+(defun wisi-parse-buffer (&optional parse-action begin end)
   (interactive)
-  (unless parse-action (setq parse-action 'indent))
+  (unless parse-action
+    (setq parse-action (wisi-read-parse-action)))
+  (if (use-region-p)
+      (progn
+	(setq begin (region-beginning))
+	(setq end   (region-end)))
+
+    (unless begin (setq begin (point-min)))
+    (unless end (setq end (point-max))))
+
   (wisi-set-parse-try t parse-action)
-  (move-marker (wisi-cache-max parse-action) (point-max));; force delete caches
-  (wisi-invalidate-cache parse-action (point-min))
+  (wisi-invalidate-cache parse-action begin)
 
   (cl-ecase parse-action
     (face
      (with-silent-modifications
        (remove-text-properties
-	(point-min) (point-max)
+	begin end
 	(list
 	 'font-lock-face nil
 	 'fontified nil)))
-     (wisi-validate-cache (point-max) t parse-action)
+     (wisi-validate-cache begin end t parse-action)
      (when (fboundp 'font-lock-ensure) (font-lock-ensure))) ;; emacs < 25
 
     (navigate
-     (wisi-validate-cache (point-max) t parse-action))
+     (wisi-validate-cache begin end t parse-action))
 
     (indent
-     (wisi-indent-region (point-min) (point-max)))
+     (wisi-indent-region begin end))
     ))
 
 (defun wisi-time (func count &optional report-wait-time)
@@ -1197,7 +1424,6 @@ If non-nil, only repair errors in BEG END region."
     (wisi-time
      (lambda ()
        (wisi-set-parse-try t 'indent)
-       (move-marker (wisi-cache-max 'indent) (point-max));; force delete caches
        (wisi-invalidate-cache 'indent (point-min))
        (wisi-indent-line)
        (when (wisi-process--parser-p wisi--parser)
@@ -1208,7 +1434,6 @@ If non-nil, only repair errors in BEG END region."
 
 (defun wisi-time-indent-middle-line-warm-cache (count)
   (wisi-set-parse-try t 'indent)
-  (move-marker (wisi-cache-max 'indent) (point-max));; force delete caches
   (wisi-invalidate-cache 'indent (point-min))
   (goto-char (point-min))
   (forward-line (/ (count-lines (point-min) (point-max)) 2))
@@ -1221,11 +1446,10 @@ If non-nil, only repair errors in BEG END region."
   (message "%s" (get-text-property (1- (line-beginning-position)) 'wisi-indent)))
 
 (defun wisi-show-cache ()
-  "Show navigation and face caches, and applied faces, at point."
+  "Show navigation cache, and applied faces, at point."
   (interactive)
-  (message "%s:%s:%s:%s"
+  (message "%s:%s:%s"
 	   (wisi-get-cache (point))
-	   (get-text-property (point) 'wisi-face)
 	   (get-text-property (point) 'face)
 	   (get-text-property (point) 'font-lock-face)
 	   ))
@@ -1238,10 +1462,6 @@ If non-nil, only repair errors in BEG END region."
       (message "previous %s" (wisi-backward-cache)))
     ))
 
-(defun wisi-show-cache-max (action)
-  (push-mark)
-  (goto-char (wisi-cache-max action)))
-
 ;;;;; setup
 
 (cl-defun wisi-setup (&key indent-calculate post-indent-fail parser lexer)
@@ -1251,12 +1471,11 @@ If non-nil, only repair errors in BEG END region."
 
   (setq wisi--parser parser)
   (setq wisi--lexer lexer)
-
-  (setq wisi--cache-max
+  (setq wisi--cached-regions
 	(list
-	 (cons 'face (copy-marker (point-min)))
-	 (cons 'navigate (copy-marker (point-min)))
-	 (cons 'indent (copy-marker (point-min)))))
+	 (cons 'face nil)
+	 (cons 'navigate nil)
+	 (cons 'indent nil)))
 
   (setq wisi--parse-try
 	(list

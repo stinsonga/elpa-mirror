@@ -2,7 +2,7 @@
 --
 --  See spec
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -82,7 +82,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Parse is
          return (Label => Ok);
       else
          return Status : constant Semantic_Checks.Check_Status :=
-           Action.Check (Shared.Lexer, Nonterm, Tokens)
+           Action.Check (Shared.Lexer, Nonterm, Tokens, Recover_Active => True)
          do
             if Status.Label = Ok then
                Stack.Pop (SAL.Base_Peek_Type (Action.Token_Count));
@@ -129,7 +129,8 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Parse is
          Terminals_Current         => Config.Current_Shared_Token,
          Restore_Terminals_Current => Restore_Terminals_Current,
          Insert_Delete             => Config.Insert_Delete,
-         Current_Insert_Delete     => Config.Current_Insert_Delete);
+         Current_Insert_Delete     => Config.Current_Insert_Delete,
+         Prev_Deleted              => Super.Parser_State (Parser_Index).Prev_Deleted);
 
       New_State : Unknown_State_Index;
       Success   : Boolean := True;
@@ -171,7 +172,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Parse is
             Put_Line
               (Trace, Super.Label (Parser_Index), Trace_Prefix & ":" & State_Index'Image (Config.Stack.Peek.State) &
                  " :" & Token_Index'Image (Config.Current_Shared_Token) &
-                 " : " & Image (Current_Token, Descriptor) &
+                 ":" & Image (Current_Token, Descriptor) &
                  " : " & Image (Action.Item, Descriptor));
          end if;
 
@@ -196,7 +197,8 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Parse is
                Terminals_Current         => Config.Current_Shared_Token,
                Restore_Terminals_Current => Restore_Terminals_Current,
                Insert_Delete             => Config.Insert_Delete,
-               Current_Insert_Delete     => Config.Current_Insert_Delete);
+               Current_Insert_Delete     => Config.Current_Insert_Delete,
+               Prev_Deleted              => Super.Parser_State (Parser_Index).Prev_Deleted);
 
          when Reduce =>
             declare

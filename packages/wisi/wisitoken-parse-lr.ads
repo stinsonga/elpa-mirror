@@ -9,7 +9,7 @@
 --
 --  See wisitoken.ads
 --
---  Copyright (C) 2002, 2003, 2009, 2010, 2013-2015, 2017 - 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2002, 2003, 2009, 2010, 2013 - 2015, 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --
@@ -36,9 +36,9 @@ pragma License (Modified_GPL);
 
 with Ada.Containers.Indefinite_Doubly_Linked_Lists;
 with Ada.Unchecked_Deallocation;
-with SAL.Gen_Bounded_Definite_Vectors.Gen_Sorted;
+with SAL.Gen_Array_Image;
 with SAL.Gen_Bounded_Definite_Vectors.Gen_Image_Aux;
-with SAL.Gen_Definite_Doubly_Linked_Lists_Sorted.Gen_Image;
+with SAL.Gen_Bounded_Definite_Vectors.Gen_Sorted;
 with SAL.Gen_Unbounded_Definite_Min_Heaps_Fibonacci;
 with SAL.Gen_Unbounded_Definite_Queues.Gen_Image_Aux;
 with SAL.Gen_Unbounded_Definite_Stacks.Gen_Image_Aux;
@@ -48,10 +48,10 @@ with WisiToken.Semantic_Checks;
 with WisiToken.Syntax_Trees;
 package WisiToken.Parse.LR is
 
-   type All_Parse_Action_Verbs is (Pause, Shift_Recover, Shift, Reduce, Accept_It, Error);
+   type All_Parse_Action_Verbs is (Pause, Shift, Reduce, Accept_It, Error);
    subtype Parse_Action_Verbs is All_Parse_Action_Verbs range Shift .. Error;
-   subtype Minimal_Verbs is All_Parse_Action_Verbs range Shift .. Reduce;
-   --  Pause, Shift_Recover are only used for error recovery.
+   subtype Minimal_Verbs is All_Parse_Action_Verbs range Pause .. Reduce;
+   --  Pause is only used for error recovery.
 
    type Parse_Action_Rec (Verb : Parse_Action_Verbs := Shift) is record
       case Verb is
@@ -79,7 +79,7 @@ package WisiToken.Parse.LR is
    --  Ada aggregate syntax, leaving out Action, Check in reduce; for debug output
 
    procedure Put (Trace : in out WisiToken.Trace'Class; Item : in Parse_Action_Rec);
-   --  Put a line for Item in parse trace format.
+   --  Put a line for Item in parse trace format, with no prefix.
 
    function Equal (Left, Right : in Parse_Action_Rec) return Boolean;
    --  Ignore Action, Check.
@@ -116,8 +116,12 @@ package WisiToken.Parse.LR is
    function State (List : in Goto_Node_Ptr) return State_Index;
    function Next (List : in Goto_Node_Ptr) return Goto_Node_Ptr;
 
-   type Minimal_Action (Verb : Minimal_Verbs := Shift) is record
+   type Minimal_Action (Verb : Minimal_Verbs := Pause) is record
       case Verb is
+      when Pause =>
+         --  In this case, 'Pause' means no minimal action.
+         null;
+
       when Shift =>
          ID    : Token_ID;
          State : State_Index;
@@ -128,29 +132,18 @@ package WisiToken.Parse.LR is
       end case;
    end record;
 
-   function Compare_Minimal_Action (Left, Right : in Minimal_Action) return SAL.Compare_Result;
-
-   type Minimal_Action_Array is array (Positive range <>) of Minimal_Action;
-
-   package Minimal_Action_Lists is new SAL.Gen_Definite_Doubly_Linked_Lists_Sorted
-     (Minimal_Action, Compare_Minimal_Action);
-
    function Strict_Image (Item : in Minimal_Action) return String;
    --  Strict Ada aggregate syntax, for generated code.
 
-   function Image is new Minimal_Action_Lists.Gen_Image (Strict_Image);
-
-   procedure Set_Minimal_Action (List : out Minimal_Action_Lists.List; Actions : in Minimal_Action_Array);
-
    type Parse_State is record
       Productions : Production_ID_Arrays.Vector;
-      --  Used in error recovery.
+      --  Used in some language-specfic error recovery.
       Action_List : Action_Node_Ptr;
       Goto_List   : Goto_Node_Ptr;
 
-      Minimal_Complete_Actions : Minimal_Action_Lists.List;
-      --  Set of parse actions that will most quickly complete the
-      --  productions in this state; used in error recovery
+      Minimal_Complete_Action : Minimal_Action;
+      --  Parse action that will most quickly complete a
+      --  production in this state; used in error recovery
    end record;
 
    type Parse_State_Array is array (State_Index range <>) of Parse_State;
@@ -331,8 +324,9 @@ package WisiToken.Parse.LR is
       McKenzie_Param : in McKenzie_Param_Type;
       Productions    : in WisiToken.Productions.Prod_Arrays.Vector)
      return Parse_Table_Ptr;
-   --  Read machine-readable text format of states from a file File_Name.
-   --  Result has actions, checks from Productions.
+   --  Read machine-readable text format of states (as output by
+   --  WisiToken.Generate.LR.Put_Text_Rep) from file File_Name. Result
+   --  has actions, checks from Productions.
 
    ----------
    --  For McKenzie_Recover. Declared here because Parser_Lists needs
@@ -496,6 +490,11 @@ package WisiToken.Parse.LR is
    --  which is true if they were copied from the parser stack, and not
    --  pushed by recover.
 
+   type Strategies is (Language_Fix, Minimal_Complete, Matching_Begin, Explore_Table, String_Quote);
+
+   type Strategy_Counts is array (Strategies) of Natural;
+   function Image is new SAL.Gen_Array_Image (Strategies, Natural, Strategy_Counts, Trimmed_Image);
+
    type Configuration is record
       Stack : Recover_Stacks.Stack;
       --  Initially built from the parser stack, then the stack after the
@@ -548,6 +547,9 @@ package WisiToken.Parse.LR is
       --  remaining ops at Current_Shared_Token.
 
       Cost : Natural := 0;
+
+      Strategy_Counts : LR.Strategy_Counts := (others => 0);
+      --  Count of strategies that produced Ops.
    end record;
    type Configuration_Access is access all Configuration;
    for Configuration_Access'Storage_Size use 0;
@@ -573,8 +575,10 @@ package WisiToken.Parse.LR is
       Results       : Config_Heaps.Heap_Type;
       Success       : Boolean := False;
    end record;
-
    type McKenzie_Access is access all McKenzie_Data;
+
+   procedure Accumulate (Data : in McKenzie_Data; Counts : in out Strategy_Counts);
+   --  Sum Results.Strategy_Counts.
 
    type Parse_Error_Label is (Action, Check, Message);
 

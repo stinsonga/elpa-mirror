@@ -118,7 +118,7 @@ package body WisiToken.BNF.Generate_Utils is
       begin
          Data.Grammar (Descriptor.Accept_ID) :=
            Descriptor.Accept_ID <= Only
-             (Find_Token_ID (Data, Start_Token) & Descriptor.EOF_ID + WisiToken.Syntax_Trees.Null_Action);
+             (Find_Token_ID (Data, Start_Token) & Descriptor.EOI_ID + WisiToken.Syntax_Trees.Null_Action);
 
          Data.Source_Line_Map (Descriptor.Accept_ID).Line := Line_Number_Type'First;
          Data.Source_Line_Map (Descriptor.Accept_ID).RHS_Map.Set_First (0);
@@ -213,7 +213,7 @@ package body WisiToken.BNF.Generate_Utils is
 
    function Initialize (Input_Data : aliased in WisiToken_Grammar_Runtime.User_Data_Type) return Generate_Data
    is
-      EOF_ID : constant Token_ID := Token_ID
+      EOI_ID : constant Token_ID := Token_ID
         (Count (Input_Data.Tokens.Non_Grammar) + Count (Input_Data.Tokens.Tokens)) + Token_ID
           (Input_Data.Tokens.Keywords.Length) + Token_ID'First;
    begin
@@ -225,11 +225,11 @@ package body WisiToken.BNF.Generate_Utils is
               (if Count (Input_Data.Tokens.Non_Grammar) > 0
                then Token_ID (Count (Input_Data.Tokens.Non_Grammar)) + Token_ID'First
                else Token_ID'First),
-            Last_Terminal     => EOF_ID,
-            EOF_ID            => EOF_ID,
-            Accept_ID         => EOF_ID + 1,
-            First_Nonterminal => EOF_ID + 1,
-            Last_Nonterminal  => EOF_ID + 1 + Token_ID (Input_Data.Tokens.Rules.Length)),
+            Last_Terminal     => EOI_ID,
+            EOI_ID            => EOI_ID,
+            Accept_ID         => EOI_ID + 1,
+            First_Nonterminal => EOI_ID + 1,
+            Last_Nonterminal  => EOI_ID + 1 + Token_ID (Input_Data.Tokens.Rules.Length)),
 
          others => <>)
       do

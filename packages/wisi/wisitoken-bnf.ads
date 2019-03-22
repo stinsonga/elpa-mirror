@@ -13,7 +13,7 @@
 --  [1] https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form
 --  [2] http://www.nongnu.org/ada-mode/wisi/wisi-user_guide.html, (info "(wisi-user_guide)Top")
 --
---  Copyright (C) 2012 - 2015, 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2012 - 2015, 2017 - 2019 Free Software Foundation, Inc.
 --
 --  The WisiToken package is free software; you can redistribute it
 --  and/or modify it under terms of the GNU General Public License as
@@ -257,18 +257,13 @@ package WisiToken.BNF is
       --  Rules included here because they define the nonterminal tokens, as
       --  well as the productions.
 
-      re2c_Regexps : String_Pair_Lists.List;
-      --  From %re2c_regexp; included here because they are used in defining
-      --  the Tokens.
-   end record;
-
-   type User_Names is record
-      --  Specified in grammar file declarations, used in other declarations
+      --  The following are specified in grammar file declarations and used in other declarations
       --  or actions. Faces, Indents only used if .wy action language is
       --  elisp and output language is not elisp.
 
-      Faces   : String_Lists.List;      -- %elisp_face
-      Indents : String_Pair_Lists.List; -- %elisp_indent
+      re2c_Regexps : String_Pair_Lists.List; -- %re2c_regexp
+      Faces        : String_Lists.List;      -- %elisp_face
+      Indents      : String_Pair_Lists.List; -- %elisp_indent
    end record;
 
    function "+" (Item : in String) return Ada.Strings.Unbounded.Unbounded_String

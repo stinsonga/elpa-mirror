@@ -4,7 +4,7 @@
 --  parameters, and a parser for that grammar. The grammar parser
 --  actions must be Ada.
 --
---  Copyright (C) 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
 --
 --  The WisiToken package is free software; you can redistribute it
 --  and/or modify it under terms of the GNU General Public License as
@@ -191,11 +191,13 @@ is
                      Unref_Lexer   : constant Boolean := 0 = Index (Line, "Lexer");
                      Unref_Nonterm : constant Boolean := 0 = Index (Line, "Nonterm");
                      Unref_Tokens  : constant Boolean := 0 = Index (Line, "Tokens");
+                     Unref_Recover : constant Boolean := 0 = Index (Line, "Recover_Active");
                   begin
                      Indent_Line ("function " & Name);
-                     Indent_Line (" (Lexer   : access constant WisiToken.Lexer.Instance'Class;");
-                     Indent_Line ("  Nonterm : in out WisiToken.Recover_Token;");
-                     Indent_Line ("  Tokens  : in     WisiToken.Recover_Token_Array)");
+                     Indent_Line (" (Lexer          : access constant WisiToken.Lexer.Instance'Class;");
+                     Indent_Line ("  Nonterm        : in out WisiToken.Recover_Token;");
+                     Indent_Line ("  Tokens         : in     WisiToken.Recover_Token_Array;");
+                     Indent_Line ("  Recover_Active : in     Boolean)");
                      Indent_Line (" return WisiToken.Semantic_Checks.Check_Status");
                      Indent_Line ("is");
 
@@ -207,6 +209,9 @@ is
                      end if;
                      if Unref_Tokens then
                         Indent_Line ("   pragma Unreferenced (Tokens);");
+                     end if;
+                     if Unref_Recover then
+                        Indent_Line ("   pragma Unreferenced (Recover_Active);");
                      end if;
 
                      Indent_Line ("begin");
