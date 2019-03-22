@@ -7,7 +7,7 @@
 --
 --  see parent.
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -46,12 +46,14 @@ package WisiToken.Parse.Packrat.Generated is
       end case;
    end record;
 
-   package Memos is new SAL.Gen_Unbounded_Definite_Vectors (Token_Index, Memo_Entry);
+   package Memos is new SAL.Gen_Unbounded_Definite_Vectors
+     (Token_Index, Memo_Entry, Default_Element => (others => <>));
 
    subtype Result_Type is Memo_Entry
    with Dynamic_Predicate => Result_Type.State in Result_States;
 
-   package Derivs is new SAL.Gen_Unbounded_Definite_Vectors (Token_ID, Memos.Vector);
+   package Derivs is new SAL.Gen_Unbounded_Definite_Vectors
+     (Token_ID, Memos.Vector, Default_Element => Memos.Empty_Vector);
 
    type Parse_WisiToken_Accept is access
      --  WORKAROUND: using Packrat.Parser'Class here hits a GNAT Bug box in GPL 2018.
@@ -64,6 +66,7 @@ package WisiToken.Parse.Packrat.Generated is
    end record;
 
    overriding procedure Parse (Parser : aliased in out Generated.Parser);
+   overriding function Tree (Parser : in Generated.Parser) return Syntax_Trees.Tree;
    overriding function Any_Errors (Parser : in Generated.Parser) return Boolean;
    overriding procedure Put_Errors (Parser : in Generated.Parser);
 

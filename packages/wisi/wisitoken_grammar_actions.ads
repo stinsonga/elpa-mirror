@@ -29,7 +29,7 @@ package Wisitoken_Grammar_Actions is
       Last_Terminal                 => 25,
       First_Nonterminal             => 26,
       Last_Nonterminal              => 37,
-      EOF_ID                        => 25,
+      EOI_ID                        => 25,
       Accept_ID                     => 26,
       Case_Insensitive              => False,
       New_Line_ID                   => 1,

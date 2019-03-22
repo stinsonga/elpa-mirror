@@ -2,7 +2,7 @@
 --
 --  See spec
 --
---  Copyright (C) 2009, 2014-2015, 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2009, 2014-2015, 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --
@@ -40,7 +40,7 @@ package body WisiToken is
 
    function Image (Item : in Token_ID; Desc : in Descriptor) return String
    is begin
-      return (if Item = Invalid_Token_ID then "" else Desc.Image (Item).all);
+      return (if Item = Invalid_Token_ID then "-" else Desc.Image (Item).all);
    end Image;
 
    procedure Put_Tokens (Descriptor : in WisiToken.Descriptor)

@@ -11,7 +11,7 @@
 --  [Grune 2008] Parsing Techniques, A Practical Guide, Second
 --  Edition. Dick Grune, Ceriel J.H. Jacobs.
 --
---  Copyright (C) 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -66,19 +66,22 @@ private
       Terminals_Current         : in out Base_Token_Index;
       Restore_Terminals_Current :    out WisiToken.Base_Token_Index;
       Insert_Delete             : in out Sorted_Insert_Delete_Arrays.Vector;
-      Current_Insert_Delete     : in out SAL.Base_Peek_Type)
+      Current_Insert_Delete     : in out SAL.Base_Peek_Type;
+      Prev_Deleted              : in     Recover_Token_Index_Arrays.Vector)
      return Base_Token;
    --  Return the current token, from either Terminals or Insert_Delete;
    --  set up for Next_Token.
    --
    --  See Next_Token for more info.
 
-   function Current_Token_ID_Peek
-     (Terminals             : in Base_Token_Arrays.Vector;
-      Terminals_Current     : in Base_Token_Index;
-      Insert_Delete         : in Sorted_Insert_Delete_Arrays.Vector;
-      Current_Insert_Delete : in SAL.Base_Peek_Type)
-     return Token_ID;
+   procedure Current_Token_ID_Peek_2
+     (Terminals             : in     Base_Token_Arrays.Vector;
+      Terminals_Current     : in     Base_Token_Index;
+      Insert_Delete         : in     Sorted_Insert_Delete_Arrays.Vector;
+      Current_Insert_Delete : in     SAL.Base_Peek_Type;
+      Prev_Deleted          : in     Recover_Token_Index_Arrays.Vector;
+      Current_Token         :    out Token_ID;
+      Next_Token            :    out Token_ID);
    --  Return the current token, from either Terminals or Insert_Delete,
    --  without setting up for Next_Token.
 
@@ -149,7 +152,8 @@ private
       Terminals_Current         : in out Base_Token_Index;
       Restore_Terminals_Current : in out WisiToken.Base_Token_Index;
       Insert_Delete             : in out Sorted_Insert_Delete_Arrays.Vector;
-      Current_Insert_Delete     : in out SAL.Base_Peek_Type)
+      Current_Insert_Delete     : in out SAL.Base_Peek_Type;
+      Prev_Deleted              : in     Recover_Token_Index_Arrays.Vector)
      return Base_Token;
    --  Return the next token, from either Terminals or Insert_Delete;
    --  update Terminals_Current or Current_Insert_Delete.
@@ -164,6 +168,9 @@ private
    --  Insert_Delete contains only Insert and Delete ops, in token_index
    --  order. Those ops are applied when Terminals_Current =
    --  op.token_index.
+   --
+   --  Prev_Deleted contains tokens deleted in previous recover
+   --  operations; those are skipped.
 
    procedure Push_Back (Config : in out Configuration);
    --  Pop the top Config.Stack item, set Config.Current_Shared_Token to

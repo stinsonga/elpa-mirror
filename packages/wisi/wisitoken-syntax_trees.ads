@@ -7,7 +7,7 @@
 --  We provide Base_Tree and Tree in one package, because only Tree
 --  needs an API; the only way Base_Tree is accessed is via Tree.
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
 
 --  There is one syntax tree for each parser. There is one shared
 --  Terminals array, matching the actual input text.
@@ -58,7 +58,8 @@ package WisiToken.Syntax_Trees is
    type Valid_Node_Index_Array is array (Positive_Index_Type range <>) of Valid_Node_Index;
    --  Index matches Base_Token_Array, Augmented_Token_Array
 
-   package Valid_Node_Index_Arrays is new SAL.Gen_Unbounded_Definite_Vectors (Positive_Index_Type, Valid_Node_Index);
+   package Valid_Node_Index_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
+     (Positive_Index_Type, Valid_Node_Index, Default_Element => Valid_Node_Index'First);
    --  Index matches Valid_Node_Index_Array.
 
    type Node_Label is (Shared_Terminal, Virtual_Terminal, Nonterm);
@@ -88,12 +89,12 @@ package WisiToken.Syntax_Trees is
    --  input stream.
 
    procedure Delete_Token
-     (Data        : in out User_Data_Type;
+     (User_Data   : in out User_Data_Type;
       Token_Index : in     WisiToken.Token_Index)
    is null;
    --  Token at Token_Index was deleted in error recovery; update
-   --  remaining tokens as needed. Called from Execute_Actions for each
-   --  deleted token, before processing the syntax tree.
+   --  remaining tokens and Tree as needed. Called from Execute_Actions
+   --  for each deleted token, before processing the syntax tree.
 
    procedure Reduce
      (User_Data : in out User_Data_Type;
@@ -264,7 +265,7 @@ package WisiToken.Syntax_Trees is
       ID   : in Token_ID)
      return Node_Index
    with Pre => Tree.Is_Nonterm (Node);
-   --  Return the child of Node that contains ID, or Invalid_Node_Index if
+   --  Return the child of Node whose ID is ID, or Invalid_Node_Index if
    --  none match.
 
    function Find_Descendant
@@ -272,7 +273,25 @@ package WisiToken.Syntax_Trees is
       Node : in Valid_Node_Index;
       ID   : in Token_ID)
      return Node_Index;
-   --  Return the child of Node that contains ID (may be Node), or
+   --  Return the descendant of Node (may be Node) whose ID is ID, or
+   --  Invalid_Node_Index if none match.
+
+   function Find_Min_Terminal_Index
+     (Tree  : in Syntax_Trees.Tree;
+      Index : in Token_Index)
+     return Node_Index
+   with Post => Find_Min_Terminal_Index'Result = Invalid_Node_Index or else
+                Tree.Is_Nonterm (Find_Min_Terminal_Index'Result);
+   --  Return the first node whose Min_Terminal_Index is Index, or
+   --  Invalid_Node_Index if none match.
+
+   function Find_Max_Terminal_Index
+     (Tree  : in Syntax_Trees.Tree;
+      Index : in Token_Index)
+     return Node_Index
+   with Post => Find_Max_Terminal_Index'Result = Invalid_Node_Index or else
+                Tree.Is_Nonterm (Find_Max_Terminal_Index'Result);
+   --  Return the first node whose Max_Terminal_Index is Index, or
    --  Invalid_Node_Index if none match.
 
    procedure Set_Root (Tree : in out Syntax_Trees.Tree; Root : in Valid_Node_Index);
@@ -372,7 +391,8 @@ private
 
    subtype Nonterm_Node is Node (Nonterm);
 
-   package Node_Arrays is new SAL.Gen_Unbounded_Definite_Vectors (Valid_Node_Index, Node);
+   package Node_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
+     (Valid_Node_Index, Node, Default_Element => (others => <>));
 
    type Base_Tree is new Ada.Finalization.Controlled with record
       Nodes : Node_Arrays.Vector;

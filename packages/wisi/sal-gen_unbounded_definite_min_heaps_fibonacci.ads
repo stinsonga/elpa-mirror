@@ -7,7 +7,7 @@
 --  [1] Introduction to Algorithms, Third Edition. Thomas H. Cormen,
 --  Charles E. Leiserson, Ronald L. Rivest, Clifford Stein. Chapter 19.
 --
---  Copyright (C) 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -88,6 +88,15 @@ package SAL.Gen_Unbounded_Definite_Min_Heaps_Fibonacci is
 
    function Peek (Heap : in Heap_Type) return Constant_Reference_Type;
    --  Return a constant reference to the min element.
+   pragma Inline (Peek);
+
+   --  We don't provide a Cursor/Iterator interface; to complex to
+   --  implement. So far, we only need a read-only forward iterator,
+   --  which Process provides.
+
+   procedure Process (Heap : in Heap_Type; Process_Element : access procedure (Element : in Element_Type));
+   --  Call Process_Element with each Element in Heap. Min is first; rest are in
+   --  arbitrary order.
 
 private
 
@@ -108,6 +117,8 @@ private
       Min   : Node_Access;
       Count : Base_Peek_Type;
    end record;
+   type Heap_Access_Constant is access constant Heap_Type;
+   for Heap_Access_Constant'Storage_Size use 0;
 
    Empty_Heap : constant Heap_Type := (Ada.Finalization.Controlled with Min => null, Count => 0);
 

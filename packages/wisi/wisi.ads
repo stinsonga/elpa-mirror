@@ -10,7 +10,7 @@
 --
 --  [3] wisi-process-parse.el - defines elisp/process API
 --
---  Copyright (C) 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -28,7 +28,6 @@ pragma License (Modified_GPL);
 with Ada.Containers.Doubly_Linked_Lists;
 with Ada.Containers.Vectors;
 with Ada.Strings.Unbounded;
-with Ada.Text_IO;
 with Ada.Unchecked_Deallocation;
 with SAL.Gen_Unbounded_Definite_Red_Black_Trees;
 with SAL.Gen_Unbounded_Definite_Vectors;
@@ -49,16 +48,12 @@ package Wisi is
       Descriptor        : access constant WisiToken.Descriptor;
       Source_File_Name  : in     String;
       Post_Parse_Action : in     Post_Parse_Action_Type;
-      Line_Count        : in     WisiToken.Line_Number_Type;
+      Begin_Line        : in     WisiToken.Line_Number_Type;
+      End_Line          : in     WisiToken.Line_Number_Type;
+      Begin_Indent      : in     Integer;
       Params            : in     String);
-   --  Line_Count only used for Indent. Params contains language-specific
-   --  indent parameter values.
-   --
-   --  It is possible to do without the Line_Count parameter, and grow
-   --  the various vectors dynamically. However, doing that caused
-   --  intermittent problems with too many lines; the Ada code saw more
-   --  lines than the elisp code did. Using the elisp line count is more
-   --  reliable.
+   --  Begin_Line, Begin_Indent, Line_Count only used for Indent. Params
+   --  contains language-specific indent parameter values.
 
    overriding procedure Reset (Data : in out Parse_Data_Type);
    --  Reset for a new parse, with data from previous Initialize.
@@ -74,8 +69,8 @@ package Wisi is
 
    overriding
    procedure Delete_Token
-     (Data        : in out Parse_Data_Type;
-      Token_Index : in     WisiToken.Token_Index);
+     (Data                : in out Parse_Data_Type;
+      Deleted_Token_Index : in     WisiToken.Token_Index);
 
    overriding
    procedure Reduce
@@ -318,11 +313,12 @@ package Wisi is
    --  Language specific child packages override this to implement
    --  wisi-elisp-parse-indent-hanging-function.
 
-   procedure Put (Data : in out Parse_Data_Type);
-   --  Perform post-parse actions, then put result to
+   procedure Put (Data : in out Parse_Data_Type; Parser : in WisiToken.Parse.Base_Parser'Class);
+   --  Perform additional post-parse actions, then put result to
    --  Ada.Text_IO.Current_Output, as encoded responses as defined in [3]
    --  wisi-process-parse--execute.
 
+   procedure Put (Lexer_Errors : in WisiToken.Lexer.Error_Lists.List);
    procedure Put
      (Data         : in Parse_Data_Type;
       Lexer_Errors : in WisiToken.Lexer.Error_Lists.List;
@@ -337,16 +333,12 @@ package Wisi is
 
 private
 
-   type Non_Grammar_Token is record
-      ID    : WisiToken.Token_ID         := WisiToken.Invalid_Token_ID;
-      Line  : WisiToken.Line_Number_Type := WisiToken.Invalid_Line_Number;
-      Col   : Ada.Text_IO.Count          := Ada.Text_IO.Count'Last;
-      First : Boolean                    := False;
-      --  Column is needed to detect comments in column 0.
+   type Non_Grammar_Token is new WisiToken.Base_Token with record
+      First : Boolean := False;
    end record;
 
    package Non_Grammar_Token_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
-     (WisiToken.Token_Index, Non_Grammar_Token);
+     (WisiToken.Token_Index, Non_Grammar_Token, Default_Element => (others => <>));
 
    type Augmented_Token is new WisiToken.Base_Token with record
       --  Most fields are set by Lexer_To_Augmented at parse time; others
@@ -359,11 +351,9 @@ private
       --  The following fields are only needed for indent.
 
       First : Boolean := False;
-      --  For a terminal, True if the token is not empty and it is first on
-      --  a line, or if it contains trailing blank or comment lines.
+      --  For a terminal, True if the token is first on a line.
       --
-      --  For a nonterminal, True if some contained token's First is True,
-      --  including trailing comments and blank lines.
+      --  For a nonterminal, True if some contained token's First is True.
 
       Paren_State : Integer := 0;
       --  Parenthesis nesting count, before token.
@@ -431,12 +421,14 @@ private
       Descriptor : in WisiToken.Descriptor)
      return String;
 
-   package Augmented_Token_Arrays is new SAL.Gen_Unbounded_Definite_Vectors (WisiToken.Token_Index, Augmented_Token);
+   package Augmented_Token_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
+     (WisiToken.Token_Index, Augmented_Token, Default_Element => (others => <>));
    --  Index matches Base_Token_Arrays.
 
-   package Line_Paren_Vectors is new SAL.Gen_Unbounded_Definite_Vectors (WisiToken.Line_Number_Type, Integer);
+   package Line_Paren_Vectors is new SAL.Gen_Unbounded_Definite_Vectors
+     (WisiToken.Line_Number_Type, Integer, Default_Element => Integer'Last);
    package Line_Begin_Pos_Vectors is new SAL.Gen_Unbounded_Definite_Vectors
-     (WisiToken.Line_Number_Type, WisiToken.Buffer_Pos);
+     (WisiToken.Line_Number_Type, WisiToken.Buffer_Pos, Default_Element => WisiToken.Invalid_Buffer_Pos);
 
    type Nil_Buffer_Pos (Set : Boolean := False) is record
       case Set is
@@ -520,7 +512,8 @@ private
    end record;
    First_Anchor_ID : constant Positive := Positive'First;
 
-   package Indent_Vectors is new Ada.Containers.Vectors (WisiToken.Line_Number_Type, Indent_Type);
+   package Indent_Vectors is new SAL.Gen_Unbounded_Definite_Vectors
+     (WisiToken.Line_Number_Type, Indent_Type, Default_Element => (others => <>));
    package Navigate_Cursor_Lists is new Ada.Containers.Doubly_Linked_Lists
      (Navigate_Cache_Trees.Cursor, Navigate_Cache_Trees."=");
 
@@ -535,7 +528,7 @@ private
       --  immediately following non-grammar tokens. Does not contain
       --  nonterminal or virtual tokens.
 
-      Leading_Non_Grammar : WisiToken.Base_Token_Arrays.Vector;
+      Leading_Non_Grammar : Non_Grammar_Token_Arrays.Vector;
       --  non-grammar tokens before first grammar token.
 
       Line_Begin_Pos : Line_Begin_Pos_Vectors.Vector;
@@ -558,6 +551,7 @@ private
       End_Positions     : Navigate_Cursor_Lists.List; -- Dynamic data for Navigate.
       Face_Caches       : Face_Cache_Trees.Tree;      -- Set by Face.
       Indents           : Indent_Vectors.Vector;      -- Set by Indent.
+      Begin_Indent      : Integer;                    -- Indentation of line at start of parse.
 
       --  Copied from language-specific parameters
       Indent_Comment_Col_0 : Boolean := False;

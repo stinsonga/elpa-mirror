@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -336,5 +336,36 @@ package body SAL.Gen_Unbounded_Definite_Min_Heaps_Fibonacci is
    is begin
       return (Element => Heap.Min.all.Element'Access);
    end Peek;
+
+   procedure Process (Heap : in Heap_Type; Process_Element : access procedure (Element : in Element_Type))
+   is
+      type Cursor is record
+         --  Every node is in a circular list. List_Origin is the node where we
+         --  entered the list, so we know when we are done.
+         Node        : Node_Access;
+         List_Origin : Node_Access;
+      end record;
+
+      Cur : Cursor := (Heap.Min, Heap.Min);
+
+      procedure Process_Node (Cur : in out Cursor)
+      is
+         Next_Cur : Cursor;
+      begin
+         loop
+            if Cur.Node.Child /= null then
+               Next_Cur := (Cur.Node.Child, Cur.Node.Child);
+               Process_Node (Next_Cur);
+            end if;
+            Process_Element (Cur.Node.Element);
+            Cur.Node := Cur.Node.Right;
+            exit when Cur.Node = Cur.List_Origin;
+         end loop;
+      end Process_Node;
+   begin
+      if Cur.Node /= null then
+         Process_Node (Cur);
+      end if;
+   end Process;
 
 end SAL.Gen_Unbounded_Definite_Min_Heaps_Fibonacci;

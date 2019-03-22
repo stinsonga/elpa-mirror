@@ -6,7 +6,7 @@
 --  used in most of the WisiToken unit tests. Since it uses regexp, it
 --  is easy to convert to an Aflex lexer.
 --
---  Copyright (C) 2015, 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2015, 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --
@@ -50,22 +50,34 @@ package WisiToken.Lexer.Regexp is
    type Syntax is array (Token_ID range <>) of Syntax_Item;
 
    type Instance
-     (Trace         : not null access WisiToken.Trace'Class;
+     (Descriptor    : not null access constant WisiToken.Descriptor;
       Last_Terminal : Token_ID)
      is new WisiToken.Lexer.Instance with private;
 
    function New_Lexer
-     (Trace  : not null access WisiToken.Trace'Class;
-      Syntax : in              WisiToken.Lexer.Regexp.Syntax)
+     (Descriptor : not null access constant WisiToken.Descriptor;
+      Syntax     : in              WisiToken.Lexer.Regexp.Syntax)
      return WisiToken.Lexer.Handle;
 
    overriding procedure Finalize (Object : in out Instance);
-   overriding procedure Reset_With_String (Lexer : in out Instance; Input : in String);
+   overriding procedure Reset_With_String
+     (Lexer      : in out Instance;
+      Input      : in     String;
+      Begin_Char : in     Buffer_Pos       := Buffer_Pos'First;
+      Begin_Line : in     Line_Number_Type := Line_Number_Type'First);
    overriding procedure Reset_With_String_Access
-     (Lexer     : in out Instance;
-      Input     : in     Ada.Strings.Unbounded.String_Access;
-      File_Name : in     Ada.Strings.Unbounded.Unbounded_String);
-   overriding procedure Reset_With_File (Lexer : in out Instance; File_Name : in String);
+     (Lexer      : in out Instance;
+      Input      : access String;
+      File_Name  : in     Ada.Strings.Unbounded.Unbounded_String;
+      Begin_Char : in     Buffer_Pos       := Buffer_Pos'First;
+      Begin_Line : in     Line_Number_Type := Line_Number_Type'First);
+   overriding procedure Reset_With_File
+     (Lexer          : in out Instance;
+      File_Name      : in     String;
+      Begin_Byte_Pos : in     Buffer_Pos       := Invalid_Buffer_Pos;
+      End_Byte_Pos   : in     Buffer_Pos       := Invalid_Buffer_Pos;
+      Begin_Char     : in     Buffer_Pos       := Buffer_Pos'First;
+      Begin_Line     : in     Line_Number_Type := Line_Number_Type'First);
    overriding procedure Reset (Lexer : in out Instance);
 
    overriding procedure Discard_Rest_Of_Input (Lexer : in out Instance) is null;
@@ -87,9 +99,9 @@ private
    procedure Free is new Ada.Unchecked_Deallocation (String, String_Access);
 
    type Instance
-     (Trace         : not null access WisiToken.Trace'Class;
+     (Descriptor    : not null access constant WisiToken.Descriptor;
       Last_Terminal : Token_ID)
-     is new WisiToken.Lexer.Instance (Trace => Trace) with
+     is new WisiToken.Lexer.Instance (Descriptor => Descriptor) with
    record
       ID          : Token_ID; --  last token read by find_next
       Syntax      : WisiToken.Lexer.Regexp.Syntax (Token_ID'First .. Last_Terminal);

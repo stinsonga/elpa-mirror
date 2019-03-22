@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 1997 - 2004, 2006, 2009 Free Software Foundation, Inc.
+--  Copyright (C) 1997 - 2004, 2006, 2009, 2019 Free Software Foundation, Inc.
 --
 --  SAL is free software; you can redistribute it and/or modify it
 --  under terms of the GNU General Public License as published by the
@@ -26,7 +26,7 @@ package body SAL is
 
    function Version return String is
    begin
-      return "SAL 3.0";
+      return "SAL 3.1";
    end Version;
 
 end SAL;

@@ -2,7 +2,7 @@
 --
 --  Trace output to Ada.Text_IO
 --
---  Copyright (C) 2017 Free Software Foundation, Inc.
+--  Copyright (C) 2017, 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -24,13 +24,19 @@ package WisiToken.Text_IO_Trace is
    --  Defaults to Ada.Text_IO.Standard_Output
 
    overriding
-   procedure Put (Trace : in out Text_IO_Trace.Trace; Item : in String);
+   procedure Set_Prefix (Trace : in out Text_IO_Trace.Trace; Prefix : in String);
+
+   overriding
+   procedure Put (Trace : in out Text_IO_Trace.Trace; Item : in String; Prefix : in Boolean := True);
 
    overriding
    procedure Put_Line (Trace : in out Text_IO_Trace.Trace; Item : in String);
 
    overriding
    procedure New_Line (Trace : in out Text_IO_Trace.Trace);
+
+   overriding
+   procedure Put_Clock (Trace : in out Text_IO_Trace.Trace; Label : in String);
 
    procedure Set_File (Trace : in out Text_IO_Trace.Trace; File : in Ada.Text_IO.File_Access);
    --  Set file for trace output. Default is Text_IO.Current_Output.
@@ -40,6 +46,7 @@ package WisiToken.Text_IO_Trace is
 
 private
    type Trace is limited new WisiToken.Trace with record
-      File : Ada.Text_IO.File_Access;
+      File   : Ada.Text_IO.File_Access;
+      Prefix : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 end WisiToken.Text_IO_Trace;

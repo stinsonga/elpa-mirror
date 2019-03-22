@@ -2,7 +2,7 @@
 --
 --  see spec
 --
---  Copyright (C) 2014-2018  All Rights Reserved.
+--  Copyright (C) 2014 - 2019  All Rights Reserved.
 --
 --  The WisiToken package is free software; you can redistribute it
 --  and/or modify it under terms of the GNU General Public License as
@@ -140,19 +140,24 @@ package body WisiToken.Parse.LR.Parser_Lists is
    is begin
       return Parser_State_Lists.Constant_Reference (Cursor.Ptr).Verb;
    end Verb;
+
    procedure Terminate_Parser
-     (Parsers : in out List;
-      Current : in out Cursor'Class;
-      Message : in     String;
-      Trace   : in out WisiToken.Trace'Class)
+     (Parsers   : in out List;
+      Current   : in out Cursor'Class;
+      Message   : in     String;
+      Trace     : in out WisiToken.Trace'Class;
+      Terminals : in     Base_Token_Arrays.Vector)
    is
       use all type SAL.Base_Peek_Type;
+      State : Parser_State renames Parser_State_Lists.Constant_Reference (Current.Ptr).Element.all;
    begin
       if Trace_Parse > Outline then
          Trace.Put_Line
            (Integer'Image (Current.Label) & ": terminate (" &
               Trimmed_Image (Integer (Parsers.Count) - 1) & " active)" &
-              (if Message'Length > 0 then ": " & Message else ""));
+              ": " & Message & Image
+                (State.Tree.Min_Terminal_Index (State.Current_Token),
+                 Terminals, Trace.Descriptor.all));
       end if;
 
       Current.Free;
@@ -163,9 +168,10 @@ package body WisiToken.Parse.LR.Parser_Lists is
    end Terminate_Parser;
 
    procedure Duplicate_State
-     (Parsers : in out List;
-      Current : in out Cursor'Class;
-      Trace   : in out WisiToken.Trace'Class)
+     (Parsers   : in out List;
+      Current   : in out Cursor'Class;
+      Trace     : in out WisiToken.Trace'Class;
+      Terminals : in     Base_Token_Arrays.Vector)
    is
       use all type SAL.Base_Peek_Type;
       use all type Ada.Containers.Count_Type;
@@ -225,7 +231,7 @@ package body WisiToken.Parse.LR.Parser_Lists is
          --  terminated earlier.
          if Other.Total_Recover_Cost = Current.Total_Recover_Cost then
             if Other.Max_Recover_Ops_Length = Current.Max_Recover_Ops_Length then
-               Parsers.Terminate_Parser (Other, "duplicate state: random", Trace);
+               Parsers.Terminate_Parser (Other, "duplicate state: random", Trace, Terminals);
             else
                if Other.Max_Recover_Ops_Length > Current.Max_Recover_Ops_Length then
                   null;
@@ -233,7 +239,7 @@ package body WisiToken.Parse.LR.Parser_Lists is
                   Other := Cursor (Current);
                   Current.Next;
                end if;
-               Parsers.Terminate_Parser (Other, "duplicate state: ops length", Trace);
+               Parsers.Terminate_Parser (Other, "duplicate state: ops length", Trace, Terminals);
             end if;
          else
             if Other.Total_Recover_Cost > Current.Total_Recover_Cost then
@@ -242,7 +248,7 @@ package body WisiToken.Parse.LR.Parser_Lists is
                Other := Cursor (Current);
                Current.Next;
             end if;
-            Parsers.Terminate_Parser (Other, "duplicate state: cost", Trace);
+            Parsers.Terminate_Parser (Other, "duplicate state: cost", Trace, Terminals);
          end if;
       end if;
    end Duplicate_State;
@@ -290,6 +296,7 @@ package body WisiToken.Parse.LR.Parser_Lists is
          New_Item :=
            (Shared_Token           => Item.Shared_Token,
             Recover_Insert_Delete  => Item.Recover_Insert_Delete,
+            Prev_Deleted           => Item.Prev_Deleted,
             Current_Token          => Item.Current_Token,
             Inc_Shared_Token       => Item.Inc_Shared_Token,
             Stack                  => Item.Stack,
