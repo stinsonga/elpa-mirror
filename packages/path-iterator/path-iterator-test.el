@@ -23,7 +23,7 @@
 (defconst path-iter-root-dir
   (concat
    (file-name-directory (or load-file-name (buffer-file-name)))
-   "path-iterator-resources"))
+   "path-iterator-resources/"))
 
 (defmacro path-iter-deftest (name-suffix path-non-recursive path-recursive expected-dirs &optional ignore-function)
   "Define an ert test for path-iterator.
@@ -60,49 +60,49 @@ iterator built from PATH-NON-RECURSIVE, PATH-RECURSIVE, IGNORE-FUNCTION."
   (list path-iter-root-dir)
   (list
    path-iter-root-dir
-   (concat path-iter-root-dir "/alice-1")
-   (concat path-iter-root-dir "/bob-1")
-   (concat path-iter-root-dir "/bob-1/bob-2")
-   (concat path-iter-root-dir "/bob-1/bob-3")
+   (concat path-iter-root-dir "alice-1/")
+   (concat path-iter-root-dir "bob-1/")
+   (concat path-iter-root-dir "bob-1/bob-2/")
+   (concat path-iter-root-dir "bob-1/bob-3/")
    ))
 
 (path-iter-deftest non-recursive
   (list
-   (concat path-iter-root-dir "/alice-1")
-   (concat path-iter-root-dir "/bob-1/bob-2")
-   (concat path-iter-root-dir "/bob-1/bob-3")
-   (concat path-iter-root-dir "/bob-1/bob-4") ;; does not exist
+   (concat path-iter-root-dir "alice-1/")
+   (concat path-iter-root-dir "bob-1/bob-2/")
+   (concat path-iter-root-dir "bob-1/bob-3/")
+   (concat path-iter-root-dir "bob-1/bob-4/") ;; does not exist
    )
   nil ;; recursive
   (list
-   (concat path-iter-root-dir "/alice-1")
-   (concat path-iter-root-dir "/bob-1/bob-2")
-   (concat path-iter-root-dir "/bob-1/bob-3")
+   (concat path-iter-root-dir "alice-1/")
+   (concat path-iter-root-dir "bob-1/bob-2/")
+   (concat path-iter-root-dir "bob-1/bob-3/")
    ))
 
 (path-iter-deftest both
   (list
-   (concat path-iter-root-dir "/alice-1"))
+   (concat path-iter-root-dir "alice-1/"))
   (list
-   (concat path-iter-root-dir "/bob-1"))
+   (concat path-iter-root-dir "bob-1/"))
   (list
-   (concat path-iter-root-dir "/bob-1")
-   (concat path-iter-root-dir "/bob-1/bob-2")
-   (concat path-iter-root-dir "/bob-1/bob-3")
-   (concat path-iter-root-dir "/alice-1")
+   (concat path-iter-root-dir "bob-1/")
+   (concat path-iter-root-dir "bob-1/bob-2/")
+   (concat path-iter-root-dir "bob-1/bob-3/")
+   (concat path-iter-root-dir "alice-1/")
    ))
 
 (path-iter-deftest dup
   (list
-   (concat path-iter-root-dir "/alice-1")
-   (concat path-iter-root-dir "/bob-1")) ;; non-recursive
+   (concat path-iter-root-dir "alice-1/")
+   (concat path-iter-root-dir "bob-1/")) ;; non-recursive
   (list
-   (concat path-iter-root-dir "/bob-1")) ;; recursive
+   (concat path-iter-root-dir "bob-1/")) ;; recursive
   (list
-   (concat path-iter-root-dir "/bob-1")
-   (concat path-iter-root-dir "/bob-1/bob-2")
-   (concat path-iter-root-dir "/bob-1/bob-3")
-   (concat path-iter-root-dir "/alice-1")
+   (concat path-iter-root-dir "bob-1/")
+   (concat path-iter-root-dir "bob-1/bob-2/")
+   (concat path-iter-root-dir "bob-1/bob-3/")
+   (concat path-iter-root-dir "alice-1/")
    ))
 
 (defvar path-iter-ignore-bob nil
@@ -123,9 +123,9 @@ iterator built from PATH-NON-RECURSIVE, PATH-RECURSIVE, IGNORE-FUNCTION."
      iter
      (list
       path-iter-root-dir
-      (concat path-iter-root-dir "/alice-1")
-      (concat path-iter-root-dir "/bob-1")
-      (concat path-iter-root-dir "/bob-1/bob-3")
+      (concat path-iter-root-dir "alice-1/")
+      (concat path-iter-root-dir "bob-1/")
+      (concat path-iter-root-dir "bob-1/bob-3/")
       ))
 
     (setq path-iter-ignore-bob "bob-3")
@@ -135,9 +135,9 @@ iterator built from PATH-NON-RECURSIVE, PATH-RECURSIVE, IGNORE-FUNCTION."
      iter
      (list
       path-iter-root-dir
-      (concat path-iter-root-dir "/alice-1")
-      (concat path-iter-root-dir "/bob-1")
-      (concat path-iter-root-dir "/bob-1/bob-3")
+      (concat path-iter-root-dir "alice-1/")
+      (concat path-iter-root-dir "bob-1/")
+      (concat path-iter-root-dir "bob-1/bob-3/")
       ))
 
     (path-iter-reset iter);; recomputes path
@@ -145,9 +145,9 @@ iterator built from PATH-NON-RECURSIVE, PATH-RECURSIVE, IGNORE-FUNCTION."
      iter
      (list
       path-iter-root-dir
-      (concat path-iter-root-dir "/alice-1")
-      (concat path-iter-root-dir "/bob-1")
-      (concat path-iter-root-dir "/bob-1/bob-2")
+      (concat path-iter-root-dir "alice-1/")
+      (concat path-iter-root-dir "bob-1/")
+      (concat path-iter-root-dir "bob-1/bob-2/")
       ))
    ))
 
@@ -163,7 +163,7 @@ iterator built from PATH-NON-RECURSIVE, PATH-RECURSIVE, IGNORE-FUNCTION."
      iter
      (list
       path-iter-root-dir
-      (concat path-iter-root-dir "/alice-1")
+      (concat path-iter-root-dir "alice-1/")
       ))
     ))
 
@@ -174,10 +174,10 @@ iterator built from PATH-NON-RECURSIVE, PATH-RECURSIVE, IGNORE-FUNCTION."
       (path-iter--to-truename
        (list
 	nil
-	(concat path-iter-root-dir "/alice-1")))
+	(concat path-iter-root-dir "alice-1/")))
       (list
 	path-iter-root-dir
-	(concat path-iter-root-dir "/alice-1")))
+	(concat path-iter-root-dir "alice-1/")))
 
   )))
 
@@ -191,10 +191,11 @@ iterator built from PATH-NON-RECURSIVE, PATH-RECURSIVE, IGNORE-FUNCTION."
      (equal
       (path-iter-all-files iter)
       (list
-       (concat path-iter-root-dir "/bob-1/bob-3/foo-file3.text")
-       (concat path-iter-root-dir "/bob-1/bob-2/foo-file2.text")
-       (concat path-iter-root-dir "/alice-1/foo-file1.text")
-       (concat path-iter-root-dir "/file-0.text")
+       (concat path-iter-root-dir "bob-1/bob-3/foo-file3.text")
+       (concat path-iter-root-dir "bob-1/bob-2/foo-file2.text")
+       (concat path-iter-root-dir "alice-1/foo-file1.text")
+       (concat path-iter-root-dir "alice-1/bar-file1.text")
+       (concat path-iter-root-dir "file-0.text")
        )))
     ))
 

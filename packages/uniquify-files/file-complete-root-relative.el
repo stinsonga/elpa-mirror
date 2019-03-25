@@ -44,13 +44,13 @@
 
 (require 'cl-lib)
 
-(require 'uniquify-files);; FIXME: we share many low-level functions; factor them out.
+(require 'file-complete)
 
 (defun fc-root-rel--root (table)
   "Return root from TABLE."
   (cdr (assoc 'root (completion-metadata "" table nil))))
 
-(defun fc-root-rel-to-table-input (user-string &optional _table _pred _point)
+(defun fc-root-rel-to-table-input (user-string _table _pred)
   "Implement `completion-to-table-input' for file-root-rel."
   user-string)
 
@@ -62,8 +62,8 @@
 
 (defun fc-root-rel-to-user (data-string-list root)
   "Convert DATA-STRING-LIST to list of user format strings."
-  ;; Assume they all start with ROOT
-  (let ((prefix-length (1+ (length root)))) ;; don't include leading '/'
+  ;; Assume they all start with ROOT, which ends in /
+  (let ((prefix-length (length root)))
     (mapcar
      (lambda (abs-file-name)
        (substring abs-file-name prefix-length))
@@ -83,10 +83,12 @@ Pattern is in reverse order."
 
 (defun fc-root-rel-try-completion (string table pred point)
   "Implement `completion-try-completion' for file-root-rel."
-  ;; Returns list of user format strings (uniquified file names), nil, or t.
+  ;; Returns list of user format strings, nil, or t.
   (let (result
 	rel-all
 	done)
+
+    (setq completion-current-style 'file-root-rel)
 
     ;; Compute result, set done.
     (cond
@@ -182,91 +184,20 @@ character after each completion field."
      all)))
 
 (defun fc-root-rel-all-completions (user-string table pred point)
-  "Implement `completion-all-completions' for uniquify-file."
+  "Implement `completion-all-completions' for root-relative."
   ;; Returns list of data format strings (abs file names).
 
-  (let* ((table-string (fc-root-rel-to-table-input user-string))
+  (setq completion-current-style 'file-root-rel)
+
+  ;; Note that we never get here with TABLE a list of filenames.
+  (let* ((table-string (fc-root-rel-to-table-input user-string table pred))
 	 (all (funcall table table-string pred t)))
 
     (when all
       (setq all (fc-root-rel-to-user all (fc-root-rel--root table)))
-      (fc-root-rel--hilit user-string all point)
-      (uniq-file--set-style all 'file-root-rel)
+      (setq all (fc-root-rel--hilit user-string all point))
+      all
       )))
-
-(defun fc-root-rel--valid-completion (string all root)
-  "Return non-nil if STRING is a valid completion in ALL,
-else return nil.  ALL should be the result of `all-completions'.
-STRING should be in completion table input format."
-  (let* ((abs-string (concat root "/" string))
-	 (matched nil)
-	 name)
-
-    (while (and all
-		(not matched))
-      (setq name (pop all))
-      (when (string-equal abs-string name)
-	(setq matched t)))
-
-    matched))
-
-(defun fc-root-rel--pcm-pattern-iter (string root)
-  "Return pcm regexes constructed from STRING (a table format string)."
-  ;; In file-name-all-completions, `completion-regexp-list', is
-  ;; matched against file names and directories relative to `dir'.
-  ;; Thus to handle partial completion delimiters in `string', we
-  ;; construct two regexps from `string'; one from the directory
-  ;; portion, and one from the non-directory portion.
-  (let ((file-name (file-name-nondirectory string))
-	(dir-name (directory-file-name (or (file-name-directory string) "")))
-	dir-length)
-
-    (setq dir-length (length dir-name))
-
-    (when (and (< 0 (length file-name))
-	       (= ?* (aref file-name 0)))
-      (setq dir-name (concat dir-name "*")))
-
-    ;; `completion-pcm--string->pattern' assumes its argument is
-    ;; anchored at the beginning but not the end; that is true
-    ;; for `dir-name' once we prepend ROOT.  file-name must match
-    ;; a directory in "root/dir-name".
-    (let* ((dir-pattern (completion-pcm--string->pattern dir-name))
-	   (file-pattern (completion-pcm--string->pattern string))
-	   (dir-regex
-	    (cond
-	     ((= 0 (length dir-name))
-	      (if (= 0 (length file-name))
-		  root
-		(concat root
-			"\\(\\'\\|/"
-			(substring (completion-pcm--pattern->regex file-pattern) 2) ;; strip \`
-			"\\)")))
-
-	     ((string-equal "*" dir-name)
-	      (if (or (= 0 dir-length)
-		      (= 0 (length file-name)))
-		  (concat root "/?")
-
-		;; else STRING contains an explicit "/"
-		(concat root "/")))
-
-	     (t
-	      (concat root
-		      "/"
-		      (substring (completion-pcm--pattern->regex dir-pattern) 2)
-		      "\\("
-		      (substring (completion-pcm--pattern->regex file-pattern) 2)
-		      "\\)?"))
-	     ))
-
-	   ;; file-regex is matched against an absolute file name
-	   (file-regex
-	    (concat root
-		    (if (eq 'star (nth 0 file-pattern)) "/?" "/")
-		    (substring (completion-pcm--pattern->regex file-pattern) 2)))
-	   )
-      (list dir-regex file-regex))))
 
 (defun fc-root-rel-completion-table-iter (path-iter string pred action)
   "Implement a completion table for file names in PATH-ITER.
@@ -276,76 +207,24 @@ recursive root, and no non-recursive roots.
 
 STRING, PRED, ACTION are completion table arguments."
 
-  ;; This completion table function combines iterating on files in
-  ;; PATH-ITER with filtering on USER-STRING and PRED. This is an
-  ;; optimization that minimizes storage use when USER-STRING is not
-  ;; empty and PRED is non-nil.
+  (let ((root (car (path-iter-path-recursive-init path-iter))))
+    (cond
+     ((eq action 'metadata)
+      (cons 'metadata
+	    (list
+	     '(category . project-file)
+	     '(styles . (file-root-rel))
+	     (cons 'root root))))
 
-  (cond
-   ((eq (car-safe action) 'boundaries)
-    ;; We don't use boundaries; return the default definition.
-    (cons 'boundaries
-	  (cons 0 (length (cdr action)))))
+     (t
+      (file-complete-completion-table path-iter 'root-relative root string pred action))
+     )))
 
-   ((eq action 'metadata)
-    (cons 'metadata
-	  (list
-	   '(category . project-file)
-	   '(styles . (file-root-rel))
-	   (cons 'root (car (path-iter-path-recursive-init path-iter))))))
-
-   ((null action)
-    ;; Called from `try-completion'; should never get here (see
-    ;; `fc-root-rel-try-completion').
-    nil)
-
-   ((memq action
-	  '(lambda ;; Called from `test-completion'
-	     t))   ;; Called from all-completions
-
-    ;; In file-name-all-completions, `completion-regexp-list', is
-    ;; matched against file names and directories relative to `dir',
-    ;; which is useless for this table.
-
-    (pcase-let ((`(,dir-regex ,file-regex)
-		 (fc-root-rel--pcm-pattern-iter string (car (path-iter-path-recursive-init path-iter)))))
-      (let ((result nil)
-	    (case-fold-search completion-ignore-case)
-	    dir)
-
-	(path-iter-restart path-iter)
-	(while (setq dir (path-iter-next path-iter))
-	  (when (string-match dir-regex dir)
-	    (cl-mapc
-	     (lambda (file-name)
-	       (let ((absfile (concat (file-name-as-directory dir) file-name)))
-		 (when (and (not (string-equal "." (substring absfile -1)))
-			    (not (string-equal ".." (substring absfile -2)))
-			    (not (file-directory-p absfile))
-			    (string-match file-regex absfile)
-			    (or (null pred)
-				(funcall pred absfile)))
-		   (push absfile result))))
-	     (directory-files dir))
-	    ))
-	(cond
-	 ((eq action 'lambda)
-	  ;; Called from `test-completion'
-	  (fc-root-rel--valid-completion string result (car (path-iter-path-recursive-init path-iter))))
-
-	 ((eq action t)
-	  ;; Called from all-completions
-	  result)
-	 ))
-      ))
-   ))
-
-(defun fc-root-rel--pcm-pattern-list (string root)
+(defun fc-root-rel--pcm-regex-list (string root)
   "Return pcm regex constructed from STRING (a table format string)."
   (let ((pattern (completion-pcm--string->pattern string)))
     (concat "\\`"
 	    root
-	    (when (< 0 (length string)) "/")
 	    (substring (completion-pcm--pattern->regex pattern) 2);; trim \`
 	    )))
 
@@ -356,52 +235,52 @@ with common prefix ROOT.
 STRING, PRED, ACTION are completion table arguments."
 
   ;; This completion table function is required to provide access to
-  ;; ROOT via metadata.
+  ;; ROOT via metadata, and the file-root-rel suggested style.
 
-  (cond
-   ((eq (car-safe action) 'boundaries)
-    ;; We don't use boundaries; return the default definition.
-    (cons 'boundaries
-	  (cons 0 (length (cdr action)))))
+  ;; `completion-to-table-input' doesn't realize we are dealing with a
+  ;; list, so we have to convert to abs file name.
+  (setq root (file-name-as-directory root))
+  (let ((abs-name (concat (file-name-as-directory root) string)))
 
-   ((eq action 'metadata)
-    (cons 'metadata
-	  (list
-	   '(category . project-file)
-	   '(styles . (file-root-rel))
-	   (cons 'root (directory-file-name root)))))
+    (cond
+     ((eq (car-safe action) 'boundaries)
+      ;; We don't use boundaries; return the default definition.
+      (cons 'boundaries
+	    (cons 0 (length (cdr action)))))
 
-   ((null action)
-    ;; Called from `try-completion'; should never get here (see
-    ;; `fc-root-rel-try-completion').
-    nil)
+     ((eq action 'metadata)
+      (cons 'metadata
+	       (list
+		'(category . project-file)
+		'(styles . (file-root-rel))
+		(cons 'root (file-name-as-directory root)))))
 
-   ((memq action
-	  '(lambda ;; Called from `test-completion'
-	     t))   ;; Called from all-completions
+     ((memq action
+	    '(nil    ;; Called from `try-completion'
+	      lambda ;; Called from `test-completion'
+	      t))    ;; Called from all-completions
 
-    (let ((regex (fc-root-rel--pcm-pattern-list string (directory-file-name root)))
-	  (result nil)
-	  (case-fold-search completion-ignore-case))
+      (let ((regex (fc-root-rel--pcm-regex-list string root))
+	    (case-fold-search completion-ignore-case)
+	    (result nil))
+	(dolist (abs-file-name file-list)
+	  (when (and
+		 (string-match regex abs-file-name)
+		 (or (null pred)
+		     (funcall pred abs-file-name)))
+	    (push abs-file-name result)))
 
-      (cl-mapc
-       (lambda (absfile)
-	 (when (and (string-match regex absfile)
-		    (or (null pred)
-			(funcall pred absfile)))
-	   (push absfile result)))
-       file-list)
+	(cond
+	 ((null action)
+	  (try-completion abs-name result))
 
-      (cond
-       ((eq action 'lambda)
-	;; Called from `test-completion'
-	(fc-root-rel--valid-completion string result (directory-file-name root)))
+	 ((eq 'lambda action)
+	  (test-completion abs-name file-list pred))
 
-       ((eq action t)
-	;; Called from all-completions
-	result)
-       )))
-   ))
+	 ((eq t action)
+	  result)
+	 )))
+     )))
 
 (add-to-list 'completion-styles-alist
 	     '(file-root-rel
@@ -410,6 +289,36 @@ STRING, PRED, ACTION are completion table arguments."
 	       "root relative hierarchical filenames."
 	       fc-root-rel-to-table-input    ;; 4 user to table input format
 	       fc-root-rel-to-data)) ;; 5 user to data format
+
+(defun locate-root-rel-file-iter (iter &optional predicate default prompt)
+  "Return an absolute filename, with file-root-rel completion style.
+ITER is a path-iterator giving the directory path to search; it
+must have exacly one recursive root, and no non-recursive roots.
+If PREDICATE is nil, it is ignored. If non-nil, it must be a
+function that takes one argument; the absolute file name.  The
+file name is included in the result if PRED returns
+non-nil. DEFAULT is the default for completion.
+
+In the user input string, `*' is treated as a wildcard."
+  (let* ((table (apply-partially #'fc-root-rel-completion-table-iter iter))
+	 (table-styles (cdr (assq 'styles (completion-metadata "" table nil))))
+	 (completion-category-overrides
+	  (list (list 'project-file (cons 'styles table-styles)))))
+
+    (unless (and (= 0 (length (path-iter-path-non-recursive-init iter)))
+		 (= 1 (length (path-iter-path-recursive-init iter))))
+      (user-error "iterator does not have exactly one recursive root"))
+
+    (completing-read (format (concat (or prompt "file") " (%s): ") default)
+		     table
+		     predicate t nil nil default)
+    ))
+
+;; For example:
+;; (locate-root-rel-file-iter
+;;  (make-path-iterator
+;;   :user-path-non-recursive nil
+;;   :user-path-recursive "c:/Projects/elpa/packages/uniquify-files/uniquify-files-resources"))
 
 (provide 'file-complete-root-relative)
 ;;; file-complete-root-relative.el ends here

@@ -121,6 +121,10 @@ relative to `default-directory'.
 
 If an element of PATH is nil, `default-directory' is used."
   ;; The nil handling is as defined by the `load-path' doc string.
+  (unless (listp path)
+    ;; Users often specify a single root directory, and forget it's
+    ;; supposed to be a list.
+    (setq path (list path)))
   (let (result)
     (cl-mapc
      (lambda (name)
@@ -128,7 +132,7 @@ If an element of PATH is nil, `default-directory' is used."
 			  (expand-file-name name)
 			default-directory)))
 	 (when (file-directory-p absname)
-	   (push (directory-file-name (file-truename absname)) result))
+	   (push (file-name-as-directory (file-truename absname)) result))
 	 ))
      path)
     (nreverse result)))
@@ -150,9 +154,9 @@ name. Symlinks in the directory part are resolved, but the
 nondirectory part is the link name if it is a symlink.
 
 The directories returned by `path-iter-next' are absolute
-directory file truenames; they contain forward slashes, do
-not end in a slash, have casing that matches the existing
-directory file name, and resolve simlinks (see `file-truename')."
+directory file truenames; they contain forward slashes, end in a
+slash, have casing that matches the existing directory file name,
+and resolve simlinks (see `file-truename')."
   (cond
    ((and (listp (path-iter-visited iter))
 	 (not (null (path-iter-path-recursive iter))))
@@ -178,7 +182,7 @@ directory file name, and resolve simlinks (see `file-truename')."
 		       ;; `ignore-function' wants the link name.
 		       (and (path-iter-ignore-function iter)
 			    (funcall (path-iter-ignore-function iter) absname)))
-	     (push (file-truename absname) subdirs))
+	     (push (file-name-as-directory (file-truename absname)) subdirs))
 	   )
 	 (directory-files result t))
 

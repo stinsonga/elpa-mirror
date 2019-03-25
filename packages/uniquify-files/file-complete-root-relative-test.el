@@ -48,66 +48,13 @@
     ))
 
 (ert-deftest test-fc-root-rel-completion-table-iter ()
-  "Test basic functions of table."
-  ;; grouped by action
-  (should (equal (fc-root-rel-completion-table-iter fc-root-rel-iter "fi" nil '(boundaries . ".text"))
-		   '(boundaries . (0 . 5))))
-
+  "Test added functions of table."
   (should (equal (fc-root-rel-completion-table-iter fc-root-rel-iter "fi" nil 'metadata)
 		 (cons 'metadata
 		       (list
 			'(category . project-file)
 			'(styles   . (file-root-rel))
-			(cons 'root uft-root)))))
-
-  ;; all-completions. We sort the results here to make the test stable
-  (should (equal (sort (fc-root-rel-completion-table-iter fc-root-rel-iter "" nil t) #'string-lessp)
-		 (list
-		  (concat uft-alice1 "/bar-file1.text")
-		  (concat uft-alice1 "/bar-file2.text")
-		  (concat uft-alice1 "/foo-file1.text")
-		  (concat uft-alice1 "/foo-file2.text")
-		  (concat uft-alice2 "/bar-file1.text")
-		  (concat uft-alice2 "/bar-file2.text")
-		  (concat uft-alice2 "/foo-file1.text")
-		  (concat uft-alice2 "/foo-file3.text")
- 		  (concat uft-alice2 "/foo-file3.texts")
- 		  (concat uft-Alice-alice3 "/foo-file4.text")
- 		  (concat uft-Bob-alice3 "/foo-file4.text")
-		  (concat uft-bob1 "/foo-file1.text")
-		  (concat uft-bob1 "/foo-file2.text")
-		  (concat uft-bob2 "/foo-file1.text")
-		  (concat uft-bob2 "/foo-file5.text")
-		  (concat uft-root "/foo-file1.text")
-		  (concat uft-root "/foo-file3.texts2")
-		  )))
-
-  (should (equal (sort (fc-root-rel-completion-table-iter fc-root-rel-iter "a-1/f-fi" nil t) #'string-lessp)
-		 (list
-		  (concat uft-alice1 "/foo-file1.text")
-		  (concat uft-alice1 "/foo-file2.text")
-		  )))
-
-  (should (equal (fc-root-rel-completion-table-iter fc-root-rel-iter "file1.text<uft-alice1/>" nil t)
-		 ;; some caller did not deuniquify; treated as misspelled; no match
-		 nil))
-
-
-  ;; This table does not implement try-completion
-  (should (equal (fc-root-rel-completion-table-iter fc-root-rel-iter "fi" nil nil)
-		 nil))
-
-  ;; test-completion
-  (should (equal (fc-root-rel-completion-table-iter
-		  fc-root-rel-iter
-		  (fc-root-rel-to-table-input "alice-1/foo-file1.text") nil 'lambda)
-		 nil)) ;; not at root
-
-  (should (equal (fc-root-rel-completion-table-iter
-		  fc-root-rel-iter
-		  (fc-root-rel-to-table-input "Alice/alice-1/foo-file1.text") nil 'lambda)
-		 t)) ;; at root
-
+			(cons 'root (file-name-as-directory uft-root))))))
   )
 
 (ert-deftest test-fc-root-rel-completion-table-list ()
@@ -175,35 +122,33 @@
 
 (defun test-fc-root-rel-test-completion-1 (table)
   ;; In normal operation, 'all-completions' is called before
-  ;; test-completion, and it sets the 'completion-style text property.
-  (cl-flet ((ss (str)
-		(put-text-property 0 1 'completion-style 'file-root-rel str)
-		str))
-    (should (equal (test-completion (ss "foo-fi") table)
+  ;; test-completion, and it sets completion-current-style.
+  (let ((completion-current-style 'file-root-rel))
+    (should (equal (test-completion "foo-fi" table)
 		   nil))
 
-    (should (equal (test-completion (ss "dir/f-fi") table)
+    (should (equal (test-completion "dir/f-fi" table)
 		   nil))
 
-    (should (equal (test-completion (ss "foo-file1.text") table)
+    (should (equal (test-completion "foo-file1.text" table)
 		   t)) ;; starts at root
 
-    (should (equal (test-completion (ss "alice-1/foo-file1.text") table)
+    (should (equal (test-completion "alice-1/foo-file1.text" table)
 		   nil)) ;; does not start at root
 
-    (should (equal (test-completion (ss "Alice/alice-1/foo-file1.text") table)
+    (should (equal (test-completion "Alice/alice-1/foo-file1.text" table)
 		   t)) ;; starts at root
 
-    (should (equal (test-completion (ss "foo-file3.text") table)
+    (should (equal (test-completion "foo-file3.text" table)
 		   nil))
 
-    (should (equal (test-completion (ss "foo-file3.texts2") table)
+    (should (equal (test-completion "foo-file3.texts2" table)
 		   t))
 
-    (should (equal (test-completion (ss "Alice/alice-/bar-file2.text") table)
+    (should (equal (test-completion "Alice/alice-/bar-file2.text" table)
 		   nil))
 
-    (should (equal (test-completion (ss "Alice/alice-1/bar-file2.text") table)
+    (should (equal (test-completion "Alice/alice-1/bar-file2.text" table)
 		   t))
     ))
 
@@ -321,8 +266,6 @@
 	(completion-category-overrides '(project-file (styles . file-root-rel)))
 	(completion-ignore-case nil))
     (test-fc-root-rel-all-completions-noface-1 table)))
-
-;; FIXME: more tests
 
 (provide 'file-complete-root-relative-test)
 ;;; file-complete-root-relative-test.el ends here
