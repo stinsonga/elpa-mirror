@@ -128,8 +128,7 @@ Linum mode is a buffer-local minor mode."
     (add-hook 'after-change-functions #'nlinum--after-change nil :local)
     (add-hook 'pre-redisplay-functions #'nlinum--check-narrowing nil :local)
     (if nlinum-highlight-current-line
-        (add-hook 'post-command-hook #'nlinum--current-line-update nil :local)
-      (remove-hook 'post-command-hook #'nlinum--current-line-update :local))
+        (add-hook 'post-command-hook #'nlinum--current-line-update nil :local))
     (jit-lock-register #'nlinum--region :contextual))
   (nlinum--setup-windows))
 
@@ -294,6 +293,7 @@ Linum mode is a buffer-local minor mode."
   ;; Note: if nlinum-widen is t the flush is still needed when
   ;; point-min is/was in the middle of a line.
   (unless (eql nlinum--last-point-min (point-min))
+    (unless nlinum-widen (setq nlinum--line-number-cache nil))
     (setq nlinum--last-point-min (point-min))
     (nlinum--flush)))
 
