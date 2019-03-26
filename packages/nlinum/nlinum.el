@@ -294,6 +294,7 @@ Linum mode is a buffer-local minor mode."
   ;; point-min is/was in the middle of a line.
   (unless (eql nlinum--last-point-min (point-min))
     (unless nlinum-widen (setq nlinum--line-number-cache nil))
+    (nlinum--current-line-update)
     (setq nlinum--last-point-min (point-min))
     (nlinum--flush)))
 
