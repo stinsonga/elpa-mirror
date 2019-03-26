@@ -110,6 +110,7 @@ Linum mode is a buffer-local minor mode."
   (remove-hook 'post-command-hook #'nlinum--current-line-update :local)
   (remove-hook 'pre-redisplay-functions #'nlinum--check-narrowing :local)
   (kill-local-variable 'nlinum--line-number-cache)
+  (kill-local-variable 'nlinum--last-point-min)
   (remove-overlays (point-min) (point-max) 'nlinum t)
   ;; (kill-local-variable 'nlinum--ol-counter)
   (kill-local-variable 'nlinum--width)
@@ -185,17 +186,23 @@ Linum mode is a buffer-local minor mode."
 
 (defun nlinum--flush ()
   (nlinum--setup-windows)
-  ;; (kill-local-variable 'nlinum--ol-counter)
-  (remove-overlays (point-min) (point-max) 'nlinum t)
-  (run-with-timer 0 nil
-                  (lambda (buf)
-                    (with-current-buffer buf
-                      (with-silent-modifications
-                        ;; FIXME: only remove `fontified' on those parts of the
-                        ;; buffer that had an nlinum overlay!
-                        (remove-text-properties
-                         (point-min) (point-max) '(fontified)))))
-                  (current-buffer)))
+  (save-excursion
+    (save-restriction
+      (widen)
+      ;; (kill-local-variable 'nlinum--ol-counter)
+      (remove-overlays (point-min) (point-max) 'nlinum t)
+      (run-with-timer 0 nil
+                      (lambda (buf)
+                        (with-current-buffer buf
+                          (with-silent-modifications
+                            ;; FIXME: only remove `fontified' on those parts of
+                            ;; the buffer that had an nlinum overlay!
+                            (save-excursion
+                              (save-restriction
+                                (widen)
+                                (remove-text-properties
+                                 (point-min) (point-max) '(fontified)))))))
+                      (current-buffer)))))
 
 (defun nlinum--current-line-update ()
   "Update current line number."
