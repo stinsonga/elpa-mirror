@@ -1,6 +1,6 @@
 ;;; debbugs-gnu.el --- interface for the GNU bug tracker  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2011-2018 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2019 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;;         Michael Albinus <michael.albinus@gmx.de>
@@ -243,7 +243,8 @@ If nil, the value of `send-mail-function' is used instead."
   ;; <https://debbugs.gnu.org/Packages.html>
   ;; <https://debbugs.gnu.org/cgi/pkgindex.cgi>
   :group 'debbugs-gnu
-  :type `(set (const "adns")
+  :type `(set (const "ada-mode")
+	      (const "adns")
 	      (const "auctex")
 	      (const "automake")
 	      (const "cc-mode")
@@ -274,7 +275,7 @@ If nil, the value of `send-mail-function' is used instead."
 		      'help-echo "This is a pseudo-package for test."))
 	      (const "vc-dwim")
 	      (const "woodchuck"))
-  :version "25.2")
+  :version "27.1")
 
 (defconst debbugs-gnu-all-packages
   (mapcar 'cadr (cdr (get 'debbugs-gnu-default-packages 'custom-type)))
@@ -553,7 +554,9 @@ marked as \"client-side filter\"."
 	     (t (throw :finished nil)))))
 
 	;; Do the search.
-	(debbugs-gnu severities packages archivedp))))
+	(debbugs-gnu severities packages archivedp)
+	(when (called-interactively-p 'interactive)
+	  (message "Search finished")))))
 
 ;;;###autoload
 (defun debbugs-gnu-patches ()
@@ -1326,13 +1329,20 @@ MERGED is the list of bugs merged with this one."
     (define-key rmail-mode-map "C" 'debbugs-gnu-send-control-message)
     (rmail-show-message 1)))
 
+(defcustom debbugs-gnu-lars-workflow nil
+  "If non-nil, set some Gnus vars as preferred by Lars."
+  :group 'debbugs-gnu
+  :type 'boolean
+  :version "27.1")
+
 (defun debbugs-read-emacs-bug-with-gnus (id status merged)
   "Read email exchange for debbugs bug ID.
 STATUS is the bug's status list.
 MERGED is the list of bugs merged with this one."
   (require 'gnus-dup)
-  (setq gnus-suppress-duplicates t
-	gnus-save-duplicate-list t)
+  (when debbugs-gnu-lars-workflow
+    (setq gnus-suppress-duplicates t
+	  gnus-save-duplicate-list t))
   ;; Use Gnus.
   (gnus-read-ephemeral-emacs-bug-group
    (cons id (if (listp merged) merged (list merged)))
