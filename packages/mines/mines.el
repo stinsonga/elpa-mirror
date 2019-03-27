@@ -327,6 +327,7 @@ Each cell can be either:
          (pos (point))
          (inhibit-read-only t))
     (insert (format " %c " char))
+    (add-text-properties pos (point) `(mouse-face ,(list 'highlight)))
     (when (= (cadr (mines-index-2-matrix idx)) (1- mines-number-cols))
       (backward-delete-char 1)
       (insert "\n"))
@@ -465,10 +466,11 @@ After sorting, games completed with shorter times appear first."
     (message (format "Well done %s, you have completed it in %s!"
                      user-login-name elapsed-time))))
 
-(defun mines-flag-cell ()
+(defun mines-flag-cell (&optional event)
   "Flag current cell as having a mine.
 If called again then unflag it."
-  (interactive)
+  (interactive (list last-nonmenu-event))
+  (if event (posn-set-point (event-end event)))
   (let* ((idx (mines-current-pos))
          (state (aref mines-state idx)))
     (if (null state)
@@ -518,45 +520,39 @@ If called again then unflag it."
       ;; Update the numbers on neighbour cells.
       (mines-set-numbers))))
 
-(defun mines-dig ()
+(defun mines-dig (&optional event)
   "Reveal the content of the cell at point."
-  (interactive)
+  (interactive (list last-nonmenu-event))
+  (if event (posn-set-point (event-end event)))
   (if mines-game-over
       (user-error "Current game is over.  Try `%s' to start a new one"
                   (substitute-command-keys "\\[mines]"))
     (mines-goto (mines-current-pos))    ; Set point in the center of the cell.
-    (cl-labels ((uncover-fn
-                 ()
-                 (let* ((idx (mines-current-pos))
-                        (inhibit-read-only t)
-                        (state (aref mines-state idx))
-                        (done (null state)))
-                   (cond (done (message "Nothing new here")) ; Already updated.
-                         (t
-                          (let ((elt (aref mines-grid idx)))
-                            (cl-flet ((game-end-fn
-                                       ()
-                                       ;; Check for end of game.
-                                       (cond ((eq elt 'bomb)
-                                              ;; We lost the game; show all the mines.
-                                              (mines-game-over))
-                                             (t
-                                              (when (mines-end-p)
-                                                (mines-game-completed))))))
-                              ;; Don't end the game in the first trial when
-                              ;; `mines-protect-first-move' is non-nil.
-                              (when (and mines-protect-first-move
-                                         (mines-first-move-p)
-                                         elt)
-                                (mines--clear-first-move idx)
-                                (setq elt nil))
-                              (cond ((and (eq 'flag state)
-                                          ;; If the cell is flagged ask for confirmation.
-                                          (not (yes-or-no-p "This cell is flagged as having a bomb.  Uncover it? ")))
-                                     (message "OK, canceled"))
-                                    (t
-                                     (mines--update-cell idx nil)
-                                     (game-end-fn))))))))))
+    (cl-flet ((uncover-fn
+               ()
+               (let* ((idx (mines-current-pos))
+                      (inhibit-read-only t)
+                      (state (aref mines-state idx)))
+                 (cond ((null state)
+                        (message "Nothing new here")) ; Already updated.
+                       ((and (eq 'flag state)
+                             ;; If the cell is flagged ask for confirmation.
+                             ;; FIXME: I personally find this prompt annoying.
+                             (not (yes-or-no-p "This cell is flagged as having a bomb.  Uncover it? ")))
+                        (message "OK, canceled"))
+                       (t
+                        (let ((elt (aref mines-grid idx)))
+                          ;; Don't end the game in the first trial when
+                          ;; `mines-protect-first-move' is non-nil.
+                          (when (and mines-protect-first-move
+                                     (mines-first-move-p)
+                                     elt)
+                            (mines--clear-first-move idx)
+                            (setq elt nil))
+                          (mines--update-cell idx nil)
+                          ;; Check for end of game.
+                          (cond ((eq elt 'bomb) (mines-game-over))
+                                ((mines-end-p) (mines-game-completed)))))))))
       (uncover-fn)
       (when mines-undone-neighbours
         (while mines-undone-neighbours
@@ -638,6 +634,8 @@ Called with a prefix prompt for the difficulty level."
     (define-key map "x" 'mines-dig)
     ;; FIXME: I think SPC would be a natural binding for `mines-dig'.
     (define-key map "c" 'mines-dig)
+    (define-key map [mouse-1] 'mines-dig)
+    (define-key map [mouse-3] 'mines-flag-cell)
     ;; (define-key map "a" 'mines-flag-cell)
     (define-key map "1" 'mines-flag-cell)
     (define-key map "m" 'mines-flag-cell)
