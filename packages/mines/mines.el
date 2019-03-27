@@ -66,7 +66,7 @@
   :prefix "mines-")
 
 (defcustom mines-protect-first-move t
-  "Non-nil avoid game over in the first cell revealed."
+  "If non-nil, make sure first move reveals an empty cell."
   :type 'boolean
   :version "27.1")
 
@@ -310,11 +310,6 @@ Each cell can be either:
 (defun mines--insert (elt idx)
   (let* ((face nil)
          (char (cond ((null elt)
-                     ;; Uncover all its uncovered neighbours.
-                     (save-excursion
-                       (dolist (x (mines-get-neighbours idx))
-                         (when (aref mines-state x)
-                           (push x mines-undone-neighbours))))
                      mines-empty-cell-char)
                     ((eq elt t)
                      mines-uncover-cell-char)
@@ -485,15 +480,45 @@ If called again then unflag it."
   (cl-assert (aref mines-state idx))    ;Once uncovered, can't change it!
   (cl-assert (not (eql newstate (aref mines-state idx)))) ;Actual change!
   (mines-goto idx)
-  (let ((from (or (previous-single-property-change (point) 'idx) (point-min)))
-        (to (or (next-single-property-change (point) 'idx) (point-max)))
-        (inhibit-read-only t))
+  (let* ((from (or (previous-single-property-change (point) 'idx) (point-min)))
+         (to (or (next-single-property-change (point) 'idx) (point-max)))
+         (inhibit-read-only t)
+         (elt (or newstate (aref mines-grid idx))))
     (setf (aref mines-state idx) newstate)
+    (when (null elt)
+      ;; Uncovered an empty cell: uncover neighbors.
+      (dolist (nidx (mines-get-neighbours idx))
+        (when (aref mines-state nidx)   ;Still covered.
+          (cl-pushnew nidx mines-undone-neighbours))))
     (delete-region from to)
-    (mines--insert (or newstate (aref mines-grid idx)) idx)
+    (mines--insert elt idx)
     (mines-goto idx)))
 
-(defun mines-dig (&optional show-mines)
+(defun mines--clear-first-move (idx)
+  "Make sure IDX has no bomb and zero neighbors with bombs."
+  ;; Getting a bomb on the first move is just annoying.
+  ;; And getting a cell with a number is frustrating because it still
+  ;; doesn't let you use reasoning rather than luck to make progress.
+  ;; So let's make sure that the first move actually uncovers a pristine
+  ;; area so the user doesn't need luck to get started.
+  (let ((val (aref mines-grid idx)))
+    (cl-assert val)
+    (let ((cells (mines-get-neighbours idx))
+          (bombs (if (integerp val) val (1+ (mines--near-bombs idx)))))
+      (push idx cells)
+      (while (> bombs 0)
+        (let (nidx)
+          (while (progn (setq nidx (random mines-number-cells))
+                        (or (eq 'bomb (aref mines-grid nidx))
+                            (memql nidx cells))))
+          (setf (aref mines-grid nidx) 'bomb) ;Add bomb elsewhere.
+          (cl-decf bombs)))
+      (dolist (cell cells)
+        (setf (aref mines-grid cell) nil)) ;Remove nearby bombs.
+      ;; Update the numbers on neighbour cells.
+      (mines-set-numbers))))
+
+(defun mines-dig ()
   "Reveal the content of the cell at point."
   (interactive)
   (if mines-game-over
@@ -506,38 +531,29 @@ If called again then unflag it."
                         (inhibit-read-only t)
                         (state (aref mines-state idx))
                         (done (null state)))
-                   (cond (done nil)     ; Already updated.
+                   (cond (done (message "Nothing new here")) ; Already updated.
                          (t
                           (let ((elt (aref mines-grid idx)))
                             (cl-flet ((game-end-fn
                                        ()
                                        ;; Check for end of game.
-                                       (cond ((and (not show-mines) (eq elt 'bomb))
+                                       (cond ((eq elt 'bomb)
                                               ;; We lost the game; show all the mines.
                                               (mines-game-over))
                                              (t
-                                              (when (and (not show-mines) (mines-end-p))
+                                              (when (mines-end-p)
                                                 (mines-game-completed))))))
                               ;; Don't end the game in the first trial when
                               ;; `mines-protect-first-move' is non-nil.
-                              (when (and (eq elt 'bomb)
-                                         mines-protect-first-move (mines-first-move-p))
-                                (let ((ok-pos (cl-position-if-not (lambda (x) (eq 'bomb x))
-                                                                  mines-grid)))
-                                  (message "Avoided game over in the first move")
-                                  ;; Update `mines-grid'.
-                                  (setf (aref mines-grid idx) nil) ;Remove bomb.
-                                  (setf (aref mines-grid ok-pos) 'bomb) ;Add it elsewhere.
-                                  ;; Update the numbers on neighbour cells.
-                                  (mines-set-numbers)
-                                  ;; Update current element.
-                                  (setq elt (aref mines-grid idx))))
-                              (cond ((and (not show-mines) (eq 'flag state))
-                                     ;; If the cell is flagged ask for confirmation.
-                                     (cond ((yes-or-no-p "This cell is flagged as having a bomb.  Uncover it? ")
-                                            (mines--update-cell idx nil)
-                                            (game-end-fn))
-                                           (t (message "OK, canceled"))))
+                              (when (and mines-protect-first-move
+                                         (mines-first-move-p)
+                                         elt)
+                                (mines--clear-first-move idx)
+                                (setq elt nil))
+                              (cond ((and (eq 'flag state)
+                                          ;; If the cell is flagged ask for confirmation.
+                                          (not (yes-or-no-p "This cell is flagged as having a bomb.  Uncover it? ")))
+                                     (message "OK, canceled"))
                                     (t
                                      (mines--update-cell idx nil)
                                      (game-end-fn))))))))))
