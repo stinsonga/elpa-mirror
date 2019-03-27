@@ -122,14 +122,13 @@ If `custom' then ask user for these numbers."
 (defvar mines-grid nil
   "Game configuration.
 Each cell can hold either:
-- t to mean there's a bomb at that position.
+- `bomb' to mean there's a bomb at that position.
 - nil if there's no bomb here nor in any neighbor.
 - an integer indicating the number of neighbors with bombs.")
 
 (defvar mines-state nil
   "Game state.")
 
-(defvar mines-mine-positions nil "Mine positions.")
 (defvar mines-gap-positions nil "Empty cell positions.")
 (defvar mines-init-time nil "Initial time of the game.")
 (defvar mines-end-time nil "End time of the game.")
@@ -284,13 +283,12 @@ Each cell can hold either:
                    (vconcat (number-sequence 0 (1- mines-number-cells))))
                   nil)))
     (dotimes (_ mines-number-mines)
-      (aset mines-grid (pop numbers) t))
-    (setq mines-mine-positions (mines--find-pos t mines-grid))))
+      (aset mines-grid (pop numbers) 'bomb))))
 
 (defun mines--near-bombs (idx)
   (let ((n 0))
     (dolist (nidx (mines-get-neighbours idx))
-      (when (eq t (aref mines-grid nidx))
+      (when (eq 'bomb (aref mines-grid nidx))
         (cl-incf n)))
     n))
 
@@ -299,7 +297,7 @@ Each cell can hold either:
   (dotimes (i mines-number-rows)
     (dotimes (j mines-number-cols)
       (let ((idx (mines-matrix-2-index i j)))
-        (unless (eq t (aref mines-grid idx))
+        (unless (eq 'bomb (aref mines-grid idx))
           (let ((n (mines--near-bombs idx)))
             (setf (aref mines-grid idx) (unless (zerop n) n))))))))
 
@@ -371,12 +369,13 @@ Each cell can hold either:
 
 (defun mines--show-all ()
   "Show all mines after game over."
-  (dolist (to mines-mine-positions)
-    (save-excursion
-      (mines-goto to)
+  (dotimes (idx mines-number-cells)
+    (when (and (eq 'bomb (aref mines-grid idx))
+               (eq nil (aref mines-state idx)))
+      (mines-goto idx)
       ;; Drop all flags before show the mines; that drop the flag faces.
       (when (eq (following-char) mines-flagged-cell-char)
-        (mines--update-cell to mines-uncover-cell-char 'unflag))
+        (mines--update-cell idx mines-uncover-cell-char 'unflag))
       (mines-dig 'show-mines))))
 
 (defun mines-game-over ()
@@ -533,7 +532,7 @@ If called again then unflag it."
                               (cl-flet ((game-end-fn
                                          ()
                                          ;; Check for end of game.
-                                         (cond ((and (not show-mines) (eq elt t))
+                                         (cond ((and (not show-mines) (eq elt 'bomb))
                                                 ;; We lost the game; show all the mines.
                                                 (mines-game-over))
                                                (t
@@ -541,17 +540,12 @@ If called again then unflag it."
                                                   (mines-game-completed))))))
                               ;; Don't end the game in the first trial when
                               ;; `mines-protect-first-move' is non-nil.
-                              (when (and (eq elt t) mines-protect-first-move (mines-first-move-p))
-                                (let ((ok-pos (cl-position-if-not (lambda (x) (eq t x)) mines-grid)))
+                              (when (and (eq elt 'bomb)
+                                         mines-protect-first-move (mines-first-move-p))
+                                (let ((ok-pos (cl-position-if-not (lambda (x) (eq 'bomb x))
+                                                                  mines-grid)))
                                   (message "Avoided game over in the first move")
-                                  ;; Update mine positions.
-                                  (setf (nth (cl-position idx mines-mine-positions)
-                                             mines-mine-positions)
-                                        ok-pos)
-                                  ;; We must update `mines-grid' further: the neighbour cells
-                                  ;; to IDX must show now a lower number of near bombs; the
-                                  ;; cells near the new position of the bomb must increase their
-                                  ;; numbers.
+                                  ;; Update `mines-grid'.
                                   (setf (aref mines-grid idx) nil) ;Remove bomb.
                                   (setf (aref mines-grid ok-pos) 'bomb) ;Add it elsewhere.
                                   ;; Update the numbers on neighbour cells.
