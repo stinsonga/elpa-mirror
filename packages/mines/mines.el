@@ -54,6 +54,12 @@
 
 ;;; Code:
 
+;; TODO:
+;; - Arrange for the remaining number of mines to be displayed in the
+;;   modeline.
+;; - Center the board in the window (when smaller than the window).
+;; - Add colors to the numbers
+
 (require 'gamegrid)
 (require 'cl-lib)
 (require 'cookie1) ; For `cookie-shuffle-vector'.
@@ -75,6 +81,10 @@
   :type 'hook
   :version "27.1")
 
+(defcustom mines-auto-flag t
+  "Auto-add flags when they're obvious."
+  :type 'boolean)
+
 (defvar mines-uncover-cell-char ?.
   ;; FIXME: "uncover" means to remove the cover, so this is counter-intuitive,
   ;; because I think of this "." as covering the cell and `mines-dig' as
@@ -85,7 +95,7 @@
 (defvar mines-flagged-cell-char ?!
   "Char to display flagged cells as maybe having a mine.")
 
-(defvar mines-empty-cell-char ?@
+(defvar mines-empty-cell-char ?\s
   "Char to display a cell without mine nor numbers.")
 
 (defvar mines-empty-cell-mine ?x ;FIXME: Use ?💣 when a glyph is available!
@@ -358,10 +368,11 @@ Each cell can be either:
 
 (defun mines--show-all ()
   "Show all mines after game over."
-  (dotimes (idx mines-number-cells)
-    (when (and (eq 'bomb (aref mines-grid idx))
-               (aref mines-state idx))
-      (mines--update-cell idx nil))))
+  (let ((mines-auto-flag nil))
+    (dotimes (idx mines-number-cells)
+      (when (and (eq 'bomb (aref mines-grid idx))
+                 (aref mines-state idx))
+        (mines--update-cell idx nil)))))
 
 (defun mines-game-over ()
   "Offer play a new game after uncover a bomb."
@@ -494,6 +505,19 @@ If called again then unflag it."
           (cl-pushnew nidx mines-undone-neighbours))))
     (delete-region from to)
     (mines--insert elt idx)
+    (when (and mines-auto-flag (eq newstate nil))
+      (dolist (nidx (cons idx (mines-get-neighbours idx)))
+        (when (null (aref mines-state nidx))
+          (let ((nc 0)                  ;Number of neighbors still covered.
+                (nb (aref mines-grid nidx))) ;Number of bomb in neighbors.
+            (when (integerp nb)
+              (dolist (nidx (mines-get-neighbours nidx))
+                (unless (null (aref mines-state nidx))
+                  (cl-incf nc)))
+              (when (eql nc nb)
+                (dolist (nidx (mines-get-neighbours nidx))
+                  (when (eq t (aref mines-state nidx))
+                    (mines--update-cell nidx 'flag)))))))))
     (mines-goto idx)))
 
 (defun mines--clear-first-move (idx)
