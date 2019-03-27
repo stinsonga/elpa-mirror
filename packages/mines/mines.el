@@ -38,8 +38,8 @@
 ;;    contain a number: the number of bombs at distance 1 from this cell.
 ;;    If you reveal the content of this cell, then this number is shown.
 ;;
-;; 3. Cells without a bomb at distance > 1 from any bomb contain '@'.
-;;    If you reveal the content of this cell, then '@' is shown and
+;; 3. Cells without a bomb at distance > 1 from any bomb contain ' '.
+;;    If you reveal the content of this cell, then ' ' is shown and
 ;;    all adjacent cells are recursively revealed.
 ;;
 ;;
@@ -670,23 +670,21 @@ Called with a prefix prompt for the difficulty level."
   "Major mode for playing Minesweeper.
 
 The target of the game is discover which cells contain mines.
-You reveal the content of the mine at point with \\[mines-dig\].
+You reveal the content of the mine at point with \\[mines-dig].
 1. If you look at one cell containing a mine you lost.
 
 2. A cell without a mine with N neighbour cells containing mines
    shows N when you look at it.
 
 3. A cell without a mine and without neighbour cells having mines
-   shows the character `@' when you look at it; all adjacent cells
+   shows the character ` ' when you look at it; all adjacent cells
    are recursively revealed.
 
 For instance, following is a possible configuration:
 
-@ @ @ @ @
-1 2 2 1 @
-1 x x 1 @
-1 2 2 1 @
-@ @ @ @ @
+    1 2 2 1
+    1 x x 1
+    1 2 2 1
 
 You can move between cells using the arrow keys, or using vi
 or Emacs keystrokes (↑↓→←) = (kjlh) = (pnfb).
