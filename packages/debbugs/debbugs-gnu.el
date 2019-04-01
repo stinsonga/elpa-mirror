@@ -1588,27 +1588,29 @@ removed instead."
              (current-buffer)))))
   (let* ((status (debbugs-gnu-current-status))
          (version
-          (when (and
-                 (member message '("close" "done"
-                                   "fixed" "notfixed" "found" "notfound"))
-                 (member "emacs" (cdr (assq 'package status))))
-            (save-excursion
-              (read-string
-               "Version: "
-               (pcase (nbutlast (version-to-list emacs-version)
-                                ;; Chop off build number, if needed.
-                                (if (boundp 'emacs-build-number)
-                                    0
-                                  1))
-                 (`(,major ,minor ,_micro) ; Development version.
-                  (format "%d.%d" major
-                          (if (member message '("notfixed" "found" "notfound"))
-                              minor
-                            (1+ minor))))
-                 (`(,major ,minor)      ; Release version.
-                  (format "%d.%d" major minor))
-                 ;; Unexpected version format?
-                 (_ emacs-version)))))))
+          (if (and
+               (member message '("close" "done"
+                                 "fixed" "notfixed" "found" "notfound"))
+               (member "emacs" (cdr (assq 'package status))))
+              (save-excursion
+                (read-string
+                 "Version: "
+                 (pcase (nbutlast (version-to-list emacs-version)
+                                  ;; Chop off build number, if needed.
+                                  (if (boundp 'emacs-build-number)
+                                      0
+                                    1))
+                   (`(,major ,minor ,_micro) ; Development version.
+                    (format "%d.%d" major
+                            (if (member message '("notfixed" "found" "notfound"))
+                                minor
+                              (1+ minor))))
+                   (`(,major ,minor)    ; Release version.
+                    (format "%d.%d" major minor))
+                   ;; Unexpected version format?
+                   (_ emacs-version))))
+            ;; Don't put a version.
+            "")))
     (unless buffer
       (setq buffer
             (pop-to-buffer
@@ -1679,7 +1681,7 @@ removed instead."
         ((equal message "reassign")
          (format "reassign %d %s\n" bugid (read-string "Package(s): ")))
         ((equal message "close")
-         (format "close %d %s\n" bugid (or version "")))
+         (format "close %d %s\n" bugid version))
         ((equal message "done")
          (format "tags %d fixed\nclose %d %s\n" bugid bugid version))
         ((member message '("found" "notfound" "fixed" "notfixed"))
