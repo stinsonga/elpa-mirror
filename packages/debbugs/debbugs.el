@@ -6,7 +6,7 @@
 ;; Keywords: comm, hypermedia
 ;; Package: debbugs
 ;; Version: 0.17
-;; Package-Requires: ((soap-client "3.1.5") (cl-lib "0.5"))
+;; Package-Requires: ((emacs "25.1") (soap-client "3.1.5") (cl-lib "0.5"))
 
 ;; This file is not part of GNU Emacs.
 
