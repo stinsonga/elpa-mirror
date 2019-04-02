@@ -1,3 +1,6 @@
+@c This is a texi-fied version of
+@c @url{https://debbugs.gnu.org/server-control.html}.  Add-ons are
+@c taken from @url{https://www.debian.org/Bugs/server-control}.
 @table @samp
 @anchor{Mail Command Index: reassign}
 @item reassign bugnumber package [ version ]
@@ -8,6 +11,12 @@ change an earlier assignment. No notifications are sent to anyone
 
 If you supply a version, the bug tracking system will note that
 the bug affects that version of the newly-assigned package.
+
+@c @url{https://www.debian.org/Bugs/server-control}
+You can assign a bug to two packages at once by separating the package
+names with a comma. However, you should only do this if the bug can be
+fixed by a change to either package. If this is not the case, you
+should clone the bug and reassign the clone to the other package.
 
 @anchor{Mail Command Index: reopen}
 @item reopen bugnumber [ originator-address | = | ! ]
@@ -70,6 +79,31 @@ is not listed as fixed in that version either; no information
 about that version will be known. It is intended for fixing
 mistakes in the record of when a bug was found.
 
+@c @url{https://www.debian.org/Bugs/server-control}
+@anchor{Mail Command Index: fixed}
+@item fixed bugnumber version
+Indicate that bug #bugnumber was fixed in the given version of the
+package to which it is assigned. version may be a fully qualified
+version, of the form sourcepackagename/version.
+
+This does not cause the bug to be marked as closed, it merely adds
+another version in which the bug was fixed. Use the bugnumber-done
+address to close a bug and mark it fixed in a particular version.
+
+@c @url{https://www.debian.org/Bugs/server-control}
+@anchor{Mail Command Index: notfixed}
+@item notfixed bugnumber version
+Remove the record that bug #bugnumber has been fixed in the given
+version. version may be a fully qualified version, of the form
+sourcepackagename/version.
+
+This command is equivalent to found followed by notfound (the found
+removes the fixed at a particular version, and notfound removes the
+found) with the exception that the bug is not reopened if the found
+version is greater than any existing fixed version. It is intended for
+fixing mistakes in the record of when a bug was fixed; in most cases,
+you actually want found, not notfixed.
+
 @anchor{Mail Command Index: submitter}
 @item submitter bugnumber originator-address | !
 Changes the originator of #bugnumber to originator-address.
@@ -83,11 +117,20 @@ merged bugs.
 
 @anchor{Mail Command Index: forwarded}
 @item forwarded bugnumber address
-Notes that bugnumber has been forwarded to the upstream maintainer
-at address. This does not actually forward the report. This can be
-used to change an existing incorrect forwarded-to address, or to
-record a new one for a bug that wasn't previously noted as having
-been forwarded.
+@c @url{https://www.debian.org/Bugs/server-control}
+Notes that bugnumber has been forwarded to the upstream maintainer at
+address. This does not actually forward the report. This can be used
+to change an existing incorrect forwarded-to address, or to record a
+new one for a bug that wasn't previously noted as having been
+forwarded. address should generally be a URI, or possibly an email
+address. Using a URI where possible allows tools to query a remote bug
+tracking system (such as bugzilla) for a bug's status.
+
+Example usage:
+
+@example
+forwarded 12345 http://bugz.illa.foo/cgi/54321
+@end example
 
 @anchor{Mail Command Index: notforwarded}
 @item notforwarded bugnumber
@@ -109,6 +152,9 @@ merged.
 @item severity bugnumber severity
 Set the severity level for bug report #bugnumber to severity. No
 notification is sent to the user who reported the bug.
+
+@c @url{https://www.debian.org/Bugs/server-control}
+Severities are serious, important, normal, minor, wishlist.
 
 For their meanings please consult the general developers'
 documentation for the bug system.
@@ -168,9 +214,14 @@ of the reports each separately meet the criteria for expiry.
 @anchor{Mail Command Index: forcemerge}
 @item forcemerge bugnumber bugnumber @dots{}
 Forcibly merges two or more bug reports. The first bug is chosen
-as the master bug, and its seetings are assigned to the bugs
+as the master bug, and its settings are assigned to the bugs
 listed next in the command. See the text above for a description
 of what merging means.
+
+@c @url{https://www.debian.org/Bugs/server-control}
+Note that this makes it possible to close bugs by merging; you are
+responsible for notifying submitters with an appropriate close message
+if you do this.
 
 @anchor{Mail Command Index: unmerge}
 @item unmerge bugnumber
@@ -216,16 +267,15 @@ tags 123456 = moreinfo unreproducible
 @end example
 
 Available tags currently include patch, wontfix, moreinfo,
-unreproducible, help, pending, fixed, security, upstream, potato,
-woody, sarge, sid and experimental.
+unreproducible, help, pending, fixed, security, notabug and easy.
 
 For their meanings please consult the general developers'
 documentation for the bug system.
 
 @anchor{Mail Command Index: block}
-@item block bugnumber by|with bug [ bug @dots{} ]
+@item block bugnumber by bug [ bug @dots{} ]
 @anchor{Mail Command Index: unblock}
-@itemx unblock bugnumber by|with bug [ bug @dots{} ]
+@itemx unblock bugnumber by bug [ bug @dots{} ]
 Use to note that one bug blocks another bug from being fixed. The
 first listed bug is the one being blocked, and it is followed by
 the bug or bugs that are blocking it. Use unblock to unblock a
