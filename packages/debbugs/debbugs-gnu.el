@@ -409,7 +409,11 @@ marked as \"client-side filter\"."
   (interactive)
 
   (unwind-protect
-      (let ((date-format "\\([[:digit:]]\\{4\\}\\)-\\([[:digit:]]\\{1,2\\}\\)-\\([[:digit:]]\\{1,2\\}\\)")
+      (let ((date-format
+	     (eval-when-compile
+	       (concat"\\([[:digit:]]\\{4\\}\\)-"
+		      "\\([[:digit:]]\\{1,2\\}\\)-"
+		      "\\([[:digit:]]\\{1,2\\}\\)")))
 	    key val1 val2 phrase severities packages archivedp)
 
 	;; Check for the phrase.
@@ -1541,7 +1545,8 @@ removed instead."
              (list (debbugs-gnu-current-id t)
                    debbugs-gnu-bug-number ; Set on group entry.
                    (debbugs-gnu-guess-current-id)
-                   (let ((bugnum-re "\\([0-9]+\\)\\(?:-done\\)?@debbugs.gnu.org"))
+                   (let ((bugnum-re
+			  "\\([0-9]+\\)\\(?:-done\\)?@debbugs.gnu.org"))
                      (when (derived-mode-p 'message-mode)
                        (save-excursion
                          (save-restriction
@@ -1551,7 +1556,8 @@ removed instead."
                                       (string-to-number (match-string 1 addr))))
                                (let ((addr (message-fetch-field "cc")))
                                  (and addr (string-match bugnum-re addr)
-                                      (string-to-number (match-string 1 addr)))))))))))))
+                                      (string-to-number
+				       (match-string 1 addr)))))))))))))
 
 (defun debbugs-gnu-make-control-message (message bugid &optional reverse buffer)
   "Make a control message for the current bug report.
@@ -1578,8 +1584,8 @@ removed instead."
                   (default-id (car implicit-ids)))
              (string-to-number
               (completing-read (if default-id
-                                   (format "Bug #ID (default %s): " default-id)
-                                 "Bug #ID: ")
+                                   (format "Bug # (default %s): " default-id)
+                                 "Bug #: ")
                                implicit-ids
                                (lambda (s) (string-match-p "\\`[0-9]+\\'" s))
                                nil nil nil (car implicit-ids))))
@@ -1602,7 +1608,8 @@ removed instead."
                                     1))
                    (`(,major ,minor ,_micro) ; Development version.
                     (format "%d.%d" major
-                            (if (member message '("notfixed" "found" "notfound"))
+                            (if (member
+				 message '("notfixed" "found" "notfound"))
                                 minor
                               (1+ minor))))
                    (`(,major ,minor)    ; Release version.
@@ -1647,7 +1654,7 @@ removed instead."
         ((member message '("unarchive" "unmerge" "noowner" "notforwarded"))
          (format "%s %d\n" message bugid))
         ((equal message "reopen")
-         (format "reopen %d\ntag %d - fixed patch\n" bugid bugid))
+         (format "reopen %d\ntags %d - fixed patch\n" bugid bugid))
         ((member message '("merge" "forcemerge"))
          (format
           "%s %d %s\n" message bugid
@@ -1705,6 +1712,8 @@ removed instead."
                    debbugs-gnu-all-packages (list user-mail-address))
                   nil nil (car debbugs-gnu-default-packages))
                  bugid (read-string "User tag: ")))
+	;; "patch", "wontfix", "moreinfo", "unreproducible", "notabug",
+	;; "pending", "help", "security", "confirmed", "easy"
         (t
          (format "tags %d %c %s\n"
                  bugid (if reverse ?- ?+)
