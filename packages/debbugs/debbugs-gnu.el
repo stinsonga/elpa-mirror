@@ -1592,7 +1592,9 @@ removed instead."
            current-prefix-arg
            (when (derived-mode-p 'message-mode)
              (current-buffer)))))
-  (let* ((status (debbugs-gnu-current-status))
+  (let* ((status (or (debbugs-gnu-current-status)
+                     (gethash bugid debbugs-cache-data)
+                     (debbugs-get-status bugid)))
          (version
           (if (and
                (member message '("close" "done"
