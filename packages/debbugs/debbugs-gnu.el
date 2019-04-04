@@ -1593,8 +1593,7 @@ removed instead."
            (when (derived-mode-p 'message-mode)
              (current-buffer)))))
   (let* ((status (or (debbugs-gnu-current-status)
-                     (gethash bugid debbugs-cache-data)
-                     (debbugs-get-status bugid)))
+                     (car (debbugs-get-status bugid))))
          (version
           (if (and
                (member message '("close" "done"
