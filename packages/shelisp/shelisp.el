@@ -6,7 +6,6 @@
 ;; Version: 0.9.0
 ;; Package-Type: simple
 ;; Keywords: terminals, lisp, processes
-;; URL: https://gitlab.com/mmauger/shelisp
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -59,6 +58,10 @@
 ;;   (add-hook 'shell-mode-hook #'shelisp-mode)
 
 ;; TO DOs:
+
+;; * Provide a security feature that prompts the Emacs user to approve
+;; * the execution of any elisp expressions submitted thru the shelips
+;; * escape sequence.
 
 ;; * Support `term-mode' like `shell-mode'
 
