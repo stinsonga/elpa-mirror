@@ -1,6 +1,6 @@
 ;;; shelisp.el --- execute elisp in shell          -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2018, 2019  Michael R. Mauger
+;; Copyright (C) 2018-2019  Free Software Foundation, Inc.
 
 ;; Author: Michael R. Mauger <michael@mauger.com>
 ;; Version: 0.9.0
@@ -85,7 +85,7 @@
 ;; the purpose is to create a valid elisp expression string.
 
 ;;; Code:
-(require 'cl-macs)
+(require 'cl-lib)
 (require 'pp)
 
 ;;;###autoload
@@ -150,7 +150,8 @@ convert it to a string."
                       (condition-case err
                           (shelisp--result-as-string
                            (eval `(cl-flet ((f (file) (shelisp--file-name file)))
-	                            ,(read cmd))))
+	                            ,(read cmd))
+                                 t))
                         ;; When an error occurs, replace with the error message
 	                (error
 	                 (format "shelisp: `%s': %S" cmd err)))))
