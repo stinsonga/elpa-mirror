@@ -3,7 +3,7 @@
 ;; Copyright (C) 2018-2019  Free Software Foundation, Inc.
 
 ;; Author: Michael R. Mauger <michael@mauger.com>
-;; Version: 0.9.0
+;; Version: 0.9.1
 ;; Package-Type: simple
 ;; Keywords: terminals, lisp, processes
 
@@ -60,7 +60,7 @@
 ;; TO DOs:
 
 ;; * Provide a security feature that prompts the Emacs user to approve
-;; * the execution of any elisp expressions submitted thru the shelips
+;; * the execution of any elisp expressions submitted thru the shelisp
 ;; * escape sequence.
 
 ;; * Support `term-mode' like `shell-mode'
