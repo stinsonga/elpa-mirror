@@ -62,6 +62,7 @@
 ./auctex/tex-fold.el:    ("(C)" ("copyright"))
 ./auctex/tex-info.el:   '("copyright" nil)
 ./debbugs/debbugs-gnu.el:	  (insert "  Copyright-paperwork-exempt: yes"))
+./eev/eev-tlinks.el:          --copyright=gpl \\
 ./ergoemacs-mode/ergoemacs-themes.el:                 ,(lambda () emacs-copyright)
 ./excorporate/excorporate-calfw.el:;; copyright assignment papers on file with the FSF.
 ./gnugo/gnugo.el:    (CP "Copyright"       game  simpletext)
