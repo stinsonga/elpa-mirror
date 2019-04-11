@@ -100,6 +100,7 @@
  ("map"                 :core "lisp/emacs-lisp/map.el")
  ("math-symbol-lists" 	:subtree "https://github.com/vspinu/math-symbol-lists.git")
  ("mmm-mode"            :external "https://github.com/purcell/mmm-mode.git")
+ ("muse"		:subtree "https://github.com/alexott/muse")
  ("nameless"		:subtree "https://github.com/Malabarba/Nameless")
  ("names"		:subtree "http://github.com/Malabarba/names")
  ("objed"        	:external "https://github.com/clemera/objed")
