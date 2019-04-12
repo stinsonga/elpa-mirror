@@ -1958,15 +1958,14 @@ The next key typed is executed unless it is SPC."
   "^.\\{6\\}"
   "Regexp matching a complete sequence area.")
 
-(defconst cobol--fixed-comment-indicators-re
-  ;; FIXME: Confusing name and docstring: it's not a regexp!
+(defconst cobol--fixed-comment-indicators
   "*/"
-  "Regexp containing COBOL fixed-form comment indicators.")
+  "String containing COBOL fixed-form comment indicator characters.")
 
 (defconst cobol--fixed-form-comment-re
   (concat cobol--complete-sequence-area-re
           "\\(["
-          cobol--fixed-comment-indicators-re
+          cobol--fixed-comment-indicators
           "]\\)")
   "Regexp matching a fixed-form source comment.")
 
@@ -1976,7 +1975,7 @@ The next key typed is executed unless it is SPC."
   "Regexp matching a continuation or debugging line indicator.")
 
 (defconst cobol--non-fixed-comment-indicators-re
-  (concat "[^" cobol--fixed-comment-indicators-re "]")
+  (concat "[^" cobol--fixed-comment-indicators "]")
   "Regexp matching non-fixed-form-comment-indicator characters.")
 
 (defconst cobol--fixed-non-comment-sequence-area-re
