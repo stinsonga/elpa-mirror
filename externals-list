@@ -119,6 +119,7 @@
  ("relint"		:external "https://github.com/mattiase/relint")
  ("rich-minority"	:subtree "https://github.com/Malabarba/rich-minority")
  ("rudel"		:external nil) ;; Was bzr::bzr://rudel.bzr.sourceforge.net/bzrroot/rudel/trunk
+ ("smalltalk-mode"	:external "git://git.sv.gnu.org/smalltalk")
  ("soap-client"		:core ("lisp/net/soap-client.el" "lisp/net/soap-inspect.el"))
  ("sotlisp"		:subtree "https://github.com/Malabarba/speed-of-thought-lisp")
  ("spinner"		:subtree "https://github.com/Malabarba/spinner.el")
