@@ -987,15 +987,16 @@ nil."
     (pcase-let (((and current-fsym `(,fnsym ,index))
                  (elisp--fnsym-in-current-sexp)))
       (defvar el-search--pcase-macros) ;defined later
-      (let (pattern-def  docstring  help)
+      (let (pattern-def  help)
         (and fnsym
              (setq pattern-def (cdr (assoc fnsym el-search--pcase-macros)))
              ;; This is what `elisp-get-fnsym-args-string' (which we can't use) does
-             (setq docstring (documentation pattern-def))
-             (setq help (help-split-fundoc docstring fnsym))
+             (setq help (if-let* ((docstring (documentation pattern-def))
+                                  (from-docstring (help-split-fundoc docstring fnsym)))
+                            (elisp-function-argstring (car from-docstring))
+                          (prin1-to-string (help-function-arglist pattern-def))))
              (elisp--highlight-function-argument
-              current-fsym (elisp-function-argstring (car help))
-              index (concat (symbol-name fnsym) ": ")))))))
+              current-fsym help index (concat (symbol-name fnsym) ": ")))))))
 
 (defvar el-search--this-session-match-count-data nil)
 
