@@ -1,5 +1,23 @@
 # History of user-visible changes
 
+## 2019-04-15 (0.9.10)
+
+* `company-clang`: better compatibility with Clang 8
+  ([#885](https://github.com/company-mode/company-mode/issues/885)).
+* The change in `company-clang` regarding identity #defines is reverted because
+  it affected other completions as well
+  ([#884](https://github.com/company-mode/company-mode/issues/884)).
+* `company-idle-delay` now accepts a function which generates the idle time or
+  nil indicating no idle completion.
+* Add custom variable `company-show-numbers-function` to make numbers of
+  candidates customizable. 
+* When a symbol is already typed in full, calling `M-x company-complete` will
+  now run its post-completion action (e.g. inserting method parameters
+  template). Calling `M-x company-manual-begin` or invoking a backend command
+  directly will show the popup
+  ([#150](https://github.com/company-mode/company-mode/issues/150),
+  [#476](https://github.com/company-mode/company-mode/issues/476)).
+
 ## 2018-12-13 (0.9.9)
 
 * Fix for the changes in the previous release.
