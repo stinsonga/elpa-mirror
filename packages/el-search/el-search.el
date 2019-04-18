@@ -4722,9 +4722,11 @@ Switch to driving search.  Useful to reposition search head.")))))))))
                                              (progn
                                                (funcall replace-or-restore)
                                                (undo-boundary))
-                                           (el-search--message-no-log
-                                            "Already replaced this match - hit r r to update")
-                                           (sit-for 2))))
+                                           ;; (el-search--message-no-log
+                                           ;;  "Already replaced this match - hit r r to update")
+                                           ;; (sit-for 2)
+                                           (funcall replace-or-restore)
+                                           (funcall replace-or-restore))))
                                      nil)))
                              (unwind-protect
                                  (while (not (pcase (funcall query)
