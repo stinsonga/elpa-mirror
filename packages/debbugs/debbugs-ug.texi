@@ -313,6 +313,7 @@ in @code{org-mode}.
 * TODO Items::                  TODO Items.
 * Control Messages::            Control Messages.
 * Applying Patches::            Applying Patches in the Emacs Repository.
+* Posting Patches::             Posting Patches to Debbugs from the Emacs Repository.
 @end menu
 
 
@@ -673,6 +674,66 @@ the modified file.  Here you can apply @kbd{M-m} the next time.  This
 creates a ChangeLog entry with all needed information.  A final
 @kbd{M-m} in the @samp{ChangeLog} buffer commits the patch via
 @samp{*vc-log*}.
+
+@node Posting Patches
+@section Posting Patches to Debbugs from the Emacs Repository
+
+Once you have committed a patch locally to fix a bug you usually want
+to post it to the bug thread for review and testing.  And when the
+patch is deemed satisfactory and pushed to the official repository,
+the bug should be marked closed.
+
+@vindex debbugs-gnu-read-commit-range-hook
+The query for commit (or commit range) to use is controlled by
+@code{debbugs-gnu-read-commit-range-hook}.  Initially it has an entry
+which operates in @samp{*vc-change-log*} buffers, but additional
+entries may be added to give sensible results for other modes that
+work with git.
+
+@findex debbugs-gnu-pick-commits
+The command @code{debbugs-gnu-pick-commits} (bound to @kbd{c} in
+@code{*vc-change-log*} buffers by default) helps automate both these
+processes: it queries for a commit (or commit range), and a bug number
+(defaulting to the bug number mentioned in the commit message).  It
+then jumps you to a buffer associated with the bug.  When you reply to
+a message in the bug thread, you are asked whether to post the commits
+as patches (optionally tagging the bug with @code{"patch"}), or
+announce that the bug has been fixed by the selected commits
+(optionally closing the bug and marking as closed in the Emacs version
+corresponding to the patch).
+
+For example, suppose you are reading the message of ``Bug#12345:
+foo-mode fails to call frobnicate on startup'' in a message buffer.
+You decide to fix it, so you switch to the source code, add in the
+missing call and commit locally, with the commit message ``*
+lisp/foo-mode.el (foo-mode): Call frobnicate (Bug#12345).''  Use
+@kbd{C-x v l} to run @code{vc-print-log}, and navigate to the new
+commit.  Press @kbd{c} and then @kbd{@key{RET}} to accept the default
+bug number (which will be 12345 since it's in the commit message) in
+response to the prompt.  You are then popped to the message buffer,
+and when you reply to the message, press @kbd{p} to post the git
+formatted patch as an attachment for review, and then answer @kbd{y}
+to tag the bug with @code{"patch"} when the message is sent.  Assuming
+you get favorable reviews, you then push it, and again hit @kbd{c} but
+this time press @kbd{a} (for ``announce'') after replying to the
+relevant bug thread message.  This will insert some text describing
+the commit and where it was pushed to, and answering @kbd{y} will
+arrange for the bug to be closed when the message is sent.
+
+@node Customizing debbugs-gnu-pick-commits
+@subsection Customizing debbugs-gnu-pick-commits
+
+@vindex debbugs-gnu-commit-description-format
+@vindex debbugs-gnu-git-remote-info-alist
+The string inserted to describe an announced commit is controlled by
+the user option @code{debbugs-gnu-commit-description-format}, it is a
+format string passed to the @code{--format} argument of @code{git
+show}.  Additionally, if the remote url matches an entry in
+@code{debbugs-gnu-git-remote-info-alist}, then its @code{commit-url}
+subitem is appended to the commit description.  By default this
+user option is configured for the GNU Emacs and GNU ELPA repositories,
+more entries may be added to work with other repositories of other
+packages.
 
 
 @node Minor Mode

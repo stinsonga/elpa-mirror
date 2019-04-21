@@ -151,6 +151,14 @@
 ;; presented, and in the latter case the last 10 bugs are shown,
 ;; counting from the highest bug number in the repository.
 
+;; For posting commit to bugs, or constructing a bug closing message
+;; based on a pushed commit, use the command
+;;
+;;   M-x debbugs-gnu-pick-commits
+;;
+;; (bound to "c" in *vc-change-log* buffers).  Then the follow the
+;; prompts.
+
 ;;; Code:
 
 (require 'debbugs)
@@ -179,6 +187,10 @@
 (autoload 'rmail-summary "rmailsum")
 (autoload 'vc-dir-hide-up-to-date "vc-dir")
 (autoload 'vc-dir-mark "vc-dir")
+(autoload 'vc-git--call "vc-git")
+
+(declare-function log-view-current-entry "log-view" (&optional pos move))
+(declare-function log-view-current-tag "log-view" (&optional pos))
 
 (defvar compilation-in-progress)
 (defvar diff-file-header-re)
@@ -186,6 +198,7 @@
 (defvar gnus-posting-styles)
 (defvar gnus-save-duplicate-list)
 (defvar gnus-suppress-duplicates)
+(defvar message-sent-message-via)
 (defvar rmail-current-message)
 (defvar rmail-mode-map)
 (defvar rmail-summary-mode-map)
@@ -1282,7 +1295,8 @@ interest to you."
 	   (error "No bug on the current line"))))
 
 (defun debbugs-gnu-current-status ()
-  (get-text-property (line-beginning-position) 'tabulated-list-id))
+  (when (derived-mode-p 'debbugs-gnu-mode)
+    (get-text-property (line-beginning-position) 'tabulated-list-id)))
 
 (defun debbugs-gnu-display-status (query filter status)
   "Display the query, filter and status of the report on the current line."
@@ -1534,7 +1548,6 @@ removed instead."
       (debbugs-gnu-make-control-message
        message id reverse (current-buffer))
       (funcall (or debbugs-gnu-send-mail-function send-mail-function))
-      (remhash id debbugs-cache-data)
       (message-goto-body)
       (message "Control message sent:\n%s"
                (buffer-substring-no-properties (point) (1- (point-max)))))))
@@ -1720,8 +1733,288 @@ removed instead."
                  bugid (if reverse ?- ?+)
                  message)))))
     (unless (looking-at-p debbugs-gnu-control-message-end-regexp)
-      (insert "quit\n\n"))))
+      (insert "quit\n\n"))
+    (add-hook 'message-send-actions
+              (lambda () (remhash bugid debbugs-cache-data))
+              nil t)))
 
+(defun debbugs-gnus-jump-to-bug (bugid)
+  "Display buffer associated with BUGID with `pop-to-buffer'.
+Use `gnus-read-ephemeral-emacs-bug-group' instead if there is no such buffer."
+  (let ((bug-buf nil)
+        ;; By reverse order of preference.  FIXME: `rmail' buffers?
+        (preferred-modes '(gnus-summary-mode gnus-article-mode message-mode)))
+    (save-current-buffer
+      (cl-loop
+       for buf in (buffer-list)
+       while preferred-modes do
+       (set-buffer buf)
+       (when-let (((memql bugid (debbugs-gnus-implicit-ids)))
+                  (mode (cl-loop
+                         for mode in preferred-modes
+                         thereis (and (derived-mode-p mode)
+                                      ;; Don't choose sent message buffers.
+                                      (or (not (eq mode 'message-mode))
+                                          (not message-sent-message-via))
+                                      mode))))
+         (setq preferred-modes (cdr (memq mode preferred-modes)))
+         (setq bug-buf buf))))
+    (if bug-buf
+        (pop-to-buffer bug-buf '(display-buffer-reuse-window
+                                 . ((reusable-frames . visible))))
+      (gnus-read-ephemeral-emacs-bug-group
+       bugid (cons (current-buffer) (current-window-configuration))))))
+
+(defcustom debbugs-gnu-git-remote-info-alist
+  '(("git.sv.gnu.org\\(?::/srv/git\\)/emacs.git" .
+     ((commit-url
+       . "https://git.savannah.gnu.org/cgit/emacs.git/commit/?id=%H")
+      (ref-globs . ("/emacs-*" "/master"))))
+    ("git.sv.gnu.org\\(?::/srv/git\\)/emacs/elpa" .
+     ((commit-url
+       . "https://git.savannah.gnu.org/cgit/emacs/elpa.git/commit/?id=%H"))))
+  "Nest alist for repository-specific information.
+Each element has the form (REMOTE-REGEXP . INFO-ALIST), where
+INFO-ALIST is an alist containing the repository attributes.
+
+Supported keys of INFO-ALIST are
+
+* `commit-url': Format of a URL for a given commit hash, using
+  format specifiers supported by `git show'.  Used by
+  `debbugs-gnu-announce-commit' as a supplement to
+  `debbugs-gnu-commit-description-format'.
+
+* `ref-globs': List of glob patterns matching branches of
+  interest, used by `debbugs-gnu-announce-commit' to make the
+  \"Pushed to X\" message."
+  :version "27.1"
+  :type '(alist :key-type string :value-type (alist :key-type symbol)))
+
+(defcustom debbugs-gnu-commit-description-format
+  "%h %cI \"%s\""
+  "Format used for describing commits in `debbugs-gnu-announce-commit'.
+It is passed as --format argument to `git show', see its manual
+page for formatting specifier meanings."
+  :version "27.1"
+  :type 'string)
+
+(defun debbugs-gnu--git-insert (&rest args)
+  "Insert output of running git with ARGS.
+Throws error if git returns non-zero."
+  (unless (eql 0 (apply #'vc-git--call '(t t) args))
+    (error "git %s failed: %s" (car args) (buffer-string))))
+
+(defun debbugs-gnu--git-remote-info ()
+  "Return (REMOTE . INFO-ALIST).
+Where REMOTE is a string naming a git remote which matches the
+REMOTE-REGEXP key of a `debbugs-gnu-git-remote-info-alist' entry.
+INFO-ALIST is the correponding value of the entry.  If no entry
+matches, return nil."
+  (with-temp-buffer
+    (debbugs-gnu--git-insert "remote" "-v")
+    (catch 'found-remote
+      (dolist (remote-info debbugs-gnu-git-remote-info-alist)
+        (goto-char (point-min))
+        (and (re-search-forward (car remote-info) nil t)
+             (progn (beginning-of-line)
+                    (looking-at "[^ \t]+"))
+             (throw 'found-remote
+                    (cons (match-string 0) (cdr remote-info))))))))
+
+(defun debbugs-gnu--git-get-pushed-to (commit-range remote-info)
+  "Return the branch name which COMMIT-RANGE was pushed to.
+REMOTE-INFO is return value of `debbugs-gnu--git-remote-info'."
+  (let* ((last-commit
+          (with-temp-buffer
+            (debbugs-gnu--git-insert
+             ;; %H: commit hash.
+             "log" "-1" "--format=%H" commit-range)
+            (goto-char (point-min))
+            (buffer-substring (point-min) (line-end-position))))
+         (remote (pop remote-info)))
+    (let ((ref-globs (cdr (assq 'ref-globs remote-info))))
+      (with-temp-buffer
+        (apply
+         #'debbugs-gnu--git-insert
+         "branch" "--remote" "--contains" last-commit
+         (mapcar (lambda (glob) (concat remote glob))
+                 ref-globs))
+        ;; First 2 characters are current branch indicator.
+        (goto-char (+ (point-min) 2))
+        (and (looking-at (concat (regexp-quote remote) "/\\(.+\\)$"))
+             (match-string 1))))))
+
+(defun debbugs-gnu-announce-commit (commit-range bugnum &optional _args)
+  "Insert info about COMMIT-RANGE into message.
+Optionally call `debbugs-gnu-make-control-message' to close BUGNUM."
+  (let* ((status (car (debbugs-get-status bugnum)))
+         (packages (cdr (assq 'package status)))
+         (remote-info (debbugs-gnu--git-remote-info)))
+    (insert "\nPushed to "
+            (or (debbugs-gnu--git-get-pushed-to commit-range remote-info) "")
+            ".\n\n")
+    (debbugs-gnu--git-insert
+     "show" "--no-patch"
+     (concat "--format=" debbugs-gnu-commit-description-format
+             "\n" (cdr (assq 'commit-url remote-info)) "\n")
+     commit-range)
+    (when (y-or-n-p "Close bug? ")
+      (let ((emacs-version
+             (or (and (member "emacs" packages)
+                      (file-exists-p "configure.ac")
+                      (with-temp-buffer
+                        (insert-file-contents "configure.ac")
+                        (and (re-search-forward "\
+^ *AC_INIT(GNU Emacs, *\\([0-9.]+\\), *bug-gnu-emacs@gnu.org"
+                                                nil t)
+                             (match-string 1))))
+                 "")))
+        (debbugs-gnu-make-control-message
+         "done" bugnum nil (current-buffer))))))
+
+(defun debbugs-gnu-post-patch (commit-range bugnum &optional format-patch-args)
+  "Attach COMMIT-RANGE as patches into current message.
+Optionally call `debbugs-gnu-make-control-message'' to tag BUGNUM
+with `patch'."
+  (letrec ((disposition (completing-read "disposition: " '("inline" "attachment")))
+           ;; Make attachments text/plain for better compatibility
+           ;; (e.g., opening in browser instead of downloading).
+           (type (if (equal disposition "inline") "text/x-diff" "text/plain"))
+           (dir (make-temp-file (format "patches-for-bug%d" bugnum) t))
+           (deldir (lambda ()
+                     (delete-directory dir t)
+                     (remove-hook 'message-exit-actions deldir t)
+                     (remove-hook 'kill-buffer-hook deldir t))))
+    (add-hook 'message-send-actions deldir nil t)
+    (add-hook 'kill-buffer-hook deldir nil t)
+    (with-temp-buffer
+      (apply #'debbugs-gnu--git-insert
+             "format-patch" (concat "--output-directory=" dir)
+             (append format-patch-args
+                     (list commit-range))))
+    (dolist (patch (directory-files dir t "\\`[^.]"))
+      (mml-attach-file patch type "patch" disposition))
+    (when (and (not (member
+                     "patch" (assq 'tags (car (debbugs-get-status
+                                               bugnum)))))
+               (y-or-n-p "Tag + patch? "))
+      (debbugs-gnu-make-control-message
+       "patch" bugnum nil (current-buffer)))))
+
+(defvar debbugs-gnu-read-commit-range-hook nil
+  "Used by `debbugs-gnu-pick-commits'.
+Each function receives no arguments, and should return an
+argument compatible with `debbugs-gnu-pick-commits'.  If the
+function can't function in the current buffer, it should return
+nil to let the next function try.")
+
+(defun debbugs-gnu-read-commit-range-from-vc-log ()
+  "Read commit range from a VC log buffer.
+Return commit at point, or commit range in region if it is
+active.  This function is suitable for use in
+`debbugs-gnu-read-commit-range-hook'."
+  (when (derived-mode-p 'vc-git-log-view-mode)
+    (list (if (use-region-p)
+              (let ((beg (log-view-current-entry (region-beginning)))
+                    (end (log-view-current-entry (region-end))))
+                (if (= (car beg) (car end))
+                    ;; Region spans only a single entry.
+                    (cadr beg)
+                  ;; Later revs are at the top of buffer.
+                  (format "%s~1..%s" (cadr end) (cadr beg))))
+            (log-view-current-tag)))))
+(add-hook 'debbugs-gnu-read-commit-range-hook
+          #'debbugs-gnu-read-commit-range-from-vc-log)
+
+(defvar debbugs-gnu-picked-commits nil
+  "List of commits selected in `debbugs-gnu-pick-commits'.
+Format of each element is (BUGNUMBERS REPO-DIR COMMIT-RANGE).")
+
+(defun debbugs-gnu-pick-commits (commit-range)
+  "Select COMMIT-RANGE to post as patches or announce as pushed.
+COMMIT-RANGE is read using `debbugs-gnu-read-commit-range-hook',
+or `read-string' if none of its functions apply.  Add entry to
+`debbugs-gnu-pick-commits' and jump to read bug in preparation for
+user to call `debbugs-gnu-maybe-use-picked-commits'."
+  (interactive
+   (or (run-hook-with-args-until-success
+        'debbugs-gnu-read-commit-range-hook)
+       (list (read-string "Commit (or range): "))))
+  (let ((bugnum nil)
+        (repo-dir default-directory))
+    (with-temp-buffer
+      ;; %B = raw body (unwrapped subject and body)
+      (debbugs-gnu--git-insert
+       ;; %B: raw body (unwrapped subject and body).
+       "show" "--no-patch" "--format=%B" commit-range)
+      (goto-char (point-min))
+      (while (re-search-forward "[bB]ug ?#\\([0-9]+\\)" nil t)
+        (push (match-string 1) bugnum)))
+    (let ((read-bugnum
+           (string-to-number
+            (completing-read
+             (if bugnum
+                 (format "Bug # (default %s): " (car bugnum))
+               "Bug #: ")
+             debbugs-gnu-completion-table nil t nil nil bugnum))))
+      (debbugs-gnus-jump-to-bug read-bugnum)
+      (cl-callf2 mapcar #'string-to-number bugnum)
+      (unless (memql read-bugnum bugnum)
+        (push read-bugnum bugnum)))
+    (push (list bugnum repo-dir commit-range)
+          debbugs-gnu-picked-commits)
+    (if (derived-mode-p 'message-mode)
+        (debbugs-gnu-maybe-use-picked-commits)
+      (message "Reply to a message to continue"))))
+
+(defun debbugs-gnu-maybe-use-picked-commits ()
+  "Add commit corresponding to current message's bug number.
+Calls `debbugs-gnu-announce-commit' or `debbugs-gnu-post-patch'
+on an entry with a matching bug number from
+`debbugs-gnu-picked-commits'.  Remove entry after message is
+successfully sent."
+  (interactive)
+  (when (derived-mode-p 'message-mode)
+    (cl-loop with id = (car (debbugs-gnus-implicit-ids))
+             for pcomm-entry in debbugs-gnu-picked-commits
+             for (bugnum repo-dir commit-range) = pcomm-entry
+             when (memql id bugnum)
+             do
+             (goto-char (point-max))
+             (let ((default-directory repo-dir))
+               (pcase (read-char-choice
+                       (format "[a]nnounce commit, or [p]ost patch? (%s)"
+                               commit-range)
+                       '(?a ?p))
+                 (?a (debbugs-gnu-announce-commit commit-range id) )
+                 (?p (debbugs-gnu-post-patch commit-range id))))
+             (add-hook 'message-send-actions
+                       (lambda ()
+                         (cl-callf2 delq pcomm-entry
+                                    debbugs-gnu-picked-commits))
+                       nil t)
+             (remove-hook 'post-command-hook
+                          #'debbugs-gnu-maybe-use-picked-commits)
+             (cl-return))))
+
+;; We need to daisy chain the hooks because `message-setup-hook' runs
+;; too early (before `message-yank-original').
+(defun debbugs-gnu--prepare-to-use-picked-commits ()
+  (add-hook 'post-command-hook #'debbugs-gnu-maybe-use-picked-commits))
+(add-hook 'message-setup-hook #'debbugs-gnu--prepare-to-use-picked-commits)
+
+(defvar debbugs-gnu-pick-vc-log-commit-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "c" 'debbugs-gnu-pick-commits)
+    map))
+
+(define-minor-mode debbugs-gnu-pick-vc-log-commit-mode
+  "Minor mode for sending commits from *vc-change-log* buffers to debbugs.
+
+\\{debbugs-gnu-pick-vc-log-commit-mode}"
+  :lighter " Debbugs")
+
+(add-hook 'vc-git-log-view-mode-hook #'debbugs-gnu-pick-vc-log-commit-mode)
 
 (defvar debbugs-gnu-usertags-mode-map
   (let ((map (make-sparse-keymap)))
