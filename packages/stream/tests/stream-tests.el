@@ -1,6 +1,6 @@
 ;;; stream-tests.el --- Unit tests for stream.el  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015, 2017 Free Software Foundation, Inc.
+;; Copyright (C) 2015, 2017-2019 Free Software Foundation, Inc.
 
 ;; Author: Nicolas Petton <nicolas@petton.fr>
 
@@ -28,14 +28,6 @@
 (require 'stream)
 (require 'generator)
 (require 'cl-lib)
-
-(defun stream-to-list (stream)
-  "Eagerly traverse STREAM and return a list of its elements."
-  (let (result)
-    (seq-do (lambda (elt)
-                 (push elt result))
-               stream)
-    (reverse result)))
 
 (ert-deftest stream-empty-test ()
   (should (streamp (stream-empty)))
@@ -240,7 +232,7 @@
 
 (ert-deftest stream-list-test ()
   (dolist (list '(nil '(1 2 3) '(a . b)))
-    (should (equal list (stream-to-list (stream list))))))
+    (should (equal list (seq-into (stream list) 'list)))))
 
 (ert-deftest stream-seq-subseq-test ()
   (should (stream-empty-p (seq-subseq (stream-range 2 10) 0 0)))
