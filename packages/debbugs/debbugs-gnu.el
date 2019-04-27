@@ -1572,12 +1572,16 @@ removed instead."
                                       (string-to-number
 				       (match-string 1 addr)))))))))))))
 
-(defun debbugs-gnu-make-control-message (message bugid &optional reverse buffer)
+(defun debbugs-gnu-make-control-message
+    (message bugid &optional reverse buffer noversion)
   "Make a control message for the current bug report.
 The message is inserted into BUFFER, and mail headers are adjust
 so that it will be sent to control@debbugs.gnu.org (via Bcc if
 there is already a To address).  If BUFFER omitted, create and
-display a new buffer.
+display a new buffer.  If optional NOVERSION is non-nil, suppress
+query for version number on \"close\", \"fixed\", etc messages.
+Otherwise, the version is queried for bugs whose package is
+\"emacs\".
 
 When called interactively, choose the current buffer if it is in
 `message-mode', or create a new buffer otherwise.
@@ -1609,6 +1613,7 @@ removed instead."
                      (car (debbugs-get-status bugid))))
          (version
           (if (and
+               (not noversion)
                (member message '("close" "done"
                                  "fixed" "notfixed" "found" "notfound"))
                (member "emacs" (cdr (assq 'package status))))
@@ -1618,8 +1623,7 @@ removed instead."
                  (pcase (nbutlast (version-to-list emacs-version)
                                   ;; Chop off build number, if needed.
                                   (if (boundp 'emacs-build-number)
-                                      0
-                                    1))
+                                      0 1))
                    (`(,major ,minor ,_micro) ; Development version.
                     (format "%d.%d" major
                             (if (member
@@ -1860,17 +1864,16 @@ Optionally call `debbugs-gnu-make-control-message' to close BUGNUM."
      commit-range)
     (when (y-or-n-p "Close bug? ")
       (let ((emacs-version
-             (or (and (member "emacs" packages)
-                      (file-exists-p "configure.ac")
-                      (with-temp-buffer
-                        (insert-file-contents "configure.ac")
-                        (and (re-search-forward "\
+             (and (member "emacs" packages)
+                  (file-exists-p "configure.ac")
+                  (with-temp-buffer
+                    (insert-file-contents "configure.ac")
+                    (and (re-search-forward "\
 ^ *AC_INIT(GNU Emacs, *\\([0-9.]+\\), *bug-gnu-emacs@gnu.org"
-                                                nil t)
-                             (match-string 1))))
-                 "")))
+                                            nil t)
+                         (match-string 1))))))
         (debbugs-gnu-make-control-message
-         "done" bugnum nil (current-buffer))))))
+         "done" bugnum nil (current-buffer) (not emacs-version))))))
 
 (defun debbugs-gnu-post-patch (commit-range bugnum &optional format-patch-args)
   "Attach COMMIT-RANGE as patches into current message.
