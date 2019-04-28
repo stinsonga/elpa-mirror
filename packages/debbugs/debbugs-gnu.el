@@ -156,8 +156,7 @@
 ;;
 ;;   M-x debbugs-gnu-pick-commits
 ;;
-;; (bound to "c" in *vc-change-log* buffers).  Then the follow the
-;; prompts.
+;; (bound to "c" in *vc-change-log* buffers).  Then follow the prompts.
 
 ;;; Code:
 
@@ -1879,7 +1878,8 @@ Optionally call `debbugs-gnu-make-control-message' to close BUGNUM."
   "Attach COMMIT-RANGE as patches into current message.
 Optionally call `debbugs-gnu-make-control-message'' to tag BUGNUM
 with `patch'."
-  (letrec ((disposition (completing-read "disposition: " '("inline" "attachment")))
+  (letrec ((disposition
+	    (completing-read "disposition: " '("inline" "attachment")))
            ;; Make attachments text/plain for better compatibility
            ;; (e.g., opening in browser instead of downloading).
            (type (if (equal disposition "inline") "text/x-diff" "text/plain"))
@@ -2439,15 +2439,6 @@ If given a prefix, patch in the branch directory instead."
 
 ;; * Extend SOAP interface to get existing package names on the
 ;;  server, in order not to hardcode them.
-
-;; * Add debbugs commands to commit messages.
-;;   It'd be nice if the language would be something along the lines of
-;;
-;;   bug#45 done
-;;   bug#45 tags 25.1 fixed
-;;
-;;   That is, that you could drop arbitrary debbugs commands into
-;;   commit messages.
 
 ;; * The bug tracker should be aware of repositories, branches,
 ;;   commits, contributors, and ticket links or mentions in commit
