@@ -734,6 +734,18 @@ The non-nil value should be one of the symbols `forward' and
 (defvar el-search-occur-flag nil
   "Non-nil when next search should be performed as occur.")
 
+(defvar-local el-search--get-buffer-fun nil
+  "How to recreate current buffer when non-nil.
+
+This buffer-local helper variable can be set in buffers that the
+get-buffer-stream method of el-search-objects returns to specify
+how to recreate that buffer.  This is useful when the search
+domain contains places that are neither buffers nor files -
+former revisions of files for example.  In this case
+`el-search-occur' can remember the value of this variable in
+the (temporary) buffers to implement to-match jumping after these
+buffers have been killed.")
+
 (defun el-search-true (&rest _args)
   "Ignore the arguments and return t."
   t)
@@ -3556,9 +3568,12 @@ Prompt for a new pattern and revert."
 
 (cl-defun el-search--occur-button-action
     (filename-or-buffer &optional match-pos do-fun (display-buffer-action nil action-specified))
-  (let ((buffer (if (bufferp filename-or-buffer)
-                    filename-or-buffer
-                  (find-file-noselect filename-or-buffer)))
+  (let ((buffer (cond
+                 ((bufferp filename-or-buffer)
+                  filename-or-buffer)
+                 ((functionp filename-or-buffer)
+                  (funcall filename-or-buffer))
+                 (t (find-file-noselect filename-or-buffer))))
         (search-pattern (el-search-object-pattern el-search-occur-search-object)))
     (with-selected-window (display-buffer
                            buffer
@@ -3839,12 +3854,22 @@ addition from `special-mode-map':
                   (while (setq stream-of-buffer-matches (stream-pop stream-of-matches))
                     (setq buffer-matches (seq-length stream-of-buffer-matches))
                     (cl-incf overall-matches buffer-matches)
-                    (pcase-let ((`(,buffer ,_ ,file) (stream-first stream-of-buffer-matches)))
+                    (pcase-let* ((`(,buffer ,_ ,file)
+                                  ;; This always binds BUFFER to a live buffer
+                                  (stream-first stream-of-buffer-matches))
+                                 (get-buffer (with-current-buffer buffer el-search--get-buffer-fun)))
+                      (when get-buffer
+                        (let ((real-get-buffer get-buffer)
+                              (buffer-name (buffer-name buffer)))
+                          (setq get-buffer
+                                (lambda (&optional arg)
+                                  (if arg buffer-name (funcall real-get-buffer))))))
                       (if file (cl-incf matching-files) (cl-incf matching-buffers))
                       (insert "\n\n;;; *** ")
                       (insert-button
                        (or file (format "%S" buffer))
-                       'action (lambda (_) (el-search--occur-button-action (or file buffer))))
+                       'action (lambda (_) (el-search--occur-button-action
+                                            (or get-buffer file buffer))))
                       (insert (format "  (%d match%s)\n"
                                       buffer-matches
                                       (if (> buffer-matches 1) "es" "")))
@@ -3901,7 +3926,7 @@ addition from `special-mode-map':
                                              (overlay-put ov 'face 'el-search-occur-match)
                                              (overlay-put
                                               ov el-search-occur-match-ov-prop
-                                              `(,buffer ,match-beg ,file ,nbr)))
+                                              `(,(or get-buffer buffer) ,match-beg ,file ,nbr)))
                                            (with-current-buffer buffer (point)))))
                                 (insert (format "\n;;;; Line %d\n"
                                                 (with-current-buffer buffer
@@ -3927,7 +3952,7 @@ addition from `special-mode-map':
                                                       (el-search--end-of-sexp mb)))
                                                  nil 'front-advance) ;f-a is needed for later indenting
                                                 el-search-occur-match-ov-prop
-                                                `(,buffer ,mb ,file ,nbr)))
+                                                `(,(or get-buffer buffer) ,mb ,file ,nbr)))
                                              (stream-pop matches)
                                              t)))))
                                   (insert
