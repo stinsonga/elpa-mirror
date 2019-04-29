@@ -43,11 +43,14 @@
 
 ;;;###autoload
 (defvar gnu-elpa-keyring-update--keyring
-  (let ((kr (expand-file-name "etc/gnu-elpa-keyring.gpg"
+  ;; FIXME: Avoid using a `.gpg' extension, because it triggers a bug in
+  ;; tar-untar-buffer (which is used internally by `package.el' when installing
+  ;; the package).
+  (let ((kr (expand-file-name "etc/gnu-elpa.gpg-keyring"
                               (file-name-directory load-file-name))))
     (if (and load-file-name (file-readable-p kr))
         kr
-      "etc/gnu-elpa-keyring.gpg")))
+      "etc/gnu-elpa.gpg-keyring")))
 
 (defun gnu-elpa-keyring-update--keyring (&optional noerror)
   (if (and (file-name-absolute-p gnu-elpa-keyring-update--keyring)
@@ -62,7 +65,7 @@
       (if (file-readable-p kr)
           (setq gnu-elpa-keyring-update--keyring kr)
         (unless noerror
-          (error "Can't find the keyring.gpg file with the new keys"))))))
+          (error "Can't find the gpg-keyring file with the new keys"))))))
 
 ;;;###autoload
 (defun gnu-elpa-keyring-update ()
