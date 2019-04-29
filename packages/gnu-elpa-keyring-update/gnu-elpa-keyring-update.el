@@ -5,7 +5,7 @@
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords: maint, tools
 ;; Package-Type: multi
-;; Version: 2019.1
+;; Version: 2019.2
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -73,22 +73,24 @@
   (let ((gnupghome-dir (or (bound-and-true-p package-gnupghome-dir)
                            (expand-file-name "gnupg"
                                              package-user-dir))))
-    (if (file-directory-p gnupghome-dir)
-        (package-import-keyring (gnu-elpa-keyring-update--keyring))
-      (error "No keyring to update!"))))
+    (if (not (file-directory-p gnupghome-dir))
+        (error "No keyring to update!")
+      (package-import-keyring (gnu-elpa-keyring-update--keyring))
+      (write-region "" nil (expand-file-name "gnu-elpa.timestamp" hd)
+                    nil 'silent))))
 
 ;;;###autoload (eval-after-load 'package
 ;;;###autoload   `(and (bound-and-true-p package-user-dir)
 ;;;###autoload         (file-directory-p package-user-dir)
-;;;###autoload         (let ((okr (expand-file-name
-;;;###autoload                     "pubring.gpg"
-;;;###autoload                     (or (bound-and-true-p package-gnupghome-dir)
-;;;###autoload                         (expand-file-name "gnupg"
-;;;###autoload                                           package-user-dir))))
-;;;###autoload               (nkr gnu-elpa-keyring-update--keyring))
-;;;###autoload           (and (file-writable-p okr)
-;;;###autoload                (file-readable-p nkr)
-;;;###autoload                (file-newer-than-file-p nkr okr)
+;;;###autoload         (let ((ts (expand-file-name
+;;;###autoload                    "gnu-elpa.timestamp"
+;;;###autoload                    (or (bound-and-true-p package-gnupghome-dir)
+;;;###autoload                        (expand-file-name "gnupg"
+;;;###autoload                                          package-user-dir))))
+;;;###autoload               (kr gnu-elpa-keyring-update--keyring))
+;;;###autoload           (and (file-writable-p ts)
+;;;###autoload                (file-readable-p kr)
+;;;###autoload                (file-newer-than-file-p kr ts)
 ;;;###autoload                (gnu-elpa-keyring-update)))))
 
 (eval-when-compile
