@@ -32,12 +32,20 @@
 ;; installing packages.
 ;; 
 ;; If your keys are already too old, causing signature verification errors when
-;; installing packages, then in order to install this package you will
-;; ironically need to temporarily disable signature verification (see variable
-;; `package-check-signature') or to manually modify the expiration date of
-;; the old key, e.g. with:
+;; installing packages, then in order to install this package you can do the
+;; following:
 ;;
-;;   gpg --homedir ~/.emacs.d/elpa/gnupg --quick-set-expire 474F05837FBDEF9B 1y
+;; - Fetch the new key manually, e.g. with something like:
+;;
+;;       gpg --homedir ~/.emacs.d/elpa/gnupg --receive-keys 066DAFCB81E42C40
+;;
+;; - Modify the expiration date of the old key, e.g. with something like:
+;;
+;;       gpg --homedir ~/.emacs.d/elpa/gnupg \
+;;           --quick-set-expire 474F05837FBDEF9B 1y
+;;
+;; - temporarily disable signature verification (see variable
+;;   `package-check-signature').
 
 ;;; Code:
 
@@ -76,7 +84,7 @@
     (if (not (file-directory-p gnupghome-dir))
         (error "No keyring to update!")
       (package-import-keyring (gnu-elpa-keyring-update--keyring))
-      (write-region "" nil (expand-file-name "gnu-elpa.timestamp" hd)
+      (write-region "" nil (expand-file-name "gnu-elpa.timestamp" gnupghome-dir)
                     nil 'silent))))
 
 ;;;###autoload (eval-after-load 'package
