@@ -221,7 +221,6 @@
   ;; <https://debbugs.gnu.org/Developer.html#severities>
   ;; /ssh:debbugs:/etc/debbugs/config @gSeverityList
   ;; We don't use "critical" and "grave".
-  :group 'debbugs-gnu
   :type '(set (const "serious")
 	      (const "important")
 	      (const "normal")
@@ -246,19 +245,17 @@ If nil, the value of `send-mail-function' is used instead."
 
 (defcustom debbugs-gnu-suppress-closed t
   "If non-nil, don't show closed bugs."
-  :group 'debbugs-gnu
   :type 'boolean
   :version "25.1")
 
 (defconst debbugs-gnu-all-severities
-  (mapcar 'cadr (cdr (get 'debbugs-gnu-default-severities 'custom-type)))
+  (mapcar #'cadr (cdr (get 'debbugs-gnu-default-severities 'custom-type)))
   "List of all possible severities.")
 
 (defcustom debbugs-gnu-default-packages '("emacs")
   "The list of packages to be searched for."
   ;; <https://debbugs.gnu.org/Packages.html>
   ;; <https://debbugs.gnu.org/cgi/pkgindex.cgi>
-  :group 'debbugs-gnu
   :type `(set (const "ada-mode")
 	      (const "adns")
 	      (const "auctex")
@@ -294,7 +291,7 @@ If nil, the value of `send-mail-function' is used instead."
   :version "27.1")
 
 (defconst debbugs-gnu-all-packages
-  (mapcar 'cadr (cdr (get 'debbugs-gnu-default-packages 'custom-type)))
+  (mapcar #'cadr (cdr (get 'debbugs-gnu-default-packages 'custom-type)))
   "List of all possible package names.")
 
 (defcustom debbugs-gnu-default-suppress-bugs
@@ -304,7 +301,6 @@ An element of this list is a cons cell \(KEY . REGEXP\), with key
 being returned by `debbugs-get-status', and REGEXP a regular
 expression matching the corresponding value, a string.  Showing
 suppressed bugs is toggled by `debbugs-gnu-toggle-suppress'."
-  :group 'debbugs-gnu
   :type '(alist :key-type symbol :value-type regexp)
   :version "24.1")
 
@@ -312,7 +308,6 @@ suppressed bugs is toggled by `debbugs-gnu-toggle-suppress'."
   "The email backend to use for reading bug report email exchange.
 If this is `gnus', the default, use Gnus.
 If this is `rmail', use Rmail instead."
-  :group 'debbugs-gnu
   :type '(radio (function-item :tag "Use Gnus" gnus)
 		(function-item :tag "Use Rmail" rmail))
   :version "25.1")
@@ -376,7 +371,6 @@ The specification which bugs shall be suppressed is taken from
 
 (defcustom debbugs-gnu-emacs-current-release "25.2"
   "The current Emacs relase developped for."
-  :group 'debbugs-gnu
   :type '(choice (const "24.5")
 		 (const "25.1")
 		 (const "25.2")
@@ -475,14 +469,14 @@ marked as \"client-side filter\"."
 	       severities
 	       (completing-read-multiple
 		"Enter severities: " debbugs-gnu-all-severities nil t
-		(mapconcat 'identity debbugs-gnu-default-severities ","))))
+		(mapconcat #'identity debbugs-gnu-default-severities ","))))
 
 	     ((equal key "package")
 	      (setq
 	       packages
 	       (completing-read-multiple
 		"Enter packages: " debbugs-gnu-all-packages nil t
-		(mapconcat 'identity debbugs-gnu-default-packages ","))))
+		(mapconcat #'identity debbugs-gnu-default-packages ","))))
 
 	     ((equal key "archive")
 	      ;; We simplify, by assuming just archived bugs are requested.
@@ -594,12 +588,12 @@ marked as \"client-side filter\"."
       (setq severities
 	    (completing-read-multiple
 	     "Severities: " debbugs-gnu-all-severities nil t
-	     (mapconcat 'identity debbugs-gnu-default-severities ",")))
+	     (mapconcat #'identity debbugs-gnu-default-severities ",")))
       ;; The next parameters are asked only when there is a prefix.
       (if current-prefix-arg
 	  (completing-read-multiple
 	   "Packages: " debbugs-gnu-all-packages nil t
-	   (mapconcat 'identity debbugs-gnu-default-packages ","))
+	   (mapconcat #'identity debbugs-gnu-default-packages ","))
 	debbugs-gnu-default-packages)
       (when current-prefix-arg
 	(setq archivedp (y-or-n-p "Show archived bugs?")))
@@ -616,7 +610,7 @@ marked as \"client-side filter\"."
 		   (not debbugs-gnu-local-tags))
 	  (with-temp-buffer
 	    (insert-file-contents debbugs-gnu-persistency-file)
-	    (eval (read (current-buffer)))))
+	    (eval (read (current-buffer)) t)))
 	;; Per default, we suppress retrieved unwanted bugs.
 	(when (and (called-interactively-p 'any)
 		   debbugs-gnu-suppress-closed)
@@ -691,13 +685,13 @@ marked as \"client-side filter\"."
      (phrase
       (mapcar
        (lambda (x) (cdr (assoc "id" x)))
-       (apply 'debbugs-search-est args)))
+       (apply #'debbugs-search-est args)))
      ;; User tags.
      (tags
       (setq args (mapcar (lambda (x) (if (eq x :package) :user x)) args))
-      (apply 'debbugs-get-usertag args))
+      (apply #'debbugs-get-usertag args))
      ;; Otherwise, we retrieve the bugs from the server.
-     (t (apply 'debbugs-get-bugs args)))))
+     (t (apply #'debbugs-get-bugs args)))))
 
 (defun debbugs-gnu-show-reports (&optional offline)
   "Show bug reports.
@@ -723,7 +717,7 @@ are taken from the cache instead."
     (dolist (status
 	     (let ((debbugs-cache-expiry (if offline nil debbugs-cache-expiry))
 		   ids)
-	       (apply 'debbugs-get-status
+	       (apply #'debbugs-get-status
 		      (if offline
 			  (progn
 			    (maphash (lambda (key _elem)
@@ -754,11 +748,11 @@ are taken from the cache instead."
 	      (setq packages (delete elt packages))))
 	  (setq words (append words packages)))
 	(when (setq merged (cdr (assq 'mergedwith status)))
-	  (setq words (append (mapcar 'number-to-string merged) words)))
+	  (setq words (append (mapcar #'number-to-string merged) words)))
 	;; `words' could contain the same word twice, for example
 	;; "fixed" from `keywords' and `pending'.
 	(setq words (mapconcat
-		     'identity (cl-delete-duplicates words :test 'equal) ","))
+		     #'identity (cl-delete-duplicates words :test 'equal) ","))
 	(when (or (not merged)
 		  (not (let ((found nil))
 			 (dolist (id (if (listp merged)
@@ -1168,7 +1162,7 @@ Used instead of `tabulated-list-print-entry'."
 	(status (debbugs-gnu-current-status)))
     (if (null (cdr (assq 'blockedby status)))
 	(message "Bug %d is not blocked by any other bug" id)
-      (apply 'debbugs-gnu-bugs (cdr (assq 'blockedby status))))))
+      (apply #'debbugs-gnu-bugs (cdr (assq 'blockedby status))))))
 
 (defun debbugs-gnu-show-blocking-reports ()
   "Display all bug reports this report is blocking."
@@ -1177,7 +1171,7 @@ Used instead of `tabulated-list-print-entry'."
 	(status (debbugs-gnu-current-status)))
     (if (null (cdr (assq 'blocks status)))
 	(message "Bug %d is not blocking any other bug" id)
-      (apply 'debbugs-gnu-bugs (cdr (assq 'blocks status))))))
+      (apply #'debbugs-gnu-bugs (cdr (assq 'blocks status))))))
 
 (defun debbugs-gnu-show-all-blocking-reports (&optional release)
   "Narrow the display to just the reports that are blocking an Emacs release."
@@ -1186,7 +1180,7 @@ Used instead of `tabulated-list-print-entry'."
     (if current-prefix-arg
 	(completing-read
 	 "Emacs release: "
-	 (mapcar 'identity debbugs-gnu-emacs-blocking-reports)
+	 (mapcar #'identity debbugs-gnu-emacs-blocking-reports)
 	 nil t debbugs-gnu-emacs-current-release)
       debbugs-gnu-emacs-current-release)))
 
@@ -1355,7 +1349,6 @@ MERGED is the list of bugs merged with this one."
 
 (defcustom debbugs-gnu-lars-workflow nil
   "If non-nil, set some Gnus vars as preferred by Lars."
-  :group 'debbugs-gnu
   :type 'boolean
   :version "27.1")
 
@@ -1488,12 +1481,12 @@ returned by `debbugs-gnu-bugs'."
 	  ((string-equal from "")
 	   (append
 	    (mapcar
-	     'number-to-string
+	     #'number-to-string
 	     (debbugs-newest-bugs (string-to-number to)))
 	    result))
 	  (t (append
 	      (mapcar
-	       'number-to-string
+	       #'number-to-string
 	       (number-sequence (string-to-number from) (string-to-number to)))
 	      result))))))))
 
@@ -1676,7 +1669,7 @@ removed instead."
          (format
           "%s %d %s\n" message bugid
           (mapconcat
-           'identity
+           #'identity
            (debbugs-gnu-expand-bug-number-list
             (completing-read-multiple
              (format "%s with bug(s) #: " (capitalize message))
@@ -1686,12 +1679,12 @@ removed instead."
          (format
           "%s %d by %s\n" message bugid
           (mapconcat
-           'identity
+           #'identity
            (debbugs-gnu-expand-bug-number-list
             (completing-read-multiple
              (format "%s with bug(s) #: " (capitalize message))
              (if (equal message "unblock")
-                 (mapcar 'number-to-string
+                 (mapcar #'number-to-string
                          (cdr (assq 'blockedby status)))
                debbugs-gnu-completion-table)
              nil (and (equal message "unblock") status)))
@@ -2042,7 +2035,7 @@ successfully sent."
        (completing-read-multiple
 	"Package name(s) or email address: "
 	(append debbugs-gnu-all-packages (list user-mail-address)) nil nil
-	(mapconcat 'identity debbugs-gnu-default-packages ","))
+	(mapconcat #'identity debbugs-gnu-default-packages ","))
      debbugs-gnu-default-packages))
 
   (unwind-protect
@@ -2050,14 +2043,14 @@ successfully sent."
 	    (debbugs-port "gnu.org")
 	    (buffer-name "*Emacs User Tags*")
 	    (user-tab-length
-	     (1+ (apply 'max (length "User") (mapcar 'length users)))))
+	     (1+ (apply #'max (length "User") (mapcar #'length users)))))
 
 	;; Initialize variables.
 	(when (and (file-exists-p debbugs-gnu-persistency-file)
 		   (not debbugs-gnu-local-tags))
 	  (with-temp-buffer
 	    (insert-file-contents debbugs-gnu-persistency-file)
-	    (eval (read (current-buffer)))))
+	    (eval (read (current-buffer)) t)))
 
 	;; Create buffer.
 	(when (get-buffer buffer-name)
@@ -2101,14 +2094,13 @@ successfully sent."
   (when (mouse-event-p last-input-event) (mouse-set-point last-input-event))
   ;; We open the bug reports.
   (let ((args (get-text-property (line-beginning-position) 'tabulated-list-id)))
-    (when args (apply 'debbugs-gnu args))))
+    (when args (apply #'debbugs-gnu args))))
 
 (defcustom debbugs-gnu-default-bug-number-list
   (propertize "-10" 'help-echo "The 10 most recent bugs.")
   "The default value used in interactive call of `debbugs-gnu-bugs'.
 It must be a string, containing a comma separated list of bugs or bug ranges.
 A negative value, -N, means the newest N bugs."
-  :group 'debbugs-gnu
   :type 'string
   :version "25.2")
 
@@ -2119,7 +2111,7 @@ In interactive calls, prompt for a comma separated list of bugs
 or bug ranges, with default to `debbugs-gnu-default-bug-number-list'."
   (interactive
    (mapcar
-    'string-to-number
+    #'string-to-number
     (debbugs-gnu-expand-bug-number-list
      (or
       (completing-read-multiple
@@ -2135,13 +2127,11 @@ or bug ranges, with default to `debbugs-gnu-default-bug-number-list'."
 
 (defcustom debbugs-gnu-trunk-directory "~/src/emacs/trunk/"
   "The directory where the main source tree lives."
-  :group 'debbugs-gnu
   :type 'directory
   :version "25.2")
 
 (defcustom debbugs-gnu-branch-directory "~/src/emacs/emacs-25/"
   "The directory where the previous source tree lives."
-  :group 'debbugs-gnu
   :type 'directory
   :version "25.2")
 
@@ -2165,9 +2155,9 @@ or bug ranges, with default to `debbugs-gnu-default-bug-number-list'."
   "Apply the patch from the current message.
 If given a prefix, patch in the branch directory instead."
   (interactive "P")
-  (add-hook 'emacs-lisp-mode-hook 'debbugs-gnu-lisp-mode)
-  (add-hook 'diff-mode-hook 'debbugs-gnu-diff-mode)
-  (add-hook 'change-log-mode-hook 'debbugs-gnu-change-mode)
+  (add-hook 'emacs-lisp-mode-hook #'debbugs-gnu-lisp-mode)
+  (add-hook 'diff-mode-hook #'debbugs-gnu-diff-mode)
+  (add-hook 'change-log-mode-hook #'debbugs-gnu-change-mode)
   (debbugs-gnu-init-current-directory branch)
   (let ((rej (expand-file-name "debbugs-gnu.rej" temporary-file-directory))
 	(output-buffer (get-buffer-create "*debbugs patch*"))
@@ -2180,7 +2170,7 @@ If given a prefix, patch in the branch directory instead."
     ;; The patches are either in MIME attachements or the main article
     ;; buffer.  Determine which.
     (with-current-buffer gnus-article-buffer
-      (dolist (handle (mapcar 'cdr (gnus-article-mime-handles)))
+      (dolist (handle (mapcar #'cdr (gnus-article-mime-handles)))
 	(when
 	    (string-match "diff\\|patch\\|plain" (mm-handle-media-type handle))
 	  (push (cons (mm-handle-encoding handle)
@@ -2212,7 +2202,7 @@ If given a prefix, patch in the branch directory instead."
     (goto-char (point-max))
     (save-some-buffers t)
     (require 'compile)
-    (mapc 'kill-process compilation-in-progress)
+    (mapc #'kill-process compilation-in-progress)
     (compile
      (format
       "cd %s; make -k" (expand-file-name "lisp" debbugs-gnu-current-directory)))
@@ -2298,7 +2288,7 @@ If given a prefix, patch in the branch directory instead."
       (setq from (gnus-fetch-field "from")
 	    subject (gnus-fetch-field "subject"))
       ;; If it's a patch formatted the right way, extract that data.
-      (dolist (handle (mapcar 'cdr (gnus-article-mime-handles)))
+      (dolist (handle (mapcar #'cdr (gnus-article-mime-handles)))
 	(when (string-match "diff\\|patch\\|plain"
 			    (mm-handle-media-type handle))
 	  (with-temp-buffer

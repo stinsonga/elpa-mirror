@@ -28,7 +28,7 @@
 
 ;;; Code:
 
-(defcustom debbugs-browse-function 'debbugs-gnu-bugs
+(defcustom debbugs-browse-function #'debbugs-gnu-bugs
   "The debbugs function used for showing bugs.
 This can be either `debbugs-gnu-bugs' or `debbugs-org-bugs'."
   :group 'debbugs-gnu
@@ -59,13 +59,11 @@ positive, and disable it otherwise.  If called from Lisp, enable
 the mode if ARG is omitted or nil.
 The customer option `debbugs-browse-function' controls, which of
 the two packages is used for showing bugs."
-  nil
-  ""
-  nil
+  :global nil
   (if debbugs-browse-mode
       (add-function
-       :before-until (local 'browse-url-browser-function) 'debbugs-browse-url)
-    (remove-function (local 'browse-url-browser-function) 'debbugs-browse-url)))
+       :before-until (local 'browse-url-browser-function) #'debbugs-browse-url)
+    (remove-function (local 'browse-url-browser-function) #'debbugs-browse-url)))
 
 (provide 'debbugs-browse)
 ;;; debbugs-browse.el ends here
