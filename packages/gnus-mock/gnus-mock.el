@@ -184,7 +184,7 @@ will start a mock Gnus session."
 	   gnus-mock-data-dir
 	   (file-name-as-directory mock-tmp-dir) nil nil t)
 	  ;; Git doesn't let us commit empty directories, so create our
-	  ;; necessary empty maildir bits.
+	  ;; necessary empty maildir bits, and draft directories.
 	  (mapc (lambda (path) (make-directory path t))
 		(mapcar (lambda (dir)
 			  (format "%s/test/%s" mock-tmp-dir dir))
@@ -192,6 +192,8 @@ will start a mock Gnus session."
 			  "incoming/tmp" "incoming/new" "incoming/cur"
 			  "incoming/.nnmaildir/marks" "incoming/.nnmaildir/nov"
 			  "mails/tmp" "mails/new" "mails/.nnmaildir/marks")))
+	  (make-directory (format "%s/drafts/drafts" mock-tmp-dir) t)
+	  (make-directory (format "%s/drafts/queue" mock-tmp-dir))
 	  ;; Possibly insert additional config.
 	  (when gnus-mock-init-file
 	    (with-temp-buffer
