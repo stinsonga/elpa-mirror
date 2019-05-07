@@ -1,0 +1,184 @@
+To: submit@debbugs.gnu.org
+From: Paul Eggert <eggert@cs.ucla.edu>
+Subject: Gnus mojibakifies UTF-8 text/x-patch attachments from Thunderbird
+Openpgp: preference=signencrypt
+Autocrypt: addr=eggert@cs.ucla.edu; prefer-encrypt=mutual; keydata=
+ xsFNBEyAcmQBEADAAyH2xoTu7ppG5D3a8FMZEon74dCvc4+q1XA2J2tBy2pwaTqfhpxxdGA9
+ Jj50UJ3PD4bSUEgN8tLZ0san47l5XTAFLi2456ciSl5m8sKaHlGdt9XmAAtmXqeZVIYX/UFS
+ 96fDzf4xhEmm/y7LbYEPQdUdxu47xA5KhTYp5bltF3WYDz1Ygd7gx07Auwp7iw7eNvnoDTAl
+ KAl8KYDZzbDNCQGEbpY3efZIvPdeI+FWQN4W+kghy+P6au6PrIIhYraeua7XDdb2LS1en3Ss
+ mE3QjqfRqI/A2ue8JMwsvXe/WK38Ezs6x74iTaqI3AFH6ilAhDqpMnd/msSESNFt76DiO1ZK
+ QMr9amVPknjfPmJISqdhgB1DlEdw34sROf6V8mZw0xfqT6PKE46LcFefzs0kbg4GORf8vjG2
+ Sf1tk5eU8MBiyN/bZ03bKNjNYMpODDQQwuP84kYLkX2wBxxMAhBxwbDVZudzxDZJ1C2VXujC
+ OJVxq2kljBM9ETYuUGqd75AW2LXrLw6+MuIsHFAYAgRr7+KcwDgBAfwhPBYX34nSSiHlmLC+
+ KaHLeCLF5ZI2vKm3HEeCTtlOg7xZEONgwzL+fdKo+D6SoC8RRxJKs8a3sVfI4t6CnrQzvJbB
+ n6gxdgCu5i29J1QCYrCYvql2UyFPAK+do99/1jOXT4m2836j1wARAQABzSBQYXVsIEVnZ2Vy
+ dCA8ZWdnZXJ0QGNzLnVjbGEuZWR1PsLBfgQTAQIAKAUCTIByZAIbAwUJEswDAAYLCQgHAwIG
+ FQgCCQoLBBYCAwECHgECF4AACgkQ7ZfpDmKqfjRRGw/+Ij03dhYfYl/gXVRiuzV1gGrbHk+t
+ nfrI/C7fAeoFzQ5tVgVinShaPkZo0HTPf18x6IDEdAiO8Mqo1yp0CtHmzGMCJ50o4Grgfjlr
+ 6g/+vtEOKbhleszN2XpJvpwM2QgGvn/laTLUu8PH9aRWTs7qJJZKKKAb4sxYc92FehPu6FOD
+ 0dDiyhlDAq4lOV2mdBpzQbiojoZzQLMQwjpgCTK2572eK9EOEQySUThXrSIz6ASenp4NYTFH
+ s9tuJQvXk9gZDdPSl3bp+47dGxlxEWLpBIM7zIONw4ks4azgT8nvDZxA5IZHtvqBlJLBObYY
+ 0Le61Wp0y3TlBDh2qdK8eYL426W4scEMSuig5gb8OAtQiBW6k2sGUxxeiv8ovWu8YAZgKJfu
+ oWI+uRnMEddruY8JsoM54KaKvZikkKs2bg1ndtLVzHpJ6qFZC7QVjeHUh6/BmgvdjWPZYFTt
+ N+KA9CWX3GQKKgN3uu988yznD7LnB98T4EUH1HA/GnfBqMV1gpzTvPc4qVQinCmIkEFp83zl
+ +G5fCjJJ3W7ivzCnYo4KhKLpFUm97okTKR2LW3xZzEW4cLSWO387MTK3CzDOx5qe6s4a91Zu
+ ZM/j/TQdTLDaqNn83kA4Hq48UHXYxcIh+Nd8k/3w6lFuoK0wrOFiywjLx+0ur5jmmbecBGHc
+ 1xdhAFHOwU0ETIByZAEQAKaF678T9wyH4wjTrV1Pz3cDEoSnV/0ZUrOT37p1dcGyj/IXq1x6
+ 70HRVahAmk0sZpYc25PF9D5GPYHFWlNjuPU96rDndXB3hedmBRhLdC4bAXjI4DV+bmdVe+q/
+ IMnlZRaVlm9EiMCVAR6w13sReu7qXkW9r3RwY2AzXskp/tAe4BRKr1Zmbvi2nbnQ6epEC42r
+ Rbx0B1EhjbIQZ5JHGk24iPT7LdBgnNmos5wYjzwNlkMQD5T0Ydzhk7J+UxwA5m46mOhRDC2r
+ FV/A0gm5TLy8DXjv/Esc4gYnYai6SQqnUEVh5LuV8YCJBnijs+Tiw71x1icmn6xGI45EugJO
+ gec+rLypYgpVp4x0HI5T88qBRYCkxH3Kg8Qo+EWNA9A4LRQ9DX8njona0gf0s03tocK8kBN6
+ 6UoqqPtHBnc4eMgBymCflK12eKfd2YYxnyg9cZazWA5VslvTxpm76hbg5oiAEH/Vg/8MxHyA
+ nPhfrgwyPrmJEcVBafdspJnYQxBYNco2LFPIhlOvWh8r4at+s+M3Lb26oUTczlgdW1Sf3SDA
+ 77BMRnF0FQyE+7AzV79MBN4ykiqaezQxtaF1Fy/tvkhffSo8u+dwG0EgJh+te38gTcISVr0G
+ IPplLz6YhjrbHrPRF1CN5UuL9DBGjxuN35RLNVEfta6RUFlR6NctTjvrABEBAAHCwWUEGAEC
+ AA8FAkyAcmQCGwwFCRLMAwAACgkQ7ZfpDmKqfjSrHA/+KzAKvTxRhA9MWNLxIyJ7S5uJ16gs
+ T3oCjZrBKGEhKMOGX4O0GA6VOEryO7QRCCYah3oxSG38IAnNeiwJXgU9Bzkk85UGbPEd7HGF
+ /VSeHCQwWou6jqUDTSDvn9YhNTdG0KXPM74aC+xr2Zow1O2mhXihgWKD0Dw+0LYPnUOsQ0KO
+ FxHXXYHmRrS1OZPU59BLvc+TRhIhafSHKLwbXK+6ckkxBx6h8z5ccpG0Qs4bFhdFYnFrEieD
+ LoGmnE2YLhdV6swJ9VNCS6pLiEohT3fm7aXm15tZOIyzMZhHRSAPblXxQ0ZSWjq8oRrcYNFx
+ c4W1URpAkBCOYJoXvQfD5L3lqAl8TCqDUzYxhH/tJhbDdHrqHH767jaDaTB1+Talp/2AMKwc
+ XNOdiklGxbmHVG6YGl6g8Lrbsu9NZEI4yLlHzuikthJWgz+3vZhVGyNlt+HNIoF6CjDL2omu
+ 5cEq4RDHM44QqPk6l7O0pUvN1mT4B+S1b08RKpqm/ff015E37HNV/piIvJlxGAYz8PSfuGCB
+ 1thMYqlmgdhd9/BabGFbGGYHA6U4/T5zqU+f6xHy1SsAQZ1MSKlLwekBIT+4/cLRGqCHjnV0
+ q5H/T6a7t5mPkbzSrOLSo4puj+IToNjYyYIDBWzhlA19avOa+rvUjmHtD3sFN7cXWtkGoi8b
+ uNcby4U=
+Organization: UCLA Computer Science Department
+Message-ID: <44a26585-7980-378c-9262-a567ddd3e617@cs.ucla.edu>
+Date: Tue, 30 Apr 2019 12:20:58 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
+MIME-Version: 1.0
+Content-Type: multipart/mixed;
+ boundary="------------774ADBE11107067D28CE4369"
+Content-Language: en-US
+
+This is a multi-part message in MIME format.
+--------------774ADBE11107067D28CE4369
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Package: emacs,gnus
+Version: 27
+
+When I send email from Thunderbird with a patch attachment, Thunderbird
+puts something like the following into the email:
+
+=C2=A0 --------------AA6C74B60F40E0D600CCD03A
+=C2=A0 Content-Type: text/x-patch;
+=C2=A0=C2=A0 name=3D"0001-Fix-decode-time-encode-time-roundtrip-on-macOS.=
+patch"
+=C2=A0 Content-Transfer-Encoding: 8bit
+=C2=A0 Content-Disposition: attachment;
+=C2=A0=C2=A0 filename*0=3D"0001-Fix-decode-time-encode-time-roundtrip-on-=
+macOS.patch"
+
+=C2=A0 From 325f51c84d9ad4d9776784bd324b347ffe4fe51b Mon Sep 17 00:00:00 =
+2001
+=C2=A0 From: Paul Eggert <eggert@cs.ucla.edu>
+=C2=A0 Date: Tue, 30 Apr 2019 10:45:48 -0700
+=C2=A0 Subject: [PATCH] Fix decode-time/encode-time roundtrip on macOS
+=C2=A0 MIME-Version: 1.0
+=C2=A0 Content-Type: text/plain; charset=3DUTF-8
+=C2=A0 Content-Transfer-Encoding: 8bit
+
+=C2=A0 * src/timefns.c (Fencode_time): Ignore DST flag when the zone is
+=C2=A0 ...
+
+The attachment has a text/* media type but it has no charset parameter.
+The patch itself (output by git format-patch) says its charset is UTF-8.
+Unfortunately, Gnus doesn't recognize the patch as UTF-8 and so
+mishandles the non-ASCII characters in the attachment. To reproduce the
+problem, read this email with Gnus; the full attachment is attached to
+this email in the Thunderbird way.
+
+Although Internet RFC 2046 section 4.1.2 says the default charset for
+text/* media types is US-ASCII, Internet RFC 6557 section 3 amends this
+to say that registered text/* media types should require a charset
+specification (or should say it's not needed because the payload has
+that info, which obviously doesn't apply here). It later says that if
+there is a strong reason to have a charset default, the default should
+be UTF-8.
+
+Unfortunately Gnus apparently doesn't default to UTF-8 for such
+attachments, which means that sending a text/x-patch attachment from
+Thunderbird to Gnus messes up if the attachment contains non-ASCII
+characters. This has been causing problems on the Emacs mailing list for
+years and it bit a correspondent of mine again today; see
+<https://debbugs.gnu.org/cgi/bugreport.cgi?bug=3D35502#35>.
+
+I have filed a Thunderbird bug report for this, as Thunderbird should
+specify a charset; see
+<https://bugzilla.mozilla.org/show_bug.cgi?id=3D1167982>. However, Gnus
+should be a polite citizen and handle these attachments nicely rather
+than converting the non-ASCII UTF-8 characters to mojibake.
+
+
+--------------774ADBE11107067D28CE4369
+Content-Type: text/x-patch;
+ name="0001-Fix-decode-time-encode-time-roundtrip-on-macOS.patch"
+Content-Disposition: attachment;
+ filename*0="0001-Fix-decode-time-encode-time-roundtrip-on-macOS.patch"
+Content-Transfer-Encoding: quoted-printable
+
+From 325f51c84d9ad4d9776784bd324b347ffe4fe51b Mon Sep 17 00:00:00 2001
+From: Paul Eggert <eggert@cs.ucla.edu>
+Date: Tue, 30 Apr 2019 10:45:48 -0700
+Subject: [PATCH] Fix decode-time/encode-time roundtrip on macOS
+MIME-Version: 1.0
+Content-Type: text/plain; charset=3DUTF-8
+Content-Transfer-Encoding: 8bit
+
+* src/timefns.c (Fencode_time): Ignore DST flag when the zone is
+numeric or is a cons, as the doc string says it=E2=80=99s ignored in that
+case, and not ignoring it causes encode-time to not invert
+decode-time on some platforms (Bug#35502).
+* test/src/timefns-tests.el (encode-time-dst-numeric-zone):
+New test.
+---
+ src/timefns.c             | 5 +++--
+ test/src/timefns-tests.el | 6 ++++++
+ 2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/timefns.c b/src/timefns.c
+index 5005c73b7f..7b5af6a5d2 100644
+--- a/src/timefns.c
++++ b/src/timefns.c
+@@ -1488,10 +1488,11 @@ usage: (encode-time &optional TIME FORM &rest OBS=
+OLESCENT-ARGUMENTS)  */)
+       tm.tm_mon  =3D check_tm_member (XCAR (a), 1); a =3D XCDR (a);
+       tm.tm_year =3D check_tm_member (XCAR (a), TM_YEAR_BASE); a =3D XCD=
+R (a);
+       a =3D XCDR (a);
+-      if (SYMBOLP (XCAR (a)))
+-	tm.tm_isdst =3D !NILP (XCAR (a));
++      Lisp_Object dstflag =3D XCAR (a);
+       a =3D XCDR (a);
+       zone =3D XCAR (a);
++      if (SYMBOLP (dstflag) && !FIXNUMP (zone) && !CONSP (zone))
++	tm.tm_isdst =3D !NILP (dstflag);
+     }
+   else if (nargs < 6)
+     xsignal2 (Qwrong_number_of_arguments, Qencode_time, make_fixnum (nar=
+gs));
+diff --git a/test/src/timefns-tests.el b/test/src/timefns-tests.el
+index 5c858ef3bd..2c90af757f 100644
+--- a/test/src/timefns-tests.el
++++ b/test/src/timefns-tests.el
+@@ -142,3 +142,9 @@ timefns-tests--have-leap-seconds
+ 		      (< 0.99 (/ x y) 1.01)
+ 		      (< 0.99 (/ (- (float-time a)) (float-time b))
+ 			 1.01))))))))
++
++(ert-deftest encode-time-dst-numeric-zone ()
++    "Check for Bug#35502."
++    (should (time-equal-p
++             (encode-time '(29 31 17 30 4 2019 2 t 7200))
++             '(23752 27217))))
+--=20
+2.20.1
+
+
+--------------774ADBE11107067D28CE4369--
