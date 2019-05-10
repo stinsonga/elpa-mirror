@@ -270,7 +270,7 @@
 	      (clear-string name)
 	      (setq name (substring-no-properties (thing-at-point 'line) 4 24)) ;; read the players name
 	      (setq namesplit (split-string name ",")) ;; remove the comma, which is not in ARPO1
-	      (setq name (mapconcat 'identity namesplit "" )) ;; remove the comma
+	      (setq name (mapconcat #'identity namesplit "" )) ;; remove the comma
 	      (setq name (arbitools-trim-right name)) ;; remove the comma
 
 	      (with-current-buffer "ARPO1.txt"
@@ -880,6 +880,14 @@
         (setq numberofratedplayers (+ 1 numberofratedplayers))
         (insert (concat (number-to-string numberofratedplayers) "\n"))))))
 
+(defun arbitools--verbose-output (buffer msg &rest args)
+  "Insert MSG (formatted with ARGS) into BUFFER.
+Only do it if `arbitools-verbose' is non-nil."
+  (declare (indent 1))
+  (when arbitools-verbose
+    (with-current-buffer buffer
+      (insert (apply #'format msg args)))))
+
 (defun arbitools-insert-result (round white black result)
    "Insert a result. You will be prompetd for the white and black players
     rank numbers and the result (1, 0, =, +, -)"
@@ -913,8 +921,7 @@
          (beginning-of-line)
          (forward-char pointtowrite)
          (unless (= pointtowrite positionendofline) ;; check if there is something and
-           (when arbitools-verbose
-             (with-current-buffer "Arbitools-output" (insert "yes")))
+           (arbitools--verbose-output "Arbitools-output" "yes")
            (delete-char (- positionendofline pointtowrite)))   ;; erase it
          (insert "     ") ;; replace the first positions with spaces
          ;; make room for bigger numbers
@@ -953,10 +960,9 @@
 	(setq sum_mi_ci (+ sum_mi_ci (* (nth 3 (nth (- (string-to-number opponent) 1) arbitools-players-info)) (length (arbitools-get-player-opponents (string-to-number opponent))))))
 	)
       (setq ci (- (nth 3 (nth (- player 1) arbitools-players-info)) (/ sum_mi_ci sum_mi)))
-      (when arbitools-verbose
-        (with-current-buffer "Arbitools-output"
-	  (insert (format "Player %d sum_mi_ci %d sum_mi %d ci %d\n"
-		          player sum_mi_ci sum_mi ci))))
+      (arbitools--verbose-output "Arbitools-output"
+	"Player %d sum_mi_ci %d sum_mi %d ci %d\n"
+	player sum_mi_ci sum_mi ci)
       ci))
  )
 
@@ -998,14 +1004,13 @@
 	(setq opps (delete (car (car oppspoints)) opps))) ;; cut worst opponent
       (when (and (> (length opps) 4) arbitools-arpo-cutbest)
 	(setq opps (delete (car (nth (- (length oppspoints) 1) oppspoints)) opps))) ;; cut best opponent
-      (when arbitools-verbose
-        (with-current-buffer "Arbitools-output"
-	  (insert (format "Player: %d opponents: %d: %s oppspoints %d: %s worst %s best %s\n"
-	                  player
-                          (length opps) opps
-                          (length oppspoints) oppspoints
-                          (car (car oppspoints))
-                          (car (nth (- (length oppspoints) 1) oppspoints))))))
+      (arbitools--verbose-output "Arbitools-output"
+	"Player: %d opponents: %d: %s oppspoints %d: %s worst %s best %s\n"
+	player
+        (length opps) opps
+        (length oppspoints) oppspoints
+        (car (car oppspoints))
+        (car (nth (- (length oppspoints) 1) oppspoints)))
       opps)))
 
 
@@ -1096,10 +1101,17 @@
       (setq percentage (/ points numberofopponents))
       (setq diff (nth (truncate (* 100 percentage)) arbitools-performancetable))
       (setf (nth 3 (nth (- player 1) arbitools-players-info)) diff)
-      (when (and diff arbitools-verbose) (with-current-buffer "Arbitools-output" (insert (format "Correct! player %d eloaverage: %d points:%f numberofopponents:%d  percentage: %d\n" player eloaverage points numberofopponents (* percentage 100)))))
-      (when (and diff arbitools-verbose) (with-current-buffer "Arbitools-output" (insert (format "Players's info player %s diff %d\n" (nth 1 (nth (- player 1) arbitools-players-info)) diff))))
-      (when (not diff) (setq diff 0)
-	    (with-current-buffer "Arbitools-output" (insert (format "Warning! player %d diff=0 eloaverage: %d points:%d numberofopponents:%d percentage: %d\n" player eloaverage points numberofopponents (* 100 percentage)))))
+      (when diff
+        (arbitools--verbose-output "Arbitools-output"
+          "Correct! player %d eloaverage: %d points:%f numberofopponents:%d  percentage: %d\n"
+          player eloaverage points numberofopponents (* percentage 100))
+        (arbitools--verbose-output "Arbitools-output"
+          "Players's info player %s diff %d\n"
+          (nth 1 (nth (- player 1) arbitools-players-info)) diff))
+      (when (not diff)
+        (setq diff 0)
+	(with-current-buffer "Arbitools-output"
+          (insert (format "Warning! player %d diff=0 eloaverage: %d points:%d numberofopponents:%d percentage: %d\n" player eloaverage points numberofopponents (* 100 percentage)))))
       (setq performance (+ eloaverage diff))
       performance)))
 
@@ -1114,6 +1126,8 @@
 
       (when arbitools-verbose
         (with-current-buffer "Players performance"
+          ;; FIXME: can't use arbitools--verbose-output here because of this
+          ;; `delete-region'.
 	  (delete-region (point-min)(point-max))
 	  (insert "rank Name                           Performance\n")))
       ;; Loop over players and calculate performances
@@ -1126,6 +1140,8 @@
 	  (push performance performances)
 	  (when arbitools-verbose
             (with-current-buffer "Players performance"
+              ;; FIXME: can't use arbitools--verbose-output here because of
+              ;; this `goto-char': is it really needed here?
 	      (goto-char (point-max))
 	      (insert (format "%d %s %s\n" (+ iter 1)	name performance))))))
       performances)))
@@ -1158,117 +1174,112 @@
 	   numberofplayers
 	   numberofopponents)
 
-        (setq iterand_1 performances)              ;; store performance list in iterand_1 for the first iteration
-        (setq numberofplayers (length performances))
-	(while continue                            ;; iterate performances until the check is true
-	  (setq iterand iterand_1)                 ;; fill iterand with iterand_1
-	  (setq iterand_1 nil)                     ;; reset iterand_1
-	  (setq sumiterand (apply '+ iterand))                      ;; sum elements in iterand
-	  (when arbitools-verbose
-            (with-current-buffer "Arbitools-output"
-	      (insert (format "Starting run %d; iterand: %s sum_iterand: %d\n"
-		              iterations iterand sumiterand))))
-	  (dotimes (number numberofplayers)        ;; loop the list of performances
-	    (setq opponents (arbitools-get-player-opponents (+ number 1)))
-	    (setq numberofopponents (length opponents))
+      (setq iterand_1 performances) ;; store performance list in iterand_1 for the first iteration
+      (setq numberofplayers (length performances))
+      (while continue ;; iterate performances until the check is true
+	(setq iterand iterand_1)               ;; fill iterand with iterand_1
+	(setq iterand_1 nil)                   ;; reset iterand_1
+	(setq sumiterand (apply #'+ iterand))  ;; sum elements in iterand
+	(arbitools--verbose-output "Arbitools-output"
+          "Starting run %d; iterand: %s sum_iterand: %d\n"
+	  iterations iterand sumiterand)
+	(dotimes (number numberofplayers) ;; loop the list of performances
+	  (setq opponents (arbitools-get-player-opponents (+ number 1)))
+	  (setq numberofopponents (length opponents))
 
-            ;; get opponents performances from iterand list, store in a list. Reset performances list
-	    (setq performancesopponents nil)
-	    (setq averageperformanceofopponents 0.0)
-            (dolist (opponent opponents)           ;; loop the opponents of each player
-	      (setq opponentsperformance (nth (- (string-to-number opponent) 1) iterand))
+          ;; get opponents performances from iterand list, store in a list. Reset performances list
+	  (setq performancesopponents nil)
+	  (setq averageperformanceofopponents 0.0)
+          (dolist (opponent opponents) ;; loop the opponents of each player
+	    (setq opponentsperformance (nth (- (string-to-number opponent) 1) iterand))
 
-	      (setq averageperformanceofopponents (+ averageperformanceofopponents opponentsperformance))
+	    (setq averageperformanceofopponents (+ averageperformanceofopponents opponentsperformance))
 
-	      (push opponentsperformance performancesopponents))
+	    (push opponentsperformance performancesopponents))
 
-	    ;; calculate average of opponents performance + dp
-            (setq averageperformanceofopponents (/ averageperformanceofopponents numberofopponents))
+	  ;; calculate average of opponents performance + dp
+          (setq averageperformanceofopponents (/ averageperformanceofopponents numberofopponents))
 
-	    ;; calculate points to discard (points against discarded opponents)
-	    (setq discard 0.0)
-	    (goto-char (point-min))
-	    (let* ((maxlength      0)
-	           (numberofrounds)
-	           (opp            000)
-	           (offset         0))
+	  ;; calculate points to discard (points against discarded opponents)
+	  (setq discard 0.0)
+	  (goto-char (point-min))
+	  (let* ((maxlength      0)
+	         (numberofrounds)
+	         (opp            000)
+	         (offset         0))
 
-	      (re-search-forward (format "^001[[:space:]]\\{1,4\\}%d" (+ number 1)))
-	      (end-of-line)
-	      (setq maxlength (+ maxlength (current-column)))
-	      (setq numberofrounds (/ (- maxlength 89) 10))
-	      (dotimes (roundcount-1 numberofrounds)
-		(setq offset (+ 94 (* roundcount-1 10)))
-		(beginning-of-line)
-		(forward-char offset)
-		(setq opp (thing-at-point 'word))
-		(when (not (member opp opponents))
-                  (forward-char 4)
-                  (cond
-		   ((member (thing-at-point 'symbol) '("1" "+" "F"))
-                    (setq discard (+ discard 1.0)))
-		   ((member (thing-at-point 'symbol) '("H" "="))
-                    (setq discard (+ discard 0.5)))))))
+	    (re-search-forward (format "^001[[:space:]]\\{1,4\\}%d" (+ number 1)))
+	    (end-of-line)
+	    (setq maxlength (+ maxlength (current-column)))
+	    (setq numberofrounds (/ (- maxlength 89) 10))
+	    (dotimes (roundcount-1 numberofrounds)
+	      (setq offset (+ 94 (* roundcount-1 10)))
+	      (beginning-of-line)
+	      (forward-char offset)
+	      (setq opp (thing-at-point 'word))
+	      (when (not (member opp opponents))
+                (forward-char 4)
+                (cond
+		 ((member (thing-at-point 'symbol) '("1" "+" "F"))
+                  (setq discard (+ discard 1.0)))
+		 ((member (thing-at-point 'symbol) '("H" "="))
+                  (setq discard (+ discard 0.5)))))))
 
-            ;; calculate percentage of points
-	    (setq points (arbitools-get-player-played-points (+ number 1)))
-	    (setq points (- points discard))
-	    (when (> (length opponents) 0) (setq percentage (/ points numberofopponents)))
-	    (setq diff (arbitools-get-player-ci (+ number 1)))
-	    (setq averageperformanceofopponents (+ averageperformanceofopponents diff))
-	    (when arbitools-verbose
-              (with-current-buffer "Arbitools-output"
-		(insert (format " c %d----\n" diff))))
+          ;; calculate percentage of points
+	  (setq points (arbitools-get-player-played-points (+ number 1)))
+	  (setq points (- points discard))
+	  (when (> (length opponents) 0) (setq percentage (/ points numberofopponents)))
+	  (setq diff (arbitools-get-player-ci (+ number 1)))
+	  (setq averageperformanceofopponents (+ averageperformanceofopponents diff))
+	  (arbitools--verbose-output "Arbitools-output" " c %d----\n" diff)
 
-	    (when arbitools-verbose
-              (with-current-buffer "Arbitools-output"
-		(insert (format "Success! player %d run %d points %f discard %f opponents %d: %s percentage %f ARPO averageperformanceofopponents %f performances %s diff %d\n"
-		                (+ number 1) iterations points discard numberofopponents opponents percentage averageperformanceofopponents performancesopponents diff))))
+	  (arbitools--verbose-output "Arbitools-output"
+	    "Success! player %d run %d points %f discard %f opponents %d: %s percentage %f ARPO averageperformanceofopponents %f performances %s diff %d\n"
+	    (+ number 1) iterations points discard numberofopponents opponents percentage averageperformanceofopponents performancesopponents diff)
 
-	    (push averageperformanceofopponents iterand_1))
+	  (push averageperformanceofopponents iterand_1))
 
-	  (setq iterand_1 (reverse iterand_1)) ;; reverse iterand_1
-	  (setq differences nil)
+	(setq iterand_1 (reverse iterand_1)) ;; reverse iterand_1
+	(setq differences nil)
 
-	  ;; write difference in a list to check for convergence
-	  (dotimes (number numberofplayers)
-	    (setq difference (- (nth number iterand) (nth number iterand_1)))
-	    (push difference differences))
+	;; write difference in a list to check for convergence
+	(dotimes (number numberofplayers)
+	  (setq difference (- (nth number iterand) (nth number iterand_1)))
+	  (push difference differences))
 
-	  ;; check if the model converges
-	  (when (and (< (abs (- (nth 1 differences) (nth 0 differences))) 0.0000000001) ;; define here the value of epsilon
-		  (< (abs (- (nth (- numberofplayers 1) differences) (nth 0 differences))) 0.0000000001))
-	    (setq converges t)) ;; TODO: improve this to check more members
+	;; check if the model converges
+	(when (and (< (abs (- (nth 1 differences) (nth 0 differences))) 0.0000000001) ;; define here the value of epsilon
+		   (< (abs (- (nth (- numberofplayers 1) differences) (nth 0 differences))) 0.0000000001))
+	  (setq converges t)) ;; TODO: improve this to check more members
 
-	  (setq iterations (+ iterations 1))
-	  (when (or converges (= iterations 300)) (setq continue nil)))  ;; define here maximum number of iterations
+	(setq iterations (+ iterations 1))
+	(when (or converges (= iterations 300)) (setq continue nil))) ;; define here maximum number of iterations
 
-	  ;; write a buffer with rank, name and the value from the last list obtained
-	(when arbitools-verbose
-          (with-current-buffer "Arbitools-output"
-	    (insert (format "difference: %f differences: %s converges: %s"
-			    (- (nth 1 differences) (nth 0 differences))
-			    differences converges))))
+      ;; write a buffer with rank, name and the value from the last list obtained
+      (arbitools--verbose-output "Arbitools-output"
+	"difference: %f differences: %s converges: %s"
+	(- (nth 1 differences) (nth 0 differences))
+	differences converges)
 
-          ;; write the results in the corresponding buffer
-	  (with-current-buffer "ARPO"
-	    (goto-char (point-min))
-	    (delete-region (point-min)(point-max))
-	    (insert "rank Name                           ARPO\n"))
+      ;; write the results in the corresponding buffer
+      (with-current-buffer "ARPO"
+	(goto-char (point-min))
+	(delete-region (point-min)(point-max))
+	(insert "rank Name                           ARPO\n"))
+      (with-current-buffer "UserTB.txt"
+        (goto-char (point-min))
+	(delete-region (point-min)(point-max))
+	(insert "  User Tie-Break   ;"))
+
+      (dotimes (iter (length iterand_1))
+	(let* (;; (rating (string-to-number
+               ;;          (nth 2 (nth iter arbitools-players-info))))
+	       (name (nth 1 (nth iter arbitools-players-info)))
+	       (arpo (nth iter iterand_1)))
+          (with-current-buffer "ARPO"
+            (insert (format "%d %s %s\n" (+ iter 1) name arpo)))
 	  (with-current-buffer "UserTB.txt"
-            (goto-char (point-min))
-	    (delete-region (point-min)(point-max))
-	    (insert "  User Tie-Break   ;"))
-
-	   (dotimes (iter (length iterand_1))
-	     (let* (;; (rating (string-to-number
-                    ;;          (nth 2 (nth iter arbitools-players-info))))
-		    (name (nth 1 (nth iter arbitools-players-info)))
-		    (arpo (nth iter iterand_1)))
-               (with-current-buffer "ARPO"
-                 (insert (format "%d %s %s\n" (+ iter 1) name arpo)))
-	       (with-current-buffer "UserTB.txt"
-                 (insert (format "%s;" arpo))))))))
+            (insert (format "%s;" arpo))))))))
 
 (defun arbitools-it3 ()
    "Get the IT3 tournament report. You will get a .tex file, and a pdf
@@ -1387,7 +1398,10 @@
   "Arbitools"
   "Major mode for Chess Tournament Management."
   ;(setq font-lock-defaults '(arbitools-highlights))
-  (use-local-map arbitools-mode-map)
+  ;; FIXME: These generate-new-buffer will create additional buffers with other
+  ;; names (e.g. "Arbitools-output<2>") if the buffer already exists, and
+  ;; those will tend to accumulate because we never kill them (let alone use
+  ;; them).
   (generate-new-buffer "Arbitools-output")
   (generate-new-buffer "List of players")
   (generate-new-buffer "Pairings List")
