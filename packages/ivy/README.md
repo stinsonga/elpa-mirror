@@ -13,7 +13,8 @@ commands.
 
 # Ivy
 
-[![MELPA](http://melpa.org/packages/ivy-badge.svg)](http://melpa.org/#/ivy)
+[![MELPA](https://melpa.org/packages/ivy-badge.svg)](https://melpa.org/#/ivy)
+[![MELPA Stable](https://stable.melpa.org/packages/ivy-badge.svg)](https://stable.melpa.org/#/ivy)
 
 Ivy is a generic completion mechanism for Emacs. While it operates
 similarly to other completion schemes such as `icomplete-mode`, Ivy
@@ -28,10 +29,14 @@ buffer names.
 
 Install the `ivy` package from MELPA / GNU ELPA.
 
+Users of Debian ≥10 (and derivatives such as Ubuntu ≥18.04) can
+install Ivy, Counsel, and Swiper with `sudo apt install elpa-counsel`.
+To add Hydra support `sudo apt install elpa-ivy-hydra`.
+
 ## Documentation
 
 ### Manual
-The manual is available as [HTML](http://oremacs.com/swiper/).
+The manual is available as [HTML](https://oremacs.com/swiper/).
 
 After installing from MELPA, the manual is also available through the `(ivy)` Info node.
 
@@ -42,6 +47,7 @@ The source file for the Info page is
 Ivy and Swiper wiki is here: [the wiki](https://github.com/abo-abo/swiper/wiki).
 
 ### Small config example
+
 ```elisp
 (ivy-mode 1)
 (setq ivy-use-virtual-buffers t)
@@ -64,7 +70,12 @@ Ivy and Swiper wiki is here: [the wiki](https://github.com/abo-abo/swiper/wiki).
 (define-key minibuffer-local-map (kbd "C-r") 'counsel-minibuffer-history)
 ```
 
+Note: parts of this config can be replaced by using `counsel-mode`.
+
 # Counsel
+
+[![MELPA](https://melpa.org/packages/counsel-badge.svg)](https://melpa.org/#/counsel)
+[![MELPA Stable](https://stable.melpa.org/packages/counsel-badge.svg)](https://stable.melpa.org/#/counsel)
 
 `ivy-mode` ensures that any Emacs command using
 `completing-read-function` uses ivy for completion.
@@ -74,21 +85,44 @@ commands that are customised to make the best use of ivy. For example,
 `counsel-find-file` has some additional keybindings. Pressing
 <kbd>DEL</kbd> will move you to the parent directory.
 
+Enabling `counsel-mode` remaps built-in Emacs functions that have
+counsel replacements:
+
+| Emacs command            | Counsel equivalent         |
+|--------------------------|----------------------------|
+| execute-extended-command | counsel-M-x                |
+| describe-bindings        | counsel-descbinds          |
+| describe-function        | counsel-describe-function  |
+| describe-variable        | counsel-describe-variable  |
+| apropos-command          | counsel-apropos            |
+| describe-face            | counsel-describe-face      |
+| list-faces-display       | counsel-faces              |
+| find-file                | counsel-find-file          |
+| find-library             | counsel-find-library       |
+| imenu                    | counsel-imenu              |
+| load-library             | counsel-load-library       |
+| load-theme               | counsel-load-theme         |
+| yank-pop                 | counsel-yank-pop           |
+| info-lookup-symbol       | counsel-info-lookup-symbol |
+| pop-to-mark-command      | counsel-mark-ring          |
+| bookmark-jump            | counsel-bookmark           |
+
 # Swiper
 
 [![MELPA](https://melpa.org/packages/swiper-badge.svg)](https://melpa.org/#/swiper)
+[![MELPA Stable](https://stable.melpa.org/packages/swiper-badge.svg)](https://stable.melpa.org/#/swiper)
 
 Swiper is an alternative to isearch that uses ivy to show an overview
 of all matches.
 
-![swiper.png](http://oremacs.com/download/swiper.png)
+![swiper.png](https://oremacs.com/download/swiper.png)
 
 A helm version of swiper is also available:
 [swiper-helm](https://github.com/abo-abo/swiper-helm).
 
 ## Screenshots
 
-![ivy-swiper-1.png](http://oremacs.com/download/ivy-swiper-1.png)
+![ivy-swiper-1.png](https://oremacs.com/download/ivy-swiper-1.png)
 
 There's also a ten minute [video demo](https://www.youtube.com/watch?v=VvnJQpTFVDc).
 
