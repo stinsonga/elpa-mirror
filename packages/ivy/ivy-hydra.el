@@ -1,12 +1,12 @@
 ;;; ivy-hydra.el --- Additional key bindings for Ivy  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015-2017  Free Software Foundation, Inc.
+;; Copyright (C) 2015-2019  Free Software Foundation, Inc.
 
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
 ;; URL: https://github.com/abo-abo/swiper
-;; Version: 0.10.0
-;; Package-Requires: ((emacs "24.1") (ivy "0.9.0") (hydra "0.13.4"))
-;; Keywords: completion, matching, bindings
+;; Version: 0.11.0
+;; Package-Requires: ((emacs "24.1") (ivy "0.11.0") (hydra "0.13.4"))
+;; Keywords: convenience
 
 ;; This file is part of GNU Emacs.
 
@@ -21,21 +21,22 @@
 ;; GNU General Public License for more details.
 
 ;; For a full copy of the GNU General Public License
-;; see <http://www.gnu.org/licenses/>.
+;; see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
-;;
+
 ;; This package provides the `hydra-ivy/body' command, which is a
 ;; quasi-prefix map, with many useful bindings.  These bindings are
 ;; shorter than usual, using mostly unprefixed keys.
 
 ;;; Code:
+
 (require 'ivy)
 (require 'hydra)
 
 (defun ivy--matcher-desc ()
   "Return description of `ivy--regex-function'."
-  (let ((cell (assoc ivy--regex-function ivy--preferred-re-builders)))
+  (let ((cell (assq ivy--regex-function ivy-preferred-re-builders)))
     (if cell
         (cdr cell)
       "other")))
