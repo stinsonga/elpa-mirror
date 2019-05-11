@@ -1,3 +1,6 @@
+[![MELPA](https://melpa.org/packages/avy-badge.svg)](https://melpa.org/#/avy)
+[![MELPA Stable](https://stable.melpa.org/packages/avy-badge.svg)](https://stable.melpa.org/#/avy)
+
 ## Introduction
 
 `avy` is a GNU Emacs package for jumping to visible text using a char-based decision tree.  See also [ace-jump-mode](https://github.com/winterTTr/ace-jump-mode) and [vim-easymotion](https://github.com/Lokaltog/vim-easymotion) - `avy` uses the same idea.
@@ -33,6 +36,13 @@ The advantage over the previous one is less candidates for the tree search. And 
 After <kbd>C-' bu</kbd>:
 
 ![avy-goto-char-2](http://oremacs.com/download/avi-goto-char-2.png)
+
+### `avy-goto-char-timer`
+
+> Input an arbitrary amount of consecutive chars, jump to the first one with a tree.
+
+This is a more flexible version of `avy-goto-char-2`. First part works similarly to `isearch`: you type a query and it's highlighted dynamically on the screen.  When you stop typing for `avy-timeout-seconds` (0.5s by default), you'll be able to select one of the candidates with `avy`. As you're inputting characters, you can use `C-h` (backspace) or `DEL` (delete) to
+forget the last typed character and `RET` to end the input sequence immediately and select a candidate.
 
 ### `avy-goto-line`
 
@@ -74,6 +84,10 @@ After <kbd>M-g e</kbd>:
 
 ![avy-goto-word-0](http://oremacs.com/download/avi-goto-word-0.png)
 
+### Org-mode commands
+
+  * `avy-org-goto-heading-timer`: Type part of an Org heading.  When you stop typing, if only one heading on the screen matches, it will be jumped to; if more than one matches, you can jump to a heading with Avy.  This is like `avy-goto-char-timer` but for Org headings.
+  * `avy-org-refile-as-child`: With point in an entry you want to refile, run this command, select a heading with Avy, and the entry will be refiled as its first child heading.  This makes it quick and easy to refile to headings that are visible on-screen, even to other windows or buffers.
 
 ### Other commands
 
@@ -85,6 +99,7 @@ You add this to your config to bind some stuff:
 
 ```elisp
 (avy-setup-default)
+(global-set-key (kbd "C-c C-j") 'avy-resume)
 ```
 
 It will bind, for example, `avy-isearch` to <kbd>C-'</kbd> in `isearch-mode-map`, so that you can select one of the currently visible `isearch` candidates using `avy`.
@@ -107,6 +122,6 @@ The copyright assignment isn't a big deal, it just says that the copyright for y
 
 The basic code style guide is to use `(setq indent-tabs-mode nil)`. It is provided for you in [.dir-locals.el](https://github.com/abo-abo/avy/blob/master/.dir-locals.el), please obey it.
 
-Before submitting the change, run `make compile` and `make test` to make sure that it doesn't introduce new compile warnings or test failures. Also run <kbd>M-x</kbd> `checkdoc` to see that your changes obey the documentation guidelines.
+Before submitting the change, run `make compile` and `make test` to make sure that it doesn't introduce new compile warnings or test failures. Also run `make checkdoc` to see that your changes obey the documentation guidelines.
 
 Use your own judgment for the commit messages, I recommend a verbose style using `magit-commit-add-log`.
