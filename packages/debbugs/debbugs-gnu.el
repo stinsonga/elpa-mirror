@@ -2232,29 +2232,38 @@ If given a prefix, patch in the branch directory instead."
   (goto-char (point-min))
   (while (re-search-forward diff-file-header-re nil t)
     (goto-char (match-beginning 0))
-    (let ((target-name (car (diff-hunk-file-names))))
-      (when (and target-name
-		 (or (not (string-match "/" target-name))
-		     (and (string-match "^[ab]/" target-name)
-			  (not (file-exists-p
-				(expand-file-name (substring target-name 2)
-						  dir))))
-		     (file-exists-p (expand-file-name target-name dir))))
+    (let ((target-name (cl-loop for name in (diff-hunk-file-names)
+				;; The target names are usually actual
+				;; file names, but they can also be
+				;; things like "#<buffer eww.el>".
+				unless (string-match "[ #<>]" name)
+				return name)))
+      (when target-name
+	(when (string-match "^/" target-name)
+	  ;; This is an absolute path, so try to find the target.
+	  (while (and (search "/" target-name)
+		      (not (file-exists-p (expand-file-name target-name dir))))
+	    (setq target-name (replace-regexp-in-string "^[^/]*/" ""
+							target-name))))
+	;; See whether we can find the file.
+	(when (or (not (string-match "/" target-name))
+		  (and (string-match "^[ab]/" target-name)
+		       (not (file-exists-p
+			     (expand-file-name (substring target-name 2)
+					       dir))))
+		  (file-exists-p (expand-file-name target-name dir))))
 	;; We have a simple patch that refers to a file somewhere in the
 	;; tree.  Find it.
 	(when-let ((files (directory-files-recursively
 			   dir
 			   (concat "^" (regexp-quote
 					(file-name-nondirectory target-name))
-				       "$"))))
-	  (when (re-search-forward (concat "^[+]+ "
-					   (regexp-quote target-name)
-					   "\\([ \t\n]\\)")
-				   nil t)
+				   "$"))))
+	  (when (re-search-forward "^[+]+ .*" nil t)
 	    (replace-match (concat "+++ a"
 				   (substring (car files) (length dir))
 				   (match-string 1))
-			   nil t)))))
+			   nil t))))))
     (forward-line 2)))
 
 (defun debbugs-gnu-find-contributor (string)
