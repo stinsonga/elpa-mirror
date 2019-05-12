@@ -3,7 +3,7 @@
 ;; Copyright 2016-2019 Free Software Foundation, Inc.
 
 ;; Author: David Gonzalez Gandara <dggandara@member.fsf.org>
-;; Version: 0.975
+;; Version: 0.976
 ;; Package-Requires: ((cl-lib "0.5"))
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -108,14 +108,13 @@
 (eval-when-compile (require 'cl-lib))
 
 (defvar arbitools-verbose nil)
-(defvar arbitools-elo-floor 1000)
-(defvar arbitools-arpo-cutworst t)
-(defvar arbitools-arpo-cutbest t)
+(defvar arbitools-elo-floor 1000 "Rating floor for calculations")
+(defvar arbitools-arpo-cutworst t "Cut the worst result for ARPO calculations")
+(defvar arbitools-arpo-cutbest t "Cut the best results for ARPO calculations")
 (defvar arbitools-performancetable (list -800 -677 -589 -538 -501 -470 -444 -422 -401 -383 -366 -351 -336 -322 -309 -296 -284 -273 -262 -251 -240 -230 -220 -211 -202 -193 -184 -175 -166 -158 -149 -141 -133 -125 -117 -110 -102 -95 -87 -80 -72 -65 -57 -50 -43 -36 -29 -21 -14 -7 0 7 14 21 29 36 43 50 57 65 72 80 87 95 102 110 117 125 133 141 149 158 166 175 184 193 202 211 220 230 240 251 262 273 284 296 309 322 336 351 366 383 401 422 444 470 501 538 589 677 800)
-  ;; FIXME: A docstring explaining what this is (where it comes from, what's
-  ;; it's useful for, ...) would be helpful.
-  )
-(defvar arbitools-players-info nil)
+  "Table of expected results according to FIDE ratings rules")
+(defvar arbitools-players-info nil
+  "Table to store rank numbers, names, ratings and expected results")
 
 ;; TODO Implement a hashtable to parse the file and store the data
 ;; TODO Implement the performance table as a vector variable
@@ -130,15 +129,21 @@
 	     (rankstring (substring-no-properties linestring 5 8))
 	     (namestring (substring-no-properties linestring 14 47))
 	     (elostring (substring-no-properties linestring 48 52))
-	     (playerinfo
-              `(,rankstring
-                ,namestring
-                ,elostring
-                0)))
-	;;(add-to-list 'playerinfo (arbitools-get-player-opponents-average (string-to-number rankstring)) t)
+	     (playerinfo)
+	     ;;(playerinfo      ;; FIXME: this suggestion did not work, check why
+             ;; `(,rankstring
+             ;;   ,namestring
+             ;;   ,elostring
+             ;;   0))
+	)
+        (push rankstring playerinfo)
+        (push namestring playerinfo)
+        (push elostring playerinfo)
+        (push '0 playerinfo)
         ;; FIXME: Why append it to the end (which requires traversing the whole
         ;; list) rather than add it to the front (which is super-cheap)?
-        (add-to-list 'arbitools-players-info playerinfo t)))))
+	;;  (add-to-list 'arbitools-players-info playerinfo t)
+	  (add-to-list 'arbitools-players-info (reverse playerinfo) t)))))
 
 (defun arbitools-do-pairings (round)
   "Use bbpPairings to do the pairings for the next round.
@@ -159,9 +164,7 @@
     (erase-buffer))
   (call-process "bbpPairings.exe" nil "Pairings-output" nil  "--dutch" buffer-file-name "-p")
 
-  (let* (;; (actualround (arbitools-actual-round))
-         ;; (numberofrounds (arbitools-number-of-rounds))
-         (numberoftables 0)
+  (let* ((numberoftables 0)
          (actualtable 0)
          (white 0)
          (black 0)
@@ -466,7 +469,7 @@
   (insert "XXC COLOR FOR THE FIRST ROUND (white1 or black1)\n")
   (insert "XXR NUMBER OF ROUNDS\n")
   (insert "132 DATES                                                                                  YY/MM/DD  YY/MM/DD\n")
-  ;; (insert "001  000 GTIT NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN RAT. FED   0000000000 YYYY/MM/DD 00.0  RNK  0000 C R  0000 C R\n")
+  (insert "001  000 GTIT NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN RAT. FED   0000000000 YYYY/MM/DD 00.0  RNK  0000 C R  0000 C R\n")
   ;; (insert "013 NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN  0000 0000\n")
 )
 
@@ -514,8 +517,6 @@
         (setq actualround (/ (current-column) 10)))
       (when (< actualround 0)
         (setq actualround 0)))
-      ;;(when arbitool-verbose (with-current-buffer "Arbitools-output"
-        ;;  (insert (format "column: %d -" actualround))))
     actualround))
 
 (defun arbitools-calculate-points (round)
@@ -538,6 +539,8 @@
           (let ((sym (thing-at-point 'symbol)))
             ;; FIXME: If `sym' doesn't match any of those, we keep the previous
             ;; value of `pointstosum', which seems wrong.
+	    ;; ::: pointstosum should stay the same if none of the conditions
+	    ;;     is met
             (cond ((string= sym "1") (setq pointstosum 1.0))
                   ((string= sym "+") (setq pointstosum 1.0))
                   ((string= sym "=") (setq pointstosum 0.5))
@@ -577,7 +580,6 @@
 	   (name)
 	   (arpo)
            (newpos 0)
-           ;; (idfide "")
            (beg)
            (end))
       (goto-char (point-min))
@@ -626,7 +628,6 @@
 	  (forward-word)
 	  (setq arpo (format "%s.%s" arpo (thing-at-point 'word))))
 	(with-current-buffer "Standings"
-	  ;;(insert "2350.01234")
           (insert (format "%s" arpo)) ;; fix tabs for sorting to work fine
 	  (insert "\n"))
         )
@@ -677,7 +678,6 @@
       (goto-char (point-min))
       (re-search-forward "^132" nil t)
         (let* ((linestringrounds   (thing-at-point 'line))
-               ;; (actualround        " ")
                (beginning-of-round 91)
                (end-of-round       99)
                (continue           t))
@@ -963,8 +963,7 @@ Only do it if `arbitools-verbose' is non-nil."
       (arbitools--verbose-output "Arbitools-output"
 	"Player %d sum_mi_ci %d sum_mi %d ci %d\n"
 	player sum_mi_ci sum_mi ci)
-      ci))
- )
+      ci)))
 
 (defun arbitools-get-player-opponents (player)
   "Takes the player's rank as argument. Returns a list which contains the rank number
@@ -1061,8 +1060,7 @@ Only do it if `arbitools-verbose' is non-nil."
 	   (numberofopponents 0))
       ;; discard points against discarded opponents
       (goto-char (point-min))
-      (let* (;; (linestring (thing-at-point 'line))
-	     (maxlength 0)
+      (let* ((maxlength 0)
 	     (numberofrounds)
 	     (opp 000)
 	     (offset 0))
@@ -1151,8 +1149,7 @@ Only do it if `arbitools-verbose' is non-nil."
    also it creates a userTB.txt buffer, so that it can be used in Vega."
   ;; TODO This algorythm is terribly inefficient, it should be improved
   (interactive)
-
-  ;;(arbitools-fill-players-info)
+  
   (save-excursion
     (let* ((iterand              )
 	   (iterand_1            )
@@ -1272,9 +1269,7 @@ Only do it if `arbitools-verbose' is non-nil."
 	(insert "  User Tie-Break   ;"))
 
       (dotimes (iter (length iterand_1))
-	(let* (;; (rating (string-to-number
-               ;;          (nth 2 (nth iter arbitools-players-info))))
-	       (name (nth 1 (nth iter arbitools-players-info)))
+	(let* ((name (nth 1 (nth iter arbitools-players-info)))
 	       (arpo (nth iter iterand_1)))
           (with-current-buffer "ARPO"
             (insert (format "%d %s %s\n" (+ iter 1) name arpo)))
@@ -1402,14 +1397,22 @@ Only do it if `arbitools-verbose' is non-nil."
   ;; names (e.g. "Arbitools-output<2>") if the buffer already exists, and
   ;; those will tend to accumulate because we never kill them (let alone use
   ;; them).
-  (generate-new-buffer "Arbitools-output")
-  (generate-new-buffer "List of players")
-  (generate-new-buffer "Pairings List")
-  (generate-new-buffer "Standings")
-  (generate-new-buffer "Pairings-output")
-  (generate-new-buffer "Players performance")
-  (generate-new-buffer "ARPO")
-  (generate-new-buffer "UserTB.txt")
+  (unless (get-buffer "Arbitools-output")
+	  (generate-new-buffer "Arbitools-output"))
+  (unless (get-buffer "List of playeres")
+          (generate-new-buffer "List of players"))
+  (unless (get-buffer "Pairings List")
+          (generate-new-buffer "Pairings List"))
+  (unless (get-buffer "Standings")
+          (generate-new-buffer "Standings"))
+  (unless (get-buffer "Pairings-ouput")
+          (generate-new-buffer "Pairings-output"))
+  (unless (get-buffer "Players performance")
+          (generate-new-buffer "Players performance"))
+  (unless (get-buffer "APO")
+          (generate-new-buffer "ARPO"))
+  (unless (get-buffer "UserTB.txt")
+          (generate-new-buffer "UserTB.txt"))
   (column-number-mode)
   (arbitools-fill-players-info)
   ;;(arbitools-calculate-players-performance)
