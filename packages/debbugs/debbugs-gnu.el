@@ -2263,7 +2263,7 @@ If given a prefix, patch in the branch directory instead."
 	    (replace-match (concat "+++ a"
 				   (substring (car files) (length dir))
 				   (match-string 1))
-			   nil t))))))
+			   nil t)))))
     (forward-line 2)))
 
 (defun debbugs-gnu-find-contributor (string)
