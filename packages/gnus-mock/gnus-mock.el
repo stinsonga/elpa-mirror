@@ -165,7 +165,13 @@ will start a mock Gnus session."
 	      ;; Constant that can be checked if we need to know it's a mock
 	      ;; session.
 	      (prin1 '(defconst gnus-mock-p t))
-	      (princ "\n")
+	      (princ "\n\n")
+	      ;; Load our interactive testing file.  Does package.el
+	      ;; compile these files by default?
+	      (prin1 `(require
+		       'gnus-mock-tests
+		       ,(expand-file-name "gnus-mock-tests" mock-tmp-dir)))
+	      (princ "\n\n")
 	      ;; Constant for use in `gnus-mock-reload', which is defined in
 	      ;; the .gnus.el startup file.
  	      (prin1 `(defconst gnus-mock-data-dir ,gnus-mock-data-dir))
