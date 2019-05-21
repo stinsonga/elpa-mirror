@@ -185,9 +185,9 @@ window."
   (let* ((sum-buffer (gnus-summary-buffer-name group))
 	 (target-buffer
 	  (cond
-	   ((gnus-buffer-exists-p sum-buffer)
+	   ((gnus-buffer-live-p sum-buffer)
 	    sum-buffer)
-	   ((gnus-buffer-exists-p gnus-group-buffer)
+	   ((gnus-buffer-live-p gnus-group-buffer)
 	    gnus-group-buffer)
 	   (t nil)))
 	 (target-window (when target-buffer
@@ -202,7 +202,7 @@ window."
       (if target-buffer
 	  (switch-to-buffer target-buffer)))
     (message "Following link...")
-    (if (gnus-buffer-exists-p sum-buffer)
+    (if (gnus-buffer-live-p sum-buffer)
 	(gnus-summary-goto-article id nil t)
       (gnorb-open-gnus-link group id))))
 
