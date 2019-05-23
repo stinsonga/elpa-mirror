@@ -119,6 +119,7 @@
  ("python"		:core "lisp/progmodes/python.el")
  ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
  ("realgud-ipdb"        :external "https://github.com/realgud/realgud-ipdb")
+ ("realgud-jdb"         :external "https://github.com/realgud/jdb")
  ("realgud-lldb"        :external "https://github.com/realgud/realgud-lldb")
  ("realgud-node-debug"  :external "https://github.com/realgud/realgud-node-debug")
  ("realgud-node-inspect" :external "https://github.com/realgud/realgud-node-inspect")
