@@ -35,7 +35,7 @@
  ("auctex"		:external "git://git.sv.gnu.org/auctex.git")
  ("bbdb"		:external "git://git.savannah.nongnu.org/bbdb.git")
  ("bnf-mode"		:external "https://github.com/sergeyklay/bnf-mode")
- ("buffer-expose" :external "https://github.com/clemera/buffer-expose")
+ ("buffer-expose"	:external "https://github.com/clemera/buffer-expose")
  ("bug-hunter"		:subtree "https://github.com/Malabarba/elisp-bug-hunter")
  ;;FIXME:("cedet"	:external "??")
  ;; ("cc-mode"		:core ("lisp/progmodes/cc-align.el"
@@ -69,7 +69,7 @@
  ("delight"		:subtree "http://git.savannah.gnu.org/r/delight.git")
  ("diffview"            :subtree "https://github.com/mgalgs/diffview-mode.git")
  ("diff-hl"		:subtree "https://github.com/dgutov/diff-hl.git")
- ("dired-git-info" :external "https://github.com/clemera/dired-git-info")
+ ("dired-git-info"	:external "https://github.com/clemera/dired-git-info")
  ("disk-usage"		:external "https://gitlab.com/ambrevar/emacs-disk-usage")
  ("dismal"		:external nil)
  ("dts-mode"		:subtree "https://github.com/bgamari/dts-mode.git")
@@ -84,7 +84,7 @@
  ("f90-interface-browser" :subtree "https://github.com/wence-/f90-iface")
  ("flymake"		:core "lisp/progmodes/flymake.el")
  ("fountain-mode"	:external "https://github.com/rnkn/fountain-mode")
- ("frog-menu" :external "https://github.com/clemera/frog-menu")
+ ("frog-menu"		:external "https://github.com/clemera/frog-menu")
  ("ggtags"		:subtree "https://github.com/leoliu/ggtags")
  ("gnome-c-style"	:subtree "https://github.com/ueno/gnome-c-style.git")
  ("gnorb"               :subtree "https://github.com/girzel/gnorb")
@@ -119,6 +119,7 @@
  ("python"		:core "lisp/progmodes/python.el")
  ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
  ("realgud-ipdb"        :external "https://github.com/realgud/realgud-ipdb")
+ ("realgud-jdb"         :external "https://github.com/realgud/jdb")
  ("realgud-lldb"        :external "https://github.com/realgud/realgud-lldb")
  ("realgud-node-debug"  :external "https://github.com/realgud/realgud-node-debug")
  ("realgud-node-inspect" :external "https://github.com/realgud/realgud-node-inspect")
@@ -137,37 +138,7 @@
  ("test-simple"         :subtree "https://github.com/rocky/emacs-test-simple")
  ("vdiff"               :subtree "https://github.com/justbur/emacs-vdiff")
  ("vcl-mode"	        :subtree "git://git.gnu.org.ua/vcl-mode")
- ;;("tramp"		:core
- ;;			  (;; FIXME: elpa.gnu.org doesn't know where to get from
- ;;			   ;;"README.md"
- ;;			   ;; FIXME: elpa.gnu.org doesn't know where to get from
- ;;			   ;;"dir"
- ;;			   "lisp/net/tramp.el"
- ;;			   "lisp/net/tramp-archive.el"
- ;;			   "lisp/net/tramp-adb.el"
- ;;			   "lisp/net/tramp-cache.el"
- ;;			   "lisp/net/tramp-cmds.el"
- ;;			   "lisp/net/tramp-compat.el"
- ;;			   "lisp/net/tramp-ftp.el"
- ;;			   "lisp/net/tramp-gvfs.el"
- ;;			   ;; FIXME: elpa.gnu.org doesn't know how to build
- ;;			   "lisp/net/tramp-loaddefs.el"
- ;;			   "lisp/net/tramp-sh.el"
- ;;			   "lisp/net/tramp-smb.el"
- ;;			   "lisp/net/tramp-uu.el"
- ;;			   "lisp/net/trampver.el"
- ;;			   ("doc/misc/tramp.texi" "doc/tramp.texi")
- ;;			   ("doc/misc/trampver.texi" "doc/trampver.texi")
- ;;			   ;; FIXME: elpa.gnu.org doesn't know how to build
- ;;			   "info/tramp.info"
- ;;			   ("test/lisp/net/tramp-tests.el"
- ;;			    "test/tramp-tests.el")
- ;;			   ("test/lisp/net/tramp-archive-tests.el"
- ;;			    "test/tramp-archive-tests.el")
- ;;			   ("test/lisp/net/tramp-archive-resources/foo.tar.gz"
- ;;			    "test/tramp-archive-resources/foo.tar.gz")
- ;;			   ("test/lisp/net/tramp-archive-resources/foo.iso/foo"
- ;;			    "test/tramp-archive-resources/foo.iso/foo")))
+ ("tramp"		:external "https://git.savannah.gnu.org/cgit/tramp.git/?h=elpa")
  ;;FIXME:("vlf"		:subtree ??)
  ("w3"			:external nil)
  ("wcheck-mode"		:subtree "https://github.com/tlikonen/wcheck-mode.git")

@@ -48,6 +48,12 @@ packages/peg/
 packages/posframe/
 packages/psgml/
 packages/python/
+packages/realgud-ipdb/
+packages/realgud-jdb/
+packages/realgud-lldb/
+packages/realgud-node-debug/
+packages/realgud-node-inspect/
+packages/realgud-trepan-ni/
 packages/relint/
 packages/rudel/
 packages/smalltalk-mode/
@@ -55,6 +61,7 @@ packages/soap-client/
 packages/sql-indent/
 packages/ssh-deploy/
 packages/system-packages/
+packages/tramp/
 packages/w3/
 packages/webfeeder/
 packages/xelb/

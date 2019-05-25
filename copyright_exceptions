@@ -72,6 +72,8 @@
 ./mmm-mode/mmm-rpm.el:;; Copyright (C) 2000 by Marcus Harnisch <Marcus.Harnisch@gmx.net>
 ./muse/htmlize-hack.el
 ./rudel/rudel-loaddefs.el
+./tramp/tramp-loaddefs.el
+./tramp/tramp-sh.el:;; (copyright statements below in code to be updated with the above notice)
 ./uni-confusables/gen-confusables.el:;; Copyright (C) 1991-2009, 2010 Unicode, Inc.
 ./uni-confusables/gen-confusables.el:;; gen-confusables.el.  The copyright and permissions are the same
 ./uni-confusables/gen-confusables.el:;; list (covered by the Unicode copyright terms in copyright.html)
