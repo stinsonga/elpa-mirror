@@ -742,6 +742,8 @@ are taken from the cache instead."
 	     merged)
 	(unless (equal (cdr (assq 'pending status)) "pending")
 	  (setq words (append words (list (cdr (assq 'pending status))))))
+	(when (cdr (assq 'fixed status))
+	  (setq words (append words '("fixed"))))
 	(let ((packages (cdr (assq 'package status))))
 	  (dolist (elt packages)
 	    (when (member elt debbugs-gnu-default-packages)
