@@ -118,6 +118,7 @@
  ("psgml"               :external "https://github.com/lenst/psgml.git")
  ("python"		:core "lisp/progmodes/python.el")
  ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
+ ("realgud"             :external "https://github.com/realgud/realgud")
  ("realgud-ipdb"        :external "https://github.com/realgud/realgud-ipdb")
  ("realgud-jdb"         :external "https://github.com/realgud/jdb")
  ("realgud-lldb"        :external "https://github.com/realgud/realgud-lldb")
