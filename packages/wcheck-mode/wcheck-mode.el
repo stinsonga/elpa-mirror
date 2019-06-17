@@ -66,7 +66,7 @@
 
 (eval-when-compile
   ;; Silence compiler
-  (declare-function show-entry "outline"))
+  (declare-function outline-show-entry "outline"))
 
 
 ;;; Settings
@@ -1141,6 +1141,7 @@ requested it."
 
 
 (defun wcheck--timer-jump-event ()
+  (require 'outline)
   (wcheck--loop-over-jump-reqs buffer
     (let* ((jump-req (wcheck--buffer-data-get :buffer buffer :jump-req))
            (start (wcheck--jump-req-start jump-req))
@@ -1158,7 +1159,7 @@ requested it."
                               (set-window-point window (overlay-end ol))
                             (goto-char (overlay-end ol)))
                           (when (invisible-p (point))
-                            (show-entry))
+                            (outline-show-entry))
                           (message "Found from line %s"
                                    (line-number-at-pos (point)))
                           (wcheck--force-read buffer))
@@ -1175,7 +1176,7 @@ requested it."
                               (set-window-point window (overlay-start ol))
                             (goto-char (overlay-start ol)))
                           (when (invisible-p (point))
-                            (show-entry))
+                            (outline-show-entry))
                           (message "Found from line %s"
                                    (line-number-at-pos (point)))
                           (wcheck--force-read buffer))
