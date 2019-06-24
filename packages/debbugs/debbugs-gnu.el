@@ -2243,12 +2243,11 @@ If given a prefix, patch in the branch directory instead."
 				unless (string-match "[ #<>]" name)
 				return name)))
       (when target-name
-	(when (string-match "^/" target-name)
+	(when (string-match "\\`/" target-name)
 	  ;; This is an absolute path, so try to find the target.
-	  (while (and (cl-search "/" target-name)
-		      (not (file-exists-p (expand-file-name target-name dir))))
-	    (setq target-name (replace-regexp-in-string "^[^/]*/" ""
-							target-name))))
+	  (while (and (not (file-exists-p (expand-file-name target-name dir)))
+		      (string-match "\\`[^/]*/" target-name))
+	    (setq target-name (replace-match "" t t target-name))))
 	;; See whether we can find the file.
 	(when (or (not (string-match "/" target-name))
 		  (and (string-match "^[ab]/" target-name)
