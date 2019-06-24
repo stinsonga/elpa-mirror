@@ -2245,7 +2245,7 @@ If given a prefix, patch in the branch directory instead."
       (when target-name
 	(when (string-match "^/" target-name)
 	  ;; This is an absolute path, so try to find the target.
-	  (while (and (search "/" target-name)
+	  (while (and (cl-search "/" target-name)
 		      (not (file-exists-p (expand-file-name target-name dir))))
 	    (setq target-name (replace-regexp-in-string "^[^/]*/" ""
 							target-name))))
@@ -2255,19 +2255,19 @@ If given a prefix, patch in the branch directory instead."
 		       (not (file-exists-p
 			     (expand-file-name (substring target-name 2)
 					       dir))))
-		  (file-exists-p (expand-file-name target-name dir))))
-	;; We have a simple patch that refers to a file somewhere in the
-	;; tree.  Find it.
-	(when-let ((files (directory-files-recursively
-			   dir
-			   (concat "^" (regexp-quote
-					(file-name-nondirectory target-name))
-				   "$"))))
-	  (when (re-search-forward "^[+]+ .*" nil t)
-	    (replace-match (concat "+++ a"
-				   (substring (car files) (length dir))
-				   (match-string 1))
-			   nil t)))))
+		  (file-exists-p (expand-file-name target-name dir)))
+	  ;; We have a simple patch that refers to a file somewhere in the
+	  ;; tree.  Find it.
+	  (when-let ((files (directory-files-recursively
+			     dir
+			     (concat "^" (regexp-quote
+					  (file-name-nondirectory target-name))
+				     "$"))))
+	    (when (re-search-forward "^[+]+ .*" nil t)
+	      (replace-match (concat "+++ a"
+				     (substring (car files) (length dir))
+				     (match-string 1))
+			     nil t))))))
     (forward-line 2)))
 
 (defun debbugs-gnu-find-contributor (string)
