@@ -500,7 +500,10 @@ Messages}.
 @end multitable
 
 When the bug attributes are shown by @code{org-cycle}, there is a link
-@code{Messages} which opens a GNUS ephemeral group for that bug.@c (@pxref{xxx}).
+@code{Messages} which opens the messages for that bug.  @c (@pxref{xxx}).
+The user options @code{debbugs-gnu-suppress-closed} and
+@code{debbugs-gnu-mail-backend} have the same meaning as in
+@ref{Tabulated Lists}.
 
 
 @node Control Messages

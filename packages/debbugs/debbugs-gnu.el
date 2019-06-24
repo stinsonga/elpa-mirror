@@ -1290,7 +1290,9 @@ interest to you."
 	   (error "No bug on the current line"))))
 
 (defun debbugs-gnu-current-status ()
-  (when (derived-mode-p 'debbugs-gnu-mode)
+  ;; FIXME: `debbugs-org-mode' shouldn't be mentioned here.
+  (when (or (derived-mode-p 'debbugs-gnu-mode)
+	    (bound-and-true-p debbugs-org-mode))
     (get-text-property (line-beginning-position) 'tabulated-list-id)))
 
 (defun debbugs-gnu-display-status (query filter status)

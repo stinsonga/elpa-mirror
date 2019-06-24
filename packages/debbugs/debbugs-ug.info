@@ -426,7 +426,9 @@ This enables the following key strokes:
             
 
    When the bug attributes are shown by 'org-cycle', there is a link
-'Messages' which opens a GNUS ephemeral group for that bug.
+'Messages' which opens the messages for that bug.  The user options
+'debbugs-gnu-suppress-closed' and 'debbugs-gnu-mail-backend' have the
+same meaning as in *note Tabulated Lists::.
 
 
 File: debbugs-ug.info,  Node: Control Messages,  Next: Applying Patches,  Prev: TODO Items,  Up: Presenting Bugs
@@ -1117,46 +1119,46 @@ Ref: Searching Bugs-Footnote-211338
 Node: Presenting Bugs11429
 Node: Tabulated Lists12091
 Node: TODO Items15946
-Node: Control Messages17158
-Node: Applying Patches20672
-Node: Posting Patches22062
-Node: Customizing debbugs-gnu-pick-commits24547
-Node: Minor Mode25247
-Node: Command Index26303
-Node: Variable Index27163
-Node: Key Index28608
-Node: Mail Command Index30316
-Ref: Mail Command Index: reassign30469
-Ref: Mail Command Index: reopen31235
-Ref: Mail Command Index: found32389
-Ref: Mail Command Index: notfound33470
-Ref: Mail Command Index: fixed33879
-Ref: Mail Command Index: notfixed34325
-Ref: Mail Command Index: submitter34948
-Ref: Mail Command Index: forwarded35342
-Ref: Mail Command Index: notforwarded35959
-Ref: Mail Command Index: retitle36160
-Ref: Mail Command Index: severity36544
-Ref: Mail Command Index: clone36875
-Ref: Mail Command Index: merge37639
-Ref: Mail Command Index: forcemerge39026
-Ref: Mail Command Index: unmerge39470
-Ref: Mail Command Index: tags40173
-Ref: Mail Command Index: block41239
-Ref: Mail Command Index: unblock41276
-Ref: Mail Command Index: close41761
-Ref: Mail Command Index: package42411
-Ref: Mail Command Index: owner43023
-Ref: Mail Command Index: noowner43386
-Ref: Mail Command Index: archive43559
-Ref: Mail Command Index: unarchive43700
-Ref: Mail Command Index: #43993
-Ref: Mail Command Index: quit44253
-Ref: Mail Command Index: stop44260
-Ref: Mail Command Index: thank44267
-Ref: Mail Command Index: thanks44275
-Ref: Mail Command Index: thankyou44284
-Ref: Mail Command Index: thank you44295
-Ref: Mail Command Index: --44307
+Node: Control Messages17280
+Node: Applying Patches20794
+Node: Posting Patches22184
+Node: Customizing debbugs-gnu-pick-commits24669
+Node: Minor Mode25369
+Node: Command Index26425
+Node: Variable Index27285
+Node: Key Index28730
+Node: Mail Command Index30438
+Ref: Mail Command Index: reassign30591
+Ref: Mail Command Index: reopen31357
+Ref: Mail Command Index: found32511
+Ref: Mail Command Index: notfound33592
+Ref: Mail Command Index: fixed34001
+Ref: Mail Command Index: notfixed34447
+Ref: Mail Command Index: submitter35070
+Ref: Mail Command Index: forwarded35464
+Ref: Mail Command Index: notforwarded36081
+Ref: Mail Command Index: retitle36282
+Ref: Mail Command Index: severity36666
+Ref: Mail Command Index: clone36997
+Ref: Mail Command Index: merge37761
+Ref: Mail Command Index: forcemerge39148
+Ref: Mail Command Index: unmerge39592
+Ref: Mail Command Index: tags40295
+Ref: Mail Command Index: block41361
+Ref: Mail Command Index: unblock41398
+Ref: Mail Command Index: close41883
+Ref: Mail Command Index: package42533
+Ref: Mail Command Index: owner43145
+Ref: Mail Command Index: noowner43508
+Ref: Mail Command Index: archive43681
+Ref: Mail Command Index: unarchive43822
+Ref: Mail Command Index: #44115
+Ref: Mail Command Index: quit44375
+Ref: Mail Command Index: stop44382
+Ref: Mail Command Index: thank44389
+Ref: Mail Command Index: thanks44397
+Ref: Mail Command Index: thankyou44406
+Ref: Mail Command Index: thank you44417
+Ref: Mail Command Index: --44429
 
 End Tag Table
