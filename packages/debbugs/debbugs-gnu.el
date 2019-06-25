@@ -2182,7 +2182,8 @@ If given a prefix, patch in the branch directory instead."
 		patch-buffers))))
     (unless patch-buffers
       (gnus-summary-show-article 'raw)
-      (article-decode-charset)
+      (with-current-buffer gnus-article-buffer
+	(article-decode-charset))
       (push (cons nil gnus-article-buffer) patch-buffers))
     (dolist (elem patch-buffers)
       (with-current-buffer (generate-new-buffer "*debbugs input patch*")
@@ -2230,43 +2231,47 @@ If given a prefix, patch in the branch directory instead."
     (switch-to-buffer "*vc-diff*")
     (goto-char (point-min))))
 
+(defun debbugs-gnu-diff-hunk-target-name (dir)
+  (let ((names nil))
+    (dolist (name (diff-hunk-file-names))
+      (unless (string-match "[ #<>]" name)
+	(when (string-match "\\`/" name)
+	  ;; This is an absolute path, so try to find the target.
+	  (while (and (not (file-exists-p (expand-file-name name dir)))
+		      (string-match "\\`[^/]*/" name))
+	    (setq name (replace-match "" t t name))))
+	;; See whether we can find the file.
+	(when (or (not (string-match "/" name))
+		  (and (string-match "^[ab]/" name)
+		       (not (file-exists-p
+			     (expand-file-name (substring name 2)
+					       dir))))
+		  (file-exists-p (expand-file-name name dir)))
+	  ;; We have a simple patch that refers to a file somewhere in the
+	  ;; tree.  Find it.
+	  (setq name (car (sort (directory-files-recursively
+				 dir
+				 (concat "^" (regexp-quote
+					      (file-name-nondirectory name))
+					 "$"))
+				#'string>))))
+	(when name
+	  (push name names))))
+    ;; Return any of the guessed names.
+    (car names)))
+
 (defun debbugs-gnu-fix-patch (dir)
   (require 'diff-mode)
   (setq dir (directory-file-name (expand-file-name dir)))
   (goto-char (point-min))
   (while (re-search-forward diff-file-header-re nil t)
     (goto-char (match-beginning 0))
-    (let ((target-name (cl-loop for name in (diff-hunk-file-names)
-				;; The target names are usually actual
-				;; file names, but they can also be
-				;; things like "#<buffer eww.el>".
-				unless (string-match "[ #<>]" name)
-				return name)))
-      (when target-name
-	(when (string-match "\\`/" target-name)
-	  ;; This is an absolute path, so try to find the target.
-	  (while (and (not (file-exists-p (expand-file-name target-name dir)))
-		      (string-match "\\`[^/]*/" target-name))
-	    (setq target-name (replace-match "" t t target-name))))
-	;; See whether we can find the file.
-	(when (or (not (string-match "/" target-name))
-		  (and (string-match "^[ab]/" target-name)
-		       (not (file-exists-p
-			     (expand-file-name (substring target-name 2)
-					       dir))))
-		  (file-exists-p (expand-file-name target-name dir)))
-	  ;; We have a simple patch that refers to a file somewhere in the
-	  ;; tree.  Find it.
-	  (when-let ((files (directory-files-recursively
-			     dir
-			     (concat "^" (regexp-quote
-					  (file-name-nondirectory target-name))
-				     "$"))))
-	    (when (re-search-forward "^[+]+ .*" nil t)
-	      (replace-match (concat "+++ a"
-				     (substring (car files) (length dir))
-				     (match-string 1))
-			     nil t))))))
+    (when-let ((target-name (debbugs-gnu-diff-hunk-target-name dir)))
+      (when (re-search-forward "^\\([+]+\\|-+\\) .*" nil t)
+	(replace-match (concat (match-string 1)
+			       " a"
+			       (substring target-name (length dir)))
+		       nil t)))
     (forward-line 2)))
 
 (defun debbugs-gnu-find-contributor (string)
