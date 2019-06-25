@@ -2155,9 +2155,11 @@ or bug ranges, with default to `debbugs-gnu-default-bug-number-list'."
 	   "Emacs repository location: "
 	   debbugs-gnu-current-directory nil t nil 'file-directory-p))))
 
-(defun debbugs-gnu-apply-patch (&optional branch)
+(defun debbugs-gnu-apply-patch (&optional branch selectively)
   "Apply the patch from the current message.
-If given a prefix, patch in the branch directory instead."
+If given a prefix, patch in the branch directory instead.
+
+If SELECTIVELY, query the user before applying the patch."
   (interactive "P")
   (add-hook 'emacs-lisp-mode-hook #'debbugs-gnu-lisp-mode)
   (add-hook 'diff-mode-hook #'debbugs-gnu-diff-mode)
@@ -2192,14 +2194,21 @@ If given a prefix, patch in the branch directory instead."
 	       (base64-decode-region (point-min) (point-max)))
 	      ((eq (car elem) 'quoted-printable)
 	       (quoted-printable-decode-region (point-min) (point-max))))
+	(goto-char (point-min))
+	(while (search-forward "\r\n" nil t)
+	  (replace-match "\n" t t))
 	(debbugs-gnu-fix-patch debbugs-gnu-current-directory)
-	(call-process-region (point-min) (point-max)
-			     "patch" nil output-buffer nil
-			     "-r" rej "--no-backup-if-mismatch"
-			     "-l" "-f"
-			     "-d" (expand-file-name
-				   debbugs-gnu-current-directory)
-			     "-p1")))
+	(when (or (not selectively)
+		  (y-or-n-p (format "%s\nApply?"
+				    (buffer-substring (point-min)
+						      (min 200 (point-max))))))
+	  (call-process-region (point-min) (point-max)
+			       "patch" nil output-buffer nil
+			       "-r" rej "--no-backup-if-mismatch"
+			       "-l" "-f"
+			       "-d" (expand-file-name
+				     debbugs-gnu-current-directory)
+			       "-p1"))))
     (set-buffer output-buffer)
     (when (file-exists-p rej)
       (goto-char (point-max))
@@ -2267,7 +2276,8 @@ If given a prefix, patch in the branch directory instead."
   (while (re-search-forward diff-file-header-re nil t)
     (goto-char (match-beginning 0))
     (when-let ((target-name (debbugs-gnu-diff-hunk-target-name dir)))
-      (when (re-search-forward "^\\([+]+\\|-+\\) .*" nil t)
+      (when (and (string-match "^/" target-name)
+		 (re-search-forward "^\\([+]+\\|-+\\) .*" nil t))
 	(replace-match (concat (match-string 1)
 			       " a"
 			       (substring target-name (length dir)))
