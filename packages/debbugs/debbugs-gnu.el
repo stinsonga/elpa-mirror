@@ -2340,8 +2340,7 @@ If SELECTIVELY, query the user before applying the patch."
     (let ((add-log-full-name (car from))
 	  (add-log-mailing-address (cadr from)))
       (add-change-log-entry-other-window)
-      (when patch-subject
-	(setq-local debbugs-gnu-patch-subject patch-subject))
+      (setq-local debbugs-gnu-patch-subject patch-subject)
       (when changelog
 	(delete-region (line-beginning-position) (point-max))
 	(save-restriction
@@ -2433,9 +2432,14 @@ If SELECTIVELY, query the user before applying the patch."
     (switch-to-buffer "*vc-diff*")
     (other-window 1)
     (when patch-subject
-      (insert "Summary: "
-	      (replace-regexp-in-string "^ *\\[PATCH\\] *" "" patch-subject)
-	      "\n"))))
+      (goto-char (point-min))
+      (unless (re-search-forward "^Summary: ")
+	(insert "Summary: \n")
+	(forward-line -1)
+	(end-of-line))
+      (insert (replace-regexp-in-string "^ *\\[PATCH\\] *" "" patch-subject))
+      (beginning-of-line)
+      (search-forward ": " nil t))))
 
 (defun debbugs-gnu-save-cache ()
   "Save the bugs cache to a file."
