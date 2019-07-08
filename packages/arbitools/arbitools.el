@@ -3,7 +3,7 @@
 ;; Copyright 2016-2019 Free Software Foundation, Inc.
 
 ;; Author: David Gonzalez Gandara <dggandara@member.fsf.org>
-;; Version: 0.976
+;; Version: 0.977
 ;; Package-Requires: ((cl-lib "0.5"))
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -106,6 +106,7 @@
 ;;; Code:
 
 (eval-when-compile (require 'cl-lib))
+(require 'seq)
 
 (defvar arbitools-verbose nil)
 (defvar arbitools-elo-floor 1000 "Rating floor for calculations")
@@ -129,20 +130,12 @@
 	     (rankstring (substring-no-properties linestring 5 8))
 	     (namestring (substring-no-properties linestring 14 47))
 	     (elostring (substring-no-properties linestring 48 52))
-	     (playerinfo)
-	     ;;(playerinfo      ;; FIXME: this suggestion did not work, check why
-             ;; `(,rankstring
-             ;;   ,namestring
-             ;;   ,elostring
-             ;;   0))
-	)
+	     (playerinfo))
+	
         (push rankstring playerinfo)
         (push namestring playerinfo)
         (push elostring playerinfo)
         (push '0 playerinfo)
-        ;; FIXME: Why append it to the end (which requires traversing the whole
-        ;; list) rather than add it to the front (which is super-cheap)?
-	;;  (add-to-list 'arbitools-players-info playerinfo t)
 	  (add-to-list 'arbitools-players-info (reverse playerinfo) t)))))
 
 (defun arbitools-do-pairings (round)
@@ -252,10 +245,13 @@
   "Create userTB.txt file for file generated with ARPO app.
    Use in crosstable.txt generated in Vega.
    You need to open the ARPO1.txt file in another buffer."
+
+  ;; FIXME: Right now the buffer is modified to perform the operations.
+  ;; It should be done without modifying
   (interactive)
   (save-excursion
     (goto-char (point-min))
-    (forward-line 7) ;; where the data starts in crosstable.txt
+    (forward-line 7) ;; where the data starts in crosstable.txt. This can be improved with regex
     (let* ((continue t)
 	   (arpodata "data")
 	   (arpopoint "point")
@@ -265,6 +261,14 @@
       (when (not (get-buffer "userTB.txt")) (generate-new-buffer "userTB.txt"))
       (with-current-buffer "userTB.txt"
         (erase-buffer) (insert "  User Tie-Break  ;"))
+      (let ((case-fold-search t)) ;; removing the string "(W)" in players who withdrew. This should be replaced afterwards
+
+	(goto-char (point-min))
+	(forward-line 7)
+	(while (search-forward "(W)" nil t)
+	  (replace-match "   "))
+	(goto-char (point-min))
+	(forward-line 7))
       (while continue ;; loop over crosstable.txt
         (beginning-of-line) (forward-word)
 	(if (thing-at-point 'word)
@@ -1021,13 +1025,9 @@ Only do it if `arbitools-verbose' is non-nil."
 	  (result     0))
 
       (goto-char (point-min))
-      (let* (;; (linestring (thing-at-point 'line))
-	     (maxlength 0)
+      (let* ((maxlength 0)
 	     (numberofrounds)
-	     (offset 0)
-	     ;; (rankstring (substring-no-properties linestring 5 8))
-	     ;; (rank (string-to-number rankstring))
-             )
+	     (offset 0))
 
         (re-search-forward (format "^001[[:space:]]\\{1,4\\}%d" player))
 	(end-of-line)
@@ -1245,9 +1245,11 @@ Only do it if `arbitools-verbose' is non-nil."
 	  (push difference differences))
 
 	;; check if the model converges
-	(when (and (< (abs (- (nth 1 differences) (nth 0 differences))) 0.0000000001) ;; define here the value of epsilon
-		   (< (abs (- (nth (- numberofplayers 1) differences) (nth 0 differences))) 0.0000000001))
-	  (setq converges t)) ;; TODO: improve this to check more members
+	;;(when (and (< (abs (- (nth 1 differences) (nth 0 differences))) 0.0000000001) ;; define here the value of epsilon
+	;;	   (< (abs (- (nth (- numberofplayers 1) differences) (nth 0 differences))) 0.0000000001))
+	;;  (setq converges t)) ;; TODO: improve this to check more members
+	(when (< (- (seq-max differences)(seq-min differences)) 0.0000000001)
+	  (setq converges t))
 
 	(setq iterations (+ iterations 1))
 	(when (or converges (= iterations 300)) (setq continue nil))) ;; define here maximum number of iterations
@@ -1263,7 +1265,7 @@ Only do it if `arbitools-verbose' is non-nil."
 	(goto-char (point-min))
 	(delete-region (point-min)(point-max))
 	(insert "rank Name                           ARPO\n"))
-      (with-current-buffer "UserTB.txt"
+      (with-current-buffer "userTB.txt"
         (goto-char (point-min))
 	(delete-region (point-min)(point-max))
 	(insert "  User Tie-Break   ;"))
@@ -1273,7 +1275,7 @@ Only do it if `arbitools-verbose' is non-nil."
 	       (arpo (nth iter iterand_1)))
           (with-current-buffer "ARPO"
             (insert (format "%d %s %s\n" (+ iter 1) name arpo)))
-	  (with-current-buffer "UserTB.txt"
+	  (with-current-buffer "userTB.txt"
             (insert (format "%s;" arpo))))))))
 
 (defun arbitools-it3 ()
@@ -1393,32 +1395,17 @@ Only do it if `arbitools-verbose' is non-nil."
   "Arbitools"
   "Major mode for Chess Tournament Management."
   ;(setq font-lock-defaults '(arbitools-highlights))
-  ;; FIXME: These generate-new-buffer will create additional buffers with other
-  ;; names (e.g. "Arbitools-output<2>") if the buffer already exists, and
-  ;; those will tend to accumulate because we never kill them (let alone use
-  ;; them).
-  (unless (get-buffer "Arbitools-output")
-	  (generate-new-buffer "Arbitools-output"))
-  (unless (get-buffer "List of playeres")
-          (generate-new-buffer "List of players"))
-  (unless (get-buffer "Pairings List")
-          (generate-new-buffer "Pairings List"))
-  (unless (get-buffer "Standings")
-          (generate-new-buffer "Standings"))
-  (unless (get-buffer "Pairings-ouput")
-          (generate-new-buffer "Pairings-output"))
-  (unless (get-buffer "Players performance")
-          (generate-new-buffer "Players performance"))
-  (unless (get-buffer "APO")
-          (generate-new-buffer "ARPO"))
-  (unless (get-buffer "UserTB.txt")
-          (generate-new-buffer "UserTB.txt"))
+  
+  (get-buffer-create "Arbitools-output")
+  (get-buffer-create "List of players")
+  (get-buffer-create "Pairings List")
+  (get-buffer-create "Standings")
+  (get-buffer-create "Pairings-output")
+  (get-buffer-create "Players performance")
+  (get-buffer-create "ARPO")
+  (get-buffer-create "userTB.txt")
   (column-number-mode)
   (arbitools-fill-players-info)
-  ;;(arbitools-calculate-players-performance)
-  ;;(condition-case nil
-  ;;    (arbitools-calculate-players-peformance)
-  ;;    (error nil))
   (set (make-local-variable 'font-lock-defaults) '(arbitools-highlights)))
 
 ;;;###autoload
