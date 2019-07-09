@@ -2178,7 +2178,7 @@ If SELECTIVELY, query the user before applying the patch."
     (with-current-buffer gnus-article-buffer
       (dolist (handle (mapcar #'cdr (gnus-article-mime-handles)))
 	(when
-	    (string-match "diff\\|patch\\|plain" (mm-handle-media-type handle))
+	    (string-match "diff\\|patch\\|plain\\|octet" (mm-handle-media-type handle))
 	  (push (cons (mm-handle-encoding handle)
 		      (mm-handle-buffer handle))
 		patch-buffers))))
@@ -2243,6 +2243,9 @@ If SELECTIVELY, query the user before applying the patch."
 (defun debbugs-gnu-diff-hunk-target-name (dir)
   (let ((names nil))
     (dolist (name (diff-hunk-file-names))
+      ;; The function above may return names like
+      ;; "lisp/custom.el 2013-06-14 12:10:30 +0000"
+      (setq name (car (split-string name " ")))
       (unless (string-match "[ #<>]" name)
 	(when (string-match "\\`/" name)
 	  ;; This is an absolute path, so try to find the target.
