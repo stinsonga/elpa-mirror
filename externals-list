@@ -143,6 +143,7 @@
  ("vcl-mode"	        :subtree "git://git.gnu.org.ua/vcl-mode")
  ("tramp"		:external "https://git.savannah.gnu.org/cgit/tramp.git/?h=elpa")
  ;;FIXME:("vlf"		:subtree ??)
+ ("verilog-mode"        :core "lisp/progmodes/verilog-mode.el")
  ("w3"			:external nil)
  ("wcheck-mode"		:subtree "https://github.com/tlikonen/wcheck-mode.git")
  ("web-server"		:subtree "https://github.com/eschulte/emacs-web-server.git")
