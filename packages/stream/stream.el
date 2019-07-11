@@ -1,6 +1,6 @@
 ;;; stream.el --- Implementation of streams  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2016 Free Software Foundation, Inc.
+;; Copyright (C) 2016-2019 Free Software Foundation, Inc.
 
 ;; Author: Nicolas Petton <nicolas@petton.fr>
 ;; Keywords: stream, laziness, sequences
@@ -41,7 +41,7 @@
 ;; - ...
 ;;
 ;; All functions are prefixed with "stream-".
-;; All functions are tested in test/automated/stream-tests.el
+;; All functions are tested in tests/stream-tests.el
 ;;
 ;; Here is an example implementation of the Fibonacci numbers
 ;; implemented as in infinite stream:
@@ -65,18 +65,30 @@
 
 (eval-when-compile (require 'cl-lib))
 (require 'seq)
-(require 'thunk)
 
 (eval-and-compile
-  (defconst stream--identifier '--stream--
-    "Symbol internally used to identify streams."))
+  (defconst stream--fresh-identifier '--stream-fresh--
+    "Symbol internally used to streams whose head was not evaluated.")
+  (defconst stream--evald-identifier '--stream-evald--
+    "Symbol internally used to streams whose head was evaluated."))
 
 (defmacro stream-make (&rest body)
   "Return a stream built from BODY.
 BODY must return nil or a cons cell whose cdr is itself a
 stream."
   (declare (debug t))
-  `(list ',stream--identifier (thunk-delay ,@body)))
+  `(cons ',stream--fresh-identifier (lambda () ,@body)))
+
+(defun stream--force (stream)
+  "Evaluate and return the first cons cell of STREAM.
+That value is the one passed to `stream-make'."
+  (cond
+   ((eq (car-safe stream) stream--evald-identifier)
+    (cdr stream))
+   ((eq (car-safe stream) stream--fresh-identifier)
+    (setf (car stream) stream--evald-identifier)
+    (setf (cdr stream) (funcall (cdr stream))))
+   (t (signal 'wrong-type-argument (list 'streamp stream)))))
 
 (defmacro stream-cons (first rest)
   "Return a stream built from the cons of FIRST and REST.
@@ -159,24 +171,29 @@ range is infinite."
 
 (defun streamp (stream)
   "Return non-nil if STREAM is a stream, nil otherwise."
-  (eq (car-safe stream) stream--identifier))
+  (let ((car (car-safe stream)))
+    (or (eq car stream--fresh-identifier)
+        (eq car stream--evald-identifier))))
+
+(defconst stream-empty (cons stream--evald-identifier nil)
+  "The empty stream.")
 
 (defun stream-empty ()
-  "Return a new empty stream."
-  (list stream--identifier (thunk-delay nil)))
+  "Return the empty stream."
+  stream-empty)
 
 (defun stream-empty-p (stream)
   "Return non-nil if STREAM is empty, nil otherwise."
-  (null (thunk-force (cadr stream))))
+  (null (cdr (stream--force stream))))
 
 (defun stream-first (stream)
   "Return the first element of STREAM.
 Return nil if STREAM is empty."
-  (car (thunk-force (cadr stream))))
+  (car (stream--force stream)))
 
 (defun stream-rest (stream)
   "Return a stream of all but the first element of STREAM."
-  (or (cdr (thunk-force (cadr stream)))
+  (or (cdr (stream--force stream))
       (stream-empty)))
 
 (defun stream-append (&rest streams)

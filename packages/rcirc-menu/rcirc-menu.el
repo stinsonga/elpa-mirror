@@ -1,6 +1,6 @@
-;;; rcirc-menu --- A menu of all your rcirc connections
+;;; rcirc-menu.el --- A menu of all your rcirc connections
 
-;; Copyright (C) 2017  Free Software Foundation, Inc.
+;; Copyright (C) 2017-2019  Free Software Foundation, Inc.
 
 ;; Author: Alex Schroeder <alex@gnu.org>
 ;; Maintainer: Alex Schroeder <alex@gnu.org>

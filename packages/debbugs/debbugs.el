@@ -1,12 +1,12 @@
 ;;; debbugs.el --- SOAP library to access debbugs servers  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2011-2018 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2019 Free Software Foundation, Inc.
 
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, hypermedia
 ;; Package: debbugs
-;; Version: 0.16
-;; Package-Requires: ((soap-client "3.1.5") (cl-lib "0.5"))
+;; Version: 0.19
+;; Package-Requires: ((emacs "25.1") (soap-client "3.1.5") (cl-lib "0.5"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -61,7 +61,6 @@ with bug logs.
 
 The list initially contains two predefined and configured Debbugs
 servers: \"gnu.org\" and \"debian.org\"."
-  :group 'debbugs
   :link '(custom-manual "(debbugs)Debbugs server specifiers")
   :type '(choice
 	  (const nil)
@@ -81,7 +80,6 @@ servers: \"gnu.org\" and \"debian.org\"."
 This corresponds to the Debbugs server to be accessed, either
 \"gnu.org\", or \"debian.org\", or user defined port name."
   ;; Maybe we should create an own group?
-  :group 'debbugs
   :type '(choice :tag "Debbugs server" (const "gnu.org") (const "debian.org")
 		 (string :tag "user defined port name")))
 
@@ -109,7 +107,6 @@ This corresponds to the Debbugs server to be accessed, either
 (defcustom debbugs-cache-expiry (* 60 60)
   "How many seconds debbugs query results are cached.
 t or 0 disables caching, nil disables expiring."
-  :group 'debbugs
   :type '(choice (const :tag "Always" t)
 		 (const :tag "Never" nil)
 		 (integer :tag "Seconds")))

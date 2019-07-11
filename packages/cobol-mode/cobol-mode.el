@@ -1958,14 +1958,14 @@ The next key typed is executed unless it is SPC."
   "^.\\{6\\}"
   "Regexp matching a complete sequence area.")
 
-(defconst cobol--fixed-comment-indicators-re
-  "\\*/"
-  "Regexp containing COBOL fixed-form comment indicators.")
+(defconst cobol--fixed-comment-indicators
+  "*/"
+  "String containing COBOL fixed-form comment indicator characters.")
 
 (defconst cobol--fixed-form-comment-re
   (concat cobol--complete-sequence-area-re
           "\\(["
-          cobol--fixed-comment-indicators-re
+          cobol--fixed-comment-indicators
           "]\\)")
   "Regexp matching a fixed-form source comment.")
 
@@ -1975,7 +1975,7 @@ The next key typed is executed unless it is SPC."
   "Regexp matching a continuation or debugging line indicator.")
 
 (defconst cobol--non-fixed-comment-indicators-re
-  (concat "[^" cobol--fixed-comment-indicators-re "]")
+  (concat "[^" cobol--fixed-comment-indicators "]")
   "Regexp matching non-fixed-form-comment-indicator characters.")
 
 (defconst cobol--fixed-non-comment-sequence-area-re
@@ -2022,7 +2022,7 @@ lines.")
 
 (defun cobol--with-opt-whitespace-line (&rest strs)
   "Return STRS concatenated after `cobol--optional-leading-whitespace-line-re'."
-  (apply #'concat (cons cobol--optional-leading-whitespace-line-re strs))))
+  (apply #'concat cobol--optional-leading-whitespace-line-re strs)))
 
 (defconst cobol--free-form-comment-line-re
   (cobol--with-opt-whitespace-line cobol--free-form-comment-re)
@@ -2033,12 +2033,14 @@ lines.")
   "Regexp matching an identifier in a separate group preceded by whitespace.")
 
 (defconst cobol--mf-set-directive
-  (cobol--with-opt-whitespace-line "$SET\\s-+\\w+")
+  (cobol--with-opt-whitespace-line "\\$SET\\s-+\\w+")
   "Regexp matching MF compiler directive with optional whitespace.")
 
 (defconst cobol--mf-compiler-directive-re
   (if (not (eq cobol-source-format 'free))
       (concat cobol--fixed-form-sequence-area-re
+              ;; FIXME: cobol--mf-set-directive starts with "^" so it can't
+              ;; match after cobol--fixed-form-sequence-area-re!
               cobol--mf-set-directive)
     (concat "^" cobol--mf-set-directive))
   "Regexp matching Micro Focus compiler directives.")
@@ -3045,11 +3047,7 @@ start of area A, if fixed-format)."
 (defvar cobol-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map [remap back-to-indentation] 'cobol-back-to-indentation)
-    ;; FIXME: I strongly suspect this was a user-preference rather than
-    ;; something which belongs in a major mode.  And now that
-    ;; electric-indent-mode is enabled by default, this should probably be
-    ;; removed altogether.
-    (define-key map (kbd "RET") #'newline-and-indent)
+    ;;(define-key map (kbd "RET") #'newline-and-indent)
     map))
 
 (defvar cobol-mode-syntax-table
@@ -3069,7 +3067,6 @@ start of area A, if fixed-format)."
 ;;;###autoload
 (define-derived-mode cobol-mode prog-mode "COBOL"
   "COBOL mode is a major mode for handling COBOL files."
-  :group 'cobol
 
   (set (make-local-variable 'font-lock-defaults) cobol-font-lock-defaults)
 

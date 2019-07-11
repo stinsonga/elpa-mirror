@@ -1,13 +1,13 @@
-;;; wcheck-mode.el --- General interface for text checkers
+;;; wcheck-mode.el --- General interface for text checkers  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2009-2016  Free Software Foundation, Inc.
+;; Copyright (C) 2009-2019  Free Software Foundation, Inc.
 
 ;; Author: Teemu Likonen <tlikonen@iki.fi>
 ;; Maintainer: Teemu Likonen <tlikonen@iki.fi>
 ;; Created: 2009-07-04
 ;; URL: https://github.com/tlikonen/wcheck-mode
 ;; Keywords: text spell check languages ispell
-;; Version: 2016.1.30
+;; Version: 2019.6.17
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -66,7 +66,7 @@
 
 (eval-when-compile
   ;; Silence compiler
-  (declare-function show-entry "outline"))
+  (declare-function outline-show-entry "outline"))
 
 
 ;;; Settings
@@ -1141,6 +1141,7 @@ requested it."
 
 
 (defun wcheck--timer-jump-event ()
+  (require 'outline)
   (wcheck--loop-over-jump-reqs buffer
     (let* ((jump-req (wcheck--buffer-data-get :buffer buffer :jump-req))
            (start (wcheck--jump-req-start jump-req))
@@ -1158,7 +1159,7 @@ requested it."
                               (set-window-point window (overlay-end ol))
                             (goto-char (overlay-end ol)))
                           (when (invisible-p (point))
-                            (show-entry))
+                            (outline-show-entry))
                           (message "Found from line %s"
                                    (line-number-at-pos (point)))
                           (wcheck--force-read buffer))
@@ -1175,7 +1176,7 @@ requested it."
                               (set-window-point window (overlay-start ol))
                             (goto-char (overlay-start ol)))
                           (when (invisible-p (point))
-                            (show-entry))
+                            (outline-show-entry))
                           (message "Found from line %s"
                                    (line-number-at-pos (point)))
                           (wcheck--force-read buffer))
@@ -1926,11 +1927,11 @@ Both arguments are lists."
 
 
 (defun wcheck--generate-face-predicate (language mode)
-  "Generate a face predicate expression for scanning buffer.
-Return a predicate expression that is used to decide whether
+  "Generate a face predicate function for scanning buffer.
+Return a predicate function that is used to decide whether
 `wcheck-mode' should read or paint text at the current point
-position with LANGUAGE and MODE. Evaluating the predicate
-expression will return a boolean."
+position with LANGUAGE and MODE. The called predicate function
+will return a boolean."
   (let* ((face-settings (wcheck--major-mode-face-settings
                          language mode))
          (mode (nth 1 face-settings))
@@ -1938,15 +1939,15 @@ expression will return a boolean."
     (cond ((not font-lock-mode)
            (lambda () t))
           ((eq mode 'read)
-           `(lambda ()
-              (wcheck--face-found-p
-               ',faces (wcheck--collect-faces
-                        (match-beginning 1) (match-end 1)))))
+           (lambda ()
+             (wcheck--face-found-p
+              faces (wcheck--collect-faces
+                     (match-beginning 1) (match-end 1)))))
           ((eq mode 'skip)
-           `(lambda ()
-              (not (wcheck--face-found-p
-                    ',faces (wcheck--collect-faces
-                             (match-beginning 1) (match-end 1))))))
+           (lambda ()
+             (not (wcheck--face-found-p
+                   faces (wcheck--collect-faces
+                          (match-beginning 1) (match-end 1))))))
           (t (lambda () t)))))
 
 
@@ -2024,7 +2025,8 @@ a (valid) value for the KEY then query the value from
   "Return non-nil if PROGRAM is executable regular file."
   (when (stringp program)
     (let ((f (executable-find program)))
-      (and (file-regular-p f)
+      (and f
+           (file-regular-p f)
            (file-executable-p f)))))
 
 

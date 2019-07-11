@@ -1,6 +1,6 @@
 ;;; excorporate-diary.el --- Diary integration        -*- lexical-binding: t -*-
 
-;; Copyright (C) 2018 Free Software Foundation, Inc.
+;; Copyright (C) 2018-2019 Free Software Foundation, Inc.
 
 ;; Author: Thomas Fitzsimmons <fitzsim@fitzsim.org>
 ;; Keywords: calendar
@@ -33,7 +33,9 @@
 (require 'excorporate)
 (require 'nadvice)
 
-;; FIXME: Add something like this to diary-lib.el.
+;; For Emacs versions less than 27.1, which do not have the fix for
+;; Bug#35645, work around the issue where `icalendar-import-buffer'
+;; pops up the diary file buffer.
 (defun exco-diary-diary-make-entry (string &optional nonmarking file)
   "Insert a diary entry STRING which may be NONMARKING in FILE.
 If omitted, NONMARKING defaults to nil and FILE defaults to
@@ -55,12 +57,12 @@ If omitted, NONMARKING defaults to nil and FILE defaults to
      (if nonmarking diary-nonmarking-symbol "")
      string)))
 
-;; FIXME: Have icalendar--add-diary-entry use the new diary-lib
-;; function instead of diary-make-entry.
 (defun exco-diary-icalendar--add-diary-entry-around (original &rest arguments)
   "Prevent whitespace workaround from selecting diary buffer.
 Also prevent `diary-make-entry' from putting the diary file
-where (other-buffer (current-buffer)) will return it."
+where (other-buffer (current-buffer)) will return it.  ORIGINAL
+and ARGUMENTS are the original function and arguments
+respectively."
   (cl-letf (((symbol-function #'find-file)
 	     (symbol-function #'find-file-noselect))
 	    ;; This override suppresses diary-make-entry's window
@@ -68,8 +70,10 @@ where (other-buffer (current-buffer)) will return it."
 	    ((symbol-function #'diary-make-entry)
 	     (symbol-function #'exco-diary-diary-make-entry)))
     (apply original arguments)))
-(advice-add #'icalendar--add-diary-entry :around
-	    #'exco-diary-icalendar--add-diary-entry-around)
+
+(unless (string-match "omit-trailing-space" (documentation 'diary-make-entry))
+  (advice-add #'icalendar--add-diary-entry :around
+	      #'exco-diary-icalendar--add-diary-entry-around))
 
 (defvar excorporate-diary-today-file
   "~/.emacs.d/excorporate/diary-excorporate-today"
@@ -107,6 +111,27 @@ initialize for today's date, nil otherwise."
 	  ;; connnection-callback loop.
 	  (basic-save-buffer-1))))))
 
+;; Literal percent signs (%) are not supported in a diary entry since
+;; they're interpreted as format strings by `diary-sexp-entry', so
+;; encode them during entry insertion, then unescape them during
+;; display.  This is needed so that, e.g., encoded meeting URLs that
+;; contain literal percent signs (%) work with `browse-url'.
+(defun exco-diary--fix-percent-signs ()
+  "Replace percent-sign placeholders with percent signs."
+  (goto-char (point-min))
+  (let ((inhibit-read-only t))
+    (while (re-search-forward "<EXCO_PERCENT_SIGN>" nil t)
+      (replace-match "%"))))
+
+(defun exco-diary-appt-disp-window (min-to-app new-time appt-msg)
+  "Replace Excorporate diary percent signs.
+For MIN-TO-APP, NEW-TIME and APPT-MSG documentation, see
+`appt-disp-window'."
+  (appt-disp-window min-to-app new-time appt-msg)
+  (with-current-buffer (get-buffer-create appt-buffer-name)
+    (let ((inhibit-read-only t))
+      (exco-diary--fix-percent-signs))))
+
 (defun exco-diary-insert-meeting (finalize
 				  subject start _end _location
 				  _main-invitees _optional-invitees
@@ -123,7 +148,7 @@ Call FINALIZE after the meeting has been inserted."
   (when (not (string-match "^Cancel[l]?ed: " subject))
     ;; FIXME: Sometimes meetings are duplicated if they have
     ;; overlapping (and (diary-cyclic ...) (diary-block ...)) ranges,
-    ;; e.g., on in the today file and one in the transient file.
+    ;; e.g., one in the today file and one in the transient file.
     ;; Maybe we should de-duplicate them in the final display.  If the
     ;; meeting start time is sometime today then put it in today's
     ;; diary file, otherwise put it in the transient one.
@@ -136,6 +161,33 @@ Call FINALIZE after the meeting has been inserted."
 		   excorporate-diary-transient-file)))
       (with-temp-buffer
 	(insert icalendar-text)
+
+	;; FIXME: Maybe some users of multiple calendars will want to
+	;; know the source calendar's name for each diary entry.
+	;; There is no great way to achieve that right now, but one
+	;; idea is to add X-WR-CALNAME support to
+	;; icalendar-import-buffer, replace the
+	;; exco-diary-insert-meeting argument to
+	;; exco-calendar-item-with-details-iterate with:
+	;;
+	;; (lambda (&rest arguments)
+	;;  (apply #'exco-diary-insert-meeting identifier arguments))
+	;;
+	;; and uncomment the following code.
+	;;
+	;; (goto-char (point-min))
+	;; (while (re-search-forward
+	;;	"^SUMMARY\\([^:]*\\):\\(.*\\(\n[ 	].*\\)*\\)" nil t)
+	;;   (insert (format "\nX-WR-CALNAME: (%s)" identifier)))
+
+	;; Escape literal percent signs (%).  Use less-than sign (<)
+	;; and greater-than sign (>) which are forbidden URL
+	;; characters, so that in the plain text diary file,
+	;; percent-encoded URLs become completely invalid rather than
+	;; slightly wrong.
+	(goto-char (point-min))
+	(while (re-search-forward "%" nil t)
+	  (replace-match "<EXCO_PERCENT_SIGN>"))
 	(icalendar-import-buffer file t))))
   (funcall finalize))
 
@@ -216,14 +268,32 @@ ARGUMENTS are the arguments to `diary-view-entries'."
 	(goto-char (point-min))
 	(when (not (re-search-forward
 		    (concat "^ *" diary-include-string " *\"" file "\"") nil t))
-	  (exco-diary-diary-make-entry
-	   (concat diary-include-string " \"" file "\""))
+	  (let ((include-string (concat diary-include-string " \"" file "\"")))
+	    (if (string-match "omit-trailing-space"
+			      (documentation 'diary-make-entry))
+		(with-no-warnings
+		  (diary-make-entry include-string nil nil t t))
+	      (exco-diary-diary-make-entry include-string)))
 	  (save-buffer)))))
   (advice-add #'diary :around #'exco-diary-diary-around)
   (advice-add #'diary-view-entries :override
 	      #'exco-diary-diary-view-entries-override)
   (add-hook 'diary-list-entries-hook #'diary-sort-entries)
   (add-hook 'diary-list-entries-hook #'diary-include-other-diary-files)
+  (add-hook 'diary-fancy-display-mode-hook #'exco-diary--fix-percent-signs)
+  (unless (eq appt-disp-window-function 'exco-diary-appt-disp-window)
+    (if (eq appt-disp-window-function 'appt-disp-window)
+	;; exco-diary-appt-disp-window is compatible with
+	;; appt-disp-window, so override it.
+	(setq appt-disp-window-function 'exco-diary-appt-disp-window)
+      (warn (format (concat "Excorporate diary support needs appt-disp-window"
+			    " but appt-disp-window-function is currently %S")
+		    appt-disp-window-function))))
+  (unless (eq diary-display-function 'diary-fancy-display)
+    (warn (format
+	   (concat "Excorporate diary support needs diary-fancy-display"
+		   " but diary-display-function is currently %S")
+	   diary-display-function)))
   (appt-activate 1)
   (message "Excorporate diary support enabled."))
 
@@ -232,6 +302,9 @@ ARGUMENTS are the arguments to `diary-view-entries'."
   (interactive)
   (advice-remove #'diary #'exco-diary-diary-around)
   (advice-remove #'diary-view-entries #'exco-diary-diary-view-entries-override)
+  (remove-hook 'diary-fancy-display-mode-hook #'exco-diary--fix-percent-signs)
+  (when (eq appt-disp-window-function 'exco-diary-appt-disp-window)
+    (setq appt-disp-window-function 'appt-disp-window))
   (with-current-buffer (find-file-noselect diary-file)
     (dolist (file (list excorporate-diary-transient-file
 			excorporate-diary-today-file))

@@ -1,11 +1,11 @@
 ;;; gnus-mock.el --- Mock Gnus installation for testing  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2018  Free Software Foundation, Inc.
+;; Copyright (C) 2018-2019  Free Software Foundation, Inc.
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Package-Type: multi
-;; Version: 0.4.0
+;; Version: 0.4.2
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -76,7 +76,6 @@
   "Path to an additional Gnus config file for mock Gnus.
 The contents of this file will be appended to gnus-mock's Gnus
 init file, which will be loaded when Gnus is started."
-  :group 'gnus-mock
   :type 'file)
 
 (defcustom gnus-mock-init-file nil
@@ -84,24 +83,20 @@ init file, which will be loaded when Gnus is started."
 The contents of this file will be appended to gnus-mock's init
 file, which will be loaded when the child Emacs process is
 started."
-  :group 'gnus-mock
   :type 'file)
 
 (defcustom gnus-mock-emacs-program "emacs"
   "Name of the Emacs executable to use for the mock session."
-  :group 'gnus-mock
   :type 'string)
 
 (defcustom gnus-mock-cleanup-p t
   "When non-nil, delete temporary files after shutdown.
 Each Gnus mock session will create a unique temporary directory,
 so multiple sessions will not conflict if this option is nil."
-  :group 'gnus-mock
   :type 'boolean)
 
 (defcustom gnus-mock-use-images t
   "When non-nil, use some cute Gnus-mock-specific images."
-  :group 'gnus-mock
   :type 'boolean)
 
 (defcustom gnus-mock-sendmail-program
@@ -110,7 +105,6 @@ so multiple sessions will not conflict if this option is nil."
 	"windows-sendmail-wrapper.cmd"
       "fakesendmail.py"))
   "Program used as the value of `sendmail-program'."
-  :group 'gnus-mock
   :type 'string)
 
 (defcustom gnus-mock-dovecot-imap-program nil
@@ -122,7 +116,6 @@ dovecot.  This executable isn't on the PATH, but often lives at
 
 If nil, no nnimap server will be added to the Gnus mock
 installation."
-  :group 'gnus-mock
   :type 'string)
 
 (defconst gnus-mock-data-dir
@@ -165,7 +158,13 @@ will start a mock Gnus session."
 	      ;; Constant that can be checked if we need to know it's a mock
 	      ;; session.
 	      (prin1 '(defconst gnus-mock-p t))
-	      (princ "\n")
+	      (princ "\n\n")
+	      ;; Load our interactive testing file.  Does package.el
+	      ;; compile these files by default?
+	      (prin1 `(require
+		       'gnus-mock-tests
+		       ,(expand-file-name "gnus-mock-tests" mock-tmp-dir)))
+	      (princ "\n\n")
 	      ;; Constant for use in `gnus-mock-reload', which is defined in
 	      ;; the .gnus.el startup file.
  	      (prin1 `(defconst gnus-mock-data-dir ,gnus-mock-data-dir))
@@ -184,7 +183,7 @@ will start a mock Gnus session."
 	   gnus-mock-data-dir
 	   (file-name-as-directory mock-tmp-dir) nil nil t)
 	  ;; Git doesn't let us commit empty directories, so create our
-	  ;; necessary empty maildir bits.
+	  ;; necessary empty maildir bits, and draft directories.
 	  (mapc (lambda (path) (make-directory path t))
 		(mapcar (lambda (dir)
 			  (format "%s/test/%s" mock-tmp-dir dir))
@@ -192,6 +191,8 @@ will start a mock Gnus session."
 			  "incoming/tmp" "incoming/new" "incoming/cur"
 			  "incoming/.nnmaildir/marks" "incoming/.nnmaildir/nov"
 			  "mails/tmp" "mails/new" "mails/.nnmaildir/marks")))
+	  (make-directory (format "%s/drafts/drafts" mock-tmp-dir) t)
+	  (make-directory (format "%s/drafts/queue" mock-tmp-dir))
 	  ;; Possibly insert additional config.
 	  (when gnus-mock-init-file
 	    (with-temp-buffer

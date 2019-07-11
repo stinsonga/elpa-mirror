@@ -1,7 +1,7 @@
 This is debbugs-ug.info, produced by makeinfo version 6.5 from
 debbugs-ug.texi.
 
-Copyright (C) 2015-2018 Free Software Foundation, Inc.
+Copyright (C) 2015-2019 Free Software Foundation, Inc.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -302,6 +302,7 @@ tabulated list, and 'debbugs-org-*' return a list of TODO items in
 * TODO Items::                  TODO Items.
 * Control Messages::            Control Messages.
 * Applying Patches::            Applying Patches in the Emacs Repository.
+* Posting Patches::             Posting Patches to Debbugs from the Emacs Repository.
 
 
 File: debbugs-ug.info,  Node: Tabulated Lists,  Next: TODO Items,  Up: Presenting Bugs
@@ -378,6 +379,10 @@ This enables the following key strokes:
                Send a control message for this bug,
                *note Control Messages::.
                
+'E'            'debbugs-gnu-make-control-message'
+               Make (but don't yet send) a control message for this
+               bug, *note Control Messages::.
+               
 
    The user option 'debbugs-gnu-suppress-closed' controls, whether
 closed bugs are shown in the initial list.
@@ -416,9 +421,14 @@ This enables the following key strokes:
 'C-c # C'   'debbugs-gnu-send-control-message'
             Send a control message for this bug, *note Control Messages::.
             
+'C-c # E'   'debbugs-gnu-make-control-message'
+            Make (but don't yet send) a control message for this bug, *note Control Messages::.
+            
 
    When the bug attributes are shown by 'org-cycle', there is a link
-'Messages' which opens a GNUS ephemeral group for that bug.
+'Messages' which opens the messages for that bug.  The user options
+'debbugs-gnu-suppress-closed' and 'debbugs-gnu-mail-backend' have the
+same meaning as in *note Tabulated Lists::.
 
 
 File: debbugs-ug.info,  Node: Control Messages,  Next: Applying Patches,  Prev: TODO Items,  Up: Presenting Bugs
@@ -456,7 +466,6 @@ meaning of the control messages, *Note Mail Command Index::.
 
 'confirmed'
 'easy'
-'fixed'
 'help'
 'moreinfo'
 'notabug'
@@ -465,7 +474,7 @@ meaning of the control messages, *Note Mail Command Index::.
 'security'
 'unreproducible'
 'wontfix'
-     "tags 12345 confirmed|easy|fixed|help|moreinfo|notabug"
+     "tags 12345 confirmed|easy|help|moreinfo|notabug"
 
      "tags 12345 patch|pending|security|unreproducible|wontfix"
 
@@ -483,6 +492,15 @@ meaning of the control messages, *Note Mail Command Index::.
 
      The second argument in the close message, the Emacs version, is
      read interactively if the bug belongs to the '"emacs"' package.
+
+'found'
+'notfound'
+'fixed'
+'notfixed'
+     "found|notfound|fixed|notfixed 12345 25.1"
+
+     The second argument, the Emacs version, is read interactively if
+     the bug belongs to the '"emacs"' package.
 
 'forwarded'
      "forwarded 12345 ADDRESS"
@@ -541,6 +559,10 @@ meaning of the control messages, *Note Mail Command Index::.
      The username, read interactively, is either a package name or an
      email address.  The tag to be set is also read interactively.
 
+'documentation'
+     "user emacs"
+     "usertag 12345 documentation"
+
    How the control messages are sent is controlled by the
 'debbugs-gnu-send-mail-function' variable.  If it is 'nil' (the
 default value), the value of 'send-mail-function' is used.  This could
@@ -548,7 +570,7 @@ be inconvenient, for example when an external interactive mail client
 is configured.
 
 
-File: debbugs-ug.info,  Node: Applying Patches,  Prev: Control Messages,  Up: Presenting Bugs
+File: debbugs-ug.info,  Node: Applying Patches,  Next: Posting Patches,  Prev: Control Messages,  Up: Presenting Bugs
 
 3.4 Applying Patches in the Emacs Repository
 ============================================
@@ -575,6 +597,69 @@ existing path, it is read from the minibuffer.
 modified file.  Here you can apply 'M-m' the next time.  This creates
 a ChangeLog entry with all needed information.  A final 'M-m' in the
 'ChangeLog' buffer commits the patch via '*vc-log*'.
+
+
+File: debbugs-ug.info,  Node: Posting Patches,  Prev: Applying Patches,  Up: Presenting Bugs
+
+3.5 Posting Patches to Debbugs from the Emacs Repository
+========================================================
+
+Once you have committed a patch locally to fix a bug you usually want
+to post it to the bug thread for review and testing.  And when the
+patch is deemed satisfactory and pushed to the official repository,
+the bug should be marked closed.
+
+   The query for commit (or commit range) to use is controlled by
+'debbugs-gnu-read-commit-range-hook'.  Initially it has an entry which
+operates in '*vc-change-log*' buffers, but additional entries may be
+added to give sensible results for other modes that work with git.
+
+   The command 'debbugs-gnu-pick-commits' (bound to 'c' in
+'*vc-change-log*' buffers by default) helps automate both these
+processes: it queries for a commit (or commit range), and a bug number
+(defaulting to the bug number mentioned in the commit message).  It
+then jumps you to a buffer associated with the bug.  When you reply to
+a message in the bug thread, you are asked whether to post the commits
+as patches (optionally tagging the bug with '"patch"'), or announce
+that the bug has been fixed by the selected commits (optionally
+closing the bug and marking as closed in the Emacs version
+corresponding to the patch).
+
+   For example, suppose you are reading the message of "Bug#12345:
+foo-mode fails to call frobnicate on startup" in a message buffer.
+You decide to fix it, so you switch to the source code, add in the
+missing call and commit locally, with the commit message "*
+lisp/foo-mode.el (foo-mode): Call frobnicate (Bug#12345)."  Use 'C-x v
+l' to run 'vc-print-log', and navigate to the new commit.  Press 'c'
+and then '<RET>' to accept the default bug number (which will be 12345
+since it's in the commit message) in response to the prompt.  You are
+then popped to the message buffer, and when you reply to the message,
+press 'p' to post the git formatted patch as an attachment for review,
+and then answer 'y' to tag the bug with '"patch"' when the message is
+sent.  Assuming you get favorable reviews, you then push it, and again
+hit 'c' but this time press 'a' (for "announce") after replying to the
+relevant bug thread message.  This will insert some text describing
+the commit and where it was pushed to, and answering 'y' will arrange
+for the bug to be closed when the message is sent.
+
+* Menu:
+
+* Customizing debbugs-gnu-pick-commits::
+
+
+File: debbugs-ug.info,  Node: Customizing debbugs-gnu-pick-commits,  Up: Posting Patches
+
+3.5.1 Customizing debbugs-gnu-pick-commits
+------------------------------------------
+
+The string inserted to describe an announced commit is controlled by
+the user option 'debbugs-gnu-commit-description-format', it is a
+format string passed to the '--format' argument of 'git show'.
+Additionally, if the remote url matches an entry in
+'debbugs-gnu-git-remote-info-alist', then its 'commit-url' subitem is
+appended to the commit description.  By default this user option is
+configured for the GNU Emacs and GNU ELPA repositories, more entries
+may be added to work with other repositories of other packages.
 
 
 File: debbugs-ug.info,  Node: Minor Mode,  Next: Command Index,  Prev: Presenting Bugs,  Up: Top
@@ -613,6 +698,7 @@ Command Index
 * debbugs-gnu:                           Retrieving Bugs.    (line 15)
 * debbugs-gnu-bugs:                      Retrieving Bugs.    (line 69)
 * debbugs-gnu-patches:                   Retrieving Bugs.    (line 86)
+* debbugs-gnu-pick-commits:              Posting Patches.    (line 16)
 * debbugs-gnu-search:                    Searching Bugs.     (line 15)
 * debbugs-org:                           Retrieving Bugs.    (line 17)
 * debbugs-org-bugs:                      Retrieving Bugs.    (line 70)
@@ -632,13 +718,18 @@ Variable Index
 * debbugs-gnu-all-packages:              Retrieving Bugs.   (line  36)
 * debbugs-gnu-all-severities:            Retrieving Bugs.   (line  27)
 * debbugs-gnu-branch-directory:          Applying Patches.  (line  18)
+* debbugs-gnu-commit-description-format: Customizing debbugs-gnu-pick-commits.
+                                                            (line   6)
 * debbugs-gnu-default-bug-number-list:   Retrieving Bugs.   (line  81)
 * debbugs-gnu-default-packages:          Retrieving Bugs.   (line  63)
 * debbugs-gnu-default-severities:        Retrieving Bugs.   (line  63)
 * debbugs-gnu-default-suppress-bugs:     Retrieving Bugs.   (line  44)
-* debbugs-gnu-mail-backend:              Tabulated Lists.   (line  79)
-* debbugs-gnu-send-mail-function:        Control Messages.  (line 121)
-* debbugs-gnu-suppress-closed:           Tabulated Lists.   (line  76)
+* debbugs-gnu-git-remote-info-alist:     Customizing debbugs-gnu-pick-commits.
+                                                            (line   6)
+* debbugs-gnu-mail-backend:              Tabulated Lists.   (line  83)
+* debbugs-gnu-read-commit-range-hook:    Posting Patches.   (line  11)
+* debbugs-gnu-send-mail-function:        Control Messages.  (line 133)
+* debbugs-gnu-suppress-closed:           Tabulated Lists.   (line  80)
 * debbugs-gnu-trunk-directory:           Applying Patches.  (line  18)
 * debbugs-org-severity-priority:         TODO Items.        (line  10)
 
@@ -657,15 +748,17 @@ Key Index
 * C:                                     Tabulated Lists.    (line 71)
 * C-c # C:                               TODO Items.         (line 25)
 * C-c # d:                               TODO Items.         (line 19)
+* C-c # E:                               TODO Items.         (line 28)
 * C-c # t:                               TODO Items.         (line 22)
 * d:                                     Tabulated Lists.    (line 33)
+* E:                                     Tabulated Lists.    (line 75)
 * g:                                     Tabulated Lists.    (line 52)
 * M-m:                                   Applying Patches.   (line 10)
 * <mouse-1>:                             Tabulated Lists.    (line 30)
 * <mouse-2>:                             Tabulated Lists.    (line 31)
 * R:                                     Tabulated Lists.    (line 42)
 * <RET>:                                 Tabulated Lists.    (line 29)
-* <RET> <1>:                             Tabulated Lists.    (line 79)
+* <RET> <1>:                             Tabulated Lists.    (line 83)
 * s:                                     Tabulated Lists.    (line 62)
 * t:                                     Tabulated Lists.    (line 65)
 * <TAB>:                                 TODO Items.         (line 16)
@@ -687,6 +780,12 @@ Debbugs control mailserver commands
 
      If you supply a version, the bug tracking system will note that
      the bug affects that version of the newly-assigned package.
+
+     You can assign a bug to two packages at once by separating the
+     package names with a comma.  However, you should only do this if
+     the bug can be fixed by a change to either package.  If this is
+     not the case, you should clone the bug and reassign the clone to
+     the other package.
 
 'reopen bugnumber [ originator-address | = | ! ]'
      Reopens #bugnumber if it is closed.
@@ -746,6 +845,29 @@ Debbugs control mailserver commands
      about that version will be known.  It is intended for fixing
      mistakes in the record of when a bug was found.
 
+'fixed bugnumber version'
+     Indicate that bug #bugnumber was fixed in the given version of
+     the package to which it is assigned.  version may be a fully
+     qualified version, of the form sourcepackagename/version.
+
+     This does not cause the bug to be marked as closed, it merely
+     adds another version in which the bug was fixed.  Use the
+     bugnumber-done address to close a bug and mark it fixed in a
+     particular version.
+
+'notfixed bugnumber version'
+     Remove the record that bug #bugnumber has been fixed in the given
+     version.  version may be a fully qualified version, of the form
+     sourcepackagename/version.
+
+     This command is equivalent to found followed by notfound (the
+     found removes the fixed at a particular version, and notfound
+     removes the found) with the exception that the bug is not
+     reopened if the found version is greater than any existing fixed
+     version.  It is intended for fixing mistakes in the record of
+     when a bug was fixed; in most cases, you actually want found, not
+     notfixed.
+
 'submitter bugnumber originator-address | !'
      Changes the originator of #bugnumber to originator-address.
 
@@ -761,7 +883,14 @@ Debbugs control mailserver commands
      maintainer at address.  This does not actually forward the
      report.  This can be used to change an existing incorrect
      forwarded-to address, or to record a new one for a bug that
-     wasn't previously noted as having been forwarded.
+     wasn't previously noted as having been forwarded.  address should
+     generally be a URI, or possibly an email address.  Using a URI
+     where possible allows tools to query a remote bug tracking system
+     (such as bugzilla) for a bug's status.
+
+     Example usage:
+
+          forwarded 12345 http://bugz.illa.foo/cgi/54321
 
 'notforwarded bugnumber'
      Forgets any idea that bugnumber has been forwarded to any
@@ -780,6 +909,8 @@ Debbugs control mailserver commands
 'severity bugnumber severity'
      Set the severity level for bug report #bugnumber to severity.  No
      notification is sent to the user who reported the bug.
+
+     Severities are serious, important, normal, minor, wishlist.
 
      For their meanings please consult the general developers'
      documentation for the bug system.
@@ -834,9 +965,13 @@ Debbugs control mailserver commands
 
 'forcemerge bugnumber bugnumber ...'
      Forcibly merges two or more bug reports.  The first bug is chosen
-     as the master bug, and its seetings are assigned to the bugs
+     as the master bug, and its settings are assigned to the bugs
      listed next in the command.  See the text above for a description
      of what merging means.
+
+     Note that this makes it possible to close bugs by merging; you
+     are responsible for notifying submitters with an appropriate
+     close message if you do this.
 
 'unmerge bugnumber'
      Disconnects a bug report from any other reports with which it may
@@ -878,14 +1013,13 @@ Debbugs control mailserver commands
           tags 123456 = moreinfo unreproducible
 
      Available tags currently include patch, wontfix, moreinfo,
-     unreproducible, help, pending, fixed, security, upstream, potato,
-     woody, sarge, sid and experimental.
+     unreproducible, help, pending, fixed, security, notabug and easy.
 
      For their meanings please consult the general developers'
      documentation for the bug system.
 
-'block bugnumber by|with bug [ bug ... ]'
-'unblock bugnumber by|with bug [ bug ... ]'
+'block bugnumber by bug [ bug ... ]'
+'unblock bugnumber by bug [ bug ... ]'
      Use to note that one bug blocks another bug from being fixed.
      The first listed bug is the one being blocked, and it is followed
      by the bug or bugs that are blocking it.  Use unblock to unblock
@@ -983,44 +1117,48 @@ Node: Searching Bugs6937
 Ref: Searching Bugs-Footnote-111250
 Ref: Searching Bugs-Footnote-211338
 Node: Presenting Bugs11429
-Node: Tabulated Lists12005
-Node: TODO Items15680
-Node: Control Messages16736
-Node: Applying Patches19989
-Node: Minor Mode21355
-Node: Command Index22411
-Node: Variable Index23200
-Node: Key Index24274
-Node: Mail Command Index25840
-Ref: Mail Command Index: reassign25993
-Ref: Mail Command Index: reopen26457
-Ref: Mail Command Index: found27611
-Ref: Mail Command Index: notfound28692
-Ref: Mail Command Index: submitter29101
-Ref: Mail Command Index: forwarded29495
-Ref: Mail Command Index: notforwarded29834
-Ref: Mail Command Index: retitle30035
-Ref: Mail Command Index: severity30419
-Ref: Mail Command Index: clone30684
-Ref: Mail Command Index: merge31448
-Ref: Mail Command Index: forcemerge32835
-Ref: Mail Command Index: unmerge33109
-Ref: Mail Command Index: tags33812
-Ref: Mail Command Index: block34919
-Ref: Mail Command Index: unblock34961
-Ref: Mail Command Index: close35451
-Ref: Mail Command Index: package36101
-Ref: Mail Command Index: owner36713
-Ref: Mail Command Index: noowner37076
-Ref: Mail Command Index: archive37249
-Ref: Mail Command Index: unarchive37390
-Ref: Mail Command Index: #37683
-Ref: Mail Command Index: quit37943
-Ref: Mail Command Index: stop37950
-Ref: Mail Command Index: thank37957
-Ref: Mail Command Index: thanks37965
-Ref: Mail Command Index: thankyou37974
-Ref: Mail Command Index: thank you37985
-Ref: Mail Command Index: --37997
+Node: Tabulated Lists12091
+Node: TODO Items15946
+Node: Control Messages17280
+Node: Applying Patches20794
+Node: Posting Patches22184
+Node: Customizing debbugs-gnu-pick-commits24669
+Node: Minor Mode25369
+Node: Command Index26425
+Node: Variable Index27285
+Node: Key Index28730
+Node: Mail Command Index30438
+Ref: Mail Command Index: reassign30591
+Ref: Mail Command Index: reopen31357
+Ref: Mail Command Index: found32511
+Ref: Mail Command Index: notfound33592
+Ref: Mail Command Index: fixed34001
+Ref: Mail Command Index: notfixed34447
+Ref: Mail Command Index: submitter35070
+Ref: Mail Command Index: forwarded35464
+Ref: Mail Command Index: notforwarded36081
+Ref: Mail Command Index: retitle36282
+Ref: Mail Command Index: severity36666
+Ref: Mail Command Index: clone36997
+Ref: Mail Command Index: merge37761
+Ref: Mail Command Index: forcemerge39148
+Ref: Mail Command Index: unmerge39592
+Ref: Mail Command Index: tags40295
+Ref: Mail Command Index: block41361
+Ref: Mail Command Index: unblock41398
+Ref: Mail Command Index: close41883
+Ref: Mail Command Index: package42533
+Ref: Mail Command Index: owner43145
+Ref: Mail Command Index: noowner43508
+Ref: Mail Command Index: archive43681
+Ref: Mail Command Index: unarchive43822
+Ref: Mail Command Index: #44115
+Ref: Mail Command Index: quit44375
+Ref: Mail Command Index: stop44382
+Ref: Mail Command Index: thank44389
+Ref: Mail Command Index: thanks44397
+Ref: Mail Command Index: thankyou44406
+Ref: Mail Command Index: thank you44417
+Ref: Mail Command Index: --44429
 
 End Tag Table

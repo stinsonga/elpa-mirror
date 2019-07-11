@@ -1,6 +1,6 @@
 ;;; debbugs-org.el --- Org-mode interface for the GNU bug tracker  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2013-2018 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2019 Free Software Foundation, Inc.
 
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, hypermedia, maint, outlines
@@ -82,6 +82,7 @@
 ;; keystrokes:
 
 ;;   "C-c # C": Send a debbugs control message
+;;   "C-c # E": Make (but don't yet send) a debbugs control message
 ;;   "C-c # t": Mark the bug locally as tagged
 ;;   "C-c # d": Show bug attributes
 
@@ -293,6 +294,7 @@ the corresponding buffer (e.g. by closing Emacs)."
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c # t") 'debbugs-gnu-toggle-tag)
     (define-key map (kbd "C-c # C") 'debbugs-gnu-send-control-message)
+    (define-key map (kbd "C-c # E") 'debbugs-gnu-make-control-message)
     (define-key map (kbd "C-c # d") 'debbugs-gnu-display-status)
     map)
   "Keymap for the `debbugs-org-mode' minor mode.")

@@ -1,6 +1,6 @@
 ;;; mines.el --- Minesweeper game -*- lexical-binding: t -*-
 
-;; Copyright (C) 2017 Free Software Foundation, Inc.
+;; Copyright (C) 2017-2019 Free Software Foundation, Inc.
 
 ;; Author: Tino Calancha <tino.calancha@gmail.com>
 ;; Created: 2017-10-28
@@ -38,8 +38,8 @@
 ;;    contain a number: the number of bombs at distance 1 from this cell.
 ;;    If you reveal the content of this cell, then this number is shown.
 ;;
-;; 3. Cells without a bomb at distance > 1 from any bomb contain '@'.
-;;    If you reveal the content of this cell, then '@' is shown and
+;; 3. Cells without a bomb at distance > 1 from any bomb contain ' '.
+;;    If you reveal the content of this cell, then ' ' is shown and
 ;;    all adjacent cells are recursively revealed.
 ;;
 ;;
@@ -54,6 +54,12 @@
 
 ;;; Code:
 
+;; TODO:
+;; - Arrange for the remaining number of mines to be displayed in the
+;;   modeline.
+;; - Center the board in the window (when smaller than the window).
+;; - Add colors to the numbers
+
 (require 'gamegrid)
 (require 'cl-lib)
 (require 'cookie1) ; For `cookie-shuffle-vector'.
@@ -66,26 +72,33 @@
   :prefix "mines-")
 
 (defcustom mines-protect-first-move t
-  "Non-nil avoid game over in the first cell revealed."
+  "If non-nil, make sure first move reveals an empty cell."
   :type 'boolean
   :version "27.1")
 
 (defcustom mines-mode-hook nil
   "Hook run by mines mode."
   :type 'hook
-  :group 'mines
   :version "27.1")
 
+(defcustom mines-auto-flag t
+  "Auto-add flags when they're obvious."
+  :type 'boolean)
+
 (defvar mines-uncover-cell-char ?.
+  ;; FIXME: "uncover" means to remove the cover, so this is counter-intuitive,
+  ;; because I think of this "." as covering the cell and `mines-dig' as
+  ;; uncovering them.  Similarly the use of "uncovered" in the Commentary
+  ;; is confusing.
   "Char to display uncover cells.")
 
 (defvar mines-flagged-cell-char ?!
   "Char to display flagged cells as maybe having a mine.")
 
-(defvar mines-empty-cell-char ?@
+(defvar mines-empty-cell-char ?\s
   "Char to display a cell without mine nor numbers.")
 
-(defvar mines-empty-cell-mine ?x
+(defvar mines-empty-cell-mine ?x ;FIXME: Use ?💣 when a glyph is available!
   "Char to display a cell with a mine.")
 
 (defvar mines-buffer nil "Buffer where play minesweeper.")
@@ -116,13 +129,20 @@ If `custom' then ask user for these numbers."
            (set sym val)))
   :version "27.1")
 
-(defvar mines-grid (make-vector mines-number-cells nil)
-  "Game configuration.")
+(defvar mines-grid nil
+  "Game configuration.
+Each cell can hold either:
+- `bomb' to mean there's a bomb at that position.
+- nil if there's no bomb here nor in any neighbor.
+- an integer indicating the number of neighbors with bombs.")
 
-(defvar mines-state (make-vector mines-number-cells nil)
-  "Game state.")
+(defvar mines-state nil
+  "Game state.
+Each cell can be either:
+- t to mean it's covered
+- nil to mean it's been uncovered
+- `flag' to mean that it's covered and flag'd.")
 
-(defvar mines-mine-positions nil "Mine positions.")
 (defvar mines-gap-positions nil "Empty cell positions.")
 (defvar mines-init-time nil "Initial time of the game.")
 (defvar mines-end-time nil "End time of the game.")
@@ -185,9 +205,9 @@ If `custom' then ask user for these numbers."
 
 (defun mines-goto (idx)
   "Move to cell at IDX."
-  (goto-char 1)
+  (goto-char (point-min))
   (let ((cidx (mines-current-pos)))
-    (ignore-errors
+    (ignore-errors ;;FIXME: Why?
       (while (not (= cidx idx))
         (goto-char (next-single-property-change (point) 'idx))
         (setq cidx (mines-current-pos)))
@@ -211,7 +231,7 @@ If `custom' then ask user for these numbers."
 (defun mines-go-left ()
   "Move 1 cell to the left."
   (interactive)
-  (if (= (point) (point-max))
+  (if (eobp)
       (goto-char (1- (point)))
     (let* ((idx (mines-current-pos))
            (row-col (mines-index-2-matrix idx))
@@ -253,105 +273,75 @@ If `custom' then ask user for these numbers."
 
 ;;; Main Functions.
 
-(defun mines--find-pos (elt vec)
-  (let ((pos 0) res)
-    (while (setq pos
-                 (cl-position-if
-                  (lambda (x)
-                    (cond ((null elt)
-                           ;; Check if the cell is empty or flagged.
-                           (or (null x) (eq mines-flagged-cell-char x)))
-                          (t (eq elt x))))
-                  vec :start pos))
-      (push pos res)
-      (cl-incf pos))
-    (nreverse res)))
+(defun mines--count-covered ()
+  (let ((count 0))
+  (dotimes (idx mines-number-cells)
+    (when (aref mines-state idx) (cl-incf count)))
+  count))
 
 (defun mines-start ()
   "Set mine positions for a new game."
   ;; Erase vector.
   (setq mines-grid (make-vector mines-number-cells nil))
-  (setq mines-state (make-vector mines-number-cells nil))
+  (setq mines-state (make-vector mines-number-cells t))
   (let ((numbers (append
                   (cookie-shuffle-vector
-                   (vconcat (number-sequence 0 (1- mines-number-cells)))) nil)))
+                   (vconcat (number-sequence 0 (1- mines-number-cells))))
+                  nil)))
     (dotimes (_ mines-number-mines)
-      (aset mines-grid (pop numbers) t))
-    (setq mines-mine-positions (mines--find-pos t mines-grid))))
+      (aset mines-grid (pop numbers) 'bomb))))
 
-(defun mines--near-bombs (i j)
-  (let ((numb 0))
-    ;; Horizontal neighbours.
-    (when (> j 0)
-      (and (aref mines-grid (mines-matrix-2-index i (1- j))) (cl-incf numb)))
-    (when (< j (1- mines-number-cols))
-      (and (aref mines-grid (mines-matrix-2-index i (1+ j))) (cl-incf numb)))
-    ;; Previous row neighbours.
-    (when (> i 0)
-      (and (aref mines-grid (mines-matrix-2-index (1- i) j)) (cl-incf numb))
-      (when (> j 0)
-        (and (aref mines-grid (mines-matrix-2-index (1- i) (1- j))) (cl-incf numb)))
-      (when (< j (1- mines-number-cols))
-        (and (aref mines-grid (mines-matrix-2-index (1- i) (1+ j))) (cl-incf numb))))
-    ;; Next row neighbours.
-    (when (< i (1- mines-number-rows))
-      (and (aref mines-grid (mines-matrix-2-index (1+ i) j)) (cl-incf numb))
-      (when (> j 0)
-        (and (aref mines-grid (mines-matrix-2-index (1+ i) (1- j))) (cl-incf numb)))
-      (when (< j (1- mines-number-cols))
-        (and (aref mines-grid (mines-matrix-2-index (1+ i) (1+ j))) (cl-incf numb))))
-    numb))
+(defun mines--near-bombs (idx)
+  (let ((n 0))
+    (dolist (nidx (mines-get-neighbours idx))
+      (when (eq 'bomb (aref mines-grid nidx))
+        (cl-incf n)))
+    n))
 
 (defun mines-set-numbers ()
   "Set numbers for cells adjacent to cells with bombs."
-  (let ((tmp-grid (copy-sequence mines-grid)))
-    (dotimes (i mines-number-rows)
-      (dotimes (j mines-number-cols)
-        (let ((idx (mines-matrix-2-index i j)))
-          (unless (aref mines-grid idx)
-            (let ((numb (mines--near-bombs i j)))
-              (unless (zerop numb) (aset tmp-grid idx numb)))))))
-    (setq mines-grid tmp-grid)))
+  (dotimes (i mines-number-rows)
+    (dotimes (j mines-number-cols)
+      (let ((idx (mines-matrix-2-index i j)))
+        (unless (eq 'bomb (aref mines-grid idx))
+          (let ((n (mines--near-bombs idx)))
+            (setf (aref mines-grid idx) (unless (zerop n) n))))))))
 
 (defun mines-list-game-conditions ()
   "Return number of rows, columns and mines for current game."
   (interactive)
-  (when (mines-mines-mode-p)
-    (let ((rows mines-number-rows)
-          (cols mines-number-cols)
-          (mines mines-number-mines))
-      (message "%d rows x %d columns with %d mines"
-               rows cols mines)
-      (list rows cols mines))))
+  (let ((rows mines-number-rows)
+        (cols mines-number-cols)
+        (mines mines-number-mines))
+    (message "%d rows x %d columns with %d mines"
+             rows cols mines)
+    (list rows cols mines)))
 
-(defun mines--insert (elt idx &optional props null-str flag-or-unflag)
+(defun mines--insert (elt idx)
   (let* ((face nil)
-         (str (cond ((null elt)
-                     (if (null null-str)
-                         (format " %c " mines-uncover-cell-char)
-                       ;; Uncover all its uncovered neighbours.
-                       (save-excursion
-                         (dolist (x (mines-get-neighbours idx))
-                           (mines-goto x)
-                           (unless (get-text-property (point) 'done)
-                             (push x mines-undone-neighbours))))
-                       (format " %s " null-str)))
-                    ((eq flag-or-unflag 'unflag)
-                     (format " %c " mines-uncover-cell-char))
-                    ((and (memq 'flag props) (eq flag-or-unflag 'flag))
+         (char (cond ((null elt)
+                     mines-empty-cell-char)
+                    ((eq elt t)
+                     mines-uncover-cell-char)
+                    ((eq elt 'flag)
                      (setq face 'warning)
-                     (format " %c " mines-flagged-cell-char))
-                    ((integerp elt) (format " %d " elt))
-                    (t (format " %c " mines-empty-cell-mine))))
+                     mines-flagged-cell-char)
+                    ((integerp elt)
+                     ;; FIXME: Set face here so each number gets
+                     ;; a different color.
+                     (+ ?0 elt))
+                    (t
+                     (cl-assert (eq elt 'bomb))
+                     (setq face 'error)
+                     mines-empty-cell-mine)))
          (pos (point))
          (inhibit-read-only t))
-    (if face
-        (insert (propertize str 'font-lock-face face))
-      (insert str))
+    (insert (format " %c " char))
+    (add-text-properties pos (point) `(mouse-face ,(list 'highlight)))
     (when (= (cadr (mines-index-2-matrix idx)) (1- mines-number-cols))
       (backward-delete-char 1)
       (insert "\n"))
-    (add-text-properties pos (point) props)
+    (add-text-properties pos (point) `(idx ,idx font-lock-face ,face))
     (goto-char (1+ (point)))))
 
 (defun mines-show ()
@@ -367,39 +357,31 @@ If `custom' then ask user for these numbers."
       (dotimes (i mines-number-rows)
         (dotimes (j mines-number-cols)
           (let* ((idx (+ (* i mines-number-cols) j))
-                 (elt (aref mines-state idx))
-                 (pos (point)))
-            (mines--insert elt idx)
-            (put-text-property pos (point) 'idx idx)
-            (when (= j (1- mines-number-cols))
-              (delete-char -1)
-              (insert "\n"))
-            (put-text-property (1- (point)) (point) 'idx idx))))))
+                 (elt (aref mines-state idx)))
+            (mines--insert (or elt (aref mines-grid idx)) idx))))))
   (display-buffer mines-buffer '(display-buffer-same-window))
   (set-window-point (get-buffer-window mines-buffer) mines-start-pos))
 
 (defun mines-current-pos ()
   "Return the index of the cell at point."
-  (get-text-property (point) 'idx))
+  (or (get-text-property (point) 'idx) (user-error "Wrong position!")))
 
 (defun mines--show-all ()
   "Show all mines after game over."
-  (dolist (to mines-mine-positions)
-    (save-excursion
-      (mines-goto to)
-      ;; Drop all flags before show the mines; that drop the flag faces.
-      (when (eq (following-char) mines-flagged-cell-char)
-        (mines--update-cell to mines-uncover-cell-char 'unflag))
-      (mines-dig 'show-mines))))
+  (let ((mines-auto-flag nil))
+    (dotimes (idx mines-number-cells)
+      (when (and (eq 'bomb (aref mines-grid idx))
+                 (aref mines-state idx))
+        (mines--update-cell idx nil)))))
 
 (defun mines-game-over ()
   "Offer play a new game after uncover a bomb."
   (let ((inhibit-read-only t))
+    (setq mines-game-over t)
     (put-text-property (point) (1+ (point)) 'face 'error)
     (mines--show-all)
     (if (yes-or-no-p "Game over! Play again? ")
-        (mines)
-      (setq mines-game-over t))))
+        (mines))))
 
 ;; Extracted from `gamegrid-add-score-with-update-game-score'.
 (defun mines--score-file (file)
@@ -495,137 +477,143 @@ After sorting, games completed with shorter times appear first."
     (message (format "Well done %s, you have completed it in %s!"
                      user-login-name elapsed-time))))
 
-(defun mines-flag-cell ()
+(defun mines-flag-cell (&optional event)
   "Flag current cell as having a mine.
 If called again then unflag it."
-  (interactive)
+  (interactive (list last-nonmenu-event))
+  (if event (posn-set-point (event-end event)))
   (let* ((idx (mines-current-pos))
-         (done (get-text-property (point) 'done))
-         (flagged (get-text-property (point) 'flag)))
-    (unless idx (user-error "Wrong position!"))
-    (unless done
-      (cond (flagged
-             (mines--update-cell idx mines-uncover-cell-char 'unflag))
-            (t (mines--update-cell idx mines-flagged-cell-char 'flag))))))
+         (state (aref mines-state idx)))
+    (if (null state)
+        (message "Can't flag once it's uncovered")
+      ;; Toggle the flag state.
+      (mines--update-cell idx (if (eq state t) 'flag t)))))
 
-(defun mines--update-cell (idx elt &optional flag-or-unflag)
-  (if (zerop idx)
-      (goto-char 1)
-    (goto-char (previous-single-property-change (point) 'idx)))
-  (let ((to (or (next-single-property-change (point) 'idx) (point-max)))
-        (prop (append (text-properties-at (point))
-                      (if flag-or-unflag
-                          `(flag ,(eq flag-or-unflag 'flag))
-                        '(done t))))
-        (inhibit-read-only t))
-    (when (eq flag-or-unflag 'unflag)
-      (setq prop `(idx ,idx)))
-    ;; If unflagging, then remove additional text properties.
-    (when (eq flag-or-unflag 'unflag)
-      (remove-text-properties (point) to '(font-lock-face flag)))
-    (delete-region (point) to)
-    (mines--insert elt idx prop (string mines-empty-cell-char) flag-or-unflag)
-    (unless flag-or-unflag (aset mines-state idx '@))
+(defun mines--update-cell (idx newstate)
+  (cl-assert (aref mines-state idx))    ;Once uncovered, can't change it!
+  (cl-assert (not (eql newstate (aref mines-state idx)))) ;Actual change!
+  (mines-goto idx)
+  (let* ((from (or (previous-single-property-change (point) 'idx) (point-min)))
+         (to (or (next-single-property-change (point) 'idx) (point-max)))
+         (inhibit-read-only t)
+         (elt (or newstate (aref mines-grid idx))))
+    (setf (aref mines-state idx) newstate)
+    (when (null elt)
+      ;; Uncovered an empty cell: uncover neighbors.
+      (dolist (nidx (mines-get-neighbours idx))
+        (when (aref mines-state nidx)   ;Still covered.
+          (cl-pushnew nidx mines-undone-neighbours))))
+    (delete-region from to)
+    (mines--insert elt idx)
+    (when (and mines-auto-flag (eq newstate nil))
+      (dolist (nidx (cons idx (mines-get-neighbours idx)))
+        (when (null (aref mines-state nidx))
+          (let ((nc 0)                  ;Number of neighbors still covered.
+                (nb (aref mines-grid nidx))) ;Number of bomb in neighbors.
+            (when (integerp nb)
+              (dolist (nidx (mines-get-neighbours nidx))
+                (unless (null (aref mines-state nidx))
+                  (cl-incf nc)))
+              (when (eql nc nb)
+                (dolist (nidx (mines-get-neighbours nidx))
+                  (when (eq t (aref mines-state nidx))
+                    (mines--update-cell nidx 'flag)))))))))
     (mines-goto idx)))
 
-(defun mines-dig (&optional show-mines)
+(defun mines--clear-first-move (idx)
+  "Make sure IDX has no bomb and zero neighbors with bombs."
+  ;; Getting a bomb on the first move is just annoying.
+  ;; And getting a cell with a number is frustrating because it still
+  ;; doesn't let you use reasoning rather than luck to make progress.
+  ;; So let's make sure that the first move actually uncovers a pristine
+  ;; area so the user doesn't need luck to get started.
+  (let ((val (aref mines-grid idx)))
+    (cl-assert val)
+    (let ((cells (mines-get-neighbours idx))
+          (bombs (if (integerp val) val (1+ (mines--near-bombs idx)))))
+      (push idx cells)
+      (while (> bombs 0)
+        (let (nidx)
+          (while (progn (setq nidx (random mines-number-cells))
+                        (or (eq 'bomb (aref mines-grid nidx))
+                            (memql nidx cells))))
+          (setf (aref mines-grid nidx) 'bomb) ;Add bomb elsewhere.
+          (cl-decf bombs)))
+      (dolist (cell cells)
+        (setf (aref mines-grid cell) nil)) ;Remove nearby bombs.
+      ;; Update the numbers on neighbour cells.
+      (mines-set-numbers))))
+
+(defun mines-dig (&optional event)
   "Reveal the content of the cell at point."
-  (interactive)
-  (when (mines-mines-mode-p)
-    (if mines-game-over
-        (user-error "Current game is over.  Try `%s' to start a new one"
-                    (substitute-command-keys "\\[mines]"))
-      (skip-chars-forward "[:blank:]") ; Set point in the center of the cell.
-      (cl-labels ((uncover-fn
-                   ()
-                   (let ((idx (mines-current-pos))
-                         (inhibit-read-only t)
-                         (done (get-text-property (point) 'done)))
-                     (cond ((null idx) (user-error "Wrong position!"))
-                           (done nil) ; Already updated.
-                           (t
-                            (let ((elt (aref mines-grid idx)))
-                              (cl-flet ((game-end-fn
-                                         ()
-                                         ;; Check for end of game.
-                                         (cond ((and (not show-mines) (eq elt t))
-                                                ;; We lost the game; show all the mines.
-                                                (mines-game-over))
-                                               (t
-                                                (when (and (not show-mines) (mines-end-p))
-                                                  (mines-game-completed))))))
-                              ;; Don't end the game in the first trial when
-                              ;; `mines-protect-first-move' is non-nil.
-                              (when (and (eq elt t) mines-protect-first-move (mines-first-move-p))
-                                (let ((ok-pos (cl-position-if-not (lambda (x) (eq t x)) mines-grid)))
-                                  (message "Avoided game over in the first move")
-                                  ;; Update mine positions.
-                                  (setf (nth (cl-position idx mines-mine-positions)
-                                             mines-mine-positions) ok-pos)
-                                  ;; We must update `mines-grid' further: the neighbour cells
-                                  ;; to IDX must show now a lower number of near bombs; the
-                                  ;; cells near the new position of the bomb must increase their
-                                  ;; numbers.
-                                  (setq mines-grid (make-vector mines-number-cells nil))
-                                  ;; Add the mine positions.
-                                  (dolist (pos mines-mine-positions)
-                                    (aset mines-grid pos t))
-                                  ;; Update the numbers on neighbour cells.
-                                  (mines-set-numbers)
-                                  ;; Update current element.
-                                  (setq elt (aref mines-grid idx))))
-                              (cond ((and (not show-mines) (eq (following-char) mines-flagged-cell-char))
-                                     ;; If the cell is flagged ask for confirmation.
-                                     (cond ((yes-or-no-p "This cell is flagged as having a bomb.  Uncover it? ")
-                                            ;; Unflag first.
-                                            (mines--update-cell idx mines-uncover-cell-char 'unflag)
-                                            (mines--update-cell idx elt)
-                                            (game-end-fn))
-                                           (t (message "OK, canceled"))))
-                                    (t
-                                     (mines--update-cell idx elt)
-                                     (game-end-fn))))))))))
-        (uncover-fn)
-        (when mines-undone-neighbours
-          (while mines-undone-neighbours
-            (let ((to (pop mines-undone-neighbours)))
-              (save-excursion
-                (mines-goto to)
-                (uncover-fn)))))))))
+  (interactive (list last-nonmenu-event))
+  (if event (posn-set-point (event-end event)))
+  (if mines-game-over
+      (user-error "Current game is over.  Try `%s' to start a new one"
+                  (substitute-command-keys "\\[mines]"))
+    (mines-goto (mines-current-pos))    ; Set point in the center of the cell.
+    (cl-flet ((uncover-fn
+               ()
+               (let* ((idx (mines-current-pos))
+                      (inhibit-read-only t)
+                      (state (aref mines-state idx)))
+                 (cond ((null state)
+                        (message "Nothing new here")) ; Already updated.
+                       ((and (eq 'flag state)
+                             ;; If the cell is flagged ask for confirmation.
+                             ;; FIXME: I personally find this prompt annoying.
+                             (not (yes-or-no-p "This cell is flagged as having a bomb.  Uncover it? ")))
+                        (message "OK, canceled"))
+                       (t
+                        (let ((elt (aref mines-grid idx)))
+                          ;; Don't end the game in the first trial when
+                          ;; `mines-protect-first-move' is non-nil.
+                          (when (and mines-protect-first-move
+                                     (mines-first-move-p)
+                                     elt)
+                            (mines--clear-first-move idx)
+                            (setq elt nil))
+                          (mines--update-cell idx nil)
+                          ;; Check for end of game.
+                          (cond ((eq elt 'bomb) (mines-game-over))
+                                ((mines-end-p) (mines-game-completed)))))))))
+      (uncover-fn)
+      (when mines-undone-neighbours
+        (while mines-undone-neighbours
+          (let ((to (pop mines-undone-neighbours)))
+            (save-excursion
+              (mines-goto to)
+              (uncover-fn))))))))
 
 ;; `read-multiple-choice' requires Emacs > 25.
 (defun mines--read-multiple-choice ()
-  (let (choice)
-    (if (> emacs-major-version 25)
-        (setq choice
-              (read-multiple-choice "Choose difficulty level: "
-                                    '((?e "Easy" "8 columns x 8 rows and 10 mines")
-                                      (?m "Medium" "16 columns x 16 rows and 40 mines")
-                                      (?h "Hard" "30 columns x 16 rows and 99 mines")
-                                      (?c "Custom" "C columns x R rows and M mines"))))
-      (let ((help-msg "Choose difficulty level: 
+  (let ((choices
+         '((?e "Easy" "8 columns x 8 rows and 10 mines")
+           (?m "Medium" "16 columns x 16 rows and 40 mines")
+           (?h "Hard" "30 columns x 16 rows and 99 mines")
+           (?c "Custom" "C columns x R rows and M mines"))))
+    (if (fboundp 'read-multiple-choice)
+        (read-multiple-choice "Choose difficulty level: " choices)
+      (let* ((help-msg "Choose difficulty level:\s
 
 e: [e] Easy              m: Medium                h: [h] Hard              c: [c] Custom
 8 columns x 8 rows       16 columns x 16 rows     30 columns x 16 rows     C columns x R rows
 and 10 mines             and 40 mines             and 99 mines             and M mines
 ")                                                                           
-            (answer
-             (read-char "Choose difficulty level:  ([e] Easy, [m] Medium, [h] Hard, [c] Custom, [?]): ")))
+             (prompt "Choose difficulty level:  ([e] Easy, [m] Medium, [h] Hard, [c] Custom, [?]): ")
+             (answer (read-char prompt)))
         (cl-flet ((show-help ()
-                             (when (eq answer ??)
-                               (let ((help-buf (get-buffer-create "*Multiple Choice Help*")))
-                                 (setq answer nil)
-                                 (with-current-buffer help-buf
-                                   (and (zerop (buffer-size)) (insert help-msg))
-                                   (display-buffer help-buf))))))
-          (if (eq answer ??) (show-help))
-          (while (not (memq answer '(?e ?m ?h ?c ??)))
-            (setq answer (read-char "Choose difficulty level:  ([e] Easy, [m] Medium, [h] Hard, [c] Custom, [?]): "))
-            (show-help))
-          (cond ((eq answer ?e) (list ?e "Easy" "8 columns x 8 rows and 10 mines"))
-                ((eq answer ?m) (list ?m "Medium" "16 columns x 16 rows and 40 mines"))
-                ((eq answer ?h) (list ?h "Hard" "30 columns x 16 rows and 99 mines"))
-                ((eq answer ?c) (list ?c "Custom" "C columns x R rows and M mines"))))))))
+                     (when (eq answer ??)
+                       (let ((help-buf (get-buffer-create
+                                        "*Multiple Choice Help*")))
+                         (setq answer nil)
+                         (with-current-buffer help-buf
+                           (and (zerop (buffer-size)) (insert help-msg))
+                           (display-buffer help-buf))))))
+          (while (not (assq answer choices))
+            (if (eq answer ??) (show-help) (ding))
+            (setq answer (read-char prompt)))
+          (assq answer choices))))))
 
 ;;;###autoload
 (defun mines (&optional arg)
@@ -653,34 +641,8 @@ Called with a prefix prompt for the difficulty level."
   (mines-set-numbers)
   (mines-show))
 
-(define-derived-mode mines-mode special-mode "mines"
-  "Major mode for playing Minesweeper.
-
-The target of the game is discover which cells contain mines.
-You reveal the content of the mine at point with \\[mines-dig\].
-1. If you look at one cell containing a mine you lost.
-
-2. A cell without a mine with N neighbour cells containing mines
-   shows N when you look at it.
-
-3. A cell without a mine and without neighbour cells having mines
-   shows the character `@' when you look at it; all adjacent cells
-   are recursively revealed.
-
-For instance, following is a possible configuration:
-
-@ @ @ @ @
-1 2 2 1 @
-1 x x 1 @
-1 2 2 1 @
-@ @ @ @ @
-
-You can move between cells using the arrow keys, or using vi
-or Emacs keystrokes (↑↓→←) = (kjlh) = (pnfb).
-
-You can flag a cell as having a mine with \\[mines-flag-cell\]; if you
-call this command again, the cell is unflagged."
-  (let ((map mines-mode-map))
+(defvar mines-mode-map
+  (let ((map (make-sparse-keymap)))
     (define-key map [right] 'mines-go-right)
     (define-key map "f" 'mines-go-right)
     (define-key map "l" 'mines-go-right)
@@ -694,26 +656,53 @@ call this command again, the cell is unflagged."
     (define-key map "n" 'mines-go-down)
     (define-key map "j" 'mines-go-down)
     (define-key map "x" 'mines-dig)
+    ;; FIXME: I think SPC would be a natural binding for `mines-dig'.
     (define-key map "c" 'mines-dig)
+    (define-key map [mouse-1] 'mines-dig)
+    (define-key map [mouse-3] 'mines-flag-cell)
     ;; (define-key map "a" 'mines-flag-cell)
     (define-key map "1" 'mines-flag-cell)
     (define-key map "m" 'mines-flag-cell)
-    (define-key map "r" 'mines)))
+    (define-key map "r" 'mines)
+    map))
+
+(define-derived-mode mines-mode special-mode "mines"
+  "Major mode for playing Minesweeper.
+
+The target of the game is discover which cells contain mines.
+You reveal the content of the mine at point with \\[mines-dig].
+1. If you look at one cell containing a mine you lost.
+
+2. A cell without a mine with N neighbour cells containing mines
+   shows N when you look at it.
+
+3. A cell without a mine and without neighbour cells having mines
+   shows the character ` ' when you look at it; all adjacent cells
+   are recursively revealed.
+
+For instance, following is a possible configuration:
+
+    1 2 2 1
+    1 x x 1
+    1 2 2 1
+
+You can move between cells using the arrow keys, or using vi
+or Emacs keystrokes (↑↓→←) = (kjlh) = (pnfb).
+
+You can flag a cell as having a mine with \\[mines-flag-cell]; if you
+call this command again, the cell is unflagged."
+  )
 
 
 ;;; Predicates
 
-(defun mines-mines-mode-p ()
-  "Return non-nil if the current buffer is in `mines-mode'."
-  (derived-mode-p 'mines-mode))
-
 (defun mines-end-p ()
   "Return non-nil when the game is completed."
-  (= mines-number-mines (length (mines--find-pos nil mines-state))))
+  (= mines-number-mines (mines--count-covered)))
 
 (defun mines-first-move-p ()
   "Return non-nil if any cell has been revealed yet."
-  (cl-every 'null mines-state))
+  (cl-every #'identity mines-state))
 
 
 (provide 'mines)

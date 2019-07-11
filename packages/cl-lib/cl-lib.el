@@ -1,6 +1,6 @@
-;;; cl-lib.el --- Properly prefixed CL functions and macros  -*- coding: utf-8 -*-
+;;; cl-lib.el --- Forward cl-lib compatibility library for Emacs<24.3  -*- coding: utf-8 -*-
 
-;; Copyright (C) 2012, 2013, 2014, 2017  Free Software Foundation, Inc.
+;; Copyright (C) 2012-2019  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; vcomment: Emacs-24.3's version is 1.0 so this has to stay below.

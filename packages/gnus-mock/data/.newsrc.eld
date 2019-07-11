@@ -6,6 +6,6 @@
 
 (setq gnus-newsrc-last-checked-date '"Tue, 01 May 2018 12:15:27 -0700")
 
-(setq gnus-newsrc-alist '(("nndraft:queue" 3 nil nil (nndraft "")) ("Welcome" 3 ((1)) nil) ("mails" 3 nil nil) ("incoming" 3 nil nil nil) ("nndraft:drafts" 1 nil nil (nndraft "") ((gnus-dummy (gnus-draft-mode))))))
+(setq gnus-newsrc-alist '(("nndraft:queue" 3 nil nil (nndraft "")) ("Welcome" 3 ((1)) nil) ("mails" 3 nil nil) ("incoming" 3 nil nil nil) ("nnml:\343\203\206\343\202\271\343\203\210" 3 (1) nil (nnml "")) ("nndraft:drafts" 1 nil nil (nndraft "") ((gnus-dummy (gnus-draft-mode))))))
 
 (setq gnus-server-alist '(("archive" nnfolder "archive" (nnfolder-directory "REPLACE_ME/archive") (nnfolder-active-file "REPLACE_ME/archive/active") (nnfolder-get-new-mail nil) (nnfolder-inhibit-expiry t))))
