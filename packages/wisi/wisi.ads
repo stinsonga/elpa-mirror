@@ -79,7 +79,7 @@ package Wisi is
       Nonterm : in     WisiToken.Syntax_Trees.Valid_Node_Index;
       Tokens  : in     WisiToken.Syntax_Trees.Valid_Node_Index_Array);
 
-   type Navigate_Class_Type is (Motion, Name, Statement_End, Statement_Override, Statement_Start, Misc);
+   type Navigate_Class_Type is (Motion, Statement_End, Statement_Override, Statement_Start, Misc);
    --  Matches [1] wisi-class-list.
 
    type Index_Navigate_Class is record
@@ -95,6 +95,13 @@ package Wisi is
       Nonterm : in     WisiToken.Syntax_Trees.Valid_Node_Index;
       Tokens  : in     WisiToken.Syntax_Trees.Valid_Node_Index_Array;
       Params  : in     Statement_Param_Array);
+
+   procedure Name_Action
+     (Data    : in out Parse_Data_Type;
+      Tree    : in     WisiToken.Syntax_Trees.Tree;
+      Nonterm : in     WisiToken.Syntax_Trees.Valid_Node_Index;
+      Tokens  : in     WisiToken.Syntax_Trees.Valid_Node_Index_Array;
+      Name    : in     WisiToken.Positive_Index_Type);
 
    procedure Containing_Action
      (Data       : in out Parse_Data_Type;
@@ -191,7 +198,8 @@ package Wisi is
    --  evaluated by wisi-elisp-parse--indent-compute-delta.
 
    type Simple_Indent_Param_Label is -- not hanging
-     (Int,
+     (None,
+      Int,
       Anchored_0, -- wisi-anchored
       Anchored_1, -- wisi-anchored%
       Anchored_2, -- wisi-anchored%-
@@ -224,9 +232,12 @@ package Wisi is
 
    Null_Args : Indent_Arg_Arrays.Vector renames Indent_Arg_Arrays.Empty_Vector;
 
-   type Simple_Indent_Param (Label : Simple_Indent_Param_Label := Int) is
+   type Simple_Indent_Param (Label : Simple_Indent_Param_Label := None) is
    record
       case Label is
+      when None =>
+         null;
+
       when Int =>
          Int_Delta : Integer;
 
@@ -245,10 +256,11 @@ package Wisi is
    type Indent_Param_Label is
      (Simple,
       Hanging_0, -- wisi-hanging
-      Hanging_1, -- wisi-hanging%
-      Hanging_2  -- wisi-hanging%-
+      Hanging_1, -- wisi-hanging-
+      Hanging_2, -- wisi-hanging%
+      Hanging_3  -- wisi-hanging%-
      );
-   subtype Hanging_Label is Indent_Param_Label range Hanging_0 .. Hanging_2;
+   subtype Hanging_Label is Indent_Param_Label range Hanging_0 .. Hanging_3;
 
    type Indent_Param (Label : Indent_Param_Label := Simple) is
    record
@@ -312,6 +324,13 @@ package Wisi is
    --
    --  Language specific child packages override this to implement
    --  wisi-elisp-parse-indent-hanging-function.
+
+   type Arg_Index_Array is array (Positive range <>) of WisiToken.Positive_Index_Type;
+
+   procedure Put_Language_Action
+     (Data    : in Parse_Data_Type;
+      Content : in String);
+   --  Send a Language_Action message to Emacs.
 
    procedure Put (Data : in out Parse_Data_Type; Parser : in WisiToken.Parse.Base_Parser'Class);
    --  Perform additional post-parse actions, then put result to
@@ -442,15 +461,15 @@ private
    Nil : constant Nil_Buffer_Pos := (Set => False);
 
    type Navigate_Cache_Type is record
-      Pos            : WisiToken.Buffer_Pos;          -- implicit in wisi-cache
-      Statement_ID   : WisiToken.Token_ID;  -- wisi-cache-nonterm
-      ID             : WisiToken.Token_ID;  -- wisi-cache-token
-      Length         : Natural;             -- wisi-cache-last
-      Class          : Navigate_Class_Type; -- wisi-cache-class; one of wisi-class-list
-      Containing_Pos : Nil_Buffer_Pos;      -- wisi-cache-containing
-      Prev_Pos       : Nil_Buffer_Pos;      -- wisi-cache-prev
-      Next_Pos       : Nil_Buffer_Pos;      -- wisi-cache-next
-      End_Pos        : Nil_Buffer_Pos;      -- wisi-cache-end
+      Pos            : WisiToken.Buffer_Pos; -- implicit in wisi-cache
+      Statement_ID   : WisiToken.Token_ID;   -- wisi-cache-nonterm
+      ID             : WisiToken.Token_ID;   -- wisi-cache-token
+      Length         : Natural;              -- wisi-cache-last
+      Class          : Navigate_Class_Type;  -- wisi-cache-class
+      Containing_Pos : Nil_Buffer_Pos;       -- wisi-cache-containing
+      Prev_Pos       : Nil_Buffer_Pos;       -- wisi-cache-prev
+      Next_Pos       : Nil_Buffer_Pos;       -- wisi-cache-next
+      End_Pos        : Nil_Buffer_Pos;       -- wisi-cache-end
    end record;
 
    function Key (Cache : in Navigate_Cache_Type) return WisiToken.Buffer_Pos is (Cache.Pos);
@@ -462,6 +481,11 @@ private
 
    package Navigate_Cache_Trees is new SAL.Gen_Unbounded_Definite_Red_Black_Trees
      (Navigate_Cache_Type, WisiToken.Buffer_Pos);
+
+   function Key (Cache : in WisiToken.Buffer_Region) return WisiToken.Buffer_Pos is (Cache.First);
+
+   package Name_Cache_Trees is new SAL.Gen_Unbounded_Definite_Red_Black_Trees
+     (WisiToken.Buffer_Region, WisiToken.Buffer_Pos);
 
    type Nil_Integer (Set : Boolean := False) is record
       case Set is
@@ -482,7 +506,7 @@ private
 
    package Face_Cache_Trees is new SAL.Gen_Unbounded_Definite_Red_Black_Trees (Face_Cache_Type, WisiToken.Buffer_Pos);
 
-   type Indent_Label is (Not_Set, Int, Anchor, Anchored, Anchor_Anchored);
+   type Indent_Label is (Not_Set, Int, Anchor_Nil, Anchor_Int, Anchored, Anchor_Anchored);
 
    package Anchor_ID_Vectors is new Ada.Containers.Vectors (Natural, Positive);
 
@@ -496,9 +520,12 @@ private
       when Int =>
          Int_Indent : Integer;
 
-      when Anchor =>
-         Anchor_IDs    : Anchor_ID_Vectors.Vector; --  Largest ID first.
-         Anchor_Indent : Integer;
+      when Anchor_Nil =>
+         Anchor_Nil_IDs : Anchor_ID_Vectors.Vector; --  Largest ID first.
+
+      when Anchor_Int =>
+         Anchor_Int_IDs    : Anchor_ID_Vectors.Vector; --  Largest ID first.
+         Anchor_Int_Indent : Integer;
 
       when Anchored =>
          Anchored_ID    : Positive;
@@ -521,6 +548,14 @@ private
      (Line_Begin_Token : not null access constant WisiToken.Line_Begin_Token_Vectors.Vector)
      is new WisiToken.Syntax_Trees.User_Data_Type with
    record
+      --  Aux token info
+      First_Comment_ID : WisiToken.Token_ID := WisiToken.Invalid_Token_ID;
+      Last_Comment_ID  : WisiToken.Token_ID := WisiToken.Invalid_Token_ID;
+      Left_Paren_ID    : WisiToken.Token_ID := WisiToken.Invalid_Token_ID;
+      Right_Paren_ID   : WisiToken.Token_ID := WisiToken.Invalid_Token_ID;
+
+      Embedded_Quote_Escape_Doubled : Boolean := False;
+
       --  Data from parsing
 
       Terminals : Augmented_Token_Arrays.Vector;
@@ -548,6 +583,7 @@ private
       Source_File_Name  : Ada.Strings.Unbounded.Unbounded_String;
       Post_Parse_Action : Post_Parse_Action_Type;
       Navigate_Caches   : Navigate_Cache_Trees.Tree;  -- Set by Navigate.
+      Name_Caches       : Name_Cache_Trees.Tree;      -- Set by Navigate.
       End_Positions     : Navigate_Cursor_Lists.List; -- Dynamic data for Navigate.
       Face_Caches       : Face_Cache_Trees.Tree;      -- Set by Face.
       Indents           : Indent_Vectors.Vector;      -- Set by Indent.
@@ -560,11 +596,29 @@ private
       Max_Anchor_ID : Integer;
    end record;
 
-   type Simple_Delta_Labels is (Int, Anchored);
+   type Simple_Delta_Labels is (None, Int, Anchored);
 
-   type Simple_Delta_Type (Label : Simple_Delta_Labels := Int) is
+   --  subtype Non_Anchored_Delta_Labels is Simple_Delta_Labels range None .. Int;
+
+   --  type Non_Anchored_Delta (Label : Non_Anchored_Delta_Labels := None) is
+   --  record
+   --     case Label is
+   --     when None =>
+   --        null;
+   --     when Int =>
+   --        Int_Delta : Integer;
+   --     end case;
+   --  end record;
+
+   --  function Image (Item : in Non_Anchored_Delta) return String;
+   --  For debugging
+
+   type Simple_Delta_Type (Label : Simple_Delta_Labels := None) is
    record
       case Label is
+      when None =>
+         null;
+
       when Int =>
          Int_Delta : Integer;
 
@@ -575,7 +629,6 @@ private
 
       end case;
    end record;
-   subtype Anchored_Delta is Simple_Delta_Type (Anchored);
 
    function Image (Item : in Simple_Delta_Type) return String;
    --  For debugging
@@ -598,7 +651,7 @@ private
       end case;
    end record;
 
-   Null_Delta : constant Delta_Type := (Simple, (Int, 0));
+   Null_Delta : constant Delta_Type := (Simple, (Label => None));
 
    function Image (Item : in Delta_Type) return String;
    --  For debugging

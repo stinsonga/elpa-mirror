@@ -96,7 +96,7 @@ package WisiToken.Generate.LR1_Items is
    type Item is record
       Prod       : Production_ID;
       Dot        : Token_ID_Arrays.Cursor; -- token after item Dot
-      Lookaheads : access Lookahead := null;
+      Lookaheads : Token_ID_Set_Access := null;
       --  Programmer must remember to copy Item.Lookaheads.all, not
       --  Item.Lookaheads. Wrapping this in Ada.Finalization.Controlled
       --  would just slow it down.

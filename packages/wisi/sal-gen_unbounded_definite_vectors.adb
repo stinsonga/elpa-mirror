@@ -470,6 +470,28 @@ package body SAL.Gen_Unbounded_Definite_Vectors is
       end if;
    end Next;
 
+   function Prev (Position : in Cursor) return Cursor
+   is begin
+      if Position = No_Element then
+         return No_Element;
+      elsif Position.Index > To_Peek_Type (Position.Container.First) then
+         return (Position.Container, Position.Index - 1);
+      else
+         return No_Element;
+      end if;
+   end Prev;
+
+   procedure Prev (Position : in out Cursor)
+   is begin
+      if Position = No_Element then
+         null;
+      elsif Position.Index > To_Peek_Type (Position.Container.First) then
+         Position.Index := Position.Index - 1;
+      else
+         Position := No_Element;
+      end if;
+   end Prev;
+
    function To_Cursor
      (Container : aliased in Vector;
       Index     :         in Extended_Index)

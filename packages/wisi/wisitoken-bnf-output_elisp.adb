@@ -2,7 +2,7 @@
 --
 --  Output Elisp code implementing the grammar defined by the parameters.
 --
---  Copyright (C) 2012 - 2015, 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2012 - 2015, 2017 - 2019 Free Software Foundation, Inc.
 --
 --  The WisiToken package is free software; you can redistribute it
 --  and/or modify it under terms of the GNU General Public License as
@@ -216,7 +216,7 @@ is
          for RHS of Rule.Right_Hand_Sides loop
             Put ("       ((");
             for Token of RHS.Tokens loop
-               Put (Token & " ");
+               Put (-Token.Identifier & " ");
             end loop;
             if Length (RHS.Action) = 0 then
                Put (")");

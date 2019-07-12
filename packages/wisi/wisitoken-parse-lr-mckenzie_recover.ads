@@ -26,6 +26,7 @@
 
 pragma License (Modified_GPL);
 
+with Ada.Task_Attributes;
 with WisiToken.Parse.LR.Parser;
 with WisiToken.Lexer;
 package WisiToken.Parse.LR.McKenzie_Recover is
@@ -34,9 +35,7 @@ package WisiToken.Parse.LR.McKenzie_Recover is
    --  Raised when a config is determined to violate some programming
    --  convention; abandon it.
 
-   type Recover_Status is
-     (Fail_Check_Delta, Fail_Enqueue_Limit, Fail_Cost, Fail_No_Configs_Left, Fail_Programmer_Error,
-      Success);
+   type Recover_Status is (Fail_Check_Delta, Fail_Enqueue_Limit, Fail_No_Configs_Left, Fail_Programmer_Error, Success);
 
    function Recover (Shared_Parser : in out WisiToken.Parse.LR.Parser.Parser) return Recover_Status;
    --  Attempt to modify Parser.Parsers state and Parser.Lookahead to
@@ -52,6 +51,7 @@ package WisiToken.Parse.LR.McKenzie_Recover is
    --  and forces at least three.
 
 private
+   use all type WisiToken.Syntax_Trees.Node_Index;
 
    ----------
    --  Visible for language-specific child packages. Alphabetical.
@@ -74,20 +74,49 @@ private
    --
    --  See Next_Token for more info.
 
-   procedure Current_Token_ID_Peek_2
+   function Current_Token_ID_Peek
+     (Terminals             : in     Base_Token_Arrays.Vector;
+      Terminals_Current     : in     Base_Token_Index;
+      Insert_Delete         : in     Sorted_Insert_Delete_Arrays.Vector;
+      Current_Insert_Delete : in     SAL.Base_Peek_Type)
+     return Token_ID;
+   --  Return the current token from either Terminals or
+   --  Insert_Delete, without setting up for Next_Token.
+
+   procedure Current_Token_ID_Peek_3
      (Terminals             : in     Base_Token_Arrays.Vector;
       Terminals_Current     : in     Base_Token_Index;
       Insert_Delete         : in     Sorted_Insert_Delete_Arrays.Vector;
       Current_Insert_Delete : in     SAL.Base_Peek_Type;
       Prev_Deleted          : in     Recover_Token_Index_Arrays.Vector;
-      Current_Token         :    out Token_ID;
-      Next_Token            :    out Token_ID);
-   --  Return the current token, from either Terminals or Insert_Delete,
-   --  without setting up for Next_Token.
+      Tokens                :    out Token_ID_Array_1_3);
+   --  Return the current token (in Tokens (1)) from either Terminals or
+   --  Insert_Delete, without setting up for Next_Token. Return the two
+   --  following tokens in Tokens (2 .. 3).
 
-   procedure Delete (Config : in out Configuration; ID : in Token_ID);
-   --  Append a Delete op to Config.Ops, and insert it in
-   --  Config.Insert_Deleted in token_index order.
+   procedure Delete_Check
+     (Terminals : in     Base_Token_Arrays.Vector;
+      Config    : in out Configuration;
+      ID        : in     Token_ID);
+   --  Check that Terminals (Config.Current_Shared_Token) = ID. Append a
+   --  Delete op to Config.Ops, and insert it in Config.Insert_Delete in
+   --  token_index order.
+   --
+   --  This or the next routine must be used instead of Config.Ops.Append
+   --  (Delete...) unless the code also takes care of changing
+   --  Config.Current_Shared_Token. Note that this routine does _not_
+   --  increment Config.Current_Shared_Token, so it can only be used to
+   --  delete one token.
+
+   procedure Delete_Check
+     (Terminals : in     Base_Token_Arrays.Vector;
+      Config    : in out Configuration;
+      Index     : in out     WisiToken.Token_Index;
+      ID        : in     Token_ID);
+   --  Check that Terminals (Index) = ID. Append a Delete op to
+   --  Config.Ops, and insert it in Config.Insert_Delete in token_index
+   --  order. Increments Index, for convenience when deleting several
+   --  tokens.
 
    procedure Find_ID
      (Config         : in     Configuration;
@@ -162,7 +191,7 @@ private
    --  Last_Index; Insert_Delete is cleared and Current_Insert_Delete
    --  reset on next call.
    --
-   --  When done parsing, reset actual Terminals_Current to
+   --  When done parsing, caller must reset actual Terminals_Current to
    --  Restore_Terminals_Current.
    --
    --  Insert_Delete contains only Insert and Delete ops, in token_index
@@ -193,7 +222,8 @@ private
       Parser_Label : in     Natural;
       Terminals    : in     Base_Token_Arrays.Vector;
       Config       : in     Configuration;
-      Task_ID      : in     Boolean := True);
+      Task_ID      : in     Boolean := True;
+      Strategy     : in     Boolean := False);
    --  Put Message and an image of Config to Trace.
 
    procedure Put_Line
@@ -203,11 +233,25 @@ private
       Task_ID      : in     Boolean := True);
    --  Put message to Trace, with parser and task info.
 
+   function Undo_Reduce_Valid
+     (Stack : in out Recover_Stacks.Stack;
+      Tree  : in     Syntax_Trees.Tree)
+     return Boolean
+     is ((Stack.Peek.Tree_Index /= WisiToken.Syntax_Trees.Invalid_Node_Index and then
+            Tree.Is_Nonterm (Stack.Peek.Tree_Index)) or
+           (Stack.Peek.Tree_Index = WisiToken.Syntax_Trees.Invalid_Node_Index and
+              (not Stack.Peek.Token.Virtual and
+                 Stack.Peek.Token.Byte_Region = Null_Buffer_Region)));
+   --  Undo_Reduce needs to know what tokens the nonterm contains, to
+   --  push them on the stack. Thus we need either a valid Tree index, or
+   --  an empty nonterm. If Token.Virtual, we can't trust
+   --  Token.Byte_Region to determine empty.
+
    function Undo_Reduce
      (Stack : in out Recover_Stacks.Stack;
       Tree  : in     Syntax_Trees.Tree)
      return Ada.Containers.Count_Type
-   with Pre => Tree.Is_Nonterm (Stack (1).Tree_Index);
+   with Pre => Undo_Reduce_Valid (Stack, Tree);
    --  Undo the reduction that produced the top stack item, return the
    --  token count for that reduction.
 
@@ -223,5 +267,7 @@ private
       Tree     : in     Syntax_Trees.Tree;
       Expected : in     Token_ID_Array);
    --  Call Undo_Reduce_Check for each item in Expected.
+
+   package Task_Attributes is new Ada.Task_Attributes (Integer, 0);
 
 end WisiToken.Parse.LR.McKenzie_Recover;

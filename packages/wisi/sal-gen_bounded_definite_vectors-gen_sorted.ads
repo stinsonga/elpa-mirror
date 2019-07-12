@@ -2,7 +2,7 @@
 --
 --  Add sorted behavior to parent.
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018, 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -41,10 +41,12 @@ package SAL.Gen_Bounded_Definite_Vectors.Gen_Sorted is
 
    not overriding
    procedure Insert
-     (Container : in out Vector;
-      New_Item  : in     Element_Type);
+     (Container       : in out Vector;
+      New_Item        : in     Element_Type;
+      Ignore_If_Equal : in     Boolean := False);
    --  Insert New_Item in sorted position. Items are sorted in increasing
    --  order according to Element_Compare. New_Item is inserted after
-   --  Equal items.
+   --  Equal items, unless Ignore_If_Equal is true, in which case
+   --  New_Item is not inserted.
 
 end SAL.Gen_Bounded_Definite_Vectors.Gen_Sorted;

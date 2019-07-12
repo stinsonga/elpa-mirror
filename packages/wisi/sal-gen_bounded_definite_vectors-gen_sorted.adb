@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -39,8 +39,9 @@ package body SAL.Gen_Bounded_Definite_Vectors.Gen_Sorted is
    end Insert;
 
    procedure Insert
-     (Container : in out Vector;
-      New_Item  : in     Element_Type)
+     (Container       : in out Vector;
+      New_Item        : in     Element_Type;
+      Ignore_If_Equal : in     Boolean := False)
    is
       K : constant Base_Peek_Type := To_Peek_Index (Container.Last);
       J : Base_Peek_Type := K;
@@ -62,8 +63,12 @@ package body SAL.Gen_Bounded_Definite_Vectors.Gen_Sorted is
          when Less =>
             J := J - 1;
          when Equal =>
-            --  Insert after J
-            exit;
+            if Ignore_If_Equal then
+               return;
+            else
+               --  Insert after J
+               exit;
+            end if;
          when Greater =>
             --  Insert after J
             exit;

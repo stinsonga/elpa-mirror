@@ -108,7 +108,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Parse is
       --  We return Boolean, not Check_Status, because Abandon and Continue
       --  are up to the caller.
       --
-      --  If any actions have a conflict, append the conflict config and action to
+      --  If any actions have conflicts, append the conflict configs and actions to
       --  Parse_Items.
 
       use all type Ada.Containers.Count_Type;
@@ -122,6 +122,8 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Parse is
       Item   : Parse_Item renames Parse_Items (Parse_Item_Index);
       Config : Configuration renames Item.Config;
       Action : Parse_Action_Node_Ptr renames Item.Action;
+
+      Conflict : Parse_Action_Node_Ptr;
 
       Restore_Terminals_Current : Base_Token_Index;
       Current_Token             : Base_Token := McKenzie_Recover.Current_Token
@@ -137,10 +139,17 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Parse is
 
    begin
       if Trace_McKenzie > Detail then
+         if Trace_McKenzie > Extra then
+            if Config.Current_Insert_Delete /= No_Insert_Delete then
+               Put_Line (Trace, Super.Label (Parser_Index), Trace_Prefix & ": Insert_Delete: " &
+                           Image (Insert_Delete_Arrays.Vector (Config.Insert_Delete), Trace.Descriptor.all));
+            end if;
+         end if;
+
          Base.Put (Trace_Prefix & ": " & Image (Current_Token, Descriptor), Super, Shared, Parser_Index, Config);
          if Shared_Token_Goal /= Invalid_Token_Index then
             Put_Line (Trace, Super.Label (Parser_Index), Trace_Prefix & ": Shared_Token_Goal :" &
-                        Token_Index'Image (Shared_Token_Goal));
+                        WisiToken.Token_Index'Image (Shared_Token_Goal));
          end if;
       end if;
 
@@ -151,29 +160,41 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Parse is
       end if;
 
       loop
-         if Action.Next /= null then
+         Conflict := Action.Next;
+         loop
+            exit when Conflict = null;
             if Parse_Items.Is_Full then
                if Trace_McKenzie > Outline then
                   Put_Line (Trace, Super.Label (Parser_Index), Trace_Prefix & ": too many conflicts; abandoning");
                end if;
             else
-               if Trace_McKenzie > Detail then
-                  Put_Line
-                    (Trace, Super.Label (Parser_Index), Trace_Prefix & ":" & State_Index'Image
-                       (Config.Stack.Peek.State) & ": add conflict " &
-                       Image (Action.Next.Item, Descriptor));
-               end if;
+               declare
+                  New_Config : Configuration := Config;
+               begin
+                  New_Config.Current_Shared_Token := Restore_Terminals_Current;
 
-               Parse_Items.Append ((Config, Action.Next, Parsed => False, Shift_Count => 0));
+                  if Trace_McKenzie > Detail then
+                     Put_Line
+                       (Trace, Super.Label (Parser_Index), Trace_Prefix & ":" & State_Index'Image
+                          (New_Config.Stack.Peek.State) & ": add conflict " &
+                          Image (Conflict.Item, Descriptor));
+                  end if;
+
+                  Parse_Items.Append ((New_Config, Conflict, Parsed => False, Shift_Count => Item.Shift_Count));
+               end;
             end if;
-         end if;
+            Conflict := Conflict.Next;
+         end loop;
 
          if Trace_McKenzie > Extra then
             Put_Line
               (Trace, Super.Label (Parser_Index), Trace_Prefix & ":" & State_Index'Image (Config.Stack.Peek.State) &
-                 " :" & Token_Index'Image (Config.Current_Shared_Token) &
+                 " :" & WisiToken.Token_Index'Image (Config.Current_Shared_Token) &
                  ":" & Image (Current_Token, Descriptor) &
-                 " : " & Image (Action.Item, Descriptor));
+                 " : " & Image (Action.Item, Descriptor) &
+                 (if Action.Item.Verb = Reduce
+                  then " via" & Config.Stack (SAL.Peek_Type (Action.Item.Token_Count + 1)).State'Image
+                  else ""));
          end if;
 
          case Action.Item.Verb is
@@ -272,8 +293,8 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Parse is
    is
       Trace : WisiToken.Trace'Class renames Super.Trace.all;
 
-      Last_Index : Positive;
-      Success    : Boolean;
+      Last_Parsed : Natural;
+      Success     : Boolean;
    begin
       Parse_Items.Clear;
       Parse_Items.Append ((Config, Action => null, Parsed => False, Shift_Count => 0));
@@ -282,17 +303,17 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Parse is
       Parse_Items (Parse_Items.First_Index).Config.Error_Token.ID := Invalid_Token_ID;
       Parse_Items (Parse_Items.First_Index).Config.Check_Status   := (Label => Semantic_Checks.Ok);
 
+      Last_Parsed := Parse_Items.First_Index;
       loop
          --  Loop over initial config and any conflicts.
-         Last_Index := Parse_Items.Last_Index;
-
          Success := Parse_One_Item
-           (Super, Shared, Parser_Index, Parse_Items, Last_Index, Shared_Token_Goal, Trace_Prefix);
+           (Super, Shared, Parser_Index, Parse_Items, Last_Parsed, Shared_Token_Goal, Trace_Prefix);
 
-         exit when Parse_Items.Last_Index = Last_Index;
+         exit when Parse_Items.Last_Index = Last_Parsed;
 
          exit when Success and not All_Conflicts;
 
+         Last_Parsed := Last_Parsed + 1;
          if Trace_McKenzie > Detail then
             Put_Line (Trace, Super.Label (Parser_Index), Trace_Prefix & ": parse conflict");
          end if;

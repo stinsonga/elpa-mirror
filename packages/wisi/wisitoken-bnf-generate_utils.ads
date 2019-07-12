@@ -3,7 +3,7 @@
 --  Utilities for translating input file structures to WisiToken
 --  structures needed for LALR.Generate.
 --
---  Copyright (C) 2014, 2015, 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2014, 2015, 2017 - 2019 Free Software Foundation, Inc.
 --
 --  The WisiToken package is free software; you can redistribute it
 --  and/or modify it under terms of the GNU General Public License as
@@ -35,11 +35,11 @@ package WisiToken.BNF.Generate_Utils is
 
    type Generate_Data is limited record
       Tokens     : access constant WisiToken.BNF.Tokens;
-      Descriptor : access WisiToken.Descriptor;
+      Descriptor : WisiToken.Descriptor_Access;
       Grammar    : WisiToken.Productions.Prod_Arrays.Vector;
 
-      Action_Names : access Names_Array_Array;
-      Check_Names  : access Names_Array_Array;
+      Action_Names : Names_Array_Array_Access;
+      Check_Names  : Names_Array_Array_Access;
       --  Names of subprograms for each grammar semantic action and check;
       --  non-null only if there is an action or check in the grammar.
 
@@ -49,16 +49,17 @@ package WisiToken.BNF.Generate_Utils is
       --  The following fields are LR specific; so far, it's not worth
       --  splitting them out.
 
-      Conflicts                    : WisiToken.Generate.LR.Conflict_Lists.List;
-      LR_Parse_Table               : WisiToken.Parse.LR.Parse_Table_Ptr;
-      Table_Actions_Count          : Integer                       := -1; -- parse, not user, actions
-      Parser_State_Count           : WisiToken.Unknown_State_Index := 0;
-      Accept_Reduce_Conflict_Count : Integer                       := 0;
-      Shift_Reduce_Conflict_Count  : Integer                       := 0;
-      Reduce_Reduce_Conflict_Count : Integer                       := 0;
+      Ignore_Conflicts    : Boolean                       := False;
+      Conflicts           : WisiToken.Generate.LR.Conflict_Lists.List;
+      LR_Parse_Table      : WisiToken.Parse.LR.Parse_Table_Ptr;
+      Table_Actions_Count : Integer                       := -1; -- parse, not user, actions
+      Parser_State_Count  : WisiToken.Unknown_State_Index := 0;
    end record;
 
-   function Initialize (Input_Data : aliased in WisiToken_Grammar_Runtime.User_Data_Type) return Generate_Data;
+   function Initialize
+     (Input_Data       : aliased in WisiToken_Grammar_Runtime.User_Data_Type;
+      Ignore_Conflicts :         in Boolean := False)
+     return Generate_Data;
 
    function Find_Token_ID (Data : aliased in Generate_Data; Token : in String) return Token_ID;
 
@@ -129,7 +130,7 @@ package WisiToken.BNF.Generate_Utils is
    --  Return the token value from the .wy file:
    --  Keywords: Keywords (i).value
    --  Tokens  : Tokens (i).Tokens (j).Value
-   --  Rules   : "" - they have no Value
+   --  Rules   : empty string (they have no Value)
 
    function To_Conflicts
      (Data             : aliased in out Generate_Data;
@@ -144,9 +145,8 @@ package WisiToken.BNF.Generate_Utils is
      return Token_ID_Set;
 
    function To_McKenzie_Param
-     (Data             : aliased in Generate_Data;
-      Item             :         in McKenzie_Recover_Param_Type;
-      Source_File_Name :         in String)
+     (Data : aliased in Generate_Data;
+      Item :         in McKenzie_Recover_Param_Type)
      return WisiToken.Parse.LR.McKenzie_Param_Type;
 
    procedure Count_Actions (Data : in out Generate_Utils.Generate_Data);

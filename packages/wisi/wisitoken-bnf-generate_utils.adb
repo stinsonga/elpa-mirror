@@ -2,7 +2,7 @@
 --
 --  see spec
 --
---  Copyright (C) 2014, 2015, 2017, 2018  All Rights Reserved.
+--  Copyright (C) 2014, 2015, 2017 - 2019  All Rights Reserved.
 --
 --  This program is free software; you can redistribute it and/or
 --  modify it under terms of the GNU General Public License as
@@ -47,7 +47,7 @@ package body WisiToken.BNF.Generate_Utils is
 
    function Name_1 (Cursor : in Token_Cursor) return String
    is begin
-      --   This function is used to compute LR1_descriptor.Image
+      --   This function is used to compute Descriptor.Image
       case Cursor.Kind is
       when Non_Grammar_Kind =>
          declare
@@ -128,7 +128,8 @@ package body WisiToken.BNF.Generate_Utils is
       when Not_Found =>
          Put_Error
            (Error_Message
-              (Source_File_Name, 1, "start token '" & (Start_Token) & "' not found; need %start?"));
+              (Source_File_Name, 1,
+               "start token '" & (Start_Token) & "' not found; need %start?"));
       end;
 
       for Rule of Data.Tokens.Rules loop
@@ -138,8 +139,8 @@ package body WisiToken.BNF.Generate_Utils is
             LHS              : Token_ID; -- not initialized for exception handler
             Action_Names     : Names_Array (0 .. Integer (Rule.Right_Hand_Sides.Length) - 1);
             Action_All_Empty : Boolean := True;
-            Check_Names     : Names_Array (0 .. Integer (Rule.Right_Hand_Sides.Length) - 1);
-            Check_All_Empty : Boolean := True;
+            Check_Names      : Names_Array (0 .. Integer (Rule.Right_Hand_Sides.Length) - 1);
+            Check_All_Empty  : Boolean := True;
          begin
             LHS := Find_Token_ID (Data, -Rule.Left_Hand_Side);
 
@@ -161,7 +162,7 @@ package body WisiToken.BNF.Generate_Utils is
                      Tokens.Set_First (I);
                      Tokens.Set_Last (Integer (Right_Hand_Side.Tokens.Length));
                      for Token of Right_Hand_Side.Tokens loop
-                        Tokens (I) := Find_Token_ID (Data, Token);
+                        Tokens (I) := Find_Token_ID (Data, -Token.Identifier);
                         I := I + 1;
                      end loop;
                   end if;
@@ -211,7 +212,10 @@ package body WisiToken.BNF.Generate_Utils is
    ----------
    --  Public subprograms, declaration order
 
-   function Initialize (Input_Data : aliased in WisiToken_Grammar_Runtime.User_Data_Type) return Generate_Data
+   function Initialize
+     (Input_Data       : aliased in WisiToken_Grammar_Runtime.User_Data_Type;
+      Ignore_Conflicts :         in Boolean := False)
+     return Generate_Data
    is
       EOI_ID : constant Token_ID := Token_ID
         (Count (Input_Data.Tokens.Non_Grammar) + Count (Input_Data.Tokens.Tokens)) + Token_ID
@@ -235,13 +239,8 @@ package body WisiToken.BNF.Generate_Utils is
       do
          Result.Descriptor.Case_Insensitive := Input_Data.Language_Params.Case_Insensitive;
          Result.Descriptor.New_Line_ID      := Find_Kind (Result, "new-line");
-         Result.Descriptor.Comment_ID       := Find_Kind (Result, "comment");
-         Result.Descriptor.Left_Paren_ID    := Find_Kind (Result, "left-paren");
-         Result.Descriptor.Right_Paren_ID   := Find_Kind (Result, "right-paren");
          Result.Descriptor.String_1_ID      := Find_Kind (Result, "string-single");
          Result.Descriptor.String_2_ID      := Find_Kind (Result, "string-double");
-
-         Result.Descriptor.Embedded_Quote_Escape_Doubled := Input_Data.Language_Params.Embedded_Quote_Escape_Doubled;
 
          --  Image set in loop below, which also updates these widths.
          Result.Descriptor.Terminal_Image_Width := 0;
@@ -249,7 +248,7 @@ package body WisiToken.BNF.Generate_Utils is
 
          Result.Descriptor.Last_Lookahead       :=
            (case (Input_Data.User_Parser) is
-            when None                                  => raise SAL.Programmer_Error,
+            when None                                  => Invalid_Token_ID,
             when LR1                                   => Result.Descriptor.Last_Terminal,
             when LALR                                  => Result.Descriptor.First_Nonterminal,
             when Packrat_Generate_Algorithm | External => Invalid_Token_ID);
@@ -271,6 +270,7 @@ package body WisiToken.BNF.Generate_Utils is
          end loop;
 
          To_Grammar (Result, Input_Data.Grammar_Lexer.File_Name, -Input_Data.Language_Params.Start_Token);
+         Result.Ignore_Conflicts := Ignore_Conflicts;
       end return;
    end Initialize;
 
@@ -416,6 +416,7 @@ package body WisiToken.BNF.Generate_Utils is
          end if;
 
       when Terminals_Others =>
+
          Cursor :=
            (Data        => Cursor.Data,
             Kind        => EOI,
@@ -448,6 +449,7 @@ package body WisiToken.BNF.Generate_Utils is
          end if;
 
       when WisiToken_Accept =>
+
          Cursor :=
            (Data        => Cursor.Data,
             Kind        => Nonterminal,
@@ -462,7 +464,6 @@ package body WisiToken.BNF.Generate_Utils is
 
       when Nonterminal =>
          Cursor.Kind := Done;
-
          return True;
 
       when Done =>
@@ -574,9 +575,14 @@ package body WisiToken.BNF.Generate_Utils is
 
       when Nonterminal =>
          Rule_Lists.Next (Cursor.Nonterminal);
-         if not Rule_Lists.Has_Element (Cursor.Nonterminal) then
-            Cursor.Kind := Done;
+         if Rule_Lists.Has_Element (Cursor.Nonterminal) then
+            return;
          end if;
+
+         loop
+            exit when Next_Kind_Internal (Cursor, Nonterminals);
+         end loop;
+         return;
 
       when Done =>
          null;
@@ -672,14 +678,9 @@ package body WisiToken.BNF.Generate_Utils is
      return WisiToken.Generate.LR.Conflict_Lists.List
    is
       use WisiToken.Generate.LR;
-      use all type WisiToken.Parse.LR.Parse_Action_Verbs;
       Result   : WisiToken.Generate.LR.Conflict_Lists.List;
       Conflict : WisiToken.Generate.LR.Conflict;
    begin
-      Data.Accept_Reduce_Conflict_Count := 0;
-      Data.Shift_Reduce_Conflict_Count  := 0;
-      Data.Reduce_Reduce_Conflict_Count := 0;
-
       for Item of Conflicts loop
          begin
             Conflict :=
@@ -690,21 +691,14 @@ package body WisiToken.BNF.Generate_Utils is
                -1,
                Find_Token_ID (Data, -Item.On));
 
-            case Conflict.Action_A is
-            when Shift =>
-               Data.Shift_Reduce_Conflict_Count := Data.Shift_Reduce_Conflict_Count + 1;
-            when Reduce =>
-               Data.Reduce_Reduce_Conflict_Count := Data.Reduce_Reduce_Conflict_Count + 1;
-            when Accept_It =>
-               Data.Accept_Reduce_Conflict_Count := Data.Reduce_Reduce_Conflict_Count + 1;
-            end case;
-
             Result.Append (Conflict);
          exception
          when E : Not_Found =>
-            Put_Error
-              (Error_Message
-                 (Source_File_Name, Item.Source_Line, Ada.Exceptions.Exception_Message (E)));
+            if not Data.Ignore_Conflicts then
+               Put_Error
+                 (Error_Message
+                    (Source_File_Name, Item.Source_Line, Ada.Exceptions.Exception_Message (E)));
+            end if;
          end;
       end loop;
       return Result;
@@ -724,9 +718,8 @@ package body WisiToken.BNF.Generate_Utils is
    end To_Nonterminal_ID_Set;
 
    function To_McKenzie_Param
-     (Data             : aliased in Generate_Data;
-      Item             :         in McKenzie_Recover_Param_Type;
-      Source_File_Name :         in String)
+     (Data : aliased in Generate_Data;
+      Item :         in McKenzie_Recover_Param_Type)
      return WisiToken.Parse.LR.McKenzie_Param_Type
    is
       use Ada.Strings.Unbounded;
@@ -738,34 +731,30 @@ package body WisiToken.BNF.Generate_Utils is
          Data.Descriptor.Last_Terminal,
          Data.Descriptor.First_Nonterminal,
          Data.Descriptor.Last_Nonterminal,
-         Insert            => (others => Item.Default_Insert),
-         Delete            => (others => Item.Default_Delete_Terminal),
-         Push_Back         => (others => Item.Default_Push_Back),
-         Ignore_Check_Fail => Item.Ignore_Check_Fail,
-         Task_Count        => 0,
-         Cost_Limit        => Item.Cost_Limit,
-         Check_Limit       => Item.Check_Limit,
-         Check_Delta_Limit => Item.Check_Delta_Limit,
-         Enqueue_Limit     => Item.Enqueue_Limit);
-
-      ID : Token_ID;
+         Insert                      => (others => Item.Default_Insert),
+         Delete                      => (others => Item.Default_Delete_Terminal),
+         Push_Back                   => (others => Item.Default_Push_Back),
+         Undo_Reduce                 => (others => Item.Default_Push_Back), -- no separate default for undo_reduce
+         Minimal_Complete_Cost_Delta => Item.Minimal_Complete_Cost_Delta,
+         Fast_Forward                => Item.Fast_Forward,
+         Matching_Begin              => Item.Matching_Begin,
+         Ignore_Check_Fail           => Item.Ignore_Check_Fail,
+         Task_Count                  => 0,
+         Check_Limit                 => Item.Check_Limit,
+         Check_Delta_Limit           => Item.Check_Delta_Limit,
+         Enqueue_Limit               => Item.Enqueue_Limit);
    begin
       for Pair of Item.Delete loop
-         ID := Find_Token_ID (Data, -Pair.Name);
-         if ID in Result.Delete'Range then
-            Result.Delete (ID) := Natural'Value (-Pair.Value);
-         else
-            Put_Error
-              (Error_Message
-                 (Source_File_Name, Item.Source_Line, "delete cost is only valid for terminals (" &
-                    WisiToken.Image (ID, Data.Descriptor.all) & ")"));
-         end if;
+         Result.Delete (Find_Token_ID (Data, -Pair.Name)) := Natural'Value (-Pair.Value);
       end loop;
       for Pair of Item.Insert loop
          Result.Insert (Find_Token_ID (Data, -Pair.Name)) := Natural'Value (-Pair.Value);
       end loop;
       for Pair of Item.Push_Back loop
          Result.Push_Back (Find_Token_ID (Data, -Pair.Name)) := Natural'Value (-Pair.Value);
+      end loop;
+      for Pair of Item.Undo_Reduce loop
+         Result.Undo_Reduce (Find_Token_ID (Data, -Pair.Name)) := Natural'Value (-Pair.Value);
       end loop;
 
       return Result;
@@ -793,10 +782,6 @@ package body WisiToken.BNF.Generate_Utils is
            Integer'Image (Input_Data.Check_Count) & " checks," &
            WisiToken.State_Index'Image (Generate_Data.Parser_State_Count) & " states," &
            Integer'Image (Generate_Data.Table_Actions_Count) & " parse actions");
-      Put_Line
-        (Integer'Image (Generate_Data.Accept_Reduce_Conflict_Count) & " accept/reduce conflicts," &
-           Integer'Image (Generate_Data.Shift_Reduce_Conflict_Count) & " shift/reduce conflicts," &
-           Integer'Image (Generate_Data.Reduce_Reduce_Conflict_Count) & " reduce/reduce conflicts");
    end Put_Stats;
 
    function Actions_Length (State : in Parse.LR.Parse_State) return Integer

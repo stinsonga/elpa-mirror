@@ -89,6 +89,8 @@ point at which that max was spawned.")
   ;; not buffer-local; only let-bound in wisi-parse-current (elisp)
   "A vector of indentation for all lines in buffer.
 Each element can be one of:
+- nil : no indent set yet
+
 - integer : indent
 
 - list ('anchor (start-id ...) indent)  :
@@ -127,7 +129,7 @@ BEGIN, END are ignored"
     (cl-case wisi--parse-action
       (indent
        (let ((line-count (1+ (count-lines (point-min) (point-max)))))
-	 (setq wisi-elisp-parse--indent (make-vector line-count 0))
+	 (setq wisi-elisp-parse--indent (make-vector line-count nil))
 	 (wisi-elisp-lexer-reset line-count wisi--lexer)))
 
       (navigate
@@ -719,7 +721,12 @@ grammar action as:
 
 	    (setq i (1+ i))
 
-	    (unless (seq-contains wisi-class-list class)
+	    (unless
+		(cond
+		 ((fboundp 'seq-contains)  ;; emacs < 27
+		    (seq-contains wisi-class-list class))
+		 ((fboundp 'seq-contains-p) ;; emacs >= 27
+		  (seq-contains-p wisi-class-list class)))
 	      (error "%s not in wisi-class-list" class))
 
 	    (if region
@@ -774,6 +781,18 @@ grammar action as:
 			 (eq class 'statement-start))
 		(setq override-start class)))
 	    ))
+	))))
+
+(defun wisi-name-action (name)
+  ;; Not wisi-elisp-parse--name-action to simplify grammar files
+  "NAME is a token number; mark that token with the 'wisi-name text property.
+Intended as a grammar action."
+  (when (eq wisi--parse-action 'navigate)
+    (let ((region (wisi-tok-region (aref wisi-tokens (1- name)))))
+      (when region
+	;; region can be null on an optional or virtual token
+	(with-silent-modifications
+	  (put-text-property (car region) (cdr region) 'wisi-name t))
 	))))
 
 (defun wisi-containing-action (containing-token contained-token)
@@ -1154,30 +1173,29 @@ Let-bound in `wisi-indent-action', for grammar actions.")
   "Non-nil if computing indent for comment.
 Let-bound in `wisi-indent-action', for grammar actions.")
 
-(defun wisi-elisp-parse--indent-zero-p (indent)
-  (cond
-   ((integerp indent)
-    (= indent 0))
-
-   (t ;; 'anchor
-    (integerp (nth 2 indent)))
-   ))
-
 (defun wisi-elisp-parse--apply-int (i delta)
   "Add DELTA (an integer) to the indent at index I."
   (let ((indent (aref wisi-elisp-parse--indent i))) ;; reference if list
 
     (cond
+     ((null indent)
+      (aset wisi-elisp-parse--indent i delta))
+
      ((integerp indent)
       (aset wisi-elisp-parse--indent i (+ delta indent)))
 
      ((listp indent)
       (cond
        ((eq 'anchor (car indent))
-	(when (integerp (nth 2 indent))
-	  (setf (nth 2 indent) (+ delta (nth 2 indent)))
-	  ;; else anchored; not affected by this delta
-	  ))
+	(cond
+	 ((null (nth 2 indent))
+	  (setf (nth 2 indent) delta))
+
+	 ((integerp (nth 2 indent))
+	  (setf (nth 2 indent) (+ delta (nth 2 indent))))
+
+	 ;; else anchored; not affected by this delta
+	 ))
 
        ((eq 'anchored (car indent))
 	;; not affected by this delta
@@ -1193,23 +1211,38 @@ Let-bound in `wisi-indent-action', for grammar actions.")
   (let ((indent (aref wisi-elisp-parse--indent i))
 	(accumulate (not (nth 3 delta))))
 
-    (cond
-     ((integerp indent)
-      (when (or accumulate
-		(= indent 0))
-	(let ((temp (seq-take delta 3)))
-    	  (setf (nth 2 temp) (+ indent (nth 2 temp)))
-	  (aset wisi-elisp-parse--indent i temp))))
+    (when delta
+      (cond
+       ((null indent)
+	(aset wisi-elisp-parse--indent i (seq-take delta 3)))
 
-     ((and (listp indent)
-	   (eq 'anchor (car indent))
-	   (integerp (nth 2 indent)))
-      (when (or accumulate
-		(= (nth 2 indent) 0))
-	(let ((temp (seq-take delta 3)))
-	  (setf (nth 2 temp) (+ (nth 2 indent) (nth 2 temp)))
-	  (setf (nth 2 indent) temp))))
-     )))
+       ((integerp indent)
+	(when accumulate
+	  (let ((temp (seq-take delta 3)))
+    	    (setf (nth 2 temp) (+ indent (nth 2 temp)))
+	    (aset wisi-elisp-parse--indent i temp))))
+
+       ((and (listp indent)
+	     (eq 'anchor (car indent))
+	     (or (null (nth 2 indent))
+		 (integerp (nth 2 indent))))
+	(when (or (null (nth 2 indent))
+		  accumulate)
+	  (let ((temp (seq-take delta 3)))
+	    (cond
+	     ((null (nth 2 indent))
+	      (setf (nth 2 indent) temp))
+
+	     (t
+	      (setf (nth 2 temp) (+ (nth 2 indent) (nth 2 temp)))
+	      (setf (nth 2 indent) temp))))
+	  ))
+       ))))
+
+(defun wisi-elisp-parse--indent-null-p (indent)
+  (or (null indent)
+      (and (eq 'anchor (nth 0 indent))
+	   (null (nth 2 indent)))))
 
 (defun wisi-elisp-parse--indent-token-1 (line end delta)
   "Apply indent DELTA to all lines from LINE (a line number) thru END (a buffer position)."
@@ -1219,12 +1252,13 @@ Let-bound in `wisi-indent-action', for grammar actions.")
 		       (nth 2 delta))))
 
     (while (<= (aref (wisi-elisp-lexer-line-begin wisi--lexer) i) end)
-      (unless
+      (if
 	  (and ;; no check for called from wisi--indent-comment;
 	       ;; comments within tokens are indented by
 	       ;; wisi--indent-token
 	       wisi-indent-comment-col-0
 	       (= 11 (syntax-class (syntax-after (aref (wisi-elisp-lexer-line-begin wisi--lexer) i)))))
+	  (wisi-elisp-parse--apply-int i 0)
 	(cond
 	 ((integerp delta)
 	  (wisi-elisp-parse--apply-int i delta))
@@ -1238,7 +1272,7 @@ Let-bound in `wisi-indent-action', for grammar actions.")
 	    ;; from wisi-hanging; delta is ('hanging first-line nest delta1 delta2 no-accumulate)
 	    ;; delta1, delta2 may be anchored
 	    (when (or (not (nth 5 delta))
-		      (wisi-elisp-parse--indent-zero-p (aref wisi-elisp-parse--indent i)))
+		      (wisi-elisp-parse--indent-null-p (aref wisi-elisp-parse--indent i)))
 	      (if (= i (1- (nth 1 delta)))
 		  ;; apply delta1
 		  (let ((delta1 (nth 3 delta)))
@@ -1319,11 +1353,11 @@ For use in grammar indent actions."
     (while (and (< i max-i)
 		(<= (aref (wisi-elisp-lexer-line-begin wisi--lexer) i) end))
       (let ((indent (aref wisi-elisp-parse--indent i)))
-	(when (listp indent)
+	(when (and indent (listp indent))
 	  (cond
 	   ((eq 'anchor (car indent))
 	    (setq result (max result (car (nth 1 indent))))
-	    (when (listp (nth 2 indent))
+	    (when (and (nth 2 indent) (listp (nth 2 indent)))
 	      (setq result (max result (nth 1 (nth 2 indent))))
 	      ))
 	   (t ;; anchored
@@ -1372,7 +1406,9 @@ For use in grammar indent actions."
 
     ;; Set anchor
     (cond
-     ((integerp indent)
+     ((or
+       (null indent)
+       (integerp indent))
       (aset wisi-elisp-parse--indent i (list 'anchor (list anchor-id) indent)))
 
      ((and (listp indent)
@@ -1577,9 +1613,7 @@ DELTAS."
 			     (wisi-tok-first tok))
 		    (wisi-elisp-parse--indent-compute-delta token-delta tok)))
 
-	    (when (and token-delta
-		       (or (consp token-delta)
-			   (not (= 0 token-delta))))
+	    (when token-delta
 	      (wisi-elisp-parse--indent-token tok token-delta))
 
 	    (setq wisi-indent-comment t)
@@ -1588,9 +1622,7 @@ DELTAS."
 			     (wisi-tok-comment-line tok))
 		    (wisi-elisp-parse--indent-compute-delta comment-delta tok)))
 
-	    (when (and comment-delta
-		       (or (consp comment-delta)
-			   (not (= 0 comment-delta))))
+	    (when comment-delta
 	      (wisi-elisp-parse--indent-comment tok comment-delta))
 	    )
 	  )))))
@@ -1640,7 +1672,8 @@ Leave point at first token (or eob)."
       (let ((indent (aref wisi-elisp-parse--indent i)))
 
 	(cond
-	 ((integerp indent))
+	 ((or (null indent)
+	      (integerp indent)))
 
 	 ((listp indent)
 	  (let ((anchor-ids (nth 1 indent))
@@ -1648,6 +1681,8 @@ Leave point at first token (or eob)."
 	    (cond
 	     ((eq 'anchor (car indent))
 	      (cond
+	       ((null indent2))
+
 	       ((integerp indent2)
 		(dotimes (i (length anchor-ids))
 		  (aset anchor-indent (nth i anchor-ids) indent2))

@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2018 Stephen Leake All Rights Reserved.
+--  Copyright (C) 2018 - 2019 Stephen Leake All Rights Reserved.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -18,7 +18,11 @@
 pragma License (Modified_GPL);
 
 with Ada.Strings.Unbounded;
-function SAL.Gen_Unbounded_Definite_Vectors.Gen_Image_Aux (Item : in Vector; Aux : in Aux_Data) return String
+function SAL.Gen_Unbounded_Definite_Vectors.Gen_Image_Aux
+  (Item        : in Vector;
+   Aux         : in Aux_Data;
+   Association : in Boolean := False)
+  return String
 is
    use Ada.Strings.Unbounded;
    Result : Unbounded_String        := To_Unbounded_String ("(");
@@ -26,6 +30,9 @@ is
    Last   : constant Base_Peek_Type := To_Peek_Type (Item.Last_Index);
 begin
    for I in First .. Last loop
+      if Association then
+         Result := Result & Index_Trimmed_Image (To_Index_Type (I)) & " => ";
+      end if;
       Result := Result & Element_Image (Item.Elements (I), Aux);
       if I /= Last then
          Result := Result & ", ";

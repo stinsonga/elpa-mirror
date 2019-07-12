@@ -20,13 +20,12 @@
 --
 --  This file is part of the WisiToken package.
 --
---  The WisiToken package is free software; you can redistribute it
---  and/or modify it under terms of the GNU General Public License as
---  published by the Free Software Foundation; either version 3, or
---  (at your option) any later version. This library is distributed in
---  the hope that it will be useful, but WITHOUT ANY WARRANTY; without
---  even the implied warranty of MERCHANTABILITY or FITNESS FOR A
---  PARTICULAR PURPOSE.
+--  This library is free software;  you can redistribute it and/or modify it
+--  under terms of the  GNU General Public License  as published by the Free
+--  Software  Foundation;  either version 3,  or (at your  option) any later
+--  version. This library is distributed in the hope that it will be useful,
+--  but WITHOUT ANY WARRANTY;  without even the implied warranty of MERCHAN-
+--  TABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 --
 --  As a special exception under Section 7 of GPL version 3, you are granted
 --  additional permissions described in the GCC Runtime Library Exception,
@@ -79,6 +78,7 @@ package WisiToken is
    package State_Index_Queues is new SAL.Gen_Unbounded_Definite_Queues (State_Index);
    package State_Index_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
      (Positive, State_Index, Default_Element => State_Index'Last);
+   function Trimmed_Image is new SAL.Gen_Trimmed_Image (Integer);
    function Image is new State_Index_Arrays.Gen_Image (Trimmed_Image);
 
    ----------
@@ -88,7 +88,8 @@ package WisiToken is
 
    Invalid_Token_ID : constant Token_ID := Token_ID'Last;
 
-   type Token_ID_Array_String is array (Token_ID range <>) of access constant String;
+   type String_Access_Constant is access constant String;
+   type Token_ID_Array_String is array (Token_ID range <>) of String_Access_Constant;
    type Token_ID_Array_Natural is array (Token_ID range <>) of Natural;
 
    type Descriptor
@@ -108,25 +109,16 @@ package WisiToken is
       --
       --  Components are discriminants if they can be specified statically.
 
-      Case_Insensitive : Boolean; -- keywords and names
+      Case_Insensitive : Boolean;  -- keywords and names
       New_Line_ID      : Token_ID;
-      Comment_ID       : Token_ID;
-      Left_Paren_ID    : Token_ID;
-      Right_Paren_ID   : Token_ID;
-      --  If the language does not define these tokens, set them to
-      --  Invalid_Token_ID.
 
-      String_1_ID  : Token_ID; -- delimited by ', error if New_Line_ID
-      String_2_ID  : Token_ID; -- delimited by ", error if New_Line_ID
+      String_1_ID : Token_ID;
+      String_2_ID : Token_ID;
+      --  String_1 delimited by '; String_2 by ".
       --
-      --  Support for missing quote error recovery. If the language does not
+      --  Used by missing quote error recovery. If the language does not
       --  have two kinds of string literals, set one or both of these to
       --  Invalid_Token_ID.
-
-      Embedded_Quote_Escape_Doubled : Boolean;
-      --  True if quote characters embedded in strings are escaped by
-      --  doubling (as in Ada); false if by preceding with backslash (as in
-      --  C).
 
       Image : Token_ID_Array_String (Token_ID'First .. Last_Nonterminal);
       --  User names for tokens.
@@ -134,14 +126,16 @@ package WisiToken is
       Terminal_Image_Width : Integer;
       Image_Width          : Integer; --  max width of Image
 
+      Last_Lookahead : Token_ID;
       --  LALR generate needs a 'Propagate_ID' lookahead that is distinct
       --  from all terminals. Since lookaheads are Token_ID_Set, we need to
       --  allocate First_Terminal .. Last_Terminal for LR1 generate, and
       --  First_Terminal .. Propagate_ID for LALR generate, so we define
       --  Last_Lookahead. After the LR table is generated, Last_Lookahead is
       --  no longer used.
-      Last_Lookahead : Token_ID;
    end record;
+   type Descriptor_Access is access Descriptor;
+   type Descriptor_Access_Constant is access constant Descriptor;
 
    function Padded_Image (Item : in Token_ID; Desc : in Descriptor) return String;
    --  Return Desc.Image (Item), padded to Terminal_Image_Width (if Item
@@ -160,19 +154,22 @@ package WisiToken is
    --  Return index of Name in Descriptor.Image. If not found, raise Programmer_Error.
 
    type Token_ID_Array is array (Positive range <>) of Token_ID;
+   --  Index is not Positive_Index_Type, mostly for historical reasons.
 
    package Token_ID_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
      (Positive, Token_ID, Default_Element => Invalid_Token_ID);
 
-   function Image is new Token_ID_Arrays.Gen_Image_Aux (Descriptor, Image);
+   function Image is new Token_ID_Arrays.Gen_Image_Aux (Descriptor, Trimmed_Image, Image);
    function Trimmed_Image is new Token_ID_Arrays.Gen_Image (Trimmed_Image);
 
    procedure To_Vector (Item : in Token_ID_Array; Vector : in out Token_ID_Arrays.Vector);
+   function To_Vector (Item : in Token_ID_Array) return Token_ID_Arrays.Vector;
 
    function Shared_Prefix (A, B : in Token_ID_Arrays.Vector) return Natural;
    --  Return last index in A of a prefix shared between A, B; 0 if none.
 
    type Token_ID_Set is array (Token_ID range <>) of Boolean;
+   type Token_ID_Set_Access is access Token_ID_Set;
 
    function "&" (Left : in Token_ID_Set; Right : in Token_ID) return Token_ID_Set;
    --  Include Left and Right in result.
@@ -250,6 +247,22 @@ package WisiToken is
    function "+" (Item : in Production_ID_Array) return Production_ID_Arrays.Vector renames To_Vector;
    function "+" (Item : in Production_ID) return Production_ID_Arrays.Vector is (To_Vector ((1 => Item)));
 
+   type Recursion is
+     (None,
+      Single, --  Single token in right hand side is recursive.
+      Middle, --  Multiple tokens in right hand side, recursive token not at either end.
+      Right,  --  Multiple tokens in right hand side, recursive token not at right end.
+      Left    --  Multiple tokens in right hand side, recursive token not at left end.
+     );
+   --  In worst-case order; Left recursion causes the most
+   --  problems in LR error recovery, and in Packrat.
+
+   function Worst_Recursion (A, B : in Recursion) return Recursion
+   is (Recursion'Max (A, B));
+
+   function Net_Recursion (A, B : in Recursion) return Recursion;
+   --  For finding the net recursion of a chain; Middle dominates.
+
    ----------
    --  Tokens
 
@@ -274,6 +287,7 @@ package WisiToken is
    --  Return region enclosing both Left and Right.
 
    type Line_Number_Type is range 1 .. Natural'Last; -- Match Emacs buffer line numbers.
+   function Trimmed_Image is new SAL.Gen_Trimmed_Image (Line_Number_Type);
 
    Invalid_Line_Number : constant Line_Number_Type := Line_Number_Type'Last;
 
@@ -296,7 +310,6 @@ package WisiToken is
    end record;
 
    type Base_Token_Class_Access is access all Base_Token'Class;
-   type Base_Token_Class_Access_Array is array (Positive_Index_Type range <>) of Base_Token_Class_Access;
 
    function Image
      (Item       : in Base_Token;
@@ -313,6 +326,8 @@ package WisiToken is
 
    Invalid_Token_Index : constant Base_Token_Index := Base_Token_Index'First;
 
+   function Trimmed_Image is new SAL.Gen_Trimmed_Image (Base_Token_Index);
+
    type Token_Index_Array is array (Natural range <>) of Token_Index;
 
    package Recover_Token_Index_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
@@ -324,16 +339,16 @@ package WisiToken is
      (Token_Index, Base_Token, Default_Element => (others => <>));
    type Base_Token_Array_Access is access all Base_Token_Arrays.Vector;
 
-   package Line_Begin_Token_Vectors is new SAL.Gen_Unbounded_Definite_Vectors
-     (Line_Number_Type, Base_Token_Index, Default_Element => Invalid_Token_Index);
-
-   function Image is new Base_Token_Arrays.Gen_Image_Aux (WisiToken.Descriptor, Image);
+   function Image is new Base_Token_Arrays.Gen_Image_Aux (WisiToken.Descriptor, Trimmed_Image, Image);
 
    function Image
      (Token      : in Base_Token_Index;
       Terminals  : in Base_Token_Arrays.Vector;
       Descriptor : in WisiToken.Descriptor)
      return String;
+
+   package Line_Begin_Token_Vectors is new SAL.Gen_Unbounded_Definite_Vectors
+     (Line_Number_Type, Base_Token_Index, Default_Element => Invalid_Token_Index);
 
    type Recover_Token is record
       --  Maintaining a syntax tree during recover is too slow, so we store
@@ -348,13 +363,14 @@ package WisiToken is
 
       Min_Terminal_Index : Base_Token_Index := Invalid_Token_Index;
       --  For terminals, index of this token in Shared_Parser.Terminals. For
-      --  nonterminals, minimum of contained tokens. For virtuals,
-      --  Invalid_Token_Index. Used for push_back of nonterminals.
+      --  nonterminals, minimum of contained tokens (Invalid_Token_Index if
+      --  empty). For virtuals, Invalid_Token_Index. Used for push_back of
+      --  nonterminals.
 
       Name : Buffer_Region := Null_Buffer_Region;
       --  Set and used by semantic_checks.
 
-      Virtual : Boolean := False;
+      Virtual : Boolean := True;
       --  For terminals, True if inserted by recover. For nonterminals, True
       --  if any contained token has Virtual = True. Used by Semantic_Checks
       --  and push_back.
@@ -370,7 +386,13 @@ package WisiToken is
    package Recover_Token_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
      (Token_Index, Recover_Token, Default_Element => (others => <>));
 
-   function Image is new Recover_Token_Arrays.Gen_Image_Aux (WisiToken.Descriptor, Image);
+   function Image is new Recover_Token_Arrays.Gen_Image_Aux (WisiToken.Descriptor, Trimmed_Image, Image);
+
+   type Base_Identifier_Index is range 0 .. Integer'Last;
+   subtype Identifier_Index is Base_Identifier_Index range 1 .. Base_Identifier_Index'Last;
+   --  For virtual identifiers created during syntax tree rewrite.
+
+   Invalid_Identifier_Index : constant Base_Identifier_Index := Base_Identifier_Index'First;
 
    ----------
    --  Trace, debug
@@ -432,7 +454,6 @@ package WisiToken is
    function "-" (Item : in Ada.Strings.Unbounded.Unbounded_String) return String
      renames Ada.Strings.Unbounded.To_String;
 
-   function Trimmed_Image is new SAL.Gen_Trimmed_Image (Integer);
    function Trimmed_Image is new SAL.Gen_Trimmed_Image (Ada.Containers.Count_Type);
 
    function Error_Message
@@ -443,8 +464,9 @@ package WisiToken is
      return String;
    --  Return Gnu-formatted error message.
 
-   type Names_Array is array (Integer range <>) of access constant String;
+   type Names_Array is array (Integer range <>) of String_Access_Constant;
    type Names_Array_Access is access Names_Array;
    type Names_Array_Array is array (WisiToken.Token_ID range <>) of Names_Array_Access;
+   type Names_Array_Array_Access is access Names_Array_Array;
 
 end WisiToken;

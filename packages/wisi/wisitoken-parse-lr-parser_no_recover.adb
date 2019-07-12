@@ -27,6 +27,7 @@
 
 pragma License (Modified_GPL);
 
+with Ada.Exceptions;
 package body WisiToken.Parse.LR.Parser_No_Recover is
 
    procedure Reduce_Stack_1
@@ -81,20 +82,31 @@ package body WisiToken.Parse.LR.Parser_No_Recover is
       when Reduce =>
          Current_Parser.Set_Verb (Reduce);
 
-         Reduce_Stack_1 (Current_Parser, Action, Nonterm, Trace);
+         declare
+            use all type SAL.Base_Peek_Type;
 
-         Parser_State.Stack.Push
-           ((State    => Goto_For
-               (Table => Shared_Parser.Table.all,
-                State => Parser_State.Stack (1).State,
-                ID    => Action.Production.LHS),
-             Token    => Nonterm));
+            New_State : constant Unknown_State_Index := Goto_For
+              (Table => Shared_Parser.Table.all,
+               State => Parser_State.Stack (SAL.Base_Peek_Type (Action.Token_Count) + 1).State,
+               ID    => Action.Production.LHS);
+         begin
+            if New_State = Unknown_State then
+               --  This is due to a bug in the LALR parser generator (see
+               --  lalr_generator_bug_01.wy); we treat it as a syntax error.
+               Current_Parser.Set_Verb (Error);
+               if Trace_Parse > Detail then
+                  Trace.Put_Line (" ... error");
+               end if;
+            else
+               Reduce_Stack_1 (Current_Parser, Action, Nonterm, Trace);
+               Parser_State.Stack.Push ((New_State, Nonterm));
+               Parser_State.Tree.Set_State (Nonterm, New_State);
 
-         Parser_State.Tree.Set_State (Nonterm, Parser_State.Stack (1).State);
-
-         if Trace_Parse > Detail then
-            Trace.Put_Line (" ... goto state " & Trimmed_Image (Parser_State.Stack.Peek.State));
-         end if;
+               if Trace_Parse > Detail then
+                  Trace.Put_Line (" ... goto state " & Trimmed_Image (New_State));
+               end if;
+            end if;
+         end;
 
       when Accept_It =>
          Current_Parser.Set_Verb (Accept_It);
@@ -360,39 +372,52 @@ package body WisiToken.Parse.LR.Parser_No_Recover is
                      ID    => State.Tree.ID (State.Current_Token));
                end;
 
-               if Action.Next /= null then
-                  --  Conflict; spawn a new parser (before modifying Current_Parser
-                  --  stack).
+               declare
+                  Conflict : Parse_Action_Node_Ptr := Action.Next;
+               begin
+                  loop
+                     exit when Conflict = null;
+                     --  Spawn a new parser (before modifying Current_Parser stack).
 
-                  if Shared_Parser.Parsers.Count = Shared_Parser.Max_Parallel then
-                     declare
-                        Parser_State : Parser_Lists.Parser_State renames Current_Parser.State_Ref;
-                        Token : Base_Token renames Shared_Parser.Terminals (Parser_State.Shared_Token);
-                     begin
-                        raise WisiToken.Parse_Error with Error_Message
-                          (Shared_Parser.Lexer.File_Name, Token.Line, Token.Column,
-                           ": too many parallel parsers required in grammar state" &
-                             State_Index'Image (Parser_State.Stack.Peek.State) &
-                             "; simplify grammar, or increase max-parallel (" &
-                             SAL.Base_Peek_Type'Image (Shared_Parser.Max_Parallel) & ")");
-                     end;
-                  else
-                     if Trace_Parse > Outline then
-                        Trace.Put_Line
-                          ("spawn parser from " & Trimmed_Image (Current_Parser.Label) &
-                             " (" & Trimmed_Image (1 + Integer (Shared_Parser.Parsers.Count)) & " active)");
+                     if Shared_Parser.Parsers.Count = Shared_Parser.Max_Parallel then
+                        declare
+                           Parser_State : Parser_Lists.Parser_State renames Current_Parser.State_Ref;
+                           Token : Base_Token renames Shared_Parser.Terminals (Parser_State.Shared_Token);
+                        begin
+                           raise WisiToken.Parse_Error with Error_Message
+                             (Shared_Parser.Lexer.File_Name, Token.Line, Token.Column,
+                              ": too many parallel parsers required in grammar state" &
+                                State_Index'Image (Parser_State.Stack.Peek.State) &
+                                "; simplify grammar, or increase max-parallel (" &
+                                SAL.Base_Peek_Type'Image (Shared_Parser.Max_Parallel) & ")");
+                        end;
+                     else
+                        if Trace_Parse > Outline then
+                           declare
+                              Parser_State : Parser_Lists.Parser_State renames Current_Parser.State_Ref;
+                           begin
+                              Trace.Put_Line
+                                (Integer'Image (Current_Parser.Label) & ": " &
+                                   Trimmed_Image (Parser_State.Stack.Peek.State) & ": " &
+                                   Parser_State.Tree.Image (Parser_State.Current_Token, Trace.Descriptor.all) & " : " &
+                                   "spawn" & Integer'Image (Shared_Parser.Parsers.Last_Label + 1) & ", (" &
+                                   Trimmed_Image (1 + Integer (Shared_Parser.Parsers.Count)) & " active)");
+                           end;
+                        end if;
+
+                        Shared_Parser.Parsers.Prepend_Copy (Current_Parser);
+                        Do_Action (Conflict.Item, Shared_Parser.Parsers.First, Shared_Parser);
+
+                        declare
+                           Temp : Parser_Lists.Cursor := Shared_Parser.Parsers.First;
+                        begin
+                           Check_Error (Temp);
+                        end;
                      end if;
 
-                     Shared_Parser.Parsers.Prepend_Copy (Current_Parser);
-                     Do_Action (Action.Next.Item, Shared_Parser.Parsers.First, Shared_Parser);
-
-                     declare
-                        Temp : Parser_Lists.Cursor := Shared_Parser.Parsers.First;
-                     begin
-                        Check_Error (Temp);
-                     end;
-                  end if;
-               end if;
+                     Conflict := Conflict.Next;
+                  end loop;
+               end;
 
                Do_Action (Action.Item, Current_Parser, Shared_Parser);
                Check_Error (Current_Parser);
@@ -431,7 +456,19 @@ package body WisiToken.Parse.LR.Parser_No_Recover is
             Parser.User_Data.Reduce (Tree, Node, Tree_Children);
 
             if Tree.Action (Node) /= null then
-               Tree.Action (Node) (Parser.User_Data.all, Tree, Node, Tree_Children);
+               begin
+                  Tree.Action (Node) (Parser.User_Data.all, Tree, Node, Tree_Children);
+               exception
+               when E : others =>
+                  declare
+                     Token : Base_Token renames Parser.Terminals (Tree.Min_Terminal_Index (Node));
+                  begin
+                     raise WisiToken.Parse_Error with Error_Message
+                       (Parser.Lexer.File_Name, Token.Line, Token.Column,
+                        "action raised exception " & Ada.Exceptions.Exception_Name (E) & ": " &
+                          Ada.Exceptions.Exception_Message (E));
+                  end;
+               end;
             end if;
          end;
       end Process_Node;
@@ -445,6 +482,7 @@ package body WisiToken.Parse.LR.Parser_No_Recover is
          declare
             Parser_State : Parser_Lists.Parser_State renames Parser.Parsers.First_State_Ref.Element.all;
          begin
+            Parser.User_Data.Initialize_Actions (Parser_State.Tree);
             Parser_State.Tree.Process_Tree (Process_Node'Access);
          end;
       end if;

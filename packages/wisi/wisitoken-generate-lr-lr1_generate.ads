@@ -30,11 +30,14 @@ with WisiToken.Productions;
 package WisiToken.Generate.LR.LR1_Generate is
 
    function Generate
-     (Grammar         : in WisiToken.Productions.Prod_Arrays.Vector;
-      Descriptor      : in WisiToken.Descriptor;
-      Known_Conflicts : in Conflict_Lists.List := Conflict_Lists.Empty_List;
-      McKenzie_Param  : in McKenzie_Param_Type := Default_McKenzie_Param;
-      Put_Parse_Table : in Boolean := False)
+     (Grammar           : in WisiToken.Productions.Prod_Arrays.Vector;
+      Descriptor        : in WisiToken.Descriptor;
+      Known_Conflicts   : in Conflict_Lists.List := Conflict_Lists.Empty_List;
+      McKenzie_Param    : in McKenzie_Param_Type := Default_McKenzie_Param;
+      Put_Parse_Table   : in Boolean             := False;
+      Include_Extra     : in Boolean             := False;
+      Ignore_Conflicts  : in Boolean             := False;
+      Partial_Recursion : in Boolean             := True)
      return Parse_Table_Ptr
    with Pre => Descriptor.First_Nonterminal = Descriptor.Accept_ID;
    --  Generate a generalized LR1 parse table for Grammar. The
@@ -78,6 +81,7 @@ package WisiToken.Generate.LR.LR1_Generate is
       Grammar              : in     WisiToken.Productions.Prod_Arrays.Vector;
       Has_Empty_Production : in     Token_ID_Set;
       First_Nonterm_Set    : in     Token_Array_Token_Set;
+      Conflict_Counts      :    out Conflict_Count_Lists.List;
       Conflicts            :    out Conflict_Lists.List;
       Table                : in out Parse_Table;
       Descriptor           : in     WisiToken.Descriptor);

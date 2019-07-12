@@ -67,7 +67,7 @@ package WisiToken.Lexer.Regexp is
       Begin_Line : in     Line_Number_Type := Line_Number_Type'First);
    overriding procedure Reset_With_String_Access
      (Lexer      : in out Instance;
-      Input      : access String;
+      Input      : in     Ada.Strings.Unbounded.String_Access;
       File_Name  : in     Ada.Strings.Unbounded.Unbounded_String;
       Begin_Char : in     Buffer_Pos       := Buffer_Pos'First;
       Begin_Line : in     Line_Number_Type := Line_Number_Type'First);

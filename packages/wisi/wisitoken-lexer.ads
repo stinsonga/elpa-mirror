@@ -70,7 +70,7 @@ package WisiToken.Lexer is
 
    procedure Reset_With_String_Access
      (Lexer      : in out Instance;
-      Input      : access String;
+      Input      : in     Ada.Strings.Unbounded.String_Access;
       File_Name  : in     Ada.Strings.Unbounded.Unbounded_String;
       Begin_Char : in     Buffer_Pos       := Buffer_Pos'First;
       Begin_Line : in     Line_Number_Type := Line_Number_Type'First)
@@ -154,7 +154,7 @@ private
 
       case Label is
       when String_Label =>
-         Buffer      : access String;
+         Buffer      : Ada.Strings.Unbounded.String_Access;
          User_Buffer : Boolean := False;
          --  If User_Buffer is True, user provided buffer and will deallocate
          --  it. Otherwise we must deallocate it.

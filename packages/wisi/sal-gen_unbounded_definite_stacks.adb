@@ -2,7 +2,7 @@
 --
 --  see spec
 --
---  Copyright (C) 1998, 2003, 2009, 2015, 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 1998, 2003, 2009, 2015, 2017 - 2019 Free Software Foundation, Inc.
 --
 --  SAL is free software; you can redistribute it and/or modify it
 --  under terms of the GNU General Public License as published by the
@@ -174,5 +174,37 @@ package body SAL.Gen_Unbounded_Definite_Stacks is
         (Element => Container.Data (Container.Top - Position + 1)'Access,
          Dummy => 1);
    end Constant_Ref;
+
+   function Constant_Ref
+     (Container : aliased in Stack'Class;
+      Position  :         in Cursor)
+     return Constant_Ref_Type
+   is begin
+      return
+        (Element => Container.Data (Container.Top - Position.Ptr + 1)'Access,
+         Dummy => 1);
+   end Constant_Ref;
+
+   function Has_Element (Position : in Cursor) return Boolean
+   is begin
+      return Position.Container.Depth >= Position.Ptr;
+   end Has_Element;
+
+   function Iterate (Container : aliased in Stack) return Iterator_Interfaces.Forward_Iterator'Class
+   is begin
+      return Iterator'(Container => Container'Unrestricted_Access);
+   end Iterate;
+
+   overriding function First (Object : Iterator) return Cursor
+   is begin
+      return (Object.Container, 1);
+   end First;
+
+   overriding function Next (Object : in Iterator; Position : in Cursor) return Cursor
+   is
+      pragma Unreferenced (Object);
+   begin
+      return (Position.Container, Position.Ptr + 1);
+   end Next;
 
 end SAL.Gen_Unbounded_Definite_Stacks;

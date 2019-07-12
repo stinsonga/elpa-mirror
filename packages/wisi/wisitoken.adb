@@ -72,6 +72,16 @@ package body WisiToken is
       end loop;
    end To_Vector;
 
+   function To_Vector (Item : in Token_ID_Array) return Token_ID_Arrays.Vector
+   is begin
+      return Result : Token_ID_Arrays.Vector do
+         Result.Set_First_Last (Item'First, Item'Last);
+         for I in Item'Range loop
+            Result (I) := Item (I);
+         end loop;
+      end return;
+   end To_Vector;
+
    function Shared_Prefix (A, B : in Token_ID_Arrays.Vector) return Natural
    is
       use all type Ada.Containers.Count_Type;
@@ -213,6 +223,26 @@ package body WisiToken is
          end loop;
       end return;
    end To_Vector;
+
+   function Net_Recursion (A, B : in Recursion) return Recursion
+   is begin
+      return
+        (case A is
+         when None => B,
+         when Single =>
+           (case B is
+            when None => Single,
+            when others => B),
+         when Right =>
+           (case B is
+            when None | Single => Right,
+            when others => B),
+         when Left =>
+           (case B is
+            when None | Single | Left => Left,
+            when others => B),
+         when Middle => Middle);
+   end Net_Recursion;
 
    function Slice (Item : in Token_Array_Token_Set; I : in Token_ID) return Token_ID_Set
    is

@@ -58,14 +58,15 @@ is
    procedure Create_Ada_Actions_Body
      (Action_Names : not null access WisiToken.Names_Array_Array;
       Check_Names  : not null access WisiToken.Names_Array_Array;
+      Label_Count  : in              Ada.Containers.Count_Type;
       Package_Name : in              String)
    is
+      use all type Ada.Containers.Count_Type;
       use GNAT.Regexp;
       use Generate_Utils;
       use WisiToken.Generate;
 
       File_Name : constant String := Output_File_Name_Root & "_actions.adb";
-      --  No generate_algorithm when Test_Main; the generated actions file is independent of that.
 
       User_Data_Regexp : constant Regexp := Compile (Symbol_Regexp ("User_Data"), Case_Sensitive => False);
       Tree_Regexp      : constant Regexp := Compile (Symbol_Regexp ("Tree"), Case_Sensitive      => False);
@@ -81,6 +82,10 @@ is
       Put_Raw_Code (Ada_Comment, Input_Data.Raw_Code (Copyright_License));
       Put_Raw_Code (Ada_Comment, Input_Data.Raw_Code (Actions_Body_Context));
       New_Line;
+
+      if Label_Count > 0 then
+         Put_Line ("with SAL;");
+      end if;
 
       Put_Line ("package body " & Package_Name & " is");
       Indent := Indent + 3;
@@ -110,6 +115,42 @@ is
                  (Slice (Action, 1, 6) = "(progn" or
                     Slice (Action, 1, 5) = "wisi-");
             end Is_Elisp;
+
+            procedure Put_Labels (RHS : in RHS_Type; Line : in String)
+            is
+               Output : array (Rule.Labels.First_Index .. Rule.Labels.Last_Index) of Boolean := (others => False);
+
+               procedure Update_Output (Label : in String)
+               is begin
+                  for I in Rule.Labels.First_Index .. Rule.Labels.Last_Index loop
+                     if Label = Rule.Labels (I) then
+                        Output (I) := True;
+                     end if;
+                  end loop;
+               end Update_Output;
+            begin
+               for I in RHS.Tokens.First_Index .. RHS.Tokens.Last_Index loop
+                  if Length (RHS.Tokens (I).Label) > 0 then
+                     declare
+                        Label : constant String := -RHS.Tokens (I).Label;
+                     begin
+                        if Match (Line, Compile (Symbol_Regexp (Label), Case_Sensitive => False)) then
+                           Indent_Line
+                             (Label & " : constant SAL.Peek_Type :=" & SAL.Peek_Type'Image (I) & ";");
+                           Update_Output (Label);
+                        end if;
+                     end;
+                  end if;
+               end loop;
+
+               for I in Rule.Labels.First_Index .. Rule.Labels.Last_Index loop
+                  if not Output (I) and
+                    Match (Line, Compile (Symbol_Regexp (-Rule.Labels (I)), Case_Sensitive => False))
+                  then
+                     Indent_Line (-Rule.Labels (I) & " : constant SAL.Base_Peek_Type := SAL.Base_Peek_Type'First;");
+                  end if;
+               end loop;
+            end Put_Labels;
 
          begin
             for RHS of Rule.Right_Hand_Sides loop
@@ -141,7 +182,6 @@ is
                            Unref_Tokens := False;
                         end if;
                      end Check_Unref;
-
                   begin
                      Check_Unref (Line);
                      Indent_Line ("procedure " & Name);
@@ -151,11 +191,12 @@ is
                      Indent_Line ("  Tokens    : in     WisiToken.Syntax_Trees.Valid_Node_Index_Array)");
                      Indent_Line ("is");
 
+                     Indent := Indent + 3;
                      if Unref_User_Data or Unref_Tree or Unref_Nonterm or Unref_Tokens then
-                        Indent_Start ("   pragma Unreferenced (");
+                        Indent_Start ("pragma Unreferenced (");
 
                         if Unref_User_Data then
-                           Put ((if Need_Comma then ", " else "") & "User_Data");
+                           Put ("User_Data");
                            Need_Comma := True;
                         end if;
                         if Unref_Tree then
@@ -173,6 +214,8 @@ is
                         Put_Line (");");
                      end if;
 
+                     Put_Labels (RHS, Line);
+                     Indent := Indent - 3;
                      Indent_Line ("begin");
                      Indent := Indent + 3;
 
@@ -192,6 +235,7 @@ is
                      Unref_Nonterm : constant Boolean := 0 = Index (Line, "Nonterm");
                      Unref_Tokens  : constant Boolean := 0 = Index (Line, "Tokens");
                      Unref_Recover : constant Boolean := 0 = Index (Line, "Recover_Active");
+                     Need_Comma    : Boolean          := False;
                   begin
                      Indent_Line ("function " & Name);
                      Indent_Line (" (Lexer          : access constant WisiToken.Lexer.Instance'Class;");
@@ -201,18 +245,31 @@ is
                      Indent_Line (" return WisiToken.Semantic_Checks.Check_Status");
                      Indent_Line ("is");
 
-                     if Unref_Lexer then
-                        Indent_Line ("   pragma Unreferenced (Lexer);");
+                     Indent := Indent + 3;
+                     if Unref_Lexer or Unref_Nonterm or Unref_Tokens or Unref_Recover then
+                        Indent_Start ("pragma Unreferenced (");
+
+                        if Unref_Lexer then
+                           Put ("Lexer");
+                           Need_Comma := True;
+                        end if;
+                        if Unref_Nonterm then
+                           Put ((if Need_Comma then ", " else "") & "Nonterm");
+                           Need_Comma := True;
+                        end if;
+                        if Unref_Tokens then
+                           Put ((if Need_Comma then ", " else "") & "Tokens");
+                           Need_Comma := True;
+                        end if;
+                        if Unref_Recover then
+                           Put ((if Need_Comma then ", " else "") & "Recover_Active");
+                           Need_Comma := True;
+                        end if;
+                        Put_Line (");");
                      end if;
-                     if Unref_Nonterm then
-                        Indent_Line ("   pragma Unreferenced (Nonterm);");
-                     end if;
-                     if Unref_Tokens then
-                        Indent_Line ("   pragma Unreferenced (Tokens);");
-                     end if;
-                     if Unref_Recover then
-                        Indent_Line ("   pragma Unreferenced (Recover_Active);");
-                     end if;
+
+                     Put_Labels (RHS, Line);
+                     Indent := Indent - 3;
 
                      Indent_Line ("begin");
                      Indent := Indent + 3;
@@ -274,9 +331,7 @@ is
 
       case Common_Data.Generate_Algorithm is
       when LR_Generate_Algorithm =>
-         if Tuple.Text_Rep then
-            Put_Line ("with WisiToken.Productions;");
-         end if;
+         null;
 
       when Packrat_Gen =>
          Put_Line ("with WisiToken.Parse.Packrat.Generated;");
@@ -351,7 +406,7 @@ is
       Unit_Name : constant String := File_Name_To_Ada (Output_File_Name_Root) &
         "_" & Generate_Algorithm'Image (Common_Data.Generate_Algorithm) & "_Run";
 
-      Language_Package_Name : constant String := "WisiToken.Parse.LR.McKenzie_Recover." & File_Name_To_Ada
+      Default_Language_Runtime_Package : constant String := "WisiToken.Parse.LR.McKenzie_Recover." & File_Name_To_Ada
         (Output_File_Name_Root);
 
       File_Name : constant String := To_Lower (Unit_Name) & ".ads";
@@ -369,8 +424,19 @@ is
       Put_Line ("with " & Generic_Package_Name & ";");
       Put_Line ("with " & Actions_Package_Name & ";");
       Put_Line ("with " & Main_Package_Name & ";");
-      if Input_Data.Language_Params.Error_Recover then
-         Put_Line ("with " & Language_Package_Name & "; use " & Language_Package_Name & ";");
+      if Input_Data.Language_Params.Error_Recover and
+        Input_Data.Language_Params.Use_Language_Runtime
+      then
+         declare
+            Pkg : constant String :=
+              (if -Input_Data.Language_Params.Language_Runtime_Name = ""
+               then Default_Language_Runtime_Package
+               else -Input_Data.Language_Params.Language_Runtime_Name);
+         begin
+            --  For language-specific names in actions, checks.
+            Put_Line ("with " & Pkg & ";");
+            Put_Line ("use " & Pkg & ";");
+         end;
       end if;
 
       Put_Line ("procedure " & Unit_Name & " is new " & Generic_Package_Name);
@@ -381,7 +447,11 @@ is
                      "_parse_table.txt"",");
       end if;
       if Input_Data.Language_Params.Error_Recover then
-         Put_Line ("Fixes'Access, Use_Minimal_Complete_Actions'Access, String_ID_Set'Access,");
+         if Input_Data.Language_Params.Use_Language_Runtime then
+            Put_Line ("Fixes'Access, Matching_Begin_Tokens'Access, String_ID_Set'Access,");
+         else
+            Put_Line ("null, null, null,");
+         end if;
       end if;
       Put_Line (Main_Package_Name & ".Create_Parser);");
       Close (File);
@@ -414,7 +484,8 @@ begin
    begin
       if Input_Data.Action_Count > 0 or Input_Data.Check_Count > 0 then
          --  Some WisiToken tests have no actions or checks.
-         Create_Ada_Actions_Body (Generate_Data.Action_Names, Generate_Data.Check_Names, Actions_Package_Name);
+         Create_Ada_Actions_Body
+           (Generate_Data.Action_Names, Generate_Data.Check_Names, Input_Data.Label_Count, Actions_Package_Name);
       end if;
 
       Create_Ada_Actions_Spec

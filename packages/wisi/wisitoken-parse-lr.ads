@@ -43,15 +43,18 @@ with SAL.Gen_Unbounded_Definite_Min_Heaps_Fibonacci;
 with SAL.Gen_Unbounded_Definite_Queues.Gen_Image_Aux;
 with SAL.Gen_Unbounded_Definite_Stacks.Gen_Image_Aux;
 with System.Multiprocessors;
-with WisiToken.Productions;
 with WisiToken.Semantic_Checks;
 with WisiToken.Syntax_Trees;
 package WisiToken.Parse.LR is
 
    type All_Parse_Action_Verbs is (Pause, Shift, Reduce, Accept_It, Error);
    subtype Parse_Action_Verbs is All_Parse_Action_Verbs range Shift .. Error;
-   subtype Minimal_Verbs is All_Parse_Action_Verbs range Pause .. Reduce;
-   --  Pause is only used for error recovery.
+   subtype Minimal_Verbs is All_Parse_Action_Verbs range Shift .. Reduce;
+   --  Pause is only used for error recovery, to allow parallel parsers
+   --  to re-sync on the same input terminal.
+
+   subtype Token_ID_Array_1_3 is Token_ID_Array (1 .. 3);
+   --  For Use_Minimal_Complete_Actions in McDenzie_Recover.
 
    type Parse_Action_Rec (Verb : Parse_Action_Verbs := Shift) is record
       case Verb is
@@ -93,6 +96,9 @@ package WisiToken.Parse.LR is
    end record;
    procedure Free is new Ada.Unchecked_Deallocation (Parse_Action_Node, Parse_Action_Node_Ptr);
 
+   function Is_In (Item : in Parse_Action_Rec; List : in Parse_Action_Node_Ptr) return Boolean;
+   --  True if Item is Equal to any element of List.
+
    type Action_Node;
    type Action_Node_Ptr is access Action_Node;
 
@@ -102,6 +108,11 @@ package WisiToken.Parse.LR is
       Next   : Action_Node_Ptr;
    end record;
    procedure Free is new Ada.Unchecked_Deallocation (Action_Node, Action_Node_Ptr);
+
+   function Find
+     (Symbol      : in Token_ID;
+      Action_List : in Action_Node_Ptr)
+     return Action_Node_Ptr;
 
    procedure Add
      (List   : in out Action_Node_Ptr;
@@ -116,15 +127,28 @@ package WisiToken.Parse.LR is
    function State (List : in Goto_Node_Ptr) return State_Index;
    function Next (List : in Goto_Node_Ptr) return Goto_Node_Ptr;
 
-   type Minimal_Action (Verb : Minimal_Verbs := Pause) is record
-      case Verb is
-      when Pause =>
-         --  In this case, 'Pause' means no minimal action.
-         null;
+   type Kernel_Info is record
+      LHS              : Token_ID                  := Token_ID'First;
+      Before_Dot       : Token_ID                  := Token_ID'First;
+      Length_After_Dot : Ada.Containers.Count_Type := 0;
+      Recursive        : Boolean                   := False;
+   end record;
 
+   function Strict_Image (Item : in Kernel_Info) return String;
+
+   type Kernel_Info_Array is array (Ada.Containers.Count_Type range <>) of Kernel_Info;
+   package Kernel_Info_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
+     (Ada.Containers.Count_Type, Kernel_Info, (others => <>));
+
+   function To_Vector (Item : in Kernel_Info_Array) return Kernel_Info_Arrays.Vector;
+
+   function Image is new Kernel_Info_Arrays.Gen_Image (Strict_Image);
+
+   type Minimal_Action (Verb : Minimal_Verbs := Shift) is record
+      case Verb is
       when Shift =>
-         ID    : Token_ID;
-         State : State_Index;
+         ID    : Token_ID    := Invalid_Token_ID;
+         State : State_Index := State_Index'Last;
 
       when Reduce =>
          Nonterm     : Token_ID;
@@ -135,15 +159,31 @@ package WisiToken.Parse.LR is
    function Strict_Image (Item : in Minimal_Action) return String;
    --  Strict Ada aggregate syntax, for generated code.
 
+   function Image (Item : in Minimal_Action; Descriptor : in WisiToken.Descriptor) return String;
+   --  For debugging
+
+   type Minimal_Action_Array is array (Ada.Containers.Count_Type range <>) of Minimal_Action;
+   package Minimal_Action_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
+     (Ada.Containers.Count_Type, Minimal_Action, (others => <>));
+
+   function To_Vector (Item : in Minimal_Action_Array) return Minimal_Action_Arrays.Vector;
+
+   function Image is new Minimal_Action_Arrays.Gen_Image_Aux (Descriptor, Trimmed_Image, Image);
+   function Strict_Image is new Minimal_Action_Arrays.Gen_Image (Strict_Image);
+
    type Parse_State is record
-      Productions : Production_ID_Arrays.Vector;
-      --  Used in some language-specfic error recovery.
       Action_List : Action_Node_Ptr;
       Goto_List   : Goto_Node_Ptr;
 
-      Minimal_Complete_Action : Minimal_Action;
-      --  Parse action that will most quickly complete a
-      --  production in this state; used in error recovery
+      --  The following are used in error recovery.
+      Kernel : Kernel_Info_Arrays.Vector;
+
+      Minimal_Complete_Actions : Minimal_Action_Arrays.Vector;
+      Minimal_Complete_Actions_Recursive : Boolean := False;
+      --  Parse actions that will most quickly complete a production in this
+      --  state. If more than one, resolved at runtime using Kernels. If
+      --  Minimal_Complete_Actions_Recursive, at least one of the minimal
+      --  actions is recursive; this changes the algorithm.
    end record;
 
    type Parse_State_Array is array (State_Index range <>) of Parse_State;
@@ -185,29 +225,14 @@ package WisiToken.Parse.LR is
    --  Add duplicate Reduce actions, and final Error action, to tail of
    --  State action list.
 
-   procedure Add_Action
+   procedure Add_Conflict
      (State             : in out Parse_State;
       Symbol            : in     Token_ID;
-      State_Index       : in     WisiToken.State_Index;
       Reduce_Production : in     Production_ID;
       RHS_Token_Count   : in     Ada.Containers.Count_Type;
       Semantic_Action   : in     WisiToken.Syntax_Trees.Semantic_Action;
       Semantic_Check    : in     WisiToken.Semantic_Checks.Semantic_Check);
-   --  Add a Shift/Reduce conflict to State.
-
-   procedure Add_Action
-     (State             : in out Parse_State;
-      Symbol            : in     Token_ID;
-      Verb              : in     Parse_Action_Verbs;
-      Production_1      : in     Production_ID;
-      RHS_Token_Count_1 : in     Ada.Containers.Count_Type;
-      Semantic_Action_1 : in     WisiToken.Syntax_Trees.Semantic_Action;
-      Semantic_Check_1  : in     WisiToken.Semantic_Checks.Semantic_Check;
-      Production_2      : in     Production_ID;
-      RHS_Token_Count_2 : in     Ada.Containers.Count_Type;
-      Semantic_Action_2 : in     WisiToken.Syntax_Trees.Semantic_Action;
-      Semantic_Check_2  : in     WisiToken.Semantic_Checks.Semantic_Check);
-   --  Add an Accept/Reduce or Reduce/Reduce conflict action to State.
+   --  Add a Reduce conflict to State.
 
    procedure Add_Error (State  : in out Parse_State);
    --  Add an Error action to State, at tail of action list.
@@ -224,10 +249,21 @@ package WisiToken.Parse.LR is
       First_Nonterminal : Token_ID;
       Last_Nonterminal  : Token_ID)
    is record
-      Insert    : Token_ID_Array_Natural (First_Terminal .. Last_Terminal);
-      Delete    : Token_ID_Array_Natural (First_Terminal .. Last_Terminal);
-      Push_Back : Token_ID_Array_Natural (First_Terminal .. Last_Nonterminal);
+      Insert      : Token_ID_Array_Natural (First_Terminal .. Last_Terminal);
+      Delete      : Token_ID_Array_Natural (First_Terminal .. Last_Terminal);
+      Push_Back   : Token_ID_Array_Natural (First_Terminal .. Last_Nonterminal);
+      Undo_Reduce : Token_ID_Array_Natural (First_Nonterminal .. Last_Nonterminal);
       --  Cost of operations on config stack, input.
+
+      Minimal_Complete_Cost_Delta : Integer;
+      --  Reduction in cost due to using Minimal_Complete_Action.
+
+      Matching_Begin : Integer;
+      --  Cost of Matching_Begin strategy (applied once, independent of
+      --  token count).
+
+      Fast_Forward : Integer;
+      --  Cost of moving the edit point forward over input tokens.
 
       Ignore_Check_Fail : Natural;
       --  Cost of ignoring a semantic check failure. Should be at least the
@@ -237,38 +273,28 @@ package WisiToken.Parse.LR is
       --  Number of parallel tasks during recovery. If 0, use
       --  System.Multiprocessors.Number_Of_CPUs - 1.
 
-      Cost_Limit        : Natural;     -- max cost of configurations to look at
       Check_Limit       : Token_Index; -- max tokens to parse ahead when checking a configuration.
       Check_Delta_Limit : Natural;     -- max configs checked, delta over successful parser.
       Enqueue_Limit     : Natural;     -- max configs enqueued.
    end record;
 
    Default_McKenzie_Param : constant McKenzie_Param_Type :=
-     (First_Terminal    => Token_ID'Last,
-      Last_Terminal     => Token_ID'First,
-      First_Nonterminal => Token_ID'Last,
-      Last_Nonterminal  => Token_ID'First,
-      Insert            => (others => 0),
-      Delete            => (others => 0),
-      Push_Back         => (others => 0),
-      Ignore_Check_Fail => 0,
-      Task_Count        => System.Multiprocessors.CPU_Range'Last,
-      Cost_Limit        => Natural'Last,
-      Check_Limit       => Token_Index'Last,
-      Check_Delta_Limit => Natural'Last,
-      Enqueue_Limit     => Natural'Last);
-
-   procedure Set_Production
-     (Prod     : in out Productions.Instance;
-      LHS      : in     Token_ID;
-      RHS_Last : in     Natural);
-
-   procedure Set_RHS
-     (Prod      : in out Productions.Instance;
-      RHS_Index : in     Natural;
-      Tokens    : in     Token_ID_Array;
-      Action    : in     WisiToken.Syntax_Trees.Semantic_Action   := null;
-      Check     : in     WisiToken.Semantic_Checks.Semantic_Check := null);
+     (First_Terminal              => Token_ID'Last,
+      Last_Terminal               => Token_ID'First,
+      First_Nonterminal           => Token_ID'Last,
+      Last_Nonterminal            => Token_ID'First,
+      Insert                      => (others => 0),
+      Delete                      => (others => 0),
+      Push_Back                   => (others => 0),
+      Undo_Reduce                 => (others => 0),
+      Minimal_Complete_Cost_Delta => -1,
+      Fast_Forward                => 0,
+      Matching_Begin              => 0,
+      Ignore_Check_Fail           => 0,
+      Task_Count                  => System.Multiprocessors.CPU_Range'Last,
+      Check_Limit                 => 4,
+      Check_Delta_Limit           => Natural'Last,
+      Enqueue_Limit               => Natural'Last);
 
    type Parse_Table
      (State_First       : State_Index;
@@ -309,20 +335,19 @@ package WisiToken.Parse.LR is
    type Parse_Table_Ptr is access Parse_Table;
    procedure Free_Table (Table : in out Parse_Table_Ptr);
 
-   function Get_Action
-     (Prod        : in Production_ID;
-      Productions : in WisiToken.Productions.Prod_Arrays.Vector)
-     return WisiToken.Syntax_Trees.Semantic_Action;
+   type Semantic_Action is record
+      Action : WisiToken.Syntax_Trees.Semantic_Action := null;
+      Check  : WisiToken.Semantic_Checks.Semantic_Check := null;
+   end record;
 
-   function Get_Check
-     (Prod        : in Production_ID;
-      Productions : in WisiToken.Productions.Prod_Arrays.Vector)
-     return WisiToken.Semantic_Checks.Semantic_Check;
+   package Semantic_Action_Arrays is new SAL.Gen_Unbounded_Definite_vectors (Natural, Semantic_Action, (others => <>));
+   package Semantic_Action_Array_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
+     (Token_ID, Semantic_Action_Arrays.Vector, Semantic_Action_Arrays.Empty_Vector);
 
    function Get_Text_Rep
      (File_Name      : in String;
       McKenzie_Param : in McKenzie_Param_Type;
-      Productions    : in WisiToken.Productions.Prod_Arrays.Vector)
+      Actions        : in Semantic_Action_Array_Arrays.Vector)
      return Parse_Table_Ptr;
    --  Read machine-readable text format of states (as output by
    --  WisiToken.Generate.LR.Put_Text_Rep) from file File_Name. Result
@@ -368,16 +393,8 @@ package WisiToken.Parse.LR is
 
    type Config_Op (Op : Config_Op_Label := Fast_Forward) is record
       --  We store enough information to perform the operation on the main
-      --  parser stack and input stream point when the config is the result
+      --  parser stack and input stream when the config is the result
       --  of a successful recover.
-      --
-      --  After a recover, the main parser must reparse any inserted tokens,
-      --  and skip any deleted tokens. Therefore, when all the recover ops
-      --  are applied, the main parser stack will be the same or shorter
-      --  than it was, so we only need to store token counts for stack
-      --  operations (Unknown_State is pushed when a state is needed; none
-      --  will be left on the main stack). We also store IDs, so we can
-      --  check that everything is in sync, and for debugging.
 
       case Op is
       when Fast_Forward =>
@@ -392,25 +409,54 @@ package WisiToken.Parse.LR is
          Token_Count : Ada.Containers.Count_Type;
          --  The number of tokens pushed on the stack.
 
-      when Push_Back | Insert | Delete =>
-         ID : Token_ID;
-         --  For Push_Back, ID is the nonterm ID popped off the stack.
-         --  For Insert | Delete, ID is the token inserted or deleted.
+      when Push_Back =>
+         PB_ID : Token_ID;
+         --  The nonterm ID popped off the stack.
 
-         Token_Index : WisiToken.Base_Token_Index;
-         --  For Push_Back, Token_Index is Config.Current_Shared_Token after
+         PB_Token_Index : WisiToken.Base_Token_Index;
+         --  Config.Current_Shared_Token after
          --  the operation is done. If the token is empty, Token_Index is
          --  Invalid_Token_Index.
-         --
-         --  For Insert, ID is inserted before Token_Index.
-         --
-         --  For Delete, token at Token_Index is deleted.
+
+      when Insert =>
+         Ins_ID : Token_ID;
+         --  The token ID inserted.
+
+         Ins_Token_Index : WisiToken.Base_Token_Index;
+         --  Ins_ID is inserted before Token_Index.
+
+         State       : Unknown_State_Index;
+         Stack_Depth : SAL.Base_Peek_Type;
+         --  Used in Minimal_Completion_Actions to detect cycles; only set for
+         --  Insert by Minimal_Completion_Actions.
+
+      when Delete =>
+         Del_ID : Token_ID;
+         --  The token ID deleted.
+
+         Del_Token_Index : WisiToken.Base_Token_Index;
+         --  Token at Token_Index is deleted.
 
       end case;
    end record;
    subtype Insert_Delete_Op is Config_Op with Dynamic_Predicate => (Insert_Delete_Op.Op in Insert_Delete_Op_Label);
+   subtype Insert_Op is Config_Op with Dynamic_Predicate => (Insert_Op.Op = Insert);
+
+   function Token_Index (Op : in Insert_Delete_Op) return WisiToken.Token_Index
+     is (case Insert_Delete_Op_Label'(Op.Op) is
+         when Insert => Op.Ins_Token_Index,
+         when Delete => Op.Del_Token_Index);
+
+   function ID (Op : in Insert_Delete_Op) return WisiToken.Token_ID
+     is (case Insert_Delete_Op_Label'(Op.Op) is
+         when Insert => Op.Ins_ID,
+         when Delete => Op.Del_ID);
 
    function Compare (Left, Right : in Insert_Delete_Op) return SAL.Compare_Result;
+   --  Compare token_index.
+
+   function Equal (Left : in Config_Op; Right : in Insert_Op) return Boolean;
+   --  Ignore state, stack_depth
 
    package Config_Op_Queues is new SAL.Gen_Unbounded_Definite_Queues (Config_Op);
 
@@ -424,19 +470,21 @@ package WisiToken.Parse.LR is
    --  config does hit that limit, it is abandoned; some other config is
    --  likely to be cheaper.
 
-   package Insert_Delete_Arrays is new SAL.Gen_Bounded_Definite_Vectors
-     (Positive_Index_Type, Insert_Delete_Op, Capacity => 80);
-
-   package Sorted_Insert_Delete_Arrays is new Insert_Delete_Arrays.Gen_Sorted (Compare);
-
    function Config_Op_Image (Item : in Config_Op; Descriptor : in WisiToken.Descriptor) return String
      is ("(" & Config_Op_Label'Image (Item.Op) & ", " &
            (case Item.Op is
             when Fast_Forward => WisiToken.Token_Index'Image (Item.FF_Token_Index),
             when Undo_Reduce => Image (Item.Nonterm, Descriptor) & "," &
                  Ada.Containers.Count_Type'Image (Item.Token_Count),
-            when Push_Back | Insert | Delete => Image (Item.ID, Descriptor) & "," &
-                 WisiToken.Token_Index'Image (Item.Token_Index))
+            when Push_Back => Image (Item.PB_ID, Descriptor) & "," &
+                 WisiToken.Token_Index'Image (Item.PB_Token_Index),
+            when Insert => Image (Item.Ins_ID, Descriptor) & "," &
+                 WisiToken.Token_Index'Image (Item.Ins_Token_Index) &
+                (if Item.State = Unknown_State or Trace_McKenzie <= Detail then ""
+                 else "," & State_Index'Image (Item.State) &
+                    SAL.Base_Peek_Type'Image (Item.Stack_Depth)),
+            when Delete => Image (Item.Del_ID, Descriptor) & "," &
+                 WisiToken.Token_Index'Image (Item.Del_Token_Index))
            & ")");
 
    function Image (Item : in Config_Op; Descriptor : in WisiToken.Descriptor) return String
@@ -448,25 +496,38 @@ package WisiToken.Parse.LR is
      renames Config_Op_Array_Image;
 
    function None (Ops : in Config_Op_Arrays.Vector; Op : in Config_Op_Label) return Boolean
-   is (for all O of Ops => O.Op /= Op);
+     is (for all O of Ops => O.Op /= Op);
    --  True if Ops contains no Op.
 
    function None_Since_FF (Ops : in Config_Op_Arrays.Vector; Op : in Config_Op_Label) return Boolean;
    --  True if Ops contains no Op after the last Fast_Forward (or ops.first, if
    --  no Fast_Forward).
 
-   function Match_Since_FF (Ops : in Config_Op_Arrays.Vector; Op : in Config_Op) return Boolean;
-   --  True if Ops contains an Op after the last Fast_Forward (or ops.first, if
-   --  no Fast_Forward) that equals Op.
+   function Only_Since_FF (Ops : in Config_Op_Arrays.Vector; Op : in Config_Op_Label) return Boolean;
+   --  True if Ops contains only Op (at least one) after the last Fast_Forward (or ops.first, if
+   --  no Fast_Forward).
 
    function Any (Ops : in Config_Op_Arrays.Vector; Op : in Config_Op_Label) return Boolean
-   is (for some O of Ops => O.Op = Op);
+     is (for some O of Ops => O.Op = Op);
    --  True if Ops contains at least one Op.
 
+   package Insert_Delete_Arrays is new SAL.Gen_Bounded_Definite_Vectors
+     (Positive_Index_Type, Insert_Delete_Op, Capacity => 80);
+
+   package Sorted_Insert_Delete_Arrays is new Insert_Delete_Arrays.Gen_Sorted (Compare);
+
+   function Image is new Insert_Delete_Arrays.Gen_Image_Aux (WisiToken.Descriptor, Image);
+
    type Recover_Stack_Item is record
-      State      : Unknown_State_Index;
+      State : Unknown_State_Index;
+
       Tree_Index : Syntax_Trees.Node_Index;
-      Token      : Recover_Token;
+      --  Valid if copied at recover initialize, Invalid if pushed during
+      --  recover.
+
+      Token : Recover_Token;
+      --  Virtual is False if token is from input text; True if inserted
+      --  during recover.
    end record;
 
    package Recover_Stacks is new SAL.Gen_Unbounded_Definite_Stacks (Recover_Stack_Item);
@@ -495,17 +556,19 @@ package WisiToken.Parse.LR is
    type Strategy_Counts is array (Strategies) of Natural;
    function Image is new SAL.Gen_Array_Image (Strategies, Natural, Strategy_Counts, Trimmed_Image);
 
+   type Minimal_Complete_State is (None, Active, Done);
+
    type Configuration is record
       Stack : Recover_Stacks.Stack;
       --  Initially built from the parser stack, then the stack after the
       --  Ops below have been performed.
 
-      Resume_Token_Goal : Token_Index := Token_Index'Last;
+      Resume_Token_Goal : WisiToken.Token_Index := WisiToken.Token_Index'Last;
       --  A successful solution shifts this token. Per-config because it
       --  increases with Delete; we increase Shared_Parser.Resume_Token_Goal
       --  only from successful configs.
 
-      Current_Shared_Token : Base_Token_Index := Token_Index'Last;
+      Current_Shared_Token : Base_Token_Index := WisiToken.Token_Index'Last;
       --  Index into Shared_Parser.Terminals for current input token, after
       --  all of Inserted is input. Initially the error token.
 
@@ -541,15 +604,13 @@ package WisiToken.Parse.LR is
       --  Insert and Delete ops that are not yet parsed are reflected in
       --  Insert_Delete, in token_index order.
 
-      Current_Ops : SAL.Base_Peek_Type := No_Insert_Delete;
-      --  If No_Insert_Delete, append new ops to Ops. Otherwise insert
-      --  before Current_Ops. This happens when Fast_Forward fails with the
-      --  remaining ops at Current_Shared_Token.
-
       Cost : Natural := 0;
 
       Strategy_Counts : LR.Strategy_Counts := (others => 0);
       --  Count of strategies that produced Ops.
+
+      Minimal_Complete_State : LR.Minimal_Complete_State := None;
+      Matching_Begin_Done    : Boolean                   := False;
    end record;
    type Configuration_Access is access all Configuration;
    for Configuration_Access'Storage_Size use 0;
@@ -569,11 +630,12 @@ package WisiToken.Parse.LR is
    subtype Non_Success_Status is Check_Status range Abandon .. Continue;
 
    type McKenzie_Data is tagged record
-      Config_Heap   : Config_Heaps.Heap_Type;
-      Enqueue_Count : Integer := 0;
-      Check_Count   : Integer := 0;
-      Results       : Config_Heaps.Heap_Type;
-      Success       : Boolean := False;
+      Config_Heap       : Config_Heaps.Heap_Type;
+      Enqueue_Count     : Integer := 0;
+      Config_Full_Count : Integer := 0;
+      Check_Count       : Integer := 0;
+      Results           : Config_Heaps.Heap_Type;
+      Success           : Boolean := False;
    end record;
    type McKenzie_Access is access all McKenzie_Data;
 
@@ -603,12 +665,6 @@ package WisiToken.Parse.LR is
    end record;
 
    package Parse_Error_Lists is new Ada.Containers.Indefinite_Doubly_Linked_Lists (Parse_Error);
-
-   function Image
-     (Item       : in Parse_Error;
-      Tree       : in Syntax_Trees.Tree;
-      Descriptor : in WisiToken.Descriptor)
-     return String;
 
 private
 

@@ -451,9 +451,8 @@ package body WisiToken.Generate.LR1_Items is
             Added_Item := False;
 
             if Trace_Generate > Extra then
-               Ada.Text_IO.Put_Line ("I:");
+               Ada.Text_IO.Put_Line ("  closure:");
                Put (Grammar, Descriptor, I);
-               Ada.Text_IO.New_Line;
             end if;
          else
             Item_I := Item_Lists.Next (Item_I);

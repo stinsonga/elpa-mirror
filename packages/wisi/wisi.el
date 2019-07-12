@@ -7,7 +7,7 @@
 ;; Keywords: parser
 ;;  indentation
 ;;  navigation
-;; Version: 2.1.0
+;; Version: 2.1.1
 ;; package-requires: ((cl-lib "1.0") (emacs "25.0") (seq "2.20"))
 ;; URL: http://stephe-leake.org/ada/wisitoken.html
 ;;
@@ -111,15 +111,8 @@
 ;;
 ;; `wisi-forward-token' relies on syntax properties, so
 ;; `syntax-propertize' must be called on the text to be lexed before
-;; wisi-forward-token is called.
-;;
-;; Emacs >= 25 calls syntax-propertize transparently in the low-level
-;; lexer functions.
-;;
-;; In Emacs < 25, we call syntax-propertize in wisi-setup, and in
-;; `wisi--post-change'.
-;;
-;;;;;
+;; wisi-forward-token is called. Emacs >= 25 calls syntax-propertize
+;; transparently in the low-level lexer functions.
 
 ;;; Code:
 
@@ -130,6 +123,7 @@
 (require 'wisi-parse-common)
 (require 'wisi-elisp-lexer)
 (require 'wisi-fringe)
+(require 'xref)
 
 (defcustom wisi-size-threshold most-positive-fixnum
   "Max size (in characters) for using wisi parser results for anything."
@@ -139,10 +133,14 @@
 (make-variable-buffer-local 'wisi-size-threshold)
 
 (defcustom wisi-partial-parse-threshold 100001
-  "Min size (in characters) for using partial wisi parser.
-The partial parser finds a nearby start point, and parses a small
-portion of the file containing the region to parse. For indent,
-it assumes the start point is properly indented."
+  "Minimum size that will be parsed by each call to the parser.
+A parse is always requested at a point (or on a region); the
+point is first expanded to a start point before the region and an
+end point after the region, that the parser can gracefully
+handle. If the final region covers the entire buffer, a complete
+parse is done. Indent assumes the start point of the parse region
+is properly indented. Most navigate parses ignore this setting
+and parse the whole buffer."
   :type 'integer
   :group 'wisi
   :safe 'integerp)
@@ -201,7 +199,7 @@ Useful when debugging parser or parser actions."
 Regions in a list are in random order.")
 
 (defun wisi--contained-region (begin end region)
-  "Non-nil if BEGIN END (buffer positions) is contained in REGION (a cons of positions)."
+  "Non-nil if BEGIN and END (buffer positions) are both contained in REGION (a cons of positions)."
   ;; We assume begin < end
   (and (<= (car region) begin)
        (<= end (cdr region))))
@@ -290,7 +288,7 @@ Truncate any region that overlaps POS."
   (with-silent-modifications
     ;; This text property is 'wisi-cache', not 'wisi-navigate', for
     ;; historical reasons.
-    (remove-text-properties after (point-max) '(wisi-cache nil))
+    (remove-text-properties after (point-max) '(wisi-cache nil wisi-name nil))
     )
   (wisi-cache-delete-regions-after 'navigate after))
 
@@ -469,9 +467,6 @@ Used to ignore whitespace changes in before/after change hooks.")
   "Update wisi text properties for changes in region BEG END."
   ;; (syntax-ppss-flush-cache begin) is in before-change-functions
 
-  ;; see comments above on syntax-propertize
-  (when (< emacs-major-version 25) (syntax-propertize end))
-
   (save-excursion
     (let ((need-invalidate t)
 	  (done nil)
@@ -526,10 +521,20 @@ Used to ignore whitespace changes in before/after change hooks.")
 	  (setq need-invalidate nil))
 
 	 ((and
-	   (nth 4 begin-state) ; in comment
+	   (nth 4 begin-state) ;; in comment
 	   (nth 4 end-state)
 	   (= (nth 8 begin-state) (nth 8 end-state))) ;; no intervening non-comment
-	  (setq need-invalidate nil))
+
+	  (if (and
+	       (= 11 (car (syntax-after begin)))
+	       (progn (goto-char begin)
+		      (skip-syntax-backward "<")
+		      (not (= (point) begin))))
+
+	      ;; Either inserted last char of a multi-char comment
+	      ;; start, or inserted extra comment-start chars.
+	      (setq need-invalidate begin)
+	    (setq need-invalidate nil)))
 
 	 ((and
 	   (or
@@ -617,14 +622,18 @@ Used to ignore whitespace changes in before/after change hooks.")
       (setq wisi-error-buffer (get-buffer-create wisi-error-buffer-name))
 
       (let ((lexer-errs (nreverse (cl-copy-seq (wisi-parser-lexer-errors wisi--parser))))
-	    (parse-errs (nreverse (cl-copy-seq (wisi-parser-parse-errors wisi--parser)))))
+	    (parse-errs (nreverse (cl-copy-seq (wisi-parser-parse-errors wisi--parser))))
+	    (dir default-directory))
 	(with-current-buffer wisi-error-buffer
+	  (setq window-size-fixed nil)
 	  (compilation-mode)
+	  (setq-local compilation-search-path (list dir))
+	  (setq default-directory dir)
 	  (setq next-error-last-buffer (current-buffer))
 	  (setq buffer-read-only nil)
 	  (erase-buffer)
 	  ;; compilation-nex-error-function assumes there is not an
-	  ;; error at point min, so we need a comment.
+	  ;; error at point-min, so we need a comment.
 	  (insert "wisi syntax errors")
 	  (newline)
 	  (dolist (err lexer-errs)
@@ -644,9 +653,14 @@ Used to ignore whitespace changes in before/after change hooks.")
 	  (setq buffer-read-only t)
 	  (goto-char (point-min)))
 
-	(display-buffer wisi-error-buffer
-			(cons #'display-buffer-at-bottom
-			      (list (cons 'window-height #'shrink-window-if-larger-than-buffer))))
+	(let ((win (display-buffer
+		    wisi-error-buffer
+		    (cons #'display-buffer-at-bottom
+			  (list (cons 'window-height #'shrink-window-if-larger-than-buffer))))))
+	  (set-window-dedicated-p win t))
+
+	(with-current-buffer wisi-error-buffer
+	  (setq window-size-fixed t))
 	(next-error))
       ))
 
@@ -717,8 +731,10 @@ Usefull if the parser appears to be hung."
 	(wisi-parse-error
 	 (cl-ecase wisi--parse-action
 	   (face
-	    ;; caches set by failed elisp parse are ok
-	    (wisi--delete-face-cache (cdr parsed-region)))
+	    ;; Caches set by failed elisp parse are ok, but some parse
+	    ;; failures return 'nil' in parse-region.
+	    (when (cdr parsed-region)
+	      (wisi--delete-face-cache (cdr parsed-region))))
 
 	   (navigate
 	    ;; elisp parse partially resets caches
@@ -1061,6 +1077,7 @@ the comment on the previous line."
 
 (defun wisi-indent-statement ()
   "Indent region given by `wisi-goto-start', `wisi-cache-end'."
+  (interactive)
   (wisi-validate-cache (point-min) (point-max) t 'navigate)
 
   (save-excursion
@@ -1126,18 +1143,23 @@ Called with BEGIN END.")
   "Return cached indent for point (must be bol), after correcting
 for parse errors. BEGIN, END is the parsed region."
   (let ((indent (get-text-property (1- (point)) 'wisi-indent)))
-    (unless indent
-      (error "nil indent for line %d" (line-number-at-pos (point))))
-    (when (and (wisi-partial-parse-p begin end)
-	       (< 0 (length (wisi-parser-parse-errors wisi--parser))))
-      (dolist (err (wisi-parser-parse-errors wisi--parser))
-	(dolist (repair (wisi--parse-error-repair err))
-	  ;; point is at bol; error pos may be at first token on same line.
-	  (save-excursion
-	    (back-to-indentation)
-	    (when (>= (point) (wisi--parse-error-repair-pos repair))
-	      (setq indent (max 0 (wisi-parse-adjust-indent wisi--parser indent repair))))
-	    ))))
+    (if indent
+	(when (and (wisi-partial-parse-p begin end)
+		   (< 0 (length (wisi-parser-parse-errors wisi--parser))))
+	  (dolist (err (wisi-parser-parse-errors wisi--parser))
+	    (dolist (repair (wisi--parse-error-repair err))
+	      ;; point is at bol; error pos may be at first token on same line.
+	      (save-excursion
+		(back-to-indentation)
+		(when (>= (point) (wisi--parse-error-repair-pos repair))
+		  (setq indent (max 0 (wisi-parse-adjust-indent wisi--parser indent repair))))
+		))))
+      ;; parse did not compute indent for point. Assume the error will
+      ;; go away soon as the user edits the code, so just return 0.
+      (if (= wisi-debug 0)
+	  (setq indent 0)
+	(error "nil indent for line %d" (line-number-at-pos (point)))))
+
     indent))
 
 (defun wisi-indent-region (begin end &optional indent-blank-lines)
@@ -1317,6 +1339,106 @@ If non-nil, only repair errors in BEG END region."
 	(wisi-repair-error-1 data)))
     ))
 
+;;; xref integration
+(defconst wisi-xref-ident-regexp "\\([^<]*\\)\\(?:<\\([0-9]+\\)>\\)?"
+  "Match line number encoded into identifier by `wisi-xref-identifier-at-point'.")
+
+(defun wisi-xref-ident-make (identifier &optional other-function)
+  (let* ((t-prop (get-text-property 0 'xref-identifier identifier))
+	 ;; If t-prop is non-nil: identifier is from
+	 ;; identifier-at-point, the desired location is the ’other’
+	 ;; (spec/body).
+	 ;;
+	 ;; If t-prop is nil: identifier is from prompt/completion,
+	 ;; the line number may be included in the identifier
+	 ;; wrapped in <>, and the desired file is the current file.
+	 (ident
+	  (if t-prop
+	      (substring-no-properties identifier 0 nil)
+	    (string-match wisi-xref-ident-regexp identifier)
+	    (match-string 1 identifier)
+	    ))
+	 (file
+	  (if t-prop
+	      (plist-get t-prop ':file)
+	    (buffer-file-name)))
+	 (line
+	  (if t-prop
+	      (plist-get t-prop ':line)
+	    (when (match-string 2 identifier)
+	      (string-to-number (match-string 2 identifier)))))
+	 (column
+	  (if t-prop
+	      (plist-get t-prop ':column)
+	    0))
+	 )
+
+    (if t-prop
+	(funcall other-function ident file line column)
+
+      (list (xref-make ident (xref-make-file-location file (or line 1) column)))
+      )))
+
+(defun wisi-xref-identifier-at-point ()
+  (let ((ident (thing-at-point 'symbol)))
+    (when ident
+      (put-text-property
+       0 1
+       'xref-identifier
+       (list ':file (buffer-file-name)
+	     ':line (line-number-at-pos)
+	     ':column (current-column))
+       ident)
+      ident)))
+
+(defun wisi-next-name-region ()
+  "Return the next region at or after point with text property 'wisi-name'."
+  (let* ((begin
+	  (if (get-text-property (point) 'wisi-name)
+	      (point)
+	    (next-single-property-change (point) 'wisi-name)))
+	 (end (next-single-property-change begin 'wisi-name)))
+    (cons begin end)))
+
+(defun wisi-prev-name-region ()
+  "Return the prev region at or before point with text property 'wisi-name'."
+  (let* ((end
+	  (if (get-text-property (point) 'wisi-name)
+	      (point)
+	    (previous-single-property-change (point) 'wisi-name)))
+	 (begin (previous-single-property-change end 'wisi-name)))
+    (cons begin end)))
+
+(defun wisi-next-name ()
+  "Return the text at or after point with text property 'wisi-name'."
+  (let ((region (wisi-next-name-region)))
+    (buffer-substring-no-properties (car region) (cdr region))))
+
+(defun wisi-prev-name ()
+  "Return the text at or before point with text property 'wisi-name'."
+  (let ((region (wisi-prev-name-region)))
+    (buffer-substring-no-properties (car region) (cdr region))))
+
+(defun wisi-xref-identifier-completion-table ()
+  (wisi-validate-cache (point-min) (point-max) t 'navigate)
+  (let ((table nil)
+	(pos (point-min))
+	end-pos)
+    (while (setq pos (next-single-property-change pos 'wisi-name))
+      ;; We can’t store location data in a string text property -
+      ;; it does not survive completion. So we include the line
+      ;; number in the identifier string. This also serves to
+      ;; disambiguate overloaded identifiers.
+      (setq end-pos (next-single-property-change pos 'wisi-name))
+      (push
+       (format "%s<%d>"
+	       (buffer-substring-no-properties pos end-pos)
+	       (line-number-at-pos pos))
+       table)
+      (setq pos end-pos)
+      )
+    table))
+
 ;;;; debugging
 
 (defun wisi-show-region (string)
@@ -1446,12 +1568,13 @@ If non-nil, only repair errors in BEG END region."
   (message "%s" (get-text-property (1- (line-beginning-position)) 'wisi-indent)))
 
 (defun wisi-show-cache ()
-  "Show navigation cache, and applied faces, at point."
+  "Show wisi text properties at point."
   (interactive)
-  (message "%s:%s:%s"
+  (message "%s:%s:%s:%s"
 	   (wisi-get-cache (point))
 	   (get-text-property (point) 'face)
 	   (get-text-property (point) 'font-lock-face)
+	   (get-text-property (point) 'wisi-name)
 	   ))
 
 (defun wisi-show-containing-or-previous-cache ()

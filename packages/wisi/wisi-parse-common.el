@@ -61,10 +61,38 @@ for the language-specific parser options."
 
 (cl-defgeneric wisi-parse-expand-region ((parser wisi-parser) begin end)
   "Return a cons SEND-BEGIN . SEND-END that is an expansion of
-region BEGIN END that starts at a valid parse start point,
-contains END, and ends at a point the parser can handle
-gracefully."
+region BEGIN END that starts and ends at points the parser can
+handle gracefully."
   (cons begin end))
+
+(defun wisi-search-backward-skip (regexp skip-p)
+  "Search backward for REGEXP. If SKIP-P returns non-nil, search again.
+SKIP-P is a function taking no parameters.
+Return nil if no match found before bob."
+  (let ((maybe-found-p (search-backward-regexp regexp nil t)))
+    (while (and maybe-found-p
+		(funcall skip-p)
+		(setq maybe-found-p (search-backward-regexp regexp nil t))))
+    maybe-found-p))
+
+(defun wisi-search-forward-skip (regexp skip-p)
+  "Search forward for REGEXP. If SKIP-P returns non-nil, search again.
+SKIP-P is a function taking no parameters.
+Return nil if no match found before eob."
+  (let ((maybe-found-p (search-forward-regexp regexp nil t)))
+    (while (and maybe-found-p
+		(funcall skip-p)
+		(setq maybe-found-p (search-forward-regexp regexp nil t))))
+    maybe-found-p))
+
+(defun wisi-show-expanded-region ()
+  "For debugging. Expand currently selected region."
+  (interactive)
+  (let ((region (wisi-parse-expand-region wisi--parser (region-beginning) (region-end))))
+    (message "pre (%d . %d) post %s" (region-beginning) (region-end) region)
+    (set-mark (car region))
+    (goto-char (cdr region))
+    ))
 
 (cl-defgeneric wisi-parse-adjust-indent ((parser wisi-parser) indent _repair)
   "Adjust INDENT for REPAIR (a wisi--parse-error-repair struct). Return new indent."
@@ -101,7 +129,7 @@ For use in grammar actions.")
 
   containing
   ;; Marker at the start of the containing statement for this token.
-  ;; nil only for first token in buffer
+  ;; nil for outermost containing.
 
   prev ;; marker at previous motion token in statement; nil if none
   next ;; marker at next motion token in statement; nil if none
@@ -201,15 +229,6 @@ value from grammar file."
   :safe 'integerp)
 (make-variable-buffer-local 'wisi-mckenzie-task-count)
 
-(defcustom wisi-mckenzie-cost-limit nil
-  "If integer, sets McKenzie error recovery algorithm cost limit.
-Higher value has more recover power, but takes longer.  If nil,
-uses value from grammar file."
-  :type 'integer
-  :group 'wisi
-  :safe 'integerp)
-(make-variable-buffer-local 'wisi-mckenzie-cost-limit)
-
 (defcustom wisi-mckenzie-check-limit nil
   "If integer, sets McKenzie error recovery algorithm token check limit.
 This sets the number of tokens past the error point that must be
@@ -232,11 +251,14 @@ If nil, uses value from grammar file."
   :safe 'integerp)
 (make-variable-buffer-local 'wisi-mckenzie-enqueue-limit)
 
-(defvar wisi-parse-max-parallel 15
+(defcustom wisi-parse-max-parallel 15
   "Maximum number of parallel parsers during regular parsing.
 Parallel parsers are used to resolve redundancy in the grammar.
 If a file needs more than this, it's probably an indication that
-the grammar is excessively redundant.")
+the grammar is excessively redundant."
+  :type 'integer
+  :group 'wisi
+  :safe 'integerp)
 
 (defvar wisi-parse-max-stack-size 500
   "Maximum parse stack size.
@@ -263,7 +285,6 @@ Normally set from a language-specific option.")
 
 (defconst wisi-class-list
   [motion ;; motion-action
-   name ;; for which-function
    statement-end
    statement-override
    statement-start

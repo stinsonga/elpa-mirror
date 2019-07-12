@@ -38,12 +38,12 @@ package body WisiToken.Generate.LR.LALR_Generate is
    --  IMPROVEME: should be a 3D array indexed by Prod, rhs_index,
    --  dot_index. But it's not broken or slow, so we're not fixing it.
 
-   function Propagate_Lookahead (Descriptor : in WisiToken.Descriptor) return access LR1_Items.Lookahead
+   function Propagate_Lookahead (Descriptor : in WisiToken.Descriptor) return Token_ID_Set_Access
    is begin
       return new Token_ID_Set'(LR1_Items.To_Lookahead (Descriptor.Last_Lookahead, Descriptor));
    end Propagate_Lookahead;
 
-   function Null_Lookahead (Descriptor : in WisiToken.Descriptor) return access LR1_Items.Lookahead
+   function Null_Lookahead (Descriptor : in WisiToken.Descriptor) return Token_ID_Set_Access
    is begin
       return new Token_ID_Set'(Descriptor.First_Terminal .. Descriptor.Last_Lookahead => False);
    end Null_Lookahead;
@@ -117,10 +117,6 @@ package body WisiToken.Generate.LR.LALR_Generate is
             then
                --  Find the production(s) that create Dot_ID with first token Symbol
                --  and put them in.
-               --
-               --  This is equivalent to Filter (LR1_Items.Closure, In_Kernel), but
-               --  more efficient, because it does not generate non-kernel items. See
-               --  Test/compare_goto_transitions.adb.
                for Prod of Grammar loop
                   for RHS_2_I in Prod.RHSs.First_Index .. Prod.RHSs.Last_Index loop
                      declare
@@ -136,17 +132,16 @@ package body WisiToken.Generate.LR.LALR_Generate is
                                   Dot        => Next (Dot_2),
                                   Lookaheads => Null_Lookahead (Descriptor)));
 
-                              if Trace_Generate > Detail then
-                                 Ada.Text_IO.Put_Line ("LALR_Goto_Transitions 2 " & Image (Symbol, Descriptor));
-                                 Put (Grammar, Descriptor, Goto_Set);
-                              end if;
-
                               --  else already in goto set
                            end if;
                         end if;
                      end;
                   end loop;
                end loop;
+               if Trace_Generate > Detail then
+                  Ada.Text_IO.Put_Line ("LALR_Goto_Transitions 2 " & Image (Symbol, Descriptor));
+                  Put (Grammar, Descriptor, Goto_Set);
+               end if;
             end if;
          end if; -- item.dot /= null
       end loop;
@@ -216,6 +211,11 @@ package body WisiToken.Generate.LR.LALR_Generate is
 
                   if Trace_Generate > Detail then
                      Ada.Text_IO.Put_Line ("  adding state" & Unknown_State_Index'Image (Kernels.Last_Index));
+
+                     Ada.Text_IO.Put_Line
+                       ("  state" & Unknown_State_Index'Image (Checking_State) &
+                          " adding goto on " & Image (Symbol, Descriptor) & " to state" &
+                          Unknown_State_Index'Image (Kernels.Last_Index));
                   end if;
 
                   Kernels (Checking_State).Goto_List.Insert ((Symbol, Kernels.Last_Index));
@@ -456,6 +456,7 @@ package body WisiToken.Generate.LR.LALR_Generate is
       Has_Empty_Production    : in     Token_ID_Set;
       First_Nonterm_Set       : in     Token_Array_Token_Set;
       First_Terminal_Sequence : in     Token_Sequence_Arrays.Vector;
+      Conflict_Counts         :    out Conflict_Count_Lists.List;
       Conflicts               :    out Conflict_Lists.List;
       Table                   : in out Parse_Table;
       Descriptor              : in     WisiToken.Descriptor)
@@ -468,7 +469,9 @@ package body WisiToken.Generate.LR.LALR_Generate is
          --  LALR_Goto_Transitions, Fill_In_Lookaheads, and here.
          Closure := LR1_Items.Closure (Kernel, Has_Empty_Production, First_Terminal_Sequence, Grammar, Descriptor);
 
-         Add_Actions (Closure, Table, Grammar, Has_Empty_Production, First_Nonterm_Set, Conflicts, Descriptor);
+         Add_Actions
+           (Closure, Table, Grammar, Has_Empty_Production, First_Nonterm_Set,
+            Conflict_Counts, Conflicts, Descriptor);
       end loop;
 
       if Trace_Generate > Detail then
@@ -477,25 +480,32 @@ package body WisiToken.Generate.LR.LALR_Generate is
    end Add_Actions;
 
    function Generate
-     (Grammar         : in WisiToken.Productions.Prod_Arrays.Vector;
-      Descriptor      : in WisiToken.Descriptor;
-      Known_Conflicts : in Conflict_Lists.List := Conflict_Lists.Empty_List;
-      McKenzie_Param  : in McKenzie_Param_Type := Default_McKenzie_Param;
-      Put_Parse_Table : in Boolean := False)
+     (Grammar           : in WisiToken.Productions.Prod_Arrays.Vector;
+      Descriptor        : in WisiToken.Descriptor;
+      Known_Conflicts   : in Conflict_Lists.List := Conflict_Lists.Empty_List;
+      McKenzie_Param    : in McKenzie_Param_Type := Default_McKenzie_Param;
+      Put_Parse_Table   : in Boolean             := False;
+      Include_Extra     : in Boolean             := False;
+      Ignore_Conflicts  : in Boolean             := False;
+      Partial_Recursion : in Boolean             := True)
      return Parse_Table_Ptr
    is
       use all type Ada.Containers.Count_Type;
 
       Ignore_Unused_Tokens     : constant Boolean := WisiToken.Trace_Generate > Detail;
-      Ignore_Unknown_Conflicts : constant Boolean := WisiToken.Trace_Generate > Detail;
+      Ignore_Unknown_Conflicts : constant Boolean := Ignore_Conflicts or WisiToken.Trace_Generate > Detail;
       Unused_Tokens            : constant Boolean := WisiToken.Generate.Check_Unused_Tokens (Descriptor, Grammar);
 
       Table : Parse_Table_Ptr;
 
       Has_Empty_Production : constant Token_ID_Set := WisiToken.Generate.Has_Empty_Production (Grammar);
 
+      Recursions : constant WisiToken.Generate.Recursions :=
+        (if Partial_Recursion
+         then WisiToken.Generate.Compute_Partial_Recursion (Grammar)
+         else WisiToken.Generate.Compute_Full_Recursion (Grammar));
       Minimal_Terminal_Sequences : constant Minimal_Sequence_Array :=
-        Compute_Minimal_Terminal_Sequences (Descriptor, Grammar);
+        Compute_Minimal_Terminal_Sequences (Descriptor, Grammar, Recursions);
 
       Minimal_Terminal_First : constant Token_Array_Token_ID :=
         Compute_Minimal_Terminal_First (Descriptor, Minimal_Terminal_Sequences);
@@ -508,6 +518,7 @@ package body WisiToken.Generate.LR.LALR_Generate is
 
       Kernels : LR1_Items.Item_Set_List := LALR_Kernels (Grammar, First_Nonterm_Set, Descriptor);
 
+      Conflict_Counts      : Conflict_Count_Lists.List;
       Unknown_Conflicts    : Conflict_Lists.List;
       Known_Conflicts_Edit : Conflict_Lists.List := Known_Conflicts;
 
@@ -538,30 +549,31 @@ package body WisiToken.Generate.LR.LALR_Generate is
       if McKenzie_Param = Default_McKenzie_Param then
          --  Descriminants in Default are wrong
          Table.McKenzie_Param :=
-           (First_Terminal    => Descriptor.First_Terminal,
-            Last_Terminal     => Descriptor.Last_Terminal,
-            First_Nonterminal => Descriptor.First_Nonterminal,
-            Last_Nonterminal  => Descriptor.Last_Nonterminal,
-            Insert            => (others => 0),
-            Delete            => (others => 0),
-            Push_Back         => (others => 0),
-            Ignore_Check_Fail => Default_McKenzie_Param.Ignore_Check_Fail,
-            Task_Count        => Default_McKenzie_Param.Task_Count,
-            Cost_Limit        => Default_McKenzie_Param.Cost_Limit,
-            Check_Limit       => Default_McKenzie_Param.Check_Limit,
-            Check_Delta_Limit => Default_McKenzie_Param.Check_Delta_Limit,
-            Enqueue_Limit     => Default_McKenzie_Param.Enqueue_Limit);
+           (First_Terminal              => Descriptor.First_Terminal,
+            Last_Terminal               => Descriptor.Last_Terminal,
+            First_Nonterminal           => Descriptor.First_Nonterminal,
+            Last_Nonterminal            => Descriptor.Last_Nonterminal,
+            Insert                      => (others => 0),
+            Delete                      => (others => 0),
+            Push_Back                   => (others => 0),
+            Undo_Reduce                 => (others => 0),
+            Minimal_Complete_Cost_Delta => Default_McKenzie_Param.Minimal_Complete_Cost_Delta,
+            Fast_Forward                => Default_McKenzie_Param.Fast_Forward,
+            Matching_Begin              => Default_McKenzie_Param.Matching_Begin,
+            Ignore_Check_Fail           => Default_McKenzie_Param.Ignore_Check_Fail,
+            Task_Count                  => Default_McKenzie_Param.Task_Count,
+            Check_Limit                 => Default_McKenzie_Param.Check_Limit,
+            Check_Delta_Limit           => Default_McKenzie_Param.Check_Delta_Limit,
+            Enqueue_Limit               => Default_McKenzie_Param.Enqueue_Limit);
       else
          Table.McKenzie_Param := McKenzie_Param;
       end if;
 
       Add_Actions
-        (Kernels, Grammar, Has_Empty_Production, First_Nonterm_Set, First_Terminal_Sequence, Unknown_Conflicts,
-         Table.all, Descriptor);
+        (Kernels, Grammar, Has_Empty_Production, First_Nonterm_Set, First_Terminal_Sequence, Conflict_Counts,
+         Unknown_Conflicts, Table.all, Descriptor);
 
-      --  Set Table.States.Productions, Minimal_Complete_Actions for McKenzie_Recover
       for State in Table.States'Range loop
-         Table.States (State).Productions := LR1_Items.Productions (Kernels (State));
          if Trace_Generate > Extra then
             Ada.Text_IO.Put_Line ("Set_Minimal_Complete_Actions:" & State_Index'Image (State));
          end if;
@@ -572,7 +584,8 @@ package body WisiToken.Generate.LR.LALR_Generate is
 
       if Put_Parse_Table then
          WisiToken.Generate.LR.Put_Parse_Table
-           (Table, "LALR", Grammar, Kernels, Unknown_Conflicts, Descriptor);
+           (Table, "LALR", Grammar, Recursions, Minimal_Terminal_Sequences, Kernels, Conflict_Counts, Descriptor,
+            Include_Extra);
       end if;
 
       Delete_Known (Unknown_Conflicts, Known_Conflicts_Edit);

@@ -95,6 +95,37 @@ package body WisiToken.Parse.LR is
       end if;
    end Equal;
 
+   function Is_In (Item : in Parse_Action_Rec; List : in Parse_Action_Node_Ptr) return Boolean
+   is
+      Node : Parse_Action_Node_Ptr := List;
+   begin
+      loop
+         exit when Node = null;
+         if Equal (Item, Node.Item) then
+            return True;
+         end if;
+         Node := Node.Next;
+      end loop;
+      return False;
+   end Is_In;
+
+   function Find
+     (Symbol      : in Token_ID;
+      Action_List : in Action_Node_Ptr)
+     return Action_Node_Ptr
+   is
+      Action_Node : Action_Node_Ptr := Action_List;
+   begin
+      while Action_Node /= null loop
+         if Action_Node.Symbol = Symbol then
+            return Action_Node;
+         end if;
+         Action_Node := Action_Node.Next;
+      end loop;
+
+      return null;
+   end Find;
+
    procedure Add
      (List   : in out Action_Node_Ptr;
       Symbol : in     Token_ID;
@@ -140,11 +171,26 @@ package body WisiToken.Parse.LR is
       return List.Next;
    end Next;
 
+   function To_Vector (Item : in Kernel_Info_Array) return Kernel_Info_Arrays.Vector
+   is begin
+      return Result : Kernel_Info_Arrays.Vector do
+         Result.Set_First_Last (Item'First, Item'Last);
+         for I in Item'Range loop
+            Result (I) := Item (I);
+         end loop;
+      end return;
+   end To_Vector;
+
+   function Strict_Image (Item : in Kernel_Info) return String
+   is begin
+      return "(" & Trimmed_Image (Item.LHS) & "," & Token_ID'Image (Item.Before_Dot) & "," &
+        Ada.Containers.Count_Type'Image (Item.Length_After_Dot) & ", " &
+        (if Item.Recursive then "True" else "False") & ")";
+   end Strict_Image;
+
    function Strict_Image (Item : in Minimal_Action) return String
    is begin
       case Item.Verb is
-      when Pause =>
-         return "(Verb => Shift)";
       when Shift =>
          return "(Shift," & Token_ID'Image (Item.ID) & "," & State_Index'Image (Item.State) & ")";
       when Reduce =>
@@ -152,6 +198,26 @@ package body WisiToken.Parse.LR is
            Ada.Containers.Count_Type'Image (Item.Token_Count) & ")";
       end case;
    end Strict_Image;
+
+   function Image (Item : in Minimal_Action; Descriptor : in WisiToken.Descriptor) return String
+   is begin
+      case Item.Verb is
+      when Shift =>
+         return "Shift " & Image (Item.ID, Descriptor);
+      when Reduce =>
+         return "Reduce to " & Image (Item.Nonterm, Descriptor);
+      end case;
+   end Image;
+
+   function To_Vector (Item : in Minimal_Action_Array) return Minimal_Action_Arrays.Vector
+   is begin
+      return Result : Minimal_Action_Arrays.Vector do
+         Result.Set_First_Last (Item'First, Item'Last);
+         for I in Item'Range loop
+            Result.Replace_Element (I, Item (I));
+         end loop;
+      end return;
+   end To_Vector;
 
    function First (State : in Parse_State) return Action_List_Iterator
    is begin
@@ -271,50 +337,24 @@ package body WisiToken.Parse.LR is
       Add_Error (State);
    end Add_Action;
 
-   procedure Add_Action
+   procedure Add_Conflict
      (State             : in out LR.Parse_State;
       Symbol            : in     Token_ID;
-      State_Index       : in     WisiToken.State_Index;
       Reduce_Production : in     Production_ID;
       RHS_Token_Count   : in     Ada.Containers.Count_Type;
       Semantic_Action   : in     WisiToken.Syntax_Trees.Semantic_Action;
       Semantic_Check    : in     Semantic_Checks.Semantic_Check)
    is
-      Action_1 : constant Parse_Action_Rec := (Shift, State_Index);
-      Action_2 : constant Parse_Action_Rec :=
+      Conflict : constant Parse_Action_Rec :=
         (Reduce, Reduce_Production, Semantic_Action, Semantic_Check, RHS_Token_Count);
+      Node : Parse_Action_Node_Ptr := Find (Symbol, State.Action_List).Action;
    begin
-      State.Action_List := new Action_Node'
-        (Symbol, new Parse_Action_Node'(Action_1, new Parse_Action_Node'(Action_2, null)), State.Action_List);
-   end Add_Action;
-
-   procedure Add_Action
-     (State             : in out LR.Parse_State;
-      Symbol            : in     Token_ID;
-      Verb              : in     LR.Parse_Action_Verbs;
-      Production_1      : in     Production_ID;
-      RHS_Token_Count_1 : in     Ada.Containers.Count_Type;
-      Semantic_Action_1 : in     Syntax_Trees.Semantic_Action;
-      Semantic_Check_1  : in     Semantic_Checks.Semantic_Check;
-      Production_2      : in     Production_ID;
-      RHS_Token_Count_2 : in     Ada.Containers.Count_Type;
-      Semantic_Action_2 : in     Syntax_Trees.Semantic_Action;
-      Semantic_Check_2  : in     Semantic_Checks.Semantic_Check)
-   is
-      Action_1 : constant Parse_Action_Rec :=
-        (case Verb is
-         when Reduce    =>
-           (Reduce, Production_1, Semantic_Action_1, Semantic_Check_1, RHS_Token_Count_1),
-         when Accept_It =>
-           (Accept_It, Production_1, Semantic_Action_1, Semantic_Check_1, RHS_Token_Count_1),
-         when others => raise SAL.Programmer_Error);
-
-      Action_2 : constant Parse_Action_Rec :=
-        (Reduce, Production_2, Semantic_Action_2, Semantic_Check_2, RHS_Token_Count_2);
-   begin
-      State.Action_List := new Action_Node'
-        (Symbol, new Parse_Action_Node'(Action_1, new Parse_Action_Node'(Action_2, null)), State.Action_List);
-   end Add_Action;
+      loop
+         exit when Node.Next = null;
+         Node := Node.Next;
+      end loop;
+      Node.Next := new Parse_Action_Node'(Conflict, null);
+   end Add_Conflict;
 
    procedure Add_Error (State  : in out LR.Parse_State)
    is
@@ -361,34 +401,6 @@ package body WisiToken.Parse.LR is
          end if;
       end if;
    end Add_Goto;
-
-   procedure Set_Production
-     (Prod     : in out Productions.Instance;
-      LHS      : in     Token_ID;
-      RHS_Last : in     Natural)
-   is begin
-      Prod.LHS := LHS;
-      Prod.RHSs.Set_First (0);
-      Prod.RHSs.Set_Last (RHS_Last);
-   end Set_Production;
-
-   procedure Set_RHS
-     (Prod      : in out Productions.Instance;
-      RHS_Index : in     Natural;
-      Tokens    : in     Token_ID_Array;
-      Action    : in     WisiToken.Syntax_Trees.Semantic_Action   := null;
-      Check     : in     WisiToken.Semantic_Checks.Semantic_Check := null)
-   is begin
-      if Tokens'Length > 0 then
-         Prod.RHSs (RHS_Index).Tokens.Set_First (1);
-         Prod.RHSs (RHS_Index).Tokens.Set_Last (Tokens'Length);
-         for I in Tokens'Range loop
-            Prod.RHSs (RHS_Index).Tokens (I) := Tokens (I);
-         end loop;
-         Prod.RHSs (RHS_Index).Action := Action;
-         Prod.RHSs (RHS_Index).Check  := Check;
-      end if;
-   end Set_RHS;
 
    function Goto_For
      (Table : in Parse_Table;
@@ -499,26 +511,10 @@ package body WisiToken.Parse.LR is
       Free (Table);
    end Free_Table;
 
-   function Get_Action
-     (Prod        : in Production_ID;
-      Productions : in WisiToken.Productions.Prod_Arrays.Vector)
-     return WisiToken.Syntax_Trees.Semantic_Action
-   is begin
-      return Productions (Prod.LHS).RHSs (Prod.RHS).Action;
-   end Get_Action;
-
-   function Get_Check
-     (Prod        : in Production_ID;
-      Productions : in WisiToken.Productions.Prod_Arrays.Vector)
-     return WisiToken.Semantic_Checks.Semantic_Check
-   is begin
-      return Productions (Prod.LHS).RHSs (Prod.RHS).Check;
-   end Get_Check;
-
    function Get_Text_Rep
      (File_Name      : in String;
       McKenzie_Param : in McKenzie_Param_Type;
-      Productions    : in WisiToken.Productions.Prod_Arrays.Vector)
+      Actions        : in Semantic_Action_Array_Arrays.Vector)
      return Parse_Table_Ptr
    is
       use Ada.Text_IO;
@@ -634,6 +630,8 @@ package body WisiToken.Parse.LR is
       Buffer_Abs_Last := GNATCOLL.Mmap.Last (Region);
 
       declare
+         use Ada.Containers;
+
          --  We don't read the discriminants in the aggregate, because
          --  aggregate evaluation order is not guaranteed.
          State_First       : constant State_Index := Next_State_Index;
@@ -651,14 +649,6 @@ package body WisiToken.Parse.LR is
          Table.McKenzie_Param := McKenzie_Param;
 
          for State of Table.States loop
-            State.Productions.Set_First (Next_Integer);
-            State.Productions.Set_Last (Next_Integer);
-            for I in State.Productions.First_Index .. State.Productions.Last_Index loop
-               State.Productions (I).LHS := Next_Token_ID;
-               State.Productions (I).RHS := Next_Integer;
-            end loop;
-            Check_New_Line;
-
             declare
                Node_I       : Action_Node_Ptr := new Action_Node;
                Actions_Done : Boolean         := False;
@@ -688,12 +678,14 @@ package body WisiToken.Parse.LR is
                            Node_J.Item.Production.LHS := Next_Token_ID;
                            Node_J.Item.Production.RHS := Next_Integer;
                            if Next_Boolean then
-                              Node_J.Item.Action := Get_Action (Node_J.Item.Production, Productions);
+                              Node_J.Item.Action := Actions
+                                (Node_J.Item.Production.LHS)(Node_J.Item.Production.RHS).Action;
                            else
                               Node_J.Item.Action := null;
                            end if;
                            if Next_Boolean then
-                              Node_J.Item.Check := Get_Check (Node_J.Item.Production, Productions);
+                              Node_J.Item.Check := Actions
+                                (Node_J.Item.Production.LHS)(Node_J.Item.Production.RHS).Check;
                            else
                               Node_J.Item.Check := null;
                            end if;
@@ -745,30 +737,51 @@ package body WisiToken.Parse.LR is
             end if;
             Check_New_Line;
 
+            declare
+               First : constant Integer := Next_Integer;
+               Last  : constant Integer := Next_Integer;
+            begin
+               if Last = -1 then
+                  --  State.Kernel not set for state 0
+                  null;
+               else
+                  State.Kernel.Set_First (Count_Type (First));
+                  State.Kernel.Set_Last (Count_Type (Last));
+
+                  for I in State.Kernel.First_Index .. State.Kernel.Last_Index loop
+                     State.Kernel (I).LHS := Next_Token_ID;
+                     State.Kernel (I).Before_Dot := Next_Token_ID;
+                     State.Kernel (I).Length_After_Dot := Count_Type (Next_Integer);
+                  end loop;
+               end if;
+            end;
+            Check_New_Line;
+
             if Check_Semicolon then
                --  No minimal action
                null;
             else
-               declare
-                  Verb         : constant Minimal_Verbs := Next_Parse_Action_Verbs;
-                  ID           : Token_ID;
-                  Action_State : State_Index;
-                  Count        : Ada.Containers.Count_Type;
-               begin
-                  case Verb is
-                  when Pause =>
-                     null; --  Generate.LR.Put_Text_Rep does not output this
-
-                  when Shift =>
-                     ID           := Next_Token_ID;
-                     Action_State := Next_State_Index;
-                     State.Minimal_Complete_Action := (Shift, ID, Action_State);
-                  when Reduce =>
-                     ID    := Next_Token_ID;
-                     Count := Next_Count_Type;
-                     State.Minimal_Complete_Action := (Reduce, ID, Count);
-                  end case;
-               end;
+               State.Minimal_Complete_Actions.Set_First (Count_Type (Next_Integer));
+               State.Minimal_Complete_Actions.Set_Last (Count_Type (Next_Integer));
+               for I in State.Minimal_Complete_Actions.First_Index .. State.Minimal_Complete_Actions.Last_Index loop
+                  declare
+                     Verb         : constant Minimal_Verbs := Next_Parse_Action_Verbs;
+                     ID           : Token_ID;
+                     Action_State : State_Index;
+                     Count        : Ada.Containers.Count_Type;
+                  begin
+                     case Verb is
+                     when Shift =>
+                        ID           := Next_Token_ID;
+                        Action_State := Next_State_Index;
+                        State.Minimal_Complete_Actions.Replace_Element (I, (Shift, ID, Action_State));
+                     when Reduce =>
+                        ID    := Next_Token_ID;
+                        Count := Next_Count_Type;
+                        State.Minimal_Complete_Actions.Replace_Element (I, (Reduce, ID, Count));
+                     end case;
+                  end;
+               end loop;
                Check_Semicolon;
             end if;
             Check_New_Line;
@@ -791,15 +804,31 @@ package body WisiToken.Parse.LR is
    end Get_Text_Rep;
 
    function Compare (Left, Right : in Insert_Delete_Op) return SAL.Compare_Result
-   is begin
-      if Left.Token_Index < Right.Token_Index then
+   is
+      Left_Token_Index : constant WisiToken.Token_Index :=
+        (case Insert_Delete_Op_Label'(Left.Op) is
+         when Insert => Left.Ins_Token_Index,
+         when Delete => Left.Del_Token_Index);
+      Right_Token_Index : constant WisiToken.Token_Index :=
+        (case Insert_Delete_Op_Label'(Right.Op) is
+         when Insert => Right.Ins_Token_Index,
+         when Delete => Right.Del_Token_Index);
+   begin
+      if Left_Token_Index < Right_Token_Index then
          return SAL.Less;
-      elsif Left.Token_Index = Right.Token_Index then
+      elsif Left_Token_Index = Right_Token_Index then
          return SAL.Equal;
       else
          return SAL.Greater;
       end if;
    end Compare;
+
+   function Equal (Left : in Config_Op; Right : in Insert_Op) return Boolean
+   is begin
+      return Left.Op = Insert and then
+        Left.Ins_ID = Right.Ins_ID and then
+        Left.Ins_Token_Index = Right.Ins_Token_Index;
+   end Equal;
 
    function None_Since_FF (Ops : in Config_Op_Arrays.Vector; Op : in Config_Op_Label) return Boolean
    is begin
@@ -812,20 +841,26 @@ package body WisiToken.Parse.LR is
       return True;
    end None_Since_FF;
 
-   function Match_Since_FF (Ops : in Config_Op_Arrays.Vector; Op : in Config_Op) return Boolean
-   is begin
-      for O of reverse Ops loop
-         exit when O.Op = Fast_Forward;
-         if O = Op then
-            return True;
-         end if;
-      end loop;
-      return False;
-   end Match_Since_FF;
+   function Only_Since_FF (Ops : in Config_Op_Arrays.Vector; Op : in Config_Op_Label) return Boolean
+   is
+      use all type Ada.Containers.Count_Type;
+   begin
+      if Ops.Length = 0 or else Ops (Ops.Last_Index).Op /= Op then
+         return False;
+      else
+         for O of reverse Ops loop
+            exit when O.Op = Fast_Forward;
+            if O.Op /= Op then
+               return False;
+            end if;
+         end loop;
+         return True;
+      end if;
+   end Only_Since_FF;
 
    function Valid_Tree_Indices (Stack : in Recover_Stacks.Stack; Depth : in SAL.Base_Peek_Type) return Boolean
    is
-      use all type Syntax_Trees.Node_Index;
+      use all type WisiToken.Syntax_Trees.Node_Index;
    begin
       for I in 1 .. Depth loop
          if Stack (I).Tree_Index = Syntax_Trees.Invalid_Node_Index then
@@ -851,24 +886,5 @@ package body WisiToken.Parse.LR is
    begin
       Data.Results.Process (Proc'Unrestricted_Access);
    end Accumulate;
-
-   function Image
-     (Item       : in Parse_Error;
-      Tree       : in Syntax_Trees.Tree;
-      Descriptor : in WisiToken.Descriptor)
-     return String
-   is begin
-      case Item.Label is
-      when Action =>
-         return "Action, expecting: " & Image (Item.Expecting, Descriptor) &
-           ", found" & Tree.Image (Item.Error_Token, Descriptor);
-
-      when Check =>
-         return "Check, " & Semantic_Checks.Image (Item.Check_Status, Descriptor);
-
-      when Message =>
-         return -Item.Msg;
-      end case;
-   end Image;
 
 end WisiToken.Parse.LR;

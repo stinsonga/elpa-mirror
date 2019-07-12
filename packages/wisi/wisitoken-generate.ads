@@ -27,6 +27,9 @@
 
 pragma License (Modified_GPL);
 
+with Ada.Containers.Doubly_Linked_Lists;
+with SAL.Ada_Containers.Gen_Doubly_Linked_Lists_Image;
+with SAL.Gen_Graphs;
 with WisiToken.Productions;
 package WisiToken.Generate is
 
@@ -92,6 +95,71 @@ package WisiToken.Generate is
    --  For each nonterminal in Grammar, find the set of terminal
    --  tokens that can follow it. Implements algorithm FOLLOW from
    --  [dragon] pg 189.
+
+   ----------
+   --  Recursion
+
+   --  Recursion is the result of a cycle in the grammar. We can form a
+   --  graph representing the grammar by taking the nonterminals as the
+   --  graph vertices, and the occurence of a nonterminal in a production
+   --  right hand side as a directed edge connecting two nonterminals
+   --  (the other is the left hand side of that production. Then
+   --  recursion is represented by a cycle in the graph.
+
+   type Recursion_Item is record
+      RHS : Natural := 0;
+      --  The edge leading to this node. We don't need the actual token
+      --  number.
+
+      Recursive : Recursion := None;
+      --  Position of the token in the RHS.
+   end record;
+
+   function Edge_Image (Edge : in Recursion_Item) return String is
+     (Trimmed_Image (Edge.RHS) & " " & Recursion'Image (Edge.Recursive));
+
+   type Base_Recursion_Index is range 0 .. Integer'Last;
+   subtype Recursion_Index is Base_Recursion_Index range 1 .. Base_Recursion_Index'Last;
+   Invalid_Recursion_Index : constant Base_Recursion_Index := 0;
+   function Trimmed_Image is new SAL.Gen_Trimmed_Image (Base_Recursion_Index);
+
+   package Grammar_Graphs is new SAL.Gen_Graphs
+     (Edge_Data         => Recursion_Item,
+      Default_Edge_Data => (others => <>),
+      Vertex_Index      => Token_ID,
+      Invalid_Vertex    => Invalid_Token_ID,
+      Path_Index        => Recursion_Index,
+      Edge_Image        => Edge_Image);
+
+   subtype Recursion_Cycle is Grammar_Graphs.Path;
+   --  A recursion, with lowest numbered production first. If there is
+   --  only one element, the recursion is direct; otherwise indirect.
+
+   subtype Recursion_Array is Grammar_Graphs.Path_Arrays.Vector;
+   --  For the collection of all cycles.
+
+   type Recursions is record
+      Full       : Boolean;
+      Recursions : Recursion_Array;
+      --  If Full, elements are paths; edges at path (I) are to path (I). If
+      --  not Full, elements are strongly connected components; edges at
+      --  path (I) are from path (I).
+   end record;
+
+   package Recursion_Lists is new Ada.Containers.Doubly_Linked_Lists (Recursion_Index);
+   function Image is new SAL.Ada_Containers.Gen_Doubly_Linked_Lists_Image
+     (Recursion_Index, "=", Recursion_Lists, Trimmed_Image);
+
+   function To_Graph (Grammar : in WisiToken.Productions.Prod_Arrays.Vector) return Grammar_Graphs.Graph;
+
+   function Compute_Full_Recursion (Grammar : in WisiToken.Productions.Prod_Arrays.Vector) return Recursions;
+   --  Each element of result is a cycle in the grammar.
+
+   function Compute_Partial_Recursion (Grammar : in WisiToken.Productions.Prod_Arrays.Vector) return Recursions;
+   --  Each element of the result contains all members of a non-trivial
+   --  strongly connected component in the grammar, in arbitrary order.
+   --  This is an approximation to the full recursion, when that is too
+   --  hard to compute (ie for Java).
 
    ----------
    --  Indented text output. Mostly used for code generation in wisi,

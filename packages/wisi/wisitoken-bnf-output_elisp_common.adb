@@ -2,7 +2,7 @@
 --
 --  See spec
 --
---  Copyright (C) 2012, 2013, 2015, 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2012, 2013, 2015, 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This program is free software; you can redistribute it and/or
 --  modify it under terms of the GNU General Public License as
@@ -87,6 +87,20 @@ package body WisiToken.BNF.Output_Elisp_Common is
       use Ada.Strings.Unbounded;
       use Ada.Text_IO;
       use WisiToken.Generate;
+
+      function To_Double_Quotes (Item : in String) return String
+      is
+         Result : String := Item;
+      begin
+         if Result (Result'First) = ''' then
+            Result (Result'First) := '"';
+         end if;
+         if Result (Result'Last) = ''' then
+            Result (Result'Last) := '"';
+         end if;
+         return Result;
+      end To_Double_Quotes;
+
    begin
       Indent_Line ("(defconst " & Output_File_Root & "-" & Label & "-token-table-raw");
       Indent_Line ("  '(");
@@ -111,7 +125,7 @@ package body WisiToken.BNF.Output_Elisp_Common is
                      --  value not used by elisp
                      Indent_Line ("(" & Image (Token.Name) & " . """")");
                   else
-                     Indent_Line ("(" & Image (Token.Name) & " . " & (-Token.Value) & ")");
+                     Indent_Line ("(" & Image (Token.Name) & " . " & To_Double_Quotes (-Token.Value) & ")");
                   end if;
                end if;
             end loop;
@@ -139,7 +153,6 @@ package body WisiToken.BNF.Output_Elisp_Common is
       end loop;
       Indent_Line ("])");
       Indent := Indent - 3;
-      New_Line;
    end Indent_Name_Table;
 
 end WisiToken.BNF.Output_Elisp_Common;

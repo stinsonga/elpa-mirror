@@ -72,6 +72,12 @@ package WisiToken.Semantic_Checks is
       Tokens     : in     Recover_Token_Array;
       Name_Index : in     Positive_Index_Type)
      return Check_Status;
+   function Merge_Names
+     (Nonterm     : in out Recover_Token;
+      Tokens      : in     Recover_Token_Array;
+      Name_Index  : in     Positive_Index_Type)
+     return Check_Status
+   renames Propagate_Name;
    --  Set Nonterm.Name to Tokens (Name_Index).Name, or .Byte_Region, if
    --  .Name is Null_Buffer_Region. Return Ok.
 

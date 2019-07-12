@@ -47,7 +47,8 @@
     (cond
      ((save-excursion
 	(end-of-line)
-	(or (looking-back "goto state \\([0-9]+\\),?" (line-beginning-position))
+	;; "go to" for bison output
+	(or (looking-back "go ?to state \\([0-9]+\\),?" (line-beginning-position))
 	    (looking-back "( \\([0-9]+\\))" (line-beginning-position))))
       (match-string 1))
 

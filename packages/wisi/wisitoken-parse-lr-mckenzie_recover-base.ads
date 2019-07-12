@@ -84,7 +84,6 @@ private package WisiToken.Parse.LR.McKenzie_Recover.Base is
 
    protected type Supervisor
      (Trace             : not null access WisiToken.Trace'Class;
-      Cost_Limit        : Natural;
       Check_Delta_Limit : Natural;
       Enqueue_Limit     : Natural;
       Parser_Count      : SAL.Peek_Type)
@@ -124,6 +123,10 @@ private package WisiToken.Parse.LR.McKenzie_Recover.Base is
       --
       --  Decrements active worker count.
 
+      procedure Config_Full (Parser_Index : in SAL.Peek_Type);
+      --  Report that a config.ops was full when trying to add another op.
+      --  This is counted towards the enqueue limit.
+
       function Recover_Result return Recover_Status;
 
       procedure Fatal (E : in Ada.Exceptions.Exception_Occurrence);
@@ -154,14 +157,14 @@ private package WisiToken.Parse.LR.McKenzie_Recover.Base is
    end Supervisor;
 
    type Shared
-     (Trace                                 : not null access WisiToken.Trace'Class;
-      Lexer                                 : not null access constant WisiToken.Lexer.Instance'Class;
-      Table                                 : not null access constant Parse_Table;
-      Language_Fixes                        : WisiToken.Parse.LR.Parser.Language_Fixes_Access;
-      Language_Use_Minimal_Complete_Actions : WisiToken.Parse.LR.Parser.Language_Use_Minimal_Complete_Actions_Access;
-      Language_String_ID_Set                : WisiToken.Parse.LR.Parser.Language_String_ID_Set_Access;
-      Terminals                             : not null access constant Base_Token_Arrays.Vector;
-      Line_Begin_Token                      : not null access constant Line_Begin_Token_Vectors.Vector)
+     (Trace                          : not null access WisiToken.Trace'Class;
+      Lexer                          : not null access constant WisiToken.Lexer.Instance'Class;
+      Table                          : not null access constant Parse_Table;
+      Language_Fixes                 : WisiToken.Parse.LR.Parser.Language_Fixes_Access;
+      Language_Matching_Begin_Tokens : WisiToken.Parse.LR.Parser.Language_Matching_Begin_Tokens_Access;
+      Language_String_ID_Set         : WisiToken.Parse.LR.Parser.Language_String_ID_Set_Access;
+      Terminals                      : not null access constant Base_Token_Arrays.Vector;
+      Line_Begin_Token               : not null access constant Line_Begin_Token_Vectors.Vector)
      is null record;
    --  There is only one object of this type, declared in Recover. It
    --  provides appropriate access to Shared_Parser components.

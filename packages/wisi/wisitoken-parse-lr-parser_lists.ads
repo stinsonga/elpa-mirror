@@ -131,6 +131,7 @@ package WisiToken.Parse.LR.Parser_Lists is
    function Label (Cursor : in Parser_Lists.Cursor) return Natural;
    function Total_Recover_Cost (Cursor : in Parser_Lists.Cursor) return Integer;
    function Max_Recover_Ops_Length (Cursor : in Parser_Lists.Cursor) return Ada.Containers.Count_Type;
+   function Min_Recover_Cost (Cursor : in Parser_Lists.Cursor) return Integer;
 
    procedure Set_Verb (Cursor : in Parser_Lists.Cursor; Verb : in All_Parse_Action_Verbs);
    function Verb (Cursor : in Parser_Lists.Cursor) return All_Parse_Action_Verbs;

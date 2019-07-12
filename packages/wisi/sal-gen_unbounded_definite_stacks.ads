@@ -23,6 +23,7 @@
 pragma License (Modified_GPL);
 
 with Ada.Finalization;
+with Ada.Iterator_Interfaces;
 with Ada.Unchecked_Deallocation;
 generic
    type Element_Type is private;
@@ -32,7 +33,9 @@ package SAL.Gen_Unbounded_Definite_Stacks is
 
    type Stack is new Ada.Finalization.Controlled with private
    with
-     Constant_Indexing => Constant_Ref;
+     Constant_Indexing => Constant_Ref,
+     Default_Iterator  => Iterate,
+     Iterator_Element  => Element_Type;
 
    Empty_Stack : constant Stack;
 
@@ -115,6 +118,20 @@ package SAL.Gen_Unbounded_Definite_Stacks is
      return Constant_Ref_Type;
    pragma Inline (Constant_Ref);
 
+   type Cursor is private;
+
+   function Constant_Ref
+     (Container : aliased in Stack'Class;
+      Position  :         in Cursor)
+     return Constant_Ref_Type;
+   pragma Inline (Constant_Ref);
+
+   function Has_Element (Position : in Cursor) return Boolean;
+
+   package Iterator_Interfaces is new Ada.Iterator_Interfaces (Cursor, Has_Element);
+
+   function Iterate (Container : aliased in Stack) return Iterator_Interfaces.Forward_Iterator'Class;
+
 private
 
    type Element_Array is array (Peek_Type range <>) of aliased Element_Type;
@@ -129,6 +146,24 @@ private
       --  Data (1 .. Last_Index) has been set at some point.
    end record;
 
+   type Stack_Access is access all Stack;
+
    Empty_Stack : constant Stack := (Ada.Finalization.Controlled with Invalid_Peek_Index, null);
+
+   type Cursor is record
+      Container : Stack_Access;
+      Ptr       : Peek_Type;
+   end record;
+
+   type Iterator is new Iterator_Interfaces.Forward_Iterator with
+   record
+      Container : Stack_Access;
+   end record;
+
+   overriding function First (Object : Iterator) return Cursor;
+
+   overriding function Next
+     (Object   : Iterator;
+      Position : Cursor) return Cursor;
 
 end SAL.Gen_Unbounded_Definite_Stacks;

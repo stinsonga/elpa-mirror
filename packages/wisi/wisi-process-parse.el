@@ -26,21 +26,23 @@
   "Options for Wisi package."
   :group 'programming)
 
-(defcustom wisi-process-time-out 1.0
+(defcustom wisi-process-time-out 5.0
   "Time out waiting for parser response. An error occurs if there
-  is no response from the parser after waiting this amount 5
-  times."
+  is no response from the parser after waiting this amount (in
+  seconds)."
   :type 'float
   :safe 'floatp)
 (make-variable-buffer-local 'wisi-process-time-out)
+
+(defconst wisi-process-parse-protocol-version "3"
+  "Defines data exchanged between this package and the background process.
+Must match emacs_wisi_common_parse.ads Protocol_Version.")
 
 (defconst wisi-process-parse-prompt "^;;> "
   "Regexp matching executable prompt; indicates previous command is complete.")
 
 (defconst wisi-process-parse-quit-cmd "004quit\n"
   "Command to external process telling it to quit.")
-
-(defvar wisi-process-parse-debug 0)
 
 ;;;;; sessions
 
@@ -54,6 +56,7 @@
 
 (cl-defstruct (wisi-process--parser (:include wisi-parser))
   (label nil)             ;; string uniquely identifying parser
+  language-protocol-version ;; string identifying language-specific params
   (exec-file nil) 	  ;; absolute file name of executable
   (exec-opts nil)         ;; list of process start options for executable
   (token-table nil)       ;; vector of token symbols, indexed by integer
@@ -65,6 +68,7 @@
   (total-wait-time 0.0)   ;; total time during last parse spent waiting for subprocess output.
   (response-count 0)      ;; responses received from subprocess during last parse; for profiling.
   end-pos                 ;; last character position parsed
+  language-action-table   ;; array of function pointers, each taking an sexp sent by the process
   )
 
 (defvar wisi-process--alist nil
@@ -93,6 +97,24 @@ Otherwise add PARSER to ‘wisi-process--alist’, return it."
       (wisi-parse-kill parser)
       (setf (wisi-process--parser-exec-file parser) exec-file))))
 
+(defun wisi-process-parse--check-version (parser)
+  "Verify protocol version reported by process."
+  ;; The process has just started; the first non-comment line in the
+  ;; process buffer contains the process and language protocol versions.
+  (with-current-buffer (wisi-process--parser-buffer parser)
+    (goto-char (point-min))
+    (search-forward-regexp "protocol: process version \\([0-9]+\\) language version \\([0-9]+\\)")
+    (unless (and (match-string 1)
+		 (string-equal (match-string 1) wisi-process-parse-protocol-version)
+		 (match-string 2)
+		 (string-equal (match-string 2) (wisi-process--parser-language-protocol-version parser)))
+      (wisi-parse-kill parser)
+      (error "%s parser process protocol version mismatch: elisp %s %s, process %s %s"
+	     (wisi-process--parser-label parser)
+	     wisi-process-parse-protocol-version (wisi-process--parser-language-protocol-version parser)
+	     (match-string 1) (match-string 2)))
+    ))
+
 (defun wisi-process-parse--require-process (parser)
   "Start the process for PARSER if not already started."
   (unless (process-live-p (wisi-process--parser-process parser))
@@ -108,26 +130,17 @@ Otherwise add PARSER to ‘wisi-process--alist’, return it."
 	(erase-buffer)); delete any previous messages, prompt
 
       (setf (wisi-process--parser-process parser)
-	    (if (fboundp 'make-process)
-		;; emacs >= 25
-		(make-process
-		 :name process-name
-		 :buffer (wisi-process--parser-buffer parser)
-		 :command (append (list (wisi-process--parser-exec-file parser))
-				  (wisi-process--parser-exec-opts parser)))
-	      ;; emacs < 25
-	      (start-process
-	       process-name
-	       (wisi-process--parser-buffer parser)
-	       (wisi-process--parser-exec-file parser)
-	       (wisi-process--parser-exec-opts parser)
-	       )))
+	    (make-process
+	     :name process-name
+	     :buffer (wisi-process--parser-buffer parser)
+	     :command (append (list (wisi-process--parser-exec-file parser))
+			      (wisi-process--parser-exec-opts parser))))
 
       (set-process-query-on-exit-flag (wisi-process--parser-process parser) nil)
       (setf (wisi-process--parser-busy parser) nil)
 
-      ;; IMPROVEME: check protocol and version numbers
       (wisi-process-parse--wait parser)
+      (wisi-process-parse--check-version parser)
       )))
 
 (defun wisi-process-parse--wait (parser)
@@ -145,16 +158,9 @@ Otherwise add PARSER to ‘wisi-process--alist’, return it."
 		    (not (setq found (re-search-forward wisi-process-parse-prompt (point-max) t)))))
 	(setq search-start (point));; don't search same text again
 	(setq wait-count (1+ wait-count))
-	(when (> wisi-process-parse-debug 0)
-	    (message "wisi-process-parse--wait: %d" wait-count))
 	(accept-process-output process 0.1))
 
-      (if found
-	  (when (> wisi-process-parse-debug 0)
-	    (message "wisi-process-parse--wait: %d" wait-count)
-	    (when (> wisi-process-parse-debug 2)
-	      (message "'%s'" (buffer-substring-no-properties (point-min) (point-max)))))
-
+      (unless found
 	(wisi-process-parse-show-buffer parser)
 	(error "%s process died" (wisi-process--parser-exec-file parser)))
       )))
@@ -193,17 +199,15 @@ parse region."
 		      wisi-trace-mckenzie
 		      wisi-trace-action
 		      (if wisi-mckenzie-disable 1 0)
-		      (if wisi-mckenzie-task-count wisi-mckenzie-task-count -1)
-		      (if wisi-mckenzie-cost-limit wisi-mckenzie-cost-limit -1)
-		      (if wisi-mckenzie-check-limit wisi-mckenzie-check-limit -1)
-		      (if wisi-mckenzie-enqueue-limit wisi-mckenzie-enqueue-limit -1)
+		      (or wisi-mckenzie-task-count -1)
+		      (or wisi-mckenzie-check-limit -1)
+		      (or wisi-mckenzie-enqueue-limit -1)
+		      (or wisi-parse-max-parallel -1)
 		      (- (position-bytes send-end) (position-bytes begin)) ;; send-end is after last byte
 		      (wisi-parse-format-language-options parser)
 		      ))
 	 (msg (format "%03d%s" (length cmd) cmd))
 	 (process (wisi-process--parser-process parser)))
-    (when (> wisi-process-parse-debug 0)
-      (message msg))
     (with-current-buffer (wisi-process--parser-buffer parser)
       (erase-buffer))
 
@@ -221,8 +225,6 @@ complete."
   (let* ((cmd (format "noop %d" (1- (position-bytes (point-max)))))
 	 (msg (format "%03d%s" (length cmd) cmd))
 	 (process (wisi-process--parser-process parser)))
-    (when (> wisi-process-parse-debug 0)
-      (message msg))
     (with-current-buffer (wisi-process--parser-buffer parser)
       (erase-buffer))
 
@@ -253,6 +255,13 @@ complete."
 	:end        (wisi-process-parse--marker-or-nil (aref sexp 9))
 	)))
     ))
+
+(defun wisi-process-parse--Name_Property (parser sexp)
+  ;; sexp is [Name_Property first-pos last-pos]
+  ;; see ‘wisi-process-parse--execute’
+  ;; implements wisi-name-action
+  (with-silent-modifications
+    (put-text-property (aref sexp 1) (1+ (aref sexp 2)) 'wisi-name t)))
 
 (defun wisi-process-parse--Face_Property (parser sexp)
   ;; sexp is [Face_Property first-pos last-pos face-index]
@@ -366,6 +375,10 @@ complete."
   ;; see ‘wisi-process-parse--execute’
   (setf (wisi-process--parser-end-pos parser) (aref sexp 1)))
 
+(defun wisi-process-parse--Language (parser sexp)
+  ;; sexp is [Language language-action ...]
+  (funcall (aref (wisi-process--parser-language-action-table parser) (aref sexp 1)) sexp))
+
 (defun wisi-process-parse--execute (parser sexp)
   "Execute encoded SEXP sent from external process."
   ;; sexp is [action arg ...]; an encoded instruction that we need to execute
@@ -378,6 +391,8 @@ complete."
   ;;    *id           : integer index into parser-token-table
   ;;    length        : integer character count
   ;;    class         : integer index into wisi-class-list
+  ;;
+  ;; [Name_Property first-pos last-pos]
   ;;
   ;; [Face_Property first-pos last-pos face-index]
   ;;    Set a font-lock-face text-property
@@ -418,6 +433,10 @@ complete."
   ;;    Args are token ids; index into parser-token-table. Save the information
   ;;    for later use by ’wisi-repair-error’.
   ;;
+  ;; [Language ...]
+  ;;    Dispatch to a language-specific action, via
+  ;;    `wisi-process--parser-language-action-table'.
+  ;;
   ;;
   ;; Numeric action codes are given in the case expression below
 
@@ -430,6 +449,8 @@ complete."
     (6  (wisi-process-parse--Check_Error parser sexp))
     (7  (wisi-process-parse--Recover parser sexp))
     (8  (wisi-process-parse--End parser sexp))
+    (9  (wisi-process-parse--Name_Property parser sexp))
+    (10 (wisi-process-parse--Language parser sexp))
     ))
 
 ;;;;; main
@@ -462,14 +483,14 @@ Send BEGIN thru SEND-END to external parser."
   ;; wisi-indent-region, we signal an error here.
   (if (wisi-process--parser-busy parser)
       (progn
-	(setf (wisi-parser-parse-errors parser)
+  	(setf (wisi-parser-parse-errors parser)
 	      (list
 	       (make-wisi--parse-error
 		:pos 0
 		:message (format "%s:%d:%d: parser busy (try ’wisi-kill-parser’)"
 				 (if (buffer-file-name) (file-name-nondirectory (buffer-file-name)) "") 1 1))
 	       ))
-	(error "%s parse abandoned; parser busy" wisi--parse-action)
+	(error "%s parse abandoned; parser busy - use partial parse?" wisi--parse-action)
 	)
 
     ;; It is not possible for a background elisp function (ie
@@ -487,7 +508,6 @@ Send BEGIN thru SEND-END to external parser."
 	       response-end
 	       (response-count 0)
 	       (sexp-start (point-min))
-	       (wait-count 0)
 	       (need-more nil) ;; point-max if need more, to check for new input
 	       (done nil)
 	       start-wait-time)
@@ -568,6 +588,9 @@ Send BEGIN thru SEND-END to external parser."
 
 		     ((equal 'parse_error (car response))
 		      ;; Parser detected some other error non-fatal error, so signal it.
+		      (push
+			 (make-wisi--parse-error :pos 0 :message (cadr response))
+			 (wisi-parser-parse-errors parser))
 		      (signal 'wisi-parse-error (cdr response)))
 
 		     ((and (eq 'error (car response))
@@ -596,12 +619,13 @@ Send BEGIN thru SEND-END to external parser."
 		       (push (make-wisi--parse-error :pos (point) :message (cadr err)) (wisi-parser-parse-errors parser))
 		       (signal (car err) (cdr err)))
 
-		      (error ;; ie from [C:\Windows\system32\KERNEL32.DLL]
+		      (error ;; ie from [C:\Windows\system32\KERNEL32.DLL], or bug in action code above.
 		       (set-buffer response-buffer)
 		       (let ((content (buffer-substring-no-properties (point-min) (point-max)))
 			     (buf-name (concat (buffer-name) "-save-error")))
 			 (set-buffer (get-buffer-create buf-name))
 			 (insert content)
+			 (insert (format "%s" err))
 			 (error "parser failed; error messages in %s" buf-name)))
 		      ))
 		   )
@@ -626,7 +650,6 @@ Send BEGIN thru SEND-END to external parser."
 		  (insert content)
 		  (error "parser failed; error messages in %s" buf-name)))
 
-	      (setq wait-count (1+ wait-count))
 	      (setq start-wait-time (float-time))
 
 	      ;; If we specify no time-out here, we get messages about
@@ -646,7 +669,7 @@ Send BEGIN thru SEND-END to external parser."
 		       (- (float-time) start-wait-time)))
 
 	      (when (and (= (point-max) need-more)
-			 (> wait-count 5))
+			 (> (wisi-process--parser-total-wait-time parser) wisi-process-time-out))
 		(error "wisi-process-parse not getting more text (or bad syntax in process output)"))
 
 	      (setq need-more nil))

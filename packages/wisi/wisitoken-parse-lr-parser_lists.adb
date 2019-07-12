@@ -27,7 +27,6 @@ package body WisiToken.Parse.LR.Parser_Lists is
       Depth      : in SAL.Base_Peek_Type := 0)
      return String
    is
-      use all type Syntax_Trees.Node_Index;
       use all type SAL.Base_Peek_Type;
       use Ada.Strings.Unbounded;
 
@@ -40,6 +39,7 @@ package body WisiToken.Parse.LR.Parser_Lists is
    begin
       for I in 1 .. Last loop
          declare
+            use all type WisiToken.Syntax_Trees.Node_Index;
             Item : Parser_Stack_Item renames Stack.Peek (I);
          begin
             Result := Result &
@@ -130,6 +130,19 @@ package body WisiToken.Parse.LR.Parser_Lists is
       end loop;
       return Result;
    end Max_Recover_Ops_Length;
+
+   function Min_Recover_Cost (Cursor : in Parser_Lists.Cursor) return Integer
+   is
+      Result : Integer := Integer'Last;
+      Errors : Parse_Error_Lists.List renames Parser_State_Lists.Constant_Reference (Cursor.Ptr).Errors;
+   begin
+      for Error of Errors loop
+         if Error.Recover.Cost < Result then
+            Result := Error.Recover.Cost;
+         end if;
+      end loop;
+      return Result;
+   end Min_Recover_Cost;
 
    procedure Set_Verb (Cursor : in Parser_Lists.Cursor; Verb : in All_Parse_Action_Verbs)
    is begin
@@ -292,7 +305,7 @@ package body WisiToken.Parse.LR.Parser_Lists is
 
          --  We specify all items individually, rather copy Item and then
          --  override a few, to avoid copying large items like Recover.
-         --  We copy Recover.Enqueue_Count, .Check_Count for unit tests.
+         --  We copy Recover.Enqueue_Count .. Check_Count for unit tests.
          New_Item :=
            (Shared_Token           => Item.Shared_Token,
             Recover_Insert_Delete  => Item.Recover_Insert_Delete,
@@ -303,6 +316,7 @@ package body WisiToken.Parse.LR.Parser_Lists is
             Tree                   => Item.Tree,
             Recover                =>
               (Enqueue_Count       => Item.Recover.Enqueue_Count,
+               Config_Full_Count   => Item.Recover.Config_Full_Count,
                Check_Count         => Item.Recover.Check_Count,
                others              => <>),
             Resume_Active          => Item.Resume_Active,

@@ -1,4 +1,4 @@
-Emacs wisi package 2.1.0
+Emacs wisi package 2.1.1
 
 The wisi package provides utilities for using generalized LALR parsers
 (in elisp or external processes) to do indentation, fontification, and

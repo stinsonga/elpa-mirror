@@ -2,7 +2,7 @@
 --
 --  see spec
 --
---  Copyright (C) 2012 - 2015, 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2012 - 2015, 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This program is free software; you can redistribute it and/or
 --  modify it under terms of the GNU General Public License as
@@ -38,6 +38,16 @@ package body WisiToken.BNF is
       Set (Last) := Tuple;
       Free (Prev);
    end Add;
+
+   function To_Generate_Algorithm (Item : in String) return Generate_Algorithm
+   is begin
+      for I in Generate_Algorithm loop
+         if To_Lower (Generate_Algorithm_Image (I).all) = To_Lower (Item) then
+            return I;
+         end if;
+      end loop;
+      raise User_Error with "invalid generate algorithm name: '" & Item & "'";
+   end To_Generate_Algorithm;
 
    function To_Output_Language (Item : in String) return Output_Language
    is begin
@@ -175,6 +185,13 @@ package body WisiToken.BNF is
       end loop;
       raise Not_Found;
    end Value;
+
+   function Is_Present (List : in Elisp_Action_Maps.Map; Name : in String) return Boolean
+   is
+      use Elisp_Action_Maps;
+   begin
+      return No_Element /= List.Find (+Name);
+   end Is_Present;
 
    function Count (Tokens : in Token_Lists.List) return Integer
    is

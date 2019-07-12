@@ -108,12 +108,6 @@
   state ;; one of nil, 'started, 'complete. Allows detecting interrupted computation.
   )
 
-(cl-defmethod path-iter-contains-root ((iter path-iterator) root)
-  "Return non-nil if ITER roots contain ROOT."
-  (or (member root (path-iter-path-recursive-init iter))
-      (member root (path-iter-path-non-recursive-init iter))
-      ))
-
 (defun path-iter--to-truename (path)
   "Convert each existing element of PATH to an absolute directory file truename,
 return the resulting list.  Elements of PATH are either absolute or
@@ -275,8 +269,10 @@ Return a list of absolute filenames or nil if none found."
        (file-name-all-completions filename dir)))
     result))
 
-(defun path-iter-all-files (iter)
-  "Return all filenames in ITER (a `path-iterator' object."
+(cl-defmethod path-iter-files ((iter path-iterator) pred)
+  "Return all filenames in ITER satisfying predicate PRED.
+If non-nil, PRED is a function taking a single absolute file
+name; the file is included if PRED returns non-nil"
   (let (dir result)
     (path-iter-restart iter)
 
@@ -285,7 +281,9 @@ Return a list of absolute filenames or nil if none found."
        (lambda (absfile)
 	 (when (and (not (string-equal "." (substring absfile -1)))
 		    (not (string-equal ".." (substring absfile -2)))
-		    (not (file-directory-p absfile)))
+		    (not (file-directory-p absfile))
+                    (or (null pred)
+                        (funcall pred absfile)))
 	   (push absfile result)))
        (directory-files dir t))
       )

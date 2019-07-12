@@ -174,6 +174,7 @@ package body WisiToken.Generate.LR.LR1_Generate is
       Grammar              : in     WisiToken.Productions.Prod_Arrays.Vector;
       Has_Empty_Production : in     Token_ID_Set;
       First_Nonterm_Set    : in     Token_Array_Token_Set;
+      Conflict_Counts      :    out Conflict_Count_Lists.List;
       Conflicts            :    out Conflict_Lists.List;
       Table                : in out Parse_Table;
       Descriptor           : in     WisiToken.Descriptor)
@@ -181,7 +182,8 @@ package body WisiToken.Generate.LR.LR1_Generate is
       --  Add actions for all Item_Sets to Table.
    begin
       for Item_Set of Item_Sets loop
-         Add_Actions (Item_Set, Table, Grammar, Has_Empty_Production, First_Nonterm_Set, Conflicts, Descriptor);
+         Add_Actions
+           (Item_Set, Table, Grammar, Has_Empty_Production, First_Nonterm_Set, Conflict_Counts, Conflicts, Descriptor);
       end loop;
 
       if Trace_Generate > Outline then
@@ -190,25 +192,32 @@ package body WisiToken.Generate.LR.LR1_Generate is
    end Add_Actions;
 
    function Generate
-     (Grammar         : in WisiToken.Productions.Prod_Arrays.Vector;
-      Descriptor      : in WisiToken.Descriptor;
-      Known_Conflicts : in Conflict_Lists.List := Conflict_Lists.Empty_List;
-      McKenzie_Param  : in McKenzie_Param_Type := Default_McKenzie_Param;
-      Put_Parse_Table : in Boolean := False)
+     (Grammar           : in WisiToken.Productions.Prod_Arrays.Vector;
+      Descriptor        : in WisiToken.Descriptor;
+      Known_Conflicts   : in Conflict_Lists.List := Conflict_Lists.Empty_List;
+      McKenzie_Param    : in McKenzie_Param_Type := Default_McKenzie_Param;
+      Put_Parse_Table   : in Boolean             := False;
+      Include_Extra     : in Boolean             := False;
+      Ignore_Conflicts  : in Boolean             := False;
+      Partial_Recursion : in Boolean             := True)
      return Parse_Table_Ptr
    is
       use type Ada.Containers.Count_Type;
 
       Ignore_Unused_Tokens     : constant Boolean := WisiToken.Trace_Generate > Detail;
-      Ignore_Unknown_Conflicts : constant Boolean := WisiToken.Trace_Generate > Detail;
+      Ignore_Unknown_Conflicts : constant Boolean := Ignore_Conflicts or WisiToken.Trace_Generate > Detail;
       Unused_Tokens            : constant Boolean := WisiToken.Generate.Check_Unused_Tokens (Descriptor, Grammar);
 
       Table : Parse_Table_Ptr;
 
       Has_Empty_Production : constant Token_ID_Set := WisiToken.Generate.Has_Empty_Production (Grammar);
 
+      Recursions : constant WisiToken.Generate.Recursions :=
+        (if Partial_Recursion
+         then WisiToken.Generate.Compute_Partial_Recursion (Grammar)
+         else WisiToken.Generate.Compute_Full_Recursion (Grammar));
       Minimal_Terminal_Sequences : constant Minimal_Sequence_Array :=
-        Compute_Minimal_Terminal_Sequences (Descriptor, Grammar);
+        Compute_Minimal_Terminal_Sequences (Descriptor, Grammar, Recursions);
 
       Minimal_Terminal_First : constant Token_Array_Token_ID :=
         Compute_Minimal_Terminal_First (Descriptor, Minimal_Terminal_Sequences);
@@ -222,6 +231,7 @@ package body WisiToken.Generate.LR.LR1_Generate is
       Item_Sets : constant LR1_Items.Item_Set_List := LR1_Item_Sets
         (Has_Empty_Production, First_Terminal_Sequence, Grammar, Descriptor);
 
+      Conflict_Counts      : Conflict_Count_Lists.List;
       Unknown_Conflicts    : Conflict_Lists.List;
       Known_Conflicts_Edit : Conflict_Lists.List := Known_Conflicts;
    begin
@@ -242,35 +252,34 @@ package body WisiToken.Generate.LR.LR1_Generate is
       if McKenzie_Param = Default_McKenzie_Param then
          --  Descriminants in Default are wrong
          Table.McKenzie_Param :=
-           (First_Terminal    => Descriptor.First_Terminal,
-            Last_Terminal     => Descriptor.Last_Terminal,
-            First_Nonterminal => Descriptor.First_Nonterminal,
-            Last_Nonterminal  => Descriptor.Last_Nonterminal,
-            Insert            => (others => 0),
-            Delete            => (others => 0),
-            Push_Back         => (others => 0),
-            Ignore_Check_Fail => Default_McKenzie_Param.Ignore_Check_Fail,
-            Task_Count        => Default_McKenzie_Param.Task_Count,
-            Cost_Limit        => Default_McKenzie_Param.Cost_Limit,
-            Check_Limit       => Default_McKenzie_Param.Check_Limit,
-            Check_Delta_Limit => Default_McKenzie_Param.Check_Delta_Limit,
-            Enqueue_Limit     => Default_McKenzie_Param.Enqueue_Limit);
+           (First_Terminal              => Descriptor.First_Terminal,
+            Last_Terminal               => Descriptor.Last_Terminal,
+            First_Nonterminal           => Descriptor.First_Nonterminal,
+            Last_Nonterminal            => Descriptor.Last_Nonterminal,
+            Insert                      => (others => 0),
+            Delete                      => (others => 0),
+            Push_Back                   => (others => 0),
+            Undo_Reduce                 => (others => 0),
+            Minimal_Complete_Cost_Delta => Default_McKenzie_Param.Minimal_Complete_Cost_Delta,
+            Fast_Forward                => Default_McKenzie_Param.Fast_Forward,
+            Matching_Begin              => Default_McKenzie_Param.Matching_Begin,
+            Ignore_Check_Fail           => Default_McKenzie_Param.Ignore_Check_Fail,
+            Task_Count                  => Default_McKenzie_Param.Task_Count,
+            Check_Limit                 => Default_McKenzie_Param.Check_Limit,
+            Check_Delta_Limit           => Default_McKenzie_Param.Check_Delta_Limit,
+            Enqueue_Limit               => Default_McKenzie_Param.Enqueue_Limit);
       else
          Table.McKenzie_Param := McKenzie_Param;
       end if;
 
       Add_Actions
-        (Item_Sets, Grammar, Has_Empty_Production, First_Nonterm_Set, Unknown_Conflicts, Table.all, Descriptor);
+        (Item_Sets, Grammar, Has_Empty_Production, First_Nonterm_Set,
+         Conflict_Counts, Unknown_Conflicts, Table.all, Descriptor);
 
-      --  Set Table.States.Productions, Minimal_Complete_Actions for McKenzie_Recover
       for State in Table.States'Range loop
-         Table.States (State).Productions := LR1_Items.Productions
-           (LR1_Items.Filter (Item_Sets (State), Grammar, Descriptor, LR1_Items.In_Kernel'Access));
-
-         if Trace_Generate > Detail then
+         if Trace_Generate > Extra then
             Ada.Text_IO.Put_Line ("Set_Minimal_Complete_Actions:" & State_Index'Image (State));
          end if;
-
          WisiToken.Generate.LR.Set_Minimal_Complete_Actions
            (Table.States (State),
             LR1_Items.Filter (Item_Sets (State), Grammar, Descriptor, LR1_Items.In_Kernel'Access),
@@ -279,7 +288,8 @@ package body WisiToken.Generate.LR.LR1_Generate is
 
       if Put_Parse_Table then
          WisiToken.Generate.LR.Put_Parse_Table
-           (Table, "LR1", Grammar, Item_Sets, Unknown_Conflicts, Descriptor);
+           (Table, "LR1", Grammar, Recursions, Minimal_Terminal_Sequences, Item_Sets, Conflict_Counts, Descriptor,
+            Include_Extra);
       end if;
 
       if Trace_Generate > Outline then

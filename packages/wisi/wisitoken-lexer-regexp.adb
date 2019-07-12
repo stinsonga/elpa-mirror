@@ -178,9 +178,9 @@ package body WisiToken.Lexer.Regexp is
    end Reset_With_String;
 
    overriding procedure Reset_With_String_Access
-     (Lexer     : in out Instance;
-      Input     : access String;
-      File_Name : in     Ada.Strings.Unbounded.Unbounded_String;
+     (Lexer      : in out Instance;
+      Input      : in     Ada.Strings.Unbounded.String_Access;
+      File_Name  : in     Ada.Strings.Unbounded.Unbounded_String;
       Begin_Char : in     Buffer_Pos       := Buffer_Pos'First;
       Begin_Line : in     Line_Number_Type := Line_Number_Type'First)
    is begin

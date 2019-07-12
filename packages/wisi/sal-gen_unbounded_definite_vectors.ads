@@ -158,6 +158,8 @@ package SAL.Gen_Unbounded_Definite_Vectors is
    function First (Container : aliased in Vector) return Cursor;
    function Next (Position : in Cursor) return Cursor;
    procedure Next (Position : in out Cursor);
+   function Prev (Position : in Cursor) return Cursor;
+   procedure Prev (Position : in out Cursor);
 
    function To_Cursor
      (Container : aliased in Vector;
@@ -223,5 +225,6 @@ private
    --  Visible for child package
 
    function To_Peek_Type (Item : in Extended_Index) return Base_Peek_Type with Inline;
+   function To_Index_Type (Item : in Base_Peek_Type) return Extended_Index;
 
 end SAL.Gen_Unbounded_Definite_Vectors;

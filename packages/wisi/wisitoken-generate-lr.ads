@@ -46,6 +46,15 @@ package WisiToken.Generate.LR is
 
    package Conflict_Lists is new Ada.Containers.Doubly_Linked_Lists (Conflict);
 
+   type Conflict_Count is record
+      State : State_Index;
+      Accept_Reduce : Integer             := 0;
+      Shift_Reduce  : Integer             := 0;
+      Reduce_Reduce : Integer             := 0;
+   end record;
+
+   package Conflict_Count_Lists is new Ada.Containers.Doubly_Linked_Lists (Conflict_Count);
+
    procedure Put
      (Item       : in Conflict_Lists.List;
       File       : in Ada.Text_IO.File_Type;
@@ -59,6 +68,7 @@ package WisiToken.Generate.LR is
       Grammar              : in     WisiToken.Productions.Prod_Arrays.Vector;
       Has_Empty_Production : in     Token_ID_Set;
       First_Nonterm_Set    : in     Token_Array_Token_Set;
+      Conflict_Counts      : in out Conflict_Count_Lists.List;
       Conflicts            : in out Conflict_Lists.List;
       Descriptor           : in     WisiToken.Descriptor);
    --  Add (Symbol, Action) to Action_List; check for conflicts
@@ -71,6 +81,7 @@ package WisiToken.Generate.LR is
       Grammar              : in     WisiToken.Productions.Prod_Arrays.Vector;
       Has_Empty_Production : in     Token_ID_Set;
       First_Nonterm_Set    : in     Token_Array_Token_Set;
+      Conflict_Counts      : in out Conflict_Count_Lists.List;
       Conflicts            : in out Conflict_Lists.List;
       Descriptor           : in     WisiToken.Descriptor);
    --  Add actions for Closure to Table. Has_Empty_Production, First,
@@ -82,6 +93,7 @@ package WisiToken.Generate.LR is
       Grammar              : in     WisiToken.Productions.Prod_Arrays.Vector;
       Has_Empty_Production : in     Token_ID_Set;
       First_Nonterm_Set    : in     Token_Array_Token_Set;
+      Conflict_Counts      : in out Conflict_Count_Lists.List;
       Conflicts            : in out Conflict_Lists.List;
       Closure              : in     LR1_Items.Item_Set;
       Descriptor           : in     WisiToken.Descriptor);
@@ -93,11 +105,6 @@ package WisiToken.Generate.LR is
      (Conflicts       : in out Conflict_Lists.List;
       Known_Conflicts : in out Conflict_Lists.List);
    --  Delete Known_Conflicts from Conflicts.
-
-   function Find
-     (Symbol      : in Token_ID;
-      Action_List : in Action_Node_Ptr)
-     return Action_Node_Ptr;
 
    function Find
      (Closure              : in LR1_Items.Item_Set;
@@ -117,11 +124,15 @@ package WisiToken.Generate.LR is
 
    function Match (Known : in Conflict; Item : in Conflict_Lists.Constant_Reference_Type) return Boolean;
 
+   ----------
+   --  Minimal terminal sequences.
+
    type RHS_Sequence is
    record
-      Left_Recursive : Boolean := False;
-      --  Direct or indirect; see comment in
-      --  Set_Minimal_Complete_Actions.Delete_Non_Minimal.
+      Recursion : Recursion_Lists.List;
+      --  All recursion cycles involving this RHS.
+
+      Worst_Recursion : WisiToken.Recursion := None; --  worst case of all Recursion.
 
       Sequence : Token_ID_Arrays.Vector;
    end record;
@@ -132,7 +143,7 @@ package WisiToken.Generate.LR is
    function Image (Item : in RHS_Sequence; Descriptor : in WisiToken.Descriptor) return String;
    --  Positional Ada aggregate syntax.
 
-   function Image is new RHS_Sequence_Arrays.Gen_Image_Aux (Descriptor, Image);
+   function Image is new RHS_Sequence_Arrays.Gen_Image_Aux (Descriptor, Trimmed_Image, Image);
 
    function Min (Item : in RHS_Sequence_Arrays.Vector) return RHS_Sequence;
    --  Return element of Item with minimum length;
@@ -140,13 +151,13 @@ package WisiToken.Generate.LR is
    type Minimal_Sequence_Array is array (Token_ID range <>) of RHS_Sequence_Arrays.Vector;
 
    function Compute_Minimal_Terminal_Sequences
-     (Descriptor : in     WisiToken.Descriptor;
-      Grammar    : in     WisiToken.Productions.Prod_Arrays.Vector)
+     (Descriptor : in WisiToken.Descriptor;
+      Grammar    : in WisiToken.Productions.Prod_Arrays.Vector;
+      Recursions : in Generate.Recursions)
      return Minimal_Sequence_Array;
    --  For each production in Grammar, compute the minimal sequence of
    --  terminals that will complete it. Result is an empty sequence if
-   --  the production may be empty, or Invalid_Token_ID if it is
-   --  recursive.
+   --  the production may be empty.
 
    function Compute_Minimal_Terminal_First
      (Descriptor                 : in WisiToken.Descriptor;
@@ -169,7 +180,11 @@ package WisiToken.Generate.LR is
    --  terminal is a block ending or statement start.
    --
    --  The Minimal_Complete_Actions will be empty in a state where there
-   --  is nothing useful to do.
+   --  is nothing useful to do; the accept state, or one where all
+   --  productions are recursive.
+   --
+   --  Also set State.Kernels; used to resolve multiple reduce actions at
+   --  runtime.
 
    ----------
    --  Parse table output
@@ -191,11 +206,15 @@ package WisiToken.Generate.LR is
    --  Put Item to Ada.Text_IO.Current_Output in parse table format.
 
    procedure Put_Parse_Table
-     (Table      : in Parse_Table_Ptr;
-      Title      : in String;
-      Grammar    : in WisiToken.Productions.Prod_Arrays.Vector;
-      Kernels    : in LR1_Items.Item_Set_List;
-      Conflicts  : in Conflict_Lists.List;
-      Descriptor : in WisiToken.Descriptor);
+     (Table                      : in Parse_Table_Ptr;
+      Title                      : in String;
+      Grammar                    : in WisiToken.Productions.Prod_Arrays.Vector;
+      Recursions                 : in Generate.Recursions;
+      Minimal_Terminal_Sequences : in Minimal_Sequence_Array;
+      Kernels                    : in LR1_Items.Item_Set_List;
+      Conflicts                  : in Conflict_Count_Lists.List;
+      Descriptor                 : in WisiToken.Descriptor;
+      Include_Extra              : in Boolean := False);
+   --  "Extra" is recursions, lookaheads.
 
 end WisiToken.Generate.LR;

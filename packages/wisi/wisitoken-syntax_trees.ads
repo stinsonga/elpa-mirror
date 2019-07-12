@@ -39,16 +39,16 @@ package WisiToken.Syntax_Trees is
    overriding procedure Finalize (Tree : in out Base_Tree);
    --  Free any allocated storage.
 
-   overriding procedure Adjust (Tree : in out Base_Tree);
-   --  Copy any allocated storage.
-
-   type Tree is tagged private;
+   type Tree is new Ada.Finalization.Controlled with private;
 
    procedure Initialize
      (Branched_Tree : in out Tree;
       Shared_Tree   : in     Base_Tree_Access;
       Flush         : in     Boolean);
    --  Set Branched_Tree to refer to Shared_Tree.
+
+   overriding procedure Finalize (Tree : in out Syntax_Trees.Tree);
+   --  Free any allocated storage.
 
    type Node_Index is range 0 .. Integer'Last;
    subtype Valid_Node_Index is Node_Index range 1 .. Node_Index'Last;
@@ -62,7 +62,12 @@ package WisiToken.Syntax_Trees is
      (Positive_Index_Type, Valid_Node_Index, Default_Element => Valid_Node_Index'First);
    --  Index matches Valid_Node_Index_Array.
 
-   type Node_Label is (Shared_Terminal, Virtual_Terminal, Nonterm);
+   type Node_Label is
+     (Shared_Terminal,    -- text is user input, accessed via Parser.Terminals
+      Virtual_Terminal,   -- no text; inserted during error recovery
+      Virtual_Identifier, -- text in user data, created during tree rewrite
+      Nonterm             -- contains terminals/nonterminals/identifiers
+     );
 
    type User_Data_Type is tagged limited null record;
    --  Many test languages don't need this, so we default the procedures
@@ -79,14 +84,19 @@ package WisiToken.Syntax_Trees is
    procedure Reset (User_Data : in out User_Data_Type) is null;
    --  Reset to start a new parse.
 
-   procedure Lexer_To_Augmented
-     (User_Data  : in out          User_Data_Type;
-      Token      : in              Base_Token;
-      Lexer      : not null access WisiToken.Lexer.Instance'Class)
+   procedure Initialize_Actions
+     (User_Data : in out User_Data_Type;
+      Tree      : in     Syntax_Trees.Tree'Class)
      is null;
-   --  Read auxiliary data from Lexer, create an Augmented_Token, store
-   --  it in User_Data. Called before parsing, once for each token in the
-   --  input stream.
+   --  Called by Execute_Actions, before processing the tree.
+
+   procedure Lexer_To_Augmented
+     (User_Data : in out          User_Data_Type;
+      Token     : in              Base_Token;
+      Lexer     : not null access WisiToken.Lexer.Instance'Class)
+     is null;
+   --  Read auxiliary data from Lexer, do something useful with it.
+   --  Called before parsing, once for each token in the input stream.
 
    procedure Delete_Token
      (User_Data   : in out User_Data_Type;
@@ -130,17 +140,26 @@ package WisiToken.Syntax_Trees is
 
    function Flushed (Tree : in Syntax_Trees.Tree) return Boolean;
 
+   function Copy_Subtree
+     (Tree : in out Syntax_Trees.Tree;
+      Root : in     Valid_Node_Index;
+      Last : in     Valid_Node_Index)
+     return Valid_Node_Index
+   with Pre => Tree.Flushed;
+   --  Deep copy (into Tree) subtree of Tree rooted at Root. Stop copying
+   --  after children of Last are copied. Return root of new subtree.
+   --
+   --  Node index order is preserved. References to objects external to
+   --  tree are shallow copied.
+
    function Add_Nonterm
      (Tree            : in out Syntax_Trees.Tree;
       Production      : in     Production_ID;
       Children        : in     Valid_Node_Index_Array;
-      Action          : in     Semantic_Action;
-      Default_Virtual : in     Boolean)
+      Action          : in     Semantic_Action := null;
+      Default_Virtual : in     Boolean         := False)
      return Valid_Node_Index
-   with
-     Pre  => not Tree.Traversing,
-     Post => Tree.Is_Empty (Add_Nonterm'Result) or
-             Tree.Min_Terminal_Index (Add_Nonterm'Result) /= Invalid_Token_Index;
+   with Pre  => not Tree.Traversing;
    --  Add a new Nonterm node, which can be empty. Result points to the
    --  added node. If Children'Length = 0, set Nonterm.Virtual :=
    --  Default_Virtual.
@@ -159,8 +178,53 @@ package WisiToken.Syntax_Trees is
       Terminal : in     Token_ID)
      return Valid_Node_Index
    with Pre => not Tree.Traversing;
-   --  Add a new virtual terminal node with no parent. Result points to
+   --  Add a new Virtual_Terminal node with no parent. Result points to
    --  the added node.
+
+   function Add_Identifier
+     (Tree        : in out Syntax_Trees.Tree;
+      ID          : in     Token_ID;
+      Identifier  : in     Identifier_Index;
+      Byte_Region : in     WisiToken.Buffer_Region)
+     return Valid_Node_Index
+   with Pre => Tree.Flushed and (not Tree.Traversing);
+   --  Add a new Virtual_Identifier node with no parent. Byte_Region
+   --  should point to an area in the source buffer related to the new
+   --  identifier, to aid debugging. Result points to the added node.
+
+   procedure Add_Child
+     (Tree   : in out Syntax_Trees.Tree;
+      Parent : in     Valid_Node_Index;
+      Child  : in     Valid_Node_Index)
+   with
+     Pre => Tree.Flushed and
+            (not Tree.Traversing) and
+            Tree.Is_Nonterm (Parent);
+   --  Child.Parent must already be set.
+
+   procedure Set_Children
+     (Tree     : in out Syntax_Trees.Tree;
+      Node     : in     Valid_Node_Index;
+      New_ID : in WisiToken.Production_ID;
+      Children : in     Valid_Node_Index_Array)
+   with
+     Pre => Tree.Flushed and
+            (not Tree.Traversing) and
+            Tree.Is_Nonterm (Node);
+   --  Set ID of Node to New_ID, and children to Children; set parent of
+   --  Children to Node. Remove any Action.
+   --
+   --  New_ID is required, and Action removed, because this is most
+   --  likely a different production.
+
+   procedure Set_Node_Identifier
+     (Tree       : in Syntax_Trees.Tree;
+      Node       : in Valid_Node_Index;
+      ID         : in Token_ID;
+      Identifier : in Identifier_Index)
+   with Pre => Tree.Flushed and
+               Tree.Is_Nonterm (Node);
+   --  Change Node to a Virtual_Identifier.
 
    procedure Set_State
      (Tree  : in out Syntax_Trees.Tree;
@@ -174,6 +238,13 @@ package WisiToken.Syntax_Trees is
    function Children (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Valid_Node_Index_Array
    with Pre => Tree.Is_Nonterm (Node);
 
+   function Child
+     (Tree        : in Syntax_Trees.Tree;
+      Node        : in Valid_Node_Index;
+      Child_Index : in Positive_Index_Type)
+     return Node_Index
+   with Pre => Tree.Is_Nonterm (Node);
+
    function Has_Branched_Nodes (Tree : in Syntax_Trees.Tree) return Boolean;
    function Has_Children (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Boolean;
    function Has_Parent (Tree : in Syntax_Trees.Tree; Child : in Valid_Node_Index) return Boolean;
@@ -182,9 +253,15 @@ package WisiToken.Syntax_Trees is
    function Is_Nonterm (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Boolean;
    function Is_Terminal (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Boolean;
    function Is_Virtual (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Boolean;
+   function Is_Virtual_Identifier (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Boolean;
    function Traversing (Tree : in Syntax_Trees.Tree) return Boolean;
 
-   function Parent (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Node_Index;
+   function Parent
+     (Tree  : in Syntax_Trees.Tree;
+      Node  : in Valid_Node_Index;
+      Count : in Positive := 1)
+     return Node_Index;
+   --  Return Count parent of Node.
 
    procedure Set_Name_Region
      (Tree   : in out Syntax_Trees.Tree;
@@ -197,10 +274,22 @@ package WisiToken.Syntax_Trees is
       Node : in Valid_Node_Index)
      return WisiToken.Token_ID;
 
+   function Production_ID
+     (Tree : in Syntax_Trees.Tree;
+      Node : in Valid_Node_Index)
+     return WisiToken.Production_ID
+   with Pre => Tree.Is_Nonterm (Node);
+
    function Byte_Region
      (Tree : in Syntax_Trees.Tree;
       Node : in Valid_Node_Index)
      return WisiToken.Buffer_Region;
+
+   function RHS_Index
+     (Tree : in Syntax_Trees.Tree;
+      Node : in Valid_Node_Index)
+     return Natural
+   with Pre => Tree.Is_Nonterm (Node);
 
    function Same_Token
      (Tree_1  : in Syntax_Trees.Tree'Class;
@@ -246,6 +335,11 @@ package WisiToken.Syntax_Trees is
      (Tree : in Syntax_Trees.Tree;
       Node : in Valid_Node_Index;
       ID   : in Token_ID)
+     return Node_Index;
+   function Find_Ancestor
+     (Tree : in Syntax_Trees.Tree;
+      Node : in Valid_Node_Index;
+      IDs  : in Token_ID_Array)
      return Node_Index;
    --  Return the ancestor of Node that contains ID, or Invalid_Node_Index if
    --  none match.
@@ -304,9 +398,13 @@ package WisiToken.Syntax_Trees is
      (Tree         : in out Syntax_Trees.Tree;
       Process_Node : access procedure
         (Tree : in out Syntax_Trees.Tree;
-         Node : in     Valid_Node_Index));
-   --  Traverse Tree in depth-first order, calling Process_Node on each
-   --  node, starting at Tree.Root.
+         Node : in     Valid_Node_Index);
+      Root         : in     Node_Index := Invalid_Node_Index);
+   --  Traverse subtree of Tree rooted at Root (default Tree.Root) in
+   --  depth-first order, calling Process_Node on each node.
+
+   function Identifier (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Base_Identifier_Index
+   with Pre => Tree.Is_Virtual_Identifier (Node);
 
    function Terminal (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Base_Token_Index
    with Pre => Tree.Is_Terminal (Node);
@@ -318,8 +416,23 @@ package WisiToken.Syntax_Trees is
    --  or a nonterm is empty.
 
    function Get_Terminals (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Valid_Node_Index_Array;
+   --  Return sequence of terminals in Node.
+   --
+   --  "Terminals" can be Shared_Terminal, Virtual_Terminal,
+   --  Virtual_Identifier.
 
    function Get_Terminal_IDs (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Token_ID_Array;
+   --  Same as Get_Terminals, but return the IDs.
+
+   function First_Terminal_ID (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Token_ID;
+   --  First of Get_Terminal_IDs
+
+   function Get_IDs
+     (Tree : in Syntax_Trees.Tree;
+      Node : in Valid_Node_Index;
+      ID   : in Token_ID)
+     return Valid_Node_Index_Array;
+   --  Return all descendants of Node matching ID.
 
    function Image
      (Tree             : in Syntax_Trees.Tree;
@@ -334,15 +447,29 @@ package WisiToken.Syntax_Trees is
      return String;
    --  For debug and error messages.
 
-   procedure Print_Tree (Tree : in Syntax_Trees.Tree; Descriptor : in WisiToken.Descriptor)
+   function First_Index (Tree : in Syntax_Trees.Tree) return Node_Index;
+   function Last_Index (Tree : in Syntax_Trees.Tree) return Node_Index;
+
+   package Node_Sets is new SAL.Gen_Unbounded_Definite_Vectors (Valid_Node_Index, Boolean, Default_Element => False);
+
+   function Image
+     (Item     : in Node_Sets.Vector;
+      Inverted : in Boolean := False)
+     return String;
+   --  Simple list of numbers, for debugging
+
+   procedure Print_Tree
+     (Tree       : in Syntax_Trees.Tree;
+      Descriptor : in WisiToken.Descriptor;
+      Root       : in Node_Index := Invalid_Node_Index)
    with Pre => Tree.Flushed;
-   --  To Text_IO.Current_Output, for debugging.
+   --  Print tree rooted at Root (default Tree.Root) to
+   --  Text_IO.Current_Output, for debugging.
 
 private
 
    type Node (Label : Node_Label := Virtual_Terminal) is
-   --  Label has a default to allow use with Ada.Containers.Vectors; all
-   --  entries are the same size.
+   --  Label has a default to allow changing the label during tree editing.
    record
       ID : WisiToken.Token_ID := Invalid_Token_ID;
 
@@ -358,10 +485,13 @@ private
 
       case Label is
       when Shared_Terminal =>
-         Terminal : Token_Index;
+         Terminal : Token_Index; -- into Parser.Terminals
 
       when Virtual_Terminal =>
          null;
+
+      when Virtual_Identifier =>
+         Identifier : Identifier_Index; -- into user data
 
       when Nonterm =>
          Virtual : Boolean := False;
@@ -401,11 +531,13 @@ private
       --  no need for Nodes to be Protected. Packrat parsing also has a
       --  single Ada task.
       --
-      --  During McKenzie_Recover, the syntax tree is not modified.
+      --  During McKenzie_Recover, which has multiple Ada tasks, the syntax
+      --  tree is read but not modified.
 
       Augmented_Present : Boolean := False;
-      --  True if Set_Augmented has been called on any node.
-      --  Declared in Base_Tree because used by Base_Tree.Adjust.
+      --  True if Set_Augmented has been called on any node. Declared in
+      --  Base_Tree so it can be checked by Finalize (Base_Tree) and
+      --  Finalize (Tree).
 
       Traversing : Boolean := False;
       --  True while traversing tree in Process_Tree.
@@ -413,7 +545,7 @@ private
 
    end record;
 
-   type Tree is tagged record
+   type Tree is new Ada.Finalization.Controlled with record
       Shared_Tree : Base_Tree_Access;
       --  If we need to set anything (ie parent) in Shared_Tree, we move the
       --  branch point instead, unless Flush = True.
@@ -421,8 +553,12 @@ private
       Last_Shared_Node : Node_Index := Invalid_Node_Index;
       Branched_Nodes   : Node_Arrays.Vector;
       Flush            : Boolean    := False;
-      --  We maintain Last_Shared_Node when Flush is True, so subprograms
-      --  that have no reason to check Flush can rely on Last_Shared_Node.
+      --  If Flush is True, all nodes are in Shared_Tree. Otherwise, all
+      --  greater than Last_Shared_Node are in Branched_Nodes.
+      --
+      --  We maintain Last_Shared_Node when Flush is True or False, so
+      --  subprograms that have no reason to check Flush can rely on
+      --  Last_Shared_Node.
 
       Root : Node_Index := Invalid_Node_Index;
    end record with
