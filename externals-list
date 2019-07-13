@@ -114,6 +114,7 @@
  ("parsec"              :subtree "https://github.com/cute-jumper/parsec.el.git")
  ("peg"			:external) ;Was in "https://github.com/ellerh/peg.el"
  ("persist"             :external "https://gitlab.com/phillord/persist.git")
+ ("phps-mode"		:external "https://github.com/cjohansson/emacs-phps-mode")
  ("pinentry"		:subtree "https://github.com/ueno/pinentry-el.git")
  ("posframe"		:external "https://github.com/tumashu/posframe")
  ("psgml"               :external "https://github.com/lenst/psgml.git")

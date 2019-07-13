@@ -45,6 +45,8 @@ packages/omn-mode/
 packages/orgalist/
 packages/pabbrev/
 packages/peg/
+packages/persist/
+packages/phps-mode/
 packages/posframe/
 packages/psgml/
 packages/python/
@@ -64,6 +66,7 @@ packages/ssh-deploy/
 packages/svg/
 packages/system-packages/
 packages/tramp/
+packages/verilog-mode/
 packages/w3/
 packages/webfeeder/
 packages/xelb/
