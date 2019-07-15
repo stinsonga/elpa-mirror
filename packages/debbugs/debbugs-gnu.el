@@ -321,11 +321,23 @@ If this is `rmail', use Rmail instead."
 (defface debbugs-gnu-handled '((t (:foreground "ForestGreen")))
   "Face for reports that have been modified recently.")
 
+(defface debbugs-gnu-stale-1 '((t (:foreground "#b0b000")))
+  "Face for reports that have been touched two to four weeks ago.")
+
+(defface debbugs-gnu-stale-2 '((t (:foreground "#c0c000")))
+  "Face for reports that have been touched 4 weeks to 12 weeks ago.")
+
+(defface debbugs-gnu-stale-3 '((t (:foreground "#d0d000")))
+  "Face for reports that have been touched 12 weeks to 26 weeks ago.")
+
+(defface debbugs-gnu-stale-4 '((t (:foreground "#e0e000")))
+  "Face for reports that have been touched 26 weeks to 52 weeks ago.")
+
+(defface debbugs-gnu-stale-5 '((t (:foreground "#ffff00")))
+  "Face for reports that have been touched more than 52 weeks ago.")
+
 (defface debbugs-gnu-pending '((t (:foreground "MidnightBlue")))
   "Face for reports that are pending.")
-
-(defface debbugs-gnu-stale '((t (:foreground "orange")))
-  "Face for reports that have not been touched for two weeks.")
 
 (defface debbugs-gnu-done '((t (:foreground "DarkGrey")))
   "Face for closed bug reports.")
@@ -739,6 +751,8 @@ are taken from the cache instead."
 	     (subject (if (cdr (assq 'subject status))
 			  (decode-coding-string (cdr (assq 'subject status))
 						'utf-8)))
+	     (age (- (float-time) (cdr (assq 'log_modified status))))
+	     (week (* 60 60 24 7))
 	     merged)
 	(unless (equal (cdr (assq 'pending status)) "pending")
 	  (setq words (append words (list (cdr (assq 'pending status))))))
@@ -795,12 +809,13 @@ are taken from the cache instead."
 			   (cdr (assq 'log_modified status))))
 		   3)
 		'debbugs-gnu-new)
-	       ((< (- (float-time)
-		      (cdr (assq 'log_modified status)))
-		   (* 60 60 24 7 2))
-		'debbugs-gnu-handled)
+	       ((< age (* week 2)) 'debbugs-gnu-handled)
+	       ((< age (* week 4)) 'debbugs-gnu-stale-1)
+	       ((< age (* week 12)) 'debbugs-gnu-stale-2)
+	       ((< age (* week 26)) 'debbugs-gnu-stale-3)
+	       ((< age (* week 52)) 'debbugs-gnu-stale-4)
 	       (t
-		'debbugs-gnu-stale)))
+		'debbugs-gnu-stale-5)))
 	     (propertize
 	      ;; Prefer the name over the address.
 	      (or (cdr address)
@@ -1034,11 +1049,15 @@ Used instead of `tabulated-list-print-entry'."
 
 (defconst debbugs-gnu-state-preference
   '((debbugs-gnu-new . 1)
-    (debbugs-gnu-stale . 2)
-    (debbugs-gnu-handled . 3)
-    (debbugs-gnu-pending . 4)
-    (debbugs-gnu-forwarded . 5)
-    (debbugs-gnu-done . 6)))
+    (debbugs-gnu-stale-5 . 2)
+    (debbugs-gnu-stale-4 . 3)
+    (debbugs-gnu-stale-3 . 4)
+    (debbugs-gnu-stale-2 . 5)
+    (debbugs-gnu-stale-1 . 6)
+    (debbugs-gnu-handled . 7)
+    (debbugs-gnu-pending . 8)
+    (debbugs-gnu-forwarded . 9)
+    (debbugs-gnu-done . 10)))
 
 (defun debbugs-gnu-get-state-preference (face-string)
   (or (cdr (assq (get-text-property 0 'face face-string)
