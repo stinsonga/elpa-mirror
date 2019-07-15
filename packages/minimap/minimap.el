@@ -768,7 +768,7 @@ You can specify those properties with
 	(with-current-buffer minimap-buffer-name
 	  (setq ov
 		(make-overlay pos
-			      (setq pos (next-single-property-change pos 'face))))
+			      (setq pos (or (next-single-property-change pos 'face) pos))))
 	  (overlay-put ov 'face `(:family ,(face-font 'default)))
 	  (overlay-put ov 'priority 5)))
       (setq pos (next-single-property-change pos 'face)))))
