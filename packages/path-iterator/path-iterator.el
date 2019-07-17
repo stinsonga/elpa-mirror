@@ -4,7 +4,7 @@
 ;;
 ;; Author: Stephen Leake <stephen_leake@stephe-leake.org>
 ;; Maintainer: Stephen Leake <stephen_leake@stephe-leake.org>
-;; Version: 0
+;; Version: 1.0
 ;; package-requires: ((emacs "25.0"))
 ;;
 
