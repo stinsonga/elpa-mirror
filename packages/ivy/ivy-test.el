@@ -35,6 +35,8 @@
 (require 'ivy)
 (require 'counsel)
 
+(message "%s" (emacs-version))
+
 (defvar ivy-expr nil
   "Holds a test expression to evaluate with `ivy-eval'.")
 
@@ -48,12 +50,21 @@
 
 (global-set-key (kbd "C-c e") 'ivy-eval)
 
-(defun ivy-with (expr keys)
+(cl-defun ivy-with (expr keys &key dir)
   "Evaluate EXPR followed by KEYS."
-  (let ((ivy-expr expr))
-    (execute-kbd-macro
-     (vconcat (kbd "C-c e")
-              (kbd keys)))
+  (let ((ivy-expr expr)
+        (inhibit-message t)
+        (buf (current-buffer)))
+    (save-window-excursion
+      (unwind-protect
+           (progn
+             ;; `execute-kbd-macro' doesn't pick up `default-directory'
+             (when dir
+               (dired (expand-file-name dir (counsel-locate-git-root))))
+             (execute-kbd-macro
+              (vconcat (kbd "C-c e")
+                       (kbd keys))))
+        (switch-to-buffer buf)))
     ivy-result))
 
 (defun command-execute-setting-this-command (cmd &rest args)
@@ -172,6 +183,15 @@ will bring the behavior in line with the newer Emacsen."
   (should (string= (swiper--re-builder "^a b")
                    "^ \\(a\\).*?\\(b\\)")))
 
+(ert-deftest swiper--re-builder-char-fold ()
+  :expected-result (if (>= emacs-major-version 25)
+                       :passed
+                     :failed)
+  (let ((search-default-mode 'char-fold-to-regexp))
+    (should (string= (swiper--re-builder "f b")
+                     "\\(\\(?:ḟ\\|[fᶠḟⓕｆ𝐟𝑓𝒇𝒻𝓯𝔣𝕗𝖋𝖿𝗳𝘧𝙛𝚏]\\)\\).*?\\(\\(?:b[̣̱̇]\\|[bᵇḃḅḇⓑｂ𝐛𝑏𝒃𝒷𝓫𝔟𝕓𝖇𝖻𝗯𝘣𝙗𝚋]\\)\\)"))
+    (should (= ivy--subexps 2))))
+
 (ert-deftest ivy--split ()
   (should (equal (ivy--split "King of the who?")
                  '("King" "of" "the" "who?")))
@@ -196,7 +216,10 @@ will bring the behavior in line with the newer Emacsen."
                  "\\(\\(?:interactive\\|swiper\\)\\).*?\\(\\(?:list\\|symbol\\)\\)"))
   (should (equal (ivy--regex
                   "foo[")
-                 "foo\\[")))
+                 "foo\\["))
+  (should (equal (ivy--regex
+                  ".org")
+                 "\\.org")))
 
 (ert-deftest ivy--split-negation ()
   (should (equal (ivy--split-negation "") ()))
@@ -253,13 +276,13 @@ will bring the behavior in line with the newer Emacsen."
 
 (ert-deftest ivy--regex-fuzzy ()
   (should (string= (ivy--regex-fuzzy "tmux")
-                   "\\(t\\)[^m]*\\(m\\)[^u]*\\(u\\)[^x]*\\(x\\)"))
+                   "\\(t\\)[^m\n]*\\(m\\)[^u\n]*\\(u\\)[^x\n]*\\(x\\)"))
   (should (string= (ivy--regex-fuzzy ".tmux")
-                   "\\(\\.\\)[^t]*\\(t\\)[^m]*\\(m\\)[^u]*\\(u\\)[^x]*\\(x\\)"))
+                   "\\(\\.\\)[^t\n]*\\(t\\)[^m\n]*\\(m\\)[^u\n]*\\(u\\)[^x\n]*\\(x\\)"))
   (should (string= (ivy--regex-fuzzy "^tmux")
-                   "^\\(t\\)[^m]*\\(m\\)[^u]*\\(u\\)[^x]*\\(x\\)"))
+                   "^\\(t\\)[^m\n]*\\(m\\)[^u\n]*\\(u\\)[^x\n]*\\(x\\)"))
   (should (string= (ivy--regex-fuzzy "^tmux$")
-                   "^\\(t\\)[^m]*\\(m\\)[^u]*\\(u\\)[^x]*\\(x\\)$"))
+                   "^\\(t\\)[^m\n]*\\(m\\)[^u\n]*\\(u\\)[^x\n]*\\(x\\)$"))
   (should (string= (ivy--regex-fuzzy "")
                    ""))
   (should (string= (ivy--regex-fuzzy "^")
@@ -301,7 +324,8 @@ will bring the behavior in line with the newer Emacsen."
 
 (ert-deftest ivy--format ()
   (should (string= (let ((ivy--index 10)
-                         (ivy-format-function (lambda (x) (mapconcat #'identity x "\n")))
+                         (ivy-format-functions-alist
+                          '((t . (lambda (x) (mapconcat #'identity x "\n")))))
                          (cands '("NAME"
                                   "SYNOPSIS"
                                   "DESCRIPTION"
@@ -344,7 +368,16 @@ will bring the behavior in line with the newer Emacsen."
                  "bar.*baz"))
   (should (equal (counsel--elisp-to-pcre
                   '(("foo\\|bar" . t) ("blah\\|bloop") ("blick" . t) ("\\(baz\\)\\|quux" . t)))
-                 "(?:foo|bar).*blick.*(?:(baz)|quux)")))
+                 "(?:foo|bar).*blick.*(?:(baz)|quux)"))
+  (should (equal (counsel--elisp-to-pcre
+                  '(("ivy" . t) ("-")) t)
+                 "^(?=.*ivy)(?!.*-)"))
+  (should (equal (counsel--elisp-to-pcre
+                  '(("foo" . t)) t)
+                 "foo"))
+  (should (equal (counsel--elisp-to-pcre
+                  '(("foo")) t)
+                 "^(?!.*foo)")))
 
 (defmacro ivy--string-buffer (text &rest body)
   "Test helper that wraps TEXT in a temp buffer while running BODY."
@@ -690,8 +723,9 @@ will bring the behavior in line with the newer Emacsen."
        (switch-to-buffer standard-output t)
        ,expr
        (ivy-mode)
-       (execute-kbd-macro
-        ,(apply #'vconcat (mapcar #'kbd keys))))))
+       (let ((inhibit-message t))
+         (execute-kbd-macro
+          ,(apply #'vconcat (mapcar #'kbd keys)))))))
 
 (ert-deftest ivy-completion-in-region ()
   (should (string=
@@ -937,15 +971,22 @@ will bring the behavior in line with the newer Emacsen."
 a buffer visiting a file."
   (let ((ivy-mode-reset-arg (if ivy-mode 1 0)))
     (ivy-mode 1)
+    ;; `ivy-read' returns "~/dummy-dir/dummy-file" (same object, not a copy).
+    ;;
+    ;; `read-file-name-default' will then return "" in order for
+    ;; `set-visited-file-name' to detect that the user typed RET with
+    ;; the minibuffer empty.
     (should
-     (equal "~/dummy-dir/dummy-file" ;visiting file name, abbreviated form
-            (ivy-with
+     (equal (ivy-with
              '(let ((insert-default-directory t))
-                (with-temp-buffer
-                  (set-visited-file-name "~/dummy-dir/dummy-file")
-                  (read-file-name "Load file: " nil nil 'lambda))) ;load-file
+               (with-temp-buffer
+                 (set-visited-file-name "~/dummy-dir/dummy-file")
+                 (read-file-name "Load file: " nil nil 'lambda)))
              ;; No editing, just command ivy-immediate-done
-             "C-M-j")))
+             "C-M-j")
+            ""))
+    (should
+     (equal (ivy-state-current ivy-last) "~/dummy-dir/dummy-file"))
     (ivy-mode ivy-mode-reset-arg)))
 
 (ert-deftest ivy-starts-with-dotslash ()
@@ -978,6 +1019,294 @@ a buffer visiting a file."
         (setq out (counsel--normalize-grep-match out))
         (should (equal out expected))
         (should (equal match-data-orig (match-data)))))))
+
+(ert-deftest counsel--grep-regex ()
+  ;; negative lookahead: lines with "ivy", without "-"
+  (should
+   (string=
+    (let ((counsel--regex-look-around t)
+          (ivy--regex-function 'ivy--regex-plus))
+      (counsel--grep-regex "ivy ! -"))
+    "^(?=.*ivy)(?!.*-)"))
+  (should
+   (string=
+    (let ((counsel--regex-look-around t)
+          (ivy--regex-function 'ivy--regex-fuzzy))
+      (counsel--grep-regex "ivy"))
+    "(i)[^v\n]*(v)[^y\n]*(y)")))
+
+(defmacro ivy-with-text (text &rest body)
+  (let ((old-bindings
+         (delq nil (mapcar
+                    (lambda (x)
+                      (when (and (listp x)
+                                 (eq (car x) 'global-set-key))
+                        (let ((key (eval (cadr x))))
+                          (list key (lookup-key global-map key)))))
+                    body))))
+    `(let ((temp-buffer (generate-new-buffer " *temp*")))
+       (save-window-excursion
+         (unwind-protect
+              (progn
+                (switch-to-buffer temp-buffer)
+                (insert ,text)
+                (search-backward "|")
+                (delete-char 1)
+                (setq current-prefix-arg nil)
+                (let ((inhibit-message t))
+                  ,@(mapcar (lambda (x)
+                              (if (and (listp x)
+                                       (stringp (car x)))
+                                  `(execute-kbd-macro
+                                    (vconcat ,@(mapcar #'kbd x)))
+                                x))
+                            body))
+                (insert "|")
+                (buffer-substring-no-properties
+                 (point-min)
+                 (point-max)))
+           (dolist (old-binding ',old-bindings)
+             (apply #'global-set-key old-binding))
+           (and (buffer-name temp-buffer)
+                (kill-buffer temp-buffer)))))))
+
+(ert-deftest swiper-isearch ()
+  (should
+   (string=
+    (ivy-with-text
+     "abc\na|sdf123 def\ndem"
+     (global-set-key (kbd "C-s") #'isearch-forward-regexp)
+     ("C-s" "de" "" "RET"))
+    "abc\nasd|f123 def\ndem"))
+  (should
+   (string=
+    (ivy-with-text
+     "abc\na|sdf123 def\ndem"
+     (global-set-key (kbd "C-s") #'swiper-isearch)
+     ("C-s" "de" "" "RET"))
+    "abc\nasd|f123 def\ndem"))
+  (should
+   (string=
+    (ivy-with-text
+     "|(defun foo)\nasdf\n(defvar bar)"
+     (global-set-key (kbd "C-s") #'isearch-forward-regexp)
+     ("C-s" "defun\\|defvar" "RET"))
+    "(defun| foo)\nasdf\n(defvar bar)"))
+  (should
+   (string=
+    (ivy-with-text
+     "|(defun foo)\nasdf\n(defvar bar)"
+     (global-set-key (kbd "C-s") #'swiper-isearch)
+     ("C-s" "defun\\|defvar" "RET"))
+    "(defun| foo)\nasdf\n(defvar bar)"))
+  (should
+   (string=
+    (ivy-with-text
+     "|(defun foo)\nasdf\n(defvar bar)"
+     (global-set-key (kbd "C-s") #'swiper-isearch)
+     ("C-s" "defun\\|defvar" "C-n RET"))
+    "(defun foo)\nasdf\n(defvar| bar)")))
+
+(ert-deftest swiper-isearch-backward ()
+  (should
+   (string=
+    (ivy-with-text
+     "abc\nasdf123 def\ndem|"
+     (global-set-key (kbd "C-r") #'isearch-backward-regexp)
+     ("C-r" "de" "" "RET"))
+    "abc\nasdf123 def\n|dem"))
+  (should
+   (string=
+    (ivy-with-text
+     "abc\nasdf123 def\ndem|"
+     (global-set-key (kbd "C-r") #'swiper-isearch-backward)
+     ("C-r" "de" "" "RET"))
+    "abc\nasdf123 def\n|dem"))
+  (should
+   (string=
+    (ivy-with-text
+     "(defun foo)\nasdf\n(defvar bar)|"
+     (global-set-key (kbd "C-r") #'isearch-backward-regexp)
+     ("C-r" "defun\\|defvar" "RET"))
+    "(defun foo)\nasdf\n(|defvar bar)"))
+  ;; NOTE: The following two behaviors do not match
+  ;; `isearch-backward-regexp', but they match that of
+  ;; `swiper-isearch-forward', as `swiper-isearch' does not reset the
+  ;; point when the regexp becomes invalid, meaning the point is left
+  ;; at the initial match of the first part of the regexp.
+  (should
+   (string=
+    (ivy-with-text
+     "(defun foo)\nasdf\n(defvar bar)|"
+     (global-set-key (kbd "C-r") #'swiper-isearch-backward)
+     ("C-r" "defun\\|defvar" "RET"))
+    "(|defun foo)\nasdf\n(defvar bar)"))
+  (should
+   (string=
+    (ivy-with-text
+     "(defun foo)\nasdf\n(defvar bar)|"
+     (global-set-key (kbd "C-r") #'swiper-isearch-backward)
+     ("C-r" "defun\\|defvar" "C-n RET"))
+    "(defun foo)\nasdf\n(|defvar bar)"))
+  (should
+   (string=
+    (ivy-with-text
+     "(defun foo)\nasdf\n(|defun bar)"
+     (global-set-key (kbd "C-r") #'isearch-backward)
+     ("C-r" "defun" "RET"))
+    "(|defun foo)\nasdf\n(defun bar)"))
+  (should
+   (string=
+    (ivy-with-text
+     "(defun foo)\nasdf\n(|defun bar)"
+     (global-set-key (kbd "C-r") #'swiper-isearch-backward)
+     ("C-r" "defun" "RET"))
+    "(|defun foo)\nasdf\n(defun bar)")))
+
+(ert-deftest swiper-isearch-backward-backspace ()
+  (should
+   (string=
+    (ivy-with-text
+     "(while (when |))"
+     (global-set-key (kbd "C-r") #'swiper-isearch-backward)
+     ("C-r" "whi" "" "RET"))
+    "(while (|when ))"))
+  (should
+   (string=
+    (ivy-with-text
+     "(while (when |))"
+     (global-set-key (kbd "C-r") #'isearch-backward-regexp)
+     ("C-r" "whi" "" "RET"))
+    "(while (|when ))")))
+
+(ert-deftest swiper-isearch-case-fold ()
+  (should
+   (string=
+    (ivy-with-text
+     "|Foo\nfoo\nFOO\n"
+     (global-set-key (kbd "C-s") #'swiper-isearch)
+     ("C-s" "foo" "C-n RET"))
+    "Foo\nfoo|\nFOO\n"))
+  (should
+   (string=
+    (let ((ivy-case-fold-search-default 'auto))
+      (ivy-with-text
+       "|Foo\nfoo\nFOO\n"
+       (global-set-key (kbd "C-s") #'swiper-isearch)
+       ("C-s" "Foo" "C-n RET")))
+    "Foo|\nfoo\nFOO\n"))
+  (should
+   (string=
+    (let ((ivy-case-fold-search-default t))
+      (ivy-with-text
+       "|Foo\nfoo\nFOO\n"
+       (global-set-key (kbd "C-s") #'swiper-isearch)
+       ("C-s" "Foo" "C-n RET")))
+    "Foo\nfoo|\nFOO\n")))
+
+(ert-deftest swiper--isearch-format ()
+  (setq swiper--isearch-point-history
+        (list
+         (cons "" 1)))
+  (with-temp-buffer
+    (insert
+     "line0\nline1\nline line\nline line\nline5")
+    (let* ((input "li")
+           (cands (swiper--isearch-function input))
+           (len (length cands)))
+      (should (equal cands '(3 9 15 20 25 30 35)))
+      (dotimes (index len)
+        (should (string= (substring-no-properties
+                          (swiper--isearch-format
+                           index len
+                           cands
+                           input
+                           (nth index cands)
+                           (current-buffer)))
+                         "line0\nline1\nline line\nline line\nline5"))))))
+
+(ert-deftest ivy-use-selectable-prompt ()
+  (let ((ivy-use-selectable-prompt t)
+        (completing-read-function #'ivy-completing-read))
+    (should (string= (ivy-with '(ivy-read "prompt: " '("foo" "bar")
+                                 :require-match t)
+                               "C-p C-m")
+                     "foo"))
+    (should (string= (ivy-with '(ivy-read "prompt: " '("" "foo" "bar")
+                                 :require-match t)
+                               "C-p C-m")
+                     ""))
+    (should (string= (ivy-with '(completing-read "Position: " '(("") ("t") ("b")) nil t)
+                               "C-p C-m")
+                     ""))))
+
+(ert-deftest ivy--minibuffer-index-bounds ()
+  (should (equal (ivy--minibuffer-index-bounds 0 1 10) '(0 1 0)))
+  (should (equal (ivy--minibuffer-index-bounds 0 10 10) '(0 9 0)))
+  (should (equal (ivy--minibuffer-index-bounds 0 11 10) '(0 9 0)))
+  (should (equal (ivy--minibuffer-index-bounds 1 11 10) '(0 9 1)))
+  (should (equal (ivy--minibuffer-index-bounds 5 11 10) '(0 9 5)))
+  (should (equal (ivy--minibuffer-index-bounds 6 11 10) '(1 10 5)))
+  (should (equal (ivy--minibuffer-index-bounds 7 11 10) '(2 11 5)))
+  (should (equal (ivy--minibuffer-index-bounds 8 11 10) '(2 11 6)))
+  (should (equal (ivy--minibuffer-index-bounds 10 11 10) '(2 11 8)))
+  (should (equal (ivy--minibuffer-index-bounds 1 3 10) '(0 3 1))))
+
+(defun counsel--setup-test-files ()
+  (unless (file-exists-p "tests/")
+    (shell-command
+     "git clone -b test --single-branch https://github.com/abo-abo/swiper/ tests"))
+  (let ((default-directory (expand-file-name "tests/"))
+        (version "066ec1d"))
+    (shell-command
+     (format "git checkout %s || git fetch && git checkout %s" version version))))
+
+(ert-deftest counsel-find-file-with-dollars ()
+  (counsel--setup-test-files)
+  (should (string=
+           (file-relative-name
+            (ivy-with '(counsel-find-file) "fo C-m"
+                      :dir "tests/find-file/files-with-dollar/"))
+           "tests/find-file/files-with-dollar/foo$")))
+
+(ert-deftest counsel-find-file-with-dotfiles ()
+  (counsel--setup-test-files)
+  (should (string=
+           (file-relative-name
+            (ivy-with '(counsel-find-file) "f C-m"
+                      :dir "tests/find-file/dotfiles/"))
+           "tests/find-file/dotfiles/foo/"))
+  (should (string=
+           (file-relative-name
+            (ivy-with '(counsel-find-file) "foob C-m"
+                      :dir "tests/find-file/dotfiles/"))
+           "tests/find-file/dotfiles/.foobar1")))
+
+(ert-deftest counsel-find-file-with-spaces ()
+  (counsel--setup-test-files)
+  (let ((ivy-extra-directories nil))
+    (should (string=
+             (file-relative-name
+              (ivy-with '(counsel-find-file) "TAB TAB TAB TAB"
+                        :dir "tests/find-file/directories-with-spaces/"))
+             "tests/find-file/directories-with-spaces/bar baz i/file1"))
+    (should (string=
+             (file-relative-name
+              (ivy-with '(counsel-find-file) "C-n TAB TAB TAB TAB"
+                        :dir "tests/find-file/directories-with-spaces/"))
+             "tests/find-file/directories-with-spaces/bar baz ii/file2"))
+    (should (string=
+             (file-relative-name
+              (ivy-with '(counsel-find-file) "TAB C-n TAB TAB TAB TAB"
+                        :dir "tests/find-file/directories-with-spaces/"))
+             "tests/find-file/directories-with-spaces/bar baz ii/file2"))))
+
+(ert-deftest ivy-avy ()
+  (when (require 'avy nil t)
+    (let ((enable-recursive-minibuffers t)
+          (read-numbers '(ivy-read "test: " (mapcar #'number-to-string (number-sequence 1 100)))))
+      (should (string= (ivy-with read-numbers "C-' a") "1"))
+      (should (string= (ivy-with read-numbers "C-v C-' d") "7")))))
 
 (provide 'ivy-test)
 
