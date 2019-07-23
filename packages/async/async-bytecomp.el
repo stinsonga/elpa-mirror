@@ -1,6 +1,6 @@
 ;;; async-bytecomp.el --- Compile elisp files asynchronously -*- lexical-binding: t -*-
 
-;; Copyright (C) 2014-2016 Free Software Foundation, Inc.
+;; Copyright (C) 2014-2019 Free Software Foundation, Inc.
 
 ;; Authors: John Wiegley <jwiegley@gmail.com>
 ;;          Thierry Volpiatto <thierry.volpiatto@gmail.com>
@@ -143,12 +143,14 @@ All *.elc files are systematically deleted before proceeding."
                   (append async-bytecomp-allowed-packages reqs)))
         async-bytecomp-allowed-packages)))
 
-(defadvice package--compile (around byte-compile-async)
+(defun async--package-compile (orig-fun pkg-desc &rest args)
   (let ((cur-package (package-desc-name pkg-desc))
         (pkg-dir (package-desc-dir pkg-desc)))
     (if (or (equal async-bytecomp-allowed-packages '(all))
             (memq cur-package (async-bytecomp-get-allowed-pkgs)))
         (progn
+          ;; FIXME: Why do we use (eq cur-package 'async) once
+          ;; and (string= cur-package "async") afterwards?
           (when (eq cur-package 'async)
             (fmakunbound 'async-byte-recompile-directory))
           ;; Add to `load-path' the latest version of async and
@@ -159,7 +161,7 @@ All *.elc files are systematically deleted before proceeding."
           ;; `async-byte-recompile-directory' will add directory
           ;; as needed to `load-path'.
           (async-byte-recompile-directory (package-desc-dir pkg-desc) t))
-        ad-do-it)))
+      (apply orig-fun pkg-desc args))))
 
 ;;;###autoload
 (define-minor-mode async-bytecomp-package-mode
@@ -169,8 +171,8 @@ Async compilation of packages can be controlled by
   :group 'async
   :global t
   (if async-bytecomp-package-mode
-      (ad-activate 'package--compile)
-      (ad-deactivate 'package--compile)))
+      (advice-add 'package--compile :around #'async--package-compile)
+    (advice-remove 'package--compile #'async--package-compile)))
 
 (provide 'async-bytecomp)
 

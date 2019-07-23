@@ -1,10 +1,11 @@
 ;;; async.el --- Asynchronous processing in Emacs -*- lexical-binding: t -*-
 
-;; Copyright (C) 2012-2016 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2019 Free Software Foundation, Inc.
 
 ;; Author: John Wiegley <jwiegley@gmail.com>
 ;; Created: 18 Jun 2012
 ;; Version: 1.9.2
+;; Package-Requires: ((cl-lib "0.5") (nadvice "0.3"))
 
 ;; Keywords: async
 ;; X-URL: https://github.com/jwiegley/emacs-async
@@ -121,7 +122,8 @@ as follows:
 
 (defun async--receive-sexp (&optional stream)
   (let ((sexp (decode-coding-string (base64-decode-string
-                                     (read stream)) 'utf-8-unix))
+                                     (read stream))
+                                    'utf-8-unix))
 	;; Parent expects UTF-8 encoded text.
 	(coding-system-for-write 'utf-8-unix))
     (if async-debug
@@ -129,7 +131,7 @@ as follows:
     (setq sexp (read sexp))
     (if async-debug
         (message "Read sexp {{{%s}}}" (pp-to-string sexp)))
-    (eval sexp)))
+    (eval sexp t)))
 
 (defun async--insert-sexp (sexp)
   (let (print-level

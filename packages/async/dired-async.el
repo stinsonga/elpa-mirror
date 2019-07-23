@@ -1,6 +1,6 @@
 ;;; dired-async.el --- Asynchronous dired actions -*- lexical-binding: t -*-
 
-;; Copyright (C) 2012-2016 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2019 Free Software Foundation, Inc.
 
 ;; Authors: John Wiegley <jwiegley@gmail.com>
 ;;          Thierry Volpiatto <thierry.volpiatto@gmail.com>
@@ -52,38 +52,31 @@
 (defcustom dired-async-env-variables-regexp
   "\\`\\(tramp-\\(default\\|connection\\|remote\\)\\|ange-ftp\\)-.*"
   "Variables matching this regexp will be loaded on Child Emacs."
-  :type  'regexp
-  :group 'dired-async)
+  :type  'regexp)
 
 (defcustom dired-async-message-function 'dired-async-mode-line-message
   "Function to use to notify result when operation finish.
 Should take same args as `message'."
-  :group 'dired-async
   :type  'function)
 
 (defcustom dired-async-log-file "/tmp/dired-async.log"
   "File use to communicate errors from Child Emacs to host Emacs."
-  :group 'dired-async
   :type 'string)
 
 (defface dired-async-message
     '((t (:foreground "yellow")))
-  "Face used for mode-line message."
-  :group 'dired-async)
+  "Face used for mode-line message.")
 
 (defface dired-async-failures
     '((t (:foreground "red")))
-  "Face used for mode-line message."
-  :group 'dired-async)
+  "Face used for mode-line message.")
 
 (defface dired-async-mode-message
     '((t (:foreground "Gold")))
-  "Face used for `dired-async--modeline-mode' lighter."
-  :group 'dired-async)
+  "Face used for `dired-async--modeline-mode' lighter.")
 
 (define-minor-mode dired-async--modeline-mode
     "Notify mode-line that an async process run."
-  :group 'dired-async
   :global t
   :lighter (:eval (propertize (format " [%s Async job(s) running]"
                                       (length (dired-async-processes)))
@@ -310,22 +303,13 @@ ESC or `q' to not overwrite any of the remaining files,
       (dired-async--modeline-mode 1)
       (message "%s proceeding asynchronously..." operation))))
 
-(defadvice dired-create-files (around dired-async)
-  (dired-async-create-files file-creator operation fn-list
-                            name-constructor marker-char))
-
 ;;;###autoload
 (define-minor-mode dired-async-mode
-    "Do dired actions asynchronously."
-  :group 'dired-async
+  "Do dired actions asynchronously."
   :global t
   (if dired-async-mode
-      (if (fboundp 'advice-add)
-          (advice-add 'dired-create-files :override #'dired-async-create-files)
-          (ad-activate 'dired-create-files))
-      (if (fboundp 'advice-remove)
-          (advice-remove 'dired-create-files #'dired-async-create-files)
-          (ad-deactivate 'dired-create-files))))
+      (advice-add 'dired-create-files :override #'dired-async-create-files)
+    (advice-remove 'dired-create-files #'dired-async-create-files)))
 
 
 (provide 'dired-async)
