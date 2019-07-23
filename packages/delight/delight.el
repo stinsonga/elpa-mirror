@@ -1,10 +1,11 @@
-;;; delight.el --- A dimmer switch for your lighter text.
+;;; delight.el --- A dimmer switch for your lighter text  -*- lexical-binding:t -*-
 ;;
-;; Copyright (C) 2013, 2014, 2016 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2019 Free Software Foundation, Inc.
 
 ;; Author: Phil Sainty <psainty@orcon.net.nz>
 ;; Maintainer: Phil Sainty <psainty@orcon.net.nz>
 ;; URL: https://savannah.nongnu.org/projects/delight
+;; Package-Requires: ((cl-lib "0.5") (nadvice "0.3"))
 ;; Keywords: convenience
 ;; Created: 25 Jun 2013
 ;; Version: 1.5
@@ -104,8 +105,7 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'cl))
+(eval-when-compile (require 'cl-lib))
 
 (defvar delighted-modes ()
   "List of specs for modifying the display of mode names in the mode line.
@@ -137,10 +137,10 @@ for this purpose). These FILE options are relevant to minor modes only.
 
 For major modes you should specify the keyword :major as the value of FILE,
 to prevent the mode being treated as a minor mode."
-  (add-hook 'after-change-major-mode-hook 'delight-major-mode)
+  (add-hook 'after-change-major-mode-hook #'delight-major-mode)
   (let ((glum (if (consp spec) spec (list (list spec value file)))))
     (while glum
-      (destructuring-bind (mode &optional value file) (pop glum)
+      (cl-destructuring-bind (mode &optional value file) (pop glum)
         (assq-delete-all mode delighted-modes)
         (add-to-list 'delighted-modes (list mode value file))
         (unless (eq file :major)
@@ -196,19 +196,23 @@ When `mode-name' is displayed in other contexts (such as in the
 `describe-mode' help buffer), its original value will be used."
   (let ((major-delight (assq major-mode delighted-modes)))
     (when major-delight
-      (setq mode-name `(inhibit-mode-name-delight
+      (setq mode-name `(delight--inhibit
                         ,mode-name ;; glum
                         ,(cadr major-delight)))))) ;; delighted
 
-(defvar inhibit-mode-name-delight)
+(define-obsolete-variable-alias 'inhibit-mode-name-delight
+  'delight--inhibit "delight-1.6")
+(defvar delight--inhibit)
 
-(defadvice format-mode-line (around delighted-modes-are-glum activate)
+(defun delight--format-mode-line (orig-fun &rest args)
   "Delighted modes should exhibit their original `mode-name' when
 `format-mode-line' is called. See `delight-major-mode'."
-  (let ((inhibit-mode-name-delight (if (boundp 'inhibit-mode-name-delight)
-                                       inhibit-mode-name-delight
+  (let ((delight--inhibit (if (boundp 'delight--inhibit)
+                                       delight--inhibit
                                      t)))
-    ad-do-it))
+    (apply orig-fun args)))
+
+(advice-add 'format-mode-line :around #'delight--format-mode-line)
 
 (provide 'delight)
 ;;; delight.el ends here
