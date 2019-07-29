@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013  Free Software Foundation, Inc.
 
 ;; Author: Barry O'Reilly <gundaetiapo@gmail.com>
-;; Version: 3.0
+;; Version: 3.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -342,6 +342,7 @@ Binding to <backtab> (ie Shift-Tab) is a sensible choice."
 (define-key adjust-parens-mode-map (kbd "TAB") 'lisp-indent-adjust-parens)
 (define-key adjust-parens-mode-map (kbd "<backtab>") 'lisp-dedent-adjust-parens)
 
+;;;###autoload
 (define-minor-mode adjust-parens-mode
   "Indent and dedent Lisp code, automatically adjust close parens."
   :group 'adjust-parens
