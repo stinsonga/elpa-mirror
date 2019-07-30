@@ -7,7 +7,7 @@
 ;; Created: 29 Jul 2015
 ;; Keywords: lisp
 ;; Compatibility: GNU Emacs 25
-;; Version: 1.12.6
+;; Version: 1.12.6.1
 ;; Package-Requires: ((emacs "25") (stream "2.2.4") (cl-print "1.0"))
 
 
@@ -4135,6 +4135,16 @@ related user options."
    (lambda (search) (setf (alist-get 'description (el-search-object-properties search))
                           "el-search-ibuffer-marked-files"))))
 
+(defun el-search-repository--delete-buffer-file ()
+  (when (and (stringp buffer-file-name)
+             (file-exists-p buffer-file-name))
+    (delete-file buffer-file-name)))
+
+(defun el-search-repository--clean-up ()
+  (dolist (b (buffer-list))
+    (when (with-current-buffer b (memq #'el-search-repository--delete-buffer-file kill-buffer-hook))
+      (kill-buffer b))))
+
 (declare-function vc-read-revision 'vc)
 (declare-function vc-find-revision 'vc)
 ;;;###autoload
@@ -4147,9 +4157,7 @@ regexp, and only matching files will be el-searched.
 
 When called interactively, you are prompted for all arguments.
 
-Searching any REVISION is using temporarily files.  If you
-interrupt a search or open versions of files from *El Occur*, the
-checked out file versions need to be deleted manually."
+Searching any REVISION is internally using temporarily files."
   (interactive
    (cl-flet* ((return (v) (if (equal v "") nil v))
               (choose (l &rest nums) (mapcar (lambda (n) (return (nth n l))) nums)))
@@ -4159,7 +4167,7 @@ checked out file versions need to be deleted manually."
                                         this-vc-root-dir this-vc-root-dir 'mustmatch))))
        (choose (list repo
                      (vc-read-revision "Revision (leave empty for \"worktree\"): " (list repo) 'Git)
-                     (read-string "File filter regexp (leave empty for none): ")
+                     (read-string "File filter regexp (leave empty for no filtering): ")
                      (el-search-read-pattern-for-interactive "Search pattern: "))
                0 3 1 2))))
   (let ((just-worktree (not revision)))
@@ -4182,24 +4190,29 @@ checked out file versions need to be deleted manually."
          (if just-worktree files
            (seq-map
             (lambda (filename)
-              (let ((default-directory repo-root-dir))
-                (let* ((dd default-directory)
-                       (get-buffer
-                        (lambda ()
-                          (with-current-buffer (let ((inhibit-message t)
-                                                     (default-directory dd))
-                                                 (vc-find-revision filename revision))
-                            (add-hook 'kill-buffer-hook
-                                      (lambda ()
-                                        (when (file-exists-p buffer-file-name)
-                                          (delete-file buffer-file-name)))
-                                      'append 'local)
-                            (current-buffer)))))
-                  (with-current-buffer (funcall get-buffer)
-                    ;; This is a bit hackish...
-                    (setq-local el-search--temp-buffer-flag t)
-                    (setq el-search--get-buffer-fun get-buffer)
-                    (current-buffer)))))
+              (cl-flet ((get-buffer+newflag
+                         (lambda ()
+                           (let* ((buffer-list-before (buffer-list))
+                                  (b (let ((inhibit-message t)
+                                           (default-directory repo-root-dir))
+                                       (vc-find-revision filename revision)))
+                                  (buffer-new? (not (memq b buffer-list-before))))
+                             (when buffer-new?
+                               (with-current-buffer b
+                                 ;; We must delete any temporary files VC creates.  We don't check
+                                 ;; whether these files might have existed before.
+                                 (add-hook 'kill-buffer-hook
+                                           #'el-search-repository--delete-buffer-file
+                                           'append 'local)
+                                 (add-hook 'kill-emacs-hook #'el-search-repository--clean-up)))
+                             (cons b buffer-new?)))))
+                (pcase-let ((`(,b . ,buffer-new?) (get-buffer+newflag)))
+                  (with-current-buffer b
+                    (when buffer-new?
+                      (setq-local el-search--temp-buffer-flag t))
+                    (setq-local el-search--get-buffer-fun
+                                (lambda () (car (get-buffer+newflag)))))
+                  b)))
             files)))))))
 
 ;;;; Register usage
