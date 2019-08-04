@@ -193,6 +193,7 @@ The search engine uses an index over the bug database.  This index is
 refreshed once a day only; search hits do not include recent changes
 of the same day.
 
+
 @deffn  {Command} debbugs-gnu-search
 @deffnx {Command} debbugs-org-search
 
@@ -761,6 +762,14 @@ Any URL with the format @uref{https://debbugs.gnu.org/12345} or
 @uref{https://bugs.gnu.org/54321} will be shown in a bug report
 buffer, when @code{debbugs-browse-mode} is enabled.  See user option
 @code{debbugs-browse-url-regexp} for the syntax of supported URLs.
+
+In order to enable it globally, you might add the following forms to
+your @file{~/.emacs}:
+
+@smallexample
+(add-hook 'bug-reference-mode-hook 'debbugs-browse-mode)
+(add-hook 'bug-reference-prog-mode-hook 'debbugs-browse-mode)
+@end smallexample
 
 
 @node Command Index

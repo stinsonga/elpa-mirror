@@ -685,6 +685,12 @@ or <https://bugs.gnu.org/54321> will be shown in a bug report buffer,
 when 'debbugs-browse-mode' is enabled.  See user option
 'debbugs-browse-url-regexp' for the syntax of supported URLs.
 
+   In order to enable it globally, you might add the following forms
+to your '~/.emacs':
+
+     (add-hook 'bug-reference-mode-hook 'debbugs-browse-mode)
+     (add-hook 'bug-reference-prog-mode-hook 'debbugs-browse-mode)
+
 
 File: debbugs-ug.info,  Node: Command Index,  Next: Variable Index,  Prev: Minor Mode,  Up: Top
 
@@ -1124,41 +1130,41 @@ Node: Applying Patches20794
 Node: Posting Patches22184
 Node: Customizing debbugs-gnu-pick-commits24669
 Node: Minor Mode25369
-Node: Command Index26425
-Node: Variable Index27285
-Node: Key Index28730
-Node: Mail Command Index30438
-Ref: Mail Command Index: reassign30591
-Ref: Mail Command Index: reopen31357
-Ref: Mail Command Index: found32511
-Ref: Mail Command Index: notfound33592
-Ref: Mail Command Index: fixed34001
-Ref: Mail Command Index: notfixed34447
-Ref: Mail Command Index: submitter35070
-Ref: Mail Command Index: forwarded35464
-Ref: Mail Command Index: notforwarded36081
-Ref: Mail Command Index: retitle36282
-Ref: Mail Command Index: severity36666
-Ref: Mail Command Index: clone36997
-Ref: Mail Command Index: merge37761
-Ref: Mail Command Index: forcemerge39148
-Ref: Mail Command Index: unmerge39592
-Ref: Mail Command Index: tags40295
-Ref: Mail Command Index: block41361
-Ref: Mail Command Index: unblock41398
-Ref: Mail Command Index: close41883
-Ref: Mail Command Index: package42533
-Ref: Mail Command Index: owner43145
-Ref: Mail Command Index: noowner43508
-Ref: Mail Command Index: archive43681
-Ref: Mail Command Index: unarchive43822
-Ref: Mail Command Index: #44115
-Ref: Mail Command Index: quit44375
-Ref: Mail Command Index: stop44382
-Ref: Mail Command Index: thank44389
-Ref: Mail Command Index: thanks44397
-Ref: Mail Command Index: thankyou44406
-Ref: Mail Command Index: thank you44417
-Ref: Mail Command Index: --44429
+Node: Command Index26645
+Node: Variable Index27505
+Node: Key Index28950
+Node: Mail Command Index30658
+Ref: Mail Command Index: reassign30811
+Ref: Mail Command Index: reopen31577
+Ref: Mail Command Index: found32731
+Ref: Mail Command Index: notfound33812
+Ref: Mail Command Index: fixed34221
+Ref: Mail Command Index: notfixed34667
+Ref: Mail Command Index: submitter35290
+Ref: Mail Command Index: forwarded35684
+Ref: Mail Command Index: notforwarded36301
+Ref: Mail Command Index: retitle36502
+Ref: Mail Command Index: severity36886
+Ref: Mail Command Index: clone37217
+Ref: Mail Command Index: merge37981
+Ref: Mail Command Index: forcemerge39368
+Ref: Mail Command Index: unmerge39812
+Ref: Mail Command Index: tags40515
+Ref: Mail Command Index: block41581
+Ref: Mail Command Index: unblock41618
+Ref: Mail Command Index: close42103
+Ref: Mail Command Index: package42753
+Ref: Mail Command Index: owner43365
+Ref: Mail Command Index: noowner43728
+Ref: Mail Command Index: archive43901
+Ref: Mail Command Index: unarchive44042
+Ref: Mail Command Index: #44335
+Ref: Mail Command Index: quit44595
+Ref: Mail Command Index: stop44602
+Ref: Mail Command Index: thank44609
+Ref: Mail Command Index: thanks44617
+Ref: Mail Command Index: thankyou44626
+Ref: Mail Command Index: thank you44637
+Ref: Mail Command Index: --44649
 
 End Tag Table
