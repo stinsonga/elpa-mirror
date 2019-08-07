@@ -157,6 +157,12 @@ By default it matches nonascii-chars."
 (defun markchars--render-confusables (beg end)
   "Assign markchars confusable properties between BEG and END."
   (let* ((text (buffer-substring-no-properties beg end))
+         ;; Strip combining characters (bug#36923)
+         (text (mapconcat (lambda (c)
+                            (when (zerop (get-char-code-property
+                                          c 'canonical-combining-class))
+                              (string c)))
+                          (string-to-list text) ""))
          (scripts (mapcar
                    (lambda (c) (aref char-script-table c))
                    (string-to-list text)))
