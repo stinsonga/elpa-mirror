@@ -63,7 +63,7 @@ package WisiToken.Generate.LR is
    procedure Add_Action
      (Symbol               : in     Token_ID;
       Action               : in     Parse_Action_Rec;
-      Action_List          : in out Action_Node_Ptr;
+      Action_List          : in out Action_Arrays.Vector;
       Closure              : in     LR1_Items.Item_Set;
       Grammar              : in     WisiToken.Productions.Prod_Arrays.Vector;
       Has_Empty_Production : in     Token_ID_Set;
@@ -89,7 +89,7 @@ package WisiToken.Generate.LR is
 
    procedure Add_Lookahead_Actions
      (Item                 : in     LR1_Items.Item;
-      Action_List          : in out Action_Node_Ptr;
+      Action_List          : in out Action_Arrays.Vector;
       Grammar              : in     WisiToken.Productions.Prod_Arrays.Vector;
       Has_Empty_Production : in     Token_ID_Set;
       First_Nonterm_Set    : in     Token_Array_Token_Set;

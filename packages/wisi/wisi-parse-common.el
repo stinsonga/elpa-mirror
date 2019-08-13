@@ -21,6 +21,20 @@
 
 ;;; Code:
 
+(defcustom wisi-partial-parse-threshold 100001
+  "Minimum size that will be parsed by each call to the parser.
+A parse is always requested at a point (or on a region); the
+point is first expanded to a start point before the region and an
+end point after the region, that the parser can gracefully
+handle. If the final region covers the entire buffer, a complete
+parse is done. Indent assumes the start point of the parse region
+is properly indented. Most navigate parses ignore this setting
+and parse the whole buffer."
+  :type 'integer
+  :group 'wisi
+  :safe 'integerp)
+(make-variable-buffer-local 'wisi-partial-parse-threshold)
+
 (cl-defstruct (wisi--lexer-error)
   pos ;; position (integer) in buffer where error was detected.
   message  ;; string error message
@@ -31,6 +45,7 @@
   pos ;; position (integer) in buffer where insert/delete is done.
   inserted ;; list of token IDs that were inserted before pos
   deleted  ;; list of token IDs that were deleted after pos
+  deleted-region ;; buffer (cons FIRST LAST) region deleted
   )
 
 (cl-defstruct (wisi--parse-error)
@@ -51,6 +66,9 @@
   parse-errors
   ;; List of wisi--parse-errors from last parse. Can be more than one if
   ;; parser supports error recovery.
+
+  repair-image
+  ;; alist of (TOKEN-ID . STRING); used by repair error
 )
 
 (cl-defgeneric wisi-parse-format-language-options ((parser wisi-parser))
@@ -64,6 +82,13 @@ for the language-specific parser options."
 region BEGIN END that starts and ends at points the parser can
 handle gracefully."
   (cons begin end))
+
+(defvar-local wisi--parser nil
+  "The current wisi parser; a ‘wisi-parser’ object.")
+
+(defun wisi-read-parse-action ()
+  "Read a parse action symbol from the minibuffer."
+  (intern-soft (completing-read "parse action (indent): " '(face navigate indent) nil t nil nil 'indent)))
 
 (defun wisi-search-backward-skip (regexp skip-p)
   "Search backward for REGEXP. If SKIP-P returns non-nil, search again.
@@ -101,6 +126,11 @@ Return nil if no match found before eob."
 (cl-defgeneric wisi-parse-current ((parser wisi-parser) begin send-end parse-end)
   "Parse current buffer starting at BEGIN, continuing at least thru PARSE-END.
 If using an external parser, send it BEGIN thru SEND-END.")
+
+(cl-defgeneric wisi-refactor ((parser wisi-parser) refactor-action parse-begin parse-end edit-begin)
+  "Send parser command to perform REFACTOR-ACTION on region PARSE-BEGIN PARSE-END at point EDIT_BEGIN.
+The parse region is not expanded first; it must be the statement
+or declaration containing EDIT_BEGIN.")
 
 (cl-defgeneric wisi-parse-kill ((parser wisi-parser))
   "Kill any external process associated with parser.")

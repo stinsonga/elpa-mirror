@@ -4,9 +4,9 @@
 --
 --  References
 --
---  [1] wisi.el - defines parse action functions.
+--  [1] wisi-parse-common.el - defines common stuff.
 --
---  [2] wisi-elisp-parse.el - defines parse action functions.
+--  [2] wisi.texi - defines parse action functions.
 --
 --  [3] wisi-process-parse.el - defines elisp/process API
 --
@@ -27,8 +27,6 @@ pragma License (Modified_GPL);
 
 with Ada.Containers.Doubly_Linked_Lists;
 with Ada.Containers.Vectors;
-with Ada.Strings.Unbounded;
-with Ada.Unchecked_Deallocation;
 with SAL.Gen_Unbounded_Definite_Red_Black_Trees;
 with SAL.Gen_Unbounded_Definite_Vectors;
 with WisiToken.Parse.LR;
@@ -45,8 +43,9 @@ package Wisi is
 
    procedure Initialize
      (Data              : in out Parse_Data_Type;
+      Lexer             : in     WisiToken.Lexer.Handle;
       Descriptor        : access constant WisiToken.Descriptor;
-      Source_File_Name  : in     String;
+      Base_Terminals    : in     WisiToken.Base_Token_Array_Access;
       Post_Parse_Action : in     Post_Parse_Action_Type;
       Begin_Line        : in     WisiToken.Line_Number_Type;
       End_Line          : in     WisiToken.Line_Number_Type;
@@ -95,6 +94,7 @@ package Wisi is
       Nonterm : in     WisiToken.Syntax_Trees.Valid_Node_Index;
       Tokens  : in     WisiToken.Syntax_Trees.Valid_Node_Index_Array;
       Params  : in     Statement_Param_Array);
+   --  Implements [2] wisi-statement-action.
 
    procedure Name_Action
      (Data    : in out Parse_Data_Type;
@@ -102,31 +102,27 @@ package Wisi is
       Nonterm : in     WisiToken.Syntax_Trees.Valid_Node_Index;
       Tokens  : in     WisiToken.Syntax_Trees.Valid_Node_Index_Array;
       Name    : in     WisiToken.Positive_Index_Type);
+   --  Implements [2] wisi-name-action.
 
-   procedure Containing_Action
-     (Data       : in out Parse_Data_Type;
-      Tree       : in     WisiToken.Syntax_Trees.Tree;
-      Nonterm    : in     WisiToken.Syntax_Trees.Valid_Node_Index;
-      Tokens     : in     WisiToken.Syntax_Trees.Valid_Node_Index_Array;
-      Containing : in     WisiToken.Positive_Index_Type;
-      Contained  : in     WisiToken.Positive_Index_Type);
-
-   package Token_ID_Lists is new Ada.Containers.Doubly_Linked_Lists (WisiToken.Token_ID, WisiToken."=");
-
-   Empty_IDs : constant Token_ID_Lists.List := Token_ID_Lists.Empty_List;
-
-   function "+" (Item : in WisiToken.Token_ID) return Token_ID_Lists.List;
-   function "&" (List : in Token_ID_Lists.List; Item : in WisiToken.Token_ID) return Token_ID_Lists.List;
-   function "&" (Left, Right : in WisiToken.Token_ID) return Token_ID_Lists.List;
-
-   type Index_IDs is record
+   type Index_ID is record
       Index : WisiToken.Positive_Index_Type; -- into Tokens
-      IDs   : Token_ID_Lists.List;
+      ID    : WisiToken.Token_ID;
+      --  If ID is not Invalid_Token_ID, it is the first token in the
+      --  nonterm that Index points to that should have a navigate cache for
+      --  Motion_Action to link to; an error is reported by Motion_Action if
+      --  it does not.
+      --
+      --  If ID is Invalid_Token_ID, and the token at Index is a
+      --  nonterminal, the first token in that nonterminal must have a
+      --  navigate cache; an error is reported by Motion_Action if not.
    end record;
 
-   package Index_IDs_Vectors is new Ada.Containers.Vectors (Ada.Containers.Count_Type, Index_IDs);
+   package Index_ID_Vectors is new Ada.Containers.Vectors (Ada.Containers.Count_Type, Index_ID);
 
-   subtype Motion_Param_Array is Index_IDs_Vectors.Vector;
+   subtype Motion_Param_Array is Index_ID_Vectors.Vector;
+
+   Invalid_Token_ID : WisiToken.Token_ID := WisiToken.Invalid_Token_ID;
+   --  So Create_Parser can just use "Invalid_Token_ID".
 
    procedure Motion_Action
      (Data    : in out Parse_Data_Type;
@@ -161,7 +157,6 @@ package Wisi is
    --  Implements [2] wisi-face-apply-list-action.
 
    type Face_Class_Type is (Prefix, Suffix);
-   --  Matches wisi-cache-class values set in [1] wisi-face-apply-action.
 
    type Index_Face_Class is record
       Index : WisiToken.Positive_Index_Type; -- into Tokens
@@ -320,10 +315,19 @@ package Wisi is
       Option            : in     Boolean;
       Accumulate        : in     Boolean)
      return Delta_Type;
-   --  [2] wisi-elisp-parse--hanging-1
+   --  Implements [2] wisi-hanging, wisi-hanging%, wisi-hanging%-.
    --
-   --  Language specific child packages override this to implement
-   --  wisi-elisp-parse-indent-hanging-function.
+   --  Language specific child packages may override this to implement
+   --  language-specific cases.
+
+   ----------
+   --  Other
+
+   procedure Refactor
+     (Data       : in out Parse_Data_Type;
+      Tree       : in     WisiToken.Syntax_Trees.Tree;
+      Action     : in     Positive;
+      Edit_Begin : in     WisiToken.Buffer_Pos) is null;
 
    type Arg_Index_Array is array (Positive range <>) of WisiToken.Positive_Index_Type;
 
@@ -411,6 +415,13 @@ private
       --  nonterminals, empty.
 
    end record;
+   type Augmented_Token_Access is access all Augmented_Token;
+   type Augmented_Token_Access_Constant is access constant Augmented_Token;
+   type Aug_Token_Ref (Element : access constant Augmented_Token) is null record with
+     Implicit_Dereference => Element;
+
+   function To_Aug_Token_Ref (Item : in WisiToken.Base_Token_Class_Access) return Aug_Token_Ref
+     is (Element => Augmented_Token_Access_Constant (Item));
 
    overriding
    function Image
@@ -429,20 +440,12 @@ private
      return WisiToken.Line_Number_Type;
    --  Return first and last line in Token's region.
 
-   type Augmented_Token_Access is access all Augmented_Token;
-   procedure Free is new Ada.Unchecked_Deallocation (Augmented_Token, Augmented_Token_Access);
-
-   type Augmented_Token_Access_Array is array (WisiToken.Positive_Index_Type range <>) of Augmented_Token_Access;
-   --  1 indexed to match token numbers in grammar actions.
-
-   function Image
-     (Item       : in Augmented_Token_Access_Array;
-      Descriptor : in WisiToken.Descriptor)
-     return String;
-
    package Augmented_Token_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
      (WisiToken.Token_Index, Augmented_Token, Default_Element => (others => <>));
    --  Index matches Base_Token_Arrays.
+
+   function To_Aug_Token_Ref (Item : in Augmented_Token_Arrays.Constant_Reference_Type) return Aug_Token_Ref
+     is (Element => Augmented_Token_Access_Constant'(Item.Element.all'Unchecked_Access));
 
    package Line_Paren_Vectors is new SAL.Gen_Unbounded_Definite_Vectors
      (WisiToken.Line_Number_Type, Integer, Default_Element => Integer'Last);
@@ -498,7 +501,7 @@ private
 
    type Face_Cache_Type is record
       Region : WisiToken.Buffer_Region;
-      Class  : Face_Class_Type; -- wisi-cache-class; one of {'prefix | 'suffix}
+      Class  : Face_Class_Type;
       Face   : Nil_Integer;     -- not set, or index into *-process-faces-names
    end record;
 
@@ -579,8 +582,9 @@ private
 
       --  Data for post-parse actions
 
+      Lexer             : WisiToken.Lexer.Handle;
       Descriptor        : access constant WisiToken.Descriptor;
-      Source_File_Name  : Ada.Strings.Unbounded.Unbounded_String;
+      Base_Terminals    : WisiToken.Base_Token_Array_Access;
       Post_Parse_Action : Post_Parse_Action_Type;
       Navigate_Caches   : Navigate_Cache_Trees.Tree;  -- Set by Navigate.
       Name_Caches       : Name_Cache_Trees.Tree;      -- Set by Navigate.
@@ -659,8 +663,6 @@ private
    ----------
    --  Utilities for language-specific child packages
 
-   subtype Aug_Token_Ref is Augmented_Token_Arrays.Variable_Reference_Type;
-
    function Current_Indent_Offset
      (Data         : in Parse_Data_Type;
       Anchor_Token : in Augmented_Token'Class;
@@ -683,6 +685,17 @@ private
       Tree       : in WisiToken.Syntax_Trees.Tree'Class;
       Tree_Index : in WisiToken.Syntax_Trees.Valid_Node_Index)
      return Aug_Token_Ref;
+
+   function Get_Text
+     (Data       : in Parse_Data_Type;
+      Tree       : in WisiToken.Syntax_Trees.Tree;
+      Tree_Index : in WisiToken.Syntax_Trees.Valid_Node_Index)
+     return String;
+   --  Return text contained by Tree_Index token in source file
+   --  (lexer.buffer).
+
+   function Elisp_Escape_Quotes (Item : in String) return String;
+   --  Prefix any '"' in Item with '\' for elisp.
 
    function Indent_Anchored_2
      (Data        : in out Parse_Data_Type;
@@ -709,5 +722,19 @@ private
       Indenting_Comment : in     Boolean);
    --  [2] wisi-elisp-parse--indent-token-1. Sets Data.Indents, so caller
    --  may not be in a renames for a Data.Indents element.
+
+   --  Visible for language-specific children. Must match list in
+   --  wisi-process-parse.el wisi-process-parse--execute.
+   Navigate_Cache_Code  : constant String := "1";
+   Face_Property_Code   : constant String := "2";
+   Indent_Code          : constant String := "3";
+   Lexer_Error_Code     : constant String := "4";
+   Parser_Error_Code    : constant String := "5";
+   Check_Error_Code     : constant String := "6";
+   Recover_Code         : constant String := "7 ";
+   End_Code             : constant String := "8";
+   Name_Property_Code   : constant String := "9";
+   Edit_Action_Code     : constant String := "10";
+   Language_Action_Code : constant String := "11 ";
 
 end Wisi;

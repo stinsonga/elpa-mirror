@@ -27,7 +27,6 @@ package body WisiToken.Parse.LR.Parser_Lists is
       Depth      : in SAL.Base_Peek_Type := 0)
      return String
    is
-      use all type SAL.Base_Peek_Type;
       use Ada.Strings.Unbounded;
 
       Last : constant SAL.Base_Peek_Type :=
@@ -104,14 +103,14 @@ package body WisiToken.Parse.LR.Parser_Lists is
 
    function Label (Cursor : in Parser_Lists.Cursor) return Natural
    is begin
-      return Parser_State_Lists.Constant_Reference (Cursor.Ptr).Label;
+      return Parser_State_Lists.Constant_Ref (Cursor.Ptr).Label;
    end Label;
 
    function Total_Recover_Cost (Cursor : in Parser_Lists.Cursor) return Integer
    is
       Result : Integer := 0;
    begin
-      for Error of Parser_State_Lists.Constant_Reference (Cursor.Ptr).Errors loop
+      for Error of Parser_State_Lists.Constant_Ref (Cursor.Ptr).Errors loop
          Result := Error.Recover.Cost;
       end loop;
       return Result;
@@ -120,12 +119,13 @@ package body WisiToken.Parse.LR.Parser_Lists is
    function Max_Recover_Ops_Length (Cursor : in Parser_Lists.Cursor) return Ada.Containers.Count_Type
    is
       use Ada.Containers;
+      use Config_Op_Arrays;
       Result : Count_Type := 0;
-      Errors : Parse_Error_Lists.List renames Parser_State_Lists.Constant_Reference (Cursor.Ptr).Errors;
+      Errors : Parse_Error_Lists.List renames Parser_State_Lists.Constant_Ref (Cursor.Ptr).Errors;
    begin
       for Error of Errors loop
-         if Error.Recover.Ops.Length > Result then
-            Result := Error.Recover.Ops.Length;
+         if Length (Error.Recover.Ops) > Result then
+            Result := Length (Error.Recover.Ops);
          end if;
       end loop;
       return Result;
@@ -134,7 +134,7 @@ package body WisiToken.Parse.LR.Parser_Lists is
    function Min_Recover_Cost (Cursor : in Parser_Lists.Cursor) return Integer
    is
       Result : Integer := Integer'Last;
-      Errors : Parse_Error_Lists.List renames Parser_State_Lists.Constant_Reference (Cursor.Ptr).Errors;
+      Errors : Parse_Error_Lists.List renames Parser_State_Lists.Constant_Ref (Cursor.Ptr).Errors;
    begin
       for Error of Errors loop
          if Error.Recover.Cost < Result then
@@ -146,12 +146,12 @@ package body WisiToken.Parse.LR.Parser_Lists is
 
    procedure Set_Verb (Cursor : in Parser_Lists.Cursor; Verb : in All_Parse_Action_Verbs)
    is begin
-      Parser_State_Lists.Reference (Cursor.Ptr).Verb := Verb;
+      Parser_State_Lists.Variable_Ref (Cursor.Ptr).Verb := Verb;
    end Set_Verb;
 
    function Verb (Cursor : in Parser_Lists.Cursor) return All_Parse_Action_Verbs
    is begin
-      return Parser_State_Lists.Constant_Reference (Cursor.Ptr).Verb;
+      return Parser_State_Lists.Constant_Ref (Cursor.Ptr).Verb;
    end Verb;
 
    procedure Terminate_Parser
@@ -161,8 +161,7 @@ package body WisiToken.Parse.LR.Parser_Lists is
       Trace     : in out WisiToken.Trace'Class;
       Terminals : in     Base_Token_Arrays.Vector)
    is
-      use all type SAL.Base_Peek_Type;
-      State : Parser_State renames Parser_State_Lists.Constant_Reference (Current.Ptr).Element.all;
+      State : Parser_State renames Parser_State_Lists.Constant_Ref (Current.Ptr).Element.all;
    begin
       if Trace_Parse > Outline then
          Trace.Put_Line
@@ -186,7 +185,6 @@ package body WisiToken.Parse.LR.Parser_Lists is
       Trace     : in out WisiToken.Trace'Class;
       Terminals : in     Base_Token_Arrays.Vector)
    is
-      use all type SAL.Base_Peek_Type;
       use all type Ada.Containers.Count_Type;
 
       function Compare
@@ -268,22 +266,22 @@ package body WisiToken.Parse.LR.Parser_Lists is
 
    function State_Ref (Position : in Cursor) return State_Reference
    is begin
-      return (Element => Parser_State_Lists.Constant_Reference (Position.Ptr).Element);
+      return (Element => Parser_State_Lists.Constant_Ref (Position.Ptr).Element);
    end State_Ref;
 
    function First_State_Ref (List : in Parser_Lists.List'Class) return State_Reference
    is begin
-      return (Element => Parser_State_Lists.Constant_Reference (List.Elements.First).Element);
+      return (Element => Parser_State_Lists.Constant_Ref (List.Elements.First).Element);
    end First_State_Ref;
 
    function First_Constant_State_Ref (List : in Parser_Lists.List'Class) return Constant_State_Reference
    is begin
-      return (Element => Parser_State_Lists.Constant_Reference (List.Elements.First).Element);
+      return (Element => Parser_State_Lists.Constant_Ref (List.Elements.First).Element);
    end First_Constant_State_Ref;
 
    procedure Put_Top_10 (Trace : in out WisiToken.Trace'Class; Cursor : in Parser_Lists.Cursor)
    is
-      Parser_State : Parser_Lists.Parser_State renames Parser_State_Lists.Constant_Reference (Cursor.Ptr);
+      Parser_State : Parser_Lists.Parser_State renames Parser_State_Lists.Constant_Ref (Cursor.Ptr);
    begin
       Trace.Put (Natural'Image (Parser_State.Label) & " stack: ");
       Trace.Put_Line (Image (Parser_State.Stack, Trace.Descriptor.all, Parser_State.Tree, Depth => 10));
@@ -297,7 +295,7 @@ package body WisiToken.Parse.LR.Parser_Lists is
    begin
       List.Parser_Label := List.Parser_Label + 1;
       declare
-         Item : Parser_State renames Parser_State_Lists.Reference (Cursor.Ptr).Element.all;
+         Item : Parser_State renames Parser_State_Lists.Variable_Ref (Cursor.Ptr);
          --  We can't do 'Prepend' in the scope of this 'renames';
          --  that would be tampering with cursors.
       begin
@@ -353,7 +351,7 @@ package body WisiToken.Parse.LR.Parser_Lists is
    is
       pragma Unreferenced (Container);
    begin
-      return (Element => Parser_State_Lists.Constant_Reference (Position.Ptr).Element);
+      return (Element => Parser_State_Lists.Constant_Ref (Position.Ptr).Element);
    end Constant_Reference;
 
    function Reference
@@ -363,7 +361,7 @@ package body WisiToken.Parse.LR.Parser_Lists is
    is
       pragma Unreferenced (Container);
    begin
-      return (Element => Parser_State_Lists.Reference (Position.Ptr).Element);
+      return (Element => Parser_State_Lists.Variable_Ref (Position.Ptr).Element);
    end Reference;
 
    function Persistent_State_Ref (Position : in Parser_Node_Access) return State_Access

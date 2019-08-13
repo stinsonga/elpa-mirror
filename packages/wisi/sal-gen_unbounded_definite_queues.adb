@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -81,7 +81,7 @@ package body SAL.Gen_Unbounded_Definite_Queues is
          Next (I);
       end loop;
 
-      return (Element => Element_Lists.Reference (Queue.Data, I).Element, Dummy => 1);
+      return (Element => Element_Lists.Variable_Reference (Queue.Data, I).Element, Dummy => 1);
    end Variable_Peek;
 
    procedure Add (Queue : in out Pkg.Queue; Item : in Element_Type)

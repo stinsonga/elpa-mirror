@@ -1,13 +1,56 @@
 GNU Emacs wisi NEWS -- history of user-visible changes.
 
 Copyright (C) 2019 Free Software Foundation, Inc.
-See the end of the file for license conditions.
 
 Please send wisi bug reports to bug-gnu-emacs@gnu.org, with
 'wisi' in the subject. If possible, use M-x report-emacs-bug.
 
 
 * wisi
+13 Aug 2019
+
+** parser process protocol version 3
+
+** Support for the elisp parser and lexer is deleted; only the Ada
+   process parser is supported.
+
+** New user variable `wisi-indent-context-lines' specifies the minimum
+   number of lines before point to include in a parse for indenting a
+   single line. This gives better results when indenting in a nested
+   'if then else', for example. The default value is 0; you must
+   change it to see an effect.
+
+** Error correction is faster by approximately 30%;
+   %mckenzie_enqueue_limit can be raised accordingly.
+
+** %mckenzie_enqueue_limit is now applied to the total of all parsers
+    in recovery; previously, it was applied to each parser separately.
+    Applying to the total gives a more consistent maximum user wait
+    time for recovery, at the cost of not finding solutions when there
+    are many parsers involved. You may want to increase
+    %mckenzie_enqueue_limit for this as well.
+
+** In the process parser, `wisi-statement-start' now sets 'containing'
+   in all contained caches to the start token, if not set already;
+   previously it only did this if the token was mentioned in the
+   `wisi-statement-start' action. This makes `wisi-containing-action'
+   unnecessary.
+
+** `wisi-containing-action' is deleted.
+
+** An argument of `wisi-motion-action' that is a vector may now
+   provide only one token ID. That token ID is searched for in the
+   containing token region, and the motion token chain starting at the
+   first one found is included in the current right hand side motion
+   token chain.
+
+** The elisp parser and lexer are deleted.
+
+** The process parser supports a new parse command `wisi-refactor',
+   which returns a new message "Edit". It is intended for performing
+   syntax-guided refactoring of code statements.
+
+* wisi 2.1.1
 11 Jul 2019
 
 ** parser process protocol version 3

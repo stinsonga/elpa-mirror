@@ -2,7 +2,7 @@
 --
 --  see spec
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018, 2019 Free Software Foundation, Inc.
 --
 --  This library is free software; you can redistribute it and/or
 --  modify it under terms of the GNU General Public License as
@@ -178,24 +178,34 @@ package body SAL.Gen_Indefinite_Doubly_Linked_Lists is
       return Position.Ptr.Element;
    end Persistent_Ref;
 
-   function Constant_Reference (Position : in Cursor) return Constant_Reference_Type
+   function Constant_Ref (Position : in Cursor) return Constant_Reference_Type
    is begin
-      return (Element => Position.Ptr.all.Element);
-   end Constant_Reference;
+      return (Element => Position.Ptr.all.Element, Dummy => 1);
+   end Constant_Ref;
 
-   function Constant_Ref (Container : in List'Class; Position : in Peek_Type) return Constant_Reference_Type
+   function Constant_Reference (Container : in List; Position : in Peek_Type) return Constant_Reference_Type
    is
       Ptr : Node_Access := Container.Head;
    begin
       for I in 2 .. Position loop
          Ptr := Ptr.Next;
       end loop;
-      return (Element => Ptr.all.Element);
-   end Constant_Ref;
+      return (Element => Ptr.all.Element, Dummy => 1);
+   end Constant_Reference;
 
-   function Reference (Position : in Cursor) return Reference_Type
+   function Variable_Reference (Container : in List; Position : in Peek_Type) return Variable_Reference_Type
+   is
+      Ptr : Node_Access := Container.Head;
+   begin
+      for I in 2 .. Position loop
+         Ptr := Ptr.Next;
+      end loop;
+      return (Element => Ptr.all.Element, Dummy => 1);
+   end Variable_Reference;
+
+   function Variable_Ref (Position : in Cursor) return Variable_Reference_Type
    is begin
-      return (Element => Position.Ptr.all.Element);
-   end Reference;
+      return (Element => Position.Ptr.all.Element, Dummy => 1);
+   end Variable_Ref;
 
 end SAL.Gen_Indefinite_Doubly_Linked_Lists;

@@ -40,7 +40,6 @@ with WisiToken.Generate.Packrat;
 with WisiToken_Grammar_Runtime;
 procedure WisiToken.BNF.Output_Ada_Emacs
   (Input_Data            :         in WisiToken_Grammar_Runtime.User_Data_Type;
-   Elisp_Tokens          :         in WisiToken.BNF.Tokens;
    Output_File_Name_Root :         in String;
    Generate_Data         : aliased in WisiToken.BNF.Generate_Utils.Generate_Data;
    Packrat_Data          :         in WisiToken.Generate.Packrat.Data;
@@ -277,28 +276,10 @@ is
             when others =>  "(" & (-Result) & "))");
       end Statement_Params;
 
-      function Containing_Params (Params : in String) return String
-      is
-         --  Input looks like: 1 2)
-         First        : constant Integer := Index_Non_Blank (Params);
-         Second       : constant Integer := Index (Params, Blank_Set, First);
-         First_Label  : constant String  := Params (First .. Second - 1);
-         Second_Label : constant String  := Params (Second + 1 .. Params'Last - 1);
-      begin
-         if (0 = Index (First_Label, Numeric, Outside) or else Label_Used (First_Label)) and
-           (0 = Index (Second_Label, Numeric, Outside) or else Label_Used (Second_Label))
-         then
-            Nonterm_Needed := True;
-            return " (Parse_Data, Tree, Nonterm, Tokens, " & First_Label & ", " & Second_Label & ")";
-         else
-            return "";
-         end if;
-      end Containing_Params;
-
       function Motion_Params (Params : in String) return String
       is
-         --  Input looks like: [1 [2 EXCEPTION WHEN] 3 ...]
-         --  Result: (..., Motion_Param_Array'((1, Empty_IDs) & (2, (3 & 8)) & (3, Empty_IDs))
+         --  Input looks like: [1 [2 EXCEPTION] 3 ...]
+         --  Result: (..., Motion_Param_Array'((1, Invalid_Token_ID) & (2, 3) & (3, Invalid_Token_ID))
          use Generate_Utils;
          use Ada.Strings.Maps;
 
@@ -307,56 +288,61 @@ is
          Last   : Integer          := Index_Non_Blank (Params); -- skip [
          First  : Integer;
          Vector : Boolean;
-         Result : Unbounded_String := +" (Parse_Data, Tree, Nonterm, Tokens, (";
+         Result : Unbounded_String;
 
          Index_First  : Integer;
          Index_Last   : Integer;
-         IDs          : Unbounded_String;
-         IDs_Count    : Integer;
-         Need_Comma_1 : Boolean := False;
-         Need_Comma_2 : Boolean := False;
+         ID           : Unbounded_String;
+         Need_Comma : Boolean := False;
+         Count      : Integer          := 0;
       begin
          loop
+            if not (Last in Params'First .. Params'Last) then
+               Put_Error
+                 (Error_Message
+                    (Input_Data.Grammar_Lexer.File_Name, RHS.Source_Line,
+                     "Missing ']' or ')'"));
+               exit;
+            end if;
             Last := Index_Non_Blank (Params, Integer'Min (Params'Last, Last + 1));
 
             exit when Params (Last) = ']' or Params (Last) = ')';
 
             Vector := Params (Last) = '[';
             if Vector then
-               Index_First  := Last + 1;
-               Last         := Index (Params, Delim, Index_First);
-               Index_Last   := Last - 1;
-               IDs_Count    := 0;
-               IDs          := Null_Unbounded_String;
-               Need_Comma_2 := False;
-               loop
-                  exit when Params (Last) = ']';
-                  First     := Last + 1;
-                  Last      := Index (Params, Delim, First);
-                  IDs_Count := IDs_Count + 1;
-                  begin
-                     IDs := IDs & (if Need_Comma_2 then " & " else "") &
-                       Trimmed_Image (Find_Token_ID (Generate_Data, Params (First .. Last - 1)));
-                     Need_Comma_2 := True;
-                  exception
-                  when E : Not_Found =>
-                     Put_Error
-                       (Error_Message
-                          (Input_Data.Grammar_Lexer.File_Name, RHS.Source_Line,
-                           Ada.Exceptions.Exception_Message (E)));
-                  end;
-               end loop;
+               Index_First := Last + 1;
+               Last        := Index (Params, Delim, Index_First);
+               Index_Last  := Last - 1;
+               First       := Last + 1;
+               Last        := Index (Params, Delim, First);
+               begin
+                  ID := +Trimmed_Image (Find_Token_ID (Generate_Data, Params (First .. Last - 1)));
+               exception
+               when E : Not_Found =>
+                  Put_Error
+                    (Error_Message
+                       (Input_Data.Grammar_Lexer.File_Name, RHS.Source_Line,
+                        Ada.Exceptions.Exception_Message (E)));
+               end;
 
                declare
                   Label : constant String := Params (Index_First .. Index_Last);
                begin
                   if 0 = Index (Label, Numeric, Outside) or else Label_Used (Label) then
-                     Nonterm_Needed := True;
-                     Result := Result & (if Need_Comma_1 then " & " else "") & "(" &
-                       Label & ", " &
-                       (if IDs_Count = 1 then "+" else "") & IDs & ")";
+                     Result := Result & (if Need_Comma then " & " else "") & "(" &
+                       Label & ", " & ID & ")";
+                     Need_Comma := True;
+                     Count  := Count + 1;
                   end if;
                end;
+               if Params (Last) /= ']' then
+                  Put_Error
+                    (Error_Message
+                       (Input_Data.Grammar_Lexer.File_Name, RHS.Source_Line,
+                        "too many token IDs in motion action"));
+                  return -Result & "))";
+               end if;
+
             else
                First  := Index_Non_Blank (Params, Last);
                Last   := Index (Params, Delim, First);
@@ -364,14 +350,20 @@ is
                   Label : constant String := Params (First .. Last - 1);
                begin
                   if 0 = Index (Label, Numeric, Outside) or else Label_Used (Label) then
-                     Nonterm_Needed := True;
-                     Result := Result & (if Need_Comma_1 then " & " else "") & "(" & Label & ", Empty_IDs)";
+                     Result := Result & (if Need_Comma then " & " else "") & "(" & Label & ", Invalid_Token_ID)";
+                     Need_Comma := True;
+                     Count  := Count + 1;
                   end if;
                end;
             end if;
-            Need_Comma_1 := True;
          end loop;
-         return -(Result & "))");
+         if Count <= 1 then
+            --  No point in calling Motion_Action with only one param.
+            return "";
+         else
+            Nonterm_Needed := True;
+            return " (Parse_Data, Tree, Nonterm, Tokens, (" & (-Result) & "))";
+         end if;
       end Motion_Params;
 
       function Face_Apply_Params (Params : in String) return String
@@ -1073,15 +1065,6 @@ is
                end if;
             end;
 
-         elsif Elisp_Name = "wisi-containing-action" then
-            declare
-               Params : constant String := Containing_Params (Line (Last + 1 .. Line'Last));
-            begin
-               if Params'Length > 0 then
-                  Navigate_Lines.Append (Elisp_Name_To_Ada (Elisp_Name, False, Trim => 5) & Params & ";");
-               end if;
-            end;
-
          elsif Elisp_Name = "wisi-motion-action" then
             declare
                Params : constant String := Motion_Params (Line (Last + 1 .. Line'Last));
@@ -1644,17 +1627,9 @@ is
       Output_Elisp_Common.Indent_Name_Table
         (Output_File_Name_Root, "process-face-table", Input_Data.Tokens.Faces);
 
-      --  We need the elisp lexer for some operations
-      if Elisp_Tokens.Keywords.Length > 0 then
-         New_Line;
-         Output_Elisp_Common.Indent_Keyword_Table
-           (Output_File_Name_Root, "elisp", Elisp_Tokens.Keywords, Ada.Strings.Unbounded.To_String'Access);
-      end if;
-      if Elisp_Tokens.Tokens.Length > 0 then
-         New_Line;
-         Output_Elisp_Common.Indent_Token_Table
-           (Output_File_Name_Root, "elisp", Elisp_Tokens.Tokens, Ada.Strings.Unbounded.To_String'Access);
-      end if;
+      --  We need -repair-image for wisi-repair-error
+      New_Line;
+      Output_Elisp_Common.Indent_Repair_Image (Output_File_Name_Root, "process", Input_Data.Tokens);
 
       New_Line;
       Put_Line ("(provide '" & Output_File_Name_Root & "-process)");

@@ -2,7 +2,7 @@
 --
 --  Subprograms common to Output_Elisp and Output_Ada_Emacs
 --
---  Copyright (C) 2012, 2013, 2015, 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2012, 2013, 2015, 2017, 2018, 2019 Free Software Foundation, Inc.
 --
 --  The WisiToken package is free software; you can redistribute it
 --  and/or modify it under terms of the GNU General Public License as
@@ -45,5 +45,10 @@ package WisiToken.BNF.Output_Elisp_Common is
      (Output_File_Root : in     String;
       Label            : in     String;
       Names            : in     String_Lists.List);
+
+   procedure Indent_Repair_Image
+     (Output_File_Root : in String;
+      Label            : in String;
+      Tokens           : in WisiToken.BNF.Tokens);
 
 end WisiToken.BNF.Output_Elisp_Common;

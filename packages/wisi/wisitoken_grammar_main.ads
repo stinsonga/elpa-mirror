@@ -27,6 +27,7 @@ package Wisitoken_Grammar_Main is
 
    procedure Create_Parser
      (Parser                       :    out WisiToken.Parse.LR.Parser_No_Recover.Parser;
+      --  no error recovery
       Trace                        : not null access WisiToken.Trace'Class;
       User_Data                    : in     WisiToken.Syntax_Trees.User_Data_Access);
 

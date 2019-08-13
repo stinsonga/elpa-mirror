@@ -49,11 +49,10 @@ package WisiToken.BNF.Generate_Utils is
       --  The following fields are LR specific; so far, it's not worth
       --  splitting them out.
 
-      Ignore_Conflicts    : Boolean                       := False;
-      Conflicts           : WisiToken.Generate.LR.Conflict_Lists.List;
-      LR_Parse_Table      : WisiToken.Parse.LR.Parse_Table_Ptr;
-      Table_Actions_Count : Integer                       := -1; -- parse, not user, actions
-      Parser_State_Count  : WisiToken.Unknown_State_Index := 0;
+      Ignore_Conflicts   : Boolean                       := False;
+      Conflicts          : WisiToken.Generate.LR.Conflict_Lists.List;
+      LR_Parse_Table     : WisiToken.Parse.LR.Parse_Table_Ptr;
+      Parser_State_Count : WisiToken.Unknown_State_Index := 0;
    end record;
 
    function Initialize
@@ -132,6 +131,12 @@ package WisiToken.BNF.Generate_Utils is
    --  Tokens  : Tokens (i).Tokens (j).Value
    --  Rules   : empty string (they have no Value)
 
+   function Repair_Image (Cursor : in Token_Cursor) return String;
+   --  Return the token repair image from the .wy file:
+   --  Keywords: empty string
+   --  Tokens  : Tokens (i).Tokens (j).Repair_Image
+   --  Rules   : empty string
+
    function To_Conflicts
      (Data             : aliased in out Generate_Data;
       Conflicts        :         in     WisiToken.BNF.Conflict_Lists.List;
@@ -149,14 +154,9 @@ package WisiToken.BNF.Generate_Utils is
       Item :         in McKenzie_Recover_Param_Type)
      return WisiToken.Parse.LR.McKenzie_Param_Type;
 
-   procedure Count_Actions (Data : in out Generate_Utils.Generate_Data);
-
    procedure Put_Stats
      (Input_Data    : in WisiToken_Grammar_Runtime.User_Data_Type;
       Generate_Data : in Generate_Utils.Generate_Data);
-
-   function Actions_Length (State : in Parse.LR.Parse_State) return Integer;
-   --  Not including Error.
 
 private
 
@@ -168,7 +168,7 @@ private
       Kind        : Token_Cursor_Kind;
       ID          : Token_ID;
       Token_Kind  : WisiToken.BNF.Token_Lists.Cursor; -- Non_Grammar or Tokens, depending on Kind
-      Token_Item  : String_Pair_Lists.Cursor;
+      Token_Item  : String_Triple_Lists.Cursor;
       Keyword     : String_Pair_Lists.Cursor;
       Nonterminal : Rule_Lists.Cursor;
    end record;

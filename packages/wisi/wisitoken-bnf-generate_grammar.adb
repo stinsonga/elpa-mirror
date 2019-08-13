@@ -2,7 +2,7 @@
 --
 --  Output Ada source code to recreate Grammar.
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -31,8 +31,9 @@ is
    Text : Unbounded_String;
    Need_Comma : Boolean := False;
 begin
-   Indent_Line ("Grammar.Set_First (" & Trimmed_Image (Grammar.First_Index) & ");");
-   Indent_Line ("Grammar.Set_Last (" & Trimmed_Image (Grammar.Last_Index) & ");");
+   Indent_Line
+     ("Grammar.Set_First_Last (" & Trimmed_Image (Grammar.First_Index) & ", " &
+        Trimmed_Image (Grammar.Last_Index) & ");");
 
    for Prod of Grammar loop
       Indent_Line ("declare");
@@ -40,8 +41,7 @@ begin
       Indent_Line ("begin");
       Indent := Indent + 3;
       Indent_Line ("Prod.LHS := " & Trimmed_Image (Prod.LHS) & ";");
-      Indent_Line ("Prod.RHSs.Set_First (0);");
-      Indent_Line ("Prod.RHSs.Set_Last (" & Trimmed_Image (Prod.RHSs.Last_Index) & ");");
+      Indent_Line ("Prod.RHSs.Set_First_Last (0, " & Trimmed_Image (Prod.RHSs.Last_Index) & ");");
       for RHS_Index in Prod.RHSs.First_Index .. Prod.RHSs.Last_Index loop
          declare
             RHS : Right_Hand_Side renames Prod.RHSs (RHS_Index);
@@ -51,8 +51,8 @@ begin
             Indent_Line ("begin");
             Indent := Indent + 3;
             if RHS.Tokens.Length > 0 then
-               Indent_Line ("RHS.Tokens.Set_First (1);");
-               Indent_Line ("RHS.Tokens.Set_Last (" & Trimmed_Image (Prod.RHSs (RHS_Index).Tokens.Last_Index) & ");");
+               Indent_Line
+                 ("RHS.Tokens.Set_First_Last (1, " & Trimmed_Image (Prod.RHSs (RHS_Index).Tokens.Last_Index) & ");");
 
                if RHS.Tokens.Length = 1 then
                   Indent_Line ("To_Vector ((1 => " & Trimmed_Image (RHS.Tokens (1)) & "), RHS.Tokens);");

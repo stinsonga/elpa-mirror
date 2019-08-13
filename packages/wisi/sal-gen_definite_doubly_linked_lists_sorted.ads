@@ -29,7 +29,7 @@ package SAL.Gen_Definite_Doubly_Linked_Lists_Sorted is
    type List is new Ada.Finalization.Controlled with private
    with
       Constant_Indexing => Constant_Reference,
-      Variable_Indexing => Reference,
+      Variable_Indexing => Variable_Reference,
       Default_Iterator  => Iterate,
       Iterator_Element  => Element_Type;
 
@@ -111,23 +111,23 @@ package SAL.Gen_Definite_Doubly_Linked_Lists_Sorted is
    with Pre => Container.Length > 0;
    --  Return Container.First, delete it from Container.
 
-   type Constant_Reference_Type (Element : not null access constant Element_Type) is null record
-   with Implicit_Dereference => Element;
+   type Constant_Reference_Type (Element : not null access constant Element_Type) is private with
+     Implicit_Dereference => Element;
 
-   function Constant_Reference (Container : in List; Position : in Cursor) return Constant_Reference_Type;
-   pragma Inline (Constant_Reference);
-   function Constant_Ref (Position : in Cursor) return Constant_Reference_Type;
-   pragma Inline (Constant_Ref);
+   function Constant_Reference (Container : in List; Position : in Cursor) return Constant_Reference_Type with
+     Inline, Pre => Position /= No_Element;
 
-   type Reference_Type (Element : not null access Element_Type) is null record
-   with Implicit_Dereference => Element;
+   function Constant_Ref (Position : in Cursor) return Constant_Reference_Type with
+     Inline, Pre => Position /= No_Element;
 
-   function Reference (Container : in List; Position : in Cursor) return Reference_Type
-   with Pre => Position /= No_Element;
-   pragma Inline (Reference);
-   function Ref (Position : in Cursor) return Reference_Type
-   with Pre => Position /= No_Element;
-   pragma Inline (Ref);
+   type Variable_Reference_Type (Element : not null access Element_Type) is private with
+     Implicit_Dereference => Element;
+
+   function Variable_Reference (Container : in List; Position : in Cursor) return Variable_Reference_Type
+   with Inline, Pre => Position /= No_Element;
+
+   function Variable_Ref (Position : in Cursor) return Variable_Reference_Type
+   with Inline, Pre => Position /= No_Element;
    --  User must not change the element in a way that affects the sort order.
 
    package Iterator_Interfaces is new Ada.Iterator_Interfaces (Cursor, Has_Element);
@@ -156,6 +156,16 @@ private
    type Cursor is record
       Container : List_Access;
       Ptr       : Node_Access;
+   end record;
+
+   type Constant_Reference_Type (Element : not null access constant Element_Type) is
+   record
+      Dummy : Integer := raise Program_Error with "uninitialized reference";
+   end record;
+
+   type Variable_Reference_Type (Element : not null access Element_Type) is
+   record
+      Dummy : Integer := raise Program_Error with "uninitialized reference";
    end record;
 
    Empty_List : constant List := (Ada.Finalization.Controlled with null, null, 0);

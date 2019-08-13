@@ -34,6 +34,6 @@ begin
       Trace'Unrestricted_Access,
       Parse_Data'Unchecked_Access);
 
-   Parse_Stream (Name, Language_Protocol_Version, Partial_Parse_Active, Params, Parser, Parse_Data, Descriptor);
+   Process_Stream (Name, Language_Protocol_Version, Partial_Parse_Active, Params, Parser, Parse_Data, Descriptor);
 
 end Gen_Emacs_Wisi_LR_Parse;

@@ -17,7 +17,7 @@
 
 pragma License (Modified_GPL);
 
-with Ada.Containers.Doubly_Linked_Lists;
+with SAL.Gen_Definite_Doubly_Linked_Lists;
 generic
    type Element_Type is private;
 package SAL.Gen_Unbounded_Definite_Queues is
@@ -37,7 +37,7 @@ package SAL.Gen_Unbounded_Definite_Queues is
    function Length (Queue : in Pkg.Queue) return Base_Peek_Type renames Count;
 
    function Is_Empty (Queue : in Pkg.Queue) return Boolean;
-   --  Return true if no items are in Pkg.Queue.
+   --  Return true if no items are in Queue.
 
    function Is_Full (Queue : in Pkg.Queue) return Boolean is (False);
    --  Return true if Queue is full.
@@ -85,7 +85,7 @@ package SAL.Gen_Unbounded_Definite_Queues is
 
 private
 
-   package Element_Lists is new Ada.Containers.Doubly_Linked_Lists (Element_Type);
+   package Element_Lists is new SAL.Gen_Definite_Doubly_Linked_Lists (Element_Type);
 
    --  We don't provide cursors or write access to queue elements, so we
    --  don't need any tampering checks.

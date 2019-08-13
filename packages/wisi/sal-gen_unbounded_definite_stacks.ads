@@ -33,7 +33,7 @@ package SAL.Gen_Unbounded_Definite_Stacks is
 
    type Stack is new Ada.Finalization.Controlled with private
    with
-     Constant_Indexing => Constant_Ref,
+     Constant_Indexing => Constant_Reference,
      Default_Iterator  => Iterate,
      Iterator_Element  => Element_Type;
 
@@ -56,7 +56,7 @@ package SAL.Gen_Unbounded_Definite_Stacks is
    function Peek
      (Stack : in Sguds.Stack;
       Index : in Peek_Type := 1)
-     return Element_Type;
+     return Element_Type with Inline;
    --  Return the Index'th item from the top of Stack; the Item is _not_ removed.
    --  Top item has index 1.
    --
@@ -106,25 +106,20 @@ package SAL.Gen_Unbounded_Definite_Stacks is
    --
    --  Useful when creating a stack from pre-existing data.
 
-   type Constant_Ref_Type (Element : not null access constant Element_Type) is
-   record
-      Dummy : Integer := raise Program_Error with "uninitialized reference";
-   end record
-   with Implicit_Dereference => Element;
+   type Constant_Reference_Type (Element : not null access constant Element_Type) is private with
+     Implicit_Dereference => Element;
 
-   function Constant_Ref
+   function Constant_Reference
      (Container : aliased in Stack'Class;
       Position  :         in Peek_Type)
-     return Constant_Ref_Type;
-   pragma Inline (Constant_Ref);
+     return Constant_Reference_Type with Inline;
 
    type Cursor is private;
 
-   function Constant_Ref
+   function Constant_Reference
      (Container : aliased in Stack'Class;
       Position  :         in Cursor)
-     return Constant_Ref_Type;
-   pragma Inline (Constant_Ref);
+     return Constant_Reference_Type with Inline;
 
    function Has_Element (Position : in Cursor) return Boolean;
 
@@ -143,10 +138,15 @@ private
       Data : Element_Array_Access;
 
       --  Top of stack is at Data (Top).
-      --  Data (1 .. Last_Index) has been set at some point.
+      --  Data (1 .. Top) has been set at some point.
    end record;
 
    type Stack_Access is access all Stack;
+
+   type Constant_Reference_Type (Element : not null access constant Element_Type) is
+   record
+      Dummy : Integer := raise Program_Error with "uninitialized reference";
+   end record;
 
    Empty_Stack : constant Stack := (Ada.Finalization.Controlled with Invalid_Peek_Index, null);
 

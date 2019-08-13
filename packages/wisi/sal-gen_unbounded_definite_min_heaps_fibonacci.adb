@@ -35,27 +35,6 @@ package body SAL.Gen_Unbounded_Definite_Min_Heaps_Fibonacci is
    ----------
    --  local subprogram bodies, alphabetical order
 
-   function Add (Heap : in out Heap_Type; Item : in Element_Type) return Node_Access
-   is
-      X : constant Node_Access := new Node'(Item, null, null, null, null, 0, False);
-   begin
-      --  [1] 19.2 FIB-HEAP-INSERT
-      if Heap.Min = null then
-         Heap.Min       := X;
-         Heap.Min.Left  := Heap.Min;
-         Heap.Min.Right := Heap.Min;
-      else
-         Insert_Into_Root_List (Heap, X);
-
-         if Key (Item) < Key (Heap.Min.Element) then
-            Heap.Min := X;
-         end if;
-      end if;
-      Heap.Count := Heap.Count + 1;
-
-      return X;
-   end Add;
-
    procedure Consolidate (Heap : in out Heap_Type)
    is
       --  [1] 19.4 max degree of Fibonacci heap
@@ -319,22 +298,26 @@ package body SAL.Gen_Unbounded_Definite_Min_Heaps_Fibonacci is
 
    procedure Add (Heap : in out Heap_Type; Item : in Element_Type)
    is
-      X : constant Node_Access := Add (Heap, Item);
-      pragma Unreferenced (X);
+      X : constant Node_Access := new Node'(Item, null, null, null, null, 0, False);
    begin
-      null;
-   end Add;
+      --  [1] 19.2 FIB-HEAP-INSERT
+      if Heap.Min = null then
+         Heap.Min       := X;
+         Heap.Min.Left  := Heap.Min;
+         Heap.Min.Right := Heap.Min;
+      else
+         Insert_Into_Root_List (Heap, X);
 
-   function Add (Heap : in out Heap_Type; Item : in Element_Type) return Element_Access
-   is
-      X : constant Node_Access := Add (Heap, Item);
-   begin
-      return X.all.Element'Access;
+         if Key (Item) < Key (Heap.Min.Element) then
+            Heap.Min := X;
+         end if;
+      end if;
+      Heap.Count := Heap.Count + 1;
    end Add;
 
    function Peek (Heap : in Heap_Type) return Constant_Reference_Type
    is begin
-      return (Element => Heap.Min.all.Element'Access);
+      return (Element => Heap.Min.all.Element'Access, Dummy => 1);
    end Peek;
 
    procedure Process (Heap : in Heap_Type; Process_Element : access procedure (Element : in Element_Type))

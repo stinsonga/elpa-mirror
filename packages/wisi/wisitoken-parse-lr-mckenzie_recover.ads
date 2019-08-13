@@ -62,12 +62,12 @@ private
    --  Implemented using 'pragma Assert'.
 
    function Current_Token
-     (Terminals                 : in     Base_Token_Arrays.Vector;
-      Terminals_Current         : in out Base_Token_Index;
-      Restore_Terminals_Current :    out WisiToken.Base_Token_Index;
-      Insert_Delete             : in out Sorted_Insert_Delete_Arrays.Vector;
-      Current_Insert_Delete     : in out SAL.Base_Peek_Type;
-      Prev_Deleted              : in     Recover_Token_Index_Arrays.Vector)
+     (Terminals                 :         in     Base_Token_Arrays.Vector;
+      Terminals_Current         :         in out Base_Token_Index;
+      Restore_Terminals_Current :            out WisiToken.Base_Token_Index;
+      Insert_Delete             : aliased in out Sorted_Insert_Delete_Arrays.Vector;
+      Current_Insert_Delete     :         in out SAL.Base_Peek_Type;
+      Prev_Deleted              :         in     Recover_Token_Index_Arrays.Vector)
      return Base_Token;
    --  Return the current token, from either Terminals or Insert_Delete;
    --  set up for Next_Token.
@@ -75,21 +75,21 @@ private
    --  See Next_Token for more info.
 
    function Current_Token_ID_Peek
-     (Terminals             : in     Base_Token_Arrays.Vector;
-      Terminals_Current     : in     Base_Token_Index;
-      Insert_Delete         : in     Sorted_Insert_Delete_Arrays.Vector;
-      Current_Insert_Delete : in     SAL.Base_Peek_Type)
+     (Terminals             :         in Base_Token_Arrays.Vector;
+      Terminals_Current     :         in Base_Token_Index;
+      Insert_Delete         : aliased in Sorted_Insert_Delete_Arrays.Vector;
+      Current_Insert_Delete :         in SAL.Base_Peek_Type)
      return Token_ID;
    --  Return the current token from either Terminals or
    --  Insert_Delete, without setting up for Next_Token.
 
    procedure Current_Token_ID_Peek_3
-     (Terminals             : in     Base_Token_Arrays.Vector;
-      Terminals_Current     : in     Base_Token_Index;
-      Insert_Delete         : in     Sorted_Insert_Delete_Arrays.Vector;
-      Current_Insert_Delete : in     SAL.Base_Peek_Type;
-      Prev_Deleted          : in     Recover_Token_Index_Arrays.Vector;
-      Tokens                :    out Token_ID_Array_1_3);
+     (Terminals             :         in     Base_Token_Arrays.Vector;
+      Terminals_Current     :         in     Base_Token_Index;
+      Insert_Delete         : aliased in     Sorted_Insert_Delete_Arrays.Vector;
+      Current_Insert_Delete :         in     SAL.Base_Peek_Type;
+      Prev_Deleted          :         in     Recover_Token_Index_Arrays.Vector;
+      Tokens                :            out Token_ID_Array_1_3);
    --  Return the current token (in Tokens (1)) from either Terminals or
    --  Insert_Delete, without setting up for Next_Token. Return the two
    --  following tokens in Tokens (2 .. 3).
@@ -177,12 +177,12 @@ private
    --  Call Insert for each item in IDs.
 
    function Next_Token
-     (Terminals                 : in     Base_Token_Arrays.Vector;
-      Terminals_Current         : in out Base_Token_Index;
-      Restore_Terminals_Current : in out WisiToken.Base_Token_Index;
-      Insert_Delete             : in out Sorted_Insert_Delete_Arrays.Vector;
-      Current_Insert_Delete     : in out SAL.Base_Peek_Type;
-      Prev_Deleted              : in     Recover_Token_Index_Arrays.Vector)
+     (Terminals                 :         in     Base_Token_Arrays.Vector;
+      Terminals_Current         :         in out Base_Token_Index;
+      Restore_Terminals_Current :         in out WisiToken.Base_Token_Index;
+      Insert_Delete             : aliased in out Sorted_Insert_Delete_Arrays.Vector;
+      Current_Insert_Delete     :         in out SAL.Base_Peek_Type;
+      Prev_Deleted              :         in     Recover_Token_Index_Arrays.Vector)
      return Base_Token;
    --  Return the next token, from either Terminals or Insert_Delete;
    --  update Terminals_Current or Current_Insert_Delete.
@@ -234,14 +234,15 @@ private
    --  Put message to Trace, with parser and task info.
 
    function Undo_Reduce_Valid
-     (Stack : in out Recover_Stacks.Stack;
-      Tree  : in     Syntax_Trees.Tree)
+     (Stack : in Recover_Stacks.Stack;
+      Tree  : in Syntax_Trees.Tree)
      return Boolean
-     is ((Stack.Peek.Tree_Index /= WisiToken.Syntax_Trees.Invalid_Node_Index and then
-            Tree.Is_Nonterm (Stack.Peek.Tree_Index)) or
-           (Stack.Peek.Tree_Index = WisiToken.Syntax_Trees.Invalid_Node_Index and
-              (not Stack.Peek.Token.Virtual and
-                 Stack.Peek.Token.Byte_Region = Null_Buffer_Region)));
+     is (Stack.Depth > 1 and then
+           ((Stack.Peek.Tree_Index /= WisiToken.Syntax_Trees.Invalid_Node_Index and then
+               Tree.Is_Nonterm (Stack.Peek.Tree_Index)) or
+              (Stack.Peek.Tree_Index = WisiToken.Syntax_Trees.Invalid_Node_Index and
+                 (not Stack.Peek.Token.Virtual and
+                    Stack.Peek.Token.Byte_Region = Null_Buffer_Region))));
    --  Undo_Reduce needs to know what tokens the nonterm contains, to
    --  push them on the stack. Thus we need either a valid Tree index, or
    --  an empty nonterm. If Token.Virtual, we can't trust

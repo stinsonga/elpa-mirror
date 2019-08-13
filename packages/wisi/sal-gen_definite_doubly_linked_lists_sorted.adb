@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018, 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -490,25 +490,25 @@ package body SAL.Gen_Definite_Doubly_Linked_Lists_Sorted is
    is
       pragma Unreferenced (Container);
    begin
-      return (Element => Position.Ptr.all.Element'Access);
+      return (Element => Position.Ptr.all.Element'Access, Dummy => 1);
    end Constant_Reference;
 
    function Constant_Ref (Position : in Cursor) return Constant_Reference_Type
    is begin
-      return (Element => Position.Ptr.all.Element'Access);
+      return (Element => Position.Ptr.all.Element'Access, Dummy => 1);
    end Constant_Ref;
 
-   function Reference (Container : in List; Position : in Cursor) return Reference_Type
+   function Variable_Reference (Container : in List; Position : in Cursor) return Variable_Reference_Type
    is
       pragma Unreferenced (Container);
    begin
-      return (Element => Position.Ptr.all.Element'Access);
-   end Reference;
+      return (Element => Position.Ptr.all.Element'Access, Dummy => 1);
+   end Variable_Reference;
 
-   function Ref (Position : in Cursor) return Reference_Type
+   function Variable_Ref (Position : in Cursor) return Variable_Reference_Type
    is begin
-      return (Element => Position.Ptr.all.Element'Access);
-   end Ref;
+      return (Element => Position.Ptr.all.Element'Access, Dummy => 1);
+   end Variable_Ref;
 
    function Iterate (Container : aliased in List) return Iterator_Interfaces.Reversible_Iterator'Class
    is begin

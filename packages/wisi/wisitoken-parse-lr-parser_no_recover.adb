@@ -36,8 +36,6 @@ package body WisiToken.Parse.LR.Parser_No_Recover is
       Nonterm        :    out WisiToken.Syntax_Trees.Valid_Node_Index;
       Trace          : in out WisiToken.Trace'Class)
    is
-      use all type SAL.Base_Peek_Type;
-
       Parser_State  : Parser_Lists.Parser_State renames Current_Parser.State_Ref.Element.all;
       Children_Tree : Syntax_Trees.Valid_Node_Index_Array (1 .. SAL.Base_Peek_Type (Action.Token_Count));
       --  for Set_Children.
@@ -83,8 +81,6 @@ package body WisiToken.Parse.LR.Parser_No_Recover is
          Current_Parser.Set_Verb (Reduce);
 
          declare
-            use all type SAL.Base_Peek_Type;
-
             New_State : constant Unknown_State_Index := Goto_For
               (Table => Shared_Parser.Table.all,
                State => Parser_State.Stack (SAL.Base_Peek_Type (Action.Token_Count) + 1).State,
@@ -159,8 +155,6 @@ package body WisiToken.Parse.LR.Parser_No_Recover is
      (Shared_Parser : in out Parser;
       Verb          :    out All_Parse_Action_Verbs)
    is
-      use all type SAL.Base_Peek_Type;
-
       Shift_Count  : SAL.Base_Peek_Type := 0;
       Accept_Count : SAL.Base_Peek_Type := 0;
       Error_Count  : SAL.Base_Peek_Type := 0;
@@ -236,7 +230,6 @@ package body WisiToken.Parse.LR.Parser_No_Recover is
    overriding procedure Parse (Shared_Parser : aliased in out Parser)
    is
       use all type Syntax_Trees.User_Data_Access;
-      use all type SAL.Base_Peek_Type;
 
       Trace : WisiToken.Trace'Class renames Shared_Parser.Trace.all;
 
@@ -436,7 +429,6 @@ package body WisiToken.Parse.LR.Parser_No_Recover is
 
    overriding procedure Execute_Actions (Parser : in out LR.Parser_No_Recover.Parser)
    is
-      use all type SAL.Base_Peek_Type;
       use all type Syntax_Trees.User_Data_Access;
 
       procedure Process_Node
@@ -489,9 +481,7 @@ package body WisiToken.Parse.LR.Parser_No_Recover is
    end Execute_Actions;
 
    overriding function Tree (Parser : in LR.Parser_No_Recover.Parser) return Syntax_Trees.Tree
-   is
-      use all type SAL.Base_Peek_Type;
-   begin
+   is begin
       if Parser.Parsers.Count > 1 then
          raise WisiToken.Parse_Error with "ambigous parse";
       else
@@ -501,7 +491,6 @@ package body WisiToken.Parse.LR.Parser_No_Recover is
 
    overriding function Any_Errors (Parser : in LR.Parser_No_Recover.Parser) return Boolean
    is
-      use all type SAL.Base_Peek_Type;
       use all type Ada.Containers.Count_Type;
       Parser_State : Parser_Lists.Parser_State renames Parser.Parsers.First_Constant_State_Ref;
    begin

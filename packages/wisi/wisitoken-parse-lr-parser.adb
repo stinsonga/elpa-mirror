@@ -45,7 +45,6 @@ package body WisiToken.Parse.LR.Parser is
       --  error recovery to take better advantage of them. One recovery
       --  strategy is to fix things so the semantic check passes.
 
-      use all type SAL.Base_Peek_Type;
       use all type Semantic_Checks.Check_Status_Label;
       use all type Semantic_Checks.Semantic_Check;
 
@@ -139,8 +138,6 @@ package body WisiToken.Parse.LR.Parser is
 
       when Reduce =>
          declare
-            use all type SAL.Base_Peek_Type;
-
             New_State : constant Unknown_State_Index := Goto_For
               (Table => Shared_Parser.Table.all,
                State => Parser_State.Stack (SAL.Base_Peek_Type (Action.Token_Count) + 1).State,
@@ -226,9 +223,7 @@ package body WisiToken.Parse.LR.Parser is
    procedure Do_Deletes
      (Shared_Parser : in out LR.Parser.Parser;
       Parser_State  : in out Parser_Lists.Parser_State)
-   is
-      use all type SAL.Base_Peek_Type;
-   begin
+   is begin
       if Trace_Parse > Extra then
          Shared_Parser.Trace.Put_Line
            (Integer'Image (Parser_State.Label) & ": shared_token:" &
@@ -285,8 +280,6 @@ package body WisiToken.Parse.LR.Parser is
       Verb          :    out All_Parse_Action_Verbs;
       Zombie_Count  :    out SAL.Base_Peek_Type)
    is
-      use all type SAL.Base_Peek_Type;
-
       Shift_Count   : SAL.Base_Peek_Type := 0;
       Accept_Count  : SAL.Base_Peek_Type := 0;
       Error_Count   : SAL.Base_Peek_Type := 0;
@@ -383,12 +376,7 @@ package body WisiToken.Parse.LR.Parser is
       Parser.Language_String_ID_Set         := Language_String_ID_Set;
       Parser.User_Data                      := User_Data;
 
-      --  We can't use Table.McKenzie_Param /= Default_McKenzie_Param here,
-      --  because the discriminants are different.
-      Parser.Enable_McKenzie_Recover :=
-        Table.McKenzie_Param.Check_Limit /= Default_McKenzie_Param.Check_Limit or
-          Table.McKenzie_Param.Check_Delta_Limit /= Default_McKenzie_Param.Check_Delta_Limit or
-          Table.McKenzie_Param.Enqueue_Limit /= Default_McKenzie_Param.Enqueue_Limit;
+      Parser.Enable_McKenzie_Recover := not McKenzie_Defaulted (Table.all);
 
       Parser.Max_Parallel         := Max_Parallel;
       Parser.Terminate_Same_State := Terminate_Same_State;
@@ -403,7 +391,6 @@ package body WisiToken.Parse.LR.Parser is
       use all type Ada.Strings.Unbounded.Unbounded_String;
       use all type Syntax_Trees.User_Data_Access;
       use all type Ada.Containers.Count_Type;
-      use all type SAL.Base_Peek_Type;
 
       Trace : WisiToken.Trace'Class renames Shared_Parser.Trace.all;
 
@@ -676,6 +663,7 @@ package body WisiToken.Parse.LR.Parser is
                Recover_Result : McKenzie_Recover.Recover_Status := McKenzie_Recover.Recover_Status'First;
 
                Pre_Recover_Parser_Count : constant SAL.Base_Peek_Type := Shared_Parser.Parsers.Count;
+               Start : Ada.Calendar.Time;
             begin
                --  Recover algorithms expect current token at
                --  Parsers(*).Current_Token, will set
@@ -686,10 +674,17 @@ package body WisiToken.Parse.LR.Parser is
                if Shared_Parser.Enable_McKenzie_Recover then
                   if Debug_Mode then
                      Trace.Put_Clock ("pre-recover" & Shared_Parser.Parsers.Count'Img & " active");
+                     Start := Ada.Calendar.Clock;
                   end if;
                   Recover_Result := McKenzie_Recover.Recover (Shared_Parser);
                   if Debug_Mode then
-                     Trace.Put_Clock ("post-recover" & Shared_Parser.Parsers.Count'Img & " active");
+                     declare
+                        use Ada.Calendar;
+                        Recover_Duration : constant Duration := Clock - Start;
+                     begin
+                        Trace.Put_Clock
+                          ("post-recover" & Shared_Parser.Parsers.Count'Img & " active," & Recover_Duration'Image);
+                     end;
                   end if;
 
                   if Trace_Parse > Outline then
@@ -732,7 +727,7 @@ package body WisiToken.Parse.LR.Parser is
                      end;
                   end if;
                else
-                  if Trace_Parse > Outline then
+                  if Trace_Parse > Outline or Trace_McKenzie > Outline then
                      Trace.Put_Line ("recover disabled");
                   end if;
                end if;
@@ -786,7 +781,10 @@ package body WisiToken.Parse.LR.Parser is
                          First_Terminal => Trace.Descriptor.First_Terminal,
                          Last_Terminal  => Trace.Descriptor.Last_Terminal,
                          Recover        => <>,
-                         Msg            => +"recover: fail " & McKenzie_Recover.Recover_Status'Image (Recover_Result)));
+                         Msg            =>
+                           (if Shared_Parser.Enable_McKenzie_Recover
+                            then +"recover: fail " & McKenzie_Recover.Recover_Status'Image (Recover_Result)
+                            else +"recover disabled")));
                   end loop;
                   raise WisiToken.Syntax_Error;
                end if;
@@ -970,7 +968,7 @@ package body WisiToken.Parse.LR.Parser is
       end if;
 
       if Debug_Mode then
-         Trace.Put_Clock ("finish");
+         Trace.Put_Clock ("finish parse");
       end if;
 
       --  We don't raise Syntax_Error for lexer errors, since they are all
@@ -1007,9 +1005,7 @@ package body WisiToken.Parse.LR.Parser is
    end Parse;
 
    overriding function Tree (Shared_Parser : in Parser) return Syntax_Trees.Tree
-   is
-      use all type SAL.Base_Peek_Type;
-   begin
+   is begin
       if Shared_Parser.Parsers.Count > 1 then
          raise WisiToken.Parse_Error with "ambigous parse";
       else
@@ -1020,7 +1016,6 @@ package body WisiToken.Parse.LR.Parser is
    overriding
    procedure Execute_Actions (Parser : in out LR.Parser.Parser)
    is
-      use all type SAL.Base_Peek_Type;
       use all type Syntax_Trees.User_Data_Access;
       use all type WisiToken.Syntax_Trees.Semantic_Action;
 
@@ -1065,26 +1060,29 @@ package body WisiToken.Parse.LR.Parser is
          end if;
 
          declare
-            Parser_State : Parser_Lists.Parser_State renames Parser.Parsers.First_State_Ref.Element.all;
+            use Config_Op_Arrays, Config_Op_Array_Refs;
+            Parser_State : Parser_Lists.Parser_State renames Parser.Parsers.First_State_Ref;
          begin
             if Trace_Action > Outline then
                Parser.Trace.Put_Line
                  (Integer'Image (Parser_State.Label) & ": root node: " & Parser_State.Tree.Image
-                 (Parser_State.Tree.Root, Descriptor));
+                    (Parser_State.Tree.Root, Descriptor));
             end if;
 
-            if (for some Err of Parser_State.Errors => Any (Err.Recover.Ops, Delete)) then
-               for Err of Parser_State.Errors loop
-                  for Op of Err.Recover.Ops loop
+            for Err of Parser_State.Errors loop
+               for I in First_Index (Err.Recover.Ops) .. Last_Index (Err.Recover.Ops) loop
+                  declare
+                     Op : Config_Op renames Constant_Ref (Err.Recover.Ops, I);
+                  begin
                      case Op.Op is
                      when Delete =>
                         Parser.User_Data.Delete_Token (Op.Del_Token_Index);
                      when others =>
                         null;
                      end case;
-                  end loop;
+                  end;
                end loop;
-            end if;
+            end loop;
 
             Parser.User_Data.Initialize_Actions (Parser_State.Tree);
             Parser_State.Tree.Process_Tree (Process_Node'Access);
@@ -1094,7 +1092,6 @@ package body WisiToken.Parse.LR.Parser is
 
    overriding function Any_Errors (Parser : in LR.Parser.Parser) return Boolean
    is
-      use all type SAL.Base_Peek_Type;
       use all type Ada.Containers.Count_Type;
       Parser_State : Parser_Lists.Parser_State renames Parser.Parsers.First_Constant_State_Ref;
    begin
@@ -1104,7 +1101,6 @@ package body WisiToken.Parse.LR.Parser is
 
    overriding procedure Put_Errors (Parser : in LR.Parser.Parser)
    is
-      use all type SAL.Base_Peek_Type;
       use Ada.Text_IO;
 
       Parser_State : Parser_Lists.Parser_State renames Parser.Parsers.First_Constant_State_Ref;

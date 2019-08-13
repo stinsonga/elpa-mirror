@@ -1,6 +1,6 @@
 --  Abstract :
 --
---  Parser for Wisi grammar files, producing Ada or Elisp source
+--  Parser for Wisi grammar files, producing Ada source
 --  files for a parser.
 --
 --  Copyright (C) 2012 - 2015, 2017 - 2019 Free Software Foundation, Inc.
@@ -32,7 +32,6 @@ with WisiToken.BNF.Generate_Utils;
 with WisiToken.BNF.Output_Ada;
 with WisiToken.BNF.Output_Ada_Common;
 with WisiToken.BNF.Output_Ada_Emacs;
-with WisiToken.BNF.Output_Elisp;
 with WisiToken.BNF.Output_Elisp_Common;
 with WisiToken.Generate.LR.LALR_Generate;
 with WisiToken.Generate.LR.LR1_Generate;
@@ -53,8 +52,8 @@ is
    begin
       --  verbosity meaning is actually determined by output choice;
       --  they should be consistent with this description.
-      Put_Line (Standard_Error, "version 1.2.0");
-      Put_Line (Standard_Error, "wisi-generate [options] {wisi grammar file}");
+      Put_Line (Standard_Error, "version 1.3.0");
+      Put_Line (Standard_Error, "wisitoken-bnf-generate [options] {wisi grammar file}");
       Put_Line (Standard_Error, "Generate source code implementing a parser for the grammar.");
       New_Line (Standard_Error);
       Put_Line (Standard_Error, "The following grammar file directives control parser generation:");
@@ -131,7 +130,6 @@ is
 
    Trace          : aliased WisiToken.Text_IO_Trace.Trace (Wisitoken_Grammar_Actions.Descriptor'Access);
    Input_Data     : aliased WisiToken_Grammar_Runtime.User_Data_Type;
-   Elisp_Tokens   : WisiToken.BNF.Tokens;
    Grammar_Parser : WisiToken.Parse.LR.Parser_No_Recover.Parser;
 
    Do_Time : Boolean := False;
@@ -421,12 +419,6 @@ begin
                when re2c_Lexer =>
                   WisiToken.BNF.Output_Ada_Common.Create_re2c
                     (Input_Data, Tuple, Generate_Data, -Output_File_Name_Root);
-                  if Tuple.Out_Lang = Ada_Emacs_Lang and Elisp_Tokens.Keywords.Is_Empty then
-                     --  elisp code needs keywords for font-lock.
-                     Elisp_Tokens.Keywords := Input_Data.Tokens.Keywords;
-                  end if;
-               when Elisp_Lexer =>
-                  Elisp_Tokens := Input_Data.Tokens;
                when others =>
                   null;
                end case;
@@ -474,7 +466,6 @@ begin
 
                Generate_Data.Parser_State_Count :=
                  Generate_Data.LR_Parse_Table.State_Last - Generate_Data.LR_Parse_Table.State_First + 1;
-               WisiToken.BNF.Generate_Utils.Count_Actions (Generate_Data);
                WisiToken.BNF.Generate_Utils.Put_Stats (Input_Data, Generate_Data);
 
             when LR1 =>
@@ -502,7 +493,6 @@ begin
 
                Generate_Data.Parser_State_Count :=
                  Generate_Data.LR_Parse_Table.State_Last - Generate_Data.LR_Parse_Table.State_First + 1;
-               WisiToken.BNF.Generate_Utils.Count_Actions (Generate_Data);
                WisiToken.BNF.Generate_Utils.Put_Stats (Input_Data, Generate_Data);
 
             when Packrat_Generate_Algorithm =>
@@ -558,11 +548,8 @@ begin
 
                when Ada_Emacs_Lang =>
                   WisiToken.BNF.Output_Ada_Emacs
-                    (Input_Data, Elisp_Tokens, -Output_File_Name_Root, Generate_Data, Packrat_Data, Tuple,
+                    (Input_Data, -Output_File_Name_Root, Generate_Data, Packrat_Data, Tuple,
                      Test_Main, Multiple_Tuples, -Language_Name);
-
-               when Elisp_Lang =>
-                  WisiToken.BNF.Output_Elisp (Input_Data, -Output_File_Name_Root, Generate_Data, Packrat_Data, Tuple);
 
                end case;
                if WisiToken.Generate.Error then

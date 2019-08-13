@@ -176,7 +176,7 @@ package body WisiToken.Generate.LR.LALR_Generate is
 
       Found_State : Unknown_State_Index;
    begin
-      Kernels.Set_First (First_State_Index);
+      Kernels.Set_First_Last (First_State_Index, First_State_Index - 1);
 
       Add (New_Item_Set, Kernels, Kernel_Tree, Descriptor, Include_Lookaheads => False);
 
@@ -298,7 +298,7 @@ package body WisiToken.Generate.LR.LALR_Generate is
          Propagations.Append ((From_Cur, To_List (To_Item)));
 
       elsif not Has_Element (To_Match) then
-         Ref (From_Match).To.Append (To_Item);
+         Variable_Ref (From_Match).To.Append (To_Item);
 
       else
          raise SAL.Programmer_Error with "Add_Propagation: unexpected case";
@@ -360,7 +360,7 @@ package body WisiToken.Generate.LR.LALR_Generate is
                Ada.Text_IO.Put_Line ("  spontaneous: " & Lookahead_Image (Closure_Item.Lookaheads.all, Descriptor));
             end if;
 
-            LR1_Items.Include (Ref (To_Item), Closure_Item.Lookaheads.all, Descriptor);
+            LR1_Items.Include (Variable_Ref (To_Item), Closure_Item.Lookaheads.all, Descriptor);
          end if;
       end;
    end Generate_Lookahead_Info;
@@ -382,7 +382,8 @@ package body WisiToken.Generate.LR.LALR_Generate is
          More_To_Check := False;
          for Mapping of List loop
             for Copy of Mapping.To loop
-               LR1_Items.Include (Ref (Copy), Constant_Ref (Mapping.From).Lookaheads.all, Added_One, Descriptor);
+               LR1_Items.Include
+                 (Variable_Ref (Copy), Constant_Ref (Mapping.From).Lookaheads.all, Added_One, Descriptor);
 
                More_To_Check := More_To_Check or Added_One;
             end loop;

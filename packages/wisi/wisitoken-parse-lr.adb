@@ -109,67 +109,40 @@ package body WisiToken.Parse.LR is
       return False;
    end Is_In;
 
-   function Find
-     (Symbol      : in Token_ID;
-      Action_List : in Action_Node_Ptr)
-     return Action_Node_Ptr
-   is
-      Action_Node : Action_Node_Ptr := Action_List;
-   begin
-      while Action_Node /= null loop
-         if Action_Node.Symbol = Symbol then
-            return Action_Node;
-         end if;
-         Action_Node := Action_Node.Next;
-      end loop;
-
-      return null;
-   end Find;
+   function Compare (Left, Right : in Token_ID) return SAL.Compare_Result
+   is begin
+      if Left < Right then
+         return SAL.Less;
+      elsif Left = Right then
+         return SAL.Equal;
+      else
+         return SAL.Greater;
+      end if;
+   end Compare;
 
    procedure Add
-     (List   : in out Action_Node_Ptr;
+     (List   : in out Action_Arrays.Vector;
       Symbol : in     Token_ID;
       Action : in     Parse_Action_Rec)
-   is
-      New_Item : constant Action_Node_Ptr := new Action_Node'(Symbol, new Parse_Action_Node'(Action, null), null);
-      I        : Action_Node_Ptr          := List;
-   begin
-      if I = null then
-         List := New_Item;
-      else
-         if List.Symbol > Symbol then
-            New_Item.Next := List;
-            List          := New_Item;
-         else
-            if List.Next = null then
-               List.Next := New_Item;
-            else
-               I := List;
+   is begin
+      declare
+         Node : constant Action_Arrays.Find_Reference_Type := List.Find (Symbol);
+      begin
+         if Node.Element /= null then
+            declare
+               I : Parse_Action_Node_Ptr := Node.Element.Actions;
+            begin
                loop
-                  exit when I.Next = null or else I.Next.Symbol > Symbol;
+                  exit when I.Next = null;
                   I := I.Next;
                end loop;
-               New_Item.Next := I.Next;
-               I.Next        := New_Item;
-            end if;
+               I.Next := new Parse_Action_Node'(Action, null);
+               return;
+            end;
          end if;
-      end if;
+      end;
+      List.Insert ((Symbol, new Parse_Action_Node'(Action, null)));
    end Add;
-
-   function Symbol (List : in Goto_Node_Ptr) return Token_ID
-   is begin
-      return List.Symbol;
-   end Symbol;
-
-   function State (List : in Goto_Node_Ptr) return State_Index
-   is begin
-      return List.State;
-   end State;
-
-   function Next (List : in Goto_Node_Ptr) return Goto_Node_Ptr
-   is begin
-      return List.Next;
-   end Next;
 
    function To_Vector (Item : in Kernel_Info_Array) return Kernel_Info_Arrays.Vector
    is begin
@@ -219,70 +192,12 @@ package body WisiToken.Parse.LR is
       end return;
    end To_Vector;
 
-   function First (State : in Parse_State) return Action_List_Iterator
-   is begin
-      return Iter : Action_List_Iterator := (Node => State.Action_List, Item => null) do
-         loop
-            exit when Iter.Node = null;
-            Iter.Item := Iter.Node.Action;
-            exit when Iter.Item /= null;
-            Iter.Node := Iter.Node.Next;
-         end loop;
-      end return;
-   end First;
-
-   function Is_Done (Iter : in Action_List_Iterator) return Boolean
-   is begin
-      return Iter.Node = null;
-   end Is_Done;
-
-   procedure Next (Iter : in out Action_List_Iterator)
-   is begin
-      if Iter.Node = null then
-         return;
-      end if;
-
-      if Iter.Item.Next = null then
-         loop
-            Iter.Node := Iter.Node.Next;
-            exit when Iter.Node = null;
-            Iter.Item := Iter.Node.Action;
-            exit when Iter.Item /= null;
-         end loop;
-      else
-         Iter.Item := Iter.Item.Next; -- a conflict
-      end if;
-   end Next;
-
-   function Symbol (Iter : in Action_List_Iterator) return Token_ID
-   is begin
-      return Iter.Node.Symbol;
-   end Symbol;
-
-   function Action (Iter : in Action_List_Iterator) return Parse_Action_Rec
-   is begin
-      return Iter.Item.Item;
-   end Action;
-
    procedure Add_Action
-     (State       : in out LR.Parse_State;
-      Symbol      : in     Token_ID;
-      State_Index : in     WisiToken.State_Index)
-   is
-      Action   : constant Parse_Action_Rec := (Shift, State_Index);
-      New_Node : constant Action_Node_Ptr  := new Action_Node'(Symbol, new Parse_Action_Node'(Action, null), null);
-      Node     : Action_Node_Ptr;
-   begin
-      if State.Action_List = null then
-         State.Action_List := New_Node;
-      else
-         Node := State.Action_List;
-         loop
-            exit when Node.Next = null;
-            Node := Node.Next;
-         end loop;
-         Node.Next := New_Node;
-      end if;
+     (State        : in out LR.Parse_State;
+      Symbol       : in     Token_ID;
+      State_Index  : in     WisiToken.State_Index)
+   is begin
+      Add (State.Action_List, Symbol, (Shift, State_Index));
    end Add_Action;
 
    procedure Add_Action
@@ -294,29 +209,13 @@ package body WisiToken.Parse.LR is
       Semantic_Action : in     WisiToken.Syntax_Trees.Semantic_Action;
       Semantic_Check  : in     Semantic_Checks.Semantic_Check)
    is
-      Action   : Parse_Action_Rec;
-      New_Node : Action_Node_Ptr;
-      Node     : Action_Node_Ptr;
+      Action : constant Parse_Action_Rec :=
+        (case Verb is
+         when Reduce    => (Reduce, Production, Semantic_Action, Semantic_Check, RHS_Token_Count),
+         when Accept_It => (Accept_It, Production, Semantic_Action, Semantic_Check, RHS_Token_Count),
+         when others    => raise SAL.Programmer_Error);
    begin
-      case Verb is
-      when Reduce =>
-         Action := (Reduce, Production, Semantic_Action, Semantic_Check, RHS_Token_Count);
-      when Accept_It =>
-         Action := (Accept_It, Production, Semantic_Action, Semantic_Check, RHS_Token_Count);
-      when others =>
-         null;
-      end case;
-      New_Node := new Action_Node'(Symbol, new Parse_Action_Node'(Action, null), null);
-      if State.Action_List = null then
-         State.Action_List := New_Node;
-      else
-         Node := State.Action_List;
-         loop
-            exit when Node.Next = null;
-            Node := Node.Next;
-         end loop;
-         Node.Next := New_Node;
-      end if;
+      Add (State.Action_List, Symbol, Action);
    end Add_Action;
 
    procedure Add_Action
@@ -327,14 +226,13 @@ package body WisiToken.Parse.LR is
       Semantic_Action : in     WisiToken.Syntax_Trees.Semantic_Action;
       Semantic_Check  : in     WisiToken.Semantic_Checks.Semantic_Check)
    is begin
-      --  We assume Duplicate_Reduce is True for this state; no
-      --  conflicts, all the same action.
+      --  We assume WisiToken.BNF.Output_Ada_Common.Duplicate_Reduce is True
+      --  for this state; no conflicts, all the same action.
       for Symbol of Symbols loop
          Add_Action
            (State, Symbol, Reduce, Production, RHS_Token_Count,
             Semantic_Action, Semantic_Check);
       end loop;
-      Add_Error (State);
    end Add_Action;
 
    procedure Add_Conflict
@@ -347,7 +245,10 @@ package body WisiToken.Parse.LR is
    is
       Conflict : constant Parse_Action_Rec :=
         (Reduce, Reduce_Production, Semantic_Action, Semantic_Check, RHS_Token_Count);
-      Node : Parse_Action_Node_Ptr := Find (Symbol, State.Action_List).Action;
+
+      Ref : constant Action_Arrays.Find_Reference_Constant_Type := State.Action_List.Find_Constant (Symbol);
+
+      Node : Parse_Action_Node_Ptr := Ref.Actions;
    begin
       loop
          exit when Node.Next = null;
@@ -356,50 +257,12 @@ package body WisiToken.Parse.LR is
       Node.Next := new Parse_Action_Node'(Conflict, null);
    end Add_Conflict;
 
-   procedure Add_Error (State  : in out LR.Parse_State)
-   is
-      Action : constant Parse_Action_Rec := (Verb => Error);
-      Node   : Action_Node_Ptr           := State.Action_List;
-   begin
-      if Node = null then
-         raise SAL.Programmer_Error with "adding an error action to a parse table state before other actions.";
-      end if;
-      loop
-         exit when Node.Next = null;
-         Node := Node.Next;
-      end loop;
-      Node.Next := new Action_Node'(Invalid_Token_ID, new Parse_Action_Node'(Action, null), null);
-   end Add_Error;
-
    procedure Add_Goto
      (State      : in out LR.Parse_State;
       Symbol     : in     Token_ID;
       To_State   : in     State_Index)
-   is
-      List     : Goto_Node_Ptr renames State.Goto_List;
-      New_Item : constant Goto_Node_Ptr := new Goto_Node'(Symbol, To_State, null);
-      I        : Goto_Node_Ptr := List;
-   begin
-      if I = null then
-         List := New_Item;
-      else
-         if List.Symbol > Symbol then
-            New_Item.Next := List;
-            List          := New_Item;
-         else
-            if List.Next = null then
-               List.Next := New_Item;
-            else
-               I := List;
-               loop
-                  exit when I.Next = null or List.Symbol > Symbol;
-                  I := I.Next;
-               end loop;
-               New_Item.Next := I.Next;
-               I.Next        := New_Item;
-            end if;
-         end if;
-      end if;
+   is begin
+      State.Goto_List.Insert ((Symbol, To_State));
    end Add_Goto;
 
    function Goto_For
@@ -408,29 +271,14 @@ package body WisiToken.Parse.LR is
       ID    : in Token_ID)
      return Unknown_State_Index
    is
-      Goto_Node : constant Goto_Node_Ptr := Goto_For (Table, State, ID);
+      Ref : constant Goto_Arrays.Find_Reference_Constant_Type := Table.States (State).Goto_List.Find_Constant (ID);
    begin
-      if Goto_Node = null then
+      if Ref.Element = null then
          --  We can only get here during error recovery.
          return Unknown_State;
       else
-         return Goto_Node.State;
+         return Ref.State;
       end if;
-   end Goto_For;
-
-   function Goto_For
-     (Table : in Parse_Table;
-      State : in State_Index;
-      ID    : in Token_ID)
-     return Goto_Node_Ptr
-   is
-      Goto_Node : Goto_Node_Ptr := Table.States (State).Goto_List;
-   begin
-      while Goto_Node /= null and then Goto_Node.Symbol /= ID loop
-         Goto_Node := Goto_Node.Next;
-      end loop;
-
-      return Goto_Node;
    end Goto_For;
 
    function Action_For
@@ -439,72 +287,44 @@ package body WisiToken.Parse.LR is
       ID    : in Token_ID)
      return Parse_Action_Node_Ptr
    is
-      Action_Node : Action_Node_Ptr := Table.States (State).Action_List;
+      Ref : constant Action_Arrays.Find_Reference_Constant_Type := Table.States (State).Action_List.Find_Constant (ID);
    begin
-      if Action_Node = null then
-         raise SAL.Programmer_Error with "no actions for state" & Unknown_State_Index'Image (State);
+      if Ref.Element = null then
+         return Table.Error_Action;
       end if;
 
-      while Action_Node.Next /= null and Action_Node.Symbol /= ID loop
-         Action_Node := Action_Node.Next;
-      end loop;
-
-      return Action_Node.Action;
+      return Ref.Actions;
    end Action_For;
 
    function Expecting (Table : in Parse_Table; State : in State_Index) return Token_ID_Set
    is
-      Result : Token_ID_Set    := (Table.First_Terminal .. Table.Last_Terminal => False);
-      Action : Action_Node_Ptr := Table.States (State).Action_List;
+      Result : Token_ID_Set := (Table.First_Terminal .. Table.Last_Terminal => False);
    begin
-      loop
-         --  Last action is error; don't include it.
-         exit when Action.Next = null;
-
+      for Action of Table.States (State).Action_List loop
          Result (Action.Symbol) := True;
-         Action := Action.Next;
       end loop;
       return Result;
    end Expecting;
 
    procedure Free_Table (Table : in out Parse_Table_Ptr)
    is
-
       procedure Free is new Ada.Unchecked_Deallocation (Parse_Table, Parse_Table_Ptr);
-      Action            : Action_Node_Ptr;
-      Temp_Action       : Action_Node_Ptr;
       Parse_Action      : Parse_Action_Node_Ptr;
       Temp_Parse_Action : Parse_Action_Node_Ptr;
-      Got               : Goto_Node_Ptr;
-      Temp_Got          : Goto_Node_Ptr;
    begin
       if Table = null then
          return;
       end if;
 
       for State of Table.States loop
-         Action := State.Action_List;
-         loop
-            exit when Action = null;
-            Parse_Action := Action.Action;
+         for Action of State.Action_List loop
+            Parse_Action := Action.Actions;
             loop
                exit when Parse_Action = null;
                Temp_Parse_Action := Parse_Action;
                Parse_Action := Parse_Action.Next;
                Free (Temp_Parse_Action);
             end loop;
-
-            Temp_Action := Action;
-            Action := Action.Next;
-            Free (Temp_Action);
-         end loop;
-
-         Got := State.Goto_List;
-         loop
-            exit when Got = null;
-            Temp_Got := Got;
-            Got := Got.Next;
-            Free (Temp_Got);
          end loop;
       end loop;
 
@@ -650,17 +470,18 @@ package body WisiToken.Parse.LR is
 
          for State of Table.States loop
             declare
-               Node_I       : Action_Node_Ptr := new Action_Node;
-               Actions_Done : Boolean         := False;
+               Actions_Done : Boolean := False;
             begin
-               State.Action_List := Node_I;
+               State.Action_List.Set_Capacity (Next_Count_Type);
+
                loop
                   declare
+                     Node_I      : Action_Node;
                      Node_J      : Parse_Action_Node_Ptr := new Parse_Action_Node;
-                     Action_Done : Boolean := False;
+                     Action_Done : Boolean               := False;
                      Verb        : Parse_Action_Verbs;
                   begin
-                     Node_I.Action := Node_J;
+                     Node_I.Actions := Node_J;
                      loop
                         Verb := Next_Parse_Action_Verbs;
                         Node_J.Item :=
@@ -692,14 +513,16 @@ package body WisiToken.Parse.LR is
                            Node_J.Item.Token_Count := Next_Count_Type;
 
                         when Error =>
-                           Actions_Done := True;
+                           raise SAL.Programmer_Error;
                         end case;
 
                         if Check_Semicolon then
                            Action_Done := True;
 
-                           if not Actions_Done then
-                              Node_I.Symbol := Next_Token_ID;
+                           Node_I.Symbol := Next_Token_ID;
+
+                           if Check_Semicolon then
+                              Actions_Done := True;
                            end if;
                         end if;
 
@@ -710,11 +533,10 @@ package body WisiToken.Parse.LR is
                      end loop;
 
                      Check_New_Line;
+                     State.Action_List.Insert (Node_I);
                   end;
 
                   exit when Actions_Done;
-                  Node_I.Next := new Action_Node;
-                  Node_I      := Node_I.Next;
                end loop;
             end;
 
@@ -722,36 +544,34 @@ package body WisiToken.Parse.LR is
                --  No Gotos
                null;
             else
+               State.Goto_List.Set_Capacity (Next_Count_Type);
                declare
-                  Node_I : Goto_Node_Ptr := new Goto_Node;
+                  Node : Goto_Node;
                begin
-                  State.Goto_List  := Node_I;
                   loop
-                     Node_I.Symbol := Next_Token_ID;
-                     Node_I.State  := Next_State_Index;
+                     Node.Symbol := Next_Token_ID;
+                     Node.State  := Next_State_Index;
+                     State.Goto_List.Insert (Node);
                      exit when Check_Semicolon;
-                     Node_I.Next   := new Goto_Node;
-                     Node_I        := Node_I.Next;
                   end loop;
                end;
             end if;
             Check_New_Line;
 
             declare
-               First : constant Integer := Next_Integer;
-               Last  : constant Integer := Next_Integer;
+               First : constant Count_Type := Next_Count_Type;
+               Last  : constant Integer    := Next_Integer;
             begin
                if Last = -1 then
                   --  State.Kernel not set for state 0
                   null;
                else
-                  State.Kernel.Set_First (Count_Type (First));
-                  State.Kernel.Set_Last (Count_Type (Last));
+                  State.Kernel.Set_First_Last (First, Count_Type (Last));
 
                   for I in State.Kernel.First_Index .. State.Kernel.Last_Index loop
                      State.Kernel (I).LHS := Next_Token_ID;
                      State.Kernel (I).Before_Dot := Next_Token_ID;
-                     State.Kernel (I).Length_After_Dot := Count_Type (Next_Integer);
+                     State.Kernel (I).Length_After_Dot := Next_Count_Type;
                   end loop;
                end if;
             end;
@@ -761,8 +581,12 @@ package body WisiToken.Parse.LR is
                --  No minimal action
                null;
             else
-               State.Minimal_Complete_Actions.Set_First (Count_Type (Next_Integer));
-               State.Minimal_Complete_Actions.Set_Last (Count_Type (Next_Integer));
+               declare
+                  First : constant Count_Type := Next_Count_Type;
+                  Last  : constant Count_Type := Next_Count_Type;
+               begin
+                  State.Minimal_Complete_Actions.Set_First_Last (First, Last);
+               end;
                for I in State.Minimal_Complete_Actions.First_Index .. State.Minimal_Complete_Actions.Last_Index loop
                   declare
                      Verb         : constant Minimal_Verbs := Next_Parse_Action_Verbs;
@@ -788,6 +612,9 @@ package body WisiToken.Parse.LR is
 
             exit when Check_EOI;
          end loop;
+
+         Table.Error_Action := new Parse_Action_Node'((Verb => Error), null);
+
          return Table;
       end;
    exception
@@ -830,40 +657,79 @@ package body WisiToken.Parse.LR is
         Left.Ins_Token_Index = Right.Ins_Token_Index;
    end Equal;
 
-   function None_Since_FF (Ops : in Config_Op_Arrays.Vector; Op : in Config_Op_Label) return Boolean
-   is begin
-      for O of reverse Ops loop
-         exit when O.Op = Fast_Forward;
-         if O.Op = Op then
+   function None (Ops : aliased in Config_Op_Arrays.Vector; Op : in Config_Op_Label) return Boolean
+   is
+      use Config_Op_Arrays, Config_Op_Array_Refs;
+   begin
+      for I in First_Index (Ops) .. Last_Index (Ops) loop
+         if Constant_Ref (Ops, I).Op /= Op then
             return False;
          end if;
       end loop;
       return True;
-   end None_Since_FF;
+   end None;
 
-   function Only_Since_FF (Ops : in Config_Op_Arrays.Vector; Op : in Config_Op_Label) return Boolean
+   function None_Since_FF (Ops : aliased in Config_Op_Arrays.Vector; Op : in Config_Op_Label) return Boolean
    is
-      use all type Ada.Containers.Count_Type;
+      use Config_Op_Arrays, Config_Op_Array_Refs;
    begin
-      if Ops.Length = 0 or else Ops (Ops.Last_Index).Op /= Op then
-         return False;
-      else
-         for O of reverse Ops loop
+      for I in reverse First_Index (Ops) .. Last_Index (Ops) loop
+         declare
+            O : Config_Op renames Constant_Ref (Ops, I);
+         begin
             exit when O.Op = Fast_Forward;
-            if O.Op /= Op then
+            if O.Op = Op then
                return False;
             end if;
+         end;
+      end loop;
+      return True;
+   end None_Since_FF;
+
+   function Only_Since_FF (Ops : aliased in Config_Op_Arrays.Vector; Op : in Config_Op_Label) return Boolean
+   is
+      use Config_Op_Arrays, Config_Op_Array_Refs;
+      use all type Ada.Containers.Count_Type;
+   begin
+      if Length (Ops) = 0 or else Constant_Ref (Ops, Last_Index (Ops)).Op /= Op then
+         return False;
+      else
+         for I in reverse First_Index (Ops) .. Last_Index (Ops) loop
+            declare
+               O : Config_Op renames Constant_Ref (Ops, I);
+            begin
+               exit when O.Op = Fast_Forward;
+               if O.Op /= Op then
+                  return False;
+               end if;
+            end;
          end loop;
          return True;
       end if;
    end Only_Since_FF;
+
+   function Any (Ops : aliased in Config_Op_Arrays.Vector; Op : in Config_Op_Label) return Boolean
+   is
+      use Config_Op_Arrays, Config_Op_Array_Refs;
+   begin
+      for I in First_Index (Ops) .. Last_Index (Ops) loop
+         declare
+            O : Config_Op renames Constant_Ref (Ops, I);
+         begin
+            if O.Op = Op then
+               return True;
+            end if;
+         end;
+      end loop;
+      return False;
+   end Any;
 
    function Valid_Tree_Indices (Stack : in Recover_Stacks.Stack; Depth : in SAL.Base_Peek_Type) return Boolean
    is
       use all type WisiToken.Syntax_Trees.Node_Index;
    begin
       for I in 1 .. Depth loop
-         if Stack (I).Tree_Index = Syntax_Trees.Invalid_Node_Index then
+         if Stack.Peek (I).Tree_Index = Syntax_Trees.Invalid_Node_Index then
             return False;
          end if;
       end loop;

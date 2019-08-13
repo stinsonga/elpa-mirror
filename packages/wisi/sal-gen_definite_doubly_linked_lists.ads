@@ -34,7 +34,7 @@ package SAL.Gen_Definite_Doubly_Linked_Lists is
    type List is new Ada.Finalization.Controlled with private
    with
       Constant_Indexing => Constant_Reference,
-      Variable_Indexing => Reference,
+      Variable_Indexing => Variable_Reference,
       Default_Iterator  => Iterate,
       Iterator_Element  => Element_Type;
 
@@ -51,6 +51,8 @@ package SAL.Gen_Definite_Doubly_Linked_Lists is
 
    overriding procedure Finalize (Container : in out List);
    --  Free all items in List.
+
+   procedure Clear (Container : in out List) renames Finalize;
 
    function Length (Container : in List) return Ada.Containers.Count_Type;
 
@@ -83,6 +85,8 @@ package SAL.Gen_Definite_Doubly_Linked_Lists is
    procedure Delete (Container : in out List; Position : in out Cursor)
    with Pre => Position /= No_Element;
 
+   procedure Delete_First (Container : in out List);
+
    procedure Insert
      (Container : in out List;
       Before    : in     Cursor;
@@ -92,25 +96,24 @@ package SAL.Gen_Definite_Doubly_Linked_Lists is
    function Persistent_Ref (Position : in Cursor) return access Element_Type
    with Pre => Position /= No_Element;
 
-   type Constant_Reference_Type (Element : not null access constant Element_Type) is null record
-   with Implicit_Dereference => Element;
+   type Constant_Reference_Type (Element : not null access constant Element_Type) is private with
+     Implicit_Dereference => Element;
 
    function Constant_Reference (Container : in List; Position : in Cursor) return Constant_Reference_Type
-   with Pre => Position /= No_Element;
-   pragma Inline (Constant_Reference);
+   with Inline, Pre => Position /= No_Element;
+   --  Not 'Constant_Ref' because that is taken, and it is wrong for Constant_Indexing
+
    function Constant_Ref (Position : in Cursor) return Constant_Reference_Type
-   with Pre => Position /= No_Element;
-   pragma Inline (Constant_Ref);
+   with Inline, Pre => Position /= No_Element;
 
-   type Reference_Type (Element : not null access Element_Type) is null record
-   with Implicit_Dereference => Element;
+   type Variable_Reference_Type (Element : not null access Element_Type) is private with
+     Implicit_Dereference => Element;
 
-   function Reference (Container : in List; Position : in Cursor) return Reference_Type
-   with Pre => Position /= No_Element;
-   pragma Inline (Reference);
-   function Ref (Position : in Cursor) return Reference_Type
-   with Pre => Position /= No_Element;
-   pragma Inline (Ref);
+   function Variable_Reference (Container : in List; Position : in Cursor) return Variable_Reference_Type
+   with Inline, Pre => Position /= No_Element;
+
+   function Variable_Ref (Position : in Cursor) return Variable_Reference_Type
+   with Inline, Pre => Position /= No_Element;
 
    package Iterator_Interfaces is new Ada.Iterator_Interfaces (Cursor, Has_Element);
 
@@ -138,6 +141,16 @@ private
    type Cursor is record
       Container : List_Access;
       Ptr       : Node_Access;
+   end record;
+
+   type Constant_Reference_Type (Element : not null access constant Element_Type) is
+   record
+      Dummy : Integer := raise Program_Error with "uninitialized reference";
+   end record;
+
+   type Variable_Reference_Type (Element : not null access Element_Type) is
+   record
+      Dummy : Integer := raise Program_Error with "uninitialized reference";
    end record;
 
    Empty_List : constant List := (Ada.Finalization.Controlled with null, null, 0);

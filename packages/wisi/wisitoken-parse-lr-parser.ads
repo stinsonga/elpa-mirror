@@ -80,10 +80,10 @@ package WisiToken.Parse.LR.Parser is
    type Post_Recover_Access is access procedure;
 
    type Parser is new WisiToken.Parse.Base_Parser with record
-      Table                                 : Parse_Table_Ptr;
-      Language_Fixes                        : Language_Fixes_Access;
+      Table                          : Parse_Table_Ptr;
+      Language_Fixes                 : Language_Fixes_Access;
       Language_Matching_Begin_Tokens : Language_Matching_Begin_Tokens_Access;
-      Language_String_ID_Set                : Language_String_ID_Set_Access;
+      Language_String_ID_Set         : Language_String_ID_Set_Access;
 
       String_Quote_Checked : Line_Number_Type := Invalid_Line_Number;
       --  Max line checked for missing string quote.
@@ -143,9 +143,9 @@ package WisiToken.Parse.LR.Parser is
    --  raise Parse_Error for an ambiguous parse.
 
    overriding procedure Execute_Actions (Parser : in out LR.Parser.Parser);
-   --  Call User_Data.Reduce on all nonterms in the syntax tree, then
-   --  User_Data.Delete_Token on any tokens deleted by error recovery,
-   --  then the grammar semantic actions.
+   --  Call User_Data.Delete_Token on any tokens deleted by error
+   --  recovery, then User_Data.Reduce and the grammar semantic actions
+   --  on all nonterms in the syntax tree.
 
    overriding function Any_Errors (Parser : in LR.Parser.Parser) return Boolean;
    --  Return True if any errors where encountered, recovered or not.

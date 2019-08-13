@@ -106,8 +106,6 @@ package body WisiToken.BNF.Output_Elisp_Common is
       Indent_Line ("  '(");
       Indent := Indent + 3;
       for Kind of Tokens loop
-         --  We don't use All_Tokens.Iterate here, because we need the
-         --  Kind/token nested list structure, and the order is not important.
          if not (-Kind.Kind = "line_comment" or -Kind.Kind = "whitespace") then
             Indent_Line ("(""" & (-Kind.Kind) & """");
             Indent := Indent + 1;
@@ -154,5 +152,61 @@ package body WisiToken.BNF.Output_Elisp_Common is
       Indent_Line ("])");
       Indent := Indent - 3;
    end Indent_Name_Table;
+
+   procedure Indent_Repair_Image
+     (Output_File_Root : in String;
+      Label            : in String;
+      Tokens           : in WisiToken.BNF.Tokens)
+   is
+      use all type Ada.Text_IO.Count;
+      use Ada.Strings.Unbounded;
+      use WisiToken.Generate;
+
+      function re2c_To_Elisp (Item : in String) return String
+      is
+         Result : String (1 .. Item'Length * 2);
+         Last : Integer := Result'First - 1;
+      begin
+         --  Convert re2c case-insensitive string '...' to elisp string "...",
+         --  with '"' escaped.
+         if Item (Item'First) /= ''' then
+            return Item;
+         end if;
+
+         for C of Item loop
+            if C = ''' then
+               Result (Last + 1) := '"';
+               Last := Last + 1;
+            elsif C = '"' then
+               Result (Last + 1) := '\';
+               Result (Last + 2) := '"';
+               Last := Last + 2;
+            else
+               Result (Last + 1) := C;
+               Last := Last + 1;
+            end if;
+         end loop;
+         return Result (1 .. Last);
+      end re2c_To_Elisp;
+
+   begin
+      Indent_Line ("(defconst " & Output_File_Root & "-" & Label & "-repair-image");
+      Indent_Line ("  '(");
+      Indent := Indent + 3;
+      for Pair of Tokens.Keywords loop
+         Indent_Line ("(" & (-Pair.Name) & " . " & (-Pair.Value) & ")");
+      end loop;
+      for Kind of Tokens.Tokens loop
+         for Token of Kind.Tokens loop
+            if Length (Token.Repair_Image) > 0 then
+               Indent_Line ("(" & (-Token.Name) & " . " & re2c_To_Elisp (-Token.Repair_Image) & ")");
+            else
+               Indent_Line ("(" & (-Token.Name) & " . " & (-Token.Value) & ")");
+            end if;
+         end loop;
+      end loop;
+      Indent_Line ("))");
+      Indent := Indent - 3;
+   end Indent_Repair_Image;
 
 end WisiToken.BNF.Output_Elisp_Common;

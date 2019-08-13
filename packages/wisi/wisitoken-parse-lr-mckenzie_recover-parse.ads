@@ -17,6 +17,7 @@
 
 pragma License (Modified_GPL);
 
+with SAL.Gen_Bounded_Definite_Vectors.Gen_Refs;
 with WisiToken.Parse.LR.McKenzie_Recover.Base;
 private package WisiToken.Parse.LR.McKenzie_Recover.Parse is
 
@@ -53,15 +54,17 @@ private package WisiToken.Parse.LR.McKenzie_Recover.Parse is
    package Parse_Item_Arrays is new SAL.Gen_Bounded_Definite_Vectors (Positive, Parse_Item, Capacity => 10);
    --  Parse_Item_Arrays.Capacity sets maximum conflicts in one call to Parse
 
+   package Parse_Item_Array_Refs is new Parse_Item_Arrays.Gen_Refs;
+
    function Parse
-     (Super             : not null access Base.Supervisor;
-      Shared            : not null access Base.Shared;
-      Parser_Index      : in              SAL.Peek_Type;
-      Parse_Items       :    out          Parse_Item_Arrays.Vector;
-      Config            : in              Configuration;
-      Shared_Token_Goal : in              Base_Token_Index;
-      All_Conflicts     : in              Boolean;
-      Trace_Prefix      : in              String)
+     (Super             :         not null access Base.Supervisor;
+      Shared            :         not null access Base.Shared;
+      Parser_Index      :         in              SAL.Peek_Type;
+      Parse_Items       : aliased    out          Parse_Item_Arrays.Vector;
+      Config            :         in              Configuration;
+      Shared_Token_Goal :         in              Base_Token_Index;
+      All_Conflicts     :         in              Boolean;
+      Trace_Prefix      :         in              String)
      return Boolean;
    --  Attempt to parse Config and any conflict configs. If not
    --  All_Conflicts, return when Config.Insert_Delete is all processed,

@@ -2,7 +2,7 @@
 --
 --  see spec
 --
---  Copyright (C) 2013, 2014, 2015, 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2013, 2014, 2015, 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --
@@ -85,8 +85,7 @@ package body WisiToken.Wisi_Ada is
    function Only (Subject : in Instance) return Prod_Arrays.Vector
    is begin
       return Result : Prod_Arrays.Vector do
-         Result.Set_First (Subject.LHS);
-         Result.Set_Last (Subject.LHS);
+         Result.Set_First_Last (Subject.LHS, Subject.LHS);
          Result (Subject.LHS) := Subject;
       end return;
    end Only;
@@ -96,7 +95,7 @@ package body WisiToken.Wisi_Ada is
       Index : Integer := Left.RHSs.Last_Index + 1;
    begin
       return Result : Instance := Left do
-         Result.RHSs.Set_Last (Left.RHSs.Last_Index + Integer (Right.RHSs.Length));
+         Result.RHSs.Set_First_Last (Result.RHSs.First_Index, Left.RHSs.Last_Index + Integer (Right.RHSs.Length));
          for RHS of Right.RHSs loop
             Result.RHSs (Index) := RHS;
             Index := Index + 1;
@@ -107,8 +106,7 @@ package body WisiToken.Wisi_Ada is
    function "and" (Left : in Instance; Right : in Instance) return Prod_Arrays.Vector
    is begin
       return Result : Prod_Arrays.Vector do
-         Result.Set_First (Token_ID'Min (Left.LHS, Right.LHS));
-         Result.Set_Last (Token_ID'Max (Left.LHS, Right.LHS));
+         Result.Set_First_Last (Token_ID'Min (Left.LHS, Right.LHS), Token_ID'Max (Left.LHS, Right.LHS));
          if Left.LHS = Right.LHS then
             Result (Left.LHS) := Merge (Left, Right);
          else
@@ -122,9 +120,9 @@ package body WisiToken.Wisi_Ada is
    is begin
       return Result : Prod_Arrays.Vector := Left do
          if Right.LHS < Result.First_Index then
-            Result.Set_First (Right.LHS);
+            Result.Set_First_Last (Right.LHS, Result.Last_Index);
          elsif Right.LHS > Result.Last_Index then
-            Result.Set_Last (Right.LHS);
+            Result.Set_First_Last (Result.First_Index, Right.LHS);
          end if;
 
          if Result (Right.LHS).LHS = Invalid_Token_ID then
@@ -139,14 +137,14 @@ package body WisiToken.Wisi_Ada is
    is begin
       return Result : Prod_Arrays.Vector := Left do
          if Right.First_Index < Result.First_Index then
-            Result.Set_First (Right.First_Index);
+            Result.Set_First_Last (Right.First_Index, Result.Last_Index);
          elsif Right.First_Index > Result.Last_Index then
-            Result.Set_Last (Right.First_Index);
+            Result.Set_First_Last (Result.First_Index, Right.First_Index);
          end if;
          if Right.Last_Index < Result.First_Index then
-            Result.Set_First (Right.Last_Index);
+            Result.Set_First_Last (Right.Last_Index, Result.Last_Index);
          elsif Right.Last_Index > Result.Last_Index then
-            Result.Set_Last (Right.Last_Index);
+            Result.Set_First_Last (Result.First_Index, Right.Last_Index);
          end if;
 
          for P of Right loop

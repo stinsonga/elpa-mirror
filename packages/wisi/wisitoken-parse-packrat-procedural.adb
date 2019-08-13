@@ -224,15 +224,12 @@ package body WisiToken.Parse.Packrat.Procedural is
 
       for Nonterm in Descriptor.First_Nonterminal .. Parser.Trace.Descriptor.Last_Nonterminal loop
          Parser.Derivs (Nonterm).Clear;
-         Parser.Derivs (Nonterm).Set_First (Parser.Terminals.First_Index);
-
+         Parser.Derivs (Nonterm).Set_First_Last (Parser.Terminals.First_Index, Parser.Terminals.Last_Index + 1);
          --  There might be an empty nonterm after the last token
-         Parser.Derivs (Nonterm).Set_Last (Parser.Terminals.Last_Index + 1);
       end loop;
 
       for Token_Index in Parser.Terminals.First_Index .. Parser.Terminals.Last_Index loop
          Junk := Parser.Tree.Add_Terminal (Token_Index, Parser.Terminals);
-         --  FIXME: move this into Lex_All, delete Terminals, just use Syntax_Tree
       end loop;
 
       Result := Apply_Rule (Parser, Parser.Start_ID, Parser.Terminals.First_Index - 1);

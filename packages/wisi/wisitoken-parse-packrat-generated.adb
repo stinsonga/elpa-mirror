@@ -35,13 +35,11 @@ package body WisiToken.Parse.Packrat.Generated is
       Parser.Base_Tree.Clear;
       Parser.Tree.Initialize (Parser.Base_Tree'Unchecked_Access, Flush => True);
       Parser.Lex_All;
-      Parser.Derivs.Set_First (Descriptor.First_Nonterminal);
-      Parser.Derivs.Set_Last (Descriptor.Last_Nonterminal);
+      Parser.Derivs.Set_First_Last (Descriptor.First_Nonterminal, Descriptor.Last_Nonterminal);
 
       for Nonterm in Descriptor.First_Nonterminal .. Parser.Trace.Descriptor.Last_Nonterminal loop
          Parser.Derivs (Nonterm).Clear;
-         Parser.Derivs (Nonterm).Set_First (Parser.Terminals.First_Index);
-         Parser.Derivs (Nonterm).Set_Last (Parser.Terminals.Last_Index);
+         Parser.Derivs (Nonterm).Set_First_Last (Parser.Terminals.First_Index, Parser.Terminals.Last_Index);
       end loop;
 
       for Token_Index in Parser.Terminals.First_Index .. Parser.Terminals.Last_Index loop

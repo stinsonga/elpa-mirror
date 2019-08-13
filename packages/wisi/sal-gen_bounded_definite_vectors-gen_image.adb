@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -17,19 +17,20 @@
 
 pragma License (Modified_GPL);
 
+with Ada.Strings.Fixed;
+with Ada.Strings.Unbounded;
 function SAL.Gen_Bounded_Definite_Vectors.Gen_Image (Item : in Vector) return String
 is
-   use all type SAL.Base_Peek_Type;
    use Ada.Strings;
    use Ada.Strings.Unbounded;
-   Result : Unbounded_String := To_Unbounded_String ("(");
-   Last   : Base_Peek_Type   := To_Peek_Index (Item.Last);
+   Result : Unbounded_String        := To_Unbounded_String ("(");
+   Last   : constant Base_Peek_Type := To_Peek_Index (Item.Last);
 begin
-   for I in Item.Elements (1 .. Last) loop
+   for I in 1 .. Last loop
       Result := Result &
-        ((if Trim
-          then Fixed.Trim (Element_Image (Item.Elements (I)), Left)
-          else Element_Image (Item.Elements (I)));
+        (if Trim
+         then Fixed.Trim (Element_Image (Item.Elements (I)), Left)
+         else Element_Image (Item.Elements (I)));
       if I /= Last then
          Result := Result & ", ";
       end if;

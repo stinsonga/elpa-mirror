@@ -29,7 +29,9 @@ generic
    type Element_Type (<>) is private;
 package SAL.Gen_Indefinite_Doubly_Linked_Lists is
 
-   type List is new Ada.Finalization.Controlled with private;
+   type List is new Ada.Finalization.Controlled with private with
+     Constant_Indexing => Constant_Reference,
+     Variable_Indexing => Variable_Reference;
 
    Empty_List : constant List;
 
@@ -66,23 +68,23 @@ package SAL.Gen_Indefinite_Doubly_Linked_Lists is
    function Persistent_Ref (Position : in Cursor) return access Element_Type
    with Pre => Has_Element (Position);
 
-   type Constant_Reference_Type (Element : not null access constant Element_Type) is null record
-   with Implicit_Dereference => Element;
+   type Constant_Reference_Type (Element : not null access constant Element_Type) is private with
+     Implicit_Dereference => Element;
 
-   function Constant_Reference (Position : in Cursor) return Constant_Reference_Type
-   with Pre => Has_Element (Position);
-   pragma Inline (Constant_Reference);
+   function Constant_Ref (Position : in Cursor) return Constant_Reference_Type
+   with Inline, Pre => Has_Element (Position);
 
-   function Constant_Ref (Container : in List'Class; Position : in Peek_Type) return Constant_Reference_Type
-   with Pre => Position <= Container.Length;
-   pragma Inline (Constant_Ref);
+   function Constant_Reference (Container : in List; Position : in Peek_Type) return Constant_Reference_Type
+   with Inline, Pre => Position <= Container.Length;
 
-   type Reference_Type (Element : not null access Element_Type) is null record
-   with Implicit_Dereference => Element;
+   type Variable_Reference_Type (Element : not null access Element_Type) is private with
+     Implicit_Dereference => Element;
 
-   function Reference (Position : in Cursor) return Reference_Type
-   with Pre => Has_Element (Position);
-   pragma Inline (Reference);
+   function Variable_Reference (Container : in List; Position : in Peek_Type) return Variable_Reference_Type
+   with Inline, Pre => Position <= Container.Length;
+
+   function Variable_Ref (Position : in Cursor) return Variable_Reference_Type
+   with Inline, Pre => Has_Element (Position);
 
 private
    type Node_Type;
@@ -108,6 +110,16 @@ private
    type Cursor is record
       Container : access List;
       Ptr       : Node_Access;
+   end record;
+
+   type Constant_Reference_Type (Element : not null access constant Element_Type) is
+   record
+      Dummy : Integer := raise Program_Error with "uninitialized reference";
+   end record;
+
+   type Variable_Reference_Type (Element : not null access Element_Type) is
+   record
+      Dummy : Integer := raise Program_Error with "uninitialized reference";
    end record;
 
    Empty_List : constant List := (Ada.Finalization.Controlled with null, null, 0);

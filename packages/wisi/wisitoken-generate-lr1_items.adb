@@ -71,7 +71,7 @@ package body WisiToken.Generate.LR1_Items is
 
          Modified := True;
       else
-         Include (Ref (Found), Lookaheads, Modified);
+         Include (Variable_Ref (Found), Lookaheads, Modified);
       end if;
 
       return Modified;
@@ -306,7 +306,7 @@ package body WisiToken.Generate.LR1_Items is
       if Found_Tree = Item_Set_Trees.No_Element then
          return Unknown_State;
       else
-         return Item_Set_Tree.Constant_Ref (Found_Tree).State;
+         return Item_Set_Tree (Found_Tree).State;
       end if;
    end Find;
 

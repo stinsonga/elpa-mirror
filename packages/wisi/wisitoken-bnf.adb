@@ -204,25 +204,26 @@ package body WisiToken.BNF is
    end Count;
 
    procedure Add_Token
-     (Tokens : in out Token_Lists.List;
-      Kind   : in     String;
-      Name   : in     String;
-      Value  : in     String)
+     (Tokens       : in out Token_Lists.List;
+      Kind         : in     String;
+      Name         : in     String;
+      Value        : in     String;
+      Repair_Image : in     String := "")
    is
       use type Ada.Strings.Unbounded.Unbounded_String;
    begin
       for Token_Kind of Tokens loop
          if Token_Kind.Kind = Kind then
-            Token_Kind.Tokens.Append ((+Name, +Value));
+            Token_Kind.Tokens.Append ((+Name, +Value, +Repair_Image));
             return;
          end if;
       end loop;
 
       --  Kind not found; add it
       declare
-         Temp : String_Pair_Lists.List;
+         Temp : String_Triple_Lists.List;
       begin
-         Temp.Append ((+Name, +Value));
+         Temp.Append ((+Name, +Value, +Repair_Image));
          Tokens.Append ((+Kind, Temp));
       end;
    end Add_Token;

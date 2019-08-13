@@ -254,7 +254,7 @@ package body WisiToken.Generate.LR is
    procedure Add_Action
      (Symbol               : in     Token_ID;
       Action               : in     Parse_Action_Rec;
-      Action_List          : in out Action_Node_Ptr;
+      Action_List          : in out Action_Arrays.Vector;
       Closure              : in     LR1_Items.Item_Set;
       Grammar              : in     WisiToken.Productions.Prod_Arrays.Vector;
       Has_Empty_Production : in     Token_ID_Set;
@@ -263,7 +263,7 @@ package body WisiToken.Generate.LR is
       Conflicts            : in out Conflict_Lists.List;
       Descriptor           : in     WisiToken.Descriptor)
    is
-      Matching_Action : constant Action_Node_Ptr := Find (Symbol, Action_List);
+      Matching_Action : constant Action_Arrays.Find_Reference_Type := Action_List.Find (Symbol);
    begin
       if Trace_Generate > Detail then
          Ada.Text_IO.Put (Image (Symbol, Descriptor) & " => ");
@@ -271,8 +271,8 @@ package body WisiToken.Generate.LR is
          Ada.Text_IO.New_Line;
       end if;
 
-      if Matching_Action /= null then
-         if Is_In (Action, Matching_Action.Action) then
+      if Matching_Action.Element /= null then
+         if Is_In (Action, Matching_Action.Actions) then
             --  Action is already in the list.
             if Trace_Generate > Detail then
                Ada.Text_IO.Put_Line (" - already present");
@@ -287,10 +287,10 @@ package body WisiToken.Generate.LR is
                --  list of conflicting actions, so we keep it the first item in the
                --  list; no order in the rest of the list.
                Action_A : constant Parse_Action_Rec :=
-                 (if Action.Verb in Shift | Accept_It then Action else Matching_Action.Action.Item);
+                 (if Action.Verb in Shift | Accept_It then Action else Matching_Action.Actions.Item);
 
                Action_B : constant Parse_Action_Rec :=
-                 (if Action.Verb in Shift | Accept_It then Matching_Action.Action.Item else Action);
+                 (if Action.Verb in Shift | Accept_It then Matching_Action.Actions.Item else Action);
 
                New_Conflict : constant Conflict :=
                  (Action_A    => Action_A.Verb,
@@ -362,9 +362,9 @@ package body WisiToken.Generate.LR is
                end if;
 
                if Action.Verb = Shift then
-                  Matching_Action.Action := new Parse_Action_Node'(Action, Matching_Action.Action);
+                  Matching_Action.Actions := new Parse_Action_Node'(Action, Matching_Action.Actions);
                else
-                  Matching_Action.Action.Next := new Parse_Action_Node'(Action, Matching_Action.Action.Next);
+                  Matching_Action.Actions.Next := new Parse_Action_Node'(Action, Matching_Action.Actions.Next);
                end if;
             end;
          end if;
@@ -442,51 +442,9 @@ package body WisiToken.Generate.LR is
          end if;
       end loop;
 
-      --  Place a default error action at the end of every state.
-      --  (it should always have at least one action already).
-      declare
-         --  The default action, when nothing else matches an input
-         Default_Action : constant Action_Node :=
-           --  The symbol here is actually irrelevant; it is the
-           --  position as the last on a state's action list that makes
-           --  it the default.
-           (Symbol => Invalid_Token_ID,
-            Action => new Parse_Action_Node'(Parse_Action_Rec'(Verb => WisiToken.Parse.LR.Error), null),
-            Next   => null);
-
-         Last_Action : Action_Node_Ptr := Table.States (State).Action_List;
-      begin
-         if Last_Action = null then
-            --  This happens if the first production in the grammar is
-            --  not the start symbol production.
-            --
-            --  It also happens when the start symbol production does
-            --  not have an explicit EOF, or when there is more than
-            --  one production that has the start symbol on the left
-            --  hand side.
-            --
-            --  It also happens when the grammar is bad, for example:
-            --
-            --  declarations <= declarations & declaration
-            --
-            --  without 'declarations <= declaration'.
-            --
-            --  We continue generating the grammar, in order to help the user
-            --  debug this issue.
-            WisiToken.Generate.Error := True;
-
-            Ada.Text_IO.Put_Line
-              (Ada.Text_IO.Current_Error, "Error: state" & State_Index'Image (State) &
-                 " has no actions; bad grammar, or " &
-                 "first production in grammar must be the only start symbol production, " &
-                 "and it must must have an explicit EOF.");
-         else
-            while Last_Action.Next /= null loop
-               Last_Action := Last_Action.Next;
-            end loop;
-            Last_Action.Next := new Action_Node'(Default_Action);
-         end if;
-      end;
+      --  We don't place a default error action at the end of every state;
+      --  Parse.LR.Action_For returns Table.Error_Action when Symbol is not found.
+      Table.Error_Action := new Parse_Action_Node'((Verb => WisiToken.Parse.LR.Error), null);
 
       for Item of Closure.Goto_List loop
          if Item.Symbol in Descriptor.First_Nonterminal .. Descriptor.Last_Nonterminal then
@@ -497,7 +455,7 @@ package body WisiToken.Generate.LR is
 
    procedure Add_Lookahead_Actions
      (Item                 : in     LR1_Items.Item;
-      Action_List          : in out Action_Node_Ptr;
+      Action_List          : in out Action_Arrays.Vector;
       Grammar              : in     WisiToken.Productions.Prod_Arrays.Vector;
       Has_Empty_Production : in     Token_ID_Set;
       First_Nonterm_Set    : in     Token_Array_Token_Set;
@@ -854,25 +812,21 @@ package body WisiToken.Generate.LR is
       Working_Set : LR1_Items.Item_Lists.List := Kernel.Set;
       Recursive   : Boolean := False;
 
-      function Find_Action (List : in Action_Node_Ptr; ID : in Token_ID) return Minimal_Action
-      is
-         Node : Action_Node_Ptr := List;
-      begin
-         loop
+      function Find_Action (List : in Action_Arrays.Vector; ID : in Token_ID) return Minimal_Action
+      is begin
+         for Node of List loop
             if Node.Symbol = ID then
-               case Node.Action.Item.Verb is
+               case Node.Actions.Item.Verb is
                when Shift =>
-                  return (Shift, ID, Node.Action.Item.State);
+                  return (Shift, ID, Node.Actions.Item.State);
                when Reduce =>
                   --  Item.Dot is a nonterm that starts with a nullable nonterm; reduce
                   --  to that first.
-                  return (Reduce, Node.Action.Item.Production.LHS, 0);
+                  return (Reduce, Node.Actions.Item.Production.LHS, 0);
                when Accept_It | WisiToken.Parse.LR.Error =>
                   raise SAL.Programmer_Error;
                end case;
             end if;
-            Node := Node.Next;
-            exit when Node = null;
          end loop;
          raise SAL.Programmer_Error;
       end Find_Action;
@@ -1219,6 +1173,7 @@ package body WisiToken.Generate.LR is
       Action_Names : in Names_Array_Array;
       Check_Names  : in Names_Array_Array)
    is
+      use all type SAL.Base_Peek_Type;
       use Ada.Containers;
       use Ada.Text_IO;
       File : File_Type;
@@ -1238,75 +1193,67 @@ package body WisiToken.Generate.LR is
       New_Line (File);
 
       for State of Table.States loop
-         declare
-            Node_I : Action_Node_Ptr := State.Action_List;
-         begin
-            loop
-               exit when Node_I = null;
-               --  Action first, so we know if Symbol is present (not when Error)
-               declare
-                  Node_J     : Parse_Action_Node_Ptr := Node_I.Action;
-                  Put_Symbol : Boolean               := True;
-               begin
-                  loop
-                     Put (File, Parse_Action_Verbs'Image (Node_J.Item.Verb));
+         Put (File, Trimmed_Image (State.Action_List.Length) & ' ');
+         for I in State.Action_List.First_Index .. State.Action_List.Last_Index loop
+            --  Action first, for historical reasons
+            declare
+               Node_I : Action_Node renames State.Action_List (I);
+               Node_J : Parse_Action_Node_Ptr := Node_I.Actions;
+            begin
+               loop
+                  Put (File, Parse_Action_Verbs'Image (Node_J.Item.Verb));
 
-                     case Node_J.Item.Verb is
-                     when Shift =>
-                        Put (File, State_Index'Image (Node_J.Item.State));
+                  case Node_J.Item.Verb is
+                  when Shift =>
+                     Put (File, State_Index'Image (Node_J.Item.State));
 
-                     when Reduce | Accept_It =>
-                        Put (File, Token_ID'Image (Node_J.Item.Production.LHS) &
-                               Integer'Image (Node_J.Item.Production.RHS));
+                  when Reduce | Accept_It =>
+                     Put (File, Token_ID'Image (Node_J.Item.Production.LHS) &
+                            Integer'Image (Node_J.Item.Production.RHS));
 
-                        if Action_Names (Node_J.Item.Production.LHS) /= null and then
-                          Action_Names (Node_J.Item.Production.LHS)(Node_J.Item.Production.RHS) /= null
-                        then
-                           Put (File, " true");
-                        else
-                           Put (File, " false");
-                        end if;
-                        if Check_Names (Node_J.Item.Production.LHS) /= null and then
-                          Check_Names (Node_J.Item.Production.LHS)(Node_J.Item.Production.RHS) /= null
-                        then
-                           Put (File, " true");
-                        else
-                           Put (File, " false");
-                        end if;
+                     if Action_Names (Node_J.Item.Production.LHS) /= null and then
+                       Action_Names (Node_J.Item.Production.LHS)(Node_J.Item.Production.RHS) /= null
+                     then
+                        Put (File, " true");
+                     else
+                        Put (File, " false");
+                     end if;
+                     if Check_Names (Node_J.Item.Production.LHS) /= null and then
+                       Check_Names (Node_J.Item.Production.LHS)(Node_J.Item.Production.RHS) /= null
+                     then
+                        Put (File, " true");
+                     else
+                        Put (File, " false");
+                     end if;
 
-                        Put (File, Ada.Containers.Count_Type'Image (Node_J.Item.Token_Count));
+                     Put (File, Ada.Containers.Count_Type'Image (Node_J.Item.Token_Count));
 
-                     when Parse.LR.Error =>
-                        --  Error action terminates the action list
-                        Put_Symbol := False;
-                     end case;
+                  when Parse.LR.Error =>
+                     raise SAL.Programmer_Error;
+                  end case;
 
-                     Node_J := Node_J.Next;
-                     exit when Node_J = null;
-                     Put (File, ' ');
-                  end loop;
-                  Put (File, ';');
-                  if Put_Symbol then
-                     Put (File, Token_ID'Image (Node_I.Symbol));
-                  end if;
-               end;
+                  Node_J := Node_J.Next;
+                  exit when Node_J = null;
+                  Put (File, ' ');
+               end loop;
+               Put (File, ';');
+               Put (File, Token_ID'Image (Node_I.Symbol));
+            end;
+            if I = State.Action_List.Last_Index then
+               Put_Line (File, ";");
+            else
                New_Line (File);
+            end if;
+         end loop;
 
-               Node_I := Node_I.Next;
+         if State.Goto_List.Length > 0 then
+            Put (File, Trimmed_Image (State.Goto_List.Length));
+            for Node of State.Goto_List loop
+               Put (File, Node.Symbol'Image & Node.State'Image);
             end loop;
-         end;
-
-         declare
-            Node_I : Goto_Node_Ptr := State.Goto_List;
-         begin
-            loop
-               exit when Node_I = null;
-               Put (File, Token_ID'Image (Symbol (Node_I)) & State_Index'Image (Parse.LR.State (Node_I)));
-               Node_I := Next (Node_I);
-            end loop;
-            Put (File, ';');
-            New_Line (File);
-         end;
+         end if;
+         Put (File, ';');
+         New_Line (File);
 
          if State.Kernel.Length = 0 then
             --  Not set for state 0
@@ -1455,34 +1402,27 @@ package body WisiToken.Generate.LR is
       use all type Ada.Containers.Count_Type;
       use Ada.Text_IO;
       use Ada.Strings.Fixed;
-      Action_Ptr : Action_Node_Ptr := State.Action_List;
-      Goto_Ptr   : Goto_Node_Ptr   := State.Goto_List;
    begin
-      while Action_Ptr /= null loop
-         Put ("   ");
-         if Action_Ptr.Next = null then
-            Put ("default" & (Descriptor.Image_Width - 7) * ' ' & " => ");
-
-         elsif Action_Ptr.Action.Item.Verb /= Parse.LR.Error then
-            Put (Image (Action_Ptr.Symbol, Descriptor) &
-                   (Descriptor.Image_Width - Image (Action_Ptr.Symbol, Descriptor)'Length) * ' '
-                   & " => ");
-         end if;
-         Put (Descriptor, Action_Ptr.Action);
+      for Action of State.Action_List loop
+         Put ("   " & Image (Action.Symbol, Descriptor) &
+                (Descriptor.Image_Width - Image (Action.Symbol, Descriptor)'Length) * ' '
+                & " => ");
+         Put (Descriptor, Action.Actions);
          New_Line;
-         Action_Ptr := Action_Ptr.Next;
       end loop;
 
-      if Goto_Ptr /= null then
+      --  The error line is redundant, but we keep it to match existing good parse tables.
+      Put_Line ("   default" & (Descriptor.Image_Width - 7) * ' ' & " => ERROR");
+
+      if State.Goto_List.Length > 0 then
          New_Line;
       end if;
 
-      while Goto_Ptr /= null loop
+      for Item of State.Goto_List loop
          Put_Line
-           ("   " & Image (Symbol (Goto_Ptr), Descriptor) &
-              (Descriptor.Image_Width - Image (Symbol (Goto_Ptr), Descriptor)'Length) * ' ' &
-              " goto state" & State_Index'Image (Parse.LR.State (Goto_Ptr)));
-         Goto_Ptr := Next (Goto_Ptr);
+           ("   " & Image (Item.Symbol, Descriptor) &
+              (Descriptor.Image_Width - Image (Item.Symbol, Descriptor)'Length) * ' ' &
+              " goto state" & Item.State'Image);
       end loop;
 
       New_Line;

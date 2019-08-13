@@ -2,7 +2,7 @@
 --
 --  Generic unbounded red-black tree with definite elements.
 --
---  Copyright (C) 2017, 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -298,53 +298,53 @@ package body SAL.Gen_Unbounded_Definite_Red_Black_Trees is
       return Cursor.Node /= null;
    end Has_Element;
 
-   function Constant_Ref
+   function Constant_Reference
      (Container : aliased in Tree;
       Position  :         in Cursor)
-     return Constant_Ref_Type
+     return Constant_Reference_Type
    is
       pragma Unreferenced (Container);
    begin
-      return (Element => Position.Node.all.Element'Access);
-   end Constant_Ref;
+      return (Element => Position.Node.all.Element'Access, Dummy => 1);
+   end Constant_Reference;
 
-   function Constant_Ref
+   function Constant_Reference
      (Container : aliased in Tree;
       Key       :         in Key_Type)
-     return Constant_Ref_Type
+     return Constant_Reference_Type
    is
       Node : constant Node_Access := Find (Container.Root, Key, Container.Nil);
    begin
       if Node = null then
          raise Not_Found;
       else
-         return (Element => Node.all.Element'Access);
+         return (Element => Node.all.Element'Access, Dummy => 1);
       end if;
-   end Constant_Ref;
+   end Constant_Reference;
 
-   function Variable_Ref
+   function Variable_Reference
      (Container : aliased in Tree;
       Position  :         in Cursor)
-     return Variable_Ref_Type
+     return Variable_Reference_Type
    is
       pragma Unreferenced (Container);
    begin
-      return (Element => Position.Node.all.Element'Access);
-   end Variable_Ref;
+      return (Element => Position.Node.all.Element'Access, Dummy => 1);
+   end Variable_Reference;
 
-   function Variable_Ref
+   function Variable_Reference
      (Container : aliased in Tree;
       Key       :         in Key_Type)
-     return Variable_Ref_Type
+     return Variable_Reference_Type
    is
       Node : constant Node_Access := Find (Container.Root, Key, Container.Nil);
    begin
       if Node = null then
          raise Not_Found;
       else
-         return (Element => Node.all.Element'Access);
+         return (Element => Node.all.Element'Access, Dummy => 1);
       end if;
-   end Variable_Ref;
+   end Variable_Reference;
 
    function Iterate (Tree : in Pkg.Tree'Class) return Iterator
    is begin

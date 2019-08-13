@@ -38,12 +38,12 @@ package body WisiToken.Parse is
          if Token.Line /= Invalid_Line_Number then
             --  Some lexers don't support line numbers.
             if Parser.Lexer.First then
-               Parser.Line_Begin_Token.Set_Length (Ada.Containers.Count_Type (Token.Line));
+               Parser.Line_Begin_Token.Set_First_Last (Line_Number_Type'First, Token.Line);
                Parser.Line_Begin_Token (Token.Line) := Parser.Terminals.Last_Index +
                  (if Token.ID >= Parser.Trace.Descriptor.First_Terminal then 1 else 0);
 
             elsif Token.ID = Parser.Trace.Descriptor.EOI_ID then
-               Parser.Line_Begin_Token.Set_Length (Ada.Containers.Count_Type (Token.Line + 1));
+               Parser.Line_Begin_Token.Set_First_Last (Line_Number_Type'First, Token.Line + 1);
                Parser.Line_Begin_Token (Token.Line + 1) := Parser.Terminals.Last_Index + 1;
             end if;
          end if;

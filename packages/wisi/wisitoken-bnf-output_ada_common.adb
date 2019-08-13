@@ -33,13 +33,12 @@ package body WisiToken.BNF.Output_Ada_Common is
    function Duplicate_Reduce (State : in Parse.LR.Parse_State) return Boolean
    is
       use Parse.LR;
-      Node        : Action_Node_Ptr       := State.Action_List;
-      Action_Node : Parse_Action_Node_Ptr := Node.Action;
+      Action_Node : Parse_Action_Node_Ptr;
       First       : Boolean               := True;
       Action      : Reduce_Action_Rec;
    begin
-      loop
-         Action_Node := Node.Action;
+      for Node of State.Action_List loop
+         Action_Node := Node.Actions;
          if Action_Node.Next /= null then
             --  conflict
             return False;
@@ -55,32 +54,27 @@ package body WisiToken.BNF.Output_Ada_Common is
                return False;
             end if;
          end if;
-         Node := Node.Next;
-         exit when Node.Next = null; --  Last entry is Error.
       end loop;
       return True;
    end Duplicate_Reduce;
 
    function Symbols_Image (State : in Parse.LR.Parse_State) return String
    is
+      use all type Ada.Containers.Count_Type;
       use Ada.Strings.Unbounded;
-      use Parse.LR;
 
       Result     : Unbounded_String;
-      Need_Comma : Boolean          := False;
-      Node       : Action_Node_Ptr  := State.Action_List;
+      Need_Comma : Boolean := False;
    begin
-      if Generate_Utils.Actions_Length (State) = 1 then
-         return "(1 => " & Token_ID'Image (Node.Symbol) & ")";
+      if State.Action_List.Length = 1 then
+         return "(1 => " & Token_ID'Image (State.Action_List (1).Symbol) & ")";
       else
          Result := +"(";
-         loop
+         for Node of State.Action_List loop
             Result := Result &
               (if Need_Comma then ", " else "") &
               Trimmed_Image (Node.Symbol);
             Need_Comma := True;
-            Node := Node.Next;
-            exit when Node.Next = null; -- last is Error
          end loop;
          Result := Result & ")";
          return -Result;
@@ -267,6 +261,7 @@ package body WisiToken.BNF.Output_Ada_Common is
                            "WisiToken.Parse.LR.Parser.Language_String_ID_Set_Access;");
          else
             Indent_Line ("  (Parser                       :    out WisiToken.Parse.LR.Parser_No_Recover.Parser;");
+            Indent_Line ("   --  no error recovery");
          end if;
          Indent_Line ("   Trace                        : not null access WisiToken.Trace'Class;");
          Indent_Start ("   User_Data                    : in     WisiToken.Syntax_Trees.User_Data_Access");
@@ -555,11 +550,15 @@ package body WisiToken.BNF.Output_Ada_Common is
          declare
             use Ada.Containers;
             Base_Indent : constant Ada.Text_IO.Count := Indent;
-            Node        : Action_Node_Ptr := Table.States (State_Index).Action_List;
          begin
+            Indent_Line
+              ("Table.States (" & Trimmed_Image (State_Index) & ").Action_List.Set_Capacity (" &
+                 Trimmed_Image (Table.States (State_Index).Action_List.Length) & ");");
+
             if Duplicate_Reduce (Table.States (State_Index)) then
                declare
-                  Action : constant Reduce_Action_Rec := Node.Action.Item;
+                  Node   : Action_Node renames Table.States (State_Index).Action_List (1);
+                  Action : constant Reduce_Action_Rec := Node.Actions.Item;
                begin
                   Set_Col (Indent);
                   Line := +"Add_Action (Table.States (" & Trimmed_Image (State_Index) & "), " &
@@ -587,11 +586,10 @@ package body WisiToken.BNF.Output_Ada_Common is
                end;
 
             else
-               loop
-                  exit when Node = null;
+               for Node of Table.States (State_Index).Action_List loop
                   Set_Col (Indent);
                   declare
-                     Action_Node : Parse_Action_Node_Ptr := Node.Action;
+                     Action_Node : Parse_Action_Node_Ptr := Node.Actions;
                   begin
                      case Action_Node.Item.Verb is
                      when Shift =>
@@ -632,7 +630,7 @@ package body WisiToken.BNF.Output_Ada_Common is
                         Append (");");
 
                      when Parse.LR.Error =>
-                        Line := +"Add_Error (Table.States (" & Trimmed_Image (State_Index) & "));";
+                        raise SAL.Programmer_Error;
                      end case;
                      Indent_Wrap (-Line);
                      Line_Count := Line_Count + 1;
@@ -675,24 +673,22 @@ package body WisiToken.BNF.Output_Ada_Common is
                      end loop;
                   end;
                   Indent := Base_Indent;
-                  Node   := Node.Next;
                end loop;
             end if;
          end Actions;
 
+         if Table.States (State_Index).Goto_List.Length > 0 then
+            Indent_Line
+              ("Table.States (" & Trimmed_Image (State_Index) & ").Goto_List.Set_Capacity (" &
+                 Trimmed_Image (Table.States (State_Index).Goto_List.Length) & ");");
+         end if;
          Gotos :
-         declare
-            Node : Goto_Node_Ptr := Table.States (State_Index).Goto_List;
-         begin
-            loop
-               exit when Node = null;
-               Set_Col (Indent);
-               Put ("Add_Goto (Table.States (" & Trimmed_Image (State_Index) & "), ");
-               Put_Line (Trimmed_Image (Symbol (Node)) & ", " & Trimmed_Image (State (Node)) & ");");
-               Line_Count := Line_Count + 1;
-               Node := Next (Node);
-            end loop;
-         end Gotos;
+         for Node of Table.States (State_Index).Goto_List loop
+            Set_Col (Indent);
+            Put ("Add_Goto (Table.States (" & Trimmed_Image (State_Index) & "), ");
+            Put_Line (Trimmed_Image (Node.Symbol) & ", " & Trimmed_Image (Node.State) & ");");
+            Line_Count := Line_Count + 1;
+         end loop Gotos;
 
          if Input_Data.Language_Params.Error_Recover then
             if Table.States (State_Index).Kernel.Length > 0 then
@@ -741,6 +737,7 @@ package body WisiToken.BNF.Output_Ada_Common is
       for Subr in 1 .. Subr_Count loop
          Indent_Line ("Subr_" & Trimmed_Image (Subr) & ";");
       end loop;
+      Indent_Line ("Table.Error_Action := new Parse_Action_Node'((Verb => Error), null);");
       Indent := Indent - 3;
       Indent_Line ("end;");
    end Create_LR_Parser_Table;
@@ -1217,14 +1214,9 @@ package body WisiToken.BNF.Output_Ada_Common is
                Indent_Line ("    continue; }");
 
             elsif Kind (I) = "delimited-text" then
-               --  Val contains the start and end strings, separated by space
-               declare
-                  Start_Last : constant Integer := Index (Val, " ");
-               begin
-                  Indent_Line
-                    (Val (1 .. Start_Last - 1) & " {*id = " & WisiToken.Token_ID'Image (ID (I)) &
-                       "; skip_to(lexer, " & Val (Start_Last + 1 .. Val'Last) & "); continue;}");
-               end;
+               Indent_Line
+                    (Val & " {*id = " & WisiToken.Token_ID'Image (ID (I)) &
+                       "; skip_to(lexer, " & Repair_Image (I) & "); continue;}");
 
             elsif 0 /= Index (Source => Val, Pattern => "/") then
                Indent_Line (Val & " {*id = " & WisiToken.Token_ID'Image (ID (I)) & "; continue;}");

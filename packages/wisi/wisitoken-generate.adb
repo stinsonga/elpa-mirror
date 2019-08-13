@@ -268,8 +268,7 @@ package body WisiToken.Generate is
       subtype Terminal is Token_ID range Descriptor.First_Terminal .. Descriptor.Last_Terminal;
    begin
       return Result : Token_Sequence_Arrays.Vector do
-         Result.Set_First (First'First (1));
-         Result.Set_Last (First'Last (1));
+         Result.Set_First_Last (First'First (1), First'Last (1));
 
          for I in First'Range (1) loop
             declare

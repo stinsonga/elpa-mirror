@@ -100,7 +100,7 @@ package body WisiToken.Generate.LR.LR1_Generate is
       Found_State  : Unknown_State_Index;
 
    begin
-      C.Set_First (First_State_Index);
+      C.Set_First_Last (First_State_Index, First_State_Index - 1);
 
       Add (New_Item_Set, C, C_Tree, Descriptor, Include_Lookaheads => True);
 

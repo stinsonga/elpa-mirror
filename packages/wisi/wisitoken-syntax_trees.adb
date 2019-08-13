@@ -229,7 +229,10 @@ package body WisiToken.Syntax_Trees is
    is
       function Compute (N : in Syntax_Trees.Node) return Node_Index
       is begin
-         if Child_Index in N.Children.First_Index .. N.Children.Last_Index then
+         if N.Label /= Nonterm then
+            return Invalid_Node_Index;
+
+         elsif Child_Index in N.Children.First_Index .. N.Children.Last_Index then
             return N.Children (Child_Index);
          else
             return Invalid_Node_Index;
@@ -244,9 +247,7 @@ package body WisiToken.Syntax_Trees is
    end Child;
 
    function Children (N : in Syntax_Trees.Node) return Valid_Node_Index_Array
-   is
-      use all type Ada.Containers.Count_Type;
-   begin
+   is begin
       if N.Children.Length = 0 then
          return (1 .. 0 => <>);
       else
@@ -355,7 +356,7 @@ package body WisiToken.Syntax_Trees is
                      end loop;
 
                      if Last_Index = SAL.Base_Peek_Type'Last then
-                        New_Children.Set_Length (Children'Length);
+                        New_Children.Set_First_Last (Children'First, Children'Last);
                         for I in Children'Range loop
                            New_Children (I) := Copy_Node (Tree, Children (I), Parent);
                         end loop;
@@ -488,6 +489,7 @@ package body WisiToken.Syntax_Trees is
          end if;
          Tree.Branched_Nodes.Finalize;
          Tree.Last_Shared_Node := Invalid_Node_Index;
+         Tree.Shared_Tree := null;
       end if;
    end Finalize;
 
@@ -592,7 +594,31 @@ package body WisiToken.Syntax_Trees is
          end if;
       end Process;
 
-      Junk : constant Boolean := Process_Tree (Tree, Node, After, Process'Access);
+      Junk : constant Boolean := Process_Tree (Tree, Node, Before, Process'Access);
+      pragma Unreferenced (Junk);
+   begin
+      return Found;
+   end Find_Descendant;
+
+   function Find_Descendant
+     (Tree      : in     Syntax_Trees.Tree;
+      Node      : in     Valid_Node_Index;
+      Predicate : access function (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Boolean)
+     return Node_Index
+   is
+      Found : Node_Index := Invalid_Node_Index;
+
+      function Process (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Boolean
+      is begin
+         if Predicate (Tree, Node) then
+            Found := Node;
+            return False;
+         else
+            return True;
+         end if;
+      end Process;
+
+      Junk : constant Boolean := Process_Tree (Tree, Node, Before, Process'Access);
       pragma Unreferenced (Junk);
    begin
       return Found;
@@ -871,16 +897,12 @@ package body WisiToken.Syntax_Trees is
    end First_Terminal_ID;
 
    function Has_Branched_Nodes (Tree : in Syntax_Trees.Tree) return Boolean
-   is
-      use all type Ada.Containers.Count_Type;
-   begin
+   is begin
       return Tree.Branched_Nodes.Length > 0;
    end Has_Branched_Nodes;
 
    function Has_Children (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Boolean
-   is
-      use all type Ada.Containers.Count_Type;
-   begin
+   is begin
       if Node <= Tree.Last_Shared_Node then
          return Tree.Shared_Tree.Nodes (Node).Children.Length > 0;
       else
@@ -1438,7 +1460,7 @@ package body WisiToken.Syntax_Trees is
 
       Min_Terminal_Index_Set : Boolean := False;
    begin
-      N.Children.Set_Length (Children'Length);
+      N.Children.Set_First_Last (Children'First, Children'Last);
       for I in Children'Range loop
          N.Children (J) := Children (I);
          declare
@@ -1516,7 +1538,7 @@ package body WisiToken.Syntax_Trees is
       Parent_Node.RHS_Index := New_ID.RHS;
       Parent_Node.Action    := null;
 
-      Parent_Node.Children.Set_Length (Children'Length);
+      Parent_Node.Children.Set_First_Last (Children'First, Children'Last);
       for I in Children'Range loop
          --  We don't update Min/Max_terminal_index; we assume Set_Children is
          --  only called after parsing is done, so they are no longer needed.
@@ -1544,8 +1566,10 @@ package body WisiToken.Syntax_Trees is
 
    procedure Set_Flush_False (Tree : in out Syntax_Trees.Tree)
    is begin
-      Tree.Flush := False;
-      Tree.Branched_Nodes.Set_First (Tree.Last_Shared_Node + 1);
+      if Tree.Flush then
+         Tree.Flush := False;
+         Tree.Branched_Nodes.Set_First_Last (Tree.Last_Shared_Node + 1, Tree.Last_Shared_Node);
+      end if;
    end Set_Flush_False;
 
    procedure Set_Name_Region

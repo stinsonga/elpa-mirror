@@ -165,25 +165,25 @@ package body SAL.Gen_Unbounded_Definite_Stacks is
       Stack.Data (Depth - Index + 1) := Element;
    end Set;
 
-   function Constant_Ref
+   function Constant_Reference
      (Container : aliased in Stack'Class;
       Position  :         in Peek_Type)
-     return Constant_Ref_Type
+     return Constant_Reference_Type
    is begin
       return
         (Element => Container.Data (Container.Top - Position + 1)'Access,
          Dummy => 1);
-   end Constant_Ref;
+   end Constant_Reference;
 
-   function Constant_Ref
+   function Constant_Reference
      (Container : aliased in Stack'Class;
       Position  :         in Cursor)
-     return Constant_Ref_Type
+     return Constant_Reference_Type
    is begin
       return
         (Element => Container.Data (Container.Top - Position.Ptr + 1)'Access,
          Dummy => 1);
-   end Constant_Ref;
+   end Constant_Reference;
 
    function Has_Element (Position : in Cursor) return Boolean
    is begin

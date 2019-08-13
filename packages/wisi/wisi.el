@@ -7,8 +7,8 @@
 ;; Keywords: parser
 ;;  indentation
 ;;  navigation
-;; Version: 2.1.1
-;; package-requires: ((cl-lib "1.0") (emacs "25.0") (seq "2.20"))
+;; Version: 2.2.0
+;; package-requires: ((emacs "25.0") (seq "2.20"))
 ;; URL: http://stephe-leake.org/ada/wisitoken.html
 ;;
 ;; This file is part of GNU Emacs.
@@ -98,22 +98,10 @@
 ;;   than we need. Finally, the semantic parser does not support error
 ;;   correction, and thus fails in most editing situations.
 ;;
-;; We use wisitoken wisi-generate to compile BNF to Elisp source, and
-;; wisi-compile-grammar to compile that to the parser table. See
-;; ada-mode info for more information on the developer tools used for
-;; ada-mode and wisi.
+;; We use the WisiToken tool wisi-bnf-generate to compile BNF or EBNF
+;; to Ada source, See ada-mode.info and wisi.info for more information
+;; on the developer tools used for ada-mode and wisi.
 ;;
-;; Alternately, to gain speed and error handling, we use wisi-generate
-;; to generate Ada source, and run that in an external process. That
-;; supports error correction while parsing.
-;;
-;;;; syntax-propertize
-;;
-;; `wisi-forward-token' relies on syntax properties, so
-;; `syntax-propertize' must be called on the text to be lexed before
-;; wisi-forward-token is called. Emacs >= 25 calls syntax-propertize
-;; transparently in the low-level lexer functions.
-
 ;;; Code:
 
 (require 'cl-lib)
@@ -121,7 +109,6 @@
 (require 'seq)
 (require 'semantic/lex)
 (require 'wisi-parse-common)
-(require 'wisi-elisp-lexer)
 (require 'wisi-fringe)
 (require 'xref)
 
@@ -132,19 +119,13 @@
   :safe 'integerp)
 (make-variable-buffer-local 'wisi-size-threshold)
 
-(defcustom wisi-partial-parse-threshold 100001
-  "Minimum size that will be parsed by each call to the parser.
-A parse is always requested at a point (or on a region); the
-point is first expanded to a start point before the region and an
-end point after the region, that the parser can gracefully
-handle. If the final region covers the entire buffer, a complete
-parse is done. Indent assumes the start point of the parse region
-is properly indented. Most navigate parses ignore this setting
-and parse the whole buffer."
+(defcustom wisi-indent-context-lines 0
+  "Minimum number of lines before point to include in a parse for indent.
+Increasing this will give better results when in the middle of a
+deeply nested statement, but worse in some situations."
   :type 'integer
   :group 'wisi
   :safe 'integerp)
-(make-variable-buffer-local 'wisi-partial-parse-threshold)
 
 (defvar wisi-inhibit-parse nil
   "When non-nil, don't run the parser.
@@ -175,20 +156,33 @@ Useful when debugging parser or parser actions."
 ;;;; token info cache
 
 (defvar-local wisi-parse-failed nil
-  "Non-nil when a recent parse has failed - cleared when parse succeeds.")
+  "Non-nil when last parse failed - cleared when parse succeeds.")
 
 (defvar-local wisi--parse-try
   (list
    (cons 'face t)
    (cons 'navigate t)
    (cons 'indent t))
-  "Non-nil when parse is needed - cleared when parse succeeds.")
+  "Non-nil when parse is needed because text has changed - cleared when parse succeeds.")
 
 (defun wisi-parse-try (&optional parse-action)
   (cdr (assoc (or parse-action wisi--parse-action) wisi--parse-try)))
 
 (defun wisi-set-parse-try (value &optional parse-action)
   (setcdr (assoc (or parse-action wisi--parse-action) wisi--parse-try) value))
+
+(defvar-local wisi--last-parse-region
+  (list
+   (cons 'face nil)
+   (cons 'navigate nil)
+   (cons 'indent nil))
+  "Last region on which parse was requested.")
+
+(defun wisi-last-parse-region (&optional parse-action)
+  (cdr (assoc (or parse-action wisi--parse-action) wisi--last-parse-region)))
+
+(defun wisi-set-last-parse-region (begin end parse-action)
+  (setcdr (assoc parse-action wisi--last-parse-region) (cons begin end)))
 
 (defvar-local wisi--cached-regions
   (list
@@ -366,6 +360,9 @@ Truncate any region that overlaps POS."
   (wisi-set-parse-try t 'indent)
   (wisi-set-parse-try t 'face)
   (wisi-set-parse-try t 'navigate)
+  (wisi-set-last-parse-region (point-min) (point-min) 'indent)
+  (wisi-set-last-parse-region (point-min) (point-min) 'face)
+  (wisi-set-last-parse-region (point-min) (point-min) 'navigate)
   (wisi-fringe-clean))
 
 ;; wisi--change-* keep track of buffer modifications.
@@ -390,11 +387,8 @@ Set by `wisi-before-change', used and reset by `wisi--post-change'.")
   "Non-nil when `wisi-indent-region' is actively indenting.
 Used to ignore whitespace changes in before/after change hooks.")
 
-(defvar-local wisi--parser nil
-  "Choice of wisi parser implementation; a ‘wisi-parser’ object.")
-
 (defvar-local wisi--last-parse-action nil
-  "Last value of `wisi--parse-action' when `wisi-validate-cache' was run.")
+  "Value of `wisi--parse-action' when `wisi-validate-cache' was last run.")
 
 (defun wisi-before-change (begin end)
   "For `before-change-functions'."
@@ -707,6 +701,7 @@ Usefull if the parser appears to be hung."
 	(message msg))
 
       (setq wisi--last-parse-action wisi--parse-action)
+      (wisi-set-last-parse-region begin parse-end wisi--parse-action)
 
       (unless (eq wisi--parse-action 'face)
 	(when (buffer-live-p wisi-error-buffer)
@@ -792,23 +787,30 @@ Usefull if the parser appears to be hung."
       (let ((wisi--parse-action parse-action))
 	(wisi--check-change)
 
-	;; Now we can rely on wisi-cache-covers-region
-
-	(if (and (or (not wisi-parse-failed)
-		     (wisi-parse-try))
-		(not (wisi-cache-covers-region begin end)))
-	    (progn
-	      ;; Don't keep retrying failed parse until text changes again.
-	      (wisi-set-parse-try nil)
-	      (wisi--run-parse begin end))
-
+	;; Now we can rely on wisi-cache-covers-region.
+	;;
+	;; If the last parse failed but was partial, and we are trying
+	;; a different region, it may succeed. Otherwise, don't keep
+	;; retrying a failed parse until the text changes again.
+	(cond
+	 ((and (not wisi-parse-failed)
+	       (wisi-cache-covers-region begin end))
 	  (when (> wisi-debug 0)
-	    (message "parse %s skipped: parse-failed %s parse-try %s cache-covers-region %s %s.%s"
+	    (message "parse %s skipped: cache-covers-region %s %s.%s"
 		     parse-action
-		     wisi-parse-failed
-		     (wisi-parse-try)
 		     (wisi-cache-covers-region begin end)
 		     begin end)))
+
+	 ((and wisi-parse-failed
+	       (equal (cons begin end) (wisi-last-parse-region parse-action))
+	       (not (wisi-parse-try parse-action)))
+	  (when (> wisi-debug 0)
+	    (message "parse %s skipped: parse-failed" parse-action)))
+
+	 (t
+	  (progn
+	    (wisi-set-parse-try nil)
+	    (wisi--run-parse begin end))))
 
 	;; We want this error even if we did not try to parse; it means
 	;; the parse results are not valid.
@@ -850,29 +852,6 @@ If LIMIT (a buffer position) is reached, throw an error."
       (when (>= (point) limit)
 	(error "cache with class %s not found" class)))
     cache))
-
-(defun wisi-forward-find-token (token limit &optional noerror)
-  "Search forward for TOKEN.
-If point is at a matching token, return that token.  TOKEN may be
-a list; stop on any member of the list.  Return `wisi-tok'
-struct, or if LIMIT (a buffer position) is reached, then if
-NOERROR is nil, throw an error, if non-nil, return nil."
-  (let ((token-list (cond
-		     ((listp token) token)
-		     (t (list token))))
-	(tok (wisi-forward-token))
-	(done nil))
-    (while (not (or done
-		    (memq (wisi-tok-token tok) token-list)))
-      (setq tok (wisi-forward-token))
-      (when (or (>= (point) limit)
-		(eobp))
-	(goto-char limit)
-	(setq tok nil)
-	(if noerror
-	    (setq done t)
-	  (error "token %s not found" token))))
-    tok))
 
 (defun wisi-forward-find-cache-token (ids limit)
   "Search forward for a cache with token in IDS (a list of token ids).
@@ -1201,7 +1180,6 @@ If INDENT-BLANK-LINES is non-nil, also indent blank lines (for use as
 		   (wisi-parse-try 'indent)))
 
       (wisi-set-parse-try nil)
-
       (wisi--run-parse begin end)
 
       ;; If there were errors corrected, the indentation is
@@ -1270,7 +1248,7 @@ If INDENT-BLANK-LINES is non-nil, also indent blank lines (for use as
     (when (>= (point) savep)
       (setq to-indent t))
 
-    (wisi-indent-region (line-beginning-position) (line-end-position) t)
+    (wisi-indent-region (line-beginning-position (- wisi-indent-context-lines)) (1+ (line-end-position)) t)
 
     (goto-char savep)
     (when to-indent (back-to-indentation))
@@ -1278,24 +1256,18 @@ If INDENT-BLANK-LINES is non-nil, also indent blank lines (for use as
 
 (defun wisi-repair-error-1 (data)
   "Repair error reported in DATA (a ’wisi--parse-error’ or ’wisi--lexer-error’)"
-  (let ((wisi--parse-action 'navigate) ;; tell wisi-forward-token not to compute indent stuff.
-	tok-2)
+  (let ((wisi--parse-action 'navigate))
     (cond
      ((wisi--lexer-error-p data)
       (goto-char (1+ (wisi--lexer-error-pos data)))
       (insert (wisi--lexer-error-inserted data)))
      ((wisi--parse-error-p data)
       (dolist (repair (wisi--parse-error-repair data))
-	(goto-char (wisi--parse-error-repair-pos repair))
-	(dolist (tok-1 (wisi--parse-error-repair-deleted repair))
-	  (setq tok-2 (wisi-forward-token))
-	  (if (eq tok-1 (wisi-tok-token tok-2))
-	      (delete-region (car (wisi-tok-region tok-2)) (cdr (wisi-tok-region tok-2)))
-	    (error "mismatched tokens: %d: parser %s, buffer %s %s"
-		   (point) tok-1 (wisi-tok-token tok-2) (wisi-tok-region tok-2))))
-
+	(when (< 0 (length (wisi--parse-error-repair-deleted repair)))
+	  (delete-region (car (wisi--parse-error-repair-deleted-region repair))
+			 (cdr (wisi--parse-error-repair-deleted-region repair))))
 	(dolist (id (wisi--parse-error-repair-inserted repair))
-	  (insert (cdr (assoc id (wisi-elisp-lexer-id-alist wisi--lexer))))
+	  (insert (cdr (assoc id (wisi-parser-repair-image wisi--parser))))
 	  (insert " "))
 	))
      )))
@@ -1467,10 +1439,6 @@ If non-nil, only repair errors in BEG END region."
   (define-key global-map "\M-j" 'wisi-show-cache)
   )
 
-(defun wisi-read-parse-action ()
-  "Read a parse action symbol from the minibuffer."
-  (intern-soft (completing-read "parse action (indent): " '(face navigate indent) nil t nil nil 'indent)))
-
 (defun wisi-parse-buffer (&optional parse-action begin end)
   (interactive)
   (unless parse-action
@@ -1587,13 +1555,12 @@ If non-nil, only repair errors in BEG END region."
 
 ;;;;; setup
 
-(cl-defun wisi-setup (&key indent-calculate post-indent-fail parser lexer)
+(cl-defun wisi-setup (&key indent-calculate post-indent-fail parser)
   "Set up a buffer for parsing files with wisi."
   (when wisi--parser
     (wisi-kill-parser))
 
   (setq wisi--parser parser)
-  (setq wisi--lexer lexer)
   (setq wisi--cached-regions
 	(list
 	 (cons 'face nil)
@@ -1605,6 +1572,12 @@ If non-nil, only repair errors in BEG END region."
 	 (cons 'face t)
 	 (cons 'navigate t)
 	 (cons 'indent t)))
+
+  (setq wisi--last-parse-region
+	(list
+	 (cons 'face nil)
+	 (cons 'navigate nil)
+	 (cons 'indent nil)))
 
   ;; file local variables may have added opentoken, gnatprep
   (setq wisi-indent-calculate-functions (append wisi-indent-calculate-functions indent-calculate))

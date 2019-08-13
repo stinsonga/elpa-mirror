@@ -25,7 +25,6 @@ pragma License (Modified_GPL);
 with Ada.Finalization;
 generic
    type Element_Type is private;
-   type Element_Access is access all Element_Type;
    type Key_Type is private;
    with function Key (Item : in Element_Type) return Key_Type;
    with procedure Set_Key (Item : in out Element_Type; Key : in Key_Type);
@@ -68,23 +67,8 @@ package SAL.Gen_Unbounded_Definite_Min_Heaps_Fibonacci is
 
    procedure Insert (Heap : in out Heap_Type; Item : in Element_Type) renames Add;
 
-   function Add (Heap : in out Heap_Type; Item : in Element_Type) return Element_Access;
-   --  Add Item to Heap, return a pointer to it. This avoids extra
-   --  copying of Item.
-   --
-   --  Result is valid at least until next Get.
-
-   --  Despite being called a "mergeable heap" in [1], there is no
-   --  algorithm for merging two Fibonacci heaps. And the naive method of
-   --  simply splicing the root lists apparently breaks the consolidate
-   --  algorithm; it assumes there can only be one tree of each degree >
-   --  0.
-
-   --  procedure Increase_Key (Heap : in out Heap_Type; index : in index_type; Item : in Element_Type);
-   --  IMPROVEME: implement. need Index (heap, Key), or Add return index.
-
-   type Constant_Reference_Type (Element : not null access constant Element_Type) is null record
-   with Implicit_Dereference => Element;
+   type Constant_Reference_Type (Element : not null access constant Element_Type) is private with
+     Implicit_Dereference => Element;
 
    function Peek (Heap : in Heap_Type) return Constant_Reference_Type;
    --  Return a constant reference to the min element.
@@ -117,8 +101,11 @@ private
       Min   : Node_Access;
       Count : Base_Peek_Type;
    end record;
-   type Heap_Access_Constant is access constant Heap_Type;
-   for Heap_Access_Constant'Storage_Size use 0;
+
+   type Constant_Reference_Type (Element : not null access constant Element_Type) is
+   record
+      Dummy : Integer := raise Program_Error with "uninitialized reference";
+   end record;
 
    Empty_Heap : constant Heap_Type := (Ada.Finalization.Controlled with Min => null, Count => 0);
 

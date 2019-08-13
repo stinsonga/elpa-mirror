@@ -22,6 +22,7 @@ pragma License (Modified_GPL);
 
 with Ada.Iterator_Interfaces;
 with SAL.Gen_Indefinite_Doubly_Linked_Lists;
+with SAL.Gen_Unbounded_Definite_Stacks;
 with WisiToken.Syntax_Trees;
 package WisiToken.Parse.LR.Parser_Lists is
 

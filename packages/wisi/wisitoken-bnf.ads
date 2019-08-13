@@ -64,15 +64,14 @@ package WisiToken.BNF is
    type Generate_Algorithm_Set is array (Generate_Algorithm) of Boolean;
    type Generate_Algorithm_Set_Access is access Generate_Algorithm_Set;
 
-   type Output_Language is (Ada_Lang, Ada_Emacs_Lang, Elisp_Lang);
+   type Output_Language is (Ada_Lang, Ada_Emacs_Lang);
    subtype Ada_Output_Language is Output_Language range Ada_Lang .. Ada_Emacs_Lang;
    --  _Lang to avoid colliding with the standard package Ada and
    --  WisiToken packages named *.Ada. In the grammar file, they
    --  are named by (case insensitive):
    Output_Language_Image : constant array (Output_Language) of String_Access_Constant :=
      (Ada_Lang       => new String'("Ada"),
-      Ada_Emacs_Lang => new String'("Ada_Emacs"),
-      Elisp_Lang     => new String'("elisp"));
+      Ada_Emacs_Lang => new String'("Ada_Emacs"));
 
    function To_Output_Language (Item : in String) return Output_Language;
    --  Raises User_Error for invalid Item
@@ -188,6 +187,14 @@ package WisiToken.BNF is
    function Is_Present (List : in String_Pair_Lists.List; Name : in String) return Boolean;
    function Value (List : in String_Pair_Lists.List; Name : in String) return String;
 
+   type String_Triple_Type is record
+      Name         : aliased Ada.Strings.Unbounded.Unbounded_String;
+      Value        : Ada.Strings.Unbounded.Unbounded_String;
+      Repair_Image : Ada.Strings.Unbounded.Unbounded_String;
+   end record;
+
+   package String_Triple_Lists is new Ada.Containers.Doubly_Linked_Lists (String_Triple_Type);
+
    type Elisp_Action_Type is record
       --  Elisp name is the key
       Action_Label : Ada.Strings.Unbounded.Unbounded_String;
@@ -229,7 +236,7 @@ package WisiToken.BNF is
 
    type Token_Kind_Type is record
       Kind   : Ada.Strings.Unbounded.Unbounded_String;
-      Tokens : String_Pair_Lists.List;
+      Tokens : String_Triple_Lists.List;
    end record;
 
    package Token_Lists is new Ada.Containers.Doubly_Linked_Lists (Token_Kind_Type);
@@ -238,11 +245,12 @@ package WisiToken.BNF is
    --  Count of all leaves.
 
    procedure Add_Token
-     (Tokens : in out Token_Lists.List;
-      Kind   : in     String;
-      Name   : in     String;
-      Value  : in     String);
-   --  Add Name, Value to Kind list in Tokens.
+     (Tokens       : in out Token_Lists.List;
+      Kind         : in     String;
+      Name         : in     String;
+      Value        : in     String;
+      Repair_Image : in     String := "");
+   --  Add Name, Value, Repair_Image to Kind list in Tokens.
 
    function Is_In (Tokens : in Token_Lists.List; Kind : in String) return Boolean;
    function Is_In

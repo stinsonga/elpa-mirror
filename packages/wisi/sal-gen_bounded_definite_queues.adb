@@ -17,43 +17,20 @@
 
 pragma License (Modified_GPL);
 
-package body SAL.Gen_Bounded_Definite_Queues is
-
-   --  Local subprograms
-
-   function Wrap (Queue : in Queue_Type; I : in Integer) return Integer
-   is begin
-      if I > Queue.Size then
-         return I - Queue.Size;
-      elsif I < 1 then
-         return Queue.Size + I;
-      else
-         return I;
-      end if;
-   end Wrap;
+package body SAL.Gen_Bounded_Definite_Queues
+  with Spark_Mode
+is
+   pragma Suppress (All_Checks);
 
    ----------
    --  Public subprograms
-
-   function Get_Overflow_Handling (Queue : in Queue_Type) return Overflow_Action_Type
-   is begin
-      return Queue.Overflow_Handling;
-   end Get_Overflow_Handling;
-
-   procedure Set_Overflow_Handling (Queue : in out Queue_Type; Handling : in Overflow_Action_Type)
-   is begin
-      Queue.Overflow_Handling := Handling;
-   end Set_Overflow_Handling;
 
    procedure Clear (Queue : in out Queue_Type) is
    begin
       Queue.Count := 0;
    end Clear;
 
-   function Count (Queue : in Queue_Type) return Natural is
-   begin
-      return Queue.Count;
-   end Count;
+   function Count (Queue : in Queue_Type) return Base_Peek_Type is (Queue.Count);
 
    function Is_Empty (Queue : in Queue_Type) return Boolean is
    begin
@@ -65,90 +42,62 @@ package body SAL.Gen_Bounded_Definite_Queues is
       return Queue.Count = Queue.Size;
    end Is_Full;
 
-   function Remove (Queue : in out Queue_Type) return Item_Type
+   procedure Remove (Queue : in out Queue_Type; Item : out Item_Type)
    is begin
-      if Queue.Count = 0 then
-         raise Container_Empty;
+      Item := Queue.Data (Queue.Head);
+
+      Queue.Count := Queue.Count - 1;
+
+      if Queue.Count > 0 then
+         Queue.Head := Wrap (Queue.Size, Queue.Head + 1);
       end if;
+   end Remove;
 
-      return Item : constant Item_Type := Queue.Data (Queue.Head)
-      do
-         Queue.Count := Queue.Count - 1;
-
-         if Queue.Count > 0 then
-            Queue.Head := Wrap (Queue, Queue.Head + 1);
-         end if;
+   function Remove (Queue : in out Queue_Type) return Item_Type with
+     Spark_Mode => Off
+   is begin
+      return Item : Item_Type  do
+         Remove (Queue, Item);
       end return;
    end Remove;
 
    procedure Drop (Queue : in out Queue_Type)
    is begin
-      if Queue.Count = 0 then
-         raise Container_Empty;
-      end if;
-
       Queue.Count := Queue.Count - 1;
 
       if Queue.Count > 0 then
-         Queue.Head := Wrap (Queue, Queue.Head + 1);
+         Queue.Head := Wrap (Queue.Size, Queue.Head + 1);
       end if;
    end Drop;
 
-   function Peek (Queue : in Queue_Type; N : Integer := 0) return Item_Type
-   is begin
-      if Queue.Count = 0 then
-         raise Container_Empty;
-      end if;
-
-      return Queue.Data (Wrap (Queue, Queue.Head + N));
-   end Peek;
+   function Peek (Queue : in Queue_Type; N : Peek_Type := 1) return Item_Type
+     is (Queue.Data (Wrap (Queue.Size, Queue.Head + N - 1)));
+   --  Expression function to allow use in Spark proofs of conditions in spec.
 
    procedure Add (Queue : in out Queue_Type; Item : in Item_Type) is
    begin
-      if Queue.Count = Queue.Size then
-         case Queue.Overflow_Handling is
-         when Error =>
-            raise Container_Full;
-         when Overwrite =>
-            Queue.Count := Queue.Count - 1;
-            Queue.Head  := Wrap (Queue, Queue.Head + 1);
-         end case;
-      end if;
-
       if Queue.Count = 0 then
-         Queue.Tail     := 1;
-         Queue.Head     := 1;
-         Queue.Count    := 1;
-         Queue.Data (1) := Item;
+         Queue.Tail  := 1;
+         Queue.Head  := 1;
+         Queue.Count := 1;
       else
-         Queue.Tail              := Wrap (Queue, Queue.Tail + 1);
-         Queue.Data (Queue.Tail) := Item;
-         Queue.Count             := Queue.Count + 1;
+         Queue.Tail  := Wrap (Queue.Size, Queue.Tail + 1);
+         Queue.Count := Queue.Count + 1;
       end if;
+      Queue.Data (Queue.Tail) := Item;
    end Add;
 
    procedure Add_To_Head (Queue : in out Queue_Type; Item : in Item_Type) is
    begin
-      if Queue.Count = Queue.Size then
-         case Queue.Overflow_Handling is
-         when Error =>
-            raise Container_Full;
-         when Overwrite =>
-            Queue.Count := Queue.Count - 1;
-            Queue.Tail  := Wrap (Queue, Queue.Tail + 1);
-         end case;
-      end if;
-
       if Queue.Count = 0 then
-         Queue.Tail     := 1;
-         Queue.Head     := 1;
-         Queue.Count    := 1;
-         Queue.Data (1) := Item;
+         Queue.Tail  := 1;
+         Queue.Head  := 1;
+         Queue.Count := 1;
       else
-         Queue.Head              := Wrap (Queue, Queue.Head - 1);
-         Queue.Data (Queue.Head) := Item;
-         Queue.Count             := Queue.Count + 1;
+         Queue.Head  := Wrap (Queue.Size, Queue.Head - 1);
+         Queue.Count := Queue.Count + 1;
       end if;
+      Queue.Data (Queue.Head) := Item;
    end Add_To_Head;
 
 end SAL.Gen_Bounded_Definite_Queues;

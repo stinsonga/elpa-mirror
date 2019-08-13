@@ -205,7 +205,7 @@ package WisiToken.Syntax_Trees is
    procedure Set_Children
      (Tree     : in out Syntax_Trees.Tree;
       Node     : in     Valid_Node_Index;
-      New_ID : in WisiToken.Production_ID;
+      New_ID   : in     WisiToken.Production_ID;
       Children : in     Valid_Node_Index_Array)
    with
      Pre => Tree.Flushed and
@@ -370,6 +370,14 @@ package WisiToken.Syntax_Trees is
    --  Return the descendant of Node (may be Node) whose ID is ID, or
    --  Invalid_Node_Index if none match.
 
+   function Find_Descendant
+     (Tree      : in     Syntax_Trees.Tree;
+      Node      : in     Valid_Node_Index;
+      Predicate : access function (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Boolean)
+     return Node_Index;
+   --  Return the descendant of Node (may be Node) for which Predicate
+   --  returns True, or Invalid_Node_Index if none do.
+
    function Find_Min_Terminal_Index
      (Tree  : in Syntax_Trees.Tree;
       Index : in Token_Index)
@@ -467,6 +475,7 @@ package WisiToken.Syntax_Trees is
    --  Text_IO.Current_Output, for debugging.
 
 private
+   use all type Ada.Containers.Count_Type;
 
    type Node (Label : Node_Label := Virtual_Terminal) is
    --  Label has a default to allow changing the label during tree editing.
@@ -562,6 +571,12 @@ private
 
       Root : Node_Index := Invalid_Node_Index;
    end record with
-     Type_Invariant => (if Tree.Flush then not Tree.Has_Branched_Nodes);
+     Type_Invariant =>
+       (Shared_Tree = null or else
+        (if Tree.Flush
+         then Last_Shared_Node = Shared_Tree.Nodes.Last_Index and
+            Branched_Nodes.Length = 0
+         else Last_Shared_Node <= Shared_Tree.Nodes.Last_Index and
+            Last_Shared_Node < Branched_Nodes.First_Index));
 
 end WisiToken.Syntax_Trees;

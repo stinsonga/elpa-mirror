@@ -310,6 +310,7 @@ package WisiToken is
    end record;
 
    type Base_Token_Class_Access is access all Base_Token'Class;
+   type Base_Token_Class_Access_Constant is access constant Base_Token'Class;
 
    function Image
      (Item       : in Base_Token;
@@ -352,10 +353,11 @@ package WisiToken is
 
    type Recover_Token is record
       --  Maintaining a syntax tree during recover is too slow, so we store
-      --  enough information in the recover stack to perform semantic_checks
-      --  and to apply the solution to the main parser state. We make
-      --  thousands of copies of the parse stack during recover, so
-      --  minimizing size is critical.
+      --  enough information in the recover stack to perform
+      --  Semantic_Checks, Language_Fixes, and Push_Back operations. and to
+      --  apply the solution to the main parser state. We make thousands of
+      --  copies of the parse stack during recover, so minimizing size and
+      --  compute time for this is critical.
       ID : Token_ID := Invalid_Token_ID;
 
       Byte_Region : Buffer_Region := Null_Buffer_Region;
@@ -372,8 +374,7 @@ package WisiToken is
 
       Virtual : Boolean := True;
       --  For terminals, True if inserted by recover. For nonterminals, True
-      --  if any contained token has Virtual = True. Used by Semantic_Checks
-      --  and push_back.
+      --  if any contained token has Virtual = True.
    end record;
 
    function Image

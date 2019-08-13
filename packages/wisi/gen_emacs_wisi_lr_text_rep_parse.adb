@@ -39,6 +39,6 @@ begin
       Parse_Data'Unchecked_Access,
       Ada.Directories.Containing_Directory (Ada.Command_Line.Command_Name) & "/" & Text_Rep_File_Name);
 
-   Parse_Stream (Name, Language_Protocol_Version, Partial_Parse_Active, Params, Parser, Parse_Data, Descriptor);
+   Process_Stream (Name, Language_Protocol_Version, Partial_Parse_Active, Params, Parser, Parse_Data, Descriptor);
 
 end Gen_Emacs_Wisi_LR_Text_Rep_Parse;
