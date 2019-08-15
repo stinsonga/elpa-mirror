@@ -4,7 +4,7 @@
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
-;; Version: 1.2
+;; Version: 1.3
 ;; Package-Requires: ((pyim "1.6.0") (ebdb "0.2"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -68,7 +68,7 @@
     (when (string-match "X\\([0-9]+\\)\\'" num-str)
       (setq slots (plist-put slots :extension
 			     (string-to-number (match-string 1 num-str)))))
-    (apply #'make-instance class slots)))
+    slots))
 
 (cl-defmethod ebdb-string-i18n ((adr ebdb-field-address)
 				(_cc (eql chn)))
@@ -104,10 +104,8 @@
 	      given-names (match-string 2 string))
       (setq surname (substring string 0 1)
 	    given-names (substring string 1)))
-
-    (make-instance class
-		   :surname surname
-		   :given-names (list given-names))))
+    (list :surname surname :given-names (list given-names)
+	  :suffix nil)))
 
 (cl-defmethod ebdb-string-i18n ((field ebdb-field-name-complex)
 				(_script (eql han)))
@@ -124,13 +122,12 @@ the record cache."
 				      (record ebdb-record)
 				      add-or-del)
   "Add or remove a hash for a Chinese-character name.
-
 This function is called by both the `ebdb-init-field-i18n' and
 `ebdb-delete-field-i18n' methods.  It checks if the name is in
 Chinese characters, and if it is, converts it into pinyin, and
 either adds or removes a hash entry for the record under that
 name.  It also adds the pinyin to the record's name cache, so
-searchs via pinyin will find the record."
+searches via pinyin will find the record."
   ;; We use `pyim-hanzi2pinyin-simple' because it's cheaper, and
   ;; because checking for multiple character pronunciations isn't
   ;; really helpful in people's names.
