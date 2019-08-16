@@ -722,7 +722,7 @@ are taken from the cache instead."
     ;; rid of them.
     (when (get-buffer buffer-name)
       (kill-buffer buffer-name))
-    (switch-to-buffer (get-buffer-create buffer-name))
+    (pop-to-buffer-same-window (get-buffer-create buffer-name))
     (debbugs-gnu-mode)
 
     ;; Print bug reports.
