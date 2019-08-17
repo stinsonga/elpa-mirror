@@ -1,24 +1,6 @@
 ./ada-mode/ada-prj.el
-./ada-mode/ada-skel.el:    ("copyright_license"
-./ada-mode/ada-skel.el:  "--  Copyright (C) " (format-time-string "%Y ") user-full-name " All Rights Reserved.\n"
-./ada-mode/ada-skel.el:  "--  Copyright (C) " (format-time-string "%Y ") user-full-name " All Rights Reserved.\n"
-./ada-mode/ada-skel.el:  "--  Copyright (C) " (format-time-string "%Y ") user-full-name " All Rights Reserved.\n"
-./ada-mode/ada-skel.el:  "Example copyright/license skeleton, with automatic year and owner, GPLv3."
-./ada-mode/ada-skel.el:  "Example copyright/license skeleton, with automatic year and owner."
-./ada-mode/ada-skel.el:  "Insert a file header comment, with automatic copyright year and prompt for copyright owner/license.
-./ada-mode/ada-skel.el:  "Modified GPLv3 copyright/license skeleton, with automatic year and owner."
-./ada-mode/ada-skel.el:  "{copyright_license}\n"
 ./ada-mode/ada-stmt.el
 ./ada-mode/ada-xref.el
-./ada-mode/gpr-skel.el:    ("copyright_license"
-./ada-mode/gpr-skel.el:  "--  Copyright (C) " (format-time-string "%Y ") user-full-name " All Rights Reserved.\n"
-./ada-mode/gpr-skel.el:  "--  Copyright (C) " (format-time-string "%Y ") user-full-name " All Rights Reserved.\n"
-./ada-mode/gpr-skel.el:  "Example copyright/license skeleton, with automatic year and owner, GPLv3."
-./ada-mode/gpr-skel.el:  "Example copyright/license skeleton, with automatic year and owner."
-./ada-mode/gpr-skel.el:  "Insert a file header comment, with automatic copyright year and prompt for copyright owner/license.
-./ada-mode/gpr-skel.el:  "{copyright_license}\n"
-./auctex/latex.el:   "pounds" "copyright"
-./auctex/plain-tex.el:   "copyright"
 ./auctex/style/amsart.el
 ./auctex/style/amsbook.el
 ./auctex/style/amsbsy.el
@@ -44,7 +26,6 @@
 ./auctex/style/jsarticle.el
 ./auctex/style/jsbook.el
 ./auctex/style/jurabib.el:;; you assign the copyright to the FSF.
-./auctex/style/latexinfo.el:     '("copyright" nil)
 ./auctex/style/mflogo.el
 ./auctex/style/ngerman.el
 ./auctex/style/plfonts.el
@@ -57,16 +38,9 @@
 ./auctex/style/scrreprt.el
 ./auctex/style/slovak.el
 ./auctex/style/swedish.el
-./auctex/style/textcomp.el:    '("textcopyright"            0)     ; Type: Symbol -- Slot: 169
 ./auctex/style/virtex.el
-./auctex/tex-fold.el:    ("(C)" ("copyright"))
-./auctex/tex-info.el:   '("copyright" nil)
-./debbugs/debbugs-gnu.el:	  (insert "  Copyright-paperwork-exempt: yes"))
-./ergoemacs-mode/ergoemacs-themes.el:                 ,(lambda () emacs-copyright)
 ./excorporate/excorporate-calfw.el:;; copyright assignment papers on file with the FSF.
-./gnugo/gnugo.el:    (CP "Copyright"       game  simpletext)
 ./hyperbole/hib-doc-id.el:;;  Copyright:        
-./math-symbol-lists/math-symbol-lists.el:    "columnsep" "columnseprule" "columnwidth" "contentsline" "copyright"
 ./mmm-mode/mmm-noweb.el:;; Copyright 1995 by Thorsten.Ohl @ Physik.TH-Darmstadt.de
 ./mmm-mode/mmm-noweb.el:;; Copyright 2003, 2004  Joe Kelsey <joe@zircon.seattle.wa.us>
 ./mmm-mode/mmm-rpm.el:;; Copyright (C) 2000 by Marcus Harnisch <Marcus.Harnisch@gmx.net>
@@ -80,9 +54,4 @@
 ./uni-confusables/uni-confusables.el
 ./uni-confusables/uni-confusables.el:;; Copyright (C) 1991-2009, 2010 Unicode, Inc.
 ./uni-confusables/uni-confusables.el:;; for the copyright and permission notice.
-./w3/w3-cus.el:    "copyright" "bookmark" "help" "made" "contents" "top")
 ./w3/w3-cus.el:  ;; Glossary, Copyright, Chapter, Section, Subsection, Appendix,
-./w3/w3-latex.el:    (copy . "\\copyright ")
-./w3/w3-toolbar.el:     "Copyright"]
-./w3/w3-toolbar.el:     (w3-fetch (w3-link-is-defined "copyright"))
-./w3/w3-toolbar.el:     (w3-link-is-defined "copyright")
