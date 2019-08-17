@@ -32,7 +32,7 @@ project Wisi is
       for Exec_Dir use ".";
    end case;
 
-   for Languages use ("Ada");
+   for Languages use ("Ada", "C"); -- C needed for wisitoken-bnf-generate; wisitoken_grammar_re2c.c
 
    package Compiler is
 

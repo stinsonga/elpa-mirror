@@ -6,7 +6,12 @@ Please send wisi bug reports to bug-gnu-emacs@gnu.org, with
 'wisi' in the subject. If possible, use M-x report-emacs-bug.
 
 
-* wisi
+* wisi 2.2.1
+17 Aug 2019
+
+** fix packaging bugs
+
+* wisi 2.2.0
 13 Aug 2019
 
 ** parser process protocol version 3

@@ -7,7 +7,7 @@
 ;; Keywords: parser
 ;;  indentation
 ;;  navigation
-;; Version: 2.2.0
+;; Version: 2.2.1
 ;; package-requires: ((emacs "25.0") (seq "2.20"))
 ;; URL: http://stephe-leake.org/ada/wisitoken.html
 ;;
@@ -208,6 +208,8 @@ Regions in a list are in random order.")
   (let ((region-list (cdr (assoc (or parse-action wisi--parse-action) wisi--cached-regions)))
 	region)
     (while (and region-list
+		(marker-buffer (caar region-list)) ;; this can fail after editing during ediff-regions.
+		(marker-buffer (cdar region-list))
 		(not (wisi--contained-region begin end (car region-list))))
       (pop region-list))
 
@@ -274,27 +276,43 @@ Truncate any region that overlaps POS."
 
 (defun wisi--delete-face-cache (after)
   (with-silent-modifications
-    (remove-text-properties after (point-max) '(font-lock-face nil))
-    )
-  (wisi-cache-delete-regions-after 'face after))
+    (remove-text-properties after (point-max) '(font-lock-face nil)))
+  (if (= after (point-min))
+      (setcdr (assoc 'face wisi--cached-regions) nil)
+    (wisi-cache-delete-regions-after 'face after)))
 
 (defun wisi--delete-navigate-cache (after)
   (with-silent-modifications
     ;; This text property is 'wisi-cache', not 'wisi-navigate', for
     ;; historical reasons.
-    (remove-text-properties after (point-max) '(wisi-cache nil wisi-name nil))
-    )
-  (wisi-cache-delete-regions-after 'navigate after))
+    (remove-text-properties after (point-max) '(wisi-cache nil wisi-name nil)))
+  (if (= after (point-min))
+      (setcdr (assoc 'navigate wisi--cached-regions) nil)
+    (wisi-cache-delete-regions-after 'navigate after)))
 
 (defun wisi--delete-indent-cache (after)
   (with-silent-modifications
-    (remove-text-properties after (point-max) '(wisi-indent nil))
-    )
-  (wisi-cache-delete-regions-after 'indent after))
+    (remove-text-properties after (point-max) '(wisi-indent nil)))
+  (if (= after (point-min))
+      (setcdr (assoc 'indent wisi--cached-regions) nil)
+    (wisi-cache-delete-regions-after 'indent after)))
 
 (defun wisi-invalidate-cache (action after)
   "Invalidate ACTION caches for the current buffer from AFTER to end of buffer."
-  (when (wisi-cache-contains-pos action after)
+  (cond
+   ((= after (point-min))
+    (cond
+     ((eq 'face action)
+      (wisi--delete-face-cache after))
+
+     ((eq 'navigate action)
+      (wisi--delete-navigate-cache after))
+
+     ((eq 'indent action)
+      (wisi--delete-indent-cache after))
+     ))
+
+   ((wisi-cache-contains-pos action after)
     (when (> wisi-debug 0) (message "wisi-invalidate-cache %s:%s:%d" action (current-buffer) after))
     (cond
      ((eq 'face action)
@@ -349,11 +367,12 @@ Truncate any region that overlaps POS."
 	      (line-beginning-position)))
       (wisi--delete-indent-cache (max 1 (1- after))))
      )
-    ))
+    )))
 
 (defun wisi-reset-parser ()
   "Force a parse."
   (interactive)
+  (syntax-ppss-flush-cache (point-min)) ;; necessary after edit during ediff-regions
   (wisi-invalidate-cache 'indent (point-min))
   (wisi-invalidate-cache 'face (point-min))
   (wisi-invalidate-cache 'navigate (point-min))
@@ -774,6 +793,10 @@ Usefull if the parser appears to be hung."
 `wisi--parse-action' must be bound."
   (when (and wisi--change-beg
 	     wisi--change-end
+	     (or (integerp wisi--change-beg)
+		 (marker-buffer wisi--change-beg)) ;; this can fail after editing during ediff-regions.
+	     (or (integerp wisi--change-end)
+		 (marker-buffer wisi--change-end))
 	     (<= wisi--change-beg wisi--change-end))
     (wisi--post-change wisi--change-beg (marker-position wisi--change-end))
     (setq wisi--change-beg most-positive-fixnum)
