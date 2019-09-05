@@ -121,10 +121,10 @@ Debbugs BTS: @uref{https://bugs.debian.org} and
 ports, you don't need to configure @code{debbugs}.  If you want to
 interact with a Debbugs port other than those listed, you have to
 configure @code{debbugs} by adding a new server specifier to the
-@code{debbugs-servers} variable.  The actual port can be selected by
-the @code{debbugs-port} variable.
+@code{debbugs-servers} user option.  The actual port can be selected
+by the @code{debbugs-port} user option.
 
-@defvar debbugs-servers
+@defopt debbugs-servers
 List of Debbugs server specifiers.  Each entry is a list that contains a
 string identifying the port name and the server parameters in
 keyword-value form.  The list initially contains two predefined and
@@ -153,22 +153,28 @@ Example.  Add a new Debbugs port with name "foobars.net":
    :wsdl "https://bugs.foobars.net/cgi/soap.cgi?WSDL"
    :bugreport-url "https://bugs.foobars.net/cgi/bugreport.cgi"))
 @end example
-@end defvar
+@end defopt
 
-@defvar debbugs-port
-This variable holds the name of the currently used port.  The value of
-the variable corresponds to the Debbugs server to be accessed, either
-@code{"gnu.org"} or @code{"debian.org"}, or a user defined port name.
-@end defvar
+@defopt debbugs-port
+This user option holds the name of the currently used port.  The value
+of the user option corresponds to the Debbugs server to be accessed,
+either @code{"gnu.org"} or @code{"debian.org"}, or a user defined port
+name.
+@end defopt
 
-@defvar debbugs-cache-expiry
+@defopt debbugs-cache-expiry
 The function @code{debbugs-get-status} (@pxref{Requesting bugs
 statuses}) caches retrieved status entries in order to improve the
-performance.  This variable determines the number of seconds an entry
-is cached, before it is retrieved again.  A value of @code{nil}
+performance.  This user option determines the number of seconds an
+entry is cached, before it is retrieved again.  A value of @code{nil}
 disables cache expiration, and a value of @code{t} disables caching.
 Both values are not recommended for a usual workflow.
-@end defvar
+@end defopt
+
+@defopt debbugs-show-progress
+If this user option is non-@code{nil}, there is a progress report when
+retrieving bugs.
+@end defopt
 
 @node Requesting bug numbers
 @chapter Requesting bug numbers
@@ -694,8 +700,8 @@ mbox.  If @var{filename} is @code{nil}, the downloaded mbox is
 inserted into the current buffer.
 
 Note, that mbox downloading will work only if the
-@code{:bugreport-url} field of the @code{debbugs-servers} variable is
-specified (@pxref{Configuration}).
+@code{:bugreport-url} field of the @code{debbugs-servers} user option
+is specified (@pxref{Configuration}).
 @end defun
 
 @node Requesting user tags

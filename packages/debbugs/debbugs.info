@@ -114,10 +114,10 @@ BTS: <https://bugs.debian.org> and <https://debbugs.gnu.org>.  So if
 you intend to use one of these ports, you don't need to configure
 'debbugs'.  If you want to interact with a Debbugs port other than
 those listed, you have to configure 'debbugs' by adding a new server
-specifier to the 'debbugs-servers' variable.  The actual port can be
-selected by the 'debbugs-port' variable.
+specifier to the 'debbugs-servers' user option.  The actual port can
+be selected by the 'debbugs-port' user option.
 
- -- Variable: debbugs-servers
+ -- User Option: debbugs-servers
      List of Debbugs server specifiers.  Each entry is a list that
      contains a string identifying the port name and the server
      parameters in keyword-value form.  The list initially contains
@@ -145,19 +145,24 @@ selected by the 'debbugs-port' variable.
              :wsdl "https://bugs.foobars.net/cgi/soap.cgi?WSDL"
              :bugreport-url "https://bugs.foobars.net/cgi/bugreport.cgi"))
 
- -- Variable: debbugs-port
-     This variable holds the name of the currently used port.  The
-     value of the variable corresponds to the Debbugs server to be
+ -- User Option: debbugs-port
+     This user option holds the name of the currently used port.  The
+     value of the user option corresponds to the Debbugs server to be
      accessed, either '"gnu.org"' or '"debian.org"', or a user defined
      port name.
 
- -- Variable: debbugs-cache-expiry
+ -- User Option: debbugs-cache-expiry
      The function 'debbugs-get-status' (*note Requesting bugs
      statuses::) caches retrieved status entries in order to improve
-     the performance.  This variable determines the number of seconds
-     an entry is cached, before it is retrieved again.  A value of
-     'nil' disables cache expiration, and a value of 't' disables
-     caching.  Both values are not recommended for a usual workflow.
+     the performance.  This user option determines the number of
+     seconds an entry is cached, before it is retrieved again.  A
+     value of 'nil' disables cache expiration, and a value of 't'
+     disables caching.  Both values are not recommended for a usual
+     workflow.
+
+ -- User Option: debbugs-show-progress
+     If this user option is non-'nil', there is a progress report when
+     retrieving bugs.
 
 
 File: debbugs.info,  Node: Requesting bug numbers,  Next: Requesting bugs statuses,  Prev: Configuration,  Up: Top
@@ -667,7 +672,7 @@ File: debbugs.info,  Node: Requesting messages,  Next: Requesting user tags,  Pr
      current buffer.
 
      Note, that mbox downloading will work only if the
-     ':bugreport-url' field of the 'debbugs-servers' variable is
+     ':bugreport-url' field of the 'debbugs-servers' user option is
      specified (*note Configuration::).
 
 
@@ -725,10 +730,10 @@ Tag Table:
 Node: Top1094
 Node: Installation3235
 Node: Configuration4336
-Node: Requesting bug numbers6691
-Node: Requesting bugs statuses12073
-Node: Searching bugs16365
-Node: Requesting messages23171
-Node: Requesting user tags26178
+Node: Requesting bug numbers6853
+Node: Requesting bugs statuses12235
+Node: Searching bugs16527
+Node: Requesting messages23333
+Node: Requesting user tags26343
 
 End Tag Table

@@ -123,6 +123,47 @@ t or 0 disables caching, nil disables expiring."
 	   (append debbugs-soap-invoke-async-object (car response))))
    nil debbugs-wsdl debbugs-port operation-name parameters))
 
+(defcustom debbugs-show-progress t
+  "Whether progress report is shown."
+  :type 'boolean)
+
+(defvar debbugs-progress-reporter nil
+ "The progress reporter.
+Don't set this globally, it shall be let-bound.")
+
+(defvar debbugs-progress-reporter-buffers nil
+  "An alist keeping the progress percentage per buffer.
+Don't set this globally, it shall be let-bound.")
+
+(defun debbugs-url-display-percentage (&rest args)
+  "Update progress reporter."
+  (ignore-errors
+    (when (and debbugs-show-progress debbugs-progress-reporter)
+      ;; The fingerprint of `url-display-percentage' is FMT PERC &REST
+      ;; ARGS.  However, there are calls which have a nil argument
+      ;; before the other arguments, whyever. In order to be backward
+      ;; compatible, we scan the arguments for the first number, and
+      ;; regard it as the percentage.
+      (while (and args (not (natnump (car args))))
+	(setq args (cdr args)))
+      (progress-reporter-update
+       debbugs-progress-reporter
+       (and ;; There is a min value.
+	    (aref (cdr debbugs-progress-reporter) 1)
+	    ;; There's a percentage.
+	    (natnump (car args))
+	    (let ((cell
+		   (assq (current-buffer) debbugs-progress-reporter-buffers)))
+	      (if (null cell)
+		  ;; Just one buffer from synchronous call.
+		  (car args)
+		;; We must accumulate several buffer's percentage.
+		(setcdr cell (car args))
+		(floor
+		 (apply #'+ (mapcar (lambda (elt) (cdr elt))
+				    debbugs-progress-reporter-buffers))
+		 (length debbugs-progress-reporter-buffers)))))))))
+
 (defun debbugs-get-bugs (&rest query)
   "Return a list of bug numbers which match QUERY.
 
@@ -196,8 +237,16 @@ patch:
                      :severity \"grave\"
                      :status \"forwarded\"
                      :severity \"serious\")"
+  (let ((debbugs-progress-reporter
+	 (and debbugs-show-progress
+	      (make-progress-reporter "Get bug numbers..." 0 100)))
+	debbugs-progress-reporter-buffers url-show-status vec kw key val)
+    (when debbugs-show-progress
+      (add-function
+       :override (symbol-function #'url-display-percentage)
+       #'debbugs-url-display-percentage
+       '((name . "debbugs-url-display-percentage"))))
 
-  (let (vec kw key val)
     ;; Check query.
     (while (and (consp query) (<= 2 (length query)))
       (setq kw (pop query)
@@ -235,7 +284,13 @@ patch:
 
     (unless (null query)
       (error "Unknown key: %s" (car query)))
-    (sort (car (soap-invoke debbugs-wsdl debbugs-port "get_bugs" vec)) '<)))
+    (prog1
+	(sort (car (soap-invoke debbugs-wsdl debbugs-port "get_bugs" vec)) '<)
+      (when debbugs-show-progress
+	(remove-function
+	 (symbol-function #'url-display-percentage)
+	 "debbugs-url-display-percentage")
+	(progress-reporter-done debbugs-progress-reporter)))))
 
 (defun debbugs-newest-bugs (amount)
   "Return the list of bug numbers, according to AMOUNT (a number) latest bugs."
@@ -411,7 +466,16 @@ Example:
     (when bug-numbers
       ;; Retrieve bugs asynchronously.
       (let ((bug-ids bug-numbers)
-	    results)
+	    (debbugs-progress-reporter
+	     (and debbugs-show-progress
+		  (make-progress-reporter "Get bug information..." 0 100)))
+	    debbugs-progress-reporter-buffers url-show-status results res)
+	(when debbugs-show-progress
+	  (add-function
+	   :override (symbol-function #'url-display-percentage)
+	   #'debbugs-url-display-percentage
+	   '((name . "debbugs-url-display-percentage"))))
+
 	(while bug-ids
 	  (setq results
 		(append
@@ -429,9 +493,23 @@ Example:
 		(last bug-ids (- (length bug-ids)
 				 debbugs-max-hits-per-request))))
 
-	(dolist (res results)
-	  (while (buffer-live-p res)
-	    (accept-process-output (get-buffer-process res) 0.1)))))
+	(when debbugs-show-progress
+	  (dolist (res results)
+	    (push `(,res . 0) debbugs-progress-reporter-buffers)))
+
+        (while results
+	  (setq res (nth (random (length results)) results))
+	  (if (process-live-p (get-buffer-process res))
+	      (accept-process-output (get-buffer-process res))
+	    (when debbugs-show-progress
+	      (setcdr (assq res debbugs-progress-reporter-buffers) 100))
+            (setq results (delq res results))))
+
+	(when debbugs-show-progress
+	  (remove-function
+	   (symbol-function #'url-display-percentage)
+	   "debbugs-url-display-percentage")
+	  (progress-reporter-done debbugs-progress-reporter))))
 
     (append
      cached-bugs
@@ -705,7 +783,17 @@ Examples:
       :operator \"NUMBT\"))"
 
   (let ((phrase (assoc :phrase query))
-	args result)
+	(debbugs-create-progress-reporter
+	 (and debbugs-show-progress (null debbugs-progress-reporter)))
+	(debbugs-progress-reporter debbugs-progress-reporter)
+	debbugs-progress-reporter-buffers url-show-status args result)
+    (when debbugs-create-progress-reporter
+      (setq debbugs-progress-reporter (make-progress-reporter "Query bugs..."))
+      (add-function
+       :override (symbol-function #'url-display-percentage)
+       #'debbugs-url-display-percentage
+       '((name . "debbugs-url-display-percentage"))))
+
     (if (and phrase (not (member :skip phrase)) (not (member :max phrase)))
 	;; We loop, until we have all results.
 	(let ((skip 0)
@@ -723,16 +811,14 @@ Examples:
 		    query))
 		  skip (and (= (length result1) debbugs-max-hits-per-request)
 			    (+ skip debbugs-max-hits-per-request))
-		  result (append result result1)))
-	  result)
+		  result (append result result1))))
 
       ;; Compile search arguments.
       (dolist (elt query)
         ;; FIXME: `vec' is used in an O(N²) way.  It should be a list instead,
         ;; on which we push elements, and we only convert it to a vector at
         ;; the end.
-	(let (vec kw key val
-		  phrase-cond attr-cond)
+	(let (vec kw key val phrase-cond attr-cond)
 
 	  ;; Phrase is mandatory, even if empty.
 	  (when (and (or  (member :skip elt) (member :max elt))
@@ -858,9 +944,17 @@ Examples:
 	    (car (soap-invoke debbugs-wsdl debbugs-port "search_est" args)))
       ;; The result contains lists (key value).  We transform it into
       ;; cons cells (key . value).
-      (dolist (elt1 result result)
+      (dolist (elt1 result)
 	(dolist (elt2 elt1)
-	  (setcdr elt2 (cadr elt2)))))))
+	  (setcdr elt2 (cadr elt2)))))
+
+    (when debbugs-create-progress-reporter
+      (remove-function
+       (symbol-function #'url-display-percentage)
+       "debbugs-url-display-percentage")
+      (progress-reporter-done debbugs-progress-reporter))
+
+    result))
 
 (defun debbugs-get-attribute (bug-or-message attribute)
   "Return the value of key ATTRIBUTE.

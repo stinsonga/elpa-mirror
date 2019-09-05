@@ -141,7 +141,6 @@ options @code{debbugs-gnu-default-severities} and
 @code{debbugs-gnu-default-packages}.
 
 @ref{Presenting Bugs} for the presentation of the results.
-
 @end deffn
 
 
@@ -162,7 +161,6 @@ A default value for interactive use could be configured in the user
 option @code{debbugs-gnu-default-bug-number-list}.
 
 @ref{Presenting Bugs} for the presentation of the results.
-
 @end deffn
 
 
@@ -175,8 +173,13 @@ show all unarchived bugs of the packages declared in
 This is useful for bug triages.
 
 @ref{Presenting Bugs} for the presentation of the results.
-
 @end deffn
+
+@defopt debbugs-show-progress
+
+If this user option is non-@code{nil}, there is a progress report when
+retrieving bugs.
+@end defopt
 
 
 @node Searching Bugs
@@ -298,6 +301,9 @@ are discriminated on the client side, which is indicated by the string
 "(client-side filter)" in the minibuffer after the attribute name.
 Note, that client side filters perform badly, because they could be
 applied only after all bugs have been downloaded.
+
+These commands show also a progress report when
+@code{debbugs-show-progress} is non-@code{nil}.
 @end deffn
 
 
@@ -434,7 +440,6 @@ Send a control message for this bug, @ref{Control Messages}.
 @code{debbugs-gnu-make-control-message} @*
 Make (but don't yet send) a control message for this bug, @ref{Control
 Messages}.
-
 @end multitable
 
 @vindex debbugs-gnu-suppress-closed
@@ -497,7 +502,6 @@ Send a control message for this bug, @ref{Control Messages}.
 @code{debbugs-gnu-make-control-message} @*
 Make (but don't yet send) a control message for this bug, @ref{Control
 Messages}.
-
 @end multitable
 
 When the bug attributes are shown by @code{org-cycle}, there is a link
@@ -637,15 +641,14 @@ address.  The tag to be set is also read interactively.
 @item documentation
 "user emacs" @*
 "usertag 12345 documentation"
-
 @end table
 
 @vindex debbugs-gnu-send-mail-function
 How the control messages are sent is controlled by the
-@code{debbugs-gnu-send-mail-function} variable.  If it is @code{nil}
-(the default value), the value of @code{send-mail-function} is used.
-This could be inconvenient, for example when an external interactive
-mail client is configured.
+@code{debbugs-gnu-send-mail-function} user option.  If it is
+@code{nil} (the default value), the value of @code{send-mail-function}
+is used.  This could be inconvenient, for example when an external
+interactive mail client is configured.
 
 
 @node Applying Patches
@@ -678,6 +681,7 @@ the modified file.  Here you can apply @kbd{M-m} the next time.  This
 creates a ChangeLog entry with all needed information.  A final
 @kbd{M-m} in the @samp{ChangeLog} buffer commits the patch via
 @samp{*vc-log*}.
+
 
 @node Posting Patches
 @section Posting Patches to Debbugs from the Emacs Repository
@@ -723,6 +727,7 @@ this time press @kbd{a} (for ``announce'') after replying to the
 relevant bug thread message.  This will insert some text describing
 the commit and where it was pushed to, and answering @kbd{y} will
 arrange for the bug to be closed when the message is sent.
+
 
 @node Customizing debbugs-gnu-pick-commits
 @subsection Customizing debbugs-gnu-pick-commits
