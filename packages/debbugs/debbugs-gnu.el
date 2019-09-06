@@ -654,7 +654,9 @@ marked as \"client-side filter\"."
     ;; Reset query, filter and suppress.
     (setq debbugs-gnu-current-query nil
 	  debbugs-gnu-current-filter nil
-	  debbugs-gnu-current-suppress nil)))
+	  debbugs-gnu-current-suppress nil)
+    (when (called-interactively-p 'interactive)
+      (message "Query finished"))))
 
 (defun debbugs-gnu-get-bugs (query)
   "Retrieve bug numbers from debbugs.gnu.org according search criteria."
@@ -2146,7 +2148,9 @@ or bug ranges, with default to `debbugs-gnu-default-bug-number-list'."
   (add-to-list 'debbugs-gnu-current-query (cons 'bugs bugs))
   ;; We do not suppress bugs requested explicitely.
   (setq debbugs-gnu-current-suppress nil)
-  (debbugs-gnu nil))
+  (debbugs-gnu nil)
+  (when (called-interactively-p 'interactive)
+    (message "Retrieving bugs finished")))
 
 (defcustom debbugs-gnu-trunk-directory "~/src/emacs/trunk/"
   "The directory where the main source tree lives."
