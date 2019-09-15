@@ -707,6 +707,16 @@ marked as \"client-side filter\"."
      ;; Otherwise, we retrieve the bugs from the server.
      (t (apply #'debbugs-get-bugs args)))))
 
+(defun debbugs-gnu--split-address (string)
+  "Split mail-like STRING into a name/email address pair."
+  (if (string-match "\\`\\(.*\\) <\\([^>]+\\)>\\'" string)
+      (let ((name (match-string 1 string))
+	    (email (match-string 2 string)))
+	;; Remove leading/trailing quote chars.
+	(cons email
+	      (replace-regexp-in-string "\\`\"\\|\"\\'" "" name)))
+    (cons string string)))
+
 (defun debbugs-gnu-show-reports (&optional offline)
   "Show bug reports.
 If OFFLINE is non-nil, the query is not sent to the server.  Bugs
@@ -743,11 +753,11 @@ are taken from the cache instead."
 	     (words (cons (cdr (assq 'severity status))
 			  (cdr (assq 'keywords status))))
 	     (address (if (cdr (assq 'originator status))
-			  (mail-header-parse-address
+			  (debbugs-gnu--split-address
 			   (decode-coding-string (cdr (assq 'originator status))
 						 'utf-8))))
 	     (owner (if (cdr (assq 'owner status))
-			(car (mail-header-parse-address
+			(car (debbugs-gnu--split-address
 			      (decode-coding-string (cdr (assq 'owner status))
 						    'utf-8)))))
 	     (subject (if (cdr (assq 'subject status))
@@ -1104,11 +1114,11 @@ Used instead of `tabulated-list-print-entry'."
 
 (defun debbugs-gnu-sort-submitter (s1 s2)
   (let ((address1
-	 (mail-header-parse-address
+	 (debbugs-gnu--split-address
 	  (decode-coding-string
 	   (or (cdr (assq 'originator (car s1))) "") 'utf-8)))
 	(address2
-	 (mail-header-parse-address
+	 (debbugs-gnu--split-address
 	  (decode-coding-string
 	   (or (cdr (assq 'originator (car s2))) "") 'utf-8))))
     (cond
@@ -1131,13 +1141,13 @@ Used instead of `tabulated-list-print-entry'."
 
 (defun debbugs-gnu-sort-title (s1 s2)
   (let ((owner1
-	 (car (mail-header-parse-address
+	 (car (debbugs-gnu--split-address
 	       (decode-coding-string
 		(or (cdr (assq 'owner (car s1))) "") 'utf-8))))
 	(subject1
 	 (decode-coding-string (or (cdr (assq 'subject (car s1))) "") 'utf-8))
 	(owner2
-	 (car (mail-header-parse-address
+	 (car (debbugs-gnu--split-address
 	       (decode-coding-string
 		(or (cdr (assq 'owner (car s2))) "") 'utf-8))))
 	(subject2
