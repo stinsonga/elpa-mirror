@@ -1,6 +1,6 @@
 ;;; dbus-codegen.el --- Lisp code generation for D-Bus. -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2015 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2019 Free Software Foundation, Inc.
 
 ;; Author: Daiki Ueno <ueno@gnu.org>
 ;; Keywords: comm, dbus, convenience
@@ -168,10 +168,10 @@
 ;; Base type of a D-Bus proxy and a skeleton.
 (cl-defstruct (dbus-codegen-object
 	       (:constructor nil))
-  (bus :read-only t)
-  (service :read-only t)
-  (path :read-only t)
-  (interface :read-only t)
+  (bus nil :read-only t)
+  (service nil :read-only t)
+  (path nil :read-only t)
+  (interface nil :read-only t)
   registration-list)
 
 ;; Base type of a D-Bus proxy.
