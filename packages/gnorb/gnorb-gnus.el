@@ -986,7 +986,7 @@ option `gnorb-gnus-hint-relevant-article' is non-nil."
 (add-hook 'gnus-select-article-hook 'gnorb-gnus-hint-relevant-message)
 
 (defun gnorb-gnus-insert-format-letter-maybe (header)
-  (if (hash-table-p gnus-registry-db)
+  (if (object-p gnus-registry-db)
       (if (not (or (gnus-ephemeral-group-p gnus-newsgroup-name)
 		   (gnus-virtual-group-p gnus-newsgroup-name)))
 	  (let* ((id (mail-header-message-id header))
@@ -1010,7 +1010,7 @@ option `gnorb-gnus-hint-relevant-article' is non-nil."
     (gnorb-gnus-insert-format-letter-maybe header)))
 
 (defun gnorb-gnus-insert-format-tags (header)
-  (if (hash-table-p gnus-registry-db)
+  (if (object-p gnus-registry-db)
       (let* ((id (mail-header-message-id header))
 	     (entry (nth 1 (assoc id (registry-lookup
 				      gnus-registry-db
