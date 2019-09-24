@@ -2206,9 +2206,7 @@ If given a prefix, patch in the branch directory instead.
 
 If SELECTIVELY, query the user before applying the patch."
   (interactive "P")
-  (add-hook 'emacs-lisp-mode-hook #'debbugs-gnu-lisp-mode)
   (add-hook 'diff-mode-hook #'debbugs-gnu-diff-mode)
-  (add-hook 'change-log-mode-hook #'debbugs-gnu-change-mode)
   (debbugs-gnu-init-current-directory branch)
   (let ((rej (expand-file-name "debbugs-gnu.rej" temporary-file-directory))
 	(output-buffer (get-buffer-create "*debbugs patch*"))
@@ -2388,6 +2386,7 @@ If SELECTIVELY, query the user before applying the patch."
     (let ((add-log-full-name (car from))
 	  (add-log-mailing-address (cadr from)))
       (add-change-log-entry-other-window)
+      (debbugs-gnu-change-mode)
       (setq-local debbugs-gnu-patch-subject patch-subject)
       (when changelog
 	(delete-region (line-beginning-position) (point-max))
@@ -2398,21 +2397,6 @@ If SELECTIVELY, query the user before applying the patch."
       (let ((point (point)))
 	(when (string-match "\\(bug#[0-9]+\\)" subject)
 	  (insert " (" (match-string 1 subject) ")."))
-	(when (zerop (debbugs-gnu-find-contributor
-		      (let ((bits (split-string (car from))))
-			(cond
-			 ((>= (length bits) 2)
-			  (format "%s.*%s" (car bits) (car (last bits))))
-			 ((= (length bits) 1)
-			  (car bits))
-			 ;; Fall back on the email address.
-			 (t
-			  (cadr from))))))
-	  (goto-char (point-max))
-	  (end-of-line)
-	  (when changelog
-	    (insert "\n\n"))
-	  (insert "  Copyright-paperwork-exempt: yes"))
 	(goto-char point)))))
 
 (defvar debbugs-gnu-lisp-mode-map
@@ -2441,7 +2425,8 @@ If SELECTIVELY, query the user before applying the patch."
   "Select the diff under point."
   (interactive)
   (delete-other-windows)
-  (diff-goto-source))
+  (diff-goto-source)
+  (debbugs-gnu-lisp-mode))
 
 (defvar debbugs-gnu-change-mode-map
   (let ((map (make-sparse-keymap)))
@@ -2474,6 +2459,7 @@ If SELECTIVELY, query the user before applying the patch."
     (vc-next-action nil)
     (delete-region (point-min) (point-max))
     (log-edit-insert-changelog t)
+    (debbugs-gnu-log-edit-mode)
     (delete-other-windows)
     (split-window)
     (other-window 1)
@@ -2488,6 +2474,41 @@ If SELECTIVELY, query the user before applying the patch."
       (insert (replace-regexp-in-string "^ *\\[PATCH\\] *" "" patch-subject))
       (beginning-of-line)
       (search-forward ": " nil t))))
+
+(defvar debbugs-gnu-log-edit-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [(meta m)] 'debbugs-gnu-log-edit-done)
+    map))
+
+(define-minor-mode debbugs-gnu-log-edit-mode
+  "Minor mode for providing a debbugs interface in log-edit buffers.
+
+\\{debbugs-gnu-log-edit-mode-map}"
+  :lighter " Debbugs" :keymap debbugs-gnu-log-edit-mode-map)
+
+(defun debbugs-gnu-log-edit-done ()
+  "Finish editing the log edit and commit the files."
+  (interactive)
+  (let ((author (mail-fetch-field "Author")))
+    (when (> (length author) 0)
+      (let ((from (mail-extract-address-components author)))
+	(when (and (zerop (debbugs-gnu-find-contributor
+			   (let ((bits (split-string (car from))))
+			     (cond
+			      ((>= (length bits) 2)
+			       (format "%s.*%s" (car bits) (car (last bits))))
+			      ((= (length bits) 1)
+			       (car bits))
+			      ;; Fall back on the email address.
+			      (t
+			       (cadr from))))))
+		   (y-or-n-p "Add paperwork exempt line?"))
+	  (goto-char (point-max))
+	  (end-of-line)
+	  (terpri)
+	  (insert "\nCopyright-paperwork-exempt: yes\n")))))
+  ;; Commit.
+  (log-edit-done))
 
 (defun debbugs-gnu-save-cache ()
   "Save the bugs cache to a file."
