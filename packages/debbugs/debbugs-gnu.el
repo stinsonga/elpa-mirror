@@ -417,7 +417,7 @@ be empty, in this case only the following attributes are used for
 search."))
 
 ;;;###autoload
-(defun debbugs-gnu-search (phrase query severities packages archivedp)
+(defun debbugs-gnu-search (&optional phrase query severities packages archivedp)
   "Search for Emacs bugs interactively.
 Search arguments are requested interactively.  The \"search
 phrase\" is used for full text search in the bugs database.
