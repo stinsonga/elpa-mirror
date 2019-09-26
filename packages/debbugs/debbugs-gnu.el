@@ -411,10 +411,8 @@ Derived from `calendar-read'."
    "Enter search phrase: "
    'help-echo "\
 The search phrase contains words to be searched for, combined by
-operators like AND, ANDNOT and OR.  If there is no operator
-between the words, AND is used by default.  The phrase can also
-be empty, in this case only the following attributes are used for
-search."))
+operators like AND, ANDNOT and OR.  The phrase can also be empty,
+in this case only the following attributes are used for search."))
 
 ;;;###autoload
 (defun debbugs-gnu-search (&optional phrase query severities packages archivedp)
