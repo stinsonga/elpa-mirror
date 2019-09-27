@@ -1356,6 +1356,10 @@ If there is already a header line, then unset the header line."
 
 ;;; Auto-alignment
 
+(defcustom csv-align-field-max-width 40
+  "Maximum width of a column in `csv-align-fields-mode'."
+  :type 'integer)
+
 (defvar-local csv--jit-columns nil)
 
 (defun csv--jit-merge-columns (column-widths)
@@ -1377,7 +1381,7 @@ If there is already a header line, then unset the header line."
     changed))
 
 (defun csv--jit-unalign (beg end)
-  (remove-text-properties beg end '(display nil csv--jit nil))
+  (remove-text-properties beg end '(display nil csv--jit nil invisible nil))
   (remove-overlays beg end 'csv--jit t))
 
 (defun csv--jit-flush (beg end)
@@ -1429,35 +1433,38 @@ If there is already a header line, then unset the header line."
                      (align-padding (if (bolp) 0 csv-align-padding))
                      (left-padding 0) (right-padding 0)
                      (field-width (pop field-widths))
-                     (column-width (pop w))
-                     (x (- column-width field-width))) ; Required padding.
+                     (column-width (min (pop w) csv-align-field-max-width))
+                     (x (- column-width field-width)) ; Required padding.
+                     (truncate nil))
                 (csv-end-of-field)
                 ;; beg = beginning of current field
                 ;; end = (point) = end of current field
-
+                (when (< x 0)
+                  (setq truncate (+ column column-width))
+                  (setq x 0))
                 ;; Compute required padding:
                 (pcase csv-align-style
-                 ('left
-                  ;; Left align -- pad on the right:
-                  (setq left-padding align-padding
-                        right-padding x))
-                 ('right
-                  ;; Right align -- pad on the left:
-                  (setq left-padding (+ align-padding x)))
-                 ('auto
-                  ;; Auto align -- left align text, right align numbers:
-                  (if (string-match "\\`[-+.[:digit:]]+\\'"
-                                    (buffer-substring field-beg (point)))
-                      ;; Right align -- pad on the left:
-                      (setq left-padding (+ align-padding x))
-                    ;; Left align -- pad on the right:
-                    (setq left-padding align-padding
-                          right-padding x)))
-                 ('centre
-                  ;; Centre -- pad on both left and right:
-                  (let ((y (/ x 2)))    ; truncated integer quotient
-                    (setq left-padding (+ align-padding y)
-                          right-padding (- x y)))))
+                  ('left
+                   ;; Left align -- pad on the right:
+                   (setq left-padding align-padding
+                         right-padding x))
+                  ('right
+                   ;; Right align -- pad on the left:
+                   (setq left-padding (+ align-padding x)))
+                  ('auto
+                   ;; Auto align -- left align text, right align numbers:
+                   (if (string-match "\\`[-+.[:digit:]]+\\'"
+                                     (buffer-substring field-beg (point)))
+                       ;; Right align -- pad on the left:
+                       (setq left-padding (+ align-padding x))
+                     ;; Left align -- pad on the right:
+                     (setq left-padding align-padding
+                           right-padding x)))
+                  ('centre
+                   ;; Centre -- pad on both left and right:
+                   (let ((y (/ x 2)))   ; truncated integer quotient
+                     (setq left-padding (+ align-padding y)
+                           right-padding (- x y)))))
 
                 (cond
 
@@ -1478,14 +1485,13 @@ If there is already a header line, then unset the header line."
 			(csv--make-overlay
 			 field-beg (1+ field-beg) nil nil nil
 			 `(before-string ,(make-string left-padding ?\ )
-			   csv--jit t)))
+			                 csv--jit t)))
                     ;; Display separator as spaces:
                     (with-silent-modifications
                       (put-text-property
                        (1- field-beg) field-beg
                        'display `(space :align-to
                                         ,(+ left-padding column)))))
-                  (unless (eolp) (forward-char)) ; Skip separator.
                   (setq column (+ column column-width align-padding)))
 
                  (t ;; Do not hide separators...
@@ -1501,10 +1507,17 @@ If there is already a header line, then unset the header line."
                           ;; Display spaces after field:
                           (overlay-put
                            overlay
-                           'after-string (make-string right-padding ?\ )))
-                      (forward-char)))) ; Skip separator.
-
-                 )))))
+                           'after-string (make-string right-padding ?\ )))))))
+                ;; Do it after applying the property, so `move-to-column' can
+                ;; take it into account.
+                (when truncate
+                  (let ((trunc-pos (save-excursion
+                                     (move-to-column truncate)
+                                     (point))))
+                    (put-text-property trunc-pos (point)
+                                       'invisible 'csv-truncate)))
+                (unless (eolp) (forward-char)) ; Skip separator.
+                ))))
 	(forward-line)))
     `(jit-lock-bounds ,beg . end)))
 
@@ -1514,10 +1527,12 @@ If there is already a header line, then unset the header line."
   (csv-unalign-fields nil (point-min) (point-max)) ;Just in case.
   (cond
    (csv-align-fields-mode
+    (add-to-invisibility-spec '(csv-truncate . t))
     (kill-local-variable 'csv--jit-columns)
     (jit-lock-register #'csv--jit-align)
     (jit-lock-refontify))
    (t
+    (remove-from-invisibility-spec '(csv-truncate . t))
     (jit-lock-unregister #'csv--jit-align)
     (csv--jit-unalign (point-min) (point-max)))))
 
