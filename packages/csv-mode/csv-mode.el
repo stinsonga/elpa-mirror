@@ -3,7 +3,6 @@
 ;; Copyright (C) 2003, 2004, 2012-2019  Free Software Foundation, Inc
 
 ;; Author: "Francis J. Wright" <F.J.Wright@qmul.ac.uk>
-;; Time-stamp: <23 August 2004>
 ;; Version: 1.9
 ;; Package-Requires: ((emacs "24.1") (cl-lib "0.5"))
 ;; Keywords: convenience
@@ -309,6 +308,7 @@ Sort order is controlled by `csv-descending'.
 CSV mode provides the following specific keyboard key bindings:
 
 \\{csv-mode-map}"
+  :group 'CSV
   ;; We used to `turn-off-auto-fill' here instead, but that's not very
   ;; effective since text-mode-hook is run afterwards anyway!
   (setq-local normal-auto-fill-function nil)
@@ -1553,6 +1553,7 @@ If there is already a header line, then unset the header line."
 ;;;###autoload
 (define-derived-mode tsv-mode csv-mode "TSV"
   "Major mode for editing files of tab-separated value type."
+  :group 'CSV
   ;; In TSV we know TAB is the only possible separator.
   (setq-local csv-separators '("\t"))
   ;; FIXME: Copy&pasted from the `:set'ter of csv-separators!
