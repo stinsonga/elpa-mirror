@@ -3,6 +3,7 @@
 ;; Copyright (C) 2003, 2004, 2012-2019  Free Software Foundation, Inc
 
 ;; Author: "Francis J. Wright" <F.J.Wright@qmul.ac.uk>
+;; Maintainer: emacs-devel@gnu.org
 ;; Version: 1.9
 ;; Package-Requires: ((emacs "24.1") (cl-lib "0.5"))
 ;; Keywords: convenience
@@ -784,7 +785,7 @@ the mode line after `csv-field-index-delay' seconds of Emacs idle time."
 			  (buffer-list)))
 	  (setq csv-field-index-idle-timer
 		(run-with-idle-timer csv-field-index-delay t
-				     'csv-field-index)))
+				     #'csv-field-index)))
     ;; but if the mode is off then remove the display from the mode
     ;; lines of all CSV buffers:
     (mapc (lambda (buffer)
@@ -1163,7 +1164,7 @@ If there is no selected region, default to the whole buffer."
   ;; Remove any soft alignment:
   (mapc #'csv--delete-overlay (overlays-in beg end))
   (with-silent-modifications
-    (remove-list-of-text-properties beg end '(display)))
+    (remove-list-of-text-properties beg end '(display invisible)))
   (when hard
     (barf-if-buffer-read-only)
     ;; Remove any white-space padding around separators:
@@ -1356,7 +1357,7 @@ If there is already a header line, then unset the header line."
 
 ;;; Auto-alignment
 
-(defcustom csv-align-field-max-width 40
+(defcustom csv-align-fields-max-width 40
   "Maximum width of a column in `csv-align-fields-mode'."
   :type 'integer)
 
@@ -1405,6 +1406,13 @@ If there is already a header line, then unset the header line."
        pos (setq pos (or (text-property-any pos (point-max) 'csv--jit nil)
                          (point-max)))))))
 
+(defun csv--ellipsis-width ()
+  (let ((ellipsis
+         (when standard-display-table
+           (display-table-slot standard-display-table
+                               'selective-display))))
+    (if ellipsis (length ellipsis) 3)))
+
 (defun csv--jit-align (beg end)
   (save-excursion
     ;; First, round up to a whole number of lines.
@@ -1416,7 +1424,8 @@ If there is already a header line, then unset the header line."
     (put-text-property beg end 'csv--jit t)
 
     (pcase-let* ((`(,column-widths ,field-widths) (csv--column-widths beg end))
-                 (changed (csv--jit-merge-columns column-widths)))
+                 (changed (csv--jit-merge-columns column-widths))
+                 (ellipsis-width (csv--ellipsis-width)))
       (when changed
         ;; Do it after the current redisplay is over.
         ;; We could even defer it by a small amount of time.
@@ -1433,14 +1442,16 @@ If there is already a header line, then unset the header line."
                      (align-padding (if (bolp) 0 csv-align-padding))
                      (left-padding 0) (right-padding 0)
                      (field-width (pop field-widths))
-                     (column-width (min (pop w) csv-align-field-max-width))
+                     (column-width (min (pop w) csv-align-fields-max-width))
                      (x (- column-width field-width)) ; Required padding.
                      (truncate nil))
                 (csv-end-of-field)
                 ;; beg = beginning of current field
                 ;; end = (point) = end of current field
                 (when (< x 0)
-                  (setq truncate (+ column column-width))
+                  (setq truncate (max column
+                                      (+ column column-width
+                                         align-padding (- ellipsis-width))))
                   (setq x 0))
                 ;; Compute required padding:
                 (pcase csv-align-style
@@ -1491,8 +1502,7 @@ If there is already a header line, then unset the header line."
                       (put-text-property
                        (1- field-beg) field-beg
                        'display `(space :align-to
-                                        ,(+ left-padding column)))))
-                  (setq column (+ column column-width align-padding)))
+                                        ,(+ left-padding column))))))
 
                  (t ;; Do not hide separators...
                   (let ((overlay (csv--make-overlay field-beg (point)
@@ -1508,6 +1518,9 @@ If there is already a header line, then unset the header line."
                           (overlay-put
                            overlay
                            'after-string (make-string right-padding ?\ )))))))
+
+                (setq column (+ column column-width align-padding))
+
                 ;; Do it after applying the property, so `move-to-column' can
                 ;; take it into account.
                 (when truncate
