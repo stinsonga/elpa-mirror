@@ -202,18 +202,29 @@ of the same day.
 
 These both commands are completely interactive.  They ask for a
 @code{"search phrase"} for the text search.  It is just a string which
-contains the words to be searched for, combined by operators like AND,
-ANDNOT and OR@.  If there is no operator between the words, AND is
-used by default.  Only complete words, contained in a message body,
-are searched for.
+contains the words to be searched for followed by each other.  There
+are also operators like "AND", "ANDNOT" and "OR", which allow to
+search for words at different positions in the text.  Only complete
+words, contained in a message body, are searched for.
 
-Wild card searches are also supported.  It can be used for forward
-match search and backward match search.  For example, "[BW] euro"
-matches words which begin with "euro".  "[EW] sphere" matches words
-which end with "sphere".  Moreover, regular expressions are also
+@ignore
+Hyperestraier does not specify the word syntax.  Since it is written
+in Ruby, one could assume Ruby identifier syntax.  Ruby identifiers
+are consist of alphabets, decimal digits, and the underscore
+character, and begin with a alphabets (including underscore).  There
+are no restrictions on the lengths of Ruby identifiers.  See
+@url{https://ruby-doc.org/docs/ruby-doc-bundle/Manual/man-1.4/syntax.html#ident}
+@end ignore
+
+Wildcard searches are also supported.  It can be used for forward
+match search and backward match search of words.  For example, "[BW]
+euro" matches words which begin with "euro".  "[EW] sphere" matches
+words which end with "sphere".  Moreover, regular expressions are also
 supported.  For example, "[RX] ^inter.*al$" matches words which begin
 with "inter" and end with "al".@footnote{Simplified forms, as
 described in the Hyperestraier User Guide, are not supported.}
+Several wildcards could be separated by the operators.  If there is no
+operator between the wildcards, "AND" is used by default.
 
 While the words to be searched for are case insensitive, the operators
 must be specified case sensitive.
