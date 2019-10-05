@@ -202,10 +202,10 @@ of the same day.
 
 These both commands are completely interactive.  They ask for a
 @code{"search phrase"} for the text search.  It is just a string which
-contains the words to be searched for followed by each other.  There
-are also operators like "AND", "ANDNOT" and "OR", which allow to
-search for words at different positions in the text.  Only complete
-words, contained in a message body, are searched for.
+contains the words to be searched for followed by each other.  If
+there are operators like "AND", "ANDNOT" and "OR" between the words,
+the search happens for words at different positions in the text.  Only
+complete words, contained in a message body, are searched for.
 
 @ignore
 Hyperestraier does not specify the word syntax.  Since it is written
@@ -223,8 +223,7 @@ words which end with "sphere".  Moreover, regular expressions are also
 supported.  For example, "[RX] ^inter.*al$" matches words which begin
 with "inter" and end with "al".@footnote{Simplified forms, as
 described in the Hyperestraier User Guide, are not supported.}
-Several wildcards could be separated by the operators.  If there is no
-operator between the wildcards, "AND" is used by default.
+Several wildcards must be separated by the operators explained above.
 
 While the words to be searched for are case insensitive, the operators
 must be specified case sensitive.

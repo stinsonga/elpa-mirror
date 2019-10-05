@@ -180,11 +180,11 @@ changes of the same day.
 
      These both commands are completely interactive.  They ask for a
      '"search phrase"' for the text search.  It is just a string which
-     contains the words to be searched for followed by each other.
-     There are also operators like "AND", "ANDNOT" and "OR", which
-     allow to search for words at different positions in the text.
-     Only complete words, contained in a message body, are searched
-     for.
+     contains the words to be searched for followed by each other.  If
+     there are operators like "AND", "ANDNOT" and "OR" between the
+     words, the search happens for words at different positions in the
+     text.  Only complete words, contained in a message body, are
+     searched for.
 
      Wildcard searches are also supported.  It can be used for forward
      match search and backward match search of words.  For example,
@@ -192,8 +192,8 @@ changes of the same day.
      matches words which end with "sphere".  Moreover, regular
      expressions are also supported.  For example, "[RX] ^inter.*al$"
      matches words which begin with "inter" and end with "al".(2)
-     Several wildcards could be separated by the operators.  If there
-     is no operator between the wildcards, "AND" is used by default.
+     Several wildcards must be separated by the operators explained
+     above.
 
      While the words to be searched for are case insensitive, the
      operators must be specified case sensitive.
@@ -1130,51 +1130,51 @@ Tag Table:
 Node: Top1097
 Node: Retrieving Bugs2704
 Node: Searching Bugs7071
-Ref: Searching Bugs-Footnote-111664
-Ref: Searching Bugs-Footnote-211752
-Node: Presenting Bugs11843
-Node: Tabulated Lists12505
-Node: TODO Items16344
-Node: Control Messages17665
-Node: Applying Patches21182
-Node: Posting Patches22572
-Node: Customizing debbugs-gnu-pick-commits25057
-Node: Minor Mode25757
-Node: Command Index27033
-Node: Variable Index27893
-Node: Key Index29409
-Node: Mail Command Index31117
-Ref: Mail Command Index: reassign31270
-Ref: Mail Command Index: reopen32036
-Ref: Mail Command Index: found33190
-Ref: Mail Command Index: notfound34271
-Ref: Mail Command Index: fixed34680
-Ref: Mail Command Index: notfixed35126
-Ref: Mail Command Index: submitter35749
-Ref: Mail Command Index: forwarded36143
-Ref: Mail Command Index: notforwarded36760
-Ref: Mail Command Index: retitle36961
-Ref: Mail Command Index: severity37345
-Ref: Mail Command Index: clone37676
-Ref: Mail Command Index: merge38440
-Ref: Mail Command Index: forcemerge39827
-Ref: Mail Command Index: unmerge40271
-Ref: Mail Command Index: tags40974
-Ref: Mail Command Index: block42040
-Ref: Mail Command Index: unblock42077
-Ref: Mail Command Index: close42562
-Ref: Mail Command Index: package43212
-Ref: Mail Command Index: owner43824
-Ref: Mail Command Index: noowner44187
-Ref: Mail Command Index: archive44360
-Ref: Mail Command Index: unarchive44501
-Ref: Mail Command Index: #44794
-Ref: Mail Command Index: quit45054
-Ref: Mail Command Index: stop45061
-Ref: Mail Command Index: thank45068
-Ref: Mail Command Index: thanks45076
-Ref: Mail Command Index: thankyou45085
-Ref: Mail Command Index: thank you45096
-Ref: Mail Command Index: --45108
+Ref: Searching Bugs-Footnote-111620
+Ref: Searching Bugs-Footnote-211708
+Node: Presenting Bugs11799
+Node: Tabulated Lists12461
+Node: TODO Items16300
+Node: Control Messages17621
+Node: Applying Patches21138
+Node: Posting Patches22528
+Node: Customizing debbugs-gnu-pick-commits25013
+Node: Minor Mode25713
+Node: Command Index26989
+Node: Variable Index27849
+Node: Key Index29365
+Node: Mail Command Index31073
+Ref: Mail Command Index: reassign31226
+Ref: Mail Command Index: reopen31992
+Ref: Mail Command Index: found33146
+Ref: Mail Command Index: notfound34227
+Ref: Mail Command Index: fixed34636
+Ref: Mail Command Index: notfixed35082
+Ref: Mail Command Index: submitter35705
+Ref: Mail Command Index: forwarded36099
+Ref: Mail Command Index: notforwarded36716
+Ref: Mail Command Index: retitle36917
+Ref: Mail Command Index: severity37301
+Ref: Mail Command Index: clone37632
+Ref: Mail Command Index: merge38396
+Ref: Mail Command Index: forcemerge39783
+Ref: Mail Command Index: unmerge40227
+Ref: Mail Command Index: tags40930
+Ref: Mail Command Index: block41996
+Ref: Mail Command Index: unblock42033
+Ref: Mail Command Index: close42518
+Ref: Mail Command Index: package43168
+Ref: Mail Command Index: owner43780
+Ref: Mail Command Index: noowner44143
+Ref: Mail Command Index: archive44316
+Ref: Mail Command Index: unarchive44457
+Ref: Mail Command Index: #44750
+Ref: Mail Command Index: quit45010
+Ref: Mail Command Index: stop45017
+Ref: Mail Command Index: thank45024
+Ref: Mail Command Index: thanks45032
+Ref: Mail Command Index: thankyou45041
+Ref: Mail Command Index: thank you45052
+Ref: Mail Command Index: --45064
 
 End Tag Table
