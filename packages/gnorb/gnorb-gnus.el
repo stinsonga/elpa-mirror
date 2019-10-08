@@ -328,7 +328,7 @@ information about the outgoing message into
 			 'gnorb-org-restore-after-send t))
 	(setq gnorb-message-org-ids nil)))))
 
-(add-hook 'message-sent-hook 'gnorb-gnus-check-outgoing-headers t)
+(add-hook 'message-sent-hook #'gnorb-gnus-check-outgoing-headers t)
 
 ;;;###autoload
 (defun gnorb-gnus-outgoing-do-todo (&optional arg)
@@ -941,8 +941,6 @@ error."
     (when (string-match-p "Gnorb" (cadr method))
       (gnorb-summary-minor-mode))))
 
-(add-hook 'gnus-summary-prepared-hook #'gnorb-gnus-summary-mode-hook)
-
 ;;; Automatic noticing of relevant messages
 
 ;; likely hooks for the summary buffer include:
@@ -958,6 +956,7 @@ to that effect. This function is added to the
 `gnus-article-prepare-hook'. It will only do anything if the
 option `gnorb-gnus-hint-relevant-article' is non-nil."
   (when (and gnorb-gnus-hint-relevant-article
+	     (eieio-object-p gnus-registry-db)
 	     (not (memq (car (gnus-find-method-for-group
 			      gnus-newsgroup-name))
 			'(nnvirtual nnir))))
@@ -983,10 +982,8 @@ option `gnorb-gnus-hint-relevant-article' is non-nil."
 			"M-x gnorb-gnus-incoming-do-todo")))
 	    (t nil)))))
 
-(add-hook 'gnus-select-article-hook 'gnorb-gnus-hint-relevant-message)
-
 (defun gnorb-gnus-insert-format-letter-maybe (header)
-  (if (object-p gnus-registry-db)
+  (if (eieio-object-p gnus-registry-db)
       (if (not (or (gnus-ephemeral-group-p gnus-newsgroup-name)
 		   (gnus-virtual-group-p gnus-newsgroup-name)))
 	  (let* ((id (mail-header-message-id header))
@@ -1010,7 +1007,7 @@ option `gnorb-gnus-hint-relevant-article' is non-nil."
     (gnorb-gnus-insert-format-letter-maybe header)))
 
 (defun gnorb-gnus-insert-format-tags (header)
-  (if (object-p gnus-registry-db)
+  (if (eieio-object-p gnus-registry-db)
       (let* ((id (mail-header-message-id header))
 	     (entry (nth 1 (assoc id (registry-lookup
 				      gnus-registry-db
@@ -1041,6 +1038,18 @@ option `gnorb-gnus-hint-relevant-article' is non-nil."
       (move-marker gnorb-return-marker (point))
       (delete-other-windows)
       (org-id-goto (car tracked-headings)))))
+
+(defun gnorb-gnus-startup ()
+  (add-hook 'gnus-select-article-hook #'gnorb-gnus-hint-relevant-message)
+  (add-hook 'gnus-summary-prepared-hook #'gnorb-gnus-summary-mode-hook))
+
+(add-hook 'gnus-started-hook #'gnorb-gnus-startup)
+
+(defun gnorb-gnus-shutdown ()
+  (remove-hook 'gnus-select-article-hook #'gnorb-gnus-hint-relevant-message)
+  (remove-hook 'gnus-summary-prepared-hook #'gnorb-gnus-summary-mode-hook))
+
+(gnus-add-shutdown #'gnorb-gnus-shutdown 'gnus)
 
 (provide 'gnorb-gnus)
 ;;; gnorb-gnus.el ends here
