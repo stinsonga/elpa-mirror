@@ -32,6 +32,7 @@
 
 (("ack"			:subtree "https://github.com/leoliu/ack-el")
  ("aggressive-indent"	:subtree "https://github.com/Malabarba/aggressive-indent-mode")
+ ("async"		:external "https://github.com/jwiegley/emacs-async")
  ("auctex"		:external "git://git.sv.gnu.org/auctex.git")
  ("bbdb"		:external "git://git.savannah.nongnu.org/bbdb.git")
  ("bnf-mode"		:external "https://github.com/sergeyklay/bnf-mode")
