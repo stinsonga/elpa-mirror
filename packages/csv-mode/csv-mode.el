@@ -1013,7 +1013,7 @@ point."
 (defun csv-align-fields (hard beg end)
   "Align all the fields in the region to form columns.
 The alignment style is specified by `csv-align-style'.  The number of
-spaces specified by `csv-align-fields' appears after each separator.
+spaces specified by `csv-align-padding' appears after each separator.
 Use soft alignment done by displaying virtual white space after the
 separators unless invoked with an argument, in which case insert real
 space characters into the buffer after the separators.
