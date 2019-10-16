@@ -26,7 +26,6 @@
 ./auctex/style/jsarticle.el
 ./auctex/style/jsbook.el
 ./auctex/style/jurabib.el:;; you assign the copyright to the FSF.
-./auctex/style/mflogo.el
 ./auctex/style/ngerman.el
 ./auctex/style/plfonts.el
 ./auctex/style/plhb.el
