@@ -4,8 +4,8 @@
 
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>
 ;; URL: https://github.com/abo-abo/swiper
-;; Version: 0.12.0
-;; Package-Requires: ((emacs "24.1") (ivy "0.12.0") (hydra "0.13.4"))
+;; Version: 0.13.0
+;; Package-Requires: ((emacs "24.5") (ivy "0.13.0") (hydra "0.15.0"))
 ;; Keywords: convenience
 
 ;; This file is part of GNU Emacs.
@@ -77,7 +77,8 @@ _h_ ^+^ _l_ | _d_one      ^ ^  | _o_ops   | _M_: matcher %-5s(ivy--matcher-desc)
   ("<" ivy-minibuffer-shrink)
   ("w" ivy-prev-action)
   ("s" ivy-next-action)
-  ("a" ivy-read-action)
+  ("a" (let ((ivy-read-action-function #'ivy-read-action-by-key))
+         (ivy-read-action)))
   ("T" (setq truncate-lines (not truncate-lines)))
   ("C" ivy-toggle-case-fold)
   ("U" ivy-occur :exit t)
@@ -108,7 +109,8 @@ _h_ ^+^ _l_ | _d_one      ^ ^  | _o_ops   | _M_: matcher %-5s(ivy--matcher-desc)
          (estimated-len (length doc))
          (n-columns (if (> estimated-len (window-width))
                         ivy-dispatching-done-columns
-                      nil)))
+                      nil))
+         (i 0))
     (if (null (ivy--actionp actions))
         (ivy-done)
       (funcall
@@ -118,13 +120,13 @@ _h_ ^+^ _l_ | _d_one      ^ ^  | _o_ops   | _M_: matcher %-5s(ivy--matcher-desc)
            ,@(mapcar (lambda (x)
                        (list (nth 0 x)
                              `(progn
-                                (ivy-set-action ',(nth 1 x))
+                                (setcar (ivy-state-action ivy-last) ,(cl-incf i))
                                 (ivy-done))
                              (nth 2 x)))
                      (cdr actions))
            ,@extra-actions))))))
 
-(define-key ivy-minibuffer-map (kbd "M-o") 'ivy-dispatching-done-hydra)
+(setq ivy-read-action-function (lambda (_) (ivy-dispatching-done-hydra)))
 
 (provide 'ivy-hydra)
 
