@@ -43,7 +43,9 @@
 ;;   multiple killed fields can be yanked only as a fixed group
 ;;   equivalent to a single field.
 
-;; - `csv-align-fields-mode' keeps fields visually aligned, on-the-fly.
+;; - `csv-align-mode' keeps fields visually aligned, on-the-fly.
+;;   It truncates fields to a maximum width that can be changed per-column
+;;   with `csv-align-set-column-width'.
 ;;   Alternatively, C-c C-a (`csv-align-fields') aligns fields into columns
 ;;   and C-c C-u (`csv-unalign-fields') undoes such alignment;
 ;;   separators can be hidden within aligned records (controlled by
@@ -226,14 +228,14 @@ Changing this variable does not affect any existing CSV mode buffer."
 
 (defcustom csv-align-style 'left
   "Aligned field style: one of `left', `centre', `right' or `auto'.
-Alignment style used by `csv-align-fields'.
+Alignment style used by `csv-align-mode' and `csv-align-fields'.
 Auto-alignment means left align text and right align numbers."
   :type '(choice (const left) (const centre)
 		 (const right) (const auto)))
 
 (defcustom csv-align-padding 1
   "Aligned field spacing: must be a positive integer.
-Number of spaces used by `csv-align-fields' after separators."
+Number of spaces used by `csv-align-mode' and `csv-align-fields' after separators."
   :type 'integer)
 
 (defcustom csv-header-lines 0
@@ -425,21 +427,21 @@ Usually they sort in order of ascending sort key.")
     ("Alignment Style"
      ["Left" (setq csv-align-style 'left) :active t
       :style radio :selected (eq csv-align-style 'left)
-      :help "If selected, `csv-align-fields' left aligns fields"]
+      :help "If selected, `csv-align' left aligns fields"]
      ["Centre" (setq csv-align-style 'centre) :active t
       :style radio :selected (eq csv-align-style 'centre)
-      :help "If selected, `csv-align-fields' centres fields"]
+      :help "If selected, `csv-align' centres fields"]
      ["Right" (setq csv-align-style 'right) :active t
       :style radio :selected (eq csv-align-style 'right)
-      :help "If selected, `csv-align-fields' right aligns fields"]
+      :help "If selected, `csv-align' right aligns fields"]
      ["Auto" (setq csv-align-style 'auto) :active t
       :style radio :selected (eq csv-align-style 'auto)
       :help "\
-If selected, `csv-align-fields' left aligns text and right aligns numbers"]
+If selected, `csv-align' left aligns text and right aligns numbers"]
      )
     ["Set header line" csv-header-line :active t]
-    ["Auto-(re)align fields" csv-align-fields-mode
-     :style toggle :selected csv-align-fields-mode]
+    ["Auto-(re)align fields" csv-align-mode
+     :style toggle :selected csv-align-mode]
     ["Show Current Field Index" csv-field-index-mode :active t
      :style toggle :selected csv-field-index-mode
      :help "If selected, display current field index in mode line"]
@@ -1224,9 +1226,9 @@ When called non-interactively, BEG and END specify region to process."
 	      (forward-line)
 	    (let ((lep (line-end-position)))
 	      (push
-	       (csv-split-string
+	       (split-string
 		(buffer-substring-no-properties (point) lep)
-		csv-separator-regexp nil t)
+		csv-separator-regexp)
 	       rows)
 	      (delete-region (point) lep)
 	      (or (eobp) (delete-char 1)))))
@@ -1264,48 +1266,6 @@ When called non-interactively, BEG and END specify region to process."
 	  (setq columns (cdr columns)))
 	;; Re-do soft alignment if necessary:
 	(if align (csv-align-fields nil (point-min) (point-max)))))))
-
-;; The following generalised version of `split-string' is taken from
-;; the development version of WoMan and should probably replace the
-;; standard version in subr.el.  However, CSV mode (currently) needs
-;; only the `allowbeg' option.
-
-(defun csv-split-string
-  (string &optional separators subexp allowbeg allowend)
-  "Splits STRING into substrings where there are matches for SEPARATORS.
-Each match for SEPARATORS is a splitting point.
-The substrings between the splitting points are made into a list
-which is returned.
-If SEPARATORS is absent, it defaults to \"[ \\f\\t\\n\\r\\v]+\".
-SUBEXP specifies a subexpression of SEPARATORS to be the splitting
-point\; it defaults to 0.
-
-If there is a match for SEPARATORS at the beginning of STRING, we do
-not include a null substring for that, unless ALLOWBEG is non-nil.
-Likewise, if there is a match at the end of STRING, we do not include
-a null substring for that, unless ALLOWEND is non-nil.
-
-Modifies the match data; use `save-match-data' if necessary."
-  (or subexp (setq subexp 0))
-  (let ((rexp (or separators "[ \f\t\n\r\v]+"))
-	(start 0)
-	notfirst
-	(list nil))
-    (while (and (string-match rexp string
-			      (if (and notfirst
-				       (= start (match-beginning subexp))
-				       (< start (length string)))
-				  (1+ start) start))
-		(< (match-beginning subexp) (length string)))
-      (setq notfirst t)
-      (or (and (not allowbeg) (eq (match-beginning subexp) 0))
-	  (and (eq (match-beginning subexp) (match-end subexp))
-	       (eq (match-beginning subexp) start))
-	  (push (substring string start (match-beginning subexp)) list))
-      (setq start (match-end subexp)))
-    (or (and (not allowend) (eq start (length string)))
-	(push (substring string start) list))
-    (nreverse list)))
 
 (defvar-local csv--header-line nil)
 (defvar-local csv--header-hscroll nil)
@@ -1375,11 +1335,39 @@ If there is already a header line, then unset the header line."
 
 ;;; Auto-alignment
 
-(defcustom csv-align-fields-max-width 40
-  "Maximum width of a column in `csv-align-fields-mode'.
+(defcustom csv-align-max-width 40
+  "Maximum width of a column in `csv-align-mode'.
 This does not apply to the last column (for which the usual `truncate-lines'
 setting works better)."
   :type 'integer)
+
+(defvar-local csv--config-column-widths nil
+  "Settings per column, stored as a list indexed by the column.")
+
+(defun csv-align--set-column (column value)
+  (let ((len (length csv--config-column-widths)))
+    (if (< len column)
+        (setq csv--config-column-widths
+              (nconc csv--config-column-widths (make-list (- column len) nil))))
+    (setf (nth (1- column) csv--config-column-widths) value)))
+
+(defun csv-align-set-column-width (column width)
+  "Set the max WIDTH to use for COLUMN."
+  (interactive
+   (let* ((field (or (csv--field-index) 1))
+          (curwidth (nth (1- field) csv--config-column-widths)))
+     (list field
+           (cond
+            ((numberp current-prefix-arg)
+             current-prefix-arg)
+            (current-prefix-arg
+             (read-number (format "Column width (for field %d): " field)
+                          curwidth))
+            (t (if curwidth nil (csv--ellipsis-width)))))))
+  (when (eql width csv-align-max-width)
+    (setq width nil))
+  (csv-align--set-column column width)
+  (jit-lock-refontify))
 
 (defvar-local csv--jit-columns nil)
 
@@ -1402,7 +1390,9 @@ setting works better)."
     changed))
 
 (defun csv--jit-unalign (beg end)
-  (remove-text-properties beg end '(display nil csv--jit nil invisible nil))
+  (remove-text-properties beg end
+                          '(display nil csv--jit nil invisible nil
+                            cursor-sensor-functions nil csv--revealed nil))
   (remove-overlays beg end 'csv--jit t))
 
 (defun csv--jit-flush (beg end)
@@ -1434,6 +1424,24 @@ setting works better)."
                                'selective-display))))
     (if ellipsis (length ellipsis) 3)))
 
+(defun csv-align--cursor-truncated (window _oldpos dir)
+  (let* ((prop (if (eq dir 'entered) 'invisible 'csv--revealed))
+         (pos (window-point window))
+         (start (cond
+                 ((and (> pos (point-min))
+                       (eq (get-text-property (1- pos) prop) 'csv-truncate))
+                  (or (previous-single-property-change pos prop) (point-min)))
+                 (t pos)))
+         (end (if (eq (get-text-property pos prop) 'csv-truncate)
+                  (or (next-single-property-change pos prop) (point-max))
+                pos)))
+    (unless (eql start end)
+      (with-silent-modifications
+        (put-text-property start end
+                           (if (eq dir 'entered) 'csv--revealed 'invisible)
+                           'csv-truncate)
+        (remove-text-properties start end (list prop))))))
+
 (defun csv--jit-align (beg end)
   (save-excursion
     ;; This is run with inhibit-modification-hooks set, so the overlays'
@@ -1455,26 +1463,28 @@ setting works better)."
                  (ellipsis-width (csv--ellipsis-width)))
       (when changed
         ;; Do it after the current redisplay is over.
-        ;; We could even defer it by a small amount of time.
-        (run-with-timer 0 nil #'csv--jit-flush beg end))
+        (run-with-timer jit-lock-context-time nil #'csv--jit-flush beg end))
 
       ;; Align fields:
       (goto-char beg)
       (while (< (point) end)
 	(unless (csv-not-looking-at-record)
           (let ((w csv--jit-columns)
+                (widths-config csv--config-column-widths)
                 (column 0))      ;Desired position of left-side of this column.
             (while (and w (not (eolp)))
               (let* ((field-beg (point))
+                     (width-config (pop widths-config))
                      (align-padding (if (bolp) 0 csv-align-padding))
                      (left-padding 0) (right-padding 0)
                      (field-width (pop field-widths))
                      (column-width
                       (min (pop w)
-                           ;; Don't apply csv-align-fields-max-width
-                           ;; to the last field!
-                           (if w csv-align-fields-max-width
-                             most-positive-fixnum)))
+                           (or width-config
+                               ;; Don't apply csv-align-max-width
+                               ;; to the last field!
+                               (if w csv-align-max-width
+                                 most-positive-fixnum))))
                      (x (- column-width field-width)) ; Required padding.
                      (truncate nil))
                 (csv-end-of-field)
@@ -1550,9 +1560,7 @@ setting works better)."
                           (overlay-put
                            overlay
                            'after-string (make-string right-padding ?\ )))))))
-
                 (setq column (+ column column-width align-padding))
-
                 ;; Do it after applying the property, so `move-to-column' can
                 ;; take it into account.
                 (when truncate
@@ -1572,20 +1580,33 @@ setting works better)."
                              (move-to-column truncate))
                            (point))))
                     (put-text-property trunc-pos (point)
-                                       'invisible 'csv-truncate)))
+                                       'invisible 'csv-truncate)
+                    (when (> (- (point) trunc-pos) 1)
+                      ;; Arrange to temporarily untruncate the string when
+                      ;; cursor moves into it.
+                      ;; FIXME: This only works if
+                      ;; `global-disable-point-adjustment' is non-nil!
+                      ;; Arguably this should be fixed by making
+                      ;; point-adjustment code pay attention to
+                      ;; cursor-sensor-functions!
+                      (put-text-property
+                       (1+ trunc-pos) (point)
+                       'cursor-sensor-functions
+                       (list #'csv-align--cursor-truncated)))))
                 (unless (eolp) (forward-char)) ; Skip separator.
                 ))))
 	(forward-line)))
     `(jit-lock-bounds ,beg . ,end)))
 
-(define-minor-mode csv-align-fields-mode
+(define-minor-mode csv-align-mode
   "Align columns on the fly."
   :global nil
   (csv-unalign-fields nil (point-min) (point-max)) ;Just in case.
   (cond
-   (csv-align-fields-mode
+   (csv-align-mode
     (add-to-invisibility-spec '(csv-truncate . t))
     (kill-local-variable 'csv--jit-columns)
+    (cursor-sensor-mode 1)
     (jit-lock-register #'csv--jit-align)
     (jit-lock-refontify))
    (t
