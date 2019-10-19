@@ -796,21 +796,24 @@ the mode line after `csv-field-index-delay' seconds of Emacs idle time."
 		(force-mode-line-update))))
 	    (buffer-list))))
 
+(defun csv--field-index ()
+  (save-excursion
+    (let ((lbp (line-beginning-position)) (field 1))
+      (while (re-search-backward csv-separator-regexp lbp 'move)
+	;; Move as far as possible, i.e. to beginning of line.
+	(setq field (1+ field)))
+      (unless (csv-not-looking-at-record) field))))
+
 (defun csv-field-index ()
   "Construct `csv-field-index-string' to display in mode line.
 Called by `csv-field-index-idle-timer'."
   (if (derived-mode-p 'csv-mode)
-      (save-excursion
-	(let ((lbp (line-beginning-position)) (field 1))
-	  (while (re-search-backward csv-separator-regexp lbp 1)
-	    ;; Move as far as possible, i.e. to beginning of line.
-	    (setq field (1+ field)))
-	  (if (csv-not-looking-at-record) (setq field nil))
-	  (when (not (eq field csv-field-index-old))
-	    (setq csv-field-index-old field
-		  csv-field-index-string
-		  (and field (format "F%d" field)))
-	    (force-mode-line-update))))))
+      (let ((field (csv--field-index)))
+	(when (not (eq field csv-field-index-old))
+	  (setq csv-field-index-old field
+		csv-field-index-string
+		(and field (format "F%d" field)))
+	  (force-mode-line-update)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;  Killing and yanking fields
@@ -1373,7 +1376,9 @@ If there is already a header line, then unset the header line."
 ;;; Auto-alignment
 
 (defcustom csv-align-fields-max-width 40
-  "Maximum width of a column in `csv-align-fields-mode'."
+  "Maximum width of a column in `csv-align-fields-mode'.
+This does not apply to the last column (for which the usual `truncate-lines'
+setting works better)."
   :type 'integer)
 
 (defvar-local csv--jit-columns nil)
@@ -1464,7 +1469,12 @@ If there is already a header line, then unset the header line."
                      (align-padding (if (bolp) 0 csv-align-padding))
                      (left-padding 0) (right-padding 0)
                      (field-width (pop field-widths))
-                     (column-width (min (pop w) csv-align-fields-max-width))
+                     (column-width
+                      (min (pop w)
+                           ;; Don't apply csv-align-fields-max-width
+                           ;; to the last field!
+                           (if w csv-align-fields-max-width
+                             most-positive-fixnum)))
                      (x (- column-width field-width)) ; Required padding.
                      (truncate nil))
                 (csv-end-of-field)
@@ -1546,9 +1556,21 @@ If there is already a header line, then unset the header line."
                 ;; Do it after applying the property, so `move-to-column' can
                 ;; take it into account.
                 (when truncate
-                  (let ((trunc-pos (save-excursion
-                                     (move-to-column truncate)
-                                     (point))))
+                  (let ((trunc-pos
+                         (save-excursion
+                           ;; ¡¡ BIG UGLY HACK !!
+                           ;; `current-column' and `move-to-column' count
+                           ;; text hidden with an ellipsis "as if" it were
+                           ;; fully visible, which is completely wrong here,
+                           ;; so circumvent this by temporarily pretending
+                           ;; that `csv-truncate' is fully invisible (which
+                           ;; isn't quite right either, but should work
+                           ;; just well enough for us here).
+                           (let ((buffer-invisibility-spec
+                                  buffer-invisibility-spec))
+                             (add-to-invisibility-spec 'csv-truncate)
+                             (move-to-column truncate))
+                           (point))))
                     (put-text-property trunc-pos (point)
                                        'invisible 'csv-truncate)))
                 (unless (eolp) (forward-char)) ; Skip separator.
