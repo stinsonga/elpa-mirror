@@ -5,7 +5,7 @@
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Package-Type: multi
-;; Version: 0.4.3
+;; Version: 0.4.4
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -119,10 +119,11 @@ installation."
   :type 'string)
 
 (defconst gnus-mock-data-dir
-  (when load-file-name
-    (file-name-as-directory (expand-file-name
-			     "data"
-			     (file-name-directory load-file-name))))
+  (file-name-as-directory (expand-file-name
+			   "data"
+			   (if load-file-name
+			       (file-name-directory load-file-name)
+			     default-directory)))
   "Source directory for Gnus mock data.")
 
 ;;;###autoload
@@ -132,8 +133,6 @@ The new Emacs process will be started as \"-Q\", with the mock
 Gnus settings pre-loaded.  Any of the normal Gnus entry points
 will start a mock Gnus session."
   (interactive)
-  (unless gnus-mock-data-dir
-    (error "Set `gnus-mock-data-dir' to the \"gnus-mock/data\" directory"))
   (let ((mock-tmp-dir (make-temp-file "emacs-gnus-mock-" t)))
     (condition-case-unless-debug err
 	(let ((init-file (expand-file-name "init.el" mock-tmp-dir)))
