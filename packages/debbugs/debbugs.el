@@ -21,12 +21,12 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
 ;; This package provides basic functions to access a Debbugs SOAP
-;; server (see <http://wiki.debian.org/DebbugsSoapInterface>).
+;; server (see <https://wiki.debian.org/DebbugsSoapInterface>).
 
 ;; The function "get_versions" is not implemented (yet).  "search_est"
 ;; is an extension on <https://debbugs.gnu.org>.
@@ -664,7 +664,7 @@ VALUE]*
 
 Every sublist of the QUERY forms a hyperestraier condition.  A
 detailed description of hyperestraier conditions can be found at
-URL `http://fallabs.com/hyperestraier/uguide-en.html#searchcond'.
+URL `https://fallabs.com/hyperestraier/uguide-en.html#searchcond'.
 
 The following conditions are possible:
 

@@ -129,7 +129,7 @@ tracking system (such as bugzilla) for a bug's status.
 Example usage:
 
 @example
-forwarded 12345 http://bugz.illa.foo/cgi/54321
+forwarded 12345 https://bugz.illa.foo/cgi/54321
 @end example
 
 @anchor{Mail Command Index: notforwarded}

@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -384,11 +384,12 @@ The specification which bugs shall be suppressed is taken from
 (defcustom debbugs-gnu-emacs-current-release "25.2"
   "The current Emacs relase developped for."
   :type '(choice (const "24.5")
-		 (const "25.1")
-		 (const "25.2")
-		 (const "26.1"))
-  :version "25.2")
+		 (const "25.1") (const "25.2")
+		 (const "26.1") (const "26.2") (const "26.3")
+		 (const "27.1"))
+  :version "26.3")
 
+;; The current Emacs maintainer doesn't use this anymore.
 (defconst debbugs-gnu-emacs-blocking-reports
   '(("24.5" . 19758)
     ("25.1" . 19759)
@@ -415,7 +416,7 @@ operators like AND, ANDNOT and OR.  The phrase can also be empty,
 in this case only the following attributes are used for search."))
 
 ;;;###autoload
-(defun debbugs-gnu-search (&optional phrase query severities packages archivedp)
+(defun debbugs-gnu-search (phrase &optional query severities packages archivedp)
   "Search for Emacs bugs interactively.
 Search arguments are requested interactively.  The \"search
 phrase\" is used for full text search in the bugs database.
