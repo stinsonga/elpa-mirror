@@ -1,4 +1,4 @@
-This is debbugs-ug.info, produced by makeinfo version 6.5 from
+This is debbugs-ug.info, produced by makeinfo version 6.6 from
 debbugs-ug.texi.
 
 Copyright (C) 2015-2019 Free Software Foundation, Inc.
@@ -169,7 +169,7 @@ File: debbugs-ug.info,  Node: Searching Bugs,  Next: Presenting Bugs,  Prev: Ret
 The GNU Debbugs server allows text search in the database in the
 messages submitted to the bugs.  It uses a HyperEstraier based search
 engine
-(http://fallabs.com/hyperestraier/uguide-en.html#searchcond)(1).
+(https://fallabs.com/hyperestraier/uguide-en.html#searchcond)(1).
 
    The search engine uses an index over the bug database.  This index
 is refreshed once a day only; search hits do not include recent
@@ -906,7 +906,7 @@ Debbugs control mailserver commands
 
      Example usage:
 
-          forwarded 12345 http://bugz.illa.foo/cgi/54321
+          forwarded 12345 https://bugz.illa.foo/cgi/54321
 
 'notforwarded bugnumber'
      Forgets any idea that bugnumber has been forwarded to any
@@ -1130,51 +1130,51 @@ Tag Table:
 Node: Top1097
 Node: Retrieving Bugs2704
 Node: Searching Bugs7071
-Ref: Searching Bugs-Footnote-111620
-Ref: Searching Bugs-Footnote-211708
-Node: Presenting Bugs11799
-Node: Tabulated Lists12461
-Node: TODO Items16300
-Node: Control Messages17621
-Node: Applying Patches21138
-Node: Posting Patches22528
-Node: Customizing debbugs-gnu-pick-commits25013
-Node: Minor Mode25713
-Node: Command Index26989
-Node: Variable Index27849
-Node: Key Index29365
-Node: Mail Command Index31073
-Ref: Mail Command Index: reassign31226
-Ref: Mail Command Index: reopen31992
-Ref: Mail Command Index: found33146
-Ref: Mail Command Index: notfound34227
-Ref: Mail Command Index: fixed34636
-Ref: Mail Command Index: notfixed35082
-Ref: Mail Command Index: submitter35705
-Ref: Mail Command Index: forwarded36099
-Ref: Mail Command Index: notforwarded36716
-Ref: Mail Command Index: retitle36917
-Ref: Mail Command Index: severity37301
-Ref: Mail Command Index: clone37632
-Ref: Mail Command Index: merge38396
-Ref: Mail Command Index: forcemerge39783
-Ref: Mail Command Index: unmerge40227
-Ref: Mail Command Index: tags40930
-Ref: Mail Command Index: block41996
-Ref: Mail Command Index: unblock42033
-Ref: Mail Command Index: close42518
-Ref: Mail Command Index: package43168
-Ref: Mail Command Index: owner43780
-Ref: Mail Command Index: noowner44143
-Ref: Mail Command Index: archive44316
-Ref: Mail Command Index: unarchive44457
-Ref: Mail Command Index: #44750
-Ref: Mail Command Index: quit45010
-Ref: Mail Command Index: stop45017
-Ref: Mail Command Index: thank45024
-Ref: Mail Command Index: thanks45032
-Ref: Mail Command Index: thankyou45041
-Ref: Mail Command Index: thank you45052
-Ref: Mail Command Index: --45064
+Ref: Searching Bugs-Footnote-111621
+Ref: Searching Bugs-Footnote-211709
+Node: Presenting Bugs11800
+Node: Tabulated Lists12462
+Node: TODO Items16301
+Node: Control Messages17622
+Node: Applying Patches21139
+Node: Posting Patches22529
+Node: Customizing debbugs-gnu-pick-commits25014
+Node: Minor Mode25714
+Node: Command Index26990
+Node: Variable Index27850
+Node: Key Index29366
+Node: Mail Command Index31074
+Ref: Mail Command Index: reassign31227
+Ref: Mail Command Index: reopen31993
+Ref: Mail Command Index: found33147
+Ref: Mail Command Index: notfound34228
+Ref: Mail Command Index: fixed34637
+Ref: Mail Command Index: notfixed35083
+Ref: Mail Command Index: submitter35706
+Ref: Mail Command Index: forwarded36100
+Ref: Mail Command Index: notforwarded36718
+Ref: Mail Command Index: retitle36919
+Ref: Mail Command Index: severity37303
+Ref: Mail Command Index: clone37634
+Ref: Mail Command Index: merge38398
+Ref: Mail Command Index: forcemerge39785
+Ref: Mail Command Index: unmerge40229
+Ref: Mail Command Index: tags40932
+Ref: Mail Command Index: block41998
+Ref: Mail Command Index: unblock42035
+Ref: Mail Command Index: close42520
+Ref: Mail Command Index: package43170
+Ref: Mail Command Index: owner43782
+Ref: Mail Command Index: noowner44145
+Ref: Mail Command Index: archive44318
+Ref: Mail Command Index: unarchive44459
+Ref: Mail Command Index: #44752
+Ref: Mail Command Index: quit45012
+Ref: Mail Command Index: stop45019
+Ref: Mail Command Index: thank45026
+Ref: Mail Command Index: thanks45034
+Ref: Mail Command Index: thankyou45043
+Ref: Mail Command Index: thank you45054
+Ref: Mail Command Index: --45066
 
 End Tag Table

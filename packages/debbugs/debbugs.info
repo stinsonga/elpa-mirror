@@ -1,4 +1,4 @@
-This is debbugs.info, produced by makeinfo version 6.5 from
+This is debbugs.info, produced by makeinfo version 6.6 from
 debbugs.texi.
 
 Copyright (C) 2011-2019 Free Software Foundation, Inc.
@@ -457,7 +457,7 @@ changes of the same day.
 
      Every sublist of the QUERY forms a hyperestraier condition.  A
      detailed description of hyperestraier conditions can be found at
-     <http://fallabs.com/hyperestraier/uguide-en.html#searchcond>.
+     <https://fallabs.com/hyperestraier/uguide-en.html#searchcond>.
 
      The following conditions are possible:
 
@@ -733,7 +733,7 @@ Node: Configuration4336
 Node: Requesting bug numbers6853
 Node: Requesting bugs statuses12235
 Node: Searching bugs16527
-Node: Requesting messages23333
-Node: Requesting user tags26343
+Node: Requesting messages23334
+Node: Requesting user tags26344
 
 End Tag Table

@@ -175,6 +175,7 @@
 (autoload 'gnus-summary-article-header "gnus-sum")
 (autoload 'gnus-summary-select-article "gnus-sum")
 (autoload 'gnus-summary-show-article "gnus-sum")
+(autoload 'log-edit-done "log-edit")
 (autoload 'log-edit-insert-changelog "log-edit")
 (autoload 'mail-header-subject "nnheader")
 (autoload 'message-add-header "message")
