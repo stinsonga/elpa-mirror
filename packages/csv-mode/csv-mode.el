@@ -1464,9 +1464,20 @@ setting works better)."
                                'selective-display))))
     (if ellipsis (length ellipsis) 3)))
 
-(defun csv-align--cursor-truncated (window _oldpos dir)
+(defun csv-align--cursor-truncated (window oldpos dir)
+  ;; FIXME: Neither the `entered' nor the `left' event are guaranteed
+  ;; to be sent, and for the `left' case, even when we do get called,
+  ;; it may be unclear where the revealed text was (it's somewhere around
+  ;; `oldpos', but that position can be stale).
+  ;; Worse, if we have several windows displaying the buffer, when one
+  ;; cursor leaves we may need to keep the text revealed because of
+  ;; another window's cursor.
   (let* ((prop (if (eq dir 'entered) 'invisible 'csv--revealed))
-         (pos (window-point window))
+         (pos (cond
+               ((eq dir 'entered) (window-point window))
+               (t (max (point-min)
+                       (min (point-max)
+                            (or oldpos (window-point window)))))))
          (start (cond
                  ((and (> pos (point-min))
                        (eq (get-text-property (1- pos) prop) 'csv-truncate))
