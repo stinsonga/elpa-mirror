@@ -5,11 +5,11 @@
 ;; Author: Alexey Veretennikov <alexey.veretennikov@gmail.com>
 ;;
 ;; Created: 2009-09-08
-;; Version: 1.2.3
-;; Package-Requires: ((cl-lib "0"))
+;; Version: 1.2.4
+;; Package-Requires: ((emacs "24.3"))
 ;; Keywords: matching
 ;; URL: https://github.com/fourier/loccur
-;; Compatibility: GNU Emacs 23.x, GNU Emacs 24.x
+;; Compatibility: GNU Emacs 24.3
 ;;
 ;; This file is part of GNU Emacs.
 ;;
@@ -44,6 +44,24 @@
 ;;; TODO:
 ;;
 ;;; Change Log:
+;;
+;; 2019-10-22 (1.2.4)
+;;    + Added fix for the issue when the actions to perform
+;;      then the loccur-mode was disactivated were incomplete.
+;;    + Then loccur or loccur-no-highlight are called with universal prefix,
+;;      i.e. with C-u before the command, the currently selected value is
+;;      ignored.
+;;      Then people want this behavior by default, it is better wrap the call
+;;      to loccur with universal prefix, i.e. by implementing a helper
+;;      function like this:
+;;
+;;      (defun loccur-no-selection ()
+;;        (interactive)
+;;          (let ((current-prefix-arg 1))
+;;              (call-interactively
+;;                   'loccur)))
+;;
+;;      And then just call this function instead of loccur.
 ;;
 ;; 2016-12-26 (1.2.3)
 ;;    + Removed empty line in the beginning of the buffer.
@@ -96,6 +114,9 @@ a new window."
   :lighter " loccur"
   (if loccur-mode
       (loccur-1 loccur-current-search)
+    ;; remove current search and turn off loccur mode
+    ;; to allow to call `loccur' multiple times
+    (setf loccur-current-search nil)
     (loccur-remove-overlays)
     (recenter)))
 
@@ -175,22 +196,20 @@ unhides lines again.
 
 When called interactively, either prompts the user for REGEXP or,
 when called with an active region, uses the content of the
-region."
+region, unless called with the universal prefix (C-u)"
   (interactive
    (cond ((region-active-p)
           (list (buffer-substring (mark) (point))))
          (loccur-mode
           (list nil))
          (t
-          (list (read-string "Loccur: " (loccur-prompt) 'loccur-history)))))
+          (list (read-string "Loccur: "
+                             (loccur-prompt)
+                             'loccur-history)))))
   (when (region-active-p) (deactivate-mark))
   (if (or loccur-mode
           (= (length regex) 0))
-      (progn
-        ;; remove current search and turn off loccur mode
-        ;; to allow to call `loccur' multiple times
-        (setf loccur-current-search nil)
-        (loccur-mode 0))
+      (loccur-mode 0)
     ;; otherwise do as usual
     ;; if the regex argument is not equal to previous search
     (when (not (string-equal regex loccur-current-search))
@@ -205,20 +224,24 @@ region."
   "Return the default value of the prompt.
 
 Default value for prompt is a current word or active region(selection),
-if its size is 1 line"
-  (let ((prompt
-         (if (and transient-mark-mode
-                  mark-active)
-             (let ((pos1 (region-beginning))
-                   (pos2 (region-end)))
-               ;; Check if the start and the end of an active region is on
-               ;; the same line
-               (when (save-excursion
-                       (goto-char pos1)
-                       (<= pos2 (line-end-position)))
+if its size is 1 line.
+When the universal prefix is used, i.e. loccur called
+with C-u prefix, returns empty string"
+  (if current-prefix-arg
+      ""
+    (let ((prompt
+           (if (and transient-mark-mode
+                    mark-active)
+               (let ((pos1 (region-beginning))
+                     (pos2 (region-end)))
+                 ;; Check if the start and the end of an active region is on
+                 ;; the same line
+                 (when (save-excursion
+                         (goto-char pos1)
+                         (<= pos2 (line-end-position)))
                    (buffer-substring-no-properties pos1 pos2)))
-           (current-word))))
-    prompt))
+             (current-word))))
+      prompt)))
 
 
 (defun loccur-1 (regex)
