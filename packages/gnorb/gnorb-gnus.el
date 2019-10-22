@@ -622,7 +622,7 @@ you'll stay in the Gnus summary buffer."
 	    (delete-other-windows)
 	    (gnorb-trigger-todo-action nil targ)
 	    (when gnorb-gnus-copy-message-text
-	      (if (numberp gnorb-gnus-copy-message-text)
+	      (if (characterp gnorb-gnus-copy-message-text)
 		  (with-temp-buffer
 		    (insert text)
 		    (copy-to-register
