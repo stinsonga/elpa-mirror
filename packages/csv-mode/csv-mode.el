@@ -4,7 +4,7 @@
 
 ;; Author: "Francis J. Wright" <F.J.Wright@qmul.ac.uk>
 ;; Maintainer: emacs-devel@gnu.org
-;; Version: 1.9
+;; Version: 1.10
 ;; Package-Requires: ((emacs "24.1") (cl-lib "0.5"))
 ;; Keywords: convenience
 
@@ -990,7 +990,9 @@ The fields yanked are those last killed by `csv-kill-fields'."
 
 (defun csv--column-widths (beg end)
   "Return a list of two lists (COLUMN-WIDTHS FIELD-WIDTHS).
-COLUMN-WIDTHS contains the widths of the columns after point.
+COLUMN-WIDTHS is a list of elements (WIDTH START END)
+indicating the widths of the columns after point (and the position of the
+widest field that determined the overall width).
 FIELD-WIDTHS contains the widths of each individual field after
 point."
   (let ((column-widths '())
@@ -1001,17 +1003,19 @@ point."
       (or (csv-not-looking-at-record)
           (let ((w column-widths)
                 (col (current-column))
+                (beg (point))
                 field-width)
             (while (not (eolp))
               (csv-end-of-field)
               (setq field-width (- (current-column) col))
               (push field-width field-widths)
               (if w
-                  (if (> field-width (car w)) (setcar w field-width))
-                (setq w (list field-width)
+                  (if (> field-width (caar w))
+                      (setcar w (list field-width beg (point))))
+                (setq w (list (list field-width beg (point)))
                       column-widths (nconc column-widths w)))
               (or (eolp) (forward-char)) ; Skip separator.
-              (setq w (cdr w) col (current-column)))))
+              (setq w (cdr w) col (current-column) beg (point)))))
       (forward-line))
     (list column-widths (nreverse field-widths))))
 
@@ -1057,7 +1061,7 @@ If there is no selected region, default to the whole buffer."
                        (align-padding (if (bolp) 0 csv-align-padding))
                        (left-padding 0) (right-padding 0)
                        (field-width (pop field-widths))
-                       (column-width (pop w))
+                       (column-width (car (pop w)))
                        (x (- column-width field-width))) ; Required padding.
                   (csv-end-of-field)
                   (set-marker end (point)) ; End of current field.
@@ -1372,22 +1376,58 @@ setting works better)."
 (defvar-local csv--jit-columns nil)
 
 (defun csv--jit-merge-columns (column-widths)
-  ;; FIXME: Keep track for each column of where is its widest field,
-  ;; and arrange to recompute that column's width when that line's
-  ;; field shrinks.
+  ;; FIXME: The incremental update (delayed by jit-lock-context-time) of column
+  ;; width is a bit jarring at times.  It's OK while scrolling or when
+  ;; extending a column, but not right when enabling the csv-align-mode or
+  ;; when shortening the longest field (or deleting the line containing it),
+  ;; because in that case we have *several* cascaded updates, e.g.:
+  ;; - Remove the line with the longest field of column N.
+  ;; - Edit some line: this line is updated as if its field was the widest,
+  ;;   hence its subsequent fields are too much to the left.
+  ;; - The rest is updated starting from the first few lines (according
+  ;;   to jit-lock-chunk-size).
+  ;; - After the first few lines, come the next set of few lines,
+  ;;   which may cause the previous few lines to need refresh again.
+  ;; - etc.. until arriving again at the edited line which is re-aligned
+  ;;   again.
+  ;; - etc.. until the end of the windows, potentially causing yet more
+  ;;   refreshes as we discover yet-wider fields for this column.
   (let ((old-columns csv--jit-columns)
         (changed nil))
     (while (and old-columns column-widths)
-      (when (> (car column-widths) (car old-columns))
+      (when (or (> (caar column-widths) (caar old-columns))
+                ;; Apparently modification-hooks aren't run when the
+                ;; whole text containing the overlay is deleted (e.g.
+                ;; the whole line), so detect this case here.
+                ;; It's a bit too late, but better than never.
+                (null (overlay-buffer (cdar old-columns))))
         (setq changed t) ;; Return non-nil if some existing column changed.
-        (setf (car old-columns) (car column-widths)))
+        (pcase-let ((`(,width ,beg ,end) (car column-widths)))
+          (setf (caar old-columns) width)
+          (move-overlay (cdar old-columns) beg end)))
       (setq old-columns (cdr old-columns))
       (setq column-widths (cdr column-widths)))
     (when column-widths
       ;; New columns appeared.
-      (setq csv--jit-columns (nconc csv--jit-columns
-                                    (copy-sequence column-widths))))
+      (setq csv--jit-columns
+            (nconc csv--jit-columns
+                   (mapcar (lambda (x)
+                             (pcase-let*
+                                 ((`(,width ,beg ,end) x)
+                                  (ol (make-overlay beg end)))
+                               (overlay-put ol 'csv-width t)
+                               (overlay-put ol 'evaporate t)
+                               (overlay-put ol 'modification-hooks
+                                            (list #'csv--jit-width-change))
+                               (cons width ol)))
+                           column-widths))))
     changed))
+
+(defun csv--jit-width-change (ol after _beg _end &optional len)
+  (when (and after (> len 0))
+    ;; (let ((x (rassq ol csv--jit-columns)))
+    ;;   (when x (setf (car x) -1)))
+    (delete-overlay ol)))
 
 (defun csv--jit-unalign (beg end)
   (remove-text-properties beg end
@@ -1479,7 +1519,7 @@ setting works better)."
                      (left-padding 0) (right-padding 0)
                      (field-width (pop field-widths))
                      (column-width
-                      (min (pop w)
+                      (min (car (pop w))
                            (or width-config
                                ;; Don't apply csv-align-max-width
                                ;; to the last field!
