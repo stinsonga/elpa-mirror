@@ -86,8 +86,9 @@ That value is the one passed to `stream-make'."
    ((eq (car-safe stream) stream--evald-identifier)
     (cdr stream))
    ((eq (car-safe stream) stream--fresh-identifier)
-    (setf (car stream) stream--evald-identifier)
-    (setf (cdr stream) (funcall (cdr stream))))
+    (prog1 (setf (cdr stream) (funcall (cdr stream)))
+      ;; identifier is only updated when forcing didn't exit nonlocally
+      (setf (car stream) stream--evald-identifier)))
    (t (signal 'wrong-type-argument (list 'streamp stream)))))
 
 (defmacro stream-cons (first rest)
