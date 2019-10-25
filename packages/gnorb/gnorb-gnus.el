@@ -974,7 +974,7 @@ option `gnorb-gnus-hint-relevant-article' is non-nil."
 	    (tracked-headings
 	     (message
 	      (substitute-command-keys
-	       "Possible relevant todo %s, trigger with \\[gnorb-gnus-incomding-do-todo]")
+	       "Possible relevant todo %s, trigger with \\[gnorb-gnus-incoming-do-todo]")
 	      (gnorb-pretty-outline (car tracked-headings) t)))
 	    (t nil)))))
 
