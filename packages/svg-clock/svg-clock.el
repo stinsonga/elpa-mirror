@@ -140,8 +140,8 @@ its colors are FOREGROUND and BACKGROUND."
                                 (svg-clock-transform
                                  'rotate
                                  (+ (* hours 30) (/ minutes 2.0))  .5 .5)))))
-    (dolist (def defs) (svg-def svg def))
-    (svg-def svg clock)
+    (dolist (def defs) (svg-clock-def svg def))
+    (svg-clock-def svg clock)
     (dom-append-child svg
                       (svg-clock-use 'clock
                                      (svg-clock-transform 'scale size size)))
@@ -256,6 +256,13 @@ Optional argument ATTRIBUTES contain conses with SVG attributes."
 	       (cy . ,y)
 	       (r . ,radius)
 	       ,@attributes)))
+
+(defun svg-clock-def (svg def)
+  (dom-append-child (or (dom-by-tag svg 'defs)
+			(let ((node (dom-node 'defs)))
+			  (dom-add-child-before svg node) node))
+		    def)
+  svg)
 
 (defun svg-clock-line (x1 y1 x2 y2 &rest attributes)
   "Create an SVG line element starting at (X1, Y1), ending at (X2, Y2).
