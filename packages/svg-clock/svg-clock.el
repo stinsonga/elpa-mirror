@@ -6,7 +6,7 @@
 ;; Author:      Ulf Jasper <ulf.jasper@web.de>
 ;; Created:     22. Sep. 2011
 ;; Keywords:    demo, svg, clock
-;; Version:     1.0
+;; Version:     1.1
 ;; Package-Requires: ((svg "0.1") (emacs "25.0"))
 
 ;; This file is part of GNU Emacs.
@@ -71,7 +71,7 @@
   overlay ;; holds the clock's image
   timer)  ;; takes care of updating the clock
 
-(defun svg-clock--create-def-elements (foreground background)
+(defun svg-clock--create-def-elements (foreground background no-face)
   "Return a list of SVG elements using the colors FOREGROUND and BACKGROUND.
 The elements are supposed to be added to an SVG object as `defs'.
 The SVG may then `use': `clock-face', `second-hand', `minute-hand'
@@ -107,39 +107,45 @@ and `hour-hand'.  The clock-face has a size of 1x1."
         (apply 'svg-clock-group 'clock-face
                (nconc (list (svg-clock-use 'background)
                             (svg-clock-use 'hand-cap))
-                      (mapcar (lambda (angle)
-                                (svg-clock-use (if (= 0 (% angle 30))
-                                                   'ticklong
-                                                 'tickshort)
-                                               (svg-clock-transform
-                                                'rotate angle .5 .5)))
-                              (number-sequence 0 354 6))))))
+		      (and (not no-face)
+			   (mapcar (lambda (angle)
+                                     (svg-clock-use (if (= 0 (% angle 30))
+							'ticklong
+                                                      'tickshort)
+						    (svg-clock-transform
+                                                     'rotate angle .5 .5)))
+				   (number-sequence 0 354 6)))))))
 
-(defun svg-clock--create-svg (time size foreground background)
+(defun svg-clock--create-svg (time size foreground background
+				   no-seconds no-face)
   "Return an SVG element displaying an analog clock.
 The clock shows the given TIME, it has a diameter of SIZE, and
 its colors are FOREGROUND and BACKGROUND."
   (interactive)
-  (let* ((defs (svg-clock--create-def-elements foreground background))
+  (let* ((defs (svg-clock--create-def-elements foreground background
+					       no-face))
          (svg (svg-create size size))
          (seconds (nth 0 time))
          (minutes (nth 1 time))
          (hours (nth 2 time))
-         (clock (svg-clock-group
+         (clock (apply
+		 #'svg-clock-group
                  'clock
-                 (svg-clock-use 'clock-face)
-                 (svg-clock-use 'second-hand
-                                (svg-clock-transform
-                                 'rotate
-                                 (* seconds 6) .5 .5))
-                 (svg-clock-use 'minute-hand
-                                (svg-clock-transform
-                                 'rotate
-                                 (+ (* minutes 6) (/ seconds 10.0)) .5 .5))
-                 (svg-clock-use 'hour-hand
-                                (svg-clock-transform
-                                 'rotate
-                                 (+ (* hours 30) (/ minutes 2.0))  .5 .5)))))
+                 `(,(svg-clock-use 'clock-face)
+                   ,@(unless no-seconds
+		       (list (svg-clock-use 'second-hand
+					    (svg-clock-transform
+					     'rotate
+					     (* seconds 6) .5 .5))))
+                   ,(svg-clock-use 'minute-hand
+                                   (svg-clock-transform
+                                    'rotate
+                                    (+ (* minutes 6) (/ seconds 10.0)) .5 .5))
+                   ,(svg-clock-use 'hour-hand
+                                   (svg-clock-transform
+                                    'rotate
+                                    (+ (* hours 30) (/ minutes 2.0))
+				    .5 .5))))))
     (dolist (def defs) (svg-clock-def svg def))
     (svg-clock-def svg clock)
     (dom-append-child svg
@@ -159,19 +165,30 @@ its colors are FOREGROUND and BACKGROUND."
         ;; fallback
         100))))
 
-(defun svg-clock--do-create (size foreground background &optional offset)
+(defvar svg-clock--prev-update (make-decoded-time))
+
+(defun svg-clock--do-create (size foreground background &optional offset
+				  no-seconds no-face)
   "Create an SVG element.
 See `svg-clock-insert' for meaning of arguments SIZE, FOREGROUND, BACKGROUND
 and OFFSET."
-  (let* ((time (decode-time (if offset
-                                (time-add (current-time)
-                                          (seconds-to-time offset))
-                              (current-time))))
-         (size (or size (svg-clock--window-size)))
-         (svg (svg-clock--create-svg time size foreground background )))
-    svg))
+  (let ((time (decode-time (if offset
+                               (time-add (current-time)
+                                         (seconds-to-time offset))
+                             (current-time)))))
+    ;; If we're not using seconds, then don't update the display until
+    ;; the minute changes.
+    (when (or (not no-seconds)
+	      (not (equal (decoded-time-minute svg-clock--prev-update)
+			  (decoded-time-minute time))))
+      (setq svg-clock--prev-update time)
+      (let* ((size (or size (svg-clock--window-size)))
+             (svg (svg-clock--create-svg time size foreground background
+					 no-seconds no-face)))
+	svg))))
 
-(defun svg-clock--update (clock-handle &optional size foreground background offset)
+(defun svg-clock--update (clock-handle &optional size foreground background
+				       offset no-seconds no-face)
   "Update the clock referenced as CLOCK-HANDLE.
 See `svg-clock-insert' for meaning of optional arguments SIZE, FOREGROUND,
 BACKGROUND and OFFSET."
@@ -180,43 +197,44 @@ BACKGROUND and OFFSET."
            (buf (marker-buffer marker))
            (win (get-buffer-window buf))
            (ovl (svg-clock-handle-overlay clock-handle)))
-      (condition-case nil
-          (if (and (buffer-live-p buf)
-                   (not (eq (overlay-start ovl)
-                            (overlay-end ovl))))
-              (when (pos-visible-in-window-p marker win t)
-                (with-current-buffer buf
-                  (let* ((svg (svg-clock--do-create size
-                                                    foreground background offset))
-                         (img (create-image
-                               (with-temp-buffer
-                                 (svg-print svg)
-                                 (buffer-string))
-                               'svg t
-                               :ascent 'center
-			       :scale 1)))
-                    (overlay-put ovl 'display img))))
-            ;; clock or its buffer is gone
-            (signal 'error nil))
-        (error
-         (message "Cancelling clock timer")
-         (cancel-timer (svg-clock-handle-timer clock-handle))
-         (delete-overlay ovl))))))
+      (if (and (buffer-live-p buf)
+               (not (eq (overlay-start ovl)
+                        (overlay-end ovl))))
+          (when (pos-visible-in-window-p marker win t)
+            (with-current-buffer buf
+              (when-let ((svg (svg-clock--do-create
+			       size foreground background offset
+			       no-seconds no-face)))
+                (overlay-put ovl 'display (create-image
+					   (with-temp-buffer
+					     (svg-print svg)
+					     (buffer-string))
+					   'svg t
+					   :ascent 'center
+					   :scale 1)))))
+	;; Buffer no longer exists.
+        (message "Cancelling clock timer")
+        (cancel-timer (svg-clock-handle-timer clock-handle))
+        (delete-overlay ovl)))))
 
 ;;;###autoload
-(defun svg-clock-insert (&optional size foreground background offset)
+(defun svg-clock-insert (&optional size foreground background offset
+				   no-seconds no-face)
   "Insert a self-updating image displaying an analog clock at point.
 Optional argument SIZE the size of the clock in pixels.
 Optional argument FOREGROUND the foreground color.
 Optional argument BACKGROUND the background color.
 Optional argument OFFSET the offset in seconds between current and displayed
-time."
+time.
+Optional argument NO-SECONDS says whether to do a seconds hand.
+Optional argument NO-FACE says whether to decorate the face."
   (let* ((fg (or foreground (face-foreground 'default)))
          (bg (or background (face-background 'default)))
          (marker (point-marker))
          (ch (make-svg-clock-handle :marker marker))
          timer
          ovl)
+    (setq svg-clock--prev-update (make-decoded-time))
     (insert "*")
     (setq ovl (make-overlay (marker-position marker)
                             (1+ (marker-position marker))
@@ -224,7 +242,8 @@ time."
     (setf (svg-clock-handle-overlay ch) ovl)
     (setq timer (run-at-time 0 1
                              (lambda ()
-                               (svg-clock--update ch size fg bg offset))))
+                               (svg-clock--update ch size fg bg offset
+						  no-seconds no-face))))
     (setf (svg-clock-handle-timer ch) timer)))
 
 (defvar svg-clock-mode-map
@@ -234,14 +253,14 @@ time."
     map))
 
 ;;;###autoload
-(defun svg-clock ()
+(cl-defun svg-clock (&key size foreground background no-seconds no-face)
   "Start/stop the svg clock."
   (interactive)
   (switch-to-buffer (get-buffer-create "*clock*"))
   (let ((inhibit-read-only t))
     (buffer-disable-undo)
     (erase-buffer)
-    (svg-clock-insert)
+    (svg-clock-insert size foreground background nil no-seconds no-face)
     (view-mode)))
 
 ;; Move to svg.el?
