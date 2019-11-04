@@ -154,7 +154,7 @@ its colors are FOREGROUND and BACKGROUND."
       (if clock-win
           (let* ((coords (window-inside-pixel-edges clock-win))
                  (width (- (nth 2 coords) (nth 0 coords)))
-               (height (- (nth 3 coords) (nth 1 coords))))
+		 (height (- (nth 3 coords) (nth 1 coords))))
             (min width height))
         ;; fallback
         100))))
@@ -193,7 +193,8 @@ BACKGROUND and OFFSET."
                                  (svg-print svg)
                                  (buffer-string))
                                'svg t
-                               :ascent 'center)))
+                               :ascent 'center
+			       :scale 1)))
                     (overlay-put ovl 'display img))))
             ;; clock or its buffer is gone
             (signal 'error nil))
