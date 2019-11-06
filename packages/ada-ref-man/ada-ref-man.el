@@ -10,4 +10,6 @@
 ;; Version: 2020.1
 ;; url: http://stephe-leake.org/ada/arm.html
 
+(provide 'ada-ref-man)
+
 ;;; ada-ref-man.el ends here
