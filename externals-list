@@ -35,6 +35,7 @@
  ("async"		:external "https://github.com/jwiegley/emacs-async")
  ("auctex"		:external "git://git.sv.gnu.org/auctex.git")
  ("bbdb"		:external "git://git.savannah.nongnu.org/bbdb.git")
+ ("bluetooth"		:external "https://gitlab.com/rstocker/emacs-bluetooth")
  ("bnf-mode"		:external "https://github.com/sergeyklay/bnf-mode")
  ("buffer-expose"	:external "https://github.com/clemera/buffer-expose")
  ("bug-hunter"		:subtree "https://github.com/Malabarba/elisp-bug-hunter")

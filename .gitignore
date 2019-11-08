@@ -13,6 +13,7 @@ packages/*/*-pkg.el
 packages/async/
 packages/auctex/
 packages/bbdb/
+packages/bluetooth/
 packages/bnf-mode/
 packages/buffer-expose/
 packages/chess/
