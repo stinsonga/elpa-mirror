@@ -1,6 +1,6 @@
-;;; rbit.el --- Red-black persistent interval trees  -*- lexical-binding: t; -*-
+;;; rbit.el --- Red-black persistent interval trees  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2017-2018  Free Software Foundation, Inc.
+;; Copyright (C) 2017-2019  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords: data structures, binary tree, intervals
@@ -52,7 +52,7 @@
 (eval-when-compile (require 'cl-lib))
 (require 'ert)
 
-(cl-defstruct (rbit-tree
+(cl-defstruct (rbit-node
                (:conc-name rbit--)
                (:constructor nil)
                (:constructor rbit--node
@@ -65,14 +65,17 @@
                  ;;              (or (null right) (rbit--black right))))))
                  (_ (cl-assert (natnump black)))
                  (_ (cl-assert (< beg end)))
-                 (_ (cl-assert ;; Don't really care if red nodes are balanced.
-                     (or (not (or (> black 0) (and left right)))
+                 (_ (cl-assert
+                     (or (not (and left right))
                          (= (rbit--bdepth left) (rbit--bdepth right)))))
                  (_ (cl-assert (or (null left) (<= (rbit-max left) beg))))
                  (_ (cl-assert (or (null right) (>= (rbit-min right) end))))))
                (:copier nil))
   black         ;nil for red nodes, a natnum (the "blackness") for black nodes.
   beg end val left right)
+
+(defconst rbit-empty nil
+  "An empty `rbit-tree'.")
 
 (defun rbit--get (tree x)
   (when tree
@@ -101,9 +104,10 @@ If X is not inside an interval in TREE, return default."
 (defun rbit--blacken (node by)
   (cl-assert (>= by 0))
   (if (zerop by) node
-    (rbit--node (+ (rbit--black node) by)
-                (rbit--beg node) (rbit--end node) (rbit--val node)
-                (rbit--left node) (rbit--right node))))
+    (when node
+      (rbit--make (+ (rbit--black node) by)
+                  (rbit--beg node) (rbit--end node) (rbit--val node)
+                  (rbit--left node) (rbit--right node)))))
 
 (defun rbit--redden (node by)
   (if (zerop by) node
@@ -198,13 +202,23 @@ If X is not inside an interval in TREE, return default."
           (tend (rbit--end tree)))
       (cond
        ((<= end tbeg)
-        (rbit--make (rbit--black tree) tbeg tend (rbit--val tree)
-                    (rbit--set (rbit--left tree) beg end val f)
-                    (rbit--right tree)))
+        (if (and (null f) (= end tbeg) (eql val (rbit--val tree)))
+            ;; Coalesce
+            (rbit--make (rbit--black tree) beg tend (rbit--val tree)
+                        (rbit--remove (rbit--left tree) beg end)
+                        (rbit--right tree))
+          (rbit--make (rbit--black tree) tbeg tend (rbit--val tree)
+                      (rbit--set (rbit--left tree) beg end val f)
+                      (rbit--right tree))))
        ((<= tend beg)
-        (rbit--make (rbit--black tree) tbeg tend (rbit--val tree)
-                    (rbit--left tree)
-                    (rbit--set (rbit--right tree) beg end val f)))
+        (if (and (null f) (= tend beg) (eql val (rbit--val tree)))
+            ;; Coalesce
+            (rbit--make (rbit--black tree) tbeg end (rbit--val tree)
+                        (rbit--left tree)
+                        (rbit--remove (rbit--right tree) beg end))
+          (rbit--make (rbit--black tree) tbeg tend (rbit--val tree)
+                      (rbit--left tree)
+                      (rbit--set (rbit--right tree) beg end val f))))
        ;; beg..end intersects with the root of tree.
        (t
         ;; FIXME: Here we don't actually guarantee the result is balanced!!
@@ -218,7 +232,6 @@ If X is not inside an interval in TREE, return default."
           (if (null f)
               (progn
                 ;; Coalesce the sub-intervals.
-                ;; FIXME: rbit--remove may not preserve bdepth!
                 (when (< beg tbeg)
                   (setq left (rbit--remove left beg tbeg))
                   (setq tbeg beg))
@@ -252,6 +265,110 @@ If TREE already had values between BEG and END and F is non-nil,
 then F is called with 2 arguments (VAL and the previous value) to
 compute the resulting value."
   (rbit--make-top (rbit--set tree beg end val f)))
+
+(defun rbit-split (tree x)
+  "Split TREE at X, returning a pair of trees (LEFT . RIGHT)."
+  (when tree
+    (cond
+     ((< x (rbit--beg tree))
+      (pcase-let ((`(,ll . ,lr) (rbit-split (rbit--left tree) x)))
+        (cl-assert (or (null ll) (= (+ (rbit--bdepth ll) (rbit--black tree))
+                                    (rbit--bdepth tree))))
+        (cl-assert (or (null lr) (= (+ (rbit--bdepth lr) (rbit--black tree))
+                                    (rbit--bdepth tree))))
+        `(,(rbit--blacken ll (rbit--black tree))
+          . ,(rbit--make (rbit--black tree)
+                         (rbit--beg tree) (rbit--end tree) (rbit--val tree)
+                         lr (rbit--right tree)))))
+     ((= x (rbit--beg tree))
+      `(,(rbit--blacken (rbit--left tree) (rbit--black tree))
+        . ,(rbit--make (rbit--black tree)
+                       (rbit--beg tree) (rbit--end tree) (rbit--val tree)
+                       nil (rbit--right tree))))
+     ((> x (rbit--end tree))
+      (pcase-let ((`(,rl . ,rr) (rbit-split (rbit--right tree) x)))
+        (cl-assert (or (null rl) (= (+ (rbit--bdepth rl) (rbit--black tree))
+                                    (rbit--bdepth tree))))
+        (cl-assert (or (null rr) (= (+ (rbit--bdepth rr) (rbit--black tree))
+                                    (rbit--bdepth tree))))
+        `(,(rbit--make (rbit--black tree)
+                       (rbit--beg tree) (rbit--end tree) (rbit--val tree)
+                       (rbit--left tree) rl)
+          . ,(rbit--blacken rr (rbit--black tree)))))
+     ((= x (rbit--end tree))
+      `(,(rbit--make (rbit--black tree)
+                     (rbit--beg tree) (rbit--end tree) (rbit--val tree)
+                     (rbit--left tree) nil)
+        . ,(rbit--blacken (rbit--right tree) (rbit--black tree))))
+     (t
+      `(,(rbit--make (rbit--black tree)
+                     (rbit--beg tree) x (rbit--val tree)
+                     (rbit--left tree) nil)
+        . ,(rbit--make (rbit--black tree)
+                       x (rbit--end tree) (rbit--val tree)
+                       nil (rbit--right tree)))))))
+
+(defun rbit--lastleft (tree)
+  (let ((l (rbit--left tree)))
+    (if (null l)
+        `((,(rbit--beg tree) ,(rbit--end tree) ,(rbit--val tree))
+          . ,(rbit--blacken (rbit--right tree) (rbit--black tree)))
+
+      (pcase-let ((`(,bev . ,l) (rbit--lastleft l)))
+        `(,bev
+          . ,(rbit--make (rbit--black tree)
+                         (rbit--beg tree) (rbit--end tree) (rbit--val tree)
+                         l (rbit--right tree)))))))
+
+(defun rbit--join2 (tree1 tree2)
+  "Join disjoint trees TREE1 < TREE2."
+  ;; If TREE1 and TREE2 have the same bdepth, then the result also
+  ;; has that bdepth.
+  (cond
+   ((null tree1) tree2)
+   ((null tree2) tree1)
+   (t
+    (cl-assert (<= (rbit-max tree1) (rbit-min tree2)))
+    (cl-assert (= (rbit--bdepth tree1) (rbit--bdepth tree2)))
+    (pcase-let ((`((,b ,e ,v) . ,tree2) (rbit--lastleft tree2)))
+      (cl-assert (or (null tree2)
+                     (= (rbit--bdepth tree2) (rbit--bdepth tree1))))
+      ;; FIXME: Coalesce!
+      (rbit--make 0 b e v tree1 tree2)))))
+
+(defun rbit--union (tree1 tree2 f)
+  ;; tree1 and tree2 should have the same bdepth and the result as well.
+  (cond
+   ((null tree1) tree2)
+   ((null tree2) tree1)
+   (t
+    (cl-assert (= (rbit--bdepth tree1) (rbit--bdepth tree2)))
+    (pcase-let* ((t1beg (rbit--beg tree1))
+                 (t1end (rbit--end tree1))
+                 (`(,t2l . ,t2mr) (rbit-split tree2 t1beg))
+                 (_ (cl-assert (or (not (and t2l t2mr))
+                                   (= (rbit--bdepth t2l) (rbit--bdepth t2mr)))))
+                 (`(,t2m . ,t2r)  (rbit-split t2mr t1end))
+                 (_ (cl-assert (or (not (and t2m t2r))
+                                   (= (rbit--bdepth t2m) (rbit--bdepth t2r)))))
+                 (tl (rbit--union
+                      (rbit--blacken (rbit--left tree1) (rbit--black tree1))
+                      t2l f))
+                 (tr (rbit--union
+                      (rbit--blacken (rbit--right tree1) (rbit--black tree1))
+                      t2r f))
+                 (tm (rbit--set t2m t1beg t1end (rbit--val tree1) f)))
+      (unless t2m
+        (setq tm (rbit--blacken tm (rbit--bdepth (or tl tr)))))
+      (rbit--join2 (rbit--join2 tl tm) tr)))))
+
+(defun rbit-union (tree1 tree2 &optional f)
+  (let ((bd1 (rbit--bdepth tree1))
+        (bd2 (rbit--bdepth tree2)))
+    (cond
+     ((> bd1 bd2) (setq tree2 (rbit--blacken tree2 (- bd1 bd2))))
+     ((> bd2 bd1) (setq tree1 (rbit--blacken tree1 (- bd2 bd1)))))
+    (rbit--make-top (rbit--union tree1 tree2 f))))
 
 (defun rbit--balanced-p (tree)
   "Return black depth iff TREE obeys the red-black tree invariants."
@@ -433,7 +550,7 @@ Each interval is represented as (BEG END VAL)."
   "Construct a tree from a list of intervals.
 In case of overlap, the later intervals take precedence
 or are combined with F."
-  (let ((it nil))
+  (let ((it rbit-empty))
     (pcase-dolist (`(,beg ,end ,val) intervals)
       (setq it (rbit-set it beg end val f)))
     it))
