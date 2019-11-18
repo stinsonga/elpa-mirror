@@ -4,7 +4,7 @@
 
 ;; Author: Filipp Gunbin <fgunbin@fastmail.fm>
 ;; Maintainer: Filipp Gunbin <fgunbin@fastmail.fm>
-;; Version: 0.6.1
+;; Version: 0.7
 ;; Keywords: java, maven, gradle, programming
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -65,6 +65,15 @@
 ;; 	    (local-set-key "\C-co" 'javaimp-organize-imports)))
 ;; (global-set-key (kbd "C-c j v") 'javaimp-visit-project)
 ;;
+
+;;; News:
+
+;; v0.7:
+;; - Added Gradle support.
+;;
+;; - Removed javaimp-maven-visit-project in favor of javaimp-visit-project.
+;;
+;; - Split into multiple files.
 
 
 ;;; Code:
