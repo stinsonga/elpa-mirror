@@ -371,7 +371,7 @@ Every returned entry is an association list with the following attributes:
   `tags': The status of the bug report, a list of strings.  This
   can be \"confirmed\", \"fixed\", \"pending\", \"notabug\",
   \"wontfix\", \"unreproducible\", \"moreinfo\", \"security\" or
-  \"patch\".
+  \"patch\".  The exact set of tags depends on the Debbugs port.
 
   `pending': The string \"pending\", \"forwarded\", \"fixed\" or \"done\".
 
@@ -427,15 +427,15 @@ Example:
      \(\(\(cache_time . 1469716026.4981334)
        \(bug_num . 10)
        \(source . \"unknown\")
-       \(date . 1203606305.0)
+       \(date . 1203606305)
        \(msgid . \"<87zltuz7eh.fsf@freemail.hu>\")
        \(severity . \"wishlist\")
        \(owner . \"Magnus Henoch <mange@freemail.hu>\")
-       \(log_modified . 1261079402.0)
+       \(log_modified . 1261079402)
        \(location . \"db-h\")
        \(subject . \"url-gw should support HTTP CONNECT proxies\")
        \(originator . \"Magnus Henoch <mange@freemail.hu>\")
-       \(last_modified . 1271200046.0)
+       \(last_modified . 1271200046)
        \(pending . \"pending\")
        \(package \"emacs\")))"
   (let (cached-bugs)
@@ -578,7 +578,7 @@ Valid keywords are:
 
   :tag -- A string applied as user tag.  Often, it is a
   subproduct identification, like \"cedet\" or \"tramp\" for the
-  package \"emacs\".
+  package \"emacs\".  This is NOT a tag of the TAGS list mentioned above.
 
 If there is no :tag entry, no bug numbers will be returned but a list of
 existing user tags for :user.

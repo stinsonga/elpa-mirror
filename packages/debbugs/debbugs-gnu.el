@@ -265,11 +265,13 @@ If nil, the value of `send-mail-function' is used instead."
 	      (const "coreutils")
 	      (const "cppi")
 	      (const "debbugs.gnu.org")
+	      (const "dejagnu")
 	      (const "diffutils")
 	      (const "emacs")
 	      (const "emacs-xwidgets")
 	      (const "fm")
 	      (const "gnus")
+	      (const "gnuzilla")
 	      (const "grep")
 	      (const "guile")
 	      (const "guix")
@@ -1033,14 +1035,17 @@ Used instead of `tabulated-list-print-entry'."
       'debbugs-gnu-manual)
     map))
 
-(defun debbugs-gnu-rescan ()
-  "Rescan the current set of bug reports."
-  (interactive)
+(defun debbugs-gnu-rescan (nocache)
+  "Rescan the current set of bug reports.
+If NOCACHE is non-nil, bug information is retrieved from the debbugs server.
+Interactively, it is non-nil with the prefix argument."
+  (interactive
+   (list current-prefix-arg))
   (let ((id (debbugs-gnu-current-id))
 	(debbugs-gnu-current-query debbugs-gnu-local-query)
 	(debbugs-gnu-current-filter debbugs-gnu-local-filter)
 	(debbugs-gnu-current-suppress debbugs-gnu-local-suppress)
-	(debbugs-cache-expiry (if current-prefix-arg t debbugs-cache-expiry)))
+	(debbugs-cache-expiry (if nocache t debbugs-cache-expiry)))
     (debbugs-gnu-show-reports)
     (when id
       (debbugs-gnu-goto id))))
