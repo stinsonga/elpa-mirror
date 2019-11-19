@@ -48,10 +48,8 @@ information."
          (modules (mapcar (lambda (alist)
                             (javaimp--gradle-module-from-alist alist file))
                           alists)))
-    (prog1
-        ;; first module is always root
-        (javaimp--build-tree (car modules) nil modules)
-      (message "Loaded tree for %s" file))))
+    ;; first module is always root
+    (javaimp--build-tree (car modules) nil modules)))
 
 (defun javaimp--gradle-handler ()
   (goto-char (point-min))
@@ -71,8 +69,8 @@ information."
 
 (defun javaimp--gradle-module-from-alist (alist file-orig)
   (make-javaimp-module
-   :id (javaimp--gradle-id-from-colon-separated (cdr (assq 'id alist)))
-   :parent-id (javaimp--gradle-id-from-colon-separated (cdr (assq 'parent-id alist)))
+   :id (javaimp--gradle-id-from-semi-separated (cdr (assq 'id alist)))
+   :parent-id (javaimp--gradle-id-from-semi-separated (cdr (assq 'parent-id alist)))
    :file (cdr (assq 'file alist))
    :file-orig file-orig
    ;; jar/war supported
@@ -91,12 +89,19 @@ information."
    :load-ts (current-time)
    :dep-jars-path-fetcher #'javaimp--gradle-fetch-dep-jars-path))
 
-(defun javaimp--gradle-id-from-colon-separated (str)
+(defun javaimp--gradle-id-from-semi-separated (str)
   (when str
-    (let ((parts (split-string str ":" t)))
+    (let ((parts (split-string str ";" t)) artifact)
       (unless (= (length parts) 3)
-        (error "Invalid maven id: %s" str))
-      (make-javaimp-id :group (nth 0 parts) :artifact (nth 1 parts) :version (nth 2 parts)))))
+        (error "Invalid project id: %s" str))
+      (setq artifact (nth 1 parts))
+      (if (equal artifact ":")
+          (setq artifact "<root>")
+        ;; convert "[:]foo:bar:baz" into "foo.bar.baz"
+        (setq artifact (replace-regexp-in-string
+                        ":" "." (string-remove-prefix ":" artifact))))
+      (make-javaimp-id :group (nth 0 parts) :artifact artifact
+                       :version (nth 2 parts)))))
 
 (defun javaimp--gradle-fetch-dep-jars-path (module)
   ;; always invoke on root file becase module's file may not exist

@@ -144,7 +144,7 @@ buffer and returns its result"
       (split-string converted sep-regex t))))
 
 (defun javaimp--build-tree (this parent-node all)
-  (message "Building tree for module: %s" (javaimp-module-id this))
+  (message "Building tree for module: %s" (javaimp-print-id (javaimp-module-id this)))
   (let ((children
 	 ;; more or less reliable way to find children is to look for
 	 ;; modules with "this" as the parent
