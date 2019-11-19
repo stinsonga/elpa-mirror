@@ -1035,7 +1035,7 @@ Used instead of `tabulated-list-print-entry'."
       'debbugs-gnu-manual)
     map))
 
-(defun debbugs-gnu-rescan (nocache)
+(defun debbugs-gnu-rescan (&optional nocache)
   "Rescan the current set of bug reports.
 If NOCACHE is non-nil, bug information is retrieved from the debbugs server.
 Interactively, it is non-nil with the prefix argument."
