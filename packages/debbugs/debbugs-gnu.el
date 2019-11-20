@@ -1596,7 +1596,7 @@ removed instead."
       (message "Control message sent:\n%s"
                (buffer-substring-no-properties (point) (1- (point-max)))))))
 
-(defun debbugs-gnus-implicit-ids ()
+(defun debbugs-gnu-implicit-ids ()
   "Return a list of bug IDs guessed from the current buffer."
   (delq nil (delete-dups
              (list (debbugs-gnu-current-id t)
@@ -1641,7 +1641,7 @@ removed instead."
      (list (completing-read
             "Control message: " debbugs-gnu-control-message-keywords nil t)
            (let* ((implicit-ids (mapcar #'prin1-to-string
-                                        (debbugs-gnus-implicit-ids)))
+                                        (debbugs-gnu-implicit-ids)))
                   (default-id (car implicit-ids)))
              (string-to-number
               (completing-read (if default-id
@@ -1786,7 +1786,7 @@ removed instead."
               (lambda () (remhash bugid debbugs-cache-data))
               nil t)))
 
-(defun debbugs-gnus-jump-to-bug (bugid)
+(defun debbugs-gnu-jump-to-bug (bugid)
   "Display buffer associated with BUGID with `pop-to-buffer'.
 Use `gnus-read-ephemeral-emacs-bug-group' instead if there is no such buffer."
   (let ((bug-buf nil)
@@ -1797,7 +1797,7 @@ Use `gnus-read-ephemeral-emacs-bug-group' instead if there is no such buffer."
        for buf in (buffer-list)
        while preferred-modes do
        (set-buffer buf)
-       (when-let (((memql bugid (debbugs-gnus-implicit-ids)))
+       (when-let (((memql bugid (debbugs-gnu-implicit-ids)))
                   (mode (cl-loop
                          for mode in preferred-modes
                          thereis (and (derived-mode-p mode)
@@ -2005,7 +2005,7 @@ user to call `debbugs-gnu-maybe-use-picked-commits'."
                  (format "Bug # (default %s): " (car bugnum))
                "Bug #: ")
              debbugs-gnu-completion-table nil t nil nil bugnum))))
-      (debbugs-gnus-jump-to-bug read-bugnum)
+      (debbugs-gnu-jump-to-bug read-bugnum)
       (cl-callf2 mapcar #'string-to-number bugnum)
       (unless (memql read-bugnum bugnum)
         (push read-bugnum bugnum)))
@@ -2023,7 +2023,7 @@ on an entry with a matching bug number from
 successfully sent."
   (interactive)
   (when (derived-mode-p 'message-mode)
-    (cl-loop with id = (car (debbugs-gnus-implicit-ids))
+    (cl-loop with id = (car (debbugs-gnu-implicit-ids))
              for pcomm-entry in debbugs-gnu-picked-commits
              for (bugnum repo-dir commit-range) = pcomm-entry
              when (memql id bugnum)
@@ -2211,6 +2211,8 @@ If given a prefix, patch in the branch directory instead.
 
 If SELECTIVELY, query the user before applying the patch."
   (interactive "P")
+  (unless (eq debbugs-gnu-mail-backend 'gnus)
+    (error "This function only works with Gnus."))
   (add-hook 'diff-mode-hook #'debbugs-gnu-diff-mode)
   (debbugs-gnu-init-current-directory branch)
   (let ((rej (expand-file-name "debbugs-gnu.rej" temporary-file-directory))
@@ -2358,6 +2360,8 @@ If SELECTIVELY, query the user before applying the patch."
 (defun debbugs-gnu-insert-changelog ()
   "Add a ChangeLog from a recently applied patch from a third party."
   (interactive)
+  (unless (eq debbugs-gnu-mail-backend 'gnus)
+    (error "This function only works with Gnus."))
   (let (from subject patch-subject changelog
 	     patch-from)
     (with-current-buffer gnus-article-buffer
