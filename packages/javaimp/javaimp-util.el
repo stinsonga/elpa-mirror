@@ -4,7 +4,6 @@
 
 ;; Author: Filipp Gunbin <fgunbin@fastmail.fm>
 ;; Maintainer: Filipp Gunbin <fgunbin@fastmail.fm>
-;; Version: 0.6.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
