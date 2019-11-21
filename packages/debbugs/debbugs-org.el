@@ -99,6 +99,12 @@
 ;; `debbugs-gnu-default-packages', and tagged with "patch".  This is
 ;; useful for bug triages.
 
+;; Another special command is
+;;
+;;    M-x debbugs-org-tagged
+
+;; This command shows just the locally tagged bugs.
+
 ;; Finally, if you simply want to list some bugs with known bug
 ;; numbers, call the command
 ;;
@@ -162,6 +168,14 @@ marked as \"client-side filter\"."
   (cl-letf (((symbol-function 'debbugs-gnu-show-reports)
 	     #'debbugs-org-show-reports))
     (call-interactively 'debbugs-gnu-patches)))
+
+;;;###autoload
+(defun debbugs-org-tagged ()
+  "List the bug reports that have been tagged locally."
+  (interactive)
+  (cl-letf (((symbol-function 'debbugs-gnu-show-reports)
+	     #'debbugs-org-show-reports))
+    (call-interactively 'debbugs-gnu-tagged)))
 
 ;;;###autoload
 (defun debbugs-org ()

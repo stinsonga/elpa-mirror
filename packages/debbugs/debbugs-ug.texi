@@ -175,6 +175,18 @@ This is useful for bug triages.
 @ref{Presenting Bugs} for the presentation of the results.
 @end deffn
 
+
+@deffn  {Command} debbugs-gnu-tagged
+@deffnx {Command} debbugs-org-tagged
+
+The commands @code{debbugs-gnu-tagged} and @code{debbugs-org-tagged}
+show all bugs tagged locally.  This list is useful for keeping bugs
+you are currently working on.
+
+@ref{Presenting Bugs} for the presentation of the results.
+@end deffn
+
+
 @defopt debbugs-show-progress
 
 If this user option is non-@code{nil}, there is a progress report when

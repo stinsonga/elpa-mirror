@@ -140,6 +140,12 @@
 ;; `debbugs-gnu-default-packages', and tagged with "patch".  This is
 ;; useful for bug triages.
 
+;; Another special command is
+;;
+;;    M-x debbugs-gnu-tagged
+
+;; This command shows just the locally tagged bugs.
+
 ;; Finally, if you simply want to list some bugs with known bug
 ;; numbers, call the command
 ;;
@@ -604,6 +610,12 @@ depend on PHRASE being a string, or nil.  See Info node
   (interactive)
   (setq debbugs-gnu-current-suppress t)
   (debbugs-gnu nil debbugs-gnu-default-packages nil nil "patch"))
+
+;;;###autoload
+(defun debbugs-gnu-tagged ()
+  "List the bug reports that have been tagged locally."
+  (interactive)
+  (debbugs-gnu '("tagged")))
 
 ;;;###autoload
 (defun debbugs-gnu (severities &optional packages archivedp suppress tags)

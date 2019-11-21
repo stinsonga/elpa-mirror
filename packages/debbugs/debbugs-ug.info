@@ -155,6 +155,15 @@ prefix.
 
      *note Presenting Bugs:: for the presentation of the results.
 
+ -- Command: debbugs-gnu-tagged
+ -- Command: debbugs-org-tagged
+
+     The commands 'debbugs-gnu-tagged' and 'debbugs-org-tagged' show
+     all bugs tagged locally.  This list is useful for keeping bugs
+     you are currently working on.
+
+     *note Presenting Bugs:: for the presentation of the results.
+
  -- User Option: debbugs-show-progress
 
      If this user option is non-'nil', there is a progress report when
@@ -715,10 +724,12 @@ Command Index
 * debbugs-gnu-patches:                   Retrieving Bugs.    (line 86)
 * debbugs-gnu-pick-commits:              Posting Patches.    (line 16)
 * debbugs-gnu-search:                    Searching Bugs.     (line 15)
+* debbugs-gnu-tagged:                    Retrieving Bugs.    (line 96)
 * debbugs-org:                           Retrieving Bugs.    (line 17)
 * debbugs-org-bugs:                      Retrieving Bugs.    (line 70)
 * debbugs-org-patches:                   Retrieving Bugs.    (line 87)
 * debbugs-org-search:                    Searching Bugs.     (line 16)
+* debbugs-org-tagged:                    Retrieving Bugs.    (line 97)
 
 
 File: debbugs-ug.info,  Node: Variable Index,  Next: Key Index,  Prev: Command Index,  Up: Top
@@ -747,7 +758,7 @@ Variable Index
 * debbugs-gnu-suppress-closed:           Tabulated Lists.   (line  79)
 * debbugs-gnu-trunk-directory:           Applying Patches.  (line  18)
 * debbugs-org-severity-priority:         TODO Items.        (line  10)
-* debbugs-show-progress:                 Retrieving Bugs.   (line  96)
+* debbugs-show-progress:                 Retrieving Bugs.   (line 105)
 
 
 File: debbugs-ug.info,  Node: Key Index,  Next: Mail Command Index,  Prev: Variable Index,  Up: Top
@@ -1129,52 +1140,52 @@ Debbugs control mailserver commands
 Tag Table:
 Node: Top1097
 Node: Retrieving Bugs2704
-Node: Searching Bugs7071
-Ref: Searching Bugs-Footnote-111621
-Ref: Searching Bugs-Footnote-211709
-Node: Presenting Bugs11800
-Node: Tabulated Lists12462
-Node: TODO Items16301
-Node: Control Messages17622
-Node: Applying Patches21139
-Node: Posting Patches22529
-Node: Customizing debbugs-gnu-pick-commits25014
-Node: Minor Mode25714
-Node: Command Index26990
-Node: Variable Index27850
-Node: Key Index29366
-Node: Mail Command Index31074
-Ref: Mail Command Index: reassign31227
-Ref: Mail Command Index: reopen31993
-Ref: Mail Command Index: found33147
-Ref: Mail Command Index: notfound34228
-Ref: Mail Command Index: fixed34637
-Ref: Mail Command Index: notfixed35083
-Ref: Mail Command Index: submitter35706
-Ref: Mail Command Index: forwarded36100
-Ref: Mail Command Index: notforwarded36718
-Ref: Mail Command Index: retitle36919
-Ref: Mail Command Index: severity37303
-Ref: Mail Command Index: clone37634
-Ref: Mail Command Index: merge38398
-Ref: Mail Command Index: forcemerge39785
-Ref: Mail Command Index: unmerge40229
-Ref: Mail Command Index: tags40932
-Ref: Mail Command Index: block41998
-Ref: Mail Command Index: unblock42035
-Ref: Mail Command Index: close42520
-Ref: Mail Command Index: package43170
-Ref: Mail Command Index: owner43782
-Ref: Mail Command Index: noowner44145
-Ref: Mail Command Index: archive44318
-Ref: Mail Command Index: unarchive44459
-Ref: Mail Command Index: #44752
-Ref: Mail Command Index: quit45012
-Ref: Mail Command Index: stop45019
-Ref: Mail Command Index: thank45026
-Ref: Mail Command Index: thanks45034
-Ref: Mail Command Index: thankyou45043
-Ref: Mail Command Index: thank you45054
-Ref: Mail Command Index: --45066
+Node: Searching Bugs7376
+Ref: Searching Bugs-Footnote-111926
+Ref: Searching Bugs-Footnote-212014
+Node: Presenting Bugs12105
+Node: Tabulated Lists12767
+Node: TODO Items16606
+Node: Control Messages17927
+Node: Applying Patches21444
+Node: Posting Patches22834
+Node: Customizing debbugs-gnu-pick-commits25319
+Node: Minor Mode26019
+Node: Command Index27295
+Node: Variable Index28297
+Node: Key Index29813
+Node: Mail Command Index31521
+Ref: Mail Command Index: reassign31674
+Ref: Mail Command Index: reopen32440
+Ref: Mail Command Index: found33594
+Ref: Mail Command Index: notfound34675
+Ref: Mail Command Index: fixed35084
+Ref: Mail Command Index: notfixed35530
+Ref: Mail Command Index: submitter36153
+Ref: Mail Command Index: forwarded36547
+Ref: Mail Command Index: notforwarded37165
+Ref: Mail Command Index: retitle37366
+Ref: Mail Command Index: severity37750
+Ref: Mail Command Index: clone38081
+Ref: Mail Command Index: merge38845
+Ref: Mail Command Index: forcemerge40232
+Ref: Mail Command Index: unmerge40676
+Ref: Mail Command Index: tags41379
+Ref: Mail Command Index: block42445
+Ref: Mail Command Index: unblock42482
+Ref: Mail Command Index: close42967
+Ref: Mail Command Index: package43617
+Ref: Mail Command Index: owner44229
+Ref: Mail Command Index: noowner44592
+Ref: Mail Command Index: archive44765
+Ref: Mail Command Index: unarchive44906
+Ref: Mail Command Index: #45199
+Ref: Mail Command Index: quit45459
+Ref: Mail Command Index: stop45466
+Ref: Mail Command Index: thank45473
+Ref: Mail Command Index: thanks45481
+Ref: Mail Command Index: thankyou45490
+Ref: Mail Command Index: thank you45501
+Ref: Mail Command Index: --45513
 
 End Tag Table
