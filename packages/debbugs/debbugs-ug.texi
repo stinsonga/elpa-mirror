@@ -107,40 +107,40 @@ of the bugs to be retrieved.  Valid severities are @code{"serious"},
 @code{debbugs-gnu-all-severities}).  If the list is empty, there is no
 filtering with respect to severities.  The keyword @code{"tagged"},
 which is also possible, is not a severity in the GNU Debbugs server
-but allows to restrict the result to bugs with a given user tag.
+but allows restricting the result to bugs with a given user tag.
 
 @vindex debbugs-gnu-all-packages
-@var{packages}, also a list of strings, point to the defined software
-packages on the GNU Debbugs server which shall be taken into account.
+@var{packages}, also a list of strings, points to the defined software
+packages on the GNU Debbugs server which should be taken into account.
 The existing package names are compiled into the constant
 @code{debbugs-gnu-all-packages}.
 
-@var{archivedp}, if non-@code{nil}, extends the result also on
-archived bugs on the GNU Debbugs server.
+@var{archivedp}, if non-@code{nil}, extends the retrieval to also
+apply to archived bugs on the GNU Debbugs server.
 
 @vindex debbugs-gnu-default-suppress-bugs
-@var{suppress} shall also distinct between @code{nil} and
-non-@code{nil}.  When non-@code{nil}, closed bugs are suppressed from
+When @var{suppress} is non-@code{nil}, closed bugs are suppressed from
 being retrieved from the Debbugs server.  Which bugs are regarded as
-suppressed is configured in the user option
-@code{debbugs-gnu-suppress-bugs}.  Per default, bugs marked as
+suppressed is configured via the user option
+@code{debbugs-gnu-suppress-bugs}.  By default bugs marked as
 @code{"done"} are suppressed from being retrieved.
 
 When @var{severities} contains the severity @code{"tagged"},
-@var{tags} is consulted in order to restrict the result on bugs which
+@var{tags} is consulted in order to restrict the result to bugs which
 are tagged with one of the strings of the list @var{tags}.  This list
-can also be empty; in this case locally tagged bugs are included into
+can also be empty; in this case locally tagged bugs are included in
 the results.
 
-Called interactively, the commands require just the @var{severities}
-and the @var{tags} (if @var{severities} includes @code{"tagged"}).  In
-order to provide the other arguments interactively, the commands must
-be called with a prefix, like @kbd{C-u M-x debbugs-gnu}.  In the
-minibuffer, lists must be entered comma-separated.
+When called interactively, the commands require just the
+@var{severities} and the @var{tags} (if @var{severities} includes
+@code{"tagged"}).  In order to provide the other arguments
+interactively, the commands must be called with a prefix, like
+@kbd{C-u M-x debbugs-gnu}.  In the minibuffer, lists must be entered
+separated by commas.
 
 @vindex debbugs-gnu-default-severities
 @vindex debbugs-gnu-default-packages
-Default values for interactive use could be configured in the user
+Default values for interactive use can be configured with the user
 options @code{debbugs-gnu-default-severities} and
 @code{debbugs-gnu-default-packages}.
 
@@ -153,15 +153,15 @@ options @code{debbugs-gnu-default-severities} and
 
 The commands @code{debbugs-gnu-bugs} and @code{debbugs-org-bugs} show
 bugs specified by their bug number.  Interactively, the bug numbers
-must be entered as comma-separated list of bugs or bug ranges.
+must be entered as a comma-separated list of bugs or bug ranges.
 
-A bug range has either the form @samp{12345-21345} or @samp{-123}.  In
-the former case, all bugs from 12345 until 21345 are presented, and in
-the latter case the last 123 bugs are shown, counting from the highest
-bug number in the repository.
+A bug range has the form @samp{12345-21345} or @samp{-123}.  In the
+former case, all bugs from 12345 until 21345 are presented, and in the
+latter case the last 123 bugs are shown, counting from the highest bug
+number in the repository.
 
 @vindex debbugs-gnu-default-bug-number-list
-A default value for interactive use could be configured in the user
+A default value for interactive use can be configured in the user
 option @code{debbugs-gnu-default-bug-number-list}.
 
 @ref{Presenting Bugs} for the presentation of the results.
@@ -174,7 +174,7 @@ option @code{debbugs-gnu-default-bug-number-list}.
 The commands @code{debbugs-gnu-patches} and @code{debbugs-org-patches}
 show all unarchived bugs of the packages declared in
 @code{debbugs-gnu-default-packages}, and tagged with @code{"patch"}.
-This is useful for bug triages.
+This is useful for bug triaging.
 
 @ref{Presenting Bugs} for the presentation of the results.
 @end deffn
@@ -184,8 +184,8 @@ This is useful for bug triages.
 @deffnx {Command} debbugs-org-tagged
 
 The commands @code{debbugs-gnu-tagged} and @code{debbugs-org-tagged}
-show all bugs tagged locally.  This list is useful for keeping bugs
-you are currently working on.
+show all bugs tagged locally.  This list is useful for keeping track
+of bugs you are currently working on.
 
 @ref{Presenting Bugs} for the presentation of the results.
 @end deffn
@@ -193,29 +193,29 @@ you are currently working on.
 
 @defopt debbugs-show-progress
 
-If this user option is non-@code{nil}, there is a progress report when
-retrieving bugs.
+If this user option is non-@code{nil}, a progress report is shown when
+retrieving bugs, defaults to t.
 @end defopt
 
 
 @node Searching Bugs
 @chapter Searching in the Debbugs Database
 
-The GNU Debbugs server allows text search in the database in the
-messages submitted to the bugs.  It uses a
+The GNU Debbugs server allows searching the text of the messages
+submitted to the bugs in the database.  It uses a
 @uref{https://fallabs.com/hyperestraier/uguide-en.html#searchcond,
 HyperEstraier based search engine}@footnote{This has been added to the
 Debbugs/SOAP backend of the GNU Debbugs server only.}.
 
 The search engine uses an index over the bug database.  This index is
-refreshed once a day only; search hits do not include recent changes
-of the same day.
+refreshed daily; search hits may not include recent changes made the
+same day.
 
 
 @deffn  {Command} debbugs-gnu-search
 @deffnx {Command} debbugs-org-search
 
-These both commands are completely interactive.  They ask for a
+Both these commands are completely interactive.  They ask for a
 @code{"search phrase"} for the text search.  It is just a string which
 contains the words to be searched for followed by each other.  If
 there are operators like "AND", "ANDNOT" and "OR" between the words,
@@ -241,12 +241,12 @@ described in the Hyperestraier User Guide, are not supported.}
 Several wildcards must be separated by the operators explained above.
 
 While the words to be searched for are case insensitive, the operators
-must be specified case sensitive.
+must be specified in upper case.
 
 While the search for the phrase is performed only in the bodies of the
-messages belonging to a bug report, it is also possible to
-discriminate the search to further bug attributes.  The commands ask
-for such key-value pairs, until an empty key is returned.  Possible
+messages belonging to a bug report, it is also possible to restrict
+the search using further bug attributes.  The commands ask for such
+attribute-value pairs, until an empty attribute is returned.  Possible
 attributes are
 
 @table @samp
@@ -264,11 +264,11 @@ A comma-separated list of defined user tags.
 The email address of a message originator.
 
 @item date
-A time period the bug has been in which the bug has been submitted or
+A time period during which the bug has been submitted or
 modified.
 
 @item subject
-Word(s) the subject of the bug report contains.
+Word(s) contained in the subject of the bug report.
 
 @item status
 The status of the bug report.  Valid values are "open", "forwarded"
@@ -277,7 +277,7 @@ and "done".
 
 It is also possible to apply these commands with an empty search
 phrase.  In this case, the GNU Debbugs server is searched only for
-bugs which fulfill the given attributes.  The attributes to be applied
+bugs which match the given attributes.  The attributes to be applied
 are the same as already described, plus
 
 @table @samp
@@ -285,7 +285,7 @@ are the same as already described, plus
 Whether archived bugs shall be searched (no value to be entered).
 
 @item src
-Bugs which belong to a given source, if that attribute has set.
+Bugs which belong to a given source, if that attribute is set.
 
 @item tag
 An arbitrary string the bug is annotated with.  Usually, this is the
@@ -305,10 +305,10 @@ correspondent (somebody who has participated in bug messages).
 The date of the last update, or the date of the bug report / bug fix.
 
 @item unarchived
-The date the bug has been unarchived, if ever.
+The date the bug was unarchived, if ever.
 
 @item done
-The email address of the worker who has closed the bug (if done).
+The email address of the worker who closed the bug (if done).
 
 @item forwarded
 A URL or an email address.
@@ -320,11 +320,11 @@ The message id of the initial bug report.
 The summary of the bug report.
 @end table
 
-Not all of these attributes could be queried on the GNU Debbugs server
+Not all of these attributes can be queried on the GNU Debbugs server
 via the Debbugs/SOAP backend.  In this case, the results of a query
-are discriminated on the client side, which is indicated by the string
+are filtered on the client side, which is indicated by the string
 "(client-side filter)" in the minibuffer after the attribute name.
-Note, that client side filters perform badly, because they could be
+Note, that client side filters perform badly, because they can be
 applied only after all bugs have been downloaded.
 
 These commands show also a progress report when
@@ -336,8 +336,8 @@ These commands show also a progress report when
 @chapter Presenting Bugs
 
 The commands described in the previous chapters generate (a) report
-buffer(s) applicable for navigation.  @code{debbugs-gnu-*} return a
-tabulated list, and @code{debbugs-org-*} return a list of TODO items
+buffer(s) applicable for navigation.  @code{debbugs-gnu-*} displays a
+tabulated list, and @code{debbugs-org-*} displays a list of TODO items
 in @code{org-mode}.
 
 @menu
@@ -352,20 +352,20 @@ in @code{org-mode}.
 @node Tabulated Lists
 @section Tabulated Lists
 
-A tabulated list of bug reports consist of four columns for every bug
+A tabulated list of bug reports consisting of four columns for every bug
 entry: @code{Id} (the bug number), @code{State} (some bug attributes),
 @code{Submitter} (the name of the bug submitter), and @code{Title}
-(the bug subject).  Per default the bugs are sorted descending by
-@code{Id}; this could be changed by clicking in the headline.
+(the bug subject).  By default the bugs are sorted descending by
+@code{Id}; this can be changed by clicking in the headline.
 
-Different foreground colours present further information on the bug
-report.  If the bug number uses a red colour
+Different foreground colors represent further information on the bug
+report.  If the bug number uses a red color
 (@code{debbugs-gnu-tagged}), the bug has been tagged locally.  The
 same face is used to mark bugs in the submitter or title column, when
 the bug has been reported / is maintained by the user.
 
-The bug state could appear in different colours: red
-(@code{debbugs-gnu-new}, nobody has answered yet to this bug),
+The bug state can appear in different colors: red
+(@code{debbugs-gnu-new}, nobody has answered this bug yet),
 ForestGreen (@code{debbugs-gnu-handled}, the bug has been modified
 recently), MidnightBlue (@code{debbugs-gnu-pending}, the bug is
 pending), orange (@code{debbugs-gnu-stale}, the bug has not been
@@ -373,8 +373,8 @@ touched for a while), and DarkGrey (@code{debbugs-gnu-done}, the bug
 is closed).  Archived bugs are shown with inverse face
 (@code{debbugs-gnu-archived}).
 
-The bug report buffers have enabled the minor
-@code{debbugs-gnu-mode}.  This enables the following key strokes:
+The minor mode @code{debbugs-gnu-mode} is active in bug report
+buffers.  This enables the following key strokes:
 
 @multitable @columnfractions .20 .80
 
@@ -471,7 +471,7 @@ Send a control message for this bug, @ref{Control Messages}.
 @kindex @kbd{E}
 @kbd{E} @tab
 @code{debbugs-gnu-make-control-message} @*
-Make (but don't yet send) a control message for this bug, @ref{Control
+Make (but don't send) a control message for this bug, @ref{Control
 Messages}.
 @end multitable
 
@@ -480,7 +480,7 @@ visible you are working on.  The command @code{debbugs-gnu-tagged}
 shows all locally tagged bugs in a list.
 
 @vindex debbugs-gnu-suppress-closed
-The user option @code{debbugs-gnu-suppress-closed} controls, whether
+The user option @code{debbugs-gnu-suppress-closed} controls whether
 closed bugs are shown in the initial list.
 
 @vindex debbugs-gnu-mail-backend
@@ -504,8 +504,8 @@ shown by the usual navigation in @code{org-mode}.
 Bug severities are mapped onto org severities, see
 @code{debbugs-org-severity-priority}.
 
-The bug report buffers have enabled the minor
-@code{debbugs-org-mode}.  This enables the following key strokes:
+The minor mode @code{debbugs-org-mode} is active in bug report
+buffers.  This enables the following key strokes:
 
 @multitable {@kbd{C-c # C}} {Some very very very long long text Some very very very long long text Some very very very long long text}
 
@@ -537,7 +537,7 @@ Send a control message for this bug, @ref{Control Messages}.
 @kindex @kbd{C-c # E}
 @kbd{C-c # E} @tab
 @code{debbugs-gnu-make-control-message} @*
-Make (but don't yet send) a control message for this bug, @ref{Control
+Make (but don't send) a control message for this bug, @ref{Control
 Messages}.
 @end multitable
 
@@ -627,7 +627,7 @@ The address, an email address or a URL, is read interactively.
 @itemx merge
 "forcemerge|merge 12345 54321"
 
-The second bug number is read interactively.  It could be also a list
+The second bug number is read interactively.  It can be also a list
 of comma-separated bug numbers.
 
 @item invalid
@@ -714,7 +714,7 @@ predefined directory does not point to an existing path, it is read
 from the minibuffer.
 
 A further @kbd{M-m} in the corresponding @samp{*vc-diff*} buffer opens
-the modified file.  Here you can apply @kbd{M-m} the next time.  This
+the modified file.  Here you can apply @kbd{M-m} again.  This
 creates a ChangeLog entry with all needed information.  A final
 @kbd{M-m} in the @samp{ChangeLog} buffer commits the patch via
 @samp{*vc-log*}.
@@ -805,7 +805,7 @@ Any URL with the format @uref{https://debbugs.gnu.org/12345} or
 buffer, when @code{debbugs-browse-mode} is enabled.  See user option
 @code{debbugs-browse-url-regexp} for the syntax of supported URLs.
 
-In order to enable it globally, you might add the following forms to
+In order to enable it globally, you can add the following forms to
 your @file{~/.emacs}:
 
 @smallexample
