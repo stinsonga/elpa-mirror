@@ -385,6 +385,14 @@ The bug report buffers have enabled the minor
 Show the email messages that discuss the bug.
 
 @* @item
+@kindex @kbd{A}
+@kbd{A} @tab
+@code{debbugs-gnu-select-current-bugs} @*
+Show the email messages for all currently displayed messages
+(including merged reports).  Limited by user option
+@code{debbugs-gnu-select-bugs-limit}.
+
+@item
 @kindex @kbd{d}
 @kbd{d} @tab
 @code{debbugs-gnu-display-status} @*

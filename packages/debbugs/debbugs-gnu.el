@@ -983,6 +983,7 @@ Used instead of `tabulated-list-print-entry'."
     (set-keymap-parent map tabulated-list-mode-map)
     (define-key map "\r" 'debbugs-gnu-select-report)
     (define-key map [mouse-2] 'debbugs-gnu-select-report)
+    (define-key map "A" 'debbugs-gnu-select-current-bugs)
     (define-key map "g" 'debbugs-gnu-rescan)
     (define-key map "R" 'debbugs-gnu-show-all-blocking-reports)
     (define-key map "C" 'debbugs-gnu-send-control-message)
@@ -1002,10 +1003,14 @@ Used instead of `tabulated-list-print-entry'."
     (define-key menu-map [debbugs-gnu-select-report]
       '(menu-item "Show Reports" debbugs-gnu-select-report
 		  :help "Show all reports belonging to this bug"))
+    (define-key-after menu-map [debbugs-gnu-select-current]
+      '(menu-item "Show Reports For All" debbugs-gnu-select-current-bugs
+		  :help "Show reports for all currently shown bugs")
+      'debbugs-gnu-select-report)
     (define-key-after menu-map [debbugs-gnu-rescan]
       '(menu-item "Refresh Bugs" debbugs-gnu-rescan
 		  :help "Refresh bug list")
-      'debbugs-gnu-select-report)
+      'debbugs-gnu-select-current)
     (define-key-after menu-map [debbugs-gnu-show-all-blocking-reports]
       '(menu-item "Show Release Blocking Bugs"
 		  debbugs-gnu-show-all-blocking-reports
@@ -1410,6 +1415,48 @@ MERGED is the list of bugs merged with this one."
     (define-key rmail-mode-map "C" 'debbugs-gnu-send-control-message)
     (define-key rmail-mode-map "E" 'debbugs-gnu-make-control-message)
     (rmail-show-message 1)))
+
+(defconst debbugs-gnu-select-bugs-limit-max 50
+  "Absolute maximum for `debbugs-gnu-select-bugs-limit'.")
+(defcustom debbugs-gnu-select-bugs-limit 10
+  "Maximum number of bugs to retrieve for multi-bug mailbox group.
+This applies for `debbugs-gnu-select-current-bugs'.
+Maximum allowed value is 50 to avoid overloading the server."
+  :type '(integer
+          :validate
+          (lambda (widget)
+            (unless (<= 1
+                        (widget-value widget)
+                        debbugs-gnu-select-bugs-limit-max)
+              (widget-put widget :error
+                          (format "Invalid value: range is 1..%d" debbugs-gnu-select-bugs-limit-max)))))
+  :version "27.1")
+
+(defun debbugs-gnu-select-current-bugs ()
+  "Retrieve the mailboxes for all currently shown bugs.
+Limited by `debbugs-gnu-select-bugs-limit'."
+  (interactive)
+  (unless (eq debbugs-gnu-mail-backend 'gnus)
+    (error "This function only works with Gnus."))
+  (debbugs-gnu-select-current-bugs-with-gnus))
+
+(defun debbugs-gnu-select-current-bugs-with-gnus ()
+  "Create a Gnus group of the messages from the currently shown bugs."
+  (save-excursion
+    (let ((mbox-url
+           (replace-regexp-in-string
+            ";mboxstat=yes" ""
+            (alist-get 'emacs gnus-bug-group-download-format-alist)
+            nil t))
+          ids)
+      (goto-char (point-min))
+      (dotimes (i debbugs-gnu-select-bugs-limit)
+        (push (debbugs-gnu-current-id t) ids)
+        (push (cdr (assq 'mergedwith (debbugs-gnu-current-status))) ids)
+        (forward-line 1))
+      (setq ids (delete nil (nreverse ids)))
+      (gnus-read-ephemeral-bug-group ids mbox-url)
+      (debbugs-gnu-summary-mode 1))))
 
 (defcustom debbugs-gnu-lars-workflow nil
   "If non-nil, set some Gnus vars as preferred by Lars."
