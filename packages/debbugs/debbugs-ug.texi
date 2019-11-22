@@ -84,6 +84,10 @@ called with a prefix.
 When the bug numbers to be retrieved are known, the commands
 @code{debbugs-gnu-bugs} or @code{debbugs-org-bugs} are applicable.
 
+The commands @code{debbugs-gnu-patches} / @code{debbugs-org-patches}
+and @code{debbugs-gnu-tagged} / @code{debbugs-org-tagged} retrieve
+bugs with a predefined filter.
+
 
 @deffn  {Command} debbugs-gnu severities &optional packages archivedp suppress tags
 @deffnx {Command} debbugs-org severities &optional packages archivedp suppress tags
@@ -470,6 +474,10 @@ Send a control message for this bug, @ref{Control Messages}.
 Make (but don't yet send) a control message for this bug, @ref{Control
 Messages}.
 @end multitable
+
+Tagging a bug locally via @kbd{t} is an efficient way to keep bugs
+visible you are working on.  The command @code{debbugs-gnu-tagged}
+shows all locally tagged bugs in a list.
 
 @vindex debbugs-gnu-suppress-closed
 The user option @code{debbugs-gnu-suppress-closed} controls, whether

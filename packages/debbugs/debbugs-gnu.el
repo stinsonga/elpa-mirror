@@ -36,6 +36,7 @@
 ;;   (autoload 'debbugs-gnu-search "debbugs-gnu" "" 'interactive)
 ;;   (autoload 'debbugs-gnu-usertags "debbugs-gnu" "" 'interactive)
 ;;   (autoload 'debbugs-gnu-patches "debbugs-gnu" "" 'interactive)
+;;   (autoload 'debbugs-gnu-tagged "debbugs-gnu" "" 'interactive)
 ;;   (autoload 'debbugs-gnu-bugs "debbugs-gnu" "" 'interactive)
 
 ;; The bug tracker is called interactively by
@@ -177,6 +178,7 @@
 (autoload 'diff-hunk-file-names "diff-mode")
 (autoload 'gnus-article-mime-handles "gnus-art")
 (autoload 'gnus-fetch-field "gnus-util")
+(autoload 'gnus-read-ephemeral-bug-group "gnus-group")
 (autoload 'gnus-read-ephemeral-emacs-bug-group "gnus-group")
 (autoload 'gnus-summary-article-header "gnus-sum")
 (autoload 'gnus-summary-select-article "gnus-sum")
@@ -201,6 +203,7 @@
 (defvar compilation-in-progress)
 (defvar diff-file-header-re)
 (defvar gnus-article-buffer)
+(defvar gnus-bug-group-download-format-alist)
 (defvar gnus-posting-styles)
 (defvar gnus-save-duplicate-list)
 (defvar gnus-suppress-duplicates)
@@ -371,7 +374,7 @@ If this is `rmail', use Rmail instead."
      ";; -*- emacs-lisp -*-\n"
      ";; Debbugs tags connection history.  Don't change this file.\n\n"
      (format "(setq debbugs-gnu-local-tags '%S)"
-	     (sort (copy-sequence debbugs-gnu-local-tags) '>)))))
+	     (sort (copy-sequence debbugs-gnu-local-tags) #'>)))))
 
 (defvar debbugs-gnu-current-query nil
   "The query object of the current search.
@@ -617,6 +620,10 @@ depend on PHRASE being a string, or nil.  See Info node
   (interactive)
   (debbugs-gnu '("tagged")))
 
+(defvar debbugs-gnu-show-reports-function #'debbugs-gnu-show-reports
+  "Which function to apply showing bug reports.
+Shall be bound in `debbugs-org-*' functions.")
+
 ;;;###autoload
 (defun debbugs-gnu (severities &optional packages archivedp suppress tags)
   "List all outstanding bugs."
@@ -675,7 +682,7 @@ depend on PHRASE being a string, or nil.  See Info node
 	    (add-to-list 'debbugs-gnu-current-query (cons 'tag tag))))
 
 	;; Show result.
-	(debbugs-gnu-show-reports))
+	(funcall debbugs-gnu-show-reports-function))
 
     ;; Reset query, filter and suppress.
     (setq debbugs-gnu-current-query nil
@@ -687,10 +694,10 @@ depend on PHRASE being a string, or nil.  See Info node
 (defun debbugs-gnu-get-bugs (query)
   "Retrieve bug numbers from debbugs.gnu.org according search criteria."
   (let* ((debbugs-port "gnu.org")
-	 (bugs (assoc 'bugs query))
-	 (tags (and (member '(severity . "tagged") query) (assoc 'tag query)))
+	 (bugs (assq 'bugs query))
+	 (tags (and (member '(severity . "tagged") query) (assq 'tag query)))
 	 (local-tags (and (member '(severity . "tagged") query) (not tags)))
-	 (phrase (assoc 'phrase query))
+	 (phrase (assq 'phrase query))
 	 args)
     ;; Compile query arguments.
     (unless (or query tags)
@@ -751,9 +758,9 @@ are taken from the cache instead."
 	 string
 	 (buffer-name
 	  (cond
-	   ((setq string (cdr (assq 'phrase debbugs-gnu-current-query)))
+	   ((setq string (alist-get 'phrase debbugs-gnu-current-query))
 	    (format "*%S Bugs*" string))
-	   ((setq string (cdr (assq 'package debbugs-gnu-current-query)))
+	   ((setq string (alist-get 'package debbugs-gnu-current-query))
 	    (format "*%s Bugs*" (capitalize string)))
 	   (t "*Bugs*"))))
     ;; The tabulated mode sets several local variables.  We must get
@@ -773,47 +780,47 @@ are taken from the cache instead."
 			    (maphash (lambda (key _elem)
 				       (push key ids))
 				     debbugs-cache-data)
-			    (sort ids '<))
+			    (sort ids #'<))
 			(debbugs-gnu-get-bugs debbugs-gnu-local-query)))))
-      (let* ((id (cdr (assq 'id status)))
-	     (words (cons (cdr (assq 'severity status))
-			  (cdr (assq 'keywords status))))
-	     (address (if (cdr (assq 'originator status))
+      (let* ((id (alist-get 'id status))
+	     (words (cons (alist-get 'severity status)
+			  (alist-get 'keywords status)))
+	     (address (if (alist-get 'originator status)
 			  (debbugs-gnu--split-address
-			   (decode-coding-string (cdr (assq 'originator status))
-						 'utf-8))))
-	     (owner (if (cdr (assq 'owner status))
+			   (decode-coding-string
+			    (alist-get 'originator status) 'utf-8))))
+	     (owner (if (alist-get 'owner status)
 			(car (debbugs-gnu--split-address
-			      (decode-coding-string (cdr (assq 'owner status))
-						    'utf-8)))))
-	     (subject (if (cdr (assq 'subject status))
-			  (decode-coding-string (cdr (assq 'subject status))
-						'utf-8)))
-	     (age (- (float-time) (cdr (assq 'log_modified status))))
+			      (decode-coding-string
+			       (alist-get 'owner status) 'utf-8)))))
+	     (subject (if (alist-get 'subject status)
+			  (decode-coding-string
+			   (alist-get 'subject status) 'utf-8)))
+	     (age (- (float-time) (alist-get 'log_modified status)))
 	     (week (* 60 60 24 7))
 	     merged)
-	(unless (equal (cdr (assq 'pending status)) "pending")
-	  (setq words (append words (list (cdr (assq 'pending status))))))
-	(when (cdr (assq 'fixed status))
+	(unless (equal (alist-get 'pending status) "pending")
+	  (setq words (append words (list (alist-get 'pending status)))))
+	(when (alist-get 'fixed status)
 	  (setq words (append words '("fixed"))))
-	(let ((packages (cdr (assq 'package status))))
+	(let ((packages (alist-get 'package status)))
 	  (dolist (elt packages)
 	    (when (member elt debbugs-gnu-default-packages)
 	      (setq packages (delete elt packages))))
 	  (setq words (append words packages)))
-	(when (setq merged (cdr (assq 'mergedwith status)))
+	(when (setq merged (alist-get 'mergedwith status))
 	  (setq words (append (mapcar #'number-to-string merged) words)))
 	;; `words' could contain the same word twice, for example
 	;; "fixed" from `keywords' and `pending'.
 	(setq words (mapconcat
-		     #'identity (cl-delete-duplicates words :test 'equal) ","))
+		     #'identity (cl-delete-duplicates words :test #'equal) ","))
 	(when (or (not merged)
 		  (not (let ((found nil))
 			 (dolist (id (if (listp merged)
 					 merged
 				       (list merged)))
 			   (dolist (entry tabulated-list-entries)
-			     (when (equal id (cdr (assq 'id (car entry))))
+			     (when (equal id (alist-get 'id (car entry)))
 			       (setq found t))))
 			 found)))
 	  (add-to-list
@@ -833,18 +840,18 @@ are taken from the cache instead."
 	      (or words "")
 	      'face
 	      (cond
-	       ((cdr (assq 'archived status))
+	       ((alist-get 'archived status)
 		'debbugs-gnu-archived)
-	       ((equal (cdr (assq 'pending status)) "done")
+	       ((equal (alist-get 'pending status) "done")
 		'debbugs-gnu-done)
-	       ((equal (cdr (assq 'pending status)) "forwarded")
+	       ((equal (alist-get 'pending status) "forwarded")
 		'debbugs-gnu-forwarded)
-	       ((member "pending" (cdr (assq 'keywords status)))
+	       ((member "pending" (alist-get 'keywords status))
 		'debbugs-gnu-pending)
 	       ;; For some new bugs `date' and `log_modified' may
 	       ;; differ in 1 second.
-	       ((< (abs (- (cdr (assq 'date status))
-			   (cdr (assq 'log_modified status))))
+	       ((< (abs (- (alist-get 'date status)
+			   (alist-get 'log_modified status)))
 		   3)
 		'debbugs-gnu-new)
 	       ((< age (* week 2)) 'debbugs-gnu-handled)
@@ -899,20 +906,18 @@ Used instead of `tabulated-list-print-entry'."
     (when (and
 	   ;; We may have a narrowing in effect.
 	   (or (not debbugs-gnu-limit)
-	       (memq (cdr (assq 'id list-id)) debbugs-gnu-limit))
+	       (memq (alist-get 'id list-id) debbugs-gnu-limit))
 	   ;; Filter suppressed bugs.
 	   (or (not debbugs-gnu-local-suppress)
 	       (not (catch :suppress
 		      (dolist (check debbugs-gnu-default-suppress-bugs)
-			(when
-			    (string-match
-			     (cdr check)
-			     (or (cdr (assq (car check) list-id)) ""))
+			(when (string-match
+			       (cdr check) (alist-get (car check) list-id ""))
 			  (throw :suppress t))))))
 	   ;; Filter search list.
 	   (not (catch :suppress
 		  (dolist (check debbugs-gnu-local-filter)
-		    (let ((val (cdr (assq (car check) list-id))))
+		    (let ((val (alist-get (car check) list-id)))
 		      (if (stringp (cdr check))
 			  ;; Regular expression.
 			  (when (not (string-match (cdr check) (or val "")))
@@ -981,23 +986,23 @@ Used instead of `tabulated-list-print-entry'."
   (let ((map (make-sparse-keymap))
 	(menu-map (make-sparse-keymap)))
     (set-keymap-parent map tabulated-list-mode-map)
-    (define-key map "\r" 'debbugs-gnu-select-report)
-    (define-key map [mouse-2] 'debbugs-gnu-select-report)
-    (define-key map "A" 'debbugs-gnu-select-current-bugs)
-    (define-key map "g" 'debbugs-gnu-rescan)
-    (define-key map "R" 'debbugs-gnu-show-all-blocking-reports)
-    (define-key map "C" 'debbugs-gnu-send-control-message)
-    (define-key map "E" 'debbugs-gnu-make-control-message)
+    (define-key map [return] #'debbugs-gnu-select-report)
+    (define-key map [mouse-2] #'debbugs-gnu-select-report)
+    (define-key map "A" #'debbugs-gnu-select-current-bugs)
+    (define-key map "g" #'debbugs-gnu-rescan)
+    (define-key map "R" #'debbugs-gnu-show-all-blocking-reports)
+    (define-key map "C" #'debbugs-gnu-send-control-message)
+    (define-key map "E" #'debbugs-gnu-make-control-message)
 
-    (define-key map "s" 'debbugs-gnu-toggle-sort)
-    (define-key map "t" 'debbugs-gnu-toggle-tag)
-    (define-key map "x" 'debbugs-gnu-toggle-suppress)
-    (define-key map "/" 'debbugs-gnu-narrow-to-status)
-    (define-key map "w" 'debbugs-gnu-widen)
+    (define-key map "s" #'debbugs-gnu-toggle-sort)
+    (define-key map "t" #'debbugs-gnu-toggle-tag)
+    (define-key map "x" #'debbugs-gnu-toggle-suppress)
+    (define-key map "/" #'debbugs-gnu-narrow-to-status)
+    (define-key map "w" #'debbugs-gnu-widen)
 
-    (define-key map "b" 'debbugs-gnu-show-blocked-by-reports)
-    (define-key map "B" 'debbugs-gnu-show-blocking-reports)
-    (define-key map "d" 'debbugs-gnu-display-status)
+    (define-key map "b" #'debbugs-gnu-show-blocked-by-reports)
+    (define-key map "B" #'debbugs-gnu-show-blocking-reports)
+    (define-key map "d" #'debbugs-gnu-display-status)
 
     (define-key map [menu-bar debbugs] (cons "Debbugs" menu-map))
     (define-key menu-map [debbugs-gnu-select-report]
@@ -1063,7 +1068,7 @@ Interactively, it is non-nil with the prefix argument."
 	(debbugs-gnu-current-filter debbugs-gnu-local-filter)
 	(debbugs-gnu-current-suppress debbugs-gnu-local-suppress)
 	(debbugs-cache-expiry (if nocache t debbugs-cache-expiry)))
-    (debbugs-gnu-show-reports)
+    (funcall debbugs-gnu-show-reports-function)
     (when id
       (debbugs-gnu-goto id))))
 
@@ -1090,8 +1095,7 @@ Interactively, it is non-nil with the prefix argument."
   (setq buffer-read-only t))
 
 (defun debbugs-gnu-sort-id (s1 s2)
-  (> (cdr (assq 'id (car s1)))
-     (cdr (assq 'id (car s2)))))
+  (> (alist-get 'id (car s1)) (alist-get 'id (car s2))))
 
 (defconst debbugs-gnu-state-preference
   '((debbugs-gnu-new . 1)
@@ -1106,8 +1110,8 @@ Interactively, it is non-nil with the prefix argument."
     (debbugs-gnu-done . 10)))
 
 (defun debbugs-gnu-get-state-preference (face-string)
-  (or (cdr (assq (get-text-property 0 'face face-string)
-		 debbugs-gnu-state-preference))
+  (or (alist-get (get-text-property 0 'face face-string)
+		 debbugs-gnu-state-preference)
       10))
 
 (defconst debbugs-gnu-severity-preference
@@ -1118,14 +1122,13 @@ Interactively, it is non-nil with the prefix argument."
     ("wishlist" . 5)))
 
 (defun debbugs-gnu-get-severity-preference (state)
-  (or (cdr (assoc (cdr (assq 'severity state))
-		  debbugs-gnu-severity-preference))
+  (or (cdr (assoc (alist-get 'severity state) debbugs-gnu-severity-preference))
       10))
 
 (defun debbugs-gnu-sort-state (s1 s2)
-  (let ((id1 (cdr (assq 'id (car s1))))
+  (let ((id1 (alist-get 'id (car s1)))
 	(age1 (debbugs-gnu-get-state-preference (aref (nth 1 s1) 1)))
-	(id2 (cdr (assq 'id (car s2))))
+	(id2 (alist-get 'id (car s2)))
 	(age2 (debbugs-gnu-get-state-preference (aref (nth 1 s2) 1))))
     (cond
      ;; Tagged bugs go to the beginning.
@@ -1149,12 +1152,10 @@ Interactively, it is non-nil with the prefix argument."
 (defun debbugs-gnu-sort-submitter (s1 s2)
   (let ((address1
 	 (debbugs-gnu--split-address
-	  (decode-coding-string
-	   (or (cdr (assq 'originator (car s1))) "") 'utf-8)))
+	  (decode-coding-string (alist-get 'originator (car s1) "") 'utf-8)))
 	(address2
 	 (debbugs-gnu--split-address
-	  (decode-coding-string
-	   (or (cdr (assq 'originator (car s2))) "") 'utf-8))))
+	  (decode-coding-string (alist-get 'originator (car s2) "") 'utf-8))))
     (cond
      ;; Bugs I'm the originator of go to the beginning.
      ((and (string-equal user-mail-address (car address1))
@@ -1164,28 +1165,22 @@ Interactively, it is non-nil with the prefix argument."
 	   (not (string-equal (car address1) (car address2))))
       nil)
      ;; Then, we check the originator.  Prefer the name over the address.
-     (t (if (functionp 'string-collate-lessp)
-	    (funcall 'string-collate-lessp
-		     (or (cdr address1) (car address1) "")
-		     (or (cdr address2) (car address2) "")
-		     nil t)
-	  (string-lessp
-	   (downcase (or (cdr address1) (car address1) ""))
-	   (downcase (or (cdr address2) (car address2) ""))))))))
+     (t (string-collate-lessp
+	 (or (cdr address1) (car address1) "")
+	 (or (cdr address2) (car address2) "")
+	 nil t)))))
 
 (defun debbugs-gnu-sort-title (s1 s2)
   (let ((owner1
 	 (car (debbugs-gnu--split-address
-	       (decode-coding-string
-		(or (cdr (assq 'owner (car s1))) "") 'utf-8))))
+	       (decode-coding-string (alist-get 'owner (car s1) "") 'utf-8))))
 	(subject1
-	 (decode-coding-string (or (cdr (assq 'subject (car s1))) "") 'utf-8))
+	 (decode-coding-string (alist-get 'subject (car s1) "") 'utf-8))
 	(owner2
 	 (car (debbugs-gnu--split-address
-	       (decode-coding-string
-		(or (cdr (assq 'owner (car s2))) "") 'utf-8))))
+	       (decode-coding-string (alist-get 'owner (car s2) "") 'utf-8))))
 	(subject2
-	 (decode-coding-string (or (cdr (assq 'subject (car s2))) "") 'utf-8)))
+	 (decode-coding-string (alist-get 'subject (car s2) "") 'utf-8)))
     (cond
      ;; Bugs I'm the owner of go to the beginning.
      ((and (string-equal user-mail-address owner1)
@@ -1195,9 +1190,7 @@ Interactively, it is non-nil with the prefix argument."
 	   (not (string-equal owner1 owner2)))
       nil)
      ;; Then, we check the title.
-     (t (if (functionp 'string-collate-lessp)
-	     (funcall 'string-collate-lessp subject1 subject2 nil t)
-	   (string-lessp (downcase subject1) (downcase subject2)))))))
+     (t (string-collate-lessp subject1 subject2 nil t)))))
 
 (defun debbugs-gnu-toggle-sort ()
   "Toggle sorting by age and by state."
@@ -1227,18 +1220,18 @@ Interactively, it is non-nil with the prefix argument."
   (interactive)
   (let ((id (debbugs-gnu-current-id))
 	(status (debbugs-gnu-current-status)))
-    (if (null (cdr (assq 'blockedby status)))
+    (if (null (alist-get 'blockedby status))
 	(message "Bug %d is not blocked by any other bug" id)
-      (apply #'debbugs-gnu-bugs (cdr (assq 'blockedby status))))))
+      (apply #'debbugs-gnu-bugs (alist-get 'blockedby status)))))
 
 (defun debbugs-gnu-show-blocking-reports ()
   "Display all bug reports this report is blocking."
   (interactive)
   (let ((id (debbugs-gnu-current-id))
 	(status (debbugs-gnu-current-status)))
-    (if (null (cdr (assq 'blocks status)))
+    (if (null (alist-get 'blocks status))
 	(message "Bug %d is not blocking any other bug" id)
-      (apply #'debbugs-gnu-bugs (cdr (assq 'blocks status))))))
+      (apply #'debbugs-gnu-bugs (alist-get 'blocks status)))))
 
 (defun debbugs-gnu-show-all-blocking-reports (&optional release)
   "Narrow the display to just the reports that are blocking an Emacs release."
@@ -1265,9 +1258,9 @@ Interactively, it is non-nil with the prefix argument."
     (goto-char (point-min))
     (while (not (eobp))
       (setq status (debbugs-gnu-current-status))
-      (if (not (memq (cdr (assq 'id status)) blockers))
+      (if (not (memq (alist-get 'id status) blockers))
 	  (delete-region (point) (progn (forward-line 1) (point)))
-	(push (cdr (assq 'id status)) debbugs-gnu-limit)
+	(push (alist-get 'id status) debbugs-gnu-limit)
 	(forward-line 1)))
     (when id
       (debbugs-gnu-goto id))))
@@ -1287,15 +1280,15 @@ Subject fields."
       (while (not (eobp))
 	(setq status (debbugs-gnu-current-status))
 	(if (and (not (member string (assq 'keywords status)))
-		 (not (equal string (cdr (assq 'severity status))))
+		 (not (equal string (alist-get 'severity status)))
 		 (or status-only
 		     (not (string-match
-			   string (cdr (assq 'originator status)))))
+			   string (alist-get 'originator status))))
 		 (or status-only
-		     (not (cdr (assq 'subject status)))
-		     (not (string-match string (cdr (assq 'subject status))))))
+		     (not (alist-get 'subject status))
+		     (not (string-match string (alist-get 'subject status)))))
 	    (delete-region (point) (progn (forward-line 1) (point)))
-	  (push (cdr (assq 'id status)) debbugs-gnu-limit)
+	  (push (alist-get 'id status) debbugs-gnu-limit)
 	  (forward-line 1)))
       (when id
 	(debbugs-gnu-goto id)))))
@@ -1329,7 +1322,7 @@ interest to you."
 
 (defun debbugs-gnu--update-tag-face (id)
   (dolist (entry tabulated-list-entries)
-    (when (equal (cdr (assq 'id (car entry))) id)
+    (when (equal (alist-get 'id (car entry)) id)
       (aset (cadr entry) 0
 	    (propertize
 	     (format "%5d" id)
@@ -1350,7 +1343,7 @@ interest to you."
 (defvar debbugs-gnu-subject nil)
 
 (defun debbugs-gnu-current-id (&optional noerror)
-  (or (cdr (assq 'id (debbugs-gnu-current-status)))
+  (or (alist-get 'id (debbugs-gnu-current-status))
       (and (not noerror)
 	   (error "No bug on the current line"))))
 
@@ -1383,7 +1376,7 @@ interest to you."
   (set-buffer-modified-p nil)
   (special-mode))
 
-(defun debbugs-read-emacs-bug-with-rmail (id status merged)
+(defun debbugs-gnu-read-emacs-bug-with-rmail (id status merged)
   "Read email exchange for debbugs bug ID.
 STATUS is the bug's status list.
 MERGED is the list of bugs merged with this one."
@@ -1406,30 +1399,35 @@ MERGED is the list of bugs merged with this one."
 	    (rmail-show-message (1+ rmail-current-message))))))
     (set (make-local-variable 'debbugs-gnu-bug-number) id)
     (set (make-local-variable 'debbugs-gnu-subject)
-	 (format "Re: bug#%d: %s" id (cdr (assq 'subject status))))
+	 (format "Re: bug#%d: %s" id (alist-get 'subject status)))
     (rmail-summary)
-    (define-key rmail-summary-mode-map "C" 'debbugs-gnu-send-control-message)
-    (define-key rmail-summary-mode-map "E" 'debbugs-gnu-make-control-message)
+    (define-key rmail-summary-mode-map "C" #'debbugs-gnu-send-control-message)
+    (define-key rmail-summary-mode-map "E" #'debbugs-gnu-make-control-message)
     (set-window-text-height nil 10)
     (other-window 1)
-    (define-key rmail-mode-map "C" 'debbugs-gnu-send-control-message)
-    (define-key rmail-mode-map "E" 'debbugs-gnu-make-control-message)
+    (define-key rmail-mode-map "C" #'debbugs-gnu-send-control-message)
+    (define-key rmail-mode-map "E" #'debbugs-gnu-make-control-message)
     (rmail-show-message 1)))
 
 (defconst debbugs-gnu-select-bugs-limit-max 50
   "Absolute maximum for `debbugs-gnu-select-bugs-limit'.")
+
 (defcustom debbugs-gnu-select-bugs-limit 10
   "Maximum number of bugs to retrieve for multi-bug mailbox group.
 This applies for `debbugs-gnu-select-current-bugs'.
-Maximum allowed value is 50 to avoid overloading the server."
+Maximum allowed value is `debbugs-gnu-select-bugs-limit-max' to
+avoid overloading the server."
   :type '(integer
           :validate
           (lambda (widget)
             (unless (<= 1
                         (widget-value widget)
                         debbugs-gnu-select-bugs-limit-max)
-              (widget-put widget :error
-                          (format "Invalid value: range is 1..%d" debbugs-gnu-select-bugs-limit-max)))))
+              (widget-put
+	       widget :error
+               (format "Invalid value: range is 1..%d"
+		       debbugs-gnu-select-bugs-limit-max))
+	      widget)))
   :version "27.1")
 
 (defun debbugs-gnu-select-current-bugs ()
@@ -1443,6 +1441,7 @@ Limited by `debbugs-gnu-select-bugs-limit'."
 (defun debbugs-gnu-select-current-bugs-with-gnus ()
   "Create a Gnus group of the messages from the currently shown bugs."
   (save-excursion
+    (require 'gnus-group)
     (let ((mbox-url
            (replace-regexp-in-string
             ";mboxstat=yes" ""
@@ -1450,11 +1449,11 @@ Limited by `debbugs-gnu-select-bugs-limit'."
             nil t))
           ids)
       (goto-char (point-min))
-      (dotimes (i debbugs-gnu-select-bugs-limit)
+      (dotimes (_ debbugs-gnu-select-bugs-limit)
         (push (debbugs-gnu-current-id t) ids)
-        (push (cdr (assq 'mergedwith (debbugs-gnu-current-status))) ids)
+        (push (alist-get 'mergedwith (debbugs-gnu-current-status)) ids)
         (forward-line 1))
-      (setq ids (delete nil (nreverse ids)))
+      (setq ids (delq nil (nreverse ids)))
       (gnus-read-ephemeral-bug-group ids mbox-url)
       (debbugs-gnu-summary-mode 1))))
 
@@ -1463,7 +1462,7 @@ Limited by `debbugs-gnu-select-bugs-limit'."
   :type 'boolean
   :version "27.1")
 
-(defun debbugs-read-emacs-bug-with-gnus (id status merged)
+(defun debbugs-gnu-read-emacs-bug-with-gnus (id status merged)
   "Read email exchange for debbugs bug ID.
 STATUS is the bug's status list.
 MERGED is the list of bugs merged with this one."
@@ -1479,7 +1478,7 @@ MERGED is the list of bugs merged with this one."
   (with-current-buffer (window-buffer (selected-window))
     (set (make-local-variable 'debbugs-gnu-bug-number) id)
     (set (make-local-variable 'debbugs-gnu-subject)
-	 (format "Re: bug#%d: %s" id (cdr (assq 'subject status))))
+	 (format "Re: bug#%d: %s" id (alist-get 'subject status)))
     (debbugs-gnu-summary-mode 1)))
 
 (defun debbugs-gnu-select-report ()
@@ -1488,23 +1487,23 @@ MERGED is the list of bugs merged with this one."
   (when (mouse-event-p last-input-event) (mouse-set-point last-input-event))
   ;; We open the report messages.
   (let* ((status (debbugs-gnu-current-status))
-	 (id (cdr (assq 'id status)))
-	 (merged (cdr (assq 'mergedwith status))))
+	 (id (alist-get 'id status))
+	 (merged (alist-get 'mergedwith status)))
     (setq merged (if (listp merged) merged (list merged)))
     (cond
      ((not id)
       (message "No bug report on the current line"))
      ((eq debbugs-gnu-mail-backend 'rmail)
-      (debbugs-read-emacs-bug-with-rmail id status merged))
+      (debbugs-gnu-read-emacs-bug-with-rmail id status merged))
      ((eq debbugs-gnu-mail-backend 'gnus)
-      (debbugs-read-emacs-bug-with-gnus id status merged))
+      (debbugs-gnu-read-emacs-bug-with-gnus id status merged))
      (t (error "No valid mail backend specified")))))
 
 (defvar debbugs-gnu-summary-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map "C" 'debbugs-gnu-send-control-message)
-    (define-key map "E" 'debbugs-gnu-make-control-message)
-    (define-key map [(meta m)] 'debbugs-gnu-apply-patch)
+    (define-key map "C" #'debbugs-gnu-send-control-message)
+    (define-key map "E" #'debbugs-gnu-make-control-message)
+    (define-key map [(meta m)] #'debbugs-gnu-apply-patch)
     map))
 
 (define-minor-mode debbugs-gnu-summary-mode
@@ -1719,7 +1718,7 @@ removed instead."
                (not noversion)
                (member message '("close" "done"
                                  "fixed" "notfixed" "found" "notfound"))
-               (member "emacs" (cdr (assq 'package status))))
+               (member "emacs" (alist-get 'package status)))
               (save-excursion
                 (read-string
                  "Version: "
@@ -1795,8 +1794,7 @@ removed instead."
             (completing-read-multiple
              (format "%s with bug(s) #: " (capitalize message))
              (if (equal message "unblock")
-                 (mapcar #'number-to-string
-                         (cdr (assq 'blockedby status)))
+                 (mapcar #'number-to-string (alist-get 'blockedby status))
                debbugs-gnu-completion-table)
              nil (and (equal message "unblock") status)))
            " ")))
@@ -1939,7 +1937,7 @@ REMOTE-INFO is return value of `debbugs-gnu--git-remote-info'."
             (goto-char (point-min))
             (buffer-substring (point-min) (line-end-position))))
          (remote (pop remote-info)))
-    (let ((ref-globs (cdr (assq 'ref-globs remote-info))))
+    (let ((ref-globs (alist-get 'ref-globs remote-info)))
       (with-temp-buffer
         (apply
          #'debbugs-gnu--git-insert
@@ -1955,7 +1953,7 @@ REMOTE-INFO is return value of `debbugs-gnu--git-remote-info'."
   "Insert info about COMMIT-RANGE into message.
 Optionally call `debbugs-gnu-make-control-message' to close BUGNUM."
   (let* ((status (car (debbugs-get-status bugnum)))
-         (packages (cdr (assq 'package status)))
+         (packages (alist-get 'package status))
          (remote-info (debbugs-gnu--git-remote-info)))
     (insert "\nPushed to "
             (or (debbugs-gnu--git-get-pushed-to commit-range remote-info) "")
@@ -1963,7 +1961,7 @@ Optionally call `debbugs-gnu-make-control-message' to close BUGNUM."
     (debbugs-gnu--git-insert
      "show" "--no-patch"
      (concat "--format=" debbugs-gnu-commit-description-format
-             "\n" (cdr (assq 'commit-url remote-info)) "\n")
+             "\n" (alist-get 'commit-url remote-info) "\n")
      commit-range)
     (when (y-or-n-p "Close bug? ")
       (let ((emacs-version
@@ -2112,7 +2110,7 @@ successfully sent."
 
 (defvar debbugs-gnu-pick-vc-log-commit-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map "c" 'debbugs-gnu-pick-commits)
+    (define-key map "c" #'debbugs-gnu-pick-commits)
     map))
 
 (define-minor-mode debbugs-gnu-pick-vc-log-commit-mode
@@ -2126,8 +2124,8 @@ successfully sent."
 (defvar debbugs-gnu-usertags-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map tabulated-list-mode-map)
-    (define-key map "\r" 'debbugs-gnu-select-usertag)
-    (define-key map [mouse-2] 'debbugs-gnu-select-usertag)
+    (define-key map [return] #'debbugs-gnu-select-usertag)
+    (define-key map [mouse-2] #'debbugs-gnu-select-usertag)
     map))
 
 (define-derived-mode debbugs-gnu-usertags-mode tabulated-list-mode "Usertags"
@@ -2171,11 +2169,11 @@ successfully sent."
 	(setq tabulated-list-format `[("User" ,user-tab-length t)
 				      ("Tag"  10 t)])
 	(setq tabulated-list-sort-key (cons "User" nil))
-	;(setq tabulated-list-printer 'debbugs-gnu-print-entry)
+	;(setq tabulated-list-printer #'debbugs-gnu-print-entry)
 
 	;; Retrieve user tags.
 	(dolist (user users)
-	  (dolist (tag (sort (debbugs-get-usertag :user user) 'string<))
+	  (dolist (tag (sort (debbugs-get-usertag :user user) #'string<))
 	    (add-to-list
 	     'tabulated-list-entries
 	     ;; `tabulated-list-id' is the parameter list for `debbugs-gnu'.
@@ -2262,7 +2260,7 @@ or bug ranges, with default to `debbugs-gnu-default-bug-number-list'."
     (setq debbugs-gnu-current-directory
 	  (read-file-name
 	   "Emacs repository location: "
-	   debbugs-gnu-current-directory nil t nil 'file-directory-p))))
+	   debbugs-gnu-current-directory nil t nil #'file-directory-p))))
 
 (defun debbugs-gnu-apply-patch (&optional branch selectively)
   "Apply the patch from the current message.
@@ -2469,7 +2467,7 @@ If SELECTIVELY, query the user before applying the patch."
 
 (defvar debbugs-gnu-lisp-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map [(meta m)] 'debbugs-gnu-insert-changelog)
+    (define-key map [(meta m)] #'debbugs-gnu-insert-changelog)
     map))
 
 (define-minor-mode debbugs-gnu-lisp-mode
@@ -2480,7 +2478,7 @@ If SELECTIVELY, query the user before applying the patch."
 
 (defvar debbugs-gnu-diff-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map [(meta m)] 'debbugs-gnu-diff-select)
+    (define-key map [(meta m)] #'debbugs-gnu-diff-select)
     map))
 
 (define-minor-mode debbugs-gnu-diff-mode
@@ -2498,7 +2496,7 @@ If SELECTIVELY, query the user before applying the patch."
 
 (defvar debbugs-gnu-change-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map [(meta m)] 'debbugs-gnu-change-checkin)
+    (define-key map [(meta m)] #'debbugs-gnu-change-checkin)
     map))
 
 (define-minor-mode debbugs-gnu-change-mode
@@ -2545,7 +2543,7 @@ If SELECTIVELY, query the user before applying the patch."
 
 (defvar debbugs-gnu-log-edit-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map [(meta m)] 'debbugs-gnu-log-edit-done)
+    (define-key map [(meta m)] #'debbugs-gnu-log-edit-done)
     map))
 
 (define-minor-mode debbugs-gnu-log-edit-mode

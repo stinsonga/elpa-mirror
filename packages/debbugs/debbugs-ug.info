@@ -74,6 +74,10 @@ prefix.
    When the bug numbers to be retrieved are known, the commands
 'debbugs-gnu-bugs' or 'debbugs-org-bugs' are applicable.
 
+   The commands 'debbugs-gnu-patches' / 'debbugs-org-patches' and
+'debbugs-gnu-tagged' / 'debbugs-org-tagged' retrieve bugs with a
+predefined filter.
+
  -- Command: debbugs-gnu severities &optional packages archivedp
           suppress tags
  -- Command: debbugs-org severities &optional packages archivedp
@@ -357,6 +361,11 @@ This enables the following key strokes:
 '<mouse-1>'    Show the email messages that discuss the bug.
 '<mouse-2>'    
                
+'A'            'debbugs-gnu-select-current-bugs'
+               Show the email messages for all currently displayed
+               messages (including merged reports).  Limited by user
+               option 'debbugs-gnu-select-bugs-limit'.
+               
 'd'            'debbugs-gnu-display-status'
                Show all bug attributes.
                
@@ -402,6 +411,10 @@ This enables the following key strokes:
 'E'            'debbugs-gnu-make-control-message'
                Make (but don't yet send) a control message for this
                bug, *note Control Messages::.
+
+   Tagging a bug locally via 't' is an efficient way to keep bugs
+visible you are working on.  The command 'debbugs-gnu-tagged' shows
+all locally tagged bugs in a list.
 
    The user option 'debbugs-gnu-suppress-closed' controls, whether
 closed bugs are shown in the initial list.
@@ -718,18 +731,18 @@ Command Index
  [index ]
 * Menu:
 
-* debbugs-browse-mode:                   Minor Mode.         (line 12)
-* debbugs-gnu:                           Retrieving Bugs.    (line 15)
-* debbugs-gnu-bugs:                      Retrieving Bugs.    (line 69)
-* debbugs-gnu-patches:                   Retrieving Bugs.    (line 86)
-* debbugs-gnu-pick-commits:              Posting Patches.    (line 16)
-* debbugs-gnu-search:                    Searching Bugs.     (line 15)
-* debbugs-gnu-tagged:                    Retrieving Bugs.    (line 96)
-* debbugs-org:                           Retrieving Bugs.    (line 17)
-* debbugs-org-bugs:                      Retrieving Bugs.    (line 70)
-* debbugs-org-patches:                   Retrieving Bugs.    (line 87)
-* debbugs-org-search:                    Searching Bugs.     (line 16)
-* debbugs-org-tagged:                    Retrieving Bugs.    (line 97)
+* debbugs-browse-mode:                   Minor Mode.        (line  12)
+* debbugs-gnu:                           Retrieving Bugs.   (line  19)
+* debbugs-gnu-bugs:                      Retrieving Bugs.   (line  73)
+* debbugs-gnu-patches:                   Retrieving Bugs.   (line  90)
+* debbugs-gnu-pick-commits:              Posting Patches.   (line  16)
+* debbugs-gnu-search:                    Searching Bugs.    (line  15)
+* debbugs-gnu-tagged:                    Retrieving Bugs.   (line 100)
+* debbugs-org:                           Retrieving Bugs.   (line  21)
+* debbugs-org-bugs:                      Retrieving Bugs.   (line  74)
+* debbugs-org-patches:                   Retrieving Bugs.   (line  91)
+* debbugs-org-search:                    Searching Bugs.    (line  16)
+* debbugs-org-tagged:                    Retrieving Bugs.   (line 101)
 
 
 File: debbugs-ug.info,  Node: Variable Index,  Next: Key Index,  Prev: Command Index,  Up: Top
@@ -741,24 +754,24 @@ Variable Index
 * Menu:
 
 * debbugs-browse-function:               Minor Mode.        (line  12)
-* debbugs-gnu-all-packages:              Retrieving Bugs.   (line  36)
-* debbugs-gnu-all-severities:            Retrieving Bugs.   (line  27)
+* debbugs-gnu-all-packages:              Retrieving Bugs.   (line  40)
+* debbugs-gnu-all-severities:            Retrieving Bugs.   (line  31)
 * debbugs-gnu-branch-directory:          Applying Patches.  (line  18)
 * debbugs-gnu-commit-description-format: Customizing debbugs-gnu-pick-commits.
                                                             (line   6)
-* debbugs-gnu-default-bug-number-list:   Retrieving Bugs.   (line  81)
-* debbugs-gnu-default-packages:          Retrieving Bugs.   (line  63)
-* debbugs-gnu-default-severities:        Retrieving Bugs.   (line  63)
-* debbugs-gnu-default-suppress-bugs:     Retrieving Bugs.   (line  44)
+* debbugs-gnu-default-bug-number-list:   Retrieving Bugs.   (line  85)
+* debbugs-gnu-default-packages:          Retrieving Bugs.   (line  67)
+* debbugs-gnu-default-severities:        Retrieving Bugs.   (line  67)
+* debbugs-gnu-default-suppress-bugs:     Retrieving Bugs.   (line  48)
 * debbugs-gnu-git-remote-info-alist:     Customizing debbugs-gnu-pick-commits.
                                                             (line   6)
-* debbugs-gnu-mail-backend:              Tabulated Lists.   (line  82)
+* debbugs-gnu-mail-backend:              Tabulated Lists.   (line  91)
 * debbugs-gnu-read-commit-range-hook:    Posting Patches.   (line  11)
 * debbugs-gnu-send-mail-function:        Control Messages.  (line 133)
-* debbugs-gnu-suppress-closed:           Tabulated Lists.   (line  79)
+* debbugs-gnu-suppress-closed:           Tabulated Lists.   (line  88)
 * debbugs-gnu-trunk-directory:           Applying Patches.  (line  18)
 * debbugs-org-severity-priority:         TODO Items.        (line  10)
-* debbugs-show-progress:                 Retrieving Bugs.   (line 105)
+* debbugs-show-progress:                 Retrieving Bugs.   (line 109)
 
 
 File: debbugs-ug.info,  Node: Key Index,  Next: Mail Command Index,  Prev: Variable Index,  Up: Top
@@ -769,28 +782,29 @@ Key Index
  [index ]
 * Menu:
 
-* /:                                     Tabulated Lists.    (line 36)
-* B:                                     Tabulated Lists.    (line 57)
-* b:                                     Tabulated Lists.    (line 58)
-* C:                                     Tabulated Lists.    (line 71)
+* /:                                     Tabulated Lists.    (line 41)
+* A:                                     Tabulated Lists.    (line 33)
+* B:                                     Tabulated Lists.    (line 62)
+* b:                                     Tabulated Lists.    (line 63)
+* C:                                     Tabulated Lists.    (line 76)
 * C-c # C:                               TODO Items.         (line 25)
 * C-c # d:                               TODO Items.         (line 19)
 * C-c # E:                               TODO Items.         (line 28)
 * C-c # t:                               TODO Items.         (line 22)
-* d:                                     Tabulated Lists.    (line 33)
-* E:                                     Tabulated Lists.    (line 75)
-* g:                                     Tabulated Lists.    (line 52)
+* d:                                     Tabulated Lists.    (line 38)
+* E:                                     Tabulated Lists.    (line 80)
+* g:                                     Tabulated Lists.    (line 57)
 * M-m:                                   Applying Patches.   (line 10)
 * <mouse-1>:                             Tabulated Lists.    (line 30)
 * <mouse-2>:                             Tabulated Lists.    (line 31)
-* R:                                     Tabulated Lists.    (line 42)
+* R:                                     Tabulated Lists.    (line 47)
 * <RET>:                                 Tabulated Lists.    (line 29)
-* <RET> <1>:                             Tabulated Lists.    (line 82)
-* s:                                     Tabulated Lists.    (line 62)
-* t:                                     Tabulated Lists.    (line 65)
+* <RET> <1>:                             Tabulated Lists.    (line 91)
+* s:                                     Tabulated Lists.    (line 67)
+* t:                                     Tabulated Lists.    (line 70)
 * <TAB>:                                 TODO Items.         (line 16)
-* w:                                     Tabulated Lists.    (line 49)
-* x:                                     Tabulated Lists.    (line 68)
+* w:                                     Tabulated Lists.    (line 54)
+* x:                                     Tabulated Lists.    (line 73)
 
 
 File: debbugs-ug.info,  Node: Mail Command Index,  Prev: Key Index,  Up: Top
@@ -1140,52 +1154,52 @@ Debbugs control mailserver commands
 Tag Table:
 Node: Top1097
 Node: Retrieving Bugs2704
-Node: Searching Bugs7376
-Ref: Searching Bugs-Footnote-111926
-Ref: Searching Bugs-Footnote-212014
-Node: Presenting Bugs12105
-Node: Tabulated Lists12767
-Node: TODO Items16606
-Node: Control Messages17927
-Node: Applying Patches21444
-Node: Posting Patches22834
-Node: Customizing debbugs-gnu-pick-commits25319
-Node: Minor Mode26019
-Node: Command Index27295
-Node: Variable Index28297
-Node: Key Index29813
-Node: Mail Command Index31521
-Ref: Mail Command Index: reassign31674
-Ref: Mail Command Index: reopen32440
-Ref: Mail Command Index: found33594
-Ref: Mail Command Index: notfound34675
-Ref: Mail Command Index: fixed35084
-Ref: Mail Command Index: notfixed35530
-Ref: Mail Command Index: submitter36153
-Ref: Mail Command Index: forwarded36547
-Ref: Mail Command Index: notforwarded37165
-Ref: Mail Command Index: retitle37366
-Ref: Mail Command Index: severity37750
-Ref: Mail Command Index: clone38081
-Ref: Mail Command Index: merge38845
-Ref: Mail Command Index: forcemerge40232
-Ref: Mail Command Index: unmerge40676
-Ref: Mail Command Index: tags41379
-Ref: Mail Command Index: block42445
-Ref: Mail Command Index: unblock42482
-Ref: Mail Command Index: close42967
-Ref: Mail Command Index: package43617
-Ref: Mail Command Index: owner44229
-Ref: Mail Command Index: noowner44592
-Ref: Mail Command Index: archive44765
-Ref: Mail Command Index: unarchive44906
-Ref: Mail Command Index: #45199
-Ref: Mail Command Index: quit45459
-Ref: Mail Command Index: stop45466
-Ref: Mail Command Index: thank45473
-Ref: Mail Command Index: thanks45481
-Ref: Mail Command Index: thankyou45490
-Ref: Mail Command Index: thank you45501
-Ref: Mail Command Index: --45513
+Node: Searching Bugs7527
+Ref: Searching Bugs-Footnote-112077
+Ref: Searching Bugs-Footnote-212165
+Node: Presenting Bugs12256
+Node: Tabulated Lists12918
+Node: TODO Items17183
+Node: Control Messages18504
+Node: Applying Patches22021
+Node: Posting Patches23411
+Node: Customizing debbugs-gnu-pick-commits25896
+Node: Minor Mode26596
+Node: Command Index27872
+Node: Variable Index28874
+Node: Key Index30390
+Node: Mail Command Index32169
+Ref: Mail Command Index: reassign32322
+Ref: Mail Command Index: reopen33088
+Ref: Mail Command Index: found34242
+Ref: Mail Command Index: notfound35323
+Ref: Mail Command Index: fixed35732
+Ref: Mail Command Index: notfixed36178
+Ref: Mail Command Index: submitter36801
+Ref: Mail Command Index: forwarded37195
+Ref: Mail Command Index: notforwarded37813
+Ref: Mail Command Index: retitle38014
+Ref: Mail Command Index: severity38398
+Ref: Mail Command Index: clone38729
+Ref: Mail Command Index: merge39493
+Ref: Mail Command Index: forcemerge40880
+Ref: Mail Command Index: unmerge41324
+Ref: Mail Command Index: tags42027
+Ref: Mail Command Index: block43093
+Ref: Mail Command Index: unblock43130
+Ref: Mail Command Index: close43615
+Ref: Mail Command Index: package44265
+Ref: Mail Command Index: owner44877
+Ref: Mail Command Index: noowner45240
+Ref: Mail Command Index: archive45413
+Ref: Mail Command Index: unarchive45554
+Ref: Mail Command Index: #45847
+Ref: Mail Command Index: quit46107
+Ref: Mail Command Index: stop46114
+Ref: Mail Command Index: thank46121
+Ref: Mail Command Index: thanks46129
+Ref: Mail Command Index: thankyou46138
+Ref: Mail Command Index: thank you46149
+Ref: Mail Command Index: --46161
 
 End Tag Table

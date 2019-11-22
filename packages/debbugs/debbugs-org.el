@@ -33,6 +33,7 @@
 ;;   (autoload 'debbugs-org "debbugs-org" "" 'interactive)
 ;;   (autoload 'debbugs-org-search "debbugs-org" "" 'interactive)
 ;;   (autoload 'debbugs-org-patches "debbugs-org" "" 'interactive)
+;;   (autoload 'debbugs-org-tagged "debbugs-org" "" 'interactive)
 ;;   (autoload 'debbugs-org-bugs "debbugs-org" "" 'interactive)
 
 ;; The bug tracker is called interactively by
@@ -135,8 +136,7 @@
 
 (defun debbugs-org-get-severity-priority (state)
   "Returns the TODO priority of STATE."
-  (or (cdr (assoc (cdr (assq 'severity state))
-		  debbugs-org-severity-priority))
+  (or (cdr (assoc (alist-get 'severity state) debbugs-org-severity-priority))
       (cdr (assoc "minor" debbugs-org-severity-priority))))
 
 (defconst debbugs-org-priority-faces
@@ -157,33 +157,29 @@ Further key-value pairs are requested until an empty key is
 returned.  If a key cannot be queried by a SOAP request, it is
 marked as \"client-side filter\"."
   (interactive)
-  (cl-letf (((symbol-function 'debbugs-gnu-show-reports)
-	     #'debbugs-org-show-reports))
-    (call-interactively 'debbugs-gnu-search)))
+  (let ((debbugs-gnu-show-reports-function #'debbugs-org-show-reports))
+    (call-interactively #'debbugs-gnu-search)))
 
 ;;;###autoload
 (defun debbugs-org-patches ()
   "List the bug reports that have been marked as containing a patch."
   (interactive)
-  (cl-letf (((symbol-function 'debbugs-gnu-show-reports)
-	     #'debbugs-org-show-reports))
-    (call-interactively 'debbugs-gnu-patches)))
+  (let ((debbugs-gnu-show-reports-function #'debbugs-org-show-reports))
+    (call-interactively #'debbugs-gnu-patches)))
 
 ;;;###autoload
 (defun debbugs-org-tagged ()
   "List the bug reports that have been tagged locally."
   (interactive)
-  (cl-letf (((symbol-function 'debbugs-gnu-show-reports)
-	     #'debbugs-org-show-reports))
+  (let ((debbugs-gnu-show-reports-function #'debbugs-org-show-reports))
     (call-interactively 'debbugs-gnu-tagged)))
 
 ;;;###autoload
 (defun debbugs-org ()
   "List all outstanding bugs."
   (interactive)
-  (cl-letf (((symbol-function 'debbugs-gnu-show-reports)
-	     #'debbugs-org-show-reports))
-    (call-interactively 'debbugs-gnu)))
+  (let ((debbugs-gnu-show-reports-function #'debbugs-org-show-reports))
+    (call-interactively #'debbugs-gnu)))
 
 (defun debbugs-org-show-reports ()
   "Show bug reports as retrieved via `debbugs-gnu-current-query'."
@@ -198,30 +194,30 @@ marked as \"client-side filter\"."
     (dolist (status
 	     ;; `debbugs-get-status' returns in random order, so we must sort.
 	     (sort
-	      (apply 'debbugs-get-status
+	      (apply #'debbugs-get-status
 		     (debbugs-gnu-get-bugs debbugs-gnu-local-query))
-	       (lambda (a b) (> (cdr (assq 'id a)) (cdr (assq 'id b))))))
+	       (lambda (a b) (> (alist-get 'id a) (alist-get 'id b)))))
       (let* ((beg (point))
-	     (id (cdr (assq 'id status)))
-	     (done (string-equal (cdr (assq 'pending status)) "done"))
+	     (id (alist-get 'id status))
+	     (done (string-equal (alist-get 'pending status) "done"))
 	     (priority (debbugs-org-get-severity-priority status))
-	     (archived (cdr (assq 'archived status)))
-	     (tags (append (cdr (assq 'found_versions status))
-			   (cdr (assq 'tags status))))
-	     (subject (when (cdr (assq 'subject status))
+	     (archived (alist-get 'archived status))
+	     (tags (append (alist-get 'found_versions status)
+			   (alist-get 'tags status)))
+	     (subject (when (alist-get 'subject status)
 			(decode-coding-string
-			 (cdr (assq 'subject status)) 'utf-8)))
-	     (date (cdr (assq 'date status)))
-	     (last-modified (cdr (assq 'last_modified status)))
-	     (originator (when (cdr (assq 'originator status))
+			 (alist-get 'subject status) 'utf-8)))
+	     (date (alist-get 'date status))
+	     (last-modified (alist-get 'last_modified status))
+	     (originator (when (alist-get 'originator status)
 			   (decode-coding-string
-			    (cdr (assq 'originator status)) 'utf-8)))
-	     (owner (when (cdr (assq 'owner status))
-		      (decode-coding-string (cdr (assq 'owner status)) 'utf-8)))
-	     (closed-by (when (cdr (assq 'done status))
+			    (alist-get 'originator status) 'utf-8)))
+	     (owner (when (alist-get 'owner status)
+		      (decode-coding-string (alist-get 'owner status) 'utf-8)))
+	     (closed-by (when (alist-get 'done status)
 			  (decode-coding-string
-			   (cdr (assq 'done status)) 'utf-8)))
-	     (merged (cdr (assq 'mergedwith status))))
+			   (alist-get 'done status) 'utf-8)))
+	     (merged (alist-get 'mergedwith status)))
 
 	;; Handle tags.
 	(when (string-match "^\\([0-9.]+\\); \\(.+\\)$" subject)
@@ -241,7 +237,7 @@ marked as \"client-side filter\"."
 	  "* %s [#%s] %s %s\n"
 	  (if done "DONE" "TODO")
 	  priority subject
-	  (if tags (mapconcat 'identity (append '("") tags '("")) ":") "")))
+	  (if tags (mapconcat #'identity (append '("") tags '("")) ":") "")))
 
 	;; Submitted.
 	(when date
@@ -257,7 +253,7 @@ marked as \"client-side filter\"."
 	   (format
 	    "  :MERGED_WITH: %s\n"
 	    (if (numberp merged)
-		merged (mapconcat 'number-to-string merged " ")))))
+		merged (mapconcat #'number-to-string merged " ")))))
 	(insert (format "  :CREATOR: %s\n" originator))
 	(when owner (insert (format "  :OWNER: %s\n" owner)))
 	(when closed-by (insert (format "  :CLOSED_BY: %s\n" closed-by)))
@@ -306,10 +302,10 @@ the corresponding buffer (e.g. by closing Emacs)."
 
 (defconst debbugs-org-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c # t") 'debbugs-gnu-toggle-tag)
-    (define-key map (kbd "C-c # C") 'debbugs-gnu-send-control-message)
-    (define-key map (kbd "C-c # E") 'debbugs-gnu-make-control-message)
-    (define-key map (kbd "C-c # d") 'debbugs-gnu-display-status)
+    (define-key map (kbd "C-c # t") #'debbugs-gnu-toggle-tag)
+    (define-key map (kbd "C-c # C") #'debbugs-gnu-send-control-message)
+    (define-key map (kbd "C-c # E") #'debbugs-gnu-make-control-message)
+    (define-key map (kbd "C-c # d") #'debbugs-gnu-display-status)
     map)
   "Keymap for the `debbugs-org-mode' minor mode.")
 
@@ -348,9 +344,8 @@ the corresponding buffer (e.g. by closing Emacs)."
 In interactive calls, prompt for a comma separated list of bugs
 or bug ranges, with default to `debbugs-gnu-default-bug-number-list'."
   (interactive)
-  (cl-letf (((symbol-function 'debbugs-gnu-show-reports)
-	     #'debbugs-org-show-reports))
-    (call-interactively 'debbugs-gnu-bugs)))
+  (let ((debbugs-gnu-show-reports-function #'debbugs-org-show-reports))
+    (call-interactively #'debbugs-gnu-bugs)))
 
 ;; TODO
 

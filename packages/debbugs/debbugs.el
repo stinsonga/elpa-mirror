@@ -101,7 +101,7 @@ This corresponds to the Debbugs server to be accessed, either
   "The max number of bugs or results per soap invocation.")
 
 (defvar debbugs-cache-data
-  (make-hash-table :test 'equal :size debbugs-max-hits-per-request)
+  (make-hash-table :test #'equal :size debbugs-max-hits-per-request)
   "Hash table of retrieved bugs.")
 
 (defcustom debbugs-cache-expiry (* 60 60)
@@ -285,7 +285,7 @@ patch:
     (unless (null query)
       (error "Unknown key: %s" (car query)))
     (prog1
-	(sort (car (soap-invoke debbugs-wsdl debbugs-port "get_bugs" vec)) '<)
+	(sort (car (soap-invoke debbugs-wsdl debbugs-port "get_bugs" vec)) #'<)
       (when debbugs-show-progress
 	(remove-function
 	 (symbol-function #'url-display-percentage)
@@ -303,7 +303,7 @@ patch:
 		  (null debbugs-cache-expiry)
 		  (and
 		   (natnump debbugs-cache-expiry)
-		   (> (cdr (assoc 'cache_time status))
+		   (> (alist-get 'cache_time status)
 		      (- (float-time) debbugs-cache-expiry)))))
 	  ;; Due to `debbugs-gnu-completion-table', this function
 	  ;; could be called in rapid sequence.  We cache temporarily
@@ -329,10 +329,10 @@ patch:
 	    (puthash 0 status debbugs-cache-data)))
 
 	;; Return the value, as list.
-	(list (cdr (assoc 'newest_bug status))))
+	(list (alist-get 'newest_bug status)))
 
     (sort
-     (car (soap-invoke debbugs-wsdl debbugs-port "newest_bugs" amount)) '<)))
+     (car (soap-invoke debbugs-wsdl debbugs-port "newest_bugs" amount)) #'<)))
 
 (defun debbugs-convert-soap-value-to-string (string-value)
   "If STRING-VALUE is unibyte, decode its contents as a UTF-8 string.
@@ -453,7 +453,7 @@ Example:
 		      (null debbugs-cache-expiry)
 		      (and
 		       (natnump debbugs-cache-expiry)
-		       (> (cdr (assoc 'cache_time status))
+		       (> (alist-get 'cache_time status)
 			  (- (float-time) debbugs-cache-expiry)))))
 		    (progn
 		      (setq cached-bugs (append cached-bugs (list status)))
@@ -518,19 +518,19 @@ Example:
       (lambda (x)
 	(let (y)
 	  ;; "archived" is the number 1 or 0.
-	  (setq y (assoc 'archived (cdr (assoc 'value x))))
+	  (setq y (assq 'archived (alist-get 'value x)))
 	  (setcdr y (= (cdr y) 1))
 	  ;; "found_versions" and "fixed_versions" are lists,
 	  ;; containing strings or numbers.
 	  (dolist (attribute '(found_versions fixed_versions))
-	    (setq y (assoc attribute (cdr (assoc 'value x))))
+	    (setq y (assq attribute (alist-get 'value x)))
 	    (setcdr y (mapcar
 		       (lambda (z) (if (numberp z) (number-to-string z) z))
 		       (cdr y))))
 	  ;; "mergedwith", "blocks" and "blockedby" are either numbers
 	  ;; or strings, containing blank separated bug numbers.
 	  (dolist (attribute '(mergedwith blocks blockedby))
-	    (setq y (assoc attribute (cdr (assoc 'value x))))
+	    (setq y (assq attribute (alist-get 'value x)))
 	    (when (numberp (cdr y))
 	      (setcdr y (list (cdr y))))
 	    (when (stringp (cdr y))
@@ -539,26 +539,25 @@ Example:
 	  ;; "subject", "originator", "owner" and "summary" may be an
 	  ;; xsd:base64Binary value containing a UTF-8-encoded string.
 	  (dolist (attribute '(subject originator owner summary))
-	    (setq y (assoc attribute (cdr (assoc 'value x))))
+	    (setq y (assq attribute (alist-get 'value x)))
 	    (when (stringp (cdr y))
 	      (setcdr y (debbugs-convert-soap-value-to-string (cdr y)))))
 	  ;; "package" is a string, containing comma separated
 	  ;; package names.  "keywords" and "tags" are strings,
 	  ;; containing blank separated package names.
 	  (dolist (attribute '(package keywords tags))
-	    (setq y (assoc attribute (cdr (assoc 'value x))))
+	    (setq y (assq attribute (alist-get 'value x)))
 	    (when (stringp (cdr y))
 	      (setcdr y (split-string (cdr y) ",\\| " t))))
 	  ;; Cache the result, and return.
 	  (if (or (null debbugs-cache-expiry) (natnump debbugs-cache-expiry))
 	      (puthash
-	       (cdr (assoc 'key x))
+	       (alist-get 'key x)
 	       ;; Put also a time stamp.
-	       (cons (cons 'cache_time (float-time))
-		     (cdr (assoc 'value x)))
+	       (cons (cons 'cache_time (float-time)) (alist-get 'value x))
 	       debbugs-cache-data)
 	    ;; Don't cache.
-	    (cdr (assoc 'value x)))))
+	    (alist-get 'value x))))
       debbugs-soap-invoke-async-object))))
 
 (defun debbugs-get-usertag (&rest query)
@@ -782,7 +781,7 @@ Examples:
       ,\(floor \(float-time \(encode-time 0 0 0 31 8 2011)))
       :operator \"NUMBT\"))"
 
-  (let ((phrase (assoc :phrase query))
+  (let ((phrase (assq :phrase query))
 	(debbugs-create-progress-reporter
 	 (and debbugs-show-progress (null debbugs-progress-reporter)))
 	(debbugs-progress-reporter debbugs-progress-reporter)
@@ -966,7 +965,7 @@ Example: Return the originator of last submitted bug.
 
 \(debbugs-get-attribute
   \(car \(apply #\\='debbugs-get-status \(debbugs-newest-bugs 1))) \\='originator)"
-  (cdr (assoc attribute bug-or-message)))
+  (alist-get attribute bug-or-message))
 
 (defun debbugs-get-message-numbers (messages)
   "Return the message numbers of MESSAGES.
@@ -1018,7 +1017,7 @@ FILENAME is nil, the downloaded mbox is inserted into the
 current buffer."
   (let (url (mt "") bn)
     (unless (setq url (plist-get
-		       (cdr (assoc debbugs-port debbugs-servers))
+		       (alist-get debbugs-port debbugs-servers nil nil #'equal)
 		       :bugreport-url))
       (error "URL of bugreport script for port %s is not specified"
 	     debbugs-port))
