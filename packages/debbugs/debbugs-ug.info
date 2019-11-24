@@ -96,37 +96,36 @@ predefined filter.
      the constant 'debbugs-gnu-all-severities').  If the list is
      empty, there is no filtering with respect to severities.  The
      keyword '"tagged"', which is also possible, is not a severity in
-     the GNU Debbugs server but allows to restrict the result to bugs
+     the GNU Debbugs server but allows restricting the result to bugs
      with a given user tag.
 
-     PACKAGES, also a list of strings, point to the defined software
-     packages on the GNU Debbugs server which shall be taken into
+     PACKAGES, also a list of strings, points to the defined software
+     packages on the GNU Debbugs server which should be taken into
      account.  The existing package names are compiled into the
      constant 'debbugs-gnu-all-packages'.
 
-     ARCHIVEDP, if non-'nil', extends the result also on archived bugs
-     on the GNU Debbugs server.
+     ARCHIVEDP, if non-'nil', extends the retrieval to also apply to
+     archived bugs on the GNU Debbugs server.
 
-     SUPPRESS shall also distinct between 'nil' and non-'nil'.  When
-     non-'nil', closed bugs are suppressed from being retrieved from
-     the Debbugs server.  Which bugs are regarded as suppressed is
-     configured in the user option 'debbugs-gnu-suppress-bugs'.  Per
-     default, bugs marked as '"done"' are suppressed from being
-     retrieved.
+     When SUPPRESS is non-'nil', closed bugs are suppressed from being
+     retrieved from the Debbugs server.  Which bugs are regarded as
+     suppressed is configured via the user option
+     'debbugs-gnu-suppress-bugs'.  By default bugs marked as '"done"'
+     are suppressed from being retrieved.
 
      When SEVERITIES contains the severity '"tagged"', TAGS is
-     consulted in order to restrict the result on bugs which are
+     consulted in order to restrict the result to bugs which are
      tagged with one of the strings of the list TAGS.  This list can
-     also be empty; in this case locally tagged bugs are included into
+     also be empty; in this case locally tagged bugs are included in
      the results.
 
-     Called interactively, the commands require just the SEVERITIES
-     and the TAGS (if SEVERITIES includes '"tagged"').  In order to
-     provide the other arguments interactively, the commands must be
-     called with a prefix, like 'C-u M-x debbugs-gnu'.  In the
-     minibuffer, lists must be entered comma-separated.
+     When called interactively, the commands require just the
+     SEVERITIES and the TAGS (if SEVERITIES includes '"tagged"').  In
+     order to provide the other arguments interactively, the commands
+     must be called with a prefix, like 'C-u M-x debbugs-gnu'.  In the
+     minibuffer, lists must be entered separated by commas.
 
-     Default values for interactive use could be configured in the
+     Default values for interactive use can be configured with the
      user options 'debbugs-gnu-default-severities' and
      'debbugs-gnu-default-packages'.
 
@@ -137,15 +136,15 @@ predefined filter.
 
      The commands 'debbugs-gnu-bugs' and 'debbugs-org-bugs' show bugs
      specified by their bug number.  Interactively, the bug numbers
-     must be entered as comma-separated list of bugs or bug ranges.
+     must be entered as a comma-separated list of bugs or bug ranges.
 
-     A bug range has either the form '12345-21345' or '-123'.  In the
-     former case, all bugs from 12345 until 21345 are presented, and
-     in the latter case the last 123 bugs are shown, counting from the
+     A bug range has the form '12345-21345' or '-123'.  In the former
+     case, all bugs from 12345 until 21345 are presented, and in the
+     latter case the last 123 bugs are shown, counting from the
      highest bug number in the repository.
 
-     A default value for interactive use could be configured in the
-     user option 'debbugs-gnu-default-bug-number-list'.
+     A default value for interactive use can be configured in the user
+     option 'debbugs-gnu-default-bug-number-list'.
 
      *note Presenting Bugs:: for the presentation of the results.
 
@@ -155,7 +154,7 @@ predefined filter.
      The commands 'debbugs-gnu-patches' and 'debbugs-org-patches' show
      all unarchived bugs of the packages declared in
      'debbugs-gnu-default-packages', and tagged with '"patch"'.  This
-     is useful for bug triages.
+     is useful for bug triaging.
 
      *note Presenting Bugs:: for the presentation of the results.
 
@@ -163,15 +162,15 @@ predefined filter.
  -- Command: debbugs-org-tagged
 
      The commands 'debbugs-gnu-tagged' and 'debbugs-org-tagged' show
-     all bugs tagged locally.  This list is useful for keeping bugs
-     you are currently working on.
+     all bugs tagged locally.  This list is useful for keeping track
+     of bugs you are currently working on.
 
      *note Presenting Bugs:: for the presentation of the results.
 
  -- User Option: debbugs-show-progress
 
-     If this user option is non-'nil', there is a progress report when
-     retrieving bugs.
+     If this user option is non-'nil', a progress report is shown when
+     retrieving bugs, defaults to t.
 
 
 File: debbugs-ug.info,  Node: Searching Bugs,  Next: Presenting Bugs,  Prev: Retrieving Bugs,  Up: Top
@@ -179,19 +178,19 @@ File: debbugs-ug.info,  Node: Searching Bugs,  Next: Presenting Bugs,  Prev: Ret
 2 Searching in the Debbugs Database
 ***********************************
 
-The GNU Debbugs server allows text search in the database in the
-messages submitted to the bugs.  It uses a HyperEstraier based search
-engine
+The GNU Debbugs server allows searching the text of the messages
+submitted to the bugs in the database.  It uses a HyperEstraier based
+search engine
 (https://fallabs.com/hyperestraier/uguide-en.html#searchcond)(1).
 
    The search engine uses an index over the bug database.  This index
-is refreshed once a day only; search hits do not include recent
-changes of the same day.
+is refreshed daily; search hits may not include recent changes made
+the same day.
 
  -- Command: debbugs-gnu-search
  -- Command: debbugs-org-search
 
-     These both commands are completely interactive.  They ask for a
+     Both these commands are completely interactive.  They ask for a
      '"search phrase"' for the text search.  It is just a string which
      contains the words to be searched for followed by each other.  If
      there are operators like "AND", "ANDNOT" and "OR" between the
@@ -209,13 +208,13 @@ changes of the same day.
      above.
 
      While the words to be searched for are case insensitive, the
-     operators must be specified case sensitive.
+     operators must be specified in upper case.
 
      While the search for the phrase is performed only in the bodies
      of the messages belonging to a bug report, it is also possible to
-     discriminate the search to further bug attributes.  The commands
-     ask for such key-value pairs, until an empty key is returned.
-     Possible attributes are
+     restrict the search using further bug attributes.  The commands
+     ask for such attribute-value pairs, until an empty attribute is
+     returned.  Possible attributes are
 
      'severity'
           A comma-separated list of bug severities, *Note Retrieving
@@ -232,11 +231,11 @@ changes of the same day.
           The email address of a message originator.
 
      'date'
-          A time period the bug has been in which the bug has been
-          submitted or modified.
+          A time period during which the bug has been submitted or
+          modified.
 
      'subject'
-          Word(s) the subject of the bug report contains.
+          Word(s) contained in the subject of the bug report.
 
      'status'
           The status of the bug report.  Valid values are "open",
@@ -244,15 +243,15 @@ changes of the same day.
 
      It is also possible to apply these commands with an empty search
      phrase.  In this case, the GNU Debbugs server is searched only
-     for bugs which fulfill the given attributes.  The attributes to
-     be applied are the same as already described, plus
+     for bugs which match the given attributes.  The attributes to be
+     applied are the same as already described, plus
 
      'archive'
           Whether archived bugs shall be searched (no value to be
           entered).
 
      'src'
-          Bugs which belong to a given source, if that attribute has
+          Bugs which belong to a given source, if that attribute is
           set.
 
      'tag'
@@ -275,10 +274,10 @@ changes of the same day.
           bug fix.
 
      'unarchived'
-          The date the bug has been unarchived, if ever.
+          The date the bug was unarchived, if ever.
 
      'done'
-          The email address of the worker who has closed the bug (if
+          The email address of the worker who closed the bug (if
           done).
 
      'forwarded'
@@ -290,13 +289,13 @@ changes of the same day.
      'summary'
           The summary of the bug report.
 
-     Not all of these attributes could be queried on the GNU Debbugs
+     Not all of these attributes can be queried on the GNU Debbugs
      server via the Debbugs/SOAP backend.  In this case, the results
-     of a query are discriminated on the client side, which is
-     indicated by the string "(client-side filter)" in the minibuffer
-     after the attribute name.  Note, that client side filters perform
-     badly, because they could be applied only after all bugs have
-     been downloaded.
+     of a query are filtered on the client side, which is indicated by
+     the string "(client-side filter)" in the minibuffer after the
+     attribute name.  Note, that client side filters perform badly,
+     because they can be applied only after all bugs have been
+     downloaded.
 
      These commands show also a progress report when
      'debbugs-show-progress' is non-'nil'.
@@ -316,8 +315,8 @@ File: debbugs-ug.info,  Node: Presenting Bugs,  Next: Minor Mode,  Prev: Searchi
 *****************
 
 The commands described in the previous chapters generate (a) report
-buffer(s) applicable for navigation.  'debbugs-gnu-*' return a
-tabulated list, and 'debbugs-org-*' return a list of TODO items in
+buffer(s) applicable for navigation.  'debbugs-gnu-*' displays a
+tabulated list, and 'debbugs-org-*' displays a list of TODO items in
 'org-mode'.
 
 * Menu:
@@ -334,27 +333,27 @@ File: debbugs-ug.info,  Node: Tabulated Lists,  Next: TODO Items,  Up: Presentin
 3.1 Tabulated Lists
 ===================
 
-A tabulated list of bug reports consist of four columns for every bug
-entry: 'Id' (the bug number), 'State' (some bug attributes),
+A tabulated list of bug reports consisting of four columns for every
+bug entry: 'Id' (the bug number), 'State' (some bug attributes),
 'Submitter' (the name of the bug submitter), and 'Title' (the bug
-subject).  Per default the bugs are sorted descending by 'Id'; this
-could be changed by clicking in the headline.
+subject).  By default the bugs are sorted descending by 'Id'; this can
+be changed by clicking in the headline.
 
-   Different foreground colours present further information on the bug
-report.  If the bug number uses a red colour ('debbugs-gnu-tagged'),
-the bug has been tagged locally.  The same face is used to mark bugs
-in the submitter or title column, when the bug has been reported / is
-maintained by the user.
+   Different foreground colors represent further information on the
+bug report.  If the bug number uses a red color
+('debbugs-gnu-tagged'), the bug has been tagged locally.  The same
+face is used to mark bugs in the submitter or title column, when the
+bug has been reported / is maintained by the user.
 
-   The bug state could appear in different colours: red
-('debbugs-gnu-new', nobody has answered yet to this bug), ForestGreen
+   The bug state can appear in different colors: red
+('debbugs-gnu-new', nobody has answered this bug yet), ForestGreen
 ('debbugs-gnu-handled', the bug has been modified recently),
 MidnightBlue ('debbugs-gnu-pending', the bug is pending), orange
 ('debbugs-gnu-stale', the bug has not been touched for a while), and
 DarkGrey ('debbugs-gnu-done', the bug is closed).  Archived bugs are
 shown with inverse face ('debbugs-gnu-archived').
 
-   The bug report buffers have enabled the minor 'debbugs-gnu-mode'.
+   The minor mode 'debbugs-gnu-mode' is active in bug report buffers.
 This enables the following key strokes:
 
 '<RET>'        'debbugs-gnu-select-report'
@@ -409,14 +408,14 @@ This enables the following key strokes:
                *note Control Messages::.
                
 'E'            'debbugs-gnu-make-control-message'
-               Make (but don't yet send) a control message for this
-               bug, *note Control Messages::.
+               Make (but don't send) a control message for this bug,
+               *note Control Messages::.
 
    Tagging a bug locally via 't' is an efficient way to keep bugs
 visible you are working on.  The command 'debbugs-gnu-tagged' shows
 all locally tagged bugs in a list.
 
-   The user option 'debbugs-gnu-suppress-closed' controls, whether
+   The user option 'debbugs-gnu-suppress-closed' controls whether
 closed bugs are shown in the initial list.
 
    The user option 'debbugs-gnu-mail-backend' controls the
@@ -438,7 +437,7 @@ navigation in 'org-mode'.
    Bug severities are mapped onto org severities, see
 'debbugs-org-severity-priority'.
 
-   The bug report buffers have enabled the minor 'debbugs-org-mode'.
+   The minor mode 'debbugs-org-mode' is active in bug report buffers.
 This enables the following key strokes:
 
 '<TAB>'     'org-cycle'
@@ -454,7 +453,7 @@ This enables the following key strokes:
             Send a control message for this bug, *note Control Messages::.
             
 'C-c # E'   'debbugs-gnu-make-control-message'
-            Make (but don't yet send) a control message for this bug, *note Control Messages::.
+            Make (but don't send) a control message for this bug, *note Control Messages::.
 
    When the bug attributes are shown by 'org-cycle', there is a link
 'Messages' which opens the messages for that bug.  The user options
@@ -542,7 +541,7 @@ meaning of the control messages, *Note Mail Command Index::.
 'merge'
      "forcemerge|merge 12345 54321"
 
-     The second bug number is read interactively.  It could be also a
+     The second bug number is read interactively.  It can be also a
      list of comma-separated bug numbers.
 
 'invalid'
@@ -625,8 +624,8 @@ command 'C-u M-m'.  If the predefined directory does not point to an
 existing path, it is read from the minibuffer.
 
    A further 'M-m' in the corresponding '*vc-diff*' buffer opens the
-modified file.  Here you can apply 'M-m' the next time.  This creates
-a ChangeLog entry with all needed information.  A final 'M-m' in the
+modified file.  Here you can apply 'M-m' again.  This creates a
+ChangeLog entry with all needed information.  A final 'M-m' in the
 'ChangeLog' buffer commits the patch via '*vc-log*'.
 
 
@@ -716,8 +715,8 @@ or <https://bugs.gnu.org/54321> will be shown in a bug report buffer,
 when 'debbugs-browse-mode' is enabled.  See user option
 'debbugs-browse-url-regexp' for the syntax of supported URLs.
 
-   In order to enable it globally, you might add the following forms
-to your '~/.emacs':
+   In order to enable it globally, you can add the following forms to
+your '~/.emacs':
 
      (add-hook 'bug-reference-mode-hook 'debbugs-browse-mode)
      (add-hook 'bug-reference-prog-mode-hook 'debbugs-browse-mode)
@@ -733,16 +732,16 @@ Command Index
 
 * debbugs-browse-mode:                   Minor Mode.        (line  12)
 * debbugs-gnu:                           Retrieving Bugs.   (line  19)
-* debbugs-gnu-bugs:                      Retrieving Bugs.   (line  73)
-* debbugs-gnu-patches:                   Retrieving Bugs.   (line  90)
+* debbugs-gnu-bugs:                      Retrieving Bugs.   (line  72)
+* debbugs-gnu-patches:                   Retrieving Bugs.   (line  89)
 * debbugs-gnu-pick-commits:              Posting Patches.   (line  16)
 * debbugs-gnu-search:                    Searching Bugs.    (line  15)
-* debbugs-gnu-tagged:                    Retrieving Bugs.   (line 100)
+* debbugs-gnu-tagged:                    Retrieving Bugs.   (line  99)
 * debbugs-org:                           Retrieving Bugs.   (line  21)
-* debbugs-org-bugs:                      Retrieving Bugs.   (line  74)
-* debbugs-org-patches:                   Retrieving Bugs.   (line  91)
+* debbugs-org-bugs:                      Retrieving Bugs.   (line  73)
+* debbugs-org-patches:                   Retrieving Bugs.   (line  90)
 * debbugs-org-search:                    Searching Bugs.    (line  16)
-* debbugs-org-tagged:                    Retrieving Bugs.   (line 101)
+* debbugs-org-tagged:                    Retrieving Bugs.   (line 100)
 
 
 File: debbugs-ug.info,  Node: Variable Index,  Next: Key Index,  Prev: Command Index,  Up: Top
@@ -759,9 +758,9 @@ Variable Index
 * debbugs-gnu-branch-directory:          Applying Patches.  (line  18)
 * debbugs-gnu-commit-description-format: Customizing debbugs-gnu-pick-commits.
                                                             (line   6)
-* debbugs-gnu-default-bug-number-list:   Retrieving Bugs.   (line  85)
-* debbugs-gnu-default-packages:          Retrieving Bugs.   (line  67)
-* debbugs-gnu-default-severities:        Retrieving Bugs.   (line  67)
+* debbugs-gnu-default-bug-number-list:   Retrieving Bugs.   (line  84)
+* debbugs-gnu-default-packages:          Retrieving Bugs.   (line  66)
+* debbugs-gnu-default-severities:        Retrieving Bugs.   (line  66)
 * debbugs-gnu-default-suppress-bugs:     Retrieving Bugs.   (line  48)
 * debbugs-gnu-git-remote-info-alist:     Customizing debbugs-gnu-pick-commits.
                                                             (line   6)
@@ -771,7 +770,7 @@ Variable Index
 * debbugs-gnu-suppress-closed:           Tabulated Lists.   (line  88)
 * debbugs-gnu-trunk-directory:           Applying Patches.  (line  18)
 * debbugs-org-severity-priority:         TODO Items.        (line  10)
-* debbugs-show-progress:                 Retrieving Bugs.   (line 109)
+* debbugs-show-progress:                 Retrieving Bugs.   (line 108)
 
 
 File: debbugs-ug.info,  Node: Key Index,  Next: Mail Command Index,  Prev: Variable Index,  Up: Top
@@ -1154,52 +1153,52 @@ Debbugs control mailserver commands
 Tag Table:
 Node: Top1097
 Node: Retrieving Bugs2704
-Node: Searching Bugs7527
-Ref: Searching Bugs-Footnote-112077
-Ref: Searching Bugs-Footnote-212165
-Node: Presenting Bugs12256
-Node: Tabulated Lists12918
-Node: TODO Items17183
-Node: Control Messages18504
-Node: Applying Patches22021
-Node: Posting Patches23411
-Node: Customizing debbugs-gnu-pick-commits25896
-Node: Minor Mode26596
-Node: Command Index27872
-Node: Variable Index28874
-Node: Key Index30390
-Node: Mail Command Index32169
-Ref: Mail Command Index: reassign32322
-Ref: Mail Command Index: reopen33088
-Ref: Mail Command Index: found34242
-Ref: Mail Command Index: notfound35323
-Ref: Mail Command Index: fixed35732
-Ref: Mail Command Index: notfixed36178
-Ref: Mail Command Index: submitter36801
-Ref: Mail Command Index: forwarded37195
-Ref: Mail Command Index: notforwarded37813
-Ref: Mail Command Index: retitle38014
-Ref: Mail Command Index: severity38398
-Ref: Mail Command Index: clone38729
-Ref: Mail Command Index: merge39493
-Ref: Mail Command Index: forcemerge40880
-Ref: Mail Command Index: unmerge41324
-Ref: Mail Command Index: tags42027
-Ref: Mail Command Index: block43093
-Ref: Mail Command Index: unblock43130
-Ref: Mail Command Index: close43615
-Ref: Mail Command Index: package44265
-Ref: Mail Command Index: owner44877
-Ref: Mail Command Index: noowner45240
-Ref: Mail Command Index: archive45413
-Ref: Mail Command Index: unarchive45554
-Ref: Mail Command Index: #45847
-Ref: Mail Command Index: quit46107
-Ref: Mail Command Index: stop46114
-Ref: Mail Command Index: thank46121
-Ref: Mail Command Index: thanks46129
-Ref: Mail Command Index: thankyou46138
-Ref: Mail Command Index: thank you46149
-Ref: Mail Command Index: --46161
+Node: Searching Bugs7513
+Ref: Searching Bugs-Footnote-112044
+Ref: Searching Bugs-Footnote-212132
+Node: Presenting Bugs12223
+Node: Tabulated Lists12889
+Node: TODO Items17144
+Node: Control Messages18462
+Node: Applying Patches21977
+Node: Posting Patches23359
+Node: Customizing debbugs-gnu-pick-commits25844
+Node: Minor Mode26544
+Node: Command Index27818
+Node: Variable Index28820
+Node: Key Index30336
+Node: Mail Command Index32115
+Ref: Mail Command Index: reassign32268
+Ref: Mail Command Index: reopen33034
+Ref: Mail Command Index: found34188
+Ref: Mail Command Index: notfound35269
+Ref: Mail Command Index: fixed35678
+Ref: Mail Command Index: notfixed36124
+Ref: Mail Command Index: submitter36747
+Ref: Mail Command Index: forwarded37141
+Ref: Mail Command Index: notforwarded37759
+Ref: Mail Command Index: retitle37960
+Ref: Mail Command Index: severity38344
+Ref: Mail Command Index: clone38675
+Ref: Mail Command Index: merge39439
+Ref: Mail Command Index: forcemerge40826
+Ref: Mail Command Index: unmerge41270
+Ref: Mail Command Index: tags41973
+Ref: Mail Command Index: block43039
+Ref: Mail Command Index: unblock43076
+Ref: Mail Command Index: close43561
+Ref: Mail Command Index: package44211
+Ref: Mail Command Index: owner44823
+Ref: Mail Command Index: noowner45186
+Ref: Mail Command Index: archive45359
+Ref: Mail Command Index: unarchive45500
+Ref: Mail Command Index: #45793
+Ref: Mail Command Index: quit46053
+Ref: Mail Command Index: stop46060
+Ref: Mail Command Index: thank46067
+Ref: Mail Command Index: thanks46075
+Ref: Mail Command Index: thankyou46084
+Ref: Mail Command Index: thank you46095
+Ref: Mail Command Index: --46107
 
 End Tag Table

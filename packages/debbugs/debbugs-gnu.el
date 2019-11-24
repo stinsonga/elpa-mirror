@@ -107,6 +107,7 @@
 ;;   "/": Display only bugs matching a string
 ;;   "R": Display only bugs blocking the current release
 ;;   "w": Display all the currently selected bug reports
+;;   "A": Show all messages from the currently shown bugs
 
 ;; When you visit the related bug messages in Gnus or Rmail, you could
 ;; also send or make control messages by keystroke "C" or "E" in the
@@ -490,14 +491,14 @@ depend on PHRASE being a string, or nil.  See Info node
 	    severities
 	    (completing-read-multiple
 	     "Enter severities: " debbugs-gnu-all-severities nil t
-	     (mapconcat #'identity debbugs-gnu-default-severities ","))))
+	     (string-join debbugs-gnu-default-severities ","))))
 
 	  ((equal key "package")
 	   (setq
 	    packages
 	    (completing-read-multiple
 	     "Enter packages: " debbugs-gnu-all-packages nil t
-	     (mapconcat #'identity debbugs-gnu-default-packages ","))))
+	     (string-join debbugs-gnu-default-packages ","))))
 
 	  ((equal key "archive")
 	   ;; We simplify, by assuming just archived bugs are requested.
@@ -633,12 +634,12 @@ Shall be bound in `debbugs-org-*' functions.")
       (setq severities
 	    (completing-read-multiple
 	     "Severities: " debbugs-gnu-all-severities nil t
-	     (mapconcat #'identity debbugs-gnu-default-severities ",")))
+	     (string-join debbugs-gnu-default-severities ",")))
       ;; The next parameters are asked only when there is a prefix.
       (if current-prefix-arg
 	  (completing-read-multiple
 	   "Packages: " debbugs-gnu-all-packages nil t
-	   (mapconcat #'identity debbugs-gnu-default-packages ","))
+	   (string-join debbugs-gnu-default-packages ","))
 	debbugs-gnu-default-packages)
       (when current-prefix-arg
 	(setq archivedp (y-or-n-p "Show archived bugs?")))
@@ -812,8 +813,8 @@ are taken from the cache instead."
 	  (setq words (append (mapcar #'number-to-string merged) words)))
 	;; `words' could contain the same word twice, for example
 	;; "fixed" from `keywords' and `pending'.
-	(setq words (mapconcat
-		     #'identity (cl-delete-duplicates words :test #'equal) ","))
+	(setq words
+	      (string-join (cl-delete-duplicates words :test #'equal) ","))
 	(when (or (not merged)
 		  (not (let ((found nil))
 			 (dolist (id (if (listp merged)
@@ -1376,6 +1377,118 @@ interest to you."
   (set-buffer-modified-p nil)
   (special-mode))
 
+(defconst debbugs-gnu-select-bugs-limit-max 50
+  "Absolute maximum for `debbugs-gnu-select-bugs-limit'.")
+
+(defcustom debbugs-gnu-select-bugs-limit 10
+  "Maximum number of bugs to retrieve for multi-bug mailbox group.
+This applies for `debbugs-gnu-select-current-bugs'.
+Maximum allowed value is `debbugs-gnu-select-bugs-limit-max' to
+avoid overloading the server."
+  :type '(integer
+          :validate
+          (lambda (widget)
+            (unless (<= 1
+                        (widget-value widget)
+                        debbugs-gnu-select-bugs-limit-max)
+              (widget-put
+	       widget :error
+               (format "Invalid value: range is 1..%d"
+		       debbugs-gnu-select-bugs-limit-max))
+	      widget)))
+  :version "27.1")
+
+(defun debbugs-gnu-select-current-bugs ()
+  "Retrieve the mailboxes for all currently shown bugs.
+Limited by `debbugs-gnu-select-bugs-limit'."
+  (interactive)
+  (save-excursion
+    (let (ids)
+      (goto-char (point-min))
+      (dotimes (_ debbugs-gnu-select-bugs-limit)
+	(push (debbugs-gnu-current-id t) ids)
+	(setq ids
+	      (append (alist-get 'mergedwith (debbugs-gnu-current-status)) ids))
+	(forward-line 1))
+      (setq ids (delq nil (nreverse ids)))
+      (cond
+       ((not ids)
+	(message "No bug reports in the current buffer"))
+       ((eq debbugs-gnu-mail-backend 'rmail)
+	(debbugs-gnu-select-current-bugs-with-rmail ids))
+       ((eq debbugs-gnu-mail-backend 'gnus)
+	(debbugs-gnu-select-current-bugs-with-gnus ids))
+       (t (error "No valid mail backend specified"))))))
+
+(defun debbugs-gnu-select-current-bugs-with-rmail (ids)
+  "Read email exchange for debbugs IDS.
+IDS is the list of bug IDs."
+  (let* ((mbox-dir (make-temp-file "debbugs" t))
+	 (mbox-fname
+	  (format
+	   "%s/bug_%s.mbox" mbox-dir (mapconcat #'number-to-string ids ","))))
+    (debbugs-get-mbox (car ids) 'mboxmaint mbox-fname)
+    (rmail mbox-fname)
+    (dolist (bugno (cdr ids))
+      (let ((fn (make-temp-file "url")))
+	(debbugs-get-mbox bugno 'mboxmaint fn)
+	(rmail-get-new-mail fn)
+	(delete-file fn)
+	;; Remove the 'unseen' attribute from all the messages we've
+	;; just read, so that all of them appear in the summary with
+	;; the same face.
+	(while (< rmail-current-message rmail-total-messages)
+	  (rmail-show-message (1+ rmail-current-message)))))
+    ;; (set (make-local-variable 'debbugs-gnu-bug-number) id)
+    ;; (set (make-local-variable 'debbugs-gnu-subject)
+    ;; 	 (format "Re: bug#%d: %s" id (alist-get 'subject status)))
+    (rmail-summary)
+    (define-key rmail-summary-mode-map "C" #'debbugs-gnu-send-control-message)
+    (define-key rmail-summary-mode-map "E" #'debbugs-gnu-make-control-message)
+    (set-window-text-height nil 10)
+    (other-window 1)
+    (define-key rmail-mode-map "C" #'debbugs-gnu-send-control-message)
+    (define-key rmail-mode-map "E" #'debbugs-gnu-make-control-message)
+    (rmail-show-message 1)))
+
+(defcustom debbugs-gnu-lars-workflow nil
+  "If non-nil, set some Gnus vars as preferred by Lars."
+  :type 'boolean
+  :version "27.1")
+
+(defun debbugs-gnu-select-current-bugs-with-gnus (ids)
+  "Create a Gnus group of the messages from the currently shown bugs.
+IDS is the list of bug IDs."
+  (require 'gnus-group)
+  (when debbugs-gnu-lars-workflow
+    (setq gnus-suppress-duplicates t
+	  gnus-save-duplicate-list t))
+  (let ((mbox-url
+         (replace-regexp-in-string
+          ";mboxstat=yes" ""
+          (alist-get 'emacs gnus-bug-group-download-format-alist)
+          nil t)))
+    (gnus-read-ephemeral-bug-group ids mbox-url)
+    (debbugs-gnu-summary-mode 1)))
+
+(defun debbugs-gnu-select-report ()
+  "Select the report on the current line."
+  (interactive)
+  (when (mouse-event-p last-input-event) (mouse-set-point last-input-event))
+  ;; We open the report messages.
+  (let* ((status (debbugs-gnu-current-status))
+	 (id (alist-get 'id status))
+	 (merged (alist-get 'mergedwith status)))
+    (setq merged (if (listp merged) merged (list merged)))
+    (cond
+     ((not id)
+      (message "No bug report on the current line"))
+     ((eq debbugs-gnu-mail-backend 'rmail)
+      (debbugs-gnu-read-emacs-bug-with-rmail id status merged))
+     ((eq debbugs-gnu-mail-backend 'gnus)
+      (debbugs-gnu-read-emacs-bug-with-gnus id status merged))
+     (t (error "No valid mail backend specified")))))
+
 (defun debbugs-gnu-read-emacs-bug-with-rmail (id status merged)
   "Read email exchange for debbugs bug ID.
 STATUS is the bug's status list.
@@ -1409,59 +1522,6 @@ MERGED is the list of bugs merged with this one."
     (define-key rmail-mode-map "E" #'debbugs-gnu-make-control-message)
     (rmail-show-message 1)))
 
-(defconst debbugs-gnu-select-bugs-limit-max 50
-  "Absolute maximum for `debbugs-gnu-select-bugs-limit'.")
-
-(defcustom debbugs-gnu-select-bugs-limit 10
-  "Maximum number of bugs to retrieve for multi-bug mailbox group.
-This applies for `debbugs-gnu-select-current-bugs'.
-Maximum allowed value is `debbugs-gnu-select-bugs-limit-max' to
-avoid overloading the server."
-  :type '(integer
-          :validate
-          (lambda (widget)
-            (unless (<= 1
-                        (widget-value widget)
-                        debbugs-gnu-select-bugs-limit-max)
-              (widget-put
-	       widget :error
-               (format "Invalid value: range is 1..%d"
-		       debbugs-gnu-select-bugs-limit-max))
-	      widget)))
-  :version "27.1")
-
-(defun debbugs-gnu-select-current-bugs ()
-  "Retrieve the mailboxes for all currently shown bugs.
-Limited by `debbugs-gnu-select-bugs-limit'."
-  (interactive)
-  (unless (eq debbugs-gnu-mail-backend 'gnus)
-    (error "This function only works with Gnus."))
-  (debbugs-gnu-select-current-bugs-with-gnus))
-
-(defun debbugs-gnu-select-current-bugs-with-gnus ()
-  "Create a Gnus group of the messages from the currently shown bugs."
-  (save-excursion
-    (require 'gnus-group)
-    (let ((mbox-url
-           (replace-regexp-in-string
-            ";mboxstat=yes" ""
-            (alist-get 'emacs gnus-bug-group-download-format-alist)
-            nil t))
-          ids)
-      (goto-char (point-min))
-      (dotimes (_ debbugs-gnu-select-bugs-limit)
-        (push (debbugs-gnu-current-id t) ids)
-        (push (alist-get 'mergedwith (debbugs-gnu-current-status)) ids)
-        (forward-line 1))
-      (setq ids (delq nil (nreverse ids)))
-      (gnus-read-ephemeral-bug-group ids mbox-url)
-      (debbugs-gnu-summary-mode 1))))
-
-(defcustom debbugs-gnu-lars-workflow nil
-  "If non-nil, set some Gnus vars as preferred by Lars."
-  :type 'boolean
-  :version "27.1")
-
 (defun debbugs-gnu-read-emacs-bug-with-gnus (id status merged)
   "Read email exchange for debbugs bug ID.
 STATUS is the bug's status list.
@@ -1480,24 +1540,6 @@ MERGED is the list of bugs merged with this one."
     (set (make-local-variable 'debbugs-gnu-subject)
 	 (format "Re: bug#%d: %s" id (alist-get 'subject status)))
     (debbugs-gnu-summary-mode 1)))
-
-(defun debbugs-gnu-select-report ()
-  "Select the report on the current line."
-  (interactive)
-  (when (mouse-event-p last-input-event) (mouse-set-point last-input-event))
-  ;; We open the report messages.
-  (let* ((status (debbugs-gnu-current-status))
-	 (id (alist-get 'id status))
-	 (merged (alist-get 'mergedwith status)))
-    (setq merged (if (listp merged) merged (list merged)))
-    (cond
-     ((not id)
-      (message "No bug report on the current line"))
-     ((eq debbugs-gnu-mail-backend 'rmail)
-      (debbugs-gnu-read-emacs-bug-with-rmail id status merged))
-     ((eq debbugs-gnu-mail-backend 'gnus)
-      (debbugs-gnu-read-emacs-bug-with-gnus id status merged))
-     (t (error "No valid mail backend specified")))))
 
 (defvar debbugs-gnu-summary-mode-map
   (let ((map (make-sparse-keymap)))
@@ -1778,8 +1820,7 @@ removed instead."
         ((member message '("merge" "forcemerge"))
          (format
           "%s %d %s\n" message bugid
-          (mapconcat
-           #'identity
+          (string-join
            (debbugs-gnu-expand-bug-number-list
             (completing-read-multiple
              (format "%s with bug(s) #: " (capitalize message))
@@ -1788,8 +1829,7 @@ removed instead."
         ((member message '("block" "unblock"))
          (format
           "%s %d by %s\n" message bugid
-          (mapconcat
-           #'identity
+          (string-join
            (debbugs-gnu-expand-bug-number-list
             (completing-read-multiple
              (format "%s with bug(s) #: " (capitalize message))
@@ -2144,7 +2184,7 @@ successfully sent."
        (completing-read-multiple
 	"Package name(s) or email address: "
 	(append debbugs-gnu-all-packages (list user-mail-address)) nil nil
-	(mapconcat #'identity debbugs-gnu-default-packages ","))
+	(string-join debbugs-gnu-default-packages ","))
      debbugs-gnu-default-packages))
 
   (unwind-protect

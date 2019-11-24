@@ -33,7 +33,7 @@
 
 ;;; Code:
 
-;(setq soap-debug t message-log-max t)
+;(setq soap-debug t url-debug t message-log-max t)
 (require 'soap-client)
 (eval-when-compile (require 'cl-lib))
 
@@ -870,9 +870,7 @@ Examples:
 		   (let ((x (pop elt)))
 		     (unless (member x val)
 		       (setq val (append val (list x))))))
-		 (setq vec
-		       (vconcat
-			vec (list key (mapconcat #'identity val " "))))))
+		 (setq vec (vconcat vec (list key (string-join val " "))))))
 
 	      (:status
 	       ;; It shouldn't happen in a phrase condition.
@@ -889,8 +887,7 @@ Examples:
 		     (unless (member x val)
 		       (setq val (append val (list x))))))
 		 (setq vec
-		       (vconcat
-			vec (list key (mapconcat #'identity val " "))))))
+		       (vconcat vec (list key (string-join val " "))))))
 
 	      ((:subject :package :tags :severity :@title)
 	       ;; It shouldn't happen in a phrase condition.
@@ -905,8 +902,7 @@ Examples:
 		     (unless (member x val)
 		       (setq val (append val (list x))))))
 		 (setq vec
-		       (vconcat
-			vec (list key (mapconcat #'identity val " "))))))
+		       (vconcat vec (list key (string-join val " "))))))
 
 	      ((:date :@cdate)
 	       ;; It shouldn't happen in a phrase condition.

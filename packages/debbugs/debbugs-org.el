@@ -237,7 +237,7 @@ marked as \"client-side filter\"."
 	  "* %s [#%s] %s %s\n"
 	  (if done "DONE" "TODO")
 	  priority subject
-	  (if tags (mapconcat #'identity (append '("") tags '("")) ":") "")))
+	  (if tags (string-join (append '("") tags '("")) ":") "")))
 
 	;; Submitted.
 	(when date
