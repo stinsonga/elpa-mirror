@@ -797,7 +797,7 @@ are taken from the cache instead."
 	     (subject (if (alist-get 'subject status)
 			  (decode-coding-string
 			   (alist-get 'subject status) 'utf-8)))
-	     (age (- (float-time) (alist-get 'log_modified status)))
+	     (age (- (float-time) (or (alist-get 'log_modified status) 0)))
 	     (week (* 60 60 24 7))
 	     merged)
 	(unless (equal (alist-get 'pending status) "pending")
@@ -1246,12 +1246,12 @@ Interactively, it is non-nil with the prefix argument."
       debbugs-gnu-emacs-current-release)))
 
   (let ((blockers
-	 (cdr
-	  (assq
-	   'blockedby
-	   (car
-	    (debbugs-get-status
-	     (cdr (assoc release debbugs-gnu-emacs-blocking-reports)))))))
+	 (alist-get
+	  'blockedby
+	  (car
+	   (debbugs-get-status
+	    (alist-get
+	     release debbugs-gnu-emacs-blocking-reports nil nil #'equal)))))
 	(id (debbugs-gnu-current-id t))
 	(inhibit-read-only t)
 	status)
@@ -1280,7 +1280,7 @@ Subject fields."
       (goto-char (point-min))
       (while (not (eobp))
 	(setq status (debbugs-gnu-current-status))
-	(if (and (not (member string (assq 'keywords status)))
+	(if (and (not (member string (alist-get 'keywords status)))
 		 (not (equal string (alist-get 'severity status)))
 		 (or status-only
 		     (not (string-match
@@ -2040,8 +2040,8 @@ with `patch'."
     (dolist (patch (directory-files dir t "\\`[^.]"))
       (mml-attach-file patch type "patch" disposition))
     (when (and (not (member
-                     "patch" (assq 'tags (car (debbugs-get-status
-                                               bugnum)))))
+                     "patch"
+		     (alist-get 'tags (car (debbugs-get-status bugnum)))))
                (y-or-n-p "Tag + patch? "))
       (debbugs-gnu-make-control-message
        "patch" bugnum nil (current-buffer)))))
