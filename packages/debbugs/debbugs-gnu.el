@@ -1576,14 +1576,13 @@ MERGED is the list of bugs merged with this one."
 	       (setq subject ,debbugs-gnu-subject))))))))
 
 (defun debbugs-gnu-guess-current-id ()
-  "Guess the ID based on \"#23\"."
+  "Guess the ID based on \"#23\".
+Looks at current line and then backwards from point."
   (save-excursion
     (beginning-of-line)
     (and
      (or (re-search-forward "#\\([0-9]+\\)" (line-end-position) t)
-	 (progn
-	   (goto-char (point-min))
-	   (re-search-forward "#\\([0-9]+\\)" nil t)))
+	 (re-search-backward "#\\([0-9]+\\)" nil t))
      (string-to-number (match-string 1)))))
 
 (defun debbugs-gnu-proper-bug-number (id)
