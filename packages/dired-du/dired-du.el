@@ -796,7 +796,7 @@ If SUBDIR is not found return nil."
 
 (defun dired-du--create-or-check-dir-info (&optional keep-drop-dirs)
   "Initialize `dired-du-dir-info' and return it.
-Intial value is just a list with the subdir names included in the
+Initial value is just a list with the subdir names included in the
 Dired buffer.  If there are subdirs not included in `dired-du-dir-info'
 then they are added.
 
@@ -1077,7 +1077,7 @@ To return the recursive size of directories use
   "Mark all files in current subdirectory.
 Optional arg MARK, if non-nil, then is the character mark used.
 Otherwise use `dired-marker-char'.
-Optional arg MUST-EXIST, if non-nil, hide non-existant files.
+Optional arg MUST-EXIST, if non-nil, hide non-existent files.
 
 Directories '.' and '..' are also marked."
   (save-restriction
@@ -1089,7 +1089,7 @@ Directories '.' and '..' are also marked."
   "Mark all files in the Dired buffer.
 Optional arg MARK, if non-nil, then is the character mark used.
 Otherwise use `dired-marker-char'.
-Optional arg MUST-EXIST, if non-nil, hide non-existant files.
+Optional arg MUST-EXIST, if non-nil, hide non-existent files.
 
 Directories '.' and '..' are also marked."
   (let ((dired-marker-char (or mark dired-marker-char)))
@@ -1518,7 +1518,7 @@ Optional arg, NO-MESSAGE, if non-nil don't show message in the echo area."
   (when (and (derived-mode-p 'dired-mode)
              dired-du-find-dired-buffer
              (not dired-du-on-find-dired-ok))
-    (error "Toogle format size in `find-dired' buffers \
+    (error "Toggle format size in `find-dired' buffers \
 is disabled; enable with %s"
            (substitute-command-keys "\\[dired-du-on-find-dired-ok-toggle\]")))
 
@@ -1616,8 +1616,8 @@ Return `dired-du-dir-info'."
   "Update with NEW-INFO position GLOB-POS of `dired-du-dir-info'.
 NEW-INFO may be the file info for one file or several.
 
-If NEW-INFO contains information for one file already in
-`dired-du-dir-info', then the new infomation replace
+If NEW-INFO contains information for a file already present in
+`dired-du-dir-info', then the new information replaces
 the old one.  Otherwise, the new information is added in front to
 \(cdr (nth GLOB-POS `dired-du-dir-info')).
 
