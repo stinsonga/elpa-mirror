@@ -987,7 +987,7 @@ Used instead of `tabulated-list-print-entry'."
   (let ((map (make-sparse-keymap))
 	(menu-map (make-sparse-keymap)))
     (set-keymap-parent map tabulated-list-mode-map)
-    (define-key map [return] #'debbugs-gnu-select-report)
+    (define-key map (kbd "RET") #'debbugs-gnu-select-report)
     (define-key map [mouse-2] #'debbugs-gnu-select-report)
     (define-key map "A" #'debbugs-gnu-select-current-bugs)
     (define-key map "g" #'debbugs-gnu-rescan)
@@ -1090,7 +1090,7 @@ Interactively, it is non-nil with the prefix argument."
 			       ("Submitter" 25 debbugs-gnu-sort-submitter)
 			       ("Title"     10 debbugs-gnu-sort-title)])
   (setq tabulated-list-sort-key (cons "Id" nil))
-  (setq tabulated-list-printer 'debbugs-gnu-print-entry)
+  (setq tabulated-list-printer #'debbugs-gnu-print-entry)
   (buffer-disable-undo)
   (setq truncate-lines t)
   (setq buffer-read-only t))
@@ -2163,7 +2163,7 @@ successfully sent."
 (defvar debbugs-gnu-usertags-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map tabulated-list-mode-map)
-    (define-key map [return] #'debbugs-gnu-select-usertag)
+    (define-key map (kbd "RET") #'debbugs-gnu-select-usertag)
     (define-key map [mouse-2] #'debbugs-gnu-select-usertag)
     map))
 
