@@ -1,8 +1,8 @@
 ;;; osc.el --- Open Sound Control protocol library
 
-;; Copyright (C) 2014  Free Software Foundation, Inc.
+;; Copyright (C) 2014-2019  Free Software Foundation, Inc.
 
-;; Author: Mario Lang <mlang@delysid.org>
+;; Author: Mario Lang <mlang@blind.guru>
 ;; Version: 0.1
 ;; Keywords: comm, processes, multimedia
 
@@ -57,15 +57,13 @@
 (defun osc-insert-float32 (value)
   (let (s (e 0) f)
     (cond
-     ((string= (format "%f" value) (format "%f" -0.0))
-      (setq s 1 f 0))
-     ((string= (format "%f" value) (format "%f" 0.0))
-      (setq s 0 f 0))
+     ((= value 0.0)
+      (setq s (if (< (copysign 1.0 value) 0) 1 0) f 0))
      ((= value 1.0e+INF)
       (setq s 0 e 255 f (1- (expt 2 23))))
      ((= value -1.0e+INF)
       (setq s 1 e 255 f (1- (expt 2 23))))
-     ((string= (format "%f" value) (format "%f" 0.0e+NaN))
+     ((isnan value)
       (setq s 0 e 255 f 1))
      (t
       (setq s (if (>= value 0.0)
