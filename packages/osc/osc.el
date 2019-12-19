@@ -35,7 +35,7 @@
 
 ;; BUGS/TODO:
 ;;
-;; * Timetags and binary blobs are not supported yet.
+;; * Timetags are not supported yet.
 
 ;; Usage:
 ;;
@@ -54,6 +54,12 @@
 (defun osc-string (string)
   (setq string (encode-coding-string string 'binary))
   (concat string (make-string (1+ (- 3 (% (length string) 4))) 0)))
+
+(defun osc-blob (vector)
+  (let ((length (length vector)))
+    (concat (osc-int32 length)
+	    vector
+	    (make-string (% (- 4 (% length 4)) 4) 0))))
 
 (defun osc-float32 (value)
   (let (s (e 0) f)
@@ -112,6 +118,7 @@
 		 ((floatp arg) "f")
 		 ((integerp arg) "i")
 		 ((stringp arg) "s")
+		 ((vectorp arg) "b")
 		 (t (error "Invalid argument: %S" arg))))
 	      args)))
     (mapcar
@@ -119,7 +126,8 @@
        (cond
 	((floatp arg) (osc-float32 arg))
 	((integerp arg) (osc-int32 arg))
-	((stringp arg) (osc-string arg))))
+	((stringp arg) (osc-string arg))
+	((vectorp arg) (osc-blob arg))))
      args))))
 
 (defun osc-read-string ()
@@ -128,6 +136,16 @@
     (setq string (buffer-substring-no-properties pos (point)))
     (forward-char (- 4 (% (length string) 4)))
     string))
+
+(defun osc-read-blob ()
+  (let* ((length (osc-read-int32))
+	 (pos (point))
+	 (vector (progn
+		   (forward-char length)
+		   (string-to-vector (buffer-substring pos (point)))))
+	 (padding (% (- 4 (% length 4)) 4)))
+    (forward-char padding)
+    vector))
 
 (defun osc-read-int32 ()
   (let ((value 0))
@@ -179,13 +197,14 @@ the generic handler for SERVER."
       (goto-char (point-min))
       (let ((path (osc-read-string)))
 	(if (not (string= path "#bundle"))
-	    (when (looking-at ",")
+	    (when (= (char-after) ?,)
 	      (save-excursion
 		(apply (osc-server-get-handler proc path)
 		       path
 		       (mapcar
 			(lambda (type)
 			  (cl-case type
+			    (?b (osc-read-blob))
 			    (?f (osc-read-float32))
 			    (?i (osc-read-int32))
 			    (?s (osc-read-string))))
