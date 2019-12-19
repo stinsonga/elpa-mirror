@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014-2019  Free Software Foundation, Inc.
 
 ;; Author: Mario Lang <mlang@blind.guru>
-;; Version: 0.1
+;; Version: 0.2
 ;; Keywords: comm, processes, multimedia
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -39,11 +39,11 @@
 
 ;; Usage:
 ;;
-;; Client: (setq my-client (osc-make-client "localhost" 7770))
+;; Client: (setq my-client (osc-make-client "127.0.0.1" 7770))
 ;;         (osc-send-message my-client "/osc/path" 1.5 1.0 5 "done")
 ;;         (delete-process my-client)
 ;;
-;; Server: (setq my-server (osc-make-server "localhost" 7770
+;; Server: (setq my-server (osc-make-server "127.0.0.1" 7770
 ;;          (lambda (path &rest args)
 ;;            (message "OSC %s: %S" path args))))
 
