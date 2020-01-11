@@ -1,6 +1,6 @@
-;;; osc.el --- Open Sound Control protocol library
+;;; osc.el --- Open Sound Control protocol library  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2014-2019  Free Software Foundation, Inc.
+;; Copyright (C) 2014-2020  Free Software Foundation, Inc.
 
 ;; Author: Mario Lang <mlang@blind.guru>
 ;; Version: 0.2
@@ -87,7 +87,7 @@
 
 (defun osc-int32 (value)
   (let (bytes)
-    (dotimes (i 4)
+    (dotimes (_ 4)
       (push (% value 256) bytes)
       (setq value (/ value 256)))
     (apply 'unibyte-string bytes)))
@@ -149,7 +149,7 @@
 
 (defun osc-read-int32 ()
   (let ((value 0))
-    (dotimes (i 4)
+    (dotimes (_ 4)
       (setq value (logior (* value 256) (following-char)))
       (forward-char 1))
     value))
