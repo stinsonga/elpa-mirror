@@ -1,6 +1,6 @@
 ;;; el-search-x.el --- Additional pattern definitions for el-search    -*- lexical-binding: t -*-
 
-;; Copyright (C) 2016-2019 Free Software Foundation, Inc
+;; Copyright (C) 2016-2020 Free Software Foundation, Inc
 
 ;; Author: Michael Heerdegen <michael_heerdegen@web.de>
 ;; Maintainer: Michael Heerdegen <michael_heerdegen@web.de>

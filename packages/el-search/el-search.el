@@ -1,6 +1,6 @@
 ;;; el-search.el --- Expression based interactive search for Emacs Lisp   -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015-2019 Free Software Foundation, Inc
+;; Copyright (C) 2015-2020 Free Software Foundation, Inc
 
 ;; Author: Michael Heerdegen <michael_heerdegen@web.de>
 ;; Maintainer: Michael Heerdegen <michael_heerdegen@web.de>
