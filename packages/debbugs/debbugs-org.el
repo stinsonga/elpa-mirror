@@ -1,6 +1,6 @@
 ;;; debbugs-org.el --- Org-mode interface for the GNU bug tracker  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2013-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, hypermedia, maint, outlines
@@ -34,6 +34,7 @@
 ;;   (autoload 'debbugs-org-search "debbugs-org" "" 'interactive)
 ;;   (autoload 'debbugs-org-patches "debbugs-org" "" 'interactive)
 ;;   (autoload 'debbugs-org-tagged "debbugs-org" "" 'interactive)
+;;   (autoload 'debbugs-org-emacs-release-blocking-reports "debbugs-org" "" 'interactive)
 ;;   (autoload 'debbugs-org-bugs "debbugs-org" "" 'interactive)
 
 ;; The bug tracker is called interactively by
@@ -105,6 +106,11 @@
 ;;    M-x debbugs-org-tagged
 
 ;; This command shows just the locally tagged bugs.
+
+;; For the Emacs package, there is a special command, which shows
+;; release critical bugs
+;;
+;;    M-x debbugs-org-emacs-release-blocking-reports
 
 ;; Finally, if you simply want to list some bugs with known bug
 ;; numbers, call the command
@@ -337,6 +343,13 @@ the corresponding buffer (e.g. by closing Emacs)."
 	       ;; `message-simplify-subject'.  So we cannot use m-s-s.
 	       (setq subject ,debbugs-gnu-subject)))))))
   (debbugs-org-regenerate-status))
+
+;;;###autoload
+(defun debbugs-org-emacs-release-blocking-reports ()
+  "Show the reports that are blocking an Emacs release."
+  (interactive)
+  (let ((debbugs-gnu-show-reports-function #'debbugs-org-show-reports))
+    (call-interactively #'debbugs-gnu-emacs-release-blocking-reports)))
 
 ;;;###autoload
 (defun debbugs-org-bugs ()

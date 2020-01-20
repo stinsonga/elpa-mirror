@@ -1,7 +1,7 @@
 This is debbugs-ug.info, produced by makeinfo version 6.6 from
 debbugs-ug.texi.
 
-Copyright (C) 2015-2019 Free Software Foundation, Inc.
+Copyright (C) 2015-2020 Free Software Foundation, Inc.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -74,8 +74,10 @@ prefix.
    When the bug numbers to be retrieved are known, the commands
 'debbugs-gnu-bugs' or 'debbugs-org-bugs' are applicable.
 
-   The commands 'debbugs-gnu-patches' / 'debbugs-org-patches' and
-'debbugs-gnu-tagged' / 'debbugs-org-tagged' retrieve bugs with a
+   The commands 'debbugs-gnu-patches' / 'debbugs-org-patches',
+'debbugs-gnu-tagged' / 'debbugs-org-tagged' and
+'debbugs-gnu-emacs-release-blocking-reports' /
+'debbugs-org-emacs-release-blocking-reports' retrieve bugs with a
 predefined filter.
 
  -- Command: debbugs-gnu severities &optional packages archivedp
@@ -166,6 +168,19 @@ predefined filter.
      of bugs you are currently working on.
 
      *note Presenting Bugs:: for the presentation of the results.
+
+ -- Command: debbugs-gnu-emacs-release-blocking-reports &optional
+          release
+ -- Command: debbugs-org-emacs-release-blocking-reports &optional
+          release
+
+     The package '"emacs"' has the additional commands
+     'debbugs-gnu-emacs-release-blocking-reports' and
+     'debbugs-org-emacs-release-blocking-reports', which show all
+     blocking bugs for a given Emacs release.  The user option
+     'debbugs-gnu-emacs-current-release' contains the release number
+     the blocking reports are selected for; a prefix argument allows
+     to change this when called interactively.
 
  -- User Option: debbugs-show-progress
 
@@ -731,17 +746,21 @@ Command Index
 * Menu:
 
 * debbugs-browse-mode:                   Minor Mode.        (line  12)
-* debbugs-gnu:                           Retrieving Bugs.   (line  19)
-* debbugs-gnu-bugs:                      Retrieving Bugs.   (line  72)
-* debbugs-gnu-patches:                   Retrieving Bugs.   (line  89)
+* debbugs-gnu:                           Retrieving Bugs.   (line  21)
+* debbugs-gnu-bugs:                      Retrieving Bugs.   (line  74)
+* debbugs-gnu-emacs-release-blocking-reports: Retrieving Bugs.
+                                                            (line 110)
+* debbugs-gnu-patches:                   Retrieving Bugs.   (line  91)
 * debbugs-gnu-pick-commits:              Posting Patches.   (line  16)
 * debbugs-gnu-search:                    Searching Bugs.    (line  15)
-* debbugs-gnu-tagged:                    Retrieving Bugs.   (line  99)
-* debbugs-org:                           Retrieving Bugs.   (line  21)
-* debbugs-org-bugs:                      Retrieving Bugs.   (line  73)
-* debbugs-org-patches:                   Retrieving Bugs.   (line  90)
+* debbugs-gnu-tagged:                    Retrieving Bugs.   (line 101)
+* debbugs-org:                           Retrieving Bugs.   (line  23)
+* debbugs-org-bugs:                      Retrieving Bugs.   (line  75)
+* debbugs-org-emacs-release-blocking-reports: Retrieving Bugs.
+                                                            (line 112)
+* debbugs-org-patches:                   Retrieving Bugs.   (line  92)
 * debbugs-org-search:                    Searching Bugs.    (line  16)
-* debbugs-org-tagged:                    Retrieving Bugs.   (line 100)
+* debbugs-org-tagged:                    Retrieving Bugs.   (line 102)
 
 
 File: debbugs-ug.info,  Node: Variable Index,  Next: Key Index,  Prev: Command Index,  Up: Top
@@ -753,15 +772,15 @@ Variable Index
 * Menu:
 
 * debbugs-browse-function:               Minor Mode.        (line  12)
-* debbugs-gnu-all-packages:              Retrieving Bugs.   (line  40)
-* debbugs-gnu-all-severities:            Retrieving Bugs.   (line  31)
+* debbugs-gnu-all-packages:              Retrieving Bugs.   (line  42)
+* debbugs-gnu-all-severities:            Retrieving Bugs.   (line  33)
 * debbugs-gnu-branch-directory:          Applying Patches.  (line  18)
 * debbugs-gnu-commit-description-format: Customizing debbugs-gnu-pick-commits.
                                                             (line   6)
-* debbugs-gnu-default-bug-number-list:   Retrieving Bugs.   (line  84)
-* debbugs-gnu-default-packages:          Retrieving Bugs.   (line  66)
-* debbugs-gnu-default-severities:        Retrieving Bugs.   (line  66)
-* debbugs-gnu-default-suppress-bugs:     Retrieving Bugs.   (line  48)
+* debbugs-gnu-default-bug-number-list:   Retrieving Bugs.   (line  86)
+* debbugs-gnu-default-packages:          Retrieving Bugs.   (line  68)
+* debbugs-gnu-default-severities:        Retrieving Bugs.   (line  68)
+* debbugs-gnu-default-suppress-bugs:     Retrieving Bugs.   (line  50)
 * debbugs-gnu-git-remote-info-alist:     Customizing debbugs-gnu-pick-commits.
                                                             (line   6)
 * debbugs-gnu-mail-backend:              Tabulated Lists.   (line  91)
@@ -770,7 +789,7 @@ Variable Index
 * debbugs-gnu-suppress-closed:           Tabulated Lists.   (line  88)
 * debbugs-gnu-trunk-directory:           Applying Patches.  (line  18)
 * debbugs-org-severity-priority:         TODO Items.        (line  10)
-* debbugs-show-progress:                 Retrieving Bugs.   (line 108)
+* debbugs-show-progress:                 Retrieving Bugs.   (line 123)
 
 
 File: debbugs-ug.info,  Node: Key Index,  Next: Mail Command Index,  Prev: Variable Index,  Up: Top
@@ -1153,52 +1172,52 @@ Debbugs control mailserver commands
 Tag Table:
 Node: Top1097
 Node: Retrieving Bugs2704
-Node: Searching Bugs7513
-Ref: Searching Bugs-Footnote-112044
-Ref: Searching Bugs-Footnote-212132
-Node: Presenting Bugs12223
-Node: Tabulated Lists12889
-Node: TODO Items17144
-Node: Control Messages18462
-Node: Applying Patches21977
-Node: Posting Patches23359
-Node: Customizing debbugs-gnu-pick-commits25844
-Node: Minor Mode26544
-Node: Command Index27818
-Node: Variable Index28820
-Node: Key Index30336
-Node: Mail Command Index32115
-Ref: Mail Command Index: reassign32268
-Ref: Mail Command Index: reopen33034
-Ref: Mail Command Index: found34188
-Ref: Mail Command Index: notfound35269
-Ref: Mail Command Index: fixed35678
-Ref: Mail Command Index: notfixed36124
-Ref: Mail Command Index: submitter36747
-Ref: Mail Command Index: forwarded37141
-Ref: Mail Command Index: notforwarded37759
-Ref: Mail Command Index: retitle37960
-Ref: Mail Command Index: severity38344
-Ref: Mail Command Index: clone38675
-Ref: Mail Command Index: merge39439
-Ref: Mail Command Index: forcemerge40826
-Ref: Mail Command Index: unmerge41270
-Ref: Mail Command Index: tags41973
-Ref: Mail Command Index: block43039
-Ref: Mail Command Index: unblock43076
-Ref: Mail Command Index: close43561
-Ref: Mail Command Index: package44211
-Ref: Mail Command Index: owner44823
-Ref: Mail Command Index: noowner45186
-Ref: Mail Command Index: archive45359
-Ref: Mail Command Index: unarchive45500
-Ref: Mail Command Index: #45793
-Ref: Mail Command Index: quit46053
-Ref: Mail Command Index: stop46060
-Ref: Mail Command Index: thank46067
-Ref: Mail Command Index: thanks46075
-Ref: Mail Command Index: thankyou46084
-Ref: Mail Command Index: thank you46095
-Ref: Mail Command Index: --46107
+Node: Searching Bugs8199
+Ref: Searching Bugs-Footnote-112730
+Ref: Searching Bugs-Footnote-212818
+Node: Presenting Bugs12909
+Node: Tabulated Lists13575
+Node: TODO Items17830
+Node: Control Messages19148
+Node: Applying Patches22663
+Node: Posting Patches24045
+Node: Customizing debbugs-gnu-pick-commits26530
+Node: Minor Mode27230
+Node: Command Index28504
+Node: Variable Index29774
+Node: Key Index31290
+Node: Mail Command Index33069
+Ref: Mail Command Index: reassign33222
+Ref: Mail Command Index: reopen33988
+Ref: Mail Command Index: found35142
+Ref: Mail Command Index: notfound36223
+Ref: Mail Command Index: fixed36632
+Ref: Mail Command Index: notfixed37078
+Ref: Mail Command Index: submitter37701
+Ref: Mail Command Index: forwarded38095
+Ref: Mail Command Index: notforwarded38713
+Ref: Mail Command Index: retitle38914
+Ref: Mail Command Index: severity39298
+Ref: Mail Command Index: clone39629
+Ref: Mail Command Index: merge40393
+Ref: Mail Command Index: forcemerge41780
+Ref: Mail Command Index: unmerge42224
+Ref: Mail Command Index: tags42927
+Ref: Mail Command Index: block43993
+Ref: Mail Command Index: unblock44030
+Ref: Mail Command Index: close44515
+Ref: Mail Command Index: package45165
+Ref: Mail Command Index: owner45777
+Ref: Mail Command Index: noowner46140
+Ref: Mail Command Index: archive46313
+Ref: Mail Command Index: unarchive46454
+Ref: Mail Command Index: #46747
+Ref: Mail Command Index: quit47007
+Ref: Mail Command Index: stop47014
+Ref: Mail Command Index: thank47021
+Ref: Mail Command Index: thanks47029
+Ref: Mail Command Index: thankyou47038
+Ref: Mail Command Index: thank you47049
+Ref: Mail Command Index: --47061
 
 End Tag Table

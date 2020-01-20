@@ -8,7 +8,7 @@
 @end direntry
 
 @copying
-Copyright @copyright{} 2015-2019 Free Software Foundation, Inc.
+Copyright @copyright{} 2015-2020 Free Software Foundation, Inc.
 
 @quotation
 Permission is granted to copy, distribute and/or modify this document
@@ -84,9 +84,11 @@ called with a prefix.
 When the bug numbers to be retrieved are known, the commands
 @code{debbugs-gnu-bugs} or @code{debbugs-org-bugs} are applicable.
 
-The commands @code{debbugs-gnu-patches} / @code{debbugs-org-patches}
-and @code{debbugs-gnu-tagged} / @code{debbugs-org-tagged} retrieve
-bugs with a predefined filter.
+The commands @code{debbugs-gnu-patches} / @code{debbugs-org-patches},
+@code{debbugs-gnu-tagged} / @code{debbugs-org-tagged} and
+@code{debbugs-gnu-emacs-release-blocking-reports} /
+@code{debbugs-org-emacs-release-blocking-reports} retrieve bugs with a
+predefined filter.
 
 
 @deffn  {Command} debbugs-gnu severities &optional packages archivedp suppress tags
@@ -188,6 +190,19 @@ show all bugs tagged locally.  This list is useful for keeping track
 of bugs you are currently working on.
 
 @ref{Presenting Bugs} for the presentation of the results.
+@end deffn
+
+
+@deffn  {Command} debbugs-gnu-emacs-release-blocking-reports &optional release
+@deffnx {Command} debbugs-org-emacs-release-blocking-reports &optional release
+
+The package @code{"emacs"} has the additional commands
+@code{debbugs-gnu-emacs-release-blocking-reports} and
+@code{debbugs-org-emacs-release-blocking-reports}, which show all
+blocking bugs for a given Emacs release.  The user option
+@code{debbugs-gnu-emacs-current-release} contains the release number
+the blocking reports are selected for; a prefix argument allows to
+change this when called interactively.
 @end deffn
 
 

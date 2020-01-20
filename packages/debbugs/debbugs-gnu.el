@@ -1,6 +1,6 @@
 ;;; debbugs-gnu.el --- interface for the GNU bug tracker  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2011-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2020 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;;         Michael Albinus <michael.albinus@gmx.de>
@@ -37,6 +37,7 @@
 ;;   (autoload 'debbugs-gnu-usertags "debbugs-gnu" "" 'interactive)
 ;;   (autoload 'debbugs-gnu-patches "debbugs-gnu" "" 'interactive)
 ;;   (autoload 'debbugs-gnu-tagged "debbugs-gnu" "" 'interactive)
+;;   (autoload 'debbugs-org-emacs-release-blocking-reports "debbugs-org" "" 'interactive)
 ;;   (autoload 'debbugs-gnu-bugs "debbugs-gnu" "" 'interactive)
 
 ;; The bug tracker is called interactively by
@@ -147,6 +148,11 @@
 ;;    M-x debbugs-gnu-tagged
 
 ;; This command shows just the locally tagged bugs.
+
+;; For the Emacs package, there is a special command, which shows
+;; release critical bugs
+;;
+;;    M-x debbugs-gnu-emacs-release-blocking-reports
 
 ;; Finally, if you simply want to list some bugs with known bug
 ;; numbers, call the command
@@ -394,20 +400,22 @@ a date, value is the cons cell \(BEFORE . AFTER\).")
 The specification which bugs shall be suppressed is taken from
   `debbugs-gnu-default-suppress-bugs'.")
 
-(defcustom debbugs-gnu-emacs-current-release "25.2"
+(defcustom debbugs-gnu-emacs-current-release "27.1"
   "The current Emacs relase developped for."
   :type '(choice (const "24.5")
 		 (const "25.1") (const "25.2")
 		 (const "26.1") (const "26.2") (const "26.3")
-		 (const "27.1"))
-  :version "26.3")
+		 (const "27.1")
+		 (const "28.1"))
+  :version "27.1")
 
-;; The current Emacs maintainer doesn't use this anymore.
 (defconst debbugs-gnu-emacs-blocking-reports
   '(("24.5" . 19758)
     ("25.1" . 19759)
     ("25.2" . 21966)
-    ("26.1" . 24655))
+    ("26.1" . 24655)
+    ("27.1" . 39200)
+    ("28.1" . 24655))
   "The IDs of the Emacs report used to track blocking bug reports.
 It is a list of cons cells, each one containing the Emacs
 version (a string) and the bug report number (a number).")
@@ -816,7 +824,7 @@ are taken from the cache instead."
 	(setq words
 	      (string-join (cl-delete-duplicates words :test #'equal) ","))
 	(when (or (not merged)
-		  (not (let ((found nil))
+		  (not (let (found)
 			 (dolist (id (if (listp merged)
 					 merged
 				       (list merged)))
@@ -1266,6 +1274,23 @@ Interactively, it is non-nil with the prefix argument."
     (when id
       (debbugs-gnu-goto id))))
 
+(defun debbugs-gnu-emacs-release-blocking-reports (&optional release)
+  "Show the reports that are blocking an Emacs release."
+  (interactive
+   (list
+    (if current-prefix-arg
+	(completing-read
+	 "Emacs release: "
+	 (mapcar #'identity debbugs-gnu-emacs-blocking-reports)
+	 nil t debbugs-gnu-emacs-current-release)
+      debbugs-gnu-emacs-current-release)))
+
+  (if-let* ((id (alist-get
+		 release debbugs-gnu-emacs-blocking-reports nil nil #'equal))
+	    (blockers (alist-get 'blockedby (car (debbugs-get-status id)))))
+      (apply #'debbugs-gnu-bugs blockers)
+    (message "There are no release blocking bugs for Emacs %s" release)))
+
 (defun debbugs-gnu-narrow-to-status (string &optional status-only)
   "Only display the bugs matching STRING.
 If STATUS-ONLY (the prefix), ignore matches in the From and
@@ -1707,11 +1732,11 @@ removed instead."
                        (save-excursion
                          (save-restriction
                            (message-narrow-to-headers)
-                           (or (let ((addr (message-fetch-field "to")))
-                                 (and addr (string-match bugnum-re addr)
-                                      (string-to-number (match-string 1 addr))))
-                               (let ((addr (message-fetch-field "cc")))
-                                 (and addr (string-match bugnum-re addr)
+                           (or (when-let ((addr (message-fetch-field "to")))
+                                 (and (string-match bugnum-re addr)
+				      (string-to-number (match-string 1 addr))))
+                               (when-let ((addr (message-fetch-field "cc")))
+                                 (and (string-match bugnum-re addr)
                                       (string-to-number
 				       (match-string 1 addr)))))))))))))
 
@@ -1885,7 +1910,7 @@ removed instead."
 (defun debbugs-gnu-jump-to-bug (bugid)
   "Display buffer associated with BUGID with `pop-to-buffer'.
 Use `gnus-read-ephemeral-emacs-bug-group' instead if there is no such buffer."
-  (let ((bug-buf nil)
+  (let (bug-buf
         ;; By reverse order of preference.  FIXME: `rmail' buffers?
         (preferred-modes '(gnus-summary-mode gnus-article-mode message-mode)))
     (save-current-buffer
@@ -1975,18 +2000,18 @@ REMOTE-INFO is return value of `debbugs-gnu--git-remote-info'."
              "log" "-1" "--format=%H" commit-range)
             (goto-char (point-min))
             (buffer-substring (point-min) (line-end-position))))
-         (remote (pop remote-info)))
-    (let ((ref-globs (alist-get 'ref-globs remote-info)))
-      (with-temp-buffer
-        (apply
-         #'debbugs-gnu--git-insert
-         "branch" "--remote" "--contains" last-commit
-         (mapcar (lambda (glob) (concat remote glob))
-                 ref-globs))
-        ;; First 2 characters are current branch indicator.
-        (goto-char (+ (point-min) 2))
-        (and (looking-at (concat (regexp-quote remote) "/\\(.+\\)$"))
-             (match-string 1))))))
+         (remote (pop remote-info))
+	 (ref-globs (alist-get 'ref-globs remote-info)))
+    (with-temp-buffer
+      (apply
+       #'debbugs-gnu--git-insert
+       "branch" "--remote" "--contains" last-commit
+       (mapcar (lambda (glob) (concat remote glob))
+               ref-globs))
+      ;; First 2 characters are current branch indicator.
+      (goto-char (+ (point-min) 2))
+      (and (looking-at (concat (regexp-quote remote) "/\\(.+\\)$"))
+           (match-string 1)))))
 
 (defun debbugs-gnu-announce-commit (commit-range bugnum &optional _args)
   "Insert info about COMMIT-RANGE into message.
@@ -2241,8 +2266,9 @@ successfully sent."
   (interactive)
   (when (mouse-event-p last-input-event) (mouse-set-point last-input-event))
   ;; We open the bug reports.
-  (let ((args (get-text-property (line-beginning-position) 'tabulated-list-id)))
-    (when args (apply #'debbugs-gnu args))))
+  (when-let ((args
+	      (get-text-property (line-beginning-position) 'tabulated-list-id)))
+    (apply #'debbugs-gnu args)))
 
 (defcustom debbugs-gnu-default-bug-number-list
   (propertize "-10" 'help-echo "The 10 most recent bugs.")
