@@ -2317,10 +2317,9 @@ or bug ranges, with default to `debbugs-gnu-default-bug-number-list'."
 (defun debbugs-gnu-init-current-directory (&optional branch)
 "Initialize `debbugs-gnu-current-directory'."
   (setq debbugs-gnu-current-directory
-	(or debbugs-gnu-current-directory
-	    (if branch
-		debbugs-gnu-branch-directory
-	      debbugs-gnu-trunk-directory)))
+	(if branch
+	    debbugs-gnu-branch-directory
+	  debbugs-gnu-trunk-directory))
   (unless (file-directory-p debbugs-gnu-current-directory)
     (setq debbugs-gnu-current-directory
 	  (read-file-name
