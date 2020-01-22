@@ -7,7 +7,7 @@
 ;; Created:     22. Sep. 2011
 ;; Keywords:    demo, svg, clock
 ;; Version:     1.1
-;; Package-Requires: ((svg "0.1") (emacs "25.0"))
+;; Package-Requires: ((svg "1.0") (emacs "27.0"))
 
 ;; This file is part of GNU Emacs.
 
@@ -60,11 +60,12 @@
 ;;    Initial version.
 
 ;;; Code:
-(defconst svg-clock-version "0.5" "Version number of `svg-clock'.")
+(defconst svg-clock-version "1.1" "Version number of `svg-clock'.")
 
 (require 'dom)
 (require 'svg)
 (require 'cl-macs)
+(require 'time-date)
 
 (cl-defstruct svg-clock-handle
   marker  ;; points to the clock's buffer and position
