@@ -53,4 +53,3 @@
 ./uni-confusables/uni-confusables.el
 ./uni-confusables/uni-confusables.el:;; Copyright (C) 1991-2009, 2010 Unicode, Inc.
 ./uni-confusables/uni-confusables.el:;; for the copyright and permission notice.
-./w3/w3-cus.el:  ;; Glossary, Copyright, Chapter, Section, Subsection, Appendix,
