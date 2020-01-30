@@ -2,7 +2,7 @@
 --
 --  See spec
 --
---  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -245,7 +245,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
 
       if Trace_McKenzie > Outline then
          Trace.New_Line;
-         Trace.Put_Line (System.Multiprocessors.CPU_Range'Image (Worker_Tasks'Last) & " parallel tasks");
+         Trace.Put_Line (Task_Count'Image & " parallel tasks");
       end if;
 
       for I in Worker_Tasks'First .. Task_Count loop
@@ -718,8 +718,10 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
    when E : others =>
       if Debug_Mode then
          Trace.Put (Ada.Exceptions.Exception_Name (E) & ": " & Ada.Exceptions.Exception_Message (E));
+         raise;
+      else
+         return Fail_Programmer_Error;
       end if;
-      return Fail_Programmer_Error;
    end Recover;
 
    ----------
@@ -921,12 +923,20 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
       Config    : in out Configuration;
       Index     : in out WisiToken.Token_Index;
       ID        : in     Token_ID)
+   is begin
+      Check (Terminals (Index).ID, ID);
+      Delete (Terminals, Config, Index);
+   end Delete_Check;
+
+   procedure Delete
+     (Terminals : in     Base_Token_Arrays.Vector;
+      Config    : in out Configuration;
+      Index     : in out WisiToken.Token_Index)
    is
       use Config_Op_Arrays;
       use Sorted_Insert_Delete_Arrays;
-      Op : constant Config_Op := (Delete, ID, Index);
+      Op : constant Config_Op := (Delete, Terminals (Index).ID, Index);
    begin
-      Check (Terminals (Index).ID, ID);
       if Is_Full (Config.Ops) or Is_Full (Config.Insert_Delete) then
          raise Bad_Config;
       end if;
@@ -934,7 +944,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
       Insert (Config.Insert_Delete, Op);
       Config.Current_Insert_Delete := 1;
       Index := Index + 1;
-   end Delete_Check;
+   end Delete;
 
    procedure Find_ID
      (Config         : in     Configuration;
@@ -1057,17 +1067,8 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
    end Find_Matching_Name;
 
    procedure Insert (Config : in out Configuration; ID : in Token_ID)
-   is
-      use Config_Op_Arrays;
-      use Sorted_Insert_Delete_Arrays;
-      Op : constant Config_Op := (Insert, ID, Config.Current_Shared_Token, Unknown_State, 0);
-   begin
-      if Is_Full (Config.Ops) or Is_Full (Config.Insert_Delete) then
-         raise Bad_Config;
-      end if;
-      Append (Config.Ops, Op);
-      Insert (Config.Insert_Delete, Op);
-      Config.Current_Insert_Delete := 1;
+   is begin
+      Insert (Config, Config.Current_Shared_Token, ID);
    end Insert;
 
    procedure Insert (Config : in out Configuration; IDs : in Token_ID_Array)
@@ -1075,6 +1076,20 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
       for ID of IDs loop
          Insert (Config, ID);
       end loop;
+   end Insert;
+
+   procedure Insert (Config : in out Configuration; Index : in WisiToken.Token_Index; ID : in Token_ID)
+   is
+      use Config_Op_Arrays;
+      use Sorted_Insert_Delete_Arrays;
+      Op : constant Config_Op := (Insert, ID, Index, Unknown_State, 0);
+   begin
+      if Is_Full (Config.Ops) or Is_Full (Config.Insert_Delete) then
+         raise Bad_Config;
+      end if;
+      Append (Config.Ops, Op);
+      Insert (Config.Insert_Delete, Op);
+      Config.Current_Insert_Delete := 1;
    end Insert;
 
    function Next_Token

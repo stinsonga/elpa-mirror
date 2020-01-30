@@ -546,7 +546,8 @@ package WisiToken.Parse.LR is
    --  which is true if they were copied from the parser stack, and not
    --  pushed by recover.
 
-   type Strategies is (Language_Fix, Minimal_Complete, Matching_Begin, Explore_Table, String_Quote);
+   type Strategies is
+     (Language_Fix, Minimal_Complete, Matching_Begin, Push_Back, Undo_Reduce, Insert, Delete, String_Quote);
 
    type Strategy_Counts is array (Strategies) of Natural;
    function Image is new SAL.Gen_Array_Image (Strategies, Natural, Strategy_Counts, Trimmed_Image);

@@ -123,7 +123,9 @@ in the window."
   "Display markers in the left and right fringe for each buffer position in POSITIONS.
 The buffer containing POSITIONS must be current, and the window
 displaying that buffer must be current."
-  ;; FIXME: recompute fringe display on scroll!
+  ;; We don't recompute fringe display on scroll, because the user
+  ;; will probably have edited the code by then, triggering a new
+  ;; parse.
   (wisi-fringe-clean)
   (let (scaled-posns
 	(buffer-lines (line-number-at-pos (point-max)))

@@ -4,4 +4,4 @@
 # wisitoken development tree; see
 # http://stephe-leake.org/ada/wisitoken.html
 
-gprbuild -p -P wisi.gpr wisitoken-bnf-generate
+gprbuild -p -j8 -P wisi.gpr wisitoken-bnf-generate

@@ -100,6 +100,7 @@ package WisiToken.Semantic_Checks is
       Nonterm                 : in Recover_Token)
      return Check_Status;
    pragma Inline (Terminate_Partial_Parse);
-   --  If Active, raise Wisitoken.Partial_Parse; otherwise return Ok.
+   --  If partial parse is complete, raise Wisitoken.Partial_Parse;
+   --  otherwise return Ok.
 
 end WisiToken.Semantic_Checks;

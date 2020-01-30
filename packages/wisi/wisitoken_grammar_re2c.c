@@ -59,7 +59,7 @@ wisi_lexer* wisitoken_grammar_new_lexer
    result->buffer_last       = input + length - 1;
    result->cursor            = input;
    result->byte_token_start  = input;
-   result->char_pos          = 1;
+   result->char_pos          = 1; /* match WisiToken.Buffer_Region */
    result->char_token_start  = 1;
    result->line              = (*result->cursor == 0x0A) ? 2 : 1;
    result->line_token_start  = result->line;
@@ -97,16 +97,22 @@ static void debug(wisi_lexer* lexer, int state, unsigned char ch)
 
 #define YYPEEK() (lexer->cursor <= lexer->buffer_last) ? *lexer->cursor : 4
 
-#define DO_COUNT ((*lexer->cursor & 0xC0) != 0xC0) && (*lexer->cursor != 0x0D)
-
 static void skip(wisi_lexer* lexer)
 {
    if (lexer->cursor <= lexer->buffer_last)
-   {
       ++lexer->cursor;
-      if (DO_COUNT) ++lexer->char_pos;
-      if (lexer->cursor <= lexer->buffer_last)
-         if (*lexer->cursor == 0x0A) ++lexer->line;
+   if (lexer->cursor <= lexer->buffer_last)
+   {
+      /* UFT-8 encoding: https://en.wikipedia.org/wiki/UTF-8#Description */
+      if (*lexer->cursor == 0x0A && lexer->cursor > lexer->buffer && *(lexer->cursor - 1) == 0x0D)
+        {/* second byte of DOS line ending */
+        }
+      else if ((*lexer->cursor & 0x80) == 0x80 && (*lexer->cursor & 0xC0) != 0xC0)
+        {/* byte 2, 3 or 4 of multi-byte UTF-8 char */
+        }
+      else
+        ++lexer->char_pos;
+      if (*lexer->cursor == 0x0A) ++lexer->line;
    }
 }
 #define YYSKIP() skip(lexer)
@@ -173,7 +179,7 @@ int wisitoken_grammar_next_token
    while (*id == -1 && status == 0)
    {
 
-#line 177 "../wisitoken_grammar_re2c.c"
+#line 183 "../wisitoken_grammar_re2c.c"
 {
 	YYCTYPE yych;
 	unsigned int yyaccept = 0;
@@ -326,21 +332,21 @@ yy2:
 	YYSKIP ();
 yy3:
 	YYDEBUG(3, YYPEEK ());
-#line 255 "../wisitoken_grammar.re2c"
+#line 261 "../wisitoken_grammar.re2c"
 	{status = ERROR_unrecognized_character; continue;}
-#line 332 "../wisitoken_grammar_re2c.c"
+#line 338 "../wisitoken_grammar_re2c.c"
 yy4:
 	YYDEBUG(4, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(5, YYPEEK ());
-#line 253 "../wisitoken_grammar.re2c"
+#line 259 "../wisitoken_grammar.re2c"
 	{*id =  36; continue;}
-#line 339 "../wisitoken_grammar_re2c.c"
+#line 345 "../wisitoken_grammar_re2c.c"
 yy6:
 	YYDEBUG(6, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(7, YYPEEK ());
-#line 211 "../wisitoken_grammar.re2c"
+#line 217 "../wisitoken_grammar.re2c"
 	{ lexer->byte_token_start = lexer->cursor;
           lexer->char_token_start = lexer->char_pos;
           if (*lexer->cursor == 0x0A)
@@ -348,14 +354,14 @@ yy6:
           else
              lexer->line_token_start = lexer->line;
           continue; }
-#line 352 "../wisitoken_grammar_re2c.c"
+#line 358 "../wisitoken_grammar_re2c.c"
 yy8:
 	YYDEBUG(8, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(9, YYPEEK ());
-#line 218 "../wisitoken_grammar.re2c"
+#line 224 "../wisitoken_grammar.re2c"
 	{*id =  1; continue;}
-#line 359 "../wisitoken_grammar_re2c.c"
+#line 365 "../wisitoken_grammar_re2c.c"
 yy10:
 	YYDEBUG(10, YYPEEK ());
 	YYSKIP ();
@@ -532,9 +538,9 @@ yy12:
 	}
 yy13:
 	YYDEBUG(13, YYPEEK ());
-#line 240 "../wisitoken_grammar.re2c"
+#line 246 "../wisitoken_grammar.re2c"
 	{*id =  23; continue;}
-#line 538 "../wisitoken_grammar_re2c.c"
+#line 544 "../wisitoken_grammar_re2c.c"
 yy14:
 	YYDEBUG(14, YYPEEK ());
 	yyaccept = 0;
@@ -695,37 +701,37 @@ yy15:
 	YYDEBUG(15, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(16, YYPEEK ());
-#line 237 "../wisitoken_grammar.re2c"
+#line 243 "../wisitoken_grammar.re2c"
 	{*id =  20; continue;}
-#line 701 "../wisitoken_grammar_re2c.c"
+#line 707 "../wisitoken_grammar_re2c.c"
 yy17:
 	YYDEBUG(17, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(18, YYPEEK ());
-#line 245 "../wisitoken_grammar.re2c"
+#line 251 "../wisitoken_grammar.re2c"
 	{*id =  28; continue;}
-#line 708 "../wisitoken_grammar_re2c.c"
+#line 714 "../wisitoken_grammar_re2c.c"
 yy19:
 	YYDEBUG(19, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(20, YYPEEK ());
-#line 248 "../wisitoken_grammar.re2c"
+#line 254 "../wisitoken_grammar.re2c"
 	{*id =  31; continue;}
-#line 715 "../wisitoken_grammar_re2c.c"
+#line 721 "../wisitoken_grammar_re2c.c"
 yy21:
 	YYDEBUG(21, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(22, YYPEEK ());
-#line 241 "../wisitoken_grammar.re2c"
+#line 247 "../wisitoken_grammar.re2c"
 	{*id =  24; continue;}
-#line 722 "../wisitoken_grammar_re2c.c"
+#line 728 "../wisitoken_grammar_re2c.c"
 yy23:
 	YYDEBUG(23, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(24, YYPEEK ());
-#line 232 "../wisitoken_grammar.re2c"
+#line 238 "../wisitoken_grammar.re2c"
 	{*id =  15; continue;}
-#line 729 "../wisitoken_grammar_re2c.c"
+#line 735 "../wisitoken_grammar_re2c.c"
 yy25:
 	YYDEBUG(25, YYPEEK ());
 	YYSKIP ();
@@ -746,16 +752,16 @@ yy25:
 	}
 yy26:
 	YYDEBUG(26, YYPEEK ());
-#line 239 "../wisitoken_grammar.re2c"
+#line 245 "../wisitoken_grammar.re2c"
 	{*id =  22; continue;}
-#line 752 "../wisitoken_grammar_re2c.c"
+#line 758 "../wisitoken_grammar_re2c.c"
 yy27:
 	YYDEBUG(27, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(28, YYPEEK ());
-#line 247 "../wisitoken_grammar.re2c"
+#line 253 "../wisitoken_grammar.re2c"
 	{*id =  30; continue;}
-#line 759 "../wisitoken_grammar_re2c.c"
+#line 765 "../wisitoken_grammar_re2c.c"
 yy29:
 	YYDEBUG(29, YYPEEK ());
 	YYSKIP ();
@@ -777,9 +783,9 @@ yy29:
 	}
 yy31:
 	YYDEBUG(31, YYPEEK ());
-#line 249 "../wisitoken_grammar.re2c"
+#line 255 "../wisitoken_grammar.re2c"
 	{*id =  32; continue;}
-#line 783 "../wisitoken_grammar_re2c.c"
+#line 789 "../wisitoken_grammar_re2c.c"
 yy32:
 	YYDEBUG(32, YYPEEK ());
 	yyaccept = 1;
@@ -792,9 +798,9 @@ yy32:
 	}
 yy33:
 	YYDEBUG(33, YYPEEK ());
-#line 230 "../wisitoken_grammar.re2c"
+#line 236 "../wisitoken_grammar.re2c"
 	{*id =  13; continue;}
-#line 798 "../wisitoken_grammar_re2c.c"
+#line 804 "../wisitoken_grammar_re2c.c"
 yy34:
 	YYDEBUG(34, YYPEEK ());
 	YYSKIP ();
@@ -805,37 +811,37 @@ yy34:
 	}
 yy35:
 	YYDEBUG(35, YYPEEK ());
-#line 246 "../wisitoken_grammar.re2c"
+#line 252 "../wisitoken_grammar.re2c"
 	{*id =  29; continue;}
-#line 811 "../wisitoken_grammar_re2c.c"
+#line 817 "../wisitoken_grammar_re2c.c"
 yy36:
 	YYDEBUG(36, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(37, YYPEEK ());
-#line 238 "../wisitoken_grammar.re2c"
+#line 244 "../wisitoken_grammar.re2c"
 	{*id =  21; continue;}
-#line 818 "../wisitoken_grammar_re2c.c"
+#line 824 "../wisitoken_grammar_re2c.c"
 yy38:
 	YYDEBUG(38, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(39, YYPEEK ());
-#line 233 "../wisitoken_grammar.re2c"
+#line 239 "../wisitoken_grammar.re2c"
 	{*id =  16; continue;}
-#line 825 "../wisitoken_grammar_re2c.c"
+#line 831 "../wisitoken_grammar_re2c.c"
 yy40:
 	YYDEBUG(40, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(41, YYPEEK ());
-#line 234 "../wisitoken_grammar.re2c"
+#line 240 "../wisitoken_grammar.re2c"
 	{*id =  17; continue;}
-#line 832 "../wisitoken_grammar_re2c.c"
+#line 838 "../wisitoken_grammar_re2c.c"
 yy42:
 	YYDEBUG(42, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(43, YYPEEK ());
-#line 242 "../wisitoken_grammar.re2c"
+#line 248 "../wisitoken_grammar.re2c"
 	{*id =  25; continue;}
-#line 839 "../wisitoken_grammar_re2c.c"
+#line 845 "../wisitoken_grammar_re2c.c"
 yy44:
 	YYDEBUG(44, YYPEEK ());
 	yyaccept = 2;
@@ -964,23 +970,23 @@ yy45:
 	}
 yy46:
 	YYDEBUG(46, YYPEEK ());
-#line 250 "../wisitoken_grammar.re2c"
+#line 256 "../wisitoken_grammar.re2c"
 	{*id =  33; continue;}
-#line 970 "../wisitoken_grammar_re2c.c"
+#line 976 "../wisitoken_grammar_re2c.c"
 yy47:
 	YYDEBUG(47, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(48, YYPEEK ());
-#line 236 "../wisitoken_grammar.re2c"
+#line 242 "../wisitoken_grammar.re2c"
 	{*id =  19; continue;}
-#line 977 "../wisitoken_grammar_re2c.c"
+#line 983 "../wisitoken_grammar_re2c.c"
 yy49:
 	YYDEBUG(49, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(50, YYPEEK ());
-#line 244 "../wisitoken_grammar.re2c"
+#line 250 "../wisitoken_grammar.re2c"
 	{*id =  27; continue;}
-#line 984 "../wisitoken_grammar_re2c.c"
+#line 990 "../wisitoken_grammar_re2c.c"
 yy51:
 	YYDEBUG(51, YYPEEK ());
 	yyaccept = 2;
@@ -1045,23 +1051,23 @@ yy57:
 	YYDEBUG(57, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(58, YYPEEK ());
-#line 235 "../wisitoken_grammar.re2c"
+#line 241 "../wisitoken_grammar.re2c"
 	{*id =  18; continue;}
-#line 1051 "../wisitoken_grammar_re2c.c"
+#line 1057 "../wisitoken_grammar_re2c.c"
 yy59:
 	YYDEBUG(59, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(60, YYPEEK ());
-#line 229 "../wisitoken_grammar.re2c"
+#line 235 "../wisitoken_grammar.re2c"
 	{*id =  12; continue;}
-#line 1058 "../wisitoken_grammar_re2c.c"
+#line 1064 "../wisitoken_grammar_re2c.c"
 yy61:
 	YYDEBUG(61, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(62, YYPEEK ());
-#line 243 "../wisitoken_grammar.re2c"
+#line 249 "../wisitoken_grammar.re2c"
 	{*id =  26; continue;}
-#line 1065 "../wisitoken_grammar_re2c.c"
+#line 1071 "../wisitoken_grammar_re2c.c"
 yy63:
 	YYDEBUG(63, YYPEEK ());
 	YYSKIP ();
@@ -1587,9 +1593,9 @@ yy72:
 	}
 yy73:
 	YYDEBUG(73, YYPEEK ());
-#line 251 "../wisitoken_grammar.re2c"
+#line 257 "../wisitoken_grammar.re2c"
 	{*id =  34; continue;}
-#line 1593 "../wisitoken_grammar_re2c.c"
+#line 1599 "../wisitoken_grammar_re2c.c"
 yy74:
 	YYDEBUG(74, YYPEEK ());
 	YYSKIP ();
@@ -1924,23 +1930,23 @@ yy80:
 	YYDEBUG(80, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(81, YYPEEK ());
-#line 228 "../wisitoken_grammar.re2c"
+#line 234 "../wisitoken_grammar.re2c"
 	{*id =  11; skip_to(lexer, ")%"); continue;}
-#line 1930 "../wisitoken_grammar_re2c.c"
+#line 1936 "../wisitoken_grammar_re2c.c"
 yy82:
 	YYDEBUG(82, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(83, YYPEEK ());
-#line 227 "../wisitoken_grammar.re2c"
+#line 233 "../wisitoken_grammar.re2c"
 	{*id =  10; skip_to(lexer, "]%"); continue;}
-#line 1937 "../wisitoken_grammar_re2c.c"
+#line 1943 "../wisitoken_grammar_re2c.c"
 yy84:
 	YYDEBUG(84, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(85, YYPEEK ());
-#line 226 "../wisitoken_grammar.re2c"
+#line 232 "../wisitoken_grammar.re2c"
 	{*id =  9; skip_to(lexer, "}%"); continue;}
-#line 1944 "../wisitoken_grammar_re2c.c"
+#line 1950 "../wisitoken_grammar_re2c.c"
 yy86:
 	YYDEBUG(86, YYPEEK ());
 	YYSKIP ();
@@ -2109,9 +2115,9 @@ yy88:
 	}
 yy89:
 	YYDEBUG(89, YYPEEK ());
-#line 252 "../wisitoken_grammar.re2c"
+#line 258 "../wisitoken_grammar.re2c"
 	{*id =  35; continue;}
-#line 2115 "../wisitoken_grammar_re2c.c"
+#line 2121 "../wisitoken_grammar_re2c.c"
 yy90:
 	YYDEBUG(90, YYPEEK ());
 	YYSKIP ();
@@ -2639,9 +2645,9 @@ yy97:
 	}
 yy99:
 	YYDEBUG(99, YYPEEK ());
-#line 219 "../wisitoken_grammar.re2c"
+#line 225 "../wisitoken_grammar.re2c"
 	{*id =  2; continue;}
-#line 2645 "../wisitoken_grammar_re2c.c"
+#line 2651 "../wisitoken_grammar_re2c.c"
 yy100:
 	YYDEBUG(100, YYPEEK ());
 	YYSKIP ();
@@ -3118,9 +3124,9 @@ yy108:
 	}
 yy109:
 	YYDEBUG(109, YYPEEK ());
-#line 222 "../wisitoken_grammar.re2c"
+#line 228 "../wisitoken_grammar.re2c"
 	{*id =  5; continue;}
-#line 3124 "../wisitoken_grammar_re2c.c"
+#line 3130 "../wisitoken_grammar_re2c.c"
 yy110:
 	YYDEBUG(110, YYPEEK ());
 	yyaccept = 2;
@@ -3155,9 +3161,9 @@ yy113:
 	YYDEBUG(113, YYPEEK ());
 	YYSKIP ();
 	YYDEBUG(114, YYPEEK ());
-#line 231 "../wisitoken_grammar.re2c"
+#line 237 "../wisitoken_grammar.re2c"
 	{*id =  14; continue;}
-#line 3161 "../wisitoken_grammar_re2c.c"
+#line 3167 "../wisitoken_grammar_re2c.c"
 yy115:
 	YYDEBUG(115, YYPEEK ());
 	YYSKIP ();
@@ -3624,9 +3630,9 @@ yy122:
 	}
 yy123:
 	YYDEBUG(123, YYPEEK ());
-#line 221 "../wisitoken_grammar.re2c"
+#line 227 "../wisitoken_grammar.re2c"
 	{*id =  4; continue;}
-#line 3630 "../wisitoken_grammar_re2c.c"
+#line 3636 "../wisitoken_grammar_re2c.c"
 yy124:
 	YYDEBUG(124, YYPEEK ());
 	yyaccept = 2;
@@ -3783,9 +3789,9 @@ yy127:
 	}
 yy128:
 	YYDEBUG(128, YYPEEK ());
-#line 220 "../wisitoken_grammar.re2c"
+#line 226 "../wisitoken_grammar.re2c"
 	{*id =  3; continue;}
-#line 3789 "../wisitoken_grammar_re2c.c"
+#line 3795 "../wisitoken_grammar_re2c.c"
 yy129:
 	YYDEBUG(129, YYPEEK ());
 	yyaccept = 2;
@@ -3962,9 +3968,9 @@ yy134:
 	}
 yy135:
 	YYDEBUG(135, YYPEEK ());
-#line 225 "../wisitoken_grammar.re2c"
+#line 231 "../wisitoken_grammar.re2c"
 	{*id =  8; continue;}
-#line 3968 "../wisitoken_grammar_re2c.c"
+#line 3974 "../wisitoken_grammar_re2c.c"
 yy136:
 	YYDEBUG(136, YYPEEK ());
 	yyaccept = 2;
@@ -4111,9 +4117,9 @@ yy138:
 	}
 yy139:
 	YYDEBUG(139, YYPEEK ());
-#line 223 "../wisitoken_grammar.re2c"
+#line 229 "../wisitoken_grammar.re2c"
 	{*id =  6; continue;}
-#line 4117 "../wisitoken_grammar_re2c.c"
+#line 4123 "../wisitoken_grammar_re2c.c"
 yy140:
 	YYDEBUG(140, YYPEEK ());
 	yyaccept = 2;
@@ -4280,20 +4286,18 @@ yy144:
 	}
 yy145:
 	YYDEBUG(145, YYPEEK ());
-#line 224 "../wisitoken_grammar.re2c"
+#line 230 "../wisitoken_grammar.re2c"
 	{*id =  7; continue;}
-#line 4286 "../wisitoken_grammar_re2c.c"
+#line 4292 "../wisitoken_grammar_re2c.c"
 }
-#line 256 "../wisitoken_grammar.re2c"
+#line 262 "../wisitoken_grammar.re2c"
 
-      }
+   }
+   /* lexer->cursor and lexer ->char_pos are one char past end of token */
    *byte_position = lexer->byte_token_start - lexer->buffer + 1;
    *byte_length   = lexer->cursor - lexer->byte_token_start;
    *char_position = lexer->char_token_start;
-   if (DO_COUNT)
-      *char_length = lexer->char_pos - lexer->char_token_start;
-   else
-      *char_length = lexer->char_pos - lexer->char_token_start + 1;
-   *line_start     = lexer->line_token_start;
+   *char_length   = lexer->char_pos - lexer->char_token_start;
+   *line_start    = lexer->line_token_start;
    return status;
    }

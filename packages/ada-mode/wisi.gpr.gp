@@ -1,6 +1,7 @@
 --  Abstract :
 --
---  Make installed ELPA package wisi Ada code available for other projects.
+--  Make installed and source ELPA package wisi Ada code available for
+--  other projects.
 --
 --  Copyright (C) 2017, 2019 Free Software Foundation, Inc.
 --
@@ -18,6 +19,10 @@
 
 with "gnatcoll";
 with "standard_common";
+#if ELPA="no"
+with "sal";
+with "wisitoken";
+#end if;
 project Wisi is
 
    for Source_Dirs use (".");

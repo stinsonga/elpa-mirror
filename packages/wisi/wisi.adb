@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -95,7 +95,7 @@ package body Wisi is
       Indent       : in out Indent_Type)
    with Pre => Delta_Indent.Label = Anchored
    is begin
-      --  [2] wisi-elisp-parse--apply-anchored; add Delta_Indent to Indent
+      --  Add Delta_Indent to Indent
 
       case Indent.Label is
       when Not_Set =>
@@ -130,7 +130,7 @@ package body Wisi is
 
    procedure Indent_Apply_Int (Indent : in out Indent_Type; Offset : in Integer)
    is begin
-      --  [2] wisi-elisp-parse--apply-int; add an Int indent to Indent
+      --  Add an Int indent to Indent
       case Indent.Label is
       when Not_Set =>
          Indent := (Int, Offset);
@@ -255,8 +255,6 @@ package body Wisi is
       Paren_Char_Pos : Buffer_Pos       := Invalid_Buffer_Pos;
       Text_Begin_Pos : Buffer_Pos       := Invalid_Buffer_Pos;
    begin
-      --  [1] wisi-elisp-parse--paren-in-anchor-line. That uses elisp syntax-ppss; here
-      --  we search Terminals.
       loop
          declare
             Tok : Augmented_Token renames Data.Terminals (I);
@@ -332,8 +330,8 @@ package body Wisi is
    begin
       if Cache.Face.Set then
          Append (Line, Face_Property_Code);
-         Append (Line, Buffer_Pos'Image (Cache.Region.First));
-         Append (Line, Buffer_Pos'Image (Cache.Region.Last));
+         Append (Line, Buffer_Pos'Image (Cache.Char_Region.First));
+         Append (Line, Buffer_Pos'Image (Cache.Char_Region.Last));
          Append (Line, Integer'Image (Cache.Face.Item));
          Append (Line, ']');
          Ada.Text_IO.Put_Line (To_String (Line));
@@ -644,7 +642,7 @@ package body Wisi is
       Data.Terminals.Clear;
       Data.Leading_Non_Grammar.Clear;
       --  Data.Line_Begin_Pos  set in Initialize, overwritten in Lexer_To_Augmented
-      --  Data.Line_Begin_Token  ""
+      --  Data.Line_Begin_Token set in WisiToken.Parse.Next_Grammar_Token.
 
       for S of Data.Line_Paren_State loop
          S := 0;
@@ -1102,7 +1100,7 @@ package body Wisi is
               (File_Name => Data.Lexer.File_Name,
                Line      => Name_Token.Line,
                Column    => Name_Token.Column,
-               Message   => "wisi-name-action: name set twice.");
+               Message   => Trimmed_Image (Tree.Production_ID (Nonterm)) & ": wisi-name-action: name set twice.");
          else
             Data.Name_Caches.Insert (Name_Token.Char_Region);
          end if;
@@ -1116,7 +1114,6 @@ package body Wisi is
       Tokens  : in     Syntax_Trees.Valid_Node_Index_Array;
       Params  : in     Motion_Param_Array)
    is
-      --  [2] wisi-motion-action
       use Navigate_Cache_Trees;
 
       Start          : Nil_Buffer_Pos    := (Set => False);
@@ -1257,7 +1254,7 @@ package body Wisi is
                               Suf_Cache : Face_Cache_Type renames Data.Face_Caches (Suffix_Cur);
                            begin
                               if Suffix = Suf_Cache.Class and
-                                Inside (Suf_Cache.Region.First, Token.Char_Region)
+                                Inside (Suf_Cache.Char_Region.First, Token.Char_Region)
                               then
                                  Suf_Cache.Face := (True, Param.Suffix_Face);
                               end if;
@@ -1284,8 +1281,6 @@ package body Wisi is
       Params  : in     Face_Apply_Param_Array)
    is
       pragma Unreferenced (Nonterm);
-
-      --  [2] wisi-face-apply-list-action
       use Face_Cache_Trees;
 
       Iter      : constant Iterator := Data.Face_Caches.Iterate;
@@ -1299,7 +1294,7 @@ package body Wisi is
                Cache_Cur := Find_In_Range (Iter, Ascending, Token.Char_Region.First, Token.Char_Region.Last);
                loop
                   exit when not Has_Element (Cache_Cur) or else
-                    Data.Face_Caches (Cache_Cur).Region.First > Token.Char_Region.Last;
+                    Data.Face_Caches (Cache_Cur).Char_Region.First > Token.Char_Region.Last;
                   declare
                      Cache : Face_Cache_Type renames Data.Face_Caches (Cache_Cur);
                   begin
@@ -1342,19 +1337,19 @@ package body Wisi is
                   declare
                      Cache : Face_Cache_Type renames Data.Face_Caches (Cache_Cur);
                      Other_Cur : Cursor := Find_In_Range
-                       (Iter, Ascending, Cache.Region.Last + 1, Token.Char_Region.Last);
+                       (Iter, Ascending, Cache.Char_Region.Last + 1, Token.Char_Region.Last);
                      Temp : Cursor;
                   begin
                      loop
                         exit when not Has_Element (Other_Cur) or else
-                          Data.Face_Caches (Other_Cur).Region.First > Token.Char_Region.Last;
+                          Data.Face_Caches (Other_Cur).Char_Region.First > Token.Char_Region.Last;
                         Temp := Other_Cur;
                         Other_Cur := Next (Iter, Other_Cur);
                         Delete (Data.Face_Caches, Temp);
                      end loop;
 
-                     Cache.Class       := Param.Class;
-                     Cache.Region.Last := Token.Char_Region.Last;
+                     Cache.Class            := Param.Class;
+                     Cache.Char_Region.Last := Token.Char_Region.Last;
                   end;
                else
                   Data.Face_Caches.Insert ((Token.Char_Region, Param.Class, (Set => False)));
@@ -1372,8 +1367,6 @@ package body Wisi is
       Params  : in     Face_Remove_Param_Array)
    is
       pragma Unreferenced (Nonterm);
-
-      --  [2] wisi-face-remove-action
       use Face_Cache_Trees;
 
       Iter      : constant Iterator := Data.Face_Caches.Iterate;
@@ -1388,7 +1381,7 @@ package body Wisi is
                Cache_Cur := Find_In_Range (Iter, Ascending, Token.Char_Region.First, Token.Char_Region.Last);
                loop
                   exit when not Has_Element (Cache_Cur) or else
-                    Data.Face_Caches (Cache_Cur).Region.First > Token.Char_Region.Last;
+                    Data.Face_Caches (Cache_Cur).Char_Region.First > Token.Char_Region.Last;
                   Temp := Cache_Cur;
                   Cache_Cur := Next (Iter, Cache_Cur);
                   Delete (Data.Face_Caches, Temp);
@@ -1459,7 +1452,6 @@ package body Wisi is
          Ada.Text_IO.Put_Line (";; indent_action_0: " & Tree.Image (Nonterm, Data.Descriptor.all));
       end if;
 
-      --  [2] wisi-indent-action
       for I in Tokens'Range loop
          if Tree.Byte_Region (Tokens (I)) /= Null_Buffer_Region and
            I in Params'Range -- in some translated EBNF, not every token has an indent param
@@ -1520,7 +1512,6 @@ package body Wisi is
    is
       use all type Syntax_Trees.Node_Label;
    begin
-      --  [2] wisi-indent-action*
       for I in Tokens'First .. N loop
          if Tree.Label (Tokens (I)) /= Virtual_Terminal and then
            Get_Aug_Token (Data, Tree, Tokens (I)).First
@@ -1931,7 +1922,7 @@ package body Wisi is
       Accumulate  : in     Boolean)
      return Delta_Type
    is
-      --  [2] wisi-elisp-parse--anchored-2; return an anchored delta
+      --  Return an anchored delta
       use Anchor_ID_Vectors;
       --  We can't use a Reference here, because the Element in reference
       --  types is constrained (as are all allocated objects of access
@@ -1987,7 +1978,7 @@ package body Wisi is
    is
       Indenting_Token : constant Aug_Token_Ref := Get_Aug_Token (Data, Tree, Tree_Indenting);
    begin
-      --  [2] wisi-elisp-parse--indent-compute-delta, which evals wisi-anchored*, wisi-hanging*.
+      --  Evaluate wisi-anchored*, wisi-hanging*.
       case Param.Label is
       when Simple =>
          case Param.Param.Label is
@@ -2010,7 +2001,7 @@ package body Wisi is
                begin
                   case Anchored_Label'(Param.Param.Label) is
                   when Anchored_0 =>
-                     --  [2] wisi-anchored, wisi-anchored-1
+                     --  [2] wisi-anchored
                      return Indent_Anchored_2
                        (Data,
                         Anchor_Line => Anchor_Token.Line,
@@ -2115,10 +2106,55 @@ package body Wisi is
          if Data.Indent_Comment_Col_0 then
             declare
                use all type Ada.Text_IO.Count;
-               Indent : Boolean := True;
+
+               function Containing_Token return Base_Token_Index
+               is
+                  --  Return token index of terminal containing non_grammer on Line;
+                  --  Invalid_Token_Index if none.
+                  I : Line_Number_Type := Line;
+                  J : Base_Token_Index;
+               begin
+                  if Line < Data.Line_Begin_Token.First_Index then
+                     --  Line is before first grammar token; Leading_Non_Grammar checked
+                     --  below.
+                     return Invalid_Token_Index;
+                  end if;
+
+                  loop
+                     exit when Data.Line_Begin_Token.all (I) /= Augmented_Token_Arrays.No_Index;
+                     --  No_Index means Line is in a multi-line token, which could be a block comment.
+                     I := I - 1;
+                  end loop;
+
+                  J := Data.Line_Begin_Token.all (I);
+                  if Line in Data.Terminals (J).First_Trailing_Comment_Line ..
+                    Data.Terminals (J).Last_Trailing_Comment_Line
+                  then
+                     return J;
+                  else
+                     return Invalid_Token_Index;
+                  end if;
+               end Containing_Token;
+
+               Indent     : Boolean                   := True;
+               Containing : constant Base_Token_Index := Containing_Token;
             begin
-               if Data.Line_Begin_Token.all (Line - 1) /= Augmented_Token_Arrays.No_Index then
-                  for Tok of Data.Terminals (Data.Line_Begin_Token.all (Line - 1)).Non_Grammar loop
+               if Line < Data.Line_Begin_Token.First_Index then
+                  --  Line is before the first grammar token. We may be doing a partial
+                  --  parse where the initial indent is non-zero, so we still have to
+                  --  check for column 0.
+                  for Tok of Data.Leading_Non_Grammar loop
+                     if Tok.Line = Line and then
+                       Tok.ID in Data.First_Comment_ID .. Data.Last_Comment_ID and then
+                       Tok.Column = 0
+                     then
+                        Indent := False;
+                        exit;
+                     end if;
+                  end loop;
+
+               elsif Containing /= Invalid_Token_Index then
+                  for Tok of Data.Terminals (Containing).Non_Grammar loop
                      if Tok.Line = Line and then
                        Tok.ID in Data.First_Comment_ID .. Data.Last_Comment_ID and then
                        Tok.Column = 0

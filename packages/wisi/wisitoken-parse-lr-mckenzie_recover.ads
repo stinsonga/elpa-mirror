@@ -118,6 +118,12 @@ private
    --  order. Increments Index, for convenience when deleting several
    --  tokens.
 
+   procedure Delete
+     (Terminals : in     Base_Token_Arrays.Vector;
+      Config    : in out Configuration;
+      Index     : in out WisiToken.Token_Index);
+   --  Same as Delete_Check, without the check.
+
    procedure Find_ID
      (Config         : in     Configuration;
       ID             : in     Token_ID;
@@ -170,16 +176,19 @@ private
    --  Also count tokens with ID = Other_ID.
 
    procedure Insert (Config : in out Configuration; ID : in Token_ID);
-   --  Append an Insert op to Config.Ops, and insert it in
-   --  Config.Insert_Deleted in token_index order.
+   --  Append an Insert op at Config.Current_Shared_Token, to Config.Ops,
+   --  and insert it in Config.Insert_Deleted in token_index order.
 
    procedure Insert (Config : in out Configuration; IDs : in Token_ID_Array);
    --  Call Insert for each item in IDs.
 
+   procedure Insert (Config : in out Configuration; Index : in WisiToken.Token_Index; ID : in Token_ID);
+   --  Same as Insert, but at Index, not Config.Current_Shared_Token.
+
    function Next_Token
      (Terminals                 :         in     Base_Token_Arrays.Vector;
       Terminals_Current         :         in out Base_Token_Index;
-      Restore_Terminals_Current :         in out WisiToken.Base_Token_Index;
+      Restore_Terminals_Current :         in out Base_Token_Index;
       Insert_Delete             : aliased in out Sorted_Insert_Delete_Arrays.Vector;
       Current_Insert_Delete     :         in out SAL.Base_Peek_Type;
       Prev_Deleted              :         in     Recover_Token_Index_Arrays.Vector)

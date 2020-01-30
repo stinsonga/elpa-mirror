@@ -210,6 +210,7 @@ package body Emacs_Wisi_Common_Parse is
          Result.Parse_Begin_Char_Pos := WisiToken.Buffer_Pos (Get_Integer (Command_Line, Last));
          Result.Parse_Begin_Line     := WisiToken.Line_Number_Type (Get_Integer (Command_Line, Last));
          Result.Parse_End_Line       := WisiToken.Line_Number_Type (Get_Integer (Command_Line, Last));
+         Result.Parse_Begin_Indent   := Get_Integer (Command_Line, Last);
          Result.Debug_Mode           := 1 = Get_Integer (Command_Line, Last);
          Result.Parse_Verbosity      := Get_Integer (Command_Line, Last);
          Result.Action_Verbosity     := Get_Integer (Command_Line, Last);
@@ -309,7 +310,8 @@ package body Emacs_Wisi_Common_Parse is
                   Trace_Action   := Params.Action_Verbosity;
                   Debug_Mode     := Params.Debug_Mode;
 
-                  Partial_Parse_Active := Params.Partial_Parse_Active;
+                  Partial_Parse_Active        := Params.Partial_Parse_Active;
+                  Parser.Partial_Parse_Active := Params.Partial_Parse_Active;
 
                   if WisiToken.Parse.LR.McKenzie_Defaulted (Parser.Table.all) then
                      --  There is no McKenzie information; don't override that.
@@ -351,6 +353,8 @@ package body Emacs_Wisi_Common_Parse is
 
                   Parser.Lexer.Reset_With_String_Access
                     (Buffer, Params.Source_File_Name, Params.Begin_Char_Pos, Params.Begin_Line);
+
+                  --  Parser.Line_Begin_Token First, Last set by Lex_All
                   begin
                      Parser.Parse;
                   exception
@@ -413,7 +417,7 @@ package body Emacs_Wisi_Common_Parse is
                      Base_Terminals    => Parser.Terminals'Unrestricted_Access,
                      Begin_Line        => Params.Parse_Begin_Line,
                      End_Line          => Params.Parse_End_Line,
-                     Begin_Indent      => 0,
+                     Begin_Indent      => Params.Parse_Begin_Indent,
                      Params            => "");
 
                   if Params.Max_Parallel > 0 then

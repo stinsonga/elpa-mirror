@@ -546,7 +546,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Explore is
                   New_Config.Current_Shared_Token := Token.Min_Terminal_Index;
                end if;
             end if;
-            New_Config.Strategy_Counts (Explore_Table) := New_Config.Strategy_Counts (Explore_Table) + 1;
+            New_Config.Strategy_Counts (Push_Back) := New_Config.Strategy_Counts (Push_Back) + 1;
 
             Local_Config_Heap.Add (New_Config);
 
@@ -613,7 +613,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Explore is
             else
                Append (New_Config.Ops, (Undo_Reduce, Token.ID, Token_Count));
             end if;
-            New_Config.Strategy_Counts (Explore_Table) := New_Config.Strategy_Counts (Explore_Table) + 1;
+            New_Config.Strategy_Counts (Undo_Reduce) := New_Config.Strategy_Counts (Undo_Reduce) + 1;
 
             Local_Config_Heap.Add (New_Config);
 
@@ -695,7 +695,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Explore is
                            Do_Shift
                              ("Insert", Super, Shared, Parser_Index, Local_Config_Heap, New_Config, Action.State, ID,
                               Cost_Delta => 0,
-                              Strategy   => Explore_Table);
+                              Strategy   => Insert);
                         end;
 
                      when Reduce =>
@@ -714,7 +714,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Explore is
                               Do_Reduce_2
                                 ("Insert", Super, Shared, Parser_Index, Local_Config_Heap, New_Config, ID,
                                  Cost_Delta => 0,
-                                 Strategy   => Explore_Table);
+                                 Strategy   => Insert);
                            end;
 
                         else
@@ -724,7 +724,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Explore is
                               Do_Reduce_2
                                 ("Insert", Super, Shared, Parser_Index, Local_Config_Heap, New_Config, ID,
                                  Cost_Delta => 0,
-                                 Strategy   => Explore_Table);
+                                 Strategy   => Insert);
                            end;
                         end if;
 
@@ -1520,7 +1520,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Explore is
             New_Config.Check_Status   := (Label => WisiToken.Semantic_Checks.Ok);
 
             New_Config.Cost := New_Config.Cost + McKenzie_Param.Delete (ID);
-            New_Config.Strategy_Counts (Explore_Table) := Config.Strategy_Counts (Explore_Table) + 1;
+            New_Config.Strategy_Counts (Delete) := Config.Strategy_Counts (Delete) + 1;
 
             if Matching_Push_Back then
                --  We are deleting a push_back; cancel the push_back cost, to make

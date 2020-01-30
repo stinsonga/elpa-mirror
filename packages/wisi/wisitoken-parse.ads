@@ -23,11 +23,20 @@ with WisiToken.Syntax_Trees;
 package WisiToken.Parse is
 
    type Base_Parser is abstract new Ada.Finalization.Limited_Controlled with record
-      Trace            : access WisiToken.Trace'Class;
-      Lexer            : WisiToken.Lexer.Handle;
-      User_Data        : WisiToken.Syntax_Trees.User_Data_Access;
-      Terminals        : aliased WisiToken.Base_Token_Arrays.Vector;
+      Trace     : access WisiToken.Trace'Class;
+      Lexer     : WisiToken.Lexer.Handle;
+      User_Data : WisiToken.Syntax_Trees.User_Data_Access;
+      Terminals : aliased WisiToken.Base_Token_Arrays.Vector;
+
       Line_Begin_Token : aliased WisiToken.Line_Begin_Token_Vectors.Vector;
+      --  Line_Begin_Token (I) is the index into Terminals of the first
+      --  grammar token on line I. Line_Begin_Token.First_Index is the first
+      --  line containing a grammar token (after leading comments). However,
+      --  if the only token on line I is a non_grammar token (ie a comment,
+      --  or a newline for a blank line), Line_Begin_Token (I) is the last
+      --  grammar token on the previous non-blank line. If Line (I) is a
+      --  non-first line in a multi-line token, Line_Begin_Token (I) is
+      --  Invalid_Token_Index.
    end record;
    --  Common to all parsers. Finalize should free any allocated objects.
 

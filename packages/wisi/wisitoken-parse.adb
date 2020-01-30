@@ -21,6 +21,7 @@ package body WisiToken.Parse is
 
    function Next_Grammar_Token (Parser : in out Base_Parser) return Token_ID
    is
+      use all type Ada.Containers.Count_Type;
       use all type Syntax_Trees.User_Data_Access;
 
       Token : Base_Token;
@@ -38,12 +39,16 @@ package body WisiToken.Parse is
          if Token.Line /= Invalid_Line_Number then
             --  Some lexers don't support line numbers.
             if Parser.Lexer.First then
-               Parser.Line_Begin_Token.Set_First_Last (Line_Number_Type'First, Token.Line);
+               if Parser.Line_Begin_Token.Length = 0 then
+                  Parser.Line_Begin_Token.Set_First_Last (Token.Line, Token.Line);
+               else
+                  Parser.Line_Begin_Token.Set_First_Last (Parser.Line_Begin_Token.First_Index, Token.Line);
+               end if;
                Parser.Line_Begin_Token (Token.Line) := Parser.Terminals.Last_Index +
                  (if Token.ID >= Parser.Trace.Descriptor.First_Terminal then 1 else 0);
 
             elsif Token.ID = Parser.Trace.Descriptor.EOI_ID then
-               Parser.Line_Begin_Token.Set_First_Last (Line_Number_Type'First, Token.Line + 1);
+               Parser.Line_Begin_Token.Set_First_Last (Parser.Line_Begin_Token.First_Index, Token.Line + 1);
                Parser.Line_Begin_Token (Token.Line + 1) := Parser.Terminals.Last_Index + 1;
             end if;
          end if;

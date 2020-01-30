@@ -1,4 +1,4 @@
-;;; wisi-parse-common.el --- declarations used by wisi-parse.el, wisi-ada-parse.el, and wisi.el
+;;; wisi-parse-common.el --- declarations used by wisi-parse.el, wisi-ada-parse.el, and wisi.el -*- lexical-binding:t -*-
 ;;
 ;; Copyright (C) 2014, 2015, 2017 - 2019  Free Software Foundation, Inc.
 ;;
@@ -74,10 +74,9 @@ and parse the whole buffer."
 (cl-defgeneric wisi-parse-format-language-options ((parser wisi-parser))
   "Return a string to be sent to the parser, containing settings
 for the language-specific parser options."
-  ;; not needed for the elisp parser, which can see the options directly.
   )
 
-(cl-defgeneric wisi-parse-expand-region ((parser wisi-parser) begin end)
+(cl-defgeneric wisi-parse-expand-region ((_parser wisi-parser) begin end)
   "Return a cons SEND-BEGIN . SEND-END that is an expansion of
 region BEGIN END that starts and ends at points the parser can
 handle gracefully."
@@ -119,7 +118,7 @@ Return nil if no match found before eob."
     (goto-char (cdr region))
     ))
 
-(cl-defgeneric wisi-parse-adjust-indent ((parser wisi-parser) indent _repair)
+(cl-defgeneric wisi-parse-adjust-indent ((_parser wisi-parser) indent _repair)
   "Adjust INDENT for REPAIR (a wisi--parse-error-repair struct). Return new indent."
   indent)
 

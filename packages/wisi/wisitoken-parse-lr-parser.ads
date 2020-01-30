@@ -109,6 +109,8 @@ package WisiToken.Parse.LR.Parser is
       Terminate_Same_State    : Boolean;
       Enable_McKenzie_Recover : Boolean;
       Recover_Log_File        : Ada.Text_IO.File_Type;
+      Partial_Parse_Active    : Boolean := False;
+      --  Partial_Parse_Active is only used in recover log messages.
    end record;
 
    overriding procedure Finalize (Object : in out LR.Parser.Parser);

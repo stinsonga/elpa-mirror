@@ -10,7 +10,7 @@
 --
 --  [3] wisi-process-parse.el - defines elisp/process API
 --
---  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -186,21 +186,17 @@ package Wisi is
    ----------
    --  Indent
    --
-   --  elisp indent functions are represented by the Indent_Param type,
-   --  not Ada functions. This is to get the execution time right; in
-   --  elisp, the array of parameters to wisi-indent-action is not
-   --  evaluated when wisi-indent-action is called; each parameter is
-   --  evaluated by wisi-elisp-parse--indent-compute-delta.
+   --  Indent functions are represented by the Indent_Param type.
 
    type Simple_Indent_Param_Label is -- not hanging
      (None,
       Int,
-      Anchored_0, -- wisi-anchored
-      Anchored_1, -- wisi-anchored%
-      Anchored_2, -- wisi-anchored%-
-      Anchored_3, -- wisi-anchored*
-      Anchored_4, -- wisi-anchored*-
-      Language    -- language-specific function
+      Anchored_0, -- [2] wisi-anchored
+      Anchored_1, -- [2] wisi-anchored%
+      Anchored_2, -- [2] wisi-anchored%-
+      Anchored_3, -- [2] wisi-anchored*
+      Anchored_4, -- [2] wisi-anchored*-
+      Language    -- [2] language-specific function
      );
    subtype Anchored_Label is Simple_Indent_Param_Label range Anchored_0 .. Anchored_4;
 
@@ -250,10 +246,10 @@ package Wisi is
 
    type Indent_Param_Label is
      (Simple,
-      Hanging_0, -- wisi-hanging
-      Hanging_1, -- wisi-hanging-
-      Hanging_2, -- wisi-hanging%
-      Hanging_3  -- wisi-hanging%-
+      Hanging_0, -- [2] wisi-hanging
+      Hanging_1, -- [2] wisi-hanging-
+      Hanging_2, -- [2] wisi-hanging%
+      Hanging_3  -- [2] wisi-hanging%-
      );
    subtype Hanging_Label is Indent_Param_Label range Hanging_0 .. Hanging_3;
 
@@ -464,15 +460,15 @@ private
    Nil : constant Nil_Buffer_Pos := (Set => False);
 
    type Navigate_Cache_Type is record
-      Pos            : WisiToken.Buffer_Pos; -- implicit in wisi-cache
-      Statement_ID   : WisiToken.Token_ID;   -- wisi-cache-nonterm
-      ID             : WisiToken.Token_ID;   -- wisi-cache-token
-      Length         : Natural;              -- wisi-cache-last
-      Class          : Navigate_Class_Type;  -- wisi-cache-class
-      Containing_Pos : Nil_Buffer_Pos;       -- wisi-cache-containing
-      Prev_Pos       : Nil_Buffer_Pos;       -- wisi-cache-prev
-      Next_Pos       : Nil_Buffer_Pos;       -- wisi-cache-next
-      End_Pos        : Nil_Buffer_Pos;       -- wisi-cache-end
+      Pos            : WisiToken.Buffer_Pos; -- implicit in [1] wisi-cache
+      Statement_ID   : WisiToken.Token_ID;   -- [1] wisi-cache-nonterm
+      ID             : WisiToken.Token_ID;   -- [1] wisi-cache-token
+      Length         : Natural;              -- [1] wisi-cache-last
+      Class          : Navigate_Class_Type;  -- [1] wisi-cache-class
+      Containing_Pos : Nil_Buffer_Pos;       -- [1] wisi-cache-containing
+      Prev_Pos       : Nil_Buffer_Pos;       -- [1] wisi-cache-prev
+      Next_Pos       : Nil_Buffer_Pos;       -- [1] wisi-cache-next
+      End_Pos        : Nil_Buffer_Pos;       -- [1] wisi-cache-end
    end record;
 
    function Key (Cache : in Navigate_Cache_Type) return WisiToken.Buffer_Pos is (Cache.Pos);
@@ -500,12 +496,12 @@ private
    end record;
 
    type Face_Cache_Type is record
-      Region : WisiToken.Buffer_Region;
-      Class  : Face_Class_Type;
-      Face   : Nil_Integer;     -- not set, or index into *-process-faces-names
+      Char_Region : WisiToken.Buffer_Region;
+      Class       : Face_Class_Type;
+      Face        : Nil_Integer; -- not set, or index into *-process-faces-names
    end record;
 
-   function Key (Cache : in Face_Cache_Type) return WisiToken.Buffer_Pos is (Cache.Region.First);
+   function Key (Cache : in Face_Cache_Type) return WisiToken.Buffer_Pos is (Cache.Char_Region.First);
 
    package Face_Cache_Trees is new SAL.Gen_Unbounded_Definite_Red_Black_Trees (Face_Cache_Type, WisiToken.Buffer_Pos);
 
@@ -514,8 +510,7 @@ private
    package Anchor_ID_Vectors is new Ada.Containers.Vectors (Natural, Positive);
 
    type Indent_Type (Label : Indent_Label := Not_Set) is record
-      --  [2] wisi-elisp-parse--indent elements. Indent values may be
-      --  negative while indents are being computed.
+      --  Indent values may be negative while indents are being computed.
       case Label is
       when Not_Set =>
          null;
@@ -641,7 +636,6 @@ private
 
    type Delta_Type (Label : Delta_Labels := Simple) is
    record
-      --  Matches DELTA input to wisi--indent-token-1
       case Label is
       when Simple =>
          Simple_Delta : Simple_Delta_Type;
@@ -704,7 +698,6 @@ private
       Offset      : in     Integer;
       Accumulate  : in     Boolean)
      return Delta_Type;
-   --  [2] wisi-elisp-parse--anchored-2
 
    function Indent_Compute_Delta
      (Data              : in out Parse_Data_Type'Class;
@@ -720,11 +713,11 @@ private
       Indenting_Token   : in     Augmented_Token'Class;
       Delta_Indent      : in     Delta_Type;
       Indenting_Comment : in     Boolean);
-   --  [2] wisi-elisp-parse--indent-token-1. Sets Data.Indents, so caller
-   --  may not be in a renames for a Data.Indents element.
+   --  Sets Data.Indents, so caller may not be in a renames for a
+   --  Data.Indents element.
 
    --  Visible for language-specific children. Must match list in
-   --  wisi-process-parse.el wisi-process-parse--execute.
+   --  [3] wisi-process-parse--execute.
    Navigate_Cache_Code  : constant String := "1";
    Face_Property_Code   : constant String := "2";
    Indent_Code          : constant String := "3";

@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2020 Free Software Foundation, Inc.
 --
 --  This program is free software; you can redistribute it and/or
 --  modify it under terms of the GNU General Public License as
@@ -45,7 +45,7 @@ package body Run_Wisi_Common_Parse is
       Put_Line ("   1 - shows spawn/terminate parallel parsers, error recovery enter/exit");
       Put_Line ("   2 - add each parser cycle, error recovery enqueue/check");
       Put_Line ("   3 - parse stack in each cycle, error recovery parse actions");
-      Put_Line ("   4 - add lexer debug");
+      Put_Line ("   4 - add lexer debug, dump syntax tree");
       Put_Line ("--check_limit n  : set error recover token check limit" &
                   (if Parser.Table = null then ""
                    else "; default" & Parser.Table.McKenzie_Param.Check_Limit'Image));
@@ -218,10 +218,12 @@ package body Run_Wisi_Common_Parse is
             return;
          end;
 
+         --  Parser.Line_Begin_Token First, Last set by Lex_All
+
          if Cl_Params.Command = Refactor or else Cl_Params.End_Line = Invalid_Line_Number then
             --  User did not provide; run lexer to get end line.
             declare
-               Token : Base_Token;
+               Token       : Base_Token;
                Lexer_Error : Boolean;
                pragma Unreferenced (Lexer_Error);
             begin

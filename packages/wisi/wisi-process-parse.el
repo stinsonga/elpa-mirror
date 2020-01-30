@@ -1,6 +1,6 @@
 ;;; wisi-process-parse.el --- interface to external parse program
 ;;
-;; Copyright (C) 2014, 2017 - 2019 Free Software Foundation, Inc.
+;; Copyright (C) 2014, 2017 - 2020 Free Software Foundation, Inc.
 ;;
 ;; Author: Stephen Leake <stephen_leake@member.fsf.org>
 ;;
@@ -31,10 +31,10 @@
   is no response from the parser after waiting this amount (in
   seconds)."
   :type 'float
-  :safe 'floatp)
+  :safe 'numberp)
 (make-variable-buffer-local 'wisi-process-time-out)
 
-(defconst wisi-process-parse-protocol-version "4"
+(defconst wisi-process-parse-protocol-version "5"
   "Defines data exchanged between this package and the background process.
 Must match emacs_wisi_common_parse.ads Protocol_Version.")
 
@@ -83,7 +83,8 @@ Otherwise add PARSER to ‘wisi-process--alist’, return it."
       (let ((exec-file (locate-file (wisi-process--parser-exec-file parser) exec-path '("" ".exe"))))
 
 	(unless exec-file
-	  (error "%s not found on `exec-path'" (wisi-process--parser-exec-file parser)))
+	  (error "%s not found on `exec-path'; run 'build.sh' in the ELPA package."
+		 (wisi-process--parser-exec-file parser)))
 
 	(push (cons (wisi-process--parser-label parser) parser) wisi-process--alist)
 
@@ -225,7 +226,7 @@ PARSE-END, wait for command to complete. PARSER will respond with
 one or more Edit messages."
   ;; Must match "refactor" command arguments read by
   ;; emacs_wisi_common_parse.adb Get_Refactor_Params.
-  (let* ((cmd (format "refactor %d \"%s\" %d %d %d %d %d %d %d %d %d %d %d"
+  (let* ((cmd (format "refactor %d \"%s\" %d %d %d %d %d %d %d %d %d %d %d %d"
 		      refactor-action
 		      (if (buffer-file-name) (file-name-nondirectory (buffer-file-name)) "")
 		      (position-bytes parse-begin)
@@ -234,6 +235,7 @@ one or more Edit messages."
 		      parse-begin ;; char_pos
 		      (line-number-at-pos parse-begin)
 		      (line-number-at-pos parse-end)
+		      (save-excursion (goto-char parse-begin) (back-to-indentation) (current-column));; indent-begin
 		      (if (> wisi-debug 0) 1 0) ;; debug-mode
 		      (1- wisi-debug) ;; trace_parse
 		      wisi-trace-action
@@ -396,7 +398,7 @@ complete."
       (cl-do ((i 1 (1+ i))) ((= i (length sexp)))
 	(push
 	 (make-wisi--parse-error-repair
-	  :pos (aref (aref sexp i) 0)
+	  :pos (copy-marker (aref (aref sexp i) 0))
 	  :inserted (mapcar (lambda (id) (aref token-table id)) (aref (aref sexp i) 1))
 	  :deleted  (mapcar (lambda (id) (aref token-table id)) (aref (aref sexp i) 2))
 	  :deleted-region (aref (aref sexp i) 3))
@@ -406,7 +408,7 @@ complete."
 (defun wisi-process-parse--End (parser sexp)
   ;; sexp is [End pos]
   ;; see ‘wisi-process-parse--execute’
-  (setf (wisi-process--parser-end-pos parser) (aref sexp 1)))
+  (setf (wisi-process--parser-end-pos parser) (1+ (aref sexp 1))))
 
 (defun wisi-process-parse--Edit (parser sexp)
   ;; sexp is [Edit begin end text]
@@ -703,7 +705,7 @@ complete."
 
 	      (when (and (= (point-max) need-more)
 			 (> (wisi-process--parser-total-wait-time parser) wisi-process-time-out))
-		(error "wisi-process-parse not getting more text (or bad syntax in process output)"))
+		(error "wisi-process-parse timing out; increase `wisi-process-time-out'? (or bad syntax in process output)"))
 
 	      (setq need-more nil))
 	    );; while not done

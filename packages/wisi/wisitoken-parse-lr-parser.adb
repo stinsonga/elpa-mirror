@@ -368,13 +368,16 @@ package body WisiToken.Parse.LR.Parser is
    is
       use all type Syntax_Trees.User_Data_Access;
    begin
-      Parser.Lexer                          := Lexer;
-      Parser.Trace                          := Trace;
+      Parser.Lexer     := Lexer;
+      Parser.Trace     := Trace;
+      Parser.User_Data := User_Data;
+
+      --  Terminals,  Line_Begin_Token are initialized to empty arrays.
+
       Parser.Table                          := Table;
       Parser.Language_Fixes                 := Language_Fixes;
       Parser.Language_Matching_Begin_Tokens := Language_Matching_Begin_Tokens;
       Parser.Language_String_ID_Set         := Language_String_ID_Set;
-      Parser.User_Data                      := User_Data;
 
       Parser.Enable_McKenzie_Recover := not McKenzie_Defaulted (Table.all);
 
@@ -701,18 +704,18 @@ package body WisiToken.Parse.LR.Parser is
                   if Ada.Text_IO.Is_Open (Shared_Parser.Recover_Log_File) then
                      declare
                         use Ada.Text_IO;
-                        Strategy_Counts : LR.Strategy_Counts := (others => 0);
                      begin
                         Put
                           (Shared_Parser.Recover_Log_File,
                            Ada.Calendar.Formatting.Image (Ada.Calendar.Clock) & " " &
-                             McKenzie_Recover.Recover_Status'Image (Recover_Result) & " " &
-                             SAL.Base_Peek_Type'Image (Pre_Recover_Parser_Count) & " '" &
+                             Shared_Parser.Partial_Parse_Active'Image & " " &
+                             Recover_Result'Image & " " &
+                             Pre_Recover_Parser_Count'Image & " '" &
                              Shared_Parser.Lexer.File_Name & "'");
 
                         Put (Shared_Parser.Recover_Log_File, '(');
                         for Parser of Shared_Parser.Parsers loop
-                           Accumulate (Parser.Recover, Strategy_Counts);
+                           Put (Shared_Parser.Recover_Log_File, Image (Parser.Recover.Results.Peek.Strategy_Counts));
                            Put
                              (Shared_Parser.Recover_Log_File,
                               Integer'Image (Parser.Recover.Enqueue_Count) &
@@ -721,7 +724,6 @@ package body WisiToken.Parse.LR.Parser is
                         end loop;
                         Put (Shared_Parser.Recover_Log_File, ')');
 
-                        Put (Shared_Parser.Recover_Log_File, Image (Strategy_Counts));
                         New_Line (Shared_Parser.Recover_Log_File);
                         Flush (Shared_Parser.Recover_Log_File);
                      end;
@@ -1064,6 +1066,9 @@ package body WisiToken.Parse.LR.Parser is
             Parser_State : Parser_Lists.Parser_State renames Parser.Parsers.First_State_Ref;
          begin
             if Trace_Action > Outline then
+               if Trace_Action > Extra then
+                  Parser_State.Tree.Print_Tree (Descriptor, Parser_State.Tree.Root);
+               end if;
                Parser.Trace.Put_Line
                  (Integer'Image (Parser_State.Label) & ": root node: " & Parser_State.Tree.Image
                     (Parser_State.Tree.Root, Descriptor));

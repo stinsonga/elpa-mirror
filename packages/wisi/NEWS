@@ -1,13 +1,37 @@
 GNU Emacs wisi NEWS -- history of user-visible changes.
 
-Copyright (C) 2019 Free Software Foundation, Inc.
+Copyright (C) 2014 - 2020 Free Software Foundation, Inc.
 
 Please send wisi bug reports to bug-gnu-emacs@gnu.org, with
 'wisi' in the subject. If possible, use M-x report-emacs-bug.
 
 
+* wisi 3.0.1
+30 Jan 2020
+
+** fix packaging bugs
+
+** improve xref integration
+
+* wisi 3.0.0
+19 Dec 2019
+
+** parser process protocol version 5
+
+** Add project.el integration. See wisi.info for more information.
+
+** Move autocase functions from ada-mode to wisi.
+
+** Replace most ada-mode function variables with dispatching on wisi-prj.
+
+** New commands `wisi-goto-containing-statement-start', `wisi-indent-containing-statement'.
+
+** Displayed parser errors are sorted in increasing error position.
+
 * wisi 2.2.1
 17 Aug 2019
+
+** parser process protocol version 4
 
 ** fix packaging bugs
 
@@ -48,8 +72,6 @@ Please send wisi bug reports to bug-gnu-emacs@gnu.org, with
    containing token region, and the motion token chain starting at the
    first one found is included in the current right hand side motion
    token chain.
-
-** The elisp parser and lexer are deleted.
 
 ** The process parser supports a new parse command `wisi-refactor',
    which returns a new message "Edit". It is intended for performing
