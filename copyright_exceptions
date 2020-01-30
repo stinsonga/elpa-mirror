@@ -1,6 +1,3 @@
-./ada-mode/ada-prj.el
-./ada-mode/ada-stmt.el
-./ada-mode/ada-xref.el
 ./auctex/style/amsart.el
 ./auctex/style/amsbook.el
 ./auctex/style/amsbsy.el
