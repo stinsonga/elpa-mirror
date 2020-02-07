@@ -779,10 +779,10 @@ search."
 	     (let ((bound (org-element-property
 			   :end (org-element-at-point)))
 		   desc rec)
-	       (while (re-search-forward
-		       org-bracket-link-analytic-regexp bound t)
-		 (when (string-match-p "bbdb" (match-string 2))
-		   (setq desc (match-string 5)
+	       (while (re-search-forward org-link-any-re bound t)
+		 (when (string-match-p "bbdb" (car (split-string
+						    (match-string 2) ":")))
+		   (setq desc (match-string 3)
 			 rec (bbdb-search (bbdb-records) desc desc desc)
 			 recs (append recs rec))))))))
     (if recs

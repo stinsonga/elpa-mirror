@@ -473,19 +473,19 @@ TYPES is a list of symbols; we search for all links corresponding
 to those symbols."
   ;; It may be excessive to examine *all* links, rather than just
   ;; creating a specialized regexp for the links we want, but it's
-  ;; nice to be lazy and use `org-bracket-link-analytic-regexp', that
-  ;; seems safer.
+  ;; nice to be lazy and use `org-link-any-re', that seems safer.
 
   ;; This function should also *not* be responsible for unescaping
   ;; links -- we don't know what they're going to be used for, and
   ;; unescaped is safer.
   (unless (= (point) bound)
     (let ((alist (mapcar #'list (copy-sequence types))))
-      (while (re-search-forward org-bracket-link-analytic-regexp bound t)
-	(let* ((type (match-string-no-properties 2))
-	       (link (match-string-no-properties 3))
-	       (sym (intern-soft type)))
-	  (when (memq sym types)
+      (while (re-search-forward org-link-any-re bound t)
+	(pcase-let* ((`(,type ,link) (split-string
+				      (match-string-no-properties 2)
+				      ":"))
+		     (sym (intern-soft type)))
+	  (when (and sym (memq sym types))
 	    (push link (alist-get sym alist)))))
       alist)))
 
