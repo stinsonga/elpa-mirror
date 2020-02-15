@@ -662,14 +662,14 @@ point or marker arguments, BEG and END, delimiting the region."
 (defun csv-end-of-field ()
   "Skip forward over one field."
   (skip-chars-forward " ")
-  (if (memq (char-syntax (following-char)) csv-field-quotes)
+  (if (eq (char-syntax (following-char)) ?\")
       (goto-char (scan-sexps (point) 1)))
   (skip-chars-forward csv--skip-chars))
 
 (defun csv-beginning-of-field ()
   "Skip backward over one field."
   (skip-syntax-backward " ")
-  (if (memq (char-syntax (preceding-char)) csv-field-quotes)
+  (if (eq (char-syntax (preceding-char)) ?\")
       (goto-char (scan-sexps (point) -1)))
   (skip-chars-backward csv--skip-chars))
 
