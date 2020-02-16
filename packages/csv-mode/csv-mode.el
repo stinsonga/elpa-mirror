@@ -4,7 +4,7 @@
 
 ;; Author: "Francis J. Wright" <F.J.Wright@qmul.ac.uk>
 ;; Maintainer: emacs-devel@gnu.org
-;; Version: 1.11
+;; Version: 1.12
 ;; Package-Requires: ((emacs "24.1") (cl-lib "0.5"))
 ;; Keywords: convenience
 
