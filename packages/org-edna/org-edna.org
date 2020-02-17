@@ -14,7 +14,7 @@
 #+TEXINFO_DIR_DESC: Extensible Dependencies 'N' Actions for Org Mode tasks
 
 * Copying
-Copyright (C) 2017-2018 Free Software Foundation, Inc.
+Copyright (C) 2017-2020 Free Software Foundation, Inc.
 
 #+BEGIN_QUOTE
 This program is free software: you can redistribute it and/or modify
@@ -80,10 +80,12 @@ After that, add the following to your init file (typically .emacs):
 (require 'org-edna)
 
 ;; Always necessary
-(org-edna-load)
+(org-edna-mode)
 #+END_SRC
 
-If you ever want to disable Edna, run ~org-edna-unload~.
+If you ever want to disable Edna, run ~(org-edna-mode)~ again.
+
+To determine if Edna is active, check the ~org-edna-mode~ variable.
 
 ** Basic Operation
 :PROPERTIES:
@@ -1641,6 +1643,11 @@ making any changes:
 :PROPERTIES:
 :DESCRIPTION: List of changes by version
 :END:
+** 1.1.1
+- Marked ~org-edna-load~ and ~org-edna-unload~ as deprecated
+- Renamed to ~org-edna--load~ and ~org-edna--unload~ to reflect internal use only intention
+** 1.1.0
+- Added ~org-edna-mode~ as a minor mode, as opposed to ~org-edna-load~ and ~org-edna-unload~
 ** 1.0.2
 - Added ~org-edna-reset-cache~ to allow a user to reset the finder cache
 
