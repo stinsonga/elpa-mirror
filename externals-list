@@ -111,6 +111,7 @@
  ("olivetti"		:external "https://github.com/rnkn/olivetti")
  ("omn-mode"            :external nil)
  ("orgalist"            :external nil)
+ ("org-edna"		:external "https://savannah.nongnu.org/projects/org-edna-el") ;URL?
  ("ntlm"		:core "lisp/net/ntlm.el")
  ("on-screen"           :subtree "https://github.com/michael-heerdegen/on-screen.el.git")
  ("pabbrev"             :external "https://github.com/phillord/pabbrev.git")
