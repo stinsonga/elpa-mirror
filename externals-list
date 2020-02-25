@@ -81,6 +81,7 @@
  ("eglot"               :external "https://github.com/joaotavora/eglot.git")
  ("eldoc-eval"		:subtree "https://github.com/thierryvolpiatto/eldoc-eval.git")
  ("elisp-benchmarks"	:external nil)
+ ("expand-region"	:external "https://github.com/magnars/expand-region.el")
  ("enwc"		:subtree "bzr::bzr://bzr.savannah.nongnu.org/enwc/trunk")
  ("ergoemacs-mode"	:external "https://github.com/ergoemacs/ergoemacs-mode.git")
  ("exwm"		:external "https://github.com/ch11ng/exwm.git")
