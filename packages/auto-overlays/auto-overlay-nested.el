@@ -1,7 +1,6 @@
-;;; auto-overlay-nested.el --- nested start/end-delimited automatic overlays
+;;; auto-overlay-nested.el --- nested start/end-delimited automatic overlays  -*- lexical-binding: t; -*-
 
-
-;; Copyright (C) 2005-2015  Free Software Foundation, Inc
+;; Copyright (C) 2005-2020  Free Software Foundation, Inc
 
 ;; Author: Toby Cubitt <toby-predictive@dr-qubit.org>
 ;; Maintainer: Toby Cubitt <toby-predictive@dr-qubit.org>
@@ -32,8 +31,8 @@
 
 ;; set nested overlay parsing and suicide functions, and indicate class
 ;; requires separate start and end regexps
-(put 'nested 'auto-overlay-parse-function 'auto-o-parse-nested-match)
-(put 'nested 'auto-overlay-suicide-function 'auto-o-nested-suicide)
+(put 'nested 'auto-overlay-parse-function #'auto-o-parse-nested-match)
+(put 'nested 'auto-overlay-suicide-function #'auto-o-nested-suicide)
 (put 'nested 'auto-overlay-complex-class t)
 
 
@@ -103,7 +102,7 @@
 
 
 
-(defun auto-o-make-nested (o-match &optional unmatched)
+(defun auto-o-make-nested (o-match &optional _unmatched)
   ;; Create a nested overlay for match overlay O-MATCH.
   ;; If UNMATCHED is nil, overlay will start and end at O-MATCH.
   ;; If non-nil, overlay will start or end from O-MATCH (depending on whether

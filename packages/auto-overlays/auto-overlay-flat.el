@@ -1,7 +1,6 @@
-;;; auto-overlay-flat.el --- flat start/end-delimited automatic overlays
+;;; auto-overlay-flat.el --- flat start/end-delimited automatic overlays  -*- lexical-binding: t; -*-
 
-
-;; Copyright (C) 2005-2015  Free Software Foundation, Inc
+;; Copyright (C) 2005-2020  Free Software Foundation, Inc
 
 ;; Author: Toby Cubitt <toby-predictive@dr-qubit.org>
 ;; Maintainer: Toby Cubitt <toby-predictive@dr-qubit.org>
@@ -32,8 +31,8 @@
 
 ;; set flat overlay parsing and suicide functions, and indicate class requires
 ;; separate start and end regexps
-(put 'flat 'auto-overlay-parse-function 'auto-o-parse-flat-match)
-(put 'flat 'auto-overlay-suicide-function 'auto-o-flat-suicide)
+(put 'flat 'auto-overlay-parse-function #'auto-o-parse-flat-match)
+(put 'flat 'auto-overlay-suicide-function #'auto-o-flat-suicide)
 (put 'flat 'auto-overlay-complex-class t)
 
 
@@ -148,8 +147,7 @@
 
 
      (t ;; if we're an end-match, look for next end-match...
-      (let ((o-start (overlay-get o-parent 'start))
-	    (o-end (auto-o-next-flat-match o-self 'end)))
+      (let ((o-end (auto-o-next-flat-match o-self 'end)))
 	(cond
 	 ;; if there is one, match parent with it
 	 (o-end

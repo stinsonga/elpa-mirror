@@ -1,7 +1,6 @@
-;;; auto-overlay-word.el --- automatic overlays for single "words"
+;;; auto-overlay-word.el --- automatic overlays for single "words"  -*- lexical-binding: t; -*-
 
-
-;; Copyright (C) 2005-2015  Free Software Foundation, Inc
+;; Copyright (C) 2005-2020  Free Software Foundation, Inc
 
 ;; Author: Toby Cubitt <toby-predictive@dr-qubit.org>
 ;; Maintainer: Toby Cubitt <toby-predictive@dr-qubit.org>
@@ -31,7 +30,7 @@
 
 
 ;; set word overlay parsing and suicide functions
-(put 'word 'auto-overlay-parse-function 'auto-o-parse-word-match)
+(put 'word 'auto-overlay-parse-function #'auto-o-parse-word-match)
 (put 'word 'auto-overlay-suicide-function
      (lambda (o) (auto-o-delete-overlay (overlay-get o 'parent))))
 
@@ -67,4 +66,4 @@
 )
 
 
-;; auto-overlay-word.el ends here
+;;; auto-overlay-word.el ends here

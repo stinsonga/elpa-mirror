@@ -1,7 +1,6 @@
-;;; auto-overlays-compat.el --- compatability functions for auto-overlays package
+;;; auto-overlays-compat.el --- compatability functions for auto-overlays package  -*- lexical-binding: t; -*-
 
-
-;; Copyright (C) 2005-2015  Free Software Foundation, Inc
+;; Copyright (C) 2005-2020  Free Software Foundation, Inc
 
 ;; Author: Toby Cubitt <toby-predictive@dr-qubit.org>
 ;; Version: 0.3.2

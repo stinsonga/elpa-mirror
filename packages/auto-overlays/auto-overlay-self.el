@@ -1,7 +1,6 @@
-;;; auto-overlay-self.el --- self-delimited automatic overlays
+;;; auto-overlay-self.el --- self-delimited automatic overlays  -*- lexical-binding: t; -*-
 
-
-;; Copyright (C) 2005-2017  Free Software Foundation, Inc
+;; Copyright (C) 2005-2020  Free Software Foundation, Inc
 
 ;; Author: Toby Cubitt <toby-predictive@dr-qubit.org>
 ;; Maintainer: Toby Cubitt <toby-predictive@dr-qubit.org>
@@ -32,12 +31,12 @@
 (defvar auto-o-pending-self-cascade nil)
 
 ;; set self overlay parsing and suicide functions
-(put 'self 'auto-overlay-parse-function 'auto-o-parse-self-match)
-(put 'self 'auto-overlay-suicide-function 'auto-o-self-suicide)
+(put 'self 'auto-overlay-parse-function #'auto-o-parse-self-match)
+(put 'self 'auto-overlay-suicide-function #'auto-o-self-suicide)
 
 ;; add initialisation and clear functions to hooks
-(add-hook 'auto-overlay-load-hook 'auto-o-self-load)
-(add-hook 'auto-overlay-unload-hook 'auto-o-self-unload)
+(add-hook 'auto-overlay-load-hook #'auto-o-self-load)
+(add-hook 'auto-overlay-unload-hook #'auto-o-self-unload)
 
 
 
@@ -45,7 +44,7 @@
   ;; Make sure `auto-o-perform-self-cascades' is in `before-change-functions',
   ;; so that any cascading that is required is performed before anything else
   ;; happens.
-  (add-hook 'before-change-functions 'auto-o-perform-self-cascades
+  (add-hook 'before-change-functions #'auto-o-perform-self-cascades
 	    nil t)
   ;; initialise variables
   (setq auto-o-pending-self-cascade nil)
@@ -54,7 +53,7 @@
 
 (defun auto-o-self-unload ()
   ;; Remove `auto-o-perform-self-cascades' from `before-change-functions'.
-  (remove-hook 'before-change-functions 'auto-o-perform-self-cascades t)
+  (remove-hook 'before-change-functions #'auto-o-perform-self-cascades t)
 )
 
 

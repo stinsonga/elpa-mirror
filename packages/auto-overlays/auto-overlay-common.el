@@ -1,7 +1,7 @@
-;;; auto-overlay-common.el --- general overlay functions
+;;; auto-overlay-common.el --- general overlay functions  -*- lexical-binding: t; -*-
 
 
-;; Copyright (C) 2005-2015  Free Software Foundation, Inc
+;; Copyright (C) 2005-2020  Free Software Foundation, Inc
 
 ;; Author: Toby Cubitt <toby-predictive@dr-qubit.org>
 ;; Maintainer: Toby Cubitt <toby-predictive@dr-qubit.org>
@@ -117,18 +117,13 @@ PROP-TEST."
 
   ;; make sure prop-test is a list of lists, even if there's only one, and
   ;; exclude inactive overlays unless told not to
-  (cond
-   ((null prop-test)
-    (unless inactive (setq prop-test '((null inactive)))))
-   ((functionp (car prop-test))
-    (if inactive
-	(setq prop-test (list prop-test))
-      (setq prop-test (list '(null inactive) prop-test))))
-   (t
-    (unless inactive (setq prop-test (push '(null inactive) prop-test)))))
+  (when (functionp (car prop-test))
+    (setq prop-test (list prop-test)))
+  (unless inactive (push '(null inactive) prop-test))
 
   (let (overlay-list function prop-list value-list result)
     ;; check properties of each overlay in region
+    ;; FIXME: We should ask Emacs's core to do the sorting.
     (dolist (o (overlays-in start end))
       ;; check overlay is entirely within region
       (if (and within

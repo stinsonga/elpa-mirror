@@ -1,7 +1,6 @@
-;;; auto-overlay-line.el --- automatic overlays for single lines
+;;; auto-overlay-line.el --- automatic overlays for single lines  -*- lexical-binding: t; -*-
 
-
-;; Copyright (C) 2005-2015  Free Software Foundation, Inc
+;; Copyright (C) 2005-2020  Free Software Foundation, Inc
 
 ;; Author: Toby Cubitt <toby-predictive@dr-qubit.org>
 ;; Maintainer: Toby Cubitt <toby-predictive@dr-qubit.org>
@@ -31,7 +30,7 @@
 
 
 ;; set line overlay parsing and suicide funtions
-(put 'line 'auto-overlay-parse-function 'auto-o-parse-line-match)
+(put 'line 'auto-overlay-parse-function #'auto-o-parse-line-match)
 (put 'line 'auto-overlay-suicide-function
      (lambda (o) (auto-o-delete-overlay (overlay-get o 'parent))))
 
@@ -59,7 +58,7 @@
     o-new))
 
 
-(defun auto-o-schedule-extend-line (o-self modified &rest unused)
+(defun auto-o-schedule-extend-line (o-self modified &rest _)
   ;; All line overlay modification hooks are set to this function, which
   ;; schedules `auto-o-extend-line' to run after any suicide functions have
   ;; been called, but before the overlays are updated.
