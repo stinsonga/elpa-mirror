@@ -1,6 +1,6 @@
 ;;; shen-mode.el --- A major mode for editing shen source code
 
-;; Copyright (C) 2011, 2013 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2020 Free Software Foundation, Inc.
 
 ;; Author: Eric Schulte <schulte.eric@gmail.com>
 ;; Version: 0.1
@@ -30,7 +30,7 @@
 ;; following for more information on Shen.  http://www.shenlanguage.org
 
 ;;; Code:
-(eval-when-compile (require 'cl))
+
 (require 'lisp-mode)
 (require 'imenu)
 
@@ -253,7 +253,8 @@
           (append
            '("let" "=" "eval-without-reader-macros" "freeze" "type") ; generic
            '("if" "and" "or" "cond")) t) ; boolean
-         "\\>") . 1)
+         "\\>")
+       . 1)
       ;; errors
       ("(\\(error\\)\\>" 1 font-lock-warning-face)
       ;; built-in
@@ -293,7 +294,8 @@
            (lambda (cnst) (format "*%s*" cnst))
            '("language" "implementation" "port" "porters"
              "stinput" "home-directory" "version"
-             "maximum-print-sequence-size" "printer" "macros")) t)
+             "maximum-print-sequence-size" "printer" "macros"))
+          t)
          "\\>")
        1 font-lock-builtin-face)))
   "Default expressions to highlight in Shen mode.")
