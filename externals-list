@@ -142,6 +142,7 @@
  ("sotlisp"		:subtree "https://github.com/Malabarba/speed-of-thought-lisp")
  ("spinner"		:subtree "https://github.com/Malabarba/spinner.el")
  ("sql-indent"          :external "https://github.com/alex-hhh/emacs-sql-indent")
+ ("sql-smie"            :external nil)
  ("ssh-deploy"		:external "https://github.com/cjohansson/emacs-ssh-deploy")
  ("svg"			:core ("lisp/svg.el"))
  ("system-packages"	:external "https://gitlab.com/jabranham/system-packages")
