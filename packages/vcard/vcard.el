@@ -1,13 +1,12 @@
-;;; vcard.el --- Utilities for working with vCard files  -*- lexical-binding: t; -*-
+;;; vcard.el --- Package for handling vCard files  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2020  Free Software Foundation, Inc.
 
-;; Version: 0
-;; Package-Requires: ((emacs "25.1"))
-
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
-;; Keywords: mail, comm
+
+;; Version: 0.1
+;; Package-Requires: ((emacs "27.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -24,18 +23,42 @@
 
 ;;; Commentary:
 
-;; This package provides libraries for working with vCard data: files
-;; representing contact information.  At present there are two parts
-;; to it: a major mode for looking at *.vcf files, and a library for
-;; parsing those files into elisp data structures.  The third part,
-;; eventually, will be a library for writing elisp data structures to
-;; *.vcf files.
+;; This file contains `vcard-mode', for viewing vCard files.  Other
+;; files in this package contain functions for parsing and writing
+;; vCard data.
 
 ;;; Code:
 
-(defgroup vcard nil
-  "Customization options for the vcard library."
-  :group 'mail)
+(defface vcard-property-face
+  '((t :inherit font-lock-function-name-face))
+  "Face for highlighting property names."
+  :group 'vcard)
+
+(defface vcard-parameter-key-face
+  '((t :inherit font-lock-comment-face))
+  "Face for highlighting parameter keys."
+  :group 'vcard)
+
+(defface vcard-parameter-value-face
+  '((t :inherit font-lock-type-face))
+  "Face for highlighting parameter values."
+  :group 'vcard)
+
+(defvar vcard-font-lock-keywords
+  '("BEGIN:VCARD" "END:VCARD"
+    ("^[^ \t;:]+" . 'vcard-property-face)
+    (";\\([^=\n]+\\)=" (1 'vcard-parameter-key-face))
+    ("=\\([^;:\n]+\\)[;:]" (1 'vcard-parameter-value-face))))
+
+;;;###autoload
+(define-derived-mode vcard-mode text-mode "vCard"
+  "Major mode for viewing vCard files."
+  (turn-off-auto-fill)
+  (set (make-local-variable 'paragraph-start) "BEGIN:VCARD")
+  (setq font-lock-defaults '(vcard-font-lock-keywords)))
+
+;;;###autoload
+(add-to-list 'auto-mode-alist '("\\.[Vv][Cc][Ff]\\'" . vcard-mode))
 
 (provide 'vcard)
 ;;; vcard.el ends here
