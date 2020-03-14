@@ -94,6 +94,7 @@
 
 (require 'vcard)
 (require 'cl-lib)
+(require 'iso8601)
 
 (defgroup vcard-parse nil
   "Customization options for vcard parsing."
@@ -157,12 +158,8 @@ semicolons.")
 (defvar vcard-datetime-properties '(bday anniversary rev)
   "A list of vcard properties representing date or time values.
 The parsing process will make some attempt at converting these
-values into lisp timestamps.")
-
-;; Maybe load our local version of iso8601.
-(eval-when-compile
-  (unless (fboundp 'iso8601-parse)
-    (require 'vcard-iso8601)))
+values into lisp time values, depending on the value of
+`vcard-parse-datetime-values'.")
 
 ;;;###autoload
 (defun vcard-parse-file (file)
