@@ -212,10 +212,16 @@ Returns a list of contact objects."
     ;; with a `skip-syntax-forward' check.
 
     (while (re-search-forward "^BEGIN:VCARD\n" (line-end-position 2) t)
-      (when (setq card (ignore-errors
-			 ;; `vcard-parse-card' moves point past the
-			 ;; card.
-			 (vcard-parse-card prop-consumer card-consumer)))
+      (when (setq card (condition-case nil
+			   ;; `vcard-parse-card' moves point past the
+			   ;; card.
+			   (vcard-parse-card prop-consumer card-consumer)
+			 (error (lwarn
+				   '(vcard) :error
+				   "Parsing failed with:\n %s"
+				   (buffer-substring-no-properties
+				    (point-at-bol)
+				    (point-at-eol))))))
 	(push card out)))
 
     (nreverse out)))
