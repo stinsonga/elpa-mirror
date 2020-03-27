@@ -1,6 +1,6 @@
 ;;; ztree-view.el --- Text mode tree view (buffer) -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2013-2016  Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020  Free Software Foundation, Inc.
 ;;
 ;; Author: Alexey Veretennikov <alexey.veretennikov@gmail.com>
 ;;
@@ -69,8 +69,7 @@ The ith value of the array is the parent line for line i.
 If ith value is i - it is the root line")
 
 (defvar-local ztree-count-subsequent-bs nil
-  "Counter for the subsequest BS keys (to identify double BS).
-Used in order to not to use cl package and `lexical-let'")
+  "Counter for the subsequent BS keys (to identify double BS).")
 
 (defvar-local ztree-line-tree-properties nil
   "Hash with key - line number, value - property (`left', `right', `both').
