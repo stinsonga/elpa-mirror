@@ -117,12 +117,12 @@ function.
 "
   (let ((server (make-instance 'ws-server :handlers handlers :port port))
         (log (when log-buffer (get-buffer-create log-buffer))))
-    (setf (process server)
+    (setf (ws-process server)
           (apply
            #'make-network-process
            :name "ws-server"
            :service (ws-port server)
-           :filter 'ws-filter
+           :filter #'ws-filter
            :server t
            :nowait (< emacs-major-version 26)
            :family 'ipv4
@@ -397,7 +397,7 @@ received and parsed from the network."
       (set-process-plist
        process (list :message (make-instance 'ws-message
                                 :handler handler :process process)))
-      (set-process-filter process 'ws-web-socket-filter)
+      (set-process-filter process #'ws-web-socket-filter)
       process)))
 
 (defun ws-web-socket-filter (process string)
@@ -725,20 +725,20 @@ respectively."
 ;;; Enable the old accessors without the `ws-' namespace as obsolete.
 ;;; Lets plan to remove these within a year of the date they were
 ;;; marked obsolete, so that would be roughly 2021-03-12.
-(define-obsolete-function-alias 'active 'ws-active "2020-03-12")
-(define-obsolete-function-alias 'body 'ws-body "2020-03-12")
-(define-obsolete-function-alias 'boundary 'ws-boundary "2020-03-12")
-(define-obsolete-function-alias 'context 'ws-context "2020-03-12")
-(define-obsolete-function-alias 'data 'ws-data "2020-03-12")
-(define-obsolete-function-alias 'handler 'ws-handler "2020-03-12")
-(define-obsolete-function-alias 'handlers 'ws-handlers "2020-03-12")
-(define-obsolete-function-alias 'headers 'ws-headers "2020-03-12")
-(define-obsolete-function-alias 'index 'ws-index "2020-03-12")
-(define-obsolete-function-alias 'new 'ws-new "2020-03-12")
-(define-obsolete-function-alias 'pending 'ws-pending "2020-03-12")
-(define-obsolete-function-alias 'port 'ws-port "2020-03-12")
-(define-obsolete-function-alias 'process 'ws-process "2020-03-12")
-(define-obsolete-function-alias 'requests 'ws-requests "2020-03-12")
+(define-obsolete-function-alias 'active #'ws-active "2020-03-12")
+(define-obsolete-function-alias 'body #'ws-body "2020-03-12")
+(define-obsolete-function-alias 'boundary #'ws-boundary "2020-03-12")
+(define-obsolete-function-alias 'context #'ws-context "2020-03-12")
+(define-obsolete-function-alias 'data #'ws-data "2020-03-12")
+(define-obsolete-function-alias 'handler #'ws-handler "2020-03-12")
+(define-obsolete-function-alias 'handlers #'ws-handlers "2020-03-12")
+(define-obsolete-function-alias 'headers #'ws-headers "2020-03-12")
+(define-obsolete-function-alias 'index #'ws-index "2020-03-12")
+(define-obsolete-function-alias 'new #'ws-new "2020-03-12")
+(define-obsolete-function-alias 'pending #'ws-pending "2020-03-12")
+(define-obsolete-function-alias 'port #'ws-port "2020-03-12")
+(define-obsolete-function-alias 'process #'ws-process "2020-03-12")
+(define-obsolete-function-alias 'requests #'ws-requests "2020-03-12")
 
 (provide 'web-server)
 ;;; web-server.el ends here
