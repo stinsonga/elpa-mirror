@@ -1,6 +1,6 @@
-;;; web-shell.el --- interact with a SHELL through a web interface
+;;; web-shell.el --- interact with a SHELL through a web interface  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2013-2014  Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020  Free Software Foundation, Inc.
 
 ;; This software is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -71,4 +71,4 @@
       (process-send-string process
         (format web-shell-html (format web-shell-js web-shell-port))))))
 
-(ws-start 'web-shell-handler 9018)
+(ws-start #'web-shell-handler 9018)

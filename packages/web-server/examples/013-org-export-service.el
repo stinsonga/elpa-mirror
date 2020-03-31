@@ -1,5 +1,5 @@
-;;; 013-org-export-service.el --- upload and export Org-mode files
-;; Copyright (C) 2014  Free Software Foundation, Inc.
+;;; 013-org-export-service.el --- upload and export Org-mode files  -*- lexical-binding: t; -*-
+;; Copyright (C) 2014-2020  Free Software Foundation, Inc.
 
 (ws-start
  (lambda (request)

@@ -1,7 +1,7 @@
-;;; org-mode-file-server.el --- serve on-demand exported Org-mode files
-;; Copyright (C) 2014  Free Software Foundation, Inc.
+;;; org-mode-file-server.el --- serve on-demand exported Org-mode files  -*- lexical-binding: t; -*-
+;; Copyright (C) 2014-2020  Free Software Foundation, Inc.
 
-(lexical-let ((docroot "/tmp/"))
+(let ((docroot "/tmp/"))
   (ws-start
    (lambda (request)
      (with-slots (process headers) request
@@ -27,7 +27,7 @@
                                           (concat f ".html")))
                                   (mapcar #'file-name-sans-extension
                                           (directory-files path nil
-                                                           "^[^\.].*org$"))))
+                                                           "^[^.].*org\\'"))))
                           "\n") "</ul>")))
            ;; Export the file as requested and return the result
            (let* ((base (file-name-sans-extension path))

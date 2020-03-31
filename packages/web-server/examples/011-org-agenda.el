@@ -1,5 +1,5 @@
-;;; org-agenda.el --- display the Org-mode agenda
-;; Copyright (C) 2014, 2016  Free Software Foundation, Inc.
+;;; org-agenda.el --- display the Org-mode agenda  -*- lexical-binding: t; -*-
+;; Copyright (C) 2014-2020  Free Software Foundation, Inc.
 
 (if t (require 'htmlize))               ;Don't require during compilation.
 

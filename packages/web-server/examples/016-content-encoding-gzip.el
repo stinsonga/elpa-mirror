@@ -1,5 +1,5 @@
-;;; content-encoding-gzip.el -- gzip content encoding
-;; Copyright (C) 2014  Free Software Foundation, Inc.
+;;; content-encoding-gzip.el -- gzip content encoding  -*- lexical-binding: t; -*-
+;; Copyright (C) 2014-2020  Free Software Foundation, Inc.
 
 (ws-start
  (lambda (request)

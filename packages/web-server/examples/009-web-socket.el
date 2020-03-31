@@ -1,9 +1,9 @@
-;;; web-sockets.el --- communicate via web-sockets
-;; Copyright (C) 2014  Free Software Foundation, Inc.
+;;; web-sockets.el --- communicate via web-sockets  -*- lexical-binding: t; -*-
+;; Copyright (C) 2014-2020  Free Software Foundation, Inc.
 
-(lexical-let* ((web-socket-port 9009)
-               (web-socket-page
-                (format "<html>
+(let* ((web-socket-port 9009)
+       (web-socket-page
+        (format "<html>
 <head>
 <script type=\"text/javascript\">
 var ws;

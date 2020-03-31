@@ -1,9 +1,9 @@
-;;; org-json.el --- Serve Org-mode pages as json
+;;; org-json.el --- Serve Org-mode pages as json  -*- lexical-binding: t; -*-
 ;; suggested by nicferrier
-;; Copyright (C) 2014  Free Software Foundation, Inc.
+;; Copyright (C) 2014-2020  Free Software Foundation, Inc.
 
 (require 'json)
-(lexical-let ((docroot "/tmp/"))
+(let ((docroot "/tmp/"))
   (ws-start
    (lambda (request)
      (with-slots (process headers) request

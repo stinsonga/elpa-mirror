@@ -1,5 +1,5 @@
-;;; transfer-encoding-chunked.el -- chunked transfer encoding
-;; Copyright (C) 2014  Free Software Foundation, Inc.
+;;; transfer-encoding-chunked.el -- chunked transfer encoding  -*- lexical-binding: t; -*-
+;; Copyright (C) 2014-2020  Free Software Foundation, Inc.
 
 (ws-start
  (lambda (request)

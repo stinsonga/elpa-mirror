@@ -1,5 +1,5 @@
-;;; current-buffer.el --- Show the current Emacs buffer
-;; Copyright (C) 2014, 2016  Free Software Foundation, Inc.
+;;; current-buffer.el --- Show the current Emacs buffer  -*- lexical-binding: t; -*-
+;; Copyright (C) 2014-2020  Free Software Foundation, Inc.
 
 (if t (require 'htmlize))               ;Don't require during compilation.
 

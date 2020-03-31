@@ -1,8 +1,8 @@
-;;; basic-authentication.el --- basic authentication
-;; Copyright (C) 2014  Free Software Foundation, Inc.
+;;; basic-authentication.el --- basic authentication  -*- lexical-binding: t; -*-
+;; Copyright (C) 2014-2020  Free Software Foundation, Inc.
 
-(lexical-let ((users '(("foo" . "bar")
-                       ("baz" . "qux"))))
+(let ((users '(("foo" . "bar")
+               ("baz" . "qux"))))
   (ws-start
    (ws-with-authentication
     (lambda (request)

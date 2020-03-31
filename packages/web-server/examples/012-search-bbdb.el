@@ -1,5 +1,5 @@
-;;; search-bbdb.el --- search the Big Brother Data Base for a supplied name
-;; Copyright (C) 2014  Free Software Foundation, Inc.
+;;; search-bbdb.el --- search the Big Brother Data Base for a supplied name  -*- lexical-binding: t; -*-
+;; Copyright (C) 2014-2020  Free Software Foundation, Inc.
 
 (ws-start
  (lambda (request)
