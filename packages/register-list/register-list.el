@@ -1,6 +1,6 @@
 ;;; register-list.el ---  Interactively list/edit registers  -*- lexical-binding:t -*-
 ;;
-;; Copyright (C) 2011-2015  Free Software Foundation, Inc.
+;; Copyright (C) 2011-2020  Free Software Foundation, Inc.
 ;;
 ;; Filename: register-list.el
 ;; Author: Bastien Guerry <bzg@gnu.org>
@@ -59,9 +59,6 @@
 ;;   http://article.gmane.org/gmane.emacs.sources/2832
 ;; 
 ;;; Code:
-
-(eval-when-compile
-  (require 'cl))
 
 (defgroup register-list nil
   "Interactively list/edit registers."
