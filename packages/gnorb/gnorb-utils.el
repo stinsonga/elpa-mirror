@@ -481,12 +481,17 @@ to those symbols."
   (unless (= (point) bound)
     (let ((alist (mapcar #'list (copy-sequence types))))
       (while (re-search-forward org-link-any-re bound t)
-	(pcase-let* ((`(,type ,link) (split-string
-				      (match-string-no-properties 2)
-				      ":"))
-		     (sym (intern-soft type)))
-	  (when (and sym (memq sym types))
-	    (push link (alist-get sym alist)))))
+	(let ((link (or
+		     ;; Bracket link.
+		     (match-string-no-properties 2)
+		     ;; "Bare" link.
+		     (match-string-no-properties 0)))
+	      sym)
+	  (when (string-match "\\([^:]+\\):\\(.+\\)" link)
+	    (setq sym (intern-soft (match-string 1 link))
+		  link (match-string 2 link))
+	    (when (and sym (memq sym types))
+	      (push link (alist-get sym alist))))))
       alist)))
 
 (defun gnorb-msg-id-to-link (msg-id &optional server-group)
