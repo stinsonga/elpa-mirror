@@ -1,10 +1,9 @@
-;;; sm-c-mode.el --- Experimental C major mode based on SMIE  -*- lexical-binding: t; -*-
+;;; sm-c-mode.el --- C major mode based on SMIE  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2015, 2016  Free Software Foundation, Inc.
+;; Copyright (C) 2015-2020  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
-;; Version: 0
-;; Keywords:
+;; Version: 1.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -21,22 +20,41 @@
 
 ;;; Commentary:
 
-;; ¡¡Don't use this!!
+;; This started as an experiment to see concretely where&how SMIE falls down
+;; when trying to handle a language like C, to get an idea of maybe what it
+;; would take to change SMIE to better support C-style syntax.
 ;;
-;; This is an experiment to see concretely where&how SMIE falls down when
-;; trying to handle a language like C.
-;; So, strictly speaking, this does provide "SMIE-based indentation for C" and
-;; might even do it OK for simple cases, but it really doesn't benefit much
-;; from SMIE:
+;; So, this does provide "SMIE-based indentation for C" and might even do it OK
+;; in practice, but it really doesn't benefit much from SMIE:
 ;; - it does a lot of its own parsing by hand.
 ;; - its smie-rules-function also does a lot of indentation by hand.
 ;; Hopefully at some point, someone will find a way to extend SMIE such that
-;; it can handle C without having to constantly work around SMIE, e.g.
+;; we can handle C without having to constantly work around SMIE, e.g.
 ;; it'd be nice to hook sm-c--while-to-do, sm-c--else-to-if, sm-c--boi,
 ;; sm-c--boe, ... into SMIE at some level.
 
-;; Note that this mode makes no attempt to try and handle sanely K&R style
-;; function definitions.
+;; This is not designed to supplant Emacs's built-in c-mode, which does a more
+;; thorough job.  It was not even meant to be used by anyone, really, but
+;; I finally decided to release this because some users pointed out that on
+;; slow machines it can be a worthy lightweigth alternative.
+
+;;;; Known limitations:
+
+;; - This mode makes no attempt to try and handle sanely K&R style function
+;;   definitions (i.e. where the type of arguments is given between the list of
+;;   arguments and the body).  There are 2 good reasons for that: this old
+;;   syntax sucks and should be laid to rest, and it'd be a lot of extra work
+;;   to try and handle it.
+
+;;;; Todo:
+
+;; - This mode mostly limits itself to the C99 syntax, so it would be nice
+;;   to make it handle the syntactic constructs introduced since then.
+;; - We "use but don't use" SMIE.
+;; - CPP directives are treated as comments.  To some extent this is OK, but in
+;;   many other cases it isn't.  See for instance the comment-only-p advice.
+;; - M-q in a comment doesn't do the right thing.
+
 
 ;;;; Benchmarks
 
@@ -49,11 +67,11 @@
 ;;
 ;; Benchmarks: reindent emacs/src/*.[ch] (skipping macuvs.h and globals.h
 ;; because CC-mode gets pathologically slow on them).
-;;    (cd src/emacs/work/; git reset --hard; mv src/macuvs.h src/globals.h ./);
-;;    files=($(echo ~/src/emacs/work/src/*.[ch]));
-;;    (cd src/emacs/work/; mv macuvs.h globals.h src/);
+;;    (cd .../emacs/; git reset --hard; mv src/macuvs.h src/globals.h ./);
+;;    files=($(echo .../emacs/src/*.[ch]));
+;;    (cd .../emacs/; mv macuvs.h globals.h src/);
 ;;    time make -j4 ${^${files}}.reindent EMACS="emacs24 -Q";
-;;    (cd src/emacs/work/; git diff|wc)
+;;    (cd .../emacs/; git diff|wc)
 ;; - Default settings:
 ;;   diff|wc =>  86800  379362 2879534
 ;;   make -j4  191.57s user 1.77s system 334% cpu   57.78 total
@@ -64,17 +82,14 @@
 ;;   diff|wc =>  79164  490894 3428542
 ;;   make -j4  804.83s user 2.79s system 277% cpu 4:51.08 total
 ;;
-;; Again: take this with a large grain of salt, since this is testing sm-c-mode
-;; in the most favorable light (IOW it's a very strongly biased benchmark).
+;; IOW, in this "best case" scenario, `sm-c-mode' indented almost as well
+;; as `c-mode' does (as measured by diff|wc), and it did it about
+;; 4 times faster.
+;; BEWARE: take this with a large grain of salt, since this is testing
+;; `sm-c-mode' in the most favorable light (IOW it's a very strongly biased
+;; benchmark).
 ;; All this says, is that sm-c-mode's indentation might actually be usable if
 ;; you use it on C code that is sufficiently similar to Emacs's.
-
-;;;; FIXME:
-
-;; - We "use but don't use" SMIE.
-;; - CPP directives are treated as comments.  To some extent this is OK, but in
-;;   many other cases it isn't.  See for instance the comment-only-p advice.
-;; - M-q in a comment doesn't do the right thing.
 
 ;;; Code:
 
