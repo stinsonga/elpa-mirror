@@ -79,6 +79,14 @@ sent. Save the relevant Org ids in the 'gnorb-ids key."
       (gnus-registry-set-id-key msg-id 'group (list group)))
     (gnus-registry-get-or-make-entry msg-id)))
 
+(defun gnorb-registry-get-id-key (id key)
+  "Get value of symbol KEY for ID's entry in the registry.
+Works just like `gnus-registry-get-id-key', but doesn't create an
+entry if it doesn't exist already."
+  (cdr-safe
+   (assq key (nth 1 (assoc id (registry-lookup
+			       gnus-registry-db (list id)))))))
+
 (defun gnorb-registry-capture ()
   "When capturing from a Gnus message, add our new Org heading id
 to the message's registry entry, under the `gnorb-ids' key."
@@ -115,7 +123,7 @@ even for headings that appear to no longer exist."
 	(dolist (id ids)
 	  (when
 	      (setq sub-val
-		    (gnus-registry-get-id-key id 'gnorb-ids))
+		    (gnorb-registry-get-id-key id 'gnorb-ids))
 	    (setq ret-val (append sub-val ret-val))))))
     ;; This lets us be reasonably confident that the
     ;; headings still exist.

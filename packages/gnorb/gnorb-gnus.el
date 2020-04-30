@@ -964,7 +964,7 @@ option `gnorb-gnus-hint-relevant-article' is non-nil."
 	     (gnus-data-find
 	      (gnus-summary-article-number))))
 	   (assoc-heading
-	    (gnus-registry-get-id-key
+	    (gnorb-registry-get-id-key
 	     (gnus-fetch-original-field "message-id") 'gnorb-ids))
 	   (tracked-headings (gnorb-find-tracked-headings headers)))
       (cond (assoc-heading
@@ -981,18 +981,12 @@ option `gnorb-gnus-hint-relevant-article' is non-nil."
   (if (eieio-object-p gnus-registry-db)
       (if (not (or (gnus-ephemeral-group-p gnus-newsgroup-name)
 		   (gnus-virtual-group-p gnus-newsgroup-name)))
-	  (let* ((id (mail-header-message-id header))
-		 ;; Use lower-level accessor to avoid creating an entry
-		 ;; where there wasn't one.  This function doesn't respect
-		 ;; ignored registry groups.
-		 (entry (nth 1 (assoc id (registry-lookup
-					  gnus-registry-db
-					  (list id))))))
-	    (cond ((cdr-safe (assq 'gnorb-ids entry))
-		   gnorb-gnus-summary-tracked-mark)
-		  ((gnorb-find-tracked-headings header)
-		   gnorb-gnus-summary-mark)
-		  (t " ")))
+	  (cond ((gnorb-registry-get-id-key
+		  (mail-header-message-id header) 'gnorb-ids)
+		 gnorb-gnus-summary-tracked-mark)
+		((gnorb-find-tracked-headings header)
+		 gnorb-gnus-summary-mark)
+		(t " "))
 	" ")
     ""))
 
@@ -1003,11 +997,8 @@ option `gnorb-gnus-hint-relevant-article' is non-nil."
 
 (defun gnorb-gnus-insert-format-tags (header)
   (if (eieio-object-p gnus-registry-db)
-      (let* ((id (mail-header-message-id header))
-	     (entry (nth 1 (assoc id (registry-lookup
-				      gnus-registry-db
-				      (list id)))))
-	     (tags (cdr-safe (assq 'org-tags entry))))
+      (let ((tags (gnorb-registry-get-id-key
+		   (mail-header-message-id header) 'org-tags)))
 	(if tags
 	    (concat
 	     ":" (mapconcat #'identity tags ":") ":")
