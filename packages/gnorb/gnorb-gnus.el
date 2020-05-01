@@ -502,7 +502,6 @@ work."
        :annotation link))
     (org-capture nil gnorb-gnus-new-todo-capture-key)
     (when msg-id
-      (org-entry-put (point) gnorb-org-msg-id-key msg-id)
       (gnorb-registry-make-entry msg-id sender subject (org-id-get-create) group))))
 
 ;;; If an incoming message should trigger state-change for a Org todo,
