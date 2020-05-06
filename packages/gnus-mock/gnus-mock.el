@@ -5,7 +5,7 @@
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Package-Type: multi
-;; Version: 0.4.4
+;; Version: 0.4.5
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -135,7 +135,13 @@ will start a mock Gnus session."
   (interactive)
   (let ((mock-tmp-dir (make-temp-file "emacs-gnus-mock-" t)))
     (condition-case-unless-debug err
-	(let ((init-file (expand-file-name "init.el" mock-tmp-dir)))
+	(let ((init-file (expand-file-name "init.el" mock-tmp-dir))
+	      (maildir-sep (if (memq system-type '(ms-dos windows-nt))
+			       "-" ":"))
+	      (maildir-folders
+	       '("test/Welcome" "test/incoming" "test/mails"
+		 "imapmail/mail" "imapmail/mail/.emacs-devel"
+		 "imapmail/mail/.&BB8EQAQ4BDIENQRCBDwEOARA-")))
 	  (with-temp-buffer
 	    (let ((standard-output (current-buffer))
 		  (print-circle nil))
@@ -184,17 +190,39 @@ will start a mock Gnus session."
 	  (copy-directory
 	   gnus-mock-data-dir
 	   (file-name-as-directory mock-tmp-dir) nil nil t)
-	  ;; Git doesn't let us commit empty directories, so create our
-	  ;; necessary empty maildir bits, and draft directories.
-	  (mapc (lambda (path) (make-directory path t))
+	  ;; Git doesn't let us commit empty directories, so create
+	  ;; our necessary empty maildir bits, and draft directories.
+	  ;; Some of these directories already exist; `make-directory'
+	  ;; with the PARENTS arg will silently pass over them.
+	  (mapc (lambda (path)
+		  (mapc
+		   (lambda (bit)
+		     (make-directory
+		      (expand-file-name bit path) t))
+		   '("new" "tmp" "cur")))
 		(mapcar (lambda (dir)
-			  (format "%s/test/%s" mock-tmp-dir dir))
-			'("Welcome/new" "Welcome/tmp" "Welcome/.nnmaildir/marks"
-			  "incoming/tmp" "incoming/new" "incoming/cur"
-			  "incoming/.nnmaildir/marks" "incoming/.nnmaildir/nov"
-			  "mails/tmp" "mails/new" "mails/.nnmaildir/marks")))
+			  (expand-file-name dir mock-tmp-dir))
+			maildir-folders))
+	  (mapc (lambda (dir)
+		  (make-directory
+		   (expand-file-name dir mock-tmp-dir)
+		   t))
+		'("test/Welcome/.nnmaildir/marks"
+		  "test/incoming/.nnmaildir/marks"
+		  "test/incoming/.nnmaildir/nov"
+		  "test/mails/.nnmaildir/marks"))
 	  (make-directory (format "%s/drafts/drafts" mock-tmp-dir) t)
 	  (make-directory (format "%s/drafts/queue" mock-tmp-dir))
+	  ;; Rename all our maildir message files with a separator
+	  ;; character that doesn't offend the filesystem.
+	  (dolist (dir maildir-folders)
+	    (dolist (file (directory-files
+			   (expand-file-name
+			    "cur"
+			    (expand-file-name dir mock-tmp-dir))
+			   t "SEP"))
+	      (rename-file
+	       file (replace-regexp-in-string "SEP" maildir-sep file))))
 	  ;; Possibly insert additional config.
 	  (when gnus-mock-init-file
 	    (with-temp-buffer
