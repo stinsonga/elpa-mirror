@@ -65,7 +65,7 @@
  ("company"		:subtree "https://github.com/company-mode/company-mode.git")
  ("company-math"	:subtree "https://github.com/vspinu/company-math.git")
  ("context-coloring"	:subtree "https://github.com/jacksonrayhamilton/context-coloring.git")
- ("darkroom"            :subtree "https://github.com/capitaomorte/darkroom.git")
+ ("darkroom"            :external "https://github.com/capitaomorte/darkroom.git")
  ("dash"                :external "https://github.com/magnars/dash.el.git")
  ("dbus-codegen"	:subtree "https://github.com/ueno/dbus-codegen-el.git")
  ("delight"		:subtree "http://git.savannah.gnu.org/r/delight.git")
