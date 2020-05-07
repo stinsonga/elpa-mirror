@@ -36,10 +36,15 @@ This can be either `debbugs-gnu-bugs' or `debbugs-org-bugs'."
 		 (const debbugs-org-bugs))
   :version "25.1")
 
-(defcustom debbugs-browse-url-regexp
+;;;###autoload
+(defconst debbugs-browse-gnu-url-regexp
   (format "^%s\\(%s\\)?\\([[:digit:]]+\\)$"
 	  "https?://\\(debbugs\\|bugs\\)\\.gnu\\.org/"
 	  (regexp-quote "cgi/bugreport.cgi?bug="))
+  "A regular expression matching bug report URLs on GNU's debbugs instance.")
+
+(defcustom debbugs-browse-url-regexp
+  debbugs-browse-gnu-url-regexp
   "Regexp matching Debbugs bug report URL."
   :group 'debbugs-gnu
   :type  'regexp)
@@ -50,6 +55,11 @@ This can be either `debbugs-gnu-bugs' or `debbugs-org-bugs'."
     (funcall debbugs-browse-function (string-to-number (match-string 3 url)))
     ;; Return t for add-function mechanery.
     t))
+
+;;;###autoload
+(when (boundp 'browse-url-default-handlers)
+  (add-to-list 'browse-url-default-handlers
+               `(,debbugs-browse-gnu-url-regexp . debbugs-browse-url)))
 
 ;;;###autoload
 (define-minor-mode debbugs-browse-mode
