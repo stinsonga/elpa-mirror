@@ -125,6 +125,7 @@
  ("phps-mode"		:external "https://github.com/cjohansson/emacs-phps-mode")
  ("pinentry"		:subtree "https://github.com/ueno/pinentry-el.git")
  ("posframe"		:external "https://github.com/tumashu/posframe")
+ ("prefixed-core"	:external nil)
  ("psgml"               :external "https://github.com/lenst/psgml.git")
  ("python"		:core "lisp/progmodes/python.el")
  ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
