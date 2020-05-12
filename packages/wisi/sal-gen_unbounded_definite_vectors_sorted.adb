@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2019 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -163,7 +163,6 @@ package body SAL.Gen_Unbounded_Definite_Vectors_Sorted is
      (Container : in out Vector;
       Length    : in     Ada.Containers.Count_Type)
    is
-      use all type Ada.Containers.Count_Type;
       First_Peek : constant Peek_Type      := Peek_Type'First;
       Last_Peek  : constant Base_Peek_Type := Base_Peek_Type (Length);
    begin
@@ -312,42 +311,44 @@ package body SAL.Gen_Unbounded_Definite_Vectors_Sorted is
    overriding function First (Object : Iterator) return Cursor
    is begin
       if Object.Container.Elements = null then
-         return (null, Invalid_Peek_Index);
+         return (Index => Invalid_Peek_Index);
       else
-         return (Object.Container, Peek_Type'First);
+         return (Index => Peek_Type'First);
       end if;
    end First;
 
    overriding function Last  (Object : Iterator) return Cursor
    is begin
       if Object.Container.Elements = null then
-         return (null, Invalid_Peek_Index);
+         return (Index => Invalid_Peek_Index);
       else
-         return (Object.Container, Object.Container.Last);
+         return (Index => Object.Container.Last);
       end if;
    end Last;
 
    overriding function Next (Object : in Iterator; Position : in Cursor) return Cursor
    is begin
       if Position.Index = Object.Container.Last then
-         return (null, Invalid_Peek_Index);
+         return (Index => Invalid_Peek_Index);
       else
-         return (Object.Container, Position.Index + 1);
+         return (Index => Position.Index + 1);
       end if;
    end Next;
 
    overriding function Previous (Object : in Iterator; Position : in Cursor) return Cursor
-   is begin
+   is
+      pragma Unreferenced (Object);
+   begin
       if Position.Index = Peek_Type'First then
-         return (null, Invalid_Peek_Index);
+         return (Index => Invalid_Peek_Index);
       else
-         return (Object.Container, Position.Index - 1);
+         return (Index => Position.Index - 1);
       end if;
    end Previous;
 
    function Iterate (Container : aliased in Vector) return Iterator_Interfaces.Reversible_Iterator'Class
    is begin
-      return Iterator'(Container => Container'Unrestricted_Access);
+      return Iterator'(Container => Container'Access);
    end Iterate;
 
    function Constant_Ref (Container : aliased Vector; Position : in Cursor) return Constant_Reference_Type
@@ -355,10 +356,15 @@ package body SAL.Gen_Unbounded_Definite_Vectors_Sorted is
       return (Element => Container.Elements (Position.Index)'Access, Dummy => 1);
    end Constant_Ref;
 
-   function Last_Index (Container : aliased Vector) return Base_Peek_Type
+   function Last_Index (Container : in Vector) return Base_Peek_Type
    is begin
       return Container.Last;
    end Last_Index;
+
+   function To_Index (Position : in Cursor) return Base_Peek_Type
+   is begin
+      return Position.Index;
+   end To_Index;
 
    function Constant_Ref (Container : aliased Vector; Index : in Peek_Type) return Constant_Reference_Type
    is begin

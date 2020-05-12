@@ -11,7 +11,7 @@
 --  [Grune 2008] Parsing Techniques, A Practical Guide, Second
 --  Edition. Dick Grune, Ceriel J.H. Jacobs.
 --
---  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -30,6 +30,7 @@ with Ada.Task_Attributes;
 with WisiToken.Parse.LR.Parser;
 with WisiToken.Lexer;
 package WisiToken.Parse.LR.McKenzie_Recover is
+   use all type Ada.Containers.Count_Type;
 
    Bad_Config : exception;
    --  Raised when a config is determined to violate some programming
@@ -51,7 +52,6 @@ package WisiToken.Parse.LR.McKenzie_Recover is
    --  and forces at least three.
 
 private
-   use all type WisiToken.Syntax_Trees.Node_Index;
 
    ----------
    --  Visible for language-specific child packages. Alphabetical.
@@ -65,9 +65,8 @@ private
      (Terminals                 :         in     Base_Token_Arrays.Vector;
       Terminals_Current         :         in out Base_Token_Index;
       Restore_Terminals_Current :            out WisiToken.Base_Token_Index;
-      Insert_Delete             : aliased in out Sorted_Insert_Delete_Arrays.Vector;
-      Current_Insert_Delete     :         in out SAL.Base_Peek_Type;
-      Prev_Deleted              :         in     Recover_Token_Index_Arrays.Vector)
+      Insert_Delete             : aliased in out Config_Op_Arrays.Vector;
+      Current_Insert_Delete     :         in out SAL.Base_Peek_Type)
      return Base_Token;
    --  Return the current token, from either Terminals or Insert_Delete;
    --  set up for Next_Token.
@@ -77,7 +76,7 @@ private
    function Current_Token_ID_Peek
      (Terminals             :         in Base_Token_Arrays.Vector;
       Terminals_Current     :         in Base_Token_Index;
-      Insert_Delete         : aliased in Sorted_Insert_Delete_Arrays.Vector;
+      Insert_Delete         : aliased in Config_Op_Arrays.Vector;
       Current_Insert_Delete :         in SAL.Base_Peek_Type)
      return Token_ID;
    --  Return the current token from either Terminals or
@@ -86,9 +85,8 @@ private
    procedure Current_Token_ID_Peek_3
      (Terminals             :         in     Base_Token_Arrays.Vector;
       Terminals_Current     :         in     Base_Token_Index;
-      Insert_Delete         : aliased in     Sorted_Insert_Delete_Arrays.Vector;
+      Insert_Delete         : aliased in     Config_Op_Arrays.Vector;
       Current_Insert_Delete :         in     SAL.Base_Peek_Type;
-      Prev_Deleted          :         in     Recover_Token_Index_Arrays.Vector;
       Tokens                :            out Token_ID_Array_1_3);
    --  Return the current token (in Tokens (1)) from either Terminals or
    --  Insert_Delete, without setting up for Next_Token. Return the two
@@ -123,6 +121,13 @@ private
       Config    : in out Configuration;
       Index     : in out WisiToken.Token_Index);
    --  Same as Delete_Check, without the check.
+
+   function Find_ID
+     (Config         : in     Configuration;
+      ID             : in     Token_ID)
+     return Boolean;
+   --  Search Config.Stack for a token with ID, starting at
+   --  stack top. Return True if found, False if not.
 
    procedure Find_ID
      (Config         : in     Configuration;
@@ -189,9 +194,8 @@ private
      (Terminals                 :         in     Base_Token_Arrays.Vector;
       Terminals_Current         :         in out Base_Token_Index;
       Restore_Terminals_Current :         in out Base_Token_Index;
-      Insert_Delete             : aliased in out Sorted_Insert_Delete_Arrays.Vector;
-      Current_Insert_Delete     :         in out SAL.Base_Peek_Type;
-      Prev_Deleted              :         in     Recover_Token_Index_Arrays.Vector)
+      Insert_Delete             : aliased in out Config_Op_Arrays.Vector;
+      Current_Insert_Delete     :         in out SAL.Base_Peek_Type)
      return Base_Token;
    --  Return the next token, from either Terminals or Insert_Delete;
    --  update Terminals_Current or Current_Insert_Delete.
@@ -206,24 +210,38 @@ private
    --  Insert_Delete contains only Insert and Delete ops, in token_index
    --  order. Those ops are applied when Terminals_Current =
    --  op.token_index.
-   --
-   --  Prev_Deleted contains tokens deleted in previous recover
-   --  operations; those are skipped.
 
-   procedure Push_Back (Config : in out Configuration);
+   function Push_Back_Valid
+     (Target_Token_Index : in WisiToken.Base_Token_Index;
+      Ops             : in Config_Op_Arrays.Vector;
+      Prev_Op         : in Positive_Index_Type)
+     return Boolean;
+
+   function Push_Back_Valid (Config : in Configuration) return Boolean
+     is (Config.Stack.Depth > 1 and then
+           (not Config.Stack.Peek.Token.Virtual and
+              --  If Virtual, this is from earlier in this recover session; no point
+              --  in trying to redo it.
+              (Config_Op_Arrays.Length (Config.Ops) = 0 or else
+                 Push_Back_Valid
+                   (Config.Stack.Peek.Token.Min_Terminal_Index,
+                    Config.Ops,
+                    Config_Op_Arrays.Last_Index (Config.Ops)))));
+
+   procedure Push_Back (Config : in out Configuration)
+   with Pre => Push_Back_Valid (Config);
    --  Pop the top Config.Stack item, set Config.Current_Shared_Token to
    --  the first terminal in that item. If the item is empty,
    --  Config.Current_Shared_Token is unchanged.
-   --
-   --  If any earlier Insert or Delete items in Config.Ops are for a
-   --  token_index after that first terminal, they are added to
-   --  Config.Insert_Delete in token_index order.
 
-   procedure Push_Back_Check (Config : in out Configuration; Expected_ID : in Token_ID);
+   procedure Push_Back_Check (Config : in out Configuration; Expected_ID : in Token_ID)
+   with Pre => Push_Back_Valid (Config);
    --  In effect, call Check and Push_Back.
 
    procedure Push_Back_Check (Config : in out Configuration; Expected : in Token_ID_Array);
    --  Call Push_Back_Check for each item in Expected.
+   --
+   --  Raises Bad_Config if any of the push_backs is invalid.
 
    procedure Put
      (Message      : in     String;
@@ -243,19 +261,28 @@ private
    --  Put message to Trace, with parser and task info.
 
    function Undo_Reduce_Valid
-     (Stack : in Recover_Stacks.Stack;
-      Tree  : in Syntax_Trees.Tree)
+     (Stack   : in Recover_Stacks.Stack;
+      Tree    : in Syntax_Trees.Tree)
      return Boolean
+     --  Check if Undo_Reduce is valid when there is no previous Config_Op.
+     --
+     --  Undo_Reduce needs to know what tokens the nonterm contains, to
+     --  push them on the stack. Thus we need a valid Tree index. It is
+     --  tempting to also allow an empty nonterm when Tree_Index is
+     --  invalid, but that fails when the real Undo_Reduce results in
+     --  another empty nonterm on the stack; see test_mckenzie_recover.adb
+     --  Error_During_Resume_3.
      is (Stack.Depth > 1 and then
-           ((Stack.Peek.Tree_Index /= WisiToken.Syntax_Trees.Invalid_Node_Index and then
-               Tree.Is_Nonterm (Stack.Peek.Tree_Index)) or
-              (Stack.Peek.Tree_Index = WisiToken.Syntax_Trees.Invalid_Node_Index and
-                 (not Stack.Peek.Token.Virtual and
-                    Stack.Peek.Token.Byte_Region = Null_Buffer_Region))));
-   --  Undo_Reduce needs to know what tokens the nonterm contains, to
-   --  push them on the stack. Thus we need either a valid Tree index, or
-   --  an empty nonterm. If Token.Virtual, we can't trust
-   --  Token.Byte_Region to determine empty.
+           Stack.Peek.Tree_Index /= Invalid_Node_Index and then
+               Tree.Is_Nonterm (Stack.Peek.Tree_Index));
+
+   function Undo_Reduce_Valid
+     (Stack   : in Recover_Stacks.Stack;
+      Tree    : in Syntax_Trees.Tree;
+      Ops     : in Config_Op_Arrays.Vector;
+      Prev_Op : in Positive_Index_Type)
+     return Boolean
+   is (Undo_Reduce_Valid (Stack, Tree) and then Push_Back_Valid (Stack.Peek.Token.Min_Terminal_Index, Ops, Prev_Op));
 
    function Undo_Reduce
      (Stack : in out Recover_Stacks.Stack;

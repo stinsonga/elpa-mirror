@@ -1,6 +1,6 @@
 ;;; wisi-skel.el --- Extensions skeleton  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1987, 1993, 1994, 1996-2019  Free Software Foundation, Inc.
+;; Copyright (C) 1987, 1993, 1994, 1996-2020  Free Software Foundation, Inc.
 
 ;; Authors: Stephen Leake <stephen_leake@stephe-leake.org>
 
@@ -24,17 +24,41 @@
 ;; The primary user command is `wisi-skel-expand', which inserts the
 ;; skeleton associated with the previous word (possibly skipping a
 ;; name).
-;;
+
+(require 'skeleton)
 
 (defvar-local wisi-skel-token-alist nil
   "Alist of (STRING . ELEMENT), used by `wisi-skel-expand'.
-STRING must be a symbol in the current syntax, and is normally
-the first language keyword in the skeleton.
+STRING should be a grammar symbol in the current language.
 
 ELEMENT may be:
 - a skeleton, which is inserted
 - an alist of (STRING . SKELETON). User is prompted with `completing-read',
   selected skeleton is inserted.")
+
+(defun wisi-skel-add-token-after (alist token skel after-1 &optional after-2)
+  "Add a new entry in ALIST (should be an instance of `wisi-skel-token-alist')
+after AFTER-1. If AFTER-1 is a nested alist, add the new entry after AFTER-2."
+  (let ((tail alist)
+	done)
+    (if (string= after-1 (car (car alist)))
+	(setcdr alist (cons (cons token skel) (cdr alist)))
+
+      (while (and (not done) tail)
+	(if (string= after-1 (car-safe (car (cdr tail))))
+	    (cond
+	     ((symbolp (cdr (car (cdr tail))))
+	      (setcdr tail (cons (cons token skel) (cdr (cdr tail))))
+	      (setq done t))
+
+	     ((consp (cdr (car (cdr tail))))
+	      (wisi-skel-add-token-after (cdr (car (cdr tail))) token skel after-2)
+	      (setq done t))
+	     )
+	  ;; else
+	  (setq tail (cdr tail))
+	  ))
+      )))
 
 (defun wisi-skel-build-prompt (alist count)
   "Build a prompt from the keys of the ALIST.
@@ -93,7 +117,8 @@ before that as the token."
 	       (skip-syntax-forward " ")
 	       (skip-syntax-forward "w_."))
 	     (point)))
-	  (funcall (cdr skel) name)
+	  (let ((skeleton-end-newline nil))
+	    (funcall (cdr skel) name))
 	  (setq handled t))
 
       ;; word in point .. end is not a token; assume it is a name
@@ -107,10 +132,18 @@ before that as the token."
 	  ;; on tokens and placeholders.
 	  (save-excursion (wisi-case-adjust-region (point) end)))
 
-	(wisi-skel-expand (buffer-substring-no-properties (point) end))
-	(setq handled t)))
+	(condition-case-unless-debug nil
+	    (progn
+	      (wisi-skel-expand (buffer-substring-no-properties (point) end))
+	      (setq handled t))
+	  (user-error ;; leave handled nil
+	   ))
+	))
 
     (when (not handled)
+      (setq name (buffer-substring-no-properties (point) end))
+      ;; restore point
+      (goto-char end)
       (user-error "'%s' is not a skeleton token" name))
     ))
 

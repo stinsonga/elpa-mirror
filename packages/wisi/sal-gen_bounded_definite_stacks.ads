@@ -3,7 +3,7 @@
 --  Bounded stack implementation, with full Spark verification,
 --  optimized for speed.
 --
---  Copyright (C) 1998-2000, 2002-2003, 2009, 2015, 2017 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 1998-2000, 2002-2003, 2009, 2015, 2017 - 2020 Free Software Foundation, Inc.
 --
 --  SAL is free software; you can redistribute it and/or modify it
 --  under terms of the GNU General Public License as published by the
@@ -98,6 +98,6 @@ private
       --  Top of stack is at Data (Top).
       --  Data (1 .. Top) has been set at some point.
    end record with
-     Dynamic_Predicate => Top in 0 .. Size;
+     Dynamic_Predicate => Stack.Top in 0 .. Stack.Size;
 
 end SAL.Gen_Bounded_Definite_Stacks;

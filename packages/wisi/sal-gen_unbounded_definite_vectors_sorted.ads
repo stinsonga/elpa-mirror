@@ -2,7 +2,7 @@
 --
 --  A simple unbounded sorted vector of definite items.
 --
---  Copyright (C) 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2019 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -26,6 +26,8 @@ generic
    with function To_Key (Item : in Element_Type) return Key_Type;
    with function Key_Compare (Left, Right : in Key_Type) return Compare_Result;
 package SAL.Gen_Unbounded_Definite_Vectors_Sorted is
+
+   use all type Ada.Containers.Count_Type;
 
    type Vector is new Ada.Finalization.Controlled with private with
       Constant_Indexing => Constant_Ref,
@@ -94,13 +96,16 @@ package SAL.Gen_Unbounded_Definite_Vectors_Sorted is
      Implicit_Dereference => Element;
 
    function Constant_Ref (Container : aliased Vector; Position : in Cursor) return Constant_Reference_Type
-   with Inline;
+   with Inline,
+     Pre => To_Index (Position) in Container.First_Index .. Container.Last_Index;
 
-   function First_Index (Container : aliased Vector) return Peek_Type is (Peek_Type'First);
-   function Last_Index (Container : aliased Vector) return Base_Peek_Type
+   function First_Index (Container : in Vector) return Peek_Type is (Peek_Type'First);
+   function Last_Index (Container : in Vector) return Base_Peek_Type
    with Inline;
+   function To_Index (Position : in Cursor) return Base_Peek_Type;
    function Constant_Ref (Container : aliased Vector; Index : in Peek_Type) return Constant_Reference_Type
-   with Inline;
+   with Inline,
+     Pre => Index in Container.First_Index .. Container.Last_Index;
 
 private
 
@@ -123,14 +128,11 @@ private
    for Vector_Access'Storage_Size use 0;
 
    type Cursor is record
-      Container : Vector_Access  := null;
-      Index     : Base_Peek_Type := No_Index;
+      Index : Base_Peek_Type := No_Index;
    end record;
 
-   type Iterator is new Iterator_Interfaces.Reversible_Iterator with
-   record
-      Container : Vector_Access;
-   end record;
+   type Iterator (Container : not null access constant Vector) is new Iterator_Interfaces.Reversible_Iterator
+     with null record;
 
    overriding function First (Object : Iterator) return Cursor;
    overriding function Last  (Object : Iterator) return Cursor;

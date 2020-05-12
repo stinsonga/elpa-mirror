@@ -8,7 +8,7 @@
 --  [1] Introduction to Algorithms, Thomas H. Cormen, Charles E.
 --  Leiserson, Ronald L. Rivest, Clifford Stein.
 --
---  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -65,13 +65,14 @@ package SAL.Gen_Unbounded_Definite_Red_Black_Trees is
      (Container : aliased in Tree;
       Position  :         in Cursor)
      return Constant_Reference_Type with
-     Inline;
+     Inline, Pre => Has_Element (Position);
 
    function Constant_Reference
      (Container : aliased in Tree;
       Key       :         in Key_Type)
      return Constant_Reference_Type with
      Inline;
+   --  Raises Not_Found if Key not found in Container.
 
    type Variable_Reference_Type (Element : not null access Element_Type) is private with
      Implicit_Dereference => Element;
@@ -80,7 +81,7 @@ package SAL.Gen_Unbounded_Definite_Red_Black_Trees is
      (Container : aliased in Tree;
       Position  :         in Cursor)
      return Variable_Reference_Type with
-     Inline;
+     Inline, Pre => Has_Element (Position);
 
    function Variable_Reference
      (Container : aliased in Tree;

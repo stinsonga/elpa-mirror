@@ -14,7 +14,7 @@
 --  [warth 2008]  Warth, A., Douglass, J.R. and Millstein, T.D., 2008. Packrat
 --                parsers can support left recursion. PEPM, 8, pp.103-110.
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018, 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -47,17 +47,18 @@ pragma License (Modified_GPL);
 with WisiToken.Syntax_Trees;
 package WisiToken.Parse.Packrat is
 
-   function Tree_Index (Terminal_Index : in Token_Index) return Syntax_Trees.Valid_Node_Index
-     is (Syntax_Trees.Valid_Node_Index (Terminal_Index));
+   function Tree_Index (Terminal_Index : in Token_Index) return Valid_Node_Index
+     is (Valid_Node_Index (Terminal_Index));
    --  All tokens are read and entered into the syntax tree before any
    --  nonterms are reduced, so the mapping from Terminals token_index to
    --  Tree node_index is identity.
+   --  FIXME: use Terminals (Terminal_Index).Tree_Index
 
    type Parser is abstract new Base_Parser with record
       --  Dynamic parsing data
 
       Base_Tree : aliased WisiToken.Syntax_Trees.Base_Tree;
-      Tree      : WisiToken.Syntax_Trees.Tree;
+      Tree      : aliased WisiToken.Syntax_Trees.Tree;
       --  FIXME: Current we only need Base_Tree for Execute_Actions, except
       --  that Syntax_Trees only declares the needed operations on Tree. But
       --  we may need more trees for error recovery; if not, fix
@@ -66,6 +67,9 @@ package WisiToken.Parse.Packrat is
 
    end record;
 
-   overriding procedure Execute_Actions (Parser : in out Packrat.Parser);
+   overriding
+   procedure Execute_Actions
+     (Parser          : in out Packrat.Parser;
+      Image_Augmented : in     Syntax_Trees.Image_Augmented := null);
 
 end WisiToken.Parse.Packrat;

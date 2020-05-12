@@ -7,7 +7,7 @@
 ;; Keywords: parser
 ;;  indentation
 ;;  navigation
-;; Version: 3.0.1
+;; Version: 3.1.0
 ;; package-requires: ((emacs "25.0") (seq "2.20"))
 ;; URL: http://stephe-leake.org/ada/wisitoken.html
 ;;
@@ -197,15 +197,9 @@ If PARSE-RESULT is non-nil, use it instead of calling `syntax-ppss'."
   ;; point may be in the middle of a word, so insert newline first,
   ;; then go back and indent.
   (insert "\n")
-  (unless (and (wisi-partial-parse-p (line-beginning-position) (line-end-position))
-	       (save-excursion (progn (forward-char -1)(looking-back "begin\\|else" (line-beginning-position)))))
-    ;; Partial parse may think 'begin' is just the start of a
-    ;; statement, when it's actually part of a larger declaration. So
-    ;; don't indent 'begin'. Similarly for 'else'; error recovery will
-    ;; probably insert 'if then' immediately before it
-    (forward-char -1)
-    (funcall indent-line-function)
-    (forward-char 1))
+  (forward-char -1)
+  (funcall indent-line-function)
+  (forward-char 1)
   (funcall indent-line-function))
 
 ;;;; token info cache
@@ -428,9 +422,11 @@ Truncate any region that overlaps POS."
   "Force a parse."
   (interactive)
   (syntax-ppss-flush-cache (point-min)) ;; necessary after edit during ediff-regions
-  (wisi-invalidate-cache 'indent (point-min))
-  (wisi-invalidate-cache 'face (point-min))
-  (wisi-invalidate-cache 'navigate (point-min))
+  (setq wisi--cached-regions ;; necessary instead of wisi-invalidate after ediff-regions
+	(list
+	 (cons 'face nil)
+	 (cons 'navigate nil)
+	 (cons 'indent nil)))
   (wisi-set-parse-try t 'indent)
   (wisi-set-parse-try t 'face)
   (wisi-set-parse-try t 'navigate)
@@ -782,7 +778,9 @@ Usefull if the parser appears to be hung."
 	  (with-current-buffer wisi-error-buffer
 	    (setq buffer-read-only nil)
 	    (erase-buffer)
-	    (setq buffer-read-only t))))
+	    (setq buffer-read-only t)
+	    (when (get-buffer-window wisi-error-buffer)
+	      (delete-window (get-buffer-window wisi-error-buffer))))))
 
       (condition-case-unless-debug err
 	  (save-excursion
@@ -814,6 +812,8 @@ Usefull if the parser appears to be hung."
 	    nil))
 	 (setq wisi-parse-failed t)
 	 ;; parser should have stored this error message in parser-error-msgs
+	 (when (> wisi-debug 0)
+	   (signal (car err) (cdr err)))
 	 )
 	(error
 	 ;; parser failed for other reason
@@ -1439,84 +1439,6 @@ If non-nil, only repair errors in BEG END region."
     ))
 
 ;;; xref integration
-(defconst wisi-xref-ident-regexp "\\([^<]*\\)\\(?:<\\([0-9]+\\)>\\)?"
-  "Match line number encoded into identifier by `wisi-xref-identifier-at-point'.")
-
-(defun wisi-xref-ident-make (identifier &optional other-function)
-  "Return an xref-item for IDENTIFIER."
-  (let* ((t-prop (get-text-property 0 'xref-identifier identifier))
-	 ;; If t-prop is non-nil: identifier is from
-	 ;; identifier-at-point, the desired location is the ’other’
-	 ;; (spec/body).
-	 ;;
-	 ;; If t-prop is nil: identifier is from prompt/completion,
-	 ;; the line number may be included in the identifier wrapped
-	 ;; in <>, and the desired location is that line in the current
-	 ;; file.
-	 (ident
-	  (if t-prop
-	      (substring-no-properties identifier 0 nil)
-	    (string-match wisi-xref-ident-regexp identifier)
-	    (match-string 1 identifier)
-	    ))
-	 (file
-	  (if t-prop
-	      (plist-get t-prop ':file)
-	    (buffer-file-name)))
-	 (line
-	  (if t-prop
-	      (plist-get t-prop ':line)
-	    (when (match-string 2 identifier)
-	      (string-to-number (match-string 2 identifier)))))
-	 (column
-	  (if t-prop
-	      (plist-get t-prop ':column)
-	    0))
-	 )
-
-    (if t-prop
-	(funcall other-function ident file line column)
-
-      (xref-make ident (xref-make-file-location file (or line 1) column))
-      )))
-
-(defun wisi-xref-item (identifier)
-  "Given IDENTIFIER, return an xref-item, with line, column nil if unknown.
-IDENTIFIER is from a user prompt with completion, or from
-`xref-backend-identifier-at-point'."
-  (let* ((t-prop (get-text-property 0 'xref-identifier identifier))
-	 ;; If t-prop is non-nil: identifier is from
-	 ;; identifier-at-point.
-	 ;;
-	 ;; If t-prop is nil: identifier is from prompt/completion,
-	 ;; the line number may be included in the identifier
-	 ;; wrapped in <>.
-	 (ident
-	  (if t-prop
-	      (substring-no-properties identifier 0 nil)
-	    (string-match wisi-xref-ident-regexp identifier)
-	    (match-string 1 identifier)
-	    ))
-	 (file
-	  (if t-prop
-	      (plist-get t-prop ':file)
-	    (buffer-file-name)))
-	 (line
-	  (if t-prop
-	      (plist-get t-prop ':line)
-	    (when (match-string 2 identifier)
-	      (string-to-number (match-string 2 identifier)))))
-	 (column
-	  (when t-prop
-	    (plist-get t-prop ':column)))
-	 )
-
-    (unless (file-name-absolute-p file)
-      (setq file (locate-file file compilation-search-path)))
-
-    (let ((eieio-skip-typecheck t)) ;; allow line, column nil.
-      (xref-make ident (xref-make-file-location file line column)))
-    ))
 
 (defun wisi-xref-identifier-at-point ()
   (let ((ident (thing-at-point 'symbol)))
@@ -1524,9 +1446,9 @@ IDENTIFIER is from a user prompt with completion, or from
       (put-text-property
        0 1
        'xref-identifier
-       (list ':file (buffer-file-name)
-	     ':line (line-number-at-pos)
-	     ':column (current-column))
+       (list :file (buffer-file-name)
+	     :line (line-number-at-pos)
+	     :column (current-column))
        ident)
       ident)))
 
@@ -1558,9 +1480,14 @@ IDENTIFIER is from a user prompt with completion, or from
   (let ((region (wisi-prev-name-region)))
     (buffer-substring-no-properties (car region) (cdr region))))
 
-(defun wisi-names (append-lines)
+(defconst wisi-names-regexp "\\([^<]*\\)<\\([0-9]+\\)>"
+  "Match line number encoded into identifier by `wisi-names'.")
+
+(defun wisi-names (append-lines alist)
   "List of names; each is text from one 'wisi-name property in current buffer.
-If APPEND-LINES is non-nil, each has the line number it occurs on appended."
+If APPEND-LINES is non-nil, each name has the line number it
+occurs on appended. If ALIST is non-nil, the result is an alist
+where the car is a list (FILE LINE COL)."
   (when wisi--parser
     ;; wisi--parser is nil in a non-language buffer, like Makefile
     (wisi-validate-cache (point-min) (point-max) t 'navigate)
@@ -1573,13 +1500,19 @@ If APPEND-LINES is non-nil, each has the line number it occurs on appended."
 	;; number in the identifier string. This also serves to
 	;; disambiguate overloaded identifiers in the user interface.
 	(setq end-pos (next-single-property-change pos 'wisi-name))
-	(push
-	 (if append-lines
-	     (format "%s<%d>"
-		     (buffer-substring-no-properties pos end-pos)
-		     (line-number-at-pos pos))
-	   (buffer-substring-no-properties pos end-pos))
-	 table)
+	(let* ((line (line-number-at-pos pos))
+	       (summary
+		(if append-lines
+		    (format "%s<%d>"
+			    (buffer-substring-no-properties pos end-pos)
+			    line)
+		  (buffer-substring-no-properties pos end-pos))))
+	  (if alist
+	      (save-excursion
+		(goto-char pos)
+		(push (cons summary (list (buffer-file-name) line (current-column)))
+		      table))
+	    (push summary table)))
 	(setq pos end-pos)
 	)
       table)))
@@ -1758,7 +1691,6 @@ If APPEND-LINES is non-nil, each has the line number it occurs on appended."
 	 (cons 'navigate nil)
 	 (cons 'indent nil)))
 
-  ;; file local variables may have modified wisi-indent-calculate-functions
   (setq wisi-indent-calculate-functions (append wisi-indent-calculate-functions indent-calculate))
   (set (make-local-variable 'indent-line-function) #'wisi-indent-line)
   (set (make-local-variable 'indent-region-function) #'wisi-indent-region)
@@ -1772,6 +1704,8 @@ If APPEND-LINES is non-nil, each has the line number it occurs on appended."
   (setq wisi--change-end (copy-marker (point-min) t))
 
   (set (make-local-variable 'comment-indent-function) 'wisi-comment-indent)
+
+  (add-hook 'completion-at-point-functions #'wisi-completion-at-point -90 t)
 
   (add-hook 'hack-local-variables-hook 'wisi-post-local-vars nil t)
   )

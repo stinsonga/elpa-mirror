@@ -2,7 +2,7 @@
 --
 --  Common utilities for LR parser table generators.
 --
---  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -127,33 +127,27 @@ package WisiToken.Generate.LR is
    ----------
    --  Minimal terminal sequences.
 
-   type RHS_Sequence is
-   record
-      Recursion : Recursion_Lists.List;
-      --  All recursion cycles involving this RHS.
-
-      Worst_Recursion : WisiToken.Recursion := None; --  worst case of all Recursion.
-
-      Sequence : Token_ID_Arrays.Vector;
-   end record;
-
    package RHS_Sequence_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
-     (Natural, RHS_Sequence, Default_Element => (others => <>));
+     (Natural, Token_ID_Arrays.Vector, Default_Element => Token_ID_Arrays.Empty_Vector);
 
-   function Image (Item : in RHS_Sequence; Descriptor : in WisiToken.Descriptor) return String;
-   --  Positional Ada aggregate syntax.
+   function Image is new RHS_Sequence_Arrays.Gen_Image_Aux (Descriptor, Trimmed_Image, Image_No_Assoc);
 
-   function Image is new RHS_Sequence_Arrays.Gen_Image_Aux (Descriptor, Trimmed_Image, Image);
+   function Min_Length (Item : in RHS_Sequence_Arrays.Vector) return Ada.Containers.Count_Type;
+   --  Return minimum length of elements of Item.
 
-   function Min (Item : in RHS_Sequence_Arrays.Vector) return RHS_Sequence;
+   function Min (Item : in RHS_Sequence_Arrays.Vector) return Token_ID_Arrays.Vector;
    --  Return element of Item with minimum length;
 
-   type Minimal_Sequence_Array is array (Token_ID range <>) of RHS_Sequence_Arrays.Vector;
+   type Minimal_Sequence_Item is record
+      Min_RHS  : Natural := Natural'Last;
+      Sequence : RHS_Sequence_Arrays.Vector;
+   end record;
+
+   type Minimal_Sequence_Array is array (Token_ID range <>) of Minimal_Sequence_Item;
 
    function Compute_Minimal_Terminal_Sequences
      (Descriptor : in WisiToken.Descriptor;
-      Grammar    : in WisiToken.Productions.Prod_Arrays.Vector;
-      Recursions : in Generate.Recursions)
+      Grammar    : in WisiToken.Productions.Prod_Arrays.Vector)
      return Minimal_Sequence_Array;
    --  For each production in Grammar, compute the minimal sequence of
    --  terminals that will complete it. Result is an empty sequence if
@@ -172,12 +166,12 @@ package WisiToken.Generate.LR is
       Kernel                     : in     LR1_Items.Item_Set;
       Descriptor                 : in     WisiToken.Descriptor;
       Grammar                    : in     WisiToken.Productions.Prod_Arrays.Vector;
+      Nullable                   : in     Token_Array_Production_ID;
       Minimal_Terminal_Sequences : in     Minimal_Sequence_Array;
       Minimal_Terminal_First     : in     Token_Array_Token_ID);
    --  Set State.Minimal_Complete_Actions to the set of actions that will
    --  most quickly complete the productions in Kernel (which must be for
-   --  State). Useful in error correction when we know the next actual
-   --  terminal is a block ending or statement start.
+   --  State). Useful in error correction.
    --
    --  The Minimal_Complete_Actions will be empty in a state where there
    --  is nothing useful to do; the accept state, or one where all
@@ -206,15 +200,15 @@ package WisiToken.Generate.LR is
    --  Put Item to Ada.Text_IO.Current_Output in parse table format.
 
    procedure Put_Parse_Table
-     (Table                      : in Parse_Table_Ptr;
-      Title                      : in String;
-      Grammar                    : in WisiToken.Productions.Prod_Arrays.Vector;
-      Recursions                 : in Generate.Recursions;
-      Minimal_Terminal_Sequences : in Minimal_Sequence_Array;
-      Kernels                    : in LR1_Items.Item_Set_List;
-      Conflicts                  : in Conflict_Count_Lists.List;
-      Descriptor                 : in WisiToken.Descriptor;
-      Include_Extra              : in Boolean := False);
-   --  "Extra" is recursions, lookaheads.
+     (Table                 : in Parse_Table_Ptr;
+      Parse_Table_File_Name : in String;
+      Title                 : in String;
+      Grammar               : in WisiToken.Productions.Prod_Arrays.Vector;
+      Recursions            : in Generate.Recursions;
+      Kernels               : in LR1_Items.Item_Set_List;
+      Conflicts             : in Conflict_Count_Lists.List;
+      Descriptor            : in WisiToken.Descriptor;
+      Include_Extra         : in Boolean := False);
+   --  "Extra" is recursions.
 
 end WisiToken.Generate.LR;

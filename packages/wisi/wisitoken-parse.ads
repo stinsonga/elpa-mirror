@@ -2,7 +2,7 @@
 --
 --  Subprograms common to more than one parser, higher-level than in wisitoken.ads
 --
---  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -35,19 +35,19 @@ package WisiToken.Parse is
       --  if the only token on line I is a non_grammar token (ie a comment,
       --  or a newline for a blank line), Line_Begin_Token (I) is the last
       --  grammar token on the previous non-blank line. If Line (I) is a
-      --  non-first line in a multi-line token, Line_Begin_Token (I) is
-      --  Invalid_Token_Index.
+      --  non-first line in a multi-line terminal token, Line_Begin_Token
+      --  (I) is Invalid_Token_Index.
    end record;
    --  Common to all parsers. Finalize should free any allocated objects.
 
-   function Next_Grammar_Token (Parser : in out Base_Parser) return Token_ID;
+   function Next_Grammar_Token (Parser : in out Base_Parser'Class) return Token_ID;
    --  Get next token from Lexer, call User_Data.Lexer_To_Augmented. If
    --  it is a grammar token, store in Terminals and return its id.
    --  Otherwise, repeat.
    --
    --  Propagates Fatal_Error from Lexer.
 
-   procedure Lex_All (Parser : in out Base_Parser);
+   procedure Lex_All (Parser : in out Base_Parser'Class);
    --  Clear Terminals, Line_Begin_Token; reset User_Data. Then call
    --  Next_Grammar_Token repeatedly until EOF_ID is returned.
    --
@@ -67,12 +67,18 @@ package WisiToken.Parse is
    function Tree (Parser : in Base_Parser) return Syntax_Trees.Tree is abstract;
    --  Return the syntax tree resulting from the parse.
 
+   function Tree_Var_Ref (Parser : aliased in out Base_Parser) return Syntax_Trees.Tree_Variable_Reference is abstract;
+   --  Return a writable reference to the syntax tree resulting from the parse.
+
    function Any_Errors (Parser : in Base_Parser) return Boolean is abstract;
 
    procedure Put_Errors (Parser : in Base_Parser) is abstract;
    --  Output error messages to Ada.Text_IO.Current_Error.
 
-   procedure Execute_Actions (Parser : in out Base_Parser) is abstract;
+   procedure Execute_Actions
+     (Parser          : in out Base_Parser;
+      Image_Augmented : in     Syntax_Trees.Image_Augmented := null)
+     is abstract;
    --  Execute all actions in Parser.Tree.
 
 end WisiToken.Parse;

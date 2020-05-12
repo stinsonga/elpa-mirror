@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -54,8 +54,16 @@ package body SAL.Gen_Bounded_Definite_Vectors_Sorted is
       end if;
 
       loop
-         pragma Loop_Invariant (J < Container.Elements'Last);
+         --  These seem obvious, but gnatprove needs them (in 2019).
+         pragma Loop_Invariant (J <= Container.Last);
+         pragma Loop_Invariant (J <= Container.Elements'Last);
          pragma Loop_Variant (Decreases => J);
+
+         --  This is less obvious, helps a lot.
+         pragma Loop_Invariant
+           ((for all I in J + 1 .. Container.Last => Element_Compare
+             (New_Item, Container.Elements (I)) = Less));
+
          exit when J < 1;
 
          case Element_Compare (New_Item, Container.Elements (J)) is
@@ -73,6 +81,12 @@ package body SAL.Gen_Bounded_Definite_Vectors_Sorted is
             exit;
          end case;
       end loop;
+
+      --  Note that this assertion is _not_ a Loop_Invariant; the whole
+      --  point here is to find the right J.
+      pragma Assert
+        (for all I in 1 .. J - 1 =>
+           Element_Compare (Container.Elements (I), New_Item) in Less | Equal);
 
       Container.Elements (J + 2 .. K + 1) := Container.Elements (J + 1 .. K);
       Container.Elements (J + 1) := New_Item;

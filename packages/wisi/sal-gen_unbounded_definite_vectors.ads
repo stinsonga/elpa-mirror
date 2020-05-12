@@ -8,7 +8,13 @@
 --  It provides no checking of cursor tampering; higher level code
 --  must ensure that.
 --
---  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
+--  Design:
+--
+--  See ARM 3.10.2 "explicitly aliased" for why we need 'aliased' in
+--  several subprogram argument modes, and why Container must be an
+--  access discriminant in Cursor and Iterator.
+--
+--  Copyright (C) 2018 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -39,10 +45,10 @@ package SAL.Gen_Unbounded_Definite_Vectors is
    No_Index : constant Extended_Index := Extended_Index'First;
 
    type Vector is new Ada.Finalization.Controlled with private with
-      Constant_Indexing => Constant_Ref,
-      Variable_Indexing => Variable_Ref,
-      Default_Iterator  => Iterate,
-      Iterator_Element  => Element_Type;
+     Constant_Indexing => Constant_Ref,
+     Variable_Indexing => Variable_Ref,
+     Default_Iterator  => Iterate,
+     Iterator_Element  => Element_Type;
 
    Empty_Vector : constant Vector;
 
@@ -68,6 +74,8 @@ package SAL.Gen_Unbounded_Definite_Vectors is
    function First_Index (Container : Vector) return Extended_Index;
    --  No_Index + 1 when Container is empty, so "for I in C.First_Index
    --  .. C.Last_Index loop" works.
+   --
+   --  If you need No_Index for an empty Container, use To_Index (Container.First).
 
    function Last_Index (Container : Vector) return Extended_Index;
    --  No_Index when Container is empty.
@@ -145,13 +153,11 @@ package SAL.Gen_Unbounded_Definite_Vectors is
    function Variable_Ref (Container : aliased in Vector; Index : in Index_Type) return Variable_Reference_Type
    with Inline, Pre => Index in Container.First_Index .. Container.Last_Index;
 
-   type Cursor is private;
-
-   No_Element : constant Cursor;
+   type Cursor (<>) is private;
 
    function Has_Element (Position : Cursor) return Boolean;
    function Element (Position : Cursor) return Element_Type
-   with Pre => Position /= No_Element;
+   with Pre => Has_Element (Position);
    function First (Container : aliased in Vector) return Cursor;
    function Next (Position : in Cursor) return Cursor;
    procedure Next (Position : in out Cursor);
@@ -161,7 +167,8 @@ package SAL.Gen_Unbounded_Definite_Vectors is
    function To_Cursor
      (Container : aliased in Vector;
       Index     :         in Extended_Index)
-     return Cursor;
+     return Cursor
+   with Pre => Index = No_Index or Index in Container.First_Index .. Container.Last_Index;
 
    function To_Index (Position : in Cursor) return Extended_Index;
 
@@ -195,15 +202,13 @@ private
    type Vector_Access is access constant Vector;
    for Vector_Access'Storage_Size use 0;
 
-   type Cursor is record
-      Container : Vector_Access  := null;
-      Index     : Base_Peek_Type := Invalid_Peek_Index;
+   type Cursor (Container : not null access constant Vector) is
+   record
+      Index : Base_Peek_Type := Invalid_Peek_Index;
    end record;
 
-   type Iterator is new Iterator_Interfaces.Reversible_Iterator with
-   record
-      Container : Vector_Access;
-   end record;
+   type Iterator (Container : not null access constant Vector) is new Iterator_Interfaces.Reversible_Iterator with
+     null record;
 
    overriding function First (Object : Iterator) return Cursor;
    overriding function Last  (Object : Iterator) return Cursor;
@@ -228,7 +233,11 @@ private
 
    Empty_Vector : constant Vector := (Ada.Finalization.Controlled with others => <>);
 
-   No_Element : constant Cursor := (others => <>);
+   ----------
+   --  Visible for contracts/SPARK
+
+   function Has_Element (Position : Cursor) return Boolean
+     is (Position.Index /= Invalid_Peek_Index);
 
    ----------
    --  Visible for child package

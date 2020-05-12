@@ -3,7 +3,7 @@
 --  A generic doubly linked list with definite elements, allowing
 --  permanent references to elements.
 --
---  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software; you can redistribute it and/or
 --  modify it under terms of the GNU General Public License as
@@ -64,26 +64,25 @@ package SAL.Gen_Definite_Doubly_Linked_Lists is
 
    type Cursor is private;
 
-   No_Element : constant Cursor;
-
    function Has_Element (Position : in Cursor) return Boolean;
 
+   No_Element : constant Cursor;
    function First (Container : in List) return Cursor;
    function Last (Container : in List) return Cursor;
 
    procedure Next (Position : in out Cursor)
-   with Pre => Position /= No_Element;
+   with Pre => Has_Element (Position);
 
    function Next (Position : in Cursor) return Cursor
-   with Pre => Position /= No_Element;
+   with Pre => Has_Element (Position);
    function Previous (Position : in Cursor) return Cursor
-   with Pre => Position /= No_Element;
+   with Pre => Has_Element (Position);
 
    function Element (Position : in Cursor) return Element_Type
-   with Pre => Position /= No_Element;
+   with Pre => Has_Element (Position);
 
    procedure Delete (Container : in out List; Position : in out Cursor)
-   with Pre => Position /= No_Element;
+   with Pre => Has_Element (Position);
 
    procedure Delete_First (Container : in out List);
 
@@ -94,26 +93,26 @@ package SAL.Gen_Definite_Doubly_Linked_Lists is
    --  If Before is No_Element, insert after Last.
 
    function Persistent_Ref (Position : in Cursor) return access Element_Type
-   with Pre => Position /= No_Element;
+   with Pre => Has_Element (Position);
 
    type Constant_Reference_Type (Element : not null access constant Element_Type) is private with
      Implicit_Dereference => Element;
 
    function Constant_Reference (Container : in List; Position : in Cursor) return Constant_Reference_Type
-   with Inline, Pre => Position /= No_Element;
+   with Inline, Pre => Has_Element (Position);
    --  Not 'Constant_Ref' because that is taken, and it is wrong for Constant_Indexing
 
    function Constant_Ref (Position : in Cursor) return Constant_Reference_Type
-   with Inline, Pre => Position /= No_Element;
+   with Inline, Pre => Has_Element (Position);
 
    type Variable_Reference_Type (Element : not null access Element_Type) is private with
      Implicit_Dereference => Element;
 
    function Variable_Reference (Container : in List; Position : in Cursor) return Variable_Reference_Type
-   with Inline, Pre => Position /= No_Element;
+   with Inline, Pre => Has_Element (Position);
 
    function Variable_Ref (Position : in Cursor) return Variable_Reference_Type
-   with Inline, Pre => Position /= No_Element;
+   with Inline, Pre => Has_Element (Position);
 
    package Iterator_Interfaces is new Ada.Iterator_Interfaces (Cursor, Has_Element);
 
@@ -139,8 +138,7 @@ private
    end record;
 
    type Cursor is record
-      Container : List_Access;
-      Ptr       : Node_Access;
+      Ptr : Node_Access;
    end record;
 
    type Constant_Reference_Type (Element : not null access constant Element_Type) is
@@ -153,14 +151,12 @@ private
       Dummy : Integer := raise Program_Error with "uninitialized reference";
    end record;
 
+   No_Element : constant Cursor := (Ptr => null);
+
    Empty_List : constant List := (Ada.Finalization.Controlled with null, null, 0);
 
-   No_Element : constant Cursor := (null, null);
-
-   type Iterator is new Iterator_Interfaces.Reversible_Iterator with
-   record
-      Container : List_Access;
-   end record;
+   type Iterator (Container : not null access constant List) is new Iterator_Interfaces.Reversible_Iterator with
+   null record;
 
    overriding function First (Object : Iterator) return Cursor;
    overriding function Last  (Object : Iterator) return Cursor;

@@ -1,6 +1,6 @@
 ;; wisitoken-parse_table-mode.el --- For navigating in a parse table as output by wisitoken-bnf-generate. -*- lexical-binding:t -*-
 ;;
-;; Copyright (C) 2017 - 2019  Free Software Foundation, Inc.
+;; Copyright (C) 2017 - 2020  Free Software Foundation, Inc.
 ;;
 ;; Author: Stephen Leake <stephen_leake@stephe-leake.org>
 ;; Maintainer: Stephen Leake <stephen_leake@stephe-leake.org>
@@ -43,22 +43,20 @@
   ;;
   ;; - 'reduce n tokens to <nonterminal> <prod_id>'
   ;; => return 'prod_id: name'
-  (save-excursion
-    (cond
-     ((save-excursion
-	(end-of-line)
-	;; "go to" for bison output
-	(or (looking-back "go ?to state \\([0-9]+\\),?" (line-beginning-position))
-	    (looking-back "( \\([0-9]+\\))" (line-beginning-position))))
-      (match-string 1))
+  (cond
+   ((save-excursion
+      (beginning-of-line)
+      ;; "go to" for bison output
+      (search-forward-regexp "go ?to state \\([0-9]+\\)" (line-end-position) t))
+    (match-string 1))
 
-     ((save-excursion
-	(back-to-indentation)
-	(looking-at "[a-zA-Z_]+ + => reduce [0-9]+ tokens to \\([a-z0-9_]+\\) \\([0-9.]+\\)"))
-      (concat (match-string 2) ": " (match-string 1)))
+   ((save-excursion
+      (beginning-of-line)
+      (search-forward-regexp "reduce [0-9]+ tokens to \\([[:alnum:]_]+\\) \\([0-9.]+\\)" (line-end-position) t))
+    (concat (match-string 2) ": " (match-string 1)))
 
-     (t
-      (thing-at-point 'symbol)))))
+   (t
+    (thing-at-point 'symbol))))
 
 (cl-defgeneric xref-backend-definitions ((_backend (eql wisitoken-parse_table)) identifier)
   ;; IDENTIFIER is from xref-back-identifier-at-point; a state number or a nonterminal

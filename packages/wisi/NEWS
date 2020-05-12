@@ -6,6 +6,26 @@ Please send wisi bug reports to bug-gnu-emacs@gnu.org, with
 'wisi' in the subject. If possible, use M-x report-emacs-bug.
 
 
+* wisi 3.1.0
+11 May 2020
+
+** Add Wisitoken.Syntax_Trees.Insert_Token, to allow using inserted
+   virtual terminals tokens in indent. Several related changes to
+   allow treating virtual terminals on par with actual terminals.
+
+** New elisp generic functions: wisi-xref-completion-table, wisi-xref-completion-regexp, wisi-xref-completion-at-point-table
+
+** New elisp functions: wisi-filter-table, wisi-completion-at-point, wisi-skel-add-token-after
+
+** wisi-get-identifier uses wisi-xref-completion-table.
+
+** wisi-prj-identifier-at-point returns (IDENT START END)
+
+** In wisi.ads: augmented tokens are no stored only in the syntax
+   tree; new functions Get_Aug_Token_Const_1, Get_Aug_Token_Const,
+   Get_Aug_Token_Var provide access to them. Parse_Data_Type contains
+   a reference to the shared Terminals.
+
 * wisi 3.0.1
 30 Jan 2020
 

@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018, 2020 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --
@@ -23,6 +23,31 @@ pragma License (Modified_GPL);
 with Ada.Text_IO;
 package body WisiToken.Productions is
 
+   function Image (Item : in Recursion_Arrays.Vector) return String
+   is
+      use Ada.Strings.Unbounded;
+      Result     : Ada.Strings.Unbounded.Unbounded_String := +"(";
+      Need_Comma : Boolean                                := False;
+   begin
+      --  We assume most are None, so we use named association
+      for I in Item.First_Index .. Item.Last_Index loop
+         if Item (I) /= None then
+            Result := Result & (if Need_Comma then ", " else "") & Trimmed_Image (I) & " => " & Image (Item (I));
+            Need_Comma := True;
+         end if;
+      end loop;
+      Result := Result & ")";
+      return -Result;
+   end Image;
+
+   function Constant_Ref_RHS
+     (Grammar : in Prod_Arrays.Vector;
+      ID      : in Production_ID)
+     return RHS_Arrays.Constant_Reference_Type
+   is begin
+      return RHS_Arrays.Constant_Ref (Grammar (ID.LHS).RHSs, ID.RHS);
+   end Constant_Ref_RHS;
+
    function Image
      (LHS        : in Token_ID;
       RHS_Index  : in Natural;
@@ -40,10 +65,17 @@ package body WisiToken.Productions is
    end Image;
 
    procedure Put (Grammar : Prod_Arrays.Vector; Descriptor : in WisiToken.Descriptor)
-   is begin
+   is
+      use Ada.Text_IO;
+   begin
       for P of Grammar loop
          for R in P.RHSs.First_Index .. P.RHSs.Last_Index loop
-            Ada.Text_IO.Put_Line (Image (P.LHS, R, P.RHSs (R).Tokens, Descriptor));
+            Put (Image (P.LHS, R, P.RHSs (R).Tokens, Descriptor));
+            if (for all Item of Grammar (P.LHS).RHSs (R).Recursion => Item = None) then
+               New_Line;
+            else
+               Put_Line (" ; " & Image (Grammar (P.LHS).RHSs (R).Recursion));
+            end if;
          end loop;
       end loop;
    end Put;

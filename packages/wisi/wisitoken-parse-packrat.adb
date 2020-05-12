@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018, 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -19,13 +19,16 @@ pragma License (Modified_GPL);
 
 package body WisiToken.Parse.Packrat is
 
-   overriding procedure Execute_Actions (Parser : in out Packrat.Parser)
+   overriding
+   procedure Execute_Actions
+     (Parser          : in out Packrat.Parser;
+      Image_Augmented : in     Syntax_Trees.Image_Augmented := null)
    is
       Descriptor : WisiToken.Descriptor renames Parser.Trace.Descriptor.all;
 
       procedure Process_Node
         (Tree : in out Syntax_Trees.Tree;
-         Node : in     Syntax_Trees.Valid_Node_Index)
+         Node : in     Valid_Node_Index)
       is
          use all type Syntax_Trees.Node_Label;
       begin
@@ -35,7 +38,7 @@ package body WisiToken.Parse.Packrat is
 
          declare
             use all type Syntax_Trees.Semantic_Action;
-            Tree_Children : constant Syntax_Trees.Valid_Node_Index_Array := Tree.Children (Node);
+            Tree_Children : constant Valid_Node_Index_Array := Tree.Children (Node);
          begin
             Parser.User_Data.Reduce (Tree, Node, Tree_Children);
 
@@ -47,6 +50,10 @@ package body WisiToken.Parse.Packrat is
 
    begin
       if Trace_Action > Outline then
+         if Trace_Action > Extra then
+            Parser.Tree.Print_Tree (Descriptor, Parser.Tree.Root, Image_Augmented);
+            Parser.Trace.New_Line;
+         end if;
          Parser.Trace.Put_Line ("root node: " & Parser.Tree.Image (Parser.Tree.Root, Descriptor));
       end if;
 

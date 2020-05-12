@@ -23,7 +23,6 @@ with Ada.Exceptions;
 with Ada.IO_Exceptions;
 with Ada.Real_Time;
 with Ada.Text_IO;
-with GNAT.Traceback.Symbolic;
 with SAL;
 with System.Multiprocessors;
 package body Run_Wisi_Common_Parse is
@@ -134,6 +133,8 @@ package body Run_Wisi_Common_Parse is
                   Arg                      := Arg + 3;
                end case;
 
+               WisiToken.Debug_Mode := WisiToken.Trace_Parse > Outline or WisiToken.Trace_McKenzie > Outline;
+
             elsif Argument (Arg) = "--check_limit" then
                Parser.Table.McKenzie_Param.Check_Limit := Token_Index'Value (Argument (Arg + 1));
                Arg := Arg + 2;
@@ -199,7 +200,16 @@ package body Run_Wisi_Common_Parse is
 
       Start     : Ada.Real_Time.Time;
       End_Line  : WisiToken.Line_Number_Type;
+
+      function Image_Augmented (Aug : in Base_Token_Class_Access) return String
+      is begin
+         --  For Syntax_Trees.Print_Tree
+         return Wisi.Image (Aug, Descriptor);
+      end Image_Augmented;
+
    begin
+      Parser.Trace.Set_Prefix (";; "); -- so we get the same debug messages as Emacs_Wisi_Common_Parse
+
       declare
          Cl_Params : constant Command_Line_Params := Get_CL_Params (Parser);
       begin
@@ -286,7 +296,7 @@ package body Run_Wisi_Common_Parse is
                   null;
                end;
 
-               Parser.Execute_Actions;
+               Parser.Execute_Actions (Image_Augmented'Unrestricted_Access);
 
                case Cl_Params.Command is
                when Parse =>
@@ -310,11 +320,13 @@ package body Run_Wisi_Common_Parse is
 
             when E : WisiToken.Parse_Error =>
                Clean_Up;
-               Put_Line ("(parse_error """ & Ada.Exceptions.Exception_Message (E) & """)");
+               Put_Line ("(parse_error """ & Ada.Exceptions.Exception_Name (E) & " " &
+                           Ada.Exceptions.Exception_Message (E) & """)");
 
             when E : others => -- includes Fatal_Error
                Clean_Up;
-               Put_Line ("(error """ & Ada.Exceptions.Exception_Message (E) & """)");
+               Put_Line ("(error """ & Ada.Exceptions.Exception_Name (E) & " " &
+                           Ada.Exceptions.Exception_Message (E) & """)");
             end;
          end loop;
 
@@ -339,7 +351,6 @@ package body Run_Wisi_Common_Parse is
       Put_Line
         ("(error ""unhandled exception: " & Ada.Exceptions.Exception_Name (E) & ": " &
            Ada.Exceptions.Exception_Message (E) & """)");
-      Put_Line (GNAT.Traceback.Symbolic.Symbolic_Traceback (E));
    end Parse_File;
 
 end Run_Wisi_Common_Parse;

@@ -9,7 +9,7 @@
 --
 --  See parent.
 --
---  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -43,7 +43,7 @@ package WisiToken.Parse.Packrat.Procedural is
          null;
 
       when Success =>
-         Result   : WisiToken.Syntax_Trees.Valid_Node_Index;
+         Result   : WisiToken.Valid_Node_Index;
          Last_Pos : Base_Token_Index;
 
       end case;
@@ -72,6 +72,9 @@ package WisiToken.Parse.Packrat.Procedural is
 
    overriding procedure Parse (Parser : aliased in out Procedural.Parser);
    overriding function Tree (Parser : in Procedural.Parser) return Syntax_Trees.Tree;
+   overriding function Tree_Var_Ref
+     (Parser : aliased in out Procedural.Parser)
+     return Syntax_Trees.Tree_Variable_Reference;
 
    overriding function Any_Errors (Parser : in Procedural.Parser) return Boolean
      is (False);

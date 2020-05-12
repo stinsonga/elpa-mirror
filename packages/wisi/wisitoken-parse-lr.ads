@@ -9,7 +9,7 @@
 --
 --  See wisitoken.ads
 --
---  Copyright (C) 2002, 2003, 2009, 2010, 2013 - 2015, 2017 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2002, 2003, 2009, 2010, 2013 - 2015, 2017 - 2020 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --
@@ -40,10 +40,7 @@ with SAL.Gen_Array_Image;
 with SAL.Gen_Bounded_Definite_Stacks.Gen_Image_Aux;
 with SAL.Gen_Bounded_Definite_Vectors.Gen_Image_Aux;
 with SAL.Gen_Bounded_Definite_Vectors.Gen_Refs;
-with SAL.Gen_Bounded_Definite_Vectors_Sorted.Gen_Image_Aux;
-with SAL.Gen_Bounded_Definite_Vectors_Sorted.Gen_Refs;
 with SAL.Gen_Unbounded_Definite_Min_Heaps_Fibonacci;
-with SAL.Gen_Unbounded_Definite_Queues.Gen_Image_Aux;
 with SAL.Gen_Unbounded_Definite_Vectors_Sorted;
 with System.Multiprocessors;
 with WisiToken.Semantic_Checks;
@@ -60,17 +57,18 @@ package WisiToken.Parse.LR is
    subtype Token_ID_Array_1_3 is Token_ID_Array (1 .. 3);
    --  For Language_Matching_Begin_Tokens.
 
-   type Parse_Action_Rec (Verb : Parse_Action_Verbs := Shift) is record
+   type Parse_Action_Rec (Verb : Parse_Action_Verbs := Shift) is
+   record
+      Production : Production_ID;
+      --  The production that produced this action. Used to find kernel
+      --  items during error recovery.
+
       case Verb is
       when Shift =>
          State : State_Index := State_Index'Last;
 
       when Reduce | Accept_It =>
-         Production : Production_ID;
-         --  The result nonterm and production index. Most uses need only
-         --  Production.LHS; elisp code generation, and debug output, needs
-         --  Production.RHS
-
+         --  Production.LHS is the result nonterm
          Action      : WisiToken.Syntax_Trees.Semantic_Action   := null;
          Check       : WisiToken.Semantic_Checks.Semantic_Check := null;
          Token_Count : Ada.Containers.Count_Type                := 0;
@@ -89,7 +87,7 @@ package WisiToken.Parse.LR is
    --  Put a line for Item in parse trace format, with no prefix.
 
    function Equal (Left, Right : in Parse_Action_Rec) return Boolean;
-   --  Ignore Action, Check.
+   --  Ignore items not used by the canonical shift-reduce algorithm.
 
    type Parse_Action_Node;
    type Parse_Action_Node_Ptr is access Parse_Action_Node;
@@ -132,10 +130,19 @@ package WisiToken.Parse.LR is
      (Goto_Node, Token_ID, To_Key, Compare);
 
    type Kernel_Info is record
-      LHS              : Token_ID                  := Token_ID'First;
+      Production       : Production_ID;
       Before_Dot       : Token_ID                  := Token_ID'First;
       Length_After_Dot : Ada.Containers.Count_Type := 0;
-      Recursive        : Boolean                   := False;
+
+      Reduce_Production : Production_ID;
+      Reduce_Count      : Ada.Containers.Count_Type := 0;
+      --  The reduction that error recovery should do for this item if
+      --  Length_After_Dot = 0. Reduce_Production /= Production when item
+      --  after dot is nullable.
+      --
+      --  It is tempting to make Length_After_Dot a discriminant to
+      --  eliminate Reduce_* when they are not needed, but we don't have a
+      --  static value of Length_After_Dot when it is non-zero.
    end record;
 
    function Strict_Image (Item : in Kernel_Info) return String;
@@ -148,14 +155,16 @@ package WisiToken.Parse.LR is
 
    function Image is new Kernel_Info_Arrays.Gen_Image (Strict_Image);
 
-   type Minimal_Action (Verb : Minimal_Verbs := Shift) is record
+   type Minimal_Action (Verb : Minimal_Verbs := Shift) is
+   record
+      Production  : Production_ID := Invalid_Production_ID;
+
       case Verb is
       when Shift =>
          ID    : Token_ID    := Invalid_Token_ID;
          State : State_Index := State_Index'Last;
 
       when Reduce =>
-         Nonterm     : Token_ID;
          Token_Count : Ada.Containers.Count_Type;
       end case;
    end record;
@@ -180,14 +189,10 @@ package WisiToken.Parse.LR is
       Goto_List   : Goto_Arrays.Vector;
 
       --  The following are used in error recovery.
-      Kernel : Kernel_Info_Arrays.Vector;
-
+      Kernel                   : Kernel_Info_Arrays.Vector;
       Minimal_Complete_Actions : Minimal_Action_Arrays.Vector;
-      Minimal_Complete_Actions_Recursive : Boolean := False;
       --  Parse actions that will most quickly complete a production in this
-      --  state. If more than one, resolved at runtime using Kernels. If
-      --  Minimal_Complete_Actions_Recursive, at least one of the minimal
-      --  actions is recursive; this changes the algorithm.
+      --  state. Kernel is used to reduce the number of actions.
    end record;
 
    type Parse_State_Array is array (State_Index range <>) of Parse_State;
@@ -195,6 +200,7 @@ package WisiToken.Parse.LR is
    procedure Add_Action
      (State       : in out Parse_State;
       Symbol      : in     Token_ID;
+      Production  : in     Production_ID;
       State_Index : in     WisiToken.State_Index);
    --  Add a Shift action to tail of State action list.
 
@@ -419,11 +425,6 @@ package WisiToken.Parse.LR is
          Ins_Token_Index : WisiToken.Base_Token_Index;
          --  Ins_ID is inserted before Token_Index.
 
-         State       : Unknown_State_Index;
-         Stack_Depth : SAL.Base_Peek_Type;
-         --  Used in Minimal_Completion_Actions to detect cycles; only set for
-         --  Insert by Minimal_Completion_Actions.
-
       when Delete =>
          Del_ID : Token_ID;
          --  The token ID deleted.
@@ -452,8 +453,6 @@ package WisiToken.Parse.LR is
    function Equal (Left : in Config_Op; Right : in Insert_Op) return Boolean;
    --  Ignore state, stack_depth
 
-   package Config_Op_Queues is new SAL.Gen_Unbounded_Definite_Queues (Config_Op);
-
    package Config_Op_Arrays is new SAL.Gen_Bounded_Definite_Vectors
      (Positive_Index_Type, Config_Op, Capacity => 80);
    --  Using a fixed size vector significantly speeds up
@@ -475,10 +474,7 @@ package WisiToken.Parse.LR is
             when Push_Back => Image (Item.PB_ID, Descriptor) & "," &
                  WisiToken.Token_Index'Image (Item.PB_Token_Index),
             when Insert => Image (Item.Ins_ID, Descriptor) & "," &
-                 WisiToken.Token_Index'Image (Item.Ins_Token_Index) &
-                (if Item.State = Unknown_State or Trace_McKenzie <= Detail then ""
-                 else "," & State_Index'Image (Item.State) &
-                    SAL.Base_Peek_Type'Image (Item.Stack_Depth)),
+                 WisiToken.Token_Index'Image (Item.Ins_Token_Index),
             when Delete => Image (Item.Del_ID, Descriptor) & "," &
                  WisiToken.Token_Index'Image (Item.Del_Token_Index))
            & ")");
@@ -486,7 +482,6 @@ package WisiToken.Parse.LR is
    function Image (Item : in Config_Op; Descriptor : in WisiToken.Descriptor) return String
      renames Config_Op_Image;
 
-   function Image is new Config_Op_Queues.Gen_Image_Aux (WisiToken.Descriptor, Image);
    function Config_Op_Array_Image is new Config_Op_Arrays.Gen_Image_Aux (WisiToken.Descriptor, Image);
    function Image (Item : in Config_Op_Arrays.Vector; Descriptor : in WisiToken.Descriptor) return String
      renames Config_Op_Array_Image;
@@ -505,17 +500,51 @@ package WisiToken.Parse.LR is
    function Any (Ops : aliased in Config_Op_Arrays.Vector; Op : in Config_Op_Label) return Boolean;
    --  True if Ops contains at least one Op.
 
-   package Sorted_Insert_Delete_Arrays is new SAL.Gen_Bounded_Definite_Vectors_Sorted
-     (Insert_Delete_Op, Compare, Capacity => 80);
+   type Recover_Op (Op : Insert_Delete_Op_Label := Insert) is record
+      --  Add Ins_Tree_Node to Config_Op info, set when item is
+      --  parsed; used to create user augmented token.
 
-   package Insert_Delete_Array_Refs is new Sorted_Insert_Delete_Arrays.Gen_Refs;
+      case Op is
+      when Insert =>
+         Ins_ID : Token_ID := Invalid_Token_ID;
+         --  The token ID inserted.
 
-   function Image is new Sorted_Insert_Delete_Arrays.Gen_Image_Aux (WisiToken.Descriptor, Image);
+         Ins_Token_Index : Base_Token_Index := Invalid_Token_Index;
+         --  Ins_ID is inserted before Token_Index.
+
+         Ins_Tree_Node : Node_Index := Invalid_Node_Index;
+
+      when Delete =>
+         Del_ID : Token_ID;
+         --  The token ID deleted.
+
+         Del_Token_Index : Base_Token_Index;
+         --  Token at Token_Index is deleted.
+
+      end case;
+   end record;
+
+   package Recover_Op_Arrays is new SAL.Gen_Bounded_Definite_Vectors
+     (Positive_Index_Type, Recover_Op, Capacity => 80);
+
+   package Recover_Op_Array_Refs is new Recover_Op_Arrays.Gen_Refs;
+
+   function Image (Item : in Recover_Op; Descriptor : in WisiToken.Descriptor) return String
+     is ("(" & Item.Op'Image & ", " &
+           (case Item.Op is
+            when Insert => Image (Item.Ins_ID, Descriptor) & "," &
+                 Item.Ins_Token_Index'Image & "," &
+                 Item.Ins_Tree_Node'Image,
+            when Delete => Image (Item.Del_ID, Descriptor) & "," &
+                 Item.Del_Token_Index'Image)
+           & ")");
+
+   function Image is new Recover_Op_Arrays.Gen_Image_Aux (WisiToken.Descriptor, Image);
 
    type Recover_Stack_Item is record
-      State : Unknown_State_Index;
+      State : Unknown_State_Index := Unknown_State;
 
-      Tree_Index : Syntax_Trees.Node_Index;
+      Tree_Index : Node_Index := Invalid_Node_Index;
       --  Valid if copied at recover initialize, Invalid if pushed during
       --  recover.
 
@@ -547,7 +576,8 @@ package WisiToken.Parse.LR is
    --  pushed by recover.
 
    type Strategies is
-     (Language_Fix, Minimal_Complete, Matching_Begin, Push_Back, Undo_Reduce, Insert, Delete, String_Quote);
+     (Ignore_Error, Language_Fix, Minimal_Complete, Matching_Begin,
+      Push_Back, Undo_Reduce, Insert, Delete, String_Quote);
 
    type Strategy_Counts is array (Strategies) of Natural;
    function Image is new SAL.Gen_Array_Image (Strategies, Natural, Strategy_Counts, Trimmed_Image);
@@ -577,7 +607,7 @@ package WisiToken.Parse.LR is
       String_Quote_Checked : Line_Number_Type := Invalid_Line_Number;
       --  Max line checked for missing string quote.
 
-      Insert_Delete : aliased Sorted_Insert_Delete_Arrays.Vector;
+      Insert_Delete : aliased Config_Op_Arrays.Vector;
       --  Edits to the input stream that are not yet parsed; contains only
       --  Insert and Delete ops, in token_index order.
 
@@ -652,7 +682,7 @@ package WisiToken.Parse.LR is
 
       case Label is
       when Action =>
-         Error_Token : Syntax_Trees.Valid_Node_Index; -- index into Parser.Tree
+         Error_Token : Valid_Node_Index; -- index into Parser.Tree
          Expecting   : Token_ID_Set (First_Terminal .. Last_Terminal);
 
       when Check =>

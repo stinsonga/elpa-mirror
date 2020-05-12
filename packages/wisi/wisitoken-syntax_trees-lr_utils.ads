@@ -2,7 +2,7 @@
 --
 --  Utilities for navigating syntax trees produced by an LR parser.
 --
---  Copyright (C) 2019 Stephen Leake All Rights Reserved.
+--  Copyright (C) 2019, 2020 Stephen Leake All Rights Reserved.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -26,7 +26,7 @@ package WisiToken.Syntax_Trees.LR_Utils is
       Lexer      : in WisiToken.Lexer.Handle;
       Tree       : in WisiToken.Syntax_Trees.Tree;
       Terminals  : in WisiToken.Base_Token_Arrays.Vector;
-      Node       : in WisiToken.Syntax_Trees.Node_Index);
+      Node       : in WisiToken.Node_Index);
    pragma No_Return (Raise_Programmer_Error);
 
    ----------

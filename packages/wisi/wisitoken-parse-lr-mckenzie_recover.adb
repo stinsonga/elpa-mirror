@@ -140,7 +140,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
              when Message => raise SAL.Programmer_Error));
          if Trace_McKenzie > Extra then
             Put_Line
-              (Trace, Parser_State.Label, Parser_Lists.Image
+              (Trace, Parser_State.Label, "stack: " & Parser_Lists.Image
                  (Parser_State.Stack, Trace.Descriptor.all, Parser_State.Tree));
          end if;
       end if;
@@ -168,6 +168,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
          if Shared_Parser.Language_Fixes = null then
             --  The only fix is to ignore the error.
             if Trace_McKenzie > Detail then
+               Config.Strategy_Counts (Ignore_Error) := 1;
                Put ("enqueue", Trace, Parser_State.Label, Shared_Parser.Terminals, Config,
                     Task_ID => False);
             end if;
@@ -207,7 +208,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
 
       Parsers : Parser_Lists.List renames Shared_Parser.Parsers;
 
-      Current_Parser : Parser_Lists.Cursor;
+      Skip_Next : Boolean := False;
 
       Super : aliased Base.Supervisor
         (Trace'Access,
@@ -287,15 +288,13 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
          end if;
       end;
 
-      --  Adjust parser state for each successful recovery.
+      --  Spawn new parsers for multiple solutions.
       --
       --  One option here would be to keep only the parser with the least
       --  cost fix. However, the normal reason for having multiple parsers
       --  is to resolve a grammar ambiguity; the least cost fix might
       --  resolve the ambiguity the wrong way. As could any other fix, of
       --  course.
-
-      --  Spawn new parsers for multiple solutions.
       --
       --  We could try to check here for redundant solutions; configs for a
       --  parser that have the same or "equivalent" ops. But those will be
@@ -375,339 +374,273 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
 
       --  We don't use 'for Parser_State of Parsers loop' here,
       --  because we might need to terminate a parser.
-      Current_Parser := Parsers.First;
-      loop
-         exit when Current_Parser.Is_Done;
+      declare
+         Current_Parser : Parser_Lists.Cursor := Parsers.First;
+      begin
+         loop
+            exit when Current_Parser.Is_Done;
 
-         if Current_Parser.State_Ref.Recover.Success then
-            begin
-               --  Can't have active 'renames State_Ref' when terminate a parser
-               declare
-                  use Parser_Lists;
-                  use Config_Op_Arrays, Config_Op_Array_Refs;
-                  use Sorted_Insert_Delete_Arrays;
-
-                  Parser_State : Parser_Lists.Parser_State renames Current_Parser.State_Ref;
-
-                  Descriptor : WisiToken.Descriptor renames Shared_Parser.Trace.Descriptor.all;
-                  Tree       : Syntax_Trees.Tree renames Parser_State.Tree;
-                  Data       : McKenzie_Data renames Parser_State.Recover;
-                  Result     : Configuration renames Data.Results.Peek;
-
-                  Min_Op_Token_Index        : WisiToken.Token_Index := WisiToken.Token_Index'Last;
-                  Min_Push_Back_Token_Index : WisiToken.Token_Index := WisiToken.Token_Index'Last;
-
-                  Stack_Matches_Ops     : Boolean := True;
-                  Shared_Token_Changed  : Boolean := False;
-                  Current_Token_Virtual : Boolean := False;
-
-                  Sorted_Insert_Delete : aliased Sorted_Insert_Delete_Arrays.Vector;
-
-                  procedure Apply_Prev_Token
-                  is begin
-                     loop
-                        exit when not Parser_State.Prev_Deleted.Contains (Parser_State.Shared_Token);
-                        Parser_State.Shared_Token := Parser_State.Shared_Token + 1;
-                     end loop;
-                  end Apply_Prev_Token;
-
+            if Current_Parser.State_Ref.Recover.Success then
                begin
-                  --  The verb will be reset by the main parser; just indicate the
-                  --  parser recovered from the error.
-                  Parser_State.Set_Verb (Shift);
+                  --  Can't have active 'renames State_Ref' when terminate a parser
+                  declare
+                     use Parser_Lists;
+                     use Config_Op_Arrays, Config_Op_Array_Refs;
 
-                  Parser_State.Errors (Parser_State.Errors.Last).Recover := Result;
+                     Parser_State : Parser_Lists.Parser_State renames Current_Parser.State_Ref;
 
-                  Parser_State.Resume_Token_Goal := Result.Resume_Token_Goal;
+                     Descriptor : WisiToken.Descriptor renames Shared_Parser.Trace.Descriptor.all;
+                     Stack      : Parser_Stacks.Stack renames Parser_State.Stack;
+                     Tree       : Syntax_Trees.Tree renames Parser_State.Tree;
+                     Data       : McKenzie_Data renames Parser_State.Recover;
+                     Result     : Configuration renames Data.Results.Peek;
 
-                  if Trace_McKenzie > Extra then
-                     Put_Line (Trace, Parser_State.Label, "before Ops applied:", Task_ID => False);
-                     Put_Line
-                       (Trace, Parser_State.Label, "stack " & Image (Parser_State.Stack, Descriptor, Tree),
-                        Task_ID => False);
-                     Put_Line
-                       (Trace, Parser_State.Label, "Shared_Token  " & Image
-                          (Parser_State.Shared_Token, Shared_Parser.Terminals, Descriptor),
-                        Task_ID => False);
-                     Put_Line
-                       (Trace, Parser_State.Label, "Current_Token " & Parser_State.Tree.Image
-                          (Parser_State.Current_Token, Descriptor),
-                        Task_ID => False);
-                  end if;
+                     Stack_Matches_Ops     : Boolean := True;
+                     Shared_Token_Changed  : Boolean := False;
+                     Current_Token_Virtual : Boolean := False;
+                     First_Insert          : Boolean := True;
+                  begin
+                     --  The verb will be reset by the main parser; just indicate the
+                     --  parser recovered from the error.
+                     Parser_State.Set_Verb (Shift);
 
-                  --  We don't apply all Ops to the parser stack here, because that
-                  --  requires updating the syntax tree as well, and we want to let the
-                  --  main parser do that, partly as a double check on the algorithms
-                  --  here.
-                  --
-                  --  However, the main parser can only apply Insert and Delete ops; we
-                  --  must apply Push_Back and Undo_Reduce here. Note that Fast_Forward
-                  --  ops are just for bookkeeping.
-                  --
-                  --  In order to apply Undo_Reduce, we also need to apply any preceding
-                  --  ops. See test_mckenzie_recover.adb Missing_Name_2 for an example
-                  --  of multiple Undo_Reduce. On the other hand, Push_Back can be
-                  --  applied without the preceding ops.
-                  --
-                  --  A Push_Back can go back past preceding ops, including Undo_Reduce;
-                  --  there's no point in applying ops that are later superceded by such
-                  --  a Push_Back. See test_mckenzie_recover.adb Out_Of_Order_Ops for an
-                  --  example.
-                  --
-                  --  Push_Back can also go back past a previous error recovery; we must
-                  --  apply Parser_State.Prev_Deleted here as well, when computing
-                  --  Shared_Token.
-                  --
-                  --  So first we go thru Ops to find the earliest Push_Back. Then we
-                  --  apply ops that are before that point, up to the first Insert or
-                  --  Fast_Forward. After that, we enqueue Insert and Delete ops on
-                  --  Parser_State.Recover_Insert_Delete, in token_index order, and any
-                  --  Undo_Reduce are rejected.
-                  --
-                  --  Then the main parser parses the edited input stream.
-                  --
-                  --  There's no need to modify Parser_State.Tree. Any tree nodes
-                  --  created by the failed parse that are pushed back are useful for
-                  --  error repair, and will just be ignored in future parsing. This
-                  --  also avoids enlarging a non-flushed branched tree, which saves
-                  --  time and space.
+                     Parser_State.Errors (Parser_State.Errors.Last).Recover := Result;
 
-                  for I in First_Index (Result.Ops) .. Last_Index (Result.Ops) loop
-                     declare
-                        Op : Config_Op renames Constant_Ref (Result.Ops, I);
-                     begin
-                        case Op.Op is
-                        when Fast_Forward =>
-                           if Op.FF_Token_Index < Min_Op_Token_Index then
-                              Min_Op_Token_Index := Op.FF_Token_Index;
-                           end if;
+                     Parser_State.Resume_Token_Goal := Result.Resume_Token_Goal;
 
-                        when Undo_Reduce =>
-                           null;
+                     if Trace_McKenzie > Extra then
+                        Put_Line (Trace, Parser_State.Label, "before Ops applied:", Task_ID => False);
+                        Put_Line
+                          (Trace, Parser_State.Label, "stack " & Image (Stack, Descriptor, Tree),
+                           Task_ID => False);
+                        Put_Line
+                          (Trace, Parser_State.Label, "Shared_Token  " & Image
+                             (Parser_State.Shared_Token, Shared_Parser.Terminals, Descriptor),
+                           Task_ID => False);
+                        Put_Line
+                          (Trace, Parser_State.Label, "Current_Token " & Parser_State.Tree.Image
+                             (Parser_State.Current_Token, Descriptor),
+                           Task_ID => False);
+                     end if;
 
-                        when Push_Back =>
-                           if Op.PB_Token_Index /= Invalid_Token_Index then
-                              if Op.PB_Token_Index < Min_Op_Token_Index then
-                                 Min_Op_Token_Index := Op.PB_Token_Index;
-                              end if;
-                              if Op.PB_Token_Index < Min_Push_Back_Token_Index then
-                                 Min_Push_Back_Token_Index := Op.PB_Token_Index;
-                              end if;
-                           end if;
+                     --  We don't apply all Ops to the parser stack here, because there can
+                     --  be other input tokens between the inserts and deletes, and there
+                     --  can be conflicts; we let the main parser handle that. We can apply
+                     --  all ops up to the first insert.
+                     --
+                     --  Other than Add_Terminal, there's no need to modify
+                     --  Parser_State.Tree. Any tree nodes created by the failed parse that
+                     --  are pushed back are useful for error repair, and will just be
+                     --  ignored in future parsing. This also avoids enlarging a
+                     --  non-flushed branched tree, which saves time and space.
+                     --
+                     --  Language_Fixes may abuse the rules about adding Ops, so we check
+                     --  that as much as is reasonable here. We use Assert to get an
+                     --  immediate error in a debug build, and raise Bad_Config to avoid
+                     --  further corruption in a release build.
 
-                        when Insert =>
-                           if Op.Ins_Token_Index /= Invalid_Token_Index then
-                              if Op.Ins_Token_Index < Min_Op_Token_Index then
-                                 Min_Op_Token_Index := Op.Ins_Token_Index;
-                              end if;
-                              if Op.Ins_Token_Index < Min_Push_Back_Token_Index then
-                                 Min_Push_Back_Token_Index := Op.Ins_Token_Index;
-                              end if;
-                           end if;
-
-                        when Delete =>
-                           if Op.Del_Token_Index /= Invalid_Token_Index then
-                              if Op.Del_Token_Index < Min_Op_Token_Index then
-                                 Min_Op_Token_Index := Op.Del_Token_Index;
-                              end if;
-                              if Op.Del_Token_Index < Min_Push_Back_Token_Index then
-                                 Min_Push_Back_Token_Index := Op.Del_Token_Index;
-                              end if;
-                           end if;
-
-                        end case;
-                     end;
-                  end loop;
-
-                  for I in First_Index (Result.Ops) .. Last_Index (Result.Ops) loop
-                     declare
-                        Op : Config_Op renames Constant_Ref (Result.Ops, I);
-                     begin
-                        case Op.Op is
-                        when Fast_Forward =>
-                           Stack_Matches_Ops := False;
-
-                        when Undo_Reduce =>
-                           if not Stack_Matches_Ops then
-                              if Trace_McKenzie > Outline then
-                                 Put_Line
-                                   (Trace, Parser_State.Label, "Undo_Reduce after insert or fast_forward",
-                                    Task_ID => False);
-                              end if;
-                              raise Bad_Config;
-                           end if;
-
-                           declare
-                              Item : constant Parser_Lists.Parser_Stack_Item := Parser_State.Stack.Pop;
-                           begin
-                              case Tree.Label (Item.Token) is
-                              when Syntax_Trees.Shared_Terminal |
-                                Syntax_Trees.Virtual_Identifier |
-                                Syntax_Trees.Virtual_Terminal =>
-                                 if Trace_McKenzie > Outline then
-                                    Put_Line
-                                      (Trace, Parser_State.Label, "expecting nonterminal, found " &
-                                         Image (Tree.ID (Item.Token), Trace.Descriptor.all),
-                                       Task_ID => False);
-                                 end if;
-                                 raise Bad_Config;
-
-                              when Syntax_Trees.Nonterm =>
-                                 for C of Tree.Children (Item.Token) loop
-                                    Parser_State.Stack.Push ((Tree.State (C), C));
-                                 end loop;
-                              end case;
-                           end;
-
-                        when Push_Back =>
-                           if Stack_Matches_Ops then
-                              Parser_State.Stack.Pop;
-                              if Op.PB_Token_Index /= Invalid_Token_Index then
-                                 Parser_State.Shared_Token := Op.PB_Token_Index;
-                                 Shared_Token_Changed      := True;
-                              end if;
-
-                           elsif Op.PB_Token_Index = Min_Op_Token_Index then
-                              loop
-                                 --  Multiple push_backs can have the same Op.PB_Token_Index, so we may
-                                 --  already be at the target.
-                                 exit when Parser_State.Shared_Token <= Op.PB_Token_Index and
-                                   (Parser_State.Stack.Depth = 1 or else
-                                      Tree.Min_Terminal_Index (Parser_State.Stack (1).Token) /= Invalid_Token_Index);
-                                 --  also push back empty tokens.
-
-                                 declare
-                                    Item : constant Parser_Lists.Parser_Stack_Item := Parser_State.Stack.Pop;
-
-                                    Min_Index : constant Base_Token_Index :=
-                                      Parser_State.Tree.Min_Terminal_Index (Item.Token);
-                                 begin
-                                    if Min_Index /= Invalid_Token_Index then
-                                       Shared_Token_Changed := True;
-                                       Parser_State.Shared_Token := Min_Index;
-                                    end if;
-                                 end;
-                              end loop;
-                              pragma Assert (Parser_State.Shared_Token = Op.PB_Token_Index);
-                           end if;
-
-                        when Insert =>
-                           if Stack_Matches_Ops and Op.Ins_Token_Index = Parser_State.Shared_Token then
-                              --  This is the first Insert. Even if a later Push_Back supercedes it,
-                              --  we record Stack_Matches_Ops false here.
+                     for I in First_Index (Result.Ops) .. Last_Index (Result.Ops) loop
+                        declare
+                           Op : Config_Op renames Constant_Ref (Result.Ops, I);
+                        begin
+                           case Op.Op is
+                           when Fast_Forward =>
+                              --  The parser would do shifts and reduces for the tokens we are
+                              --  skipping here
                               Stack_Matches_Ops := False;
 
-                              if Op.Ins_Token_Index <= Min_Push_Back_Token_Index then
-                                 Parser_State.Current_Token := Parser_State.Tree.Add_Terminal (Op.Ins_ID);
-                                 Current_Token_Virtual      := True;
-                              else
-                                 if Is_Full (Sorted_Insert_Delete) then
+                           when Undo_Reduce =>
+                              --  If Stack_Matches_Ops, we must do the Stack.Pop and Pushes, and we
+                              --  can use Stack.Peek to check if the Undo_Reduce is valid.
+                              --
+                              --  If not Stack_Matches_Ops, we have to assume Undo_Reduce is valid.
+                              --
+                              --  See test_mckenzie_recover.adb Extra_Begin for an example of Undo_Reduce
+                              --  after other ops.
+                              if Stack_Matches_Ops then
+                                 if not (Tree.Is_Nonterm (Stack.Peek.Token) and
+                                           (I = First_Index (Result.Ops) or else
+                                              Push_Back_Valid
+                                                (Tree.First_Shared_Terminal (Stack.Peek.Token), Result.Ops, I - 1)))
+                                 then
+                                    pragma Assert (False);
+                                    if Trace_McKenzie > Outline then
+                                       Put_Line
+                                         (Trace, Parser_State.Label, "invalid Undo_Reduce in apply config",
+                                          Task_ID => False);
+                                    end if;
                                     raise Bad_Config;
-                                 else
-                                    Insert (Sorted_Insert_Delete, Op);
+                                 end if;
+
+                                 for C of Tree.Children (Stack.Pop.Token) loop
+                                    Stack.Push ((Tree.State (C), C));
+                                 end loop;
+                              end if;
+
+                           when Push_Back =>
+                              --  If Stack_Matches_Ops, we must do the Stack.Pop, and can use that
+                              --  to check if the Push_Back is valid.
+                              --
+                              --  If not Stack_Matches_Ops, we have to assume Op.PB_Token_Index is
+                              --  correct, and we do not do Stack.Pop. We can still check the target
+                              --  token index against the previous ops.
+                              --
+                              --  See test_mckenzie_recover.adb Erorr_2 for an example of Push_Back
+                              --  after other ops.
+                              if not
+                                (I = First_Index (Result.Ops) or else
+                                   Push_Back_Valid
+                                     (Target_Token_Index =>
+                                        (if Stack_Matches_Ops
+                                         then Tree.First_Shared_Terminal (Stack.Peek.Token)
+                                         else Op.PB_Token_Index),
+                                      Ops     => Result.Ops,
+                                      Prev_Op => I - 1))
+                              then
+                                 if Trace_McKenzie > Outline then
+                                    Put_Line
+                                      (Trace, Parser_State.Label, "invalid Push_Back in apply config op" & I'Image,
+                                       Task_ID => False);
+                                 end if;
+                                 pragma Assert (False);
+                                 raise Bad_Config;
+                              end if;
+
+                              if Stack_Matches_Ops then
+                                 Stack.Pop;
+
+                                 if Op.PB_Token_Index /= Invalid_Token_Index then
+                                    --  Pushing back an empty nonterm has no effect on the input stream.
+                                    Parser_State.Shared_Token := Op.PB_Token_Index;
+                                    Shared_Token_Changed      := True;
                                  end if;
                               end if;
-                           else
-                              if Is_Full (Sorted_Insert_Delete) then
-                                 raise Bad_Config;
-                              else
-                                 Insert (Sorted_Insert_Delete, Op);
-                              end if;
-                           end if;
 
-                        when Delete =>
-                           if Stack_Matches_Ops and Op.Del_Token_Index = Parser_State.Shared_Token then
-                              --  We can apply multiple deletes.
-                              Parser_State.Shared_Token := Op.Del_Token_Index + 1;
-                              Apply_Prev_Token;
-                              Shared_Token_Changed      := True;
-                           else
-                              if Is_Full (Sorted_Insert_Delete) then
-                                 raise Bad_Config;
-                              else
-                                 Insert (Sorted_Insert_Delete, Op);
-                              end if;
-                           end if;
-                        end case;
-                     end;
-                  end loop;
-
-                  --  We may not have processed the current Insert or Delete above, if
-                  --  they are after a fast_forward.
-                  for I in First_Index (Sorted_Insert_Delete) .. Last_Index (Sorted_Insert_Delete) loop
-                     declare
-                        Op : Insert_Delete_Op renames Insert_Delete_Array_Refs.Constant_Ref (Sorted_Insert_Delete, I);
-                     begin
-                        if Token_Index (Op) = Parser_State.Shared_Token and not Current_Token_Virtual then
-                           case Insert_Delete_Op_Label'(Op.Op) is
                            when Insert =>
-                              Parser_State.Current_Token := Parser_State.Tree.Add_Terminal (ID (Op));
-                              Current_Token_Virtual      := True;
+                              Recover_Op_Arrays.Append
+                                (Parser_State.Recover_Insert_Delete,
+                                 (Op              => Insert,
+                                  Ins_ID          => Op.Ins_ID,
+                                  Ins_Token_Index => Op.Ins_Token_Index,
+                                  Ins_Tree_Node   => Invalid_Node_Index));
+
+                              if Parser_State.Recover_Insert_Delete_Current = No_Index then
+                                 Parser_State.Recover_Insert_Delete_Current :=
+                                   Recover_Op_Arrays.Last_Index (Parser_State.Recover_Insert_Delete);
+                              end if;
+
+                              if First_Insert and Op.Ins_Token_Index = Parser_State.Shared_Token then
+                                 --  We need First_Insert here, not just Stack_Matches_Ops, when the
+                                 --  first insert is preceeded only by Push_Back and Undo_Reduce, with
+                                 --  at least one Undo_Reduce (so Stack_Matches_Ops is False when we
+                                 --  get here). See test_mckenzie_recover.adb Missing_Name_3
+
+                                 First_Insert := False;
+
+                                 --  Normally Insert is completed by Stack.Push; we let the main parser
+                                 --  do that.
+                                 Stack_Matches_Ops := False;
+
+                                 --  Add_Terminal is normally done in the lexer phase, so we do this here.
+                                 Parser_State.Current_Token := Parser_State.Tree.Add_Terminal
+                                   (Op.Ins_ID, Op.Ins_Token_Index);
+                                 Recover_Op_Array_Refs.Variable_Ref
+                                   (Parser_State.Recover_Insert_Delete,
+                                    Recover_Op_Arrays.Last_Index (Parser_State.Recover_Insert_Delete)).Ins_Tree_Node :=
+                                      Parser_State.Current_Token;
+
+                                 Current_Token_Virtual                      := True;
+                                 Parser_State.Recover_Insert_Delete_Current := No_Index;
+                              else
+                                 --  Let main parser handle it
+                                 null;
+                              end if;
 
                            when Delete =>
-                              Parser_State.Shared_Token := Op.Del_Token_Index + 1;
-                              Apply_Prev_Token;
-                              Shared_Token_Changed      := True;
+                              Recover_Op_Arrays.Append
+                                (Parser_State.Recover_Insert_Delete,
+                                 (Op              => Delete,
+                                  Del_ID          => Op.Del_ID,
+                                  Del_Token_Index => Op.Del_Token_Index));
+
+                              if Stack_Matches_Ops and Op.Del_Token_Index = Parser_State.Shared_Token then
+                                 --  Delete has no effect on Stack, so we can apply multiple deletes.
+                                 Parser_State.Shared_Token := Op.Del_Token_Index + 1;
+                                 Shared_Token_Changed      := True;
+
+                                 Parser_State.Recover_Insert_Delete_Current := No_Index;
+                              else
+                                 if Parser_State.Recover_Insert_Delete_Current = No_Index then
+                                    Parser_State.Recover_Insert_Delete_Current :=
+                                      Recover_Op_Arrays.Last_Index (Parser_State.Recover_Insert_Delete);
+                                 end if;
+
+                              end if;
+
                            end case;
-                        else
-                           Parser_State.Recover_Insert_Delete.Put (Op);
-                        end if;
-                     end;
-                  end loop;
+                        end;
+                     end loop;
 
-                  --  If not Shared_Token_Changed, Shared_Token is the error token,
-                  --  which is the next token to read. If Shared_Token_Changed, we have
-                  --  set Shared_Token consistent with that; it is the next token to
-                  --  read. If Current_Token_Virtual, then after all the virtual tokens
-                  --  are inserted, the main parser would normally increment
-                  --  Parser_State.Shared_Token to get the next token, but we don't want
-                  --  that now. We could set Shared_Token to 1 less, but this way the
-                  --  debug messages all show the expected Shared_Terminal.
+                     --  If not Shared_Token_Changed, Shared_Token is the error token,
+                     --  which is the next token to read. If Shared_Token_Changed, we have
+                     --  set Shared_Token consistent with that; it is the next token to
+                     --  read. If Current_Token_Virtual, then after all the virtual tokens
+                     --  are inserted, the main parser would normally increment
+                     --  Parser_State.Shared_Token to get the next token, but we don't want
+                     --  that now. We could set Shared_Token to 1 less, but this way the
+                     --  debug messages all show the expected Shared_Terminal.
 
-                  Parser_State.Inc_Shared_Token := not Current_Token_Virtual;
+                     Parser_State.Inc_Shared_Token := not Current_Token_Virtual;
 
-                  --  The main parser always sets Current_Token to be the syntax tree
-                  --  node containing Shared_Token; ensure that is true here (virtual
-                  --  tokens where handled above).
+                     --  The main parser always sets Current_Token to be the syntax tree
+                     --  node containing Shared_Token; ensure that is true here (virtual
+                     --  tokens where handled above).
 
-                  if (not Current_Token_Virtual) and Shared_Token_Changed then
-                     Parser_State.Current_Token := Parser_State.Tree.Add_Terminal
-                       (Parser_State.Shared_Token, Shared_Parser.Terminals);
+                     if (not Current_Token_Virtual) and Shared_Token_Changed then
+                        Parser_State.Current_Token := Shared_Parser.Terminals
+                          (Parser_State.Shared_Token).Tree_Index;
+                     end if;
+
+                     if Trace_McKenzie > Extra then
+                        Put_Line (Trace, Parser_State.Label, "after Ops applied:", Task_ID => False);
+                        Put_Line
+                          (Trace, Parser_State.Label, "stack " & Parser_Lists.Image
+                             (Stack, Descriptor, Tree),
+                           Task_ID => False);
+                        Put_Line
+                          (Trace, Parser_State.Label, "Shared_Token  " & Image
+                             (Parser_State.Shared_Token, Shared_Parser.Terminals, Descriptor), Task_ID => False);
+                        Put_Line
+                          (Trace, Parser_State.Label, "Current_Token " & Parser_State.Tree.Image
+                             (Parser_State.Current_Token, Descriptor), Task_ID => False);
+                        Put_Line
+                          (Trace, Parser_State.Label, "recover_insert_delete" &
+                             Parser_State.Recover_Insert_Delete_Current'Image & ":" &
+                             Image (Parser_State.Recover_Insert_Delete, Descriptor), Task_ID => False);
+                        Put_Line
+                          (Trace, Parser_State.Label, "inc_shared_token " &
+                             Boolean'Image (Parser_State.Inc_Shared_Token),
+                           Task_ID => False);
+                     end if;
+                  end;
+               exception
+               when Bad_Config =>
+                  if Parsers.Count = 1 then
+                     --  Oops. just give up
+                     return Fail_Programmer_Error;
                   end if;
-
-                  if Trace_McKenzie > Extra then
-                     Put_Line (Trace, Parser_State.Label, "after Ops applied:", Task_ID => False);
-                     Put_Line
-                       (Trace, Parser_State.Label, "stack " & Parser_Lists.Image
-                          (Parser_State.Stack, Descriptor, Tree),
-                        Task_ID => False);
-                     Put_Line
-                       (Trace, Parser_State.Label, "Shared_Token  " & Image
-                          (Parser_State.Shared_Token, Shared_Parser.Terminals, Descriptor), Task_ID => False);
-                     Put_Line
-                       (Trace, Parser_State.Label, "Current_Token " & Parser_State.Tree.Image
-                          (Parser_State.Current_Token, Descriptor), Task_ID => False);
-                     Put_Line
-                       (Trace, Parser_State.Label, "recover_insert_delete " & Image
-                          (Parser_State.Recover_Insert_Delete, Descriptor), Task_ID => False);
-                     Put_Line
-                       (Trace, Parser_State.Label, "inc_shared_token " & Boolean'Image (Parser_State.Inc_Shared_Token) &
-                          " parser verb " & All_Parse_Action_Verbs'Image (Parser_State.Verb),
-                        Task_ID => False);
-                  end if;
+                  Parsers.Terminate_Parser (Current_Parser, "bad config in recover", Trace, Shared_Parser.Terminals);
+                  --  Terminate advances Current_Parser
+                  Skip_Next := True;
                end;
-            exception
-            when Bad_Config =>
-               if Parsers.Count = 1 then
-                  --  Oops. just give up
-                  return Fail_Programmer_Error;
-               end if;
-               Parsers.Terminate_Parser (Current_Parser, "bad config in recover", Trace, Shared_Parser.Terminals);
-            end;
-         end if;
-         Current_Parser.Next;
-      end loop;
-
+            end if;
+            if Skip_Next then
+               Skip_Next := False;
+            else
+               Current_Parser.Next;
+            end if;
+         end loop;
+      end;
       if Shared_Parser.Post_Recover /= null then
          Shared_Parser.Post_Recover.all;
       end if;
@@ -717,7 +650,8 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
    exception
    when E : others =>
       if Debug_Mode then
-         Trace.Put (Ada.Exceptions.Exception_Name (E) & ": " & Ada.Exceptions.Exception_Message (E));
+         Trace.Put (Ada.Exceptions.Exception_Name (E) & ": " & Ada.Exceptions.Exception_Message (E), Prefix => True);
+         Trace.New_Line;
          raise;
       else
          return Fail_Programmer_Error;
@@ -737,13 +671,12 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
      (Terminals                 :         in     Base_Token_Arrays.Vector;
       Terminals_Current         :         in out WisiToken.Base_Token_Index;
       Restore_Terminals_Current :            out WisiToken.Base_Token_Index;
-      Insert_Delete             : aliased in out Sorted_Insert_Delete_Arrays.Vector;
-      Current_Insert_Delete     :         in out SAL.Base_Peek_Type;
-      Prev_Deleted              :         in     Recover_Token_Index_Arrays.Vector)
+      Insert_Delete             : aliased in out Config_Op_Arrays.Vector;
+      Current_Insert_Delete     :         in out SAL.Base_Peek_Type)
      return Base_Token
    is
-      use Sorted_Insert_Delete_Arrays;
-      use Insert_Delete_Array_Refs;
+      use Config_Op_Arrays;
+      use Config_Op_Array_Refs;
 
       procedure Inc_I_D
       is begin
@@ -778,11 +711,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
                   return (ID => ID (Op), others => <>);
 
                when Delete =>
-                  Terminals_Current    := Terminals_Current + 1;
-                  loop
-                     exit when not Prev_Deleted.Contains (Terminals_Current);
-                     Terminals_Current := Terminals_Current + 1;
-                  end loop;
+                  Terminals_Current         := Terminals_Current + 1;
                   Restore_Terminals_Current := Terminals_Current;
                   Inc_I_D;
                end case;
@@ -796,11 +725,11 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
    function Current_Token_ID_Peek
      (Terminals             :         in Base_Token_Arrays.Vector;
       Terminals_Current     :         in Base_Token_Index;
-      Insert_Delete         : aliased in Sorted_Insert_Delete_Arrays.Vector;
+      Insert_Delete         : aliased in Config_Op_Arrays.Vector;
       Current_Insert_Delete :         in SAL.Base_Peek_Type)
      return Token_ID
    is
-      use Insert_Delete_Array_Refs;
+      use Config_Op_Array_Refs;
 
       Result : Token_ID;
    begin
@@ -836,9 +765,8 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
    procedure Current_Token_ID_Peek_3
      (Terminals             :         in     Base_Token_Arrays.Vector;
       Terminals_Current     :         in     Base_Token_Index;
-      Insert_Delete         : aliased in     Sorted_Insert_Delete_Arrays.Vector;
+      Insert_Delete         : aliased in     Config_Op_Arrays.Vector;
       Current_Insert_Delete :         in     SAL.Base_Peek_Type;
-      Prev_Deleted          :         in     Recover_Token_Index_Arrays.Vector;
       Tokens                :            out Token_ID_Array_1_3)
    is
       Terminals_Next : WisiToken.Token_Index := Terminals_Current + 1;
@@ -851,16 +779,9 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
       --  First set Tokens from Terminals; may be overridden by
       --  Insert_Delete below.
       Tokens (1) := Terminals (Terminals_Current).ID;
-      loop
-         exit when not Prev_Deleted.Contains (Terminals_Next);
-         Terminals_Next := Terminals_Next + 1;
-      end loop;
       if Terminals_Next <= Terminals.Last_Index then
          Tokens (2) := Terminals (Terminals_Next).ID;
-         loop
-            Terminals_Next := Terminals_Next + 1;
-            exit when not Prev_Deleted.Contains (Terminals_Next);
-         end loop;
+         Terminals_Next := Terminals_Next + 1;
          if Terminals_Next <= Terminals.Last_Index then
             Tokens (3) := Terminals (Terminals_Next).ID;
          else
@@ -876,7 +797,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
       else
          for I in Tokens'Range loop
             declare
-               use Sorted_Insert_Delete_Arrays, Insert_Delete_Array_Refs;
+               use Config_Op_Arrays, Config_Op_Array_Refs;
                J : constant SAL.Base_Peek_Type := Current_Insert_Delete + SAL.Peek_Type (I) - 1;
             begin
                if (J in First_Index (Insert_Delete) .. Last_Index (Insert_Delete)) and then
@@ -906,7 +827,6 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
       ID        : in     Token_ID)
    is
       use Config_Op_Arrays;
-      use Sorted_Insert_Delete_Arrays;
       Op : constant Config_Op := (Delete, ID, Config.Current_Shared_Token);
    begin
       Check (Terminals (Config.Current_Shared_Token).ID, ID);
@@ -914,7 +834,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
          raise Bad_Config;
       end if;
       Append (Config.Ops, Op);
-      Insert (Config.Insert_Delete, Op);
+      Append (Config.Insert_Delete, Op);
       Config.Current_Insert_Delete := 1;
    end Delete_Check;
 
@@ -934,17 +854,30 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
       Index     : in out WisiToken.Token_Index)
    is
       use Config_Op_Arrays;
-      use Sorted_Insert_Delete_Arrays;
       Op : constant Config_Op := (Delete, Terminals (Index).ID, Index);
    begin
       if Is_Full (Config.Ops) or Is_Full (Config.Insert_Delete) then
          raise Bad_Config;
       end if;
       Append (Config.Ops, Op);
-      Insert (Config.Insert_Delete, Op);
+      Append (Config.Insert_Delete, Op);
       Config.Current_Insert_Delete := 1;
       Index := Index + 1;
    end Delete;
+
+   function Find_ID
+     (Config         : in     Configuration;
+      ID             : in     Token_ID)
+     return Boolean
+   is begin
+      for I in 1 .. Config.Stack.Depth - 1 loop
+         --  Depth has Invalid_Token_ID
+         if ID = Config.Stack.Peek (I).Token.ID then
+            return True;
+         end if;
+      end loop;
+      return False;
+   end Find_ID;
 
    procedure Find_ID
      (Config         : in     Configuration;
@@ -1081,14 +1014,13 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
    procedure Insert (Config : in out Configuration; Index : in WisiToken.Token_Index; ID : in Token_ID)
    is
       use Config_Op_Arrays;
-      use Sorted_Insert_Delete_Arrays;
-      Op : constant Config_Op := (Insert, ID, Index, Unknown_State, 0);
+      Op : constant Config_Op := (Insert, ID, Index);
    begin
       if Is_Full (Config.Ops) or Is_Full (Config.Insert_Delete) then
          raise Bad_Config;
       end if;
       Append (Config.Ops, Op);
-      Insert (Config.Insert_Delete, Op);
+      Append (Config.Insert_Delete, Op);
       Config.Current_Insert_Delete := 1;
    end Insert;
 
@@ -1096,21 +1028,15 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
      (Terminals                 :         in     Base_Token_Arrays.Vector;
       Terminals_Current         :         in out Base_Token_Index;
       Restore_Terminals_Current :         in out WisiToken.Base_Token_Index;
-      Insert_Delete             : aliased in out Sorted_Insert_Delete_Arrays.Vector;
-      Current_Insert_Delete     :         in out SAL.Base_Peek_Type;
-      Prev_Deleted              :         in     Recover_Token_Index_Arrays.Vector)
+      Insert_Delete             : aliased in out Config_Op_Arrays.Vector;
+      Current_Insert_Delete     :         in out SAL.Base_Peek_Type)
      return Base_Token
    is
-      use Sorted_Insert_Delete_Arrays, Insert_Delete_Array_Refs;
+      use Config_Op_Arrays, Config_Op_Array_Refs;
 
       function Next_Terminal return Base_Token
       is begin
-         Terminals_Current    := Terminals_Current + 1;
-         loop
-            exit when not Prev_Deleted.Contains (Terminals_Current);
-            Terminals_Current := Terminals_Current + 1;
-         end loop;
-
+         Terminals_Current         := Terminals_Current + 1;
          Restore_Terminals_Current := Terminals_Current;
          return Terminals (Terminals_Current);
       end Next_Terminal;
@@ -1146,10 +1072,82 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
       end loop;
    end Next_Token;
 
+   function Push_Back_Valid
+     (Target_Token_Index : in WisiToken.Base_Token_Index;
+      Ops             : in Config_Op_Arrays.Vector;
+      Prev_Op         : in Positive_Index_Type)
+     return Boolean
+   is
+      use Config_Op_Arrays;
+      Fast_Forward_Seen : Boolean := False;
+   begin
+      --  We require a Fast_Forward after Insert or Delete, to eliminate
+      --  duplicate results from push_back before and after a
+      --  delete (see test_mckenzie_recover.adb Extra_Begin).
+      --
+      --  If Target_Token_Index is greater than the new current terminal
+      --  implied by Prev_Op, the Push_Back is valid. Otherwise, it is
+      --  invalid (it should have been done first); we only need to look at
+      --  one op other than Fast_Forward.
+      for I in reverse First_Index (Ops) .. Prev_Op loop
+         declare
+            Op : Config_Op renames Element (Ops, I);
+         begin
+            case Op.Op is
+            when Fast_Forward =>
+               --  We need to see the op before the Fast_Forward to tell if Push_Back
+               --  to Target_Token_Index is ok.
+               Fast_Forward_Seen := True;
+
+            when Undo_Reduce =>
+               --  We don't know what the new terminal is from this op. We'll just
+               --  have to trust the programmers.
+               return True;
+
+            when Push_Back =>
+               --  If neither the proposed Push_Back nor Op is for an empty token,
+               --  successive Push_Backs have decreasing targets; see
+               --  test_mckenzie_recover.adb Missing_Name_0.
+               --
+               --  However, if there is a Fast_Forward between two Push_Backs,
+               --  Target_Token_Index must be >= Op.PB_Token_Index. See
+               --  ada-mode-recover_27.adb.
+               --
+               --  If called from Undo_Reduce_Valid where the Undo_Reduce token is
+               --  empty, we get Target_Token_Index = Op.PB_Token_Index.
+               return Target_Token_Index = Invalid_Token_Index or else
+                 Op.PB_Token_Index = Invalid_Token_Index or else
+                 (if Fast_Forward_Seen
+                  then Target_Token_Index > Op.PB_Token_Index
+                  else Target_Token_Index <= Op.PB_Token_Index);
+
+            when Insert =>
+               --  If Target_Token_Index = Op.Ins_Token_Index, we want the edit
+               --  point to be at the same token as before; that's ok.
+               --
+               --  If Target_Token_Index > Ins_Token_Index, the Push_Back is partway
+               --  into a Fast_Forward.
+               return Fast_Forward_Seen and
+                 (Target_Token_Index = Invalid_Token_Index or else
+                    Target_Token_Index >= Op.Ins_Token_Index);
+
+            when Delete =>
+               --  As for Insert
+               return Fast_Forward_Seen and
+                 (Target_Token_Index = Invalid_Token_Index or else
+                    Target_Token_Index >= Op.Del_Token_Index);
+            end case;
+         end;
+      end loop;
+      --  We can only get here if the only ops in Ops are Fast_Forward,
+      --  which is a programming error.
+      pragma Assert (False);
+      raise Bad_Config;
+   end Push_Back_Valid;
+
    procedure Push_Back (Config : in out Configuration)
    is
       use Config_Op_Arrays, Config_Op_Array_Refs;
-      use Sorted_Insert_Delete_Arrays;
 
       Item        : constant Recover_Stack_Item := Config.Stack.Pop;
       Token_Index : constant Base_Token_Index   := Item.Token.Min_Terminal_Index;
@@ -1171,7 +1169,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
                if Is_Full (Config.Insert_Delete) then
                   raise Bad_Config;
                end if;
-               Insert (Config.Insert_Delete, Constant_Ref (Config.Ops, I), Ignore_If_Equal => True);
+               Append (Config.Insert_Delete, Constant_Ref (Config.Ops, I));
             end if;
          end loop;
       end if;
@@ -1184,7 +1182,6 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
 
    procedure Push_Back_Check (Config : in out Configuration; Expected_ID : in Token_ID)
    is begin
-      pragma Assert (Config.Stack.Depth > 1);
       Check (Config.Stack.Peek (1).Token.ID, Expected_ID);
       Push_Back (Config);
    end Push_Back_Check;
@@ -1192,7 +1189,11 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
    procedure Push_Back_Check (Config : in out Configuration; Expected : in Token_ID_Array)
    is begin
       for ID of Expected loop
-         Push_Back_Check (Config, ID);
+         if Push_Back_Valid (Config) then
+            Push_Back_Check (Config, ID);
+         else
+            raise Bad_Config;
+         end if;
       end loop;
    end Push_Back_Check;
 
@@ -1209,7 +1210,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
 
       --  Build a string, call trace.put_line once, so output from multiple
       --  tasks is not interleaved (mostly).
-      use Insert_Delete_Array_Refs;
+      use Config_Op_Array_Refs;
       use all type Ada.Strings.Unbounded.Unbounded_String;
       use all type WisiToken.Semantic_Checks.Check_Status_Label;
 
@@ -1269,11 +1270,8 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
    is
       Nonterm_Item : constant Recover_Stack_Item := Recover_Stacks.Pop (Stack);
    begin
-      if Nonterm_Item.Token.Byte_Region = Null_Buffer_Region then
-         return 0;
-      end if;
       declare
-         Children : constant Syntax_Trees.Valid_Node_Index_Array := Tree.Children (Nonterm_Item.Tree_Index);
+         Children : constant Valid_Node_Index_Array := Tree.Children (Nonterm_Item.Tree_Index);
       begin
          for C of Children loop
             Stack.Push ((Tree.State (C), C, Tree.Recover_Token (C)));

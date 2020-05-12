@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2020 Free Software Foundation, Inc.
 --
 --  This program is free software; you can redistribute it and/or
 --  modify it under terms of the GNU General Public License as
@@ -24,7 +24,6 @@ with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Text_IO;
 with GNAT.OS_Lib;
-with GNAT.Traceback.Symbolic;
 with SAL;
 with System.Multiprocessors;
 with System.Storage_Elements;
@@ -504,8 +503,6 @@ package body Emacs_Wisi_Common_Parse is
       Put_Line
         ("(error ""unhandled exception: " & Ada.Exceptions.Exception_Name (E) & ": " &
            Ada.Exceptions.Exception_Message (E) & """)");
-      Put_Line (GNAT.Traceback.Symbolic.Symbolic_Traceback (E));
-
    end Process_Stream;
 
 end Emacs_Wisi_Common_Parse;
