@@ -2,7 +2,7 @@
 --
 --  see spec
 --
---  Copyright (C) 2018, 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software; you can redistribute it and/or
 --  modify it under terms of the GNU General Public License as
@@ -118,9 +118,9 @@ package body SAL.Gen_Indefinite_Doubly_Linked_Lists is
    function First (Container : in List) return Cursor
    is begin
       if Container.Head = null then
-         return No_Element;
+         return (Ptr => null);
       else
-         return (Container'Unrestricted_Access, Container.Head);
+         return (Ptr => Container.Head);
       end if;
    end First;
 
@@ -128,7 +128,7 @@ package body SAL.Gen_Indefinite_Doubly_Linked_Lists is
    is begin
       if Position.Ptr /= null then
          if Position.Ptr.Next = null then
-            Position := No_Element;
+            Position.Ptr := null;
          else
             Position.Ptr := Position.Ptr.Next;
          end if;
@@ -141,9 +141,9 @@ package body SAL.Gen_Indefinite_Doubly_Linked_Lists is
          return Position;
       else
          if Position.Ptr.Next = null then
-            return No_Element;
+            return (Ptr => null);
          else
-            return (Position.Container, Position.Ptr.Next);
+            return (Ptr => Position.Ptr.Next);
          end if;
       end if;
    end Next;
@@ -169,7 +169,7 @@ package body SAL.Gen_Indefinite_Doubly_Linked_Lists is
       end if;
       Free (Node.Element);
       Free (Node);
-      Position        := No_Element;
+      Position        := (Ptr => null);
       Container.Count := Container.Count - 1;
    end Delete;
 

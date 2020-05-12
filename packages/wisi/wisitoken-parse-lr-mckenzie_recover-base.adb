@@ -2,7 +2,7 @@
 --
 --  Base utilities for McKenzie_Recover
 --
---  Copyright (C) 2018, 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -30,49 +30,56 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Base is
      return Boolean
    is
       Done_Count : SAL.Base_Peek_Type := 0;
+      Skip : Boolean;
    begin
       --  Return True if all parsers are done, or if any parser has a config
       --  available to check.
       for P_Status of Parser_Status loop
+         Skip := False;
+
          case P_Status.Recover_State is
          when Active | Ready =>
             if P_Status.Parser_State.Recover.Config_Heap.Count > 0 then
                if P_Status.Parser_State.Recover.Check_Count - Check_Delta_Limit >= Min_Success_Check_Count then
                   --  fail; another parser succeeded, this one taking too long.
                   Done_Count := Done_Count + 1;
+                  Skip := True;
 
                elsif Total_Enqueue_Count + P_Status.Parser_State.Recover.Config_Full_Count >= Enqueue_Limit then
                   --  fail
                   Done_Count := Done_Count + 1;
+                  Skip := True;
                end if;
             end if;
 
-            case P_Status.Recover_State is
-            when Active =>
-               if P_Status.Parser_State.Recover.Config_Heap.Count > 0 then
-                  --  Still working
-                  return True;
-               else
-                  if P_Status.Active_Workers = 0 then
-                     --  fail; no configs left to check.
+            if not Skip then
+               case P_Status.Recover_State is
+               when Active =>
+                  if P_Status.Parser_State.Recover.Config_Heap.Count > 0 then
+                     --  Still working
+                     return True;
+                  else
+                     if P_Status.Active_Workers = 0 then
+                        --  fail; no configs left to check.
+                        Done_Count := Done_Count + 1;
+                     end if;
+                  end if;
+
+               when Ready =>
+                  if P_Status.Parser_State.Recover.Config_Heap.Count > 0 and then
+                    P_Status.Parser_State.Recover.Config_Heap.Min_Key <= P_Status.Parser_State.Recover.Results.Min_Key
+                  then
+                     --  Still more to check.
+                     return True;
+
+                  elsif P_Status.Active_Workers = 0 then
                      Done_Count := Done_Count + 1;
                   end if;
-               end if;
 
-            when Ready =>
-               if P_Status.Parser_State.Recover.Config_Heap.Count > 0 and then
-                 P_Status.Parser_State.Recover.Config_Heap.Min_Key <= P_Status.Parser_State.Recover.Results.Min_Key
-               then
-                  --  Still more to check.
-                  return True;
-
-               elsif P_Status.Active_Workers = 0 then
-                  Done_Count := Done_Count + 1;
-               end if;
-
-            when others =>
-               null;
-            end case;
+               when others =>
+                  null;
+               end case;
+            end if;
 
          when Success | Fail =>
             Done_Count := Done_Count + 1;
@@ -101,7 +108,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Base is
          Error_ID                := Ada.Exceptions.Null_Id;
 
          for I in Parsers.Iterate loop
-            if Parsers.Reference (I).Recover_Insert_Delete.Length > 0 then
+            if Parsers.Reference (I).Recover_Insert_Delete_Current /= Recover_Op_Arrays.No_Index then
                --  Previous error recovery resume not finished; this is supposed to
                --  be checked in Parser.
                raise SAL.Programmer_Error;
@@ -135,6 +142,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Base is
           (Parsers, Parser_Status, Min_Success_Check_Count, Total_Enqueue_Count, Check_Delta_Limit, Enqueue_Limit)
       is
          Done_Count     : SAL.Base_Peek_Type := 0;
+         Skip           : Boolean;
          Min_Cost       : Integer            := Integer'Last;
          Min_Cost_Index : SAL.Base_Peek_Type;
 
@@ -168,6 +176,8 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Base is
          --  No task_id in outline trace messages, because they may appear in
          --  .parse_good
          for I in Parser_Status'Range loop
+            Skip := False;
+
             declare
                P_Status : Base.Parser_Status renames Parser_Status (I);
             begin
@@ -186,6 +196,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Base is
                         P_Status.Fail_Mode     := Fail_Check_Delta;
 
                         Done_Count := Done_Count + 1;
+                        Skip := True;
 
                      elsif Total_Enqueue_Count + P_Status.Parser_State.Recover.Config_Full_Count >= Enqueue_Limit then
                         if Trace_McKenzie > Outline then
@@ -200,48 +211,51 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Base is
                         P_Status.Fail_Mode     := Fail_Enqueue_Limit;
 
                         Done_Count := Done_Count + 1;
+                        Skip := True;
                      end if;
                   end if;
 
-                  case P_Status.Recover_State is
-                  when Active =>
-                     if P_Status.Parser_State.Recover.Config_Heap.Count > 0 then
-                        if P_Status.Parser_State.Recover.Config_Heap.Min_Key < Min_Cost then
-                           Min_Cost       := P_Status.Parser_State.Recover.Config_Heap.Min_Key;
-                           Min_Cost_Index := I;
-                           --  not done
-                        end if;
-                     else
-                        if P_Status.Active_Workers = 0 then
-                           --  No configs left to check (rarely happens with real languages).
-                           if Trace_McKenzie > Outline then
-                              Put_Line
-                                (Trace.all, P_Status.Parser_State.Label, "fail; no configs left", Task_ID => False);
+                  if not Skip then
+                     case P_Status.Recover_State is
+                     when Active =>
+                        if P_Status.Parser_State.Recover.Config_Heap.Count > 0 then
+                           if P_Status.Parser_State.Recover.Config_Heap.Min_Key < Min_Cost then
+                              Min_Cost       := P_Status.Parser_State.Recover.Config_Heap.Min_Key;
+                              Min_Cost_Index := I;
+                              --  not done
                            end if;
-                           P_Status.Recover_State := Fail;
-                           P_Status.Fail_Mode     := Fail_No_Configs_Left;
+                        else
+                           if P_Status.Active_Workers = 0 then
+                              --  No configs left to check (rarely happens with real languages).
+                              if Trace_McKenzie > Outline then
+                                 Put_Line
+                                   (Trace.all, P_Status.Parser_State.Label, "fail; no configs left", Task_ID => False);
+                              end if;
+                              P_Status.Recover_State := Fail;
+                              P_Status.Fail_Mode     := Fail_No_Configs_Left;
 
-                           Done_Count := Done_Count + 1;
+                              Done_Count := Done_Count + 1;
+                           end if;
                         end if;
-                     end if;
 
-                  when Ready =>
-                     if P_Status.Parser_State.Recover.Config_Heap.Count > 0 and then
-                       P_Status.Parser_State.Recover.Config_Heap.Min_Key <=
-                       P_Status.Parser_State.Recover.Results.Min_Key
-                     then
-                        --  Still more to check. We don't check Min_Cost here so this parser
-                        --  can finish quickly.
-                        Set_Outputs (I);
-                        return;
+                     when Ready =>
+                        if P_Status.Parser_State.Recover.Config_Heap.Count > 0 and then
+                          P_Status.Parser_State.Recover.Config_Heap.Min_Key <=
+                          P_Status.Parser_State.Recover.Results.Min_Key
+                        then
+                           --  Still more to check. We don't check Min_Cost here so this parser
+                           --  can finish quickly.
+                           Set_Outputs (I);
+                           return;
 
-                     elsif P_Status.Active_Workers = 0 then
-                        P_Status.Recover_State := Success;
-                        Done_Count             := Done_Count + 1;
-                     end if;
-                  when others =>
-                     null;
-                  end case;
+                        elsif P_Status.Active_Workers = 0 then
+                           P_Status.Recover_State := Success;
+                           Done_Count             := Done_Count + 1;
+                        end if;
+                     when others =>
+                        null;
+                     end case;
+                  end if;
 
                when Success | Fail =>
                   Done_Count := Done_Count + 1;
@@ -395,7 +409,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Base is
          Error_Message  := +Exception_Message (E);
          if Debug_Mode then
             Trace.Put_Line (Exception_Name (E) & ": " & Exception_Message (E));
-            Trace.Put_Line (GNAT.Traceback.Symbolic.Symbolic_Traceback (E));
+            Trace.Put_Line (GNAT.Traceback.Symbolic.Symbolic_Traceback (E)); -- includes Prefix
          end if;
       end Fatal;
 

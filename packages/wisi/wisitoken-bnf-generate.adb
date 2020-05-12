@@ -3,7 +3,7 @@
 --  Parser for Wisi grammar files, producing Ada source
 --  files for a parser.
 --
---  Copyright (C) 2012 - 2015, 2017 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2012 - 2015, 2017 - 2020 Free Software Foundation, Inc.
 --
 --  The WisiToken package is free software; you can redistribute it
 --  and/or modify it under terms of the GNU General Public License as
@@ -50,9 +50,7 @@ is
       use Ada.Text_IO;
       First : Boolean := True;
    begin
-      --  verbosity meaning is actually determined by output choice;
-      --  they should be consistent with this description.
-      Put_Line (Standard_Error, "version 1.3.1");
+      Put_Line (Standard_Error, "version 2.0"); -- matches release version in Docs/wisitoken.html
       Put_Line (Standard_Error, "wisitoken-bnf-generate [options] {wisi grammar file}");
       Put_Line (Standard_Error, "Generate source code implementing a parser for the grammar.");
       New_Line (Standard_Error);
@@ -104,7 +102,11 @@ is
       New_Line (Standard_Error);
       Put_Line (Standard_Error, "options:");
       Put_Line (Standard_Error, "  --help: show this help");
-      Put_Line (Standard_Error, "  -v level: sets verbosity (default 0):");
+
+      --  verbosity meaning is actually determined by output choice;
+      --  they should be consistent with this description.
+      Put_Line
+        (Standard_Error, "  -v <EBNF level> <Table level> <Minimal_Complete level>: sets verbosity (default 0):");
       Put_Line (Standard_Error, "     0 - only error messages to standard error");
       Put_Line (Standard_Error, "     1 - add diagnostics to standard out");
       Put_Line (Standard_Error, "     2 - more diagnostics to standard out, ignore unused tokens, unknown conflicts");
@@ -183,7 +185,11 @@ begin
 
          elsif Argument (Arg_Next) = "-v" then
             Arg_Next  := Arg_Next + 1;
-            WisiToken.Trace_Generate := Integer'Value (Argument (Arg_Next));
+            WisiToken.Trace_Generate_EBNF := Integer'Value (Argument (Arg_Next));
+            Arg_Next  := Arg_Next + 1;
+            WisiToken.Trace_Generate_Table := Integer'Value (Argument (Arg_Next));
+            Arg_Next  := Arg_Next + 1;
+            WisiToken.Trace_Generate_Minimal_Complete := Integer'Value (Argument (Arg_Next));
             Arg_Next  := Arg_Next + 1;
 
          elsif Argument (Arg_Next) = "--ignore_conflicts" then
@@ -284,9 +290,6 @@ begin
       use all type Ada.Strings.Unbounded.Unbounded_String;
       use Ada.Text_IO;
 
-      --  Create a .parse_table file unless verbosity > 0
-      Parse_Table_File : File_Type;
-
       Generate_Set    : Generate_Set_Access;
       Multiple_Tuples : Boolean;
 
@@ -332,11 +335,11 @@ begin
                declare
                   Tree  : WisiToken.Syntax_Trees.Tree renames Grammar_Parser.Parsers.First_State_Ref.Tree;
                begin
-                  if Trace_Generate > Outline then
+                  if Trace_Generate_EBNF > Outline then
                      Ada.Text_IO.Put_Line ("Translate EBNF tree to BNF");
                   end if;
 
-                  if Trace_Generate > Detail then
+                  if Trace_Generate_EBNF > Detail then
                      Ada.Text_IO.Put_Line ("EBNF tree:");
                      Tree.Print_Tree (Wisitoken_Grammar_Actions.Descriptor);
                      Ada.Text_IO.New_Line;
@@ -344,7 +347,7 @@ begin
 
                   WisiToken_Grammar_Runtime.Translate_EBNF_To_BNF (Tree, Input_Data);
 
-                  if Trace_Generate > Detail then
+                  if Trace_Generate_EBNF > Detail then
                      Ada.Text_IO.New_Line;
                      Ada.Text_IO.Put_Line ("BNF tree:");
                      Tree.Print_Tree (Wisitoken_Grammar_Actions.Descriptor);
@@ -410,8 +413,28 @@ begin
               (Generate_Data.Descriptor.First_Terminal, Generate_Data.Descriptor.First_Nonterminal,
                Generate_Data.Descriptor.Last_Nonterminal);
 
-            Do_Parse_Table_File : constant Boolean := WisiToken.Trace_Generate = 0 and
-              Tuple.Gen_Alg in LALR .. Packrat_Proc;
+            Parse_Table_File_Name : constant String :=
+              (if WisiToken.Trace_Generate_Table = 0 and Tuple.Gen_Alg in LALR .. Packrat_Proc
+               then -Output_File_Name_Root & "_" & To_Lower (Generate_Algorithm'Image (Tuple.Gen_Alg)) &
+                 (if Input_Data.If_Lexer_Present
+                  then "_" & Lexer_Image (Input_Data.User_Lexer).all
+                  else "") &
+                  ".parse_table"
+               else "");
+
+            procedure Parse_Table_Append_Stats
+            is
+               Parse_Table_File : File_Type;
+            begin
+               Open (Parse_Table_File, Append_File, Parse_Table_File_Name);
+               Set_Output (Parse_Table_File);
+               Generate_Data.Parser_State_Count :=
+                 Generate_Data.LR_Parse_Table.State_Last - Generate_Data.LR_Parse_Table.State_First + 1;
+               WisiToken.BNF.Generate_Utils.Put_Stats (Input_Data, Generate_Data);
+               Set_Output (Standard_Output);
+               Close (Parse_Table_File);
+            end Parse_Table_Append_Stats;
+
          begin
             if not Lexer_Done (Input_Data.User_Lexer) then
                Lexer_Done (Input_Data.User_Lexer) := True;
@@ -422,17 +445,6 @@ begin
                when others =>
                   null;
                end case;
-            end if;
-
-            if Do_Parse_Table_File then
-               Create
-                 (Parse_Table_File, Out_File,
-                  -Output_File_Name_Root & "_" & To_Lower (Generate_Algorithm'Image (Tuple.Gen_Alg)) &
-                    (if Input_Data.If_Lexer_Present
-                     then "_" & Lexer_Image (Input_Data.User_Lexer).all
-                     else "") &
-                    ".parse_table");
-               Set_Output (Parse_Table_File);
             end if;
 
             case Tuple.Gen_Alg is
@@ -450,7 +462,7 @@ begin
                   Generate_Utils.To_Conflicts
                     (Generate_Data, Input_Data.Conflicts, Input_Data.Grammar_Lexer.File_Name),
                   Generate_Utils.To_McKenzie_Param (Generate_Data, Input_Data.McKenzie_Recover),
-                  Put_Parse_Table   => True,
+                  Parse_Table_File_Name,
                   Include_Extra     => Test_Main,
                   Ignore_Conflicts  => Ignore_Conflicts,
                   Partial_Recursion => Input_Data.Language_Params.Partial_Recursion);
@@ -464,9 +476,9 @@ begin
                        Duration'Image (To_Duration (Time_End - Time_Start)));
                end if;
 
-               Generate_Data.Parser_State_Count :=
-                 Generate_Data.LR_Parse_Table.State_Last - Generate_Data.LR_Parse_Table.State_First + 1;
-               WisiToken.BNF.Generate_Utils.Put_Stats (Input_Data, Generate_Data);
+               if Parse_Table_File_Name /= "" then
+                  Parse_Table_Append_Stats;
+               end if;
 
             when LR1 =>
                Time_Start := Clock;
@@ -477,7 +489,7 @@ begin
                   Generate_Utils.To_Conflicts
                     (Generate_Data, Input_Data.Conflicts, Input_Data.Grammar_Lexer.File_Name),
                   Generate_Utils.To_McKenzie_Param (Generate_Data, Input_Data.McKenzie_Recover),
-                  Put_Parse_Table   => True,
+                  Parse_Table_File_Name,
                   Include_Extra     => Test_Main,
                   Ignore_Conflicts  => Ignore_Conflicts,
                   Partial_Recursion => Input_Data.Language_Params.Partial_Recursion);
@@ -491,9 +503,9 @@ begin
                        Duration'Image (To_Duration (Time_End - Time_Start)));
                end if;
 
-               Generate_Data.Parser_State_Count :=
-                 Generate_Data.LR_Parse_Table.State_Last - Generate_Data.LR_Parse_Table.State_First + 1;
-               WisiToken.BNF.Generate_Utils.Put_Stats (Input_Data, Generate_Data);
+               if Parse_Table_File_Name /= "" then
+                  Parse_Table_Append_Stats;
+               end if;
 
             when Packrat_Generate_Algorithm =>
                --  The only significant computation done for Packrat is First, done
@@ -503,22 +515,27 @@ begin
                  (Input_Data.Grammar_Lexer.File_Name, Generate_Data.Grammar, Generate_Data.Source_Line_Map,
                   Generate_Data.Descriptor.First_Terminal);
 
-               Put_Line ("Tokens:");
-               WisiToken.Put_Tokens (Generate_Data.Descriptor.all);
-               New_Line;
-               Put_Line ("Productions:");
-               WisiToken.Productions.Put (Generate_Data.Grammar, Generate_Data.Descriptor.all);
+               if Parse_Table_File_Name /= "" then
+                  declare
+                     Parse_Table_File : File_Type;
+                  begin
+                     Create (Parse_Table_File, Out_File, Parse_Table_File_Name);
+                     Set_Output (Parse_Table_File);
+                     Put_Line ("Tokens:");
+                     WisiToken.Put_Tokens (Generate_Data.Descriptor.all);
+                     New_Line;
+                     Put_Line ("Productions:");
+                     WisiToken.Productions.Put (Generate_Data.Grammar, Generate_Data.Descriptor.all);
+                     Set_Output (Standard_Output);
+                     Close (Parse_Table_File);
+                  end;
+               end if;
 
                Packrat_Data.Check_All (Generate_Data.Descriptor.all);
 
             when External =>
                null;
             end case;
-
-            if Do_Parse_Table_File then
-               Set_Output (Standard_Output);
-               Close (Parse_Table_File);
-            end if;
 
             if WisiToken.Generate.Error then
                raise WisiToken.Grammar_Error with "errors: aborting";

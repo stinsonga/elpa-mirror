@@ -2,7 +2,7 @@
 --
 --  see spec
 --
---  Copyright (C) 2014 - 2019  All Rights Reserved.
+--  Copyright (C) 2014 - 2020  All Rights Reserved.
 --
 --  The WisiToken package is free software; you can redistribute it
 --  and/or modify it under terms of the GNU General Public License as
@@ -38,7 +38,6 @@ package body WisiToken.Parse.LR.Parser_Lists is
    begin
       for I in 1 .. Last loop
          declare
-            use all type WisiToken.Syntax_Trees.Node_Index;
             Item : Parser_Stack_Item renames Stack.Peek (I);
          begin
             Result := Result &
@@ -46,7 +45,7 @@ package body WisiToken.Parse.LR.Parser_Lists is
                  (if I = Stack.Depth
                   then ""
                   else
-                    (if Item.Token = Syntax_Trees.Invalid_Node_Index -- From recover fast-forward
+                    (if Item.Token = Invalid_Node_Index -- From recover fast-forward
                      then ""
                      else Tree.Image (Item.Token, Descriptor) & ", ")));
          end;
@@ -95,11 +94,6 @@ package body WisiToken.Parse.LR.Parser_Lists is
    begin
       return Cursor.Ptr = No_Element;
    end Is_Done;
-
-   function Active_Parser_Count (Cursor : in Parser_Lists.Cursor) return SAL.Base_Peek_Type
-   is begin
-      return Cursor.Elements.Length;
-   end Active_Parser_Count;
 
    function Label (Cursor : in Parser_Lists.Cursor) return Natural
    is begin
@@ -162,17 +156,25 @@ package body WisiToken.Parse.LR.Parser_Lists is
       Terminals : in     Base_Token_Arrays.Vector)
    is
       State : Parser_State renames Parser_State_Lists.Constant_Ref (Current.Ptr).Element.all;
+
+      procedure Free (Cursor : in out Parser_Lists.Cursor'Class)
+      is
+         Temp : Parser_State_Lists.Cursor := Cursor.Ptr;
+      begin
+         Parser_State_Lists.Next (Cursor.Ptr);
+         Parser_State_Lists.Delete (Cursor.Elements.all, Temp);
+      end Free;
    begin
       if Trace_Parse > Outline then
          Trace.Put_Line
            (Integer'Image (Current.Label) & ": terminate (" &
               Trimmed_Image (Integer (Parsers.Count) - 1) & " active)" &
               ": " & Message & Image
-                (State.Tree.Min_Terminal_Index (State.Current_Token),
+                (State.Tree.First_Shared_Terminal (State.Current_Token),
                  Terminals, Trace.Descriptor.all));
       end if;
 
-      Current.Free;
+      Free (Current);
 
       if Parsers.Count = 1 then
          Parsers.First.State_Ref.Tree.Flush;
@@ -244,6 +246,7 @@ package body WisiToken.Parse.LR.Parser_Lists is
             if Other.Max_Recover_Ops_Length = Current.Max_Recover_Ops_Length then
                Parsers.Terminate_Parser (Other, "duplicate state: random", Trace, Terminals);
             else
+               --  Keep the minimum ops length
                if Other.Max_Recover_Ops_Length > Current.Max_Recover_Ops_Length then
                   null;
                else
@@ -305,36 +308,28 @@ package body WisiToken.Parse.LR.Parser_Lists is
          --  override a few, to avoid copying large items like Recover.
          --  We copy Recover.Enqueue_Count .. Check_Count for unit tests.
          New_Item :=
-           (Shared_Token           => Item.Shared_Token,
-            Recover_Insert_Delete  => Item.Recover_Insert_Delete,
-            Prev_Deleted           => Item.Prev_Deleted,
-            Current_Token          => Item.Current_Token,
-            Inc_Shared_Token       => Item.Inc_Shared_Token,
-            Stack                  => Item.Stack,
-            Tree                   => Item.Tree,
-            Recover                =>
-              (Enqueue_Count       => Item.Recover.Enqueue_Count,
-               Config_Full_Count   => Item.Recover.Config_Full_Count,
-               Check_Count         => Item.Recover.Check_Count,
-               others              => <>),
-            Resume_Active          => Item.Resume_Active,
-            Resume_Token_Goal      => Item.Resume_Token_Goal,
-            Conflict_During_Resume => Item.Conflict_During_Resume,
-            Zombie_Token_Count     => 0,
-            Errors                 => Item.Errors,
-            Label                  => List.Parser_Label,
-            Verb                   => Item.Verb);
+           (Shared_Token                  => Item.Shared_Token,
+            Recover_Insert_Delete         => Item.Recover_Insert_Delete,
+            Recover_Insert_Delete_Current => Item.Recover_Insert_Delete_Current,
+            Current_Token                 => Item.Current_Token,
+            Inc_Shared_Token              => Item.Inc_Shared_Token,
+            Stack                         => Item.Stack,
+            Tree                          => Item.Tree,
+            Recover                       =>
+              (Enqueue_Count              => Item.Recover.Enqueue_Count,
+               Config_Full_Count          => Item.Recover.Config_Full_Count,
+               Check_Count                => Item.Recover.Check_Count,
+               others                     => <>),
+            Resume_Active                 => Item.Resume_Active,
+            Resume_Token_Goal             => Item.Resume_Token_Goal,
+            Conflict_During_Resume        => Item.Conflict_During_Resume,
+            Zombie_Token_Count            => 0,
+            Errors                        => Item.Errors,
+            Label                         => List.Parser_Label,
+            Verb                          => Item.Verb);
       end;
       List.Elements.Prepend (New_Item);
    end Prepend_Copy;
-
-   procedure Free (Cursor : in out Parser_Lists.Cursor'Class)
-   is
-      Temp : Parser_State_Lists.Cursor := Cursor.Ptr;
-   begin
-      Parser_State_Lists.Next (Cursor.Ptr);
-      Parser_State_Lists.Delete (Cursor.Elements.all, Temp);
-   end Free;
 
    ----------
    --  stuff for iterators
@@ -369,11 +364,8 @@ package body WisiToken.Parse.LR.Parser_Lists is
       return State_Access (Parser_State_Lists.Persistent_Ref (Position.Ptr));
    end Persistent_State_Ref;
 
-   type List_Access is access all List;
-
-   type Iterator is new Iterator_Interfaces.Forward_Iterator with record
-      Container : List_Access;
-   end record;
+   type Iterator (Elements : access Parser_State_Lists.List) is new Iterator_Interfaces.Forward_Iterator
+     with null record;
 
    overriding function First (Object : Iterator) return Parser_Node_Access;
    overriding function Next
@@ -383,7 +375,7 @@ package body WisiToken.Parse.LR.Parser_Lists is
 
    overriding function First (Object : Iterator) return Parser_Node_Access
    is begin
-      return (Elements => Object.Container.Elements'Access, Ptr => Object.Container.Elements.First);
+      return (Elements => Object.Elements, Ptr => Object.Elements.First);
    end First;
 
    overriding function Next
@@ -398,7 +390,7 @@ package body WisiToken.Parse.LR.Parser_Lists is
 
    function Iterate (Container : aliased in out List) return Iterator_Interfaces.Forward_Iterator'Class
    is begin
-      return Iterator'(Container => Container'Access);
+      return Iterator'(Elements => Container.Elements'Access);
    end Iterate;
 
    function Has_Element (Iterator : in Parser_Node_Access) return Boolean

@@ -2,7 +2,7 @@
 --
 --  Generalized LR parser state.
 --
---  Copyright (C) 2014-2015, 2017 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2014-2015, 2017 - 2020 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --
@@ -28,7 +28,7 @@ package WisiToken.Parse.LR.Parser_Lists is
 
    type Parser_Stack_Item is record
       State : Unknown_State_Index     := Unknown_State;
-      Token : Syntax_Trees.Node_Index := Syntax_Trees.Invalid_Node_Index;
+      Token : Node_Index := Invalid_Node_Index;
    end record;
 
    package Parser_Stacks is new SAL.Gen_Unbounded_Definite_Stacks (Parser_Stack_Item);
@@ -58,16 +58,19 @@ package WisiToken.Parse.LR.Parser_Lists is
       Shared_Token : Base_Token_Index := Invalid_Token_Index;
       --  Last token read from Shared_Parser.Terminals.
 
-      Recover_Insert_Delete : Config_Op_Queues.Queue;
-      --  Tokens in that were inserted during error recovery, or should be
-      --  deleted/skipped when read. Contains only Insert and Delete ops.
-      --  Used/emptied by main parse.
+      Recover_Insert_Delete : aliased Recover_Op_Arrays.Vector;
+      --  Tokens that were inserted or deleted during error recovery.
+      --  Contains only Insert and Delete ops. Filled by error recover, used
+      --  by main parse and Execute_Actions.
+      --
+      --  Not emptied between error recovery sessions, so Execute_Actions
+      --  knows about all insert/delete.
 
-      Prev_Deleted : Recover_Token_Index_Arrays.Vector;
-      --  Tokens deleted by previous error recovery; don't process in new
-      --  error recovery.
+      Recover_Insert_Delete_Current : Recover_Op_Arrays.Extended_Index := Recover_Op_Arrays.No_Index;
+      --  Next item in Recover_Insert_Delete to be processed by main parse;
+      --  No_Index if all done.
 
-      Current_Token : Syntax_Trees.Node_Index := Syntax_Trees.Invalid_Node_Index;
+      Current_Token : Node_Index := Invalid_Node_Index;
       --  Current terminal, in Tree
 
       Inc_Shared_Token : Boolean := True;
@@ -76,7 +79,7 @@ package WisiToken.Parse.LR.Parser_Lists is
       --  There is no need to use a branched stack; max stack length is
       --  proportional to source text nesting depth, not source text length.
 
-      Tree : Syntax_Trees.Tree;
+      Tree : aliased Syntax_Trees.Tree;
       --  We use a branched tree to avoid copying large trees for each
       --  spawned parser; tree size is proportional to source text size. In
       --  normal parsing, parallel parsers are short-lived; they each process
@@ -120,15 +123,12 @@ package WisiToken.Parse.LR.Parser_Lists is
 
    function Count (List : in Parser_Lists.List) return SAL.Base_Peek_Type;
 
-   type Cursor is tagged private;
+   type Cursor (<>) is tagged private;
 
    function First (List : aliased in out Parser_Lists.List'Class) return Cursor;
    procedure Next (Cursor : in out Parser_Lists.Cursor);
    function Is_Done (Cursor : in Parser_Lists.Cursor) return Boolean;
    function Has_Element (Cursor : in Parser_Lists.Cursor) return Boolean is (not Is_Done (Cursor));
-
-   function Active_Parser_Count (Cursor : in Parser_Lists.Cursor) return SAL.Base_Peek_Type;
-
    function Label (Cursor : in Parser_Lists.Cursor) return Natural;
    function Total_Recover_Cost (Cursor : in Parser_Lists.Cursor) return Integer;
    function Max_Recover_Ops_Length (Cursor : in Parser_Lists.Cursor) return Ada.Containers.Count_Type;
@@ -161,16 +161,19 @@ package WisiToken.Parse.LR.Parser_Lists is
    type State_Reference (Element : not null access Parser_State) is null record
    with Implicit_Dereference => Element;
 
-   function State_Ref (Position : in Cursor) return State_Reference;
+   function State_Ref (Position : in Cursor) return State_Reference
+   with Pre => Has_Element (Position);
    --  Direct access to visible components of Parser_State
 
-   function First_State_Ref (List : in Parser_Lists.List'Class) return State_Reference;
+   function First_State_Ref (List : in Parser_Lists.List'Class) return State_Reference
+   with Pre => List.Count > 0;
    --  Direct access to visible components of first parser's Parser_State
 
    type Constant_State_Reference (Element : not null access constant Parser_State) is null record
    with Implicit_Dereference => Element;
 
-   function First_Constant_State_Ref (List : in Parser_Lists.List'Class) return Constant_State_Reference;
+   function First_Constant_State_Ref (List : in Parser_Lists.List'Class) return Constant_State_Reference
+   with Pre => List.Count > 0;
    --  Direct access to visible components of first parser's Parser_State
 
    procedure Put_Top_10 (Trace : in out WisiToken.Trace'Class; Cursor : in Parser_Lists.Cursor);
@@ -181,10 +184,6 @@ package WisiToken.Parse.LR.Parser_Lists is
    --  appear in Cursor.Next ...; it is accessible as First (List).
    --
    --  Copy.Recover is set to default.
-
-   procedure Free (Cursor : in out Parser_Lists.Cursor'Class);
-   --  Delete the Cursor parser. It will not appear in future
-   --  iterations. On return, Cursor points to next parser, or none.
 
    ----------
    --  Stuff for iterators, to allow
@@ -214,7 +213,7 @@ package WisiToken.Parse.LR.Parser_Lists is
    --     ... Current_Parser.<visible parser_state component> ...
    --  end loop;
 
-   type Parser_Node_Access is private;
+   type Parser_Node_Access (<>) is private;
 
    function To_Cursor (Ptr : in Parser_Node_Access) return Cursor;
 
@@ -262,14 +261,14 @@ private
       Parser_Label : Natural; -- label of last added parser.
    end record;
 
-   type Cursor is tagged record
-      Elements : access Parser_State_Lists.List;
-      Ptr      : Parser_State_Lists.Cursor;
+   type Cursor (Elements : access Parser_State_Lists.List) is tagged
+   record
+      Ptr : Parser_State_Lists.Cursor;
    end record;
 
-   type Parser_Node_Access is record
-      Elements : access Parser_State_Lists.List;
-      Ptr      : Parser_State_Lists.Cursor;
+   type Parser_Node_Access (Elements : access Parser_State_Lists.List) is
+   record
+      Ptr : Parser_State_Lists.Cursor;
    end record;
 
 end WisiToken.Parse.LR.Parser_Lists;

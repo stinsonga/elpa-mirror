@@ -2,7 +2,7 @@
 --
 --  Stack implementation.
 --
---  Copyright (C) 1998-2000, 2002-2003, 2009, 2015, 2017 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 1998-2000, 2002-2003, 2009, 2015, 2017 - 2020 Free Software Foundation, Inc.
 --
 --  SAL is free software; you can redistribute it and/or modify it
 --  under terms of the GNU General Public License as published by the
@@ -112,14 +112,16 @@ package SAL.Gen_Unbounded_Definite_Stacks is
    function Constant_Reference
      (Container : aliased in Stack'Class;
       Position  :         in Peek_Type)
-     return Constant_Reference_Type with Inline;
+     return Constant_Reference_Type
+   with Inline, Pre => Position in 1 .. Container.Depth;
 
-   type Cursor is private;
+   type Cursor (<>) is private;
 
    function Constant_Reference
      (Container : aliased in Stack'Class;
       Position  :         in Cursor)
-     return Constant_Reference_Type with Inline;
+     return Constant_Reference_Type
+   with Inline, Pre => Has_Element (Position);
 
    function Has_Element (Position : in Cursor) return Boolean;
 
@@ -141,8 +143,6 @@ private
       --  Data (1 .. Top) has been set at some point.
    end record;
 
-   type Stack_Access is access all Stack;
-
    type Constant_Reference_Type (Element : not null access constant Element_Type) is
    record
       Dummy : Integer := raise Program_Error with "uninitialized reference";
@@ -150,20 +150,9 @@ private
 
    Empty_Stack : constant Stack := (Ada.Finalization.Controlled with Invalid_Peek_Index, null);
 
-   type Cursor is record
-      Container : Stack_Access;
-      Ptr       : Peek_Type;
-   end record;
-
-   type Iterator is new Iterator_Interfaces.Forward_Iterator with
+   type Cursor (Container : not null access constant Stack) is
    record
-      Container : Stack_Access;
+      Ptr : Peek_Type;
    end record;
-
-   overriding function First (Object : Iterator) return Cursor;
-
-   overriding function Next
-     (Object   : Iterator;
-      Position : Cursor) return Cursor;
 
 end SAL.Gen_Unbounded_Definite_Stacks;

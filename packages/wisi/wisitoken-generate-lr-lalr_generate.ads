@@ -2,7 +2,7 @@
 --
 --  Generalized LALR parse table generator.
 --
---  Copyright (C) 2002 - 2003, 2009 - 2010, 2013 - 2015, 2017 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2002 - 2003, 2009 - 2010, 2013 - 2015, 2017 - 2020 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --
@@ -25,14 +25,14 @@ with WisiToken.Productions;
 package WisiToken.Generate.LR.LALR_Generate is
 
    function Generate
-     (Grammar           : in WisiToken.Productions.Prod_Arrays.Vector;
-      Descriptor        : in WisiToken.Descriptor;
-      Known_Conflicts   : in Conflict_Lists.List := Conflict_Lists.Empty_List;
-      McKenzie_Param    : in McKenzie_Param_Type := Default_McKenzie_Param;
-      Put_Parse_Table   : in Boolean             := False;
-      Include_Extra     : in Boolean             := False;
-      Ignore_Conflicts  : in Boolean             := False;
-      Partial_Recursion : in Boolean             := True)
+     (Grammar               : in out WisiToken.Productions.Prod_Arrays.Vector;
+      Descriptor            : in     WisiToken.Descriptor;
+      Known_Conflicts       : in     Conflict_Lists.List := Conflict_Lists.Empty_List;
+      McKenzie_Param        : in     McKenzie_Param_Type := Default_McKenzie_Param;
+      Parse_Table_File_Name : in     String              := "";
+      Include_Extra         : in     Boolean             := False;
+      Ignore_Conflicts      : in     Boolean             := False;
+      Partial_Recursion     : in     Boolean             := True)
      return Parse_Table_Ptr
    with Pre =>
      Descriptor.Last_Lookahead = Descriptor.First_Nonterminal and

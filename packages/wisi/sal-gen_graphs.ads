@@ -20,7 +20,7 @@
 --  Tarjan, SIAM J. Comput. Vol. 1, No 2, June 1972.
 --  https://epubs.siam.org/doi/abs/10.1137/0201010
 --
---  Copyright (C) 2017, 2019 Free Software Foundation All Rights Reserved.
+--  Copyright (C) 2017, 2019, 2020 Free Software Foundation All Rights Reserved.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -131,7 +131,7 @@ package SAL.Gen_Graphs is
    --  multigraphs.
    --
    --  Time complexity is exponential in the number of nodes. Used in
-   --  unit tests for Find_Cycles_Johnson, since [2] is easier to
+   --  unit tests for Find_Cycles, since [2] is easier to
    --  implement.
 
    function Find_Cycles (Graph : in Gen_Graphs.Graph) return Path_Arrays.Vector;

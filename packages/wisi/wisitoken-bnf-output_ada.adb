@@ -4,7 +4,7 @@
 --  parameters, and a parser for that grammar. The grammar parser
 --  actions must be Ada.
 --
---  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2020 Free Software Foundation, Inc.
 --
 --  The WisiToken package is free software; you can redistribute it
 --  and/or modify it under terms of the GNU General Public License as
@@ -187,8 +187,8 @@ is
                      Indent_Line ("procedure " & Name);
                      Indent_Line (" (User_Data : in out WisiToken.Syntax_Trees.User_Data_Type'Class;");
                      Indent_Line ("  Tree      : in out WisiToken.Syntax_Trees.Tree;");
-                     Indent_Line ("  Nonterm   : in     WisiToken.Syntax_Trees.Valid_Node_Index;");
-                     Indent_Line ("  Tokens    : in     WisiToken.Syntax_Trees.Valid_Node_Index_Array)");
+                     Indent_Line ("  Nonterm   : in     WisiToken.Valid_Node_Index;");
+                     Indent_Line ("  Tokens    : in     WisiToken.Valid_Node_Index_Array)");
                      Indent_Line ("is");
 
                      Indent := Indent + 3;

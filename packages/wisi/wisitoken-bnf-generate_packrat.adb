@@ -6,7 +6,7 @@
 --
 --  See wisitoken-parse-packrat.ads.
 --
---  Copyright (C) 2018 Free Software Foundation, Inc.
+--  Copyright (C) 2018, 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -153,7 +153,7 @@ is
                      else Action_Names (Prod.LHS)(RHS_Index).all & "'Access,"));
 
                if RHS.Tokens.Length = 0 then
-                  Indent_Line (" Children        => (1 .. 0 => Syntax_Trees.Invalid_Node_Index),");
+                  Indent_Line (" Children        => (1 .. 0 => Invalid_Node_Index),");
 
                elsif RHS.Tokens.Length = 1 then
                   Indent_Start (" Children        => ");

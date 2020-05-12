@@ -2,7 +2,7 @@
 --
 --  Summarize error recover log.
 --
---  Copyright (C) 2019 Stephen Leake All Rights Reserved.
+--  Copyright (C) 2019 - 2020 Stephen Leake All Rights Reserved.
 --
 --  This program is free software; you can redistribute it and/or
 --  modify it under terms of the GNU General Public License as
@@ -51,9 +51,6 @@ is
       Strat_Counts_Total   : Strategy_Counts := (others => 0);
       Strat_Counts_Present : Strategy_Counts := (others => 0);
       --  1 per recover event if used
-
-      Ignore_Error : Integer := 0;
-      --  ie, error is name mismatch.
 
       Recover_Count_Present : Integer := 0;
       --  1 per parser in recover result
@@ -176,10 +173,8 @@ begin
                   Summary (Label).Recover_Count_Present := Summary (Label).Recover_Count_Present + 1;
 
                   if not Strategy_Found then
-                     Summary (Label).Ignore_Error := Summary (Label).Ignore_Error + 1;
+                     raise SAL.Programmer_Error;
                   else
-                     --  We don't include Ignore_Error enqueue and check counts in the
-                     --  stats, because they distort them towards 1.
                      Summary (Label).Enqueue_Stats.Accumulate (Long_Float (Enqueue_Count));
                      Summary (Label).Check_Stats.Accumulate (Long_Float (Check_Count));
                      for I in Strategies loop
@@ -265,7 +260,6 @@ begin
                   Summary (I).Strat_Counts_Total (J),
                   J'Image);
             end loop;
-            Put_Percent (I, Summary (I).Ignore_Error, Summary (I).Ignore_Error, "Ignore_Error");
          end if;
          New_Line;
       end loop;

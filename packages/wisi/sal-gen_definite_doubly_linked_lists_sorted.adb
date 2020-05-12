@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2018, 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -375,25 +375,25 @@ package body SAL.Gen_Definite_Doubly_Linked_Lists_Sorted is
       return Position.Ptr /= null;
    end Has_Element;
 
-   function First (Container : in List) return Cursor
+   function First (Container : aliased in List) return Cursor
    is begin
       if Container.Head = null then
-         return No_Element;
+         return (Container'Access, null);
       else
-         return (Container'Unrestricted_Access, Container.Head);
+         return (Container'Access, Container.Head);
       end if;
    end First;
 
-   function Last (Container : in List) return Cursor
+   function Last (Container : aliased in List) return Cursor
    is begin
       if Container.Tail = null then
-         return No_Element;
+         return (Container'Access, null);
       else
-         return (Container'Unrestricted_Access, Container.Tail);
+         return (Container'Access, Container.Tail);
       end if;
    end Last;
 
-   function Find (Container : in List; Element : in Element_Type) return Cursor
+   function Find (Container : aliased in List; Element : in Element_Type) return Cursor
    is
       Node    : Node_Access;
       Compare : Compare_Result;
@@ -401,11 +401,11 @@ package body SAL.Gen_Definite_Doubly_Linked_Lists_Sorted is
       Find (Container, Element, Node, Compare);
 
       if Node = null then
-         return No_Element;
+         return (Container'Access, null);
       elsif Compare = Equal then
-         return (Container'Unrestricted_Access, Node);
+         return (Container'Access, Node);
       else
-         return No_Element;
+         return (Container'Access, null);
       end if;
    end Find;
 
@@ -413,7 +413,7 @@ package body SAL.Gen_Definite_Doubly_Linked_Lists_Sorted is
    is begin
       if Position.Ptr /= null then
          if Position.Ptr.Next = null then
-            Position := No_Element;
+            Position.Ptr := null;
          else
             Position.Ptr := Position.Ptr.Next;
          end if;
@@ -426,7 +426,7 @@ package body SAL.Gen_Definite_Doubly_Linked_Lists_Sorted is
          return Position;
       else
          if Position.Ptr.Next = null then
-            return No_Element;
+            return (Position.Container, null);
          else
             return (Position.Container, Position.Ptr.Next);
          end if;
@@ -439,7 +439,7 @@ package body SAL.Gen_Definite_Doubly_Linked_Lists_Sorted is
          return Position;
       else
          if Position.Ptr.Prev = null then
-            return No_Element;
+            return (Position.Container, null);
          else
             return (Position.Container, Position.Ptr.Prev);
          end if;
@@ -466,7 +466,7 @@ package body SAL.Gen_Definite_Doubly_Linked_Lists_Sorted is
          Node.Prev.Next := Node.Next;
       end if;
       Free (Node);
-      Position        := No_Element;
+      Position        := (Container'Access, null);
       Container.Count := Container.Count - 1;
    end Delete;
 
@@ -512,7 +512,7 @@ package body SAL.Gen_Definite_Doubly_Linked_Lists_Sorted is
 
    function Iterate (Container : aliased in List) return Iterator_Interfaces.Reversible_Iterator'Class
    is begin
-      return Iterator'(Container => Container'Unrestricted_Access);
+      return Iterator'(Container => Container'Access);
    end Iterate;
 
    overriding function First (Object : Iterator) return Cursor

@@ -2,7 +2,7 @@
 --
 --  Types and operatorion for LR(1) items.
 --
---  Copyright (C) 2003, 2008, 2013 - 2015, 2017 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2003, 2008, 2013 - 2015, 2017 - 2020 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --
@@ -95,7 +95,7 @@ package WisiToken.Generate.LR1_Items is
 
    type Item is record
       Prod       : Production_ID;
-      Dot        : Token_ID_Arrays.Cursor; -- token after item Dot
+      Dot        : Token_ID_Arrays.Extended_Index := Token_ID_Arrays.No_Index; -- token after item Dot
       Lookaheads : Token_ID_Set_Access := null;
       --  Programmer must remember to copy Item.Lookaheads.all, not
       --  Item.Lookaheads. Wrapping this in Ada.Finalization.Controlled
@@ -113,9 +113,19 @@ package WisiToken.Generate.LR1_Items is
    function Lookahead_Image (Item : in Lookahead; Descriptor : in WisiToken.Descriptor) return String;
    --  Returns the format used in parse table output.
 
+   function Image
+     (Grammar         : in WisiToken.Productions.Prod_Arrays.Vector;
+      Descriptor      : in WisiToken.Descriptor;
+      Item            : in LR1_Items.Item;
+      Show_Lookaheads : in Boolean)
+     return String;
+
    function Item_Compare (Left, Right : in Item) return SAL.Compare_Result;
    --  Sort Item_Lists in ascending order of Prod.Nonterm, Prod.RHS, Dot;
    --  ignores Lookaheads.
+   --
+   --  In an LALR kernel there can be only one Item with Prod, but that
+   --  is not true in an Item_Set produced by Closure.
 
    package Item_Lists is new SAL.Gen_Definite_Doubly_Linked_Lists_Sorted (Item, Item_Compare);
 
@@ -194,27 +204,13 @@ package WisiToken.Generate.LR1_Items is
    --  Return No_Element if not found.
 
    function Find
-     (Prod  : in Production_ID;
-      Dot   : in Token_ID_Arrays.Cursor;
-      Right : in Item_Set)
+     (Prod : in Production_ID;
+      Dot : in Token_ID_Arrays.Extended_Index;
+      Set  : in Item_Set)
      return Item_Lists.Cursor;
-   --  Return an item from Right that matches Prod, Dot.
+   --  Return an item from Set that matches Prod, Dot.
    --
    --  Return No_Element if not found.
-
-   function Find
-     (Prod       : in Production_ID;
-      Dot        : in Token_ID_Arrays.Cursor;
-      Right      : in Item_Set;
-      Lookaheads : in Lookahead)
-     return Item_Lists.Cursor;
-   --  Return an item from Right that matches Prod, Dot, and
-   --  Lookaheads.
-   --
-   --  Return No_Element if not found.
-   --
-   --  Not combined with non-Lookaheads version for speed; this is called
-   --  a lot.
 
    package Item_Set_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
      (State_Index, Item_Set, Default_Element => (others => <>));
@@ -270,7 +266,8 @@ package WisiToken.Generate.LR1_Items is
    --  Match_Lookaheads is True in LR1_Generate.
 
    procedure Add
-     (New_Item_Set       : in out Item_Set;
+     (Grammar            : in     WisiToken.Productions.Prod_Arrays.Vector;
+      New_Item_Set       : in     Item_Set;
       Item_Set_Vector    : in out Item_Set_List;
       Item_Set_Tree      : in out Item_Set_Trees.Tree;
       Descriptor         : in     WisiToken.Descriptor;

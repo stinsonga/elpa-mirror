@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -68,7 +68,7 @@ package body SAL.Gen_Unbounded_Definite_Vectors is
       New_Array (Old_First .. Old_Last) := Elements.all;
 
       for I in Old_Last + 1 .. New_Last loop
-         New_Array (I .. I)   := (others => <>);
+         New_Array (I .. I) := (others => <>);
       end loop;
 
       Free (Elements);
@@ -430,20 +430,17 @@ package body SAL.Gen_Unbounded_Definite_Vectors is
       end if;
    end Contains;
 
-   function Has_Element (Position : Cursor) return Boolean is
-   begin
-      return Position.Index /= Invalid_Peek_Index;
-   end Has_Element;
-
    function Element (Position : Cursor) return Element_Type
    is begin
       return Position.Container.Elements (Position.Index);
    end Element;
 
    function First (Container : aliased in Vector) return Cursor
-   is begin
-      if Container.First = No_Index then
-         return No_Element;
+   is
+      use all type Ada.Containers.Count_Type;
+   begin
+      if Container.Length = 0 then
+         return (Container'Access, Invalid_Peek_Index);
       else
          return (Container'Access, To_Peek_Type (Container.First));
       end if;
@@ -451,45 +448,45 @@ package body SAL.Gen_Unbounded_Definite_Vectors is
 
    function Next (Position : in Cursor) return Cursor
    is begin
-      if Position = No_Element then
-         return No_Element;
+      if Position.Index = Invalid_Peek_Index then
+         return (Position.Container, Invalid_Peek_Index);
       elsif Position.Index < To_Peek_Type (Position.Container.Last) then
          return (Position.Container, Position.Index + 1);
       else
-         return No_Element;
+         return (Position.Container, Invalid_Peek_Index);
       end if;
    end Next;
 
    procedure Next (Position : in out Cursor)
    is begin
-      if Position = No_Element then
+      if Position.Index = Invalid_Peek_Index then
          null;
       elsif Position.Index < To_Peek_Type (Position.Container.Last) then
          Position.Index := Position.Index + 1;
       else
-         Position := No_Element;
+         Position := (Position.Container, Invalid_Peek_Index);
       end if;
    end Next;
 
    function Prev (Position : in Cursor) return Cursor
    is begin
-      if Position = No_Element then
-         return No_Element;
+      if Position.Index = Invalid_Peek_Index then
+         return (Position.Container, Invalid_Peek_Index);
       elsif Position.Index > To_Peek_Type (Position.Container.First) then
          return (Position.Container, Position.Index - 1);
       else
-         return No_Element;
+         return (Position.Container, Invalid_Peek_Index);
       end if;
    end Prev;
 
    procedure Prev (Position : in out Cursor)
    is begin
-      if Position = No_Element then
+      if Position.Index = Invalid_Peek_Index then
          null;
       elsif Position.Index > To_Peek_Type (Position.Container.First) then
          Position.Index := Position.Index - 1;
       else
-         Position := No_Element;
+         Position := (Position.Container, Invalid_Peek_Index);
       end if;
    end Prev;
 
@@ -498,16 +495,12 @@ package body SAL.Gen_Unbounded_Definite_Vectors is
       Index     :         in Extended_Index)
      return Cursor
    is begin
-      if Index not in Container.First .. Container.Last then
-         return No_Element;
-      else
-         return (Container'Access, To_Peek_Type (Index));
-      end if;
+      return (Container'Access, To_Peek_Type (Index));
    end To_Cursor;
 
    function To_Index (Position : in Cursor) return Extended_Index
    is begin
-      if Position = No_Element then
+      if Position.Index = Invalid_Peek_Index then
          return No_Index;
       else
          return To_Index_Type (Position.Index);
@@ -534,7 +527,7 @@ package body SAL.Gen_Unbounded_Definite_Vectors is
    overriding function First (Object : Iterator) return Cursor
    is begin
       if Object.Container.Elements = null then
-         return (null, Invalid_Peek_Index);
+         return (Object.Container, Invalid_Peek_Index);
       else
          return (Object.Container, To_Peek_Type (Object.Container.First));
       end if;
@@ -543,7 +536,7 @@ package body SAL.Gen_Unbounded_Definite_Vectors is
    overriding function Last  (Object : Iterator) return Cursor
    is begin
       if Object.Container.Elements = null then
-         return (null, Invalid_Peek_Index);
+         return (Object.Container, Invalid_Peek_Index);
       else
          return (Object.Container, To_Peek_Type (Object.Container.Last));
       end if;
@@ -552,7 +545,7 @@ package body SAL.Gen_Unbounded_Definite_Vectors is
    overriding function Next (Object : in Iterator; Position : in Cursor) return Cursor
    is begin
       if Position.Index = To_Peek_Type (Object.Container.Last) then
-         return (null, Invalid_Peek_Index);
+         return (Object.Container, Invalid_Peek_Index);
       else
          return (Object.Container, Position.Index + 1);
       end if;
@@ -561,7 +554,7 @@ package body SAL.Gen_Unbounded_Definite_Vectors is
    overriding function Previous (Object : in Iterator; Position : in Cursor) return Cursor
    is begin
       if Position.Index = To_Peek_Type (Index_Type'First) then
-         return (null, Invalid_Peek_Index);
+         return (Object.Container, Invalid_Peek_Index);
       else
          return (Object.Container, Position.Index - 1);
       end if;
@@ -569,7 +562,7 @@ package body SAL.Gen_Unbounded_Definite_Vectors is
 
    function Iterate (Container : aliased in Vector) return Iterator_Interfaces.Reversible_Iterator'Class
    is begin
-      return Iterator'(Container => Container'Unrestricted_Access);
+      return Iterator'(Container => Container'Access);
    end Iterate;
 
    function Constant_Ref (Container : aliased Vector; Position : in Cursor) return Constant_Reference_Type

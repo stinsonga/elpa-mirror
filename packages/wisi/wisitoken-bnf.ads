@@ -13,7 +13,7 @@
 --  [1] https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form
 --  [2] http://www.nongnu.org/ada-mode/wisi/wisi-user_guide.html, (info "(wisi-user_guide)Top")
 --
---  Copyright (C) 2012 - 2015, 2017 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2012 - 2015, 2017 - 2020 Free Software Foundation, Inc.
 --
 --  The WisiToken package is free software; you can redistribute it
 --  and/or modify it under terms of the GNU General Public License as
@@ -211,26 +211,26 @@ package WisiToken.BNF is
       --  Of the %mckenzie_cost_default declaration; we assume the others
       --  are near.
 
-      Default_Insert              : Natural               := 0;
-      Default_Delete_Terminal     : Natural               := 0;
-      Default_Push_Back           : Natural               := 0; -- also default for undo_reduce
-      Delete                      : String_Pair_Lists.List;
-      Insert                      : String_Pair_Lists.List;
-      Push_Back                   : String_Pair_Lists.List;
-      Undo_Reduce                 : String_Pair_Lists.List;
-      Minimal_Complete_Cost_Delta : Integer               :=
+      Default_Insert                        : Natural               := 0;
+      Default_Delete_Terminal               : Natural               := 0;
+      Default_Push_Back                     : Natural               := 0; -- also default for undo_reduce
+      Delete                                : String_Pair_Lists.List;
+      Insert                                : String_Pair_Lists.List;
+      Push_Back                             : String_Pair_Lists.List;
+      Undo_Reduce                           : String_Pair_Lists.List;
+      Minimal_Complete_Cost_Delta           : Integer               :=
         WisiToken.Parse.LR.Default_McKenzie_Param.Minimal_Complete_Cost_Delta;
-      Fast_Forward                : Integer               :=
+      Fast_Forward                          : Integer               :=
         WisiToken.Parse.LR.Default_McKenzie_Param.Fast_Forward;
-      Matching_Begin              : Integer               :=
+      Matching_Begin                        : Integer               :=
         WisiToken.Parse.LR.Default_McKenzie_Param.Matching_Begin;
-      Ignore_Check_Fail           : Natural               :=
+      Ignore_Check_Fail                     : Natural               :=
         WisiToken.Parse.LR.Default_McKenzie_Param.Ignore_Check_Fail;
-      Check_Limit                 : WisiToken.Token_Index :=
+      Check_Limit                           : WisiToken.Token_Index :=
         WisiToken.Parse.LR.Default_McKenzie_Param.Check_Limit;
-      Check_Delta_Limit           : Natural               :=
+      Check_Delta_Limit                     : Natural               :=
         WisiToken.Parse.LR.Default_McKenzie_Param.Check_Delta_Limit;
-      Enqueue_Limit               : Natural               :=
+      Enqueue_Limit                         : Natural               :=
         WisiToken.Parse.LR.Default_McKenzie_Param.Enqueue_Limit;
    end record;
 

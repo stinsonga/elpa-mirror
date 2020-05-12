@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -19,7 +19,7 @@ pragma License (Modified_GPL);
 
 package body WisiToken.Parse is
 
-   function Next_Grammar_Token (Parser : in out Base_Parser) return Token_ID
+   function Next_Grammar_Token (Parser : in out Base_Parser'Class) return Token_ID
    is
       use all type Ada.Containers.Count_Type;
       use all type Syntax_Trees.User_Data_Access;
@@ -31,10 +31,6 @@ package body WisiToken.Parse is
          Error := Parser.Lexer.Find_Next (Token);
 
          --  We don't handle Error until later; we assume it was recovered.
-
-         if Parser.User_Data /= null then
-            Parser.User_Data.Lexer_To_Augmented (Token, Parser.Lexer);
-         end if;
 
          if Token.Line /= Invalid_Line_Number then
             --  Some lexers don't support line numbers.
@@ -57,9 +53,28 @@ package body WisiToken.Parse is
             Parser.Trace.Put_Line (Image (Token, Parser.Trace.Descriptor.all));
          end if;
 
-         exit when Token.ID >= Parser.Trace.Descriptor.First_Terminal;
+         if Token.ID >= Parser.Trace.Descriptor.First_Terminal then
+
+            Parser.Terminals.Append (Token);
+
+            --  We create the syntax tree node here, so Lexer_To_Augmented can
+            --  store augmented data in it.
+            Parser.Terminals (Parser.Terminals.Last_Index).Tree_Index := Parser.Tree_Var_Ref.Add_Terminal
+              (Parser.Terminals.Last_Index, Parser.Terminals);
+
+            if Parser.User_Data /= null then
+               Parser.User_Data.Lexer_To_Augmented
+                 (Parser.Tree_Var_Ref, Parser.Terminals (Parser.Terminals.Last_Index), Parser.Lexer);
+            end if;
+
+            exit;
+         else
+            --  non-grammar; not in syntax tree
+            if Parser.User_Data /= null then
+               Parser.User_Data.Lexer_To_Augmented (Parser.Tree_Var_Ref, Token, Parser.Lexer);
+            end if;
+         end if;
       end loop;
-      Parser.Terminals.Append (Token);
 
       if Error then
          declare
@@ -74,7 +89,7 @@ package body WisiToken.Parse is
       return Token.ID;
    end Next_Grammar_Token;
 
-   procedure Lex_All (Parser : in out Base_Parser)
+   procedure Lex_All (Parser : in out Base_Parser'Class)
    is
       EOF_ID : constant Token_ID := Parser.Trace.Descriptor.EOI_ID;
    begin

@@ -16,7 +16,7 @@
 --  Sethi, and Ullman (aka: "The [Red] Dragon Book" due to the dragon
 --  on the cover).
 --
---  Copyright (C) 2009, 2010, 2013 - 2015, 2017 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2009, 2010, 2013 - 2015, 2017 - 2020 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --
@@ -142,7 +142,7 @@ package WisiToken is
    --  is a terminal) or to Image_Width.
 
    function Image (Item : in Token_ID; Desc : in Descriptor) return String;
-   --  Return Desc.Image (Item), or empty string for Invalid_Token_ID.
+   --  Return Desc.Image (Item), or "-" for Invalid_Token_ID.
 
    function Trimmed_Image is new SAL.Gen_Trimmed_Image (Token_ID);
 
@@ -160,6 +160,9 @@ package WisiToken is
      (Positive, Token_ID, Default_Element => Invalid_Token_ID);
 
    function Image is new Token_ID_Arrays.Gen_Image_Aux (Descriptor, Trimmed_Image, Image);
+   function Image_No_Assoc (Item : in Token_ID_Arrays.Vector; Aux : in Descriptor) return String
+     is (Image (Item, Aux, Association => False));
+
    function Trimmed_Image is new Token_ID_Arrays.Gen_Image (Trimmed_Image);
 
    procedure To_Vector (Item : in Token_ID_Array; Vector : in out Token_ID_Arrays.Vector);
@@ -247,21 +250,17 @@ package WisiToken is
    function "+" (Item : in Production_ID_Array) return Production_ID_Arrays.Vector renames To_Vector;
    function "+" (Item : in Production_ID) return Production_ID_Arrays.Vector is (To_Vector ((1 => Item)));
 
-   type Recursion is
-     (None,
-      Single, --  Single token in right hand side is recursive.
-      Middle, --  Multiple tokens in right hand side, recursive token not at either end.
-      Right,  --  Multiple tokens in right hand side, recursive token not at right end.
-      Left    --  Multiple tokens in right hand side, recursive token not at left end.
-     );
-   --  In worst-case order; Left recursion causes the most
-   --  problems in LR error recovery, and in Packrat.
+   type Token_Array_Production_ID is array (Token_ID range <>) of Production_ID;
 
-   function Worst_Recursion (A, B : in Recursion) return Recursion
-   is (Recursion'Max (A, B));
-
-   function Net_Recursion (A, B : in Recursion) return Recursion;
-   --  For finding the net recursion of a chain; Middle dominates.
+   type Recursion_Class is (None, Direct_Left, Other_Left, Other, Other_Right, Direct_Right);
+   function Image (Item : in Recursion_Class) return String
+     is (case Item is
+         when None         => "None",
+         when Direct_Left  => "Direct_Left",
+         when Other_Left   => "Other_Left",
+         when Other        => "Other",
+         when Other_Right  => "Other_Right",
+         when Direct_Right => "Direct_Right");
 
    ----------
    --  Tokens
@@ -291,11 +290,26 @@ package WisiToken is
 
    Invalid_Line_Number : constant Line_Number_Type := Line_Number_Type'Last;
 
+   --  Syntax tree nodes.
+   type Node_Index is range 0 .. Integer'Last;
+   subtype Valid_Node_Index is Node_Index range 1 .. Node_Index'Last;
+
+   Invalid_Node_Index : constant Node_Index := Node_Index'First;
+
+   type Valid_Node_Index_Array is array (Positive_Index_Type range <>) of Valid_Node_Index;
+   --  Index matches Base_Token_Array, Augmented_Token_Array
+
+   package Valid_Node_Index_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
+     (Positive_Index_Type, Valid_Node_Index, Default_Element => Valid_Node_Index'First);
+   --  Index matches Valid_Node_Index_Array.
+
    type Base_Token is tagged record
-      --  Base_Token is used in the core parser. The parser only needs ID;
+      --  Base_Token is used in the core parser. The parser only needs ID and Tree_Node;
       --  semantic checks need Byte_Region to compare names. Line, Col, and
       --  Char_Region are included for error messages.
-      ID : Token_ID := Invalid_Token_ID;
+
+      ID         : Token_ID   := Invalid_Token_ID;
+      Tree_Index : Node_Index := Invalid_Node_Index;
 
       Byte_Region : Buffer_Region := Null_Buffer_Region;
       --  Index into the Lexer buffer for the token text.
@@ -352,8 +366,8 @@ package WisiToken is
      (Line_Number_Type, Base_Token_Index, Default_Element => Invalid_Token_Index);
 
    type Recover_Token is record
-      --  Maintaining a syntax tree during recover is too slow, so we store
-      --  enough information in the recover stack to perform
+      --  Maintaining a syntax tree during error recovery is too slow, so we
+      --  store enough information in the recover stack to perform
       --  Semantic_Checks, Language_Fixes, and Push_Back operations. and to
       --  apply the solution to the main parser state. We make thousands of
       --  copies of the parse stack during recover, so minimizing size and
@@ -419,7 +433,9 @@ package WisiToken is
    Trace_Action : Integer := 0;
    --  Output during Execute_Action, and unit tests.
 
-   Trace_Generate : Integer := 0;
+   Trace_Generate_EBNF             : Integer := 0;
+   Trace_Generate_Table            : Integer := 0;
+   Trace_Generate_Minimal_Complete : Integer := 0;
    --  Output during grammar generation.
 
    Debug_Mode : Boolean := False;

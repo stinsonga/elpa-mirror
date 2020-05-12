@@ -42,8 +42,9 @@ FACE may be a list."
        (error "can't find '%s'" token)))
 
     (save-match-data
-      (wisi-validate-cache (line-beginning-position 0) (line-end-position 5) nil 'face))
-
+      (wisi-validate-cache (line-beginning-position) (line-end-position) nil 'face)
+      (font-lock-ensure (line-beginning-position) (line-end-position)))
+    
     ;; We don't use face-at-point, because it doesn't respect
     ;; font-lock-face set by the parser! And we want to check for
     ;; conflicts between font-lock-keywords and the parser.
@@ -331,11 +332,27 @@ Each item is a list (ACTION PARSE-BEGIN PARSE-END EDIT-BEGIN)")
     (wisi-case-adjust-buffer))
   )
 
+(defvar cl-print-readably); cl-print.el, used by edebug
+
+(defun large-frame ()
+  (interactive)
+  (modify-frame-parameters
+      nil
+      (list
+       (cons 'width 120) ;; characters; fringe extra
+       (cons 'height 71) ;; characters
+       (cons 'left 0) ;; pixels
+       (cons 'top 0))))
+(define-key global-map "\C-cp" 'large-screen)
+
 (defun run-test (file-name)
   "Run an indentation and casing test on FILE-NAME."
   (interactive "f")
 
   (package-initialize) ;; for uniquify-files
+
+  ;; Let edebug display strings full-length, and show internals of records
+  (setq cl-print-readably t)
 
   ;; we'd like to run emacs from a makefile as:
   ;;

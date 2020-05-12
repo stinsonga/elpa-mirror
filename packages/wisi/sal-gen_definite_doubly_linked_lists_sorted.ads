@@ -2,7 +2,7 @@
 --
 --  A generic sorted doubly linked list with definite elements.
 --
---  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -81,31 +81,31 @@ package SAL.Gen_Definite_Doubly_Linked_Lists_Sorted is
    --
    --  Added is True if any element was not already present.
 
-   type Cursor is private;
+   type Cursor (<>) is private;
 
-   No_Element : constant Cursor;
+   function No_Element (Container : aliased in List) return Cursor;
 
    function Has_Element (Position : in Cursor) return Boolean;
 
-   function First (Container : in List) return Cursor;
-   function Last (Container : in List) return Cursor;
+   function First (Container : aliased in List) return Cursor;
+   function Last (Container : aliased in List) return Cursor;
 
-   function Find (Container : in List; Element : in Element_Type) return Cursor;
+   function Find (Container : aliased in List; Element : in Element_Type) return Cursor;
    --  No_Element if Element not found.
 
    procedure Next (Position : in out Cursor)
-   with Pre => Position /= No_Element;
+   with Pre => Has_Element (Position);
 
    function Next (Position : in Cursor) return Cursor
-   with Pre => Position /= No_Element;
+   with Pre => Has_Element (Position);
    function Previous (Position : in Cursor) return Cursor
-   with Pre => Position /= No_Element;
+   with Pre => Has_Element (Position);
 
    function Element (Position : in Cursor) return Element_Type
-   with Pre => Position /= No_Element;
+   with Pre => Has_Element (Position);
 
    procedure Delete (Container : in out List; Position : in out Cursor)
-   with Pre => Position /= No_Element;
+   with Pre => Has_Element (Position);
 
    function Pop (Container : in out List) return Element_Type
    with Pre => Container.Length > 0;
@@ -115,19 +115,19 @@ package SAL.Gen_Definite_Doubly_Linked_Lists_Sorted is
      Implicit_Dereference => Element;
 
    function Constant_Reference (Container : in List; Position : in Cursor) return Constant_Reference_Type with
-     Inline, Pre => Position /= No_Element;
+     Inline, Pre => Has_Element (Position);
 
    function Constant_Ref (Position : in Cursor) return Constant_Reference_Type with
-     Inline, Pre => Position /= No_Element;
+     Inline, Pre => Has_Element (Position);
 
    type Variable_Reference_Type (Element : not null access Element_Type) is private with
      Implicit_Dereference => Element;
 
    function Variable_Reference (Container : in List; Position : in Cursor) return Variable_Reference_Type
-   with Inline, Pre => Position /= No_Element;
+   with Inline, Pre => Has_Element (Position);
 
    function Variable_Ref (Position : in Cursor) return Variable_Reference_Type
-   with Inline, Pre => Position /= No_Element;
+   with Inline, Pre => Has_Element (Position);
    --  User must not change the element in a way that affects the sort order.
 
    package Iterator_Interfaces is new Ada.Iterator_Interfaces (Cursor, Has_Element);
@@ -153,9 +153,9 @@ private
       Count : Ada.Containers.Count_Type := 0;
    end record;
 
-   type Cursor is record
-      Container : List_Access;
-      Ptr       : Node_Access;
+   type Cursor (Container : not null access constant List) is
+   record
+      Ptr : Node_Access;
    end record;
 
    type Constant_Reference_Type (Element : not null access constant Element_Type) is
@@ -170,12 +170,11 @@ private
 
    Empty_List : constant List := (Ada.Finalization.Controlled with null, null, 0);
 
-   No_Element : constant Cursor := (null, null);
+   function No_Element (Container : aliased in List) return Cursor
+     is (Container'Access, null);
 
-   type Iterator is new Iterator_Interfaces.Reversible_Iterator with
-   record
-      Container : List_Access;
-   end record;
+   type Iterator (Container : not null access constant List) is new Iterator_Interfaces.Reversible_Iterator with
+   null record;
 
    overriding function First (Object : Iterator) return Cursor;
    overriding function Last  (Object : Iterator) return Cursor;

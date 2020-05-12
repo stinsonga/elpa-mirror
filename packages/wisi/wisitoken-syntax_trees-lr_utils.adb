@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2019 Stephen Leake All Rights Reserved.
+--  Copyright (C) 2019, 2020 Stephen Leake All Rights Reserved.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -24,9 +24,9 @@ package body WisiToken.Syntax_Trees.LR_Utils is
       Lexer      : in WisiToken.Lexer.Handle;
       Tree       : in WisiToken.Syntax_Trees.Tree;
       Terminals  : in WisiToken.Base_Token_Arrays.Vector;
-      Node       : in WisiToken.Syntax_Trees.Node_Index)
+      Node       : in Node_Index)
    is
-      Terminal_Index : constant Base_Token_Index := Tree.Min_Terminal_Index (Node);
+      Terminal_Index : constant Base_Token_Index := Tree.First_Shared_Terminal (Node);
    begin
       raise SAL.Programmer_Error with Error_Message
         (Lexer.File_Name,

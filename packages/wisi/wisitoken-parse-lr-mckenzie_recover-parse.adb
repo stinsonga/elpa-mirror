@@ -2,7 +2,7 @@
 --
 --  See spec
 --
---  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -110,8 +110,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Parse is
       --  Parse_Items.
 
       use Parse_Item_Arrays;
-      use Sorted_Insert_Delete_Arrays;
-      use all type Ada.Containers.Count_Type;
+      use Config_Op_Arrays;
       use all type Semantic_Checks.Check_Status_Label;
 
       Trace      : WisiToken.Trace'Class renames Super.Trace.all;
@@ -130,8 +129,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Parse is
          Terminals_Current         => Config.Current_Shared_Token,
          Restore_Terminals_Current => Restore_Terminals_Current,
          Insert_Delete             => Config.Insert_Delete,
-         Current_Insert_Delete     => Config.Current_Insert_Delete,
-         Prev_Deleted              => Super.Parser_State (Parser_Index).Prev_Deleted);
+         Current_Insert_Delete     => Config.Current_Insert_Delete);
 
       New_State : Unknown_State_Index;
       Success   : Boolean := True;
@@ -202,7 +200,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Parse is
 
             Config.Stack.Push
               ((Action.Item.State,
-                Syntax_Trees.Invalid_Node_Index,
+                Invalid_Node_Index,
                 (Current_Token.ID,
                  Byte_Region        => Current_Token.Byte_Region,
                  Min_Terminal_Index =>
@@ -217,8 +215,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Parse is
                Terminals_Current         => Config.Current_Shared_Token,
                Restore_Terminals_Current => Restore_Terminals_Current,
                Insert_Delete             => Config.Insert_Delete,
-               Current_Insert_Delete     => Config.Current_Insert_Delete,
-               Prev_Deleted              => Super.Parser_State (Parser_Index).Prev_Deleted);
+               Current_Insert_Delete     => Config.Current_Insert_Delete);
 
          when Reduce =>
             declare
@@ -244,7 +241,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover.Parse is
                      raise Bad_Config;
                   end if;
 
-                  Config.Stack.Push ((New_State, Syntax_Trees.Invalid_Node_Index, Nonterm));
+                  Config.Stack.Push ((New_State, Invalid_Node_Index, Nonterm));
 
                when Semantic_Checks.Error =>
                   Config.Error_Token       := Nonterm;

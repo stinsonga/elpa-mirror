@@ -2,7 +2,7 @@
 --
 --  see spec
 --
---  Copyright (C) 2014, 2015, 2017 - 2019  All Rights Reserved.
+--  Copyright (C) 2014, 2015, 2017 - 2020  All Rights Reserved.
 --
 --  This program is free software; you can redistribute it and/or
 --  modify it under terms of the GNU General Public License as
@@ -134,7 +134,8 @@ package body WisiToken.BNF.Generate_Utils is
                         I := I + 1;
                      end loop;
                   end if;
-                  RHSs (RHS_Index) := (Tokens => Tokens, Action => null, Check => null);
+                  RHSs (RHS_Index) :=
+                    (Tokens => Tokens, Action => null, Check => null, Recursion => <>);
                   if Length (Right_Hand_Side.Action) > 0 then
                      Action_All_Empty := False;
                      Action_Names (RHS_Index) := new String'
@@ -287,9 +288,8 @@ package body WisiToken.BNF.Generate_Utils is
       end case;
    end Constant_Reference;
 
-   type Token_Access_Constant is access constant Token_Container;
-   type Iterator is new Iterator_Interfaces.Forward_Iterator with record
-      Container    : Token_Access_Constant;
+   type Iterator (Container : not null access constant Token_Container)
+   is new Iterator_Interfaces.Forward_Iterator with record
       Non_Grammar  : Boolean;
       Nonterminals : Boolean;
    end record;

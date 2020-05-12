@@ -2,7 +2,7 @@
 --
 --  See spec.
 --
---  Copyright (C) 2018 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2018 - 2020 Free Software Foundation, Inc.
 --
 --  This library is free software;  you can redistribute it and/or modify it
 --  under terms of the  GNU General Public License  as published by the Free
@@ -27,7 +27,7 @@ package body WisiToken.Parse.Packrat.Generated is
 
       Descriptor : WisiToken.Descriptor renames Parser.Trace.Descriptor.all;
 
-      Junk : WisiToken.Syntax_Trees.Valid_Node_Index;
+      Junk : WisiToken.Valid_Node_Index;
       pragma Unreferenced (Junk);
 
       Result : Memo_Entry;
@@ -65,6 +65,13 @@ package body WisiToken.Parse.Packrat.Generated is
    is begin
       return Parser.Tree;
    end Tree;
+
+   overriding function Tree_Var_Ref
+     (Parser : aliased in out Generated.Parser)
+     return Syntax_Trees.Tree_Variable_Reference
+   is begin
+      return (Element => Parser.Tree'Access);
+   end Tree_Var_Ref;
 
    overriding function Any_Errors (Parser : in Generated.Parser) return Boolean
    is

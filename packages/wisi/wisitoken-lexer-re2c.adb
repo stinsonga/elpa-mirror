@@ -2,7 +2,7 @@
 --
 --  see spec.
 --
---  Copyright (C) 2017 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2017 - 2020 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --
@@ -179,7 +179,8 @@ package body WisiToken.Lexer.re2c is
       procedure Build_Token
       is begin
          Token :=
-           (ID => Lexer.ID,
+           (ID         => Lexer.ID,
+            Tree_Index => Invalid_Node_Index,
 
             Byte_Region =>
               (if Lexer.ID = Lexer.Descriptor.EOI_ID and then Lexer.Byte_Position = Integer (Base_Buffer_Pos'First)

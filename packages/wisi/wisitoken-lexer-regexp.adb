@@ -2,7 +2,7 @@
 --
 --  See spec
 --
---  Copyright (C) 2015, 2017 - 2019 Free Software Foundation, Inc.
+--  Copyright (C) 2015, 2017 - 2020 Free Software Foundation, Inc.
 --
 --  This file is part of the WisiToken package.
 --
@@ -242,6 +242,7 @@ package body WisiToken.Lexer.Regexp is
 
       Token :=
         (ID          => Lexer.ID,
+         Tree_Index  => Invalid_Node_Index,
          Byte_Region => (Buffer_Pos (Lexer.Lexeme_Head), Buffer_Pos (Lexer.Lexeme_Tail)),
          Line        => Invalid_Line_Number,
          Column      => Ada.Text_IO.Count (Lexer.Lexeme_Head),

@@ -1,4 +1,4 @@
-;;; wisi-prj.el --- project definition files -*- lexical-binding:t -*-
+;;; wisi-prj.el --- project integration -*- lexical-binding:t -*-
 ;;
 ;; Copyright (C) 2019 - 2020  Free Software Foundation, Inc.
 ;;
@@ -184,10 +184,29 @@ after the project file PRJ-FILE-NAME is parsed."
 slow refresh operations may be skipped."
   nil)
 
-(cl-defgeneric wisi-xref-definitions (_xref project item)
+(cl-defgeneric wisi-xref-completion-table (xref project)
+  "Return a completion table of names defined in PROJECT, for navigating to the declarations.
+The table is an alist of (ANNOTATED-SYMBOL . LOC), where:
+
+- ANNOTATED-SYMBOL is the simple name and possibly annotations
+such as function arguments, controlling type, containing package,
+and line number.
+
+- LOC is the declaration of the name as a list (FILE LINE
+COLUMN).")
+
+(cl-defgeneric wisi-xref-completion-regexp (xref)
+  "Return a regular expression matching the result of completing with `wisi-xref-completion-table'.
+Group 1 must be the simple symbol; the rest of the item may be annotations.")
+
+(cl-defgeneric wisi-xref-completion-at-point-table (xref project)
+  "Return a completion table of names defined in PROJECT, for `completion-at-point'.
+The table is a simple list of symbols.")
+
+(cl-defgeneric wisi-xref-definitions (xref project item)
   "Return all definitions (classwide) of ITEM (an xref-item), as a list of xref-items.")
 
-(cl-defgeneric wisi-xref-references (_xref project item)
+(cl-defgeneric wisi-xref-references (xref project item)
   "Return all references to ITEM (an xref-item), as a list of xref-items.")
 
 (cl-defgeneric wisi-xref-other (project &key identifier filename line column)
@@ -240,62 +259,128 @@ LINE, COLUMN are Emacs origin."
 (defun wisi-show-xref (xref)
   "Display XREF location."
   (let ((marker (xref-location-marker (xref-item-location xref))))
+    (push-mark)
     (pop-to-buffer (marker-buffer marker) (list #'display-buffer-same-window))
     (goto-char (marker-position marker))))
 
+(defun wisi-filter-table (table file)
+  "If FILE is nil, return TABLE. Otherwise return only items in TABLE with location FILE."
+  (cond
+   ((null file)
+    table)
+
+   (t
+    (let (result)
+      (dolist (item table)
+	(when (string= file (car (cdr item)))
+	  (push item result)))
+      result))))
+
 (defun wisi-get-identifier (prompt)
-  "Get identifier at point, or if no identifier at point, or with user arg, prompt for one."
+  "Get identifier at point, or if no identifier at point, or with user arg, prompt for one.
+Single user arg completes on all identifiers in project; double
+user arg limits completion to current file."
   ;; Similar to xref--read-identifier, but uses a different completion
   ;; table, because we want a more specific reference.
-  (let* ((backend (xref-find-backend))
-         (def (xref-backend-identifier-at-point backend)))
+  (let* ((prj (project-current))
+         (def (xref-backend-identifier-at-point prj)))
 
     (cond
      ((or current-prefix-arg
           (not def))
-      (let ((id
-             (completing-read
-              (if def
-		  (format "%s (default %s): " prompt def)
-                prompt)
-              (wisi-names t)
-              nil nil nil
-              'xref--read-identifier-history def)))
+      (let* ((table (wisi-filter-table (wisi-xref-completion-table (wisi-prj-xref prj) prj)
+				       (when (equal '(16) current-prefix-arg) (buffer-file-name))))
+	     (id
+	      ;; Since the user decided not to use the identifier at
+	      ;; point, don't use it as the default.
+              (completing-read prompt table nil nil nil 'xref--read-identifier-history)))
         (if (equal id "")
             (user-error "No identifier provided")
-          id)))
+
+	  ;; The user may have forced exit from completing-read with a
+	  ;; string that is not in the table (because gpr-query is out
+	  ;; of date, for example).
+          (or (and (consp (car table)) ;; alist; return key and value.
+		   (assoc id table))
+	      id))))
      (t def))))
 
 (defun wisi-goto-spec/body (identifier)
   "Goto declaration or body for IDENTIFIER (default symbol at point).
 If no symbol at point, or with prefix arg, prompt for symbol, goto spec."
   (interactive (list (wisi-get-identifier "Goto spec/body of: ")))
-  (let ((prj (project-current)))
-    (wisi-show-xref
-     (wisi-xref-ident-make
-      identifier
-      (lambda (ident file line column)
-	(let ((target (wisi-xref-other
-		       (wisi-prj-xref prj) prj
-		       :identifier ident
-		       :filename file
-		       :line line
-		       :column column)))
-	  (xref-make ident
-		     (xref-make-file-location
-		      (nth 0 target) ;; file
-		      (nth 1 target) ;; line
-		      (nth 2 target))) ;; column
-	  ))))
+  (let ((prj (project-current))
+	desired-loc)
+    (cond
+     ((consp identifier)
+      ;; alist element from wisi-xref-completion-table; desired
+      ;; location is primary declaration
+      (setq desired-loc
+	    (xref-make (car identifier)
+		       (xref-make-file-location
+			(nth 0 (cdr identifier)) ;; file
+			(nth 1 (cdr identifier)) ;; line
+			(nth 2 (cdr identifier)) ;; column
+			))))
+
+     ((stringp identifier)
+      ;; from xref-backend-identifier-at-point; desired location is 'other'
+      (let ((item (wisi-xref-item identifier prj)))
+	(condition-case-unless-debug err
+	    (with-slots (summary location) item
+	      (let ((eieio-skip-typecheck t))
+		(with-slots (file line column) location
+		  (let ((target
+			 (wisi-xref-other
+			  (wisi-prj-xref prj) prj
+			  :identifier summary
+			  :filename file
+			  :line line
+			  :column column)))
+		    (setq desired-loc
+			  (xref-make summary
+				     (xref-make-file-location
+				      (nth 0 target) ;; file
+				      (nth 1 target) ;; line
+				      (nth 2 target))) ;; column
+			  )))))
+	  (user-error ;; from gpr-query; current file might be new to project, so try wisi-names
+	   (let ((item (assoc identifier (wisi-names nil t))))
+	     (if item
+		 (setq desired-loc
+		       (xref-make identifier
+				  (xref-make-file-location
+				   (nth 1 item) ;; file
+				   (nth 2 item) ;; line
+				   (nth 3 item))))
+	       (signal (car err) (cdr err)))))
+	  )))
+
+     (t ;; something else
+      (error "unknown case in wisi-goto-spec/body")))
+	  (wisi-show-xref desired-loc)
     ))
 
 (cl-defgeneric wisi-prj-identifier-at-point (_project)
-  "Return the identifier at point, move point to start of
-identifier.  Signal an error if no identifier is at point."
-  (let ((ident (thing-at-point 'symbol)))
-    (when ident
-      (skip-syntax-backward "w_")
-      ident)))
+  "Return (IDENT START END) giving the identifier and its bounds at point.
+Return nil if no identifier is at point."
+  ;; default implementation
+  (let ((bounds (bounds-of-thing-at-point 'symbol)))
+    (when bounds
+      (list (car bounds) (cdr bounds) (buffer-substring-no-properties (car bounds) (cdr bounds))))))
+
+(defun wisi-completion-at-point ()
+  "For `completion-at-point-functions'."
+  (let ((prj (project-current)))
+    (when (wisi-prj-p prj)
+      (save-excursion
+	(let ((table (wisi-xref-completion-at-point-table (wisi-prj-xref prj) prj))
+	      (bounds (wisi-prj-identifier-at-point prj)))
+	  (when bounds
+	    ;; xref symbol table may be out of date; try dabbrevs
+	    (list (nth 0 bounds) (nth 1 bounds) table :exclusive 'no))
+	  )))
+    ))
 
 (defun wisi-check-current-project (file-name &optional default-prj-function)
   "If FILE-NAME (must be absolute) is found in the current
@@ -343,14 +428,15 @@ Displays a buffer in compilation-mode giving locations of the parent type declar
 (defun wisi-show-declaration-parents ()
   "Display the locations of the parent type declarations of the type identifier around point."
   (interactive)
-  (let ((project (wisi-check-current-project (buffer-file-name))))
+  (let* ((project (wisi-check-current-project (buffer-file-name)))
+	 (id (wisi-prj-identifier-at-point project)))
     (wisi-xref-parents
      (wisi-prj-xref project)
      project
-     :identifier (wisi-prj-identifier-at-point project)
+     :identifier (nth 2 id)
      :filename (file-name-nondirectory (buffer-file-name))
      :line (line-number-at-pos)
-     :column (current-column))
+     :column (save-excursion (goto-char (nth 0 id)) (current-column)))
     ))
 
 (cl-defgeneric wisi-xref-all (xref project &key identifier filename line column local-only append)
@@ -370,14 +456,15 @@ identifier is declared or referenced.")
   "Show all references of identifier at point.
 With prefix, keep previous references in output buffer."
   (interactive "P")
-  (let ((project (wisi-check-current-project (buffer-file-name))))
+  (let* ((project (wisi-check-current-project (buffer-file-name)))
+	 (id (wisi-prj-identifier-at-point project)))
     (wisi-xref-all
      (wisi-prj-xref project)
      project
-     :identifier (wisi-prj-identifier-at-point project)
+     :identifier (nth 2 id)
      :filename (file-name-nondirectory (buffer-file-name))
      :line (line-number-at-pos)
-     :column (current-column)
+     :column (save-excursion (goto-char (nth 0 id)) (current-column))
      :local-only nil
      :append append)
     ))
@@ -386,14 +473,15 @@ With prefix, keep previous references in output buffer."
   "Show all references of identifier at point occuring in current file.
 With prefix, keep previous references in output buffer."
   (interactive "P")
-  (let ((project (wisi-check-current-project (buffer-file-name))))
+  (let* ((project (wisi-check-current-project (buffer-file-name)))
+	 (id (wisi-prj-identifier-at-point project)))
     (wisi-xref-all
      (wisi-prj-xref project)
      project
-     :identifier (wisi-prj-identifier-at-point project)
+     :identifier (nth 2 id)
      :filename (file-name-nondirectory (buffer-file-name))
      :line (line-number-at-pos)
-     :column (current-column)
+     :column (save-excursion (goto-char (nth 0 id)) (current-column))
      :local-only t
      :append append)
     ))
@@ -410,14 +498,15 @@ COLUMN - Emacs column of the start of the identifier ")
 (defun wisi-show-overriding ()
   "Show all overridings of identifier at point."
   (interactive)
-  (let ((project (wisi-check-current-project (buffer-file-name))))
+  (let* ((project (wisi-check-current-project (buffer-file-name)))
+	 (id (wisi-prj-identifier-at-point project)))
     (wisi-xref-overriding
      (wisi-prj-xref project)
      project
-     :identifier (wisi-prj-identifier-at-point project)
+     :identifier (nth 2 id)
      :filename (file-name-nondirectory (buffer-file-name))
      :line (line-number-at-pos)
-     :column (current-column))
+     :column (save-excursion (goto-char (nth 0 id)) (current-column)))
     ))
 
 (cl-defgeneric wisi-xref-overridden (xref project &key identifier filename line column)
@@ -433,14 +522,15 @@ COLUMN - Emacs column of the start of the identifier")
   "Show the overridden declaration of identifier at point."
   (interactive)
   (let* ((project (wisi-check-current-project (buffer-file-name)))
+	 (id (wisi-prj-identifier-at-point project))
 	 (target
 	  (wisi-xref-overridden
 	   (wisi-prj-xref project)
 	   project
-	   :identifier (wisi-prj-identifier-at-point project)
+	   :identifier (nth 2 id)
 	   :filename (file-name-nondirectory (buffer-file-name))
 	   :line (line-number-at-pos)
-	   :column (current-column))))
+	   :column (save-excursion (goto-char (nth 0 id)) (current-column)))))
 
     (wisi-goto-source (nth 0 target)
 		      (nth 1 target)
@@ -511,8 +601,8 @@ absolute file name.")
 	(setq wisi-prj--cache (delete (cons prj-file project) wisi-prj--cache))
 	(setq project (wisi-prj-default project))
 	(wisi-prj-parse-file :prj-file prj-file :init-prj project :cache t)
-	(wisi-prj-select project)))
-  (wisi-xref-refresh-cache (wisi-prj-xref project) project not-full))
+	(wisi-xref-refresh-cache (wisi-prj-xref project) project not-full)
+	(wisi-prj-select project))))
 
 (cl-defmethod wisi-prj-select ((project wisi-prj))
   (setq compilation-search-path (wisi-prj-source-path project))
@@ -1139,31 +1229,85 @@ with \\[universal-argument]."
 
 ;;;; xref backend
 
+(defconst wisi-file-line-col-regexp
+  ;; matches Gnu-style file references:
+  ;; C:\Projects\GDS\work_dscovr_release\common\1553\gds-mil_std_1553-utf.ads:252:25
+  ;; /Projects/GDS/work_dscovr_release/common/1553/gds-mil_std_1553-utf.ads:252:25
+  ;; gds-mil_std_1553-utf.ads:252:25 - when wisi-xref-full-path is nil
+  "\\(\\(?:.:\\\\\\|/\\)?[^:]*\\):\\([0-9]+\\):\\([0-9]+\\)"
+  ;; 1                              2            3
+  "Regexp matching <file>:<line>:<column> where <file> is an absolute file name or basename.")
+
+(defun wisi-xref-item (identifier prj)
+  "Given IDENTIFIER, return an xref-item, with line, column nil if unknown.
+IDENTIFIER is from a user prompt with completion, or from
+`xref-backend-identifier-at-point'."
+  (let* ((t-prop (get-text-property 0 'xref-identifier identifier))
+	 ident file line column)
+    (cond
+     (t-prop
+      ;; IDENTIFIER is from wisi-xref-identifier-at-point.
+      (setq ident (substring-no-properties identifier 0 nil))
+      (setq file (plist-get t-prop :file))
+      (setq line (plist-get t-prop :line))
+      (setq column (plist-get t-prop :column))
+      )
+
+     ((string-match (wisi-xref-completion-regexp (wisi-prj-xref prj)) identifier)
+      ;; IDENTIFIER is from prompt/completion on wisi-xref-completion-table
+      (setq ident (match-string 1 identifier))
+
+      (let* ((table (wisi-xref-completion-table (wisi-prj-xref prj) prj))
+	     (loc (cdr (assoc identifier table))))
+
+	(setq file (nth 0 loc))
+	(setq line (nth 1 loc))
+	(setq column (nth 2 loc))
+	))
+
+     ((string-match wisi-names-regexp identifier)
+      ;; IDENTIFIER is from prompt/completion on wisi-names.
+      (setq ident (match-string 1 identifier))
+      (setq file (buffer-file-name))
+      (when (match-string 2 identifier)
+	(setq line (string-to-number (match-string 2 identifier))))
+      )
+
+     (t
+      ;; IDENTIFIER has no line/column info
+      (setq ident identifier)
+      (setq file (buffer-file-name)))
+     )
+
+    (unless (file-name-absolute-p file)
+      (setq file (locate-file file compilation-search-path)))
+
+    (let ((eieio-skip-typecheck t)) ;; allow line, column nil.
+      (xref-make ident (xref-make-file-location file line column)))
+    ))
+
 (cl-defmethod xref-backend-definitions ((prj wisi-prj) identifier)
-  (wisi-xref-definitions (wisi-prj-xref prj) prj (wisi-xref-item identifier)))
+  (wisi-xref-definitions (wisi-prj-xref prj) prj (wisi-xref-item identifier prj)))
 
 (cl-defmethod xref-backend-identifier-at-point ((prj wisi-prj))
   (save-excursion
-    (condition-case nil
-	(let ((ident (wisi-prj-identifier-at-point prj))) ;; moves point to start of ident
-	  (put-text-property
-	   0 1
-	   'xref-identifier
-	   (list ':file (buffer-file-name)
-		 ':line (line-number-at-pos)
-		 ':column (current-column))
-	   ident)
-	  ident)
-	(error
-	 ;; from wisi-prj-identifier-at-point; no identifier
-	 nil))))
+    (let ((id (wisi-prj-identifier-at-point prj)))
+      (when id
+	(put-text-property
+	 0 1
+	 'xref-identifier
+	 (list ':file (buffer-file-name)
+	       ':line (line-number-at-pos)
+	       ':column (save-excursion (goto-char (nth 0 id)) (current-column)))
+	 (nth 2 id))
+	(nth 2 id)))))
 
-(cl-defmethod xref-backend-identifier-completion-table ((_prj wisi-prj))
-  ;; Current buffer only.
-  (wisi-names nil))
+(cl-defmethod xref-backend-identifier-completion-table ((prj wisi-prj))
+  (wisi-filter-table (wisi-xref-completion-table (wisi-prj-xref prj) prj)
+		     (when (equal '(16) current-prefix-arg) (buffer-file-name))))
 
 (cl-defmethod xref-backend-references  ((prj wisi-prj) identifier)
-  (wisi-xref-references (wisi-prj-xref prj) prj (wisi-xref-item identifier)))
+  (wisi-xref-references (wisi-prj-xref prj) prj (wisi-xref-item identifier prj)))
 
 ;;;###autoload
 (defun wisi-prj-xref-backend ()
