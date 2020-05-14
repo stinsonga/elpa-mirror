@@ -323,7 +323,7 @@ package body SAL.Gen_Unbounded_Definite_Red_Black_Trees is
          --  either way, so both compilers have a bug. Keeping .all for now;
          --  just delete it if you are using 21.0w. Hopefully 21 will fix the
          --  bug. AdaCore ticket T503-001 on Eurocontrol support contract.
-         return (Element => Node.Element'Access, Dummy => 1);
+         return (Element => Node.all.Element'Access, Dummy => 1);
       end if;
    end Constant_Reference;
 
@@ -349,7 +349,7 @@ package body SAL.Gen_Unbounded_Definite_Red_Black_Trees is
          raise Not_Found;
       else
          --  WORKAROUND: see note in Constant_Reference
-         return (Element => Node.Element'Access, Dummy => 1);
+         return (Element => Node.all.Element'Access, Dummy => 1);
       end if;
    end Variable_Reference;
 
