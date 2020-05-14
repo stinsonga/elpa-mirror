@@ -79,6 +79,7 @@
  ("ebdb"                :external "https://github.com/girzel/ebdb.git")
  ("eev"			:external "https://github.com/edrx/eev.git")
  ("eglot"               :external "https://github.com/joaotavora/eglot.git")
+ ("eldoc"		:core "lisp/emacs-lisp/eldoc.el")
  ("eldoc-eval"		:subtree "https://github.com/thierryvolpiatto/eldoc-eval.git")
  ("elisp-benchmarks"	:external nil)
  ("expand-region"	:external "https://github.com/magnars/expand-region.el")
@@ -126,6 +127,7 @@
  ("pinentry"		:subtree "https://github.com/ueno/pinentry-el.git")
  ("posframe"		:external "https://github.com/tumashu/posframe")
  ("prefixed-core"	:external nil)
+ ("project"		:core "lisp/progmodes/project.el")
  ("psgml"               :external "https://github.com/lenst/psgml.git")
  ("python"		:core "lisp/progmodes/python.el")
  ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
@@ -166,6 +168,7 @@
  ("which-key"           :subtree "https://github.com/justbur/emacs-which-key")
  ("xelb"		:external "https://github.com/ch11ng/xelb.git")
  ("xr"			:external "https://github.com/mattiase/xr")
+ ("xref"		:core "lisp/progmodes/xref.el")
  ("yasnippet"		:subtree "https://github.com/capitaomorte/yasnippet.git")
  ("zones"		:external nil)  ;https://www.emacswiki.org/emacs/zones.el
  ("ztree"		:subtree "https://github.com/fourier/ztree")
