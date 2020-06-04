@@ -87,21 +87,26 @@ package body WisiToken.BNF.Generate_Utils is
       Data.Check_Names  := new Names_Array_Array (Descriptor.First_Nonterminal .. Descriptor.Last_Nonterminal);
 
       pragma Assert (Descriptor.Accept_ID = Descriptor.First_Nonterminal);
-      begin
-         Data.Grammar (Descriptor.Accept_ID) :=
-           Descriptor.Accept_ID <= Only
-             (Find_Token_ID (Data, Start_Token) & Descriptor.EOI_ID + WisiToken.Syntax_Trees.Null_Action);
 
-         Data.Source_Line_Map (Descriptor.Accept_ID).Line := Line_Number_Type'First;
-         Data.Source_Line_Map (Descriptor.Accept_ID).RHS_Map.Set_First_Last (0, 0);
-         Data.Source_Line_Map (Descriptor.Accept_ID).RHS_Map (0) := Line_Number_Type'First;
-      exception
-      when Not_Found =>
-         Put_Error
-           (Error_Message
-              (Source_File_Name, 1,
-               "start token '" & (Start_Token) & "' not found; need %start?"));
-      end;
+      Data.Source_Line_Map (Descriptor.Accept_ID).Line := Line_Number_Type'First;
+      Data.Source_Line_Map (Descriptor.Accept_ID).RHS_Map.Set_First_Last (0, 0);
+      Data.Source_Line_Map (Descriptor.Accept_ID).RHS_Map (0) := Line_Number_Type'First;
+
+      if Start_Token = "" then
+         Put_Error (Error_Message (Source_File_Name, 1, "%start not specified"));
+      else
+         begin
+            Data.Grammar (Descriptor.Accept_ID) :=
+              Descriptor.Accept_ID <= Only
+                (Find_Token_ID (Data, Start_Token) & Descriptor.EOI_ID + WisiToken.Syntax_Trees.Null_Action);
+         exception
+         when Not_Found =>
+            Put_Error
+              (Error_Message
+                 (Source_File_Name, 1,
+                  "start token '" & (Start_Token) & "' not found"));
+         end;
+      end if;
 
       for Rule of Data.Tokens.Rules loop
          declare

@@ -44,10 +44,12 @@ with Ada.Containers;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Ada.Unchecked_Deallocation;
+with SAL.Generic_Decimal_Image;
 with SAL.Gen_Trimmed_Image;
 with SAL.Gen_Unbounded_Definite_Queues;
 with SAL.Gen_Unbounded_Definite_Vectors.Gen_Image;
 with SAL.Gen_Unbounded_Definite_Vectors.Gen_Image_Aux;
+with SAL.Gen_Unconstrained_Array_Image;
 package WisiToken is
 
    Partial_Parse : exception; -- a partial parse terminated.
@@ -293,18 +295,29 @@ package WisiToken is
    --  Syntax tree nodes.
    type Node_Index is range 0 .. Integer'Last;
    subtype Valid_Node_Index is Node_Index range 1 .. Node_Index'Last;
+   --  Note that Valid_Node_Index includes Deleted_Child.
 
    Invalid_Node_Index : constant Node_Index := Node_Index'First;
+   Deleted_Child      : constant Node_Index := Node_Index'Last;
 
    type Valid_Node_Index_Array is array (Positive_Index_Type range <>) of Valid_Node_Index;
    --  Index matches Base_Token_Array, Augmented_Token_Array
 
+   function Image is new SAL.Generic_Decimal_Image (Valid_Node_Index);
+   --  Has Width parameter
+
+   function Image (Item : in Valid_Node_Index) return String
+     is (Image (Item, 4));
+
+   function Image is new SAL.Gen_Unconstrained_Array_Image
+     (Positive_Index_Type, Valid_Node_Index, Valid_Node_Index_Array, Image);
+
    package Valid_Node_Index_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
-     (Positive_Index_Type, Valid_Node_Index, Default_Element => Valid_Node_Index'First);
+     (Positive_Index_Type, Valid_Node_Index, Default_Element => Valid_Node_Index'Last);
    --  Index matches Valid_Node_Index_Array.
 
    type Base_Token is tagged record
-      --  Base_Token is used in the core parser. The parser only needs ID and Tree_Node;
+      --  Base_Token is used in the core parser. The parser only needs ID and Tree_Index;
       --  semantic checks need Byte_Region to compare names. Line, Col, and
       --  Char_Region are included for error messages.
 
@@ -353,6 +366,7 @@ package WisiToken is
    package Base_Token_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
      (Token_Index, Base_Token, Default_Element => (others => <>));
    type Base_Token_Array_Access is access all Base_Token_Arrays.Vector;
+   type Base_Token_Array_Access_Constant is access constant Base_Token_Arrays.Vector;
 
    function Image is new Base_Token_Arrays.Gen_Image_Aux (WisiToken.Descriptor, Trimmed_Image, Image);
 
@@ -409,6 +423,8 @@ package WisiToken is
 
    Invalid_Identifier_Index : constant Base_Identifier_Index := Base_Identifier_Index'First;
 
+   function Trimmed_Image is new SAL.Gen_Trimmed_Image (Base_Identifier_Index);
+
    ----------
    --  Trace, debug
 
@@ -437,6 +453,9 @@ package WisiToken is
    Trace_Generate_Table            : Integer := 0;
    Trace_Generate_Minimal_Complete : Integer := 0;
    --  Output during grammar generation.
+
+   Trace_Time : Boolean := False;
+   --  Output execution time for various things.
 
    Debug_Mode : Boolean := False;
    --  If True, Output stack traces, propagate exceptions to top level.

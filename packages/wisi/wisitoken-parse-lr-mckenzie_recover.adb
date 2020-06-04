@@ -131,7 +131,7 @@ package body WisiToken.Parse.LR.McKenzie_Recover is
          Trace.Put_Line
            ("parser" & Integer'Image (Parser_State.Label) &
               ": State" & State_Index'Image (Parser_State.Stack (1).State) &
-              " Current_Token" & Parser_State.Tree.Image (Parser_State.Current_Token, Trace.Descriptor.all) &
+              " Current_Token " & Parser_State.Tree.Image (Parser_State.Current_Token, Trace.Descriptor.all) &
               " Resume_Token_Goal" & WisiToken.Token_Index'Image (Config.Resume_Token_Goal));
          Trace.Put_Line
            ((case Error.Label is

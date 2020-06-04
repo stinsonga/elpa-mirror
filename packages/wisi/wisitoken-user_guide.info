@@ -507,18 +507,64 @@ production rules and actions.
 
    The syntax of a nonterminal statement is:
 
-{nonterminal} : {token} ... [ %( post-parse action )% [ %( in-parse action )% ]] [| {token} ... [ %(
-action code )% ] ... ;
+nonterminal : rhs {| rhs} ;
+   A nonterminal is defined by a list of alternate right hand sides.
 
-   Each nonterminal gives the expansion of a nonterminal token into a
-list of tokens (both terminal and nonterminal); optional productions are
-separated by "|".  Each list of tokens is followed by zero to two
-actions, one executed after the parse is complete, one during the parse
-when the production is reduced.  in-parse actions can add semantic
-checks that help during error recovery.  post-parse actions typically
-build an abstract syntax tree.  The actions are written in
-output-language code; for 'Ada_Emacs' output, this is elisp (a hold-over
-from when WisiToken only output elisp code).
+rhs : {rhs_item} [action [action]] ;
+   Each right hand side is a list of items, followed by zero to two
+actions; the first is the post-parse action, the second the in-parse
+action.
+
+   In-parse actions are exeuted during the parse, when the production is
+reduced; they can add semantic checks that help during error recovery.
+
+   Post-parse actions are executed after the parse is complete, when a
+node produced by this production is visited during the tree traversal;
+they typically build an abstract syntax tree.
+
+   The actions are written in output-language code; for 'Ada_Emacs'
+output, this is elisp (a hold-over from when WisiToken only output elisp
+code).
+
+   If using BNF:
+rhs_item : token ;
+   Where 'token' is defined by a token declaration.
+
+   if using EBNF:
+rhs_item
+  : token
+  | < identifier = identifier >
+  | rhs_optional_item
+  | rhs_multiple_item
+  | '(' rhs {| rhs} ')'
+  ;
+   Here 'token' is either defined by a token declaration, or the token
+value contained in single quotes.
+
+   The second option is an attribute, as defined by ANTLR; these are
+ignored in wisitoken.
+
+   Parentheses are used to group items.
+
+rhs_optional_item
+  : '[' rhs {| rhs} ']'
+  | '(' rhs {| rhs} ')' '?'
+  | token '?'
+  ;
+   These options all mean the same thing; the content is present zero or
+one times.
+
+rhs_multiple_item
+  : '{' rhs {| rhs} '}'
+  | '{' rhs {| rhs} '}-'
+  | '(' rhs {| rhs} ')+'
+  | '(' rhs {| rhs} ')*'
+  | token '+'
+  | token '*'
+  ;
+   "{}", "()*", and "token*" mean the content is present zero or more
+times.  "{}-", "()+", and "token+" mean the content is present one or
+more times.
 
 
 File: wisitoken-user_guide.info,  Node: Conditional code,  Prev: Nonterminals,  Up: Grammar File Syntax
@@ -550,12 +596,12 @@ Node: Empty choice in list2930
 Node: Grammar File Syntax5912
 Node: Declarations6469
 Node: Raw Code6775
-Node: Keywords7157
-Node: Tokens7471
-Node: Error recovery8814
-Node: Other declarations12536
-Node: Nonterminals17033
-Node: Conditional code18069
+Node: Keywords7156
+Node: Tokens7468
+Node: Error recovery8803
+Node: Other declarations12525
+Node: Nonterminals17017
+Node: Conditional code19038
 
 End Tag Table
 

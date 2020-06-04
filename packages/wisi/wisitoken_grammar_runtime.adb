@@ -23,9 +23,7 @@ with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNAT.Regexp;
 with SAL.Generic_Decimal_Image;
-with System.Assertions;
 with WisiToken.Generate;   use WisiToken.Generate;
-with WisiToken.Syntax_Trees.LR_Utils;
 package body WisiToken_Grammar_Runtime is
 
    use WisiToken;
@@ -33,23 +31,6 @@ package body WisiToken_Grammar_Runtime is
 
    ----------
    --  Body subprograms, misc order
-
-   procedure Raise_Programmer_Error
-     (Label : in String;
-      Data  : in User_Data_Type;
-      Tree  : in WisiToken.Syntax_Trees.Tree;
-      Node  : in WisiToken.Node_Index);
-   pragma No_Return (Raise_Programmer_Error);
-
-   procedure Raise_Programmer_Error
-     (Label : in String;
-      Data  : in User_Data_Type;
-      Tree  : in WisiToken.Syntax_Trees.Tree;
-      Node  : in WisiToken.Node_Index)
-   is begin
-      WisiToken.Syntax_Trees.LR_Utils.Raise_Programmer_Error
-        (Label, Wisitoken_Grammar_Actions.Descriptor, Data.Grammar_Lexer, Tree, Data.Terminals.all, Node);
-   end Raise_Programmer_Error;
 
    function Get_Line
      (Data : in User_Data_Type;
@@ -182,12 +163,11 @@ package body WisiToken_Grammar_Runtime is
       Labels : in out WisiToken.BNF.String_Arrays.Vector;
       Token  : in     Valid_Node_Index)
      return WisiToken.BNF.RHS_Type
+   with Pre => Tree.ID (Token) = +rhs_ID
    is
       use all type SAL.Base_Peek_Type;
       Children : constant Valid_Node_Index_Array := Tree.Children (Token);
    begin
-      pragma Assert (-Tree.ID (Token) = rhs_ID);
-
       return RHS : WisiToken.BNF.RHS_Type do
          RHS.Source_Line := Get_Line (Data, Tree, Token);
 
@@ -253,11 +233,10 @@ package body WisiToken_Grammar_Runtime is
       Right_Hand_Sides : in out WisiToken.BNF.RHS_Lists.List;
       Labels           : in out WisiToken.BNF.String_Arrays.Vector;
       Token            : in     WisiToken.Valid_Node_Index)
+   with Pre => Tree.ID (Token) = +rhs_list_ID
    is
       Tokens : constant Valid_Node_Index_Array := Tree.Children (Token);
    begin
-      pragma Assert (-Tree.ID (Token) = rhs_list_ID);
-
       case Tree.RHS_Index (Token) is
       when 0 =>
          --  | rhs
@@ -295,7 +274,7 @@ package body WisiToken_Grammar_Runtime is
    procedure Set_Lexer_Terminals
      (User_Data : in out User_Data_Type;
       Lexer     : in     WisiToken.Lexer.Handle;
-      Terminals : in     Base_Token_Array_Access)
+      Terminals : in     Base_Token_Array_Access_Constant)
    is begin
       User_Data.Grammar_Lexer := Lexer;
       User_Data.Terminals     := Terminals;
@@ -417,7 +396,7 @@ package body WisiToken_Grammar_Runtime is
       end Token;
 
       function Enum_ID (Index : in SAL.Peek_Type) return Token_Enum_ID
-        is (To_Token_Enum (Token (Index).ID));
+      is (To_Token_Enum (Token (Index).ID));
 
    begin
       if Data.Phase = Meta then
@@ -555,6 +534,7 @@ package body WisiToken_Grammar_Runtime is
                --  children = identifier_list IDENTIFIER_ID
                --  children = IDENTIFIER_ID
                function Get_Loc_List return Base_Token_Array
+               with Pre => Tree.ID (Tokens (3)) = +identifier_list_ID
                is
                   use all type SAL.Base_Peek_Type;
                   use WisiToken.Syntax_Trees;
@@ -563,7 +543,7 @@ package body WisiToken_Grammar_Runtime is
                   First  : SAL.Peek_Type    := Result'Last + 1;
                begin
                   loop
-                     pragma Assert (-Tree.ID (Node) = identifier_list_ID);
+                     pragma Assert (Tree.ID (Node) = +identifier_list_ID);
                      exit when not Tree.Has_Children (Node);
                      declare
                         Children : constant Valid_Node_Index_Array := Tree.Children (Node);
@@ -603,7 +583,7 @@ package body WisiToken_Grammar_Runtime is
                         else raise Grammar_Error with
                           Error_Message
                             (Data.Grammar_Lexer.File_Name, Loc_List (2).Line,
-                            "expecting {context | pre | post}"))
+                             "expecting {context | pre | post}"))
 
                      elsif Get_Loc (2) = "body" then
                        (if Get_Loc (3) = "context" then WisiToken.BNF.Actions_Body_Context
@@ -612,7 +592,7 @@ package body WisiToken_Grammar_Runtime is
                         else raise Grammar_Error with
                           Error_Message
                             (Data.Grammar_Lexer.File_Name, Loc_List (2).Line,
-                            "expecting {context | pre | post}"))
+                             "expecting {context | pre | post}"))
 
                      else raise Grammar_Error);
 
@@ -857,6 +837,13 @@ package body WisiToken_Grammar_Runtime is
       end if;
    end Add_Nonterminal;
 
+   function Image_Grammar_Action (Action : in WisiToken.Syntax_Trees.Semantic_Action) return String
+   is
+      pragma Unreferenced (Action);
+   begin
+      return "action";
+   end Image_Grammar_Action;
+
    procedure Check_EBNF
      (User_Data : in out WisiToken.Syntax_Trees.User_Data_Type'Class;
       Tree      : in     WisiToken.Syntax_Trees.Tree;
@@ -883,10 +870,69 @@ package body WisiToken_Grammar_Runtime is
       end case;
    end Check_EBNF;
 
+   procedure Raise_Programmer_Error
+     (Label : in String;
+      Data  : in User_Data_Type;
+      Tree  : in WisiToken.Syntax_Trees.Tree;
+      Node  : in WisiToken.Node_Index)
+   is begin
+      WisiToken.Syntax_Trees.LR_Utils.Raise_Programmer_Error
+        (Label, Wisitoken_Grammar_Actions.Descriptor, Data.Grammar_Lexer, Tree, Data.Terminals.all, Node);
+   end Raise_Programmer_Error;
+
+   function Find_Declaration
+     (Data : in     User_Data_Type;
+      Tree : in out WisiToken.Syntax_Trees.Tree;
+      Name : in     String)
+     return WisiToken.Node_Index
+   is
+      use WisiToken.Syntax_Trees.LR_Utils;
+      use WisiToken.Syntax_Trees.LR_Utils.Creators;
+
+      function Decl_Name (Decl : in Valid_Node_Index) return String
+      is begin
+         case To_Token_Enum (Tree.ID (Decl)) is
+         when declaration_ID =>
+            case Tree.RHS_Index (Decl) is
+            when 0 =>
+               return Get_Text (Data, Tree, Tree.Child (Decl, 3));
+
+            when 2 | 3 =>
+               return Get_Text (Data, Tree, Tree.Child (Decl, 2));
+
+            when others =>
+               return "";
+            end case;
+
+         when nonterminal_ID =>
+            return Get_Text (Data, Tree, Tree.Child (Decl, 1));
+
+         when others =>
+            return "";
+         end case;
+      end Decl_Name;
+
+      --  Tree.Root is wisitoken_accept
+      List : constant Constant_List := Create_List
+        (Tree, Tree.Child (Tree.Root, 1), +compilation_unit_list_ID, +compilation_unit_ID);
+   begin
+      for N of List loop
+         declare
+            Decl : constant Valid_Node_Index := Tree.Child (N, 1);
+         begin
+            if Name = Decl_Name (Decl) then
+               return Decl;
+            end if;
+         end;
+      end loop;
+      return Invalid_Node_Index;
+   end Find_Declaration;
+
    procedure Translate_EBNF_To_BNF
      (Tree : in out WisiToken.Syntax_Trees.Tree;
       Data : in out User_Data_Type)
    is
+      use all type SAL.Base_Peek_Type;
       use WisiToken.Syntax_Trees;
 
       Copied_EBNF_Nodes : WisiToken.Valid_Node_Index_Arrays.Vector;
@@ -897,11 +943,43 @@ package body WisiToken_Grammar_Runtime is
           else "[a-zA-Z0-9_]+"),
          Case_Sensitive => not Data.Language_Params.Case_Insensitive);
 
+      procedure Erase_Copied_EBNF_Node (Node : in Valid_Node_Index)
+      is
+         use Ada.Text_IO;
+         Found : Boolean := False;
+      begin
+         if Trace_Generate_EBNF > Outline then
+            Put_Line ("erase copied deleted EBNF node" & Node'Image);
+         end if;
+         --  Vector Delete replaces content with
+         --  Valid_Node_Index_Arrays.Default_Element = Valid_Node_Index'Last =
+         --  Deleted_Child; this is clearer.
+
+         for I in Copied_EBNF_Nodes.First_Index .. Copied_EBNF_Nodes.Last_Index loop
+            if Copied_EBNF_Nodes (I) = Node then
+               Copied_EBNF_Nodes (I) := Deleted_Child;
+               Found := True;
+               exit;
+            end if;
+         end loop;
+         if not Found then
+            Put_Line (Current_Error, Tree.Image
+                        (Node, Wisitoken_Grammar_Actions.Descriptor, Node_Numbers => True) &
+                        " not found in Copied_EBNF_Nodes");
+            raise SAL.Programmer_Error;
+         end if;
+      end Erase_Copied_EBNF_Node;
+
       procedure Clear_EBNF_Node (Node : in Valid_Node_Index)
       is begin
          if Node in Data.EBNF_Nodes.First_Index .. Data.EBNF_Nodes.Last_Index then
+            if Trace_Generate_EBNF > Outline then
+               Ada.Text_IO.Put_Line ("clear translated EBNF node" & Node'Image);
+            end if;
+
             Data.EBNF_Nodes (Node) := False;
-            --  else in Copied_EBNF_Nodes; don't need to delete from there.
+         else
+            Erase_Copied_EBNF_Node (Node);
          end if;
       end Clear_EBNF_Node;
 
@@ -932,6 +1010,19 @@ package body WisiToken_Grammar_Runtime is
          return ID;
       end Next_Nonterm_Name;
 
+      function Find_Nonterminal
+        (Target : in String;
+         Equal  : in WisiToken.Syntax_Trees.LR_Utils.Find_Equal)
+        return Node_Index
+      is
+         use WisiToken.Syntax_Trees.LR_Utils;
+      begin
+         return Get_Node
+           (Creators.Create_List
+              (Tree, Tree.Child (Tree.Root, 1), +compilation_unit_list_ID, +compilation_unit_ID).Find
+              (Target, Equal));
+      end Find_Nonterminal;
+
       function Tree_Add_Nonterminal
         (Child_1 : in Valid_Node_Index;
          Child_2 : in Valid_Node_Index;
@@ -948,410 +1039,438 @@ package body WisiToken_Grammar_Runtime is
             Action     => Wisitoken_Grammar_Actions.nonterminal_0'Access);
       end Tree_Add_Nonterminal;
 
-      function List_Root (Item : in Valid_Node_Index) return Valid_Node_Index
+      function Duplicate
+        (List        : in Syntax_Trees.LR_Utils.List;
+         New_Content : in Node_Index)
+        return Boolean
       is
-         List_ID : constant WisiToken.Token_ID := Tree.ID (Item);
-         Node : Valid_Node_Index := Item;
+         --  We don't require New_Content.ID = List.Element_ID; since we are
+         --  comparing result of Get_Text.
+         New_Content_Str : constant String :=
+           (if New_Content = Invalid_Node_Index
+            then "" --  Empty RHS
+            else Get_Text (Data, Tree, New_Content));
       begin
-         loop
-            exit when Tree.ID (Tree.Parent (Node)) /= List_ID;
-            Node := Tree.Parent (Node);
-         end loop;
-         return Node;
-      end List_Root;
-
-      function List_Singleton (Root : in Valid_Node_Index) return Boolean
-      is begin
-         return Tree.RHS_Index (Root) = 0;
-      end List_Singleton;
-
-      function First_List_Element (Root : in Valid_Node_Index; Element_ID : in WisiToken.Token_ID) return Node_Index
-      is
-         List_ID : constant WisiToken.Token_ID := Tree.ID (Root);
-
-         --  Return the first child with Element_ID in list of List_IDs. This
-         --  is not the same as Find_Descendant, because we check the children
-         --  first, and only the first child.
-         Node : Node_Index := Root;
-      begin
-         loop
-            declare
-               Children : constant Valid_Node_Index_Array := Tree.Children (Node);
-            begin
-               if Tree.ID (Children (1)) = List_ID then
-                  Node := Children (1);
-               elsif Tree.ID (Children (1)) = Element_ID then
-                  Node := Children (1);
-                  exit;
-               else
-                  Raise_Programmer_Error ("first_list_element", Data, Tree, Node);
-               end if;
-            end;
-         end loop;
-         return Node;
-      end First_List_Element;
-
-      function Last_List_Element (Root : in Valid_Node_Index) return Node_Index
-      is
-         --  Tree is one of:
-         --
-         --  case a: single element list
-         --  element_list : root
-         --  | element: Last
-         --
-         --  case c: no next
-         --  element_list: root
-         --  | element_list
-         --  | | element:
-         --  | element: Last
-         Children : constant Valid_Node_Index_Array := Tree.Children (Root);
-      begin
-         return Children (Children'Last);
-      end Last_List_Element;
-
-      function Next_List_Element
-        (Element : in Valid_Node_Index;
-         List_ID : in WisiToken.Token_ID)
-        return Node_Index
-      with Pre => Tree.Parent (Element, 2) /= Invalid_Node_Index and then
-                  Tree.ID (Tree.Parent (Element)) = List_ID
-      is
-         use all type SAL.Base_Peek_Type;
-         --  Tree is one of:
-         --
-         --  case a: first element, no next
-         --  rhs
-         --  | rhs_item_list
-         --  | | rhs_item: Element
-         --  | action
-         --
-         --  case b: first element, next
-         --  rhs_item_list
-         --  | rhs_item_list
-         --  | | rhs_item: Element
-         --  | rhs_item: next element
-         --
-         --  case c: non-first element, no next
-         --  rhs
-         --  | rhs_item_list
-         --  | | rhs_item_list
-         --  | | | rhs_item:
-         --  | | rhs_item: Element
-         --  | action
-         --
-         --  case d: non-first element, next
-         --  rhs_item_list
-         --  | rhs_item_list
-         --  | | rhs_item_list
-         --  | | | rhs_item:
-         --  | | rhs_item: Element
-         --  | rhs_item: next element
-
-         Element_ID      : constant WisiToken.Token_ID     := Tree.ID (Element);
-         Grand_Parent    : constant Valid_Node_Index       := Tree.Parent (Element, 2);
-         Aunts           : constant Valid_Node_Index_Array := Tree.Children (Grand_Parent);
-         Last_List_Child : SAL.Base_Peek_Type              := Aunts'First - 1;
-      begin
-         if Tree.ID (Grand_Parent) /= List_ID then
-            --  No next
-            return Invalid_Node_Index;
-         end if;
-
-         --  Children may be non-list items; ACTION in an rhs_list, for example.
-         for I in Aunts'Range loop
-            if Tree.ID (Aunts (I)) in List_ID | Element_ID then
-               Last_List_Child := I;
+         for N of List loop
+            if New_Content_Str = Get_Text (Data, Tree, N) then
+               return True;
             end if;
          end loop;
+         return False;
+      end Duplicate;
 
-         if Last_List_Child = 1 then
-            --  No next
-            return Invalid_Node_Index;
-         else
-            return Aunts (2);
-         end if;
-      end Next_List_Element;
+      procedure Insert_Empty_RHS
+        (RHS_List : in out WisiToken.Syntax_Trees.LR_Utils.List;
+         After    : in     Valid_Node_Index)
+      with Pre => RHS_List.List_ID = +rhs_list_ID and RHS_List.Element_ID = +rhs_ID and
+                  Tree.ID (After) = +rhs_ID and RHS_List.Contains (After)
+      is begin
+         RHS_List.Insert
+           (New_Element => Tree.Add_Nonterm
+              ((+rhs_ID, 0),
+               (1 .. 0 => Invalid_Node_Index)),
+            After => RHS_List.To_Cursor (After));
+      end Insert_Empty_RHS;
 
-      function Prev_List_Element
-        (Element : in Valid_Node_Index;
-         List_ID : in WisiToken.Token_ID)
-        return Node_Index
-      with Pre => Tree.Parent (Element) /= Invalid_Node_Index and then
-                  Tree.ID (Tree.Parent (Element)) = List_ID
+      procedure Insert_RHS
+        (RHS_List          : in out WisiToken.Syntax_Trees.LR_Utils.List;
+         New_RHS_Item_List : in     Valid_Node_Index;
+         After             : in     Valid_Node_Index)
+      with Pre => RHS_List.List_ID = +rhs_list_ID and RHS_List.Element_ID = +rhs_ID and
+                  Tree.ID (New_RHS_Item_List) = +rhs_item_list_ID and
+                  Tree.ID (After) = +rhs_ID and RHS_List.Contains (After)
+      is begin
+         RHS_List.Insert
+           (New_Element => Tree.Add_Nonterm
+              (Production => (+rhs_ID, Tree.RHS_Index (After)),
+               Children =>
+                 (case Tree.RHS_Index (After) is
+                  when 1 => (1 => New_RHS_Item_List),
+                  when 2 => (New_RHS_Item_List, Tree.Copy_Subtree (Tree.Child (After, 2))),
+                  when 3 => (New_RHS_Item_List,
+                             Tree.Copy_Subtree (Tree.Child (After, 2)),
+                             Tree.Copy_Subtree (Tree.Child (After, 3))),
+                  when others => raise SAL.Programmer_Error)),
+            After => RHS_List.To_Cursor (After));
+      end Insert_RHS;
+
+      procedure Record_Copied_EBNF_Nodes (Node : in Valid_Node_Index)
       is
-         --  Tree is one of:
-         --
-         --  case a: first element, no prev
-         --  ?
-         --  | rhs_item_list
-         --  | | rhs_item: Element
-         --
-         --  case b: second element
-         --  ?
-         --  | rhs_item_list
-         --  | | rhs_item: prev item
-         --  | rhs_item: Element
-         --
-         --  case c: nth element
-         --  ?
-         --  | rhs_item_list
-         --  | | rhs_item_list
-         --  | | | rhs_item:
-         --  | | rhs_item: prev element
-         --  | rhs_item: Element
-
-         Parent : constant Valid_Node_Index := Tree.Parent (Element);
+         procedure Record_Copied_Node
+           (Tree : in out WisiToken.Syntax_Trees.Tree;
+            Node : in WisiToken.Valid_Node_Index)
+         is begin
+            if To_Token_Enum (Tree.ID (Node)) in
+              rhs_optional_item_ID |
+              rhs_multiple_item_ID |
+              rhs_group_item_ID |
+              rhs_attribute_ID |
+              STRING_LITERAL_2_ID
+            then
+               if Trace_Generate_EBNF > Outline then
+                  Ada.Text_IO.Put_Line
+                    ("new EBNF node " & Tree.Image
+                       (Node, Wisitoken_Grammar_Actions.Descriptor,
+                        Node_Numbers => True));
+               end if;
+               Copied_EBNF_Nodes.Append (Node);
+            end if;
+         end Record_Copied_Node;
       begin
-         if Element = Tree.Child (Parent, 1) then
-            --  No prev
-            return Invalid_Node_Index;
+         Tree.Process_Tree (Record_Copied_Node'Access, Node);
+      end Record_Copied_EBNF_Nodes;
 
-         else
-            declare
-               Prev_Children : constant Valid_Node_Index_Array := Tree.Children (Tree.Child (Parent, 1));
-            begin
-               return Prev_Children (Prev_Children'Last);
-            end;
-         end if;
-      end Prev_List_Element;
-
-      procedure Append_Element
-        (Tail_List    : in Valid_Node_Index;
-         New_Element  : in Valid_Node_Index;
-         Separator_ID : in WisiToken.Token_ID := Invalid_Token_ID)
+      procedure Erase_Deleted_EBNF_Nodes (Node : in Valid_Node_Index)
       is
-         --  Tail_List is preserved.
-
-         --  Current tree is one of:
-         --
-         --  case a:
-         --  rhs_list: Tail_List
-         --  | rhs: Orig_Element_1
-         --
-         --  case b:
-         --  rhs_list: Tail_List
-         --  | rhs_list: Orig_List_1
-         --  | | rhs: Orig_Element_1
-         --  | BAR
-         --  | rhs: Orig_Element_2
-
-         --  New tree:
-         --
-         --  case a:
-         --  rhs_list: keep Tail_List
-         --  | rhs_list: new
-         --  | | rhs: keep; Orig_Element_1
-         --  | BAR
-         --  | rhs: New_Element
-         --
-         --  case b:
-         --  rhs_list: keep Tail_List
-         --  | rhs_list: new;
-         --  | | rhs_list: keep Orig_List_1
-         --  | | | rhs: keep Orig_Element_1
-         --  | | BAR: keep
-         --  | | rhs: keep Orig_Element_2
-         --  | BAR: new
-         --  | rhs: New_Element
-
-         List_ID       : constant WisiToken.Token_ID     := Tree.ID (Tail_List);
-         Children      : constant Valid_Node_Index_Array := Tree.Children (Tail_List);
-         New_List_Item : constant Valid_Node_Index       := Tree.Add_Nonterm
-           ((List_ID, (if Children'Length = 1 then 0 else 1)), Children);
+         procedure Erase_Deleted_Node
+           (Tree : in out WisiToken.Syntax_Trees.Tree;
+            Node : in WisiToken.Valid_Node_Index)
+         is begin
+            if To_Token_Enum (Tree.ID (Node)) in
+              rhs_optional_item_ID |
+              rhs_multiple_item_ID |
+              rhs_group_item_ID |
+              rhs_attribute_ID |
+              STRING_LITERAL_2_ID
+            then
+               if Node in Data.EBNF_Nodes.First_Index .. Data.EBNF_Nodes.Last_Index then
+                  --  Node is original, not copied
+                  if Trace_Generate_EBNF > Outline then
+                     Ada.Text_IO.Put_Line ("erase original deleted EBNF node" & Node'Image);
+                  end if;
+                  Data.EBNF_Nodes (Node) := False;
+               else
+                  Erase_Copied_EBNF_Node (Node);
+               end if;
+            end if;
+         end Erase_Deleted_Node;
       begin
-         if Separator_ID = Invalid_Token_ID then
-            Tree.Set_Children (Tail_List, (List_ID, 1), (New_List_Item, New_Element));
-         else
-            Tree.Set_Children
-              (Tail_List, (List_ID, 1), (New_List_Item, Tree.Add_Terminal (Separator_ID), New_Element));
-         end if;
-      end Append_Element;
+         Tree.Process_Tree (Erase_Deleted_Node'Access, Node);
+      end Erase_Deleted_EBNF_Nodes;
 
-      procedure Insert_Optional_RHS (B : in Valid_Node_Index)
+      function Insert_Optional_RHS (B : in Valid_Node_Index) return Valid_Node_Index
       with Pre => Tree.ID (B) in +rhs_multiple_item_ID | +rhs_optional_item_ID | +IDENTIFIER_ID
       is
-         --  B is an optional item in an rhs_item_list :
-         --  | a b? c
-         --  | a b* c
+         --  B is an optional item in an rhs_item_list:
+         --  | A B? C
+         --
+         --  or B is a rhs_multiple_item that is allowed to be empty:
+         --  | A B* C
          --
          --  or B is a virtual identifier naming the new nonterm replacing the
-         --  original.
+         --  original
          --
-         --  where a, c can be empty. Insert a second rhs_item_list without B.
+         --  A, C can be empty. The containing element may be rhs or
+         --  rhs_alternative_list.
          --
-         --  The containing elment may be rhs or rhs_alternative_list
+         --  Insert either a second rhs, or a second rhs_item_list, after the
+         --  one containing B, without B.
+         --
+         --  Return the List_Root of the edited list.
 
-         Container                 : constant Valid_Node_Index := Tree.Find_Ancestor
-           (B, (+rhs_ID, +rhs_alternative_list_ID));
-         Orig_RHS_Element_C_Head   : constant Node_Index       := Next_List_Element
-           (Tree.Parent (B, 2), +rhs_item_list_ID);
-         Orig_RHS_Item_List_C_Root : constant Valid_Node_Index := List_Root (Tree.Parent (B, 3));
-         Orig_RHS_Item_List_A_Root : constant Valid_Node_Index := Tree.Child (Tree.Parent (B, 3), 1);
-         Orig_RHS_Element_A_Head   : constant Node_Index       :=
-           (if Orig_RHS_Item_List_A_Root = Tree.Parent (B, 2)
-            then Invalid_Node_Index -- a is empty
-            else First_List_Element (Orig_RHS_Item_List_A_Root, +rhs_element_ID));
-         Container_List            : constant Valid_Node_Index :=
-           (if Tree.ID (Container) = +rhs_ID then Tree.Parent (Container) else Container);
-         New_RHS_Item_List_A       : Node_Index                := Invalid_Node_Index;
-         New_RHS_Item_List_C       : Node_Index                := Invalid_Node_Index;
-         New_RHS_AC                : Valid_Node_Index;
+         use Syntax_Trees.LR_Utils;
+         use Syntax_Trees.LR_Utils.Creators;
+         use all type Ada.Containers.Count_Type;
 
-         function Add_Actions (RHS_Item_List : Valid_Node_Index) return Valid_Node_Index
-         with Pre => Tree.ID (Container) = +rhs_ID
+         function Find_Skips return Skip_Info
          is
-            Orig_RHS_Children : constant Valid_Node_Index_Array := Tree.Children (Container);
+            Non_Empty_List : Node_Index := Invalid_Node_Index;
+            --  First (nearest) rhs_item_list ancestor of B that will not be empty
+            --  when B is skipped.
+
+            Skip_Last        : Positive_Index_Type'Base := Positive_Index_Type'First;
+            Last_Skip_Node   : Valid_Node_Index         := Tree.Find_Ancestor (B, +rhs_element_ID);
+            Reset_Search_For : WisiToken.Token_ID       := +rhs_item_list_ID;
+
+            procedure Search (Result : in out Skip_Info)
+            is
+               Skip_Node  : Valid_Node_Index   := Last_Skip_Node;
+               Search_For : WisiToken.Token_ID := Reset_Search_For;
+            begin
+               loop
+                  case To_Token_Enum (Search_For) is
+                  when rhs_item_list_ID =>
+                     Skip_Node := Tree.Find_Ancestor (Skip_Node, +rhs_item_list_ID);
+
+                     Skip_Node := List_Root (Tree, Skip_Node, +rhs_item_list_ID);
+
+                     Search_For := +rhs_element_ID;
+
+                     if Result.Skips'Length = 0 then
+                        declare
+                           List_Count : constant Ada.Containers.Count_Type := Create_List
+                             (Tree, Skip_Node, +rhs_item_list_ID, +rhs_element_ID).Count;
+                        begin
+                           if List_Count > 1 then
+                              Non_Empty_List := List_Root (Tree, Skip_Node, +rhs_item_list_ID);
+                              exit;
+
+                           elsif Skip_Last = Positive_Index_Type'First and List_Count = 1 then
+                              --  This list will be empty; no need to descend into it
+                              Last_Skip_Node   := Skip_Node;
+                              Reset_Search_For := Search_For;
+                           else
+                              Skip_Last := Skip_Last + 1;
+                           end if;
+                        end;
+                     else
+                        Result.Skips (Skip_Last) :=
+                          (Label             => Nested,
+                           Element           => Skip_Node,
+                           List_Root         => Skip_Node,
+                           List_ID           => +rhs_item_list_ID,
+                           Element_ID        => +rhs_element_ID,
+                           Separator_ID      => Invalid_Token_ID,
+                           Multi_Element_RHS => 1);
+
+                        Skip_Last := Skip_Last - 1;
+                     end if;
+
+                  when rhs_element_ID =>
+                     declare
+                        List_Node : Valid_Node_Index := Tree.Find_Ancestor
+                          (Skip_Node, (+rhs_ID, +rhs_alternative_list_ID));
+                     begin
+
+                        if Result.Skips'Length = 0 and then
+                          Tree.ID (List_Node) = +rhs_ID
+                        then
+                           Non_Empty_List := List_Root (Tree, Skip_Node, +rhs_item_list_ID);
+                           Skip_Last      := Skip_Last - 1;
+                           exit;
+                        end if;
+
+                        List_Node := List_Root (Tree, List_Node, +rhs_alternative_list_ID);
+                        Skip_Node := Tree.Find_Ancestor (Skip_Node, +rhs_element_ID);
+
+                        Search_For := +rhs_item_list_ID;
+
+                        if Result.Skips'Length = 0 then
+                           if Skip_Last = Positive_Index_Type'First then
+                              --  This list will be empty; no need to descend into it
+                              Last_Skip_Node   := Skip_Node;
+                              Reset_Search_For := Search_For;
+                           else
+                              Skip_Last := Skip_Last + 1;
+                           end if;
+                        else
+                           Result.Skips (Skip_Last) :=
+                             (Label             => Nested,
+                              Element           => Skip_Node,
+                              List_Root         => List_Node,
+                              List_ID           => +rhs_alternative_list_ID,
+                              Element_ID        => +rhs_item_list_ID,
+                              Separator_ID      => +BAR_ID,
+                              Multi_Element_RHS => 1);
+
+                           Skip_Last := Skip_Last - 1;
+                        end if;
+                     end;
+                  when others =>
+                     raise SAL.Programmer_Error;
+                  end case;
+
+               end loop;
+            end Search;
+
+            Result_1 : Skip_Info (Skip_Last => Positive_Index_Type'First - 1);
          begin
-            case Tree.RHS_Index (Container) is
-            when 1 =>
-               return Tree.Add_Nonterm ((+rhs_ID, 1), (1 => RHS_Item_List));
+            --  First count the number of Skip_Items we need, and set
+            --  Non_Empty_List.
+            Search (Result_1);
 
-            when 2   =>
-               return Tree.Add_Nonterm
-                 ((+rhs_ID, 2),
-                  (1 => RHS_Item_List,
-                   2 => Tree.Add_Terminal
-                     (Tree.First_Shared_Terminal (Orig_RHS_Children (2)),
-                      Data.Terminals.all)));
+            declare
+               Result : Skip_Info (Skip_Last);
+            begin
+               if Result.Skips'Length = 0 then
+                  return Result;
+               end if;
 
-            when 3   =>
-               return Tree.Add_Nonterm
-                 ((+rhs_ID, 3),
-                  (1 => RHS_Item_List,
-                   2 => Tree.Add_Terminal
-                     (Tree.First_Shared_Terminal (Orig_RHS_Children (2)),
-                      Data.Terminals.all),
-                   3 => Tree.Add_Terminal
-                     (Tree.First_Shared_Terminal (Orig_RHS_Children (3)),
-                      Data.Terminals.all)));
+               Result.Start_List_Root  := Non_Empty_List;
+               Result.Start_List_ID    := +rhs_item_list_ID;
+               Result.Start_Element_ID := +rhs_element_ID;
 
-            when others =>
-               Raise_Programmer_Error
-                 ("translate_ebnf_to_bnf insert_optional_rhs unimplemented RHS", Data, Tree, Container);
-            end case;
-         end Add_Actions;
+               Result.Start_Separator_ID      := Invalid_Token_ID;
+               Result.Start_Multi_Element_RHS := 1;
+
+               Result.Skips (Skip_Last) := (Skip, Last_Skip_Node);
+
+               if Result.Skips'Length = 1 then
+                  return Result;
+               end if;
+
+               Search (Result);
+               return Result;
+            end;
+         end Find_Skips;
+
+         Container : Valid_Node_Index := Tree.Find_Ancestor (B, (+rhs_ID, +rhs_alternative_list_ID));
+         Container_ID : WisiToken.Token_ID := Tree.ID (Container);
+
+         Container_List : Syntax_Trees.LR_Utils.List :=
+           (if Container_ID = +rhs_ID
+            then Create_From_Element
+              (Tree,
+               Element      => Container,
+               List_ID      => +rhs_list_ID,
+               Element_ID   => +rhs_ID,
+               Separator_ID => +BAR_ID)
+            else Create_List
+              (Tree,
+               Root         => List_Root (Tree, Container, +rhs_alternative_list_ID),
+               List_ID      => +rhs_alternative_list_ID,
+               Element_ID   => +rhs_item_list_ID,
+               Separator_ID => +BAR_ID));
+
       begin
-         if Orig_RHS_Element_A_Head /= Invalid_Node_Index then
-            --  a is not empty
-            New_RHS_Item_List_A := Tree.Copy_Subtree
-              (Last => Orig_RHS_Element_A_Head,
-               Root => Orig_RHS_Item_List_A_Root);
-
-            if Trace_Generate_EBNF > Extra then
-               Ada.Text_IO.New_Line;
-               Ada.Text_IO.Put_Line ("new a:");
-               Tree.Print_Tree (Wisitoken_Grammar_Actions.Descriptor, New_RHS_Item_List_A);
-            end if;
-         end if;
-
-         if Orig_RHS_Element_C_Head /= Invalid_Node_Index then
-            --  c is not empty
-            New_RHS_Item_List_C := Tree.Copy_Subtree
-              (Last => Orig_RHS_Element_C_Head,
-               Root => Orig_RHS_Item_List_C_Root);
-
-            if Trace_Generate_EBNF > Extra then
-               Ada.Text_IO.New_Line;
-               Ada.Text_IO.Put_Line ("new c:");
-               Tree.Print_Tree (Wisitoken_Grammar_Actions.Descriptor, New_RHS_Item_List_C);
-            end if;
-         end if;
-
-         if New_RHS_Item_List_C = Invalid_Node_Index then
-            if New_RHS_Item_List_A = Invalid_Node_Index then
-               --  a c is empty; there cannot be any actions.
-               New_RHS_AC :=
-                 (if Tree.ID (Container) = +rhs_ID
-                  then Tree.Add_Nonterm ((+rhs_ID, 0), (1 .. 0 => Invalid_Node_Index))
-                  else
-                     --  rhs_alternative_list_ID
-                     --  The grammar does not allow an empty alternative in an
-                     --  rhs_alterntive_list; this will be fixed when it is converted to an
-                     --  rhs_list.
-                     Tree.Add_Nonterm ((+rhs_item_list_ID, 0), (1 .. 0 => Invalid_Node_Index)));
-            else
-               --  c is empty
-               New_RHS_AC :=
-                 (if Tree.ID (Container) = +rhs_ID
-                  then Add_Actions (New_RHS_Item_List_A)
-                  else New_RHS_Item_List_A);
-            end if;
-         else
-            --  c is not empty
-            if New_RHS_Item_List_A = Invalid_Node_Index then
-               --  a is empty
-               New_RHS_AC :=
-                 (if Tree.ID (Container) = +rhs_ID
-                  then Add_Actions (New_RHS_Item_List_C)
-                  else New_RHS_Item_List_C);
-            else
-               declare
-                  Tail_Element_A : constant Valid_Node_Index := Last_List_Element (New_RHS_Item_List_A);
-                  Head_Element_B : constant Valid_Node_Index := First_List_Element
-                    (New_RHS_Item_List_C, +rhs_element_ID);
-               begin
-                  Tree.Set_Children
-                    (Tree.Parent (Head_Element_B),
-                     (+rhs_item_list_ID, 1),
-                     (Tree.Parent (Tail_Element_A), Head_Element_B));
-               end;
-
-               New_RHS_AC :=
-                 (if Tree.ID (Container) = +rhs_ID
-                  then Add_Actions (New_RHS_Item_List_C)
-                  else New_RHS_Item_List_C);
-            end if;
-         end if;
-
          if Trace_Generate_EBNF > Extra then
             Ada.Text_IO.New_Line;
-            Ada.Text_IO.Put_Line ("new ac:");
-            Tree.Print_Tree (Wisitoken_Grammar_Actions.Descriptor, New_RHS_AC);
+            Ada.Text_IO.Put_Line ("Insert_Optional_RHS start:");
+            Tree.Print_Tree (Wisitoken_Grammar_Actions.Descriptor, Container);
          end if;
 
-         --  Record copied EBNF nodes
          declare
-            procedure Record_Copied_Node
-              (Tree : in out WisiToken.Syntax_Trees.Tree;
-               Node : in WisiToken.Valid_Node_Index)
-            is begin
-               if To_Token_Enum (Tree.ID (Node)) in
-                 rhs_optional_item_ID |
-                 rhs_multiple_item_ID |
-                 rhs_group_item_ID |
-                 rhs_attribute_ID |
-                 STRING_LITERAL_2_ID
-               then
-                  Copied_EBNF_Nodes.Append (Node);
-               end if;
-            end Record_Copied_Node;
-         begin
-            Tree.Process_Tree (Record_Copied_Node'Access, New_RHS_AC);
-         end;
+            Skip_List : constant Skip_Info := Find_Skips;
 
-         Append_Element (Container_List, New_RHS_AC, +BAR_ID);
+            New_RHS_AC   : Node_Index := Invalid_Node_Index;
+            Is_Duplicate : Boolean    := False;
+         begin
+            if WisiToken.Trace_Generate_EBNF > Extra then
+               Ada.Text_IO.New_Line;
+               Ada.Text_IO.Put_Line ("skip: " & Image (Skip_List, Wisitoken_Grammar_Actions.Descriptor));
+            end if;
+
+            if Skip_List.Skips'Length = 0 or else
+              +rhs_ID = Tree.ID (Tree.Parent (Skip_List.Start_List_Root))
+            then
+               --  Insert an edited rhs into the rhs_list.
+               --
+               --  We can't insert an empty rhs_item_list into an
+               --  rhs_alterative_list, so we insert an empty rhs.
+
+               if Container_ID = +rhs_alternative_list_ID then
+
+                  Container := Tree.Find_Ancestor (B, +rhs_ID);
+
+                  Container_ID := +rhs_ID;
+
+                  Container_List := Create_From_Element
+                    (Tree,
+                     Element      => Container,
+                     List_ID      => +rhs_list_ID,
+                     Element_ID   => +rhs_ID,
+                     Separator_ID => +BAR_ID);
+               end if;
+
+               if Skip_List.Skips'Length = 0 then
+                  --  New rhs is empty; no rhs_item_list
+                  null;
+               else
+                  New_RHS_AC := Copy_Skip_Nested (Skip_List, Tree);
+               end if;
+
+               if Duplicate (Container_List, New_RHS_AC) then
+                  Is_Duplicate := True;
+               else
+                  if Skip_List.Skips'Length = 0 then
+                     Insert_Empty_RHS (Container_List, Container);
+                  else
+                     Insert_RHS (Container_List, New_RHS_AC, After => Container);
+                  end if;
+               end if;
+
+            else
+               --  Insert an edited rhs_item_list into an rhs_alternative_list
+
+               New_RHS_AC := Copy_Skip_Nested (Skip_List, Tree);
+
+               if Duplicate (Container_List, New_RHS_AC) then
+                  --  IMPROVEME: check for duplicate before do copy; requires version of
+                  --  Get_Text that understands Skip_Info
+                  Is_Duplicate := True;
+               else
+                  declare
+                     After : Valid_Node_Index := B;
+                  begin
+                     loop
+                        After := List_Root (Tree, Tree.Find_Ancestor (After, +rhs_item_list_ID), +rhs_item_list_ID);
+                        exit when Container_List.Contains (After);
+                     end loop;
+
+                     Container_List.Insert
+                       (New_Element => New_RHS_AC,
+                        After       => Container_List.To_Cursor (After));
+                  end;
+               end if;
+            end if;
+
+            if Trace_Generate_EBNF > Detail then
+               Ada.Text_IO.New_Line;
+               if Is_Duplicate then
+                  Ada.Text_IO.Put_Line ("Insert_Optional_RHS duplicate '" & Get_Text (Data, Tree, New_RHS_AC) & "'");
+               else
+                  if Container_ID = +rhs_ID then
+                     Ada.Text_IO.Put_Line ("Insert_Optional_RHS old rhs, new rhs:");
+                     Tree.Print_Tree (Wisitoken_Grammar_Actions.Descriptor, Container_List.Root);
+                  else
+                     Ada.Text_IO.Put_Line ("Insert_Optional_RHS edited rhs_alternative_list:");
+                     Tree.Print_Tree (Wisitoken_Grammar_Actions.Descriptor, Tree.Parent (Container_List.Root, 1));
+                  end if;
+               end if;
+            end if;
+
+            if not (Skip_List.Skips'Length = 0 or Is_Duplicate) then
+               Record_Copied_EBNF_Nodes (New_RHS_AC);
+            end if;
+         end;
+         return Container_List.Root;
       end Insert_Optional_RHS;
 
-      Compilation_Unit_List_Tail : constant Valid_Node_Index := Tree.Child (Tree.Root, 1);
-
-      procedure Add_Compilation_Unit (Unit : in Valid_Node_Index; Prepend : in Boolean := False)
+      procedure Add_Compilation_Unit (Label : in String; Unit : in Valid_Node_Index; Prepend : in Boolean := False)
       with Pre => Tree.ID (Unit) in +declaration_ID | +nonterminal_ID
       is
+         use WisiToken.Syntax_Trees.LR_Utils;
+
+         List : Syntax_Trees.LR_Utils.List := Creators.Create_List
+           (Tree, Tree.Child (Tree.Root, 1), +compilation_unit_list_ID, +compilation_unit_ID, Invalid_Token_ID);
+
          Comp_Unit : constant Valid_Node_Index := Tree.Add_Nonterm
            ((+compilation_unit_ID, (if Tree.ID (Unit) = +declaration_ID then 0 else 1)),
             (1 => Unit));
+
+         function Equal
+           (Target    : in String;
+            List      : in LR_Utils.Constant_List'Class;
+            Comp_Unit : in Valid_Node_Index)
+           return Boolean
+         is
+            pragma Unreferenced (List);
+            Decl : constant Valid_Node_Index := Tree.Child (Comp_Unit, 1);
+         begin
+            return Tree.ID (Decl) = +declaration_ID and then Target =
+              (case Tree.RHS_Index (Decl) is
+               when 0      => Get_Text (Data, Tree, Tree.Child (Decl, 3)),
+               when 2 | 3  => Get_Text (Data, Tree, Tree.Child (Decl, 2)),
+               when others => "");
+         end Equal;
+
       begin
          if Prepend then
-            Append_Element
-              (Tree.Parent (First_List_Element (Compilation_Unit_List_Tail, +compilation_unit_ID)), Comp_Unit);
+            --  Prepend is true for keywords, which must be declared before they
+            --  are used. We put them all after the %meta_syntax declaration, to
+            --  closer match the likely original EBNF layout.
+            declare
+               Meta_Syntax : constant Cursor := List.Find ("meta_syntax", Equal'Unrestricted_Access);
+            begin
+               List.Insert (Comp_Unit, After => Meta_Syntax);
+            end;
          else
-            Append_Element (Compilation_Unit_List_Tail, Comp_Unit);
+            List.Append (Comp_Unit);
          end if;
 
          if Trace_Generate_EBNF > Extra then
             Ada.Text_IO.New_Line;
-            Ada.Text_IO.Put_Line ("new comp_unit:");
-            Tree.Print_Tree (Wisitoken_Grammar_Actions.Descriptor, Unit);
+            Ada.Text_IO.Put_Line ("new " & Label & ":" & Comp_Unit'Image & ": '" & Get_Text (Data, Tree, Unit) & "'");
          end if;
       end Add_Compilation_Unit;
 
@@ -1388,7 +1507,7 @@ package body WisiToken_Grammar_Runtime is
             --  | rhs: new
             --  | | rhs_item_list: keep Node,Child (3)
 
-            if Tree.Is_Empty (Tree.Child (Node, 3)) then
+            if not Tree.Has_Children (Tree.Child (Node, 3)) then
                --  Convert empty rhs_item_list to empty rhs
                Tree.Set_Children
                  (Tree.Child (Node, 3),
@@ -1412,7 +1531,6 @@ package body WisiToken_Grammar_Runtime is
                       (1 => Tree.Child (Node, 3)))));
             end if;
 
-            Clear_EBNF_Node (Node);
             Node := Tree.Child (Node, 1);
          end loop;
 
@@ -1430,30 +1548,33 @@ package body WisiToken_Grammar_Runtime is
             (+rhs_list_ID, 0),
             (1 => Tree.Add_Nonterm ((+rhs_ID, 1), (1 => Tree.Child (Node, 1)))));
 
-         Clear_EBNF_Node (Content);
          return Content;
       end Convert_RHS_Alternative;
 
       procedure New_Nonterminal
-        (New_Identifier : in Identifier_Index;
+        (Label          : in String;
+         New_Identifier : in Identifier_Index;
          Content        : in Valid_Node_Index)
       with Pre => To_Token_Enum (Tree.ID (Content)) in rhs_alternative_list_ID | rhs_element_ID
       is
          --  Convert subtree rooted at Content to an rhs_list contained by a new nonterminal
          --  named New_Identifier.
-         New_Nonterm : constant Valid_Node_Index := Tree_Add_Nonterminal
-           (Child_1   => Tree.Add_Identifier (+IDENTIFIER_ID, New_Identifier, Tree.Byte_Region (Content)),
-            Child_2   => Tree.Add_Terminal (+COLON_ID),
-            Child_3   =>
-              (case To_Token_Enum (Tree.ID (Content)) is
-               when rhs_element_ID          => To_RHS_List (Content),
-               when rhs_alternative_list_ID => Convert_RHS_Alternative (Content),
-               when others => raise SAL.Programmer_Error),
-            Child_4   => Tree.Add_Nonterm
-              ((+semicolon_opt_ID, 0),
-               (1     => Tree.Add_Terminal (+SEMICOLON_ID))));
       begin
-         Add_Compilation_Unit (New_Nonterm);
+         declare
+            New_Nonterm : constant Valid_Node_Index := Tree_Add_Nonterminal
+              (Child_1   => Tree.Add_Identifier (+IDENTIFIER_ID, New_Identifier, Tree.Byte_Region (Content)),
+               Child_2   => Tree.Add_Terminal (+COLON_ID),
+               Child_3   =>
+                 (case To_Token_Enum (Tree.ID (Content)) is
+                  when rhs_element_ID          => To_RHS_List (Content),
+                  when rhs_alternative_list_ID => Convert_RHS_Alternative (Content),
+                  when others => raise SAL.Programmer_Error),
+               Child_4   => Tree.Add_Nonterm
+                 ((+semicolon_opt_ID, 0),
+                  (1     => Tree.Add_Terminal (+SEMICOLON_ID))));
+         begin
+            Add_Compilation_Unit (Label & New_Identifier'Image, New_Nonterm);
+         end;
       end New_Nonterminal;
 
       procedure New_Nonterminal_List_1
@@ -1516,7 +1637,7 @@ package body WisiToken_Grammar_Runtime is
               ((+semicolon_opt_ID, 0),
                (1     => Tree.Add_Terminal (+SEMICOLON_ID))));
       begin
-         Add_Compilation_Unit (List_Nonterminal);
+         Add_Compilation_Unit ("canonical list" & List_Nonterm'Image, List_Nonterminal);
       end New_Nonterminal_List_1;
 
       procedure New_Nonterminal_List
@@ -1569,13 +1690,833 @@ package body WisiToken_Grammar_Runtime is
          end if;
       end Copy_Non_Grammar;
 
-      procedure Process_Node (Node : in Valid_Node_Index)
-      is begin
-         if Trace_Generate_EBNF > Detail then
-            Ada.Text_IO.New_Line;
-            Ada.Text_IO.Put_Line ("translate node" & Node_Index'Image (Node));
+      procedure Translate_RHS_Group_Item (Node : in Valid_Node_Index)
+      is
+         --  Current tree:
+         --
+         --  rhs_element: Parent (Node, 2)
+         --  | rhs_item: Parent (Node, 1)
+         --  | | rhs_group_item: Node
+         --  | | | LEFT_PAREN
+         --  | | | rhs_alternative_list: Child (Node, 2)
+         --  | | | RIGHT_PAREN
+
+         use Syntax_Trees.LR_Utils;
+
+         Element_Content  : constant String           := Get_Text (Data, Tree, Tree.Child (Node, 2));
+         Right_Paren_Node : constant Valid_Node_Index := Tree.Child (Node, 3);
+         List             : constant Constant_List    := Creators.Create_List
+           (Tree, Tree.Child (Tree.Root, 1), +compilation_unit_list_ID, +compilation_unit_ID);
+         Name_Node        : Node_Index;
+         New_Ident        : Base_Identifier_Index     := Invalid_Identifier_Index;
+      begin
+         --  See if there's an existing nonterminal for this content.
+         for N of List loop
+
+            if Tree.Production_ID (Tree.Child (N, 1)) = (+nonterminal_ID, 0) then
+               --  Target nonterm is:
+               --
+               --  (compilation_unit_1, (111 . 128))
+               --  | (nonterminal_0, (111 . 128))
+               --  | |  7;(IDENTIFIER, (111 . 128))
+               --  | | (COLON)
+               --  | | (rhs_list_1, (111 . 128))
+               --  | | | ...
+               declare
+                  RHS_List_1 : constant Node_Index := Tree.Child (Tree.Child (N, 1), 3);
+               begin
+                  if RHS_List_1 /= Invalid_Node_Index and then
+                    Element_Content = Get_Text (Data, Tree, RHS_List_1)
+                  then
+                     Name_Node := Tree.Child (Tree.Child (N, 1), 1);
+                     case Tree.Label (Name_Node) is
+                     when Shared_Terminal =>
+                        New_Ident := New_Identifier (Get_Text (Data, Tree, Name_Node));
+                     when Virtual_Identifier =>
+                        New_Ident := Tree.Identifier (Name_Node);
+                     when others =>
+                        Raise_Programmer_Error ("process_node rhs_group_item", Data, Tree, Name_Node);
+                     end case;
+
+                     exit;
+                  end if;
+               end;
+            end if;
+         end loop;
+
+         if New_Ident = Invalid_Identifier_Index then
+            New_Ident := Next_Nonterm_Name;
+            New_Nonterminal ("group item", New_Ident, Tree.Child (Node, 2));
+         else
+            Erase_Deleted_EBNF_Nodes (Tree.Child (Node, 2));
          end if;
 
+         Tree.Set_Node_Identifier (Node, +IDENTIFIER_ID, New_Ident);
+         Copy_Non_Grammar (Right_Paren_Node, Node);
+         Tree.Set_Children (Tree.Parent (Node), (+rhs_item_ID, 0), (1 => Node));
+         Clear_EBNF_Node (Node);
+      end Translate_RHS_Group_Item;
+
+      procedure Translate_RHS_Multiple_Item (Node : in Valid_Node_Index)
+      is
+         --  We have one of:
+         --
+         --  | a { b }  c
+         --  | a { b } - c
+         --  | a ( b ) + c
+         --  | a ( b ) * c
+         --  | a b+ c
+         --  | a b* c
+         --
+         --  where a and/or c can be empty. Replace it with a new canonical
+         --  list nonterminal:
+         --
+         --  nonterminal_nnn_list
+         --  : b
+         --  | nonterminal_nnn_list b
+         --
+         --  and a second RHS if it can be empty:
+         --  | a c
+
+         --  Current tree:
+         --
+         --  rhs_element : Parent (Node, 2)
+         --  | rhs_item: Parent (Node, 1)
+         --  | | rhs_multiple_item: Node
+         --  | | | LEFT_BRACE | LEFT_PAREN
+         --  | | | rhs_alternative_list
+         --  | | | ...
+         --  | | | RIGHT_BRACE | RIGHT_PAREN
+         --  | | | [MINUS | PLUS | STAR]
+
+         --  or:
+         --
+         --  rhs_element : Parent (Node, 2)
+         --  | rhs_item: Parent (Node, 1)
+         --  | | rhs_multiple_item: Node
+         --  | | | IDENTIFIER
+         --  | | | PLUS | STAR
+
+         Done                       : Boolean                   := False;
+         Parent_RHS_Item            : constant Valid_Node_Index := Tree.Parent (Node);
+         List_Nonterm_Virtual_Name  : Base_Identifier_Index     := Invalid_Identifier_Index;
+         List_Nonterm_Terminal_Name : Base_Token_Index          := Invalid_Token_Index;
+
+         procedure Check_Canonical_List
+         is
+            --  In EBNF, a canonical list with a separator looks like:
+            --
+            --  enumConstants : enumConstant (',' enumConstant)* ;
+            --
+            --  or, with no separator:
+            --
+            --  SwitchLabels : SwitchLabel {SwitchLabel} ;
+            --
+            --  where Node is the rhs_multiple_item containing "(','
+            --  enumConstant)*" or "{SwitchLabel}".
+            --
+            --  The tokens may have labels.
+            --
+            --  Handling these cases specially eliminates a conflict between
+            --  reducing to enumConstants and reducing to the introduced nonterm
+            --  list.
+            --
+            --  Alternately, the no separator case can be:
+            --
+            --  enumConstants : enumConstant+ ;
+            --
+            --  Handling this no separator case specially would not eliminate any conflicts.
+
+            use Syntax_Trees.LR_Utils;
+            use Syntax_Trees.LR_Utils.Creators;
+            use all type Ada.Containers.Count_Type;
+
+            List_Name_Node : constant Valid_Node_Index := Tree.Find_Ancestor (Node, +nonterminal_ID);
+            RHS_List_Root  : constant Valid_Node_Index := Tree.Child (List_Name_Node, 3);
+
+            RHS_2 : constant Valid_Node_Index := Tree.Find_Ancestor
+              (Node, (+rhs_ID, +rhs_alternative_list_ID));
+            --  If rhs_ID, the RHS containing the canonical list candidate.
+            --  If rhs_alternative_list_ID, not useful (FIXME: actually a canonical list candidate)
+
+            RHS_2_Item_List_List : constant Constant_List :=
+              (if Tree.ID (RHS_2) = +rhs_ID
+               then Create_List (Tree, Tree.Child (RHS_2, 1), +rhs_item_list_ID, +rhs_element_ID)
+               else Invalid_List (Tree));
+
+            Alt_List_List : constant Constant_List :=
+              (case Tree.RHS_Index (Node) is
+               when 0 | 3 =>
+                  Create_List (Tree, Tree.Child (Node, 2), +rhs_alternative_list_ID, +rhs_item_list_ID),
+               when others => Invalid_List (Tree));
+            --  Iterator on the rhs_alternative_list of the rhs_multiple_item.
+
+            Alt_List_Item_List : constant Constant_List :=
+              (if Alt_List_List.Is_Invalid
+               then Invalid_List (Tree)
+               else Create_List (Tree, Get_Node (Alt_List_List.First), +rhs_item_list_ID, +rhs_element_ID));
+            --  Iterator on the content of the rhs_multiple_item. Note that we
+            --  don't support a non-empty multiple_item; a canonical list can be
+            --  empty.
+
+            RHS_2_Item_List_Iter : constant Constant_Iterator := RHS_2_Item_List_List.Iterate_Constant;
+
+            Element_2 : constant Cursor :=
+              (if Is_Invalid (RHS_2_Item_List_List)
+               then No_Element
+               else RHS_2_Item_List_List.To_Cursor (Tree.Parent (Node, 2)));
+            --  The rhs_element containing the rhs_multiple_item
+
+            Element_1 : constant Node_Index :=
+              (if Is_Invalid (RHS_2_Item_List_List)
+               then Invalid_Node_Index
+               else Get_Node (RHS_2_Item_List_Iter.Previous (Element_2)));
+            --  The list element
+         begin
+            if Tree.ID (RHS_2) = +rhs_alternative_list_ID or else
+              Create_List (Tree, RHS_List_Root, +rhs_list_ID, +rhs_ID).Count /= 1
+            then
+               --  Something else going on
+               return;
+            end if;
+            pragma Assert (Tree.ID (RHS_2) = +rhs_ID);
+
+            if RHS_2_Item_List_List.Count = 2 and then
+              (Tree.RHS_Index (Node) in 4 .. 5 or else
+                 Alt_List_Item_List.Count in 1 .. 2)
+            then
+               null;
+            else
+               return;
+            end if;
+
+            if Element_1 = Invalid_Node_Index or else
+              Get_Text (Data, Tree, Tree.Find_Descendant (Element_1, +rhs_item_ID)) /=
+              Get_Text (Data, Tree, Tree.Find_Descendant (Get_Node (Alt_List_Item_List.Last), +rhs_item_ID))
+            then
+               return;
+            end if;
+
+            if Trace_Generate_EBNF > Detail then
+               Ada.Text_IO.Put_Line ("canonical list");
+            end if;
+
+            --  We have a canonical list declaration. Rewrite it to:
+            --
+            --  with separator:
+            --  rhs_list: keep
+            --  | rhs_list:
+            --  | | rhs: new, RHS_1
+            --  | | | rhs_item_list: new, RHS_Item_List_1
+            --  | | | | rhs_element: keep, Element_1
+            --  | | | | | rhs_item: keep
+            --  | | | | | | IDENTIFIER: keep; element name
+            --  | BAR: new
+            --  | rhs: keep, RHS_2
+            --  | | rhs_item_list: new, RHS_Item_List_2
+            --  | | | rhs_item_list: keep, rhs_item_list_3
+            --  | | | | rhs_item_list: keep, rhs_item_list_4
+            --  | | | | | rhs_element: new
+            --  | | | | | | rhs_item: new
+            --  | | | | | | | IDENTIFIER: new, list name
+            --  | | | | rhs_element: keep
+            --  | | | | | rhs_item: keep
+            --  | | | | | | IDENTIFIER: keep, separator
+            --  | | | rhs_element: keep, alt_list_elements (last)
+            --  | | | | rhs_item: keep
+            --  | | | | | IDENTIFIER: keep, element name
+            --
+            --  no separator:
+            --  rhs_list: keep
+            --  | rhs_list:
+            --  | | rhs: new, RHS_1
+            --  | | | rhs_item_list: new, RHS_Item_List_1
+            --  | | | | rhs_element: keep, Element_1
+            --  | | | | | rhs_item: keep
+            --  | | | | | | IDENTIFIER: keep; element name
+            --  | BAR: new
+            --  | rhs: keep, RHS_2
+            --  | | rhs_item_list: keep, rhs_item_list_3
+            --  | | | rhs_item_list: new, rhs_item_list_4
+            --  | | | | rhs_element: new
+            --  | | | | | rhs_item: new
+            --  | | | | | | IDENTIFIER: new, list name
+            --  | | | rhs_element: keep, alt_list_elements (last)
+            --  | | | | rhs_item: keep
+            --  | | | | | IDENTIFIER: keep, element name
+
+            declare
+               List_Name_Tok    : constant Token_Index      := Tree.First_Shared_Terminal (List_Name_Node);
+               List_Name_Region : constant Buffer_Region    := Data.Terminals.all (List_Name_Tok).Byte_Region;
+               List_Name        : constant String           := Data.Grammar_Lexer.Buffer_Text (List_Name_Region);
+
+               RHS_2_Index    : constant Integer       := Tree.RHS_Index (RHS_2);
+               RHS_2_Children : Valid_Node_Index_Array := Tree.Children (RHS_2);
+
+               RHS_1_Item_List    : constant Valid_Node_Index := Tree.Add_Nonterm
+                 ((+rhs_item_list_ID, 0), (1 => Element_1));
+
+               RHS_1_Action : constant Node_Index :=
+                 (case RHS_2_Index is
+                  when 2 | 3 => Tree.Add_Terminal
+                    (Tree.First_Shared_Terminal (RHS_2_Children (2)), Data.Terminals.all),
+                  when others => Invalid_Node_Index);
+
+               RHS_1_Check : constant Node_Index :=
+                 (case RHS_2_Index is
+                  when 3 => Tree.Add_Terminal
+                    (Tree.First_Shared_Terminal (RHS_2_Children (3)), Data.Terminals.all),
+                  when others => Invalid_Node_Index);
+
+               RHS_1              : constant Valid_Node_Index :=
+                 (case RHS_2_Index is
+                  when 1 => Tree.Add_Nonterm ((+rhs_ID, 1), (1 => RHS_1_Item_List)),
+                  when 2 => Tree.Add_Nonterm ((+rhs_ID, 2), (1 => RHS_1_Item_List, 2 => RHS_1_Action)),
+                  when 3 => Tree.Add_Nonterm
+                    ((+rhs_ID, 3), (1 => RHS_1_Item_List, 2 => RHS_1_Action, 3 => RHS_1_Check)),
+                  when others => raise SAL.Programmer_Error);
+
+               Bar                   : constant Valid_Node_Index := Tree.Add_Terminal (+BAR_ID);
+               RHS_Item_List_3       : constant Valid_Node_Index := Tree.Child (RHS_2, 1);
+               RHS_Item_List_4       : constant Valid_Node_Index := Tree.Child (RHS_Item_List_3, 1);
+               New_List_Name_Term    : constant Valid_Node_Index := Tree.Add_Terminal
+                 (List_Name_Tok, Data.Terminals.all);
+               New_List_Name_Item    : constant Valid_Node_Index := Tree.Add_Nonterm
+                 ((+rhs_item_ID, 0),
+                  (1      => New_List_Name_Term));
+
+               New_List_Name_Label : constant Node_Index :=
+                 (if Tree.RHS_Index (Element_1) = 1
+                  then --  tokens have labels
+                     Tree.Add_Identifier (+IDENTIFIER_ID, New_Identifier (List_Name), List_Name_Region)
+                  else Invalid_Node_Index);
+
+               New_List_Name_Element : constant Valid_Node_Index :=
+                 (if Tree.RHS_Index (Element_1) = 1
+                  then --  tokens have labels
+                     Tree.Add_Nonterm
+                       ((+rhs_element_ID, 1),
+                        (1 => New_List_Name_Label,
+                         2 => Tree.Add_Terminal (+EQUAL_ID),
+                         3 => New_List_Name_Item))
+                  else
+                     Tree.Add_Nonterm ((+rhs_element_ID, 0), (1 => New_List_Name_Item)));
+
+               Alt_List_Elements : constant Valid_Node_Index_Array := Tree.Get_IDs (Node, +rhs_element_ID);
+               RHS_Item_List_2   : constant Node_Index       :=
+                 (if Alt_List_Elements'Last = 1
+                  then Invalid_Node_Index -- no separator
+                  else Tree.Add_Nonterm
+                    ((+rhs_item_list_ID, 1),
+                     (1 => RHS_Item_List_3,
+                      2 => Alt_List_Elements (Alt_List_Elements'Last))));
+
+            begin
+               Tree.Set_Children (RHS_Item_List_4, (+rhs_item_list_ID, 0), (1 => New_List_Name_Element));
+
+               Tree.Set_Children
+                 (RHS_Item_List_3,
+                  (+rhs_item_list_ID, 1),
+                  (1 => RHS_Item_List_4,
+                   2 => Alt_List_Elements (1)));
+
+               RHS_2_Children (1) :=
+                 (if Alt_List_Elements'Last = 1
+                  then RHS_Item_List_3 -- no separator
+                  else RHS_Item_List_2);
+               Tree.Set_Children (RHS_2, (+rhs_ID, Tree.RHS_Index (RHS_2)), RHS_2_Children);
+
+               Tree.Set_Children
+                 (Tree.Parent (RHS_2),
+                  (+rhs_list_ID, 1),
+                  (1 => Tree.Add_Nonterm ((+rhs_list_ID, 0), (1 => RHS_1)),
+                   2 => Bar,
+                   3 => RHS_2));
+            end;
+
+            Done := True;
+
+            Clear_EBNF_Node (Node);
+
+            if Trace_Generate_EBNF > Extra then
+               Ada.Text_IO.New_Line;
+               Ada.Text_IO.Put_Line ("Check_Canonical_List edited rhs_list:");
+               Tree.Print_Tree (Wisitoken_Grammar_Actions.Descriptor, Tree.Parent (RHS_2));
+            end if;
+         end Check_Canonical_List;
+
+         procedure Find_List_Nonterminal_1 (Element_Content : in String)
+         is
+            --  Search for a nonterm (virtual or not) implementing a list for
+            --  Element_Content, which is a single rhs_element; no List_Element
+            --  Nonterminal. If found, set List_Nonterm_Virtual_Name or
+            --  List_Nonterm_Terminal_Name
+            use Syntax_Trees.LR_Utils;
+
+            List : constant Constant_List := Creators.Create_List
+              (Tree, Tree.Child (Tree.Root, 1), +compilation_unit_list_ID, +compilation_unit_ID);
+         begin
+            for N of List loop
+
+               if Tree.Production_ID (Tree.Child (N, 1)) = (+nonterminal_ID, 0) then
+                  --  Target List_Nonterm is:
+                  --
+                  --  nonterminal_nnn_list
+                  --     : element
+                  --     | nonterminal_nnn_list element
+                  --
+                  --  compilation_unit
+                  --  | nonterminal
+                  --  | | IDENTIFIER : list_nonterm
+                  --  | | COLON
+                  --  | | rhs_list: rhs_list_1
+                  --  | | | rhs_list: rhs_list_2
+                  --  | | | | rhs
+                  --  | | | | | ... List_element
+                  --  | | | BAR
+                  --  | | | rhs: ... list_nonterm list_element
+                  declare
+                     Name_Node  : constant Node_Index := Tree.Child (Tree.Child (N, 1), 1);
+                     RHS_List_1 : constant Node_Index := Tree.Child (Tree.Child (N, 1), 3);
+                     RHS_List_2 : constant Node_Index :=
+                       (if RHS_List_1 = Invalid_Node_Index
+                        then Invalid_Node_Index
+                        else Tree.Child (RHS_List_1, 1));
+                  begin
+                     if RHS_List_2 /= Invalid_Node_Index and
+                       Tree.Child (RHS_List_1, 3) /= Invalid_Node_Index and -- second rhs present
+                       Tree.Child (RHS_List_2, 3) = Invalid_Node_Index -- no third rhs
+                     then
+                        declare
+                           RHS_1 : constant String := Get_Text (Data, Tree, RHS_List_2);
+                           RHS_2 : constant String := Get_Text (Data, Tree, Tree.Child (RHS_List_1, 3));
+                           Expected_RHS_2 : constant String := Get_Text (Data, Tree, Name_Node) & " " &
+                             Element_Content;
+                        begin
+                           if Element_Content = RHS_1 and RHS_2 = Expected_RHS_2 then
+                              case Tree.Label (Name_Node) is
+                              when Shared_Terminal =>
+                                 List_Nonterm_Terminal_Name := Tree.First_Shared_Terminal (Name_Node);
+                              when Virtual_Identifier =>
+                                 List_Nonterm_Virtual_Name := Tree.Identifier (Name_Node);
+                              when others =>
+                                 Raise_Programmer_Error
+                                   ("unimplemented Find_List_Nonterminal_1 case '" & Element_Content & "'",
+                                    Data, Tree, Name_Node);
+                              end case;
+
+                              exit;
+                           end if;
+                        end;
+                     end if;
+                  end;
+               end if;
+            end loop;
+         end Find_List_Nonterminal_1;
+
+         procedure Find_List_Nonterminal_2 (Element_Content : in String)
+         is
+            --  Look for a pair of nonterms implementing a list of Element_Content.
+            --  If found, set List_Nonterm_*_Name
+            use Syntax_Trees.LR_Utils;
+
+            List : constant Constant_List := Creators.Create_List
+              (Tree, Tree.Child (Tree.Root, 1), +compilation_unit_list_ID, +compilation_unit_ID);
+         begin
+            for Comp_Unit of List loop
+               declare
+                  Nonterm : constant Valid_Node_Index := Tree.Child (Comp_Unit, 1);
+               begin
+                  if Tree.Production_ID (Nonterm) = (+nonterminal_ID, 0) and then
+                    Element_Content = Get_Text (Data, Tree, Tree.Child (Nonterm, 3))
+                  then
+                     Find_List_Nonterminal_1 (Get_Text (Data, Tree, Tree.Child (Nonterm, 1)));
+                     exit;
+                  end if;
+               end;
+            end loop;
+         end Find_List_Nonterminal_2;
+
+         Container_List_Root : Node_Index := Invalid_Node_Index;
+      begin
+         --  Check if this is a recognized pattern
+         Check_Canonical_List;
+         if Done then return; end if;
+
+         --  Check to see if there is an already declared nonterminal
+         --  list with the same content; if not, create one.
+         case Tree.RHS_Index (Node) is
+         when 0 .. 3 =>
+            --  0: { rhs_alternative_list }
+            --  1: { rhs_alternative_list } -
+            --  2: ( rhs_alternative_list ) +
+            --  3: ( rhs_alternative_list ) *
+
+            if Tree.RHS_Index (Node) in 0 | 3 then
+               Container_List_Root := Insert_Optional_RHS (Node);
+            end if;
+
+            if 0 = Tree.RHS_Index (Tree.Child (Node, 2)) and then
+              0 = Tree.RHS_Index (Tree.Child (Tree.Child (Node, 2), 1))
+            then
+               --  Only one element in the rhs_alternative_list, and in the rhs_item_list
+               Find_List_Nonterminal_1 (Get_Text (Data, Tree, Tree.Child (Node, 2)));
+
+               if List_Nonterm_Virtual_Name = Invalid_Identifier_Index and
+                 List_Nonterm_Terminal_Name = Invalid_Token_Index
+               then
+                  List_Nonterm_Virtual_Name := Next_Nonterm_Name ("_list");
+                  New_Nonterminal_List
+                    (List_Nonterm_Virtual_Name, Tree.First_Shared_Terminal (Tree.Child (Node, 2)),
+                     Data.Terminals.all, Tree.Byte_Region (Node));
+               else
+                  Erase_Deleted_EBNF_Nodes (Tree.Child (Node, 2));
+               end if;
+            else
+               Find_List_Nonterminal_2 (Get_Text (Data, Tree, Tree.Child (Node, 2)));
+
+               if List_Nonterm_Virtual_Name = Invalid_Identifier_Index then
+                  List_Nonterm_Virtual_Name := Next_Nonterm_Name ("_list");
+                  declare
+                     List_Element_Virtual_Name : constant Identifier_Index := Next_Nonterm_Name;
+                  begin
+                     New_Nonterminal ("canonical list element", List_Element_Virtual_Name, Tree.Child (Node, 2));
+                     New_Nonterminal_List
+                       (List_Nonterm_Virtual_Name, List_Element_Virtual_Name, Tree.Byte_Region (Node));
+                  end;
+               else
+                  Erase_Deleted_EBNF_Nodes (Tree.Child (Node, 2));
+               end if;
+            end if;
+
+         when 4 | 5 =>
+            --  IDENTIFIER + | *
+            Find_List_Nonterminal_1 (Get_Text (Data, Tree, Tree.Child (Node, 1)));
+
+            if List_Nonterm_Virtual_Name = Invalid_Identifier_Index then
+               List_Nonterm_Virtual_Name := Next_Nonterm_Name ("_list");
+
+               New_Nonterminal_List
+                 (List_Nonterm_Virtual_Name,
+                  Tree.First_Shared_Terminal (Tree.Child (Node, 1)), Data.Terminals.all,
+                  Tree.Byte_Region (Node));
+            else
+               --  nothing to erase
+               null;
+            end if;
+
+            if Tree.RHS_Index (Node) = 5 then
+               Container_List_Root := Insert_Optional_RHS (Node);
+            end if;
+
+         when others =>
+            Raise_Programmer_Error ("Translate_RHS_Multiple_Item unimplemented", Data, Tree, Node);
+         end case;
+
+         --  Edit rhs_item to use list name
+         declare
+            Child : constant Valid_Node_Index :=
+              (if List_Nonterm_Virtual_Name /= Invalid_Identifier_Index
+               then Tree.Add_Identifier
+                 (+IDENTIFIER_ID, List_Nonterm_Virtual_Name, Tree.Byte_Region (Parent_RHS_Item))
+               elsif List_Nonterm_Terminal_Name /= Invalid_Token_Index
+               then Tree.Add_Terminal (List_Nonterm_Terminal_Name, Data.Terminals.all)
+               else raise SAL.Programmer_Error);
+         begin
+            Tree.Set_Children (Parent_RHS_Item, (+rhs_item_ID, 0), (1 => Child));
+         end;
+
+         Clear_EBNF_Node (Node);
+
+         if Trace_Generate_EBNF > Extra then
+            Ada.Text_IO.New_Line;
+            Ada.Text_IO.Put_Line ("Translate_RHS_Multiple_Item edited:");
+            Tree.Print_Tree
+              (Wisitoken_Grammar_Actions.Descriptor,
+               (if Container_List_Root = Invalid_Node_Index
+                then Parent_RHS_Item
+                else Container_List_Root));
+         end if;
+      end Translate_RHS_Multiple_Item;
+
+      procedure Translate_RHS_Optional_Item (B : in Valid_Node_Index)
+      is
+         --  Source looks like:
+         --
+         --  | A [B] C
+         --
+         --  where A, B, C are token sequences. All are contained in one
+         --  rhs_item_list, which may be contained in an rhs or an
+         --  rhs_alternative_list. B contains an rhs_alternative_list.
+         --
+         --  First add a second rhs_item_list without B:
+         --  | A C
+         --
+         --  then for each alternative in B, splice together rhs_item_lists A,
+         --  B_i, C, copying A, C on all after the first:
+         --  | A B_i C
+         --
+         --  See nested_ebnf_optional.wy for an example of nested optional
+         --  items.
+         --
+         --  We don't create a separate nonterminal for B, so token labels stay
+         --  in the same RHS for actions.
+         --
+         --  current tree:
+         --
+         --  rhs_list:
+         --  | rhs | rhs_alternative_list:
+         --  | | rhs_item_list
+         --  | | | rhs_item_list
+         --  | | ...
+         --  | | | | | rhs_element: a.last
+         --  | | | | | | rhs_item:
+         --  | | | | rhs_element:
+         --  | | | | | rhs_item: contains b
+         --  | | | | | | rhs_optional_item: B
+         --  | | | | | | | LEFT_BRACKET: B.Children (1)
+         --  | | | | | | | rhs_alternative_list: B.Children (2) b
+         --  | | | | | | | RIGHT_BRACKET: B.Children (3)
+         --  | | | rhs_element: c.first
+         --  | | | | rhs_item:
+
+         use Syntax_Trees.LR_Utils;
+         use Syntax_Trees.LR_Utils.Creators;
+
+         Container_List_Root : constant Valid_Node_Index := Insert_Optional_RHS (B);
+      begin
+         if Trace_Generate_EBNF > Extra then
+            Ada.Text_IO.New_Line;
+            Ada.Text_IO.Put_Line ("Translate_RHS_Optional_Item start");
+         end if;
+
+         case Tree.RHS_Index (B) is
+         when 0 | 1 =>
+            --  : LEFT_BRACKET rhs_alternative_list RIGHT_BRACKET
+            --  | LEFT_PAREN rhs_alternative_list RIGHT_PAREN QUESTION
+
+            declare
+               Container_List : Syntax_Trees.LR_Utils.List :=
+                 (if Tree.ID (Container_List_Root) = +rhs_list_ID
+                  then Create_List
+                    (Tree,
+                     Root         => Container_List_Root,
+                     List_ID      => +rhs_list_ID,
+                     Element_ID   => +rhs_ID,
+                     Separator_ID => +BAR_ID)
+                  else Create_List
+                    (Tree,
+                     Root         => Container_List_Root,
+                     List_ID      => +rhs_alternative_list_ID,
+                     Element_ID   => +rhs_item_list_ID,
+                     Separator_ID => +BAR_ID));
+
+               Container_Cur : Cursor := Container_List.Find
+                 (if Container_List.Element_ID = +rhs_ID
+                  then Tree.Find_Ancestor (B, +rhs_ID)
+                  else List_Root (Tree, Tree.Find_Ancestor (B, +rhs_item_list_ID), +rhs_item_list_ID));
+
+               ABC_List : List := Create_From_Element
+                 (Tree, Tree.Parent (B, 2),
+                  List_ID      => +rhs_item_list_ID,
+                  Element_ID   => +rhs_element_ID,
+                  Separator_ID => Invalid_Token_ID);
+
+               ABC_Iter : constant Iterator := ABC_List.Iterate;
+
+               ABC_B_Cur   : constant Cursor := ABC_List.To_Cursor (Tree.Parent (B, 2));
+               ABC_A_Last  : constant Cursor := ABC_Iter.Previous (ABC_B_Cur);
+               ABC_C_First : constant Cursor := ABC_Iter.Next (ABC_B_Cur);
+
+               B_Alternative_List : constant Constant_List := Create_List
+                 (Tree, Tree.Child (B, 2), +rhs_alternative_list_ID, +rhs_item_list_ID);
+
+            begin
+               --  An alternate design would be to splice together the existing A,
+               --  B_i, C; but it's too hard to get all the parent updates right.
+               for Alt of reverse B_Alternative_List loop
+
+                  declare
+                     B_Item_List : constant Constant_List := Create_List
+                       (Tree, Alt, +rhs_item_list_ID, +rhs_element_ID);
+
+                     New_ABC : List := Empty_List (ABC_List);
+                  begin
+                     if Has_Element (ABC_A_Last) then
+                        Copy (Source_List => ABC_List,
+                              Source_Last => ABC_A_Last,
+                              Dest_List   => New_ABC);
+                     end if;
+
+                     Copy (B_Item_List, Dest_List => New_ABC);
+
+                     if Has_Element (ABC_C_First) then
+                        Copy (ABC_List, Source_First => ABC_C_First, Dest_List => New_ABC);
+                     end if;
+
+                     if Container_List.Element_ID = +rhs_ID then
+                        Insert_RHS (Container_List, New_ABC.Root, After => Get_Node (Container_Cur));
+                     else
+                        Container_List.Insert (New_ABC.Root, After => Container_Cur);
+                     end if;
+
+                     Record_Copied_EBNF_Nodes (New_ABC.Root);
+                  end;
+               end loop;
+
+               Erase_Deleted_EBNF_Nodes (Get_Node (Container_Cur));
+               --  This includes B, so we don't do 'Clear_EBNF_Node (B)'.
+
+               Container_List.Delete (Container_Cur);
+            end;
+
+         when 2 =>
+            --  | IDENTIFIER QUESTION
+            --
+            --  Current tree:
+            --   rhs_item_3
+            --   | rhs_optional_item_2: B
+            --   | | IDENTIFIER
+            --   | | QUESTION
+            --
+            --  Change to:
+            --   rhs_item_0
+            --   | IDENTIFIER
+
+            Tree.Set_Children (Tree.Parent (B), (+rhs_item_ID, 0), (1 => Tree.Child (B, 1)));
+            Clear_EBNF_Node (B);
+
+         when 3 =>
+            --  | STRING_LITERAL_2 QUESTION
+            Tree.Set_Children (Tree.Parent (B), (+rhs_item_ID, 1), (1 => Tree.Child (B, 1)));
+            Clear_EBNF_Node (B);
+
+         when others =>
+            Raise_Programmer_Error ("translate_ebnf_to_bnf rhs_optional_item unimplemented", Data, Tree, B);
+         end case;
+
+         if WisiToken.Trace_Generate_EBNF > Detail then
+            Ada.Text_IO.New_Line;
+            Ada.Text_IO.Put_Line ("Translate_RHS_Optional_Item edited:");
+            Tree.Print_Tree (Wisitoken_Grammar_Actions.Descriptor, Container_List_Root);
+         end if;
+      end Translate_RHS_Optional_Item;
+
+      procedure Translate_Token_Literal (Node : in Valid_Node_Index)
+      is
+         use Syntax_Trees.LR_Utils;
+
+         Name_Ident : Identifier_Index;
+
+         function Equal
+           (Target : in String;
+            List   : in Constant_List'Class;
+            N      : in Valid_Node_Index)
+           return Boolean
+         is
+            pragma Unreferenced (List);
+         begin
+            if Tree.Production_ID (Tree.Child (N, 1)) = (+declaration_ID, 0) then
+               declare
+                  Decl       : constant Node_Index       := Tree.Child (N, 1);
+                  Value_Node : constant Valid_Node_Index := Tree.Child (Tree.Child (Decl, 4), 1);
+               begin
+                  if Tree.ID (Value_Node) = +declaration_item_ID and then
+                    Tree.ID (Tree.Child (Value_Node, 1)) in
+                    +IDENTIFIER_ID | +STRING_LITERAL_1_ID | +STRING_LITERAL_2_ID and then
+                    Target = Get_Text (Data, Tree, Tree.Child (Value_Node, 1), Strip_Quotes => True)
+                  then
+                     case Tree.Label (Tree.Child (Decl, 3)) is
+                     when Shared_Terminal =>
+                        Name_Ident := New_Identifier (Get_Text (Data, Tree, Tree.Child (Decl, 3)));
+                     when Virtual_Identifier =>
+                        Name_Ident := Tree.Identifier (Tree.Child (Decl, 3));
+                     when others =>
+                        raise SAL.Programmer_Error;
+                     end case;
+                     return True;
+                  else
+                     return False;
+                  end if;
+               end;
+            else
+               return False;
+            end if;
+         end Equal;
+
+         Value : constant String     := Get_Text (Data, Tree, Node, Strip_Quotes => True);
+         Found : constant Node_Index := Find_Nonterminal (Value, Equal'Unrestricted_Access);
+      begin
+         if Found = Invalid_Node_Index then
+            if GNAT.Regexp.Match (Value, Symbol_Regexp) then
+               Name_Ident := New_Identifier (Ada.Characters.Handling.To_Upper (Value));
+            else
+               Put_Error
+                 (Error_Message
+                    (Data.Grammar_Lexer.File_Name, Get_Line (Data, Tree, Node),
+                     "punctuation token '" & Value & "' not declared"));
+               return;
+            end if;
+         end if;
+
+         --  Replace string literal in rhs_item
+         declare
+            Parent : constant Valid_Node_Index := Tree.Parent (Node);
+         begin
+            case To_Token_Enum (Tree.ID (Parent)) is
+            when rhs_item_ID =>
+               Tree.Set_Children
+                 (Tree.Parent (Node),
+                  (+rhs_item_ID, 0),
+                  (1 => Tree.Add_Identifier (+IDENTIFIER_ID, Name_Ident, Tree.Byte_Region (Node))));
+
+            when rhs_optional_item_ID =>
+               Tree.Set_Children
+                 (Tree.Parent (Node),
+                  (+rhs_optional_item_ID, 2),
+                  (Tree.Add_Identifier (+IDENTIFIER_ID, Name_Ident, Tree.Byte_Region (Node)),
+                   Tree.Child (Tree.Parent (Node), 2)));
+
+            when others =>
+               Raise_Programmer_Error ("translate_ebnf_to_bnf string_literal_2 unimplemented", Data, Tree, Node);
+            end case;
+         end;
+
+         Clear_EBNF_Node (Node);
+         if Found /= Invalid_Node_Index then
+            return;
+         end if;
+
+         --  Declare token for keyword string literal
+         declare
+            Keyword        : constant Valid_Node_Index := Tree.Add_Identifier
+              (+KEYWORD_ID, Keyword_Ident, Tree.Byte_Region (Node));
+            Kind           : constant Valid_Node_Index := Tree.Add_Nonterm
+              ((+token_keyword_non_grammar_ID, 0),
+               (1 => Keyword));
+            Value_Literal  : constant Valid_Node_Index := Tree.Add_Identifier
+              (+STRING_LITERAL_1_ID, New_Identifier ('"' & Value & '"'), Tree.Byte_Region (Node));
+            Decl_Item      : constant Valid_Node_Index := Tree.Add_Nonterm
+              ((+declaration_item_ID, 1),
+               (1 => Value_Literal));
+            Decl_Item_List : constant Valid_Node_Index := Tree.Add_Nonterm
+              ((+declaration_item_list_ID, 0),
+               (1 => Decl_Item));
+
+            Percent : constant Valid_Node_Index := Tree.Add_Identifier
+              (+PERCENT_ID, Percent_Ident, Tree.Byte_Region (Node));
+            Name    : constant Valid_Node_Index := Tree.Add_Identifier
+              (+IDENTIFIER_ID, Name_Ident, Tree.Byte_Region (Node));
+            Decl    : constant Valid_Node_Index := Tree.Add_Nonterm
+              ((+declaration_ID, 0), (Percent, Kind, Name, Decl_Item_List), Action => declaration_0'Access);
+         begin
+            Add_Compilation_Unit ("literal token", Decl, Prepend => True);
+         end;
+
+      end Translate_Token_Literal;
+
+      procedure Process_Node (Node : in Valid_Node_Index)
+      is begin
          case To_Token_Enum (Tree.ID (Node)) is
          --  Token_Enum_ID alphabetical order
          when declaration_ID =>
@@ -1591,6 +2532,7 @@ package body WisiToken_Grammar_Runtime is
                Copy_Non_Grammar (Old_Children (1), New_Children (1));
                Tree.Set_Children (Decl_Item, (+declaration_item_ID, 1), New_Children);
             end;
+            Clear_EBNF_Node (Node);
 
          when rhs_alternative_list_ID =>
             --  All handled by New_Nonterminal*
@@ -1598,888 +2540,27 @@ package body WisiToken_Grammar_Runtime is
 
          when rhs_attribute_ID =>
             --  Just delete it
-            --
-            --  Current tree (so far, attributes are always the first item in an rhs):
-            --
-            --  rhs:
-            --  | ...
-            --  | rhs_item_list: RHS_Item_List.Parent 2
-            --  | | rhs_item_list: RHS_Item_List.Parent 1
-            --  | | | rhs_item_list: RHS_Item_List
-            --  | | | | rhs_element: Parent (Node, 2)
-            --  | | | | | rhs_item: Parent (Node, 1)
-            --  | | | | | | rhs_attribute: Node
-            --  | | | rhs_element: next_element 1
-            --  | | rhs_element: next_element 2
-            --
-            --  New tree:
-            --
-            --  rhs:
-            --  | ...
-            --  | rhs_item_list: keep RHS_Item_List.Parent
-            --  | | rhs_element: keep next_element 1
-            --  | rhs_element: kepp next_element 2
             declare
-               RHS_Item_List : constant Valid_Node_Index   := Tree.Parent (Node, 3);
-               Parent        : constant Valid_Node_Index   := Tree.Parent (RHS_Item_List);
+               use WisiToken.Syntax_Trees.LR_Utils;
+               RHS_Item_List : List := Creators.Create_From_Element
+                 (Tree, Tree.Parent (Node, 2), +rhs_item_list_ID, +rhs_element_ID, Invalid_Token_ID);
+               Element : Cursor := RHS_Item_List.To_Cursor (Tree.Parent (Node, 2));
             begin
-               if Tree.RHS_Index (RHS_Item_List) /= 0 then
-                  --  Not first
-                  Raise_Programmer_Error ("translate_ebnf_to_bnf rhs_attribute_id unimplemented", Data, Tree, Node);
-               end if;
-
-               Tree.Set_Children
-                 (Parent,
-                  (+rhs_item_list_ID, 0),
-                  (1 => Tree.Child (Parent, 2)));
+               RHS_Item_List.Delete (Element);
             end;
+            Clear_EBNF_Node (Node);
 
          when rhs_group_item_ID =>
-            --  Current tree:
-            --
-            --  rhs_element: Parent (Node, 2)
-            --  | rhs_item: Parent (Node, 1)
-            --  | | rhs_group_item: Node
-            --  | | | LEFT_PAREN
-            --  | | | rhs_alternative_list: Child (Node, 2)
-            --  | | | RIGHT_PAREN
-
-            declare
-               Element_Content  : constant String           := Get_Text (Data, Tree, Tree.Child (Node, 2));
-               Right_Paren_Node : constant Valid_Node_Index := Tree.Child (Node, 3);
-               Temp             : Node_Index                := First_List_Element
-                 (Tree.Child (Tree.Root, 1), +compilation_unit_ID);
-               Name_Node        : Node_Index;
-               New_Ident        : Base_Identifier_Index     := Invalid_Identifier_Index;
-            begin
-               --  See if there's an existing nonterminal for this content.
-               loop
-                  pragma Assert (Tree.ID (Temp) = +compilation_unit_ID);
-
-                  if Tree.Production_ID (Tree.Child (Temp, 1)) = (+nonterminal_ID, 0) then
-                     --  Target nonterm is:
-                     --
-                     --  (compilation_unit_1, (111 . 128))
-                     --  | (nonterminal_0, (111 . 128))
-                     --  | |  7;(IDENTIFIER, (111 . 128))
-                     --  | | (COLON)
-                     --  | | (rhs_list_1, (111 . 128))
-                     --  | | | ...
-                     declare
-                        RHS_List_1 : constant Node_Index := Tree.Child (Tree.Child (Temp, 1), 3);
-                     begin
-                        if RHS_List_1 /= Invalid_Node_Index and then
-                          Element_Content = Get_Text (Data, Tree, RHS_List_1)
-                        then
-                           Name_Node := Tree.Child (Tree.Child (Temp, 1), 1);
-                           case Tree.Label (Name_Node) is
-                           when Shared_Terminal =>
-                              New_Ident := New_Identifier (Get_Text (Data, Tree, Name_Node));
-                           when Virtual_Identifier =>
-                              New_Ident := Tree.Identifier (Name_Node);
-                           when others =>
-                              Raise_Programmer_Error ("process_node rhs_group_item", Data, Tree, Name_Node);
-                           end case;
-
-                           exit;
-                        end if;
-                     end;
-                  end if;
-
-                  Temp := Next_List_Element (Temp, +compilation_unit_list_ID);
-                  exit when Temp = Invalid_Node_Index;
-               end loop;
-
-               if New_Ident = Invalid_Identifier_Index then
-                  New_Ident := Next_Nonterm_Name;
-                  New_Nonterminal (New_Ident, Tree.Child (Node, 2));
-               end if;
-
-               Tree.Set_Node_Identifier (Node, +IDENTIFIER_ID, New_Ident);
-               Copy_Non_Grammar (Right_Paren_Node, Node);
-               Tree.Set_Children (Tree.Parent (Node), (+rhs_item_ID, 0), (1 => Node));
-               Clear_EBNF_Node (Node);
-            end;
+            Translate_RHS_Group_Item (Node);
 
          when rhs_multiple_item_ID =>
-            --  We have one of:
-            --
-            --  | a { b }  c
-            --  | a { b } - c
-            --  | a ( b ) + c
-            --  | a ( b ) * c
-            --  | a b+ c
-            --  | a b* c
-            --
-            --  where a and/or c can be empty. Replace it with a new canonical
-            --  list nonterminal:
-            --
-            --  nonterminal_nnn_list
-            --  : b
-            --  | nonterminal_nnn_list b
-            --
-            --  and a second RHS if it can be empty:
-            --  | a c
-
-            --  Current tree:
-            --
-            --  rhs_item: Parent (Node, 1)
-            --  | rhs_multiple_item: Node
-            --  | | LEFT_BRACE | LEFT_PAREN
-            --  | | rhs_alternative_list
-            --  | | | ...
-            --  | | RIGHT_BRACE | RIGHT_PAREN
-            --  | | [MINUS | PLUS | STAR]
-
-            --  or:
-            --
-            --  rhs_item: Parent (Node, 1)
-            --  | rhs_multiple_item: Node
-            --  | | IDENTIFIER
-            --  | | PLUS | STAR
-
-            declare
-               Done                       : Boolean                   := False;
-               RHS_Index                  : constant Integer          := Tree.RHS_Index (Node);
-               Plus_Minus_Star            : constant Node_Index       := Tree.Child
-                 (Node, (if RHS_Index in 0 .. 3 then 4 else 2));
-               Allow_Empty                : constant Boolean          := Plus_Minus_Star = Invalid_Node_Index or else
-                 Tree.ID (Plus_Minus_Star) in +STAR_ID;
-               Parent_RHS_Item            : constant Valid_Node_Index := Tree.Parent (Node);
-               List_Nonterm_Virtual_Name  : Base_Identifier_Index     := Invalid_Identifier_Index;
-               List_Nonterm_Terminal_Name : Base_Token_Index          := Invalid_Token_Index;
-               List_Element               : Base_Identifier_Index     := Invalid_Identifier_Index;
-
-               procedure Check_Canonical_List
-               is
-                  --  In EBNF, a canonical list with a separator looks like:
-                  --
-                  --  enumConstants : enumConstant (',' enumConstant)* ;
-                  --
-                  --  or, with no separator:
-                  --
-                  --  SwitchLabels : SwitchLabel {SwitchLabel} ;
-                  --
-                  --  The tokens may have labels.
-                  --
-                  --  Handling these cases specially eliminates a conflict between
-                  --  reducing to enumConstants and reducing to the introduced nonterm
-                  --  list.
-                  --
-                  --  Alternately, the no separator case can be:
-                  --
-                  --  enumConstants : enumConstant+ ;
-                  --
-                  --  Handling this no separator case specially would not eliminate any conflicts.
-
-                  use all type SAL.Base_Peek_Type;
-
-                  Alt_List_Items : constant Valid_Node_Index_Array := Tree.Get_IDs (Node, +rhs_item_ID);
-                  RHS_Element    : constant Valid_Node_Index       := Tree.Parent (Node, 2);
-                  Element_1      : constant Node_Index             := Prev_List_Element
-                    (RHS_Element, +rhs_item_list_ID);
-                  RHS_2          : constant Valid_Node_Index       := Tree.Find_Ancestor
-                    (Node, (+rhs_ID, +rhs_alternative_list_ID));
-               begin
-                  if Tree.ID (RHS_2) = +rhs_alternative_list_ID then return; end if;
-                  if not (Alt_List_Items'Last in 1 .. 2) then return; end if;
-                  if Element_1 = Invalid_Node_Index or else
-                    Get_Text (Data, Tree, Tree.Get_IDs (Element_1, +rhs_item_ID)(1)) /=
-                    Get_Text (Data, Tree, Alt_List_Items (Alt_List_Items'Last))
-                  then
-                     return;
-                  end if;
-                  if Invalid_Node_Index /= Prev_List_Element (Element_1, +rhs_item_list_ID) then return; end if;
-                  if Invalid_Node_Index /= Next_List_Element (RHS_Element, +rhs_item_list_ID) then return; end if;
-                  if Invalid_Node_Index /= Next_List_Element (RHS_2, +rhs_list_ID) or
-                    Invalid_Node_Index /= Prev_List_Element (RHS_2, +rhs_list_ID)
-                  then
-                     return;
-                  end if;
-
-                  --  We have a canonical list declaration. Rewrite it to:
-                  --
-                  --  with separator:
-                  --  rhs_list: keep
-                  --  | rhs_list:
-                  --  | | rhs: new, RHS_1
-                  --  | | | rhs_item_list: new, RHS_Item_List_1
-                  --  | | | | rhs_element: keep, Element_1
-                  --  | | | | | rhs_item: keep
-                  --  | | | | | | IDENTIFIER: keep; element name
-                  --  | BAR: new
-                  --  | rhs: keep, RHS_2
-                  --  | | rhs_item_list: new, RHS_Item_List_2
-                  --  | | | rhs_item_list: keep, rhs_item_list_3
-                  --  | | | | rhs_item_list: keep, rhs_item_list_4
-                  --  | | | | | rhs_element: new
-                  --  | | | | | | rhs_item: new
-                  --  | | | | | | | IDENTIFIER: new, list name
-                  --  | | | | rhs_element: keep
-                  --  | | | | | rhs_item: keep
-                  --  | | | | | | IDENTIFIER: keep, separator
-                  --  | | | rhs_element: keep, alt_list_elements (last)
-                  --  | | | | rhs_item: keep
-                  --  | | | | | IDENTIFIER: keep, element name
-                  --
-                  --  no separator:
-                  --  rhs_list: keep
-                  --  | rhs_list:
-                  --  | | rhs: new, RHS_1
-                  --  | | | rhs_item_list: new, RHS_Item_List_1
-                  --  | | | | rhs_element: keep, Element_1
-                  --  | | | | | rhs_item: keep
-                  --  | | | | | | IDENTIFIER: keep; element name
-                  --  | BAR: new
-                  --  | rhs: keep, RHS_2
-                  --  | | rhs_item_list: keep, rhs_item_list_3
-                  --  | | | rhs_item_list: new, rhs_item_list_4
-                  --  | | | | rhs_element: new
-                  --  | | | | | rhs_item: new
-                  --  | | | | | | IDENTIFIER: new, list name
-                  --  | | | rhs_element: keep, alt_list_elements (last)
-                  --  | | | | rhs_item: keep
-                  --  | | | | | IDENTIFIER: keep, element name
-
-                  declare
-                     List_Name_Node   : constant Valid_Node_Index := Tree.Find_Ancestor (RHS_2, +nonterminal_ID);
-                     List_Name_Tok    : constant Token_Index      := Tree.First_Shared_Terminal (List_Name_Node);
-                     List_Name_Region : constant Buffer_Region    := Data.Terminals.all (List_Name_Tok).Byte_Region;
-                     List_Name        : constant String           := Data.Grammar_Lexer.Buffer_Text (List_Name_Region);
-
-                     RHS_2_Index    : constant Integer       := Tree.RHS_Index (RHS_2);
-                     RHS_2_Children : Valid_Node_Index_Array := Tree.Children (RHS_2);
-
-                     RHS_Item_List_1    : constant Valid_Node_Index := Tree.Add_Nonterm
-                       ((+rhs_item_list_ID, 0), (1 => Element_1));
-
-                     RHS_1_Action : constant Node_Index :=
-                       (case RHS_2_Index is
-                        when 2 | 3 => Tree.Add_Terminal
-                          (Tree.First_Shared_Terminal (RHS_2_Children (2)), Data.Terminals.all),
-                        when others => Invalid_Node_Index);
-
-                     RHS_1_Check : constant Node_Index :=
-                       (case RHS_2_Index is
-                        when 3 => Tree.Add_Terminal
-                          (Tree.First_Shared_Terminal (RHS_2_Children (3)), Data.Terminals.all),
-                        when others => Invalid_Node_Index);
-
-                     RHS_1              : constant Valid_Node_Index :=
-                       (case RHS_2_Index is
-                        when 1 => Tree.Add_Nonterm ((+rhs_ID, 1), (1 => RHS_Item_List_1)),
-                        when 2 => Tree.Add_Nonterm ((+rhs_ID, 2), (1 => RHS_Item_List_1, 2 => RHS_1_Action)),
-                        when 3 => Tree.Add_Nonterm
-                          ((+rhs_ID, 3), (1 => RHS_Item_List_1, 2 => RHS_1_Action, 3 => RHS_1_Check)),
-                        when others => raise SAL.Programmer_Error);
-
-                     Bar                   : constant Valid_Node_Index := Tree.Add_Terminal (+BAR_ID);
-                     RHS_Item_List_3       : constant Valid_Node_Index := Tree.Child (RHS_2, 1);
-                     RHS_Item_List_4       : constant Valid_Node_Index := Tree.Child (RHS_Item_List_3, 1);
-                     New_List_Name_Term    : constant Valid_Node_Index := Tree.Add_Terminal
-                       (List_Name_Tok, Data.Terminals.all);
-                     New_List_Name_Item    : constant Valid_Node_Index := Tree.Add_Nonterm
-                       ((+rhs_item_ID, 0),
-                        (1      => New_List_Name_Term));
-
-                     New_List_Name_Label : constant Node_Index :=
-                       (if Tree.RHS_Index (Element_1) = 1
-                        then --  tokens have labels
-                           Tree.Add_Identifier (+IDENTIFIER_ID, New_Identifier (List_Name), List_Name_Region)
-                        else Invalid_Node_Index);
-
-                     New_List_Name_Element : constant Valid_Node_Index :=
-                       (if Tree.RHS_Index (Element_1) = 1
-                        then --  tokens have labels
-                           Tree.Add_Nonterm
-                             ((+rhs_element_ID, 1),
-                             (1 => New_List_Name_Label,
-                              2 => Tree.Add_Terminal (+EQUAL_ID),
-                              3 => New_List_Name_Item))
-                        else
-                           Tree.Add_Nonterm ((+rhs_element_ID, 0), (1 => New_List_Name_Item)));
-
-                     Alt_List_Elements : constant Valid_Node_Index_Array := Tree.Get_IDs (Node, +rhs_element_ID);
-                     RHS_Item_List_2   : constant Node_Index       :=
-                       (if Alt_List_Elements'Last = 1
-                        then Invalid_Node_Index -- no separator
-                        else Tree.Add_Nonterm
-                          ((+rhs_item_list_ID, 1),
-                          (1 => RHS_Item_List_3,
-                           2 => Alt_List_Elements (Alt_List_Elements'Last))));
-
-                  begin
-                     Tree.Set_Children (RHS_Item_List_4, (+rhs_item_list_ID, 0), (1 => New_List_Name_Element));
-
-                     Tree.Set_Children
-                       (RHS_Item_List_3,
-                        (+rhs_item_list_ID, 1),
-                        (1 => RHS_Item_List_4,
-                         2 => Alt_List_Elements (1)));
-
-                     RHS_2_Children (1) :=
-                       (if Alt_List_Elements'Last = 1
-                        then RHS_Item_List_3 -- no separator
-                        else RHS_Item_List_2);
-                     Tree.Set_Children (RHS_2, (+rhs_ID, Tree.RHS_Index (RHS_2)), RHS_2_Children);
-
-                     Tree.Set_Children
-                       (Tree.Parent (RHS_2),
-                        (+rhs_list_ID, 1),
-                        (1 => Tree.Add_Nonterm ((+rhs_list_ID, 0), (1 => RHS_1)),
-                         2 => Bar,
-                         3 => RHS_2));
-                  end;
-
-                  Done := True;
-
-                  Clear_EBNF_Node (Node);
-
-                  if Trace_Generate_EBNF > Extra then
-                     Ada.Text_IO.New_Line;
-                     Ada.Text_IO.Put_Line ("edited rhs_list:");
-                     Tree.Print_Tree (Wisitoken_Grammar_Actions.Descriptor, Tree.Parent (RHS_2));
-                  end if;
-               end Check_Canonical_List;
-
-               procedure Find_List_Nonterminal_2 (Element_Content : in String)
-               is
-                  --  Look for a virtual pair of nonterms implementing a list of Element_Content.
-                  --  If found, set List_Nonterm_Virtual_Name, List_Element
-                  Temp      : Node_Index := First_List_Element (Tree.Child (Tree.Root, 1), +compilation_unit_ID);
-                  Name_Node : Node_Index;
-               begin
-                  loop
-                     pragma Assert (Tree.ID (Temp) = +compilation_unit_ID);
-
-                     if Tree.Production_ID (Tree.Child (Temp, 1)) = (+nonterminal_ID, 0) and
-                       Tree.Is_Virtual (Tree.Child (Temp, 1))
-                     then
-                        if Element_Content = Get_Text (Data, Tree, Tree.Child (Tree.Child (Temp, 1), 3)) then
-                           Name_Node := Tree.Child (Tree.Child (Temp, 1), 1);
-                           case Tree.Label (Name_Node) is
-                           when Virtual_Identifier =>
-                              List_Element := Tree.Identifier (Name_Node);
-                           when others =>
-                              Raise_Programmer_Error
-                                ("unimplemented Find_List_Nonterminal_2 case '" & Element_Content & "'",
-                                 Data, Tree, Name_Node);
-                           end case;
-
-                           --  list nonterm is the next nonterminal
-                           Temp := Next_List_Element (Temp, +compilation_unit_list_ID);
-                           Name_Node := Tree.Child (Tree.Child (Temp, 1), 1);
-                           case Tree.Label (Name_Node) is
-                           when Virtual_Identifier =>
-                              List_Nonterm_Virtual_Name := Tree.Identifier (Name_Node);
-                           when others =>
-                              raise SAL.Programmer_Error;
-                           end case;
-                           exit;
-                        end if;
-                     end if;
-
-                     Temp := Next_List_Element (Temp, +compilation_unit_list_ID);
-                     exit when Temp = Invalid_Node_Index;
-                  end loop;
-               end Find_List_Nonterminal_2;
-
-               procedure Find_List_Nonterminal_1 (Element_Content : in String)
-               is
-                  --  Search for a nonterm (virtual or not) implementing a list for
-                  --  Element_Content, which is a single rhs_element; no List_Element
-                  --  Nonterminal. If found, set List_Nonterm_Virtual_Name or
-                  --  List_Nonterm_Terminal_Name
-                  Temp      : Node_Index := First_List_Element (Tree.Child (Tree.Root, 1), +compilation_unit_ID);
-               begin
-                  loop
-                     pragma Assert (Tree.ID (Temp) = +compilation_unit_ID);
-
-                     if Tree.Production_ID (Tree.Child (Temp, 1)) = (+nonterminal_ID, 0) then
-                        --  Target List_Nonterm is:
-                        --
-                        --  nonterminal_nnn_list
-                        --     : element
-                        --     | nonterminal_nnn_list element
-                        --
-                        --  compilation_unit
-                        --  | nonterminal
-                        --  | | IDENTIFIER : list_nonterm
-                        --  | | COLON
-                        --  | | rhs_list: rhs_list_1
-                        --  | | | rhs_list: rhs_list_2
-                        --  | | | | rhs
-                        --  | | | | | ... List_element
-                        --  | | | BAR
-                        --  | | | rhs: ... list_nonterm list_element
-                        declare
-                           Name_Node  : constant Node_Index := Tree.Child (Tree.Child (Temp, 1), 1);
-                           RHS_List_1 : constant Node_Index := Tree.Child (Tree.Child (Temp, 1), 3);
-                           RHS_List_2 : constant Node_Index :=
-                             (if RHS_List_1 = Invalid_Node_Index
-                              then Invalid_Node_Index
-                              else Tree.Child (RHS_List_1, 1));
-                        begin
-                           if RHS_List_2 /= Invalid_Node_Index and
-                             Tree.Child (RHS_List_1, 3) /= Invalid_Node_Index and -- second rhs present
-                             Tree.Child (RHS_List_2, 3) = Invalid_Node_Index -- no third rhs
-                           then
-                              declare
-                                 RHS_1 : constant String := Get_Text (Data, Tree, RHS_List_2);
-                                 RHS_2 : constant String := Get_Text (Data, Tree, Tree.Child (RHS_List_1, 3));
-                                 Expected_RHS_2 : constant String := Get_Text (Data, Tree, Name_Node) & " " &
-                                   Element_Content;
-                              begin
-                                 if Element_Content = RHS_1 and RHS_2 = Expected_RHS_2 then
-                                    case Tree.Label (Name_Node) is
-                                    when Shared_Terminal =>
-                                       List_Nonterm_Terminal_Name := Tree.First_Shared_Terminal (Name_Node);
-                                    when Virtual_Identifier =>
-                                       List_Nonterm_Virtual_Name := Tree.Identifier (Name_Node);
-                                    when others =>
-                                       Raise_Programmer_Error
-                                         ("unimplemented Find_List_Nonterminal_1 case '" & Element_Content & "'",
-                                          Data, Tree, Name_Node);
-                                    end case;
-
-                                    exit;
-                                 end if;
-                              end;
-                           end if;
-                        end;
-                     end if;
-
-                     Temp := Next_List_Element (Temp, +compilation_unit_list_ID);
-                     exit when Temp = Invalid_Node_Index;
-                  end loop;
-               end Find_List_Nonterminal_1;
-            begin
-               --  Check if this is a recognized pattern
-               Check_Canonical_List;
-               if Done then return; end if;
-
-               --  Check to see if there is an already declared nonterminal
-               --  list with the same content; if not, create one.
-               case Tree.RHS_Index (Node) is
-               when 0 .. 3 =>
-                  --  { rhs_alternative_list } -?
-                  --  ( rhs_alternative_list ) [+*]
-                  if 0 = Tree.RHS_Index (Tree.Child (Node, 2)) and then
-                    0 = Tree.RHS_Index (Tree.Child (Tree.Child (Node, 2), 1))
-                  then
-                     --  Only one element in the rhs_alternative_list, and in the rhs_item_list
-                     Find_List_Nonterminal_1 (Get_Text (Data, Tree, Tree.Child (Node, 2)));
-
-                     if List_Nonterm_Virtual_Name = Invalid_Identifier_Index and
-                       List_Nonterm_Terminal_Name = Invalid_Token_Index
-                     then
-                        List_Nonterm_Virtual_Name := Next_Nonterm_Name ("_list");
-                        New_Nonterminal_List
-                          (List_Nonterm_Virtual_Name, Tree.First_Shared_Terminal (Tree.Child (Node, 2)),
-                           Data.Terminals.all, Tree.Byte_Region (Node));
-                     end if;
-                  else
-                     Find_List_Nonterminal_2 (Get_Text (Data, Tree, Tree.Child (Node, 2)));
-
-                     if List_Nonterm_Virtual_Name = Invalid_Identifier_Index then
-                        List_Nonterm_Virtual_Name := Next_Nonterm_Name ("_list");
-                        List_Element              := Next_Nonterm_Name;
-                        New_Nonterminal (List_Element, Tree.Child (Node, 2));
-                        New_Nonterminal_List (List_Nonterm_Virtual_Name, List_Element, Tree.Byte_Region (Node));
-                     end if;
-                  end if;
-
-               when 4 | 5 =>
-                  --  IDENTIFIER + | *
-                  Find_List_Nonterminal_1 (Get_Text (Data, Tree, Tree.Child (Node, 1)));
-
-                  if List_Nonterm_Virtual_Name = Invalid_Identifier_Index then
-                     List_Nonterm_Virtual_Name := Next_Nonterm_Name ("_list");
-                     New_Nonterminal_List
-                       (List_Nonterm_Virtual_Name,
-                        Tree.First_Shared_Terminal (Tree.Child (Node, 1)), Data.Terminals.all,
-                        Tree.Byte_Region (Node));
-                  end if;
-
-               when others =>
-                  Raise_Programmer_Error ("translate_ebnf_to_bnf rhs_multiple_item unimplmented", Data, Tree, Node);
-               end case;
-
-               if Allow_Empty then
-                  Insert_Optional_RHS (Node);
-               end if;
-
-               declare
-                  Child : constant Valid_Node_Index :=
-                    (if List_Nonterm_Virtual_Name /= Invalid_Identifier_Index
-                     then Tree.Add_Identifier
-                       (+IDENTIFIER_ID, List_Nonterm_Virtual_Name, Tree.Byte_Region (Parent_RHS_Item))
-                     elsif List_Nonterm_Terminal_Name /= Invalid_Token_Index
-                     then Tree.Add_Terminal (List_Nonterm_Terminal_Name, Data.Terminals.all)
-                     else raise SAL.Programmer_Error);
-               begin
-                  Tree.Set_Children (Parent_RHS_Item, (+rhs_item_ID, 0), (1 => Child));
-               end;
-
-               Clear_EBNF_Node (Node);
-
-               if Trace_Generate_EBNF > Extra then
-                  Ada.Text_IO.New_Line;
-                  Ada.Text_IO.Put_Line ("edited rhs_item:");
-                  Tree.Print_Tree (Wisitoken_Grammar_Actions.Descriptor, Parent_RHS_Item);
-               end if;
-            exception
-            when E : System.Assertions.Assert_Failure =>
-               Raise_Programmer_Error
-                 ("translate_ebnf_to_bnf multiple_item assert: " & Ada.Exceptions.Exception_Message (E),
-                  Data, Tree, Node);
-            end;
+            Translate_RHS_Multiple_Item (Node);
 
          when rhs_optional_item_ID =>
-            --  Source looks like:
-            --
-            --  | a [b] c
-            --
-            --  where 'a', 'b', 'c' are token sequences. Translate to:
-            --
-            --  | a nonterm_b c
-            --  | a c
-            --
-            --  where 'nonterm_b' is a new nonterminal containing b, unless b is
-            --  simple enough to inline.
-            --
-            --  See nested_ebnf_optional.wy for an example of nested optional
-            --  items.
-            --
-            --  current tree:
-            --
-            --  | rhs_list:
-            --  | | rhs | rhs_alternative_list:
-            --  | | | rhs_item_list
-            --  | | | | rhs_item_list
-            --  | | | ...
-            --  | | | | | | rhs_element:
-            --  | | | | | | | rhs_item: contains a tail
-            --  | | | | | rhs_element:
-            --  | | | | | | rhs_item: contains b
-            --  | | | | | | | rhs_optional_item: Node
-            --  | | | | | | | | LEFT_BRACKET: Node.Children (1)
-            --  | | | | | | | | rhs_alternative_item_list: Node.Children (2) b
-            --  | | | | | | | | RIGHT_BRACKET: Node.Children (3)
-            --  | | | | rhs_element: head of c
-            --  | | | | | rhs_item: head of c
-
-            declare
-               Name_Ident    : Base_Identifier_Index := Invalid_Identifier_Index;
-               Name_Terminal : Base_Token_Index      := Invalid_Token_Index;
-               Name_Label    : Base_Token_Index      := Invalid_Token_Index;
-               Found         : Boolean               := False;
-            begin
-               case Tree.RHS_Index (Node) is
-               when 0 | 1 =>
-                  --  : LEFT_BRACKET rhs_alternative_list RIGHT_BRACKET
-                  --  | LEFT_PAREN rhs_alternative_list RIGHT_PAREN QUESTION
-
-                  --  Check for special cases
-
-                  if List_Singleton (Tree.Child (Node, 2)) then
-                     if List_Singleton (Tree.Child (Tree.Child (Node, 2), 1)) then
-                        --  Single item in rhs_alternative_list and rhs_item_list; just use it.
-                        --
-                        --  Single alternative, multiple rhs_items handled below
-                        declare
-                           Name_Element_Node    : Valid_Node_Index;
-                           Name_Identifier_Node : Node_Index;
-                        begin
-                           Found     := True;
-                           Name_Element_Node := First_List_Element
-                             (Tree.Child (Tree.Child (Node, 2), 1), +rhs_element_ID);
-
-                           if Tree.RHS_Index (Name_Element_Node) = 0 then
-                              Name_Identifier_Node := Tree.Child (Tree.Child (Name_Element_Node, 1), 1);
-                           else
-                              --  Name has a label
-                              Name_Label           := Tree.First_Shared_Terminal (Tree.Child (Name_Element_Node, 1));
-                              Name_Identifier_Node := Tree.Child (Tree.Child (Name_Element_Node, 3), 1);
-                           end if;
-
-                           case Tree.Label (Name_Identifier_Node) is
-                           when Virtual_Identifier =>
-                              Name_Ident := Tree.Identifier (Name_Identifier_Node);
-                           when Shared_Terminal =>
-                              Name_Terminal := Tree.First_Shared_Terminal (Name_Identifier_Node);
-                           when others =>
-                              Raise_Programmer_Error ("unhandled rhs_optional case ", Data, Tree, Name_Identifier_Node);
-                           end case;
-                        end;
-                     end if;
-                  else
-                     --  See if we've already created a nonterminal for this.
-                     declare
-                        New_Text             : constant String := Get_Text (Data, Tree, Tree.Child (Node, 2));
-                        Temp                 : Node_Index      := First_List_Element
-                          (Tree.Child (Tree.Root, 1), +compilation_unit_ID);
-                        Name_Identifier_Node : Node_Index;
-                     begin
-                        loop
-                           pragma Assert (Tree.ID (Temp) = +compilation_unit_ID);
-
-                           if Tree.Production_ID (Tree.Child (Temp, 1)) = (+nonterminal_ID, 0) then
-                              if New_Text = Get_Text (Data, Tree, Tree.Child (Tree.Child (Temp, 1), 3)) then
-                                 Found := True;
-                                 Name_Identifier_Node := Tree.Child (Tree.Child (Temp, 1), 1);
-                                 case Tree.Label (Name_Identifier_Node) is
-                                 when Virtual_Identifier =>
-                                    Name_Ident := Tree.Identifier (Name_Identifier_Node);
-                                 when others =>
-                                    Raise_Programmer_Error
-                                      ("unhandled rhs_optional case '" & New_Text & "'",
-                                       Data, Tree, Name_Identifier_Node);
-                                 end case;
-                                 exit;
-                              end if;
-                           end if;
-
-                           Temp := Next_List_Element (Temp, +compilation_unit_list_ID);
-                           exit when Found or Temp = Invalid_Node_Index;
-                        end loop;
-                     end;
-                  end if;
-
-                  if Found then
-                     --  Use previously created nonterminal
-                     if Name_Ident /= Invalid_Identifier_Index then
-                        Tree.Set_Node_Identifier (Node, +IDENTIFIER_ID, Name_Ident);
-
-                        --  Change RHS_Index, delete Check_EBNF action
-                        Tree.Set_Children (Tree.Parent (Node), (+rhs_item_ID, 0), (1 => Node));
-
-                     elsif Name_Terminal /= Invalid_Token_Index then
-                        Tree.Set_Children
-                          (Tree.Parent (Node),
-                           (+rhs_item_ID, 0),
-                           (1 => Tree.Add_Terminal (Name_Terminal, Data.Terminals.all)));
-
-                     else
-                        raise SAL.Programmer_Error;
-                     end if;
-
-                     if Name_Label /= Invalid_Token_Index then
-                        declare
-                           Label_Node : constant Valid_Node_Index := Tree.Add_Terminal
-                             (Name_Label, Data.Terminals.all);
-                           Equal_Node : constant Valid_Node_Index := Tree.Add_Terminal (+EQUAL_ID);
-                        begin
-                           Tree.Set_Children
-                             (Tree.Parent (Tree.Parent (Node)),
-                              (+rhs_element_ID, 1),
-                              (1 => Label_Node,
-                               2 => Equal_Node,
-                               3 => Tree.Parent (Node)));
-                        end;
-                     end if;
-
-                  else
-                     --  Create a new nonterm, or handle more special cases
-
-                     if List_Singleton (Tree.Child (Node, 2)) then
-                        --  Single alternative, multiple rhs_items
-                        --
-                        --  No separate nonterminal, so token labels stay in the same RHS for
-                        --  actions. Splice together rhs_item_lists a, b, c
-                        declare
-                           Root_List_A    : constant Valid_Node_Index := Tree.Child (Tree.Parent (Node, 3), 1);
-                           Tail_Element_A : constant Node_Index       :=
-                             (if Root_List_A = Tree.Parent (Node, 2)
-                              then Invalid_Node_Index -- a is empty
-                              else Last_List_Element (Root_List_A));
-                           Root_List_B    : constant Valid_Node_Index := Tree.Child (Tree.Child (Node, 2), 1);
-                           Head_Element_B : constant Valid_Node_Index := First_List_Element
-                             (Root_List_B, +rhs_element_ID);
-                           Tail_Element_B : constant Valid_Node_Index := Last_List_Element (Root_List_B);
-                           Root_List_C    : constant Valid_Node_Index := List_Root (Tree.Parent (Node, 3));
-                           Head_Element_C : constant Node_Index       := Next_List_Element
-                             (Tree.Parent (Node, 2), +rhs_item_list_ID);
-                           RHS            : constant Valid_Node_Index := Tree.Parent (Root_List_C);
-                           RHS_Children   : Valid_Node_Index_Array    := Tree.Children (RHS);
-                        begin
-                           if Tail_Element_A = Invalid_Node_Index and Head_Element_C = Invalid_Node_Index then
-                              --  A, C both empty
-                              RHS_Children (1) := Tree.Child (Root_List_B, 1);
-                              Tree.Set_Children (RHS, Tree.Production_ID (RHS), RHS_Children);
-
-                           elsif Tail_Element_A = Invalid_Node_Index then
-                              --  A empty, C not empty
-                              declare
-                                 Parent_B2 : constant Valid_Node_Index := Tree.Parent (Tail_Element_B);
-                                 Parent_C  : constant Valid_Node_Index := Tree.Parent (Head_Element_C);
-                              begin
-                                 Tree.Set_Children (Parent_C, (+rhs_item_list_ID, 1), (Parent_B2, Head_Element_C));
-                                 --  Head_Element_C remains the list root.
-                              end;
-
-                           elsif Head_Element_C = Invalid_Node_Index then
-                              --  A not empty, C empty.
-                              declare
-                                 Parent_A : constant Valid_Node_Index := Tree.Parent (Tail_Element_A);
-                                 Parent_B : constant Valid_Node_Index := Tree.Parent (Head_Element_B);
-                              begin
-                                 Tree.Set_Children (Parent_B, (+rhs_item_list_ID, 1), (Parent_A, Head_Element_B));
-                                 RHS_Children (1) := Root_List_B;
-                                 Tree.Set_Children (RHS, Tree.Production_ID (RHS), RHS_Children);
-                              end;
-                           else
-                              --  A, C both not empty
-                              declare
-                                 Parent_A  : constant Valid_Node_Index := Tree.Parent (Tail_Element_A);
-                                 Parent_B1 : constant Valid_Node_Index := Tree.Parent (Head_Element_B);
-                                 Parent_B2 : constant Valid_Node_Index := Tree.Parent (Tail_Element_B);
-                                 Parent_C  : constant Valid_Node_Index := Tree.Parent (Head_Element_C);
-                              begin
-                                 Tree.Set_Children (Parent_B1, (+rhs_item_list_ID, 1), (Parent_A, Head_Element_B));
-                                 Tree.Set_Children (Parent_C, (+rhs_item_list_ID, 1), (Parent_B2, Head_Element_C));
-                                 --  Head_Element_C remains the list root.
-                              end;
-                           end if;
-
-                           if Trace_Generate_EBNF > Extra then
-                              Ada.Text_IO.New_Line;
-                              Ada.Text_IO.Put_Line ("edited rhs:");
-                              Tree.Print_Tree (Wisitoken_Grammar_Actions.Descriptor, RHS);
-                           end if;
-                        end;
-                     else
-                        declare
-                           Nonterm_B : constant Identifier_Index := Next_Nonterm_Name ("");
-                        begin
-                           New_Nonterminal (Nonterm_B, Tree.Child (Node, 2));
-                           Tree.Set_Node_Identifier (Node, +IDENTIFIER_ID, Nonterm_B);
-                        end;
-                        Tree.Set_Children (Tree.Parent (Node), (+rhs_item_ID, 0), (1 => Node));
-                     end if;
-                  end if;
-
-               when 2 =>
-                  --  | IDENTIFIER QUESTION
-                  Tree.Set_Children (Tree.Parent (Node), (+rhs_item_ID, 0), (1 => Tree.Child (Node, 1)));
-
-               when 3 =>
-                  --  | STRING_LITERAL_2 QUESTION
-                  Tree.Set_Children (Tree.Parent (Node), (+rhs_item_ID, 1), (1 => Tree.Child (Node, 1)));
-
-               when others =>
-                  Raise_Programmer_Error ("translate_ebnf_to_bnf rhs_optional_item unimplmented", Data, Tree, Node);
-               end case;
-
-               Clear_EBNF_Node (Node);
-
-               Insert_Optional_RHS (Node);
-            end;
+            Translate_RHS_Optional_Item (Node);
 
          when STRING_LITERAL_2_ID =>
-            declare
-               Value      : constant String  := Get_Text (Data, Tree, Node, Strip_Quotes => True);
-               Name_Ident : Identifier_Index;
-               Found      : Boolean          := False;
-            begin
-               --  See if Value is already declared
-               declare
-                  Temp : Node_Index := First_List_Element (Tree.Child (Tree.Root, 1), +compilation_unit_ID);
-                  Decl : Node_Index;
-               begin
-                  loop
-                     pragma Assert (Tree.ID (Temp) = +compilation_unit_ID);
-
-                     if Tree.Production_ID (Tree.Child (Temp, 1)) = (+declaration_ID, 0) then
-                        Decl := Tree.Child (Temp, 1);
-                        declare
-                           Value_Node : constant Valid_Node_Index := Tree.Child (Tree.Child (Decl, 4), 1);
-                        begin
-                           if Tree.ID (Value_Node) = +declaration_item_ID and then
-                             Tree.ID (Tree.Child (Value_Node, 1)) in
-                             +IDENTIFIER_ID | +STRING_LITERAL_1_ID | +STRING_LITERAL_2_ID and then
-                             Value = Get_Text (Data, Tree, Tree.Child (Value_Node, 1), Strip_Quotes => True)
-                           then
-                              Found := True;
-                              case Tree.Label (Tree.Child (Decl, 3)) is
-                              when Shared_Terminal =>
-                                 Name_Ident := New_Identifier (Get_Text (Data, Tree, Tree.Child (Decl, 3)));
-                              when Virtual_Identifier =>
-                                 Name_Ident := Tree.Identifier (Tree.Child (Decl, 3));
-                              when others =>
-                                 raise SAL.Programmer_Error;
-                              end case;
-                           end if;
-                        end;
-                     end if;
-
-                     Temp := Next_List_Element (Temp, +compilation_unit_list_ID);
-                     exit when Temp = Invalid_Node_Index;
-                  end loop;
-               end;
-
-               if not Found then
-                  if GNAT.Regexp.Match (Value, Symbol_Regexp) then
-                     Name_Ident := New_Identifier (Ada.Characters.Handling.To_Upper (Value));
-                  else
-                     Put_Error
-                       (Error_Message
-                          (Data.Grammar_Lexer.File_Name, Get_Line (Data, Tree, Node),
-                           "punctuation token '" & Value & "' not declared"));
-                     return;
-                  end if;
-               end if;
-
-               declare
-                  Parent : constant Valid_Node_Index := Tree.Parent (Node);
-               begin
-                  case To_Token_Enum (Tree.ID (Parent)) is
-                  when rhs_item_ID =>
-                     Tree.Set_Children
-                       (Tree.Parent (Node),
-                        (+rhs_item_ID, 0),
-                        (1 => Tree.Add_Identifier (+IDENTIFIER_ID, Name_Ident, Tree.Byte_Region (Node))));
-
-                  when rhs_optional_item_ID =>
-                     Tree.Set_Children
-                       (Tree.Parent (Node),
-                        (+rhs_optional_item_ID, 2),
-                        (1 => Tree.Add_Identifier (+IDENTIFIER_ID, Name_Ident, Tree.Byte_Region (Node))));
-
-                  when others =>
-                     Raise_Programmer_Error ("translate_ebnf_to_bnf string_literal_2 unimplemented", Data, Tree, Node);
-                  end case;
-               end;
-
-               Clear_EBNF_Node (Node);
-               if Found then return; end if;
-
-               --  Declare token for keyword string literal
-               declare
-                  Keyword        : constant Valid_Node_Index := Tree.Add_Identifier
-                    (+KEYWORD_ID, Keyword_Ident, Tree.Byte_Region (Node));
-                  Kind           : constant Valid_Node_Index := Tree.Add_Nonterm
-                    ((+token_keyword_non_grammar_ID, 0),
-                     (1 => Keyword));
-                  Value_Literal  : constant Valid_Node_Index := Tree.Add_Identifier
-                    (+STRING_LITERAL_1_ID, New_Identifier ('"' & Value & '"'), Tree.Byte_Region (Node));
-                  Decl_Item      : constant Valid_Node_Index := Tree.Add_Nonterm
-                    ((+declaration_item_ID, 1),
-                     (1 => Value_Literal));
-                  Decl_Item_List : constant Valid_Node_Index := Tree.Add_Nonterm
-                    ((+declaration_item_list_ID, 0),
-                     (1 => Decl_Item));
-
-                  Percent : constant Valid_Node_Index := Tree.Add_Identifier
-                    (+PERCENT_ID, Percent_Ident, Tree.Byte_Region (Node));
-                  Name    : constant Valid_Node_Index := Tree.Add_Identifier
-                    (+IDENTIFIER_ID, Name_Ident, Tree.Byte_Region (Node));
-                  Decl    : constant Valid_Node_Index := Tree.Add_Nonterm
-                    ((+declaration_ID, 0), (Percent, Kind, Name, Decl_Item_List), Action => declaration_0'Access);
-               begin
-                  Add_Compilation_Unit (Decl, Prepend => True);
-               end;
-            end;
+            Translate_Token_Literal (Node);
 
          when others =>
             Raise_Programmer_Error ("unimplemented EBNF node", Data, Tree, Node);
@@ -2494,27 +2575,501 @@ package body WisiToken_Grammar_Runtime is
             Data, Tree, Node);
       end Process_Node;
 
+      EBNF_Allowed : Boolean := True;
+
+      procedure Validate_Node
+        (Tree              : in     Syntax_Trees.Tree;
+         Node              : in     Valid_Node_Index;
+         Node_Image_Output : in out Boolean)
+      is
+         use Ada.Text_IO;
+
+         procedure Put_Error (Msg : in String)
+         is begin
+            if not Node_Image_Output then
+               Node_Image_Output := True;
+               Put_Line
+                 (Current_Error,
+                  Error_Message
+                    (Tree, Data.Terminals, Node, Data.Grammar_Lexer.File_Name,
+                     Tree.Image
+                       (Node, Wisitoken_Grammar_Actions.Descriptor,
+                        Include_RHS_Index => True,
+                        Include_Children  => Trace_Generate_EBNF > Detail,
+                        Node_Numbers      => True)));
+            end if;
+            Put_Line (Current_Error, "... " & Msg);
+            WisiToken.Generate.Error := True;
+         end Put_Error;
+
+         procedure Check_EBNF_Allowed
+         is begin
+            if not EBNF_Allowed then
+               Put_Error ("no EBNF allowed");
+            end if;
+         end Check_EBNF_Allowed;
+
+      begin
+         if Tree.Label (Node) /= Nonterm then
+            return;
+         end if;
+
+         declare
+            use all type Ada.Containers.Count_Type;
+            Children  : constant Valid_Node_Index_Array := Tree.Children (Node);
+            RHS_Index : constant Natural                := Tree.RHS_Index (Node);
+         begin
+            case To_Token_Enum (Tree.ID (Node)) is
+            when nonterminal_ID =>
+               null;
+
+            when rhs_list_ID =>
+               case RHS_Index is
+               when 0 =>
+                  if Children'Length /= 1 then
+                     Put_Error ("expected child_count 1");
+                  elsif Tree.ID (Children (1)) /= +rhs_ID then
+                     Put_Error ("child 1 not rhs");
+                  end if;
+
+               when 1 =>
+                  if Tree.Child_Count (Node) /= 3 then
+                     Put_Error ("expected child_count 3");
+                  elsif Tree.ID (Children (1)) /= +rhs_list_ID or
+                    Tree.ID (Children (2)) /= +BAR_ID or
+                    Tree.ID (Children (3)) /= +rhs_ID
+                  then
+                     Put_Error ("expecting rhs_list BAR rhs");
+                  end if;
+
+               when others =>
+                  Put_Error ("unexpected RHS_Index");
+               end case;
+
+            when rhs_ID =>
+               case RHS_Index is
+               when 0 =>
+                  if Children'Length /= 0 then
+                     Put_Error ("expected child_count 0");
+                  end if;
+
+               when 1 =>
+                  if Tree.Child_Count (Node) /= 1 then
+                     Put_Error ("expected child_count 1");
+                  elsif Tree.ID (Children (1)) /= +rhs_item_list_ID then
+                     Put_Error ("expecting rhs_item_list");
+                  end if;
+
+               when 2 =>
+                  if Tree.Child_Count (Node) /= 2 then
+                     Put_Error ("expected child_count 2");
+                  elsif Tree.ID (Children (1)) /= +rhs_item_list_ID or
+                    Tree.ID (Children (2)) /= +ACTION_ID
+                  then
+                     Put_Error ("expecting rhs_item_list ACTION");
+                  end if;
+
+               when 3 =>
+                  if Tree.Child_Count (Node) /= 3 then
+                     Put_Error ("expected child_count 3");
+                  elsif Tree.ID (Children (1)) /= +rhs_item_list_ID or
+                    Tree.ID (Children (2)) /= +ACTION_ID or
+                    Tree.ID (Children (3)) /= +ACTION_ID
+                  then
+                     Put_Error ("expecting rhs_item_list ACTION ACTION");
+                  end if;
+
+               when others =>
+                  Put_Error ("unexpected RHS_Index");
+               end case;
+
+            when rhs_attribute_ID =>
+               Check_EBNF_Allowed;
+
+            when rhs_element_ID =>
+               case RHS_Index is
+               when 0 =>
+                  if Tree.Child_Count (Node) /= 1 then
+                     Put_Error ("expected child_count 1");
+                  elsif Tree.ID (Children (1)) /= +rhs_item_ID then
+                     Put_Error ("expecting rhs_item");
+                  end if;
+
+               when 1 =>
+                  if Tree.Child_Count (Node) /= 3 then
+                     Put_Error ("expected child_count 3");
+                  elsif Tree.ID (Children (1)) /= +IDENTIFIER_ID or
+                    Tree.ID (Children (2)) /= +EQUAL_ID or
+                    Tree.ID (Children (3)) /= +rhs_item_ID
+                  then
+                     Put_Error ("expecting IDENTIFIER EQUAL rhs_item");
+                  end if;
+
+               when others =>
+                  Put_Error ("unexpected RHS_Index");
+               end case;
+
+            when rhs_item_list_ID =>
+               case RHS_Index is
+               when 0 =>
+                  if Tree.Child_Count (Node) /= 1 then
+                     Put_Error ("expected child_count 1");
+                  elsif Tree.ID (Children (1)) /= +rhs_element_ID then
+                     Put_Error ("expecting rhs_element");
+                  end if;
+
+               when 1 =>
+                  if Tree.Child_Count (Node) /= 2 then
+                     Put_Error ("expected child_count 2");
+                  elsif Tree.ID (Children (1)) /= +rhs_item_list_ID or
+                    Tree.ID (Children (2)) /= +rhs_element_ID
+                  then
+                     Put_Error ("expecting rhs_item_list ELEMENT");
+                  end if;
+
+               when others =>
+                  Put_Error ("unexpected RHS_Index");
+               end case;
+
+            when rhs_item_ID =>
+               if Tree.Child_Count (Node) /= 1 then
+                  Put_Error ("expected child_count 1");
+               end if;
+
+               case RHS_Index is
+               when 0 =>
+                  if Tree.ID (Children (1)) /= +IDENTIFIER_ID then
+                     Put_Error ("expecting IDENTIFIER");
+                  end if;
+
+               when 1 =>
+                  if Tree.ID (Children (1)) /= +STRING_LITERAL_2_ID then
+                     Put_Error ("expecting STRING_LITERAL_2");
+                  end if;
+
+               when 2 =>
+                  if Tree.ID (Children (1)) /= +rhs_attribute_ID then
+                     Put_Error ("expecting rhs_attribute");
+                  end if;
+
+               when 3 =>
+                  if Tree.ID (Children (1)) /= +rhs_optional_item_ID then
+                     Put_Error ("expecting rhs_optional_item");
+                  end if;
+
+               when 4 =>
+                  if Tree.ID (Children (1)) /= +rhs_multiple_item_ID then
+                     Put_Error ("expecting rhs_multiple_item");
+                  end if;
+
+               when 5 =>
+                  if Tree.ID (Children (1)) /= +rhs_group_item_ID then
+                     Put_Error ("expecting rhs_group_item");
+                  end if;
+
+               when others =>
+                  Put_Error ("unexpected RHS_Index");
+               end case;
+
+            when rhs_group_item_ID =>
+               Check_EBNF_Allowed;
+               if RHS_Index /= 0 or
+                 (Children'Length /= 3 or else
+                    (Tree.ID (Children (1)) /= +LEFT_PAREN_ID or
+                       Tree.ID (Children (2)) /= +rhs_alternative_list_ID or
+                       Tree.ID (Children (3)) /= +RIGHT_PAREN_ID))
+               then
+                  Put_Error ("expecting RHS_Index 0, LEFT_PAREN rhs_alternative_list RIGHT_PAREN");
+               end if;
+
+            when rhs_optional_item_ID =>
+               Check_EBNF_Allowed;
+               case RHS_Index is
+               when 0 =>
+                  if Children'Length /= 3 or else
+                    (Tree.ID (Children (1)) /= +LEFT_BRACKET_ID or
+                       Tree.ID (Children (2)) /= +rhs_alternative_list_ID or
+                       Tree.ID (Children (3)) /= +RIGHT_BRACKET_ID)
+                  then
+                     Put_Error ("expecting LEFT_BRACKET rhs_alternative_list RIGHT_BRACKET");
+                  end if;
+
+               when 1 =>
+                  if Children'Length /= 4 or else
+                    (Tree.ID (Children (1)) /= +LEFT_PAREN_ID or
+                       Tree.ID (Children (2)) /= +rhs_alternative_list_ID or
+                       Tree.ID (Children (3)) /= +RIGHT_PAREN_ID or
+                       Tree.ID (Children (4)) /= +QUESTION_ID)
+                  then
+                     Put_Error ("expecting LEFT_PAREN rhs_alternative_list RIGHT_PAREN QUESTION");
+                  end if;
+
+               when 2 =>
+                  if Children'Length /= 2 or else
+                    (Tree.ID (Children (1)) /= +IDENTIFIER_ID or
+                       Tree.ID (Children (2)) /= +QUESTION_ID)
+                  then
+                     Put_Error ("expecting IDENTIFIER QUESTION");
+                  end if;
+
+               when 3 =>
+                  if Children'Length /= 2 or else
+                    (Tree.ID (Children (1)) /= +STRING_LITERAL_2_ID or
+                       Tree.ID (Children (2)) /= +QUESTION_ID)
+                  then
+                     Put_Error ("expecting STRING_LITERAL_2 QUESTION");
+                  end if;
+
+               when others =>
+                  Put_Error ("unexpected RHS_Index");
+               end case;
+
+            when rhs_multiple_item_ID =>
+               Check_EBNF_Allowed;
+               case RHS_Index is
+               when 0 =>
+                  if Children'Length /= 3 or else
+                    (Tree.ID (Children (1)) /= +LEFT_BRACE_ID or
+                       Tree.ID (Children (2)) /= +rhs_alternative_list_ID or
+                       Tree.ID (Children (3)) /= +RIGHT_BRACE_ID)
+                  then
+                     Put_Error ("expecting LEFT_BRACE rhs_alternative_list RIGHT_BRACE");
+                  end if;
+
+               when 1 =>
+                  if Children'Length /= 4 or else
+                    (Tree.ID (Children (1)) /= +LEFT_BRACE_ID or
+                       Tree.ID (Children (2)) /= +rhs_alternative_list_ID or
+                       Tree.ID (Children (3)) /= +RIGHT_BRACE_ID or
+                       Tree.ID (Children (4)) /= +MINUS_ID)
+                  then
+                     Put_Error ("expecting LEFT_BRACE rhs_alternative_list RIGHT_BRACE MINUS");
+                  end if;
+
+               when 2 =>
+                  if Children'Length /= 4 or else
+                    (Tree.ID (Children (1)) /= +LEFT_PAREN_ID or
+                       Tree.ID (Children (2)) /= +rhs_alternative_list_ID or
+                       Tree.ID (Children (3)) /= +RIGHT_PAREN_ID or
+                       Tree.ID (Children (4)) /= +PLUS_ID)
+                  then
+                     Put_Error ("expecting LEFT_PAREN rhs_alternative_list RIGHT_PAREN PLUS");
+                  end if;
+
+               when 3 =>
+                  if Children'Length /= 4 or else
+                    (Tree.ID (Children (1)) /= +LEFT_PAREN_ID or
+                       Tree.ID (Children (2)) /= +rhs_alternative_list_ID or
+                       Tree.ID (Children (3)) /= +RIGHT_PAREN_ID or
+                       Tree.ID (Children (4)) /= +STAR_ID)
+                  then
+                     Put_Error ("expecting LEFT_PAREN rhs_alternative_list RIGHT_PAREN STAR");
+                  end if;
+
+               when 4 =>
+                  if Children'Length /= 2 or else
+                    (Tree.ID (Children (1)) /= +IDENTIFIER_ID or
+                       Tree.ID (Children (2)) /= +PLUS_ID)
+                  then
+                     Put_Error ("expecting IDENTIFIER PLUS");
+                  end if;
+
+               when 5 =>
+                  if Children'Length /= 2 or else
+                    (Tree.ID (Children (1)) /= +IDENTIFIER_ID or
+                       Tree.ID (Children (2)) /= +STAR_ID)
+                  then
+                     Put_Error ("expecting IDENTIFIER STAR");
+                  end if;
+
+               when others =>
+                  Put_Error ("unexpected RHS_Index");
+               end case;
+
+            when rhs_alternative_list_ID =>
+               Check_EBNF_Allowed;
+               case RHS_Index is
+               when 0 =>
+                  if Children'Length /= 1 or else
+                    (Tree.ID (Children (1)) /= +rhs_item_list_ID)
+                  then
+                     Put_Error ("expecting rhs_item_list");
+                  end if;
+
+               when 1 =>
+                  if Children'Length /= 3 or else
+                    (Tree.ID (Children (1)) /= +rhs_alternative_list_ID or
+                       Tree.ID (Children (2)) /= +BAR_ID or
+                       Tree.ID (Children (3)) /= +rhs_item_list_ID)
+                  then
+                     Put_Error ("expecting rhs_alternative_list BAR rhs_item_list");
+                  end if;
+               when others =>
+                  Put_Error ("unexpected RHS_Index");
+               end case;
+
+            when compilation_unit_ID =>
+               null;
+
+            when compilation_unit_list_ID =>
+               null;
+
+            when others =>
+               null;
+            end case;
+         end;
+      end Validate_Node;
+
+      procedure Check_Original_EBNF
+      is
+         use Ada.Text_IO;
+         Sub_Tree_Root : Node_Index;
+      begin
+         for N in Data.EBNF_Nodes.First_Index .. Data.EBNF_Nodes.Last_Index loop
+            if Data.EBNF_Nodes (N) then
+               Sub_Tree_Root := Tree.Sub_Tree_Root (N);
+               if Sub_Tree_Root /= Tree.Root then
+                  Put_Line
+                    (Current_Error,
+                     Error_Message
+                       (Tree, Data.Terminals, N, Data.Grammar_Lexer.File_Name,
+                        Tree.Image
+                          (N, Wisitoken_Grammar_Actions.Descriptor,
+                           Node_Numbers      => True)));
+                  Put_Line (Current_Error, "... not in tree; in root" & Sub_Tree_Root'Image);
+                  WisiToken.Generate.Error := True;
+               end if;
+            end if;
+         end loop;
+      end Check_Original_EBNF;
+
+      procedure Check_Copied_EBNF
+      is
+         use Ada.Text_IO;
+         Sub_Tree_Root : Node_Index;
+      begin
+         for N of Copied_EBNF_Nodes loop
+            if N /= Deleted_Child then
+               Sub_Tree_Root := Tree.Sub_Tree_Root (N);
+               if Sub_Tree_Root /= Tree.Root then
+                  Put_Line
+                    (Current_Error,
+                     Error_Message
+                       (Tree, Data.Terminals, N, Data.Grammar_Lexer.File_Name,
+                        Tree.Image
+                          (N, Wisitoken_Grammar_Actions.Descriptor,
+                           Node_Numbers      => True)));
+                  Put_Line (Current_Error, "... not in tree; in root" & Sub_Tree_Root'Image);
+                  WisiToken.Generate.Error := True;
+               end if;
+            end if;
+         end loop;
+      end Check_Copied_EBNF;
+
    begin
       --  Process nodes in node increasing order, so contained items are
       --  translated first, so duplicates of the containing item can be found
       for I in Data.EBNF_Nodes.First_Index .. Data.EBNF_Nodes.Last_Index loop
          if Data.EBNF_Nodes (I) then
+            if Trace_Generate_EBNF > Outline then
+               Ada.Text_IO.New_Line;
+               Ada.Text_IO.Put_Line
+                 ("translate original node " & Tree.Image
+                    (I, Wisitoken_Grammar_Actions.Descriptor,
+                     Include_RHS_Index => True,
+                     Node_Numbers      => True));
+            end if;
+
             Process_Node (I);
+
+            Tree.Validate_Tree
+              (Data.Terminals, Wisitoken_Grammar_Actions.Descriptor, Data.Grammar_Lexer.File_Name, Tree.Root,
+               Validate_Node'Unrestricted_Access);
+            Check_Original_EBNF;
+            Check_Copied_EBNF;
          end if;
       end loop;
 
-      --  Processing copied nodes may produce more copied nodes, so we can't
-      --  use a 'for' loop.
       declare
-         use all type SAL.Base_Peek_Type;
+         use Ada.Text_IO;
+      begin
+         for Node in Data.EBNF_Nodes.First_Index .. Data.EBNF_Nodes.Last_Index loop
+            if Data.EBNF_Nodes (Node) then
+               Put_Line
+                 (Current_Error,
+                  Error_Message
+                    (Tree, Data.Terminals, Node, Data.Grammar_Lexer.File_Name,
+                     Tree.Image
+                       (Node, Wisitoken_Grammar_Actions.Descriptor,
+                        Include_RHS_Index => True,
+                        Include_Children  => Trace_Generate_EBNF > Detail,
+                        Node_Numbers      => True)));
+               Put_Line (Current_Error, "... original EBNF node not translated");
+            end if;
+         end loop;
+      end;
+
+      declare
          I : SAL.Base_Peek_Type := Copied_EBNF_Nodes.First_Index;
       begin
+         --  Processing copied nodes may produce more copied nodes, so we can't
+         --  use a 'for' loop.
          loop
             exit when I > Copied_EBNF_Nodes.Last_Index;
-            Process_Node (Copied_EBNF_Nodes (I));
+            if Copied_EBNF_Nodes (I) = Deleted_Child then
+               --  Deleted
+               if Trace_Generate_EBNF > Outline then
+                  Ada.Text_IO.New_Line;
+                  Ada.Text_IO.Put_Line
+                    ("skipping deleted copied node " & Tree.Image
+                       (Copied_EBNF_Nodes (I), Wisitoken_Grammar_Actions.Descriptor,
+                        Include_RHS_Index => True,
+                        Node_Numbers      => True));
+               end if;
+            else
+               if Trace_Generate_EBNF > Outline then
+                  Ada.Text_IO.New_Line;
+                  Ada.Text_IO.Put_Line
+                    ("translate copied node " & Tree.Image
+                       (Copied_EBNF_Nodes (I), Wisitoken_Grammar_Actions.Descriptor,
+                        Include_RHS_Index => True,
+                        Node_Numbers      => True));
+               end if;
+
+               Process_Node (Copied_EBNF_Nodes (I));
+
+               Tree.Validate_Tree
+                 (Data.Terminals, Wisitoken_Grammar_Actions.Descriptor, Data.Grammar_Lexer.File_Name, Tree.Root,
+                  Validate_Node'Unrestricted_Access);
+               Check_Copied_EBNF;
+            end if;
             I := I + 1;
          end loop;
       end;
+
+      declare
+         use Ada.Text_IO;
+      begin
+         for Node of Copied_EBNF_Nodes loop
+            if Node /= Deleted_Child then
+               Put_Line
+                 (Current_Error,
+                  Error_Message
+                    (Tree, Data.Terminals, Node, Data.Grammar_Lexer.File_Name,
+                     Tree.Image
+                       (Node, Wisitoken_Grammar_Actions.Descriptor,
+                        Include_RHS_Index => True,
+                        Include_Children  => Trace_Generate_EBNF > Detail,
+                        Node_Numbers      => True)));
+               Put_Line (Current_Error, "... copied EBNF node not translated");
+            end if;
+         end loop;
+      end;
+
+      EBNF_Allowed := False;
+      Tree.Validate_Tree
+        (Data.Terminals, Wisitoken_Grammar_Actions.Descriptor, Data.Grammar_Lexer.File_Name, Tree.Root,
+         Validate_Node'Unrestricted_Access);
 
       Data.Meta_Syntax := BNF_Syntax;
 
@@ -2630,7 +3185,10 @@ package body WisiToken_Grammar_Runtime is
          when others =>
             New_Line (File);
             Put (File, " ;; not translated: " & Node_Index'Image (Node) & ":" &
-              Tree.Image (Node, Wisitoken_Grammar_Actions.Descriptor, Include_Children => True));
+                   Tree.Image (Node, Wisitoken_Grammar_Actions.Descriptor,
+                               Include_Children  => True,
+                               Include_RHS_Index => True,
+                               Node_Numbers      => True));
          end case;
       exception
       when SAL.Programmer_Error =>
@@ -2880,5 +3438,5 @@ package body WisiToken_Grammar_Runtime is
 
 end WisiToken_Grammar_Runtime;
 --  Local Variables:
---  ada-which-func-parse-size: 30000
+--  ada-which-func-parse-size: 50000
 --  End:

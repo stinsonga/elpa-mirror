@@ -25,7 +25,7 @@ developing GNU and promoting software freedom.''
 
 @titlepage
 @sp 10
-@title Wisi Version 3.1.0
+@title Wisi Version 3.1.2
 @page
 @vskip 0pt plus 1filll
 @insertcopying
@@ -37,7 +37,7 @@ developing GNU and promoting software freedom.''
 @node Top
 @top Top
 
-Wisi Version 3.1.0
+Wisi Version 3.1.2
 @end ifnottex
 
 @menu

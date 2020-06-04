@@ -24,10 +24,19 @@
 --  The parent components are set by Set_Parents, which is called by
 --  Parser.Execute_Actions before the actions are executed.
 --  Fortunately, we don't need the parent components during error
---  recover.
+--  recover. After calling Set_Parents (ie, while editing the syntax
+--  tree after parse), any functions that modify children or parents
+--  update the corresponding links, setting them to Invalid_Node_Index
+--  or Deleted_Child as appropriate.
 --
 --  We provide Base_Tree and Tree in one package, because only Tree
 --  needs an API; the only way Base_Tree is accessed is via Tree.
+--
+--  Base_Tree and Tree are not limited to allow
+--  wisitoken-parse-lr-parser_lists.ads Prepend_Copy to copy them. No
+--  Adjust is needed; Shared_Tree is shared between parsers, and
+--  Augmented pointers are also shared, since during parse they are
+--  set only for Shared_Terminals.
 --
 --  Copyright (C) 2018 - 2020 Free Software Foundation, Inc.
 --
@@ -56,15 +65,24 @@ package WisiToken.Syntax_Trees is
    overriding procedure Finalize (Tree : in out Base_Tree);
    --  Free any allocated storage.
 
+   function Is_Empty (Tree : in Base_Tree) return Boolean;
+
    type Tree is new Ada.Finalization.Controlled with private;
 
-   type Tree_Variable_Reference (Element : access Tree) is null record with
+   type Tree_Variable_Reference (Element : not null access Tree) is null record with
      Implicit_Dereference => Element;
+
+   type Tree_Constant_Reference (Element : not null access constant Tree) is null record with
+     Implicit_Dereference => Element;
+
+   function Is_Empty (Tree : in Syntax_Trees.Tree) return Boolean;
 
    procedure Initialize
      (Branched_Tree : in out Tree;
       Shared_Tree   : in     Base_Tree_Access;
-      Flush         : in     Boolean);
+      Flush         : in     Boolean;
+      Set_Parents   : in     Boolean := False)
+   with Pre => Branched_Tree.Is_Empty and Shared_Tree.Is_Empty;
    --  Set Branched_Tree to refer to Shared_Tree.
 
    overriding procedure Finalize (Tree : in out Syntax_Trees.Tree);
@@ -86,7 +104,7 @@ package WisiToken.Syntax_Trees is
    procedure Set_Lexer_Terminals
      (User_Data : in out User_Data_Type;
       Lexer     : in     WisiToken.Lexer.Handle;
-      Terminals : in     Base_Token_Array_Access)
+      Terminals : in     Base_Token_Array_Access_Constant)
    is null;
 
    procedure Reset (User_Data : in out User_Data_Type) is null;
@@ -176,16 +194,15 @@ package WisiToken.Syntax_Trees is
 
    function Copy_Subtree
      (Tree : in out Syntax_Trees.Tree;
-      Root : in     Valid_Node_Index;
-      Last : in     Valid_Node_Index)
+      Root : in     Valid_Node_Index)
      return Valid_Node_Index
    with Pre => Tree.Flushed and Tree.Parents_Set;
-   --  Deep copy (into Tree) subtree of Tree rooted at Root. Stop copying
-   --  after children of Last are copied. Return root of new subtree.
+   --  Deep copy (into Tree) subtree of Tree rooted at Root. Return root
+   --  of new subtree; it has no parent.
    --
    --  Parents of new child nodes are set. Node index order is preserved.
    --  References to objects external to tree are shallow copied
-   --  (Terminals, Augmented).
+   --  (Terminals, Augmented, Action).
 
    function Add_Nonterm
      (Tree            : in out Syntax_Trees.Tree;
@@ -194,10 +211,15 @@ package WisiToken.Syntax_Trees is
       Action          : in     Semantic_Action := null;
       Default_Virtual : in     Boolean         := False)
      return Valid_Node_Index
-   with Pre  => not Tree.Traversing;
+   with Pre => not Tree.Traversing and
+               (for all C of Children => C /= Deleted_Child);
    --  Add a new Nonterm node, which can be empty. Result points to the
    --  added node. If Children'Length = 0, set Nonterm.Virtual :=
    --  Default_Virtual.
+   --
+   --  If Tree.Parents_Set, then Children.Parent are set to the new node,
+   --  and in previous parents of those children (if any), the
+   --  corresponding entry in Children is set to Deleted_Child.
 
    function Add_Terminal
      (Tree      : in out Syntax_Trees.Tree;
@@ -217,8 +239,8 @@ package WisiToken.Syntax_Trees is
    --  Add a new Virtual_Terminal node with no parent. Before is the
    --  index of the terminal in Terminals that this virtual is inserted
    --  before during error correction; if Invalid_Token_Index, it is
-   --  inserted during EBNF translation, and there is no such terminal in
-   --  Terminals. Result points to the added node.
+   --  inserted during EBNF translation, and there is no such terminal.
+   --  Result points to the added node.
 
    function Before
      (Tree             : in Syntax_Trees.Tree;
@@ -242,10 +264,37 @@ package WisiToken.Syntax_Trees is
       Parent : in     Valid_Node_Index;
       Child  : in     Valid_Node_Index)
    with
-     Pre => Tree.Flushed and
-            (not Tree.Traversing) and
+     Pre => Tree.Flushed and Tree.Parents_Set and (not Tree.Traversing) and
             Tree.Is_Nonterm (Parent);
-   --  Child.Parent must already be set.
+   --  Sets Child.Parent.
+
+   function Child_Index
+     (Tree   : in out Syntax_Trees.Tree;
+      Parent : in     Valid_Node_Index;
+      Child  : in     Valid_Node_Index)
+     return SAL.Peek_Type
+   with Pre => Tree.Has_Child (Parent, Child);
+
+   procedure Replace_Child
+     (Tree                 : in out Syntax_Trees.Tree;
+      Parent               : in     Valid_Node_Index;
+      Child_Index          : in     SAL.Peek_Type;
+      Old_Child            : in     Valid_Node_Index;
+      New_Child            : in     Valid_Node_Index;
+      Old_Child_New_Parent : in     Node_Index := Invalid_Node_Index)
+   with
+     Pre => Tree.Flushed and Tree.Parents_Set and (not Tree.Traversing) and
+            (Tree.Is_Nonterm (Parent) and then
+             (Tree.Child (Parent, Child_Index) = Old_Child and
+              (Old_Child = Deleted_Child or else
+               Tree.Parent (Old_Child) = Parent)));
+   --  In Parent.Children, replace child at Child_Index with New_Child.
+   --  Unless Old_Child is Deleted_Child, set Old_Child.Parent to
+   --  Old_Child_New_Parent (may be Invalid_Node_Index). Unless New_Child
+   --  is Deleted_Child, set New_Child.Parent to Parent.
+   --
+   --  If Old_Child is Deleted_Child, Old_Child_New_Parent should be left
+   --  to default.
 
    procedure Set_Children
      (Tree     : in out Syntax_Trees.Tree;
@@ -253,24 +302,38 @@ package WisiToken.Syntax_Trees is
       New_ID   : in     WisiToken.Production_ID;
       Children : in     Valid_Node_Index_Array)
    with
-     Pre => Tree.Flushed and
-            Tree.Parents_Set and
-            (not Tree.Traversing) and
-            Tree.Is_Nonterm (Node);
-   --  Set ID of Node to New_ID, and children to Children; set parent of
-   --  Children to Node. Remove any Action.
+     Pre => Tree.Flushed and Tree.Parents_Set and (not Tree.Traversing) and
+            Tree.Is_Nonterm (Node) and
+            (for all C of Children => C /= Deleted_Child);
+   --  If parents of current Node.Children are not Invalid_Node_Index,
+   --  set corresponding entry in those parents to Deleted_Child, then
+   --  set Parent to Invalid_Node_Index.
    --
-   --  New_ID is required, and Action removed, because this is most
-   --  likely a different production.
+   --  Then set ID of Node to New_ID, and Node.Children to Children; set
+   --  parents of Children to Node.
+   --
+   --  If New_ID /= Tree.Production_ID (Node), Node.Action is set
+   --  to null, because the old Action probably no longer applies.
+
+   procedure Delete_Parent
+     (Tree : in out Syntax_Trees.Tree;
+      Node : in     Valid_Node_Index)
+   with
+     Pre => Tree.Flushed and Tree.Parents_Set and (not Tree.Traversing) and
+            Tree.Parent (Node) /= Invalid_Node_Index;
+   --  Set child in Node.Parent to Deleted_Child. If Node.Parent =
+   --  Tree.Root, set Tree.Root to Node. Set Node.Parent to
+   --  Invalid_Node_Index.
 
    procedure Set_Node_Identifier
      (Tree       : in Syntax_Trees.Tree;
       Node       : in Valid_Node_Index;
       ID         : in Token_ID;
       Identifier : in Identifier_Index)
-   with Pre => Tree.Flushed and
+   with Pre => Tree.Flushed and Tree.Parents_Set and (not Tree.Traversing) and
                Tree.Is_Nonterm (Node);
-   --  Change Node to a Virtual_Identifier.
+   --  Set parents of current Node.Children to Invalid_Node_Index.
+   --  Then change Node to a Virtual_Identifier.
 
    procedure Set_State
      (Tree  : in out Syntax_Trees.Tree;
@@ -281,8 +344,13 @@ package WisiToken.Syntax_Trees is
 
    function Label (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Node_Label;
 
+   function Child_Count (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Ada.Containers.Count_Type
+   with Pre => Tree.Is_Nonterm (Node);
+
    function Children (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Valid_Node_Index_Array
    with Pre => Tree.Is_Nonterm (Node);
+   --  Any children that were cleared by Add_Nonterm are returned as
+   --  Deleted_Child.
 
    function Child
      (Tree        : in Syntax_Trees.Tree;
@@ -292,10 +360,22 @@ package WisiToken.Syntax_Trees is
    with Pre => Tree.Is_Nonterm (Node);
 
    function Has_Branched_Nodes (Tree : in Syntax_Trees.Tree) return Boolean;
-   function Has_Children (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Boolean;
+   function Has_Children (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Boolean
+   with Pre => Tree.Is_Nonterm (Node);
+   function Has_Child
+     (Tree  : in Syntax_Trees.Tree;
+      Node  : in Valid_Node_Index;
+      Child : in Valid_Node_Index)
+     return Boolean
+   with Pre => Tree.Is_Nonterm (Node);
    function Has_Parent (Tree : in Syntax_Trees.Tree; Child : in Valid_Node_Index) return Boolean;
    function Has_Parent (Tree : in Syntax_Trees.Tree; Children : in Valid_Node_Index_Array) return Boolean;
-   function Is_Empty (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Boolean;
+
+   function Buffer_Region_Is_Empty (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Boolean;
+   --  True if contained buffer region is empty; always the case for
+   --  virtual tokens, and for most copied tokens. Use Has_Children or
+   --  Child_Count to see if Node has children.
+
    function Is_Nonterm (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Boolean;
    function Is_Shared_Terminal (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Boolean;
    function Is_Virtual_Terminal (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Boolean;
@@ -308,7 +388,7 @@ package WisiToken.Syntax_Trees is
 
    function Parents_Set (Tree : in Syntax_Trees.Tree) return Boolean;
    procedure Set_Parents (Tree : in out Syntax_Trees.Tree)
-   with Pre => Tree.Flushed;
+   with Pre => Tree.Flushed and Tree.Root /= Invalid_Node_Index;
 
    function Parent
      (Tree  : in Syntax_Trees.Tree;
@@ -388,19 +468,24 @@ package WisiToken.Syntax_Trees is
    with Pre => Tree.Is_Nonterm (Node);
 
    function Find_Ancestor
-     (Tree : in Syntax_Trees.Tree;
-      Node : in Valid_Node_Index;
-      ID   : in Token_ID)
+     (Tree       : in Syntax_Trees.Tree;
+      Node       : in Valid_Node_Index;
+      ID         : in Token_ID;
+      Max_Parent : in Boolean := False)
      return Node_Index
    with Pre => Tree.Parents_Set;
    function Find_Ancestor
-     (Tree : in Syntax_Trees.Tree;
-      Node : in Valid_Node_Index;
-      IDs  : in Token_ID_Array)
+     (Tree       : in Syntax_Trees.Tree;
+      Node       : in Valid_Node_Index;
+      IDs        : in Token_ID_Array;
+      Max_Parent : in Boolean := False)
      return Node_Index
    with Pre => Tree.Parents_Set;
-   --  Return the ancestor of Node that contains ID, or Invalid_Node_Index if
-   --  none match.
+   --  Return the ancestor of Node that contains ID (starting search with
+   --  Node.Parent), or Invalid_Node_Index if none match.
+   --
+   --  If Max_Parent, return max parent found if none match; this will be
+   --  Invalid_Node_Index if Node has no parent.
 
    function Find_Sibling
      (Tree : in Syntax_Trees.Tree;
@@ -436,18 +521,30 @@ package WisiToken.Syntax_Trees is
    --  Return the descendant of Node (may be Node) for which Predicate
    --  returns True, or Invalid_Node_Index if none do.
 
+   function Is_Descendant_Of
+     (Tree       : in Syntax_Trees.Tree;
+      Root       : in Valid_Node_Index;
+      Descendant : in Valid_Node_Index)
+     return Boolean
+   with Pre => Tree.Parents_Set and Tree.Is_Nonterm (Root);
+
    procedure Set_Root (Tree : in out Syntax_Trees.Tree; Root : in Valid_Node_Index);
 
    function Root (Tree : in Syntax_Trees.Tree) return Node_Index;
-   --  Return value set by Set_Root; defaults to the last node added.
+   --  Return value set by Set_Root.
    --  returns Invalid_Node_Index if Tree is empty.
+
+   function Sub_Tree_Root (Tree : in Syntax_Trees.Tree; Node : in Valid_Node_Index) return Valid_Node_Index
+   with Pre => Tree.Parents_Set;
+   --  Return top ancestor of Node.
 
    procedure Process_Tree
      (Tree         : in out Syntax_Trees.Tree;
       Process_Node : access procedure
         (Tree : in out Syntax_Trees.Tree;
          Node : in     Valid_Node_Index);
-      Root         : in     Node_Index := Invalid_Node_Index);
+      Root         : in     Node_Index := Invalid_Node_Index)
+   with Pre => Root /= Invalid_Node_Index or Tree.Root /= Invalid_Node_Index;
    --  Traverse subtree of Tree rooted at Root (default Tree.Root) in
    --  depth-first order, calling Process_Node on each node.
 
@@ -503,10 +600,12 @@ package WisiToken.Syntax_Trees is
    --  Return all descendants of Node matching ID.
 
    function Image
-     (Tree             : in Syntax_Trees.Tree;
-      Node             : in Valid_Node_Index;
-      Descriptor       : in WisiToken.Descriptor;
-      Include_Children : in Boolean := False)
+     (Tree              : in Syntax_Trees.Tree;
+      Node              : in Valid_Node_Index;
+      Descriptor        : in WisiToken.Descriptor;
+      Include_Children  : in Boolean := False;
+      Include_RHS_Index : in Boolean := False;
+      Node_Numbers      : in Boolean := False)
      return String;
    function Image
      (Tree       : in Syntax_Trees.Tree;
@@ -526,13 +625,44 @@ package WisiToken.Syntax_Trees is
      return String;
    --  Simple list of numbers, for debugging
 
+   function Error_Message
+     (Tree      : in Syntax_Trees.Tree;
+      Terminals : in Base_Token_Array_Access_Constant;
+      Node      : in Valid_Node_Index;
+      File_Name : in String;
+      Message   : in String)
+     return String;
+   --  Get Line, column from Node.
+
+   type Validate_Node is access procedure
+     (Tree              : in     Syntax_Trees.Tree;
+      Node              : in     Valid_Node_Index;
+      Node_Image_Output : in out Boolean);
+   --  Called by Validate_Tree for each node visited; perform other
+   --  checks, output to Text_IO.Current_Error. If Node_Image_Output is
+   --  False, output Image (Tree, Node, Descriptor, Node_Numbers => True) once
+   --  before any error messages.
+
+   procedure Validate_Tree
+     (Tree          : in out Syntax_Trees.Tree;
+      Terminals     : in     Base_Token_Array_Access_Constant;
+      Descriptor    : in     WisiToken.Descriptor;
+      File_Name     : in     String;
+      Root          : in     Node_Index                 := Invalid_Node_Index;
+      Validate_Node : in     Syntax_Trees.Validate_Node := null)
+   with Pre => Tree.Flushed and Tree.Parents_Set;
+   --  Verify child/parent links, and that no children are Deleted_Child.
+   --  Violations output a message to Text_IO.Current_Error.
+
    type Image_Augmented is access function (Aug : in Base_Token_Class_Access) return String;
+   type Image_Action is access function (Action : in Semantic_Action) return String;
 
    procedure Print_Tree
      (Tree            : in Syntax_Trees.Tree;
       Descriptor      : in WisiToken.Descriptor;
       Root            : in Node_Index                   := Invalid_Node_Index;
-      Image_Augmented : in Syntax_Trees.Image_Augmented := null)
+      Image_Augmented : in Syntax_Trees.Image_Augmented := null;
+      Image_Action    : in Syntax_Trees.Image_Action    := null)
    with Pre => Tree.Flushed;
    --  Print tree rooted at Root (default Tree.Root) to
    --  Text_IO.Current_Output, for debugging. For each node,
@@ -619,6 +749,9 @@ private
       --  note above.
    end record;
 
+   function Is_Empty (Tree : in Base_Tree) return Boolean
+   is (Tree.Nodes.Length = 0);
+
    type Tree is new Ada.Finalization.Controlled with record
       Shared_Tree : Base_Tree_Access;
       --  If we need to set anything (ie parent) in Shared_Tree, we move the
@@ -662,6 +795,9 @@ private
    is (if Node <= Tree.Last_Shared_Node
          then Tree.Shared_Tree.Nodes.Variable_Ref (Node)
          else Tree.Branched_Nodes.Variable_Ref (Node));
+
+   function Is_Empty (Tree : in Syntax_Trees.Tree) return Boolean
+   is (Tree.Branched_Nodes.Length = 0 and (Tree.Shared_Tree = null or else Tree.Shared_Tree.Is_Empty));
 
    function Parents_Set (Tree : in Syntax_Trees.Tree) return Boolean
    is (Tree.Shared_Tree.Parents_Set);

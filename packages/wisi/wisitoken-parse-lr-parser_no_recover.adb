@@ -459,10 +459,27 @@ package body WisiToken.Parse.LR.Parser_No_Recover is
                exception
                when E : others =>
                   declare
-                     Token : Base_Token renames Parser.Terminals (Tree.First_Shared_Terminal (Node));
+                     Line   : Line_Number_Type  := Line_Number_Type'First;
+                     Column : Ada.Text_IO.Count := Ada.Text_IO.Count'First;
                   begin
+                     if Tree.First_Shared_Terminal (Node) = Invalid_Token_Index then
+                        declare
+                           Byte_Region : Buffer_Region renames Tree.Byte_Region (Node);
+                        begin
+                           if Byte_Region /= Null_Buffer_Region then
+                              Column := Ada.Text_IO.Count (Byte_Region.First);
+                           end if;
+                        end;
+                     else
+                        declare
+                           Token : Base_Token renames Parser.Terminals (Tree.First_Shared_Terminal (Node));
+                        begin
+                           Line := Token.Line;
+                           Column := Token.Column;
+                        end;
+                     end if;
                      raise WisiToken.Parse_Error with Error_Message
-                       (Parser.Lexer.File_Name, Token.Line, Token.Column,
+                       (Parser.Lexer.File_Name, Line, Column,
                         "action raised exception " & Ada.Exceptions.Exception_Name (E) & ": " &
                           Ada.Exceptions.Exception_Message (E));
                   end;

@@ -22,6 +22,7 @@ with WisiToken.BNF;
 with WisiToken.Lexer;
 with WisiToken.Syntax_Trees;
 with Wisitoken_Grammar_Actions;
+with WisiToken.Syntax_Trees.LR_Utils;
 package WisiToken_Grammar_Runtime is
 
    type Meta_Syntax is (Unknown, BNF_Syntax, EBNF_Syntax);
@@ -50,7 +51,7 @@ package WisiToken_Grammar_Runtime is
       --  Other - everything else
 
       Meta_Syntax      : WisiToken_Grammar_Runtime.Meta_Syntax := Unknown;
-      Terminals        : WisiToken.Base_Token_Array_Access;
+      Terminals        : WisiToken.Base_Token_Array_Access_Constant;
       Raw_Code         : WisiToken.BNF.Raw_Code;
       Language_Params  : WisiToken.BNF.Language_Param_Type;
       Tokens           : aliased WisiToken.BNF.Tokens;
@@ -90,7 +91,7 @@ package WisiToken_Grammar_Runtime is
    procedure Set_Lexer_Terminals
      (User_Data : in out User_Data_Type;
       Lexer     : in     WisiToken.Lexer.Handle;
-      Terminals : in     WisiToken.Base_Token_Array_Access);
+      Terminals : in     WisiToken.Base_Token_Array_Access_Constant);
 
    overriding procedure Reset (Data : in out User_Data_Type);
 
@@ -123,11 +124,29 @@ package WisiToken_Grammar_Runtime is
       Tree      : in     WisiToken.Syntax_Trees.Tree;
       Tokens    : in     WisiToken.Valid_Node_Index_Array);
 
+   function Image_Grammar_Action (Action : in WisiToken.Syntax_Trees.Semantic_Action) return String;
+   --  For Syntax_Trees.Print_Tree.
+
    procedure Check_EBNF
      (User_Data : in out WisiToken.Syntax_Trees.User_Data_Type'Class;
       Tree      : in     WisiToken.Syntax_Trees.Tree;
       Tokens    : in     WisiToken.Valid_Node_Index_Array;
       Token     : in     WisiToken.Positive_Index_Type);
+
+   procedure Raise_Programmer_Error
+     (Label : in String;
+      Data  : in User_Data_Type;
+      Tree  : in WisiToken.Syntax_Trees.Tree;
+      Node  : in WisiToken.Node_Index);
+   pragma No_Return (Raise_Programmer_Error);
+
+   function Find_Declaration
+     (Data : in     User_Data_Type;
+      Tree : in out WisiToken.Syntax_Trees.Tree;
+      Name : in     String)
+     return WisiToken.Node_Index;
+   --  Return the node that declares Name, Invalid_Node_Index if none.
+   --  The node is either a declaration or a nonterminal.
 
    procedure Translate_EBNF_To_BNF
      (Tree : in out WisiToken.Syntax_Trees.Tree;

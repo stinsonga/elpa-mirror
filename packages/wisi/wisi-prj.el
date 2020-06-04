@@ -195,6 +195,9 @@ and line number.
 - LOC is the declaration of the name as a list (FILE LINE
 COLUMN).")
 
+(cl-defgeneric wisi-xref-completion-delim-regex (xref)
+  "Return the value for `completion-pcm--delim-wild-regex' to be used with `wisi-xref-completion-table'.")
+
 (cl-defgeneric wisi-xref-completion-regexp (xref)
   "Return a regular expression matching the result of completing with `wisi-xref-completion-table'.
 Group 1 must be the simple symbol; the rest of the item may be annotations.")
@@ -277,7 +280,7 @@ LINE, COLUMN are Emacs origin."
       result))))
 
 (defun wisi-get-identifier (prompt)
-  "Get identifier at point, or if no identifier at point, or with user arg, prompt for one.
+  "Get identifier at point, or, if no identifier at point or with user arg, prompt for one.
 Single user arg completes on all identifiers in project; double
 user arg limits completion to current file."
   ;; Similar to xref--read-identifier, but uses a different completion
@@ -290,6 +293,7 @@ user arg limits completion to current file."
           (not def))
       (let* ((table (wisi-filter-table (wisi-xref-completion-table (wisi-prj-xref prj) prj)
 				       (when (equal '(16) current-prefix-arg) (buffer-file-name))))
+	     (completion-pcm--delim-wild-regex (wisi-xref-completion-delim-regex (wisi-prj-xref prj)))
 	     (id
 	      ;; Since the user decided not to use the identifier at
 	      ;; point, don't use it as the default.
@@ -358,7 +362,7 @@ If no symbol at point, or with prefix arg, prompt for symbol, goto spec."
 
      (t ;; something else
       (error "unknown case in wisi-goto-spec/body")))
-	  (wisi-show-xref desired-loc)
+    (wisi-show-xref desired-loc)
     ))
 
 (cl-defgeneric wisi-prj-identifier-at-point (_project)

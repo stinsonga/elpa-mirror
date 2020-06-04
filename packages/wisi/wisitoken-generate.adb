@@ -18,8 +18,9 @@
 pragma License (Modified_GPL);
 
 with Ada.Directories;
-with Ada.Text_IO;
+with Ada.Real_Time;
 with Ada.Strings.Fixed;
+with Ada.Text_IO;
 package body WisiToken.Generate is
 
    function Error_Message
@@ -229,52 +230,43 @@ package body WisiToken.Generate is
       Non_Terminal         : in Token_ID)
      return Token_ID_Set
    is
-      Derivations   : Token_ID_Set := (First_Terminal .. Grammar.Last_Index => False);
-      Added_Tokens  : Token_ID_Set := (First_Terminal .. Grammar.Last_Index => False);
-      Search_Tokens : Token_ID_Set := (First_Terminal .. Grammar.Last_Index => False);
-
-      function Compute_Non_Terminals return Token_ID_Set
-      is
-         Result : Token_ID_Set := (First_Terminal .. Grammar.Last_Index => False);
-      begin
-         --  Can't use a simple aggregate for this; bounds are non-static.
-         Result (First_Terminal .. Grammar.First_Index - 1) := (others => False);
-         Result (Grammar.First_Index .. Grammar.Last_Index) := (others => True);
-         return Result;
-      end Compute_Non_Terminals;
-
-      Non_Terminals : constant Token_ID_Set := Compute_Non_Terminals;
-
+      Search_Tokens : Token_ID_Set := (Grammar.First_Index .. Grammar.Last_Index => False);
    begin
       Search_Tokens (Non_Terminal) := True;
 
-      while Any (Search_Tokens) loop
+      return Derivations : Token_ID_Set := (First_Terminal .. Grammar.Last_Index => False) do
+         while Any (Search_Tokens) loop
+            declare
+               Added_Tokens   : Token_ID_Set := (First_Terminal .. Grammar.Last_Index      => False);
+               Added_Nonterms : Token_ID_Set := (Grammar.First_Index .. Grammar.Last_Index => False);
+            begin
+               for Prod of Grammar loop
+                  if Search_Tokens (Prod.LHS) then
+                     for RHS of Prod.RHSs loop
+                        for Derived_Token of RHS.Tokens loop
+                           if not Derivations (Derived_Token) then
+                              Added_Tokens (Derived_Token) := True;
+                              if Derived_Token in Added_Nonterms'Range then
+                                 Added_Nonterms (Derived_Token) := True;
+                              end if;
+                           end if;
 
-         Added_Tokens := (others => False);
-
-         for Prod of Grammar loop
-            if Search_Tokens (Prod.LHS) then
-               for RHS of Prod.RHSs loop
-                  for Derived_Token of RHS.Tokens loop
-                     if not Derivations (Derived_Token) then
-                        Added_Tokens (Derived_Token) := True;
-                     end if;
-
-                     if Non_Terminals (Derived_Token) and then Has_Empty_Production (Derived_Token) then
-                        null;
-                     else
-                        exit;
-                     end if;
-                  end loop;
+                           if Derived_Token in Has_Empty_Production'Range and then
+                             Has_Empty_Production (Derived_Token)
+                           then
+                              null;
+                           else
+                              exit;
+                           end if;
+                        end loop;
+                     end loop;
+                  end if;
                end loop;
-            end if;
+               Derivations   := Derivations or Added_Tokens;
+               Search_Tokens := Added_Nonterms;
+            end;
          end loop;
-
-         Derivations   := Derivations or Added_Tokens;
-         Search_Tokens := Added_Tokens and Non_Terminals;
-      end loop;
-
-      return Derivations;
+      end return;
    end First;
 
    function First
@@ -496,6 +488,8 @@ package body WisiToken.Generate is
       Descriptor : in     WisiToken.Descriptor)
      return Recursions
    is
+      Time_Start : constant Ada.Real_Time.Time := Ada.Real_Time.Clock;
+
       Graph : constant Grammar_Graphs.Graph := To_Graph (Grammar);
    begin
       return Result : Recursions :=
@@ -505,6 +499,17 @@ package body WisiToken.Generate is
          Grammar_Graphs.Sort_Paths.Sort (Result.Recursions);
 
          Set_Grammar_Recursions (Result, Grammar);
+
+         if Trace_Time then
+            declare
+               use Ada.Real_Time;
+               Time_End : constant Time := Clock;
+            begin
+               Ada.Text_IO.Put_Line
+                 (Ada.Text_IO.Standard_Error, "compute partial recursion time:" &
+                    Duration'Image (To_Duration (Time_End - Time_Start)));
+            end;
+         end if;
 
          if Trace_Generate_Minimal_Complete > Extra then
             Ada.Text_IO.New_Line;
@@ -525,6 +530,8 @@ package body WisiToken.Generate is
      return Recursions
    is
       use Grammar_Graphs;
+      Time_Start : constant Ada.Real_Time.Time := Ada.Real_Time.Clock;
+
       Graph      : constant Grammar_Graphs.Graph := To_Graph (Grammar);
       Components : constant Component_Lists.List := Strongly_Connected_Components
         (To_Adjancency (Graph), Non_Trivial_Only => True);
@@ -557,6 +564,17 @@ package body WisiToken.Generate is
          end;
 
          Set_Grammar_Recursions (Result, Grammar);
+
+         if Trace_Time then
+            declare
+               use Ada.Real_Time;
+               Time_End : constant Time := Clock;
+            begin
+               Ada.Text_IO.Put_Line
+                 (Ada.Text_IO.Standard_Error, "compute full recursion time:" &
+                    Duration'Image (To_Duration (Time_End - Time_Start)));
+            end;
+         end if;
 
          if Trace_Generate_Minimal_Complete > Extra then
             Ada.Text_IO.New_Line;

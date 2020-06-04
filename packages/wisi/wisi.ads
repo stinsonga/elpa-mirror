@@ -36,7 +36,8 @@ package Wisi is
    use all type WisiToken.Base_Buffer_Pos;
 
    function Image (Aug : in WisiToken.Base_Token_Class_Access; Descriptor : in WisiToken.Descriptor) return String;
-   --  For Syntax_Trees.Print_Tree
+   function Image (Action : in WisiToken.Syntax_Trees.Semantic_Action) return String;
+   --  For Syntax_Trees.Print_Tree, Parser.Execute_Action
 
    type Post_Parse_Action_Type is (Navigate, Face, Indent);
 
@@ -333,7 +334,7 @@ package Wisi is
 
    procedure Refactor
      (Data       : in out Parse_Data_Type;
-      Tree       : in     WisiToken.Syntax_Trees.Tree;
+      Tree       : in out WisiToken.Syntax_Trees.Tree;
       Action     : in     Positive;
       Edit_Begin : in     WisiToken.Buffer_Pos) is null;
 
@@ -457,16 +458,6 @@ private
       Indenting_Comment : in Boolean)
      return WisiToken.Line_Number_Type;
    --  Return first and last line in Token's region.
-
-   package Augmented_Token_Arrays is new SAL.Gen_Unbounded_Definite_Vectors
-     (WisiToken.Token_Index, Augmented_Token, Default_Element => (others => <>));
-   --  Index matches Base_Token_Arrays.
-
-   function To_Aug_Token_Const_Ref (Item : in Augmented_Token_Arrays.Constant_Reference_Type) return Aug_Token_Const_Ref
-     is (Element => Augmented_Token_Access_Constant'(Item.Element.all'Unchecked_Access));
-
-   function To_Aug_Token_Var_Ref (Item : in Augmented_Token_Arrays.Variable_Reference_Type) return Aug_Token_Var_Ref
-     is (Element => Augmented_Token_Access'(Item.Element.all'Unchecked_Access));
 
    package Line_Paren_Vectors is new SAL.Gen_Unbounded_Definite_Vectors
      (WisiToken.Line_Number_Type, Integer, Default_Element => Integer'Last);

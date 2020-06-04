@@ -277,10 +277,12 @@ is
          Indent_Line ("end if;");
          Indent_Line ("goto Recurse_Start;");
          Indent := Indent - 3;
-         Indent_Line ("elsif Pos = Pos_Recurse_Last and then Parser.Tree.Is_Empty (Result_Recurse.Result) then");
+         Indent_Line
+           ("elsif Pos = Pos_Recurse_Last and then " &
+              "Parser.Tree.Buffer_Region_Is_Empty (Result_Recurse.Result) then");
          --  Parse succeeded producing an empty nonterm; don't try again. This
          --  special case is not in [warth 2008].
-         Indent_Line ("   Parser.Derivs (8).Replace_Element (Start_Pos, Result_Recurse);");
+         Indent_Line ("   Parser.Derivs (" & Result_ID & ").Replace_Element (Start_Pos, Result_Recurse);");
          Indent_Line ("end if;");
          Indent := Indent - 3;
          Indent_Line ("end if;");

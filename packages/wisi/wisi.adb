@@ -74,6 +74,13 @@ package body Wisi is
       return Image (Augmented_Token_Access (Aug).all, Descriptor);
    end Image;
 
+   function Image (Action : in WisiToken.Syntax_Trees.Semantic_Action) return String
+   is
+      pragma Unreferenced (Action);
+   begin
+      return "action";
+   end Image;
+
    function Image (Anchor_IDs : in Anchor_ID_Vectors.Vector) return String
    is
       use Ada.Strings.Unbounded;
@@ -1279,9 +1286,7 @@ package body Wisi is
       Nonterm : in     Valid_Node_Index;
       Tokens  : in     WisiToken.Valid_Node_Index_Array;
       Name    : in     WisiToken.Positive_Index_Type)
-   is
-      use all type WisiToken.Syntax_Trees.Node_Label;
-   begin
+   is begin
       if not (Name in Tokens'Range) then
          declare
             Token : Aug_Token_Const_Ref renames Get_Aug_Token_Const_1 (Tree, Tokens (Tokens'First));
@@ -1296,7 +1301,12 @@ package body Wisi is
          end;
       end if;
 
-      if Tree.Label (Tokens (Name)) = Syntax_Trees.Virtual_Terminal then
+      if Tree.Is_Virtual (Tokens (Name)) then
+         --  Virtual tokens have the same Char_Region as the token they are
+         --  inserted before (for indent purposes), which leads to Name_Action
+         --  appearing to be applied twice. test/ada_mode-fatal_error_1.adb.
+         --  They also don't appear in the actual buffer, so setting a face or
+         --  completing on them is pointless.
          return;
       end if;
 
@@ -1311,11 +1321,26 @@ package body Wisi is
             return;
          elsif Has_Element (Cursor) then
             raise Fatal_Error with Error_Message
-              (File_Name => Data.Lexer.File_Name,
-               Line      => Name_Token.Line,
-               Column    => Name_Token.Column,
-               Message   => Trimmed_Image (Tree.Production_ID (Nonterm)) & ": wisi-name-action: name set twice.");
+              (File_Name            => Data.Lexer.File_Name,
+               Line                 => Name_Token.Line,
+               Column               => Name_Token.Column,
+               Message              => Tree.Image
+                 (Tokens (Name), Data.Descriptor.all,
+                  Node_Numbers      => WisiToken.Trace_Action > Extra,
+                  Include_RHS_Index => WisiToken.Trace_Action > Extra)
+                 & ": wisi-name-action: name set twice.");
          else
+            if Trace_Action > Detail then
+               Ada.Text_IO.Put_Line
+                 ("Name_Action " & Tree.Image
+                    (Nonterm, Data.Descriptor.all,
+                     Node_Numbers      => WisiToken.Trace_Action > Extra,
+                     Include_RHS_Index => WisiToken.Trace_Action > Extra) & " " & Tree.Image
+                       (Tokens (Name), Data.Descriptor.all,
+                        Node_Numbers      => WisiToken.Trace_Action > Extra,
+                        Include_RHS_Index => WisiToken.Trace_Action > Extra));
+            end if;
+
             Data.Name_Caches.Insert (Name_Token.Char_Region);
          end if;
       end;
@@ -2121,8 +2146,11 @@ package body Wisi is
            Line_Number_Type'Image (Item.Line) & ":" & Trimmed_Image (Integer (Item.Column)) & ")";
 
       elsif Item.Char_Region = Null_Buffer_Region then
-         return "(" & ID_Image & ")";
-
+         if Item.Byte_Region = Null_Buffer_Region then
+            return "(" & ID_Image & ")";
+         else
+            return "(" & ID_Image & ", " & Image (Item.Byte_Region) & ")";
+         end if;
       else
          return "(" & ID_Image & ", " & Image (Item.Char_Region) & ")";
       end if;
@@ -2329,7 +2357,7 @@ package body Wisi is
                   end if;
 
                   loop
-                     exit when Data.Line_Begin_Token.all (I) /= Augmented_Token_Arrays.No_Index;
+                     exit when Data.Line_Begin_Token.all (I) /= Base_Token_Arrays.No_Index;
                      --  No_Index means Line is in a multi-line token, which could be a block comment.
                      I := I - 1;
                   end loop;
