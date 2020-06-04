@@ -26,7 +26,7 @@ package body SAL is
 
    function Version return String is
    begin
-      return "SAL 3.4";
+      return "SAL 3.5";
    end Version;
 
 end SAL;

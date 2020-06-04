@@ -177,10 +177,12 @@ package SAL.Gen_Unbounded_Definite_Vectors is
    function Iterate (Container : aliased in Vector) return Iterator_Interfaces.Reversible_Iterator'Class;
 
    function Constant_Ref (Container : aliased in Vector; Position : in Cursor) return Constant_Reference_Type
-   with Inline, Pre => Has_Element (Position);
+   with Pre => Has_Element (Position) and then
+               To_Index (Position) in Container.First_Index .. Container.Last_Index;
 
    function Variable_Ref (Container : aliased in Vector; Position  : in Cursor) return Variable_Reference_Type
-   with Pre => Has_Element (Position);
+   with Pre => Has_Element (Position) and then
+               To_Index (Position) in Container.First_Index .. Container.Last_Index;
    pragma Inline (Variable_Ref);
 
 private
@@ -194,7 +196,7 @@ private
       Elements : Array_Access;
       --  Elements may be non-null with First = No_Index, after
       --  Set_Capacity. If First /= No_Index and Last >= First, Elements /=
-      --  null.
+      --  null. First > Last means Vector is empty.
       First    : Extended_Index := No_Index;
       Last     : Extended_Index := No_Index;
    end record;

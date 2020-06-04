@@ -525,8 +525,10 @@ package body SAL.Gen_Unbounded_Definite_Vectors is
    end Variable_Ref;
 
    overriding function First (Object : Iterator) return Cursor
-   is begin
-      if Object.Container.Elements = null then
+   is
+      use all type Ada.Containers.Count_Type;
+   begin
+      if Object.Container.Length = 0 then
          return (Object.Container, Invalid_Peek_Index);
       else
          return (Object.Container, To_Peek_Type (Object.Container.First));
@@ -534,8 +536,10 @@ package body SAL.Gen_Unbounded_Definite_Vectors is
    end First;
 
    overriding function Last  (Object : Iterator) return Cursor
-   is begin
-      if Object.Container.Elements = null then
+   is
+      use all type Ada.Containers.Count_Type;
+   begin
+      if Object.Container.Length = 0 then
          return (Object.Container, Invalid_Peek_Index);
       else
          return (Object.Container, To_Peek_Type (Object.Container.Last));
