@@ -177,7 +177,6 @@ attachments."
 
 (defcustom gnorb-gnus-sent-groups nil
   "A list of strings indicating sent mail groups.
-
 In some cases, Gnorb can't detect where your sent messages are
 stored (ie if you're using IMAP sent mail folders instead of
 local archiving. If you want Gnorb to be able to find sent
@@ -187,7 +186,7 @@ server+group combinations, ie \"nnimap+Server:[Gmail]/Sent
 Mail\", or something similar. This only has to be done once for
 each message."
   :group 'gnorb-gnus
-  :type 'list)
+  :type '(repeat (string :tag "Group name")))
 
 (defvar gnorb-gnus-capture-attachments nil
   "Holding place for attachment names during the capture
