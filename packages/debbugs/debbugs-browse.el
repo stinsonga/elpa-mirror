@@ -49,6 +49,7 @@ This can be either `debbugs-gnu-bugs' or `debbugs-org-bugs'."
   :group 'debbugs-gnu
   :type  'regexp)
 
+;;;###autoload
 (defun debbugs-browse-url (url &optional _new-window)
   (when (and (stringp url)
 	     (string-match debbugs-browse-url-regexp url))
