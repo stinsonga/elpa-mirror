@@ -104,6 +104,7 @@
  ("ivy-explorer"        :external "https://github.com/clemera/ivy-explorer")
  ("js2-mode"		:subtree "https://github.com/mooz/js2-mode.git")
  ("jsonrpc"		:core "lisp/jsonrpc.el")
+ ("leaf"		:external "https://github.com/conao3/leaf.el")
  ("let-alist"		:core "lisp/emacs-lisp/let-alist.el")
  ("map"                 :core "lisp/emacs-lisp/map.el")
  ("math-symbol-lists" 	:subtree "https://github.com/vspinu/math-symbol-lists.git")
