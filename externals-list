@@ -114,7 +114,6 @@
  ("nameless"		:subtree "https://github.com/Malabarba/Nameless")
  ("names"		:subtree "http://github.com/Malabarba/names")
  ("objed"        	:external "https://github.com/clemera/objed")
- ("olivetti"		:external "https://github.com/rnkn/olivetti")
  ("omn-mode"            :external nil)
  ("orgalist"            :external nil)
  ("org-edna"		:external "https://savannah.nongnu.org/projects/org-edna-el") ;URL?
