@@ -4,7 +4,6 @@
 ./auctex/style/amsmath.el:;; FIXME: What about the copyright for <= 2001?
 ./auctex/style/amstext.el
 ./auctex/style/article.el
-./auctex/style/beamer.el
 ./auctex/style/bidibeamer.el
 ./auctex/style/book.el
 ./auctex/style/czech.el
