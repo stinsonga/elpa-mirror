@@ -94,6 +94,8 @@
 ;;; Change Log:
 ;;
 ;; 1.7 (2020-07-11)
+;;   - Add `delight-version'.
+;;   - Support loading newer versions over the top of older versions.
 ;;   - Rename `delighted-modes' to `delight-delighted-modes'.
 ;;   - Rename `delight--inhibit' to `delight-mode-name-inhibit', and
 ;;     document its uses.
@@ -119,6 +121,35 @@
 
 (eval-when-compile (require 'cl-lib))
 (require 'nadvice)
+
+(defconst delight--latest-version "1.7")
+
+;; Check whether a newer version is being loaded over an older one.
+;;
+;; If `delight-version' has an existing value which is less than
+;; `delight--latest-version', then an earlier version was already loaded,
+;; and we must perform any necessary updates (see "Live upgrades" below).
+;;
+;; If `delight-version' is unbound then most likely there was no older
+;; version loaded; however, prior to version 1.7 `delight-version' was not
+;; defined at all, and so we need to detect that scenario too.
+(defvar delight-version
+  (if (not (featurep 'delight))
+      ;; The normal case: delight was not already loaded.
+      delight--latest-version
+    ;; Otherwise delight was loaded.  However, as this initial value code is
+    ;; being evaluated, the loaded version had not defined `delight-version'.
+    (cond
+     ;; In 1.5 and earlier, `delight--format-mode-line' didn't exist.
+     ;; (Earlier versions can be treated as 1.5 for upgrade purposes.)
+     ((not (fboundp 'delight--format-mode-line))
+      "1.5")
+     ;; In 1.6 `delight--inhibit' wasn't an alias.
+     ((eq (indirect-variable 'delight--inhibit) 'delight--inhibit)
+      "1.6")
+     ;; If we get to here, we've probably used `eval-defun' on this defvar.
+     (t delight--latest-version)))
+  "The loaded version of delight.el.")
 
 (define-obsolete-variable-alias 'delighted-modes
   'delight-delighted-modes "delight-1.7")
@@ -274,6 +305,25 @@ Delighted major modes should exhibit their original `mode-name' when
     (apply orig-fun args)))
 
 (advice-add 'format-mode-line :around #'delight--format-mode-line)
+
+;; Live upgrades, for when a newer version is loaded over an older one.
+(when (version< delight-version delight--latest-version)
+  ;; Perform each update in sequence, as necessary.
+  ;; Update to version 1.6 from earlier versions:
+  (when (version< delight-version "1.6")
+    ;; Old advice was replaced by nadvice.
+    (eval-and-compile (require 'advice)) ;; Both macros and functions.
+    (declare-function ad-find-advice "advice")
+    (declare-function ad-remove-advice "advice")
+    (declare-function ad-activate "advice")
+    (when (ad-find-advice 'format-mode-line 'around 'delighted-modes-are-glum)
+      (ad-remove-advice 'format-mode-line 'around 'delighted-modes-are-glum)
+      (ad-activate 'format-mode-line)))
+  ;; Update to version 1.N:
+  ;; (when (version< delight-version "1.N") ...)
+  ;;
+  ;; All updates completed.
+  (setq delight-version delight--latest-version))
 
 (provide 'delight)
 ;;; delight.el ends here
