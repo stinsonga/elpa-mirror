@@ -92,15 +92,20 @@
 
 ;;; Change Log:
 ;;
-;; 1.05 (2016-03-01) Support FILE value t, meaning that the minor MODE
-;;       in question is guaranteed to already be loaded.
-;; 1.04 (2016-02-28) Respect `inhibit-mode-name-delight' when already set.
-;; 1.03 (2014-05-30) Added support for `mode-line-mode-menu'.
-;; 1.02 (2014-05-04) Bug fix for missing 'cl requirement for
-;;       destructuring-bind macro.
-;; 1.01 (2014-05-04) Allow the keyword :major as the FILE argument for
-;;       major modes, to avoid also processing them as minor modes.
-;; 1.00 (2013-06-25) Initial release.
+;; 1.5 (2016-03-01)
+;;   - Support FILE value t, meaning that the minor MODE in question
+;;     is guaranteed to already be loaded.
+;; 1.4 (2016-02-28)
+;;   - Respect `inhibit-mode-name-delight' when already set.
+;; 1.3 (2014-05-30)
+;;   - Add support for `mode-line-mode-menu'.
+;; 1.2 (2014-05-04)
+;;   - Bug fix for missing 'cl requirement for destructuring-bind macro.
+;; 1.1 (2014-05-04)
+;;   - Allow the keyword :major as the FILE argument for major modes,
+;;     to avoid also processing them as minor modes.
+;; 1.0 (2013-06-25)
+;;   - Initial release.
 
 ;;; Code:
 
