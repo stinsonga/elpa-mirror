@@ -96,6 +96,7 @@
 ;; 1.7 (2020-07-11)
 ;;   - Add `delight-version'.
 ;;   - Support loading newer versions over the top of older versions.
+;;   - Support `unload-feature'.
 ;;   - Rename `delighted-modes' to `delight-delighted-modes'.
 ;;   - Rename `delight--inhibit' to `delight-mode-name-inhibit', and
 ;;     document its uses.
@@ -192,10 +193,11 @@ to prevent the mode being treated as a minor mode."
         (add-to-list 'delight-delighted-modes (list mode value file))
         (unless (eq file :major)
           (eval-after-load (if (eq file t) 'emacs (or file mode))
-            `(let ((minor-delight (assq ',mode minor-mode-alist)))
-               (when minor-delight
-                 (setcar (cdr minor-delight) ',value)
-                 (delight-mode-line-mode-menu ',mode ',value)))))))))
+            `(when (featurep 'delight)
+               (let ((minor-delight (assq ',mode minor-mode-alist)))
+                 (when minor-delight
+                   (setcar (cdr minor-delight) ',value)
+                   (delight-mode-line-mode-menu ',mode ',value))))))))))
 
 (defun delight-mode-line-mode-menu (mode value)
   "Delight `mode-line-mode-menu' (the \"Toggle minor modes\" menu)
@@ -253,6 +255,11 @@ unless `delight-mode-name-inhibit' is bound and nil."
 (define-obsolete-variable-alias 'delight--inhibit
   'delight-mode-name-inhibit "delight-1.7")
 
+(makunbound 'delight-mode-name-inhibit)
+;; We explicitly call `makunbound' first because our `delight-unload-function'
+;; workaround for dealing with any remaining delighted `mode-name' values is
+;; simply to redefine `delight-mode-name-inhibit' with a non-nil default value.
+
 (defvar delight-mode-name-inhibit)
 ;; This variable determines whether the `mode-name' set by `delight-major-mode'
 ;; will render as the original name or the delighted name.  For the purposes of
@@ -305,6 +312,44 @@ Delighted major modes should exhibit their original `mode-name' when
     (apply orig-fun args)))
 
 (advice-add 'format-mode-line :around #'delight--format-mode-line)
+
+(defun delight-unload-function ()
+  "Handler for `unload-feature'."
+  (condition-case err
+      (progn
+        (defvar unload-function-defs-list)
+        ;; Remove hook.
+        (remove-hook 'after-change-major-mode-hook #'delight-major-mode)
+        ;; Remove advice.
+        (advice-remove 'format-mode-line #'delight--format-mode-line)
+        ;; Revert the `mode-name' changes (for the normal/expected cases).
+        ;; We're not concerned with reversing ALL changes made, but we make
+        ;; the effort for `mode-name' as it might prevent conflicts with
+        ;; code which wasn't expecting a non-string mode line construct as
+        ;; a value (e.g. Emacs bug 2034).
+        (dolist (buf (buffer-list))
+          (with-current-buffer buf
+            (when (and (consp mode-name)
+                       (symbolp (car mode-name))
+                       (eq (indirect-variable (car mode-name))
+                           'delight-mode-name-inhibit))
+              (setq mode-name (cadr mode-name)))))
+        ;; We keep `delight-mode-name-inhibit' around (with delighted values
+        ;; permanently inhibited) for any unexpected cases (e.g. where our
+        ;; modified `mode-name' was further manipulated by something else,
+        ;; and no longer matched the format expected above).
+        (defconst delight-mode-name-inhibit t)
+        (dolist (var '(delight-mode-name-inhibit ;; and its aliases
+                       delight--inhibit
+                       inhibit-mode-name-delight))
+          (setq unload-function-defs-list
+                (delq var unload-function-defs-list)))
+        ;; Return nil if unloading was successful.  Refer to `unload-feature'.
+        nil)
+    ;; If any error occurred, return non-nil.
+    (error (progn
+             (message "Error unloading delight: %S %S" (car err) (cdr err))
+             t))))
 
 ;; Live upgrades, for when a newer version is loaded over an older one.
 (when (version< delight-version delight--latest-version)
