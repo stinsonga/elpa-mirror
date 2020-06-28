@@ -1,6 +1,6 @@
 ;;; delight.el --- A dimmer switch for your lighter text  -*- lexical-binding:t -*-
 ;;
-;; Copyright (C) 2013-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
 ;; Author: Phil Sainty <psainty@orcon.net.nz>
 ;; Maintainer: Phil Sainty <psainty@orcon.net.nz>
@@ -8,7 +8,7 @@
 ;; Package-Requires: ((cl-lib "0.5") (nadvice "0.3"))
 ;; Keywords: convenience
 ;; Created: 25 Jun 2013
-;; Version: 1.6
+;; Version: 1.7
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -93,6 +93,9 @@
 
 ;;; Change Log:
 ;;
+;; 1.7 (2020-07-11)
+;;   - Rename `delight--inhibit' to `delight-mode-name-inhibit', and
+;;     document its uses.
 ;; 1.6 (2019-07-23)
 ;;   - Use cl-lib, nadvice, and lexical-binding.
 ;;   - Rename `inhibit-mode-name-delight' to `delight--inhibit'.
@@ -202,22 +205,67 @@ If the delighted VALUE is not a string and not nil, we do nothing."
 when displayed in the mode-line.
 
 When `mode-name' is displayed in other contexts (such as in the
-`describe-mode' help buffer), its original value will be used."
+`describe-mode' help buffer), its original value will be used,
+unless `delight-mode-name-inhibit' is bound and nil."
   (let ((major-delight (assq major-mode delighted-modes)))
     (when major-delight
-      (setq mode-name `(delight--inhibit
+      (setq mode-name `(delight-mode-name-inhibit
                         ,mode-name ;; glum
                         ,(cadr major-delight)))))) ;; delighted
 
 (define-obsolete-variable-alias 'inhibit-mode-name-delight
-  'delight--inhibit "delight-1.6")
-(defvar delight--inhibit)
+  'delight-mode-name-inhibit "delight-1.6")
+(define-obsolete-variable-alias 'delight--inhibit
+  'delight-mode-name-inhibit "delight-1.7")
+
+(defvar delight-mode-name-inhibit)
+;; This variable determines whether the `mode-name' set by `delight-major-mode'
+;; will render as the original name or the delighted name.  For the purposes of
+;; mode line formatting, void and nil are equivalent.  It is void by default so
+;; that we are able to respect any binding made by external code, and only
+;; let-bind it ourselves if no such external binding exists.
+;;
+;; Note that if this were bound to nil by default, `delight--format-mode-line'
+;; would be unable to recognise a nil binding made by some other library; and
+;; if it were bound to a non-nil value by default, then we would render the
+;; wrong value in the mode line.
+
+(put 'delight-mode-name-inhibit 'variable-documentation
+     "Whether to display the original `mode-name' of a delighted major mode.
+
+A non-nil value means that the original mode name will be displayed
+instead of the delighted name.
+
+If nil or void, then the delighted mode name will be displayed.
+
+With the exception of Emacs' standard mode line rendering, anything
+rendering a mode line construct (for instance the `describe-mode' help
+buffer) will call `format-mode-line'.  Normally we want to display
+delighted major mode names only in the mode line itself, and not in
+other contexts, and so this variable is used to inhibit the delighted
+names during `format-mode-line' calls.
+
+However, certain libraries may call `format-mode-line' for the purpose
+of replacing the standard mode line entirely, in which case we DO want
+to see the delighted major mode names during those particular
+`format-mode-line' calls.
+
+This variable is normally void, and bound to t during calls to
+`format-mode-line'.  If, however, it is already bound, then its value
+will be respected; therefore binding `delight-mode-name-inhibit' to
+nil around a call to `format-mode-line' will allow the delighted name
+to be rendered.
+
+See also `delight--format-mode-line'.")
 
 (defun delight--format-mode-line (orig-fun &rest args)
-  "Delighted modes should exhibit their original `mode-name' when
-`format-mode-line' is called. See `delight-major-mode'."
-  (let ((delight--inhibit (if (boundp 'delight--inhibit)
-                                       delight--inhibit
+  "Advice for `format-mode-line'.
+
+Delighted major modes should exhibit their original `mode-name' when
+`format-mode-line' is called.  See `delight-major-mode' as well as
+`delight-mode-name-inhibit'."
+  (let ((delight-mode-name-inhibit (if (boundp 'delight-mode-name-inhibit)
+                                       delight-mode-name-inhibit
                                      t)))
     (apply orig-fun args)))
 
