@@ -49,17 +49,17 @@
 ;; (or nil to hide it).
 ;;
 ;; The third argument is either the keyword :major for major modes or,
-;; for minor modes, the library which defines the mode. This is passed
+;; for minor modes, the library which defines the mode.  This is passed
 ;; to ‘eval-after-load’ and so should be either the name (as a string)
 ;; of the library file which defines the mode, or the feature (symbol)
-;; provided by that library. If this argument is nil, the mode symbol
-;; will be passed as the feature. If this argument is either t or 'emacs
+;; provided by that library.  If this argument is nil, the mode symbol
+;; will be passed as the feature.  If this argument is either t or 'emacs
 ;; then it is assumed that the mode is already loaded (you can use this
 ;; with standard minor modes that are pre-loaded by default when Emacs
 ;; starts).
 ;;
 ;; To determine which library defines a mode, use e.g.: C-h f
-;; eldoc-mode RET. The name of the library is displayed in the first
+;; eldoc-mode RET.  The name of the library is displayed in the first
 ;; paragraph, with an “.el” suffix (in this example it displays
 ;; “eldoc.el”, and therefore we could use the value “eldoc” for the
 ;; library).
@@ -127,22 +127,22 @@ See `delight'.")
 if and when the mode is loaded.
 
 SPEC can be either a mode symbol, or a list containing multiple elements of
-the form (MODE VALUE FILE). In the latter case the two optional arguments are
+the form (MODE VALUE FILE).  In the latter case the two optional arguments are
 omitted, as they are instead specified for each element of the list.
 
 For minor modes, VALUE is the replacement lighter value (or nil to disable)
-to set in the `minor-mode-alist' variable. For major modes VALUE is the
+to set in the `minor-mode-alist' variable.  For major modes VALUE is the
 replacement buffer-local `mode-name' value to use when a buffer changes to
 that mode.
 
 In both cases VALUE is commonly a string, but may in fact contain any valid
-mode-line construct. For details see the `mode-line-format' variable, and
+mode-line construct.  For details see the `mode-line-format' variable, and
 Info node `(elisp) Mode Line Format'.
 
-The FILE argument is passed through to `eval-after-load'. If FILE is nil then
-the mode symbol is passed as the required feature. If FILE is t then it is
-assumed that the mode is already loaded. (Note that you can also use \\='emacs
-for this purpose). These FILE options are relevant to minor modes only.
+The FILE argument is passed through to `eval-after-load'.  If FILE is nil then
+the mode symbol is passed as the required feature.  If FILE is t then it is
+assumed that the mode is already loaded.  (Note that you can also use \\='emacs
+for this purpose).  These FILE options are relevant to minor modes only.
 
 For major modes you should specify the keyword :major as the value of FILE,
 to prevent the mode being treated as a minor mode."
@@ -177,7 +177,7 @@ If the delighted VALUE is not a string and not nil, we do nothing."
            (menu-item (assq mode (cdr menu-keymap))))
       (when menu-item
         ;; Lighter text is typically prefixed with a space to separate
-        ;; it from the preceding lighter. We need to trim that space.
+        ;; it from the preceding lighter.  We need to trim that space.
         (let* ((trimmed-value (if (and value (string-match "\\`\\s-+" value))
                                   (replace-match "" t t value)
                                 value))
