@@ -94,6 +94,7 @@
 ;;; Change Log:
 ;;
 ;; 1.7 (2020-07-11)
+;;   - Rename `delighted-modes' to `delight-delighted-modes'.
 ;;   - Rename `delight--inhibit' to `delight-mode-name-inhibit', and
 ;;     document its uses.
 ;; 1.6 (2019-07-23)
@@ -119,7 +120,10 @@
 (eval-when-compile (require 'cl-lib))
 (require 'nadvice)
 
-(defvar delighted-modes ()
+(define-obsolete-variable-alias 'delighted-modes
+  'delight-delighted-modes "delight-1.7")
+
+(defvar delight-delighted-modes nil
   "List of specs for modifying the display of mode names in the mode line.
 
 See `delight'.")
@@ -153,8 +157,8 @@ to prevent the mode being treated as a minor mode."
   (let ((glum (if (consp spec) spec (list (list spec value file)))))
     (while glum
       (cl-destructuring-bind (mode &optional value file) (pop glum)
-        (assq-delete-all mode delighted-modes)
-        (add-to-list 'delighted-modes (list mode value file))
+        (assq-delete-all mode delight-delighted-modes)
+        (add-to-list 'delight-delighted-modes (list mode value file))
         (unless (eq file :major)
           (eval-after-load (if (eq file t) 'emacs (or file mode))
             `(let ((minor-delight (assq ',mode minor-mode-alist)))
@@ -207,7 +211,7 @@ when displayed in the mode-line.
 When `mode-name' is displayed in other contexts (such as in the
 `describe-mode' help buffer), its original value will be used,
 unless `delight-mode-name-inhibit' is bound and nil."
-  (let ((major-delight (assq major-mode delighted-modes)))
+  (let ((major-delight (assq major-mode delight-delighted-modes)))
     (when major-delight
       (setq mode-name `(delight-mode-name-inhibit
                         ,mode-name ;; glum
