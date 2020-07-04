@@ -129,6 +129,12 @@
  ("prefixed-core"	:external nil)
  ("project"		:core "lisp/progmodes/project.el")
  ("psgml"               :external "https://github.com/lenst/psgml.git")
+ ;; FIXME: We actually used a filtered version of pspp.git using:
+ ;;     git filter-branch                                           \
+ ;;         --index-filter "git read-tree --empty;                  \
+ ;;                         git reset \$GIT_COMMIT -- pspp-mode.el" \
+ ;;         -- -- pspp-mode.el
+ ("pspp-mode"		:external "https://git.sv.gnu.org/r/pspp.git")
  ("python"		:core "lisp/progmodes/python.el")
  ;;FIXME:("org"		:external ??) ;; Need to introduce snapshots!!
  ("realgud"             :external "https://github.com/realgud/realgud")
