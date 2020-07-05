@@ -185,12 +185,13 @@ for this purpose).  These FILE options are relevant to minor modes only.
 
 For major modes you should specify the keyword :major as the value of FILE,
 to prevent the mode being treated as a minor mode."
-  (add-hook 'after-change-major-mode-hook #'delight-major-mode)
   (let ((glum (if (consp spec) spec (list (list spec value file)))))
     (while glum
       (cl-destructuring-bind (mode &optional value file) (pop glum)
         (assq-delete-all mode delight-delighted-modes)
         (add-to-list 'delight-delighted-modes (list mode value file))
+        ;; Major modes are handled in `after-change-major-mode-hook'.
+        ;; Minor modes are handled at load time:
         (unless (eq file :major)
           (eval-after-load (if (eq file t) 'emacs (or file mode))
             `(when (featurep 'delight)
@@ -236,6 +237,9 @@ If the delighted VALUE is not a string and not nil, we do nothing."
             (setq menu-def (copy-sequence menu-def))
             (setf (cadr menu-def) new-label)
             (define-key menu-keymap (vector mode) menu-def)))))))
+
+;; Handle major modes at call time.
+(add-hook 'after-change-major-mode-hook #'delight-major-mode)
 
 (defun delight-major-mode ()
   "Delight the 'pretty name' of the current buffer's major mode
