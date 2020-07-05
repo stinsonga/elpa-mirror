@@ -68,7 +68,7 @@
  ("darkroom"            :external "https://github.com/capitaomorte/darkroom.git")
  ("dash"                :external "https://github.com/magnars/dash.el.git")
  ("dbus-codegen"	:subtree "https://github.com/ueno/dbus-codegen-el.git")
- ("delight"		:subtree "http://git.savannah.gnu.org/r/delight.git")
+ ("delight"		:subtree "https://git.savannah.gnu.org/r/delight.git")
  ("diffview"            :subtree "https://github.com/mgalgs/diffview-mode.git")
  ("diff-hl"		:subtree "https://github.com/dgutov/diff-hl.git")
  ("dired-git-info"	:external "https://github.com/clemera/dired-git-info")
