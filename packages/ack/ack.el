@@ -4,7 +4,7 @@
 
 ;; Author: Leo Liu <sdl.web@gmail.com>
 ;; Maintainer: João Távora <joaotavora@gmail.com>
-;; Version: 1.8
+;; Version: 1.10
 ;; Keywords: tools, processes, convenience
 ;; Created: 2012-03-24
 ;; URL: https://github.com/leoliu/ack-el
@@ -82,6 +82,7 @@
 (require 'compile)
 (require 'pcase)
 (require 'ansi-color)
+(require 'thingatpt)
 (autoload 'shell-completion-vars "shell")
 
 (eval-when-compile
@@ -102,10 +103,14 @@
 
 (defcustom ack-command
   ;; Note: on GNU/Linux ack may be renamed to ack-grep
-  (concat (file-name-nondirectory (or (executable-find "ack-grep")
-                                      (executable-find "ack")
-                                      (executable-find "ag")
-                                      "ack")) " ")
+  (concat (file-name-nondirectory (or
+                                   (executable-find "ack-grep")
+                                   (executable-find "ack")
+                                   (executable-find "ag")
+                                   (concat
+                                    (executable-find "rg")
+                                    " -n -H -S --no-heading --color always -e")
+                                   "ack")) " ")
   "The default command for \\[ack].
 
 Note also options to ack can be specified in ACK_OPTIONS
@@ -139,7 +144,7 @@ Each element is of the form (VC_DIR . CMD)."
 (define-obsolete-function-alias 'ack-default-directory
   'ack-legacy-defaults "1.7")
 
-(defcustom ack-defaults-function 'ack-legacy-defaults
+(defcustom ack-defaults-function 'ack-quickgrep-defaults
   "A function to return a default parametrization for `ack'.
 It is called with one arg, the prefix arg to `ack'.  It may
 return a single element, a string, which is the directory under
@@ -313,9 +318,12 @@ This gets tacked on the end of the generated expressions.")
   (interactive)
   (delete-minibuffer-contents)
   (let ((ack (or (car (split-string ack-command nil t)) "ack")))
-    (if (equal ack "ag")
-        (skeleton-insert `(nil ,ack " -ig '" _ "'"))
-      (skeleton-insert `(nil ,ack " -g '(?i:" _ ")'")))))
+    (cond ((equal ack "ag")
+           (skeleton-insert `(nil ,ack " -ig '" _ "'")))
+          ((equal ack "rg")
+           (skeleton-insert
+            `(nil ,ack " --color always --files --iglob '*" _ "*'")))
+      (t (skeleton-insert `(nil ,ack " -g '(?i:" _ ")'"))))))
 
 ;; Work around bug http://debbugs.gnu.org/13811
 (defvar ack--project-root nil)          ; dynamically bound in `ack'
@@ -437,7 +445,7 @@ automatically attempted."
     (append (list (if (> numeric 4)
                       (read-directory-name "In directory: " nil nil t)
                     (ack-guess-project-root default-directory))
-                  (= numeric 1))
+                  (and (thing-at-point 'symbol) (= numeric 1)))
             (if (> numeric 4)
                 (list 'ack-yank-symbol-at-point)
               (list 'ack-skel-vc-grep 'ack-yank-symbol-at-point)))))
@@ -467,9 +475,10 @@ automatically attempted."
   (run-hooks 'ack-minibuffer-setup-hook))
 
 (defun ack--auto-confirm ()
-  (throw 'ack--auto-confirm
-         (buffer-substring-no-properties
-          (minibuffer-prompt-end) (point-max))))
+  (when ack--yanked-symbol
+    (throw 'ack--auto-confirm
+           (buffer-substring-no-properties
+            (minibuffer-prompt-end) (point-max)))))
 
 ;;;###autoload
 (defun ack (command-args &optional directory)
@@ -501,7 +510,8 @@ minibuffer:
      (list (minibuffer-with-setup-hook 'ack-minibuffer-setup-function
              (catch 'ack--auto-confirm
                (read-from-minibuffer "Ack: "
-                                     ack-command
+				     `(,(concat ack-command "''")
+				       . ,(+ (length ack-command) 2))
                                      ack-minibuffer-local-map
                                      nil 'ack-history)))
            ack--project-root)))
