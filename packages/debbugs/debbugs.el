@@ -5,7 +5,7 @@
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, hypermedia
 ;; Package: debbugs
-;; Version: 0.24
+;; Version: 0.25
 ;; Package-Requires: ((emacs "25.1") (soap-client "3.1.5"))
 
 ;; This file is not part of GNU Emacs.
@@ -30,6 +30,11 @@
 
 ;; The function "get_versions" is not implemented (yet).  "search_est"
 ;; is an extension on <https://debbugs.gnu.org>.
+
+;; The package is distributed via GNU ELPA
+;; (https://elpa.gnu.org/packages/debbugs.html).  Install it via
+;;
+;;   M-x package-install RET debbugs RET
 
 ;;; Code:
 

@@ -27,16 +27,6 @@
 ;; on the GNU bug tracker debbugs.gnu.org.  Its main purpose is to
 ;; show and manipulate bug reports as org-mode TODO items.
 
-;; If you have `debbugs-org.el' in your load-path, you could enable
-;; the bug tracker commands by the following lines in your ~/.emacs
-;;
-;;   (autoload 'debbugs-org "debbugs-org" "" 'interactive)
-;;   (autoload 'debbugs-org-search "debbugs-org" "" 'interactive)
-;;   (autoload 'debbugs-org-patches "debbugs-org" "" 'interactive)
-;;   (autoload 'debbugs-org-tagged "debbugs-org" "" 'interactive)
-;;   (autoload 'debbugs-org-emacs-release-blocking-reports "debbugs-org" "" 'interactive)
-;;   (autoload 'debbugs-org-bugs "debbugs-org" "" 'interactive)
-
 ;; The bug tracker is called interactively by
 ;;
 ;;   M-x debbugs-org

@@ -29,17 +29,6 @@
 ;; show and manipulate bug reports from Emacs, but it could be used
 ;; also for other GNU projects which use the same bug tracker.
 
-;; If you have `debbugs-gnu.el' in your load-path, you could enable
-;; the bug tracker commands by the following lines in your ~/.emacs
-;;
-;;   (autoload 'debbugs-gnu "debbugs-gnu" "" 'interactive)
-;;   (autoload 'debbugs-gnu-search "debbugs-gnu" "" 'interactive)
-;;   (autoload 'debbugs-gnu-usertags "debbugs-gnu" "" 'interactive)
-;;   (autoload 'debbugs-gnu-patches "debbugs-gnu" "" 'interactive)
-;;   (autoload 'debbugs-gnu-tagged "debbugs-gnu" "" 'interactive)
-;;   (autoload 'debbugs-org-emacs-release-blocking-reports "debbugs-org" "" 'interactive)
-;;   (autoload 'debbugs-gnu-bugs "debbugs-gnu" "" 'interactive)
-
 ;; The bug tracker is called interactively by
 ;;
 ;;   M-x debbugs-gnu
@@ -275,6 +264,7 @@ If nil, the value of `send-mail-function' is used instead."
   ;; <https://debbugs.gnu.org/cgi/pkgindex.cgi>
   :type `(set (const "ada-mode")
 	      (const "adns")
+	      (const "anubis")
 	      (const "auctex")
 	      (const "automake")
 	      (const "cc-mode")
