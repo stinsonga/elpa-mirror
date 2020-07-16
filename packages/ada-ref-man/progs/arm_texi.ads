@@ -13,7 +13,7 @@ package ARM_Texinfo is
    --
    -- ---------------------------------------
    --
-   --  Copyright (C) 2003, 2007, 2011, 2013, 2018 Stephen Leake.  All Rights Reserved.
+   --  Copyright (C) 2003, 2007, 2011, 2013, 2018, 2020 Stephen Leake.  All Rights Reserved.
    --  E-Mail: stephen_leake@stephe-leake.org
    --
    --  This library is free software; you can redistribute it and/or
@@ -277,12 +277,13 @@ private
       File     : Ada.Text_IO.File_Type;
       Is_Valid : Boolean := False;
 
-      State         : State_Type;
-      In_Paragraph  : Boolean := False; --  Sub-state within major states
-      Style         : ARM_Output.Paragraph_Style_Type;
-      Indent        : ARM_Output.Paragraph_Indent_Type;
-      Format        : ARM_Output.Format_Type := ARM_Output.Normal_Format;
-      End_Hang_Seen : Boolean;
+      State               : State_Type;
+      In_Paragraph        : Boolean                := False; --  Sub-state within major states
+      Paragraph_No_Prefix : Boolean                := False;
+      Style               : ARM_Output.Paragraph_Style_Type;
+      Indent              : ARM_Output.Paragraph_Indent_Type;
+      Format              : ARM_Output.Format_Type := ARM_Output.Normal_Format;
+      End_Hang_Seen       : Boolean;
 
       --  Detecting end of title page
       Line_Empty      : Boolean := False; --  True if current line contains only whitespace.

@@ -101,6 +101,9 @@ def download_subdir (cvsweb, subdir,
         if not USE_EXISTING_FILES:
             raise
 
+    failed_count      = 0
+    no_such_tag_count = 0
+
     for basename in cvsweb.files_in_directory (subdir):
         src = subdir + '/' + basename
         if rename_lowercase:
@@ -109,15 +112,24 @@ def download_subdir (cvsweb, subdir,
         if USE_EXISTING_FILES and os.path.exists (dst):
             fmt (dst, 'using existing file')
             continue
-        contents = cvsweb.download_file (src, tag)
-        if not contents:
-            fmt (dst, 'no such tag')
-            continue
-        if strip_carriage_returns:
-            contents = re.sub (b'\r\n', b'\n', contents)
-        with open (dst, 'bw') as o:
-            o.write (contents)
-        fmt (dst, 'downloaded')
+        try:
+            contents = cvsweb.download_file (src, tag)
+            if not contents:
+                fmt (dst, 'no such tag')
+                no_such_tag_count = no_such_tag_count + 1
+                continue
+            if strip_carriage_returns:
+                contents = re.sub (b'\r\n', b'\n', contents)
+            with open (dst, 'bw') as o:
+                o.write (contents)
+            fmt (dst, 'downloaded')
+        except urllib.error.URLError:
+            fmt (dst, 'download failed')
+            failed_count = failed_count + 1
+
+    fmt ('no such tag     :', no_such_tag_count)
+    fmt ('failed downloads:', failed_count)
+            
 
 ######################################################################
 
@@ -125,7 +137,8 @@ cvsweb = CVSWeb (hostname = 'www.ada-auth.org',
                  top_directory = 'arm')
 tags = { '1995':'Final_TC1',
          '2005':'Amend_Final',
-         '2012':'Ada2012_TC1' }
+         '2012':'Ada2012_TC1',
+         '2020':'Ada202x_D25' }
 
 if len (sys.argv) == 2 and sys.argv [1] == 'progs':
     download_subdir (cvsweb, 'progs',
@@ -138,6 +151,12 @@ Hint: diff -rN --ignore-file-name-case --strip-trailing-cr old/ progs/
 elif len (sys.argv) == 2 and sys.argv [1] in tags:
     download_subdir (cvsweb, 'source',
                      tag = tags [sys.argv [1]],
+                     rename_lowercase = True,
+                     strip_carriage_returns = True)
+    
+elif len (sys.argv) == 2 and sys.argv [1] == 'HEAD':
+    download_subdir (cvsweb, 'source',
+                     tag = 'HEAD',
                      rename_lowercase = True,
                      strip_carriage_returns = True)
 

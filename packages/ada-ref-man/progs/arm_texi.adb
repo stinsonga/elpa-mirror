@@ -1,8 +1,9 @@
+with Ada.Command_Line;
 with Ada.Exceptions;
 with Ada.Strings.Fixed;
 package body ARM_Texinfo is
 
-   --  Copyright (C) 2003, 2007, 2010 - 2013, 2015, 2017, 2018 Stephen Leake.  All Rights Reserved.
+   --  Copyright (C) 2003, 2007, 2010 - 2013, 2015, 2017, 2018, 2020 Stephen Leake.  All Rights Reserved.
    --  E-Mail: stephen_leake@acm.org
    --
    --  This library is free software; you can redistribute it and/or
@@ -156,7 +157,7 @@ package body ARM_Texinfo is
       procedure Put_Top_Menu is new For_Each (Put_Top_Menu_Item);
    begin
 
-      New_Line (Output_Object.File); --  Terminate unneeded "@center"
+      Put_Line (Output_Object.File, "@w{}"); --  Terminate unneeded "@center", silence warning.
 
       Put_Line (Output_Object.File, "@menu");
       Put_Line (Output_Object.File, "* Front Matter:: Copyright, Foreword, etc."); --  Not a section in ARM sources
@@ -223,6 +224,34 @@ package body ARM_Texinfo is
          Put_Line (Output_Object.File, Texinfo_Item);
       end loop;
    end Handle_Indent;
+
+   procedure Handle_Indent
+     (Output_Object   : in Texinfo_Output_Type;
+      Containing_Item : in String;
+      Final_Item      : in String;
+      Extra_Indent    : in ARM_Output.Paragraph_Indent_Type := 0)
+   is
+      use type ARM_Output.Paragraph_Indent_Type;
+   begin
+      for I in 1 .. Output_Object.Indent + Extra_Indent - 1 loop
+         Put_Line (Output_Object.File, Containing_Item);
+      end loop;
+      Put_Line (Output_Object.File, Final_Item);
+   end Handle_Indent;
+
+   procedure Handle_Indent_End
+     (Output_Object   : in Texinfo_Output_Type;
+      Containing_Item : in String;
+      Final_Item      : in String;
+      Extra_Indent    : in ARM_Output.Paragraph_Indent_Type := 0)
+   is
+      use type ARM_Output.Paragraph_Indent_Type;
+   begin
+      Put_Line (Output_Object.File, Final_Item);
+      for I in 1 .. Output_Object.Indent + Extra_Indent - 1 loop
+         Put_Line (Output_Object.File, Containing_Item);
+      end loop;
+   end Handle_Indent_End;
 
    procedure Add_To_Column_Item (Output_Object : in out Texinfo_Output_Type; Text : in String)
    is begin
@@ -375,6 +404,12 @@ package body ARM_Texinfo is
 
    procedure Index_Menu (Output_Object : in out Texinfo_Output_Type)
    is begin
+      -- In order to create a texinfo index, we would have to put @cindex
+      -- entries in each section; it then builds a searchable index. Here we
+      -- have the reverse information; an already compiled list of
+      -- references. This is done in after creating this texinfo file, by
+      -- the elisp code in arm-texi-index.el.
+      New_Line (Output_Object.File);
       Put_Line (Output_Object.File, "@menu");
       Put_Line (Output_Object.File, "* operators::");
       Put_Line (Output_Object.File, "* A::");
@@ -578,6 +613,7 @@ package body ARM_Texinfo is
          Get_Clause_Section (Clause_Number, Section_Number, Clause_Integer);
 
          if Section_Number = 0 and Clause_Integer = 1 then
+            New_Line (Output_Object.File);
             Put_Line (Output_Object.File, "@menu");
             Put_Line (Output_Object.File, "* 0.1 :: Foreword to this version of the Ada Reference Manual");
             Put_Line (Output_Object.File, "* 0.2 :: Foreword");
@@ -723,18 +759,20 @@ package body ARM_Texinfo is
       Put_Line (Output_Object.File, "@direntry");
       case Change_Version is
          when '2' =>
-            Put_Line (Output_Object.File, "* Ada Reference Manual: (arm2005).");
-            Put_Line (Output_Object.File, "* Annotated ARM: (arm2005).");
+            Put_Line (Output_Object.File, "* Ada 2005 Reference Manual: (arm2005).");
+            Put_Line (Output_Object.File, "* Annotated ARM 2005: (aarm2005).");
          when '3' =>
-            Put_Line (Output_Object.File, "* Ada Reference Manual: (arm2012).");
-            Put_Line (Output_Object.File, "* Annotated ARM: (arm2012).");
+            Put_Line (Output_Object.File, "* Ada 2012 Reference Manual: (arm2012).");
+            Put_Line (Output_Object.File, "* Annotated ARM 2012: (aarm2012).");
          when '4' =>
-            Put_Line (Output_Object.File, "* Ada Reference Manual TC1: (arm2012).");
-            Put_Line (Output_Object.File, "* Annotated ARM TC1: (arm2012).");
+            Put_Line (Output_Object.File, "* Ada 2012 Reference Manual: (arm2012).");
+            Put_Line (Output_Object.File, "* Annotated ARM 2012: (aarm2012).");
+         when '5' =>
+            Put_Line (Output_Object.File, "* Ada 202x Draft 25 Reference Manual: (arm2020).");
+            Put_Line (Output_Object.File, "* Annotated ARM 202x Draft 25: (aarm2020).");
          when others =>
-            Ada.Exceptions.Raise_Exception
-              (ARM_Output.Not_Valid_Error'Identity,
-               "unsupported Change_Version");
+            Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
+            raise ARM_Output.Not_Valid_Error with "arm_texi.adb: unsupported Change_Version" & Change_Version'Image;
       end case;
       Put_Line (Output_Object.File, "@end direntry");
 
@@ -887,21 +925,33 @@ package body ARM_Texinfo is
            Small_Bulleted =>
 
             New_Line (Output_Object.File);
-            Handle_Indent (Output_Object, "@end itemize");
+            if Output_Object.Paragraph_No_Prefix then
+               Handle_Indent (Output_Object, "@end quotation");
+            else
+               Handle_Indent_End (Output_Object, "@end quotation", "@end itemize");
+            end if;
             New_Line (Output_Object.File);
 
          when Nested_Bulleted |
            Small_Nested_Bulleted =>
 
             New_Line (Output_Object.File);
-            Handle_Indent (Output_Object, "@end itemize", Extra_Indent => 1);
+            if Output_Object.Paragraph_No_Prefix then
+               Handle_Indent (Output_Object, "@end quotation");
+            else
+               Handle_Indent_End (Output_Object, "@end quotation", "@end itemize", Extra_Indent => 1);
+            end if;
             New_Line (Output_Object.File);
 
          when Enumerated |
            Small_Enumerated =>
 
             New_Line (Output_Object.File);
-            Handle_Indent (Output_Object, "@end itemize");
+            if Output_Object.Paragraph_No_Prefix then
+               Handle_Indent (Output_Object, "@end quotation");
+            else
+               Handle_Indent_End (Output_Object, "@end quotation", "@end itemize");
+            end if;
             New_Line (Output_Object.File);
 
          when Giant_Hanging |
@@ -936,6 +986,7 @@ package body ARM_Texinfo is
          Unexpected_State (Output_Object);
 
       end case;
+      Output_Object.Paragraph_No_Prefix := False;
    end End_Paragraph;
 
    procedure Hard_Space (Output_Object : in out Texinfo_Output_Type)
@@ -1512,6 +1563,7 @@ package body ARM_Texinfo is
    begin
       Check_Valid (Output_Object);
       Check_Not_In_Paragraph (Output_Object);
+      Output_Object.Paragraph_No_Prefix := No_Prefix;
 
       --  Note: makeinfo will do most of the formatting, so No_Breaks,
       --  Keep_with_Next, Space_After, and Justification have no
@@ -1562,23 +1614,27 @@ package body ARM_Texinfo is
          when Bulleted |
            Small_Bulleted =>
 
-            Handle_Indent (Output_Object, "@itemize @bullet");
-            if not No_Prefix then
-               Put (Output_Object.File, "@item ");
+            if No_Prefix then
+               Handle_Indent (Output_Object, "@quotation");
+            else
+               Handle_Indent (Output_Object, "@quotation", "@itemize @bullet");
+               Put_Line (Output_Object.File, "@item ");
             end if;
 
          when Nested_Bulleted |
            Small_Nested_Bulleted =>
 
-            Handle_Indent (Output_Object, "@itemize @bullet", Extra_Indent => 1);
-            if not No_Prefix then
-               Put (Output_Object.File, "@item ");
+            if No_Prefix then
+               Handle_Indent (Output_Object, "@quotation");
+            else
+               Handle_Indent (Output_Object, "@quotation", "@itemize @bullet", Extra_Indent => 1);
+               Put_Line (Output_Object.File, "@item ");
             end if;
 
          when Enumerated |
            Small_Enumerated =>
 
-            Handle_Indent (Output_Object, "@itemize @w{}");
+            Handle_Indent (Output_Object, "@quotation", "@itemize @w{}");
             Put (Output_Object.File, "@item ");
 
          when Giant_Hanging |
@@ -1791,15 +1847,8 @@ package body ARM_Texinfo is
          Output_Object.Current_Column := 1;
 
       when ARM_Output.End_Table =>
-         case Output_Object.Column_Count is
-         when 2 =>
-            New_Line (Output_Object.File);
-            Put_Line (Output_Object.File, "@end multitable");
-
-         when others =>
-            Put_Line (Output_Object.File, "@end multitable");
-
-         end case;
+         New_Line (Output_Object.File);
+         Put_Line (Output_Object.File, "@end multitable");
 
       end case;
    end Table_Marker;

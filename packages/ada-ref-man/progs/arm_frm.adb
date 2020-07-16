@@ -21,7 +21,7 @@ package body ARM_Format is
     --
     -- ---------------------------------------
     -- Copyright 2000, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
-    --           2010, 2011, 2012, 2013, 2016, 2018
+    --           2010, 2011, 2012, 2013, 2016, 2017, 2019, 2020
     -- AXE Consultants. All rights reserved.
     -- P.O. Box 1512, Madison WI  53701
     -- E-Mail: randy@rrsoftware.com
@@ -283,6 +283,15 @@ package body ARM_Format is
     --			as such in Show_Changes versions.
     -- 12/13/13 - RLB - Added InitialVersion parameter to ChgAttrib.
     --  3/17/16 - RLB - Removed Changes_Only, added Base_Change_Version.
+    --  7/21/17 - RLB - Changed maximum prefix length.
+    --  1/27/19 - RLB - Added code to deal with attribute references where
+    --			the paragraph is closed.
+    --  2/15/19 - RLB - Improved handling os deleted attribute references.
+    --  4/23/19 - RLB - Added Line info to the nesting stack so we can find
+    --			out where the problems lie.
+    --  6/ 5/19 - RLB - Displayed Line info to the nesting stack for begin/end
+    --			mismatches.
+    --  5/ 7/20 - RLB - Minor cleanups in tracing code.
 
     type Command_Kind_Type is (Normal, Begin_Word, Parameter);
 
@@ -979,6 +988,7 @@ Ada.Text_IO.Put_Line ("%% Oops, can't find end of item chg new command, line " &
         Name : ARM_Input.Command_Name_Type;
         Command : Data.Command_Type;
         Close_Char : Character; -- Ought to be }, ], >, or ).
+        Open_Line : String(1..12);
 	Text_Format : ARM_Output.Format_Type;
 	    -- Format at the start of the command.
 
@@ -1036,6 +1046,7 @@ Ada.Text_IO.Put_Line ("%% Oops, can't find end of item chg new command, line " &
 	        (Name => Name,
 		 Kind => Kind,
 		 Command => Data.Command (Name),
+		 Open_Line => (1..12 => ' '), -- Set below.
 		 Close_Char => ' ', -- Set below.
 		 Text_Format => Format_Object.Text_Format, -- Save the current format.
 		 -- Other things next necessarily used:
@@ -1051,6 +1062,9 @@ Ada.Text_IO.Put_Line ("%% Oops, can't find end of item chg new command, line " &
 		 Prev_Change_Version => '0', -- Not used.
 		 Prev_Added_Change_Version => '0'); -- Not used.
 	    Format_State.Nesting_Stack (Format_State.Nesting_Stack_Ptr).Close_Char := ARM_Input.Get_Close_Char (Param_Ch);
+	    Ada.Strings.Fixed.Move (Target => Format_State.Nesting_Stack (Format_State.Nesting_Stack_Ptr).Open_Line,
+		Source => ARM_Input.Line_String (Input_Object),
+		Drop   => Ada.Strings.Right);
 --Ada.Text_IO.Put_Line (" &Stack (" & Name & "); Close-Char=" &
 --  Format_State.Nesting_Stack (Format_State.Nesting_Stack_Ptr).Close_Char);
 	end Set_Nesting_for_Command;
@@ -1066,6 +1080,7 @@ Ada.Text_IO.Put_Line ("%% Oops, can't find end of item chg new command, line " &
 		 Kind => Parameter,
 		 Command => Command,
 		 Close_Char => Close_Ch,
+		 Open_Line => (1..12 => ' '), -- Set below.
 		 Text_Format => Format_Object.Text_Format, -- Save the current
 			-- format (not really used here).
 		 Old_Last_Subhead_Paragraph => Plain, -- Not used.
@@ -1079,6 +1094,9 @@ Ada.Text_IO.Put_Line ("%% Oops, can't find end of item chg new command, line " &
 		 Prev_Change => ARM_Output.None, -- Not used.
 		 Prev_Change_Version => '0', -- Not used.
 		 Prev_Added_Change_Version => '0'); -- Not used.
+	    Ada.Strings.Fixed.Move (Target => Format_State.Nesting_Stack (Format_State.Nesting_Stack_Ptr).Open_Line,
+		Source => ARM_Input.Line_String (Input_Object),
+		Drop   => Ada.Strings.Right);
 --Ada.Text_IO.Put_Line (" &Stack (Parameter)");
 	end Set_Nesting_for_Parameter;
 
@@ -1316,7 +1334,7 @@ Ada.Text_IO.Put_Line ("%% Oops, can't find out if AARM paragraph, line " & ARM_I
 	            Format_Object.Current_Paragraph_String(1 .. PNum_Pred'Last-1) :=
 		        PNum_Pred(2..PNum_Pred'Last);
 		    AARM_Sub_Num (Format_Object.Next_AARM_Sub);
-	            -- Format_Object.Current_Paragraph_Len := Format_Object.Current_Paragraph_Len; -- useless assign
+	            --Format_Object.Current_Paragraph_Len := Format_Object.Current_Paragraph_Len; -- Unchanged.
 	            if Update_Numbers then
 		        Format_Object.Next_AARM_Sub := Character'Succ(Format_Object.Next_AARM_Sub);
 			Format_Object.Next_AARM_Insert_Para := 1;
@@ -2097,7 +2115,7 @@ Ada.Text_IO.Put_Line ("%% Oops, can't find out if AARM paragraph, line " & ARM_I
 		       ARM_Format."=" (Format_Object.Changes, ARM_Format.New_Only) then
 			-- Nothing at all should be showm.
 			null;
-if Format_Object.Next_Paragraph_Subhead_Type /= Plain or else
+if Format_Object.Next_Paragraph_Subhead_Type /= Plain and then
    Format_Object.Next_Paragraph_Subhead_Type /= Introduction then
    Ada.Text_IO.Put_Line("    -- No subhead (DelNoMsg); on line " & Arm_Input.Line_String(Input_Object));
 end if;
@@ -2108,7 +2126,7 @@ end if;
 		       ARM_Format."=" (Format_Object.Changes, ARM_Format.New_Only) then
 			-- Nothing at all should be showm.
 			null;
-if Format_Object.Next_Paragraph_Subhead_Type /= Plain or else
+if Format_Object.Next_Paragraph_Subhead_Type /= Plain and then
    Format_Object.Next_Paragraph_Subhead_Type /= Introduction then
    Ada.Text_IO.Put_Line("    -- No subhead (Del-no paranum); on line " & Arm_Input.Line_String(Input_Object));
 end if;
@@ -2136,7 +2154,8 @@ end if;
 			-- Nothing at all should be showm.
 			-- ** Warning ** If we lie here, the program will crash!
 		        Format_Object.No_Start_Paragraph := True;
-Ada.Text_IO.Put_Line("    -- No Start Paragraph (DelNoMsg)");
+Ada.Text_IO.Put_Line ("    -- No Start Paragraph (DelNoMsg)");
+Ada.Text_IO.Put_Line ("       Skipped number " & Format_Object.Current_Paragraph_String (1 .. Format_Object.Current_Paragraph_Len));
 		    else
 		        ARM_Output.Start_Paragraph (Output_Object,
 					            Style     => Format_Object.Style,
@@ -4098,7 +4117,8 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 		    -- For Part, we don't use the information contained,
 		    -- but it would help a human reader.
 		    ARM_Input.Skip_until_Close_Char (Input_Object,
-			Format_State.Nesting_Stack(Format_State.Nesting_Stack_Ptr).Close_Char);
+			Format_State.Nesting_Stack(Format_State.Nesting_Stack_Ptr).Close_Char,
+			Exit_on_Para_End => False);
 		    Format_State.Nesting_Stack_Ptr := Format_State.Nesting_Stack_Ptr - 1;
 		        -- Remove the "comment" or "part" record.
 
@@ -4848,6 +4868,7 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 			         Kind => Begin_Word,
 			         Command => Text_Begin,
 			         Close_Char => ' ',-- No close character.
+			         Open_Line => (1..12 => ' '),
 				 Text_Format => Format_Object.Text_Format,
 					-- Save the current format.
 				 Old_Last_Subhead_Paragraph => Format_Object.Last_Paragraph_Subhead_Type,
@@ -4861,6 +4882,9 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 				 Prev_Change => ARM_Output.None, -- Not used.
 				 Prev_Change_Version => '0', -- Not used.
 				 Prev_Added_Change_Version => '0'); -- Not used.
+			    Ada.Strings.Fixed.Move (Target => Format_State.Nesting_Stack (Format_State.Nesting_Stack_Ptr).Open_Line,
+				Source => ARM_Input.Line_String (Input_Object),
+				Drop   => Ada.Strings.Right);
 
 		            Process_Begin;
 
@@ -4892,6 +4916,7 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 			        Ada.Text_IO.Put_Line ("  ** Names of begin and end mismatch, line " & ARM_Input.Line_String (Input_Object));
 			        Ada.Text_IO.Put_Line ("     Begin name: " & Ada.Strings.Fixed.Trim(Format_State.Nesting_Stack(Format_State.Nesting_Stack_Ptr).Name, Ada.Strings.Right) &
 			                              "  End name: " & Ada.Strings.Fixed.Trim(Type_Name, Ada.Strings.Right));
+			        Ada.Text_IO.Put_Line ("     Begin line: " & Format_State.Nesting_Stack(Format_State.Nesting_Stack_Ptr).Open_Line);
 --Ada.Text_IO.Put_Line (" &Stack name is " & Format_State.Nesting_Stack(Format_State.Nesting_Stack_Ptr).Name);
 			    else
 			        if Format_Object.Next_Paragraph_Subhead_Type /= Format_State.Nesting_Stack(Format_State.Nesting_Stack_Ptr).Old_Next_Subhead_Paragraph then
@@ -6376,7 +6401,7 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 
 		when Reset_Prefix_Type =>
 		    -- Set Format_Object.Prefix_Text string to the default.
-		    Format_Object.Prefix_Text := "@b{NONE!}" & (10..200 => ' ');
+		    Format_Object.Prefix_Text := "@b{NONE!}" & (10..MAX_PREFIX => ' ');
 		    Format_Object.Prefix_Text_Len := 9;
 
 		when Attribute | Attribute_Leading =>
@@ -8283,7 +8308,8 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 		when Change_Note =>
 		    -- Skip the contents of this command.
 	            ARM_Input.Skip_until_Close_Char (Input_Object,
-			Format_State.Nesting_Stack(Format_State.Nesting_Stack_Ptr).Close_Char);
+			Format_State.Nesting_Stack(Format_State.Nesting_Stack_Ptr).Close_Char,
+			Exit_on_Para_End => False);
 		    Format_State.Nesting_Stack_Ptr := Format_State.Nesting_Stack_Ptr - 1;
 		        -- Remove the "Change_Note" record.
 
@@ -8336,7 +8362,8 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 		     -- @ChgAttribute{Version=[<version>], Kind=(<kind>),
 		     --    Chginannex=[T|F],Leading=[T|F],
 		     --    Prefix=<Prefix>,AttrName=<Name>,
-		     --    {[A]Ref=[<DR_Number>]},Text=<Text>}
+		     --    {[A]Ref=[<DR_Number>],}
+		     --	   [InitialVersion=[<>],][OmitAnnex=[T|F],]Text=<Text>}
 		     -- Defines a changed attribute.
 		    declare
 			Close_Ch : Character;
@@ -8346,6 +8373,7 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 			Kind : ARM_Database.Paragraph_Change_Kind_Type;
 			Version : ARM_Contents.Change_Version_Type;
 			InitialVersion : ARM_Contents.Change_Version_Type;
+			Omit_from_Annex : Boolean := False;
 			Display_Ref : Boolean;
 			References : Reference_Ptr := null;
 
@@ -8385,6 +8413,12 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 
 		    begin
 			Check_End_Paragraph; -- This is always a paragraph end.
+
+			-- No NoPrefix should carry into here (there is always
+			-- a hanging item here):
+			Format_Object.No_Prefix := False;
+			    -- This shouldn't happen, but if it does, just get
+			    -- rid of it rather than crashing.
 
 			Get_Change_Version (Is_First => True,
 			    Version => Version);
@@ -8476,7 +8510,8 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 			            Param_Name_1 => "Ref" & (4..ARM_Input.Command_Name_Type'Last => ' '),
 			            Param_Name_2 => "ARef" & (5..ARM_Input.Command_Name_Type'Last => ' '),
 			            Param_Name_3 => "InitialVersion" & (15..ARM_Input.Command_Name_Type'Last => ' '),
-			            Param_Name_4 => "Text" & (5..ARM_Input.Command_Name_Type'Last => ' '),
+			            Param_Name_4 => "OmitAnnex" & (10..ARM_Input.Command_Name_Type'Last => ' '),
+			            Param_Name_5 => "Text" & (5..ARM_Input.Command_Name_Type'Last => ' '),
 			            Is_First => False,
 			            Param_Found => Which_Param,
 			            Param_Close_Bracket => Close_Ch);
@@ -8539,6 +8574,24 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 				            ARM_Input.Line_String (Input_Object));
 				        ARM_Input.Replace_Char (Input_Object);
 			            end if;
+			        elsif Which_Param = 4 and then Close_Ch /= ' ' then
+			            -- Found OmitAnnex
+			            ARM_Input.Get_Char (Input_Object, Ch);
+				    case Ch is
+					when 'F' | 'f' | 'N' | 'n' =>
+					    Omit_from_Annex := False;
+					when 'T' | 't' | 'Y' | 'y' =>
+					    Omit_from_Annex := True;
+					when others =>
+					    Ada.Text_IO.Put_Line ("  ** Bad value for boolean parameter OmitAnnex on line " &
+						" on line " & ARM_Input.Line_String (Input_Object));
+				    end case;
+			            ARM_Input.Get_Char (Input_Object, Ch);
+			            if Ch /= Close_Ch then
+				        Ada.Text_IO.Put_Line ("  ** Bad close for OmitAnnex parameter on line " &
+				            ARM_Input.Line_String (Input_Object));
+				        ARM_Input.Replace_Char (Input_Object);
+			            end if;
 			        else
 				    exit; -- We found "Text" (or an error)
 			        end if;
@@ -8548,30 +8601,20 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 --**Debug:
 --Ada.Text_IO.Put_Line ("ChgAttr on line " & ARM_Input.Line_String (Input_Object) &
 --   "; Vers=" & Version & "; InitVer=" & InitialVersion & "; Kind=" & ARM_Database.Paragraph_Change_Kind_Type'Image(Format_Object.Attr_Change_Kind));
+--Ada.Text_IO.Put_Line ("  Omit=" & Boolean'Image(Omit_from_Annex));
 			if ARM_Database."/=" (Format_Object.Attr_Change_Kind, ARM_Database.None) then
 			    Format_Object.Attr_Initial_Version := InitialVersion;
+			    Format_Object.Attr_Omit := Omit_from_Annex;
 			-- else ChginAnnex is False, don't care about this.
 			end if;
 
 			-- How the prefix (attribute name) is handled depends
-			-- only on the InitialVersion and its relationship
-			-- to the version we're generating. It does *not*
-			-- depend on the (current) change kind.
+			-- primarily on the InitialVersion and its relationship
+			-- to the version we're generating. It only depends on
+			-- the (current) change kind to determine whether the
+			-- item is deleted (it is treated as inserted otherwise).
 
-			if InitialVersion = '0' then
-			    -- Original version, never an insertion.
-			    Make_Attribute_Text;
-			    if Close_Ch /= ' ' then
-			        -- Now, handle the parameter:
-			        -- The text goes to the file *and* is recorded.
-			        Arm_Input.Start_Recording (Input_Object);
-			        -- Stack the parameter so we can process the end:
-			        Set_Nesting_for_Parameter
-			            (Command => Attribute_Text_Param,
-				     Close_Ch => Close_Ch);
-			    end if;
-
-		        elsif Close_Ch /= ' ' then -- All other cases.
+		        if Close_Ch /= ' ' then -- We have a parameter:
 
 			    -- Stack the parameter so we can process the end:
 			    Set_Nesting_for_Parameter
@@ -8579,38 +8622,101 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 				 Close_Ch => Close_Ch);
 
 			    declare
-				Disposition : ARM_Output.Change_Type;
+				Insert_Disposition : ARM_Output.Change_Type;
+				Delete_Disposition : ARM_Output.Change_Type;
 				use type ARM_Output.Change_Type;
 			    begin
+				-- First, we calculate the insertion
+				-- disposition. This only depends upon the
+				-- original number and what we're generating:
+				if InitialVersion = '0' then -- Original,
+							     -- never inserted.
+				    Insert_Disposition := ARM_Output.None;
+				else
+			            Calc_Change_Disposition (
+				        Format_Object => Format_Object,
+				        Version   => InitialVersion,
+				        Operation => ARM_Output.Insertion,
+				        Text_Kind => Insert_Disposition);
+				end if;
 
-			        Calc_Change_Disposition (
-				    Format_Object => Format_Object,
-				    Version   => InitialVersion,
-				    Operation => ARM_Output.Insertion,
-				    Text_Kind => Disposition);
+				if (ARM_Database."=" (Kind, ARM_Database.Deleted_No_Delete_Message) or else
+				    ARM_Database."=" (Kind, ARM_Database.Deleted_Inserted_Number_No_Delete_Message) or else
+				    ARM_Database."=" (Kind, ARM_Database.Deleted) or else
+				    ARM_Database."=" (Kind, ARM_Database.Deleted_Inserted_Number)) then
+				    -- The current version is some sort of delete:
+			            Calc_Change_Disposition (
+				        Format_Object => Format_Object,
+				        Version   => Version,
+				        Operation => ARM_Output.Deletion,
+				        Text_Kind => Delete_Disposition);
+				else
+				    Delete_Disposition := ARM_Output.None;
+				end if;
 
-			        if Disposition = Do_Not_Display_Text then
-			            -- Skip the text:
+
+			        if Delete_Disposition = Do_Not_Display_Text or else
+			           (Delete_Disposition = ARM_Output.None and then
+				    Insert_Disposition = Do_Not_Display_Text) then
+
+				    Check_Paragraph; -- We need to *count* this
+					-- paragraph, lest the numbers get all
+					-- messed up. But we don't want to generate anything.
+			            -- Skip the text: (but only to the end of the first paragraph).
 			            ARM_Input.Skip_until_Close_Char (Input_Object, Close_Ch);
 			            ARM_Input.Replace_Char (Input_Object); -- Let the normal termination clean this up.
 --Ada.Text_IO.Put_Line("--Skip text");
 
-			        elsif Disposition = ARM_Output.None then
+			        elsif Delete_Disposition = ARM_Output.None and then
+				      Insert_Disposition = ARM_Output.None then
 				    -- Display the text normally.
 				    Make_Attribute_Text;
 				    -- Nothing special to do (normal text).
 --Ada.Text_IO.Put_Line("--Normal text");
 
-			        elsif Disposition = ARM_Output.Deletion then
-			            raise Program_Error; -- A deletion inside of an insertion command!
+				else -- We'll need a style change (or there is a horrible error).
 
-			        else -- Insertion.
+				    -- Only the new style depends on the parameters:
+			            if Delete_Disposition = ARM_Output.None and then
+				       Insert_Disposition = ARM_Output.Insertion then -- Normal insertion.
 --Ada.Text_IO.Put_Line("--Insertion");
-				    -- We assume non-empty text and no outer changes;
-				    -- set new change state:
-				    Format_Object.Text_Format.Change := ARM_Output.Insertion;
-				    Format_Object.Text_Format.Version := InitialVersion;
-				    Format_Object.Text_Format.Added_Version := '0';
+				        -- We assume non-empty text and no outer changes;
+				        -- set new change state:
+				        Format_Object.Text_Format.Change := ARM_Output.Insertion;
+				        Format_Object.Text_Format.Version := InitialVersion;
+				        Format_Object.Text_Format.Added_Version := '0';
+			            elsif Delete_Disposition = ARM_Output.Deletion and then
+				          Insert_Disposition = ARM_Output.None then -- Deletion.
+
+--Ada.Text_IO.Put_Line("--Deletion");
+				        -- We assume non-empty text and no outer changes;
+				        -- set new change state:
+				        Format_Object.Text_Format.Change := ARM_Output.Deletion;
+				        Format_Object.Text_Format.Version := Version;
+				        Format_Object.Text_Format.Added_Version := '0';
+
+			            elsif Delete_Disposition = ARM_Output.Deletion and then
+				          Insert_Disposition = ARM_Output.Insertion then -- Both.
+				        Format_Object.Text_Format.Change := ARM_Output.Both;
+				        Format_Object.Text_Format.Version := Version;
+				        Format_Object.Text_Format.Added_Version := InitialVersion;
+
+--Ada.Text_IO.Put_Line("--Both Insert/Delete");
+
+			            elsif Insert_Disposition = ARM_Output.Deletion then
+			                raise Program_Error with "Delete in insert";
+					    -- A deletion inside of an insertion command!
+
+			            elsif Delete_Disposition = ARM_Output.Insertion then
+			                raise Program_Error with "Insert in delete";
+					    -- A insertion inside of a deletion command!
+
+				    else
+Ada.Text_IO.Put_Line ("** Unimplemented disposition on line " & ARM_Input.Line_String (Input_Object) &
+   "Ins=" & ARM_Output.Change_Type'Image(Insert_Disposition) &
+   "Del=" & ARM_Output.Change_Type'Image(Delete_Disposition));
+			                raise Program_Error with "Weird combo";
+				    end if;
 			            Check_Paragraph; -- Change the state *before* outputting the
 						     -- paragraph header, so the AARM prefix is included.
 		                    ARM_Output.Text_Format (Output_Object,
@@ -8624,6 +8730,7 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 		                    ARM_Output.Text_Format (Output_Object,
 					                    Format_Object.Text_Format);
 				end if;
+
 			    end;
 
 		            -- The text goes to the file *and* is recorded.
@@ -9978,6 +10085,33 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 			    end case;
 			end ChgRef_Command;
 
+
+			function XRef_String (Text_Kind :
+				in ARM_Database.Paragraph_Change_Kind_Type;
+				Text_Version, Initial_Version : in Character)
+			    return String is
+			    -- Return the correct Cross-Reference string
+			    -- for this item. If we're not in a paragraph,
+			    -- we need to include appropriate @ChgRef and
+			    -- a @Noprefix commands, lest this XRef hang out
+			    -- with the incorrect kind of paragraph number.
+			begin
+			    if Format_Object.In_Paragraph then
+				-- We can just stick this on the existing
+				-- paragraph.
+				return " See @RefSecbyNum{" &
+				       Clause_String(Format_Object) & "}.";
+			    else
+				-- We have to create a separate paragraph (this
+				-- usually happens if some other format
+				-- immediately precedes the end).
+				return ChgRef_Command (Text_Kind, Text_Version, Initial_Version) &
+				       "@noprefix@;See @RefSecbyNum{" &
+				       Clause_String(Format_Object) & "}.";
+			    end if;
+			end XRef_String;
+
+
 			procedure Write_to_DB (Prefix_Kind, Text_Kind :
 				in ARM_Database.Paragraph_Change_Kind_Type;
 				Prefix_Version, Text_Version,
@@ -9995,7 +10129,7 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 				        ":" & Ascii.LF & Ascii.LF &
 				        ChgRef_Command (Text_Kind, Text_Version, Initial_Version) &
 				        "@leading@noprefix@;" & Text_Buffer(1..Text_Buffer_Len) &
-				        " See @RefSecbyNum{" & Clause_String(Format_Object) & "}.",
+					XRef_String (Text_Kind, Text_Version, Initial_Version),
 				    Change_Kind => Prefix_Kind,
 				    Version => Prefix_Version,
 				    Initial_Version => Initial_Version);
@@ -10009,7 +10143,7 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 				        ":" & Ascii.LF & Ascii.LF &
 				        ChgRef_Command (Text_Kind, Text_Version, Initial_Version) &
 				        "@noprefix@;" & Text_Buffer(1..Text_Buffer_Len) &
-				        " See @RefSecbyNum{" & Clause_String(Format_Object) & "}.",
+					XRef_String (Text_Kind, Text_Version, Initial_Version),
 				    Change_Kind => Prefix_Kind,
 				    Version => Prefix_Version,
 				    Initial_Version => Initial_Version);
@@ -10024,9 +10158,11 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 			Text_Buffer_Len := Text_Buffer_Len - 1; -- Remove command close character.
 --Ada.Text_IO.Put_Line ("&& Attr: " & Format_Object.Attr_Name(1..Format_Object.Attr_Name_Len) &
 --   "; Prefix kind=" & ARM_Database.Paragraph_Change_Kind_Type'Image(Format_Object.Attr_Prefix_Change_Kind) &
---   "; Attr chg kind=" & ARM_Database.Paragraph_Change_Kind_Type'Image(Format_Object.Attr_Change_Kind) &
---   "; Attr Prefix Vers=" & Format_Object.Attr_Prefix_Version & "; Attr Text Vers=" & Format_Object.Attr_Version &
---   "; Attr Init Vers=" & Format_Object.Attr_Initial_Version);
+--   "; Attr chg kind=" & ARM_Database.Paragraph_Change_Kind_Type'Image(Format_Object.Attr_Change_Kind));
+--Ada.Text_IO.Put_Line ("         Attr Prefix Vers=" & Format_Object.Attr_Prefix_Version & "; Attr Text Vers=" & Format_Object.Attr_Version &
+--   "; Attr Init Vers=" & Format_Object.Attr_Initial_Version &
+--   "; In_Paragraph: " & Boolean'Image(Format_Object.In_Paragraph));
+--Ada.Text_IO.Put_Line ("    Text_Buffer: " & Text_Buffer(1..Text_Buffer_Len));
 
 			-- How the prefix text is handled depends only on
 			-- the Initial_Version and what version we're generating.
@@ -10036,7 +10172,13 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 			-- are inserted for their Initial_Version (since it's
 			-- unlikely that we'd delete an attribute).
 
-			if Format_Object.Attr_Initial_Version = '0' then
+			if Format_Object.Attr_Omit then
+			    -- We want to omit this entry; typically, this
+			    -- means it is an inserted item that we are moving
+			    -- within the RM.
+			    null;
+
+			elsif Format_Object.Attr_Initial_Version = '0' then
 			    -- Initial version, not inserted.
 --Ada.Text_IO.Put_Line ("   Attr: Normal initial version");
 				-- Normal reference:
@@ -10094,16 +10236,16 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 			                ARM_Database.Insert (Format_Object.Attr_DB,
 				            Sort_Key => Sort_Key,
 				            Hang_Item =>
-					        "@ChgAdded{Version=[" & Format_Object.Attr_Initial_Version & "],Text=[" &
+					        "@ChgAdded{Version=[" & Format_Object.Attr_Initial_Version & "],Text=<" &
 				                Format_Object.Attr_Prefix(1..Format_Object.Attr_Prefix_Len) &
-					           ''' & Format_Object.Attr_Name(1..Format_Object.Attr_Name_Len) & "]}",
+					           ''' & Format_Object.Attr_Name(1..Format_Object.Attr_Name_Len) & ">}",
 				            Text =>
 					        "@ChgAdded{Version=[" & Format_Object.Attr_Initial_Version & "],Text=[" &
 					        "For " & Format_Object.Prefix_Text(1..Format_Object.Prefix_Text_Len) &
 				                ":]}" & Ascii.LF & Ascii.LF &
 				                ChgRef_Command (Format_Object.Attr_Change_Kind, Format_Object.Attr_Version, Format_Object.Attr_Initial_Version) &
 					        "@leading@noprefix@;" & Text_Buffer(1..Text_Buffer_Len) &
-				                " See @RefSecbyNum{" & Clause_String(Format_Object) & "}.",
+						XRef_String (Format_Object.Attr_Change_Kind, Format_Object.Attr_Version, Format_Object.Attr_Initial_Version),
 				            Change_Kind => PKind,
 				            Version => PVersion,
 				            Initial_Version => Format_Object.Attr_Initial_Version);
@@ -10111,16 +10253,16 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 			                ARM_Database.Insert (Format_Object.Attr_DB,
 				            Sort_Key => Sort_Key,
 				            Hang_Item =>
-					        "@ChgAdded{Version=[" & Format_Object.Attr_Initial_Version & "],Text=[" &
+					        "@ChgAdded{Version=[" & Format_Object.Attr_Initial_Version & "],Text=<" &
 				                Format_Object.Attr_Prefix(1..Format_Object.Attr_Prefix_Len) &
-					           ''' & Format_Object.Attr_Name(1..Format_Object.Attr_Name_Len) & "]}",
+					           ''' & Format_Object.Attr_Name(1..Format_Object.Attr_Name_Len) & ">}",
 				            Text =>
 					        "@ChgAdded{Version=[" & Format_Object.Attr_Initial_Version & "],Text=[" &
 					        "For " & Format_Object.Prefix_Text(1..Format_Object.Prefix_Text_Len) &
 				                ":]}" & Ascii.LF & Ascii.LF &
 				                ChgRef_Command (Format_Object.Attr_Change_Kind, Format_Object.Attr_Version, Format_Object.Attr_Initial_Version) &
 				                "@noprefix@;" & Text_Buffer(1..Text_Buffer_Len) &
-				                " See @RefSecbyNum{" & Clause_String(Format_Object) & "}.",
+						XRef_String (Format_Object.Attr_Change_Kind, Format_Object.Attr_Version, Format_Object.Attr_Initial_Version),
 				            Change_Kind => PKind,
 				            Version => PVersion,
 				            Initial_Version => Format_Object.Attr_Initial_Version);
@@ -10128,6 +10270,7 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 			        end if;
 			    end;
 			end if;
+			Format_Object.Attr_Name_Len := 0; -- No attribute in progress.
         	    end;
 
 		when Pragma_Syntax | Added_Pragma_Syntax | Deleted_Pragma_Syntax =>
@@ -10974,7 +11117,8 @@ Ada.Text_IO.Put_Line("    -- No Start Paragraph (Del-NewOnly)");
 				    for I in reverse Start_Depth+2 .. Format_State.Nesting_Stack_Ptr loop
 				        Ada.Text_IO.Put_Line ("      Open command=" &
 					    Format_State.Nesting_Stack(I).Name & " Class=" &
-					    Data.Command_Type'Image(Format_State.Nesting_Stack(I).Command));
+					    Data.Command_Type'Image(Format_State.Nesting_Stack(I).Command) & " Line=" &
+					    Format_State.Nesting_Stack(I).Open_Line);
 				    end loop;
 				end;
 
@@ -11176,7 +11320,8 @@ Ada.Text_IO.Put_Line ("Attempt to write into a deleted paragraph, on line " & AR
 	    Ada.Text_IO.Put_Line ("   ** Unfinished commands detected.");
 	    for I in reverse 1 .. Format_State.Nesting_Stack_Ptr loop
 	        Ada.Text_IO.Put_Line ("      Open command=" &
-		    Format_State.Nesting_Stack(I).Name);
+		    Format_State.Nesting_Stack(I).Name & "; Line=" &
+		    Format_State.Nesting_Stack(I).Open_Line);
 	    end loop;
 	end if;
     end Process;
@@ -11207,6 +11352,11 @@ Ada.Text_IO.Put_Line ("Attempt to write into a deleted paragraph, on line " & AR
 	Format_Object.Include_Annotations := Real_Include_Annotations;
 	if Format_State.Nesting_Stack_Ptr /= 0 then
 	    Ada.Text_IO.Put_Line ("   ** Unfinished commands detected.");
+	    for I in reverse 1 .. Format_State.Nesting_Stack_Ptr loop
+	        Ada.Text_IO.Put_Line ("      Open command=" &
+		    Format_State.Nesting_Stack(I).Name & "; Line=" &
+		    Format_State.Nesting_Stack(I).Open_Line);
+	    end loop;
 	end if;
     end Format;
 

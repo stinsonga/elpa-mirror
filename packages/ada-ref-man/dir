@@ -15,5 +15,7 @@ File: dir,	Node: Top	This is the top of the INFO tree
 * Menu:
 
 GNU Ada tools
-* Ada Reference Manual: (arm2012).
-* Annotated ARM: (aarm2012).
+* Ada 2012 Reference Manual: (arm2012).
+* Ada 202x Draft 25 Reference Manual: (arm2020).
+* Annotated ARM 2012: (aarm2012).
+* Annotated ARM 202x Draft 25: (aarm2020).
