@@ -187,6 +187,47 @@ integers."
   (setq-local comment-end "")
   (smie-setup json-mode--smie-grammar #'json-mode--smie-rules))
 
+(defun json--jit-wrap (beg end)
+  (save-excursion
+    (remove-overlays beg end 'json-jit-wrap t)
+    (goto-char beg)
+    (let ((ppss (syntax-ppss beg))
+          (last beg))
+      (while (re-search-forward "[][{},]+" end t)
+        (let* ((pos (match-beginning 0))
+               (closer (memq (char-after pos) '(?\] ?\}))))
+          (setq ppss (parse-partial-sexp last (point) nil nil ppss)
+                last (point))
+          (unless (nth 8 ppss)
+            (let ((s (concat "\n" (make-string
+                                   (* json-mode-indent-level (nth 0 ppss))
+                                   ?\s)))
+                  (ol (make-overlay (1- (point)) (point))))
+              (overlay-put ol 'json-jit-wrap t)
+              (overlay-put ol 'after-string s)
+              (when closer
+                (let ((ol (make-overlay pos (1+ pos))))
+                  (overlay-put ol 'json-jit-wrap t)
+                  (overlay-put ol 'before-string s))))))))))
+
+;; FIXME: On a small json file, this seems to work OK, but
+;; line-based movement is already occasionally very slow.
+;; I haven't dared to try it on a largish json file.
+(define-minor-mode json-jit-wrap-mode
+  "Add virtual newlines."
+  :global nil
+  (if json-jit-wrap-mode
+      (progn
+        ;; Note: this jitter works (almost) character-by-character
+        ;; so doesn't need to round up to while lines (which is great!),
+        ;; but of course, if font-lock is enabled, jit-lock will
+        ;; still end up calling us one whole line at a time :-(
+        (jit-lock-register #'json--jit-wrap)
+        (add-hook 'change-major-mode-hook
+                  (lambda () (json-jit-wrap-mode -1)) nil t))
+    (jit-lock-unregister #'json--jit-wrap)
+    (remove-overlays (point-min) (point-max) 'json-jit-wrap t)))
+
 (provide 'json-mode)
 
 ;;; json-mode.el ends here
