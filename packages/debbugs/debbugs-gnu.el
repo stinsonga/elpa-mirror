@@ -2587,7 +2587,7 @@ If SELECTIVELY, query the user before applying the patch."
     (other-window 1)
     (when patch-subject
       (goto-char (point-min))
-      (unless (re-search-forward "^Summary: ")
+      (unless (re-search-forward "^Summary: " nil t)
 	(insert "Summary: \n")
 	(forward-line -1)
 	(end-of-line))
