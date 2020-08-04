@@ -1,4 +1,4 @@
-;; -*- emacs-lisp -*-
+;; -*- lisp-data -*-
 
 ;; List of packages that are maintained externally.
 ;; The list is made of elements of the form (NAME KIND URL OPTS...).
@@ -65,6 +65,7 @@
  ("company"		:subtree "https://github.com/company-mode/company-mode.git")
  ("company-math"	:subtree "https://github.com/vspinu/company-math.git")
  ("context-coloring"	:subtree "https://github.com/jacksonrayhamilton/context-coloring.git")
+ ("cpio-mode"		:external "https://github.com/dlewan/cpio-mode")
  ("darkroom"            :external "https://github.com/capitaomorte/darkroom.git")
  ("dash"                :external "https://github.com/magnars/dash.el.git")
  ("dbus-codegen"	:subtree "https://github.com/ueno/dbus-codegen-el.git")
