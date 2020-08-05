@@ -2492,8 +2492,8 @@ If SELECTIVELY, query the user before applying the patch."
 		   (quoted-printable-decode-region (point-min) (point-max))))
 	    (setq patch-subject
 		  (or (gnus-fetch-field "subject") patch-subject))
-	    (setq patch-from
-		  (or (gnus-fetch-field "from") patch-from))
+	    (when-let ((pf (gnus-fetch-field "from")))
+	      (setq patch-from (mail-decode-encoded-address-string pf))
 	    (goto-char (point-min))
 	    (when (re-search-forward "^[*] " nil t)
 	      (let ((start (match-beginning 0)))
