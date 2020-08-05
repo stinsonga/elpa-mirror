@@ -147,6 +147,7 @@
  ("realgud-trepan-ni"   :external "https://github.com/realgud/realgud-ni")
  ("relint"		:external "https://github.com/mattiase/relint")
  ("rich-minority"	:subtree "https://github.com/Malabarba/rich-minority")
+ ("rt-liberation"	:external "https://git.savannah.nongnu.org/git/rtliber")
  ("rudel"		:external nil) ;; Was bzr::bzr://rudel.bzr.sourceforge.net/bzrroot/rudel/trunk
  ("scanner"		:external "https://gitlab.com/rstocker/scanner.git")
  ("smalltalk-mode"	:external "git://git.sv.gnu.org/smalltalk")
