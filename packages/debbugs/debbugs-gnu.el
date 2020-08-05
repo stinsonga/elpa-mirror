@@ -2493,7 +2493,7 @@ If SELECTIVELY, query the user before applying the patch."
 	    (setq patch-subject
 		  (or (gnus-fetch-field "subject") patch-subject))
 	    (when-let ((pf (gnus-fetch-field "from")))
-	      (setq patch-from (mail-decode-encoded-address-string pf))
+	      (setq patch-from (mail-decode-encoded-address-string pf)))
 	    (goto-char (point-min))
 	    (when (re-search-forward "^[*] " nil t)
 	      (let ((start (match-beginning 0)))
