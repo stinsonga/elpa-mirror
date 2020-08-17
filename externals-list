@@ -151,6 +151,7 @@
  ("rudel"		:external nil) ;; Was bzr::bzr://rudel.bzr.sourceforge.net/bzrroot/rudel/trunk
  ("scanner"		:external "https://gitlab.com/rstocker/scanner.git")
  ("smalltalk-mode"	:external "git://git.sv.gnu.org/smalltalk")
+ ("so-long"             :core "lisp/so-long.el")
  ("soap-client"		:core ("lisp/net/soap-client.el" "lisp/net/soap-inspect.el"))
  ("sotlisp"		:subtree "https://github.com/Malabarba/speed-of-thought-lisp")
  ("spinner"		:subtree "https://github.com/Malabarba/spinner.el")
