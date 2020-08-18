@@ -117,6 +117,15 @@ and `hour-hand'.  The clock-face has a size of 1x1."
                                                      'rotate angle .5 .5)))
 				   (number-sequence 0 354 6)))))))
 
+(defun svg-clock--def (svg def)
+  (dom-append-child
+   (or (dom-by-tag svg 'defs)
+       (let ((node (dom-node 'defs)))
+	 (dom-add-child-before svg node)
+	 node))
+   def)
+  svg)
+
 (defun svg-clock--create-svg (time size foreground background
 				   no-seconds no-face)
   "Return an SVG element displaying an analog clock.
@@ -147,8 +156,8 @@ its colors are FOREGROUND and BACKGROUND."
                                     'rotate
                                     (+ (* hours 30) (/ minutes 2.0))
 				    .5 .5))))))
-    (dolist (def defs) (svg-clock-def svg def))
-    (svg-clock-def svg clock)
+    (dolist (def defs) (svg-clock--def svg def))
+    (svg-clock--def svg clock)
     (dom-append-child svg
                       (svg-clock-use 'clock
                                      (svg-clock-transform 'scale size size)))
