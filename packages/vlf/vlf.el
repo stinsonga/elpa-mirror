@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2006, 2012-2018 Free Software Foundation, Inc.
 
-;; Version: 1.7.1
+;; Version: 1.7.2
 ;; Keywords: large files, utilities
 ;; Maintainer: Andrey Kotlarski <m00naticus@gmail.com>
 ;; Authors: 2006 Mathias Dahl <mathias.dahl@gmail.com>
