@@ -249,6 +249,11 @@ If nil, the value of `send-mail-function' is used instead."
  		(function :tag "Other function"))
   :version "25.1")
 
+(defcustom debbugs-gnu-compile-command "make -k"
+  "Command to run to compile Emacs."
+  :type 'string
+  :version "28.1")
+
 (defcustom debbugs-gnu-suppress-closed t
   "If non-nil, don't show closed bugs."
   :type 'boolean
@@ -357,8 +362,14 @@ If this is `rmail', use Rmail instead."
 (defface debbugs-gnu-tagged '((t (:foreground "red")))
   "Face for reports that have been tagged locally.")
 
+(defface debbugs-gnu-marked '((t (:background "DarkGrey")))
+  "Face for reports that have been tagged locally.")
+
 (defvar debbugs-gnu-local-tags nil
   "List of bug numbers tagged locally, and kept persistent.")
+
+(defvar debbugs-gnu-local-marks nil
+  "List of bug numbers marked locally, and kept persistent.")
 
 (defvar debbugs-gnu-persistency-file
   (expand-file-name (locate-user-emacs-file "debbugs"))
@@ -371,7 +382,9 @@ If this is `rmail', use Rmail instead."
      ";; -*- emacs-lisp -*-\n"
      ";; Debbugs tags connection history.  Don't change this file.\n\n"
      (format "(setq debbugs-gnu-local-tags '%S)"
-	     (sort (copy-sequence debbugs-gnu-local-tags) #'>)))))
+	     (sort (copy-sequence debbugs-gnu-local-tags) #'>))
+     (format "(setq debbugs-gnu-local-marks '%S)"
+	     (sort (copy-sequence debbugs-gnu-local-marks) #'>)))))
 
 (defvar debbugs-gnu-current-query nil
   "The query object of the current search.
@@ -875,10 +888,13 @@ are taken from the cache instead."
 	      (or subject "")
 	      'face
 	      ;; Mark owned bugs.
-	      (if (and (stringp owner)
-		       (string-equal owner user-mail-address))
-		  'debbugs-gnu-tagged
-		'default))))
+	      (cond
+	       ((memq id debbugs-gnu-local-marks)
+		'debbugs-gnu-marked)
+	       ((and (stringp owner)
+		     (string-equal owner user-mail-address))
+		'debbugs-gnu-tagged)
+	       (t 'default)))))
 	   'append))))
 
     (tabulated-list-init-header)
@@ -994,6 +1010,7 @@ Used instead of `tabulated-list-print-entry'."
 
     (define-key map "s" #'debbugs-gnu-toggle-sort)
     (define-key map "t" #'debbugs-gnu-toggle-tag)
+    (define-key map "m" #'debbugs-gnu-toggle-mark)
     (define-key map "x" #'debbugs-gnu-toggle-suppress)
     (define-key map "/" #'debbugs-gnu-narrow-to-status)
     (define-key map "w" #'debbugs-gnu-widen)
@@ -1345,6 +1362,38 @@ interest to you."
 	     ;; Mark tagged bugs.
 	     (if (memq id debbugs-gnu-local-tags)
 		 'debbugs-gnu-tagged
+	       'default))))))
+
+(defun debbugs-gnu-toggle-mark ()
+  "Toggle the local mark of the report in the current line.
+If a report is marked locally, it is presumed to be very
+intersting to you."
+  (interactive)
+  (save-excursion
+    (beginning-of-line)
+    (let ((inhibit-read-only t)
+	  (id (debbugs-gnu-current-id)))
+      (if (memq id debbugs-gnu-local-marks)
+	  (progn
+	    (setq debbugs-gnu-local-marks (delq id debbugs-gnu-local-marks))
+	    (put-text-property (+ (point) 32) (line-end-position)
+			       'face 'default))
+	(add-to-list 'debbugs-gnu-local-marks id)
+	(put-text-property (+ (point) 32) (line-end-position)
+			   'face 'debbugs-gnu-marked))
+      (debbugs-gnu--update-mark-face id)))
+  (debbugs-gnu-dump-persistency-file))
+
+(defun debbugs-gnu--update-mark-face (id)
+  (dolist (entry tabulated-list-entries)
+    (when (equal (alist-get 'id (car entry)) id)
+      (aset (cadr entry) 3
+	    (propertize
+	     (alist-get 'subject (car entry))
+	     'face
+	     ;; Mark tagged bugs.
+	     (if (memq id debbugs-gnu-local-marks)
+		 'debbugs-gnu-marked
 	       'default))))))
 
 (defun debbugs-gnu-toggle-suppress ()
@@ -2378,8 +2427,9 @@ If SELECTIVELY, query the user before applying the patch."
     (require 'compile)
     (mapc #'kill-process compilation-in-progress)
     (compile
-     (format
-      "cd %s; make -k" (expand-file-name "lisp" debbugs-gnu-current-directory)))
+     (format "cd %s; %s"
+	     debbugs-gnu-current-directory
+	     debbugs-gnu-compile-command))
     (vc-dir debbugs-gnu-current-directory)
     (vc-dir-hide-up-to-date)
     (goto-char (point-min))
