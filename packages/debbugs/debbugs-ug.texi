@@ -388,6 +388,9 @@ touched for a while), and DarkGrey (@code{debbugs-gnu-done}, the bug
 is closed).  Archived bugs are shown with inverse face
 (@code{debbugs-gnu-archived}).
 
+A DarkGrey background color (@code{debbugs-gnu-marked}) in the title
+column shows bugs which have been marked locally.
+
 The minor mode @code{debbugs-gnu-mode} is active in bug report
 buffers.  This enables the following key strokes:
 
@@ -471,6 +474,12 @@ Toggle sorting order of bugs.
 Toggle local tag of bugs.
 
 @item
+@kindex @kbd{m}
+@kbd{m} @tab
+@code{debbugs-gnu-toggle-mark} @*
+Toggle local mark of bugs.
+
+@item
 @kindex @kbd{x}
 @kbd{x} @tab
 @code{debbugs-gnu-toggle-suppress} @*
@@ -493,6 +502,14 @@ Messages}.
 Tagging a bug locally via @kbd{t} is an efficient way to keep bugs
 visible you are working on.  The command @code{debbugs-gnu-tagged}
 shows all locally tagged bugs in a list.
+
+Marking a bug locally via @kbd{m} is meant for single sessions.  This
+is a mean to mark bugs for different reasons, like marking a bug in a
+list you have processed already during a bug triage.
+
+@vindex debbugs-gnu-persistency-file
+Both tagged and marked bugs are kept persistent in the file
+@code{debbugs-gnu-persistency-file}.
 
 @vindex debbugs-gnu-suppress-closed
 The user option @code{debbugs-gnu-suppress-closed} controls whether
@@ -541,6 +558,12 @@ Show all bug attributes.
 @kbd{C-c # t} @tab
 @code{debbugs-gnu-toggle-tag} @*
 Toggle local tag of bugs.
+
+@item
+@kindex @kbd{C-c # m}
+@kbd{C-c # m} @tab
+@code{debbugs-gnu-toggle-mark} @*
+Toggle local mark of bugs.
 
 @item
 @kindex @kbd{C-c # C}

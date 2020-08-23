@@ -1,4 +1,4 @@
-This is debbugs-ug.info, produced by makeinfo version 6.6 from
+This is debbugs-ug.info, produced by makeinfo version 6.7 from
 debbugs-ug.texi.
 
 Copyright (C) 2015-2020 Free Software Foundation, Inc.
@@ -368,6 +368,9 @@ MidnightBlue ('debbugs-gnu-pending', the bug is pending), orange
 DarkGrey ('debbugs-gnu-done', the bug is closed).  Archived bugs are
 shown with inverse face ('debbugs-gnu-archived').
 
+   A DarkGrey background color ('debbugs-gnu-marked') in the title
+column shows bugs which have been marked locally.
+
    The minor mode 'debbugs-gnu-mode' is active in bug report buffers.
 This enables the following key strokes:
 
@@ -415,6 +418,9 @@ This enables the following key strokes:
 't'            'debbugs-gnu-toggle-tag'
                Toggle local tag of bugs.
                
+'m'            'debbugs-gnu-toggle-mark'
+               Toggle local mark of bugs.
+               
 'x'            'debbugs-gnu-toggle-suppress'
                Toggle showing of closed bugs.
                
@@ -429,6 +435,13 @@ This enables the following key strokes:
    Tagging a bug locally via 't' is an efficient way to keep bugs
 visible you are working on.  The command 'debbugs-gnu-tagged' shows
 all locally tagged bugs in a list.
+
+   Marking a bug locally via 'm' is meant for single sessions.  This
+is a mean to mark bugs for different reasons, like marking a bug in a
+list you have processed already during a bug triage.
+
+   Both tagged and marked bugs are kept persistent in the file
+'debbugs-gnu-persistency-file'.
 
    The user option 'debbugs-gnu-suppress-closed' controls whether
 closed bugs are shown in the initial list.
@@ -463,6 +476,9 @@ This enables the following key strokes:
             
 'C-c # t'   'debbugs-gnu-toggle-tag'
             Toggle local tag of bugs.
+            
+'C-c # m'   'debbugs-gnu-toggle-mark'
+            Toggle local mark of bugs.
             
 'C-c # C'   'debbugs-gnu-send-control-message'
             Send a control message for this bug, *note Control Messages::.
@@ -783,10 +799,11 @@ Variable Index
 * debbugs-gnu-default-suppress-bugs:     Retrieving Bugs.   (line  50)
 * debbugs-gnu-git-remote-info-alist:     Customizing debbugs-gnu-pick-commits.
                                                             (line   6)
-* debbugs-gnu-mail-backend:              Tabulated Lists.   (line  91)
+* debbugs-gnu-mail-backend:              Tabulated Lists.   (line 104)
+* debbugs-gnu-persistency-file:          Tabulated Lists.   (line  98)
 * debbugs-gnu-read-commit-range-hook:    Posting Patches.   (line  11)
 * debbugs-gnu-send-mail-function:        Control Messages.  (line 133)
-* debbugs-gnu-suppress-closed:           Tabulated Lists.   (line  88)
+* debbugs-gnu-suppress-closed:           Tabulated Lists.   (line 101)
 * debbugs-gnu-trunk-directory:           Applying Patches.  (line  18)
 * debbugs-org-severity-priority:         TODO Items.        (line  10)
 * debbugs-show-progress:                 Retrieving Bugs.   (line 123)
@@ -800,29 +817,31 @@ Key Index
  [index ]
 * Menu:
 
-* /:                                     Tabulated Lists.    (line 41)
-* A:                                     Tabulated Lists.    (line 33)
-* B:                                     Tabulated Lists.    (line 62)
-* b:                                     Tabulated Lists.    (line 63)
-* C:                                     Tabulated Lists.    (line 76)
-* C-c # C:                               TODO Items.         (line 25)
-* C-c # d:                               TODO Items.         (line 19)
-* C-c # E:                               TODO Items.         (line 28)
-* C-c # t:                               TODO Items.         (line 22)
-* d:                                     Tabulated Lists.    (line 38)
-* E:                                     Tabulated Lists.    (line 80)
-* g:                                     Tabulated Lists.    (line 57)
-* M-m:                                   Applying Patches.   (line 10)
-* <mouse-1>:                             Tabulated Lists.    (line 30)
-* <mouse-2>:                             Tabulated Lists.    (line 31)
-* R:                                     Tabulated Lists.    (line 47)
-* <RET>:                                 Tabulated Lists.    (line 29)
-* <RET> <1>:                             Tabulated Lists.    (line 91)
-* s:                                     Tabulated Lists.    (line 67)
-* t:                                     Tabulated Lists.    (line 70)
-* <TAB>:                                 TODO Items.         (line 16)
-* w:                                     Tabulated Lists.    (line 54)
-* x:                                     Tabulated Lists.    (line 73)
+* /:                                     Tabulated Lists.   (line  44)
+* A:                                     Tabulated Lists.   (line  36)
+* B:                                     Tabulated Lists.   (line  65)
+* b:                                     Tabulated Lists.   (line  66)
+* C:                                     Tabulated Lists.   (line  82)
+* C-c # C:                               TODO Items.        (line  28)
+* C-c # d:                               TODO Items.        (line  19)
+* C-c # E:                               TODO Items.        (line  31)
+* C-c # m:                               TODO Items.        (line  25)
+* C-c # t:                               TODO Items.        (line  22)
+* d:                                     Tabulated Lists.   (line  41)
+* E:                                     Tabulated Lists.   (line  86)
+* g:                                     Tabulated Lists.   (line  60)
+* m:                                     Tabulated Lists.   (line  76)
+* M-m:                                   Applying Patches.  (line  10)
+* <mouse-1>:                             Tabulated Lists.   (line  33)
+* <mouse-2>:                             Tabulated Lists.   (line  34)
+* R:                                     Tabulated Lists.   (line  50)
+* <RET>:                                 Tabulated Lists.   (line  32)
+* <RET> <1>:                             Tabulated Lists.   (line 104)
+* s:                                     Tabulated Lists.   (line  70)
+* t:                                     Tabulated Lists.   (line  73)
+* <TAB>:                                 TODO Items.        (line  16)
+* w:                                     Tabulated Lists.   (line  57)
+* x:                                     Tabulated Lists.   (line  79)
 
 
 File: debbugs-ug.info,  Node: Mail Command Index,  Prev: Key Index,  Up: Top
@@ -1177,47 +1196,52 @@ Ref: Searching Bugs-Footnote-112730
 Ref: Searching Bugs-Footnote-212818
 Node: Presenting Bugs12909
 Node: Tabulated Lists13575
-Node: TODO Items17830
-Node: Control Messages19148
-Node: Applying Patches22663
-Node: Posting Patches24045
-Node: Customizing debbugs-gnu-pick-commits26530
-Node: Minor Mode27230
-Node: Command Index28504
-Node: Variable Index29774
-Node: Key Index31290
-Node: Mail Command Index33069
-Ref: Mail Command Index: reassign33222
-Ref: Mail Command Index: reopen33988
-Ref: Mail Command Index: found35142
-Ref: Mail Command Index: notfound36223
-Ref: Mail Command Index: fixed36632
-Ref: Mail Command Index: notfixed37078
-Ref: Mail Command Index: submitter37701
-Ref: Mail Command Index: forwarded38095
-Ref: Mail Command Index: notforwarded38713
-Ref: Mail Command Index: retitle38914
-Ref: Mail Command Index: severity39298
-Ref: Mail Command Index: clone39629
-Ref: Mail Command Index: merge40393
-Ref: Mail Command Index: forcemerge41780
-Ref: Mail Command Index: unmerge42224
-Ref: Mail Command Index: tags42927
-Ref: Mail Command Index: block43993
-Ref: Mail Command Index: unblock44030
-Ref: Mail Command Index: close44515
-Ref: Mail Command Index: package45165
-Ref: Mail Command Index: owner45777
-Ref: Mail Command Index: noowner46140
-Ref: Mail Command Index: archive46313
-Ref: Mail Command Index: unarchive46454
-Ref: Mail Command Index: #46747
-Ref: Mail Command Index: quit47007
-Ref: Mail Command Index: stop47014
-Ref: Mail Command Index: thank47021
-Ref: Mail Command Index: thanks47029
-Ref: Mail Command Index: thankyou47038
-Ref: Mail Command Index: thank you47049
-Ref: Mail Command Index: --47061
+Node: TODO Items18336
+Node: Control Messages19744
+Node: Applying Patches23259
+Node: Posting Patches24641
+Node: Customizing debbugs-gnu-pick-commits27126
+Node: Minor Mode27826
+Node: Command Index29100
+Node: Variable Index30370
+Node: Key Index31957
+Node: Mail Command Index33878
+Ref: Mail Command Index: reassign34031
+Ref: Mail Command Index: reopen34797
+Ref: Mail Command Index: found35951
+Ref: Mail Command Index: notfound37032
+Ref: Mail Command Index: fixed37441
+Ref: Mail Command Index: notfixed37887
+Ref: Mail Command Index: submitter38510
+Ref: Mail Command Index: forwarded38904
+Ref: Mail Command Index: notforwarded39522
+Ref: Mail Command Index: retitle39723
+Ref: Mail Command Index: severity40107
+Ref: Mail Command Index: clone40438
+Ref: Mail Command Index: merge41202
+Ref: Mail Command Index: forcemerge42589
+Ref: Mail Command Index: unmerge43033
+Ref: Mail Command Index: tags43736
+Ref: Mail Command Index: block44802
+Ref: Mail Command Index: unblock44839
+Ref: Mail Command Index: close45324
+Ref: Mail Command Index: package45974
+Ref: Mail Command Index: owner46586
+Ref: Mail Command Index: noowner46949
+Ref: Mail Command Index: archive47122
+Ref: Mail Command Index: unarchive47263
+Ref: Mail Command Index: #47556
+Ref: Mail Command Index: quit47816
+Ref: Mail Command Index: stop47823
+Ref: Mail Command Index: thank47830
+Ref: Mail Command Index: thanks47838
+Ref: Mail Command Index: thankyou47847
+Ref: Mail Command Index: thank you47858
+Ref: Mail Command Index: --47870
 
 End Tag Table
+
+
+Local Variables:
+coding: utf-8
+End:

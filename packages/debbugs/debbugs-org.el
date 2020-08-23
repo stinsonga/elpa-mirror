@@ -75,7 +75,8 @@
 
 ;;   "C-c # C": Send a debbugs control message
 ;;   "C-c # E": Make (but don't yet send) a debbugs control message
-;;   "C-c # t": Mark the bug locally as tagged
+;;   "C-c # t": Tag the bug locally
+;;   "C-c # m": Mark the bug locally
 ;;   "C-c # d": Show bug attributes
 
 ;; The last entry in a TODO record is the link [[Messages]].  If you
@@ -299,6 +300,7 @@ the corresponding buffer (e.g. by closing Emacs)."
 (defconst debbugs-org-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c # t") #'debbugs-gnu-toggle-tag)
+    (define-key map (kbd "C-c # m") #'debbugs-gnu-toggle-mark)
     (define-key map (kbd "C-c # C") #'debbugs-gnu-send-control-message)
     (define-key map (kbd "C-c # E") #'debbugs-gnu-make-control-message)
     (define-key map (kbd "C-c # d") #'debbugs-gnu-display-status)

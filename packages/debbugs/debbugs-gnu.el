@@ -83,7 +83,8 @@
 ;;   RET: Show corresponding messages in Gnus/Rmail
 ;;   "C": Send a control message
 ;;   "E": Make (but don't yet send) a control message
-;;   "t": Mark the bug locally as tagged
+;;   "t": Tag the bug locally
+;;   "m": Mark the bug locally
 ;;   "b": Show bugs this bug is blocked by
 ;;   "B": Show bugs this bug is blocking
 ;;   "d": Show bug attributes
@@ -363,7 +364,7 @@ If this is `rmail', use Rmail instead."
   "Face for reports that have been tagged locally.")
 
 (defface debbugs-gnu-marked '((t (:background "DarkGrey")))
-  "Face for reports that have been tagged locally.")
+  "Face for reports that have been marked locally.")
 
 (defvar debbugs-gnu-local-tags nil
   "List of bug numbers tagged locally, and kept persistent.")
@@ -379,12 +380,13 @@ If this is `rmail', use Rmail instead."
   "Function to store debbugs variables persistently."
   (with-temp-file debbugs-gnu-persistency-file
     (insert
+     ;; This could be `lisp-data' once we depend on Emacs 28+.
      ";; -*- emacs-lisp -*-\n"
-     ";; Debbugs tags connection history.  Don't change this file.\n\n"
-     (format "(setq debbugs-gnu-local-tags '%S)"
-	     (sort (copy-sequence debbugs-gnu-local-tags) #'>))
-     (format "(setq debbugs-gnu-local-marks '%S)"
-	     (sort (copy-sequence debbugs-gnu-local-marks) #'>)))))
+     ";; Debbugs tags and marks history.  Don't change this file.\n\n"
+     (format
+      "(setq debbugs-gnu-local-tags '%S\n      debbugs-gnu-local-marks '%S)\n"
+      (sort (copy-sequence debbugs-gnu-local-tags) #'>)
+      (sort (copy-sequence debbugs-gnu-local-marks) #'>)))))
 
 (defvar debbugs-gnu-current-query nil
   "The query object of the current search.
@@ -887,10 +889,11 @@ are taken from the cache instead."
 	     (propertize
 	      (or subject "")
 	      'face
-	      ;; Mark owned bugs.
 	      (cond
+	       ;; Marked bugs.
 	       ((memq id debbugs-gnu-local-marks)
 		'debbugs-gnu-marked)
+	       ;; Mark owned bugs.
 	       ((and (stringp owner)
 		     (string-equal owner user-mail-address))
 		'debbugs-gnu-tagged)
@@ -1337,64 +1340,62 @@ Subject fields."
 If a report is tagged locally, it is presumed to be of little
 interest to you."
   (interactive)
-  (save-excursion
-    (beginning-of-line)
-    (let ((inhibit-read-only t)
-	  (id (debbugs-gnu-current-id)))
-      (if (memq id debbugs-gnu-local-tags)
-	  (progn
-	    (setq debbugs-gnu-local-tags (delq id debbugs-gnu-local-tags))
-	    (put-text-property (point) (+ (point) 5) 'face 'default))
-	(add-to-list 'debbugs-gnu-local-tags id)
-	(put-text-property
-	 (+ (point) (- 5 (length (number-to-string id)))) (+ (point) 5)
-	 'face 'debbugs-gnu-tagged))
-      (debbugs-gnu--update-tag-face id)))
+  (let ((id (debbugs-gnu-current-id)))
+    (if (memq id debbugs-gnu-local-tags)
+	(setq debbugs-gnu-local-tags (delq id debbugs-gnu-local-tags))
+      (add-to-list 'debbugs-gnu-local-tags id))
+    (debbugs-gnu--update-tag-mark-face id)
+    ;; FIXME: Use `debbugs-gnu-print-entry'?
+    (tabulated-list-init-header)
+    (tabulated-list-print)
+    (when id
+      (debbugs-gnu-goto id)))
   (debbugs-gnu-dump-persistency-file))
 
-(defun debbugs-gnu--update-tag-face (id)
+(defun debbugs-gnu--update-tag-mark-face (id)
   (dolist (entry tabulated-list-entries)
     (when (equal (alist-get 'id (car entry)) id)
-      (aset (cadr entry) 0
-	    (propertize
-	     (format "%5d" id)
-	     'face
-	     ;; Mark tagged bugs.
-	     (if (memq id debbugs-gnu-local-tags)
-		 'debbugs-gnu-tagged
-	       'default))))))
+      (let ((owner (if (alist-get 'owner (car entry))
+		       (car (debbugs-gnu--split-address
+			     (decode-coding-string
+			      (alist-get 'owner (car entry)) 'utf-8))))))
+	(aset (cadr entry) 0
+	      (propertize
+	       (format "%5d" id)
+	       'face
+	       ;; Mark tagged bugs.
+	       (if (memq id debbugs-gnu-local-tags)
+		   'debbugs-gnu-tagged
+		 'default)))
+	(aset (cadr entry) 3
+	      (propertize
+	       (or (alist-get 'subject (car entry)) "")
+	       'face
+	       (cond
+		;; Marked bugs.
+		((memq id debbugs-gnu-local-marks)
+		 'debbugs-gnu-marked)
+		;; Mark owned bugs.
+		((and (stringp owner) (string-equal owner user-mail-address))
+		 'debbugs-gnu-tagged)
+		(t 'default))))))))
 
 (defun debbugs-gnu-toggle-mark ()
   "Toggle the local mark of the report in the current line.
 If a report is marked locally, it is presumed to be very
-intersting to you."
+interesting to you."
   (interactive)
-  (save-excursion
-    (beginning-of-line)
-    (let ((inhibit-read-only t)
-	  (id (debbugs-gnu-current-id)))
-      (if (memq id debbugs-gnu-local-marks)
-	  (progn
-	    (setq debbugs-gnu-local-marks (delq id debbugs-gnu-local-marks))
-	    (put-text-property (+ (point) 32) (line-end-position)
-			       'face 'default))
-	(add-to-list 'debbugs-gnu-local-marks id)
-	(put-text-property (+ (point) 32) (line-end-position)
-			   'face 'debbugs-gnu-marked))
-      (debbugs-gnu--update-mark-face id)))
+  (let ((id (debbugs-gnu-current-id)))
+    (if (memq id debbugs-gnu-local-marks)
+	(setq debbugs-gnu-local-marks (delq id debbugs-gnu-local-marks))
+      (add-to-list 'debbugs-gnu-local-marks id))
+    (debbugs-gnu--update-tag-mark-face id)
+    ;; FIXME: Use `debbugs-gnu-print-entry'?
+    (tabulated-list-init-header)
+    (tabulated-list-print)
+    (when id
+      (debbugs-gnu-goto id)))
   (debbugs-gnu-dump-persistency-file))
-
-(defun debbugs-gnu--update-mark-face (id)
-  (dolist (entry tabulated-list-entries)
-    (when (equal (alist-get 'id (car entry)) id)
-      (aset (cadr entry) 3
-	    (propertize
-	     (alist-get 'subject (car entry))
-	     'face
-	     ;; Mark tagged bugs.
-	     (if (memq id debbugs-gnu-local-marks)
-		 'debbugs-gnu-marked
-	       'default))))))
 
 (defun debbugs-gnu-toggle-suppress ()
   "Suppress bugs marked in `debbugs-gnu-suppress-bugs'."
