@@ -405,22 +405,24 @@ a date, value is the cons cell \(BEFORE . AFTER\).")
 The specification which bugs shall be suppressed is taken from
   `debbugs-gnu-default-suppress-bugs'.")
 
-(defcustom debbugs-gnu-emacs-current-release "27.1"
+(defcustom debbugs-gnu-emacs-current-release "27.2"
   "The current Emacs relase developped for."
   :type '(choice (const "24.5")
 		 (const "25.1") (const "25.2")
-		 (const "26.1") (const "26.2") (const "26.3")
-		 (const "27.1")
+		 (const "26.1") (const "26.3")
+		 (const "27.1") (const "27.2")
 		 (const "28.1"))
-  :version "27.1")
+  :version "27.2")
 
 (defconst debbugs-gnu-emacs-blocking-reports
   '(("24.5" . 19758)
     ("25.1" . 19759)
     ("25.2" . 21966)
     ("26.1" . 24655)
+    ("26.3" . 35968)
     ("27.1" . 39200)
-    ("28.1" . 24655))
+    ("27.2" . 43018)
+    ("28.1" . 39202))
   "The IDs of the Emacs report used to track blocking bug reports.
 It is a list of cons cells, each one containing the Emacs
 version (a string) and the bug report number (a number).")
