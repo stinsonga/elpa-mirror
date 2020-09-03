@@ -596,7 +596,7 @@ you'll stay in the Gnus summary buffer."
 			(throw 'target (setq targ h)))))
 	    ;; If not, use the refile interface to choose one.
 	    (setq targ (org-refile-get-location
-			"Trigger heading" nil t))
+			"Trigger heading" nil))
 	    (setq targ
 		  (save-window-excursion
 		    (find-file (nth 1 targ))
