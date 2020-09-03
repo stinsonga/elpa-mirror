@@ -297,7 +297,7 @@ subtree (or REGION) for links, and use those instead."
 (defvar message-beginning-of-line)
 
 (defun gnorb-org-setup-message
-    (&optional messages mails from cc bcc attachments text ids)
+    (&optional messages mails from cc bcc attachments text ids noprompt)
   "Common message setup routine for other gnorb-org commands.
 MESSAGES is a list of gnus links pointing to messages -- we
 currently only use the first of the list. MAILS is a list of
@@ -334,25 +334,26 @@ headings."
 		  (funcall (intern (format "message-goto-%s" (car h))))
 		  (let ((message-beginning-of-line t)
 			(show-trailing-whitespace t))
-		    (message-beginning-of-line)
-		    (unless (bolp)
-		      (kill-line))
+		    (message-beginning-of-header t)
 		    (insert (cdr h))))))
     (dolist (h `((from . ,from) (cc . ,cc) (bcc . ,bcc)))
       (sh h)))
   ;; attach ATTACHMENTS
-  (map-y-or-n-p
-   (lambda (a) (format "Attach %s to outgoing message? "
-		       (file-name-nondirectory a)))
-   (lambda (a)
-     (mml-attach-file a (mm-default-file-encoding a)
-		      nil "attachment"))
-   attachments
-   '("file" "files" "attach"))
+  (if noprompt
+      (dolist (a attachments)
+	(mml-attach-file a (mm-default-file-encoding a)
+		       nil "attachment"))
+    (map-y-or-n-p
+     (lambda (a) (format "Attach %s to outgoing message? "
+			 (file-name-nondirectory a)))
+     (lambda (a)
+       (mml-attach-file a (mm-default-file-encoding a)
+			nil "attachment"))
+     attachments
+     '("file" "files" "attach")))
   ;; insert text, if any
   (when text
     (message-goto-body)
-    (insert "\n")
     (if (bufferp text)
 	(insert-buffer-substring text)
       (insert text)))
