@@ -892,6 +892,8 @@ HEAD-TEXT, if present, as its name.  Otherwise create an
 ephemeral one, with RET as the value of its quit-config."
   (interactive)
   (require 'nnir)
+  (unless (gnus-alive-p)
+    (gnus))
   (let* ((nnir-address (gnorb-gnus-find-gnorb-server))
 	 (name (if persist
 		   (read-string
