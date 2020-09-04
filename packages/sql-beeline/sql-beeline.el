@@ -77,6 +77,7 @@
   (interactive "P")
   (sql-product-interactive 'beeline buffer))
 
+;; FIXME: We required `sql' above, so why use eval-after-load?
 (eval-after-load "sql"
   '(sql-add-product
     'beeline "Beeline"
@@ -91,3 +92,4 @@
     :prompt-cont-regexp "^[ .]*> "))
 
 (provide 'sql-beeline)
+;;; sql-beeline.el ends here
