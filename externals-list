@@ -174,7 +174,7 @@
  ("websocket"		:subtree "https://github.com/ahyatt/emacs-websocket.git")
  ("windower"		:external "https://gitlab.com/ambrevar/emacs-windower")
  ("wisitoken-grammar-mode" :external nil)
- ("which-key"           :subtree "https://github.com/justbur/emacs-which-key")
+ ("which-key"           :external "https://github.com/justbur/emacs-which-key")
  ("xelb"		:external "https://github.com/ch11ng/xelb.git")
  ("xr"			:external "https://github.com/mattiase/xr")
  ("xref"		:core "lisp/progmodes/xref.el")
