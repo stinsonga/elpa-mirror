@@ -1047,9 +1047,14 @@ Used instead of `tabulated-list-print-entry'."
 		  debbugs-gnu-send-control-message
 		  :help "Send control message to debbugs.gnu.org")
       'debbugs-gnu-show-all-blocking-reports)
+    (define-key-after menu-map [debbugs-gnu-make-control-message]
+      '(menu-item "Make Control Message"
+		  debbugs-gnu-make-control-message
+		  :help "Make (but don't yet send) a control message to debbugs.gnu.org")
+      'debbugs-gnu-send-control-message)
 
     (define-key-after menu-map [debbugs-gnu-separator1]
-      '(menu-item "--") 'debbugs-gnu-send-control-message)
+      '(menu-item "--") 'debbugs-gnu-make-control-message)
     (define-key-after menu-map [debbugs-gnu-search]
       '(menu-item "Search Bugs" debbugs-gnu-search
 		  :help "Search bugs on debbugs.gnu.org")
@@ -1346,41 +1351,43 @@ interest to you."
     (if (memq id debbugs-gnu-local-tags)
 	(setq debbugs-gnu-local-tags (delq id debbugs-gnu-local-tags))
       (add-to-list 'debbugs-gnu-local-tags id))
-    (debbugs-gnu--update-tag-mark-face id)
-    ;; FIXME: Use `debbugs-gnu-print-entry'?
-    (tabulated-list-init-header)
-    (tabulated-list-print)
+    (when-let ((entry (debbugs-gnu--update-tag-mark-face id))
+	       (inhibit-read-only t))
+      (delete-region (line-beginning-position) (progn (forward-line 1) (point)))
+      (apply #'debbugs-gnu-print-entry entry))
     (when id
       (debbugs-gnu-goto id)))
   (debbugs-gnu-dump-persistency-file))
 
 (defun debbugs-gnu--update-tag-mark-face (id)
-  (dolist (entry tabulated-list-entries)
-    (when (equal (alist-get 'id (car entry)) id)
-      (let ((owner (if (alist-get 'owner (car entry))
-		       (car (debbugs-gnu--split-address
-			     (decode-coding-string
-			      (alist-get 'owner (car entry)) 'utf-8))))))
-	(aset (cadr entry) 0
-	      (propertize
-	       (format "%5d" id)
-	       'face
-	       ;; Mark tagged bugs.
-	       (if (memq id debbugs-gnu-local-tags)
-		   'debbugs-gnu-tagged
-		 'default)))
-	(aset (cadr entry) 3
-	      (propertize
-	       (or (alist-get 'subject (car entry)) "")
-	       'face
-	       (cond
-		;; Marked bugs.
-		((memq id debbugs-gnu-local-marks)
-		 'debbugs-gnu-marked)
-		;; Mark owned bugs.
-		((and (stringp owner) (string-equal owner user-mail-address))
-		 'debbugs-gnu-tagged)
-		(t 'default))))))))
+  (catch 'entry
+    (dolist (entry tabulated-list-entries)
+      (when (equal (alist-get 'id (car entry)) id)
+	(let ((owner (if (alist-get 'owner (car entry))
+			 (car (debbugs-gnu--split-address
+			       (decode-coding-string
+				(alist-get 'owner (car entry)) 'utf-8))))))
+	  (aset (cadr entry) 0
+		(propertize
+		 (format "%5d" id)
+		 'face
+		 ;; Mark tagged bugs.
+		 (if (memq id debbugs-gnu-local-tags)
+		     'debbugs-gnu-tagged
+		   'default)))
+	  (aset (cadr entry) 3
+		(propertize
+		 (or (alist-get 'subject (car entry)) "")
+		 'face
+		 (cond
+		  ;; Marked bugs.
+		  ((memq id debbugs-gnu-local-marks)
+		   'debbugs-gnu-marked)
+		  ;; Mark owned bugs.
+		  ((and (stringp owner) (string-equal owner user-mail-address))
+		   'debbugs-gnu-tagged)
+		  (t 'default))))
+	  (throw 'entry entry))))))
 
 (defun debbugs-gnu-toggle-mark ()
   "Toggle the local mark of the report in the current line.
@@ -1391,10 +1398,10 @@ interesting to you."
     (if (memq id debbugs-gnu-local-marks)
 	(setq debbugs-gnu-local-marks (delq id debbugs-gnu-local-marks))
       (add-to-list 'debbugs-gnu-local-marks id))
-    (debbugs-gnu--update-tag-mark-face id)
-    ;; FIXME: Use `debbugs-gnu-print-entry'?
-    (tabulated-list-init-header)
-    (tabulated-list-print)
+    (when-let ((entry (debbugs-gnu--update-tag-mark-face id))
+	       (inhibit-read-only t))
+      (delete-region (line-beginning-position) (progn (forward-line 1) (point)))
+      (apply #'debbugs-gnu-print-entry entry))
     (when id
       (debbugs-gnu-goto id)))
   (debbugs-gnu-dump-persistency-file))
@@ -1417,6 +1424,7 @@ interesting to you."
 (defun debbugs-gnu-current-status ()
   ;; FIXME: `debbugs-org-mode' shouldn't be mentioned here.
   (when (or (derived-mode-p 'debbugs-gnu-mode)
+	    (derived-mode-p 'debbugs-gnu-usertags-mode)
 	    (bound-and-true-p debbugs-org-mode))
     (get-text-property (line-beginning-position) 'tabulated-list-id)))
 
@@ -2307,8 +2315,7 @@ successfully sent."
   (interactive)
   (when (mouse-event-p last-input-event) (mouse-set-point last-input-event))
   ;; We open the bug reports.
-  (when-let ((args
-	      (get-text-property (line-beginning-position) 'tabulated-list-id)))
+  (when-let ((args (debbugs-gnu-current-status)))
     (apply #'debbugs-gnu args)))
 
 (defcustom debbugs-gnu-default-bug-number-list
