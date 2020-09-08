@@ -77,19 +77,17 @@
   (interactive "P")
   (sql-product-interactive 'beeline buffer))
 
-;; FIXME: We required `sql' above, so why use eval-after-load?
-(eval-after-load "sql"
-  '(sql-add-product
-    'beeline "Beeline"
-    :font-lock 'sql-mode-ansi-font-lock-keywords
-    :sqli-program 'sql-beeline-program
-    :sqli-options 'sql-beeline-options
-    :sqli-login 'sql-beeline-login-params
-    :sqli-comint-func #'sql-comint-beeline
-    :list-all '("show tables;" . "!tables")
-    :list-table '("describe %s;" . "!describe %s")
-    :prompt-regexp "^[^ .][^>\n]*> "
-    :prompt-cont-regexp "^[ .]*> "))
+(sql-add-product
+ 'beeline "Beeline"
+ :font-lock 'sql-mode-ansi-font-lock-keywords
+ :sqli-program 'sql-beeline-program
+ :sqli-options 'sql-beeline-options
+ :sqli-login 'sql-beeline-login-params
+ :sqli-comint-func #'sql-comint-beeline
+ :list-all '("show tables;" . "!tables")
+ :list-table '("describe %s;" . "!describe %s")
+ :prompt-regexp "^[^ .][^>\n]*> "
+ :prompt-cont-regexp "^[ .]*> ")
 
 (provide 'sql-beeline)
 ;;; sql-beeline.el ends here
