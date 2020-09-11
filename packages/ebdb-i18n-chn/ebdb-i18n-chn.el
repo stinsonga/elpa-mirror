@@ -4,7 +4,7 @@
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
-;; Version: 1.3
+;; Version: 1.3.1
 ;; Package-Requires: ((pyim "1.6.0") (ebdb "0.6.17"))
 
 ;; This program is free software; you can redistribute it and/or modify
