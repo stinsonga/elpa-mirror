@@ -4,7 +4,7 @@
 
 ;; Author: David Engster <deng@randomsample.de>
 ;; Keywords:
-;; Version: 1.3
+;; Version: 1.4
 
 ;; This file is part of GNU Emacs.
 
@@ -531,7 +531,8 @@ Re-use already existing minimap window if possible."
   (interactive)
   (when (minimap-get-window)
     (delete-window (minimap-get-window)))
-  (cancel-timer minimap-timer-object))
+  (when minimap-timer-object
+    (cancel-timer minimap-timer-object)))
 
 ;;; Minimap update
 
