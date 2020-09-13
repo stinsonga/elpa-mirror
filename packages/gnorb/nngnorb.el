@@ -78,85 +78,88 @@ be scanned for gnus messages, and those messages displayed."
   (if (cdr-safe (assq 'articles query))
       ;; The work has already been done elsewhere.
       (cdr (assq 'articles query))
-    (save-window-excursion
-      (let ((q (cdr (assq 'query query)))
-	    (buf (get-buffer-create nnir-tmp-buffer))
-	    msg-ids org-ids links vectors)
-	(with-current-buffer buf
-	  (erase-buffer)
-	  (setq nngnorb-attachment-file-list nil))
-	(when (and (equal "5.13" gnus-version-number) (version< emacs-version "24.4"))
-	  (setq q (car q)))
-	(cond ((string-match "id\\+\\([[:alnum:]-]+\\)$" q)
-	       (with-demoted-errors "Error: %S"
-		 (org-id-goto (match-string 1 q))
-		 (save-restriction
-		   (org-narrow-to-subtree)
-		   (append-to-buffer
-		    buf
-		    (point-min)
-		    (point-max))
-		   (setq org-ids
-			 (append
-			  (gnorb-collect-ids)
-			  org-ids))
-		   (when org-ids
-		     (with-current-buffer buf
-		       ;; The file list var is buffer local, so set it
-		       ;; (local to the nnir-tmp-buffer) to a full list
-		       ;; of all files in the subtree.
-		       (dolist (id org-ids)
-			 (setq nngnorb-attachment-file-list
-			       (append (gnorb-org-attachment-list id)
-				       nngnorb-attachment-file-list))))))))
-	      ((listp q)
-	       ;; be a little careful: this could be a list of links, or
-	       ;; it could be the full plist
-	       (setq links (if (plist-member q :gnus)
-			       (plist-get q :gnus)
-			     q)))
-	      (t (org-map-entries
-		  (lambda ()
-		    (push (org-id-get) org-ids)
-		    (append-to-buffer
-		     buf
-		     (point)
-		     (save-excursion
-		       (outline-next-heading)
-		       (point))))
-		  q
-		  'agenda)))
-	(with-current-buffer buf
-	  (goto-char (point-min))
-	  (setq links (append
-		       (alist-get 'gnus (gnorb-scan-links (point-max) 'gnus))
-		       links))
+    (let ((q (cdr (assq 'query query))))
+      (when (and (equal "5.13" gnus-version-number) (version< emacs-version "24.4"))
+	(setq q (car q)))
+      (gnorb-run-search q))))
 
-	  (goto-char (point-min)))
-	;; First add all links to messages (elements of messages should
-	;; look like (group-name message-id)).
-	(dolist (l links)
-	  (push (org-link-unescape
-		 (nth 1 (split-string l "#")))
-		msg-ids))
+(defun gnorb-run-search (q)
+  (save-window-excursion
+    (let ((buf (get-buffer-create nnir-tmp-buffer))
+	  msg-ids org-ids links vectors)
+      (with-current-buffer buf
+	(erase-buffer)
+	(setq nngnorb-attachment-file-list nil))
+      (cond ((string-match "id\\+\\([[:alnum:]-]+\\)$" q)
+	     (with-demoted-errors "Error: %S"
+	       (org-id-goto (match-string 1 q))
+	       (save-restriction
+		 (org-narrow-to-subtree)
+		 (append-to-buffer
+		  buf
+		  (point-min)
+		  (point-max))
+		 (setq org-ids
+		       (append
+			(gnorb-collect-ids)
+			org-ids))
+		 (when org-ids
+		   (with-current-buffer buf
+		     ;; The file list var is buffer local, so set it
+		     ;; (local to the nnir-tmp-buffer) to a full list
+		     ;; of all files in the subtree.
+		     (dolist (id org-ids)
+		       (setq nngnorb-attachment-file-list
+			     (append (gnorb-org-attachment-list id)
+				     nngnorb-attachment-file-list))))))))
+	    ((listp q)
+	     ;; be a little careful: this could be a list of links, or
+	     ;; it could be the full plist
+	     (setq links (if (plist-member q :gnus)
+			     (plist-get q :gnus)
+			   q)))
+	    (t (org-map-entries
+		(lambda ()
+		  (push (org-id-get) org-ids)
+		  (append-to-buffer
+		   buf
+		   (point)
+		   (save-excursion
+		     (outline-next-heading)
+		     (point))))
+		q
+		'agenda)))
+      (with-current-buffer buf
+	(goto-char (point-min))
+	(setq links (append
+		     (alist-get 'gnus (gnorb-scan-links (point-max) 'gnus))
+		     links))
 
-	(unless (gnus-alive-p)
-	  (gnus))
+	(goto-char (point-min)))
+      ;; First add all links to messages (elements of messages should
+      ;; look like (group-name message-id)).
+      (dolist (l links)
+	(push (org-link-unescape
+	       (nth 1 (split-string l "#")))
+	      msg-ids))
 
-	;; Then use the registry to turn list of org-ids into list of
-	;; msg-ids.
-	(dolist (i (delq nil (delete-dups org-ids)))
-	  (when-let ((rel-msg-id (gnorb-registry-org-id-search i)))
-	    (setq msg-ids (append (delq nil rel-msg-id) msg-ids))))
+      (unless (gnus-alive-p)
+	(gnus))
 
-	;; Then find the group and article number for each msg-id, and
-	;; push that onto our return value "vectors".
-	(when msg-ids
-	  (dolist (id (delete-dups msg-ids) (when vectors
-					      (nreverse vectors)))
-	    (pcase-let ((`(,group . ,artno) (gnorb-msg-id-request-head id)))
-	      (when (and artno (integerp artno) (> artno 0))
-		(push (vector group artno 100) vectors)))))))))
+      ;; Then use the registry to turn list of org-ids into list of
+      ;; msg-ids.
+      (dolist (i (delq nil (delete-dups org-ids)))
+	(when-let ((rel-msg-id (gnorb-registry-org-id-search i)))
+	  (setq msg-ids (append (delq nil rel-msg-id) msg-ids))))
+
+      ;; Then find the group and article number for each msg-id, and
+      ;; push that onto our return value "vectors".
+      (when msg-ids
+	(dolist (id (delete-dups msg-ids) (when vectors
+					    (nreverse vectors)))
+	  (pcase-let ((`(,group . ,artno) (gnorb-msg-id-request-head id)))
+	    (when (and artno (integerp artno) (> artno 0))
+	      (push (vector group artno 100) vectors))))))))
 
 (defvar gnorb-summary-minor-mode-map (make-sparse-keymap)
   "Keymap for use in Gnorb's *Summary* minor mode.")

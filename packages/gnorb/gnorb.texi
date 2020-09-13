@@ -60,12 +60,12 @@ Misc BBDB
 Misc Org
 
 * Inserting BBDB links::
-* User Options: User Options 1.
+* User Options: User Options (1).
 
 Misc Gnus
 
 * Searching With the Registry::
-* User Options: User Options 2.
+* User Options: User Options (2).
 
 @end detailmenu
 @end menu
@@ -168,14 +168,14 @@ Jimmy's email and starts a reply to it.
 You tell Jimmy the room's available in March, and send the message.
 Gnorb takes you back to the heading, and asks you to trigger an action
 on it. You choose ``todo state'', and change the heading keyword to
-WAIT.
+WAIT@.
 
 Two days later, Jimmy replies to your message, saying that March is
 perfect. When you open his response, Gnorb politely reminds you that
-the message is relevant to an existing TODO. You hit ``C-c t'' on the
+the message is relevant to an existing TODO@. You hit ``C-c t'' on the
 message, and are again taken to the TODO and asked to trigger an
 action. Again you choose ``todo state'', and change the heading keyword
-back to REPLY.
+back to REPLY@.
 
 You get another email, from Samantha, warning you not to rent the room
 to Jimmy. She even attaches a picture of a room in her house, as it
@@ -217,7 +217,9 @@ should be enough).
 @item
 Add a nngnorb entry to your `gnus-secondary-select-methods'
 variable. It will look like (nngnorb ``Server name''). This does
-nothing but provide a place to hang nnir searches.
+nothing but provide a place to hang nnir searches. If you are using
+the Gnus that comes with Emacs 28 or later (or check @code{(featurep
+   'nnselect)} to be sure), this step is unnecessary.
 @item
 Then put a call to `gnorb-tracking-initialize' in your init files.
 @item
@@ -238,7 +240,7 @@ Email tracking starts in one of three ways:
 
 @enumerate
 @item
-With an Org heading that represents an email TODO. Call
+With an Org heading that represents an email TODO@. Call
 `gnorb-org-handle-mail' (see below) on the heading to compose a new
 message, and start the tracking process.
 @item
@@ -403,7 +405,7 @@ TODOs, Gnorb can alert you to that fact. When
 `gnorb-gnus-hint-relevant-article' is t (the default), Gnorb will
 display a message in the minibuffer when opening potentially relevant
 messages. You can then use `gnorb-gnus-incoming-to-todo' to trigger an
-action on the relevant TODO.
+action on the relevant TODO@.
 
 This hinting can happen in the Gnus summary buffer as well. If you use
 the escape indicated by `gnorb-gnus-summary-mark-format-letter' as
@@ -586,7 +588,7 @@ the docstring for details).
 
 @menu
 * Inserting BBDB links::
-* User Options: User Options 1.
+* User Options: User Options (1).
 @end menu
 
 @node Inserting BBDB links
@@ -595,7 +597,7 @@ the docstring for details).
 Calling `gnorb-org-contact-link' will prompt for a BBDB record and
 insert an Org link to that record at point.
 
-@node User Options 1
+@node User Options (1)
 @section User Options
 
 @table @asis
@@ -665,7 +667,7 @@ bbdb-pop-up-layout.
 
 @menu
 * Searching With the Registry::
-* User Options: User Options 2.
+* User Options: User Options (2).
 @end menu
 
 @node Searching With the Registry
@@ -699,7 +701,7 @@ These functions are not bound by default; you might consider:
   (define-key gnus-group-group-map (kbd "?") #'gnorb-helm-search-registry))
 @end lisp
 
-@node User Options 2
+@node User Options (2)
 @section User Options
 
 @table @asis

@@ -126,7 +126,9 @@ Email tracking requires the following steps:
    should be enough).
 3. Add a nngnorb entry to your `gnus-secondary-select-methods'
    variable. It will look like (nngnorb "Server name"). This does
-   nothing but provide a place to hang nnir searches.
+   nothing but provide a place to hang nnir searches. If you are using
+   the Gnus that comes with Emacs 28 or later (or check ~(featurep
+   'nnselect)~ to be sure), this step is unnecessary.
 4. Then put a call to `gnorb-tracking-initialize' in your init files.
 5. If you're not using a local archive method for saving your sent
    messages (ie you're using IMAP), you'll also need to tell Gnorb

@@ -1,4 +1,4 @@
-This is gnorb.info, produced by makeinfo version 6.5 from gnorb.texi.
+This is gnorb.info, produced by makeinfo version 6.7 from gnorb.texi.
 
 INFO-DIR-SECTION Emacs
 START-INFO-DIR-ENTRY
@@ -48,12 +48,12 @@ Misc BBDB
 Misc Org
 
 * Inserting BBDB links::
-* User Options: User Options 1.
+* User Options: User Options (1).
 
 Misc Gnus
 
 * Searching With the Registry::
-* User Options: User Options 2.
+* User Options: User Options (2).
 
 
 
@@ -171,7 +171,7 @@ on it.  You choose “todo state”, and change the heading keyword to WAIT.
 
    Two days later, Jimmy replies to your message, saying that March is
 perfect.  When you open his response, Gnorb politely reminds you that
-the message is relevant to an existing TODO. You hit “C-c t” on the
+the message is relevant to an existing TODO.  You hit “C-c t” on the
 message, and are again taken to the TODO and asked to trigger an action.
 Again you choose “todo state”, and change the heading keyword back to
 REPLY.
@@ -215,7 +215,9 @@ Email tracking requires the following steps:
      should be enough).
   3. Add a nngnorb entry to your ‘gnus-secondary-select-methods’
      variable.  It will look like (nngnorb “Server name”).  This does
-     nothing but provide a place to hang nnir searches.
+     nothing but provide a place to hang nnir searches.  If you are
+     using the Gnus that comes with Emacs 28 or later (or check
+     ‘(featurep 'nnselect)’ to be sure), this step is unnecessary.
   4. Then put a call to ‘gnorb-tracking-initialize’ in your init files.
   5. If you’re not using a local archive method for saving your sent
      messages (ie you’re using IMAP), you’ll also need to tell Gnorb
@@ -233,7 +235,7 @@ File: gnorb.info,  Node: Beginning and Continuing the Tracking Process,  Next: T
 
 Email tracking starts in one of three ways:
 
-  1. With an Org heading that represents an email TODO. Call
+  1. With an Org heading that represents an email TODO.  Call
      ‘gnorb-org-handle-mail’ (see below) on the heading to compose a new
      message, and start the tracking process.
   2. By calling org-capture on a received message.  Capturing from a
@@ -598,10 +600,10 @@ File: gnorb.info,  Node: Misc Org,  Next: Misc Gnus,  Prev: Misc BBDB,  Up: Top
 * Menu:
 
 * Inserting BBDB links::
-* User Options: User Options 1.
+* User Options: User Options (1).
 
 
-File: gnorb.info,  Node: Inserting BBDB links,  Next: User Options 1,  Up: Misc Org
+File: gnorb.info,  Node: Inserting BBDB links,  Next: User Options (1),  Up: Misc Org
 
 10.1 Inserting BBDB links
 =========================
@@ -610,7 +612,7 @@ Calling ‘gnorb-org-contact-link’ will prompt for a BBDB record and
 insert an Org link to that record at point.
 
 
-File: gnorb.info,  Node: User Options 1,  Prev: Inserting BBDB links,  Up: Misc Org
+File: gnorb.info,  Node: User Options (1),  Prev: Inserting BBDB links,  Up: Misc Org
 
 10.2 User Options
 =================
@@ -675,10 +677,10 @@ File: gnorb.info,  Node: Misc Gnus,  Next: Default Keybindings,  Prev: Misc Org,
 * Menu:
 
 * Searching With the Registry::
-* User Options: User Options 2.
+* User Options: User Options (2).
 
 
-File: gnorb.info,  Node: Searching With the Registry,  Next: User Options 2,  Up: Misc Gnus
+File: gnorb.info,  Node: Searching With the Registry,  Next: User Options (2),  Up: Misc Gnus
 
 11.1 Searching With the Registry
 ================================
@@ -707,7 +709,7 @@ set of groups beforehand.
        (define-key gnus-group-group-map (kbd "?") #'gnorb-helm-search-registry))
 
 
-File: gnorb.info,  Node: User Options 2,  Prev: Searching With the Registry,  Up: Misc Gnus
+File: gnorb.info,  Node: User Options (2),  Prev: Searching With the Registry,  Up: Misc Gnus
 
 11.2 User Options
 =================
@@ -820,33 +822,33 @@ If you don’t like these defaults, you can always do your own setup.
 
 Tag Table:
 Node: Top194
-Node: Introduction1034
-Node: Installation2359
-Node: Setup2737
-Node: Email Tracking3190
-Node: Likely Workflow4394
-Node: Tracking Setup7164
-Node: Beginning and Continuing the Tracking Process8444
-Node: Trigger Actions12636
-Node: Viewing Things13710
-Node: Hinting in Gnus15826
-Node: Message Attachments16891
-Node: Registry Usage18130
-Node: Restoring Window Layout18557
-Node: Recent Mails From BBDB Contacts18954
-Node: Tagging Messages and Contacts19960
-Node: BBDB posting styles21611
-Node: Misc BBDB22518
-Node: Searching for messages from BBDB contacts22734
-Node: Citing BBDB contacts23180
-Node: User Options23501
-Node: Misc Org25024
-Node: Inserting BBDB links25199
-Node: User Options 125455
-Node: Misc Gnus28353
-Node: Searching With the Registry28547
-Node: User Options 229849
-Node: Default Keybindings33279
+Node: Introduction1038
+Node: Installation2363
+Node: Setup2741
+Node: Email Tracking3194
+Node: Likely Workflow4398
+Node: Tracking Setup7169
+Node: Beginning and Continuing the Tracking Process8596
+Node: Trigger Actions12789
+Node: Viewing Things13863
+Node: Hinting in Gnus15979
+Node: Message Attachments17044
+Node: Registry Usage18283
+Node: Restoring Window Layout18710
+Node: Recent Mails From BBDB Contacts19107
+Node: Tagging Messages and Contacts20113
+Node: BBDB posting styles21764
+Node: Misc BBDB22671
+Node: Searching for messages from BBDB contacts22887
+Node: Citing BBDB contacts23333
+Node: User Options23654
+Node: Misc Org25177
+Node: Inserting BBDB links25354
+Node: User Options (1)25612
+Node: Misc Gnus28512
+Node: Searching With the Registry28708
+Node: User Options (2)30012
+Node: Default Keybindings33444
 
 End Tag Table
 

@@ -883,36 +883,63 @@ Org tags search, in which case links will be collected from all
 matching headings.
 
 In either case, once a collection of links have been made, they
-will all be displayed in an ephemeral group on the \"nngnorb\"
-server.  There must be an active \"nngnorb\" server for this to
-work.
+will all be displayed in an ephemeral Gnus group.  In Emacs 27
+and below this requires the presence of an active \"nngnorb\"
+server to work.  In Emacs 28 and later, no setup is required.
 
 If PERSIST is non-nil, make a permanent group, and offer
 HEAD-TEXT, if present, as its name.  Otherwise create an
 ephemeral one, with RET as the value of its quit-config."
   (interactive)
-  (require 'nnir)
   (unless (gnus-alive-p)
     (gnus))
-  (let* ((nnir-address (gnorb-gnus-find-gnorb-server))
-	 (name (if persist
-		   (read-string
-		    (format "Name for group (default %s): " head-text)
-		    nil nil head-text)
-		 (concat "gnorb-" str)))
-	 (method (list 'nnir nnir-address))
-	 (spec (list
-		(cons 'nnir-specs (list (cons 'nnir-query-spec
-					      `((query . ,str)))
-					(cons 'nnir-group-spec
-					      `((,nnir-address ,(list name))))))
-		(cons 'nnir-artlist nil))))
-    (if persist
-	(progn
-	  (switch-to-buffer gnus-group-buffer)
-	  (gnus-group-make-group name method nil spec)
-	  (gnus-group-select-group))
-      (gnus-group-read-ephemeral-group name method nil ret nil nil spec))))
+  (if (featurep 'nnselect)
+      (gnorb-gnus-nnselect-search str persist head-text ret)
+    (require 'nnir)
+    (let* ((nnir-address (gnorb-gnus-find-gnorb-server))
+	   (name (if persist
+		     (read-string
+		      (format "Name for group (default %s): " head-text)
+		      nil nil head-text)
+		   (concat "gnorb-" str)))
+	   (method (list 'nnir nnir-address))
+	   (spec (list
+		  (cons 'nnir-specs (list (cons 'nnir-query-spec
+						`((query . ,str)))
+					  (cons 'nnir-group-spec
+						`((,nnir-address ,(list name))))))
+		  (cons 'nnir-artlist nil))))
+      (if persist
+	  (progn
+	    (switch-to-buffer gnus-group-buffer)
+	    (gnus-group-make-group name method nil spec)
+	    (gnus-group-select-group))
+	(gnus-group-read-ephemeral-group name method nil ret nil nil spec)))))
+
+(defun gnorb-gnus-nnselect-search (str persist &optional head-text ret)
+  "Display gnus messages using the nnselect backend."
+  (if persist
+      (let ((name (gnus-read-group
+		   (format "Name for group (default %s): " head-text)
+		   head-text)))
+	(with-current-buffer gnus-group-buffer
+	  (gnus-group-make-group
+	   name (list 'nnselect "nnselect-gnorb")
+	   nil (list
+		(cons 'nnselect-specs
+		      (list (cons 'nnselect-function 'gnorb-run-search)
+			    (cons 'nnselect-args str)))
+		(cons 'nnselect-artlist nil)))))
+    (gnus-group-read-ephemeral-group
+     (concat "nnselect-" (message-unique-id))
+     (list 'nnselect "nnselect-gnorb")
+     nil ret nil nil
+     (list
+      (cons 'nnselect-specs
+	    (list
+	     (cons 'nnselect-function 'gnorb-run-search)
+	     (cons 'nnselect-args str)))
+      (cons 'nnselect-artlist nil)))))
 
 (defun gnorb-gnus-find-gnorb-server (&optional no-error)
   "Try very hard to find a local nngnorb server.
@@ -936,8 +963,9 @@ error."
 (defun gnorb-gnus-summary-mode-hook ()
   "Check if we've entered a Gnorb-generated group, and activate
   `gnorb-summary-minor-mode', if so."
-  (let ((method (gnus-find-method-for-group gnus-newsgroup-name)))
-    (when (string-match-p "Gnorb" (cadr method))
+  (let ((method (gnus-find-method-for-group gnus-newsgroup-name))
+	(case-fold-search t))
+    (when (string-match-p "gnorb" (cadr method))
       (gnorb-summary-minor-mode))))
 
 ;;; Automatic noticing of relevant messages
