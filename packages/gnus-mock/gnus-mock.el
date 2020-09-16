@@ -148,9 +148,6 @@ will start a mock Gnus session."
 	      (prin1
 	       `(setq gnus-home-directory ,mock-tmp-dir
 		      init-file-user "mockturtle"
-		      sendmail-program
-		      ,(expand-file-name gnus-mock-sendmail-program
-					 mock-tmp-dir)
 		      message-directory ,mock-tmp-dir
 		      gnus-startup-file
 		      ,(expand-file-name ".newsrc" mock-tmp-dir)
@@ -162,6 +159,12 @@ will start a mock Gnus session."
 		      ,(expand-file-name "agent/" mock-tmp-dir)
 		      gnus-directory
 		      ,(expand-file-name "News/" mock-tmp-dir)))
+	      (when gnus-mock-sendmail-program
+		(princ "\n\n")
+		(prin1
+		 `(setq sendmail-program
+			,(expand-file-name gnus-mock-sendmail-program
+					   mock-tmp-dir))))
 	      (princ "\n\n")
 	      ;; Constant that can be checked if we need to know it's a mock
 	      ;; session.
