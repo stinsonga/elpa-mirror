@@ -2,7 +2,6 @@
 
 ;; Copyright (C) 2020  Free Software Foundation, Inc.
 
-;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
 ;; Version: 0
 ;; Package-Requires: ((emacs "25.1") (org "9.1"))
 
