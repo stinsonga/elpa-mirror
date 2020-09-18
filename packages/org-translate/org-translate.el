@@ -77,6 +77,7 @@
 ;;; Code:
 
 (require 'bookmark)
+(require 'ox)
 
 (defgroup org-translate nil
   "Customizations for the org-translate library."
