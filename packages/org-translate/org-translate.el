@@ -28,32 +28,87 @@
 ;; It is not a full-fledged CAT tool.  It essentially does two things:
 ;; manages segmentation correspondences between the source text and
 ;; the translation, and manages a glossary which can be used for
-;; automatic translation, displaying previous usages, etc.
+;; automatic term translation, displaying previous usages, etc.
 
-;; Currently assumes a single file holding a single translation
-;; project, with three separate headings for source text, translation,
-;; and glossary (other headings will be ignored).  Each translation
-;; project has five local settings, each of which also has a global
-;; default value.  The first three settings are used to locate the org
-;; subtrees representing source text, translation text, and glossary.
-;; The fourth setting defines the segmentation strategy: the source
-;; text can be segmented by sentence, paragraph, or regular
-;; expression.  The fifth setting determines the character to be used
-;; to delimit segments.
+;; Buffer setup:
 
-;; While translating, use "C-M-n" to start a new segment in the
-;; translation text.  "C-M-b" and "C-M-f" will move forward and back
-;; between segments, maintaining the correspondence with the source
-;; text.  If the source text highlighting gets "lost", reset it with
-;; "C-M-t".  To add a new glossary item, move to the source window,
-;; put the region on the new item, and use M-x ogt-add-glossary-item.
-;; In the translation text, add a translation of the next glossary
-;; item with "C-M-y".
+;; The mode currently assumes a single file holding a single
+;; translation project, with three separate top-level headings for
+;; source text, translation, and glossary (other headings will be
+;; ignored).  The three customization options
+;; `ogt-default-source-locator', `ogt-default-translation-locator' and
+;; `ogt-default-glossary-locator' can be used to tell the mode which
+;; heading is which; by default it expects a buffer that looks like
+;; this:
 
-;; Translation projects can optionally be defined and configured in
-;; the option `ogt-translation-projects' (see docstring for details)
-;; though this is only useful if you're working on multiple projects
-;; with different settings.
+;; * Le Rouge et le Noir                                     :source:
+;;   La petite ville de Verrières peut passer pour...
+
+;; * The Red and the Black                              :translation:
+;;   The small town of Verrieres may be regarded...
+
+;; * Glossary
+;; ** ville de Verrières
+
+;; In other words, tags are used to find the source and translation
+;; texts, while the glossary heading is just called "Glossary".  This
+;; is also configurable on a per-project basis, using the
+;; `ogt-translation-projects' option.
+
+;; Segmentation
+
+;; The first time you start this mode in a new translation project
+;; buffer (after first setting up the three headings appropriately),
+;; the mode will detect that the project has not yet been segmented,
+;; and will offer to do so.  Segmentation involves inserting the value
+;; of `ogt-segmentation-character' at intervals in the source text.
+;; As you progress through the translation, you'll insert that same
+;; character at corresponding places in the translation text, allowing
+;; the minor mode to keep track of which segment corresponds to which,
+;; and to keep the display of source and translation synchronized.
+
+;; The option `ogt-segmentation-strategy' determines how the source
+;; text is segmented.  Currently the options are to segment by
+;; sentence, by paragraph, or by regular expression.  Note that, after
+;; initial segmentation, the minor mode will leave the segmentation
+;; characters alone, and you're free to insert, delete or move them as
+;; needed.
+
+;; As you reach the end of each translation segment, use "C-M-n"
+;; (`ogt-new-segment') to insert a segmentation character and start a
+;; new segment.  The character should be inserted at the _beginning_
+;; of the new segment, not at the end of the last -- eg at the start
+;; of a paragraph or sentence.
+
+;; Use "C-M-f" and "C-M-b" to move forward and backward in the
+;; translation text by segment.  This will allow the minor mode to
+;; keep the corresponding source segment in view.  Alternately, move
+;; point however you like in the translation text, then use "C-M-t" to
+;; update the source view.
+
+;; The glossary
+
+;; This mode also maintains a glossary of translation terms for the
+;; current project.  Currently it does this by keeping each term as a
+;; subheading under the top-level glossary heading.  Each subheading
+;; has an ID property, and this property is used to create links in
+;; the source and translation text, pointing to the glossary item in
+;; question.  The mode keeps tracks of the various ways you've
+;; translated a term previously, and offers these for completion on
+;; inserting a new translation.
+
+;; To create a new glossary term, use "M-x ogt-add-glossary-item".  If
+;; you've marked text in the source buffer, this will become the new
+;; term, otherwise you'll be prompted to enter the string.  This
+;; command will attempt to turn all instances of this term in the
+;; source text into a link.
+
+;; In the translation text, use "C-M-y"
+;; (`ogt-insert-glossary-translation') to add a translation.  The mode
+;; will attempt to guess which term you're adding, and suggest
+;; previous translations for that term.
+
+;; Bookmarks
 
 ;; The functions `ogt-start-translating' and `ogt-stop-translating'
 ;; can be used to start and stop a translation session.  The first use
@@ -69,6 +124,9 @@
 ;; - Import/export TMX translation databases.
 ;; - Provide for other glossary backends: eieio-persistent, xml,
 ;;   sqlite, etc.
+;; - Do this by allowing the glossary locator to point at a named Org
+;;   table, or at a babel source block, allowing users to maintain
+;;   the glossary outside of Org altogether.
 ;; - Provide integration with `org-clock': set a custom property on a
 ;;   TODO heading indicating that it represents a translation project.
 ;;   Clocking in both starts the clock, and sets up the translation
@@ -255,7 +313,9 @@ By default, just remove it."
     map))
 
 (define-minor-mode org-translate-mode
-  "Minor mode for using an Org file as a translation project."
+  "Minor mode for using an Org file as a translation project.
+
+\\{org-translate-mode-map}"
   nil " Translate" nil
   (if (null org-translate-mode)
       (progn
