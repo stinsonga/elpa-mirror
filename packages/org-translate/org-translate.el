@@ -97,13 +97,12 @@
 ;; translated a term previously, and offers these for completion on
 ;; inserting a new translation.
 
-;; To create a new glossary term, use "M-x ogt-add-glossary-item".  If
-;; you've marked text in the source buffer, this will become the new
-;; term, otherwise you'll be prompted to enter the string.  This
-;; command will attempt to turn all instances of this term in the
-;; source text into a link.
+;; To create a new glossary term, use "C-M-y".  If you've marked text
+;; in the source buffer, this will become the new term, otherwise
+;; you'll be prompted to enter the string.  This command will attempt
+;; to turn all instances of this term in the source text into a link.
 
-;; In the translation text, use "C-M-y"
+;; In the translation text, use "C-M-;"
 ;; (`ogt-insert-glossary-translation') to add a translation.  The mode
 ;; will attempt to guess which term you're adding, and suggest
 ;; previous translations for that term.
@@ -310,7 +309,8 @@ By default, just remove it."
     (define-key map (kbd "C-M-b") #'ogt-backward-segment)
     (define-key map (kbd "C-M-n") #'ogt-new-segment)
     (define-key map (kbd "C-M-t") #'ogt-update-source-location)
-    (define-key map (kbd "C-M-y") #'ogt-insert-glossary-translation)
+    (define-key map (kbd "C-M-y") #'ogt-new-glossary-term)
+    (define-key map (kbd "C-M-;") #'ogt-insert-glossary-translation)
     map))
 
 (define-minor-mode org-translate-mode
@@ -643,7 +643,7 @@ the next one."
 	(recenter 10))
     (ogt-update-source-location)))
 
-(defun ogt-add-glossary-item (string)
+(defun ogt-new-glossary-term (string)
   "Add STRING as an item in the glossary.
 If the region is active, it will be used as STRING.  Otherwise,
 prompt the user for STRING."
@@ -655,18 +655,24 @@ prompt the user for STRING."
 	   (read-string "Glossary term: "))))
   (save-excursion
     (ogt-goto-heading 'glossary)
-    (org-goto-first-child)
-    (org-insert-heading-respect-content)
+    (if (org-goto-first-child)
+	(org-insert-heading-respect-content)
+      (end-of-line)
+      (org-insert-subheading 1))
     (insert string)
-    (let ((id (org-id-get-create)))
+    (let ((id (org-id-get-create))
+	  ;; STRING might be broken across lines.  What do we do about
+	  ;; Chinese, with no word separators?
+	  (doctored (replace-regexp-in-string
+		     "[[:blank:]]+" "[[:space:]\n]+"
+		     string)))
       (ogt-goto-heading 'source)
       (save-restriction
 	(org-narrow-to-subtree)
-	;; TODO: `string' highly likely to be broken over newlines.
-	(while (re-search-forward string nil t)
+	(while (re-search-forward doctored nil t)
 	  (replace-match (format "[[trans:%s][%s]]" id string))))
       (push string (alist-get 'source (gethash id ogt-glossary-table)))))
-  (message "Added %s as a glossary item" string))
+  (message "Added %s as a glossary term" string))
 
 (defun ogt-insert-glossary-translation ()
   "Insert a likely translation of the next glossary item."
