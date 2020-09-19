@@ -496,7 +496,8 @@ and applies a highlight to the appropriate segment of text."
 	 (re-search-backward
 	  (string ogt-segmentation-character)
 	  nil t)
-	 (1+ (point)))
+	 (forward-char)
+	 (point))
        (progn
 	 (or (and (re-search-forward
 		   (string ogt-segmentation-character)
