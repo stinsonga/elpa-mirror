@@ -105,7 +105,8 @@
 ;; In the translation text, use "C-M-;"
 ;; (`ogt-insert-glossary-translation') to add a translation.  The mode
 ;; will attempt to guess which term you're adding, and suggest
-;; previous translations for that term.
+;; previous translations for that term.  If you don't want it to
+;; guess, use a prefix argument to be prompted.
 
 ;; Bookmarks
 
@@ -674,33 +675,55 @@ prompt the user for STRING."
       (push string (alist-get 'source (gethash id ogt-glossary-table)))))
   (message "Added %s as a glossary term" string))
 
-(defun ogt-insert-glossary-translation ()
-  "Insert a likely translation of the next glossary item."
-  (interactive)
-  (let ((terms-this-segment 1)
-	glossary-id glossary-translation orig this-translation)
+(defun ogt-insert-glossary-translation (prompt)
+  "Insert a likely translation of the next glossary term.
+Guesses the glossary term to insert based on how many terms have
+already been translated in this segment.  Alternately, give a
+prefix arg to be prompted for the term to enter."
+  (interactive "P")
+  (let* ((orig (when prompt
+		 (completing-read
+		  "Add translation of: "
+		  (mapcan (lambda (v)
+			    (copy-sequence (alist-get 'source v)))
+			  (hash-table-values ogt-glossary-table))
+		  nil t)))
+	 (glossary-id (when orig
+			(catch 'found
+			  (maphash
+			   (lambda (k v)
+			     (when (member orig (alist-get 'source v))
+			       (throw 'found k)))
+			   ogt-glossary-table))))
+	 glossary-translation this-translation)
     (ogt-update-source-location)
-    (save-excursion
-      (while (re-search-backward "\\[\\[trans:"
-				 (save-excursion
-				   (re-search-backward
-				    (string ogt-segmentation-character) nil t)
-				   (point))
-				 t)
-	(cl-incf terms-this-segment))
-      (with-selected-window ogt-source-window
-	(goto-char ogt-probable-source-location)
-	(while (null (zerop terms-this-segment))
-	  (re-search-forward org-link-any-re nil t)
-	  (when (string-prefix-p "trans:" (match-string 2))
-	    (cl-decf terms-this-segment)))
-	(setq orig (match-string-no-properties 3)
-	      glossary-id (string-remove-prefix
-			   "trans:" (match-string 2))
-	      glossary-translation
-	      (alist-get 'translation
-			 (gethash glossary-id ogt-glossary-table)))))
-    (setq this-translation
+    ;; If we didn't prompt, attempt to guess which glossary term
+    ;; should be translated next by counting how many we've already
+    ;; done this segment.
+    (unless (and orig glossary-id)
+      (let ((terms-this-segment 1))
+	(save-excursion
+	  (while (re-search-backward
+		  "\\[\\[trans:"
+		  (save-excursion
+		    (re-search-backward
+		     (string ogt-segmentation-character) nil t)
+		    (point))
+		  t)
+	    (cl-incf terms-this-segment)))
+	(with-selected-window ogt-source-window
+	  (goto-char ogt-probable-source-location)
+	  (while (null (zerop terms-this-segment))
+	    (re-search-forward org-link-any-re nil t)
+	    (when (string-prefix-p "trans:" (match-string 2))
+	      (cl-decf terms-this-segment)))
+	  (setq orig (match-string-no-properties 3)
+		glossary-id (string-remove-prefix
+			     "trans:" (match-string 2))))))
+    (setq glossary-translation
+	  (alist-get 'translation
+		     (gethash glossary-id ogt-glossary-table))
+	  this-translation
 	  (completing-read (format "Translation of %s: " orig)
 			   glossary-translation))
     (cl-pushnew
