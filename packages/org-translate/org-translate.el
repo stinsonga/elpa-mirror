@@ -136,6 +136,7 @@
 
 (require 'bookmark)
 (require 'ox)
+(require 'org-id)
 
 (defgroup org-translate nil
   "Customizations for the org-translate library."
@@ -339,22 +340,24 @@ By default, just remove it."
 				  ogt-translation-projects)))))
 	   (this-plist (when this-project
 			 (alist-get this-project ogt-translation-projects))))
-      (setq ogt-source-heading (or (plist-get this-plist :source)
-				   (ogt-locate-heading
-				    ogt-default-source-locator))
-	    ogt-translation-heading (or (plist-get this-plist :translation)
-					(ogt-locate-heading
-					 ogt-default-translation-locator))
-	    ogt-glossary-heading (or (plist-get this-plist :glossary)
-				     (ogt-locate-heading
-				      ogt-default-glossary-locator))
-	    ogt-segmentation-strategy (or (plist-get this-plist :seg-strategy)
-					  ogt-default-segmentation-strategy)
-	    ogt-segmentation-character (or (plist-get this-plist :seg-character)
-					   ogt-default-segmentation-character)
-	    ogt-glossary-table (make-hash-table :size 500 :test #'equal)
-	    ogt-probable-source-location (make-marker)
-	    ogt-source-segment-overlay (make-overlay (point) (point)))
+      (condition-case nil
+	  (setq ogt-source-heading (or (plist-get this-plist :source)
+				       (ogt-locate-heading
+					ogt-default-source-locator))
+		ogt-translation-heading (or (plist-get this-plist :translation)
+					    (ogt-locate-heading
+					     ogt-default-translation-locator))
+		ogt-glossary-heading (or (plist-get this-plist :glossary)
+					 (ogt-locate-heading
+					  ogt-default-glossary-locator))
+		ogt-segmentation-strategy (or (plist-get this-plist :seg-strategy)
+					      ogt-default-segmentation-strategy)
+		ogt-segmentation-character (or (plist-get this-plist :seg-character)
+					       ogt-default-segmentation-character)
+		ogt-glossary-table (make-hash-table :size 500 :test #'equal)
+		ogt-probable-source-location (make-marker)
+		ogt-source-segment-overlay (make-overlay (point) (point)))
+	(error (org-translate-mode -1)))
       (push #'ogt-export-remove-segmenters org-export-filter-body-functions)
       (overlay-put ogt-source-segment-overlay
 		   'face 'highlight)
@@ -512,22 +515,26 @@ and applies a highlight to the appropriate segment of text."
 Creates an ID if necessary."
   (save-excursion
     (goto-char (point-min))
-    (pcase locator
-      (`(heading . ,text)
-       (catch 'found
-	 (while (re-search-forward org-complex-heading-regexp nil t)
-	   (when (string-match-p text (match-string 4))
-	     (throw 'found (org-id-get-create))))))
-      (`(tag . ,tag-text)
-       (catch 'found
-	 (while (re-search-forward org-tag-line-re nil t)
-	   (when (string-match-p tag-text (match-string 2))
-	     (throw 'found (org-id-get-create))))))
-      (`(id . ,id-text)
-       (org-id-goto id-text))
-      (`(property (,prop . ,value))
-       (goto-char (org-find-property prop value))
-       (org-id-get-create)))))
+    (let ((id (pcase locator
+		(`(heading . ,text)
+		 (catch 'found
+		   (while (re-search-forward
+			   org-complex-heading-regexp nil t)
+		     (when (string-match-p text (match-string 4))
+		       (throw 'found (org-id-get-create))))))
+		(`(tag . ,tag-text)
+		 (catch 'found
+		   (while (re-search-forward org-tag-line-re nil t)
+		     (when (string-match-p tag-text (match-string 2))
+		       (throw 'found (org-id-get-create))))))
+		(`(id . ,id-text)
+		 (org-id-goto id-text)
+		 id-text)
+		(`(property (,prop . ,value))
+		 (goto-char (org-find-property prop value))
+		 (org-id-get-create)))))
+      (or id
+	  (error "Locator failed: %s" locator)))))
 
 (defun ogt-goto-heading (head)
   (let ((id (pcase head
