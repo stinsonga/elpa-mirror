@@ -2421,13 +2421,25 @@ If SELECTIVELY, query the user before applying the patch."
 		  (y-or-n-p (format "%s\nApply?"
 				    (buffer-substring (point-min)
 						      (min 200 (point-max))))))
-	  (call-process-region (point-min) (point-max)
-			       "patch" nil output-buffer nil
-			       "-r" rej "--no-backup-if-mismatch"
-			       "-l" "-f"
-			       "-d" (expand-file-name
-				     debbugs-gnu-current-directory)
-			       "-p1"))))
+	  (let (old-rej)
+	    (when (file-exists-p rej)
+	      (with-temp-buffer
+		(insert-file-contents rej)
+		(setq old-rej (buffer-string)))
+	      (delete-file rej))
+	    (call-process-region (point-min) (point-max)
+				 "patch" nil output-buffer nil
+				 "-r" rej "--no-backup-if-mismatch"
+				 "-l" "-f"
+				 "-d" (expand-file-name
+				       debbugs-gnu-current-directory)
+				 "-p1")
+	    (when old-rej
+	      (with-temp-buffer
+		(insert old-rej)
+		(when (file-exists-p rej)
+		  (insert-file-contents rej))
+		(write-region (point-min) (point-max) rej nil 'silent)))))))
     (set-buffer output-buffer)
     (when (file-exists-p rej)
       (goto-char (point-max))
