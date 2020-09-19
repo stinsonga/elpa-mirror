@@ -290,10 +290,16 @@ fragilely, and deleted and re-set with abandon.")
 (defvar-local ogt-source-segment-overlay nil
   "Overlay on the current source segment.")
 
+(defvar ogt-link-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "o") #'ogt-term-occur)
+    map)
+  "Keymap active on \"trans:\" type Org links.")
+
 (org-link-set-parameters
  "trans"
  :follow #'ogt-follow-link
- ;; Give it a :keymap!  Very nice.
+ :keymap ogt-link-keymap
  :export #'ogt-export-link)
 
 (defun ogt-follow-link (link)
@@ -408,6 +414,16 @@ By default, just remove it."
   ;; Is `org-export-filter-body-functions' the right filter to use?
   (replace-regexp-in-string
    (string ogt-segmentation-character) "" body-string))
+
+(defun ogt-term-occur ()
+  "Run `occur' for the glossary term at point.
+Available on \"trans:\" type links that represent glossary
+terms."
+  (interactive)
+  (let ((id (org-element-property :path (org-element-context))))
+    ;; I thought I should use `org-occur', but that only seems to work
+    ;; correctly in the sparse tree context.
+    (occur (concat "trans:" id))))
 
 (defun ogt-prettify-segmenters (&optional begin end)
   "Add a display face to all segmentation characters.
