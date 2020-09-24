@@ -293,6 +293,7 @@ fragilely, and deleted and re-set with abandon.")
 (defvar ogt-link-keymap
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "o") #'ogt-term-occur)
+    (define-key map (kbd "d") #'ogt-term-display-translations)
     map)
   "Keymap active on \"trans:\" type Org links.")
 
@@ -421,6 +422,19 @@ terms."
     ;; I thought I should use `org-occur', but that only seems to work
     ;; correctly in the sparse tree context.
     (occur (concat "trans:" id))))
+
+(defun ogt-term-display-translations ()
+  "Display original and translations for link under point."
+  (interactive)
+  (let ((bits (gethash
+	       (org-element-property :path (org-element-context))
+	       ogt-glossary-table)))
+    (message
+     (format
+      (concat
+       (mapconcat #'identity (alist-get 'source bits) ", ")
+       " : "
+       (mapconcat #'identity (alist-get 'translation bits) ", "))))))
 
 (defun ogt-prettify-segmenters (&optional begin end)
   "Add a display face to all segmentation characters.
