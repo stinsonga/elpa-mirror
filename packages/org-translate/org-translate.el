@@ -298,12 +298,9 @@ fragilely, and deleted and re-set with abandon.")
 
 (org-link-set-parameters
  "trans"
- :follow #'ogt-follow-link
+ :follow #'org-id-open
  :keymap ogt-link-keymap
  :export #'ogt-export-link)
-
-(defun ogt-follow-link (link arg)
-  (org-id-open link arg))
 
 (defun ogt-export-link (_path desc _backend)
   "Export a translation link.
