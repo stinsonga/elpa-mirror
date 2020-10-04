@@ -42,6 +42,7 @@ packages/greader/
 packages/guess-language/
 packages/hyperbole/
 packages/ivy-explorer/
+packages/ivy-posframe/
 packages/jsonrpc/
 packages/leaf/
 packages/let-alist/
@@ -75,6 +76,7 @@ packages/relint/
 packages/rt-liberation/
 packages/rudel/
 packages/scanner/
+packages/shell-command+/
 packages/smalltalk-mode/
 packages/so-long/
 packages/soap-client/
@@ -86,6 +88,7 @@ packages/system-packages/
 packages/tramp/
 packages/transient/
 packages/verilog-mode/
+packages/wcheck-mode/
 packages/webfeeder/
 packages/which-key/
 packages/windower/
