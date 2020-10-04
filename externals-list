@@ -170,7 +170,7 @@
  ("transient"		:external "https://github.com/magit/transient")
  ;;FIXME:("vlf"		:subtree ??)
  ("verilog-mode"        :core "lisp/progmodes/verilog-mode.el")
- ("wcheck-mode"		:subtree "https://github.com/tlikonen/wcheck-mode.git")
+ ("wcheck-mode"		:external "https://github.com/tlikonen/wcheck-mode")
  ("web-server"		:subtree "https://github.com/eschulte/emacs-web-server.git")
  ("webfeeder"		:external "https://gitlab.com/ambrevar/emacs-webfeeder.git")
  ("websocket"		:subtree "https://github.com/ahyatt/emacs-websocket.git")
