@@ -2680,6 +2680,9 @@ If SELECTIVELY, query the user before applying the patch."
 (defun debbugs-gnu--parse-mail (string)
   (let* ((mail-extr-ignore-single-names nil)
 	 (mail-extr-ignore-realname-equals-mailbox-name nil))
+    ;; Pacify byte compiler.
+    (ignore
+     mail-extr-ignore-single-names mail-extr-ignore-realname-equals-mailbox-name)
     (mail-extract-address-components string)))
 
 (defun debbugs-gnu-log-edit-done ()
@@ -2687,7 +2690,7 @@ If SELECTIVELY, query the user before applying the patch."
   (interactive)
   (let ((author (mail-fetch-field "Author")))
     (when (> (length author) 0)
-      (let ((from (debbugs-gnus--parse-mail author)))
+      (let ((from (debbugs-gnu--parse-mail author)))
 	(when (and (zerop (debbugs-gnu-find-contributor
 			   (let ((bits (split-string (car from))))
 			     (cond
