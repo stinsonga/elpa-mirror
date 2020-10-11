@@ -8,7 +8,7 @@
 ;; gen-confusables.el.  The copyright and permissions are the same
 ;; as for gen-confusables.el.
 
-;; Version: 0.1
+;; Version: 0.2
 ;; Maintainer: Teodor Zlatanov <tzz@lifelogs.com>
 
 ;;; Code:
