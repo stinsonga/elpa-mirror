@@ -1,3 +1,4 @@
+
 ;;; debbugs-gnu.el --- interface for the GNU bug tracker  -*- lexical-binding:t -*-
 
 ;; Copyright (C) 2011-2020 Free Software Foundation, Inc.
@@ -204,6 +205,8 @@
 (defvar gnus-posting-styles)
 (defvar gnus-save-duplicate-list)
 (defvar gnus-suppress-duplicates)
+(defvar mail-extr-ignore-realname-equals-mailbox-name)
+(defvar mail-extr-ignore-single-names)
 (defvar message-sent-message-via)
 (defvar rmail-current-message)
 (defvar rmail-mode-map)
@@ -2680,9 +2683,6 @@ If SELECTIVELY, query the user before applying the patch."
 (defun debbugs-gnu--parse-mail (string)
   (let* ((mail-extr-ignore-single-names nil)
 	 (mail-extr-ignore-realname-equals-mailbox-name nil))
-    ;; Pacify byte compiler.
-    (ignore
-     mail-extr-ignore-single-names mail-extr-ignore-realname-equals-mailbox-name)
     (mail-extract-address-components string)))
 
 (defun debbugs-gnu-log-edit-done ()
