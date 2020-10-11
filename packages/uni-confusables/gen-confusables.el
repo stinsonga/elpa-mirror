@@ -55,7 +55,7 @@
             (set-char-table-range
              table
              (reader from)
-             (concat (mapcar 'reader (split-string to))))))))))
+             (concat (mapcar #'reader (split-string to))))))))))
 
 (defun gen-confusables-write (file)
   (interactive "FDumped filename: \n")
@@ -88,7 +88,14 @@
            (lambda (k v) (setq props (cons k (cons v props))))
            ourtable)
 
-          (insert (format "(let ((k nil) (v nil) (ranges '%S))\n" props))
+          (insert (format "(let ((k nil) (v nil) (ranges '(\n"))
+	  (let ((i 0))
+	    (dolist (p props)
+	      (insert " ")
+	      (prin1 p (current-buffer))
+	      (when (zerop (mod (setq i (1+ i)) 10))
+		(insert "\n"))))
+	  (insert ")))\n")
           (insert (format "
   (while ranges
      (setq k (pop ranges)
@@ -116,7 +123,7 @@
 
 (provide 'uni-confusables)
 
-;;; uni-confusables.el ends here"))))
+;;; uni-confusables.el ends here\n"))))
 
 (provide 'gen-confusables)
 ;;; gen-confusables.el ends here
