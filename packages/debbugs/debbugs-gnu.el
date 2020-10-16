@@ -1647,10 +1647,8 @@ MERGED is the list of bugs merged with this one."
 			  (let ((new (format "%s@debbugs.gnu.org"
 					     (match-string 1 (car address)))))
 			    (cons new new))
-			address)))
-	       ;; `gnus-posting-styles' is eval'ed after
-	       ;; `message-simplify-subject'.  So we cannot use m-s-s.
-	       (setq subject ,debbugs-gnu-subject))))))))
+			address))))))
+	  (subject ,debbugs-gnu-subject)))))
 
 (defun debbugs-gnu-guess-current-id ()
   "Guess the ID based on \"#23\".
