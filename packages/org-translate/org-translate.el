@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2020  Free Software Foundation, Inc.
 
-;; Version: 0.1.1
+;; Version: 0.1.2
 ;; Package-Requires: ((emacs "25.1") (org "9.1"))
 
 ;; Author: Eric Abrahamsen <eric@ericabrahamsen.net>
@@ -610,8 +610,9 @@ the beginning of each segment."
 	      (end (make-marker))
 	      current)
 	  (while (< (point) (point-max))
-	    (insert ogt-segmentation-character)
 	    (setq current (org-element-at-point))
+	    (unless (eql (org-element-type current) 'headline)
+	      (insert ogt-segmentation-character))
 	    (move-marker end (org-element-property :contents-end current))
 	    ;; TODO: Do segmentation in plain lists and tables.
 	    (while (and (< (point) end)
@@ -622,7 +623,8 @@ the beginning of each segment."
 	       ((eql (org-element-type current) 'headline)
 		(skip-chars-forward "[:blank:]\\*")
 		(insert ogt-segmentation-character)
-		(org-end-of-meta-data t))
+		(org-end-of-meta-data t)
+		(move-marker end (point)))
 	       ((null (eql (org-element-type current)
 			   'paragraph))
 		(goto-char end))
