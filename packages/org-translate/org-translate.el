@@ -330,9 +330,10 @@ By default, just remove it."
 	      ogt-glossary-heading nil
 	      ogt-segmentation-strategy nil
 	      ogt-segmentation-character nil
-	      ogt-glossary-table nil)
-	(move-marker ogt-probable-source-location nil)
-	(delete-overlay ogt-source-segment-overlay))
+	      ogt-glossary-table nil
+	      ogt-probable-source-location nil)
+	(when (overlayp ogt-source-segment-overlay)
+	  (delete-overlay ogt-source-segment-overlay)))
     (unless (derived-mode-p 'org-mode)
       (user-error "Only applicable in Org files."))
     (let* ((this-project (or ogt-this-project-name
@@ -345,7 +346,7 @@ By default, just remove it."
 				  ogt-translation-projects)))))
 	   (this-plist (when this-project
 			 (alist-get this-project ogt-translation-projects))))
-      (condition-case nil
+      (condition-case err
 	  (setq ogt-source-heading (or (plist-get this-plist :source)
 				       (ogt-locate-heading
 					ogt-default-source-locator))
@@ -362,7 +363,8 @@ By default, just remove it."
 		ogt-glossary-table (make-hash-table :size 500 :test #'equal)
 		ogt-probable-source-location (make-marker)
 		ogt-source-segment-overlay (make-overlay (point) (point)))
-	(error (org-translate-mode -1)))
+	(error (org-translate-mode -1)
+	       (signal (car err) (cdr err))))
       (push #'ogt-export-remove-segmenters org-export-filter-body-functions)
       (overlay-put ogt-source-segment-overlay
 		   'face 'highlight)
