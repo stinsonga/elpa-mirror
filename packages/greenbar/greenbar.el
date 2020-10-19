@@ -1,6 +1,6 @@
 ;;; greenbar.el --- Mark comint output with "greenbar" background -*- lexical-binding: t -*-
 
-;; Copyright (C) 2013, 2015, 2020  Michael R. Mauger
+;; Copyright (C) 2013-2020  Free Software Foundation, Inc.
 
 ;; Author: Michael R. Mauger <michael@mauger.com>
 ;; Version: 1.0
@@ -66,7 +66,6 @@
 
 (defcustom greenbar-lines-per-bar 3
   "How many lines of output should be colored together."
-  :group 'greenbar
   :type 'integer)
 
 (defvar greenbar-color-themes
@@ -84,8 +83,7 @@
          (let ((x (if (eq (frame-parameter nil 'background-mode) 'dark) "40" "f0"))
                (o (if (eq (frame-parameter nil 'background-mode) 'dark) "34" "e4")))
 
-           (mapcar (lambda (c)
-                     (eval `(concat "#" ,@c)))
+           (mapcar (lambda (c) (apply #'concat "#" c))
                    `((,x ,x ,o) (,x ,o ,o) (,x ,o ,x) (,o ,o ,x) (,o ,x ,x) (,o ,x ,o))))))
   "Greenbar themes.
 
@@ -94,7 +92,6 @@ a symbol that names the theme followed by the list bar colors.")
 
 (defcustom greenbar-background-colors 'greenbar
   "List of background colors to be applied to output stripes."
-  :group 'greenbar
   :type `(choice ,@(mapcar (lambda (c)
                              (list 'const (car c)))
                            greenbar-color-themes)
@@ -165,6 +162,7 @@ set of background colors found in
             (greenbar-next-bar))))))
   string)
 
+;;;###autoload
 (define-minor-mode greenbar-mode
   "Enable \"green bar striping\" of comint output"
   nil nil nil
@@ -172,7 +170,7 @@ set of background colors found in
       (add-hook 'comint-output-filter-functions
                 #'greenbar-output-filter t t)
     (remove-hook 'comint-output-filter-functions
-                 #'greenbar-output-filter)))
+                 #'greenbar-output-filter t)))
 
 (provide 'greenbar)
 
