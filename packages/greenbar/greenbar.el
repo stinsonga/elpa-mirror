@@ -22,13 +22,19 @@
 
 ;;; Commentary:
 
-;; For some of us old neck beards who learned to write software on
-;; pucch cards and print out our code and output on wide line
-;; printers.  When reading long rows of text across a 14 7/8" page it
+;; For us old neck beards, who learned to write software on punch
+;; cards and print out our code and output on wide line printers, it
 ;; was helpful to have alternating bands of subtle background coloring
-;; to guide your eyes across the line.  This is also referred to as
-;; `zebra striping` and is enabled in on PostScript output in
-;; `ps-print.el' by enabling the `ps-zebra-stripes' setting.
+;; to guide our eyes across the line on the page.  Reading long rows
+;; of text across a 14 7/8" page, it was very easy to loose your place
+;; vertically while scanning the page horizontally.  The subtle
+;; background shading was often done with pale bands of green
+;; alternating with the white of the paper.
+
+;; Paper pre-printed with the pale green bars was often referred to as
+;; "green bar" and the technique is also referred to as "zebra
+;; striping."  In Emacs, in `ps-print.el' (PostScript print facility),
+;; the feature is enabling with the `ps-zebra-stripes' setting.
 
 ;; To enable `greenbar-mode' in your `comint-mode' buffers, add the
 ;; following to your Emacs configuration:
@@ -37,7 +43,7 @@
 
 ;; If you want to enable `greenbar-mode' only in a single mode derived
 ;; from `comint-mode', then you need to add `greenbar-mode' only to
-;; the desired derive mode hook.  Adding `greenbar-mode' to
+;; the desired derived mode hook.  Adding `greenbar-mode' to
 ;; `comint-mode-hook' enables it for all comint derived modes.
 
 ;; The variable `greenbar-color-theme' is a list of predefined bar
@@ -49,6 +55,11 @@
 ;; The variable `greenbar-color-list' controls which set of color bars
 ;; are to be applied.  The value is either a name from color theme
 ;; defined in `greenbar-color-themes' or it is a list of color names.
+
+;; The variable `greenbar-lines-per-bar' controls how many output
+;; lines are displayed using each band's background color.
+
+;; Suggestions for other background color themes are always welcome.
 
 ;;; Code:
 
@@ -85,17 +96,17 @@
 
            (mapcar (lambda (c) (apply #'concat "#" c))
                    `((,x ,x ,o) (,x ,o ,o) (,x ,o ,x) (,o ,o ,x) (,o ,x ,x) (,o ,x ,o))))))
-  "Greenbar themes.
+  "A list of Greenbar themes.
 
-A list of greenbar themes, each of which is a list starting with
-a symbol that names the theme followed by the list bar colors.")
+Each member of the list starts with a symbol that identifies the
+theme followed by the list bar colors.")
 
 (defcustom greenbar-background-colors 'greenbar
   "List of background colors to be applied to output stripes."
   :type `(choice ,@(mapcar (lambda (c)
                              (list 'const (car c)))
                            greenbar-color-themes)
-                 (repeat (color :tag "Background list"))))
+                 (repeat (color :tag "Background color"))))
 
 (defun greenbar-color-list ()
   "Get the list of greenbar background colors."
