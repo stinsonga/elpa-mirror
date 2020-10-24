@@ -267,10 +267,7 @@ you may never really understand to any degree of personal satisfaction\".
  :waiting-start
 
  :black-captures -- these are strings since gnugo.el doesn't do anything
- :white-captures    w/ the information besides display it in the mode line;
-                    gory details in functions `gnugo-propertize-board-buffer'
-                    and `gnugo-merge-showboard-results' (almost more effort
-                    than they are worth!)
+ :white-captures    w/ the information besides display it in the mode line
 
  :display-using-images -- XPMs, to be precise; see functions `gnugo-yy',
                           `gnugo-image-display-mode' and `gnugo-refresh',
@@ -576,7 +573,7 @@ Otherwise, use the `car' of YANG.  See `gnugo-yang'."
                               'intangible)
   "Text property that controls intangibility.")
 
-(defun gnugo-propertize-board-buffer ()
+(defun gnugo--propertize-board-buffer ()
   (erase-buffer)
   (insert (substring (gnugo--q "showboard") 3))
   (let* ((grid-props (list 'invisible :nogrid
@@ -662,7 +659,7 @@ Otherwise, use the `car' of YANG.  See `gnugo-yang'."
     (put-text-property (point) (line-end-position)
                        'category %gspc)))
 
-(defun gnugo-merge-showboard-results ()
+(defun gnugo--merge-showboard-results ()
   (let ((aft (substring (gnugo--q "showboard") 3))
         (adj 1)                         ; string to buffer position adjustment
 
@@ -936,7 +933,7 @@ For all other values of RSEL, do nothing and return nil."
     (unless resignp
       (gnugo--q/ue "play %s %s" color move))
     (unless passp
-      (gnugo-merge-showboard-results))
+      (gnugo--merge-showboard-results))
     (gnugo-put :last-mover color)
     (when (if simple
               who
@@ -1085,7 +1082,7 @@ its move."
       (dolist (group (apply #'append (mapcar #'cdr game-over)))
         (gnugo--zonk-ovs (cdar group))
         (setcdr (car group) nil))
-      (gnugo-propertize-board-buffer))
+      (gnugo--propertize-board-buffer))
     ;; last move
     (when move
       (cl-destructuring-bind (l-ov . r-ov) (gnugo-get :paren-ov)
@@ -1681,7 +1678,7 @@ If FILENAME already exists, Emacs confirms that you wish to overwrite it."
                 (gnugo--no-worries (gnugo--q "undo")))
       (pop (aref monkey 0))
       (gnugo-put :last-mover (gnugo-current-player))
-      (gnugo-merge-showboard-results)   ; all
+      (gnugo--merge-showboard-results)  ; all
       (gnugo-refresh)                   ; this
       (redisplay))                      ; eye candy
     (let* ((ulastp (string= (gnugo-get :last-mover) user-color))
