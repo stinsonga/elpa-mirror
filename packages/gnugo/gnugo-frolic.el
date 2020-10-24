@@ -1,6 +1,6 @@
 ;;; gnugo-frolic.el --- gametree in a buffer    -*- lexical-binding: t -*-
 
-;; Copyright (C) 2014-2017  Free Software Foundation, Inc.
+;; Copyright (C) 2014-2020  Free Software Foundation, Inc.
 
 ;; Author: Thien-Thi Nguyen <ttn@gnu.org>
 ;; Maintainer: Thien-Thi Nguyen <ttn@gnu.org>

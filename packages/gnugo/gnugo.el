@@ -1,6 +1,6 @@
 ;;; gnugo.el --- play GNU Go in a buffer         -*- lexical-binding: t -*-
 
-;; Copyright (C) 2014-2017  Free Software Foundation, Inc.
+;; Copyright (C) 2014-2020  Free Software Foundation, Inc.
 
 ;; Author: Thien-Thi Nguyen <ttn@gnu.org>
 ;; Maintainer: Thien-Thi Nguyen <ttn@gnu.org>
@@ -549,7 +549,7 @@ and WITH-POINT are symbols.  For other C, return nil."
 The returned symbol has the format N-SYMBOL.
 
 If YANG is a symbol, use it directly.  Otherwise, YANG must be a pair.
-If optional arg MOMENTARYP is non-nil, use the `cdr' of YANG.  
+If optional arg MOMENTARYP is non-nil, use the `cdr' of YANG.
 Otherwise, use the `car' of YANG.  See `gnugo-yang'."
   (gnugo-f (format "%d-%s"
                    yin (cond ((symbolp yang) yang)

@@ -5,6 +5,11 @@ NB: "RCS: X..Y " means that the particular release includes
     changes in the RCS repo, revision 1.X through 1.Y (inclusive).
 
 
+- 3.1.1 | 2020-10-24
+  - bugfix: use ‘cursor-intangible-mode’ properly
+  - new func: gnugo-imgen-fit-window-height/no-grid-bottom
+  - more docstrings
+
 - 3.1.0 | 2017-02-17
   - THANKS file includes pre-ELPA people
   - bugfix: refresh no longer clobbers dead-group indication
@@ -229,7 +234,7 @@ NB: "RCS: X..Y " means that the particular release includes
   End:
 
 _____________________________________________________________________
-Copyright (C) 2014-2017  Free Software Foundation, Inc.
+Copyright (C) 2014-2020  Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted provided the copyright notice and this notice are preserved.
