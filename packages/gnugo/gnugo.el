@@ -204,7 +204,8 @@ list of forms.")
     ("O" . gnugo-O-face))
   "Font lock keywords for `gnugo-board-mode'.")
 
-(defvar gnugo-option-history nil)
+(defvar gnugo-option-history nil
+  "History list of options for `gnugo' invocation.")
 
 (defvar gnugo-state nil)                ; hint: C-c C-p
 
@@ -386,6 +387,7 @@ Handle the big, slow-to-render, and/or uninteresting ones specially."
   (string= "black" string))
 
 (defun gnugo-other (color)
+  "If COLOR is \"black\", return \"white\", otherwise \"black\"."
   (if (gnugo--blackp color) "white" "black"))
 
 (defun gnugo-current-player ()
@@ -486,6 +488,7 @@ when you are sure the command cannot fail."
   (string-to-number (gnugo-query cmd)))
 
 (defun gnugo-lsquery (message-format &rest args)
+  "Apply `gnugo-query' to args; split its rv (return list of strings)."
   (split-string (apply 'gnugo-query message-format args)))
 
 (defsubst gnugo--count-query (fmt &rest args)
@@ -524,12 +527,33 @@ Return final buffer position (i.e., point)."
           (gnugo-get :obarray)))
 
 (defun gnugo-yang (c)
+  "Return the \"image type information\" corresponding to character C.
+C is one of the four characters used in the ASCII representation
+of a game board -- ?+ (U+2B PLUS SIGN), ?. (U+2E FULL STOP), ?X
+and ?O (U+58 and U+4F, LATIN CAPITAL LETTER X and O, respectively).
+For example, here is a 5x5 board with two stones placed:
+
+  . . . . .
+  . O . + .          (white at B4)
+  . . + . .
+  . + . + X          (black at E2)
+  . . . . .
+
+The image type information consists of a single symbol for ?. and ?+
+and a pair (SANS-POINT . WITH-POINT) for ?X and ?O.  Both SANS-POINT
+and WITH-POINT are symbols.  For other C, return nil."
   (gnugo-aqr c '((?+ . hoshi)
                  (?. . empty)
                  (?X . (bmoku . bpmoku))
                  (?O . (wmoku . wpmoku)))))
 
 (defun gnugo-yy (yin yang &optional momentaryp)
+  "Return a symbol made by formatting YIN (an integer) and YANG.
+The returned symbol has the format N-SYMBOL.
+
+If YANG is a symbol, use it directly.  Otherwise, YANG must be a pair.
+If optional arg MOMENTARYP is non-nil, use the `cdr' of YANG.  
+Otherwise, use the `car' of YANG.  See `gnugo-yang'."
   (gnugo-f (format "%d-%s"
                    yin (cond ((symbolp yang) yang)
                              (momentaryp (cdr yang))
