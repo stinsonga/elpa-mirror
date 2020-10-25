@@ -3,7 +3,7 @@
 ;; Copyright (C) 2013-2020  Free Software Foundation, Inc.
 
 ;; Author: Michael R. Mauger <michael@mauger.com>
-;; Version: 1.0
+;; Version: 1.1
 ;; Package-Type: simple
 ;; Keywords: faces, terminals
 
@@ -59,11 +59,16 @@
 ;; The variable `greenbar-lines-per-bar' controls how many output
 ;; lines are displayed using each band's background color.
 
+;; By default, input lines are not highlighted, but if
+;; `greenbar-highlight-input' is set to a non-nil value, then input is
+;; also highlighted with green bars as well.
+
 ;; Suggestions for other background color themes are always welcome.
 
 ;;; Code:
 
 (require 'comint)
+(require 'cl-lib)
 
 (defgroup greenbar nil
   "Stripe comint output like \"green bar\", or \"zebra stripe\" paper."
@@ -108,11 +113,26 @@ theme followed by the list bar colors.")
                            greenbar-color-themes)
                  (repeat (color :tag "Background color"))))
 
+(defcustom greenbar-highlight-input nil
+  "Should prompts and command input be highlighted."
+  :type 'booleanp)
+
 (defun greenbar-color-list ()
   "Get the list of greenbar background colors."
     (or (cdr (assoc greenbar-background-colors
                     greenbar-color-themes))
         greenbar-background-colors))
+
+(defun greenbar-is-valid-bar (color-list)
+  "Return non-nil, if COLOR-LIST is a list of valid colors."
+  (and color-list
+       (listp color-list)
+       (cl-every #'identity
+                 (mapcar #'color-defined-p color-list))))
+
+(defun greenbar-is-command-input (_start end)
+  "Return non-nil, if input is in region betweeen START and END."
+  (= end comint-last-input-end))
 
 (defun greenbar-next-bar ()
   "Reset the local configuration if we are at the end of a bar.
@@ -132,12 +152,15 @@ Every `greenbar-lines-per-bar' lines are colored with a rotating
 set of background colors found in
 `greenbar-background-colors'."
 
-  (let ((bg-list (greenbar-color-list))
+  (let ((bar (greenbar-color-list))
         (start comint-last-output-start)
         (end (process-mark (get-buffer-process (current-buffer)))))
 
-    ;;(message "greenbar: %S %S %S" start end (replace-regexp-in-string "\n" "\\\\n" (buffer-substring start end)))
-    (when (and bg-list (listp bg-list) (not (= start end)))
+    (when (and (greenbar-is-valid-bar bar)
+               (not (= start end))
+               (or greenbar-highlight-input
+                   (not (greenbar-is-command-input start end))))
+
       (greenbar-next-bar) ; make sure greenbar state is valid
       (save-excursion
         (save-restriction
@@ -160,10 +183,10 @@ set of background colors found in
             (setq greenbar-current-line (forward-line greenbar-current-line))
 
             ;; Mark the bar
-            (let ((bar-face (nth greenbar-current-bar bg-list)))
+            (let ((bar-bg (nth greenbar-current-bar bar)))
               (font-lock-append-text-property
                start (point)
-               'font-lock-face (list :background bar-face
+               'font-lock-face (list :background bar-bg
                                      :extend t)))
 
             ;; Get ready for the next bar
