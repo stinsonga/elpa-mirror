@@ -1,9 +1,9 @@
 ;;; multishell.el --- Easily use multiple shell buffers, local and remote  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1999-2016, 2018 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2020 Free Software Foundation, Inc. and Ken Manheimer
 
 ;; Author: Ken Manheimer <ken.manheimer@gmail.com>
-;; Version: 1.1.5
+;; Version: 1.1.7
 ;; Created: 1999 -- first public availability
 ;; Keywords: processes
 ;; Package-Requires: ((cl-lib "0.5"))
@@ -60,6 +60,13 @@
 ;;
 ;; Change Log:
 ;;
+;; * 2020-10-28 1.1.7 Ken Manheimer:
+;;   - Forward compatibility: 'cl-progv' rather than 'progv', resolves
+;;     multishell-list error in recent emacs versions.
+;;   - Incorporate gnu refinements (thanks!)
+;; * 2016-06-27 1.1.6 Ken Manheimer (unreleased):
+;;   - When starting a remote shell, if cd fails to an inital remote
+;;     directory, try again without the cd.
 ;; * 2016-02-11 1.1.5 Ken Manheimer:
 ;;   - Rectify multishell list sorting to preserve recentness
 ;;   - Increment the actual multishell-version setting, neglected for 1.1.4.
@@ -158,8 +165,9 @@
 (require 'comint)
 (require 'shell)
 (require 'savehist)
+(require 'multishell-list)
 
-(defvar multishell-version "1.1.5")
+(defvar multishell-version "1.1.7")
 (defun multishell-version (&optional here)
   "Return string describing the loaded multishell version."
   (interactive "P")
@@ -296,6 +304,7 @@ Returns non-nil iff any changes were made."
             did-revisions t))
     did-revisions))
 
+;;;###autoload
 (defun multishell-history-entries (name)
   "Return `multishell-history' entry that starts with NAME, or nil if none."
   (let (got)
@@ -319,29 +328,29 @@ historical shells, collectively, using `multishell-list' - see below.
 Customize-group `multishell' to set up a key binding and tweak behaviors.
 
 Manage your collection of current and historical shells by
-recursively invoking \\[multishell-pop-to-shell] at the
-`multishell-pop-to-shell' universal argument prompts, eg:
+recursively invoking \\[multishell-pop-to-shell] at the `multishell-pop-to-shell'
+universal argument prompts, eg:
 
   \\[universal-argument] \\[multishell-pop-to-shell] \\[multishell-pop-to-shell]
 
-\(That will be just a few keys if you do the above
-customization.) Hit ? in the listing buffer for editing commands.
+\(That will be just a few keys if you do the above customization.)
+
+Hit ? in the listing buffer for editing commands.
 
 ==== Basic operation:
 
- - If the current buffer is shell-mode (or shell-mode derived)
-   buffer then focus is moved to the process input point.
+ - If the current buffer is in shell-mode then focus is moved to
+   the process input point.
 
-   \(You can use a universal argument go to a different shell
-   buffer when already in a buffer that has a process - see
-   below.)
+   \(Use a universal argument go to a different shell buffer
+   when already in a buffer that has a process - see below.)
 
- - If not in a shell buffer (or with universal argument), go to a
-   window that is already showing the (a) shell buffer, if any.
+ - If not in a shell buffer, go to a window that is already
+   showing a shell buffer, if any.
 
-   In this case, the cursor is left in its prior position in the
-   shell buffer. Repeating the command will then go to the
-   process input point, per the first item in this list.
+   In this case, the cursor is not moved to the process input
+   point. Repeating the command once you're in the buffer will
+   then move the cursor to the process input point.
 
    We respect `pop-up-windows', so you can adjust it to set the
    other-buffer/same-buffer behavior.
@@ -354,8 +363,8 @@ was disconnected or otherwise stopped, it's resumed.
 
 ===== Universal arg to start and select between named shell buffers:
 
-You can name alternate shell buffers to create or return to, by
-prefixing your \\[multishell-pop-to-shell] invocation with single or double
+You can assign a distinct name to new shell buffers by prefixing
+your \\[multishell-pop-to-shell] invocation with a single or double
 `universal-argument', \\[universal-argument]:
 
  - With a single universal argument, prompt for the buffer name
@@ -367,7 +376,7 @@ prefixing your \\[multishell-pop-to-shell] invocation with single or double
    This combination makes it easy to start and switch across
    multiple shell restarts.
 
- - A double universal argument will prompt for the name *and* set
+ - A double universal argument will prompt for the name and set
    the default to that name, so the target shell becomes the
    primary.
 
@@ -375,10 +384,10 @@ prefixing your \\[multishell-pop-to-shell] invocation with single or double
    setting across emacs restarts.
 
  - Manage your collection of current and historical shells by
-   recursively invoking \\[multishell-pop-to-shell] at either of the
-   `multishell-pop-to-shell' universal argument prompts, or at any
-   time via \\[multishell-list]. Hit ? in the listing buffer for
-   editing commands.
+   recursively invoking \\[multishell-pop-to-shell] at the `multishell-pop-to-shell'
+   universal argument prompts, or at any time via
+   \\[multishell-list]. Hit ? in the listing buffer for editing
+   commands.
 
 ===== Select starting directory and remote host:
 
@@ -689,17 +698,20 @@ and path nil if none is resolved."
 (declare-function tramp-dissect-file-name "tramp")
 (declare-function tramp-cleanup-connection "tramp")
 
-(defun multishell-start-shell-in-buffer (path)
-  "Start, restart, or continue a shell in current-buffer on PATH."
-  ;; FIXME: The GNU convention is to use "path" only to refer to a list
-  ;; of directories.
+(defun multishell-start-shell-in-buffer (where)
+  "Start, restart, or continue a shell in current-buffer on WHERE.
+
+If WHERE is remote and includes a directory, cd to that directory on the
+remote host.
+
+If cd fails to an included remote directory, try again without the cd."
   (let* ((is-active (comint-check-proc (current-buffer))))
 
-    (when (and path (not is-active))
+    (when (and where (not is-active))
 
       ;; FIXME: file-remote-p does not imply Tramp.
       ;; Why do we need to do something special for Tramp here?
-      (when (and (derived-mode-p 'shell-mode) (file-remote-p path))
+      (when (and (derived-mode-p 'shell-mode) (file-remote-p where))
         ;; Returning to disconnected remote shell - do some tidying.
         ;; FIXME: Without this cleanup, occasionally restarting a disconnected
         ;; remote session, particularly one that includes sudo, results in
@@ -710,8 +722,25 @@ and path nil if none is resolved."
          (tramp-dissect-file-name default-directory 'noexpand)
          'keep-debug 'keep-password))
 
-      (when (file-remote-p path) (message "Connecting to %s" path))
-      (cd path))
+      (if (not (file-remote-p where))
+          (cd where)
+        (message "Connecting to %s" where)
+        (condition-case err
+            (cd where)
+          ;; "cd: No such directory found via CDPATH environment variable"
+          (error
+           (if (string=
+                (cadr err)
+                "No such directory found via CDPATH environment variable")
+               ;; Try again without dir part of remote where:
+               (let* ((final-colon-at (string-match ":[^:]+$" where))
+                      (sans-dir-path (substring where 0 (1+ final-colon-at)))
+                      (dir-path (substring where (1+ final-colon-at))))
+                 (message "Failed to cd to %s, trying again without..."
+                          dir-path)
+                 (sit-for .5)
+                 (cd sans-dir-path))
+             (signal (car err) (cdr err)))))))
 
     (shell (current-buffer))))
 
@@ -798,6 +827,7 @@ Returns nil for empty parts, rather than the empty string."
   (if (not (string= (substring name -1) "*"))
       (setq name (concat name "*")))
   name)
+;;;###autoload
 (defun multishell-unbracket (name)
   "Return a copy of name, removing asterisks, if any, at beginning and end."
   (if (string= (substring name 0 1) "*")
