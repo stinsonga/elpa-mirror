@@ -3,7 +3,7 @@
 ;; Copyright (C) 1999-2020 Free Software Foundation, Inc. and Ken Manheimer
 
 ;; Author: Ken Manheimer <ken.manheimer@gmail.com>
-;; Version: 1.1.7
+;; Version: 1.1.8
 ;; Created: 1999 -- first public availability
 ;; Keywords: processes
 ;; Package-Requires: ((cl-lib "0.5"))
@@ -60,7 +60,7 @@
 ;;
 ;; Change Log:
 ;;
-;; * 2020-10-28 1.1.9 Ken Manheimer:
+;; * 2020-10-28 1.1.8 Ken Manheimer:
 ;;   - Change back to having multishell-list require multishell,
 ;;     rather than the other way around, and remove now unnecessary
 ;;     new autoloads.
