@@ -1647,7 +1647,8 @@ MERGED is the list of bugs merged with this one."
 					     (match-string 1 (car address)))))
 			    (cons new new))
 			address))))))
-	  (subject ,debbugs-gnu-subject)))))
+	  ,@(and debbugs-gnu-subject
+		 ,(subject ,debbugs-gnu-subject))))))
 
 (defun debbugs-gnu-guess-current-id ()
   "Guess the ID based on \"#23\".
