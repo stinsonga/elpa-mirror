@@ -1,4 +1,3 @@
-
 ;;; debbugs-gnu.el --- interface for the GNU bug tracker  -*- lexical-binding:t -*-
 
 ;; Copyright (C) 2011-2020 Free Software Foundation, Inc.
