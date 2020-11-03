@@ -1,4 +1,4 @@
-[[https://melpa.org/#/vdiff][file:https://melpa.org/packages/vdiff-badge.svg]]
+[[https://melpa.org/#/vdiff][file:https://melpa.org/packages/vdiff-badge.svg]] [[evil-vdiff-test][https://github.com/justbur/emacs-vdiff/workflows/evil-vdiff-test/badge.svg]]
 
 * vdiff
 
@@ -36,6 +36,12 @@ A tool like vimdiff for Emacs
    Contributions and suggestions are very welcome.
 
 ** Recent (Significant) Changes
+   - [2019-02-26] If the region is active when changes are sent to other
+     buffers, only lines in the intersection of the region and any hunks are
+     sent. This allows sending individual lines, similar to how individual lines
+     can be staged in magit.
+   - [2018-04-17] Add option to use various git diff algorithms. See
+     =vdiff-diff-algorithm= for options.
    - [2017-05-17] Split =vdiff-magit.el= into [[https://github.com/justbur/emacs-vdiff-magit][separate repository]]. 
    - [2017-02-01] Added magit integration functions in =vdiff-magit.el=.
    - [2016-07-25] Added three-way diff support. See =vdiff-buffers3= and =vdiff-files3=.
@@ -137,21 +143,7 @@ prefix in normal state.
 (evil-define-key 'normal vdiff-mode-map "," vdiff-mode-prefix-map)
 #+END_SRC
 
-To match vimdiff bindings some more work is required. The way the =d= command
-for evil is set up makes it difficult to bind =do= and =dp= as they exist in
-vimdiff. Here is a sample set of bindings that avoids this problem (thanks to
-@edkolev for these).
-
-#+BEGIN_SRC emacs-lisp
-  (evil-define-minor-mode-key 'normal 'vdiff-mode "]c" 'vdiff-next-hunk)
-  (evil-define-minor-mode-key 'normal 'vdiff-mode "[c" 'vdiff-previous-hunk)
-  (evil-define-minor-mode-key 'normal 'vdiff-mode "zc" 'vdiff-close-fold)
-  (evil-define-minor-mode-key 'normal 'vdiff-mode "zM" 'vdiff-close-all-folds)
-  (evil-define-minor-mode-key 'normal 'vdiff-mode "zo" 'vdiff-open-fold)
-  (evil-define-minor-mode-key 'normal 'vdiff-mode "zR" 'vdiff-open-all-folds)
-  (evil-define-minor-mode-key 'motion 'vdiff-mode "go" 'vdiff-receive-changes)
-  (evil-define-minor-mode-key 'motion 'vdiff-mode "gp" 'vdiff-send-changes)
-#+END_SRC
+vimdiff-like binding are provided by [[https://github.com/emacs-evil/evil-collection][evil-collection]]'s [[https://github.com/emacs-evil/evil-collection/blob/master/evil-collection-vdiff.el][evil-collection-vdiff.el]]
 
 ** Hydra
 
@@ -164,18 +156,23 @@ map. Bind =vdiff-hydra/body= directly to customize this key binding.
 
 ** Further customization
    
-The current customization options and there defaults are
+The current customization options and their defaults are
    
 #+BEGIN_SRC emacs-lisp
   ;; Whether to lock scrolling by default when starting vdiff
   (setq vdiff-lock-scrolling t)
 
-  ;; external diff program/command to use
-  (setq vdiff-diff-program "diff")
+  ;; diff program/algorithm to use. Allows choice of diff or git diff along with
+  ;; the various algorithms provided by these commands. See
+  ;; `vdiff-diff-algorithms' for the associated command line arguments.
+  (setq vdiff-diff-algorithm 'diff)
 
-  ;; Extra arguments to pass to diff. If this is set wrong, you may
-  ;; break vdiff.
-  (setq vdiff-diff-program-args "")
+  ;; diff3 command to use. Specify as a list where the car is the command to use
+  ;; and the remaining elements are the arguments to the command.
+  (setq vdiff-diff3-command '("diff3"))
+
+  ;; Don't use folding in vdiff buffers if non-nil.
+  (setq vdiff-disable-folding nil)
 
   ;; Unchanged lines to leave unfolded around a fold
   (setq vdiff-fold-padding 6)
