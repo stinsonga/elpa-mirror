@@ -51,7 +51,6 @@
 (defcustom gnorb-org-after-message-setup-hook nil
   "Hook run in a message buffer after setting up the message from
   `gnorb-org-handle-mail' or `gnorb-org-email-subtree'."
-  :group 'gnorb-org
   :type 'hook)
 
 (defcustom gnorb-org-trigger-actions
@@ -85,7 +84,6 @@ symbol indicating a custom function.  The custom function will be
 called on the heading in question, and passed a plist containing
 information about the message from which we're triggering."
 
-  :group 'gnorb-org
   :type 'list
   :package-version '(gnorb . "1.1.3"))
 
@@ -96,14 +94,12 @@ note, the message id will be added to the text of the log note.
 When later viewing the messages, call `gnorb-org-view' with point
 on a particular logbook item to automatically go to the linked
 message."
-  :group 'gnorb-org
   :type 'boolean)
 
 (defcustom gnorb-org-msg-id-key "GNORB_MSG_ID"
   "The name of the org property used to store the Message-IDs
   from relevant messages. This is no longer used, and will be
   removed soon."
-  :group 'gnorb-org
   :type 'string)
 
 (defcustom gnorb-org-mail-scan-scope 2
@@ -119,7 +115,6 @@ with a prefix arg, the heading and body text of the subtree under
 point will instead be scanned for gnus:, mailto:, and bbdb:
 links. This option controls how many paragraphs of body text to
 scan. Set to 0 to only look in the heading."
-  :group 'gnorb-org
   :type '(choice (const :tag "Whole subtree" all)
 		 (integer :tag "Number of paragraphs")))
 
@@ -144,7 +139,6 @@ message, this option will limit which headings will be offered as
 target candidates. Specifically it will be used as the second
 argument to `org-map-entries', and syntax is the same as that
 used in an agenda tags view."
-  :group 'gnorb-org
   :type 'symbol)
 
 ;;;###autoload

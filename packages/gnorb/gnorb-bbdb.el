@@ -53,7 +53,6 @@
 
 (defcustom gnorb-bbdb-org-tag-field 'org-tags
   "The name (as a symbol) of the field to use for org tags."
-  :group 'gnorb-bbdb
   :type 'symbol)
 
 (when (boundp 'bbdb-separator-alist)    ;Allow compilation if BBDB is absent!
@@ -68,13 +67,11 @@ messages from this record are stored.
 will not collect links to messages: you have to call
 \"\\[gnorb-bbdb-open-link]\" on the record once -- after that,
 message links will be collected and updated automatically."
-  :group 'gnorb-bbdb
   :type 'symbol)
 
 (defcustom gnorb-bbdb-collect-N-messages 5
   "For records with a `gnorb-bbdb-messages-field' defined,
 collect links to a maximum of this many messages."
-  :group 'gnorb-bbdb
   :type 'integer)
 
 (defcustom gnorb-bbdb-define-recent 'seen
@@ -88,7 +85,6 @@ In other words, if this variable is set to `received', and a
 record's messages field is already full of recently-received
 messages, opening a five-year-old message (for instance) from
 this record will not push a link to the message into the field."
-  :group 'gnorb-bbdb
   :type '(choice (const :tag "Most recently seen" 'seen)
                  (const :tag "Most recently received" 'received)))
 
@@ -101,7 +97,6 @@ date, and the message's count in the list, as an integer. You can
 access subject and count using the %:subject and %:count escapes.
 The message date can be formatted using any of the escapes
 mentioned in the docstring of `format-time-string', which see."
-  :group 'gnorb-bbdb
   :type 'string)
 
 (defcustom gnorb-bbdb-message-link-format-one "%:count"
@@ -117,13 +112,11 @@ date, and the message's count in the list, as an integer. You can
 access subject and count using the %:subject and %:count escapes.
 The message date can be formatted using any of the escapes
 mentioned in the docstring of `format-time-string', which see."
-  :group 'gnorb-bbdb
   :type 'string)
 
 (defface gnorb-bbdb-link '((t :inherit org-link))
   "Custom face for displaying message links in the *BBDB* buffer.
-  Defaults to org-link."
-  :group 'gnorb-bbdb)
+  Defaults to org-link.")
 
 (cl-defstruct gnorb-bbdb-link
   subject date group id)
@@ -164,8 +157,6 @@ list is disregarded.
 
 All following elements should be field setters for the message to
 be composed, just as in `gnus-posting-styles'."
-
-  :group 'gnorb-bbdb
   :type 'list)
 
 (when (fboundp 'bbdb-record-xfield-string)

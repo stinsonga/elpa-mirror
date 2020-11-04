@@ -306,7 +306,6 @@ continue to provide tracking of sent messages."
 
 (defun gnorb-summary-disassociate-message ()
   "Disassociate a message from its Org TODO.
-
 This is used in a Gnorb-created *Summary* buffer to remove the
 connection between the message and whichever Org TODO resulted in
 the message being included in this search."
@@ -341,8 +340,6 @@ the message being included in this search."
 	  (message "Message disassociated from %s"
 		   (gnorb-pretty-outline chosen)))
       (message "Message has no associations"))))
-
-(defvar nngnorb-status-string "")
 
 (defun nngnorb-retrieve-headers (_articles &optional _group _server _fetch-old)
   (with-current-buffer nntp-server-buffer

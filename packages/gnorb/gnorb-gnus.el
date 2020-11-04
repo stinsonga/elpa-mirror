@@ -44,7 +44,6 @@
   :tag "Gnorb Gnus"
   :group 'gnorb)
 
-
 (defcustom gnorb-gnus-mail-search-backends
   '((notmuch (lambda (terms)
 	       (mapconcat
@@ -67,13 +66,11 @@ the symbol name of the backend, a lambda form which receives a
 list of email addresses and returns a properly-formatted search
 string, and the symbol name of the function used to initiate the
 search."
-  :group 'gnorb-gnus
   :type 'list)
 
 (defcustom gnorb-gnus-mail-search-backend nil
   "Mail search backend currently in use. One of the three symbols
 notmuch, namazu, or mairix."
-  :group 'gnorb-gnus
   :type 'symbol)
 
 (defcustom gnorb-gnus-capture-always-attach nil
@@ -82,13 +79,11 @@ notmuch, namazu, or mairix."
   specified the :gnus-attachments key.
 
 Basically behave as if all attachments have \":gnus-attachments t\"."
-  :group 'gnorb-gnus
   :type 'boolean)
 
 (defcustom gnorb-gnus-new-todo-capture-key nil
   "Key for the capture template to use when creating a new TODO
   from an outgoing message."
-  :group 'gnorb-gnus
   :type 'string)
 
 (defcustom gnorb-gnus-copy-message-text nil
@@ -98,21 +93,18 @@ should the text of the message be saved?
 If t, the body text of the message is pushed onto the kill ring.
 If a char value, the text is saved into the corresponding
 register."
-  :group 'gnorb-gnus
   :type '(choice boolean
 		 character))
 
 (defcustom gnorb-gnus-hint-relevant-article t
   "When opening a gnus message, should gnorb let you know if the
   message is relevant to an existing TODO?"
-  :group 'gnorb-gnus
   :type 'boolean)
 
 (defcustom gnorb-gnus-tick-all-tracked-messages nil
   "When non-nil, add the tick mark to all tracked messages.
 This happens only once, at the time the association is created.
 Ticks can be safely removed later."
-  :group 'gnorb-gnus
   :type 'boolean)
 
 (defcustom gnorb-gnus-auto-tag-messages nil
@@ -120,7 +112,6 @@ Ticks can be safely removed later."
 When creating associations between Org headings and messages,
 automatically copy the heading's tags on to the message, using
 the registry."
-  :group 'gnorb-gnus
   :type 'boolean)
 
 (defcustom gnorb-gnus-summary-mark-format-letter "g"
@@ -131,7 +122,6 @@ the registry."
   result in the insertion of the value of
   `gnorb-gnus-summary-mark', for relevant messages, or
   else a space."
-  :group 'gnorb-gnus
   :type 'string)
 
 (defcustom gnorb-gnus-summary-tags-format-letter "G"
@@ -139,19 +129,16 @@ the registry."
 Add this format specification to your `gnus-summary-line-format'
 to show the tags which are currently applied to the message.
 Must be prefixed with \"u\", eg. \"%uG\"."
-  :group 'gnorb-gnus
   :type 'string)
 
 (defcustom gnorb-gnus-summary-mark "¡"
   "Default mark to insert in the summary format line of articles
   that are likely relevant to existing TODO headings."
-  :group 'gnorb-gnus
   :type 'string)
 
 (defcustom gnorb-gnus-summary-tracked-mark "&"
   "Default mark to insert in the summary format line of articles
   that are already tracked by TODO headings."
-  :group 'gnorb-gnus
   :type 'string)
 
 (defcustom gnorb-gnus-trigger-refile-targets
@@ -159,14 +146,12 @@ Must be prefixed with \"u\", eg. \"%uG\"."
   "A value to use as an equivalent of `org-refile-targets' (which
   see) when offering trigger targets for
   `gnorb-gnus-incoming-do-todo'."
-  :group 'gnorb-gnus
   :type 'list)
 
 (defcustom gnorb-gnus-refile-use-outline-path 'org
   "Gnorb equivalent of `org-refile-use-outline-path' (which see).
 Used when selecting Org headings for triggering or attaching
 attachments."
-  :group 'gnorb-gnus
   :type '(choice
 	  (const :tag "Not" nil)
 	  (const :tag "Yes" t)
@@ -185,7 +170,6 @@ list of strings, which are assumed to be fully qualified
 server+group combinations, ie \"nnimap+Server:[Gmail]/Sent
 Mail\", or something similar. This only has to be done once for
 each message."
-  :group 'gnorb-gnus
   :type '(repeat (string :tag "Group name")))
 
 (defvar gnorb-gnus-capture-attachments nil

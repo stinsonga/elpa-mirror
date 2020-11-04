@@ -48,7 +48,7 @@
 `gnorb-org-trigger-actions'"
  "September 8, 2014" 'set)
 
-(defvar gnorb-tmp-dir (make-temp-file "emacs-gnorb" t)
+(defvar gnorb-tmp-dir (make-temp-file "emacs-gnorb-" t)
   "Temporary directory where attachments etc are saved.")
 
 (defvar gnorb-message-org-ids nil
@@ -573,11 +573,10 @@ group."
 
 (defun gnorb-find-tracked-headings (headers &optional include-zombies)
   "Check HEADERS for message references and return relevant heading IDs.
+HEADERS is a message's data header, as produced by
+\(gnus-interactive \"H\"), or, equivalently:
 
-HEADERs is a message's data header, as produced by
-\(gnus-interactive \"H\"\), or, equivalently:
-
-\(gnus-data-header \(gnus-data-find \(gnus-summary-article-number\)\)\)"
+\(gnus-data-header (gnus-data-find (gnus-summary-article-number)))"
   (let ((references (mail-header-references headers))
 	(msg-id (mail-header-message-id headers)))
     (when gnorb-tracking-enabled
@@ -586,7 +585,6 @@ HEADERs is a message's data header, as produced by
 
 (defun gnorb-choose-trigger-heading (&optional id)
   "Given an Org heading ID, ask the user if they want to trigger it.
-
 If not, prompt for another target heading. Either way, return the
 target heading id."
   (let ((id (if (stringp id)
