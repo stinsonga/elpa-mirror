@@ -31,6 +31,7 @@
 (require 'org-attach)
 (require 'org-capture)
 (require 'gnorb-utils)
+(require 'gnorb-registry)
 (require 'mm-decode)
 
 (declare-function org-gnus-article-link "org-gnus"
@@ -38,6 +39,11 @@
 (declare-function org-gnus-follow-link "org-gnus"
 		  (group article))
 (declare-function org-make-tags-matcher "org" (match))
+(declare-function gnorb-org-restore-after-send "gnorb-org")
+(declare-function gnorb-org-attachment-list "gnorb-org")
+
+(autoload 'gnorb-gnus-nnir-search "nngnorb")
+(autoload 'gnorb-gnus-nnir-registry-search "nngnorb")
 
 (defgroup gnorb-gnus nil
   "The Gnus bits of Gnorb."
@@ -175,6 +181,10 @@ each message."
 (defvar gnorb-gnus-capture-attachments nil
   "Holding place for attachment names during the capture
   process.")
+
+(defvar-local gnorb-gnus-attachment-file-list nil
+  "A place to store Org attachments relevant to the subtree being
+  viewed.")
 
 ;;; What follows is a very careful copy-pasta of bits and pieces from
 ;;; mm-decode.el and gnus-art.el. Voodoo was involved.
@@ -470,12 +480,12 @@ work."
 	;; Even if you make a link to not-yet-sent messages, even if
 	;; you've saved the draft and it has a Date header, that
 	;; header isn't saved into the link plist. So fake that, too.
-	(org-add-link-props
+	(org-link-add-props
 	 :date date
 	 :date-timestamp date-ts
 	 :date-timestamp-inactive date-ts-ia
 	 :annotation link)
-      (org-store-link-props
+      (org-link-store-props
        :subject (plist-get gnorb-gnus-message-info :subject)
        :to (plist-get gnorb-gnus-message-info :to)
        :date date
@@ -729,31 +739,25 @@ sender:google.com subject:\"your search results\""
 		      this-pass)
 	      this-pass nil)))
     (if found
-	(let* ((server (gnorb-gnus-find-gnorb-server))
-	       (artlist
-		(delq
-		 nil
-		 (mapcar
-		  (lambda (msg)
-		    (pcase-let ((`(,group . ,artno)
-				 (gnorb-msg-id-request-head
-				  msg (car-safe
-				       (gnus-registry-get-id-key msg 'group)))))
-		      (when (and group artno (integerp artno) (> artno 0))
-			(vector group artno 100))))
-		  (delq nil (delete-dups found)))))
-	       (name "registry messages")
-	       (spec (list
-		      (cons 'nnir-specs (list (cons 'nnir-query-spec
-						    `((query . "dummy")
-						      (articles . ,artlist)))
-					      (cons 'nnir-group-spec
-						    `((,server ,(list name))))))
-		      (cons 'nnir-artlist nil))))
+	(let ((artlist
+	       (delq
+		nil
+		(mapcar
+		 (lambda (msg)
+		   (pcase-let ((`(,group . ,artno)
+				(gnorb-msg-id-request-head
+				 msg (car-safe
+				      (gnus-registry-get-id-key msg 'group)))))
+		     (when (and group artno (integerp artno) (> artno 0))
+		       (vector group artno 100))))
+		 (delq nil (delete-dups found))))))
 	  (switch-to-buffer gnus-group-buffer)
-	  (gnus-group-read-ephemeral-group
-	   name `(nnir ,server) nil `(switch-to-buffer ,gnus-group-buffer)
-	   nil nil spec))
+	  (if (featurep 'nnselect)
+	      (gnus-group-read-ephemeral-group
+	       "registry messages" '(nnselect "nnselect-gnorb") nil
+	       `(switch-to-buffer ,gnus-group-buffer)
+	       nil nil `((nnselect-artlist . ,artlist)))
+	    (gnorb-gnus-nnir-registry-search artlist)))
       (message "No results found"))))
 
 ;;;###autoload
@@ -879,70 +883,284 @@ ephemeral one, with RET as the value of its quit-config."
     (gnus))
   (if (featurep 'nnselect)
       (gnorb-gnus-nnselect-search str persist head-text ret)
-    (require 'nnir)
-    (let* ((nnir-address (gnorb-gnus-find-gnorb-server))
-	   (name (if persist
-		     (read-string
-		      (format "Name for group (default %s): " head-text)
-		      nil nil head-text)
-		   (concat "gnorb-" str)))
-	   (method (list 'nnir nnir-address))
-	   (spec (list
-		  (cons 'nnir-specs (list (cons 'nnir-query-spec
-						`((query . ,str)))
-					  (cons 'nnir-group-spec
-						`((,nnir-address ,(list name))))))
-		  (cons 'nnir-artlist nil))))
-      (if persist
-	  (progn
-	    (switch-to-buffer gnus-group-buffer)
-	    (gnus-group-make-group name method nil spec)
-	    (gnus-group-select-group))
-	(gnus-group-read-ephemeral-group name method nil ret nil nil spec)))))
+    (gnorb-gnus-nnir-search str persist head-text ret)))
 
 (defun gnorb-gnus-nnselect-search (str persist &optional head-text ret)
   "Display gnus messages using the nnselect backend."
-  (if persist
-      (let ((name (gnus-read-group
-		   (format "Name for group (default %s): " head-text)
-		   head-text)))
-	(with-current-buffer gnus-group-buffer
-	  (gnus-group-make-group
-	   name (list 'nnselect "nnselect-gnorb")
-	   nil (list
-		(cons 'nnselect-specs
-		      (list (cons 'nnselect-function 'gnorb-run-search)
-			    (cons 'nnselect-args str)))
-		(cons 'nnselect-artlist nil)))))
-    (gnus-group-read-ephemeral-group
-     (concat "nnselect-" (message-unique-id))
-     (list 'nnselect "nnselect-gnorb")
-     nil ret nil nil
-     (list
-      (cons 'nnselect-specs
-	    (list
-	     (cons 'nnselect-function 'gnorb-run-search)
-	     (cons 'nnselect-args str)))
-      (cons 'nnselect-artlist nil)))))
+  (let ((specs `((nnselect-specs
+		  (nnselect-function . gnorb-run-search)
+		  (nnselect-args . ,str)))))
+    (if persist
+	(let ((name (gnus-read-group
+		     (format "Name for group (default %s): " head-text)
+		     head-text)))
+	  (with-current-buffer gnus-group-buffer
+	    (gnus-group-make-group
+	     name (list 'nnselect "nnselect-gnorb")
+	     nil specs)))
+      (gnus-group-read-ephemeral-group
+       (concat "nnselect-" (message-unique-id))
+       (list 'nnselect "nnselect-gnorb")
+       nil ret nil nil specs))))
 
-(defun gnorb-gnus-find-gnorb-server (&optional no-error)
-  "Try very hard to find a local nngnorb server.
-If NO-ERROR is non-nil, return nil on failure, otherwise an
-error."
-  (or (catch 'found
-	;; Try very hard to find the server.
-	(when (assoc 'nngnorb gnus-secondary-select-methods)
-	  (throw 'found
-		 (format
-		  "nngnorb:%s"
-		  (nth 1 (assoc 'nngnorb
-				gnus-secondary-select-methods)))))
-	(dolist (s (append gnus-server-alist gnus-server-method-cache))
-	  (when (eq 'nngnorb (cadr s))
-	    (throw 'found (car s)))))
-      (unless no-error
-	(user-error
-	 "Please add a \"nngnorb\" backend to your gnus installation."))))
+(defun gnorb-run-search (q)
+  (save-window-excursion
+    (let ((buf (get-buffer-create "gnorb search"))
+	  msg-ids org-ids links vectors)
+      (with-current-buffer buf
+	(erase-buffer)
+	(setq gnorb-gnus-attachment-file-list nil))
+      (cond ((string-match "id\\+\\([[:alnum:]-]+\\)$" q)
+	     (with-demoted-errors "Error: %S"
+	       (org-id-goto (match-string 1 q))
+	       (save-restriction
+		 (org-narrow-to-subtree)
+		 (append-to-buffer
+		  buf
+		  (point-min)
+		  (point-max))
+		 (setq org-ids
+		       (append
+			(gnorb-collect-ids)
+			org-ids))
+		 (when org-ids
+		   (with-current-buffer buf
+		     ;; The file list var is buffer local, so set it
+		     ;; (local to Gnorb's search buffer) to a full
+		     ;; list of all files in the subtree.
+		     (dolist (id org-ids)
+		       (setq gnorb-gnus-attachment-file-list
+			     (append (gnorb-org-attachment-list id)
+				     gnorb-gnus-attachment-file-list))))))))
+	    ((listp q)
+	     ;; be a little careful: this could be a list of links, or
+	     ;; it could be the full plist
+	     (setq links (if (plist-member q :gnus)
+			     (plist-get q :gnus)
+			   q)))
+	    (t (org-map-entries
+		(lambda ()
+		  (push (org-id-get) org-ids)
+		  (append-to-buffer
+		   buf
+		   (point)
+		   (save-excursion
+		     (outline-next-heading)
+		     (point))))
+		q
+		'agenda)))
+      (with-current-buffer buf
+	(goto-char (point-min))
+	(setq links (append
+		     (alist-get 'gnus (gnorb-scan-links (point-max) 'gnus))
+		     links))
+
+	(goto-char (point-min)))
+      ;; First add all links to messages (elements of messages should
+      ;; look like (group-name message-id)).
+      (dolist (l links)
+	(push (org-link-unescape
+	       (nth 1 (split-string l "#")))
+	      msg-ids))
+
+      (unless (gnus-alive-p)
+	(gnus))
+
+      ;; Then use the registry to turn list of org-ids into list of
+      ;; msg-ids.
+      (dolist (i (delq nil (delete-dups org-ids)))
+	(when-let ((rel-msg-id (gnorb-registry-org-id-search i)))
+	  (setq msg-ids (append (delq nil rel-msg-id) msg-ids))))
+
+      ;; Then find the group and article number for each msg-id, and
+      ;; push that onto our return value "vectors".
+      (when msg-ids
+	(dolist (id (delete-dups msg-ids) (when vectors
+					    (nreverse vectors)))
+	  (pcase-let ((`(,group . ,artno) (gnorb-msg-id-request-head id)))
+	    (when (and artno (integerp artno) (> artno 0))
+	      (push (vector group artno 100) vectors))))))))
+
+(defvar gnorb-summary-minor-mode-map (make-sparse-keymap)
+  "Keymap for use in Gnorb's *Summary* minor mode.")
+
+(define-minor-mode gnorb-summary-minor-mode
+  "A minor mode for use in nnir *Summary* buffers created by Gnorb.
+These *Summary* buffers are usually created by calling
+`gnorb-org-view', or by otherwise initiating a search of
+Gnorb-tracked messages.
+
+While active, this mode provides some Gnorb-specific commands,
+and also advises Gnus' reply-related commands in order to
+continue to provide tracking of sent messages."
+  nil " Gnorb" gnorb-summary-minor-mode-map
+  (setq gnorb-gnus-attachment-file-list
+	;; Copy the list of attached files from the nnir-tmp-buffer to
+	;; this summary buffer.
+	(buffer-local-value
+	 'gnorb-gnus-attachment-file-list
+	  (get-buffer-create nnir-tmp-buffer))))
+
+(define-key gnorb-summary-minor-mode-map
+  [remap gnus-summary-exit]
+  'gnorb-summary-exit)
+
+(define-key gnorb-summary-minor-mode-map (kbd "C-c d")
+  'gnorb-summary-disassociate-message)
+
+;; All this is pretty horrible, but it's the only way to get sane
+;; behavior, there are no appropriate hooks, and I want to avoid
+;; advising functions.
+
+(define-key gnorb-summary-minor-mode-map
+  [remap gnus-summary-very-wide-reply-with-original]
+  'gnorb-summary-very-wide-reply-with-original)
+
+(define-key gnorb-summary-minor-mode-map
+  [remap gnus-summary-wide-reply-with-original]
+  'gnorb-summary-wide-reply-with-original)
+
+(define-key gnorb-summary-minor-mode-map
+  [remap gnus-summary-reply]
+  'gnorb-summary-reply)
+
+(define-key gnorb-summary-minor-mode-map
+  [remap gnus-summary-very-wide-reply]
+  'gnorb-summary-very-wide-reply)
+
+(define-key gnorb-summary-minor-mode-map
+  [remap gnus-summary-reply-with-original]
+  'gnorb-summary-reply-with-original)
+
+(define-key gnorb-summary-minor-mode-map
+  [remap gnus-summary-wide-reply]
+  'gnorb-summary-wide-reply)
+
+(define-key gnorb-summary-minor-mode-map
+  [remap gnus-summary-mail-forward]
+  'gnorb-summary-mail-forward)
+
+(defun gnorb-summary-wide-reply (&optional yank)
+  (interactive
+   (list (and current-prefix-arg
+	      (gnus-summary-work-articles 1))))
+  (gnorb-summary-reply yank t))
+
+(defun gnorb-summary-reply-with-original (n &optional wide)
+  (interactive "P")
+  (gnorb-summary-reply (gnus-summary-work-articles n) wide))
+
+(defun gnorb-summary-very-wide-reply (&optional yank)
+  (interactive
+   (list (and current-prefix-arg
+	      (gnus-summary-work-articles 1))))
+  (gnorb-summary-reply yank t (gnus-summary-work-articles yank)))
+
+(defun gnorb-summary-reply (&optional yank wide very-wide)
+  (interactive)
+  (gnus-summary-reply yank wide very-wide)
+  (gnorb-summary-reply-hook))
+
+(defun gnorb-summary-wide-reply-with-original (n)
+  (interactive "P")
+  (gnorb-summary-reply-with-original n t))
+
+(defun gnorb-summary-very-wide-reply-with-original (n)
+  (interactive "P")
+  (gnorb-summary-reply
+   (gnus-summary-work-articles n) t (gnus-summary-work-articles n)))
+
+(defun gnorb-summary-mail-forward (n)
+  (interactive "P")
+  (gnus-summary-mail-forward n t)
+  (gnorb-summary-reply-hook))
+
+(defun gnorb-summary-reply-hook (&rest _args)
+  "Function that runs after any command that creates a reply."
+  ;; Not actually a "hook"
+  (let* ((msg-id (if message-reply-headers
+		     (aref message-reply-headers 4)
+		   ;; When forwarding messages,
+		   ;; `message-reply-headers' is nil.
+		   (save-excursion
+		     (let ((case-fold-search t))
+		       (when (re-search-forward "message-id: +\\(.*\\)$" (point-max) t)
+			 (match-string 1))))))
+	 (org-id (car-safe (gnus-registry-get-id-key msg-id 'gnorb-ids)))
+	 (compose-marker (make-marker))
+	 (attachments (buffer-local-value
+		       'gnorb-gnus-attachment-file-list
+		       (get-buffer "gnorb search"))))
+    (when org-id
+      (move-marker compose-marker (point))
+      (save-restriction
+	(widen)
+	(message-narrow-to-headers-or-head)
+	(goto-char (point-at-bol))
+	(open-line 1)
+	(message-insert-header
+	 (intern gnorb-mail-header)
+	 org-id)
+	;; As with elsewhere, this should be redundant with
+	;; `gnorb-gnus-check-outgoing-headers.'  Even if not, it
+	;; should be switched to use `message-send-actions'
+	;; (add-to-list 'message-exit-actions
+	;; 'gnorb-org-restore-after-send t)
+	)
+      (goto-char compose-marker))
+    (when attachments
+      (map-y-or-n-p
+       (lambda (a) (format "Attach %s to outgoing message? "
+			   (file-name-nondirectory a)))
+       (lambda (a)
+	 (mml-attach-file a (mm-default-file-encoding a)
+			  nil "attachment"))
+       attachments
+       '("file" "files" "attach")))))
+
+;; TODO: Can this be done using Gnus' quit-config?
+(defun gnorb-summary-exit ()
+  "Like `gnus-summary-exit', but restores the gnorb window conf."
+  (interactive)
+  (call-interactively 'gnus-summary-exit)
+  (gnorb-restore-layout))
+
+(defun gnorb-summary-disassociate-message ()
+  "Disassociate a message from its Org TODO.
+This is used in a Gnorb-created *Summary* buffer to remove the
+connection between the message and whichever Org TODO resulted in
+the message being included in this search."
+  (interactive)
+  (unless (get-buffer-window gnus-article-buffer t)
+    (gnus-summary-display-article
+     (gnus-summary-article-number)))
+  (let* ((msg-id (gnus-fetch-original-field "message-id"))
+	 (org-ids (gnus-registry-get-id-key msg-id 'gnorb-ids))
+	 chosen multiple-alist)
+    (if org-ids
+	(progn
+	  (if (= (length org-ids) 1)
+	      ;; Only one associated Org TODO.
+	      (progn (gnus-registry-set-id-key msg-id 'gnorb-ids nil)
+		     (setq chosen (car org-ids)))
+	    ;; Multiple associated TODOs, prompt to choose one.
+	    (setq multiple-alist
+		  (mapcar
+		   (lambda (h)
+		     (cons (gnorb-pretty-outline h) h))
+		   org-ids))
+	    (setq chosen
+		  (cdr
+		   (assoc
+		    (org-completing-read
+		     "Choose a TODO to disassociate from: "
+		     multiple-alist)
+		    multiple-alist)))
+	    (gnus-registry-set-id-key msg-id 'gnorb-ids
+				      (remove chosen org-ids)))
+	  (message "Message disassociated from %s"
+		   (gnorb-pretty-outline chosen)))
+      (message "Message has no associations"))))
 
 (defun gnorb-gnus-summary-mode-hook ()
   "Check if we've entered a Gnorb-generated group, and activate

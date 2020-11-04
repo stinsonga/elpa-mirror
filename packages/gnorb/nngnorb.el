@@ -21,36 +21,43 @@
 
 ;;; Commentary:
 
-;; This is a backend for supporting Gnorb-related stuff. I'm going to
-;; regret this, I know.
+;; This is a backend for supporting Gnorb-related stuff.  In Emacs 28
+;; this file is not needed, and won't be loaded.
 
-;; It started off just with wanting to collect all the gnus links in a
-;; subtree, and display all the messages in an ephemeral group. But it
-;; doesn't seem possible to create ephemeral groups without
-;; associating them with a server, and which server would that be?
-;; Nnir also provides a nice interface to creating ephemeral groups,
-;; but again, it relies on a server parameter to know which nnir
-;; engine to use, and if you try to fake it it still craps out.
+;; In Emacs 27 and below, Gnus searches are governed by nnir.el.
+;; Because of the way nnir is set up, the actual function to call the
+;; search is hardcoded to the server-type found in the nnir address.
 
-;; So this file is a copy-pasta from nnnil.el -- I'm trying to keep
-;; this as simple as possible. Right now it does nothing but serving
-;; as a place to hang ephemeral groups made with nnir searches of
-;; message from the rest of your gnus installation. Enjoy.
+;; The upshot is that, if you want to return arbitrary lists of
+;; messages, possibly from multiple groups/servers, you can't simply
+;; feed your own search function to nnir.  You have to create a whole
+;; new Gnus server, and then associate your search function with that
+;; server in `nnir-engines'.  Thus this library, which creates an
+;; entire fake Gnus backend and requires users to add it to their Gnus
+;; config, just so we can call our function.
+
+;; It works by creating an nnir group with a gnorb address.  nnir then
+;; looks up the gnorb address and sees that it should use
+;; `nnir-run-gnorb' for the search, it calls that function, which ends
+;; up calling back to `gnorb-run-search', which is the function that
+;; does the real work.
+
+;; In Emacs 28 and above, Gnorb searches are displayed using the
+;; nnselect backend, which allows us to specify our own arbitrary
+;; function -- `gnorb-run-search' -- for retrieving search results,
+;; making the whole thing much simpler.
 
 ;;; Code:
 
 (require 'gnus)
 (eval-and-compile
+  (require 'gnus-group)
   (require 'nnheader)
   (require 'nnir))
 
+(declare-function gnorb-run-search "gnorb-gnus")
+
 (defvar nngnorb-status-string "")
-
-(defvar nngnorb-attachment-file-list nil
-  "A place to store Org attachments relevant to the subtree being
-  viewed.")
-
-(make-variable-buffer-local 'nngnorb-attachment-file-list)
 
 (gnus-declare-backend "nngnorb" 'post-mail 'virtual)
 
@@ -83,263 +90,60 @@ be scanned for gnus messages, and those messages displayed."
 	(setq q (car q)))
       (gnorb-run-search q))))
 
-(defun gnorb-run-search (q)
-  (save-window-excursion
-    (let ((buf (get-buffer-create nnir-tmp-buffer))
-	  msg-ids org-ids links vectors)
-      (with-current-buffer buf
-	(erase-buffer)
-	(setq nngnorb-attachment-file-list nil))
-      (cond ((string-match "id\\+\\([[:alnum:]-]+\\)$" q)
-	     (with-demoted-errors "Error: %S"
-	       (org-id-goto (match-string 1 q))
-	       (save-restriction
-		 (org-narrow-to-subtree)
-		 (append-to-buffer
-		  buf
-		  (point-min)
-		  (point-max))
-		 (setq org-ids
-		       (append
-			(gnorb-collect-ids)
-			org-ids))
-		 (when org-ids
-		   (with-current-buffer buf
-		     ;; The file list var is buffer local, so set it
-		     ;; (local to the nnir-tmp-buffer) to a full list
-		     ;; of all files in the subtree.
-		     (dolist (id org-ids)
-		       (setq nngnorb-attachment-file-list
-			     (append (gnorb-org-attachment-list id)
-				     nngnorb-attachment-file-list))))))))
-	    ((listp q)
-	     ;; be a little careful: this could be a list of links, or
-	     ;; it could be the full plist
-	     (setq links (if (plist-member q :gnus)
-			     (plist-get q :gnus)
-			   q)))
-	    (t (org-map-entries
-		(lambda ()
-		  (push (org-id-get) org-ids)
-		  (append-to-buffer
-		   buf
-		   (point)
-		   (save-excursion
-		     (outline-next-heading)
-		     (point))))
-		q
-		'agenda)))
-      (with-current-buffer buf
-	(goto-char (point-min))
-	(setq links (append
-		     (alist-get 'gnus (gnorb-scan-links (point-max) 'gnus))
-		     links))
-
-	(goto-char (point-min)))
-      ;; First add all links to messages (elements of messages should
-      ;; look like (group-name message-id)).
-      (dolist (l links)
-	(push (org-link-unescape
-	       (nth 1 (split-string l "#")))
-	      msg-ids))
-
-      (unless (gnus-alive-p)
-	(gnus))
-
-      ;; Then use the registry to turn list of org-ids into list of
-      ;; msg-ids.
-      (dolist (i (delq nil (delete-dups org-ids)))
-	(when-let ((rel-msg-id (gnorb-registry-org-id-search i)))
-	  (setq msg-ids (append (delq nil rel-msg-id) msg-ids))))
-
-      ;; Then find the group and article number for each msg-id, and
-      ;; push that onto our return value "vectors".
-      (when msg-ids
-	(dolist (id (delete-dups msg-ids) (when vectors
-					    (nreverse vectors)))
-	  (pcase-let ((`(,group . ,artno) (gnorb-msg-id-request-head id)))
-	    (when (and artno (integerp artno) (> artno 0))
-	      (push (vector group artno 100) vectors))))))))
-
-(defvar gnorb-summary-minor-mode-map (make-sparse-keymap)
-  "Keymap for use in Gnorb's *Summary* minor mode.")
-
-(define-minor-mode gnorb-summary-minor-mode
-  "A minor mode for use in nnir *Summary* buffers created by Gnorb.
-
-These *Summary* buffers are usually created by calling
-`gnorb-org-view', or by initiating an nnir search on a nngnorb server.
-
-While active, this mode provides some Gnorb-specific commands,
-and also advises Gnus' reply-related commands in order to
-continue to provide tracking of sent messages."
-  nil " Gnorb" gnorb-summary-minor-mode-map
-  (setq nngnorb-attachment-file-list
-	;; Copy the list of attached files from the nnir-tmp-buffer to
-	;; this summary buffer.
-	(buffer-local-value
-	 'nngnorb-attachment-file-list
-	  (get-buffer-create nnir-tmp-buffer))))
-
-(define-key gnorb-summary-minor-mode-map
-  [remap gnus-summary-exit]
-  'gnorb-summary-exit)
-
-(define-key gnorb-summary-minor-mode-map (kbd "C-c d")
-  'gnorb-summary-disassociate-message)
-
-;; All this is pretty horrible, but it's the only way to get sane
-;; behavior, there are no appropriate hooks, and I want to avoid
-;; advising functions.
-
-(define-key gnorb-summary-minor-mode-map
-  [remap gnus-summary-very-wide-reply-with-original]
-  'gnorb-summary-very-wide-reply-with-original)
-
-(define-key gnorb-summary-minor-mode-map
-  [remap gnus-summary-wide-reply-with-original]
-  'gnorb-summary-wide-reply-with-original)
-
-(define-key gnorb-summary-minor-mode-map
-  [remap gnus-summary-reply]
-  'gnorb-summary-reply)
-
-(define-key gnorb-summary-minor-mode-map
-  [remap gnus-summary-very-wide-reply]
-  'gnorb-summary-very-wide-reply)
-
-(define-key gnorb-summary-minor-mode-map
-  [remap gnus-summary-reply-with-original]
-  'gnorb-summary-reply-with-original)
-
-(define-key gnorb-summary-minor-mode-map
-  [remap gnus-summary-wide-reply]
-  'gnorb-summary-wide-reply)
-
-(define-key gnorb-summary-minor-mode-map
-  [remap gnus-summary-mail-forward]
-  'gnorb-summary-mail-forward)
-
-(defun gnorb-summary-wide-reply (&optional yank)
-  (interactive
-   (list (and current-prefix-arg
-	      (gnus-summary-work-articles 1))))
-  (gnorb-summary-reply yank t))
-
-(defun gnorb-summary-reply-with-original (n &optional wide)
-  (interactive "P")
-  (gnorb-summary-reply (gnus-summary-work-articles n) wide))
-
-(defun gnorb-summary-very-wide-reply (&optional yank)
-  (interactive
-   (list (and current-prefix-arg
-	      (gnus-summary-work-articles 1))))
-  (gnorb-summary-reply yank t (gnus-summary-work-articles yank)))
-
-(defun gnorb-summary-reply (&optional yank wide very-wide)
-  (interactive)
-  (gnus-summary-reply yank wide very-wide)
-  (gnorb-summary-reply-hook))
-
-(defun gnorb-summary-wide-reply-with-original (n)
-  (interactive "P")
-  (gnorb-summary-reply-with-original n t))
-
-(defun gnorb-summary-very-wide-reply-with-original (n)
-  (interactive "P")
-  (gnorb-summary-reply
-   (gnus-summary-work-articles n) t (gnus-summary-work-articles n)))
-
-(defun gnorb-summary-mail-forward (n)
-  (interactive "P")
-  (gnus-summary-mail-forward n t)
-  (gnorb-summary-reply-hook))
-
-(defun gnorb-summary-reply-hook (&rest _args)
-  "Function that runs after any command that creates a reply."
-  ;; Not actually a "hook"
-  (let* ((msg-id (if message-reply-headers
-		     (aref message-reply-headers 4)
-		   ;; When forwarding messages,
-		   ;; `message-reply-headers' is nil.
-		   (save-excursion
-		     (let ((case-fold-search t))
-		       (when (re-search-forward "message-id: +\\(.*\\)$" (point-max) t)
-			 (match-string 1))))))
-	 (org-id (car-safe (gnus-registry-get-id-key msg-id 'gnorb-ids)))
-	 (compose-marker (make-marker))
-	 (attachments (buffer-local-value
-		       'nngnorb-attachment-file-list
-		       (get-buffer nnir-tmp-buffer))))
-    (when org-id
-      (move-marker compose-marker (point))
-      (save-restriction
-	(widen)
-	(message-narrow-to-headers-or-head)
-	(goto-char (point-at-bol))
-	(open-line 1)
-	(message-insert-header
-	 (intern gnorb-mail-header)
-	 org-id)
-	;; As with elsewhere, this should be redundant with
-	;; `gnorb-gnus-check-outgoing-headers.'  Even if not, it
-	;; should be switched to use `message-send-actions'
-	;; (add-to-list 'message-exit-actions
-	;; 'gnorb-org-restore-after-send t)
-	)
-      (goto-char compose-marker))
-    (when attachments
-      (map-y-or-n-p
-       (lambda (a) (format "Attach %s to outgoing message? "
-			   (file-name-nondirectory a)))
-       (lambda (a)
-	 (mml-attach-file a (mm-default-file-encoding a)
-			  nil "attachment"))
-       attachments
-       '("file" "files" "attach")))))
-
-(defun gnorb-summary-exit ()
-  "Like `gnus-summary-exit', but restores the gnorb window conf."
-  (interactive)
-  (call-interactively 'gnus-summary-exit)
-  (gnorb-restore-layout))
-
-(defun gnorb-summary-disassociate-message ()
-  "Disassociate a message from its Org TODO.
-This is used in a Gnorb-created *Summary* buffer to remove the
-connection between the message and whichever Org TODO resulted in
-the message being included in this search."
-  (interactive)
-  (unless (get-buffer-window gnus-article-buffer t)
-    (gnus-summary-display-article
-     (gnus-summary-article-number)))
-  (let* ((msg-id (gnus-fetch-original-field "message-id"))
-	 (org-ids (gnus-registry-get-id-key msg-id 'gnorb-ids))
-	 chosen multiple-alist)
-    (if org-ids
+(defun gnorb-gnus-nnir-search (str persist head-text ret)
+  "Create an nnir group that is set up to run a Gnorb search."
+  (let* ((nnir-address (gnorb-find-gnorb-server))
+	 (name (if persist
+		   (read-string
+		    (format "Name for group (default %s): " head-text)
+		    nil nil head-text)
+		 (concat "gnorb-" str)))
+	 (method (list 'nnir nnir-address))
+	 (spec (list
+		(cons 'nnir-specs (list (cons 'nnir-query-spec
+					      `((query . ,str)))
+					(cons 'nnir-group-spec
+					      `((,nnir-address ,(list name))))))
+		(cons 'nnir-artlist nil))))
+    (if persist
 	(progn
-	  (if (= (length org-ids) 1)
-	      ;; Only one associated Org TODO.
-	      (progn (gnus-registry-set-id-key msg-id 'gnorb-ids nil)
-		     (setq chosen (car org-ids)))
-	    ;; Multiple associated TODOs, prompt to choose one.
-	    (setq multiple-alist
-		  (mapcar
-		   (lambda (h)
-		     (cons (gnorb-pretty-outline h) h))
-		   org-ids))
-	    (setq chosen
-		  (cdr
-		   (assoc
-		    (org-completing-read
-		     "Choose a TODO to disassociate from: "
-		     multiple-alist)
-		    multiple-alist)))
-	    (gnus-registry-set-id-key msg-id 'gnorb-ids
-				      (remove chosen org-ids)))
-	  (message "Message disassociated from %s"
-		   (gnorb-pretty-outline chosen)))
-      (message "Message has no associations"))))
+	  (switch-to-buffer gnus-group-buffer)
+	  (gnus-group-make-group name method nil spec)
+	  (gnus-group-select-group))
+      (gnus-group-read-ephemeral-group name method nil ret nil nil spec))))
+
+(defun gnorb-gnus-nnir-registry-search (articles)
+  (let ((server (gnorb-find-gnorb-server)))
+    (gnus-group-read-ephemeral-group
+     "registry messages" `(nnir ,server)
+     nil `(switch-to-buffer ,gnus-group-buffer)
+     nil nil `((nnir-specs ((nnir-query-spec
+			     ((query . "dummy")
+			      (articles . ,articles)))
+			    (nnir-group-spec
+			     ((,server ("registry messages"))))))
+	       (nnir-artlist)))))
+
+(defun gnorb-find-gnorb-server (&optional no-error)
+  "Try very hard to find a local nngnorb server.
+If NO-ERROR is non-nil, return nil on failure, otherwise an
+error."
+  (or (catch 'found
+	;; Try very hard to find the server.
+	(when (assoc 'nngnorb gnus-secondary-select-methods)
+	  (throw 'found
+		 (format
+		  "nngnorb:%s"
+		  (nth 1 (assoc 'nngnorb
+				gnus-secondary-select-methods)))))
+	(dolist (s (append gnus-server-alist gnus-server-method-cache))
+	  (when (eq 'nngnorb (cadr s))
+	    (throw 'found (car s)))))
+      (unless no-error
+	(user-error
+	 "Please add a \"nngnorb\" backend to your gnus installation."))))
+
+
 
 (defun nngnorb-retrieve-headers (_articles &optional _group _server _fetch-old)
   (with-current-buffer nntp-server-buffer

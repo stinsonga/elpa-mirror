@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2018-2020  Free Software Foundation, Inc.
 
-;; Version: 1.6.8
+;; Version: 1.6.9
 ;; Package-Requires: ((cl-lib "0.5"))
 
 ;; Maintainer: Eric Abrahamsen <eric@ericabrahamsen.net>
@@ -30,7 +30,6 @@
 ;;; Code:
 
 (with-eval-after-load 'gnus
-  (require 'nngnorb)
   (require 'gnorb-gnus)
   (require 'gnorb-registry))
 (with-eval-after-load 'bbdb
