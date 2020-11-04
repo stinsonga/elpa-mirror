@@ -1,11 +1,11 @@
 ;;; markchars.el --- Mark chars fitting certain characteristics
 
-;; Copyright (C) 2011-2018  Free Software Foundation, Inc.
+;; Copyright (C) 2011-2020  Free Software Foundation, Inc.
 
 ;; Author: Lennart Borgman <lennart.borgman@gmail.com>
 ;; Contributhor: Ted Zlatanov <tzz@lifelogs.com>
 ;; Created: 2010-03-22 Mon
-;; Version: 0.2.1
+;; Version: 0.2.2
 ;; Last-Updated: 2011-04-15
 ;; URL:
 ;; Keywords:
@@ -30,6 +30,12 @@
 ;; 'confusable or 'pattern and the face set to either
 ;; `markchars-face-confusable' or `markchars-face-pattern'
 ;; respectively.
+;;
+;; You can set `nobreak-char-display' to nil, and use
+;; `markchars-nobreak-space' and `markchars-nobreak-hyphen'
+;; in Dired buffers to highlight `nobreak-space' and `nobreak-hyphen'
+;; only in file names, not `nobreak-space' used by thousands separators
+;; in file sizes (bug#44236).
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -65,18 +71,28 @@
   :group 'convenience)
 
 (defface markchars-light
-  '((t (:underline "light blue")))
+  '((t :underline "light blue"))
   "Light face for `markchars-mode' char marking."
   :group 'markchars)
 
 (defface markchars-heavy
-  '((t (:underline "magenta")))
+  '((t :underline "magenta"))
   "Heavy face for `markchars-mode' char marking."
   :group 'markchars)
 
 (defface markchars-white
-  '((t (:underline "white")))
+  '((t :underline "white"))
   "White face for `markchars-mode' char marking."
+  :group 'markchars)
+
+(defface markchars-nobreak-space
+  '((t :inherit nobreak-space))
+  "Face for displaying nobreak space."
+  :group 'markchars)
+
+(defface markchars-nobreak-hyphen
+  '((t :inherit nobreak-hyphen))
+  "Face for displaying nobreak hyphens."
   :group 'markchars)
 
 (defcustom markchars-face-pattern 'markchars-heavy
@@ -101,12 +117,40 @@ By default it matches nonascii-chars."
   :type 'regexp
   :group 'markchars)
 
+(defvar markchars-nobreak-space-pattern
+  (rx (any ;; ?\N{SPACE}
+           ?\N{NO-BREAK SPACE}
+           ?\N{OGHAM SPACE MARK}
+           ?\N{EN QUAD}
+           ?\N{EM QUAD}
+           ?\N{EN SPACE}
+           ?\N{EM SPACE}
+           ?\N{THREE-PER-EM SPACE}
+           ?\N{FOUR-PER-EM SPACE}
+           ?\N{SIX-PER-EM SPACE}
+           ?\N{FIGURE SPACE}
+           ?\N{PUNCTUATION SPACE}
+           ?\N{THIN SPACE}
+           ?\N{HAIR SPACE}
+           ?\N{NARROW NO-BREAK SPACE}
+           ?\N{MEDIUM MATHEMATICAL SPACE}
+           ?\N{IDEOGRAPHIC SPACE}))
+  "A list of characters with general-category `Zs' (Separator, Space).")
+
+(defvar markchars-nobreak-hyphen-pattern
+  (rx (any ?\N{SOFT HYPHEN} ?\N{HYPHEN} ?\N{NON-BREAKING HYPHEN}))
+  "A list of hyphen characters.")
+
 (defcustom markchars-what
   `(markchars-simple-pattern
     markchars-confusables
     ,@(when (fboundp 'idn-is-recommended) '(markchars-nonidn-fun)))
   "Things to mark, a list of regular expressions or symbols."
   :type `(repeat (choice :tag "Marking choices"
+                         (const :tag "Non-ASCII space chars"
+                                markchars-nobreak-space)
+                         (const :tag "Non-ASCII hyphen chars"
+                                markchars-nobreak-hyphen)
                          (const
                           :tag "Non IDN chars (Unicode.org tr39 suggestions)"
                           markchars-nonidn-fun)
@@ -129,6 +173,18 @@ By default it matches nonascii-chars."
                            (when (eq what 'markchars-simple-pattern)
                              (setq what markchars-simple-pattern))
                            (cond
+                            ((eq what 'markchars-nobreak-space)
+                             (list
+                              markchars-nobreak-space-pattern
+                              (list 0 '(markchars--render-nobreak-space
+                                        (match-beginning 0)
+                                        (match-end 0)))))
+                            ((eq what 'markchars-nobreak-hyphen)
+                             (list
+                              markchars-nobreak-hyphen-pattern
+                              (list 0 '(markchars--render-nobreak-hyphen
+                                        (match-beginning 0)
+                                        (match-end 0)))))
                             ((eq what 'markchars-nonidn-fun)
                              (list
                               "\\<\\w+\\>"
@@ -183,6 +239,22 @@ By default it matches nonascii-chars."
           (put-text-property (point) (1+ (point)) 'markchars 'nonidn)
           (put-text-property (point) (1+ (point)) 'face markchars-face-nonidn)))
       (forward-char))))
+
+(defun markchars--render-nobreak-space (beg end)
+  "Assign markchars pattern properties between BEG and END.
+In Dired/WDired buffers, highlight nobreak-space characters
+only in file names, not anywhere else, so it doesn't highlight
+nobreak-space characters used by thousands separators in file sizes."
+  (when (or (not (derived-mode-p 'dired-mode 'wdired-mode))
+            (or (get-text-property beg 'dired-filename)
+                (get-text-property end 'dired-filename)))
+    (put-text-property beg end 'face 'markchars-nobreak-space)
+    (put-text-property beg end 'markchars 'nobreak-space)))
+
+(defun markchars--render-nobreak-hyphen (beg end)
+  "Assign markchars pattern properties between BEG and END."
+  (put-text-property beg end 'face 'markchars-nobreak-hyphen)
+  (put-text-property beg end 'markchars 'nobreak-hyphen))
 
 ;;;###autoload
 (define-minor-mode markchars-mode
