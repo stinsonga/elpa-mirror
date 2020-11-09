@@ -4,7 +4,7 @@
 
 ;; Author: Simen Heggestøyl <simenheg@gmail.com>
 ;; Maintainer: Simen Heggestøyl <simenheg@gmail.com>
-;; Version: 0.1
+;; Version: 0.2
 ;; Package-Requires: ((emacs "25.1"))
 ;; Keywords: data
 
