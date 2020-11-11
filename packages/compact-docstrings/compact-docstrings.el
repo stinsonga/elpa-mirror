@@ -1,11 +1,11 @@
 ;;; compact-docstrings.el --- Shrink blank lines in docstrings and doc comments
 
-;; Copyright (C) 2016  Free Software Foundation, Inc.
+;; Copyright (C) 2016-2020  Free Software Foundation, Inc.
 
 ;; Author: Clément Pit-Claudel <clement.pitclaudel@live.com>
 ;; Maintainer: Clément Pit-Claudel <clement.pitclaudel@live.com>
 ;; URL: https://github.com/cpitclaudel/compact-docstrings
-;; Package-Version: 0.1
+;; Package-Version: 0.2
 ;; Keywords: convenience, faces, lisp, maint, c
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -50,7 +50,7 @@
 (defun compact-docstrings--matcher (bound)
   "Find blank line in docstring, looking in point .. BOUND."
   (let ((found nil))
-    (while (and (not found) (re-search-forward "^\\s-*\n" bound t))
+    (while (and (not found) (re-search-forward "^\n" bound t))
       (let ((syntax (syntax-ppss)))
         (when (and (or (nth 3 syntax)  ;; In string
                        (nth 4 syntax)) ;; In comment
@@ -67,7 +67,7 @@
 ;;;###autoload
 (define-minor-mode compact-docstrings-mode
   "Shrink empty lines in docstrings and doc comments."
-  :lighter " compact"
+  :lighter " →∥←"
   (if compact-docstrings-mode
       (font-lock-add-keywords nil compact-docstrings--keywords 'append)
     (font-lock-remove-keywords nil compact-docstrings--keywords))
