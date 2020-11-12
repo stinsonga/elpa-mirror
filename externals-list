@@ -78,7 +78,7 @@
  ("dts-mode"		:subtree "https://github.com/bgamari/dts-mode.git")
  ("easy-kill"		:subtree "https://github.com/leoliu/easy-kill")
  ("ebdb"                :external "https://github.com/girzel/ebdb.git")
- ("eev"			:external "https://github.com/edrx/eev.git")
+ ("eev"			:external "https://github.com/edrx/eev.git") ;branch UTF-8
  ("eglot"               :external "https://github.com/joaotavora/eglot.git")
  ("eldoc"		:core "lisp/emacs-lisp/eldoc.el")
  ("eldoc-eval"		:subtree "https://github.com/thierryvolpiatto/eldoc-eval.git")
@@ -146,6 +146,7 @@
  ("realgud-node-debug"  :external "https://github.com/realgud/realgud-node-debug")
  ("realgud-node-inspect" :external "https://github.com/realgud/realgud-node-inspect")
  ("realgud-trepan-ni"   :external "https://github.com/realgud/realgud-ni")
+ ("rec-mode"		:external "https://git.savannah.gnu.org/git/recutils/rec-mode.git")
  ("relint"		:external "https://github.com/mattiase/relint")
  ("rich-minority"	:subtree "https://github.com/Malabarba/rich-minority")
  ("rt-liberation"	:external "https://git.savannah.nongnu.org/git/rtliber")
