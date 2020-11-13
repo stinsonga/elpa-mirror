@@ -99,7 +99,7 @@
 version='1.8'
 # If $0 is a symlink, `dirname $0`/hv.sh might not be available,
 # and even if it IS available, how can we be sure it's bonafide?
-test -L $0 || { hv=`dirname $0`/hv.sh ; test -r $hv && . $hv ; }
+test -L "$0" || { hv=`dirname "$0"`/hv.sh ; test -r "$hv" && . "$hv" ; }
 
 # TODO: (here) Validate args.
 
@@ -160,7 +160,7 @@ More at http://elpa.gnu.org/packages/$pkg.html
 ENDDOC
 }
 
-cd ../elpa
+cd ../elpa || exit
 
 # Fetch changes.
 git pull || signal_error "git pull failed"
@@ -175,7 +175,7 @@ emacs --batch -l "$buildir/admin/archive-contents.el" \
 make -f "$buildir/GNUmakefile" check_copyrights ||
     signal_error "check_copyright failed"
 
-cd "$buildir"
+cd "$buildir" || exit
 
 rsync -av --delete                    \
       --exclude=ChangeLog             \
@@ -196,7 +196,7 @@ make archive-full || {
     signal_error "make archive-full failed"
 }
 latest="emacs-packages-latest.tgz"
-(cd archive
+(cd archive || exit
  GZIP=--best tar zcf "$latest" packages)
 (cd ../
  mkdir -p staging/packages
@@ -204,7 +204,7 @@ latest="emacs-packages-latest.tgz"
  mkdir -p staging-old
  rsync -av --inplace --delete staging/. staging-old/.
  # Move new files into place but don't throw out old package versions.
- for f in $buildir/archive/packages/*; do
+ for f in "$buildir"/archive/packages/*; do
      # PKG-VER
      pv=$(basename "$f")
      dst="staging/packages/$pv"
@@ -224,12 +224,12 @@ latest="emacs-packages-latest.tgz"
              fi ;;
      esac
  done
- mv $buildir/archive/"$latest" staging/
- rm -rf $buildir/archive)
+ mv "$buildir"/archive/"$latest" staging/
+ rm -rf "$buildir"/archive)
 
 # Make the HTML and readme.txt files.
-(cd ../staging/packages
- emacs --batch -l $buildir/admin/archive-contents.el \
+(cd ../staging/packages || exit
+ emacs --batch -l "$buildir"/admin/archive-contents.el \
        --eval '(batch-html-make-index)')
 
 # update-archive.sh ends here

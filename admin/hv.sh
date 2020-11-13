@@ -32,15 +32,15 @@
 # Any other value of $1 is silently ignored.
 ##
 
-me=`basename $0`
+me=`basename "$0"`
 
 if [ x"$1" = x--help ] ; then
-    sed '/^##/,/^##/!d;/^##/d;s/^# //g;s/^#$//g' $0
+    sed '/^##/,/^##/!d;/^##/d;s/^# //g;s/^#$//g' "$0"
     exit 0
 fi
 
 if [ x"$1" = x--version ] ; then
-    echo $me ${version:-VERSION UNKNOWN}
+    echo "$me" "${version:-VERSION UNKNOWN}"
     exit 0
 fi
 
