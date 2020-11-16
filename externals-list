@@ -91,6 +91,7 @@
  ("f90-interface-browser" :subtree "https://github.com/wence-/f90-iface")
  ("flymake"		:core "lisp/progmodes/flymake.el")
  ("frog-menu"		:external "https://github.com/clemera/frog-menu")
+ ("gcmh"		:external "https://gitlab.com/koral/gcmh")
  ("ggtags"		:subtree "https://github.com/leoliu/ggtags")
  ("gnome-c-style"	:subtree "https://github.com/ueno/gnome-c-style.git")
  ("gnorb"               :subtree "https://github.com/girzel/gnorb")
