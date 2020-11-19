@@ -3,7 +3,7 @@
 ;; Copyright (C) 2015-2020  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
-;; Version: 1.0
+;; Version: 1.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -139,6 +139,9 @@ no difference."
                  (with-syntax-table sm-c--cpp-syntax-table
                    (nth 4 (parse-partial-sexp (1+ (nth 8 ppss)) (point)))))))
     found))
+
+(defvar syntax-ppss-cache)
+(defvar syntax-ppss-last)
 
 (defun sm-c--cpp-fontify-syntactically (ppss)
   ;; FIXME: ¡¡BIG UGLY HACK!!
@@ -312,7 +315,16 @@ E.g. a #define nested within 2 #ifs will be turned into \"#  define\"."
                                'syntax-table (string-to-syntax "|"))
             (put-text-property (match-beginning 2) (match-end 2)
                                'syntax-table (string-to-syntax "|")))
-          (sm-c--cpp-syntax-propertize end)))))
+          (sm-c--cpp-syntax-propertize end))))
+    ;; Handle // comments that span multiple lines via \\\n!
+    ("\\\\\\(\n\\)"
+     (1 (let ((ppss (save-excursion (syntax-ppss (match-beginning 0)))))
+          (when (and (nth 4 ppss)        ;Within a comment
+                     (null (nth 7 ppss)) ;Within a // comment
+                     (save-excursion     ;The \ is not itself escaped
+                       (goto-char (match-beginning 0))
+                       (zerop (mod (skip-chars-backward "\\\\") 2))))
+            (string-to-syntax "."))))))
    (point) end))
 
 (defun sm-c-syntactic-face-function (ppss)
@@ -795,6 +807,16 @@ if INNER is non-nil, it stops at the innermost one."
     (sm-c--bs-realign-1 (car sm-c--bs-changed) (cdr sm-c--bs-changed))
     (setq sm-c--bs-changed nil)))
 
+(defcustom sm-c-backslash-max-align-column 78
+  "Maximum column to align backslashes.
+Past this column, we do not try to align the backslashes."
+  :type 'integer)
+
+(defun sm-c--bs-current-column ()
+  (let ((col (current-column)))
+    (if (> col sm-c-backslash-max-align-column)
+        0 col)))
+
 (defun sm-c--bs-realign-1 (from to)
   (save-excursion
     (goto-char from)
@@ -802,27 +824,29 @@ if INNER is non-nil, it stops at the innermost one."
     (unless (zerop (mod (skip-chars-backward "\\\\") 2))
       (skip-chars-backward " \t")
       (setq from (point))
-      (let ((col (current-column))
+      (let ((col (sm-c--bs-current-column))
             start end)
         (while
             (progn (setq start (point))
                    (end-of-line 0)
                    (and (< (point) start)
                         (not (zerop (mod (skip-chars-backward "\\\\") 2)))))
-          (skip-chars-backward " \t")
-          (setq col (max (current-column) col)))
+          (unless (>= col sm-c-backslash-max-align-column)
+            (skip-chars-backward " \t")
+            (setq col (max (sm-c--bs-current-column) col))))
         (goto-char from)
         (while
             (progn (setq end (point))
                    (end-of-line 2)
                    (and (> (line-beginning-position) end)
                         (not (zerop (mod (skip-chars-backward "\\\\") 2)))))
-          (skip-chars-backward " \t")
-          (setq col (max (current-column) col)))
+          (unless (>= col sm-c-backslash-max-align-column)
+            (skip-chars-backward " \t")
+            (setq col (max (sm-c--bs-current-column) col))))
         (goto-char to)
         (beginning-of-line)
-        (unless (or (> (point) end)       ;Don't realign if we changed outside!
-                    (<= end start))        ;A lone \
+        (unless (or (> (point) end)     ;Don't realign if we changed outside!
+                    (<= end start))     ;A lone \
           
           (setq col (1+ col))         ;Add a space before the backslashes.
           (goto-char end)
@@ -834,9 +858,10 @@ if INNER is non-nil, it stops at the innermost one."
               (cond
                ((> col curcol) (indent-to col))
                ((< col curcol)
-                (move-to-column col t)
-                (delete-region (point)
-                               (progn (skip-chars-forward " \t") (point))))))
+                (skip-chars-backward " \t")
+                (unless (> (current-column) col)
+                  (move-to-column col t)
+                  (delete-region (point) (1- (line-end-position)))))))
             (end-of-line 0)))))))
             
 ;;; Font-lock support
