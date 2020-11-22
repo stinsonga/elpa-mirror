@@ -12,8 +12,10 @@
 ;;
 
 ;; For KIND :external URL is the URL of the remote git repository that we want
-;; to track, while in the case of :subtree URL is useless.  For packages of KIND
-;; :core URL must be a list of:
+;; to track, or `nil' if there is no upstream, i.e., if development of this
+;; package takes place directly on the `externals/<name>' branch of the
+;; `elpa.git' repository.  In the case of :subtree URL is useless.  For packages
+;; of KIND :core URL must be a list of:
 ;;    STRING = A file-name to copy from Emacs repo.
 ;;    (STRING STRING) = A file-name to copy renamed from Emacs repo.
 
